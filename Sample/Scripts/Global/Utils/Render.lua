@@ -60,7 +60,7 @@ function Render.UpdateActorPreviewFrame(texture, rect, animatable, switchInterva
     local positionX = (rect.position.x + rect.size.x) % textureWidth
     ---@cast positionX integer
     local nextPosition = sf.Vector2i.new(positionX, rect.position.y)
-    local nextSize = sf.Vector2i.new(rect.size.x, rect.size.y)
+    local nextSize = copy(rect.size)
     ---@cast nextPosition sf.Vector2i
     ---@cast nextSize sf.Vector2i
     local nextRect = sf.IntRect.new(nextPosition, nextSize)

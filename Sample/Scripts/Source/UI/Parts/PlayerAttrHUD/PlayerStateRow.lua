@@ -58,4 +58,4 @@ function PlayerStateRowUI:getWidth()
     return self._width
 end
 
-return Ui.define("Parts/PlayerAttrHUD/PlayerStateRow", PlayerStateRowUI)
+return Ui.Define("Parts/PlayerAttrHUD/PlayerStateRow", PlayerStateRowUI)

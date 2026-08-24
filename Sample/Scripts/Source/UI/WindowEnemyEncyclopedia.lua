@@ -29,6 +29,12 @@ local _SPECIAL_TOP_MARGIN = 16
 
 ---@class Source.UI.WindowEnemyEncyclopedia
 local WindowEnemyEncyclopediaUI = {}
+---@type function
+local formatCriticalText
+---@type function
+local formatHitCount
+---@type function
+local limitLines
 
 function WindowEnemyEncyclopediaUI:init(model, size)
     local logicalSize = sf.Vector2u.new(size.x, size.y)
@@ -90,11 +96,11 @@ end
 ---@param entry Source.UI.WindowEnemyBook.Entry
 function WindowEnemyEncyclopediaUI:_renderEntry(entry)
     local contentWidth = math.max(1, math.floor(self._content:getSize().x))
-    local fittedName = TextLayout.fitPlainText(tostring(entry.name or ""), contentWidth, _NAME_TEXT_CONFIG)
+    local fittedName = TextLayout.FitPlainText(tostring(entry.name or ""), contentWidth, _NAME_TEXT_CONFIG)
     self:setText("Name", fittedName)
     self:setProperty("Name", "visible", true)
-    local displayDescription = WindowEnemyEncyclopediaUI.limitLines(
-        TextLayout.wrapPlainText(tostring(entry.desc or ""), contentWidth, _INFO_TEXT_CONFIG), _DESC_MAX_LINES,
+    local displayDescription = limitLines(
+        TextLayout.WrapPlainText(tostring(entry.desc or ""), contentWidth, _INFO_TEXT_CONFIG), _DESC_MAX_LINES,
         contentWidth
     )
     self:setText("Description", displayDescription)
@@ -103,9 +109,9 @@ function WindowEnemyEncyclopediaUI:_renderEntry(entry)
 
     local portraitHeight = self:_layoutPortrait()
     local nameY = portraitHeight + _NAME_TOP_MARGIN
-    local nameWidth = TextLayout.measurePlainText(_NAME_TEXT_CONFIG, fittedName)
+    local nameWidth = TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, fittedName)
     self._nameControl:setPosition(sf.Vector2f.new((contentWidth - nameWidth) / 2.0, nameY))
-    local nameBottom = nameY + Data.getPlainTextConfig(_NAME_TEXT_CONFIG).characterSize
+    local nameBottom = nameY + Data.GetPlainTextConfig(_NAME_TEXT_CONFIG).characterSize
     local infoY = nameBottom + _INFO_TOP_MARGIN
     self:_layoutInfoLayer(contentWidth, infoY)
     self:buildInfo(entry, infoY)
@@ -172,8 +178,8 @@ function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY)
             )
         end
     end
-    local criticalText = WindowEnemyEncyclopediaUI.formatCriticalText(entry.critical or -2)
-    local hitCount = WindowEnemyEncyclopediaUI.formatHitCount(entry.hitCount)
+    local criticalText = formatCriticalText(entry.critical or -2)
+    local hitCount = formatHitCount(entry.hitCount)
     local criticalColumnIndex = 0
     if bool(hitCount) then
         self:addInfoPair(LOC("HIT"), hitCount, 0, infoY + 2 * _INFO_ROW_GAP)
@@ -222,7 +228,7 @@ function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
     end
 end
 
-function WindowEnemyEncyclopediaUI.formatCriticalText(criticalValue)
+function formatCriticalText(criticalValue)
     if criticalValue == nil or criticalValue == -2 then
         return ""
     end
@@ -232,14 +238,14 @@ function WindowEnemyEncyclopediaUI.formatCriticalText(criticalValue)
     return tostring(ToShortNumber(criticalValue))
 end
 
-function WindowEnemyEncyclopediaUI.formatHitCount(hitCount)
+function formatHitCount(hitCount)
     if hitCount == nil then
         return ""
     end
     return tostring(ToShortNumber(math.max(1, hitCount)))
 end
 
-function WindowEnemyEncyclopediaUI.limitLines(text, maxLines, maxWidth)
+function limitLines(text, maxLines, maxWidth)
     if not bool(text) then
         return ""
     end
@@ -255,7 +261,7 @@ function WindowEnemyEncyclopediaUI.limitLines(text, maxLines, maxWidth)
         limitedLines[index] = lines[index]
     end
     if bool(limitedLines) then
-        limitedLines[#limitedLines] = TextLayout.fitPlainText(
+        limitedLines[#limitedLines] = TextLayout.FitPlainText(
             limitedLines[#limitedLines] .. ".", maxWidth, _INFO_TEXT_CONFIG
         )
     end
@@ -305,4 +311,4 @@ function WindowEnemyEncyclopediaUI:_syncModelState()
     self.model._nameText = self._entry ~= nil and self._nameControl or nil
 end
 
-return Ui.define("WindowEnemyEncyclopedia", WindowEnemyEncyclopediaUI)
+return Ui.Define("WindowEnemyEncyclopedia", WindowEnemyEncyclopediaUI)

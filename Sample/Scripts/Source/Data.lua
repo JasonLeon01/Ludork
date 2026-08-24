@@ -4,8 +4,10 @@ local GeneralEnum = require("Source.Configs.GeneralEnum")
 local DataLoading = require("Source.Data.Loading")
 local DataTextConfigs = require("Source.Data.TextConfigs")
 local DataBlueprints = require("Source.Data.Blueprints")
+local Validation = require("Source.Data.Validation")
 
 local GeneralDataKey = GeneralEnum.GeneralDataKey
+local requireNamedValue = Validation.RequireNamedValue
 
 ---@class (partial) Source.Data
 local Data = {
@@ -30,235 +32,220 @@ local dataLoading = DataLoading.new(Data)
 local dataTextConfigs = DataTextConfigs.new(Data)
 local dataBlueprints = DataBlueprints.new(Data, dataLoading)
 
----@generic T
----@param values  table<string, T>
----@param key     string
----@param message string
----@return T
-local function requireNamedValue(values, key, message)
-    local value = rawget(values, key)
-    assert(value ~= nil, message)
-    return value
-end
-
-function Data.beginInitialLoad()
+function Data.BeginInitialLoad()
     return dataLoading:beginInitialLoad()
 end
 
-function Data.applyInitialLoadItem(stage, item)
+function Data.ApplyInitialLoadItem(stage, item)
     return dataLoading:applyInitialLoadItem(stage, item)
 end
 
-function Data.commitInitialLoad(stage)
+function Data.CommitInitialLoad(stage)
     dataLoading:commitInitialLoad(stage, dataBlueprints)
 end
 
-function Data.abortInitialLoad(stage)
+function Data.AbortInitialLoad(stage)
     dataLoading:abortInitialLoad(stage)
 end
 
-function Data.getDataKinds()
+function Data.GetDataKinds()
     return Data.dataKinds
 end
 
-function Data.countLoadableFiles(dataRoot, needExt, _defaultType, recursive)
+function Data.CountLoadableFiles(dataRoot, needExt, _defaultType, recursive)
     return dataLoading:countLoadableFiles(dataRoot, needExt, recursive)
 end
 
-function Data.loadAnimations(onFileLoaded)
+function Data.LoadAnimations(onFileLoaded)
     dataLoading:loadAnimations(onFileLoaded)
 end
 
-function Data.loadCommonFunctions(onFileLoaded)
+function Data.LoadCommonFunctions(onFileLoaded)
     dataLoading:loadCommonFunctions(onFileLoaded)
 end
 
-function Data.loadTilesets(onFileLoaded)
+function Data.LoadTilesets(onFileLoaded)
     dataLoading:loadTilesets(onFileLoaded)
 end
 
-function Data.loadAutoTiles(onFileLoaded)
+function Data.LoadAutoTiles(onFileLoaded)
     dataLoading:loadAutoTiles(onFileLoaded)
 end
 
-function Data.loadGeneralData(onFileLoaded)
+function Data.LoadGeneralData(onFileLoaded)
     dataLoading:loadGeneralData(onFileLoaded)
 end
 
-function Data.loadCurves(onFileLoaded)
+function Data.LoadCurves(onFileLoaded)
     dataLoading:loadCurves(onFileLoaded)
 end
 
-function Data.loadTextConfigs(onFileLoaded)
+function Data.LoadTextConfigs(onFileLoaded)
     dataLoading:loadTextConfigs(onFileLoaded)
 end
 
-function Data.splitCompound(fileName)
-    return dataLoading:splitCompound(fileName)
-end
-
-function Data.getAnimation(name)
+function Data.GetAnimation(name)
     local animation = requireNamedValue(Data._animationData, name, "Animation data not found: " .. tostring(name))
     return copy(animation)
 end
 
-function Data.getCurve(name)
+function Data.GetCurve(name)
     assert(Data._curveTypes[name] == "curve", "Float curve data not found: " .. tostring(name))
     return requireNamedValue(Data._curveData, name, "Float curve data not found: " .. tostring(name))
 end
 
-function Data.getVector2Curve(name)
+function Data.GetVector2Curve(name)
     assert(Data._curveTypes[name] == "vector2Curve", "Vector2 curve data not found: " .. tostring(name))
     return requireNamedValue(Data._curveData, name, "Vector2 curve data not found: " .. tostring(name))
 end
 
-function Data.getVector3Curve(name)
+function Data.GetVector3Curve(name)
     assert(Data._curveTypes[name] == "vector3Curve", "Vector3 curve data not found: " .. tostring(name))
     return requireNamedValue(Data._curveData, name, "Vector3 curve data not found: " .. tostring(name))
 end
 
-function Data.getVector4Curve(name)
+function Data.GetVector4Curve(name)
     assert(Data._curveTypes[name] == "vector4Curve", "Vector4 curve data not found: " .. tostring(name))
     return requireNamedValue(Data._curveData, name, "Vector4 curve data not found: " .. tostring(name))
 end
 
-function Data.getPlainTextConfig(name)
+function Data.GetPlainTextConfig(name)
     return dataTextConfigs:getPlainTextConfig(name)
 end
 
-function Data.getRichTextConfig(name)
+function Data.GetRichTextConfig(name)
     return dataTextConfigs:getRichTextConfig(name)
 end
 
-function Data.getTileset(name)
+function Data.GetTileset(name)
     return requireNamedValue(Data._tilesetData, name, "Tileset data not found: " .. tostring(name))
 end
 
-function Data.getAutoTile(name)
+function Data.GetAutoTile(name)
     return requireNamedValue(Data._autoTileData, name, "AutoTile data not found: " .. tostring(name))
 end
 
-function Data.hasAutoTile(name)
+function Data.HasAutoTile(name)
     return Data._autoTileData[name] ~= nil
 end
 
-function Data.getGeneralData(name)
+function Data.GetGeneralData(name)
     return requireNamedValue(Data._generalData, name, "General data not found: " .. tostring(name))
 end
 
 ---@param name string
 ---@return table<string, table<string, Source.Data.GeneralValue>>
 local function generalMembers(name)
-    local data = Data.getGeneralData(name)
+    local data = Data.GetGeneralData(name)
     local members = requireNamedValue(data, "members", "General data members not found: " .. tostring(name))
     ---@cast members table<string, table<string, Source.Data.GeneralValue>>
     return members
 end
 
-function Data.getGeneralClassData(key)
+function Data.GetGeneralClassData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.Class), key, "General class data not found: " .. tostring(key)
     )
 end
 
-function Data.getGeneralEnemyData(key)
+function Data.GetGeneralEnemyData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.Enemy), key, "General enemy data not found: " .. tostring(key)
     )
 end
 
-function Data.getGeneralPlayerData(key)
+function Data.GetGeneralPlayerData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.Player), key, "General player data not found: " .. tostring(key)
     )
 end
 
-function Data.getAllGeneralEquipData()
+function Data.GetAllGeneralEquipData()
     return generalMembers(GeneralDataKey.Equip)
 end
 
-function Data.getGeneralEquipData(key)
+function Data.GetGeneralEquipData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.Equip), key, "General equip data not found: " .. tostring(key)
     )
 end
 
-function Data.getAllGeneralItemData()
+function Data.GetAllGeneralItemData()
     return generalMembers(GeneralDataKey.Item)
 end
 
-function Data.getGeneralItemData(key)
+function Data.GetGeneralItemData(key)
     return requireNamedValue(generalMembers(GeneralDataKey.Item), key, "General item data not found: " .. tostring(key))
 end
 
-function Data.getGeneralSpecialData(key)
+function Data.GetGeneralSpecialData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.Special), key, "General special data not found: " .. tostring(key)
     )
 end
 
-function Data.getGeneralStateData(key)
+function Data.GetGeneralStateData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.State), key, "General state data not found: " .. tostring(key)
     )
 end
 
-function Data.getClass(classPath)
+function Data.GetClass(classPath)
     return Data._classDict:get(classPath)
 end
 
-function Data.getClassData(classPath)
+function Data.GetClassData(classPath)
     return Data._classDict:getData(classPath)
 end
 
-function Data.resolveClassPath(className)
+function Data.ResolveClassPath(className)
     return dataBlueprints:resolveClassPath(className)
 end
 
-function Data.getCommonFunction(name)
+function Data.GetCommonFunction(name)
     return dataBlueprints:getCommonFunction(name)
 end
 
-function Data.genGraphFromData(data, parent, parentClass)
+function Data.GenGraphFromData(data, parent, parentClass)
     return dataBlueprints:genGraphFromData(data, parent, parentClass)
 end
 
 ---@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
-function Data.genActorFromClassPath(classPath, tag, classVarChanges)
+function Data.GenActorFromClassPath(classPath, tag, classVarChanges)
     return dataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
 end
 
-function Data.genActorFromClassName(className, tag)
+function Data.GenActorFromClassName(className, tag)
     return dataBlueprints:genActorFromClassName(className, tag)
 end
 
 ---@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
-function Data.genActorFromData(actorData, layerName, classVarChanges)
+function Data.GenActorFromData(actorData, layerName, classVarChanges)
     return dataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
 end
 
 Class.registerService("curve", function (name)
-    return Data.getCurve(name)
+    return Data.GetCurve(name)
 end)
 
 Class.registerService("vector2Curve", function (name)
-    return Data.getVector2Curve(name)
+    return Data.GetVector2Curve(name)
 end)
 
 Class.registerService("vector3Curve", function (name)
-    return Data.getVector3Curve(name)
+    return Data.GetVector3Curve(name)
 end)
 
 Class.registerService("vector4Curve", function (name)
-    return Data.getVector4Curve(name)
+    return Data.GetVector4Curve(name)
 end)
 
 Class.registerService("plainTextConfig", function (name)
-    return Data.getPlainTextConfig(name)
+    return Data.GetPlainTextConfig(name)
 end)
 
 Class.registerService("richTextConfig", function (name)
-    return Data.getRichTextConfig(name)
+    return Data.GetRichTextConfig(name)
 end)
 
 dataBlueprints:registerServices()

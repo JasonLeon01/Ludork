@@ -283,11 +283,11 @@ end
 function GameMap:worldToMapViewPosition(position)
     local camera = self:getCamera()
     if camera == nil then
-        return sf.Vector2f.new(position.x, position.y)
+        return copy(position)
     end
     local viewPosition = camera:getViewPosition()
     if viewPosition == nil then
-        return sf.Vector2f.new(position.x, position.y)
+        return copy(position)
     end
     return sf.Vector2f.new(position.x - viewPosition.x, position.y - viewPosition.y)
 end

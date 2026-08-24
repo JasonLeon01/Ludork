@@ -124,10 +124,11 @@ end
 ---@param root Engine.ControlBase
 ---@return Engine.ControlBase
 function UiController:_attachWindowRoot(host, root)
-    local legacyWindow = host._window
-    local legacyContent = host.content
+    assert(host._window == nil and host.content == nil, "Declarative window host must defer its base view")
     local pauseMark = host._pauseMark
     local returnButton = host._returnButton
+    ---@cast pauseMark Engine.Image
+    ---@cast returnButton Engine.Button
     local windowFrame = self:getWindowFrame()
     local content = self:getContent()
     local repeated = host._repeated
@@ -137,10 +138,6 @@ function UiController:_attachWindowRoot(host, root)
     if host._windowSkin ~= nil then
         windowFrame:setWindowSkin(host._windowSkin, repeated)
     end
-    legacyContent:removeChild(pauseMark)
-    host:removeChild(legacyWindow)
-    host:removeChild(legacyContent)
-    host:removeChild(returnButton)
     host:addChild(root)
     host._window = windowFrame
     host.content = content

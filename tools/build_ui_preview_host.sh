@@ -18,7 +18,6 @@ if [ ! -x "$SCRIPT_TOOLS" ]; then
     echo "ScriptTools was not found. Run tools/init.sh first." >&2
     exit 1
 fi
-"$SCRIPT_TOOLS" ui-assets validate "$PROJECT_ROOT/Sample"
 
 CMAKE=$(find_cmake)
 set -- \
@@ -36,6 +35,17 @@ fi
 OUTPUT="$PROJECT_ROOT/.tools/UiPreviewHost/bin/$CONFIG/UiPreviewHost"
 if [ ! -x "$OUTPUT" ]; then
     echo "Build finished without producing $OUTPUT" >&2
+    exit 1
+fi
+RUNTIME=$(find \
+    "$PROJECT_ROOT/.tools/UiPreviewHost/bin/$CONFIG" \
+    -maxdepth 1 \
+    -type f \
+    -name 'UiPreviewHostRuntime.*' \
+    -print \
+    -quit)
+if [ -z "$RUNTIME" ]; then
+    echo "Build finished without producing UiPreviewHostRuntime" >&2
     exit 1
 fi
 echo "UI preview host ready: $OUTPUT"

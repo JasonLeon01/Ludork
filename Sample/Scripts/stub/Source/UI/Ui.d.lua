@@ -5,17 +5,17 @@ local Ui = {}
 
 ---@param assetKey string
 ---@return string
-function Ui.getEventName(assetKey) end
+function Ui.GetEventName(assetKey) end
 
 ---@param assetKey string
----@param payload any
-function Ui.publish(assetKey, payload) end
+---@param payload  any
+function Ui.Publish(assetKey, payload) end
 
 ---@generic T: table
----@param assetKey string
+---@param assetKey   string
 ---@param definition T
----@param baseClass Class.ClassType<any> | table | nil
+---@param baseClass  Class.ClassType<any> | table | nil
 ---@return T & Class.ClassType<T>
-function Ui.define(assetKey, definition, baseClass) end
+function Ui.Define(assetKey, definition, baseClass) end
 
 return Ui

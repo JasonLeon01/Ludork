@@ -9,7 +9,7 @@ local Scene = {}
 
 ---@return GlobalCore.Camera | nil
 local function getSceneCamera()
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap == nil then
         return nil
     end
@@ -54,7 +54,7 @@ function Scene.GotoMap(mapPath, blockTransition, position)
     if blockTransition == nil then
         blockTransition = false
     end
-    Context.requireSceneMap():gotoMapAndPos(mapPath, position, blockTransition)
+    Context.RequireSceneMap():gotoMapAndPos(mapPath, position, blockTransition)
 end
 
 function Scene.GameOver()
@@ -81,17 +81,17 @@ end
 
 function Scene.ShowMessageByTag(name, message, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     return scene:showMessage(name, message, getActorByTag(scene, refActorTag))
 end
 
 function Scene.ShowMessage(name, message, actor)
-    return Context.requireSceneMap():showMessage(name, message, actor)
+    return Context.RequireSceneMap():showMessage(name, message, actor)
 end
 
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     ManagerFunctions.playVoice(voiceFileName)
     local dialogueFinished = scene:showMessage(name, message, getActorByTag(scene, refActorTag))
     return stopVoiceAfterDialogue(dialogueFinished)
@@ -99,7 +99,7 @@ end
 
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     ManagerFunctions.playVoice(voiceFileName, nil, refActor, minDistance)
     local dialogueFinished = scene:showMessage(name, message, refActor)
     return stopVoiceAfterDialogue(dialogueFinished)
@@ -112,7 +112,7 @@ function Scene.ShowSelection(name, options, refActorTag, allowCancel)
     if allowCancel == nil then
         allowCancel = true
     end
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     return scene:showSelection(name, options, getActorByTag(scene, refActorTag), allowCancel)
 end
 
@@ -122,11 +122,11 @@ function Scene.ShowRefSelection(name, options, refActor, allowCancel)
     if allowCancel == nil then
         allowCancel = true
     end
-    return Context.requireSceneMap():showSelection(name, options, refActor, allowCancel)
+    return Context.RequireSceneMap():showSelection(name, options, refActor, allowCancel)
 end
 
 function Scene.LockCamera()
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap ~= nil then
         local camera = getSceneCamera()
         local player = gameMap:getPlayer()
@@ -168,7 +168,7 @@ function Scene.RecordTelepoint(mapPath, x, y)
     mapPath = mapPath == nil and "" or mapPath
     x = x == nil and 0 or x
     y = y == nil and 0 or y
-    Context.requireGameInstance():recordTelepoint(mapPath, sf.Vector2u.new(x, y))
+    Context.RequireGameInstance():recordTelepoint(mapPath, sf.Vector2u.new(x, y))
 end
 
 function Scene.CreateActorFromBPPath(bpPath, layerName, position, tag, emitCreateEvent)
@@ -176,13 +176,13 @@ function Scene.CreateActorFromBPPath(bpPath, layerName, position, tag, emitCreat
     layerName = layerName == nil and "default" or layerName
     tag = tag == nil and "" or tag
     emitCreateEvent = emitCreateEvent == nil and true or emitCreateEvent
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap == nil then
         return nil
     end
     local Data = require("Source.Data")
 
-    local actor = Data.genActorFromClassPath(bpPath, tag)
+    local actor = Data.GenActorFromClassPath(bpPath, tag)
     if actor == nil then
         return nil
     end
@@ -199,13 +199,13 @@ function Scene.CreateActorFromBPPathWithDefaults(bpPath, defaults, layerName, po
     layerName = layerName == nil and "default" or layerName
     tag = tag == nil and "" or tag
     emitCreateEvent = emitCreateEvent == nil and true or emitCreateEvent
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap == nil then
         return nil
     end
     local Data = require("Source.Data")
 
-    local actor = Data.genActorFromClassPath(bpPath, tag, defaults)
+    local actor = Data.GenActorFromClassPath(bpPath, tag, defaults)
     if actor == nil then
         return nil
     end
@@ -217,20 +217,20 @@ function Scene.CreateActorFromBPPathWithDefaults(bpPath, defaults, layerName, po
 end
 
 function Scene.DestroyTerrain(layerName, position, tileID)
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     local changedPositions = scene:getGameMap():setTerrainTiles(layerName, { position }, tileID)
     scene:recordTerrainDestructions(layerName, changedPositions)
 end
 
 function Scene.DestroyTerrainList(layerName, positions, tileID)
     positions = positions or {}
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     local changedPositions = scene:getGameMap():setTerrainTiles(layerName, positions, tileID)
     scene:recordTerrainDestructions(layerName, changedPositions)
 end
 
 function Scene.GetTerrainTile(layerName, position)
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap ~= nil then
         return gameMap:getTerrainTile(layerName, position)
     end
@@ -238,7 +238,7 @@ function Scene.GetTerrainTile(layerName, position)
 end
 
 function Scene.GetTerrainTilePositions(layerName, tileID)
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap ~= nil then
         return gameMap:getTerrainTilePositions(layerName, tileID)
     end
@@ -246,51 +246,51 @@ function Scene.GetTerrainTilePositions(layerName, tileID)
 end
 
 function Scene.RecordAddedActor(actor)
-    Context.requireSceneMap():recordAddedActor(actor)
+    Context.RequireSceneMap():recordAddedActor(actor)
 end
 
 function Scene.SelfRecordAdded()
-    local actor = Context._getGraphOwner(Scene.SelfRecordAdded)
+    local actor = Context.GetGraphOwner(Scene.SelfRecordAdded)
     ---@cast actor Engine.Actor | nil
     if actor ~= nil then
-        Context.requireSceneMap():recordAddedActor(actor)
+        Context.RequireSceneMap():recordAddedActor(actor)
     end
 end
 
 function Scene.RecordActorPosition(actor)
-    Context.requireSceneMap():recordActorPosition(actor)
+    Context.RequireSceneMap():recordActorPosition(actor)
 end
 
 function Scene.SelfRecordActorPosition()
-    local actor = Context._getGraphOwner(Scene.SelfRecordActorPosition)
+    local actor = Context.GetGraphOwner(Scene.SelfRecordActorPosition)
     ---@cast actor Engine.Actor | nil
     if actor ~= nil then
-        Context.requireSceneMap():recordActorPosition(actor)
+        Context.RequireSceneMap():recordActorPosition(actor)
     end
 end
 
 function Scene.RecordDestroyedActor(actor)
-    Context.requireSceneMap():recordDestroyedActor(actor)
+    Context.RequireSceneMap():recordDestroyedActor(actor)
 end
 
 function Scene.SelfRecordDestroyed()
-    local actor = Context._getGraphOwner(Scene.SelfRecordDestroyed)
+    local actor = Context.GetGraphOwner(Scene.SelfRecordDestroyed)
     ---@cast actor Engine.Actor | nil
     if actor ~= nil then
-        Context.requireSceneMap():recordDestroyedActor(actor)
+        Context.RequireSceneMap():recordDestroyedActor(actor)
     end
 end
 
 function Scene.RecordAndDestroyActor(actor)
-    Context.requireSceneMap():recordDestroyedActor(actor)
+    Context.RequireSceneMap():recordDestroyedActor(actor)
     actor:destroy()
 end
 
 function Scene.SelfRecordAndDestroy()
-    local actor = Context._getGraphOwner(Scene.SelfRecordAndDestroy)
+    local actor = Context.GetGraphOwner(Scene.SelfRecordAndDestroy)
     ---@cast actor Engine.Actor | nil
     if actor ~= nil then
-        Context.requireSceneMap():recordDestroyedActor(actor)
+        Context.RequireSceneMap():recordDestroyedActor(actor)
         actor:destroy()
     end
 end
@@ -300,7 +300,7 @@ function Scene.OpenShop(items, canSell)
     if canSell == nil then
         canSell = true
     end
-    return Context.requireSceneMap():openShop(items, canSell)
+    return Context.RequireSceneMap():openShop(items, canSell)
 end
 
 function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, priceIncrement, moneyName)
@@ -310,8 +310,8 @@ function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, 
     price = price == nil and 0 or price
     priceIncrement = priceIncrement == nil and 1 or priceIncrement
     moneyName = moneyName == nil and "GOLD" or moneyName
-    local scene = Context.requireSceneMap()
-    local instance = Context.requireGameInstance()
+    local scene = Context.RequireSceneMap()
+    local instance = Context.RequireGameInstance()
     local Utils = require("Source.NodeFunctions.Utils")
 
     local priceRef
@@ -325,14 +325,12 @@ function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, 
             price = priceValue
         }, "price", priceValue)
     end
-    return scene:openAttrShop(
-        actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName
-    )
+    return scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
 end
 
 function Scene.OpenAttrShopByTag(actorTag, shopName, shopDescription, abilities, price, priceIncrement, moneyName)
     actorTag = actorTag == nil and "" or actorTag
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     local actor = bool(actorTag) and scene:getGameMap():getActorByTag(actorTag) or nil
     return Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, priceIncrement, moneyName)
 end

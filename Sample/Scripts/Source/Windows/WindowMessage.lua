@@ -26,6 +26,18 @@ local _NAME_TEXT_CONFIG = "UI/CenterText24"
 local _MESSAGE_TEXT_CONFIG = "UI/Message"
 local _OPTION_TEXT_CONFIG = "UI/Default"
 
+---@type function
+local normalizeText
+---@type function
+local getFadeCurve
+---@type function
+local getCurveDuration
+---@type function
+local getTextLineHeight
+---@type function
+local wrapMessage
+---@type function
+local resizeCanvas
 ---@class Source.Windows.WindowMessage
 local WindowMessage = {}
 
@@ -54,7 +66,9 @@ function WindowMessage:init()
     self._name = ""
     self._message = ""
 
-    super(WindowMessage, self).init(Engine.ToIntRect(48, 288, 544, 160), nil, nil, self._OPTION_ITEM_HEIGHT)
+    super
+        (WindowMessage, self)
+        .init(Engine.ToIntRect(48, 288, 544, 160), nil, 480, self._OPTION_ITEM_HEIGHT, nil, nil, nil, nil, true)
     self._ui = WindowMessageUI.new(self)
     self._ui:attach()
     self._nameText = self._ui:getNameText()
@@ -165,7 +179,7 @@ end
 
 ---@param text string
 ---@return string
-function WindowMessage._normalizeText(text)
+function normalizeText(text)
     return (text:gsub("\\n", "\n"))
 end
 
@@ -181,7 +195,7 @@ function WindowMessage:setMessage(refPosition, name, message, allowCancel, onFin
     self._onFinished = onFinished
     self._fadePhase = FadePhase.IN
     self._fadeTime = 0.0
-    self._name = WindowMessage._normalizeText(name)
+    self._name = normalizeText(name)
     self._ui:setName(self._name)
     self._nameText:setVisible(self._name:match("%S") ~= nil)
     self._nameText:setColour(sf.Color.new(255, 255, 255, 0))
@@ -192,7 +206,7 @@ function WindowMessage:setMessage(refPosition, name, message, allowCancel, onFin
         self._text:setVisible(false)
         local options = {}
         for _, item in ipairs(message) do
-            options[#options + 1] = WindowMessage._normalizeText(tostring(item))
+            options[#options + 1] = normalizeText(tostring(item))
         end
         self:_setupSelectionList(options)
         if self._selectionListView ~= nil then
@@ -203,7 +217,7 @@ function WindowMessage:setMessage(refPosition, name, message, allowCancel, onFin
         end
     else
         self._contentMode = ContentMode.MESSAGE
-        self._message = WindowMessage._normalizeText(message)
+        self._message = normalizeText(message)
         self._ui:showMessageList()
         self.index = 0
         self._text:setVisible(true)
@@ -218,7 +232,7 @@ end
 
 function WindowMessage:refreshContent(name, message)
     assert(self._inDialogue, "Message content can only be refreshed during dialogue")
-    self._name = WindowMessage._normalizeText(name)
+    self._name = normalizeText(name)
     self._ui:setName(self._name)
     self._nameText:setVisible(self._name:match("%S") ~= nil)
     if self._contentMode == ContentMode.SELECTION then
@@ -230,11 +244,11 @@ function WindowMessage:refreshContent(name, message)
         for index = 1, optionCount do
             local child = children[index]
             ---@cast child Engine.PlainText
-            child:setString(WindowMessage._normalizeText(tostring(message[index])))
+            child:setString(normalizeText(tostring(message[index])))
         end
     else
         assert(type(message) == "string", "Message dialogue requires text")
-        self._message = WindowMessage._normalizeText(message)
+        self._message = normalizeText(message)
         self._ui:setMessage(self._message)
     end
     self._pendingLayout = true
@@ -265,11 +279,11 @@ function WindowMessage:_setupSelectionList(options)
     self._selectionListView = self._ui:showSelectionList(
         limitedOptions,
         function (optionIndex)
-            ManagerFunctions.playSE(System.getDecisionSE())
+            ManagerFunctions.playSE(System.GetDecisionSE())
             self:_resolveSelection(optionIndex)
         end,
         function ()
-            ManagerFunctions.playSE(System.getCancelSE())
+            ManagerFunctions.playSE(System.GetCancelSE())
             self:_resolveSelection(-1)
         end
     )
@@ -319,12 +333,12 @@ function WindowMessage:_fadeIn(deltaTime)
         end
     end
     self._fadeTime = self._fadeTime + deltaTime
-    local curve = WindowMessage._getFadeCurve(_FADE_IN_CURVE_KEY)
+    local curve = getFadeCurve(_FADE_IN_CURVE_KEY)
     local alpha = nil
     local duration = nil
     if bool(curve) and bool(curve.keys) then
-        alpha = math.floor(math.max(0.0, math.min(255.0, curve:evaluate(self._fadeTime))))
-        duration = WindowMessage._getCurveDuration(curve)
+        alpha = math.floor(Engine.Clamp(curve:evaluate(self._fadeTime), 0.0, 255.0))
+        duration = getCurveDuration(curve)
     else
         alpha = math.floor(math.min(255.0, self._fadeTime * _FALLBACK_FADE_SPEED))
         duration = 255.0 / _FALLBACK_FADE_SPEED
@@ -348,12 +362,12 @@ end
 ---@param deltaTime number
 function WindowMessage:_fadeOut(deltaTime)
     self._fadeTime = self._fadeTime + deltaTime
-    local curve = WindowMessage._getFadeCurve(_FADE_OUT_CURVE_KEY)
+    local curve = getFadeCurve(_FADE_OUT_CURVE_KEY)
     local alpha = nil
     local duration = nil
     if bool(curve) and bool(curve.keys) then
-        alpha = math.floor(math.max(0.0, math.min(255.0, curve:evaluate(self._fadeTime))))
-        duration = WindowMessage._getCurveDuration(curve)
+        alpha = math.floor(Engine.Clamp(curve:evaluate(self._fadeTime), 0.0, 255.0))
+        duration = getCurveDuration(curve)
     else
         alpha = math.floor(math.max(0.0, 255.0 - self._fadeTime * _FALLBACK_FADE_SPEED))
         duration = 255.0 / _FALLBACK_FADE_SPEED
@@ -368,19 +382,19 @@ end
 
 ---@param key string
 ---@return Engine.Curve
-function WindowMessage._getFadeCurve(key)
+function getFadeCurve(key)
     local cached = WindowMessage._fadeCurves[key]
     if cached ~= nil then
         return cached
     end
-    local curve = Data.getCurve(key)
+    local curve = Data.GetCurve(key)
     WindowMessage._fadeCurves[key] = curve
     return curve
 end
 
 ---@param curve Engine.Curve | nil
 ---@return number
-function WindowMessage._getCurveDuration(curve)
+function getCurveDuration(curve)
     if curve == nil or #curve.keys < 2 then
         return 0.0
     end
@@ -409,15 +423,15 @@ end
 
 ---@param bounds sf.FloatRect
 ---@return integer
-function WindowMessage._getTextLineHeight(bounds)
+function getTextLineHeight(bounds)
     return math.max(1, math.ceil(bounds.position.y + bounds.size.y))
 end
 
 ---@param text     string
 ---@param maxWidth number
 ---@return string
-function WindowMessage._wrapMessage(text, maxWidth)
-    return TextLayout.wrapRichText(text, maxWidth, _MESSAGE_TEXT_CONFIG)
+function wrapMessage(text, maxWidth)
+    return TextLayout.WrapRichText(text, maxWidth, _MESSAGE_TEXT_CONFIG)
 end
 
 function WindowMessage:_updateLayoutByTextSize()
@@ -426,22 +440,20 @@ function WindowMessage:_updateLayoutByTextSize()
     local nameWidth = 0
     local nameHeight = 0
     if hasName then
-        nameWidth = self:_getTextRenderWidth(TextLayout.measurePlainText(_NAME_TEXT_CONFIG, self._name))
-        nameHeight = WindowMessage._getTextLineHeight(nameBounds)
+        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, self._name))
+        nameHeight = getTextLineHeight(nameBounds)
     end
     ---@cast nameWidth integer
     local displayMessage = self._message .. ""
     local maxContentWidth = Engine.ToInteger(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
     self._ui:setMessage(displayMessage)
     local textBounds = self._text:getLocalBounds()
-    local textWidth = self:_getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
+    local textWidth = self:_getTextRenderWidth(TextLayout.MeasureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
     if textWidth > maxContentWidth then
-        displayMessage = WindowMessage._wrapMessage(
-            displayMessage, math.max(1.0, maxContentWidth - self._TEXT_RENDER_GUTTER * 2.0)
-        )
+        displayMessage = wrapMessage(displayMessage, math.max(1.0, maxContentWidth - self._TEXT_RENDER_GUTTER * 2.0))
         self._ui:setMessage(displayMessage)
         textBounds = self._text:getLocalBounds()
-        textWidth = self:_getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
+        textWidth = self:_getTextRenderWidth(TextLayout.MeasureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
     end
     ---@cast textWidth integer
     local textHeight = self:_getBoundsHeight(textBounds)
@@ -456,9 +468,9 @@ function WindowMessage:_updateLayoutByTextSize()
     local totalWidth = contentWidth + self._WINDOW_PADDING * 2
     totalWidth = math.min(totalWidth, self:_getMaxWindowWidth())
     local totalHeight = contentHeight + self._WINDOW_PADDING * 2
-    WindowMessage._resizeCanvas(self, totalWidth, totalHeight)
+    resizeCanvas(self, totalWidth, totalHeight)
     self:_resizeWindow(totalWidth, totalHeight)
-    WindowMessage._resizeCanvas(self.content, contentWidth, contentHeight)
+    resizeCanvas(self.content, contentWidth, contentHeight)
     self.content:setPosition(sf.Vector2f.new(self._WINDOW_PADDING, self._WINDOW_PADDING))
     local textY = 0.0
     if hasName then
@@ -479,8 +491,8 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local nameWidth = 0
     local nameHeight = 0
     if hasName then
-        nameWidth = self:_getTextRenderWidth(TextLayout.measurePlainText(_NAME_TEXT_CONFIG, self._name))
-        nameHeight = WindowMessage._getTextLineHeight(nameBounds)
+        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, self._name))
+        nameHeight = getTextLineHeight(nameBounds)
     end
     ---@cast nameWidth integer
     local maxOptionTextWidth = 1
@@ -496,7 +508,7 @@ function WindowMessage:_updateLayoutBySelectionSize()
             end
             maxOptionTextWidth = math.max(
                 maxOptionTextWidth,
-                math.max(1, Engine.Round(TextLayout.measurePlainText(_OPTION_TEXT_CONFIG, optionText)))
+                math.max(1, Engine.Round(TextLayout.MeasurePlainText(_OPTION_TEXT_CONFIG, optionText)))
             )
         end
     end
@@ -512,9 +524,9 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local totalWidth = contentWidth + self._WINDOW_PADDING * 2
     totalWidth = math.min(totalWidth, self:_getMaxWindowWidth())
     local totalHeight = contentHeight + self._WINDOW_PADDING * 2
-    WindowMessage._resizeCanvas(self, totalWidth, totalHeight)
+    resizeCanvas(self, totalWidth, totalHeight)
     self:_resizeWindow(totalWidth, totalHeight)
-    WindowMessage._resizeCanvas(self.content, contentWidth, contentHeight)
+    resizeCanvas(self.content, contentWidth, contentHeight)
     self.content:setPosition(sf.Vector2f.new(self._WINDOW_PADDING, self._WINDOW_PADDING))
     local currentY = 0.0
     if hasName then
@@ -566,7 +578,7 @@ end
 ---@param target Engine.Canvas
 ---@param width  integer
 ---@param height integer
-function WindowMessage._resizeCanvas(target, width, height)
+function resizeCanvas(target, width, height)
     local logicalSize = sf.Vector2u.new(width, height)
     ---@cast logicalSize sf.Vector2u
     target:resize(logicalSize)

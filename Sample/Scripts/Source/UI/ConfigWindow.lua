@@ -357,15 +357,15 @@ function ConfigWindowUI:getVoiceVolumeRow()
     return self._voiceVolumeRow
 end
 
-function ConfigWindowUI.onVerticalSyncCheckedChanged(checked)
+local function onVerticalSyncCheckedChanged(checked)
     System.setVerticalSync(checked)
 end
 
-function ConfigWindowUI.onLanguageSelectedIndexChanged(index)
+local function onLanguageSelectedIndexChanged(index)
     local language = _LANGUAGE_VALUES[index + 1]
     ---@cast language string
     System.setLanguage(language)
-    Locale.setLanguage(language)
+    Locale.SetLanguage(language)
 end
 
 function ConfigWindowUI:onFrameRateSelectedIndexChanged(index)
@@ -393,27 +393,27 @@ function ConfigWindowUI:onLightingRenderScaleSelectedIndexChanged(index)
     self:_syncGraphicsPresetSelection()
 end
 
-function ConfigWindowUI.onMusicOnCheckedChanged(checked)
+local function onMusicOnCheckedChanged(checked)
     System.setMusicOn(checked)
 end
 
-function ConfigWindowUI.onMusicVolumeChanged(value)
+local function onMusicVolumeChanged(value)
     System.setMusicVolume(value)
 end
 
-function ConfigWindowUI.onSoundOnCheckedChanged(checked)
+local function onSoundOnCheckedChanged(checked)
     System.setSoundOn(checked)
 end
 
-function ConfigWindowUI.onSoundVolumeChanged(value)
+local function onSoundVolumeChanged(value)
     System.setSoundVolume(value)
 end
 
-function ConfigWindowUI.onVoiceOnCheckedChanged(checked)
+local function onVoiceOnCheckedChanged(checked)
     System.setVoiceOn(checked)
 end
 
-function ConfigWindowUI.onVoiceVolumeChanged(value)
+local function onVoiceVolumeChanged(value)
     System.setVoiceVolume(value)
 end
 
@@ -470,7 +470,7 @@ function ConfigWindowUI:_createRows()
 end
 
 function ConfigWindowUI:_bindDropBoxRow(rowUI)
-    rowUI:addConfirmCallback(self.model._makeSettingRowConfirmCallback(rowUI))
+    rowUI:addConfirmCallback(self.model.MakeSettingRowConfirmCallback(rowUI))
     rowUI:getDropBox():setOnExpandedChanged(function (expanded)
         self.model:_onDropBoxExpandedChanged(expanded)
     end)
@@ -503,12 +503,12 @@ function ConfigWindowUI:_createGraphicsRows()
     )
     self._framerateRow = ConfigSettingRowUI.new(
         LOC("framerate"), _FRAMERATE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
-        self.model._findSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
+        self.model.FindSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
     )
     self._antiAliasingLevelItems = getAntiAliasingLevelItems(System.getAntiAliasingLevel())
     self._antiAliasingLevelRow = ConfigSettingRowUI.new(
         LOC("antialiasinglevel"), self._antiAliasingLevelItems, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
-        self.model._findSelectedIndex(self._antiAliasingLevelItems, System.getAntiAliasingLevel())
+        self.model.FindSelectedIndex(self._antiAliasingLevelItems, System.getAntiAliasingLevel())
     )
     self._lightingRenderScaleRow = ConfigSettingRowUI.new(
         LOC("lightingrenderscale"), _LIGHTING_RENDER_SCALE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
@@ -521,7 +521,7 @@ function ConfigWindowUI:_createGraphicsRows()
         self._windowSkin,
         System.getVerticalSync(),
         function (checked)
-            ConfigWindowUI.onVerticalSyncCheckedChanged(checked)
+            onVerticalSyncCheckedChanged(checked)
         end
     )
     local rows = {
@@ -549,63 +549,36 @@ function ConfigWindowUI:_createGraphicsRows()
 end
 
 function ConfigWindowUI:_createAudioRows()
-    self._musicOnRow = ConfigCheckBoxRowUI.new(
-        LOC("musicon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getMusicOn(),
-        function (checked)
-            ConfigWindowUI.onMusicOnCheckedChanged(checked)
-        end
+    self._musicOnRow = ConfigCheckBoxRowUI.new(LOC("musicon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getMusicOn(), function (
+        checked
     )
-    self._musicVolumeRow = ConfigSliderRowUI.new(
-        LOC("musicvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getMusicVolume()),
-        function (value)
-            ConfigWindowUI.onMusicVolumeChanged(value)
-        end
+        onMusicOnCheckedChanged(checked)
+    end)
+    self._musicVolumeRow = ConfigSliderRowUI.new(LOC("musicvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
+        System.getMusicVolume()
+    ), function (value)
+        onMusicVolumeChanged(value)
+    end)
+    self._soundOnRow = ConfigCheckBoxRowUI.new(LOC("soundon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getSoundOn(), function (
+        checked
     )
-    self._soundOnRow = ConfigCheckBoxRowUI.new(
-        LOC("soundon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getSoundOn(),
-        function (checked)
-            ConfigWindowUI.onSoundOnCheckedChanged(checked)
-        end
+        onSoundOnCheckedChanged(checked)
+    end)
+    self._soundVolumeRow = ConfigSliderRowUI.new(LOC("soundvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
+        System.getSoundVolume()
+    ), function (value)
+        onSoundVolumeChanged(value)
+    end)
+    self._voiceOnRow = ConfigCheckBoxRowUI.new(LOC("voiceon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getVoiceOn(), function (
+        checked
     )
-    self._soundVolumeRow = ConfigSliderRowUI.new(
-        LOC("soundvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getSoundVolume()),
-        function (value)
-            ConfigWindowUI.onSoundVolumeChanged(value)
-        end
-    )
-    self._voiceOnRow = ConfigCheckBoxRowUI.new(
-        LOC("voiceon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getVoiceOn(),
-        function (checked)
-            ConfigWindowUI.onVoiceOnCheckedChanged(checked)
-        end
-    )
-    self._voiceVolumeRow = ConfigSliderRowUI.new(
-        LOC("voicevolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getVoiceVolume()),
-        function (value)
-            ConfigWindowUI.onVoiceVolumeChanged(value)
-        end
-    )
+        onVoiceOnCheckedChanged(checked)
+    end)
+    self._voiceVolumeRow = ConfigSliderRowUI.new(LOC("voicevolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
+        System.getVoiceVolume()
+    ), function (value)
+        onVoiceVolumeChanged(value)
+    end)
     self._pages[_AUDIO_PAGE_INDEX + 1] = {
         list = self._audioList,
         rows = {
@@ -624,7 +597,7 @@ end
 function ConfigWindowUI:_createLanguageRows()
     self._languageRow = ConfigSettingRowUI.new(
         LOC("language"), getLanguageLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
-        self.model._findSelectedIndex(_LANGUAGE_VALUES, System.getLanguage())
+        self.model.FindSelectedIndex(_LANGUAGE_VALUES, System.getLanguage())
     )
     self._pages[_LANGUAGE_PAGE_INDEX + 1] = {
         list = self._languageList,
@@ -664,7 +637,7 @@ end
 
 function ConfigWindowUI:_bindLanguageRows()
     self._languageRow:getDropBox():setOnSelectedIndexChanged(function (index)
-        ConfigWindowUI.onLanguageSelectedIndexChanged(index)
+        onLanguageSelectedIndexChanged(index)
     end)
 end
 
@@ -688,11 +661,11 @@ function ConfigWindowUI:_onGraphicsPresetSelectionConfirmed(index)
     System.setLightingRenderScale(preset[4])
     local maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(preset[1])
     self:_setMaximumRenderScaleOptions(maximumRenderScaleValues, effectiveMaximumRenderScale)
-    self._framerateRow:getDropBox():setSelectedIndex(self.model._findSelectedIndex(_FRAMERATE_ITEMS, preset[2]))
+    self._framerateRow:getDropBox():setSelectedIndex(self.model.FindSelectedIndex(_FRAMERATE_ITEMS, preset[2]))
     self
         ._antiAliasingLevelRow
         :getDropBox()
-        :setSelectedIndex(self.model._findSelectedIndex(self._antiAliasingLevelItems, preset[3]))
+        :setSelectedIndex(self.model.FindSelectedIndex(self._antiAliasingLevelItems, preset[3]))
     self._lightingRenderScaleRow:getDropBox():setSelectedIndex(findScaleIndex(_LIGHTING_RENDER_SCALE_VALUES, preset[4]))
     self._applyingGraphicsPreset = false
     self:_syncGraphicsPresetSelection()
@@ -747,4 +720,4 @@ function ConfigWindowUI:setPageRowsActive(index, active)
     setRowsActive(self:getPage(index).rows, active)
 end
 
-return Ui.define("ConfigWindow", ConfigWindowUI)
+return Ui.Define("ConfigWindow", ConfigWindowUI)

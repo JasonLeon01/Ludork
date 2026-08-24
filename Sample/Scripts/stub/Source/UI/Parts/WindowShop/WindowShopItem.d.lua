@@ -1,14 +1,10 @@
 ---@meta Source.UI.Parts.WindowShop.WindowShopItem
 
----@class Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI : Source.UI.UiController
+---@class Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI: Source.UI.UiController
 local WindowShopItemUI = {}
 
 ---@return Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI
 function WindowShopItemUI.new(...) end
-
----@param iconPath string
----@return sf.Texture | nil
-function WindowShopItemUI.loadItemIcon(iconPath) end
 
 ---@param model Source.Windows.WindowShopItem
 ---@param size  sf.Vector2i

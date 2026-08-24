@@ -26,6 +26,16 @@ local function syncTextDisplayScale(self)
     self._renderDirty = true
 end
 
+---@type function
+local getParentSize
+---@type function
+local getPlayer
+---@type function
+local formatCriticalText
+---@type function
+local getBlankTexture
+---@type function
+local getScratchRenderTexture
 ---@class Source.EnemyDamageText
 local EnemyDamageText = {}
 
@@ -42,7 +52,7 @@ EnemyDamageText._scratchWidth = 0
 EnemyDamageText._scratchHeight = 0
 
 function EnemyDamageText:init(_texture, _rect, tag)
-    super(EnemyDamageText, self).init(EnemyDamageText._getBlankTexture(), nil, tag)
+    super(EnemyDamageText, self).init(getBlankTexture(), nil, tag)
     self._text = nil
     self._overlayTexture = nil
     self._overlayTextureWidth = 0
@@ -73,7 +83,7 @@ end
 
 function EnemyDamageText:onTick(_deltaTime)
     syncTextDisplayScale(self)
-    local player = EnemyDamageText._getPlayer()
+    local player = getPlayer()
     if player == nil then
         self:_setOverlayVisible(false)
         return
@@ -87,7 +97,9 @@ function EnemyDamageText:onTick(_deltaTime)
     end
     ---@cast parent Source.Enemy
     self:_updateOverlayPosition()
-    local width, height = EnemyDamageText._getParentSize(parent)
+    local width, height = getParentSize(parent)
+    ---@cast width integer
+    ---@cast height integer
     local parentRevision = parent:getCombatRevision()
     local playerRevision = player:getCombatRevision()
     if not self._renderDirty and rawequal(parent, self._currentBattlers[1])
@@ -98,10 +110,14 @@ function EnemyDamageText:onTick(_deltaTime)
     end
     self:_ensureText()
     local damageType, damage = parent:getDamage(player)
+    ---@cast damageType Source.Battler.DamageType
+    ---@cast damage integer
     local damageText = damageType == DamageType.UNDEFEATABLE and "???" or tostring(Utils.ToShortNumber(damage))
-    local criticalText = EnemyDamageText._formatCriticalText(parent:getCriticalValue(player))
+    local criticalText = formatCriticalText(parent:getCriticalValue(player))
+    local playerHP = player.infoComp.HP
+    ---@cast playerHP integer
     if self:_setOverlayText(
-        damageText, criticalText, EnemyDamageText.GetDamageColor(damageType, damage, player.infoComp.HP), width, height
+        damageText, criticalText, EnemyDamageText.GetDamageColor(damageType, damage, playerHP), width, height
     ) then
         self._currentBattlers[1] = parent
         self._currentBattlers[2] = player
@@ -114,7 +130,7 @@ function EnemyDamageText:_ensureText()
     if self._text ~= nil then
         return
     end
-    self._text = PlainText.new(Data.getPlainTextConfig(self.textConfig), "")
+    self._text = PlainText.new(Data.GetPlainTextConfig(self.textConfig), "")
     self._text:setColour(self._fillColor)
 end
 
@@ -169,7 +185,7 @@ function EnemyDamageText:_renderTextTexture(damageText, criticalText, damageColo
     local overlayTexture = not replaceTexture and self._overlayTexture or nil
     local padding = 2
     ---@cast size sf.Vector2u
-    local renderTexture = EnemyDamageText._getScratchRenderTexture(size, width, height)
+    local renderTexture = getScratchRenderTexture(size, width, height)
     if renderTexture == nil then
         error("Failed to resize enemy damage text render texture", 0)
     end
@@ -219,7 +235,7 @@ end
 
 function EnemyDamageText:_clearRenderedTexture()
     if self:getTexture() ~= EnemyDamageText._blankTexture then
-        self:setTexture(EnemyDamageText._getBlankTexture(), true)
+        self:setTexture(getBlankTexture(), true)
         self:setOrigin(sf.Vector2f.new(0.0, 0.0))
     end
     self._overlayTexture = nil
@@ -263,7 +279,7 @@ end
 
 ---@param parent Engine.Actor | nil
 ---@return integer, integer
-function EnemyDamageText._getParentSize(parent)
+function getParentSize(parent)
     if parent == nil then
         return Engine.CellSize, Engine.CellSize
     end
@@ -275,7 +291,7 @@ function EnemyDamageText._getParentSize(parent)
 end
 
 ---@return Source.Player.Player | nil
-function EnemyDamageText._getPlayer()
+function getPlayer()
     local scene = GlobalCore.System.getScene()
     if scene == nil then
         return nil
@@ -316,7 +332,7 @@ end
 
 ---@param criticalValue integer
 ---@return string
-function EnemyDamageText._formatCriticalText(criticalValue)
+function formatCriticalText(criticalValue)
     if criticalValue == -2 then
         return ""
     elseif criticalValue == -1 then
@@ -326,7 +342,7 @@ function EnemyDamageText._formatCriticalText(criticalValue)
 end
 
 ---@return sf.Texture
-function EnemyDamageText._getBlankTexture()
+function getBlankTexture()
     if EnemyDamageText._blankTexture == nil then
         local size = sf.Vector2u.new(1, 1)
         ---@cast size sf.Vector2u
@@ -341,7 +357,7 @@ end
 ---@param width  integer
 ---@param height integer
 ---@return sf.RenderTexture | nil
-function EnemyDamageText._getScratchRenderTexture(size, width, height)
+function getScratchRenderTexture(size, width, height)
     local renderTexture = EnemyDamageText._scratchRenderTexture
     if renderTexture == nil or width ~= EnemyDamageText._scratchWidth or height ~= EnemyDamageText._scratchHeight then
         renderTexture = sf.RenderTexture.new(size)

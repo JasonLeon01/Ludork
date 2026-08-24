@@ -8,7 +8,7 @@ local _ITEM_LIST_Y = 144
 local _WindowAttrShopSelectable = {}
 
 function _WindowAttrShopSelectable:init(rect, owner)
-    super(_WindowAttrShopSelectable, self).init(rect, nil, nil, _ITEM_ROW_HEIGHT)
+    super(_WindowAttrShopSelectable, self).init(rect, nil, rect.size.x - 64, _ITEM_ROW_HEIGHT, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._owner = owner
     self._abilityKeys = {}
@@ -38,18 +38,6 @@ end
 function _WindowAttrShopSelectable:onTick(deltaTime)
     self._owner._shopUI:tick(deltaTime)
     super(_WindowAttrShopSelectable, self).onTick(deltaTime)
-end
-
-function _WindowAttrShopSelectable:onKeyDown(kwargs)
-    if self._owner._shopUI:handleKeyDown() then
-        return
-    end
-    super(_WindowAttrShopSelectable, self).onKeyDown(kwargs)
-end
-
-function _WindowAttrShopSelectable:onMouseButtonDown(kwargs)
-    return self._owner._shopUI
-        :handleMouseButtonDown(kwargs)
 end
 
 function _WindowAttrShopSelectable:onReturn()
@@ -193,9 +181,4 @@ end
 
 local FinalWindowAttrShop = class(WindowAttrShop)
 
-local WindowAttrShopExports = {
-    WindowAttrShop = FinalWindowAttrShop,
-    _WindowAttrShopSelectable = Final_WindowAttrShopSelectable
-}
-
-return WindowAttrShopExports
+return FinalWindowAttrShop

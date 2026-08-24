@@ -21,7 +21,7 @@ end
 function Item:onCollision(other)
     ---@cast self Source.Item
     local parentCollision = super(Item, self).onCollision
-    Pickup.handleInventoryCollision(self, other, parentCollision, function (player)
+    Pickup.HandleInventoryCollision(self, other, parentCollision, function (player)
         player:addItem(self.ID, self.count)
     end)
 end

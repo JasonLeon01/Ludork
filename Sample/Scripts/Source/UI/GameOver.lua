@@ -6,4 +6,4 @@ function GameOverUI:refresh()
     self:setText("Message", "GAME OVER")
 end
 
-return Ui.define("GameOver", GameOverUI)
+return Ui.Define("GameOver", GameOverUI)

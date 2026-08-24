@@ -16,7 +16,7 @@ function SceneInitUI:bind()
 end
 
 function SceneInitUI:refresh()
-    self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.getTitleBackgroundFile())
+    self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.GetTitleBackgroundFile())
     self._progressBar:setProgress(self._progress)
 end
 
@@ -39,4 +39,4 @@ function SceneInitUI:setProgress(value)
     self._progress = Engine.Clamp(value, 0.0, 1.0)
 end
 
-return Ui.define("Init", SceneInitUI)
+return Ui.Define("Init", SceneInitUI)

@@ -1,5 +1,6 @@
 local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
+local Logging = require("Global.Utils.Logging")
 
 local Save = {}
 local SAVE_FILE_EXTENSION = bool(SAVE_AS_LDC) and ".ldc" or ".json"
@@ -17,6 +18,7 @@ function Save.SaveGame(filePath, instance)
     local directory = os.path.dirname(os.path.abspath(filePath))
     CoreSystem.createDirectories(directory)
     Engine.writeJSON(filePath, instance:asDict())
+    Logging.info("Saved game to %s", filePath)
 end
 
 function Save.LoadGame(filePath)
@@ -26,7 +28,9 @@ function Save.LoadGame(filePath)
     if not CoreSystem.exists(filePath) then
         return nil
     end
-    return GameInstance.FromDict(Engine.getJSONData(filePath))
+    local instance = GameInstance.FromDict(Engine.getJSONData(filePath))
+    Logging.info("Loaded game from %s", filePath)
+    return instance
 end
 
 function Save.GetSavePath(slot)

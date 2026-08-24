@@ -610,11 +610,12 @@ def generate_stub_binding(
                     f"reverse-map module property {member.name} must be cached"
                 )
             lines, reverse_index = reverse_table_binding_lines(
-                "root", path, source, reverse_index
+                context, "root", path, source, reverse_index
             )
             output.extend("    " + line for line in lines)
     for member in [value for value in functions if value.kind == "LUA_REVERSE"]:
         lines, reverse_index = reverse_table_binding_lines(
+            context,
             "root",
             member.options["path"],
             lua_path_expression(member.options["source"], module),
@@ -624,7 +625,7 @@ def generate_stub_binding(
     helper_index = 0
     for member in [value for value in functions if value.kind == "LUA_HELPER"]:
         lines, helper_index = lua_helper_binding_lines(
-            "root", member, helper_index
+            context, "root", member, helper_index
         )
         output.extend("    " + line for line in lines)
     public_functions = [

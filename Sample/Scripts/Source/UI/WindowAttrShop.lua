@@ -7,7 +7,6 @@ local Ui = require("Source.UI.Ui")
 local UiControlFactory = require("Source.UI.UiControlFactory")
 local UiLayout = require("Source.UI.UiLayout")
 
-local Input = Engine.Input
 local ManagerFunctions = GlobalFunctions.Manager
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
@@ -25,15 +24,15 @@ function AttrShopRow:init(model)
     self.model = model
     local logicalSize = sf.Vector2u.new(1, 1)
     ---@cast logicalSize sf.Vector2u
-    self.root, self._label = UiControlFactory.createFunctionalTextRow(
-        logicalSize, Data.getPlainTextConfig("UI/CenterText22")
+    self.root, self._label = UiControlFactory.CreateFunctionalTextRow(
+        logicalSize, Data.GetPlainTextConfig("UI/CenterText22")
     )
 end
 
 function AttrShopRow:refresh()
     self._label:setString(self.model.text)
     self._label:setColour(self.model.available and _ENABLED_COLOUR or _DISABLED_COLOUR)
-    UiControlFactory.layoutCenteredTextRow(self.root, self._label, 8.0)
+    UiControlFactory.LayoutCenteredTextRow(self.root, self._label, 8.0)
 end
 
 function AttrShopRow:prepare(logicalSize)
@@ -76,17 +75,12 @@ function WindowAttrShopUI:refresh()
     self:setProperty("Avatar", "visible", false)
 end
 
-function WindowAttrShopUI:prepareSelectable(selectable, size)
+function WindowAttrShopUI:attachSelectable(selectable, size)
     self._selectable = selectable
     local logicalSize = sf.Vector2u.new(size.x, size.y)
     ---@cast logicalSize sf.Vector2u
     self._logicalSize = logicalSize
-    return self:prepare(self._logicalSize)
-end
-
-function WindowAttrShopUI:attachSelectable(selectable, size)
-    local root = self:prepareSelectable(selectable, size)
-    self:_attachWindowRoot(selectable, root)
+    self:attachWindowView(selectable, self._logicalSize)
 end
 
 function WindowAttrShopUI:getWindowFrame()
@@ -163,23 +157,6 @@ end
 
 function WindowAttrShopUI:tick(deltaTime)
     self:animateAvatar(deltaTime)
-end
-
-function WindowAttrShopUI:handleKeyDown()
-    if not Input.isActionTriggered(Input.getCancelKeys(), false) then
-        return false
-    end
-    self:_getSelectable():onReturn()
-    Input.isActionTriggered(Input.getCancelKeys(), true)
-    return true
-end
-
-function WindowAttrShopUI:handleMouseButtonDown(kwargs)
-    if kwargs.button ~= sf.Mouse.Button.Right then
-        return false
-    end
-    self:_getSelectable():onReturn()
-    return true
 end
 
 function WindowAttrShopUI:setPlayer(player)
@@ -264,7 +241,7 @@ function WindowAttrShopUI:closeByCancel()
     if self.model._closed then
         return
     end
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:closeAndNotify()
 end
 
@@ -289,7 +266,7 @@ function WindowAttrShopUI:confirmItem()
     ---@cast price - nil
     if not selectable:isCurrentAvailable() or self.model._player.infoComp[self.model._moneyName] == nil
         or self.model._player.infoComp[self.model._moneyName] < price or self.model._player.infoComp[abilityKey] == nil then
-        ManagerFunctions.playSE(GameSystem.getBuzzerSE())
+        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         self:refreshItems()
         return
     end
@@ -297,7 +274,7 @@ function WindowAttrShopUI:confirmItem()
     self.model._player.infoComp[abilityKey] = self.model._player.infoComp[abilityKey]
         + self.model._abilities[abilityKey]
     self:increasePrice(abilityIndex)
-    ManagerFunctions.playSE(GameSystem.getShopSE())
+    ManagerFunctions.playSE(GameSystem.GetShopSE())
     self:refreshPriceText()
     self:refreshItems()
 end
@@ -434,4 +411,4 @@ function WindowAttrShopUI:_reflow()
     )
 end
 
-return Ui.define("WindowAttrShop", WindowAttrShopUI)
+return Ui.Define("WindowAttrShop", WindowAttrShopUI)

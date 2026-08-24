@@ -14,6 +14,7 @@ BINDING_FEATURE_HEADERS = {
     "function": "LudorkCoreBinding/FunctionAdapter.hpp",
     "variadic": "LudorkCoreBinding/VariadicFunctionAdapter.hpp",
     "callback": "LudorkCoreBinding/CallbackCodec.hpp",
+    "lua_helper": "LudorkCoreBinding/LuaHelper.hpp",
 }
 
 
@@ -24,6 +25,7 @@ BINDING_FEATURE_DEPENDENCIES = {
     "function": ("native",),
     "variadic": ("function",),
     "callback": ("value",),
+    "lua_helper": ("value",),
 }
 
 

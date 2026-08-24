@@ -1,35 +1,35 @@
 ---@meta Source.System
 
---- @brief Game system bootstrap that initialises engine subsystems.
+---@brief Game system bootstrap that initialises engine subsystems.
 ---@class Source.System.Module
----@field init                     fun()
----@field getConfigValue           fun(configName: string, settingName: string): string
----@field getTitle                 fun(): string
----@field getFonts                 fun(): sf.Font[]
----@field getFontSize              fun(): integer
----@field getDecisionSE            fun(): sf.SoundBuffer
----@field getCancelSE              fun(): sf.SoundBuffer
----@field getBuzzerSE              fun(): sf.SoundBuffer
----@field getCursorSE              fun(): sf.SoundBuffer
----@field getSaveSE                fun(): sf.SoundBuffer
----@field getLoadSE                fun(): sf.SoundBuffer
----@field getGetSE                 fun(): sf.SoundBuffer
----@field getTitleBGM              fun(): string
----@field getTitleBackgroundFile   fun(): string
----@field getStartMap              fun(): string
----@field GetStartPlayerClassPath  fun(): string
----@field GetStartRegion           fun(): string
----@field getStartPos              fun(): sf.Vector2u
----@field getSavedScreenImage      fun(): sf.Image | nil
----@field setSavedScreenImage      fun(image: sf.Image | nil)
+---@field Init                    fun()
+---@field GetConfigValue          fun(configName: string, settingName: string): string
+---@field GetTitle                fun(): string
+---@field GetFonts                fun(): sf.Font[]
+---@field GetFontSize             fun(): integer
+---@field GetDecisionSE           fun(): sf.SoundBuffer
+---@field GetCancelSE             fun(): sf.SoundBuffer
+---@field GetBuzzerSE             fun(): sf.SoundBuffer
+---@field GetCursorSE             fun(): sf.SoundBuffer
+---@field GetSaveSE               fun(): sf.SoundBuffer
+---@field GetLoadSE               fun(): sf.SoundBuffer
+---@field GetGetSE                fun(): sf.SoundBuffer
+---@field GetTitleBGM             fun(): string
+---@field GetTitleBackgroundFile  fun(): string
+---@field GetStartMap             fun(): string
+---@field GetStartPlayerClassPath fun(): string
+---@field GetStartRegion          fun(): string
+---@field GetStartPos             fun(): sf.Vector2u
+---@field GetSavedScreenImage     fun(): sf.Image | nil
+---@field SetSavedScreenImage     fun(image: sf.Image | nil)
 local System = {}
 
---- @brief Initialise the game system from configuration files.
+---@brief Initialise the game system from configuration files.
 ---
 --- Loads system.json, sets up the window, fonts, cursor, and global settings.
-function System.init() end
+function System.Init() end
 
---- @brief Get a runtime config value by config file and setting key.
+---@brief Get a runtime config value by config file and setting key.
 ---
 --- - @param configName The config data name, such as `Audio`.
 --- - @param settingName The setting key inside that config.
@@ -37,150 +37,150 @@ function System.init() end
 ---@param configName  string
 ---@param settingName string
 ---@return string
-function System.getConfigValue(configName, settingName) end
+function System.GetConfigValue(configName, settingName) end
 
---- @brief Get the game window title.
+---@brief Get the game window title.
 ---
 --- - @return The window title string.
 ---@return string
-function System.getTitle() end
+function System.GetTitle() end
 
---- @brief Get the list of loaded fonts.
+---@brief Get the list of loaded fonts.
 ---
 --- - @return A list of Font objects.
 ---@return sf.Font[]
-function System.getFonts() end
+function System.GetFonts() end
 
---- @brief Get the default font size.
+---@brief Get the default font size.
 ---
 --- - @return The font size in pixels.
 ---@return integer
-function System.getFontSize() end
+function System.GetFontSize() end
 
---- @brief Get the window skin texture name.
+---@brief Get the window skin texture name.
 ---
 --- - @return The windowskin name.
 ---@return string
-function System.getWindowskinName() end
+function System.GetWindowskinName() end
 
---- @brief Get the title screen background texture name.
+---@brief Get the title screen background texture name.
 ---
 --- - @return The title background file name.
 ---@return string
-function System.getTitleBackgroundFile() end
+function System.GetTitleBackgroundFile() end
 
---- @brief Set the window skin texture name.
+---@brief Set the window skin texture name.
 ---
 --- - @param name The new windowskin name.
 ---@param name string
-function System.setWindowskinName(name) end
+function System.SetWindowskinName(name) end
 
---- @brief Get the starting map path.
+---@brief Get the starting map path.
 ---
 --- - @return The start map path.
 ---@return string
-function System.getStartMap() end
+function System.GetStartMap() end
 
---- @brief Get the configured new-game player Blueprint class path.
+---@brief Get the configured new-game player Blueprint class path.
 ---
 --- - @return The `Data.Blueprints.*` class path derived from `startPlayerBlueprint`.
 ---@return string
 function System.GetStartPlayerClassPath() end
 
---- @brief Get the configured new-game region.
+---@brief Get the configured new-game region.
 ---
 --- - @return The initial region name used by a new GameInstance.
 ---@return string
 function System.GetStartRegion() end
 
---- @brief Get the starting position on the map.
+---@brief Get the starting position on the map.
 ---
 --- - @return The start position.
 ---@return sf.Vector2u
-function System.getStartPos() end
+function System.GetStartPos() end
 
---- @brief Get the cursor sound effect filename.
+---@brief Get the cursor sound effect filename.
 ---
 --- - @return The cursor SE filename.
 ---@return string
-function System.getCursorSE() end
+function System.GetCursorSE() end
 
---- @brief Get the decision sound effect filename.
+---@brief Get the decision sound effect filename.
 ---
 --- - @return The decision SE filename.
 ---@return string
-function System.getDecisionSE() end
+function System.GetDecisionSE() end
 
---- @brief Get the cancel sound effect filename.
+---@brief Get the cancel sound effect filename.
 ---
 --- - @return The cancel SE filename.
 ---@return string
-function System.getCancelSE() end
+function System.GetCancelSE() end
 
---- @brief Get the buzzer sound effect filename.
+---@brief Get the buzzer sound effect filename.
 ---
 --- - @return The buzzer SE filename.
 ---@return string
-function System.getBuzzerSE() end
+function System.GetBuzzerSE() end
 
---- @brief Get the shop sound effect filename.
+---@brief Get the shop sound effect filename.
 ---
 --- - @return The shop SE filename.
 ---@return string
-function System.getShopSE() end
+function System.GetShopSE() end
 
---- @brief Get the save sound effect filename.
+---@brief Get the save sound effect filename.
 ---
 --- - @return The save SE filename.
 ---@return string
-function System.getSaveSE() end
+function System.GetSaveSE() end
 
---- @brief Get the load sound effect filename.
+---@brief Get the load sound effect filename.
 ---
 --- - @return The load SE filename.
 ---@return string
-function System.getLoadSE() end
+function System.GetLoadSE() end
 
---- @brief Get the gate sound effect filename.
+---@brief Get the gate sound effect filename.
 ---
 --- - @return The gate SE filename.
 ---@return string
-function System.getGateSE() end
+function System.GetGateSE() end
 
---- @brief Get the stair sound effect filename.
+---@brief Get the stair sound effect filename.
 ---
 --- - @return The stair SE filename.
 ---@return string
-function System.getStairSE() end
+function System.GetStairSE() end
 
---- @brief Get the item get sound effect filename.
+---@brief Get the item get sound effect filename.
 ---
 --- - @return The get SE filename.
 ---@return string
-function System.getGetSE() end
+function System.GetGetSE() end
 
---- @brief Get the equip sound effect filename.
+---@brief Get the equip sound effect filename.
 ---
 --- - @return The equip SE filename.
 ---@return string
-function System.getEquipSE() end
+function System.GetEquipSE() end
 
---- @brief Get the title screen BGM filename.
+---@brief Get the title screen BGM filename.
 ---
 --- - @return The title BGM filename.
 ---@return string
-function System.getTitleBGM() end
+function System.GetTitleBGM() end
 
---- @brief Get the most recently captured screen snapshot.
+---@brief Get the most recently captured screen snapshot.
 ---
 --- - @return The captured Image scaled to game size, or nil if no snapshot exists.
 ---@return sf.Image | nil
-function System.getSavedScreenImage() end
+function System.GetSavedScreenImage() end
 
---- @brief Set the captured screen snapshot used for save thumbnails.
+---@brief Set the captured screen snapshot used for save thumbnails.
 ---
 --- - @param image The captured Image scaled to game size, or nil to clear.
 ---@param image sf.Image | nil
-function System.setSavedScreenImage(image) end
+function System.SetSavedScreenImage(image) end
 
 return System

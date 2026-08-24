@@ -267,10 +267,12 @@ validate_ui_preview_host_ownership() {
     package_dir=$1
     canonical_directory="$package_dir/Contents/Resources/tools/UiPreviewHost"
     canonical_executable="$canonical_directory/UiPreviewHost"
+    canonical_runtime="$canonical_directory/UiPreviewHostRuntime.*"
     unexpected_path=$(find "$package_dir" \
         -name 'UiPreviewHost*' \
         ! -path "$canonical_directory" \
         ! -path "$canonical_executable" \
+        ! -path "$canonical_runtime" \
         -print -quit)
     if [ -n "$unexpected_path" ]; then
         echo "UI preview host exists outside its canonical editor tool path: $unexpected_path" >&2
@@ -491,15 +493,15 @@ validate_package() {
     require_package_file "$package_resources/tools/ScriptTools-runtime-versions.txt"
     require_package_executable "$package_resources/tools/luac"
     require_package_executable "$package_resources/tools/UiPreviewHost/UiPreviewHost"
-    preview_engine=$(find \
+    preview_runtime=$(find \
         "$package_resources/tools/UiPreviewHost" \
         -maxdepth 1 \
         -type f \
-        -name 'Engine.*' \
+        -name 'UiPreviewHostRuntime.*' \
         -print \
         -quit)
-    if [ -z "$preview_engine" ]; then
-        echo "UiPreviewHost Engine runtime was not found." >&2
+    if [ -z "$preview_runtime" ]; then
+        echo "UiPreviewHost native runtime was not found." >&2
         exit 1
     fi
     validate_ui_preview_host_ownership "$package_app"
@@ -653,10 +655,12 @@ validate_package() {
         "$package_macos/Locale" \
         "$package_macos/Templates" \
         "$package_macos/docs" \
+        "$package_macos/Page" \
         "$package_macos/Licenses" \
         "$package_macos/tools" \
         "$package_macos/Ludork.ini" \
         "$package_resources/Locale/locale.json" \
+        "$package_resources/Page" \
         "$package_resources/tools/pack_editor.sh" \
         "$package_resources/tools/pack_editor.bat" \
         "$package_resources/tools/pack_editor_msi.bat" \
@@ -959,7 +963,7 @@ echo "Compiling packaged locale data..."
 )
 rm -f "$MACOS_DIR/Locale/locale.json"
 copy_directory "$MACOS_DIR/Locale" "$RESOURCES_DIR/Locale"
-rm -rf "$MACOS_DIR/Locale" "$MACOS_DIR/docs" "$MACOS_DIR/Licenses"
+rm -rf "$MACOS_DIR/Locale" "$MACOS_DIR/docs" "$MACOS_DIR/Page" "$MACOS_DIR/Licenses"
 rm -f \
     "$MACOS_DIR"/About_*.md \
     "$MACOS_DIR/LICENSE.md" \
@@ -972,7 +976,7 @@ echo "Generating editor project templates..."
 sh "$PROJECT_ROOT/tools/create_templates.sh" Release "$RESOURCES_DIR/Templates"
 
 echo "Copying editor resources..."
-rm -rf "$RESOURCES_DIR/docs" "$RESOURCES_DIR/Licenses"
+rm -rf "$RESOURCES_DIR/docs" "$RESOURCES_DIR/Page" "$RESOURCES_DIR/Licenses"
 copy_public_docs "$RESOURCES_DIR/docs"
 copy_directory "$PROJECT_ROOT/Licenses" "$RESOURCES_DIR/Licenses"
 cp "$PROJECT_ROOT/LICENSE.md" "$RESOURCES_DIR/LICENSE.md"
@@ -998,7 +1002,7 @@ cp "$LUAC" "$RESOURCES_DIR/tools/luac"
 preview_source="$PROJECT_ROOT/.tools/UiPreviewHost/bin/Release"
 preview_target="$RESOURCES_DIR/tools/UiPreviewHost"
 mkdir -p "$preview_target"
-preview_patterns='UiPreviewHost Engine.* *LudorkStandard* LuaSF.* liblua.* *sfml-system*.dylib* *sfml-window*.dylib* *sfml-graphics*.dylib* *sfml-audio*.dylib* *sfml-network*.dylib*'
+preview_patterns='UiPreviewHost UiPreviewHostRuntime.* *LudorkStandard* LuaSF.* liblua.* *sfml-system*.dylib* *sfml-window*.dylib* *sfml-graphics*.dylib* *sfml-audio*.dylib* *sfml-network*.dylib*'
 for preview_pattern in $preview_patterns; do
     preview_found=0
     for source_path in "$preview_source"/$preview_pattern; do

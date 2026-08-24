@@ -20,6 +20,11 @@ set(LUDORK_BUILD_SAMPLE_APPLICATION
     CACHE BOOL
     "Build the Sample application and its project-specific runtime"
     FORCE)
+set(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME
+    ON
+    CACHE BOOL
+    "Build the editor-owned native UI preview runtime"
+    FORCE)
 set(LUDORK_RUNTIME_OUTPUT_DIRECTORY
     "${LUDORK_REPOSITORY_ROOT}/.tools/UiPreviewHost/bin"
     CACHE PATH
@@ -41,7 +46,7 @@ add_executable(UiPreviewHost)
 add_subdirectory(src)
 add_dependencies(UiPreviewHost UiPreviewHostAdapterValidate)
 target_compile_features(UiPreviewHost PRIVATE cxx_std_20)
-target_link_libraries(UiPreviewHost PRIVATE Ludork::Engine)
+target_link_libraries(UiPreviewHost PRIVATE Ludork::UiPreviewHostRuntime)
 ludork_set_runtime_output(UiPreviewHost)
 ludork_enable_release_symbols(UiPreviewHost)
 ludork_copy_runtime_libraries(UiPreviewHost)

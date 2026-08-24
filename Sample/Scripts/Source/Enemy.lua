@@ -68,7 +68,7 @@ local function prepareDefeatSpawnActor(context, blueprintPath, kind, tagSuffix)
         type(blueprintPath) == "string" and bool(blueprintPath), "Enemy " .. kind .. " requires a Blueprint class path"
     )
     local actor = assert(
-        Data.genActorFromClassPath(blueprintPath), "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath
+        Data.GenActorFromClassPath(blueprintPath), "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath
     )
     actor:setMapTag(reserveDefeatSpawnTag(context, tagSuffix))
     actor:setMapPosition(copy(context.position))
@@ -89,8 +89,8 @@ end
 ---@return Source.Item | nil
 local function prepareDropActor(context, blueprintPath, offset)
     assert(type(blueprintPath) == "string" and bool(blueprintPath), "Enemy drop requires a Blueprint class path")
-    local resolvedPath = Data.resolveClassPath(blueprintPath)
-    local itemClass = assert(Data.getClass(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath)
+    local resolvedPath = Data.ResolveClassPath(blueprintPath)
+    local itemClass = assert(Data.GetClass(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath)
     assert(Class.isSubclass(itemClass, Item), "Enemy drop Blueprint must derive from Source.Item: " .. resolvedPath)
     local position = context.position + offset
     local mapTag = createDropMapTag(resolvedPath, position)
@@ -102,7 +102,7 @@ local function prepareDropActor(context, blueprintPath, offset)
         return nil
     end
     local actor = assert(
-        Data.genActorFromClassPath(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath
+        Data.GenActorFromClassPath(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath
     )
     context.reservedTags[mapTag] = true
     actor:setMapTag(mapTag)
@@ -145,6 +145,8 @@ local function spawnPersistentActor(scene, actor, layerName)
     scene:recordAddedActor(actor)
 end
 
+---@type function
+local gameOver
 ---@class Source.Enemy
 local Enemy = {}
 
@@ -292,7 +294,7 @@ function Enemy:onCollision(other)
                 end)
             elseif result == 1 then
                 player.infoComp.HP = 0
-                Enemy._gameOver()
+                gameOver()
             end
         end)
     end
@@ -329,7 +331,7 @@ function Enemy:onDefeat()
     end
 end
 
-function Enemy._gameOver()
+function gameOver()
     local SceneGameOver = require("Source.Scenes.SceneGameOver")
 
     GlobalCore.System.setScene(SceneGameOver.new())

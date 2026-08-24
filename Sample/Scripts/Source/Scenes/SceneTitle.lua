@@ -18,10 +18,9 @@ function Scene:onEnter()
 end
 
 function Scene:onCreate()
-    local WindowSaveLoadModule = require("Source.Windows.WindowSaveLoad")
+    local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
     local ConfigWindow = require("Source.Windows.ConfigWindow")
 
-    local WindowSaveLoad = WindowSaveLoadModule.WindowSaveLoad
     local uiManager = self:getUIManager()
     ---@cast uiManager GlobalCore.UIManager
     uiManager:setFocusNavigationEnabled(true)
@@ -50,7 +49,7 @@ function Scene:onCreate()
         uiManager:loadUI(window)
     end
     self._titleBGM = nil
-    local titleBGMFile = SourceSystem.getTitleBGM()
+    local titleBGMFile = SourceSystem.GetTitleBGM()
     if bool(titleBGMFile) then
         self._titleBGM = ManagerFunctions.playMusic("BGM", titleBGMFile)
         if self._titleBGM ~= nil then
@@ -71,10 +70,11 @@ function Scene:onDestroy()
     self._ui:dispose()
 end
 
-function Scene._startGame()
+---@diagnostic disable-next-line: unused
+function Scene:_startGame()
     local SceneMap = require("Source.Scenes.SceneMap")
 
-    ManagerFunctions.playSE(SourceSystem.getDecisionSE())
+    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
     ManagerFunctions.stopMusic("BGM")
     local nextScene = SceneMap.new()
     nextScene:setInst(GameInstance.new())
@@ -82,7 +82,7 @@ function Scene._startGame()
 end
 
 function Scene:_onLoadCommand()
-    ManagerFunctions.playSE(SourceSystem.getDecisionSE())
+    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
     self._windowCommand:setActive(false)
     self._windowSaveLoad:open()
     self._windowSaveLoad:getSlotWindow():requestKeyboardFocusAtCursor()
@@ -109,7 +109,7 @@ function Scene:_onSaveLoadLoaded(inst)
 end
 
 function Scene:_onConfigCommand()
-    ManagerFunctions.playSE(SourceSystem.getDecisionSE())
+    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
     if self._configWindow:isOpen() then
         self._configWindow:close()
     else
@@ -123,8 +123,9 @@ function Scene:_onConfigClose()
     self._windowCommand:requestKeyboardFocus()
 end
 
-function Scene._exitGame()
-    ManagerFunctions.playSE(SourceSystem.getDecisionSE())
+---@diagnostic disable-next-line: unused
+function Scene:_exitGame()
+    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
     GlobalSystem.exit()
 end
 

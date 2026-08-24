@@ -8,7 +8,7 @@ Bottle.getSE = ""
 
 function Bottle:onCollision(other)
     local parentCollision = super().onCollision
-    Pickup.handleCollision(self, other, parentCollision, function (player)
+    Pickup.HandleCollision(self, other, parentCollision, function (player)
         player.infoComp.HP = player.infoComp.HP + self.HP_plus
     end)
 end

@@ -6,13 +6,13 @@ local ComponentsFunctions = GlobalFunctions.Components
 local State = {}
 
 function State.GetStateOwner()
-    local owner = Context._getGraphOwner(State.GetStateOwner)
+    local owner = Context.GetGraphOwner(State.GetStateOwner)
     ---@cast owner Source.Battler.Battler | nil
     return owner
 end
 
 function State.GetEventArg(name, default)
-    local value = Context._getRefLocal(State.GetEventArg)["__" .. name .. "__"]
+    local value = Context.GetRefLocal(State.GetEventArg)["__" .. name .. "__"]
     return value == nil and default or value
 end
 

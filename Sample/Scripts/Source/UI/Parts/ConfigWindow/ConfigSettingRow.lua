@@ -26,10 +26,10 @@ function ConfigSettingRowUI:bind()
     self._dropBox:setWindowSkin(self._windowSkin)
     self._dropBox:setItems(self._items)
     self._dropBox:setSelectedIndex(self._selectedIndex)
-    self._dropBox:setOpenSound(GameSystem.getDecisionSE())
-    self._dropBox:setCursorSound(GameSystem.getCursorSE())
-    self._dropBox:setSelectSound(GameSystem.getDecisionSE())
-    self._dropBox:setCancelSound(GameSystem.getCancelSE())
+    self._dropBox:setOpenSound(GameSystem.GetDecisionSE())
+    self._dropBox:setCursorSound(GameSystem.GetCursorSE())
+    self._dropBox:setSelectSound(GameSystem.GetDecisionSE())
+    self._dropBox:setCancelSound(GameSystem.GetCancelSE())
 end
 
 function ConfigSettingRowUI:refresh()
@@ -62,4 +62,4 @@ function ConfigSettingRowUI:dispose()
     super(ConfigSettingRowUI, self).dispose()
 end
 
-return Ui.define("Parts/ConfigWindow/ConfigSettingRow", ConfigSettingRowUI, ConfigRowControllerBase)
+return Ui.Define("Parts/ConfigWindow/ConfigSettingRow", ConfigSettingRowUI, ConfigRowControllerBase)

@@ -27,23 +27,23 @@ local function getChannel(eventName)
     return channel
 end
 
-function Ui.getEventName(assetKey)
+function Ui.GetEventName(assetKey)
     return _EVENT_PREFIX .. assetKey
 end
 
-function Ui.publish(assetKey, payload)
-    Engine.publish(Ui.getEventName(assetKey), payload)
+function Ui.Publish(assetKey, payload)
+    Engine.publish(Ui.GetEventName(assetKey), payload)
 end
 
-function Ui.define(assetKey, definition, baseClass)
-    local updateEvent = Ui.getEventName(assetKey)
+function Ui.Define(assetKey, definition, baseClass)
+    local updateEvent = Ui.GetEventName(assetKey)
     local channel = getChannel(updateEvent)
     local function unregister(instance)
         channel.instances[instance] = nil
     end
     definition.assetKey = assetKey
     definition.viewUpdateEvent = updateEvent
-    definition.publish = function (payload)
+    definition.Publish = function (payload)
         Engine.publish(updateEvent, payload)
     end
     definition._registerUiInstance = function (instance)

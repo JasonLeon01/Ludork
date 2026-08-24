@@ -2,7 +2,6 @@ local Engine = require("Engine")
 local WindowShopItemUI = require("Source.UI.Parts.WindowShop.WindowShopItem")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local Input = Engine.Input
 local SHOP_ITEM_ROW_HEIGHT = 32
 
 ---@class Source.Windows.WindowShopItem
@@ -11,7 +10,7 @@ local WindowShopItem = {}
 WindowShopItem.uiClass = WindowShopItemUI
 
 function WindowShopItem:init(rect, owner)
-    super(WindowShopItem, self).init(rect, nil, nil, SHOP_ITEM_ROW_HEIGHT)
+    super(WindowShopItem, self).init(rect, nil, rect.size.x - 64, SHOP_ITEM_ROW_HEIGHT, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._owner = owner
     self._itemIDs = {}
@@ -61,23 +60,6 @@ function WindowShopItem:isCurrentAvailable()
         return false
     end
     return self._cellAvailable[self.index + 1]
-end
-
-function WindowShopItem:onKeyDown(kwargs)
-    if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self:onReturn()
-        Input.isActionTriggered(Input.getCancelKeys(), true)
-        return
-    end
-    super(WindowShopItem, self).onKeyDown(kwargs)
-end
-
-function WindowShopItem:onMouseButtonDown(kwargs)
-    if kwargs.button == sf.Mouse.Button.Right then
-        self:onReturn()
-        return true
-    end
-    return false
 end
 
 function WindowShopItem:onReturn()

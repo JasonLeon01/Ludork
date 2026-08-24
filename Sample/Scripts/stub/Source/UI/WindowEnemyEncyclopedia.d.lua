@@ -1,20 +1,20 @@
 ---@meta Source.UI.WindowEnemyEncyclopedia
 
 ---@class Source.UI.WindowEnemyEncyclopedia: Source.UI.UiController
----@field model Source.Windows.WindowEnemyEncyclopedia
----@field _logicalSize sf.Vector2u
----@field _infoPairControllers Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair[]
+---@field model                  Source.Windows.WindowEnemyEncyclopedia
+---@field _logicalSize           sf.Vector2u
+---@field _infoPairControllers   Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair[]
 ---@field _specialRowControllers Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow[]
----@field _entry Source.UI.WindowEnemyBook.Entry | nil
----@field _previewController Source.UI.Parts.Shared.ActorPreviewController
----@field _windowFrame Engine.Window
----@field _content Engine.Canvas
----@field _portraitControl Engine.FunctionalImage
----@field _nameControl Engine.FunctionalPlainText
----@field _infoLayer Engine.Canvas
----@field _descriptionControl Engine.FunctionalPlainText
----@field _specialList Engine.ListView
----@field new fun(model: Source.Windows.WindowEnemyEncyclopedia, size: sf.Vector2i): Source.UI.WindowEnemyEncyclopedia
+---@field _entry                 Source.UI.WindowEnemyBook.Entry | nil
+---@field _previewController     Source.UI.Parts.Shared.ActorPreviewController
+---@field _windowFrame           Engine.Window
+---@field _content               Engine.Canvas
+---@field _portraitControl       Engine.FunctionalImage
+---@field _nameControl           Engine.FunctionalPlainText
+---@field _infoLayer             Engine.Canvas
+---@field _descriptionControl    Engine.FunctionalPlainText
+---@field _specialList           Engine.ListView
+---@field new                    fun(model: Source.Windows.WindowEnemyEncyclopedia, size: sf.Vector2i): Source.UI.WindowEnemyEncyclopedia
 local WindowEnemyEncyclopediaUI = {}
 
 ---@param model Source.Windows.WindowEnemyEncyclopedia
@@ -54,20 +54,6 @@ function WindowEnemyEncyclopediaUI:addInfoPair(label, value, columnIndex, y) end
 ---@param entry Source.UI.WindowEnemyBook.Entry
 ---@param y     number
 function WindowEnemyEncyclopediaUI:buildSpecials(entry, y) end
-
----@param criticalValue integer | nil
----@return string
-function WindowEnemyEncyclopediaUI.formatCriticalText(criticalValue) end
-
----@param hitCount integer | nil
----@return string
-function WindowEnemyEncyclopediaUI.formatHitCount(hitCount) end
-
----@param text     string
----@param maxLines integer
----@param maxWidth integer
----@return string
-function WindowEnemyEncyclopediaUI.limitLines(text, maxLines, maxWidth) end
 
 ---@param deltaTime number
 function WindowEnemyEncyclopediaUI:tick(deltaTime) end

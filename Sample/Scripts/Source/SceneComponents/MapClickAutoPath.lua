@@ -25,16 +25,22 @@ local NEIGHBOUR_OFFSETS = { NEIGHBOUR_OFFSET_DOWN, NEIGHBOUR_OFFSET_UP, NEIGHBOU
 local function hasTeleporterAt(gameMap, goal)
     for _, actor in ipairs(gameMap:getAllActors()) do
         if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() then
-            for _, cell in ipairs(actor:getOccupiedMapCells()) do
-                if cell == goal then
-                    return true
-                end
+            if table.contains(actor:getOccupiedMapCells(), goal) then
+                return true
             end
         end
     end
     return false
 end
 
+---@type function
+local getTeleportPathPositions
+---@type function
+local getInstantWalkCount
+---@type function
+local triggerInstantWalkStates
+---@type function
+local setActorDirection
 ---@class Source.SceneComponents.MapClickAutoPath
 local MapClickAutoPath = {}
 
@@ -139,7 +145,7 @@ function MapClickAutoPath:onTick(_deltaTime)
             local start = player:getMapPosition()
             if start == goal then
                 self._routeState:clear()
-                MapClickAutoPath._setActorDirection(player, start, goal, true)
+                setActorDirection(player, start, goal, true)
             else
                 local plan = self:_buildAutoPathPlan(player, start, goal)
                 if plan ~= nil then
@@ -159,9 +165,7 @@ function MapClickAutoPath:_startAutoPath(player, start, goal, plan)
     self:_trimPreviewRoute(start)
     self._previewMapX = start.x
     self._previewMapY = start.y
-    local activeGoal = sf.Vector2i.new(goal.x, goal.y)
-    ---@cast activeGoal sf.Vector2i
-    self._activeGoal = activeGoal
+    self._activeGoal = copy(goal)
     self._routeDangerRevision = self._dangerState:getRevision()
     player:setRoute(plan.routeSteps)
     self._autoPathing = true
@@ -204,16 +208,16 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     if not bool(route) then
         player:stop()
         self:_dispatchInstantMoveOverlaps(player)
-        local pathPositions = bool(walkedPath) and walkedPath or { sf.Vector2i.new(start.x, start.y) }
-        MovementSpecials.notifyPlayerMovementFinished(player, pathPositions)
+        local pathPositions = bool(walkedPath) and walkedPath or { copy(start) }
+        MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
         return
     end
     local goal = route[#route]
     local goalPassable = self._parent:isPassable(player, goal)
     player:stop()
     local destination = goalPassable and goal or (#route >= 2 and route[#route - 1] or start)
-    local walkCount = MapClickAutoPath._getInstantWalkCount(route, destination)
-    local teleportPath = MapClickAutoPath._getTeleportPathPositions(route, destination)
+    local walkCount = getInstantWalkCount(route, destination)
+    local teleportPath = getTeleportPathPositions(route, destination)
     local destinationPosition = Pool.Get("sf.Vector2u", sf.Vector2u, {
         x = destination.x,
         y = destination.y
@@ -222,9 +226,9 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     Pool.Put("sf.Vector2u", destinationPosition)
     self._parent:updateActorOccupancy(player)
     self:_dispatchInstantMoveOverlaps(player)
-    MapClickAutoPath._triggerInstantWalkStates(player, walkCount)
+    triggerInstantWalkStates(player, walkCount)
     local fromPos = #route >= 2 and route[#route - 1] or start
-    MapClickAutoPath._setActorDirection(player, fromPos, goal, start == goal)
+    setActorDirection(player, fromPos, goal, start == goal)
     if not goalPassable and destination ~= goal then
         local moveOffset = Pool.Get("sf.Vector2i", sf.Vector2i, {
             x = goal.x - destination.x,
@@ -241,18 +245,18 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
         pathPositions[#pathPositions + 1] = point
     end
     if not bool(pathPositions) then
-        pathPositions[1] = sf.Vector2i.new(destination.x, destination.y)
+        pathPositions[1] = copy(destination)
     end
-    MovementSpecials.notifyPlayerMovementFinished(player, pathPositions)
+    MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
 end
 
 ---@param route       sf.Vector2i[]
 ---@param destination sf.Vector2i
 ---@return sf.Vector2i[]
-function MapClickAutoPath._getTeleportPathPositions(route, destination)
+function getTeleportPathPositions(route, destination)
     local path = {}
     for _, point in ipairs(route) do
-        path[#path + 1] = sf.Vector2i.new(point.x, point.y)
+        path[#path + 1] = copy(point)
         if point == destination then
             break
         end
@@ -263,7 +267,7 @@ end
 ---@param route       sf.Vector2i[]
 ---@param destination sf.Vector2i
 ---@return integer
-function MapClickAutoPath._getInstantWalkCount(route, destination)
+function getInstantWalkCount(route, destination)
     for index, point in ipairs(route) do
         if point == destination then
             return index
@@ -274,7 +278,7 @@ end
 
 ---@param player    Source.Player.Player
 ---@param walkCount integer
-function MapClickAutoPath._triggerInstantWalkStates(player, walkCount)
+function triggerInstantWalkStates(player, walkCount)
     if walkCount <= 0 then
         return
     end
@@ -306,8 +310,7 @@ end
 function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     if start == goal then
         local routeSteps = {} ---@type sf.Vector2i[]
-        local routeStart = sf.Vector2i.new(start.x, start.y)
-        ---@cast routeStart sf.Vector2i
+        local routeStart = copy(start)
         local route = { routeStart } ---@type sf.Vector2i[]
         return { routeSteps = routeSteps, route = route, goalPassable = true }
     end
@@ -347,8 +350,7 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
             ---@cast route sf.Vector2i[] | nil
             if neighbour == start then
                 local emptyRouteSteps = {} ---@type sf.Vector2i[]
-                local routeStart = sf.Vector2i.new(start.x, start.y)
-                ---@cast routeStart sf.Vector2i
+                local routeStart = copy(start)
                 local startRoute = { routeStart } ---@type sf.Vector2i[]
                 routeSteps = emptyRouteSteps
                 route = startRoute
@@ -373,12 +375,12 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     end
     local fullRoute = {}
     for _, point in ipairs(bestPlan.route) do
-        fullRoute[#fullRoute + 1] = sf.Vector2i.new(point.x, point.y)
+        fullRoute[#fullRoute + 1] = copy(point)
     end
-    fullRoute[#fullRoute + 1] = sf.Vector2i.new(goal.x, goal.y)
+    fullRoute[#fullRoute + 1] = copy(goal)
     local routeSteps = {}
     for _, point in ipairs(bestPlan.routeSteps) do
-        routeSteps[#routeSteps + 1] = sf.Vector2i.new(point.x, point.y)
+        routeSteps[#routeSteps + 1] = copy(point)
     end
     local stopPos = assert(fullRoute[#fullRoute - 1])
     ---@cast stopPos sf.Vector2i
@@ -473,7 +475,7 @@ end
 ---@param fromPos        sf.Vector2i
 ---@param goal           sf.Vector2i
 ---@param rotateWhenSame boolean
-function MapClickAutoPath._setActorDirection(actor, fromPos, goal, rotateWhenSame)
+function setActorDirection(actor, fromPos, goal, rotateWhenSame)
     if actor.direction == nil then
         return
     end

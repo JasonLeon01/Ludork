@@ -36,9 +36,13 @@ void leaveLuaSFState(lua_State* state, void*) noexcept {
 
 namespace ludork::standard {
 
-void initialize(lua_State* state) {
+void initialize(lua_State* state, int cjsonIndex) {
     if (state == nullptr) {
         return;
+    }
+    const int absoluteCjsonIndex = lua_absindex(state, cjsonIndex);
+    if (!lua_istable(state, absoluteCjsonIndex)) {
+        throw std::invalid_argument("cjson module must be a table");
     }
     installLuaErrorHandler(state);
     initializeRuntimeSession(state);
@@ -63,22 +67,7 @@ void initialize(lua_State* state) {
     binding::registerFileBatch(lua);
     binding::registerString(lua);
     binding::registerTable(lua);
-    const sol::object rawRequire =
-        lua.globals().raw_get<sol::object>("require");
-    if (!rawRequire.is<sol::protected_function>()) {
-        throw std::runtime_error("Lua require function is not defined");
-    }
-    sol::protected_function require = rawRequire.as<sol::protected_function>();
-    sol::protected_function_result loaded = require("cjson");
-    if (!loaded.valid()) {
-        const sol::error error = loaded;
-        throw std::runtime_error(error.what());
-    }
-    const sol::object rawCjson = loaded.get<sol::object>();
-    if (!rawCjson.is<sol::table>()) {
-        throw std::runtime_error("cjson module did not return a table");
-    }
-    sol::table cjson = rawCjson.as<sol::table>();
+    sol::table cjson = sol::stack::get<sol::table>(state, absoluteCjsonIndex);
     lua.registry().raw_set("LuaSF.JsonNullSentinel",
                            cjson.raw_get<sol::object>("null"));
     const sol::object jsonArrayMetatable =
@@ -95,8 +84,7 @@ void initialize(lua_State* state) {
     lua.registry().raw_set("LuaSF.JsonEmptyArrayMetatable",
                            jsonEmptyArrayMetatable);
     binding::registerContainers(lua);
-    const sol::object jsonDecode =
-        rawCjson.as<sol::table>().raw_get<sol::object>("decode");
+    const sol::object jsonDecode = cjson.raw_get<sol::object>("decode");
     if (!jsonDecode.is<sol::protected_function>()) {
         throw std::runtime_error("cjson decode function is not defined");
     }

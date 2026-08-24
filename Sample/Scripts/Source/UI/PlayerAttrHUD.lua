@@ -36,7 +36,7 @@ local function getStateDisplaySignature(states, language)
     ---@type string[]
     local values = { language }
     for _, state in ipairs(states) do
-        local stateData = Data.getGeneralStateData(state.ID)
+        local stateData = Data.GetGeneralStateData(state.ID)
         values[#values + 1] = state.ID
         values[#values + 1] = state.icon or stateData.icon or ""
         values[#values + 1] = state.name or ""
@@ -205,7 +205,7 @@ function PlayerAttrHUDUI:loadStateIcon(iconPath)
     if self._stateIconCache[iconPath] ~= nil then
         return self._stateIconCache[iconPath]
     end
-    local texture = IconTexture.load(iconPath, "Icons/States")
+    local texture = IconTexture.Load(iconPath, "Icons/States")
     self._stateIconCache[iconPath] = texture
     return texture
 end
@@ -245,7 +245,7 @@ end
 function PlayerAttrHUDUI:_updateStateRows(states)
     local x = 0.0
     for index, state in ipairs(states) do
-        local stateData = Data.getGeneralStateData(state.ID)
+        local stateData = Data.GetGeneralStateData(state.ID)
         local iconPath = state.icon or stateData.icon or ""
         local texture = bool(iconPath) and self:loadStateIcon(iconPath) or nil
         ---@diagnostic disable: need-check-nil
@@ -270,7 +270,7 @@ function PlayerAttrHUDUI:refreshStates(language)
     if rebuild then
         self:_rebuildStateRows(states, signature)
     end
-    local displaySignature = getStateDisplaySignature(states, language or LocaleCore.getLanguage())
+    local displaySignature = getStateDisplaySignature(states, language or LocaleCore.GetLanguage())
     if not rebuild and self._stateDisplaySignature == displaySignature then
         return false
     end
@@ -281,7 +281,7 @@ function PlayerAttrHUDUI:refreshStates(language)
     return true
 end
 
-function PlayerAttrHUDUI.formatMapName(mapName)
+local function formatMapName(mapName)
     return LOC(tostring(mapName))
 end
 
@@ -291,12 +291,12 @@ function PlayerAttrHUDUI:getMapDisplayName()
         return ""
     end
     ---@cast gameMap GameMap
-    return PlayerAttrHUDUI.formatMapName(gameMap.mapName)
+    return formatMapName(gameMap.mapName)
 end
 
 function PlayerAttrHUDUI:refresh()
     local layoutDirty = false
-    local language = LocaleCore.getLanguage()
+    local language = LocaleCore.GetLanguage()
     local localeChanged = self._language ~= language
     local gameMap = self.model._player:getMap()
     local mapName = ""
@@ -308,7 +308,7 @@ function PlayerAttrHUDUI:refresh()
     if self._headerSignature ~= headerSignature then
         self._headerSignature = headerSignature
         self._language = language
-        self:setText("MapName", PlayerAttrHUDUI.formatMapName(mapName))
+        self:setText("MapName", formatMapName(mapName))
         self:setText("HpLabel", LOC("HP"))
         self:setText("AtkLabel", LOC("ATK"))
         self:setText("DefLabel", LOC("DEF"))
@@ -431,4 +431,4 @@ function PlayerAttrHUDUI:tick()
     self._layoutDirty = false
 end
 
-return Ui.define("PlayerAttrHUD", PlayerAttrHUDUI)
+return Ui.Define("PlayerAttrHUD", PlayerAttrHUDUI)

@@ -25,10 +25,11 @@ function ConfigSliderRowUI:bind()
     self._slider:resize(sf.Vector2f.new(self._sliderWidth, 8.0))
     if PLATFORM == "ios" or PLATFORM == "android" or PLATFORM == "ohos" then
         local sliderSize = self._slider:getSize()
-        self._slider:setTouchHitBounds(sf.FloatRect.new(
-            sf.Vector2f.new(0.0, (sliderSize.y - _ROW_HEIGHT) / 2.0),
-            sf.Vector2f.new(sliderSize.x, _ROW_HEIGHT)
-        ))
+        self._slider:setTouchHitBounds(
+            sf.FloatRect.new(
+                sf.Vector2f.new(0.0, (sliderSize.y - _ROW_HEIGHT) / 2.0), sf.Vector2f.new(sliderSize.x, _ROW_HEIGHT)
+            )
+        )
     end
     self._slider:setRange(0, 100)
     self._slider:setValue(self._value)
@@ -96,4 +97,4 @@ function ConfigSliderRowUI:_applyValueTextPosition()
     self._valueText:setOrigin(sf.Vector2f.new(0.0, 0.0))
 end
 
-return Ui.define("Parts/ConfigWindow/ConfigSliderRow", ConfigSliderRowUI, ConfigRowControllerBase)
+return Ui.Define("Parts/ConfigWindow/ConfigSliderRow", ConfigSliderRowUI, ConfigRowControllerBase)

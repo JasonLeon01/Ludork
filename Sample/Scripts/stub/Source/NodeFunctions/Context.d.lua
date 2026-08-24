@@ -2,24 +2,24 @@
 
 ---@class Source.NodeFunctions.Context.RefLocal
 ---@field __graph__ Engine.Graph | nil
----@field __key__ string | nil
+---@field __key__   string | nil
 
 ---@param fn function
 ---@return Source.NodeFunctions.Context.RefLocal
-function Context._getRefLocal(fn) end
+function Context.GetRefLocal(fn) end
 
 ---@param fn function
 ---@return unknown
-function Context._requireGraphParent(fn) end
+function Context.RequireGraphParent(fn) end
 
 ---@param fn function
 ---@return unknown
-function Context._getGraphOwner(fn) end
+function Context.GetGraphOwner(fn) end
 
 ---@return Source.Scenes.SceneMap.SceneMap
-function Context.requireSceneMap() end
+function Context.RequireSceneMap() end
 
 ---@return Source.GameInstance.GameInstance
-function Context.requireGameInstance() end
+function Context.RequireGameInstance() end
 
 return Context

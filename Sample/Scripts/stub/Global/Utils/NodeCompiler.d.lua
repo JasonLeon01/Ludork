@@ -45,6 +45,6 @@
 ---@param parentClass  Class.ClassType<any> | nil
 ---@param context      NodeCompiler.Context | nil
 ---@return NodeCompiler.Definition | nil
-function NodeCompiler.compile(functionName, parentClass, context) end
+function NodeCompiler.Compile(functionName, parentClass, context) end
 
 return NodeCompiler

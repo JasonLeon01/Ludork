@@ -3,33 +3,6 @@ local STAGGER_DURATION = 0.1
 
 local ActorPixelShatterEffect = {}
 
-local function appendVertex(vertices, vertex, x, y, textureCoordinate)
-    vertex.position = sf.Vector2f.new(x, y)
-    vertex.texCoords = textureCoordinate
-    vertices:append(vertex)
-end
-
-local function buildVertices(originX, originY, width, height)
-    local vertices = sf.VertexArray.new(sf.PrimitiveType.Triangles)
-    local vertex = sf.Vertex.new()
-    for y = 0, height - 1 do
-        for x = 0, width - 1 do
-            local left = originX + x
-            local top = originY + y
-            local right = left + 1
-            local bottom = top + 1
-            local textureCoordinate = sf.Vector2f.new(x + 0.5, y + 0.5)
-            appendVertex(vertices, vertex, left, top, textureCoordinate)
-            appendVertex(vertices, vertex, right, top, textureCoordinate)
-            appendVertex(vertices, vertex, right, bottom, textureCoordinate)
-            appendVertex(vertices, vertex, left, top, textureCoordinate)
-            appendVertex(vertices, vertex, right, bottom, textureCoordinate)
-            appendVertex(vertices, vertex, left, bottom, textureCoordinate)
-        end
-    end
-    return vertices
-end
-
 function ActorPixelShatterEffect:init(actor, shader, seed)
     self._sourceActor = actor
     self._shader = shader
@@ -65,6 +38,7 @@ function ActorPixelShatterEffect:prepare(drawActor)
     local height = math.max(1, maximumY - originY)
     local snapshotSize = sf.Vector2f.new(width, height)
     local renderTextureSize = sf.Vector2u.new(width, height)
+    local snapshotOrigin = sf.Vector2f.new(originX, originY)
     ---@cast renderTextureSize sf.Vector2u
     local snapshot = sf.RenderTexture.new(renderTextureSize)
     snapshot:setSmooth(false)
@@ -77,9 +51,9 @@ function ActorPixelShatterEffect:prepare(drawActor)
     renderStates.texture = snapshot:getTexture()
     renderStates.shader = self._shader
     self._snapshot = snapshot
-    self._snapshotOrigin = sf.Vector2f.new(originX, originY)
+    self._snapshotOrigin = snapshotOrigin
     self._snapshotSize = snapshotSize
-    self._vertices = buildVertices(originX, originY, width, height)
+    self._vertices = Engine.BuildPixelGridVertices(snapshotOrigin, renderTextureSize)
     self._renderStates = renderStates
     self._prepared = true
     self._sourceActor = nil

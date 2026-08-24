@@ -13,7 +13,7 @@ local function resolveFilePath(filePath)
 end
 
 function Save.SaveGame(filePath)
-    SourceSave.SaveGame(resolveFilePath(filePath), Context.requireGameInstance())
+    SourceSave.SaveGame(resolveFilePath(filePath), Context.RequireGameInstance())
 end
 
 function Save.LoadGame(filePath)
@@ -21,7 +21,7 @@ function Save.LoadGame(filePath)
     if instance == nil then
         return 1
     end
-    Context.requireSceneMap().inst = instance
+    Context.RequireSceneMap().inst = instance
     return 0
 end
 

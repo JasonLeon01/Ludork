@@ -40,7 +40,7 @@ function WindowEnemyBookUI.RefreshEntryLocale(entry)
     end
 end
 
-function WindowEnemyBookUI.loadSpecialIcon(iconPath)
+local function loadSpecialIcon(iconPath)
     if not bool(iconPath) then
         return nil
     end
@@ -48,7 +48,7 @@ function WindowEnemyBookUI.loadSpecialIcon(iconPath)
     if cached ~= nil then
         return cached
     end
-    local texture = IconTexture.load(iconPath, "Icons/Specials", ".png")
+    local texture = IconTexture.Load(iconPath, "Icons/Specials", ".png")
     _specialIconCache[iconPath] = texture
     return texture
 end
@@ -194,11 +194,11 @@ function WindowEnemyBookUI:buildSpecialDisplays(special)
     end
     local displays = {}
     for _, specialKey in ipairs(specialKeys) do
-        local specialData = Data.getGeneralSpecialData(tostring(specialKey))
+        local specialData = Data.GetGeneralSpecialData(tostring(specialKey))
         local nameSource = tostring(specialData.name or specialKey)
         local iconPath = tostring(specialData.icon or specialKey)
         displays[#displays + 1] = {
-            texture = self.loadSpecialIcon(iconPath),
+            texture = loadSpecialIcon(iconPath),
             nameSource = nameSource,
             name = self:formatName(nameSource)
         }
@@ -212,7 +212,7 @@ function WindowEnemyBookUI:buildSpecialDetails(special)
     end
     local details = {}
     for _, specialKey in ipairs(table.orderedStringKeys(special, _SPECIAL_ORDER)) do
-        local specialData = Data.getGeneralSpecialData(tostring(specialKey))
+        local specialData = Data.GetGeneralSpecialData(tostring(specialKey))
         local nameSource = tostring(specialData.name or specialKey)
         local descSource = tostring(specialData.desc or "")
         details[#details + 1] = {
@@ -234,4 +234,4 @@ function WindowEnemyBookUI:formatText(text)
     return WindowEnemyBookUI.FormatLocaleText(text)
 end
 
-return Ui.define("WindowEnemyBook", WindowEnemyBookUI)
+return Ui.Define("WindowEnemyBook", WindowEnemyBookUI)

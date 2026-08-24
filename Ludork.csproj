@@ -86,14 +86,14 @@
       Name="CleanPublicDocumentationOutput"
       BeforeTargets="GetCopyToOutputDirectoryItems"
       Condition="'$(DesignTimeBuild)' != 'true'">
-    <RemoveDir Directories="$(TargetDir)docs" />
+    <RemoveDir Directories="$(TargetDir)docs;$(TargetDir)Page" />
   </Target>
 
   <Target
       Name="CleanPublicDocumentationPublishOutput"
       BeforeTargets="ComputeFilesToPublish"
       Condition="'$(DesignTimeBuild)' != 'true'">
-    <RemoveDir Directories="$(PublishDir)docs" />
+    <RemoveDir Directories="$(PublishDir)docs;$(PublishDir)Page" />
   </Target>
 
   <Target

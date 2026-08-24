@@ -73,10 +73,10 @@ void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
         return;
     }
     const sol::object rawGetGeneralData = runtimeIndex(
-        lua, dataProvider, sol::make_object(lua, "getGeneralData"), false);
+        lua, dataProvider, sol::make_object(lua, "GetGeneralData"), false);
     if (!rawGetGeneralData.is<sol::protected_function>()) {
         throw std::runtime_error(
-            "General Data provider must expose getGeneralData");
+            "General Data provider must expose GetGeneralData");
     }
     sol::protected_function getGeneralData =
         rawGetGeneralData.as<sol::protected_function>();
@@ -104,7 +104,7 @@ void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
     const sol::object graphData =
         member.as<sol::table>().get<sol::object>("_graph");
     const sol::object rawGenerator = runtimeIndex(
-        lua, dataProvider, sol::make_object(lua, "genGraphFromData"), false);
+        lua, dataProvider, sol::make_object(lua, "GenGraphFromData"), false);
     if (graphData.get_type() == sol::type::lua_nil ||
         !rawGenerator.is<sol::protected_function>()) {
         return;

@@ -88,7 +88,7 @@ FinalMovementCondition.__call = MovementCondition.poll
 
 function Movement.SetMoveEnabledByTag(tag, enabled)
     enabled = enabled == nil and true or enabled
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     local actor = scene:getGameMap():getActorByTag(tag)
     if actor ~= nil then
         actor:setMoveEnabled(enabled)
@@ -114,7 +114,7 @@ end
 function Movement.SetAutoPathToDestinationByTag(tag, destination)
     destination = destination or sf.Vector2i.new(0, 0)
     local actor = nil
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     if bool(tag) then
         actor = scene:getGameMap():getActorByTag(tag)
     end

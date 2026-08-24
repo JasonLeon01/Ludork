@@ -35,7 +35,7 @@ end
 function Scene:_backToTitle()
     local SceneTitle = require("Source.Scenes.SceneTitle")
 
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     GlobalSystem.setScene(SceneTitle.new())
 end
 

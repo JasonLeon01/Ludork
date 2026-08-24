@@ -15,4 +15,4 @@ function EquipItemRowUI:refresh()
     self:setProperty("Count", "visible", showCount)
 end
 
-return Ui.define("Parts/WindowEquip/EquipItemRow", EquipItemRowUI)
+return Ui.Define("Parts/WindowEquip/EquipItemRow", EquipItemRowUI)

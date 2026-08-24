@@ -8,4 +8,4 @@ function EquipStatusRowUI:refresh()
     self:setProperty("Delta", "colour", self.model.delta > 0 and { 0, 255, 0, 255 } or { 255, 0, 0, 255 })
 end
 
-return Ui.define("Parts/WindowEquip/EquipStatusRow", EquipStatusRowUI)
+return Ui.Define("Parts/WindowEquip/EquipStatusRow", EquipStatusRowUI)

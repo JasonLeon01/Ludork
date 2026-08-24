@@ -13,4 +13,4 @@ function EquipSlotRowUI:refresh()
     self:setText("Label", self.model.label)
 end
 
-return Ui.define("Parts/WindowEquip/EquipSlotRow", EquipSlotRowUI)
+return Ui.Define("Parts/WindowEquip/EquipSlotRow", EquipSlotRowUI)

@@ -9,7 +9,7 @@ local Pickup = {}
 local function playPickupSound(actor)
     local getSE = actor.getSE
     if not bool(getSE) then
-        getSE = System.getGetSE()
+        getSE = System.GetGetSE()
     end
     ManagerFunctions.playSE(getSE)
 end
@@ -25,7 +25,7 @@ local function showNewItemMessage(actor, inst, scene)
     })
 end
 
-function Pickup.handleCollision(actor, other, parentCollision, applyPickup)
+function Pickup.HandleCollision(actor, other, parentCollision, applyPickup)
     if actor:isDestroyed() then
         return
     end
@@ -42,8 +42,8 @@ function Pickup.handleCollision(actor, other, parentCollision, applyPickup)
     actor:destroy()
 end
 
-function Pickup.handleInventoryCollision(actor, other, parentCollision, applyPickup)
-    Pickup.handleCollision(actor, other, parentCollision, function (player, inst, scene)
+function Pickup.HandleInventoryCollision(actor, other, parentCollision, applyPickup)
+    Pickup.HandleCollision(actor, other, parentCollision, function (player, inst, scene)
         applyPickup(player, inst, scene)
         showNewItemMessage(actor, inst, scene)
     end)

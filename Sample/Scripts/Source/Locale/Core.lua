@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local Logging = require("Global.Utils.Logging")
 local EventKeys = require("Source.Configs.EventKeys")
 
 local Core = {}
@@ -9,15 +10,10 @@ local dataDict = {}
 Core.LANGUAGE = "en_GB"
 
 function Core.GetLocaleKeys()
-    local result = {}
-    for language in pairs(dataDict) do
-        result[#result + 1] = language
-    end
-    table.sort(result)
-    return result
+    return table.orderedStringKeys(dataDict)
 end
 
-function Core.init()
+function Core.Init()
     dataDict = {}
     for _, file in ipairs(os.listdir(LOCALE_DIRECTORY)) do
         local language, extension = os.path.splitext(file)
@@ -87,26 +83,27 @@ function Core.ApplyStringLocaleFormat(value)
     return (table.concat(result):gsub("}}", "}"))
 end
 
-function Core.setLanguage(language)
+function Core.SetLanguage(language)
     local resolved = bool(language) and language or "en_GB"
     if resolved == Core.LANGUAGE then
         return
     end
     Core.LANGUAGE = resolved
+    Logging.info("Language changed to %s", resolved)
     Engine.publish(EventKeys.LocaleChanged, {
         language = resolved
     })
 end
 
-function Core.getLanguage()
+function Core.GetLanguage()
     return Core.LANGUAGE
 end
 
-function Core.hasLanguage(language)
+function Core.HasLanguage(language)
     return dataDict[language] ~= nil
 end
 
-function Core.hasKey(key)
+function Core.HasKey(key)
     return Core.GetLocaleDict()[key] ~= nil
 end
 
@@ -143,6 +140,6 @@ Core.LOC = Core.ApplyStringLocaleFormat
 Core.LOC_L = Core.GetLocaleContent
 Core.LOC_D = Core.GetLocaleDict
 
-Core.init()
+Core.Init()
 
 return Core

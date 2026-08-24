@@ -33,4 +33,4 @@ function WindowShopCellUI:refresh()
     )
 end
 
-return Ui.define("Parts/WindowShop/WindowShopCell", WindowShopCellUI)
+return Ui.Define("Parts/WindowShop/WindowShopCell", WindowShopCellUI)

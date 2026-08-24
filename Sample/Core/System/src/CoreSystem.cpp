@@ -48,6 +48,12 @@ void createDirectories(const std::string& path) {
     std::filesystem::create_directories(ludork::standard::pathFromUtf8(path));
 }
 
+void removeFile(const std::string& path) {
+    if (!std::filesystem::remove(ludork::standard::pathFromUtf8(path))) {
+        throw std::runtime_error("Failed to remove file: " + path);
+    }
+}
+
 std::string compress(const std::string& value) {
     uLongf resultSize = compressBound(static_cast<uLong>(value.size()));
     std::string result(resultSize, '\0');

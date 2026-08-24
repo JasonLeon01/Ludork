@@ -5,6 +5,10 @@ local GlobalFunctions = require("GlobalFunctions")
 local ManagerFunctions = GlobalFunctions.Manager
 local AudioManager = GlobalCore.AudioManager
 
+---@type function
+local buildLoopPoint
+---@type function
+local buildMusicFilter
 ---@class Source.SceneComponents.SceneMapAudioController
 local SceneMapAudioController = {}
 
@@ -54,7 +58,7 @@ end
 function SceneMapAudioController:playMapAudio(mapData)
     local bgm = mapData.bgm or ""
     local hasBgm = bool(bgm)
-    local bgmFilter = SceneMapAudioController._buildMusicFilter(mapData.bgmFilter or {})
+    local bgmFilter = buildMusicFilter(mapData.bgmFilter or {})
     local reuseBgm = hasBgm and self._currentBgmMusic ~= nil and self._currentBgmFile == bgm
     if reuseBgm then
         ---@cast self._currentBgmMusic sf.Music
@@ -79,7 +83,7 @@ function SceneMapAudioController:playMapAudio(mapData)
 
     local bgs = mapData.bgs or ""
     local hasBgs = bool(bgs)
-    local bgsFilter = SceneMapAudioController._buildMusicFilter(mapData.bgsFilter or {})
+    local bgsFilter = buildMusicFilter(mapData.bgsFilter or {})
     local reuseBgs = hasBgs and self._currentBgsMusic ~= nil and self._currentBgsFile == bgs
     if reuseBgs then
         ---@cast self._currentBgsMusic sf.Music
@@ -118,7 +122,7 @@ end
 
 ---@param data Source.SceneComponents.MusicLoopPointData
 ---@return sf.Music.TimeSpan
-function SceneMapAudioController._buildLoopPoint(data)
+function buildLoopPoint(data)
     local start = data.start
     local finish = data["end"]
     local span = sf.Music.TimeSpan.new()
@@ -131,7 +135,7 @@ end
 
 ---@param data Source.SceneComponents.MusicFilterData
 ---@return Engine.MusicFilter | nil
-function SceneMapAudioController._buildMusicFilter(data)
+function buildMusicFilter(data)
     if not bool(data) then
         return nil
     end
@@ -147,7 +151,7 @@ function SceneMapAudioController._buildMusicFilter(data)
         values.offset = sf.seconds(data.offset)
     end
     if data.loopPoint ~= nil then
-        values.loopPoint = SceneMapAudioController._buildLoopPoint(data.loopPoint)
+        values.loopPoint = buildLoopPoint(data.loopPoint)
         if values.offset == nil then
             local start = data.loopPoint.start
             if start > 0.0 then

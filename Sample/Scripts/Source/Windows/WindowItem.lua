@@ -3,16 +3,6 @@ local WindowItemUI = require("Source.UI.WindowItem")
 
 local WindowItem = {}
 
--- Load an item icon texture from the icon file path.
----
---- - @param iconPath The icon file path from GeneralData.
---- - @return Loaded Texture, or None when iconPath is empty.
----@param iconPath string
----@return sf.Texture | nil
-function WindowItem._loadItemIcon(iconPath)
-    return WindowItemUI.loadItemIcon(iconPath)
-end
-
 function WindowItem:init(rect, player, onClose)
     super(WindowItem, self).init(rect, nil, 32, 32)
     self:setHasReturnBtn(true)
@@ -61,17 +51,6 @@ end
 
 function WindowItem:_updateDescription()
     self._itemUI:updateDescription()
-end
-
-function WindowItem:onKeyDown(kwargs)
-    if self._itemUI:handleKeyDown() then
-        return
-    end
-    return super(WindowItem, self).onKeyDown(kwargs)
-end
-
-function WindowItem:onMouseButtonDown(kwargs)
-    return self._itemUI:handleMouseButtonDown(kwargs)
 end
 
 function WindowItem:open()

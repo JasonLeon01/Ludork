@@ -20,7 +20,7 @@ end
 function Equip:onCollision(other)
     ---@cast self Source.Equip
     local parentCollision = super(Equip, self).onCollision
-    Pickup.handleInventoryCollision(self, other, parentCollision, function (player)
+    Pickup.HandleInventoryCollision(self, other, parentCollision, function (player)
         player:addEquip(self.ID)
     end)
 end

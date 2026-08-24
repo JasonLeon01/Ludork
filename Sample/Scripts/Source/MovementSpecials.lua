@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
 local EventKeys = require("Source.Configs.EventKeys")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
@@ -222,7 +223,6 @@ local function applyMovementSpecials(player, pathPositions)
     if player.infoComp.HP <= 0 then
         local function gameOver()
             local SceneGameOver = require("Source.Scenes.SceneGameOver")
-            local GlobalCore = require("GlobalCore")
 
             local GlobalSystem = GlobalCore.System
             GlobalSystem.setScene(SceneGameOver.new())
@@ -236,7 +236,7 @@ local function applyMovementSpecials(player, pathPositions)
     end
 end
 
-function MovementSpecials.registerHandlers()
+function MovementSpecials.RegisterHandlers()
     if handlersRegistered then
         return
     end
@@ -259,8 +259,8 @@ function MovementSpecials.registerHandlers()
     handlersRegistered = true
 end
 
-function MovementSpecials.notifyPlayerMovementFinished(player, pathPositions)
-    MovementSpecials.registerHandlers()
+function MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
+    MovementSpecials.RegisterHandlers()
     Engine.publish(EventKeys.PlayerMovementFinished, {
         player = player,
         pathPositions = pathPositions

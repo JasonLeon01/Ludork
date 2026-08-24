@@ -14,6 +14,9 @@ BIND_FUNCTION()
 void createDirectories(const std::string& path);
 
 BIND_FUNCTION()
+void removeFile(const std::string& path);
+
+BIND_FUNCTION()
 std::string compress(const std::string& value);
 
 BIND_FUNCTION()

@@ -18,6 +18,8 @@ local _ATTR_ORDER = { "MAXHP", "HP", "ATK", "DEF", "EXP", "GOLD" }
 
 ---@class Source.UI.Parts.WindowEquip.WindowEquipStatus: Source.UI.UiController
 local WindowEquipStatusUI = {}
+---@type function
+local wrapDescription
 
 function WindowEquipStatusUI:init(model)
     super(WindowEquipStatusUI, self).init(model)
@@ -121,15 +123,15 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
     local descMaxWidth = math.max(1, math.floor(self.model.content:getSize().x))
     if showUnequip then
         self._descriptionName = LOC("EQUIP_UNEQUIP")
-        self._descriptionText = self.wrapDescription(LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth)
+        self._descriptionText = wrapDescription(LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth)
     elseif not bool(candidateEquipID) then
         self._descriptionName = ""
         self._descriptionText = ""
     else
         ---@cast candidateEquipID string
-        local equipInfo = Data.getGeneralEquipData(candidateEquipID)
+        local equipInfo = Data.GetGeneralEquipData(candidateEquipID)
         self._descriptionName = LOC(equipInfo.name or "")
-        self._descriptionText = self.wrapDescription(LOC(equipInfo.desc or ""), descMaxWidth)
+        self._descriptionText = wrapDescription(LOC(equipInfo.desc or ""), descMaxWidth)
     end
     self:refresh()
     self.view:reflow(self._logicalSize)
@@ -165,7 +167,7 @@ function WindowEquipStatusUI:getAttrPlus(equipID)
         return {}
     end
     ---@cast equipID string
-    local attrPlus = Data.getGeneralEquipData(equipID).attrPlus
+    local attrPlus = Data.GetGeneralEquipData(equipID).attrPlus
     if attrPlus == nil then
         return {}
     end
@@ -193,8 +195,8 @@ function WindowEquipStatusUI:setRightAligned(text, y)
     text:setPosition(sf.Vector2f.new(contentWidth - bounds.size.x - bounds.position.x, y))
 end
 
-function WindowEquipStatusUI.wrapDescription(text, maxWidth)
-    return TextLayout.wrapPlainText(text, maxWidth, "UI/Text14")
+function wrapDescription(text, maxWidth)
+    return TextLayout.WrapPlainText(text, maxWidth, "UI/Text14")
 end
 
 function WindowEquipStatusUI:_refreshLogicalSize()
@@ -204,4 +206,4 @@ function WindowEquipStatusUI:_refreshLogicalSize()
     self._logicalSize = logicalSize
 end
 
-return Ui.define("Parts/WindowEquip/WindowEquipStatus", WindowEquipStatusUI)
+return Ui.Define("Parts/WindowEquip/WindowEquipStatus", WindowEquipStatusUI)

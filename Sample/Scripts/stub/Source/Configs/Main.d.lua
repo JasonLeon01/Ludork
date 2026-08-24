@@ -17,6 +17,6 @@ function MainConfig.GetMaximumRenderScaleOptions(configuredScale) end
 
 ---@return string iniFilePath
 ---@return ConfigParser iniFile
-function MainConfig.loadOrCreate() end
+function MainConfig.LoadOrCreate() end
 
 return MainConfig

@@ -18,7 +18,7 @@ WindowBase._PAUSE_MARK_FRAME_RECTS = {
     Engine.ToIntRect(16, 16, 16, 16)
 }
 
-function WindowBase:init(rect, windowSkin, repeated)
+function WindowBase:init(rect, windowSkin, repeated, deferView)
     super(WindowBase, self).init(rect)
     if windowSkin == nil then
         windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
@@ -27,21 +27,49 @@ function WindowBase:init(rect, windowSkin, repeated)
     self._repeated = repeated == true
     self._hasReturnBtn = false
     self._returnButtonSuppressed = false
-    self._windowBaseUI = WindowBaseUI.new(self, windowSkin, repeated)
-    local size = self:getSize()
-    self._windowBaseUI:attachTo(self, sf.Vector2u.new(size.x, size.y))
-    self._window = self._windowBaseUI:getWindow()
-    self.content = self._windowBaseUI:getContent()
-    self._returnButton = self._windowBaseUI:getReturnButton()
+    self._windowBaseUI = nil
+    self._window = nil
+    self.content = nil
+    self._returnButton = nil
+    self._pauseMark = nil
+    self._pauseMarkTexture = nil
+    if deferView == true then
+        self:_createDeclarativeChrome()
+    else
+        self._windowBaseUI = WindowBaseUI.new(self, windowSkin, repeated)
+        local size = self:getSize()
+        self._windowBaseUI:attachTo(self, sf.Vector2u.new(size.x, size.y))
+        self._window = self._windowBaseUI:getWindow()
+        self.content = self._windowBaseUI:getContent()
+        self._returnButton = self._windowBaseUI:getReturnButton()
+        self._pauseMark = self._windowBaseUI:getPauseMark()
+        self._pauseMarkTexture = self._windowBaseUI:getPauseMarkTexture()
+    end
+    ---@cast self._returnButton Engine.Button
+    ---@cast self._pauseMark Engine.Image
+    ---@cast self._pauseMarkTexture sf.Texture
     self:_bindReturnButton()
     self._pauseMarkShowRequested = false
     self._pauseMarkEnabled = true
     self._pauseMarkVisiblePredicate = nil
     self._pauseMarkFrameIndex = 1
     self._pauseMarkFrameTimer = 0.0
-    self._pauseMark = self._windowBaseUI:getPauseMark()
-    self._pauseMarkTexture = self._windowBaseUI:getPauseMarkTexture()
     self:_refreshReturnButtonState()
+end
+
+function WindowBase:_createDeclarativeChrome()
+    local returnTexture = assert(
+        ManagerFunctions.loadTexture("System", "ReturnButton.png"), "Return button texture is unavailable"
+    )
+    self._returnButton = Engine.Button.new(
+        returnTexture, nil, sf.Color.new(238, 246, 255, 255), sf.Color.new(205, 220, 238, 255)
+    )
+    self._returnButton:setVisible(false)
+    self._returnButton:setActive(false)
+    self._pauseMarkTexture = sf.Texture.new(self._windowSkin, false, self._PAUSE_MARK_ATLAS_RECT)
+    self._pauseMarkTexture:setSmooth(false)
+    self._pauseMark = Engine.Image.new(self._pauseMarkTexture, self._PAUSE_MARK_FRAME_RECTS[1])
+    self._pauseMark:setVisible(false)
 end
 
 ---@diagnostic disable-next-line: unused

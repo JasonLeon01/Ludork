@@ -24,7 +24,6 @@ from .annotations import (
     lua_alternatives,
     lua_emits,
 )
-from .metadata import raw_string_chunks
 from .binding_calls import (
     is_read_only_property,
     table_value_properties,
@@ -33,16 +32,15 @@ from .binding_adapters import binding_path_assignment_lines
 
 
 def reverse_table_binding_lines(
+    context: GeneratorContext,
     root_name: str,
     path: str,
     source_expression: str,
     index: int,
 ) -> tuple[list[str], int]:
+    context.require_binding_feature("lua_helper")
     source = f"bindingReverseSource{index}"
     target = f"bindingReverseTable{index}"
-    factory_result = f"bindingReverseFactoryResult{index}"
-    factory = f"bindingReverseFactory{index}"
-    target_result = f"bindingReverseTargetResult{index}"
     lines = [
         f"const sol::object {source} = {source_expression};",
         (
@@ -50,20 +48,9 @@ def reverse_table_binding_lines(
             f'"reverse-map source for {path} is not a table");'
         ),
         (
-            f"sol::protected_function_result {factory_result} = lua.safe_script("
-            '"return function(source) local result = {} "'
-            '"for name, value in pairs(source) do "'
-            '"if name ~= nil and value ~= nil then result[value] = name end "'
-            '"end return result end", sol::script_pass_on_error);'
+            f"sol::table {target} = ludork_core::reverseLuaTable("
+            f"lua, {source}.as<sol::table>());"
         ),
-        f"lua_sf::throw_on_lua_error({factory_result});",
-        (
-            f"sol::protected_function {factory} = "
-            f"{factory_result}.get<sol::protected_function>();"
-        ),
-        (f"sol::protected_function_result {target_result} = {factory}({source});"),
-        f"lua_sf::throw_on_lua_error({target_result});",
-        f"sol::table {target} = {target_result}.get<sol::table>();",
     ]
     assignment_lines, next_index = binding_path_assignment_lines(
         root_name,
@@ -76,67 +63,22 @@ def reverse_table_binding_lines(
     return lines, next_index
 
 
-LUA_HELPER_SOURCES = {
-    "cast": """return function(targetType, value)
-    assert(targetType ~= nil, "Error: targetType must be a type, but got nil")
-    return value
-end""",
-    "assert_type": """return function(obj, expectedType)
-    if type(expectedType) == "string" then
-        assert(type(obj) == expectedType,
-               "Assert failed: expected " .. expectedType .. ", got " .. type(obj))
-        return
-    end
-    if type(expectedType) == "table" then
-        if Class.isInstance(obj, expectedType) then
-            return
-        end
-        local expectedName = rawget(expectedType, "__name")
-            or rawget(expectedType, "__blueprintClassPath")
-            or rawget(expectedType, "__metadataModule")
-        if expectedName == nil then
-            local resolver = rawget(_G, "_LUDORK_RUNTIME_RESOLVER")
-            if type(resolver) == "function" then
-                expectedName = resolver("getClassModulePath", expectedType)
-            end
-        end
-        if expectedName == nil and rawget(expectedType, "__ludorkClass") then
-            expectedName = "Lua class"
-        end
-        assert(
-            false,
-            "Assert failed: value does not match "
-                .. tostring(expectedName or expectedType)
-        )
-        return
-    end
-    error("Assert failed: invalid type " .. tostring(expectedType))
-end""",
-    "eval": """return function(expr, evalLocals)
-    if type(expr) ~= "string" or expr == "" then
-        return nil
-    end
-    local environment = setmetatable(evalLocals or {}, { __index = _G })
-    local chunk, message = load("return " .. expr, "=(Eval)", "t", environment)
-    assert(chunk ~= nil, message)
-    return chunk()
-end""",
+LUA_HELPER_FACTORIES = {
+    "cast": "makeLuaCastHelper",
+    "assert_type": "makeLuaAssertTypeHelper",
+    "eval": "makeLuaEvalHelper",
 }
 
 
 def lua_helper_binding_lines(
-    root_name: str, member: Member, index: int
+    context: GeneratorContext, root_name: str, member: Member, index: int
 ) -> tuple[list[str], int]:
+    context.require_binding_feature("lua_helper")
     kind = member.options["kind"]
-    source = LUA_HELPER_SOURCES[kind]
-    source_expression = raw_string_chunks(source, f"LUAHELPER{index}")[0]
-    result = f"bindingLuaHelperResult{index}"
+    factory = LUA_HELPER_FACTORIES[kind]
     value = f"bindingLuaHelperValue{index}"
     lines = [
-        f"sol::protected_function_result {result} = lua.safe_script("
-        f"{source_expression}, sol::script_pass_on_error);",
-        f"lua_sf::throw_on_lua_error({result});",
-        f"const sol::object {value} = {result}.get<sol::object>();",
+        f"const sol::object {value} = ludork_core::{factory}(lua);",
     ]
     assignment_lines, next_index = binding_path_assignment_lines(
         root_name,

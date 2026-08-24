@@ -37,6 +37,15 @@ local ConfigWindow = {}
 ---@return Source.Windows.ConfigWindow
 function ConfigWindow.new(onClose) end
 
+---@param row Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@return function
+function ConfigWindow.MakeSettingRowConfirmCallback(row) end
+
+---@param items table
+---@param value string | number
+---@return integer
+function ConfigWindow.FindSelectedIndex(items, value) end
+
 ---@brief Construct the configuration window.
 ---
 --- - @param onClose Optional callback when the window is closed
@@ -162,10 +171,6 @@ function ConfigWindow:_applyScaleRowChange(scaleRowChange) end
 function ConfigWindow:onKeyDown(kwargs) end
 
 ---@brief Apply the state-aware cancel action on right-click.
----@param kwargs table
----@return boolean
-function ConfigWindow:onMouseButtonDown(kwargs) end
-
 ---@param direction string
 ---@return boolean
 function ConfigWindow:onDirectionalKey(direction) end
@@ -173,20 +178,11 @@ function ConfigWindow:onDirectionalKey(direction) end
 ---@param tabIndex integer
 function ConfigWindow:_onTabConfirmed(tabIndex) end
 
----@param row Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@return function
-function ConfigWindow._makeSettingRowConfirmCallback(row) end
-
 ---@param expanded boolean
 function ConfigWindow:_onDropBoxExpandedChanged(expanded) end
 
 ---@return number
 function ConfigWindow:_getMaxScrollOriginY() end
-
----@param items table
----@param value string | number
----@return integer
-function ConfigWindow._findSelectedIndex(items, value) end
 
 ---@param position sf.Vector2f
 function ConfigWindow:_onCapturedTouchBegan(position) end

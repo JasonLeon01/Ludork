@@ -8,7 +8,6 @@ local ManagerFunctions = GlobalFunctions.Manager
 local LATENT_STARTED = 0
 local LATENT_FINISHED = 1
 
---- Condition callable polled by LatentManager for door animation latents.
 ---@class Source.DoorBase.DoorAnimationCondition
 ---@field _door           Source.DoorBase.DoorBase
 ---@field _finishedAttr   string
@@ -250,9 +249,6 @@ function DoorBase:_finishClosing()
     self._frameIndex = 0
 end
 
---- Set the texture rect to the given frame index (0-based).
----
---- - @param index  Frame index (column in the sprite sheet)
 ---@param index integer
 function DoorBase:_advanceToFrame(index)
     if self._frameWidth <= 0 then

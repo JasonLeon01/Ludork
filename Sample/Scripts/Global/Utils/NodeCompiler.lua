@@ -134,7 +134,7 @@ local function orderedParameters(values, label)
     if not bool(values) then
         return result
     end
-    ---@cast values -nil
+    ---@cast values - nil
     for index, name in ipairs(values) do
         if type(name) ~= "string" or values[name] == nil then
             error(label .. " order contains an unknown key")
@@ -168,7 +168,7 @@ local function orderedEntries(values, label)
     if not bool(values) then
         return result
     end
-    ---@cast values -nil
+    ---@cast values - nil
     for index, name in ipairs(values) do
         if type(name) ~= "string" then
             error(label .. " order contains an unknown key")
@@ -283,8 +283,7 @@ local function resolveCallable(functionName, parentClass, context)
     if parentClass ~= nil then
         local candidate = traverse(parentClass, parts, 1)
         if isCallable(candidate) then
-            return candidate, explicitSelf or #parts == 1,
-                Engine.getClassModulePath(parentClass) or ""
+            return candidate, explicitSelf or #parts == 1, Engine.getClassModulePath(parentClass) or ""
         end
         if explicitSelf then
             return nil
@@ -363,7 +362,7 @@ local function resolveMetadata(functionName, parentClass, context)
     return nil, ""
 end
 
-function NodeCompiler.compile(functionName, parentClass, context)
+function NodeCompiler.Compile(functionName, parentClass, context)
     context = context or {}
     local callable, isSelf, declaringModule = resolveCallable(functionName, parentClass, context)
     if callable == nil then

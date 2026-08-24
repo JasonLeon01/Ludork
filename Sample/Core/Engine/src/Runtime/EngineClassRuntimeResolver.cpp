@@ -6,6 +6,7 @@
 #include <Runtime/RuntimeValue.hpp>
 #include <RuntimeSession.hpp>
 #include <Utils/DataValue.hpp>
+#include <Utils/File.hpp>
 
 #include <sol2/sol.hpp>
 
@@ -13,14 +14,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <initializer_list>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
 namespace ludork::engine::class_runtime_detail {
@@ -49,29 +48,6 @@ sol::table requireTable(sol::state_view lua, const std::string& moduleName) {
                                  moduleName);
     }
     return module.as<sol::table>();
-}
-
-template <typename... Arguments>
-sol::protected_function_result callRaw(const sol::table& owner,
-                                       const char* name,
-                                       Arguments&&... arguments) {
-    const sol::object rawFunction = owner.raw_get<sol::object>(name);
-    if (!rawFunction.is<sol::protected_function>()) {
-        throw std::runtime_error(std::string("Lua function is not defined: ") +
-                                 name);
-    }
-    sol::protected_function function =
-        rawFunction.as<sol::protected_function>();
-    return function(std::forward<Arguments>(arguments)...);
-}
-
-template <typename... Arguments>
-sol::object call(const sol::table& owner, const char* name,
-                 Arguments&&... arguments) {
-    sol::state_view lua(owner.lua_state());
-    sol::protected_function_result result =
-        callRaw(owner, name, std::forward<Arguments>(arguments)...);
-    return checkedResult(lua, result);
 }
 
 sol::table resolverState(sol::state_view lua) {
@@ -122,29 +98,6 @@ sol::object callRuntimeServiceFirst(sol::state_view lua,
         lua_settop(state, stackBase);
         throw;
     }
-}
-
-sol::table engineTable(sol::state_view lua) {
-    const sol::object engine = lua.globals().raw_get<sol::object>("Engine");
-    if (!engine.is<sol::table>()) {
-        throw std::runtime_error("Engine module is not initialized");
-    }
-    return engine.as<sol::table>();
-}
-
-sol::table nestedTable(const sol::table& root,
-                       std::initializer_list<const char*> path) {
-    sol::object current = root;
-    for (const char* name : path) {
-        if (!current.is<sol::table>()) {
-            throw std::runtime_error("Engine runtime table is unavailable");
-        }
-        current = current.as<sol::table>().raw_get<sol::object>(name);
-    }
-    if (!current.is<sol::table>()) {
-        throw std::runtime_error("Engine runtime table is unavailable");
-    }
-    return current.as<sol::table>();
 }
 
 bool moduleExists(sol::state_view lua, const std::string& moduleName) {
@@ -290,15 +243,10 @@ std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
             filePath = rawRoot.as<std::string>() + "/" + filePath;
         }
         filePath += ".json";
-        const sol::table coreSystem = requireTable(lua, "CoreSystem");
-        const sol::object exists = call(coreSystem, "exists", filePath);
-        if (!exists.is<bool>() || !exists.as<bool>()) {
+        if (!jsonExists(filePath)) {
             throw std::runtime_error("Class " + classPath + " not found");
         }
-
-        const sol::table file =
-            nestedTable(engineTable(lua), {"Utils", "File"});
-        rawData = call(file, "getJSONData", filePath);
+        rawData = luaValue(lua, getJSONData(filePath));
     }
     if (!rawData.is<sol::table>()) {
         throw std::runtime_error("Class data must be a table: " + classPath);

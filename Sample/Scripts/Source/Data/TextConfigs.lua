@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
+local Validation = require("Source.Data.Validation")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local PlainTextConfig = Engine.PlainTextConfig
@@ -8,6 +9,7 @@ local TextGradientConfig = Engine.TextGradientConfig
 local TextGlowConfig = Engine.TextGlowConfig
 local TextOutlineConfig = Engine.TextOutlineConfig
 local TextStyle = Engine.TextStyle
+local requireNamedValue = Validation.RequireNamedValue
 
 local plainTextConfigFields = {
     type = true,
@@ -60,17 +62,6 @@ local DataTextConfigs = {}
 
 function DataTextConfigs:init(data)
     self._data = data
-end
-
----@generic T
----@param values  table<string, T>
----@param key     string
----@param message string
----@return T
-local function requireNamedValue(values, key, message)
-    local value = rawget(values, key)
-    assert(value ~= nil, message)
-    return value
 end
 
 ---@param sourceName string
@@ -296,7 +287,7 @@ local function textGradientFromData(data, value, sourceName)
     local curveName = textConfigString(value.curve, sourceName .. ".curve", true)
     local curve = nil
     if bool(curveName) then
-        curve = data.getVector4Curve(curveName)
+        curve = data.GetVector4Curve(curveName)
     elseif enabled then
         textConfigError(sourceName .. ".curve", "Enabled gradient requires a curve")
     end

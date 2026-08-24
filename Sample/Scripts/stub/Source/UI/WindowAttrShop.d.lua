@@ -1,8 +1,8 @@
 ---@meta Source.UI.WindowAttrShop
 
 ---@class Source.UI.WindowAttrShop.AttrShopRow
----@field model { text: string, available: boolean }
----@field root Engine.Canvas
+---@field model  { text: string, available: boolean }
+---@field root   Engine.Canvas
 ---@field _label Engine.FunctionalPlainText
 local AttrShopRow = {}
 
@@ -15,19 +15,19 @@ function AttrShopRow:refresh() end
 function AttrShopRow:prepare(logicalSize) end
 
 ---@class Source.UI.WindowAttrShop: Source.UI.UiController, Class.ClassType<Source.UI.WindowAttrShop>
----@field model Source.Windows.WindowAttrShop
----@field _selectable Source.Windows._WindowAttrShopSelectable | nil
----@field _logicalSize sf.Vector2u | nil
----@field _shopNameSource string
+---@field model              Source.Windows.WindowAttrShop
+---@field _selectable        Source.Windows._WindowAttrShopSelectable | nil
+---@field _logicalSize       sf.Vector2u | nil
+---@field _shopNameSource    string
 ---@field _descriptionSource string
----@field _shopName string
----@field _description string
----@field _priceTextValue string
----@field _rows Source.UI.WindowAttrShop.AttrShopRow[]
----@field _windowFrame Engine.Window
----@field _content Engine.Canvas
----@field _listView Engine.ListView
----@field new fun(model: Source.Windows.WindowAttrShop): Source.UI.WindowAttrShop
+---@field _shopName          string
+---@field _description       string
+---@field _priceTextValue    string
+---@field _rows              Source.UI.WindowAttrShop.AttrShopRow[]
+---@field _windowFrame       Engine.Window
+---@field _content           Engine.Canvas
+---@field _listView          Engine.ListView
+---@field new                fun(model: Source.Windows.WindowAttrShop): Source.UI.WindowAttrShop
 local WindowAttrShopUI = {}
 
 ---@param model Source.Windows.WindowAttrShop
@@ -40,8 +40,6 @@ function WindowAttrShopUI:refresh() end
 ---@param selectable Source.Windows._WindowAttrShopSelectable
 ---@param size       sf.Vector2i
 ---@return Engine.Canvas
-function WindowAttrShopUI:prepareSelectable(selectable, size) end
-
 ---@param selectable Source.Windows._WindowAttrShopSelectable
 ---@param size       sf.Vector2i
 function WindowAttrShopUI:attachSelectable(selectable, size) end
@@ -66,13 +64,6 @@ function WindowAttrShopUI:refreshRows(abilities, prices, moneyName, moneyAmount)
 
 function WindowAttrShopUI:tick(deltaTime) end
 
----@return boolean
-function WindowAttrShopUI:handleKeyDown() end
-
----@param kwargs table
----@return boolean
-function WindowAttrShopUI:handleMouseButtonDown(kwargs) end
-
 ---@param player Source.Player.Player
 function WindowAttrShopUI:setPlayer(player) end
 
@@ -88,7 +79,9 @@ function WindowAttrShopUI:getAttributeDisplayName(attributeName) end
 ---@param priceIncrement  integer
 ---@param moneyName       string | nil
 ---@param rect            sf.IntRect | nil
-function WindowAttrShopUI:open( shopActor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName, rect ) end
+function WindowAttrShopUI:open(
+    shopActor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName, rect
+) end
 
 function WindowAttrShopUI:refreshLocale() end
 

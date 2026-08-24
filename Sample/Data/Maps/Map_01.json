@@ -2,6 +2,11 @@
   "mapName": "{MAP_01}",
   "width": 13,
   "height": 13,
+  "layerOrder": [
+    "floor",
+    "default",
+    "lava"
+  ],
   "layers": {
     "floor": {
       "layerName": "floor",

@@ -1,13 +1,13 @@
 ---@meta Source.UI.RegionTitle
 
 ---@class Source.UI.RegionTitle: Source.UI.UiController
----@field new fun(logicalSize: sf.Vector2u): Source.UI.RegionTitle
----@field publish fun(payload: table)
+---@field new           fun(logicalSize: sf.Vector2u): Source.UI.RegionTitle
+---@field Publish       fun(payload: table)
 ---@field refreshEvents string[]
----@field _logicalSize sf.Vector2u
----@field _region string | nil
----@field _elapsed number
----@field _text Engine.RichText
+---@field _logicalSize  sf.Vector2u
+---@field _region       string | nil
+---@field _elapsed      number
+---@field _text         Engine.RichText
 local RegionTitleUI = {}
 
 ---@param logicalSize sf.Vector2u

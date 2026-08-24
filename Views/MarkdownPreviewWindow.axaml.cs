@@ -91,6 +91,7 @@ public partial class MarkdownPreviewWindow : Window
         if (singleFile)
         {
             DocumentTree.ItemsSource = documentRoots;
+            updateDocumentNavigationVisibility(hasMultipleDocuments(documentRoots));
             selectInitialDocument();
             return;
         }
@@ -114,13 +115,13 @@ public partial class MarkdownPreviewWindow : Window
         }
         if (!Directory.Exists(path) || isSymbolicLinkOrInaccessible(path))
             return [];
-        IReadOnlyList<MarkdownDocumentEntry> roots = collectDirectory(path, true);
+        IReadOnlyList<MarkdownDocumentEntry> roots = collectDirectory(path);
         foreach (MarkdownDocumentEntry root in roots)
             indexEntry(root);
         return roots;
     }
 
-    private IReadOnlyList<MarkdownDocumentEntry> collectDirectory(string directory, bool topLevel = false)
+    private IReadOnlyList<MarkdownDocumentEntry> collectDirectory(string directory)
     {
         List<MarkdownDocumentEntry> result = [];
         foreach (string child in Directory.EnumerateFileSystemEntries(directory).OrderBy(getSortKey, StringComparer.OrdinalIgnoreCase))
@@ -141,9 +142,7 @@ public partial class MarkdownPreviewWindow : Window
             }
             else if (Path.GetExtension(child).Equals(".md", StringComparison.OrdinalIgnoreCase))
             {
-                string displayName = topLevel
-                    ? LocaleService.Get("DOCUMENTATION_OVERVIEW")
-                    : Path.GetFileNameWithoutExtension(child);
+                string displayName = Path.GetFileNameWithoutExtension(child);
                 MarkdownDocumentEntry entry = new(displayName, child, false);
                 result.Add(entry);
             }
@@ -160,32 +159,12 @@ public partial class MarkdownPreviewWindow : Window
 
     private void createSections()
     {
-        MarkdownDocumentEntry? overview = documentRoots.FirstOrDefault(root => !root.IsDirectory);
-        MarkdownDocumentEntry? gettingStarted = documentRoots.FirstOrDefault(root => root.IsDirectory);
-        bool mergedGettingStarted = false;
-        if (overview is not null && gettingStarted is not null)
-        {
-            mergedGettingStarted = true;
-            IReadOnlyList<MarkdownDocumentEntry> treeEntries = [overview, .. gettingStarted.Children];
-            MarkdownDocumentSection section = new(
-                getDisplayName(gettingStarted.DisplayName),
-                gettingStarted,
-                treeEntries);
-            sections.Add(section);
-            indexSectionEntry(overview, section);
-            indexSectionEntry(gettingStarted, section);
-        }
         foreach (MarkdownDocumentEntry root in documentRoots)
         {
-            if (mergedGettingStarted
-                && (ReferenceEquals(root, overview) || ReferenceEquals(root, gettingStarted)))
-                continue;
             IReadOnlyList<MarkdownDocumentEntry> treeEntries = root.IsDirectory
                 ? root.Children
                 : [root];
-            string displayName = root.IsDirectory
-                ? getDisplayName(root.DisplayName)
-                : LocaleService.Get("DOCUMENTATION_OVERVIEW");
+            string displayName = getDisplayName(root.DisplayName);
             MarkdownDocumentSection section = new(displayName, root, treeEntries);
             sections.Add(section);
             indexSectionEntry(root, section);
@@ -239,6 +218,7 @@ public partial class MarkdownPreviewWindow : Window
         changingSection = false;
         selectedSection = section;
         DocumentTree.ItemsSource = section.TreeEntries;
+        updateDocumentNavigationVisibility(hasMultipleDocuments(section.TreeEntries));
         MarkdownDocumentEntry? targetEntry = preferredEntry;
         if (targetEntry is null || !targetEntry.IsVisible)
             targetEntry = section.SelectedEntry;
@@ -256,6 +236,34 @@ public partial class MarkdownPreviewWindow : Window
         section.SelectedEntry = targetEntry;
         selectedEntry = targetEntry;
         loadEntry(targetEntry);
+    }
+
+    private static bool hasMultipleDocuments(IReadOnlyList<MarkdownDocumentEntry> treeEntries)
+    {
+        int documentCount = 0;
+        Stack<MarkdownDocumentEntry> pending = new(treeEntries.Reverse());
+        while (pending.Count > 0)
+        {
+            MarkdownDocumentEntry entry = pending.Pop();
+            if (!entry.IsDirectory)
+            {
+                documentCount++;
+                if (documentCount > 1)
+                    return true;
+                continue;
+            }
+            foreach (MarkdownDocumentEntry child in entry.Children)
+                pending.Push(child);
+        }
+        return false;
+    }
+
+    private void updateDocumentNavigationVisibility(bool isVisible)
+    {
+        DocumentTree.IsVisible = isVisible;
+        DocumentTreeSplitter.IsVisible = isVisible;
+        Grid.SetColumn(DocumentScrollViewer, isVisible ? 2 : 0);
+        Grid.SetColumnSpan(DocumentScrollViewer, isVisible ? 1 : 3);
     }
 
     private MarkdownDocumentEntry? findFirstVisibleEntry(MarkdownDocumentSection section)

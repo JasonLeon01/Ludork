@@ -25,7 +25,7 @@ function WindowSaveSlotUI:bind()
     self._slotItems = {}
     for slotIndex = 0, self._maxSlots - 1 do
         local slot = slotIndex
-        local root = UiControlFactory.createFunctionalPlainText(Data.getPlainTextConfig("UI/Default"))
+        local root = UiControlFactory.CreateFunctionalPlainText(Data.GetPlainTextConfig("UI/Default"))
         root:addConfirmCallback(function (_obj, _kwargs)
             self.model._owner:onSlotConfirm(slot)
         end)
@@ -61,4 +61,4 @@ function WindowSaveSlotUI:getListView()
     return self._listView
 end
 
-return Ui.define("Parts/WindowSaveLoad/WindowSaveSlot", WindowSaveSlotUI)
+return Ui.Define("Parts/WindowSaveLoad/WindowSaveSlot", WindowSaveSlotUI)

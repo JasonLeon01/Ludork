@@ -9,7 +9,7 @@
 ---@field special string
 ---@field damage  integer
 
---- @brief Calculate movement-special damage at one map cell without running gameplay side effects.
+---@brief Calculate movement-special damage at one map cell without running gameplay side effects.
 ---
 --- Ignored enemies keep participating in Flank geometry, but their own damage
 --- contribution is removed so the paired enemy remains a danger source.
@@ -20,16 +20,16 @@
 ---@return integer, Source.MovementSpecials.DangerSource[]
 function MovementSpecials.CalculateDangerAtPosition(enemies, player, playerPosition, ignoredEnemies) end
 
---- @brief Register movement-special handlers on the shared EventBus.
-function MovementSpecials.registerHandlers() end
+---@brief Register movement-special handlers on the shared EventBus.
+function MovementSpecials.RegisterHandlers() end
 
---- @brief Notify listeners that the player has finished a movement sequence.
+---@brief Notify listeners that the player has finished a movement sequence.
 ---
 --- - @param player The player that just stopped moving.
 --- - @param pathPositions Optional arrived cells to evaluate. When omitted, uses
 ---   cells recorded during walking, or the player's current cell as fallback.
 ---@param player        Source.Player.Player
 ---@param pathPositions sf.Vector2i[] | nil
-function MovementSpecials.notifyPlayerMovementFinished(player, pathPositions) end
+function MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions) end
 
 return MovementSpecials

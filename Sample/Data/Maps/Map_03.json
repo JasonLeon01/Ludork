@@ -2,6 +2,12 @@
   "mapName": "{MAP_03}",
   "width": 15,
   "height": 15,
+  "layerOrder": [
+    "floor",
+    "templeDefault",
+    "default",
+    "templeFace"
+  ],
   "ambientLight": [
     64,
     64,

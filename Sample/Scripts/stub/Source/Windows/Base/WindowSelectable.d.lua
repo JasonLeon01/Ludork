@@ -2,33 +2,33 @@
 ---
 --- Supports keyboard and mouse navigation, scrolling, and item selection.
 ---@class Source.Windows.Base.WindowSelectable: Source.Windows.Base.WindowBase
----@field _oldIndex integer?
----@field index integer?
----@field _listView Engine.ListView?
----@field _rectWidth integer
----@field _rectHeight integer
----@field _hitRectWidth integer?
----@field _hitRectHeight integer?
----@field _rect Engine.Rect
----@field _ensureSelectionVisibleRequested boolean
----@field _selectionScrollIndex integer?
----@field _selectionScrollItemCount integer?
----@field _selectionScrollItem Engine.ControlBase?
----@field _selectionScrollX number?
----@field _selectionScrollY number?
----@field _selectionViewWidth number?
----@field _selectionViewHeight number?
----@field _mousePositionAtCursorPending boolean
+---@field _oldIndex                         integer?
+---@field index                             integer?
+---@field _listView                         Engine.ListView?
+---@field _rectWidth                        integer
+---@field _rectHeight                       integer
+---@field _hitRectWidth                     integer?
+---@field _hitRectHeight                    integer?
+---@field _rect                             Engine.Rect
+---@field _ensureSelectionVisibleRequested  boolean
+---@field _selectionScrollIndex             integer?
+---@field _selectionScrollItemCount         integer?
+---@field _selectionScrollItem              Engine.ControlBase?
+---@field _selectionScrollX                 number?
+---@field _selectionScrollY                 number?
+---@field _selectionViewWidth               number?
+---@field _selectionViewHeight              number?
+---@field _mousePositionAtCursorPending     boolean
 ---@field _mouseSelectionConfirmedThisFrame boolean
----@field _wheelScrollTargetOriginY number?
----@field _selectionInputPaused boolean
----@field _touchCaptured boolean
----@field _touchDragging boolean
----@field _touchStartPosition sf.Vector2f?
----@field _touchStartOriginY number
+---@field _wheelScrollTargetOriginY         number?
+---@field _selectionInputPaused             boolean
+---@field _touchCaptured                    boolean
+---@field _touchDragging                    boolean
+---@field _touchStartPosition               sf.Vector2f?
+---@field _touchStartOriginY                number
 local WindowSelectable = {}
 
---- @brief Construct a selectable window.
+---@brief Construct a selectable window.
 ---
 --- - @param rect The window rectangle.
 --- - @param listView Optional ListView for selectable items.
@@ -38,6 +38,7 @@ local WindowSelectable = {}
 --- - @param repeated Whether the window skin is repeated.
 --- - @param hitRectWidth Override hit detection width; defaults to selection rect width.
 --- - @param hitRectHeight Override hit detection height; defaults to selection rect height.
+--- - @param deferView Whether a declarative Controller will provide the window frame and content.
 ---@param rect          sf.IntRect
 ---@param listView      Engine.ListView | nil
 ---@param rectWidth     integer | nil
@@ -46,17 +47,18 @@ local WindowSelectable = {}
 ---@param repeated      boolean | nil
 ---@param hitRectWidth  integer | nil
 ---@param hitRectHeight integer | nil
+---@param deferView     boolean | nil
 function WindowSelectable:init(
-    rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight
+    rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight, deferView
 ) end
 
---- @brief Get the current list view.
+---@brief Get the current list view.
 ---
 --- - @return The ListView, or nil.
 ---@return Engine.ListView | nil
 function WindowSelectable:getListView() end
 
---- @brief Set the list view for selectable items.
+---@brief Set the list view for selectable items.
 ---
 --- - @param listView The ListView to use, or nil to clear.
 ---@param listView Engine.ListView | nil
@@ -71,19 +73,19 @@ function WindowSelectable:setVisible(visible) end
 ---@param deltaTime number
 function WindowSelectable:update(deltaTime) end
 
---- @brief Update selection rectangle position and selection state.
+---@brief Update selection rectangle position and selection state.
 ---
 --- - @param deltaTime Elapsed time in seconds.
 ---@param deltaTime number
 function WindowSelectable:onTick(deltaTime) end
 
---- @brief Handle mouse wheel scrolling.
+---@brief Handle mouse wheel scrolling.
 ---
 --- - @param kwargs Event data containing delta.
 ---@param kwargs table
 function WindowSelectable:onMouseWheelScrolled(kwargs) end
 
---- @brief Handle mouse movement events.
+---@brief Handle mouse movement events.
 ---
 --- - @param kwargs Event data.
 ---@param kwargs table
@@ -92,7 +94,7 @@ function WindowSelectable:onMouseMoved(kwargs) end
 ---@return boolean
 function WindowSelectable:requestKeyboardFocusAtCursor() end
 
---- @brief Handle cancel, keyboard navigation, and confirmation.
+---@brief Handle cancel, keyboard navigation, and confirmation.
 ---
 --- Cancel keys call `onReturn` before list navigation. Direction keys use
 --- repeat mode: immediate first press, then after ~0.4 s they fire every
@@ -102,7 +104,7 @@ function WindowSelectable:requestKeyboardFocusAtCursor() end
 ---@param kwargs table
 function WindowSelectable:onKeyDown(kwargs) end
 
---- @brief Handle right-click cancel through `onReturn`.
+---@brief Handle right-click cancel through `onReturn`.
 ---
 --- - @param kwargs Event data.
 --- - @return True when right-click cancel was handled.
@@ -110,7 +112,7 @@ function WindowSelectable:onKeyDown(kwargs) end
 ---@return boolean
 function WindowSelectable:onMouseButtonDown(kwargs) end
 
---- @brief Handle directional cursor movement.
+---@brief Handle directional cursor movement.
 ---
 --- - @param direction Direction pressed by keyboard or gamepad.
 ---
@@ -133,27 +135,27 @@ function WindowSelectable:_applyItem(item) end
 ---@return boolean
 function WindowSelectable:_shouldCaptureTouch(position) end
 
---- @brief Handle the beginning of a touch captured by the parent list.
+---@brief Handle the beginning of a touch captured by the parent list.
 ---@param position sf.Vector2f
 function WindowSelectable:_onCapturedTouchBegan(position) end
 
---- @brief Optionally handle a captured touch drag instead of scrolling the parent list.
+---@brief Optionally handle a captured touch drag instead of scrolling the parent list.
 ---@param position sf.Vector2f
 ---@return boolean
 function WindowSelectable:_handleCapturedTouchDrag(position) end
 
---- @brief Optionally handle a captured touch tap instead of selecting the parent-list item.
+---@brief Optionally handle a captured touch tap instead of selecting the parent-list item.
 ---@param position sf.Vector2f
 ---@return boolean
 function WindowSelectable:_handleCapturedTouchTap(position) end
 
---- @brief Reset state owned by captured-touch hooks.
+---@brief Reset state owned by captured-touch hooks.
 function WindowSelectable:_onCapturedTouchReset() end
 
---- @brief Cancel Lua-owned captured-touch state when native interaction state is reset.
+---@brief Cancel Lua-owned captured-touch state when native interaction state is reset.
 function WindowSelectable:onPointerInteractionReset() end
 
---- @brief Pause or resume every parent-list input path while a child owns input.
+---@brief Pause or resume every parent-list input path while a child owns input.
 ---@param paused boolean
 function WindowSelectable:_setSelectionInputPaused(paused) end
 

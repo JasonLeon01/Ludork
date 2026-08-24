@@ -4,12 +4,12 @@
 --- Uses WindowSelectable for keyboard/mouse navigation.
 ---@class Source.Windows.WindowItem: Source.Windows.Base.WindowSelectable
 ---@field _onCloseCallback function | nil
----@field _onUseCallback function | nil
----@field new fun(rect: sf.IntRect, player: Source.Player.Player, onClose?: function): Source.Windows.WindowItem
----@field _player Source.Player.Player
+---@field _onUseCallback   function | nil
+---@field new              fun(rect: sf.IntRect, player: Source.Player.Player, onClose?: function): Source.Windows.WindowItem
+---@field _player          Source.Player.Player
 local WindowItem = {}
 
---- @brief Construct the item window.
+---@brief Construct the item window.
 ---
 --- - @param rect The window rectangle.
 --- - @param player The player instance with inventory.
@@ -19,37 +19,26 @@ local WindowItem = {}
 ---@param onClose function | nil
 function WindowItem:init(rect, player, onClose) end
 
---- @brief Rebind the player whose inventory is displayed.
+---@brief Rebind the player whose inventory is displayed.
 ---@param player Source.Player.Player
 function WindowItem:setPlayer(player) end
 
---- @brief Update item window and render item cells.
+---@brief Update item window and render item cells.
 ---
 --- - @param deltaTime Elapsed time in seconds.
 ---@param deltaTime number
 function WindowItem:onTick(deltaTime) end
 
---- @brief Handle cancel and confirm keys for the item window.
----
---- - @param kwargs Event data.
----@param kwargs table
-function WindowItem:onKeyDown(kwargs) end
-
---- @brief Handle mouse cancel to close the item window.
----@param kwargs table
----@return boolean
-function WindowItem:onMouseButtonDown(kwargs) end
-
---- @brief Open the item window, refreshing inventory first.
+---@brief Open the item window, refreshing inventory first.
 function WindowItem:open() end
 
---- @brief Refresh the currently selected item's localised name and description.
+---@brief Refresh the currently selected item's localised name and description.
 function WindowItem:refreshLocale() end
 
---- @brief Close the item window.
+---@brief Close the item window.
 function WindowItem:close() end
 
---- @brief Close the item window through its cancel path.
+---@brief Close the item window through its cancel path.
 function WindowItem:onReturn() end
 
 return WindowItem

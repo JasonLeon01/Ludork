@@ -45,7 +45,7 @@
       "onOverlap": {
         "nodes": [
           {
-            "nodeFunction": "GoUpstairs",
+            "nodeFunction": "goUpstairs",
             "params": [
               ""
             ],

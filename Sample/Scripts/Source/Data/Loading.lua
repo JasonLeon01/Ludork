@@ -1,5 +1,6 @@
 local cjson = require("cjson")
 local Engine = require("Engine")
+local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
@@ -237,8 +238,7 @@ end
 
 ---@param fileName string
 ---@return string, string
----@diagnostic disable-next-line: unused
-function DataLoading:splitCompound(fileName)
+local function splitCompound(fileName)
     local name, extension = fileName:match("^(.-)(%..+)$")
     if name == nil then
         return fileName, ""
@@ -289,19 +289,10 @@ end
 ---@return string
 local function animationNameFromRelativePath(relativePath)
     local suffix = ".anim.json"
-    assert(relativePath:sub(-#suffix) == suffix, "Invalid compressed animation file name: " .. relativePath)
+    assert(string.endsWith(relativePath, suffix), "Invalid compressed animation file name: " .. relativePath)
     local name = relativePath:sub(1, -#suffix - 1)
     assert(bool(name), "Compressed animation name must not be empty")
     return name
-end
-
----@param errorData FileBatchError | nil
----@return string
-local function formatBatchError(errorData)
-    if errorData == nil then
-        return "File batch failed"
-    end
-    return string.format("%s failed for %s: %s", errorData.operation, errorData.path, errorData.message)
 end
 
 ---@param specs  FileBatchSpec[]
@@ -315,7 +306,7 @@ function DataLoading:drainFileBatch(specs, onItem)
     while true do
         local snapshot = async.poll_file_batch(job, 64)
         if snapshot.state == "failed" then
-            error(formatBatchError(snapshot.error))
+            error(FileBatch.FormatError(snapshot.error))
         end
         if snapshot.state == "cancelled" then
             error("File batch was cancelled")
@@ -385,25 +376,25 @@ function DataLoading:applyInitialLoadItem(stage, item)
         stage._animationData[name] = Engine.AnimationData.new(payload)
     elseif category == "commonFunctions" then
         payload.type = nil
-        name = self:splitCompound(relativePath)
+        name = splitCompound(relativePath)
         stage._commonFunctionsData[name] = payload
     elseif category == "tilesets" then
         payload.type = nil
-        name = self:splitCompound(relativePath)
+        name = splitCompound(relativePath)
         stage._tilesetData[name] = Engine.Tileset.fromData(payload)
     elseif category == "autoTiles" then
         payload.type = nil
-        name = self:splitCompound(relativePath)
+        name = splitCompound(relativePath)
         stage._autoTileData[name] = Engine.AutoTile.fromData(payload)
     elseif category == "general" then
         payload.type = nil
-        name = self:splitCompound(relativePath)
+        name = splitCompound(relativePath)
         canonicaliseGeneralData(payload, relativePath)
         stage._generalData[name] = payload
     elseif category == "curves" then
         local curveType = payload.type
         payload.type = nil
-        name = self:splitCompound(relativePath)
+        name = splitCompound(relativePath)
         if curveType == "curve" then
             local curveData = payload
             ---@cast curveData Engine.CurveData
@@ -429,7 +420,7 @@ function DataLoading:applyInitialLoadItem(stage, item)
             payload.type == "plainTextConfig" or payload.type == "richTextConfig",
             "Invalid text config type: " .. relativePath
         )
-        name = self:splitCompound(relativePath)
+        name = splitCompound(relativePath)
         stage._textConfigData[name] = payload
     else
         error("Unknown initial data category: " .. tostring(category))
@@ -462,7 +453,7 @@ function DataLoading:abortInitialLoad(stage)
 end
 
 function DataLoading:countLoadableFiles(dataRoot, needExt, recursive)
-    if needExt ~= nil and tostring(needExt):sub(-4) ~= "json" then
+    if needExt ~= nil and not string.endsWith(tostring(needExt), "json") then
         return 0
     end
     local suffix = needExt or ".json"

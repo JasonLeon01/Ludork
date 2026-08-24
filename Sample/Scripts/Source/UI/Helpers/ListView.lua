@@ -12,7 +12,7 @@ function ListViewController:init(model, logicalSize, defaultItemHeight, fixItemH
     end
     self._fixItemHeight = fixItemHeight
     self._columns = columns or 1
-    self.root = UiControlFactory.createListView(
+    self.root = UiControlFactory.CreateListView(
         self._logicalSize, self._defaultItemHeight, self._fixItemHeight, self._columns
     )
     self._bound = false

@@ -33,10 +33,13 @@ extern "C" {
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
-#if defined(LUDORK_STATIC_LUA_MODULES)
 extern "C" {
 int luaopen_cjson(lua_State* state);
 int luaopen_cjson_safe(lua_State* state);
+}
+
+#if defined(LUDORK_STATIC_LUA_MODULES)
+extern "C" {
 int luaopen_CoreSystem(lua_State* state);
 int luaopen_Engine(lua_State* state);
 int luaopen_GlobalCore(lua_State* state);
@@ -382,8 +385,43 @@ void configureLuaSearchPaths(lua_State* state,
     lua_pop(state, 2);
 }
 
+int initializeNativeModule(lua_State* state, const char* name,
+                           lua_CFunction openFunction) {
+    const int stackBase = lua_gettop(state);
+    lua_pushcfunction(state, openFunction);
+    if (ludork::standard::protectedLuaCall(state, 0, 1) != LUA_OK) {
+        const std::string detail = luaErrorMessage(state);
+        lua_settop(state, stackBase);
+        throw std::runtime_error("Failed to initialize native Lua module '" +
+                                 std::string(name) + "': " + detail);
+    }
+    if (!lua_istable(state, -1)) {
+        lua_settop(state, stackBase);
+        throw std::runtime_error("Native Lua module '" + std::string(name) +
+                                 "' did not return a table");
+    }
+
+    luaL_getsubtable(state, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+    lua_pushvalue(state, stackBase + 1);
+    lua_setfield(state, -2, name);
+    lua_pop(state, 1);
+    return stackBase + 1;
+}
+
 void initializeRuntime(lua_State* state) {
-    ludork::standard::initialize(state);
+    const int stackBase = lua_gettop(state);
+    const int cjsonIndex =
+        initializeNativeModule(state, "cjson", luaopen_cjson);
+    static_cast<void>(
+        initializeNativeModule(state, "cjson.safe", luaopen_cjson_safe));
+    lua_pop(state, 1);
+    try {
+        ludork::standard::initialize(state, cjsonIndex);
+    } catch (...) {
+        lua_settop(state, stackBase);
+        throw;
+    }
+    lua_settop(state, stackBase);
     ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
     ludork::standard::registerRuntimeCleanup(state, ludork::global::shutdown);
 }
@@ -397,8 +435,6 @@ void registerPreloadedModule(lua_State* state, const char* name,
 
 void registerEmbeddedModules(lua_State* state) {
     luaL_getsubtable(state, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
-    registerPreloadedModule(state, "cjson", luaopen_cjson);
-    registerPreloadedModule(state, "cjson.safe", luaopen_cjson_safe);
     registerPreloadedModule(state, "CoreSystem", luaopen_CoreSystem);
     registerPreloadedModule(state, "Engine", luaopen_Engine);
     registerPreloadedModule(state, "GlobalCore", luaopen_GlobalCore);

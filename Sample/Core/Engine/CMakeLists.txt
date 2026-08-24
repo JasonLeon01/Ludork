@@ -2,10 +2,14 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkEngine LANGUAGES CXX)
 
+if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    enable_language(OBJCXX)
+endif()
+
+if(LUDORK_BUILD_SAMPLE_APPLICATION)
 file(GLOB_RECURSE LUDORK_ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    enable_language(OBJCXX)
     list(APPEND LUDORK_ENGINE_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/Platform/PlatformInputBridgeMac.mm")
 endif()
@@ -64,3 +68,9 @@ if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${COREGRAPHICS_FRAMEWORK}")
 endif()
 ludork_configure_core_library(Engine "${LUDORK_ENGINE_BINDINGS}")
+endif()
+
+if(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkUiPreviewHostRuntime.cmake")
+    ludork_add_ui_preview_host_runtime(UiPreviewHostRuntime)
+endif()

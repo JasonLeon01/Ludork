@@ -45,7 +45,7 @@
             ]
           },
           {
-            "nodeFunction": "GoDownstairs",
+            "nodeFunction": "goDownstairs",
             "params": [
               ""
             ],

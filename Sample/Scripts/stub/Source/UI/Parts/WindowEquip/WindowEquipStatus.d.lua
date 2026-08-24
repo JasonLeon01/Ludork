@@ -1,10 +1,10 @@
 ---@meta Source.UI.Parts.WindowEquip.WindowEquipStatus
 
 ---@class Source.UI.Parts.WindowEquip.WindowEquipStatus: Source.UI.UiController
----@field model Source.Windows.WindowEquipStatus
----@field _logicalSize sf.Vector2u | nil
+---@field model                 Source.Windows.WindowEquipStatus
+---@field _logicalSize          sf.Vector2u | nil
 ---@field _changeRowControllers Source.UI.Parts.WindowEquip.EquipStatusRow[]
----@field new fun(model: Source.Windows.WindowEquipStatus): Source.UI.Parts.WindowEquip.WindowEquipStatus
+---@field new                   fun(model: Source.Windows.WindowEquipStatus): Source.UI.Parts.WindowEquip.WindowEquipStatus
 local WindowEquipStatusUI = {}
 
 ---@param model Source.Windows.WindowEquipStatus
@@ -63,10 +63,5 @@ function WindowEquipStatusUI:getAttrKeys(firstAttrs, secondAttrs) end
 ---@param text Engine.PlainText
 ---@param y    number
 function WindowEquipStatusUI:setRightAligned(text, y) end
-
----@param text     string
----@param maxWidth number
----@return string
-function WindowEquipStatusUI.wrapDescription(text, maxWidth) end
 
 return WindowEquipStatusUI

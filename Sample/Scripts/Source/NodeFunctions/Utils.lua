@@ -12,6 +12,7 @@ local System = GlobalCore.System
 
 local SHORT_NUMBER_UNITS = { { 1000000000, 1000000000, "b" }, { 1000000, 1000000, "m" }, { 10000, 1000, "k" } }
 
+local localRef
 local Utils = {}
 local AttrRef = {}
 local LocalRef = {}
@@ -179,7 +180,7 @@ local FinalLocalRef = class(LocalRef)
 ---@param name    string
 ---@param default T | nil
 ---@return Source.NodeFunctions.Utils.LocalRef<T>
-function Utils._localRef(loc, name, default)
+function localRef(loc, name, default)
     return FinalLocalRef.new(loc, name, default)
 end
 
@@ -188,39 +189,39 @@ function Utils.IF(condition)
 end
 
 function Utils.SetLocalValue(valueName, value)
-    Context._getRefLocal(Utils.SetLocalValue)[valueName] = value
+    Context.GetRefLocal(Utils.SetLocalValue)[valueName] = value
 end
 
 function Utils.GetLocalValue(valueName, default)
-    local value = Context._getRefLocal(Utils.GetLocalValue)[valueName]
+    local value = Context.GetRefLocal(Utils.GetLocalValue)[valueName]
     return value == nil and default or value
 end
 
 function Utils.GetLocalValueRef(valueName, default)
-    return Utils._localRef(Context._getRefLocal(Utils.GetLocalValueRef), valueName, default)
+    return localRef(Context.GetRefLocal(Utils.GetLocalValueRef), valueName, default)
 end
 
 function Utils.SetGameVariable(valueName, value)
-    Context.requireGameInstance():setVariable(valueName, referenceValue(value))
+    Context.RequireGameInstance():setVariable(valueName, referenceValue(value))
 end
 
 function Utils.GetGameVariable(valueName, default)
-    local value = Context.requireGameInstance():getVariables()[valueName]
+    local value = Context.RequireGameInstance():getVariables()[valueName]
     return value == nil and default or value
 end
 
 function Utils.GetGameVariableRef(valueName, default)
-    return Utils._localRef(Context.requireGameInstance():getVariables(), valueName, default)
+    return localRef(Context.RequireGameInstance():getVariables(), valueName, default)
 end
 
 function Utils.AddPlayerByClass(playerClass)
     playerClass = playerClass == nil and "" or playerClass
-    Context.requireGameInstance():addPlayerByClass(playerClass)
+    Context.RequireGameInstance():addPlayerByClass(playerClass)
 end
 
 function Utils.RemovePlayerByClass(playerClass)
     playerClass = playerClass == nil and "" or playerClass
-    Context.requireGameInstance():removePlayerByClass(playerClass)
+    Context.RequireGameInstance():removePlayerByClass(playerClass)
 end
 
 ---@param animName string
@@ -228,7 +229,7 @@ end
 ---@param rotation number
 ---@param scale    sf.Vector2f
 local function spawnAnim(animName, position, rotation, scale)
-    local animData = Data.getAnimation(animName)
+    local animData = Data.GetAnimation(animName)
     if animData == nil then
         error("Animation '" .. tostring(animName) .. "' not found")
     end
@@ -246,7 +247,7 @@ end
 ---@return Engine.Actor | nil
 local function getActorByTag(actorTag)
     if bool(actorTag) then
-        local gameMap = Context.requireSceneMap():getGameMap()
+        local gameMap = Context.RequireSceneMap():getGameMap()
         if gameMap ~= nil then
             return gameMap:getActorByTag(actorTag)
         end
@@ -272,7 +273,7 @@ function Utils.AddAnimOn(animName, actorTag, rotation, scale)
 end
 
 function Utils.GetAnimLength(animName)
-    local animData = Data.getAnimation(animName)
+    local animData = Data.GetAnimation(animName)
     if animData == nil then
         error("Animation '" .. tostring(animName) .. "' not found")
     end
@@ -280,7 +281,7 @@ function Utils.GetAnimLength(animName)
 end
 
 function Utils.GetAnimVisualLength(animName)
-    local animData = Data.getAnimation(animName)
+    local animData = Data.GetAnimation(animName)
     if animData == nil then
         error("Animation '" .. tostring(animName) .. "' not found")
     end
@@ -289,7 +290,7 @@ end
 
 function Utils.SUPER(obj, params)
     params = params or {}
-    local refLocal = Context._getRefLocal(Utils.SUPER)
+    local refLocal = Context.GetRefLocal(Utils.SUPER)
     local graphContext = refLocal.__graph__
     local eventName = refLocal.__key__
     if graphContext == nil or not bool(eventName) then
@@ -301,7 +302,7 @@ function Utils.SUPER(obj, params)
 end
 
 function Utils.SELF()
-    local parent = Context._requireGraphParent(Utils.SELF)
+    local parent = Context.RequireGraphParent(Utils.SELF)
     ---@cast parent table
     return parent
 end
@@ -369,21 +370,18 @@ end
 function Utils.RunCommonFunction(commonFunctionName)
     commonFunctionName = commonFunctionName == nil and "" or commonFunctionName
     ---@type Engine.Graph | nil
-    local callerGraph = Context._getRefLocal(Utils.RunCommonFunction).__graph__
-    local commonGraph = Data.getCommonFunction(commonFunctionName)
+    local callerGraph = Context.GetRefLocal(Utils.RunCommonFunction).__graph__
+    local commonGraph = Data.GetCommonFunction(commonFunctionName)
     if callerGraph ~= nil then
         commonGraph.localGraph = callerGraph.localGraph
     end
     if commonGraph:hasKey("common") then
         return commonGraph:execute("common")
     end
-    local keys = {}
-    for key in pairs(commonGraph.startNodes or {}) do
-        keys[#keys + 1] = key
-    end
-    table.sort(keys)
-    if bool(keys) then
-        return commonGraph:execute(keys[1])
+    local keys = table.orderedStringKeys(commonGraph.startNodes or {})
+    local startKey = keys[1]
+    if startKey ~= nil then
+        return commonGraph:execute(startKey)
     end
     error("Common function '" .. commonFunctionName .. "' has no start nodes")
 end
@@ -437,21 +435,21 @@ function Utils.EXEC(script)
 end
 
 function Utils.GetSelfAttr(attrName)
-    local obj = Context._requireGraphParent(Utils.GetSelfAttr)
+    local obj = Context.RequireGraphParent(Utils.GetSelfAttr)
     ---@cast obj table
     return Utils.GetAttr(obj, attrName)
 end
 
 function Utils.SetSelfAttr(attrName, value)
-    local obj = Context._requireGraphParent(Utils.SetSelfAttr)
+    local obj = Context.RequireGraphParent(Utils.SetSelfAttr)
     ---@cast obj table
     Utils.SetAttr(obj, attrName, value)
 end
 
 function Utils.IfPlayerOverlaps()
-    local obj = Context._requireGraphParent(Utils.IfPlayerOverlaps)
+    local obj = Context.RequireGraphParent(Utils.IfPlayerOverlaps)
     ---@cast obj Engine.Actor
-    local gameMap = Context.requireSceneMap():getGameMap()
+    local gameMap = Context.RequireSceneMap():getGameMap()
     if gameMap == nil then
         return false
     end
@@ -459,19 +457,14 @@ function Utils.IfPlayerOverlaps()
     if player == nil then
         return false
     end
-    for _, overlap in ipairs(gameMap:getOverlaps(player)) do
-        if overlap == obj then
-            return true
-        end
-    end
-    return false
+    return table.contains(gameMap:getOverlaps(player), obj)
 end
 
 function Utils.IfGameVar(varName, op, value)
     varName = varName == nil and "" or varName
     op = op == nil and "==" or op
     value = referenceValue(value)
-    local current = Context.requireGameInstance():getVariable(varName)
+    local current = Context.RequireGameInstance():getVariable(varName)
     if op == "==" then
         return current == value
     end

@@ -4,58 +4,58 @@ local _METADATA = {
             "Offset",
             "stairSE",
             "transitionName",
-            "transitionTime",
+            "transitionTime"
         },
         bases = {
-            { "Engine", "Actor" },
+            { "Engine", "Actor" }
         },
         Offset = {
             type = "sf.Vector2i",
-            default = { 0, 0 },
+            default = { 0, 0 }
         },
         stairSE = {
             type = "string",
             default = "",
             Meta = {
                 PathVars = "Sounds",
-                ConfigVars = { "Audio", "stairSE" },
-            },
+                ConfigVars = { "Audio", "stairSE" }
+            }
         },
         transitionName = {
             type = "string",
-            default = "",
+            default = ""
         },
         transitionTime = {
             type = "float",
-            default = 0.5,
+            default = 0.5
         },
-        GoUpstairs = {
+        goUpstairs = {
             type = "function",
             parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
-        GoDownstairs = {
+        goDownstairs = {
             type = "function",
             parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         Meta = {
             PathVars = {
-                { "stairSE", "Sounds" },
+                { "stairSE", "Sounds" }
             },
             ConfigVars = {
-                { "stairSE", "Audio", "stairSE" },
-            },
-        },
-    },
+                { "stairSE", "Audio", "stairSE" }
+            }
+        }
+    }
 }
 
 return _METADATA

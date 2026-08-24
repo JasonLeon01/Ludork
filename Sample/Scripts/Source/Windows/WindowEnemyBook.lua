@@ -1,23 +1,13 @@
-local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local WindowEnemyBookUI = require("Source.UI.WindowEnemyBook")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local Input = Engine.Input
 local ManagerFunctions = GlobalFunctions.Manager
 
 local _WINDOW_SIZE = 352
 local _CELL_WIDTH = 320
 local _CELL_HEIGHT = 64
-
-local WindowEnemyBookExports = {}
-
----@param iconPath string
----@return sf.Texture | nil
-function WindowEnemyBookExports._loadSpecialIcon(iconPath)
-    return WindowEnemyBookUI.loadSpecialIcon(iconPath)
-end
 
 ---@class Source.Windows.WindowEnemyBook: Source.Windows.Base.WindowSelectable
 local WindowEnemyBook = {}
@@ -25,7 +15,7 @@ local WindowEnemyBook = {}
 WindowEnemyBook.uiClass = WindowEnemyBookUI
 
 function WindowEnemyBook:init(rect, player, onClose, onConfirm)
-    super(WindowEnemyBook, self).init(rect, nil, _CELL_WIDTH, _CELL_HEIGHT)
+    super(WindowEnemyBook, self).init(rect, nil, _CELL_WIDTH, _CELL_HEIGHT, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._player = player
     self._onCloseCallback = onClose
@@ -61,23 +51,6 @@ end
 function WindowEnemyBook:onTick(deltaTime)
     self._ui:tick(deltaTime)
     super(WindowEnemyBook, self).onTick(deltaTime)
-end
-
-function WindowEnemyBook:onKeyDown(kwargs)
-    if Input.isActionTriggered(Input.getCancelKeys(), false) then
-        self:onReturn()
-        Input.isActionTriggered(Input.getCancelKeys(), true)
-        return
-    end
-    super(WindowEnemyBook, self).onKeyDown(kwargs)
-end
-
-function WindowEnemyBook:onMouseButtonDown(kwargs)
-    if kwargs.button == sf.Mouse.Button.Right then
-        self:onReturn()
-        return true
-    end
-    return false
 end
 
 ---@param gameMap GameMap | nil
@@ -129,7 +102,7 @@ function WindowEnemyBook:_getRectWidth()
 end
 
 function WindowEnemyBook:onReturn()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:close()
     if self._onCloseCallback ~= nil then
         self._onCloseCallback()
@@ -138,18 +111,15 @@ end
 
 ---@param entry table
 function WindowEnemyBook:_confirmEnemy(entry)
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:close()
     if self._onConfirmCallback ~= nil then
         self._onConfirmCallback(entry)
     end
 end
 
-WindowEnemyBook._loadSpecialIcon = WindowEnemyBookExports._loadSpecialIcon
 WindowEnemyBook._WINDOW_SIZE = _WINDOW_SIZE
 
 local FinalWindowEnemyBook = class(WindowEnemyBook, WindowSelectable)
 
-WindowEnemyBookExports.WindowEnemyBook = FinalWindowEnemyBook
-
-return WindowEnemyBookExports
+return FinalWindowEnemyBook

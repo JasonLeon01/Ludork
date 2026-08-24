@@ -65,12 +65,6 @@ function PlayerAttrHUD:_refreshStates()
     self._ui:refreshStates()
 end
 
----@param mapName string
----@return string
-function PlayerAttrHUD._formatMapName(mapName)
-    return PlayerAttrHUDUI.formatMapName(mapName)
-end
-
 ---@return string
 function PlayerAttrHUD:_getMapDisplayName()
     return self._ui:getMapDisplayName()

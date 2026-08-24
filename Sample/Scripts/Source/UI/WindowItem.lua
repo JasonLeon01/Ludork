@@ -1,4 +1,3 @@
-local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local ItemInfo = require("Source.Infos.ItemInfo")
@@ -10,34 +9,16 @@ local Ui = require("Source.UI.Ui")
 local ItemRowUI = require("Source.UI.Parts.WindowItem.ItemRow")
 local ListViewController = require("Source.UI.Helpers.ListView")
 
-local Input = Engine.Input
 local ManagerFunctions = GlobalFunctions.Manager
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
-local _ITEM_ORDER = {
-    "KEY_Y", "KEY_B", "KEY_R", "EnemyBook", "Teleport", "BreakWall", "ClearWall", "BreakLava", "BreakIce",
-    "PoisonedEase", "PoisonedRelease", "WeakEase", "WeakRelease"
-}
-
 local function orderedInventory(data, playerItems)
     local result = {}
-    local included = {}
-    for _, itemID in ipairs(_ITEM_ORDER) do
-        if data[itemID] ~= nil and playerItems[itemID] ~= nil then
+    for _, itemID in ipairs(table.orderedStringKeys(data)) do
+        if playerItems[itemID] ~= nil then
             result[#result + 1] = { itemID, playerItems[itemID] }
-            included[itemID] = true
         end
-    end
-    local extraKeys = {}
-    for itemID in pairs(data) do
-        if not included[itemID] and playerItems[itemID] ~= nil then
-            extraKeys[#extraKeys + 1] = itemID
-        end
-    end
-    table.sort(extraKeys)
-    for _, itemID in ipairs(extraKeys) do
-        result[#result + 1] = { itemID, playerItems[itemID] }
     end
     return result
 end
@@ -54,8 +35,8 @@ function WindowItemUI:init(model)
     self._rowUIs = {}
 end
 
-function WindowItemUI.loadItemIcon(iconPath)
-    return IconTexture.load(iconPath, "Characters/items")
+local function loadItemIcon(iconPath)
+    return IconTexture.Load(iconPath, "Characters/items")
 end
 
 function WindowItemUI:attach()
@@ -75,7 +56,7 @@ function WindowItemUI:refreshItems()
     self:_updateLayout()
     self._listView:clearChildren()
     self._rowUIs = {}
-    local itemData = Data.getAllGeneralItemData()
+    local itemData = Data.GetAllGeneralItemData()
     local playerItems = self.model._player._items or {}
     local orderedItems = orderedInventory(itemData, playerItems)
     self.model._itemList = orderedItems
@@ -92,7 +73,7 @@ function WindowItemUI:refreshItems()
             cost = true
         end
         local rowUI = ItemRowUI.new({
-            iconTexture = self.loadItemIcon(member.icon or ""),
+            iconTexture = loadItemIcon(member.icon or ""),
             usable = usable,
             cost = cost,
             count = count
@@ -118,29 +99,12 @@ function WindowItemUI:tick()
 end
 
 function WindowItemUI:wrapDescription(text)
-    return TextLayout.wrapPlainText(text, self.model._descMaxWidth, "UI/Text14")
+    return TextLayout.WrapPlainText(text, self.model._descMaxWidth, "UI/Text14")
 end
 
 function WindowItemUI:updateDescription()
     self:_assignDescription()
     self.view:reflow(self._logicalSize)
-end
-
-function WindowItemUI:handleKeyDown()
-    if not Input.isActionTriggered(Input.getCancelKeys(), false) then
-        return false
-    end
-    self.model:onReturn()
-    Input.isActionTriggered(Input.getCancelKeys(), true)
-    return true
-end
-
-function WindowItemUI:handleMouseButtonDown(kwargs)
-    if kwargs.button ~= sf.Mouse.Button.Right then
-        return false
-    end
-    self.model:onReturn()
-    return true
 end
 
 function WindowItemUI:open()
@@ -158,7 +122,7 @@ function WindowItemUI:_onUseItem()
     if self.model.index == nil or self.model.index >= #self.model._itemList then
         return
     end
-    local itemInfoData = Data.getGeneralItemData(self.model._itemList[self.model.index + 1][1])
+    local itemInfoData = Data.GetGeneralItemData(self.model._itemList[self.model.index + 1][1])
     local usable = itemInfoData.usable
     if usable == nil then
         usable = true
@@ -166,7 +130,7 @@ function WindowItemUI:_onUseItem()
     if not usable then
         return
     end
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     local info = ItemInfo.new()
     info.ID = self.model._itemList[self.model.index + 1][1]
     info:initInfo(Data)
@@ -178,7 +142,7 @@ function WindowItemUI:_onUseItem()
 end
 
 function WindowItemUI:_closeByCancel()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:close()
     if self.model._onCloseCallback ~= nil then
         self.model._onCloseCallback()
@@ -205,10 +169,10 @@ function WindowItemUI:_assignDescription()
         self:setText("Description", "")
         return
     end
-    local itemData = Data.getGeneralItemData(self.model._itemList[self.model.index + 1][1])
+    local itemData = Data.GetGeneralItemData(self.model._itemList[self.model.index + 1][1])
     self:setText("ItemName", LOC(itemData.name or ""))
     local rawDescription = LOC(itemData.desc or "")
     self:setText("Description", self:wrapDescription(rawDescription))
 end
 
-return Ui.define("WindowItem", WindowItemUI)
+return Ui.Define("WindowItem", WindowItemUI)

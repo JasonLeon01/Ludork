@@ -5,26 +5,21 @@
 #include <sol2/sol.hpp>
 
 extern "C" {
+#include <lauxlib.h>
 #include <lua.h>
 }
-
-namespace {
-
-extern "C" int luaopen_Class(lua_State* state) {
-    if (state == nullptr) {
-        return 0;
-    }
-    ludork::standard::class_runtime::createModule(sol::state_view(state))
-        .push();
-    return 1;
-}
-
-}  // namespace
 
 namespace ludork::standard::binding {
 
 void registerClass(sol::state_view lua) {
-    static_cast<void>(lua.require("Class", luaopen_Class, true));
+    sol::table module = ludork::standard::class_runtime::createModule(lua);
+    module.push();
+    lua_setglobal(lua.lua_state(), "Class");
+
+    luaL_getsubtable(lua.lua_state(), LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+    module.push();
+    lua_setfield(lua.lua_state(), -2, "Class");
+    lua_pop(lua.lua_state(), 1);
 }
 
 }  // namespace ludork::standard::binding

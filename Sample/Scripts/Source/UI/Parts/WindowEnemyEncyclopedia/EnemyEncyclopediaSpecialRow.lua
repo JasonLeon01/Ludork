@@ -10,12 +10,12 @@ local EnemyEncyclopediaSpecialRowUI = {}
 
 function EnemyEncyclopediaSpecialRowUI:init(model)
     local descriptionWidth = math.max(1, model.width - _DESCRIPTION_X)
-    self._displayName = TextLayout.fitPlainText(tostring(model.name or ""), _NAME_WIDTH, _TEXT_CONFIG)
-    local wrappedDescription = TextLayout.wrapPlainText(
+    self._displayName = TextLayout.FitPlainText(tostring(model.name or ""), _NAME_WIDTH, _TEXT_CONFIG)
+    local wrappedDescription = TextLayout.WrapPlainText(
         tostring(model.description or ""), descriptionWidth, _TEXT_CONFIG
     )
     self._displayDescription = wrappedDescription:find("\n", 1, true) ~= nil and wrappedDescription
-        or TextLayout.fitPlainText(wrappedDescription, descriptionWidth, _TEXT_CONFIG)
+        or TextLayout.FitPlainText(wrappedDescription, descriptionWidth, _TEXT_CONFIG)
     local _, newlineCount = self._displayDescription:gsub("\n", "")
     local lineCount = math.max(1, newlineCount + 1)
     self._height = math.max(_ROW_HEIGHT, lineCount * _ROW_HEIGHT)
@@ -43,4 +43,4 @@ function EnemyEncyclopediaSpecialRowUI:getDescriptionText()
     return self:requireControl("Description")
 end
 
-return Ui.define("Parts/WindowEnemyEncyclopedia/EnemyEncyclopediaSpecialRow", EnemyEncyclopediaSpecialRowUI)
+return Ui.Define("Parts/WindowEnemyEncyclopedia/EnemyEncyclopediaSpecialRow", EnemyEncyclopediaSpecialRowUI)

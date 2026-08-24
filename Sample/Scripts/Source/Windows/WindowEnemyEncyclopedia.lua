@@ -15,7 +15,7 @@ local WindowEnemyEncyclopedia = {}
 WindowEnemyEncyclopedia.uiClass = WindowEnemyEncyclopediaUI
 
 function WindowEnemyEncyclopedia:init(rect, onClose)
-    super(WindowEnemyEncyclopedia, self).init(rect)
+    super(WindowEnemyEncyclopedia, self).init(rect, nil, nil, true)
     self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
     self._portrait = nil
@@ -78,10 +78,6 @@ function WindowEnemyEncyclopedia:onTick(deltaTime)
     super(WindowEnemyEncyclopedia, self).onTick(deltaTime)
 end
 
-function WindowEnemyEncyclopedia.getDefaultSize()
-    return _WINDOW_WIDTH, _WINDOW_HEIGHT
-end
-
 ---@param deltaTime number
 function WindowEnemyEncyclopedia:_animatePortrait(deltaTime)
     self._ui:tick(deltaTime)
@@ -92,7 +88,7 @@ function WindowEnemyEncyclopedia:_clearEnemyControls()
 end
 
 function WindowEnemyEncyclopedia:onReturn()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:close()
 end
 

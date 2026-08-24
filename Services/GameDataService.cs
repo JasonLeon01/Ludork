@@ -561,6 +561,7 @@ public sealed class GameDataService
             ["fogOx"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOx,
             ["fogOy"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOy,
             ["fogDistort"] = string.IsNullOrWhiteSpace(info.Fog) ? 0 : info.FogDistort,
+            ["layerOrder"] = new JsonArray("floor", "default"),
             ["layers"] = new JsonObject
             {
                 ["floor"] = createEmptyLayer("floor", tilesetKey, info.Width, info.Height),
@@ -820,9 +821,9 @@ public sealed class GameDataService
 
     public IReadOnlyList<string> getLayerNames(string mapKey)
     {
-        if (getMap(mapKey)?["layers"] is not JsonObject layers)
+        if (getMap(mapKey) is not JsonObject map)
             return Array.Empty<string>();
-        return layers.Select(entry => entry.Key).ToArray();
+        return getLayerOrder(map).Select(name => name!.GetValue<string>()).ToArray();
     }
 
     public string? getLayerTilesetKey(string mapKey, string layerName)
@@ -915,12 +916,17 @@ public sealed class GameDataService
         JsonObject? map = getMap(mapKey);
         JsonObject? layers = map?["layers"] as JsonObject;
         JsonObject? actorGroups = map?["actors"] as JsonObject;
-        if (layers is null || string.IsNullOrWhiteSpace(newName)
+        if (map is null || layers is null || string.IsNullOrWhiteSpace(newName)
             || !layers.ContainsKey(oldName)
             || layers.ContainsKey(newName)
             || actorGroups?.ContainsKey(newName) == true)
             return false;
         RecordSnapshot();
+        JsonArray layerOrder = getLayerOrder(map);
+        int layerOrderIndex = layerOrder.IndexOf(oldName);
+        if (layerOrderIndex < 0)
+            throw new InvalidDataException($"Map layerOrder does not contain '{oldName}'.");
+        layerOrder[layerOrderIndex] = newName;
         List<KeyValuePair<string, JsonNode?>> entries = layers.Select(entry => new KeyValuePair<string, JsonNode?>(entry.Key, entry.Value)).ToList();
         layers.Clear();
         foreach (KeyValuePair<string, JsonNode?> entry in entries)
@@ -948,10 +954,15 @@ public sealed class GameDataService
 
     public bool removeLayer(string mapKey, string layerName)
     {
-        if (getMap(mapKey)?["layers"] is not JsonObject layers || !layers.ContainsKey(layerName))
+        if (getMap(mapKey) is not JsonObject map || map["layers"] is not JsonObject layers || !layers.ContainsKey(layerName))
             return false;
         RecordSnapshot();
         layers.Remove(layerName);
+        if (map["actors"] is JsonObject actorGroups)
+            actorGroups.Remove(layerName);
+        JsonArray layerOrder = getLayerOrder(map);
+        if (!layerOrder.Remove(layerName))
+            throw new InvalidDataException($"Map layerOrder does not contain '{layerName}'.");
         refreshModifiedState();
         return true;
     }
@@ -987,17 +998,20 @@ public sealed class GameDataService
 
     public bool reorderLayers(string mapKey, string movingLayer, string targetLayer)
     {
-        if (movingLayer == targetLayer || getMap(mapKey)?["layers"] is not JsonObject layers)
+        if (movingLayer == targetLayer || getMap(mapKey) is not JsonObject map || map["layers"] is not JsonObject layers)
             return false;
-        List<KeyValuePair<string, JsonNode?>> entries = layers.Select(entry => new KeyValuePair<string, JsonNode?>(entry.Key, entry.Value)).ToList();
-        int movingIndex = entries.FindIndex(entry => entry.Key == movingLayer);
-        int targetIndex = entries.FindIndex(entry => entry.Key == targetLayer);
+        JsonArray layerOrder = getLayerOrder(map);
+        int movingIndex = layerOrder.IndexOf(movingLayer);
+        int targetIndex = layerOrder.IndexOf(targetLayer);
         if (movingIndex < 0 || targetIndex < 0)
             return false;
         RecordSnapshot();
-        KeyValuePair<string, JsonNode?> moving = entries[movingIndex];
-        entries.RemoveAt(movingIndex);
-        entries.Insert(Math.Min(targetIndex, entries.Count), moving);
+        JsonNode moving = layerOrder[movingIndex]!.DeepClone();
+        layerOrder.RemoveAt(movingIndex);
+        layerOrder.Insert(Math.Min(targetIndex, layerOrder.Count), moving);
+        List<KeyValuePair<string, JsonNode?>> entries = layerOrder
+            .Select(name => new KeyValuePair<string, JsonNode?>(name!.GetValue<string>(), layers[name.GetValue<string>()]))
+            .ToList();
         layers.Clear();
         foreach (KeyValuePair<string, JsonNode?> entry in entries)
             layers.Add(entry.Key, entry.Value);
@@ -1839,21 +1853,31 @@ public sealed class GameDataService
 
     private bool insertLayer(string mapKey, string layerName, JsonObject layer, string? insertAfterLayer)
     {
-        if (getMap(mapKey)?["layers"] is not JsonObject layers || layers.ContainsKey(layerName))
+        if (getMap(mapKey) is not JsonObject map || map["layers"] is not JsonObject layers || layers.ContainsKey(layerName))
             return false;
-        List<KeyValuePair<string, JsonNode?>> entries = layers.Select(entry => new KeyValuePair<string, JsonNode?>(entry.Key, entry.Value)).ToList();
+        JsonArray layerOrder = getLayerOrder(map);
         int insertIndex = string.IsNullOrWhiteSpace(insertAfterLayer)
-            ? entries.Count
-            : entries.FindIndex(entry => entry.Key == insertAfterLayer) + 1;
+            ? layerOrder.Count
+            : layerOrder.IndexOf(insertAfterLayer) + 1;
         if (insertIndex <= 0)
-            insertIndex = entries.Count;
+            insertIndex = layerOrder.Count;
         RecordSnapshot();
-        entries.Insert(insertIndex, new KeyValuePair<string, JsonNode?>(layerName, layer));
+        layerOrder.Insert(insertIndex, layerName);
+        layers.Add(layerName, layer);
+        List<KeyValuePair<string, JsonNode?>> entries = layerOrder
+            .Select(name => new KeyValuePair<string, JsonNode?>(name!.GetValue<string>(), layers[name.GetValue<string>()]))
+            .ToList();
         layers.Clear();
         foreach (KeyValuePair<string, JsonNode?> entry in entries)
             layers.Add(entry.Key, entry.Value);
         refreshModifiedState();
         return true;
+    }
+
+    private static JsonArray getLayerOrder(JsonObject map)
+    {
+        return map["layerOrder"] as JsonArray
+            ?? throw new InvalidDataException("Map data must contain a layerOrder array.");
     }
 
     private static JsonObject createEmptyLayer(string layerName, string tilesetKey, int width, int height)

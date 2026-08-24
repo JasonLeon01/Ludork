@@ -60,6 +60,8 @@ local _STAT_FIELDS = {
 
 ---@class Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell
 local WindowEnemyBookCellUI = {}
+---@type function
+local measureSpecialAreaWidth
 
 function WindowEnemyBookCellUI:init(model)
     local entry = model.entry
@@ -87,9 +89,9 @@ function WindowEnemyBookCellUI:bind()
 end
 
 function WindowEnemyBookCellUI:refresh()
-    local specialAreaWidth = WindowEnemyBookCellUI.measureSpecialAreaWidth(self._specialDisplays)
+    local specialAreaWidth = measureSpecialAreaWidth(self._specialDisplays)
     local nameMaxWidth = math.max(32, math.floor(_CELL_WIDTH - _ICON_AREA_WIDTH - specialAreaWidth))
-    self:setText("Name", TextLayout.fitPlainText(self.model.entry.name or "", nameMaxWidth, _NAME_TEXT_CONFIG))
+    self:setText("Name", TextLayout.FitPlainText(self.model.entry.name or "", nameMaxWidth, _NAME_TEXT_CONFIG))
     for _, stat in ipairs(_STAT_FIELDS) do
         local value = LOC(stat.locale) .. "\t" .. tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
         self:setText(stat.control, value)
@@ -110,7 +112,7 @@ function WindowEnemyBookCellUI:refresh()
             icon:setTexture(item.texture, true)
             self:setProperty("SpecialIcon" .. tostring(index), "visible", true)
         else
-            local displayName = TextLayout.fitPlainText(
+            local displayName = TextLayout.FitPlainText(
                 tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, _SPECIAL_TEXT_CONFIG
             )
             self._specialDisplayTexts[index] = displayName
@@ -134,7 +136,7 @@ function WindowEnemyBookCellUI:refreshLocale()
     self.root:render()
 end
 
-function WindowEnemyBookCellUI.measureSpecialAreaWidth(specialDisplays)
+function measureSpecialAreaWidth(specialDisplays)
     if not bool(specialDisplays) then
         return 0.0
     end
@@ -147,10 +149,10 @@ function WindowEnemyBookCellUI.measureSpecialAreaWidth(specialDisplays)
         if item.texture ~= nil then
             width = width + _SPECIAL_ICON_SIZE
         else
-            local displayName = TextLayout.fitPlainText(
+            local displayName = TextLayout.FitPlainText(
                 tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, _SPECIAL_TEXT_CONFIG
             )
-            width = width + TextLayout.measurePlainText(_SPECIAL_TEXT_CONFIG, displayName)
+            width = width + TextLayout.MeasurePlainText(_SPECIAL_TEXT_CONFIG, displayName)
         end
     end
     return width
@@ -175,7 +177,7 @@ function WindowEnemyBookCellUI:_layoutSpecials()
             currentX = iconX - _SPECIAL_GAP
         else
             local displayName = assert(self._specialDisplayTexts[index])
-            local textWidth = TextLayout.measurePlainText(_SPECIAL_TEXT_CONFIG, displayName)
+            local textWidth = TextLayout.MeasurePlainText(_SPECIAL_TEXT_CONFIG, displayName)
             local specialText = assert(self._specialTexts[index])
             specialText:setPosition(sf.Vector2f.new(currentX, 0.0))
             currentX = currentX - textWidth - _SPECIAL_GAP
@@ -203,4 +205,4 @@ function WindowEnemyBookCellUI:getSwitchTimer()
     return self._previewController:getState().switchTimer
 end
 
-return Ui.define("Parts/WindowEnemyBook/WindowEnemyBookCell", WindowEnemyBookCellUI)
+return Ui.Define("Parts/WindowEnemyBook/WindowEnemyBookCell", WindowEnemyBookCellUI)

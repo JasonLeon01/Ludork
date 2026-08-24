@@ -12,16 +12,18 @@ local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local RegionTitleUI = require("Source.UI.RegionTitle")
 local UiLayout = require("Source.UI.UiLayout")
 local PlayerAttrHUD = require("Source.Windows.HUDPlayerAttr")
-local EquipWindows = require("Source.Windows.WindowEquip")
-local WindowAttrShopModule = require("Source.Windows.WindowAttrShop")
-local WindowEnemyBookModule = require("Source.Windows.WindowEnemyBook")
+local WindowEquipSelect = require("Source.Windows.WindowEquip.Select")
+local WindowEquipSlot = require("Source.Windows.WindowEquip.Slot")
+local WindowEquipStatus = require("Source.Windows.WindowEquip.Status")
+local WindowAttrShop = require("Source.Windows.WindowAttrShop")
+local WindowEnemyBook = require("Source.Windows.WindowEnemyBook")
 local WindowEnemyEncyclopedia = require("Source.Windows.WindowEnemyEncyclopedia")
 local ConfigWindow = require("Source.Windows.ConfigWindow")
-local FloorWindows = require("Source.Windows.WindowFloorTeleporter")
+local WindowFloorTeleporter = require("Source.Windows.WindowFloorTeleporter")
 local WindowItem = require("Source.Windows.WindowItem")
 local WindowMenu = require("Source.Windows.WindowMenu")
 local WindowMessage = require("Source.Windows.WindowMessage")
-local WindowSaveLoadModule = require("Source.Windows.WindowSaveLoad")
+local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
 local WindowShop = require("Source.Windows.WindowShop")
 
 local Input = Engine.Input
@@ -32,13 +34,6 @@ local FocusNeighbor = GlobalCore.FocusNeighbor
 local FocusTransition = GlobalCore.FocusTransition
 local SceneBase = GlobalCore.SceneBase
 local GlobalSystem = GlobalCore.System
-local WindowEquipSlot = EquipWindows.WindowEquipSlot
-local WindowEquipSelect = EquipWindows.WindowEquipSelect
-local WindowEquipStatus = EquipWindows.WindowEquipStatus
-local WindowAttrShop = WindowAttrShopModule.WindowAttrShop
-local WindowEnemyBook = WindowEnemyBookModule.WindowEnemyBook
-local WindowFloorTeleporter = FloorWindows.WindowFloorTeleporter
-local WindowSaveLoad = WindowSaveLoadModule.WindowSaveLoad
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
@@ -137,7 +132,7 @@ function Scene:onCreate()
         self:_onEnemyEncyclopediaClose()
     end)
     self._floorTeleporterMoveEnabledBeforeOpen = true
-    local floorListRect, floorPreviewRect = FloorWindows.GetDefaultFloorTeleporterRects()
+    local floorListRect, floorPreviewRect = WindowFloorTeleporter.GetDefaultFloorTeleporterRects()
     self._windowFloorTeleporter = WindowFloorTeleporter.new(
         self.inst, floorListRect, floorPreviewRect,
         function (mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
@@ -220,7 +215,7 @@ function Scene:onCreate()
     self._pendingMenuOpen = false
     self._pendingFloorTransfer = nil
     self._mapTransferInProgress = false
-    local startMap = self.inst._cachedMap or GameSystem.getStartMap()
+    local startMap = self.inst._cachedMap or GameSystem.GetStartMap()
     self:gotoMapAndPos(startMap, nil, true)
 end
 
@@ -511,7 +506,7 @@ function Scene:applyLoadedGame(inst)
     self.inst = inst
     self.player = inst:getPlayer()
     self:_rebindPlayerToUI()
-    local mapPath = inst._cachedMap or GameSystem.getStartMap()
+    local mapPath = inst._cachedMap or GameSystem.GetStartMap()
     local position = self.player:getMapPosition()
     self._cachedMapFile = nil
     self._currentRegion = nil
@@ -643,7 +638,7 @@ function Scene:_findNearestFloorTelepoint()
     end
     local Teleporter = require("Source.Teleporter")
 
-    local nearest = Teleporter._findNearestTeleporter(gameMap:getAllActors(), player:getMapPosition())
+    local nearest = Teleporter.FindNearestTeleporter(gameMap:getAllActors(), player:getMapPosition())
     return nearest ~= nil and nearest:getTeleportPosition() or nil
 end
 
@@ -799,7 +794,7 @@ function Scene:_processPendingFloorTransfer()
     end
     local Teleporter = require("Source.Teleporter")
 
-    local targetTeleporter = Teleporter._findNearestTeleporter(
+    local targetTeleporter = Teleporter.FindNearestTeleporter(
         targetGameMap:getAllActors(), targetPlayer:getMapPosition()
     )
     if targetTeleporter == nil then
@@ -825,17 +820,11 @@ function Scene:_cancelFloorTransfer(moveEnabled)
     GlobalSystem.cancelPendingTransition()
 end
 
--- Provide the GameInstance to persist when saving from this scene.
----
---- - @return The current scene GameInstance.
 ---@return Source.GameInstance.GameInstance
 function Scene:_getSaveSource()
     return self.inst
 end
 
--- React to the save/load UI closing.
----
---- - @param reason One of ``"cancel"``, ``"saved"``, or ``"loaded"``.
 ---@param reason string
 function Scene:_onSaveLoadClose(reason)
     if reason == "cancel" then
@@ -897,7 +886,7 @@ function Scene:tryAdjacentFloorSamePos(step)
     ---@cast self._cachedMapFile string
     local sourceMap = self._cachedMapFile .. ""
     local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
-    local currentIndex = Teleporter._findCurrentMapIndex(regionMaps, self._cachedMapFile)
+    local currentIndex = Teleporter.FindCurrentMapIndex(regionMaps, self._cachedMapFile)
     if currentIndex == nil then
         return false
     end
@@ -1026,11 +1015,11 @@ function Scene.CaptureScreenSnapshot()
     local sourceSize = sourceTexture:getSize()
     local gameSize = GlobalSystem.getGameSize()
     if sourceSize.x == 0 or sourceSize.y == 0 then
-        GameSystem.setSavedScreenImage(nil)
+        GameSystem.SetSavedScreenImage(nil)
         return
     end
     if sourceSize.x == gameSize.x and sourceSize.y == gameSize.y then
-        GameSystem.setSavedScreenImage(sourceTexture:copyToImage())
+        GameSystem.SetSavedScreenImage(sourceTexture:copyToImage())
         return
     end
     local scaled = sf.RenderTexture.new(gameSize)
@@ -1039,7 +1028,7 @@ function Scene.CaptureScreenSnapshot()
     sprite:setScale(sf.Vector2f.new(gameSize.x / sourceSize.x, gameSize.y / sourceSize.y))
     scaled:draw(sprite)
     scaled:display()
-    GameSystem.setSavedScreenImage(scaled:getTexture():copyToImage())
+    GameSystem.SetSavedScreenImage(scaled:getTexture():copyToImage())
 end
 
 ---@return boolean
@@ -1111,7 +1100,7 @@ end
 
 ---@return string
 function Scene:_getCurrentRegionMap()
-    return self._cachedMapFile or self.inst._cachedMap or GameSystem.getStartMap()
+    return self._cachedMapFile or self.inst._cachedMap or GameSystem.GetStartMap()
 end
 
 ---@param mapFile string
@@ -1154,7 +1143,7 @@ end
 
 ---@param region string
 function Scene.ShowRegionTitle(region)
-    RegionTitleUI.publish({
+    RegionTitleUI.Publish({
         region = region
     })
 end

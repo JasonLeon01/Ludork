@@ -28,6 +28,10 @@ local function onCombatAttributeChange(old, new, battler)
     end
 end
 
+---@type function
+local resolveStateID
+---@type function
+local buildStateInfo
 ---@class Source.Battler.Battler
 local Battler = {}
 
@@ -113,7 +117,7 @@ function Battler:_setInfoField(key, value)
 end
 
 function Battler:hasState(state)
-    return self:getStateByID(Battler._resolveStateID(state)) ~= nil
+    return self:getStateByID(resolveStateID(state)) ~= nil
 end
 
 function Battler:getStateByID(stateID)
@@ -226,7 +230,7 @@ function Battler:getStateNames()
 end
 
 function Battler:addState(state, stacks)
-    local info = Battler._buildStateInfo(state)
+    local info = buildStateInfo(state)
     if info == nil then
         return
     end
@@ -236,7 +240,7 @@ function Battler:addState(state, stacks)
     end
     local existing = self:getStateByID(info.ID)
     if existing ~= nil then
-        if bool(Data.getGeneralStateData(info.ID).stackable) then
+        if bool(Data.GetGeneralStateData(info.ID).stackable) then
             existing.stacks = existing.stacks + stackCount
             self:_incrementCombatRevision()
         end
@@ -249,7 +253,7 @@ function Battler:addState(state, stacks)
 end
 
 function Battler:removeState(state)
-    local existing = self:getStateByID(Battler._resolveStateID(state))
+    local existing = self:getStateByID(resolveStateID(state))
     if existing == nil then
         return
     end
@@ -264,7 +268,7 @@ function Battler:removeState(state)
 end
 
 function Battler:reduceStateStacks(state, stacks)
-    local existing = self:getStateByID(Battler._resolveStateID(state))
+    local existing = self:getStateByID(resolveStateID(state))
     if existing == nil then
         return
     end
@@ -333,7 +337,7 @@ function Battler:playAttackAnimationAt(scene, targetPosition)
     if not bool(self.infoComp.ANIMATION_KEY) then
         return 0.0
     end
-    local animationData = Data.getAnimation(self.infoComp.ANIMATION_KEY)
+    local animationData = Data.GetAnimation(self.infoComp.ANIMATION_KEY)
     local Animation = GlobalCore.Animation
     local animation = Animation.new(animationData, true)
     local halfCell = Engine.CellSize * 0.5
@@ -375,7 +379,7 @@ end
 
 ---@param state string | Source.Infos.StateInfo | nil
 ---@return string
-function Battler._resolveStateID(state)
+function resolveStateID(state)
     if state == nil then
         return ""
     end
@@ -387,7 +391,7 @@ end
 
 ---@param state string | Source.Infos.StateInfo | nil
 ---@return Source.Infos.StateInfo | nil
-function Battler._buildStateInfo(state)
+function buildStateInfo(state)
     if state == nil then
         return nil
     end

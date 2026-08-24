@@ -22,4 +22,4 @@ function ItemRowUI:refresh()
     self:setProperty("Count", "visible", self.model.cost)
 end
 
-return Ui.define("Parts/WindowItem/ItemRow", ItemRowUI)
+return Ui.Define("Parts/WindowItem/ItemRow", ItemRowUI)

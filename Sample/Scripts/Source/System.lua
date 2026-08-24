@@ -7,6 +7,8 @@ local MainConfig = require("Source.Configs.Main")
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
 
+---@type function
+local extractConfigValues
 local System = {}
 
 System._title = ""
@@ -51,7 +53,7 @@ local function blueprintRelativePathToClassPath(relativePath)
     return "Data.Blueprints." .. classRelativePath:gsub("/", ".")
 end
 
-function System.init()
+function System.Init()
     local MovementSpecials = require("Source.MovementSpecials")
 
     local systemData = Engine.getJSONData("./Data/Configs/System.json")
@@ -74,7 +76,9 @@ function System.init()
     System._startMap = systemData.startMap.value
     System._startPlayerClassPath = blueprintRelativePathToClassPath(systemData.startPlayerBlueprint.value)
     System._startRegion = systemData.startRegion.value
-    assert(type(System._startRegion) == "string" and bool(System._startRegion), "Start region must be a non-empty string")
+    assert(
+        type(System._startRegion) == "string" and bool(System._startRegion), "Start region must be a non-empty string"
+    )
     local startPos = systemData.startPos.value
     System._startPos = sf.Vector2u.new(startPos[1], startPos[2])
     local configuredScale = GlobalSystem.getConfiguredScale()
@@ -89,7 +93,7 @@ function System.init()
     Engine.DefaultWindowskinName = System._windowskinName
     GameMap.DefaultCoverAlpha = coverOpaqueAlpha
     local audioData = Engine.getJSONData("./Data/Configs/Audio.json")
-    System._audioConfigValues = System._extractConfigValues(audioData)
+    System._audioConfigValues = extractConfigValues(audioData)
     System._cursorSE = tostring(System._audioConfigValues.cursorSE or "")
     System._decisionSE = tostring(System._audioConfigValues.decisionSE or "")
     System._cancelSE = tostring(System._audioConfigValues.cancelSE or "")
@@ -102,12 +106,12 @@ function System.init()
     System._getSE = tostring(System._audioConfigValues.getSE or "")
     System._equipSE = tostring(System._audioConfigValues.equipSE or "")
     System._titleBGM = tostring(System._audioConfigValues.titleBGM or "")
-    MovementSpecials.registerHandlers()
+    MovementSpecials.RegisterHandlers()
 end
 
 ---@param configData table<string, string | { value: string }>
 ---@return table<string, string>
-function System._extractConfigValues(configData)
+function extractConfigValues(configData)
     local result = {}
     for key, setting in pairs(configData) do
         if type(key) == "string" and type(setting) == "table" and setting.value ~= nil then
@@ -117,7 +121,7 @@ function System._extractConfigValues(configData)
     return result
 end
 
-function System.getConfigValue(configName, settingName)
+function System.GetConfigValue(configName, settingName)
     if configName == "Audio" then
         return System._audioConfigValues[settingName] or ""
     end
@@ -125,35 +129,35 @@ function System.getConfigValue(configName, settingName)
 end
 
 Class.registerService("config.resolve", function (configName, settingName)
-    local value = System.getConfigValue(configName, settingName)
+    local value = System.GetConfigValue(configName, settingName)
     return type(value) == "string" and value or tostring(value)
 end)
 
-function System.getTitle()
+function System.GetTitle()
     return System._title
 end
 
-function System.getFonts()
+function System.GetFonts()
     return System._fonts
 end
 
-function System.getFontSize()
+function System.GetFontSize()
     return System._fontSize
 end
 
-function System.getWindowskinName()
+function System.GetWindowskinName()
     return System._windowskinName
 end
 
-function System.getTitleBackgroundFile()
+function System.GetTitleBackgroundFile()
     return System._titleBackgroundFile
 end
 
-function System.setWindowskinName(name)
+function System.SetWindowskinName(name)
     System._windowskinName = name
 end
 
-function System.getStartMap()
+function System.GetStartMap()
     return System._startMap
 end
 
@@ -165,63 +169,63 @@ function System.GetStartRegion()
     return System._startRegion
 end
 
-function System.getStartPos()
+function System.GetStartPos()
     return System._startPos
 end
 
-function System.getCursorSE()
+function System.GetCursorSE()
     return System._cursorSE
 end
 
-function System.getDecisionSE()
+function System.GetDecisionSE()
     return System._decisionSE
 end
 
-function System.getCancelSE()
+function System.GetCancelSE()
     return System._cancelSE
 end
 
-function System.getBuzzerSE()
+function System.GetBuzzerSE()
     return System._buzzerSE
 end
 
-function System.getShopSE()
+function System.GetShopSE()
     return System._shopSE
 end
 
-function System.getSaveSE()
+function System.GetSaveSE()
     return System._saveSE
 end
 
-function System.getLoadSE()
+function System.GetLoadSE()
     return System._loadSE
 end
 
-function System.getGateSE()
+function System.GetGateSE()
     return System._gateSE
 end
 
-function System.getStairSE()
+function System.GetStairSE()
     return System._stairSE
 end
 
-function System.getGetSE()
+function System.GetGetSE()
     return System._getSE
 end
 
-function System.getEquipSE()
+function System.GetEquipSE()
     return System._equipSE
 end
 
-function System.getTitleBGM()
+function System.GetTitleBGM()
     return System._titleBGM
 end
 
-function System.getSavedScreenImage()
+function System.GetSavedScreenImage()
     return System._savedScreenImage
 end
 
-function System.setSavedScreenImage(image)
+function System.SetSavedScreenImage(image)
     System._savedScreenImage = image
 end
 

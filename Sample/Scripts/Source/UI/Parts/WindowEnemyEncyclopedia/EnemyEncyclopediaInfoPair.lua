@@ -9,8 +9,8 @@ local _VALUE_WIDTH = 104
 local EnemyEncyclopediaInfoPairUI = {}
 
 function EnemyEncyclopediaInfoPairUI:refresh()
-    self:setText("Label", TextLayout.fitPlainText(self.model.label, _LABEL_WIDTH, _LABEL_TEXT_CONFIG))
-    self:setText("Value", TextLayout.fitPlainText(self.model.value, _VALUE_WIDTH, _VALUE_TEXT_CONFIG))
+    self:setText("Label", TextLayout.FitPlainText(self.model.label, _LABEL_WIDTH, _LABEL_TEXT_CONFIG))
+    self:setText("Value", TextLayout.FitPlainText(self.model.value, _VALUE_WIDTH, _VALUE_TEXT_CONFIG))
 end
 
 function EnemyEncyclopediaInfoPairUI:prepare(logicalSize)
@@ -25,4 +25,4 @@ function EnemyEncyclopediaInfoPairUI:getValue()
     return self:requireControl("Value")
 end
 
-return Ui.define("Parts/WindowEnemyEncyclopedia/EnemyEncyclopediaInfoPair", EnemyEncyclopediaInfoPairUI)
+return Ui.Define("Parts/WindowEnemyEncyclopedia/EnemyEncyclopediaInfoPair", EnemyEncyclopediaInfoPairUI)

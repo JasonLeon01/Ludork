@@ -14,11 +14,6 @@ local _SHOP_COMMAND_HEIGHT = 64
 local _SHOP_ITEM_SIZE = 352
 local _SHOP_WIDTH = 352
 
-local _ITEM_ORDER = {
-    "KEY_Y", "KEY_B", "KEY_R", "EnemyBook", "Teleport", "BreakWall", "ClearWall", "BreakLava", "BreakIce",
-    "PoisonedEase", "PoisonedRelease", "WeakEase", "WeakRelease"
-}
-
 ---@class Source.Windows.WindowShop
 local WindowShop = {}
 
@@ -29,9 +24,7 @@ function WindowShop.GetDefaultRects()
     local totalHeight = _SHOP_COMMAND_HEIGHT + _SHOP_ITEM_SIZE
     local bounds = UiLayout.GetCenteredRect(_SHOP_WIDTH, totalHeight)
     return Engine.ToIntRect(bounds.position.x, bounds.position.y, _SHOP_WIDTH, _SHOP_COMMAND_HEIGHT),
-        Engine.ToIntRect(
-            bounds.position.x, bounds.position.y + _SHOP_COMMAND_HEIGHT, _SHOP_ITEM_SIZE, _SHOP_ITEM_SIZE
-        )
+        Engine.ToIntRect(bounds.position.x, bounds.position.y + _SHOP_COMMAND_HEIGHT, _SHOP_ITEM_SIZE, _SHOP_ITEM_SIZE)
 end
 
 function WindowShop:init(player, commandRect, itemRect, onClose)
@@ -107,7 +100,7 @@ function WindowShop:close()
 end
 
 function WindowShop:closeByCancel()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:_closeAndNotify()
 end
 
@@ -123,17 +116,15 @@ function WindowShop:setMode(mode)
 end
 
 function WindowShop:confirmCommand()
-    self:setMode(
-        self._commandWindow.index == 1 and self.SHOP_MODE_SELL or self.SHOP_MODE_BUY
-    )
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    self:setMode(self._commandWindow.index == 1 and self.SHOP_MODE_SELL or self.SHOP_MODE_BUY)
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self._commandWindow:setActive(false)
     self._itemWindow:setActive(true)
     self._itemWindow:requestKeyboardFocusAtCursor()
 end
 
 function WindowShop:cancelItemSelection()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     if not self._canSell then
         self:_closeAndNotify()
         return
@@ -146,7 +137,7 @@ end
 function WindowShop:confirmItem()
     local itemID = self._itemWindow:getCurrentItemID()
     if itemID == nil then
-        ManagerFunctions.playSE(GameSystem.getBuzzerSE())
+        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         return
     end
     if self._mode == self.SHOP_MODE_BUY then
@@ -159,7 +150,7 @@ end
 ---@param buyItemIDs table
 ---@return table
 function WindowShop.NormalizeBuyItems(buyItemIDs)
-    local itemData = Data.getAllGeneralItemData()
+    local itemData = Data.GetAllGeneralItemData()
     local result = {}
     local included = {}
     for _, itemID in ipairs(buyItemIDs) do
@@ -194,25 +185,13 @@ end
 
 ---@return table
 function WindowShop:_getSellableItems()
-    local itemData = Data.getAllGeneralItemData()
+    local itemData = Data.GetAllGeneralItemData()
     local playerItems = self._player._items or {}
     local result = {}
-    local included = {}
-    for _, itemID in ipairs(_ITEM_ORDER) do
-        if itemData[itemID] ~= nil and (playerItems[itemID] or 0) > 0 and WindowShop.GetItemPrice(itemID) > 0 then
+    for _, itemID in ipairs(table.orderedStringKeys(itemData)) do
+        if (playerItems[itemID] or 0) > 0 and WindowShop.GetItemPrice(itemID) > 0 then
             result[#result + 1] = itemID
-            included[itemID] = true
         end
-    end
-    local extras = {}
-    for itemID in pairs(itemData) do
-        if not included[itemID] and (playerItems[itemID] or 0) > 0 and WindowShop.GetItemPrice(itemID) > 0 then
-            extras[#extras + 1] = itemID
-        end
-    end
-    table.sort(extras)
-    for _, itemID in ipairs(extras) do
-        result[#result + 1] = itemID
     end
     return result
 end
@@ -220,7 +199,7 @@ end
 ---@param itemID string
 ---@return integer
 function WindowShop.GetItemPrice(itemID)
-    local itemInfo = Data.getGeneralItemData(itemID)
+    local itemInfo = Data.GetGeneralItemData(itemID)
     return itemInfo.price
 end
 
@@ -234,13 +213,13 @@ end
 function WindowShop:_buyItem(itemID)
     local price = WindowShop.GetItemPrice(itemID)
     if not self._itemWindow:isCurrentAvailable() or self._player.infoComp.GOLD < price then
-        ManagerFunctions.playSE(GameSystem.getBuzzerSE())
+        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         self:_refreshItems()
         return
     end
     self._player.infoComp.GOLD = self._player.infoComp.GOLD - price
     self._player:addItem(itemID, 1)
-    ManagerFunctions.playSE(GameSystem.getShopSE())
+    ManagerFunctions.playSE(GameSystem.GetShopSE())
     self:_refreshItems()
 end
 
@@ -248,12 +227,12 @@ end
 function WindowShop:_sellItem(itemID)
     local price = WindowShop.GetItemPrice(itemID)
     if price <= 0 or not self._player:removeItem(itemID, 1) then
-        ManagerFunctions.playSE(GameSystem.getBuzzerSE())
+        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         self:_refreshItems()
         return
     end
     self._player.infoComp.GOLD = self._player.infoComp.GOLD + price
-    ManagerFunctions.playSE(GameSystem.getShopSE())
+    ManagerFunctions.playSE(GameSystem.GetShopSE())
     self:_refreshItems()
 end
 

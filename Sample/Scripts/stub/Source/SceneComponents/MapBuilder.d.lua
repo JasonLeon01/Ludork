@@ -3,6 +3,7 @@
 ---@field mapName           string
 ---@field width             integer
 ---@field height            integer
+---@field layerOrder        string[]
 ---@field layers            table<string, table>
 ---@field actors            table<string, Source.Data.ActorData[]>
 ---@field BPClassVarChanged table<string, table<string, Source.Data.ClassVarValue>> | nil
@@ -18,7 +19,7 @@
 ---@field fogOy             number | nil
 ---@field fogDistort        number | nil
 
---- @brief Build map runtime objects and floor-map previews for SceneMap.
+---@brief Build map runtime objects and floor-map previews for SceneMap.
 ---@class Source.SceneComponents.SceneMapBuilder
 ---@field _floorMapPreviewGameMaps table<string, { gameMap: GameMap, mapData: Source.SceneComponents.MapData }>
 local SceneMapBuilder = {}
@@ -30,7 +31,7 @@ function SceneMapBuilder:init() end
 
 function SceneMapBuilder:clearFloorMapPreviewCache() end
 
---- @brief Resolve a map key or file path to an existing map data file.
+---@brief Resolve a map key or file path to an existing map data file.
 ---
 --- - @param mapPath Map key or map file path.
 --- - @param currentMap Current map path used to inherit extension.
@@ -40,7 +41,7 @@ function SceneMapBuilder:clearFloorMapPreviewCache() end
 ---@return string
 function SceneMapBuilder:resolveMapPath(mapPath, currentMap) end
 
---- @brief Load map data from JSON format.
+---@brief Load map data from JSON format.
 ---
 --- - @param mapPath Map key or map file path.
 --- - @param currentMap Current map path used to inherit extension.
@@ -50,37 +51,39 @@ function SceneMapBuilder:resolveMapPath(mapPath, currentMap) end
 ---@return string, Source.SceneComponents.MapData
 function SceneMapBuilder:loadMapData(mapPath, currentMap) end
 
---- @brief Convert a map path to an on-disk path under ``Data/Maps``.
+---@brief Convert a map path to an on-disk path under ``Data/Maps``.
 ---
 --- - @param mapPath Map file path relative to ``Data/Maps``.
 --- - @return On-disk map data path.
 ---@param mapPath string
 ---@return string
-function SceneMapBuilder.getMapDataPath(mapPath) end
+function SceneMapBuilder.GetMapDataPath(mapPath) end
 
---- @brief Generate a tilemap from map layer data.
+---@brief Generate a tilemap from map layer data.
 ---
 --- - @param data Map layer data.
+--- - @param layerOrder Ordered layer names.
 --- - @param width Map width in tiles.
 --- - @param height Map height in tiles.
 --- - @return Generated tilemap.
----@param data   table<string, table>
----@param width  integer
----@param height integer
+---@param data       table<string, table>
+---@param layerOrder string[]
+---@param width      integer
+---@param height     integer
 ---@return Engine.Tilemap
-function SceneMapBuilder.generateTilemap(data, width, height) end
+function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height) end
 
---- @brief Generate a game map from serialised map data.
+---@brief Generate a game map from serialised map data.
 ---
 --- - @param data Map data.
 --- - @param camera Optional camera.
 --- - @param emitCreateEvents Whether actor/component create events should run.
 --- - @param previewOnly Whether to skip resources only needed by the live map.
 --- - @return Generated game map.
----@param data             Source.SceneComponents.MapData
----@param camera           GlobalCore.Camera | nil
+---@param data              Source.SceneComponents.MapData
+---@param camera            GlobalCore.Camera | nil
 ---@param emitCreateEvents? boolean
----@param previewOnly      boolean | nil
+---@param previewOnly       boolean | nil
 ---@return GameMap
 function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly) end
 
@@ -89,7 +92,7 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
 ---@param emitCreateEvents boolean | nil
 function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents) end
 
---- @brief Build a floor teleporter preview texture.
+---@brief Build a floor teleporter preview texture.
 ---
 --- - @param inst Current game instance.
 --- - @param currentMap Current map path used to resolve extension-less map keys.
@@ -107,9 +110,11 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
 ---@param previewScale        number
 ---@param showTelepointMarker boolean
 ---@return sf.Texture
-function SceneMapBuilder:buildFloorMapPreview( inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker ) end
+function SceneMapBuilder:buildFloorMapPreview(
+    inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker
+) end
 
---- @brief Get the teleporter actor tag for a floor telepoint.
+---@brief Get the teleporter actor tag for a floor telepoint.
 ---
 --- - @param currentMap Current map path used to resolve extension-less map keys.
 --- - @param mapKey Region map key.
@@ -121,7 +126,7 @@ function SceneMapBuilder:buildFloorMapPreview( inst, currentMap, mapKey, telepoi
 ---@return string | nil
 function SceneMapBuilder:getFloorTelepointTag(currentMap, mapKey, telepoint) end
 
---- @brief Resolve a region map key to a map data path.
+---@brief Resolve a region map key to a map data path.
 ---
 --- - @param mapKey Region map key or map file path.
 --- - @param currentMap Current map path used to inherit extension.

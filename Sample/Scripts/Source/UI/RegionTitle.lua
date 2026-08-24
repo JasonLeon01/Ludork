@@ -97,4 +97,4 @@ function RegionTitleUI:draw()
     GlobalSystem.draw(self.root)
 end
 
-return Ui.define("RegionTitle", RegionTitleUI)
+return Ui.Define("RegionTitle", RegionTitleUI)

@@ -2,6 +2,19 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkCore LANGUAGES CXX)
 
+set(LUDORK_CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(LUDORK_CORE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+set(LUDORK_CORE_RELEASE_LTO ON)
+set(LUDORK_CORE_DEBUG_LTO ${LUDORK_OPTIMIZE_DEBUG})
+if(MINGW)
+    set(LUDORK_CORE_RELEASE_LTO OFF)
+    set(LUDORK_CORE_DEBUG_LTO OFF)
+endif()
+if(NOT DEFINED LUDORK_DEBUG_SOL_SAFETIES)
+    set(LUDORK_DEBUG_SOL_SAFETIES ON)
+endif()
+
+if(LUDORK_BUILD_SAMPLE_APPLICATION)
 set(LUDORK_SCRIPT_TOOLS_EXECUTABLE
     ""
     CACHE FILEPATH
@@ -11,9 +24,6 @@ if(NOT LUDORK_SCRIPT_TOOLS_EXECUTABLE OR
     message(FATAL_ERROR
         "LUDORK_SCRIPT_TOOLS_EXECUTABLE is missing. Run tools/init first.")
 endif()
-
-set(LUDORK_CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(LUDORK_CORE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 if(NOT DEFINED LUASF_CALLBACK_CODECS_FILE OR
    NOT IS_ABSOLUTE "${LUASF_CALLBACK_CODECS_FILE}" OR
    NOT EXISTS "${LUASF_CALLBACK_CODECS_FILE}")
@@ -27,15 +37,6 @@ set(LUASF_CALLBACK_CODECS_API_FILE
 if(NOT EXISTS "${LUASF_CALLBACK_CODECS_API_FILE}")
     message(FATAL_ERROR
         "LuaSF callback codec validation requires sfml_api.json next to the manifest.")
-endif()
-set(LUDORK_CORE_RELEASE_LTO ON)
-set(LUDORK_CORE_DEBUG_LTO ${LUDORK_OPTIMIZE_DEBUG})
-if(MINGW)
-    set(LUDORK_CORE_RELEASE_LTO OFF)
-    set(LUDORK_CORE_DEBUG_LTO OFF)
-endif()
-if(NOT DEFINED LUDORK_DEBUG_SOL_SAFETIES)
-    set(LUDORK_DEBUG_SOL_SAFETIES ON)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBindings.cmake")
@@ -110,3 +111,6 @@ add_dependencies(LudorkCoreModules
 function(ludork_copy_core_runtime target)
     add_dependencies(${target} LudorkCoreModules)
 endfunction()
+elseif(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
+    add_subdirectory(Engine)
+endif()

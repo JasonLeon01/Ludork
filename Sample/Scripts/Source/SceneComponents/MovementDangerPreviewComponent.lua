@@ -48,7 +48,7 @@ function MovementDangerPreviewComponent:_refreshEntries(player)
     local inverseScale = 1.0 / displayScale
     for index, entry in ipairs(self._cachedEntries) do
         if self._texts[index] == nil then
-            self._texts[index] = PlainText.new(Data.getPlainTextConfig(EnemyDamageText.textConfig), "")
+            self._texts[index] = PlainText.new(Data.GetPlainTextConfig(EnemyDamageText.textConfig), "")
         end
         self._texts[index]:setString(tostring(Utils.ToShortNumber(entry.damage)))
         self._texts[index]:setScale(sf.Vector2f.new(inverseScale, inverseScale))

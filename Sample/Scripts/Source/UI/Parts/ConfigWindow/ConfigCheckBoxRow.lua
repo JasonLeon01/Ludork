@@ -58,4 +58,4 @@ function ConfigCheckBoxRowUI:_onConfirmToggle(_kwargs)
     self._checkBox:toggle()
 end
 
-return Ui.define("Parts/ConfigWindow/ConfigCheckBoxRow", ConfigCheckBoxRowUI, ConfigRowControllerBase)
+return Ui.Define("Parts/ConfigWindow/ConfigCheckBoxRow", ConfigCheckBoxRowUI, ConfigRowControllerBase)

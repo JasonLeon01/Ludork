@@ -19,8 +19,10 @@ local _WHEEL_SCROLL_EPSILON = 0.01
 ---@class Source.Windows.Base.WindowSelectable
 local WindowSelectable = {}
 
-function WindowSelectable:init(rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight)
-    super(WindowSelectable, self).init(rect, windowSkin, repeated)
+function WindowSelectable:init(
+    rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight, deferView
+)
+    super(WindowSelectable, self).init(rect, windowSkin, repeated, deferView)
     self._oldIndex = nil
     self.index = 0
     self:setCanReceiveFocus(true)
@@ -61,7 +63,7 @@ function WindowSelectable:_createSelectionRect()
     ---@cast self._rectHeight integer
     local size = sf.Vector2u.new(self._rectWidth, self._rectHeight)
     ---@cast size sf.Vector2u
-    local rect = UiControlFactory.createSelectionRect(size, self._windowSkin)
+    local rect = UiControlFactory.CreateSelectionRect(size, self._windowSkin)
     local position = self:_getRectPosition()
     ---@cast position - nil
     rect:setPosition(position)
@@ -165,7 +167,7 @@ function WindowSelectable:onTick(deltaTime)
     end
     if self.index ~= self._oldIndex then
         self._oldIndex = self.index
-        ManagerFunctions.playSE(GameSystem.getCursorSE())
+        ManagerFunctions.playSE(GameSystem.GetCursorSE())
     end
     super(WindowSelectable, self).onTick(deltaTime)
 end
@@ -321,10 +323,6 @@ function WindowSelectable:onDirectionalKey(direction)
     return false
 end
 
--- Compute the selection rectangle position for a given item index.
----
---- - @param index  Zero-based item index.
---- - @return  Top-left position of the selection rectangle in content space.
 ---@param index integer
 ---@return sf.Vector2f
 function WindowSelectable:_getRectPositionForIndex(index)
@@ -342,9 +340,6 @@ function WindowSelectable:_getRectPosition()
     return self:_getRectPositionForIndex(self.index)
 end
 
--- Get the hit detection size for each selectable item.
----
---- - @return  Width and height used for mouse/touch hit testing.
 ---@return sf.Vector2i
 function WindowSelectable:_getItemHitSize()
     local width = self._hitRectWidth or self._rectWidth
@@ -356,14 +351,6 @@ function WindowSelectable:_getItemHitSize()
     return size
 end
 
--- Get the screen-space hit rectangle for a given item index.
----
---- Temporarily repositions the selection rect sprite to the target cell,
---- reads absolute screen bounds through the content canvas transform
---- (including scroll and Scale), then restores the original position.
----
---- - @param index  Zero-based item index.
---- - @return  Absolute screen-space bounds used for hit testing.
 ---@param index integer
 ---@return sf.FloatRect
 function WindowSelectable:_getItemHitAbsoluteBounds(index)
@@ -489,7 +476,7 @@ end
 ---@param originY number
 ---@return number
 function WindowSelectable:_clampScrollOriginY(originY)
-    return math.min(self:_getMaxScrollOriginY(), math.max(0.0, originY))
+    return Engine.Clamp(originY, 0.0, self:_getMaxScrollOriginY())
 end
 
 ---@param deltaTime number

@@ -187,7 +187,7 @@ function MovementDangerState:getExcludedAnchors(goal, ignoredGoalEnemies, allowG
         local isGoal = position == goal
         local damage = getEntryDamage(entry, ignoredEnemySet)
         if damage > 0 and not (isGoal and allowGoal) then
-            result[#result + 1] = sf.Vector2i.new(position.x, position.y)
+            result[#result + 1] = copy(position)
         end
     end
     return result

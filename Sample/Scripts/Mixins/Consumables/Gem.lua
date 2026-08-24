@@ -12,7 +12,7 @@ Gem.getSE = ""
 
 function Gem:onCollision(other)
     local parentCollision = super().onCollision
-    Pickup.handleCollision(self, other, parentCollision, function (player)
+    Pickup.HandleCollision(self, other, parentCollision, function (player)
         local originAttr = ComponentsFunctions.getComponentFieldValue(player, self.ATTR_key, nil)
         if originAttr == nil then
             ---@type table

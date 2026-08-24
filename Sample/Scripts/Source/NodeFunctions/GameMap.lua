@@ -4,7 +4,7 @@ local GameMap = {}
 
 ---@return GameMap | nil
 local function getCurrentGameMap()
-    return Context.requireSceneMap():getGameMap()
+    return Context.RequireSceneMap():getGameMap()
 end
 
 function GameMap.GetActorByTag(tag)

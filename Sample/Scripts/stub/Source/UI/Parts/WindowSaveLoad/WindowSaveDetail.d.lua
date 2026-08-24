@@ -31,8 +31,4 @@ function WindowSaveDetailUI:setTimestamp(text) end
 ---@param modificationTime number
 function WindowSaveDetailUI:setModificationTime(modificationTime) end
 
----@param modificationTime number
----@return string
-function WindowSaveDetailUI.formatTimestamp(modificationTime) end
-
 return WindowSaveDetailUI

@@ -13,7 +13,7 @@ function SceneTitleUI:bind()
         {
             localeKey = "TITLE_START",
             callback = function ()
-                self.model._startGame()
+                self.model:_startGame()
             end
         },
         {
@@ -31,17 +31,19 @@ function SceneTitleUI:bind()
         {
             localeKey = "TITLE_EXIT",
             callback = function ()
-                self.model._exitGame()
+                self.model:_exitGame()
             end
         }
     }
-    self._windowCommand = WindowCommand.new(Engine.ToIntRect(0, 0, 256, 160), self._commandModels, nil, nil, nil, nil, 1)
+    self._windowCommand = WindowCommand.new(
+        Engine.ToIntRect(0, 0, 256, 160), self._commandModels, nil, nil, nil, nil, 1
+    )
     self._windowCommand:setOrigin(sf.Vector2f.new(128.0, 0))
     self._windowCommand:setPosition(sf.Vector2f.new(320.0, 240.0))
 end
 
 function SceneTitleUI:refresh()
-    self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.getTitleBackgroundFile())
+    self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.GetTitleBackgroundFile())
     self._windowCommand:refreshRows()
 end
 
@@ -49,4 +51,4 @@ function SceneTitleUI:getCommandWindow()
     return self._windowCommand
 end
 
-return Ui.define("Title", SceneTitleUI)
+return Ui.Define("Title", SceneTitleUI)

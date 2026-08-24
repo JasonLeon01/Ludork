@@ -38,13 +38,6 @@ function WindowFloorMapPreviewUI:setMapKeyAndTelepoints(mapKey, entries, selecte
 ---@param previousIndex integer | nil
 function WindowFloorMapPreviewUI:afterSelectionUpdate(previousIndex) end
 
----@return boolean
-function WindowFloorMapPreviewUI:handleKeyDown() end
-
----@param kwargs table
----@return boolean
-function WindowFloorMapPreviewUI:handleMouseButtonDown(kwargs) end
-
 ---@param entries table
 function WindowFloorMapPreviewUI:rebuildTelepointList(entries) end
 
@@ -57,6 +50,6 @@ function WindowFloorMapPreviewUI:hidePreview() end
 
 ---@param rect sf.IntRect
 ---@return integer
-function WindowFloorMapPreviewUI.getTelepointItemWidth(rect) end
+function WindowFloorMapPreviewUI.GetTelepointItemWidth(rect) end
 
 return WindowFloorMapPreviewUI

@@ -7,8 +7,8 @@ local _SHOP_ITEM_ROW_HEIGHT = 32
 
 local WindowShopItemUI = {}
 
-function WindowShopItemUI.loadItemIcon(iconPath)
-    return IconTexture.load(iconPath, "Characters/items")
+local function loadItemIcon(iconPath)
+    return IconTexture.Load(iconPath, "Characters/items")
 end
 
 function WindowShopItemUI:init(model, size)
@@ -48,7 +48,7 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
     self._cellControllers = {}
     self.model._cellAvailable = {}
     local cellWidth = self.model:_getRectWidth()
-    local itemData = Data.getAllGeneralItemData()
+    local itemData = Data.GetAllGeneralItemData()
     for _, itemID in ipairs(itemIDs) do
         local member = itemData[itemID] or {}
         local available = availableMap[itemID]
@@ -57,7 +57,7 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
         end
         self.model._cellAvailable[#self.model._cellAvailable + 1] = available
         local cellController = WindowShopCellUI.new({
-            iconTexture = self.loadItemIcon(member.icon or ""),
+            iconTexture = loadItemIcon(member.icon or ""),
             value = valueMap[itemID] or 0,
             available = available,
             callback = function (_obj, _kwargs)
@@ -70,4 +70,4 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
     end
 end
 
-return Ui.define("Parts/WindowShop/WindowShopItem", WindowShopItemUI)
+return Ui.Define("Parts/WindowShop/WindowShopItem", WindowShopItemUI)

@@ -10,6 +10,11 @@ option(
     LUDORK_BUILD_SAMPLE_APPLICATION
     "Build the Sample application and its project-specific runtime"
     ON)
+option(
+    LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME
+    "Build the editor-owned native UI preview runtime"
+    OFF)
+mark_as_advanced(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBuild.cmake")
 
@@ -149,19 +154,19 @@ add_subdirectory(Standard)
 
 add_subdirectory(Core)
 
+if(LUDORK_BUILD_SAMPLE_APPLICATION)
 ludork_add_ui_validation_target(
     UiAssetValidate
     "${CMAKE_CURRENT_SOURCE_DIR}"
     VALIDATE_ASSETS)
 add_dependencies(Engine UiAssetValidate)
 
-if(LUDORK_BUILD_SAMPLE_APPLICATION)
 set(LUA_CJSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lua-cjson")
 if(NOT EXISTS "${LUA_CJSON_SOURCE_DIR}/lua_cjson.c")
     message(FATAL_ERROR "lua-cjson source was not found. Run the platform init tool first.")
 endif()
 
-add_library(lua_cjson ${LUDORK_MODULE_LIBRARY_TYPE}
+add_library(lua_cjson ${LUDORK_RUNTIME_LIBRARY_TYPE}
     "${LUA_CJSON_SOURCE_DIR}/lua_cjson.c"
     "${LUA_CJSON_SOURCE_DIR}/strbuf.c"
     "${LUA_CJSON_SOURCE_DIR}/fpconv.c")
@@ -207,14 +212,14 @@ target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
     LuaSF::Lua
     Ludork::Standard
     Ludork::Engine
-    Ludork::Global)
+    Ludork::Global
+    lua_cjson)
 if(LUDORK_STATIC_LUA_MODULES)
     target_compile_definitions(
         ${LUDORK_APPLICATION_TARGET}
         PRIVATE
         LUDORK_STATIC_LUA_MODULES=1)
     target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
-        lua_cjson
         CoreSystem
         GlobalFunctions)
 endif()

@@ -66,6 +66,8 @@ local function syncInitialHP(player)
     end
 end
 
+---@type function
+local getHeldKeyboardMoveOffset
 ---@class Source.Player.Player
 local Player = {}
 
@@ -105,7 +107,7 @@ function Player:init(texture, tag)
     self._forbiddenMoving = false
     self._wasMovingOnLastFixedTick = false
     self._movementSpecialPath = {}
-    local classData = Data.getGeneralClassData(self.infoComp.CLASS)
+    local classData = Data.GetGeneralClassData(self.infoComp.CLASS)
     for _, equipID in pairs(classData.slot or {}) do
         if bool(equipID) then
             self:equip(equipID)
@@ -136,7 +138,7 @@ function Player:onFixedTick(_fixedDelta)
     if bool(self._movementSpecialPath) then
         local MovementSpecials = require("Source.MovementSpecials")
 
-        MovementSpecials.notifyPlayerMovementFinished(self, self:consumeMovementSpecialPath())
+        MovementSpecials.NotifyPlayerMovementFinished(self, self:consumeMovementSpecialPath())
     end
     if self._wasMovingOnLastFixedTick and not self:isMoving() then
         self:triggerStateWalk()
@@ -152,11 +154,11 @@ function Player:_getContinueMoveOffset()
     if self:getForbiddenMoving() or self:_isSceneInputBlocked() then
         return nil
     end
-    return Player._getHeldKeyboardMoveOffset()
+    return getHeldKeyboardMoveOffset()
 end
 
 ---@return sf.Vector2i | nil
-function Player._getHeldKeyboardMoveOffset()
+function getHeldKeyboardMoveOffset()
     if Input.isActionHeld(Input.getUpKeys()) then
         local offset = sf.Vector2i.new(0, -1)
         ---@cast offset sf.Vector2i
@@ -203,7 +205,7 @@ function Player:asDict()
 end
 
 function Player.InitPlayer(playerPath)
-    local actor = assert(Data.genActorFromClassPath(playerPath, "PLAYER"), "Player blueprint class is missing")
+    local actor = assert(Data.GenActorFromClassPath(playerPath, "PLAYER"), "Player blueprint class is missing")
     ---@cast actor Source.Player.Player
     actor:setClassPath(playerPath)
     actor:setAnimatable(true, true)
@@ -288,8 +290,8 @@ function Player:removeEquip(equipID, count)
 end
 
 function Player:equip(equipID)
-    local equipData = Data.getGeneralEquipData(equipID)
-    local classData = Data.getGeneralClassData(self.infoComp.CLASS)
+    local equipData = Data.GetGeneralEquipData(equipID)
+    local classData = Data.GetGeneralClassData(self.infoComp.CLASS)
     local slot = equipData.slot or ""
     if classData.slot[slot] == nil then
         error("Equip " .. tostring(equipID) .. " is not in the player's class")
@@ -313,7 +315,7 @@ function Player:unequip(slotID)
         return
     end
     self:_updateEquipInfo(slotID, "")
-    local equipData = Data.getGeneralEquipData(equipID)
+    local equipData = Data.GetGeneralEquipData(equipID)
     self:_applyEquipAttributeChanges(equipData.attrPlus, -1)
     local info = EquipInfo.new()
     info.ID = equipID
@@ -357,7 +359,7 @@ end
 ---@param equipID string
 function Player:_updateEquipInfo(slot, equipID)
     local result = {}
-    local classData = Data.getGeneralClassData(self.infoComp.CLASS)
+    local classData = Data.GetGeneralClassData(self.infoComp.CLASS)
     for slotName in pairs(classData.slot or {}) do
         result[slotName] = slotName == slot and equipID or self._equipInfo[slotName] or ""
     end

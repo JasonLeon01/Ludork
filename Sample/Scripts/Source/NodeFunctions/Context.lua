@@ -8,22 +8,22 @@ local Context = {}
 
 ---@param fn function
 ---@return Source.NodeFunctions.Context.RefLocal
-function Context._getRefLocal(fn)
+function Context.GetRefLocal(fn)
     return Node.getRefLocal(fn) or {}
 end
 
 ---@param fn function
 ---@return unknown
-function Context._requireGraphParent(fn)
-    local graph = Context._getRefLocal(fn).__graph__
+function Context.RequireGraphParent(fn)
+    local graph = Context.GetRefLocal(fn).__graph__
     assert(graph ~= nil, "Node function requires a blueprint graph context")
     return graph.parent
 end
 
 ---@param fn function
 ---@return unknown
-function Context._getGraphOwner(fn)
-    local graph = Context._getRefLocal(fn).__graph__
+function Context.GetGraphOwner(fn)
+    local graph = Context.GetRefLocal(fn).__graph__
     if graph == nil or graph.parent == nil then
         return nil
     end
@@ -36,15 +36,15 @@ function Context._getGraphOwner(fn)
 end
 
 ---@return Source.Scenes.SceneMap.SceneMap
-function Context.requireSceneMap()
+function Context.RequireSceneMap()
     local scene = GlobalCore.System.requireScene()
     ---@cast scene Source.Scenes.SceneMap.SceneMap
     return scene
 end
 
 ---@return Source.GameInstance.GameInstance
-function Context.requireGameInstance()
-    local instance = Context.requireSceneMap().inst
+function Context.RequireGameInstance()
+    local instance = Context.RequireSceneMap().inst
     assert(instance ~= nil, "Node functions require an active game instance")
     return instance
 end

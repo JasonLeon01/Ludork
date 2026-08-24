@@ -24,7 +24,7 @@ local richMeasurementControls = {}
 ---@cast richMeasurementControls table<string, Source.TextLayout.RichMeasurementEntry>
 
 local function getPlainMeasurementControl(textConfigKey)
-    local config = Data.getPlainTextConfig(textConfigKey)
+    local config = Data.GetPlainTextConfig(textConfigKey)
     local entry = plainMeasurementControls[textConfigKey]
     if entry == nil or entry.config ~= config then
         entry = { config = config, control = PlainText.new(config, "") }
@@ -34,7 +34,7 @@ local function getPlainMeasurementControl(textConfigKey)
 end
 
 local function getRichMeasurementEntry(textConfigKey)
-    local config = Data.getRichTextConfig(textConfigKey)
+    local config = Data.GetRichTextConfig(textConfigKey)
     local entry = richMeasurementControls[textConfigKey]
     if entry == nil or entry.config ~= config then
         entry = { config = config, control = RichText.new(config, ""), markerFlags = {} }
@@ -215,24 +215,24 @@ local function wrapMeasuredText(text, maxWidth, textConfigKey, measure, tokenize
     return table.concat(result, "\n")
 end
 
-function TextLayout.measurePlainText(textConfigKey, text)
+function TextLayout.MeasurePlainText(textConfigKey, text)
     local control = getPlainMeasurementControl(textConfigKey)
     control:setString(tostring(text or ""))
     return control:getLocalBounds().size.x
 end
 
-function TextLayout.measureRichText(textConfigKey, text)
+function TextLayout.MeasureRichText(textConfigKey, text)
     local entry = getRichMeasurementEntry(textConfigKey)
     entry.control:setString(tostring(text or ""))
     return entry.control:getLocalBounds().size.x
 end
 
-function TextLayout.fitPlainText(text, maxWidth, textConfigKey)
+function TextLayout.FitPlainText(text, maxWidth, textConfigKey)
     if not bool(text) then
         return ""
     end
     local result = text
-    while bool(result) and TextLayout.measurePlainText(textConfigKey, result) > maxWidth do
+    while bool(result) and TextLayout.MeasurePlainText(textConfigKey, result) > maxWidth do
         local offset = utf8.offset(result, -1)
         result = offset == nil and "" or result:sub(1, offset - 1)
     end
@@ -243,14 +243,14 @@ function TextLayout.fitPlainText(text, maxWidth, textConfigKey)
     return result
 end
 
-function TextLayout.wrapPlainText(text, maxWidth, textConfigKey)
-    return wrapMeasuredText(text, maxWidth, textConfigKey, TextLayout.measurePlainText, function (_, paragraph)
+function TextLayout.WrapPlainText(text, maxWidth, textConfigKey)
+    return wrapMeasuredText(text, maxWidth, textConfigKey, TextLayout.MeasurePlainText, function (_, paragraph)
         return textUnits(paragraph)
     end)
 end
 
-function TextLayout.wrapRichText(text, maxWidth, textConfigKey)
-    return wrapMeasuredText(text, maxWidth, textConfigKey, TextLayout.measureRichText, richTextUnits)
+function TextLayout.WrapRichText(text, maxWidth, textConfigKey)
+    return wrapMeasuredText(text, maxWidth, textConfigKey, TextLayout.MeasureRichText, richTextUnits)
 end
 
 return TextLayout

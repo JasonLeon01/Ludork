@@ -12,7 +12,7 @@ local _OPTION_TEXT_CONFIG = "UI/Default"
 local WindowMessageUI = {}
 
 local function createOptionText(text)
-    local control = UiControlFactory.createFunctionalPlainText(Data.getPlainTextConfig(_OPTION_TEXT_CONFIG))
+    local control = UiControlFactory.CreateFunctionalPlainText(Data.GetPlainTextConfig(_OPTION_TEXT_CONFIG))
     control:setString(text)
     return control
 end
@@ -120,4 +120,4 @@ function WindowMessageUI:reflow(width, height)
     self.root:setView(self.root:getDefaultView())
 end
 
-return Ui.define("WindowMessage", WindowMessageUI)
+return Ui.Define("WindowMessage", WindowMessageUI)

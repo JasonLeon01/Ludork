@@ -1,6 +1,7 @@
 local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local Logging = require("Global.Utils.Logging")
 local Locale = require("Source.Locale.Core")
 
 local System = GlobalCore.System
@@ -22,12 +23,7 @@ local DEFAULT_MAIN_ITEMS = {
 MainConfig.SupportedLanguages = { "en_GB", "zh_CN" }
 
 local function isSupportedLanguage(language)
-    for _, supportedLanguage in ipairs(MainConfig.SupportedLanguages) do
-        if language == supportedLanguage then
-            return true
-        end
-    end
-    return false
+    return table.contains(MainConfig.SupportedLanguages, language)
 end
 
 local function getInitialLanguage()
@@ -141,13 +137,15 @@ function MainConfig.GetMaximumRenderScaleOptions(configuredScale)
     return values, configuredScale
 end
 
-function MainConfig.loadOrCreate()
+function MainConfig.LoadOrCreate()
     local iniFilePath = getIniFilePath()
     local iniFile = configparser.ConfigParser()
     if CoreSystem.exists(iniFilePath) then
         iniFile:read(iniFilePath)
+        Logging.debug("Loaded main configuration: %s", iniFilePath)
     else
         createMainIni(iniFilePath, iniFile)
+        Logging.info("Created main configuration: %s", iniFilePath)
     end
     if iniFile:get("Main", "scale", nil) == nil then
         iniFile:set("Main", "scale", tostring(getDefaultDisplayScale()))

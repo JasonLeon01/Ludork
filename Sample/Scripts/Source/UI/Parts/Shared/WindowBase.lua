@@ -56,4 +56,4 @@ function WindowBaseUI:getPauseMarkTexture()
     return self._pauseMarkTexture
 end
 
-return Ui.define("Parts/Shared/WindowBase", WindowBaseUI)
+return Ui.Define("Parts/Shared/WindowBase", WindowBaseUI)

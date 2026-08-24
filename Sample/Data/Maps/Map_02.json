@@ -2,6 +2,11 @@
   "mapName": "{MAP_02}",
   "width": 13,
   "height": 13,
+  "layerOrder": [
+    "floor",
+    "default",
+    "top"
+  ],
   "ambientLight": [
     255,
     255,

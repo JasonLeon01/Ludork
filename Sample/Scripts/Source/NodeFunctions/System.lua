@@ -53,7 +53,8 @@ FinalTransitionCondition.__call = TransitionCondition.poll
 
 local FrozenCondition = {}
 
-function FrozenCondition.poll()
+---@diagnostic disable-next-line: unused
+function FrozenCondition:poll()
     return not GlobalSystem.isTransitionBackgroundFreezePending() and GlobalSystem.isTransitionBackgroundFrozen()
 end
 
@@ -121,11 +122,11 @@ function System.RequestTransition(transitionName, transitionTime)
 end
 
 function System.SetBgmFilter(attr, value)
-    Context.requireSceneMap():setBgmFilter(attr, value)
+    Context.RequireSceneMap():setBgmFilter(attr, value)
 end
 
 function System.SetBgsFilter(attr, value)
-    Context.requireSceneMap():setBgsFilter(attr, value)
+    Context.RequireSceneMap():setBgsFilter(attr, value)
 end
 
 function System.FlashScreen(red, green, blue, alpha, duration)

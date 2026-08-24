@@ -124,6 +124,7 @@ if errorlevel 1 goto failed
 
 echo Copying editor resources...
 if exist "%STAGE_DIR%\docs" rmdir /S /Q "%STAGE_DIR%\docs"
+if exist "%STAGE_DIR%\Page" rmdir /S /Q "%STAGE_DIR%\Page"
 call :copy_directory "%ROOT_DIR%\docs\_images" "%STAGE_DIR%\docs\_images"
 if errorlevel 1 goto failed
 call :copy_directory "%ROOT_DIR%\docs\en_GB" "%STAGE_DIR%\docs\en_GB"
@@ -265,7 +266,7 @@ set "PREVIEW_TARGET=%~2"
 if not exist "%PREVIEW_TARGET%" mkdir "%PREVIEW_TARGET%"
 for %%F in (
     UiPreviewHost.exe
-    Engine.dll
+    UiPreviewHostRuntime.dll
     LudorkStandard.dll
     LuaSF.dll
     lua.dll
@@ -350,7 +351,7 @@ call :require_file "%PACKAGE_DIR%\tools\luac.exe"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\UiPreviewHost.exe"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\Engine.dll"
+call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\UiPreviewHostRuntime.dll"
 if errorlevel 1 exit /b 1
 call :validate_ui_preview_host_ownership "%PACKAGE_DIR%"
 if errorlevel 1 exit /b 1
@@ -522,6 +523,7 @@ for %%P in (
     "%PACKAGE_DIR%\versions.conf"
     "%PACKAGE_DIR%\.venv"
     "%PACKAGE_DIR%\.tools"
+    "%PACKAGE_DIR%\Page"
     "%PACKAGE_DIR%\Ludork.ini"
     "%PACKAGE_DIR%\Locale\locale.json"
     "%PACKAGE_DIR%\tools\pack_editor.bat"
@@ -655,10 +657,13 @@ exit /b 0
 set "PREVIEW_PACKAGE_ROOT=%~f1"
 set "PREVIEW_CANONICAL_DIRECTORY=%~f1\tools\UiPreviewHost"
 set "PREVIEW_CANONICAL_EXECUTABLE=%~f1\tools\UiPreviewHost\UiPreviewHost.exe"
+set "PREVIEW_CANONICAL_RUNTIME=%~f1\tools\UiPreviewHost\UiPreviewHostRuntime.dll"
 for /r "%PREVIEW_PACKAGE_ROOT%" %%F in (UiPreviewHost*) do if exist "%%~fF" (
     if /I not "%%~fF"=="%PREVIEW_CANONICAL_EXECUTABLE%" (
-        echo UI preview host exists outside its canonical editor tool path: %%~fF
-        exit /b 1
+        if /I not "%%~fF"=="%PREVIEW_CANONICAL_RUNTIME%" (
+            echo UI preview host exists outside its canonical editor tool path: %%~fF
+            exit /b 1
+        )
     )
 )
 for /d /r "%PREVIEW_PACKAGE_ROOT%" %%D in (UiPreviewHost*) do if exist "%%~fD" (

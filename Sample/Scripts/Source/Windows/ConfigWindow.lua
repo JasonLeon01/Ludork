@@ -41,7 +41,7 @@ function ConfigWindow:init(onClose)
     }
     local windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
     local contentWidth = _DEFAULT_RECT.size.x
-    super(ConfigWindow, self).init(_DEFAULT_RECT, nil, contentWidth, _ROW_HEIGHT, windowSkin)
+    super(ConfigWindow, self).init(_DEFAULT_RECT, nil, contentWidth, _ROW_HEIGHT, windowSkin, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._ui = ConfigWindowUI.new(self, windowSkin)
     self._ui:attach()
@@ -190,7 +190,7 @@ function ConfigWindow:dispose()
 end
 
 function ConfigWindow:_closeByCancel()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:close()
 end
 
@@ -246,14 +246,6 @@ function ConfigWindow:onKeyDown(kwargs)
     super(ConfigWindow, self).onKeyDown(kwargs)
 end
 
-function ConfigWindow:onMouseButtonDown(kwargs)
-    if kwargs.button == sf.Mouse.Button.Right then
-        self:onReturn()
-        return true
-    end
-    return false
-end
-
 function ConfigWindow:onDirectionalKey(direction)
     if self._focusLevel == _FOCUS_TABS then
         if direction == Direction.DOWN then
@@ -306,7 +298,7 @@ end
 
 ---@param row Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
 ---@return function
-function ConfigWindow._makeSettingRowConfirmCallback(row)
+function ConfigWindow.MakeSettingRowConfirmCallback(row)
     return function (_obj, _kwargs)
         row:getDropBox():open()
     end
@@ -355,49 +347,9 @@ function ConfigWindow:_collapseAllDropBoxes()
     end
 end
 
----@param checked boolean
-function ConfigWindow:_onVerticalSyncCheckedChanged(checked)
-    self._ui.onVerticalSyncCheckedChanged(checked)
-end
-
----@param index integer
-function ConfigWindow:_onLanguageSelectedIndexChanged(index)
-    self._ui.onLanguageSelectedIndexChanged(index)
-end
-
 ---@param index integer
 function ConfigWindow:_onFrameRateSelectedIndexChanged(index)
     self._ui:onFrameRateSelectedIndexChanged(index)
-end
-
----@param checked boolean
-function ConfigWindow:_onMusicOnCheckedChanged(checked)
-    self._ui.onMusicOnCheckedChanged(checked)
-end
-
----@param value integer
-function ConfigWindow:_onMusicVolumeChanged(value)
-    self._ui.onMusicVolumeChanged(value)
-end
-
----@param checked boolean
-function ConfigWindow:_onSoundOnCheckedChanged(checked)
-    self._ui.onSoundOnCheckedChanged(checked)
-end
-
----@param value integer
-function ConfigWindow:_onSoundVolumeChanged(value)
-    self._ui.onSoundVolumeChanged(value)
-end
-
----@param checked boolean
-function ConfigWindow:_onVoiceOnCheckedChanged(checked)
-    self._ui.onVoiceOnCheckedChanged(checked)
-end
-
----@param value integer
-function ConfigWindow:_onVoiceVolumeChanged(value)
-    self._ui.onVoiceVolumeChanged(value)
 end
 
 ---@return boolean
@@ -505,7 +457,7 @@ end
 ---@param items table
 ---@param value string | number
 ---@return integer
-function ConfigWindow._findSelectedIndex(items, value)
+function ConfigWindow.FindSelectedIndex(items, value)
     local textValue = tostring(value)
     for luaIndex, item in ipairs(items) do
         if item == textValue then
@@ -621,7 +573,7 @@ function ConfigWindow:_enterSettings(playSound)
         return
     end
     if playSound then
-        ManagerFunctions.playSE(GameSystem.getDecisionSE())
+        ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     end
     self:_detachSelectionRect()
     self._focusLevel = _FOCUS_SETTINGS
@@ -641,7 +593,7 @@ function ConfigWindow:_focusTabs(playSound)
         self:_savePageSession()
     end
     if playSound then
-        ManagerFunctions.playSE(GameSystem.getCancelSE())
+        ManagerFunctions.playSE(GameSystem.GetCancelSE())
     end
     self:_detachSelectionRect()
     self._focusLevel = _FOCUS_TABS

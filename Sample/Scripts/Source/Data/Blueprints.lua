@@ -138,7 +138,7 @@ function DataBlueprints:compileGraphTemplate(data, parentClass)
         for _, node in ipairs(valueDict.nodes or {}) do
             local nodeData = deepcopy(node)
             nodeData.pos = nil
-            local resolvedDefinition = NodeCompiler.compile(nodeData.nodeFunction, parentClass, nodeCompilerContext)
+            local resolvedDefinition = NodeCompiler.Compile(nodeData.nodeFunction, parentClass, nodeCompilerContext)
             assert(
                 resolvedDefinition ~= nil,
                 "Function " .. tostring(nodeData.nodeFunction) .. " not found while compiling graph"
@@ -149,8 +149,8 @@ function DataBlueprints:compileGraphTemplate(data, parentClass)
         end
         links[key] = deepcopy(valueDict.links or {})
         if eventParams[key] == nil and (#nodes[key] > 0 or startNodes[key] ~= nil) then
-            local eventDefinition = NodeCompiler.compile(key, parentClass, nodeCompilerContext)
-                or NodeCompiler.compile("self." .. key, parentClass, nodeCompilerContext)
+            local eventDefinition = NodeCompiler.Compile(key, parentClass, nodeCompilerContext)
+                or NodeCompiler.Compile("self." .. key, parentClass, nodeCompilerContext)
             local paramNames = eventDefinition ~= nil and eventDefinition.paramNames or nil
             if bool(paramNames) then
                 eventParams[key] = deepcopy(paramNames)
@@ -186,7 +186,7 @@ local function resolveClassVarChangeValue(actor, key, value)
         if configName ~= nil then
             local SourceSystem = require("Source.System")
 
-            local resolved = SourceSystem.getConfigValue(configName, settingName)
+            local resolved = SourceSystem.GetConfigValue(configName, settingName)
             return type(resolved) == "string" and resolved or tostring(resolved)
         end
     end
@@ -297,7 +297,7 @@ function DataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
     if not bool(classPath) then
         return nil
     end
-    local classModel = self._data.getClass(classPath)
+    local classModel = self._data.GetClass(classPath)
     if classModel == nil then
         return nil
     end
@@ -345,7 +345,7 @@ end
 function DataBlueprints:registerServices()
     Class.registerService("blueprint.classGraphData", function (className)
         local classPath = self:resolveClassPath(className)
-        local classData = self._data.getClassData(classPath)
+        local classData = self._data.GetClassData(classPath)
         return classData ~= nil and classData.graph or nil
     end)
 

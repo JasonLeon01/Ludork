@@ -23,9 +23,6 @@ if not exist "%GNU_MAKE%" (
     exit /b 1
 )
 
-"%SCRIPT_TOOLS%" ui-assets validate "%CD%\Sample"
-if errorlevel 1 exit /b %errorlevel%
-
 cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%"
 if errorlevel 1 exit /b %errorlevel%
 
@@ -35,6 +32,11 @@ if errorlevel 1 exit /b %errorlevel%
 set "OUTPUT=%CD%\.tools\UiPreviewHost\bin\%CONFIG%\UiPreviewHost.exe"
 if not exist "%OUTPUT%" (
     echo Build finished without producing %OUTPUT%
+    exit /b 1
+)
+set "RUNTIME=%CD%\.tools\UiPreviewHost\bin\%CONFIG%\UiPreviewHostRuntime.dll"
+if not exist "%RUNTIME%" (
+    echo Build finished without producing %RUNTIME%
     exit /b 1
 )
 

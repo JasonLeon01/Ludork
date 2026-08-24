@@ -14,33 +14,33 @@ local function teleportResult(scene, succeeded)
 end
 
 function Mota.OpenMonsterBook()
-    Context.requireSceneMap():showEnemyBook()
+    Context.RequireSceneMap():showEnemyBook()
 end
 
 function Mota.OpenFloorTeleporter()
-    Context.requireSceneMap():showFloorTeleporter()
+    Context.RequireSceneMap():showFloorTeleporter()
 end
 
 function Mota.GetCurrentRegion()
-    return Context.requireGameInstance():getCurrentRegion()
+    return Context.RequireGameInstance():getCurrentRegion()
 end
 
 function Mota.SetCurrentRegion(region)
-    Context.requireGameInstance():setCurrentRegion(region)
+    Context.RequireGameInstance():setCurrentRegion(region)
 end
 
 function Mota.CenterSymmetricTeleport()
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     return teleportResult(scene, scene:tryCenterSymmetricTeleport())
 end
 
 function Mota.GoUpstairsSamePos()
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     return teleportResult(scene, scene:tryAdjacentFloorSamePos(1))
 end
 
 function Mota.GoDownstairsSamePos()
-    local scene = Context.requireSceneMap()
+    local scene = Context.RequireSceneMap()
     return teleportResult(scene, scene:tryAdjacentFloorSamePos(-1))
 end
 

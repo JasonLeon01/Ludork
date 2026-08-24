@@ -13,8 +13,8 @@ function CommandRowController:init(model)
     self.model = model
     local logicalSize = sf.Vector2u.new(1, 1)
     ---@cast logicalSize sf.Vector2u
-    self.root, self._label = UiControlFactory.createFunctionalTextRow(
-        logicalSize, Data.getPlainTextConfig("UI/Default")
+    self.root, self._label = UiControlFactory.CreateFunctionalTextRow(
+        logicalSize, Data.GetPlainTextConfig("UI/Default")
     )
     self._bound = false
 end
@@ -29,7 +29,7 @@ function CommandRowController:refresh()
     local text = self.model.localeKey ~= nil and LOC(self.model.localeKey) or self.model.text
     ---@cast text string
     self._label:setString(text)
-    UiControlFactory.layoutCenteredTextRow(self.root, self._label, 0.0)
+    UiControlFactory.LayoutCenteredTextRow(self.root, self._label, 0.0)
 end
 
 function CommandRowController:prepare(logicalSize)

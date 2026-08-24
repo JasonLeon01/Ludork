@@ -1,9 +1,13 @@
-
 local Engine = require("Engine")
+require("GlobalCore")
+local GlobalFunctions = require("GlobalFunctions")
 local RegionDict = require("Source.Configs.RegionDict")
 local MapPath = require("Source.MapPath")
 
 local Actor = Engine.Actor
+local ManagerFunctions = GlobalFunctions.Manager
+---@type function
+local normaliseMapName
 
 local Teleporter = {}
 
@@ -17,11 +21,11 @@ function Teleporter:init(texture, rect, tag)
     self._floorTransferPending = false
 end
 
-function Teleporter:GoUpstairs()
+function Teleporter:goUpstairs()
     self:_goFloor(1)
 end
 
-function Teleporter:GoDownstairs()
+function Teleporter:goDownstairs()
     self:_goFloor(-1)
 end
 
@@ -33,10 +37,7 @@ end
 ---@param step integer
 function Teleporter:_goFloor(step)
     local MapScene = require("Source.Scenes.SceneMap")
-    require("GlobalCore")
-    local GlobalFunctions = require("GlobalFunctions")
 
-    local ManagerFunctions = GlobalFunctions.Manager
     local map = self:getMap()
     if self._floorTransferPending or map == nil then
         return
@@ -54,7 +55,7 @@ function Teleporter:_goFloor(step)
     if not bool(currentMap) then
         return
     end
-    local currentIndex = Teleporter._findCurrentMapIndex(regionMaps, currentMap)
+    local currentIndex = Teleporter.FindCurrentMapIndex(regionMaps, currentMap)
     if currentIndex == nil then
         return
     end
@@ -67,7 +68,7 @@ function Teleporter:_goFloor(step)
     if player == nil then
         return
     end
-    local sourceTeleporter = Teleporter._findNearestTeleporter(map:getAllActors(), player:getMapPosition())
+    local sourceTeleporter = Teleporter.FindNearestTeleporter(map:getAllActors(), player:getMapPosition())
     if sourceTeleporter == nil then
         return
     end
@@ -88,7 +89,7 @@ end
 ---@param actors   Engine.Actor[]
 ---@param position sf.Vector2i
 ---@return Source.Teleporter.Teleporter | nil
-function Teleporter._findNearestTeleporter(actors, position)
+function Teleporter.FindNearestTeleporter(actors, position)
     local nearest = nil
     local nearestDistance = nil
     for _, actor in ipairs(actors) do
@@ -106,8 +107,8 @@ function Teleporter._findNearestTeleporter(actors, position)
     return nearest
 end
 
-function Teleporter.isAsideOrOverlapping(actors, position)
-    local nearest = Teleporter._findNearestTeleporter(actors, position)
+function Teleporter.IsAsideOrOverlapping(actors, position)
+    local nearest = Teleporter.FindNearestTeleporter(actors, position)
     if nearest == nil then
         return false
     end
@@ -118,10 +119,10 @@ end
 ---@param regionMaps string[]
 ---@param currentMap string
 ---@return integer | nil
-function Teleporter._findCurrentMapIndex(regionMaps, currentMap)
-    local currentName = Teleporter._normaliseMapName(currentMap)
+function Teleporter.FindCurrentMapIndex(regionMaps, currentMap)
+    local currentName = normaliseMapName(currentMap)
     for index, mapPath in ipairs(regionMaps) do
-        if Teleporter._normaliseMapName(mapPath) == currentName then
+        if normaliseMapName(mapPath) == currentName then
             return index
         end
     end
@@ -130,7 +131,7 @@ end
 
 ---@param mapPath string
 ---@return string
-function Teleporter._normaliseMapName(mapPath)
+function normaliseMapName(mapPath)
     local path = MapPath.Normalise(mapPath)
     path = path:match("([^/]+)$") or path
     return path:gsub("%.[^%.]+$", "")

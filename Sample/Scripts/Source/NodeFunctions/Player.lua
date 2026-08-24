@@ -6,7 +6,7 @@ local ComponentsFunctions = GlobalFunctions.Components
 local Player = {}
 
 function Player.GetPlayer()
-    return Context.requireGameInstance():getPlayer()
+    return Context.RequireGameInstance():getPlayer()
 end
 
 function Player.GetPlayerFrontPosition()

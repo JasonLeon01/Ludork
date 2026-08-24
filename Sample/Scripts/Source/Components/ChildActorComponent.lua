@@ -2,6 +2,8 @@ local Engine = require("Engine")
 
 local Component = Engine.Component
 
+---@type function
+local makeChildTag
 local ChildActorComponent = {}
 
 ChildActorComponent.className = ""
@@ -18,7 +20,7 @@ function ChildActorComponent:init(values)
 end
 
 function ChildActorComponent:onAttach(owner)
-    local className = self.className:match("^%s*(.-)%s*$")
+    local className = string.strip(self.className)
     if not bool(className) then
         return {}
     end
@@ -35,7 +37,7 @@ function ChildActorComponent:onAttach(owner)
 
     local Data = require("Source.Data")
 
-    local childActor = Data.genActorFromClassName(className, ChildActorComponent._makeChildTag(owner))
+    local childActor = Data.GenActorFromClassName(className, makeChildTag(owner))
     if childActor == nil then
         return {}
     end
@@ -53,7 +55,7 @@ end
 
 ---@param owner Engine.Actor
 ---@return string
-function ChildActorComponent._makeChildTag(owner)
+function makeChildTag(owner)
     local parentTag = owner:getMapTag()
     if parentTag == nil then
         parentTag = ""

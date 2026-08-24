@@ -26,10 +26,12 @@ local function asSelectableWindow(control)
     return control
 end
 
+---@type function
+local onMenuExit
 ---@class Source.Windows.WindowMenu.Controller
 local WindowMenuController = {}
 
-function WindowMenuController.createCommands(owner)
+function WindowMenuController.CreateCommands(owner)
     return {
         {
             localeKey = "MENU_ITEM",
@@ -58,7 +60,7 @@ function WindowMenuController.createCommands(owner)
         {
             localeKey = "MENU_EXIT",
             callback = function ()
-                WindowMenuController._onMenuExit()
+                onMenuExit()
             end
         }
     }
@@ -93,21 +95,7 @@ function WindowMenuController:setMoveRestoreGuard(guard)
     self._moveRestoreGuard = guard
 end
 
-function WindowMenuController:handleKeyDown()
-    local cancelKeys = Input.getCancelKeys()
-    if not Input.isActionTriggered(cancelKeys, false) then
-        return false
-    end
-    self.model:onReturn()
-    Input.isActionTriggered(cancelKeys, true)
-    return true
-end
-
 function WindowMenuController:handleMouseButtonDown(kwargs)
-    if kwargs.button == sf.Mouse.Button.Right then
-        self.model:onReturn()
-        return true
-    end
     if kwargs.button == sf.Mouse.Button.Left
         and not self:_isPointerInsideMenuGroup(Engine.ToVector2f(Input.getMousePosition())) then
         self:_closeByCancel()
@@ -142,7 +130,7 @@ function WindowMenuController:handleDirectionalKey(direction)
 end
 
 function WindowMenuController:open()
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self.model._player:setMoveEnabled(false)
     self.model:setVisible(true)
     self.model:setActive(true)
@@ -174,7 +162,7 @@ function WindowMenuController:getMenuControls()
 end
 
 function WindowMenuController:_closeByCancel()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:close()
 end
 
@@ -186,7 +174,7 @@ function WindowMenuController:_handleCancel()
         return
     end
     if self:_closeSubMenus() then
-        ManagerFunctions.playSE(GameSystem.getCancelSE())
+        ManagerFunctions.playSE(GameSystem.GetCancelSE())
         self.model:requestKeyboardFocus()
         return
     end
@@ -194,7 +182,7 @@ function WindowMenuController:_handleCancel()
 end
 
 function WindowMenuController:_onMenuItem()
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:_closeSubMenus("item")
     self.model._windowItem:open()
     self:_syncReturnButtonSuppression()
@@ -202,7 +190,7 @@ function WindowMenuController:_onMenuItem()
 end
 
 function WindowMenuController:_onMenuEquip()
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
     self.model._windowEquipSelect:open()
     self.model._windowEquipSlot:open()
@@ -211,7 +199,7 @@ function WindowMenuController:_onMenuEquip()
 end
 
 function WindowMenuController:_onMenuSave()
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
     self.model._windowSaveLoad:open()
     self:_syncReturnButtonSuppression()
@@ -224,7 +212,7 @@ function WindowMenuController:_onMenuSave()
 end
 
 function WindowMenuController:_onMenuConfig()
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:_closeSubMenus("config")
     self.model:setActive(false)
     self.model._configWindow:open()
@@ -242,7 +230,7 @@ function WindowMenuController:onConfigClose()
     self.model:requestKeyboardFocus()
 end
 
-function WindowMenuController._onMenuExit()
+function onMenuExit()
     local Title = require("Source.Scenes.SceneTitle")
 
     GlobalSystem.setScene(Title.new())
@@ -346,7 +334,7 @@ function WindowMenu:init(player, windows)
     self._windowEquipStatus = windows.equipStatus
     self._windowSaveLoad = windows.saveLoad
     self._configWindow = windows.config
-    local commands = FinalWindowMenuController.createCommands(self)
+    local commands = FinalWindowMenuController.CreateCommands(self)
     super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 192), commands)
     self:setHasReturnBtn(true)
     self._menuController = self._commandController
@@ -362,15 +350,11 @@ function WindowMenu:setMoveRestoreGuard(guard)
     self._menuController:setMoveRestoreGuard(guard)
 end
 
-function WindowMenu:onKeyDown(kwargs)
-    if self._menuController:handleKeyDown() then
-        return
-    end
-    return super(WindowMenu, self).onKeyDown(kwargs)
-end
-
 function WindowMenu:onMouseButtonDown(kwargs)
-    return self._menuController:handleMouseButtonDown(kwargs)
+    if self._menuController:handleMouseButtonDown(kwargs) then
+        return true
+    end
+    return super(WindowMenu, self).onMouseButtonDown(kwargs)
 end
 
 function WindowMenu:onTick(deltaTime)

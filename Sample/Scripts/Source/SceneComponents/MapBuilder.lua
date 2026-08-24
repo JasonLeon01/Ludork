@@ -1,16 +1,16 @@
 local cjson = require("cjson")
 local Engine = require("Engine")
-local GameMap = require("Global.GameMap")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local GameMap = require("Global.GameMap")
+local PathPreviewComponent = require("Global.Components.PathPreviewComponent")
+local PathRouteState = require("Global.Components.PathRouteState")
 local Data = require("Source.Data")
 local MapPath = require("Source.MapPath")
 local System = require("Source.System")
 local MapClickAutoPath = require("Source.SceneComponents.MapClickAutoPath")
 local MovementDangerPreviewComponent = require("Source.SceneComponents.MovementDangerPreviewComponent")
 local MovementDangerState = require("Source.SceneComponents.MovementDangerState")
-local PathPreviewComponent = require("Global.Components.PathPreviewComponent")
-local PathRouteState = require("Global.Components.PathRouteState")
 
 local ManagerFunctions = GlobalFunctions.Manager
 
@@ -18,160 +18,21 @@ local MAP_DATA_ROOT = os.path.join(".", "Data", "Maps")
 local MAP_DATA_EXTENSION = ".json"
 local DAMAGE_TEXT_CONFIG = "Global/DamageText"
 local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
-local objectKeyOrders = setmetatable({}, {
-    __mode = "k"
-})
-
----@param text  string
----@param index integer
----@return integer
-local function skipWhitespace(text, index)
-    while index <= #text and text:sub(index, index):match("%s") do
-        index = index + 1
-    end
-    return index
-end
-
----@param text  string
----@param index integer
----@return integer
-local function scanJSONString(text, index)
-    assert(text:sub(index, index) == '"', "Invalid JSON string")
-    index = index + 1
-    while index <= #text do
-        local character = text:sub(index, index)
-        if character == "\\" then
-            index = index + 2
-        elseif character == '"' then
-            return index
-        else
-            index = index + 1
-        end
-    end
-    error("Unterminated JSON string")
-end
-
----@param text  string
----@param index integer
----@return integer
-local function scanJSONContainer(text, index)
-    local opening = text:sub(index, index)
-    local stack = { opening == "{" and "}" or "]" }
-    index = index + 1
-    while index <= #text do
-        local character = text:sub(index, index)
-        if character == '"' then
-            index = scanJSONString(text, index) + 1
-        elseif character == "{" then
-            stack[#stack + 1] = "}"
-            index = index + 1
-        elseif character == "[" then
-            stack[#stack + 1] = "]"
-            index = index + 1
-        elseif character == stack[#stack] then
-            stack[#stack] = nil
-            if not bool(stack) then
-                return index
-            end
-            index = index + 1
-        else
-            index = index + 1
-        end
-    end
-    error("Unterminated JSON container")
-end
-
----@param text  string
----@param index integer
----@return integer
-local function scanJSONValue(text, index)
-    index = skipWhitespace(text, index)
-    local character = text:sub(index, index)
-    if character == '"' then
-        return scanJSONString(text, index)
-    end
-    if character == "{" or character == "[" then
-        return scanJSONContainer(text, index)
-    end
-    while index <= #text do
-        character = text:sub(index, index)
-        if character == "," or character == "}" or character == "]" then
-            return index - 1
-        end
-        index = index + 1
-    end
-    return #text
-end
-
----@param text      string
----@param fieldName string
----@param values    table<string, table>
----@return string[]
-local function extractObjectKeyOrder(text, fieldName, values)
-    local _, objectStart = text:find('"' .. fieldName .. '"%s*:%s*{')
-    if objectStart == nil then
-        return {}
-    end
-    local result = {}
-    local seen = {}
-    local index = objectStart + 1
-    while index <= #text do
-        index = skipWhitespace(text, index)
-        local character = text:sub(index, index)
-        if character == "}" then
-            break
-        end
-        if character == "," then
-            index = skipWhitespace(text, index + 1)
-        end
-        if text:sub(index, index) ~= '"' then
-            return {}
-        end
-        local keyEnd = scanJSONString(text, index)
-        local key = cjson.decode(text:sub(index, keyEnd))
-        index = skipWhitespace(text, keyEnd + 1)
-        if text:sub(index, index) ~= ":" then
-            return {}
-        end
-        index = skipWhitespace(text, index + 1)
-        local valueEnd = scanJSONValue(text, index)
-        if values[key] ~= nil and not seen[key] then
-            result[#result + 1] = key
-            seen[key] = true
-        end
-        index = valueEnd + 1
-    end
-    return result
-end
-
----@param values table<string, table>
----@return string[]
-local function orderedKeys(values)
-    local result = {}
-    local seen = {}
-    for _, key in ipairs(objectKeyOrders[values] or {}) do
-        if values[key] ~= nil and not seen[key] then
-            result[#result + 1] = key
-            seen[key] = true
-        end
-    end
-    local remaining = {}
-    for key in pairs(values) do
-        if not seen[key] then
-            remaining[#remaining + 1] = key
-        end
-    end
-    table.sort(remaining, function (left, right)
-        return tostring(left) < tostring(right)
-    end)
-    for _, key in ipairs(remaining) do
-        result[#result + 1] = key
-    end
-    return result
-end
 
 ---@param data table
 local function normaliseMapData(data)
+    local seenLayers = {}
+    for _, layerName in ipairs(data.layerOrder) do
+        assert(data.layers[layerName] ~= nil, "Map layerOrder references a missing layer: " .. layerName)
+        assert(not seenLayers[layerName], "Map layerOrder contains a duplicate layer: " .. layerName)
+        seenLayers[layerName] = true
+    end
+    for layerName in pairs(data.layers) do
+        assert(seenLayers[layerName], "Map layer is missing from layerOrder: " .. layerName)
+    end
+    for layerName in pairs(data.actors or {}) do
+        assert(seenLayers[layerName], "Map actor group is missing from layerOrder: " .. layerName)
+    end
     local ambientLight = data.ambientLight or { 255, 255, 255, 255 }
     data.ambientLight = sf.Color.new(table.unpack(ambientLight))
     local lights = {}
@@ -196,6 +57,8 @@ local function normaliseMapData(data)
     end
 end
 
+---@type function
+local getMapPathCandidates
 ---@class Source.SceneComponents.SceneMapBuilder
 local SceneMapBuilder = {}
 
@@ -209,9 +72,9 @@ end
 
 ---@diagnostic disable-next-line: unused
 function SceneMapBuilder:resolveMapPath(mapPath, currentMap)
-    local candidates = SceneMapBuilder._getMapPathCandidates(mapPath, currentMap)
+    local candidates = getMapPathCandidates(mapPath, currentMap)
     for _, candidate in ipairs(candidates) do
-        if Engine.jsonExists(SceneMapBuilder.getMapDataPath(candidate)) then
+        if Engine.jsonExists(SceneMapBuilder.GetMapDataPath(candidate)) then
             return candidate
         end
     end
@@ -225,24 +88,21 @@ function SceneMapBuilder:loadMapData(mapPath, currentMap)
     local resolvedPath = self:resolveMapPath(mapPath, currentMap)
     local _, extension = os.path.splitext(resolvedPath)
     assert(extension:lower() == MAP_DATA_EXTENSION, "Unsupported map data format: " .. resolvedPath)
-    local text = Engine.getJSONText(SceneMapBuilder.getMapDataPath(resolvedPath))
-    local data = cjson.decode(text)
+    local data = cjson.decode(Engine.getJSONText(SceneMapBuilder.GetMapDataPath(resolvedPath)))
     ---@cast data table
     normaliseMapData(data)
     ---@cast data Source.SceneComponents.MapData
-    objectKeyOrders[data.layers] = extractObjectKeyOrder(text, "layers", data.layers)
-    objectKeyOrders[data.actors] = extractObjectKeyOrder(text, "actors", data.actors)
     return resolvedPath, data
 end
 
-function SceneMapBuilder.getMapDataPath(mapPath)
+function SceneMapBuilder.GetMapDataPath(mapPath)
     return os.path.join(MAP_DATA_ROOT, MapPath.Normalise(mapPath))
 end
 
 ---@param mapPath    string
 ---@param currentMap string | nil
 ---@return string[]
-function SceneMapBuilder._getMapPathCandidates(mapPath, currentMap)
+function getMapPathCandidates(mapPath, currentMap)
     mapPath = MapPath.Normalise(mapPath)
     if not bool(mapPath) then
         return {}
@@ -264,7 +124,7 @@ function SceneMapBuilder._getMapPathCandidates(mapPath, currentMap)
             append(stem .. MAP_DATA_EXTENSION)
         end
     else
-        local _, currentExtension = os.path.splitext(MapPath.Normalise(currentMap or System.getStartMap()))
+        local _, currentExtension = os.path.splitext(MapPath.Normalise(currentMap or System.GetStartMap()))
         if currentExtension:lower() == MAP_DATA_EXTENSION then
             append(mapPath .. currentExtension:lower())
         end
@@ -273,14 +133,14 @@ function SceneMapBuilder._getMapPathCandidates(mapPath, currentMap)
     return candidates
 end
 
-function SceneMapBuilder.generateTilemap(data, width, height)
+function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
     local mapWidth = width
     local mapHeight = height
     local mapLayers = {}
-    for _, layerKey in ipairs(orderedKeys(data)) do
+    for _, layerKey in ipairs(layerOrder) do
         local layerData = data[layerKey]
         local name = layerData.layerName
-        local layerTileset = Data.getTileset(layerData.layerTileset)
+        local layerTileset = Data.GetTileset(layerData.layerTileset)
         local layerTiles = layerData.tiles
         local tiles = {}
         for y = 1, mapHeight do
@@ -305,9 +165,9 @@ function SceneMapBuilder.generateTilemap(data, width, height)
                 for x = 1, mapWidth do
                     local cell = rawRow ~= nil and rawRow[x] or nil
                     local cellIndex = type(cell) == "number" and math.tointeger(cell) or nil
-                    if type(cell) == "string" and bool(cell) and Data.hasAutoTile(cell) then
+                    if type(cell) == "string" and bool(cell) and Data.HasAutoTile(cell) then
                         if autoTileIndexByKey[cell] == nil then
-                            autoTilePool[#autoTilePool + 1] = Data.getAutoTile(cell)
+                            autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
                             autoTileIndexByKey[cell] = #autoTilePool - 1
                         end
                         row[x] = autoTileIndexByKey[cell]
@@ -353,9 +213,9 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
     if emitCreateEvents == nil then
         emitCreateEvents = true
     end
-    local tilemap = SceneMapBuilder.generateTilemap(data.layers, data.width, data.height)
+    local tilemap = SceneMapBuilder.GenerateTilemap(data.layers, data.layerOrder, data.width, data.height)
     local result = GameMap.new(data.mapName, tilemap, camera, previewOnly)
-    result:setAutoTileResolver(Data.getAutoTile)
+    result:setAutoTileResolver(Data.GetAutoTile)
     if not previewOnly then
         local pathRouteState = PathRouteState.new()
         local movementDangerState = MovementDangerState.new(result)
@@ -363,8 +223,8 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
         result:addComponent(MovementDangerPreviewComponent.new(result, movementDangerState))
         result:addComponent(MapClickAutoPath.new(result, pathRouteState, movementDangerState))
         result:addComponent(PathPreviewComponent.new(result, pathRouteState))
-        result:setDamageTextConfig(Data.getPlainTextConfig(DAMAGE_TEXT_CONFIG))
-        result:setDamageTextSpeedCurve(Data.getCurve(DAMAGE_TEXT_SPEED_CURVE))
+        result:setDamageTextConfig(Data.GetPlainTextConfig(DAMAGE_TEXT_CONFIG))
+        result:setDamageTextSpeedCurve(Data.GetCurve(DAMAGE_TEXT_SPEED_CURVE))
         result:setAmbientLight(data.ambientLight)
         for _, light in ipairs(data.lights) do
             result:addLight(light)
@@ -373,14 +233,14 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
     local classVarChanges = data.BPClassVarChanged
     local actors = data.actors
     result:beginActorBatch()
-    for _, layerName in ipairs(orderedKeys(actors)) do
-        local actorDatas = actors[layerName]
+    for _, layerName in ipairs(data.layerOrder) do
+        local actorDatas = actors[layerName] or {}
         for _, actorData in ipairs(actorDatas) do
             local actorChanges = nil
             if classVarChanges ~= nil then
                 actorChanges = classVarChanges[tostring(actorData.tag or "")]
             end
-            local actor = Data.genActorFromData(actorData, layerName, actorChanges)
+            local actor = Data.GenActorFromData(actorData, layerName, actorChanges)
             if actor ~= nil then
                 result:spawnActor(actor, layerName, false)
             end
@@ -404,7 +264,7 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
     local addedAny = false
     for _, actorRecord in ipairs(addedActors) do
         if gameMap:getActorByTag(actorRecord.tag) == nil then
-            local actor = Data.genActorFromClassPath(actorRecord.bp, actorRecord.tag, actorRecord.classVarChanges)
+            local actor = Data.GenActorFromClassPath(actorRecord.bp, actorRecord.tag, actorRecord.classVarChanges)
             if actor ~= nil then
                 actor:setMapPosition(actorRecord.position)
                 gameMap:spawnActor(actor, actorRecord.layer, false)
@@ -474,12 +334,12 @@ function SceneMapBuilder:getFloorTelepointTag(currentMap, mapKey, telepoint)
     local _, mapData = self:loadMapData(mapKey, currentMap)
     local teleporterPrefix = "Data.Blueprints.Teleportations"
     local actors = mapData.actors or {}
-    for _, layerName in ipairs(orderedKeys(actors)) do
-        local actorDatas = actors[layerName]
+    for _, layerName in ipairs(mapData.layerOrder) do
+        local actorDatas = actors[layerName] or {}
         for _, actorData in ipairs(actorDatas) do
             local position = actorData.position
             if position.x == telepoint.x and position.y == telepoint.y
-                and tostring(actorData.bp or ""):sub(1, #teleporterPrefix) == teleporterPrefix then
+                and string.startsWith(tostring(actorData.bp or ""), teleporterPrefix) then
                 return tostring(actorData.tag or "")
             end
         end

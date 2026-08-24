@@ -2,8 +2,6 @@ local Engine = require("Engine")
 local CommandRowController = require("Source.UI.Helpers.CommandRow")
 local Ui = require("Source.UI.Ui")
 
-local Input = Engine.Input
-
 local _PREVIEW_CONTENT_SIZE = 208
 local _PREVIEW_SCALE = 0.5
 local _TELEPOINT_LIST_HEIGHT = 32
@@ -108,7 +106,7 @@ function WindowFloorMapPreviewUI:setMapKeyAndTelepoints(mapKey, entries, selecte
         self:hidePreview()
         return
     end
-    self.model.index = math.max(0, math.min(selectedIndex, #entries - 1))
+    self.model.index = Engine.Clamp(selectedIndex, 0, #entries - 1)
     self:refreshSelectedPreview()
 end
 
@@ -121,23 +119,6 @@ function WindowFloorMapPreviewUI:afterSelectionUpdate(previousIndex)
     end
     self.model._owner:notifyTelepointIndexMaybeChanged(self.model.index)
     self:refreshSelectedPreview()
-end
-
-function WindowFloorMapPreviewUI:handleKeyDown()
-    if not Input.isActionTriggered(Input.getCancelKeys(), false) then
-        return false
-    end
-    self.model:onReturn()
-    Input.isActionTriggered(Input.getCancelKeys(), true)
-    return true
-end
-
-function WindowFloorMapPreviewUI:handleMouseButtonDown(kwargs)
-    if kwargs.button ~= sf.Mouse.Button.Right then
-        return false
-    end
-    self.model:onReturn()
-    return true
 end
 
 function WindowFloorMapPreviewUI:rebuildTelepointList(entries)
@@ -214,8 +195,8 @@ function WindowFloorMapPreviewUI:_applyListLayout()
     self:setProperty("TelepointList", "columns", self._columns)
 end
 
-function WindowFloorMapPreviewUI.getTelepointItemWidth(rect)
+function WindowFloorMapPreviewUI.GetTelepointItemWidth(rect)
     return math.max(1, math.floor((rect.size.x - 64) / 2))
 end
 
-return Ui.define("Parts/WindowFloorTeleporter/WindowFloorMapPreview", WindowFloorMapPreviewUI)
+return Ui.Define("Parts/WindowFloorTeleporter/WindowFloorMapPreview", WindowFloorMapPreviewUI)

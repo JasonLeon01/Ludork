@@ -111,24 +111,24 @@
 local Data = {}
 
 ---@return Source.Data.InitialLoadStage
-function Data.beginInitialLoad() end
+function Data.BeginInitialLoad() end
 
 ---@param stage Source.Data.InitialLoadStage
 ---@param item  FileBatchItem
 ---@return string
-function Data.applyInitialLoadItem(stage, item) end
+function Data.ApplyInitialLoadItem(stage, item) end
 
 ---@param stage Source.Data.InitialLoadStage
-function Data.commitInitialLoad(stage) end
+function Data.CommitInitialLoad(stage) end
 
 ---@param stage Source.Data.InitialLoadStage
-function Data.abortInitialLoad(stage) end
+function Data.AbortInitialLoad(stage) end
 
 ---@brief Get the number of data kind categories.
 ---
 --- - @return The number of data kinds.
 ---@return integer
-function Data.getDataKinds() end
+function Data.GetDataKinds() end
 
 ---@brief Count loadable JSON data files under a directory.
 ---
@@ -142,53 +142,49 @@ function Data.getDataKinds() end
 ---@param defaultType table<string, function>
 ---@param recursive   boolean
 ---@return integer
-function Data.countLoadableFiles(dataRoot, needExt, defaultType, recursive) end
+function Data.CountLoadableFiles(dataRoot, needExt, defaultType, recursive) end
 
 ---@brief Load all animation data from the Data/Animations directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadAnimations(onFileLoaded) end
+function Data.LoadAnimations(onFileLoaded) end
 
 ---@brief Load all common function data from the Data/CommonFunctions directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadCommonFunctions(onFileLoaded) end
+function Data.LoadCommonFunctions(onFileLoaded) end
 
 ---@brief Load all tileset data from the Data/Tilesets directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadTilesets(onFileLoaded) end
+function Data.LoadTilesets(onFileLoaded) end
 
 ---@brief Load all autotile data from the Data/AutoTiles directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadAutoTiles(onFileLoaded) end
+function Data.LoadAutoTiles(onFileLoaded) end
 
 ---@brief Load all general data from the Data/General directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadGeneralData(onFileLoaded) end
+function Data.LoadGeneralData(onFileLoaded) end
 
 ---@brief Load all curve data from the Data/Curves directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadCurves(onFileLoaded) end
+function Data.LoadCurves(onFileLoaded) end
 
 ---@brief Load all text configuration data from the Data/TextConfigs directory.
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil
-function Data.loadTextConfigs(onFileLoaded) end
-
----@param fileName string
----@return string, string
-function Data.splitCompound(fileName) end
+function Data.LoadTextConfigs(onFileLoaded) end
 
 ---@brief Get animation data by name.
 ---
@@ -196,7 +192,7 @@ function Data.splitCompound(fileName) end
 --- - @return Animation configuration dictionary.
 ---@param name string
 ---@return Engine.AnimationData
-function Data.getAnimation(name) end
+function Data.GetAnimation(name) end
 
 ---@brief Get a curve by name.
 ---
@@ -204,27 +200,27 @@ function Data.getAnimation(name) end
 --- - @return The Curve object.
 ---@param name string
 ---@return Engine.Curve
-function Data.getCurve(name) end
+function Data.GetCurve(name) end
 
 ---@param name string
 ---@return Engine.Vector2Curve
-function Data.getVector2Curve(name) end
+function Data.GetVector2Curve(name) end
 
 ---@param name string
 ---@return Engine.Vector3Curve
-function Data.getVector3Curve(name) end
+function Data.GetVector3Curve(name) end
 
 ---@param name string
 ---@return Engine.Vector4Curve
-function Data.getVector4Curve(name) end
+function Data.GetVector4Curve(name) end
 
 ---@param name string
 ---@return Engine.PlainTextConfig
-function Data.getPlainTextConfig(name) end
+function Data.GetPlainTextConfig(name) end
 
 ---@param name string
 ---@return Engine.RichTextConfig
-function Data.getRichTextConfig(name) end
+function Data.GetRichTextConfig(name) end
 
 ---@brief Get a tileset by name.
 ---
@@ -232,7 +228,7 @@ function Data.getRichTextConfig(name) end
 --- - @return The Tileset object.
 ---@param name string
 ---@return Engine.Tileset
-function Data.getTileset(name) end
+function Data.GetTileset(name) end
 
 ---@brief Get an autotile by name.
 ---
@@ -240,7 +236,7 @@ function Data.getTileset(name) end
 --- - @return The AutoTile object.
 ---@param name string
 ---@return Engine.AutoTile
-function Data.getAutoTile(name) end
+function Data.GetAutoTile(name) end
 
 ---@brief Check whether an autotile is registered.
 ---
@@ -248,7 +244,7 @@ function Data.getAutoTile(name) end
 --- - @return True if the autotile exists.
 ---@param name string
 ---@return boolean
-function Data.hasAutoTile(name) end
+function Data.HasAutoTile(name) end
 
 ---@brief Get general data by name.
 ---
@@ -256,7 +252,7 @@ function Data.hasAutoTile(name) end
 --- - @return General data dictionary whose member fields have already been canonicalised from their schema.
 ---@param name string
 ---@return table<string, Source.Data.GeneralValue>
-function Data.getGeneralData(name) end
+function Data.GetGeneralData(name) end
 
 ---@brief Get class data by its key.
 ---
@@ -264,7 +260,7 @@ function Data.getGeneralData(name) end
 --- - @return Class data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralClassData
-function Data.getGeneralClassData(key) end
+function Data.GetGeneralClassData(key) end
 
 ---@brief Get enemy data by its key.
 ---
@@ -272,7 +268,7 @@ function Data.getGeneralClassData(key) end
 --- - @return Enemy data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralEnemyData
-function Data.getGeneralEnemyData(key) end
+function Data.GetGeneralEnemyData(key) end
 
 ---@brief Get player data by its key.
 ---
@@ -280,13 +276,13 @@ function Data.getGeneralEnemyData(key) end
 --- - @return Player data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralMemberData
-function Data.getGeneralPlayerData(key) end
+function Data.GetGeneralPlayerData(key) end
 
 ---@brief Get equip data by its key.
 ---
 --- - @return Equip data dictionary.
 ---@return table<string, Source.Data.GeneralEquipData>
-function Data.getAllGeneralEquipData() end
+function Data.GetAllGeneralEquipData() end
 
 ---@brief Get equip data by its key.
 ---
@@ -294,13 +290,13 @@ function Data.getAllGeneralEquipData() end
 --- - @return Equip data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralEquipData
-function Data.getGeneralEquipData(key) end
+function Data.GetGeneralEquipData(key) end
 
 ---@brief Get item data by its key.
 ---
 --- - @return Item data dictionary.
 ---@return table<string, Source.Data.GeneralItemData>
-function Data.getAllGeneralItemData() end
+function Data.GetAllGeneralItemData() end
 
 ---@brief Get item data by its key.
 ---
@@ -308,7 +304,7 @@ function Data.getAllGeneralItemData() end
 --- - @return Item data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralItemData
-function Data.getGeneralItemData(key) end
+function Data.GetGeneralItemData(key) end
 
 ---@brief Get special data by its key.
 ---
@@ -316,7 +312,7 @@ function Data.getGeneralItemData(key) end
 --- - @return Special data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralSpecialData
-function Data.getGeneralSpecialData(key) end
+function Data.GetGeneralSpecialData(key) end
 
 ---@brief Get state data by its key.
 ---
@@ -324,7 +320,7 @@ function Data.getGeneralSpecialData(key) end
 --- - @return State data dictionary.
 ---@param key string
 ---@return Source.Data.GeneralStateData
-function Data.getGeneralStateData(key) end
+function Data.GetGeneralStateData(key) end
 
 ---@brief Get a class by its blueprint path.
 ---
@@ -332,7 +328,7 @@ function Data.getGeneralStateData(key) end
 --- - @return The class type, or nil when the path is not registered.
 ---@param classPath string
 ---@return Class.ClassType<any> | nil
-function Data.getClass(classPath) end
+function Data.GetClass(classPath) end
 
 ---@brief Get class data by its blueprint path.
 ---
@@ -340,7 +336,7 @@ function Data.getClass(classPath) end
 --- - @return Class data dictionary.
 ---@param classPath string
 ---@return table<string, Source.Data.JsonValue>
-function Data.getClassData(classPath) end
+function Data.GetClassData(classPath) end
 
 ---@brief Resolve a class path from a path, class name, or generated blueprint class name.
 ---
@@ -348,7 +344,7 @@ function Data.getClassData(classPath) end
 --- - @return Resolved class path, or the original value when no mapping is found.
 ---@param className string
 ---@return string
-function Data.resolveClassPath(className) end
+function Data.ResolveClassPath(className) end
 
 ---@brief Get a common function graph by name.
 ---
@@ -356,7 +352,7 @@ function Data.resolveClassPath(className) end
 --- - @return The function Graph.
 ---@param name string
 ---@return Engine.Graph
-function Data.getCommonFunction(name) end
+function Data.GetCommonFunction(name) end
 
 ---@brief Generate a node graph from data.
 ---
@@ -369,7 +365,7 @@ function Data.getCommonFunction(name) end
 ---@param parent      T | nil
 ---@param parentClass Class.ClassType<any> | nil
 ---@return Engine.Graph
-function Data.genGraphFromData(data, parent, parentClass) end
+function Data.GenGraphFromData(data, parent, parentClass) end
 
 ---@brief Generate an actor from a resolved class path.
 ---
@@ -381,7 +377,7 @@ function Data.genGraphFromData(data, parent, parentClass) end
 ---@param tag             string | nil
 ---@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
 ---@return Engine.Actor | nil
-function Data.genActorFromClassPath(classPath, tag, classVarChanges) end
+function Data.GenActorFromClassPath(classPath, tag, classVarChanges) end
 
 ---@brief Generate an actor from a class path or generated blueprint class name.
 ---
@@ -391,7 +387,7 @@ function Data.genActorFromClassPath(classPath, tag, classVarChanges) end
 ---@param className string
 ---@param tag       string | nil
 ---@return Engine.Actor | nil
-function Data.genActorFromClassName(className, tag) end
+function Data.GenActorFromClassName(className, tag) end
 
 ---@brief Generate an actor from data.
 ---
@@ -403,6 +399,6 @@ function Data.genActorFromClassName(className, tag) end
 ---@param layerName       string
 ---@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
 ---@return Engine.Actor | nil
-function Data.genActorFromData(actorData, layerName, classVarChanges) end
+function Data.GenActorFromData(actorData, layerName, classVarChanges) end
 
 return Data

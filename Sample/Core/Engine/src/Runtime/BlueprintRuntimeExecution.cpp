@@ -34,7 +34,11 @@ extern "C" {
 namespace ludork::engine::runtime_detail {
 
 sol::object blueprintEngineType(sol::state_view lua, const char* name) {
-    return requireRuntimeType(lua, "Engine", name);
+    const sol::object rawEngine = lua.globals().raw_get<sol::object>("Engine");
+    if (!rawEngine.is<sol::table>()) {
+        throw std::runtime_error("Engine module is not initialized");
+    }
+    return rawEngine.as<sol::table>().raw_get<sol::object>(name);
 }
 
 bool blueprintIsInstance(sol::this_state state, const sol::object& value,

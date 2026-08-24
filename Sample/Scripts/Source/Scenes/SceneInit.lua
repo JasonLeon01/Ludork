@@ -2,6 +2,7 @@ local cjson = require("cjson")
 local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
@@ -22,7 +23,7 @@ local ANIMATION_PROGRESS_WEIGHT = 0.5
 ---@return string
 local function stripExactSuffix(value, suffix)
     local normalized = Path.NormaliseSeparators(tostring(value or ""))
-    assert(normalized:sub(-#suffix) == suffix, "Unexpected animation file suffix: " .. normalized)
+    assert(string.endsWith(normalized, suffix), "Unexpected animation file suffix: " .. normalized)
     return normalized:sub(1, #normalized - #suffix)
 end
 
@@ -95,7 +96,7 @@ function Scene:onCreate()
     self.progressDone = false
     self.hasSwitched = false
     self._loadCancelled = false
-    self._loadStage = Data.beginInitialLoad()
+    self._loadStage = Data.BeginInitialLoad()
     self._activeBatch = nil
     self._animationSourceKeys = {}
     self._loadTask = asyncio.create_task(function ()
@@ -117,7 +118,7 @@ function Scene:onLateTick(_)
     local target = self.progressDone and 1.0 or self.progressValue
     if target ~= self._displayProgress then
         self._displayProgress = target
-        SceneInitUI.publish({
+        SceneInitUI.Publish({
             progress = target
         })
     end
@@ -134,17 +135,9 @@ function Scene:onQuit()
         self._loadTask = nil
     end
     if self._loadStage ~= nil and not self.progressDone then
-        Data.abortInitialLoad(self._loadStage)
+        Data.AbortInitialLoad(self._loadStage)
         self._loadStage = nil
     end
-end
-
-function Scene.splitCompound(fileName)
-    local name, extension = tostring(fileName):match("^(.-)(%..+)$")
-    if name == nil then
-        return tostring(fileName), ""
-    end
-    return name, extension or ""
 end
 
 function Scene:loadGameData()
@@ -233,15 +226,6 @@ function Scene:_isLoadCancelled()
     return self._loadCancelled
 end
 
----@param errorData FileBatchError | nil
----@return string
-function Scene._formatBatchError(errorData)
-    if errorData == nil then
-        return "File batch failed"
-    end
-    return string.format("%s failed for %s: %s", errorData.operation, errorData.path, errorData.message)
-end
-
 ---@param offset number
 ---@param weight number
 function Scene:_setPhaseProgress(offset, weight)
@@ -292,14 +276,8 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
         cacheRoot, sourceKey .. (encryptedSource and ANIMATION_CACHE_SUFFIX or ENCRYPTED_ANIMATION_CACHE_SUFFIX)
     )
     if CoreSystem.exists(alternateCachePath) then
-        local removed, message = os.remove(alternateCachePath)
-        assert(
-            removed,
-            string.format(
-                "Cannot remove alternate animation cache %s: %s", alternateCachePath,
-                tostring(message or "unknown error")
-            )
-        )
+        CoreSystem.removeFile(alternateCachePath)
+        Logging.debug("Removed alternate animation cache: %s", alternateCachePath)
     end
 end
 
@@ -323,7 +301,7 @@ function Scene:compressAnimations()
         local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
         self.progressTotal = snapshot.total
         if snapshot.state == "failed" then
-            error(Scene._formatBatchError(snapshot.error))
+            error(FileBatch.FormatError(snapshot.error))
         end
         if snapshot.state == "cancelled" then
             error("Animation source file batch was cancelled")
@@ -357,13 +335,8 @@ function Scene:_removeOrphanedAnimation(item)
     local cacheRelativePath = item.encryptedData == true and sourceKey .. ENCRYPTED_ANIMATION_CACHE_SUFFIX
         or relativePath
     local cachePath = os.path.join(Engine.getAnimationCacheRoot(), cacheRelativePath)
-    local removed, message = os.remove(cachePath)
-    assert(
-        removed,
-        string.format(
-            "Cannot remove orphaned animation cache %s: %s", relativePath, tostring(message or "unknown error")
-        )
-    )
+    CoreSystem.removeFile(cachePath)
+    Logging.debug("Removed orphaned animation cache: %s", cachePath)
     return true
 end
 
@@ -374,7 +347,7 @@ function Scene:_pumpInitialLoad()
         local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
         self.progressTotal = snapshot.total
         if snapshot.state == "failed" then
-            error(Scene._formatBatchError(snapshot.error))
+            error(FileBatch.FormatError(snapshot.error))
         end
         if snapshot.state == "cancelled" then
             error("Initial data file batch was cancelled")
@@ -382,13 +355,13 @@ function Scene:_pumpInitialLoad()
         local item = snapshot.items ~= nil and snapshot.items[1] or nil
         if item ~= nil then
             if not self:_removeOrphanedAnimation(item) then
-                Data.applyInitialLoadItem(self._loadStage, item)
+                Data.ApplyInitialLoadItem(self._loadStage, item)
             end
             self.processedCount = self.processedCount + 1
             self:_setPhaseProgress(ANIMATION_PROGRESS_WEIGHT, 1.0 - ANIMATION_PROGRESS_WEIGHT)
         end
         if snapshot.state == "completed" and snapshot.drained and self.processedCount == snapshot.total then
-            Data.commitInitialLoad(self._loadStage)
+            Data.CommitInitialLoad(self._loadStage)
             self._loadStage = nil
             self._activeBatch = nil
             self.progressValue = 1.0

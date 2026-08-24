@@ -5,236 +5,38 @@ local LocaleCore = require("Source.Locale.Core")
 local MapPath = require("Source.MapPath")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local GameSystem = require("Source.System")
-local WindowFloorMapPreviewUI = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview")
 local UiLayout = require("Source.UI.UiLayout")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
-local WindowCommand = require("Source.Windows.WindowCommand")
+local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
+local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
 
-local Input = Engine.Input
 local ManagerFunctions = GlobalFunctions.Manager
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
-local WindowCommandController = WindowCommand.Controller
 
 local _LIST_WIDTH = 208
 local _PREVIEW_WINDOW_WIDTH = 240
-local _PREVIEW_WINDOW_HEIGHT = 280
-local _LIST_ROW_HEIGHT = 32
-local _TELEPOINT_LIST_HEIGHT = 32
+local _PREVIEW_WINDOW_HEIGHT = 240
 
 ---@param point sf.Vector2u
 ---@return tuple<any>
 local function telepointKey(point)
     return tuple { point.x, point.y }
 end
-
----@class Source.Windows.WindowFloorMapCommandController: Source.Windows.WindowCommand.Controller
-local WindowFloorMapCommandController = {}
-
-function WindowFloorMapCommandController:init(model, size, rowHeight, columns)
-    super(WindowFloorMapCommandController, self).init(model, size, rowHeight, columns)
-    ---@cast self.model Source.Windows.WindowFloorMapCommand
-    self._mapKeys = {}
-    self.model._mapKeys = self._mapKeys
+local function normaliseMapName(mapPath)
+    local path = MapPath.Normalise(mapPath)
+    return path:gsub("%.[^%.]+$", "")
 end
-
-function WindowFloorMapCommandController:refreshMaps(entries)
-    ---@cast self.model Source.Windows.WindowFloorMapCommand
-    local previousMapKey = self:getCurrentMapKey()
-    self._mapKeys = {}
-    self.model._mapKeys = self._mapKeys
-    self._rowControllers = {}
-    self.root:clearChildren()
-    for index, entry in ipairs(entries) do
-        self._mapKeys[index] = entry[1]
-        local child = self:createRow({
-            text = entry[2],
-            callback = function ()
-                self.model._owner:activateTelepointSelector()
-            end
-        })
-        self.model:_applyItem(child)
-        self.root:addChild(child)
-    end
-    self:prepare()
-    if not bool(self._mapKeys) then
-        self.model.index = nil
-    else
-        local previousIndex = nil
-        if previousMapKey ~= nil then
-            for index, mapKey in ipairs(self._mapKeys) do
-                if mapKey == previousMapKey then
-                    previousIndex = index - 1
-                    break
-                end
-            end
-        end
-        self.model.index = previousIndex or 0
-    end
-    self.model._owner:notifyMapIndexMaybeChanged(self.model.index)
+local function formatMapName(mapName)
+    return LOC(tostring(mapName))
 end
-
-function WindowFloorMapCommandController:getCurrentMapKey()
-    if self.model.index == nil or self.model.index >= #self._mapKeys then
-        return nil
-    end
-    return self._mapKeys[self.model.index + 1]
+local function getDefaultRects()
+    local totalWidth = _LIST_WIDTH + _PREVIEW_WINDOW_WIDTH
+    local bounds = UiLayout.GetCenteredRect(totalWidth, _PREVIEW_WINDOW_HEIGHT)
+    return Engine.ToIntRect(bounds.position.x, bounds.position.y, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT),
+        Engine.ToIntRect(
+            bounds.position.x + _LIST_WIDTH, bounds.position.y, _PREVIEW_WINDOW_WIDTH, _PREVIEW_WINDOW_HEIGHT
+        )
 end
-
-function WindowFloorMapCommandController:afterTick()
-    ---@cast self.model Source.Windows.WindowFloorMapCommand
-    self.model._owner:notifyMapIndexMaybeChanged(self.model.index)
-end
-
-function WindowFloorMapCommandController:handleKeyDown()
-    ---@cast self.model Source.Windows.WindowFloorMapCommand
-    if not Input.isActionTriggered(Input.getCancelKeys(), false) then
-        return false
-    end
-    self.model:onReturn()
-    Input.isActionTriggered(Input.getCancelKeys(), true)
-    return true
-end
-
-function WindowFloorMapCommandController:handleMouseButtonDown(kwargs)
-    ---@cast self.model Source.Windows.WindowFloorMapCommand
-    if kwargs.button ~= sf.Mouse.Button.Right then
-        return false
-    end
-    self.model:onReturn()
-    return true
-end
-
-local FinalWindowFloorMapCommandController = class(WindowFloorMapCommandController, WindowCommandController)
-
----@class Source.Windows.WindowFloorMapCommand: Source.Windows.WindowCommand
-local WindowFloorMapCommand = {}
-
-WindowFloorMapCommand.controllerClass = FinalWindowFloorMapCommandController
-
-function WindowFloorMapCommand:init(rect, owner)
-    self._owner = owner
-    super(WindowFloorMapCommand, self).init(rect, {}, nil, _LIST_ROW_HEIGHT)
-    self:setHasReturnBtn(true)
-    ---@cast self._commandController Source.Windows.WindowFloorMapCommandController
-    self._mapController = self._commandController
-end
-
-function WindowFloorMapCommand:refreshMaps(entries)
-    self._mapController:refreshMaps(entries)
-end
-
-function WindowFloorMapCommand:getCurrentMapKey()
-    return self._mapController:getCurrentMapKey()
-end
-
-function WindowFloorMapCommand:onTick(deltaTime)
-    super(WindowFloorMapCommand, self).onTick(deltaTime)
-    self._mapController:afterTick()
-end
-
-function WindowFloorMapCommand:onKeyDown(kwargs)
-    if self._mapController:handleKeyDown() then
-        return
-    end
-    super(WindowFloorMapCommand, self).onKeyDown(kwargs)
-end
-
-function WindowFloorMapCommand:onMouseButtonDown(kwargs)
-    return self._mapController:handleMouseButtonDown(kwargs)
-end
-
-function WindowFloorMapCommand:onReturn()
-    self._owner:closeByCancel()
-end
-
----@type Class.ClassType<Source.Windows.WindowFloorMapCommand>
-local FinalWindowFloorMapCommand = class(WindowFloorMapCommand, WindowCommand)
-
-local WindowFloorMapPreview = {}
-
-WindowFloorMapPreview.uiClass = WindowFloorMapPreviewUI
-
-function WindowFloorMapPreview:init(rect, owner, loadPreview, resolvePreviewMapPath)
-    self._owner = owner
-    self._telepointItemWidth = self.uiClass.getTelepointItemWidth(rect)
-    super(WindowFloorMapPreview, self).init(rect, nil, self._telepointItemWidth, _TELEPOINT_LIST_HEIGHT)
-    self:setHasReturnBtn(true)
-    self._previewUI = self.uiClass.new(self, rect.size, loadPreview, resolvePreviewMapPath)
-    self._previewUI:attach()
-    self._listView = self._previewUI:getListView()
-end
-
-function WindowFloorMapPreview:clearPreviewCache()
-    self._previewUI:clearPreviewCache()
-end
-
-function WindowFloorMapPreview:setActive(active)
-    local wasActive = self:getActive()
-    super(WindowFloorMapPreview, self).setActive(active)
-    self._previewUI:onActiveChanged(active, wasActive)
-end
-
-function WindowFloorMapPreview:setMapKeyAndTelepoints(mapKey, entries, selectedIndex)
-    self._previewUI:setMapKeyAndTelepoints(mapKey, entries, selectedIndex)
-end
-
-function WindowFloorMapPreview:onTick(deltaTime)
-    local previousIndex = self.index ~= nil and self.index or nil
-    super(WindowFloorMapPreview, self).onTick(deltaTime)
-    self._previewUI:afterSelectionUpdate(previousIndex)
-end
-
-function WindowFloorMapPreview:onKeyDown(kwargs)
-    if self._previewUI:handleKeyDown() then
-        return
-    end
-    local previousIndex = self.index ~= nil and self.index or nil
-    super(WindowFloorMapPreview, self).onKeyDown(kwargs)
-    self._previewUI:afterSelectionUpdate(previousIndex)
-end
-
-function WindowFloorMapPreview:onMouseButtonDown(kwargs)
-    return self._previewUI
-        :handleMouseButtonDown(kwargs)
-end
-
-function WindowFloorMapPreview:onReturn()
-    self._owner:activateMapList(true)
-end
-
----@param entries table
-function WindowFloorMapPreview:_rebuildTelepointList(entries)
-    self._previewUI:rebuildTelepointList(entries)
-end
-
-function WindowFloorMapPreview:_refreshSelectedPreview()
-    self._previewUI:refreshSelectedPreview()
-end
-
----@return sf.Vector2u | nil
-function WindowFloorMapPreview:_getSelectedTelepoint()
-    return self._previewUI:getSelectedTelepoint()
-end
-
-function WindowFloorMapPreview:_hidePreview()
-    self._previewUI:hidePreview()
-end
-
----@return integer
-function WindowFloorMapPreview:_getRectWidth()
-    return self._telepointItemWidth
-end
-
----@param rect sf.IntRect
----@return integer
-function WindowFloorMapPreview.GetTelepointItemWidth(rect)
-    return WindowFloorMapPreviewUI
-        .getTelepointItemWidth(rect)
-end
-
-local FinalWindowFloorMapPreview = class(WindowFloorMapPreview, WindowSelectable)
-
 local WindowFloorTeleporterController = {}
 
 function WindowFloorTeleporterController:init(model)
@@ -267,7 +69,7 @@ function WindowFloorTeleporterController:close()
 end
 
 function WindowFloorTeleporterController:closeByCancel()
-    ManagerFunctions.playSE(GameSystem.getCancelSE())
+    ManagerFunctions.playSE(GameSystem.GetCancelSE())
     self:close()
     if self.model._onCloseCallback ~= nil then
         self.model._onCloseCallback()
@@ -286,10 +88,10 @@ end
 function WindowFloorTeleporterController:activateTelepointSelector()
     local mapKey = self.model._commandWindow:getCurrentMapKey()
     if not bool(mapKey) or not bool(self:getTelepointsForMap(mapKey)) then
-        ManagerFunctions.playSE(GameSystem.getBuzzerSE())
+        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         return
     end
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self.model._commandWindow:setActive(false)
     self.model._previewWindow:setActive(true)
     self.model._previewWindow:requestKeyboardFocusAtCursor()
@@ -297,7 +99,7 @@ end
 
 function WindowFloorTeleporterController:activateMapList(playCancelSE)
     if bool(playCancelSE) then
-        ManagerFunctions.playSE(GameSystem.getCancelSE())
+        ManagerFunctions.playSE(GameSystem.GetCancelSE())
     end
     self.model._previewWindow:setActive(false)
     self.model._commandWindow:setActive(true)
@@ -308,10 +110,10 @@ function WindowFloorTeleporterController:confirmSelectedTelepoint()
     local mapKey = self.model._commandWindow:getCurrentMapKey()
     local telepoint = self:getCurrentTelepoint()
     if mapKey == nil or telepoint == nil then
-        ManagerFunctions.playSE(GameSystem.getBuzzerSE())
+        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         return
     end
-    ManagerFunctions.playSE(GameSystem.getDecisionSE())
+    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     if self.model._onConfirmCallback ~= nil then
         self.model._onConfirmCallback(mapKey, telepoint)
     end
@@ -326,7 +128,7 @@ function WindowFloorTeleporterController:notifyTelepointIndexMaybeChanged(index)
     if not bool(telepoints) then
         return
     end
-    self.model._telepointIndexes[mapKey] = math.max(0, math.min(index, #telepoints - 1))
+    self.model._telepointIndexes[mapKey] = Engine.Clamp(index, 0, #telepoints - 1)
 end
 
 function WindowFloorTeleporterController:getCurrentTelepoint()
@@ -339,7 +141,7 @@ function WindowFloorTeleporterController:getCurrentTelepoint()
         return nil
     end
     local index = self.model._telepointIndexes[mapKey] or 0
-    index = math.max(0, math.min(index, #telepoints - 1))
+    index = Engine.Clamp(index, 0, #telepoints - 1)
     self.model._telepointIndexes[mapKey] = index
     return telepoints[index + 1]
 end
@@ -369,7 +171,7 @@ function WindowFloorTeleporterController:getVisitedRegionEntries()
     local visited = self:getVisitedMapNames()
     local result = {}
     for _, mapKey in ipairs(regionMaps) do
-        if visited[WindowFloorTeleporterController.NormaliseMapName(mapKey)] and bool(self:getTelepointsForMap(mapKey)) then
+        if visited[normaliseMapName(mapKey)] and bool(self:getTelepointsForMap(mapKey)) then
             result[#result + 1] = { mapKey, self:getMapDisplayName(mapKey) }
         end
     end
@@ -377,9 +179,9 @@ function WindowFloorTeleporterController:getVisitedRegionEntries()
 end
 
 function WindowFloorTeleporterController:getTelepointsForMap(mapKey)
-    local normalisedMapKey = WindowFloorTeleporterController.NormaliseMapName(mapKey)
+    local normalisedMapKey = normaliseMapName(mapKey)
     for mapPath in pairs(self.model._inst._cachedTelepoints) do
-        if WindowFloorTeleporterController.NormaliseMapName(tostring(mapPath)) == normalisedMapKey then
+        if normaliseMapName(tostring(mapPath)) == normalisedMapKey then
             return self.model._inst:getTelepoints(tostring(mapPath))
         end
     end
@@ -410,10 +212,10 @@ end
 function WindowFloorTeleporterController:getVisitedMapNames()
     local visited = {}
     if bool(self.model._inst._cachedMap) then
-        visited[WindowFloorTeleporterController.NormaliseMapName(self.model._inst._cachedMap)] = true
+        visited[normaliseMapName(self.model._inst._cachedMap)] = true
     end
     for mapPath in pairs(self.model._inst._cachedTelepoints) do
-        visited[WindowFloorTeleporterController.NormaliseMapName(tostring(mapPath))] = true
+        visited[normaliseMapName(tostring(mapPath))] = true
     end
     return visited
 end
@@ -421,19 +223,18 @@ end
 function WindowFloorTeleporterController:getMapDisplayName(mapKey)
     local _, mapData = SceneMapBuilder
         .new()
-        :loadMapData(mapKey, self.model._inst._cachedMap or GameSystem.getStartMap())
+        :loadMapData(mapKey, self.model._inst._cachedMap or GameSystem.GetStartMap())
     local mapName = mapData.mapName
     if not bool(mapName) then
-        return WindowFloorTeleporterController
-            .FormatMapName(mapKey)
+        return formatMapName(mapKey)
     end
-    return WindowFloorTeleporterController.FormatMapName(tostring(mapName))
+    return formatMapName(tostring(mapName))
 end
 
 function WindowFloorTeleporterController:formatTelepointName(mapKey, telepoint, index)
     local tag = self.model._getTelepointTagCallback ~= nil and self.model._getTelepointTagCallback(mapKey, telepoint)
         or nil
-    if tag ~= nil and bool(tag) and tag:sub(1, #"Data.Blueprints.Teleportations") ~= "Data.Blueprints.Teleportations" then
+    if tag ~= nil and bool(tag) and not string.startsWith(tag, "Data.Blueprints.Teleportations") then
         return LOC(tag)
     end
     local fallback = "Point_" .. tostring(index + 1)
@@ -442,34 +243,17 @@ function WindowFloorTeleporterController:formatTelepointName(mapKey, telepoint, 
         return fallback
     end
     local pointNumber = tostring(index + 1)
-    local formatted = pointFormat:gsub("{index}", pointNumber)
-    formatted = formatted:gsub("{0}", pointNumber)
+    local formatted = string.replace(pointFormat, "{index}", pointNumber)
+    formatted = string.replace(formatted, "{0}", pointNumber)
     if formatted == pointFormat then
         return fallback
     end
     return formatted
 end
 
-function WindowFloorTeleporterController.NormaliseMapName(mapPath)
-    local path = MapPath.Normalise(mapPath)
-    return path:gsub("%.[^%.]+$", "")
-end
-
-function WindowFloorTeleporterController.FormatMapName(mapName)
-    return LOC(tostring(mapName))
-end
-
-function WindowFloorTeleporterController.GetDefaultRects()
-    local totalWidth = _LIST_WIDTH + _PREVIEW_WINDOW_WIDTH
-    local bounds = UiLayout.GetCenteredRect(totalWidth, _PREVIEW_WINDOW_HEIGHT)
-    return Engine.ToIntRect(bounds.position.x, bounds.position.y, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT),
-        Engine.ToIntRect(
-            bounds.position.x + _LIST_WIDTH, bounds.position.y, _PREVIEW_WINDOW_WIDTH, _PREVIEW_WINDOW_HEIGHT
-        )
-end
-
 local FinalWindowFloorTeleporterController = class(WindowFloorTeleporterController)
 
+---@class Source.Windows.WindowFloorTeleporter
 local WindowFloorTeleporter = {}
 
 WindowFloorTeleporter.controllerClass = FinalWindowFloorTeleporterController
@@ -483,8 +267,8 @@ function WindowFloorTeleporter:init(
     self._onConfirmCallback = onConfirm
     self._onCloseCallback = onClose
     self._clearPreviewCacheCallback = clearPreviewCache
-    self._commandWindow = FinalWindowFloorMapCommand.new(listRect, self)
-    self._previewWindow = FinalWindowFloorMapPreview.new(previewRect, self, loadPreview, resolvePreviewMapPath)
+    self._commandWindow = WindowFloorMapCommand.new(listRect, self)
+    self._previewWindow = WindowFloorMapPreview.new(previewRect, self, loadPreview, resolvePreviewMapPath)
     self._lastMapKey = nil
     self._telepointIndexes = {}
     self._telepointEntriesCache = dict()
@@ -549,74 +333,8 @@ function WindowFloorTeleporter:notifyMapIndexMaybeChanged(index)
         :notifyMapIndexMaybeChanged(index)
 end
 
-function WindowFloorTeleporter:_refreshPreview()
-    self._teleporterController:refreshPreview()
+function WindowFloorTeleporter.GetDefaultFloorTeleporterRects()
+    return getDefaultRects()
 end
 
----@return table
-function WindowFloorTeleporter:_getVisitedRegionEntries()
-    return self._teleporterController
-        :getVisitedRegionEntries()
-end
-
----@param mapKey string
----@return sf.Vector2u[]
-function WindowFloorTeleporter:_getTelepointsForMap(mapKey)
-    return self._teleporterController
-        :getTelepointsForMap(mapKey)
-end
-
----@param mapKey     string | nil
----@param telepoints sf.Vector2u[]
----@return table
-function WindowFloorTeleporter:_getTelepointEntries(mapKey, telepoints)
-    return self._teleporterController
-        :getTelepointEntries(mapKey, telepoints)
-end
-
----@return table
-function WindowFloorTeleporter:_getVisitedMapNames()
-    return self._teleporterController
-        :getVisitedMapNames()
-end
-
----@param mapKey string
----@return string
-function WindowFloorTeleporter:_getMapDisplayName(mapKey)
-    return self._teleporterController
-        :getMapDisplayName(mapKey)
-end
-
----@param mapName string
----@return string
-function WindowFloorTeleporter.FormatMapName(mapName)
-    return WindowFloorTeleporterController
-        .FormatMapName(mapName)
-end
-
----@param mapKey    string
----@param telepoint sf.Vector2u
----@param index     integer
----@return string
-function WindowFloorTeleporter:_formatTelepointName(mapKey, telepoint, index)
-    return self._teleporterController
-        :formatTelepointName(mapKey, telepoint, index)
-end
-
-local WindowFloorTeleporterExports = {}
-
-function WindowFloorTeleporterExports.GetDefaultFloorTeleporterRects()
-    return WindowFloorTeleporterController
-        .GetDefaultRects()
-end
-
-WindowFloorTeleporter.GetDefaultFloorTeleporterRects = WindowFloorTeleporterExports
-    .GetDefaultFloorTeleporterRects
-
-local FinalWindowFloorTeleporter = class(WindowFloorTeleporter)
-
-WindowFloorTeleporterExports.WindowFloorMapCommand = FinalWindowFloorMapCommand
-WindowFloorTeleporterExports.WindowFloorMapPreview = FinalWindowFloorMapPreview
-WindowFloorTeleporterExports.WindowFloorTeleporter = FinalWindowFloorTeleporter
-
-return WindowFloorTeleporterExports
+return class(WindowFloorTeleporter)

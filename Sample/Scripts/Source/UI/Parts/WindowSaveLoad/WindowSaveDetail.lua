@@ -1,6 +1,8 @@
 local Ui = require("Source.UI.Ui")
 
 local WindowSaveDetailUI = {}
+---@type function
+local formatTimestamp
 
 function WindowSaveDetailUI:init(model, size)
     self._size = size
@@ -48,11 +50,11 @@ function WindowSaveDetailUI:setTimestamp(text)
 end
 
 function WindowSaveDetailUI:setModificationTime(modificationTime)
-    self:setTimestamp(WindowSaveDetailUI.formatTimestamp(modificationTime))
+    self:setTimestamp(formatTimestamp(modificationTime))
 end
 
-function WindowSaveDetailUI.formatTimestamp(modificationTime)
+function formatTimestamp(modificationTime)
     return os.date("%Y-%m-%d %H:%M:%S", math.floor(modificationTime))
 end
 
-return Ui.define("Parts/WindowSaveLoad/WindowSaveDetail", WindowSaveDetailUI)
+return Ui.Define("Parts/WindowSaveLoad/WindowSaveDetail", WindowSaveDetailUI)

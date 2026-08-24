@@ -129,12 +129,6 @@ function ConfigWindowUI:getVoiceOnRow() end
 ---@return Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
 function ConfigWindowUI:getVoiceVolumeRow() end
 
----@param checked boolean
-function ConfigWindowUI.onVerticalSyncCheckedChanged(checked) end
-
----@param index integer
-function ConfigWindowUI.onLanguageSelectedIndexChanged(index) end
-
 ---@param index integer
 function ConfigWindowUI:onFrameRateSelectedIndexChanged(index) end
 
@@ -143,24 +137,6 @@ function ConfigWindowUI:onAntiAliasingLevelSelectedIndexChanged(index) end
 
 ---@param index integer
 function ConfigWindowUI:onLightingRenderScaleSelectedIndexChanged(index) end
-
----@param checked boolean
-function ConfigWindowUI.onMusicOnCheckedChanged(checked) end
-
----@param value integer
-function ConfigWindowUI.onMusicVolumeChanged(value) end
-
----@param checked boolean
-function ConfigWindowUI.onSoundOnCheckedChanged(checked) end
-
----@param value integer
-function ConfigWindowUI.onSoundVolumeChanged(value) end
-
----@param checked boolean
-function ConfigWindowUI.onVoiceOnCheckedChanged(checked) end
-
----@param value integer
-function ConfigWindowUI.onVoiceVolumeChanged(value) end
 
 ---@param deltaTime number
 function ConfigWindowUI:tick(deltaTime) end
