@@ -224,7 +224,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
                 f"Required HarmonyOS project folder was not found: {directory}",
                 EXIT_PROJECT,
             )
-    for path_name in ("CMakeLists.txt", "cmake/Harmony/build-profile.json5"):
+    for path_name in ("CMakeLists.txt", "PlatformHosts/Harmony/build-profile.json5"):
         path = project_dir / path_name
         if not path.is_file():
             raise PackError(f"Required HarmonyOS project file was not found: {path}", EXIT_PROJECT)
@@ -328,7 +328,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         dist_dir=dist_dir,
         stage_dir=project_dir / "build" / "harmony" / "stage",
         signing_dir=project_dir / "build" / "harmony" / "signing" / bundle_name,
-        template_dir=project_dir / "cmake" / "Harmony",
+        template_dir=project_dir / "PlatformHosts" / "Harmony",
         script_tools=resolve_script_tools(),
         tools=resolve_deveco_tools(),
         game_name=game_name,

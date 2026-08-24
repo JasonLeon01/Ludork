@@ -1,8 +1,10 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import { Box, CircularProgress, Typography } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
+import 'highlight.js/styles/github.css'
 import { getDocsUrl, resolveDocsReference } from './ludorkDocs'
 import { resolveKnownDocPath } from './ludorkDocsIndex'
 import { getLudorkDocHref, getLudorkPathHref } from './ludorkUrl'
@@ -121,7 +123,7 @@ export default function LudorkContent({ path, hash, onNavigate }: LudorkContentP
     <Box className="ludork-markdown" sx={{ px: { xs: 2, md: 4 }, py: 3, width: '100%', boxSizing: 'border-box' }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSlug]}
+        rehypePlugins={[rehypeSlug, rehypeHighlight]}
         components={{
           a({ href, children, ...rest }) {
             const reference = href ? resolveDocsReference(path, href) : null

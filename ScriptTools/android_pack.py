@@ -568,7 +568,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         directory = project_dir / name
         if not directory.is_dir():
             raise PackError(f"Required Android project folder was not found: {directory}", EXIT_PROJECT)
-    for relative in ("CMakeLists.txt", "cmake/Android/build.gradle.kts"):
+    for relative in ("CMakeLists.txt", "PlatformHosts/Android/build.gradle.kts"):
         required = project_dir / relative
         if not required.is_file():
             raise PackError(f"Required Android project file was not found: {required}", EXIT_PROJECT)
@@ -708,7 +708,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         native_dir=build_dir / "native" / ANDROID_ABI,
         native_output_dir=build_dir / "native-output" / ANDROID_ABI,
         stage_dir=build_dir / "gradle",
-        template_dir=project_dir / "cmake" / "Android",
+        template_dir=project_dir / "PlatformHosts" / "Android",
         script_tools=script_tools,
         studio=studio,
         sdk=sdk,

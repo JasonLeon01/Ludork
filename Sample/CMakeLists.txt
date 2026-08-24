@@ -184,20 +184,59 @@ set_target_properties(lua_cjson PROPERTIES
     OUTPUT_NAME "cjson")
 ludork_set_runtime_output(lua_cjson)
 
+set(LUDORK_APPLICATION_SOURCES
+    src/Application.cpp
+    src/ApplicationPaths.cpp
+    src/ApplicationPaths.hpp
+    src/ApplicationPlatform.hpp
+    src/ApplicationRuntime.cpp
+    src/ApplicationRuntime.hpp
+    src/ApplicationScript.cpp
+    src/ApplicationStartupError.cpp
+    src/main.cpp
+    src/Platform/Main.hpp
+    src/Platform/MainAndroid.hpp
+    src/Platform/MainDefault.hpp
+    src/Platform/MainIOS.hpp)
+
+if(LUDORK_STATIC_LUA_MODULES)
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        src/ApplicationRuntimeModulesStatic.cpp)
+else()
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        src/ApplicationRuntimeModulesDynamic.cpp)
+endif()
+
+if(WIN32)
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        src/Platform/Windows/EmbeddedHost.cpp
+        src/Platform/Windows/StartupErrorDisplay.cpp
+        src/Platform/Windows/UserDataEnvironment.cpp)
+else()
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        src/Platform/Default/EmbeddedHost.cpp
+        src/Platform/Default/StartupErrorDisplay.cpp
+        src/Platform/Posix/UserDataEnvironment.cpp)
+endif()
+
+if(APPLE)
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        src/Platform/Apple/BundleResourceRoot.cpp
+        src/Platform/Apple/StartupErrorLog.cpp)
+else()
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        src/Platform/Default/BundleResourceRoot.cpp
+        src/Platform/Default/StartupErrorLog.cpp)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
-    add_library(entry SHARED
-        src/Application.cpp
-        src/main.cpp)
+    add_library(entry SHARED ${LUDORK_APPLICATION_SOURCES})
     set(LUDORK_APPLICATION_TARGET entry)
 elseif(ANDROID)
-    add_library(Main SHARED
-        src/Application.cpp
-        src/main.cpp)
+    add_library(Main SHARED ${LUDORK_APPLICATION_SOURCES})
     set(LUDORK_APPLICATION_TARGET Main)
 else()
-    add_executable(Main
-        src/Application.cpp
-        src/main.cpp)
+    add_executable(Main ${LUDORK_APPLICATION_SOURCES})
     set(LUDORK_APPLICATION_TARGET Main)
 endif()
 ludork_configure_visual_studio_play(${LUDORK_APPLICATION_TARGET})
@@ -206,7 +245,8 @@ if(TARGET LudorkCacheLuac)
 endif()
 target_compile_features(${LUDORK_APPLICATION_TARGET} PRIVATE cxx_std_20)
 target_include_directories(${LUDORK_APPLICATION_TARGET} PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
     LuaSF::LuaSF
     LuaSF::Lua
@@ -215,10 +255,6 @@ target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
     Ludork::Global
     lua_cjson)
 if(LUDORK_STATIC_LUA_MODULES)
-    target_compile_definitions(
-        ${LUDORK_APPLICATION_TARGET}
-        PRIVATE
-        LUDORK_STATIC_LUA_MODULES=1)
     target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
         CoreSystem
         GlobalFunctions)
