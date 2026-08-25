@@ -27,13 +27,16 @@ local function getActorByTag(scene, refActorTag)
 end
 
 ---@param condition fun(): boolean
+---@param voice     sf.Sound | nil
 ---@return fun(): boolean
-local function stopVoiceAfterDialogue(condition)
+local function stopVoiceAfterDialogue(condition, voice)
     return function ()
         if not condition() then
             return false
         end
-        ManagerFunctions.stopVoice()
+        if voice ~= nil then
+            voice:stop()
+        end
         return true
     end
 end
@@ -92,17 +95,17 @@ end
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = Context.RequireSceneMap()
-    ManagerFunctions.playVoice(voiceFileName)
+    local voice = ManagerFunctions.playVoice(voiceFileName)
     local dialogueFinished = scene:showMessage(name, message, getActorByTag(scene, refActorTag))
-    return stopVoiceAfterDialogue(dialogueFinished)
+    return stopVoiceAfterDialogue(dialogueFinished, voice)
 end
 
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
     local scene = Context.RequireSceneMap()
-    ManagerFunctions.playVoice(voiceFileName, nil, refActor, minDistance)
+    local voice = ManagerFunctions.playVoice(voiceFileName, nil, refActor, minDistance)
     local dialogueFinished = scene:showMessage(name, message, refActor)
-    return stopVoiceAfterDialogue(dialogueFinished)
+    return stopVoiceAfterDialogue(dialogueFinished, voice)
 end
 
 function Scene.ShowSelection(name, options, refActorTag, allowCancel)

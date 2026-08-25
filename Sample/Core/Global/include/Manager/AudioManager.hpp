@@ -2,13 +2,18 @@
 
 #include <BindAnnotations.hpp>
 #include <GlobalRuntimeApi.hpp>
+#include <Manager/ManagedAudioSource.hpp>
 
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics/Transformable.hpp>
 
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
+
+struct lua_State;
 
 class SoundFilter;
 class MusicFilter;
@@ -83,15 +88,25 @@ public:
     static void setMusicFilter(const std::shared_ptr<sf::Music>& music,
                                const MusicFilter& filter);
 
-    BIND_METHOD(metadata = false)
-    static void setEffect(const std::string& audioType,
-                          const std::string& effect);
+    BIND_METHOD(metadata = false, allow_nil = "effect",
+                parameter_types = {string, Source.AudioEffects.Attacher})
+    static void setEffect(
+        const std::string& audioType,
+        std::function<void(sf::SoundSource&,
+                           std::shared_ptr<AudioEffectControl>, std::uint32_t)>
+            effect);
 
     BIND_METHOD()
     static std::size_t getMemory();
 
     BIND_IGNORE()
+    static void initialize(lua_State* state);
+
+    BIND_IGNORE()
     static void update();
+
+    BIND_IGNORE()
+    static void stopAll();
 
     BIND_IGNORE()
     static void shutdown() noexcept;

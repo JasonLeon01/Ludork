@@ -33,13 +33,16 @@ target_link_libraries(GlobalCore
         Ludork::Standard
         SFML::Graphics
         SFML::Audio
-        SFML::Network)
+        SFML::Network
+    PRIVATE
+        LuaSF::LuaSF
+        LuaSF::Lua)
 if(WIN32)
     target_link_libraries(GlobalCore PRIVATE Imm32 User32)
 elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
     target_include_directories(GlobalCore PRIVATE
-        "${LUDORK_CORE_SOURCE_DIR}/../LuaSF/third_party/SFML/src")
+        "${LUDORK_LUASF_SOURCE_DIR}/third_party/SFML/src")
     target_link_libraries(GlobalCore PRIVATE "${APPKIT_FRAMEWORK}")
 endif()
 if(LUDORK_ENABLE_FFMPEG)

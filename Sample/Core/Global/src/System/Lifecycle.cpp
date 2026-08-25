@@ -323,7 +323,12 @@ void System::updateRuntime() {
     ludork::global::system_runtime::LifecycleRuntime& lifecycle =
         ludork::global::system_runtime::runtime().lifecycle;
     if (!lifecycle.shuttingDown_.load() && lifecycle.standardUpdate_) {
-        lifecycle.standardUpdate_();
+        try {
+            lifecycle.standardUpdate_();
+        } catch (...) {
+            AudioManager::stopAll();
+            throw;
+        }
     }
 }
 

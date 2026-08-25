@@ -40,7 +40,20 @@ endif()
 
 set(LUASF_LUA_STUB_OUTPUT
     "${CMAKE_CURRENT_SOURCE_DIR}/Scripts/stub/LuaSF.d.lua")
-add_subdirectory(LuaSF)
+set(
+    LUDORK_LUASF_SOURCE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/LuaSF"
+    CACHE PATH
+    "LuaSF generated source project used by Ludork")
+get_filename_component(
+    LUDORK_LUASF_SOURCE_DIR
+    "${LUDORK_LUASF_SOURCE_DIR}"
+    ABSOLUTE)
+if(NOT EXISTS "${LUDORK_LUASF_SOURCE_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "LuaSF source project was not found: ${LUDORK_LUASF_SOURCE_DIR}")
+endif()
+add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF)
 if(TARGET LuaSF_luac AND DEFINED LUDORK_LUAC_CACHE_FILE)
     get_filename_component(
         LUDORK_LUAC_CACHE_DIRECTORY
@@ -110,7 +123,7 @@ endif()
 
 set(LUDORK_LUASF_CONSUMER_INCLUDES
     "${CMAKE_CURRENT_BINARY_DIR}/LuaSF/generated_include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/LuaSF/third_party/sol2/include")
+    "${LUDORK_LUASF_SOURCE_DIR}/third_party/sol2/include")
 
 find_package(Threads REQUIRED)
 

@@ -126,11 +126,14 @@ function WindowBase:_bindReturnButton()
     end)
     self._returnButton:addMouseButtonDownCallback(function (button, kwargs)
         local model = modelRef[1]
+        ---@cast button Engine.Button
         if model == nil or not model:_canUseReturnButton() or kwargs.button ~= sf.Mouse.Button.Left then
             return false
         end
         local position = sf.Vector2f.new(kwargs.position.x, kwargs.position.y)
-        if not button:getAbsoluteBounds():contains(position) then
+        local bounds = button:getAbsoluteBounds()
+        ---@cast bounds sf.FloatRect
+        if not sf.FloatRect.contains(bounds, position) then
             return false
         end
         model:onReturn()

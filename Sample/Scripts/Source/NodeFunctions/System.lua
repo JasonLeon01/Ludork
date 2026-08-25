@@ -1,11 +1,11 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local AudioEffects = require("Source.AudioEffects")
 local LocaleCore = require("Source.Locale.Core")
 local Context = require("Source.NodeFunctions.Context")
 
 local AudioManager = GlobalCore.AudioManager
-local AudioEffects = GlobalCore.AudioEffects
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
 ---@type fun(value: string): string
@@ -74,8 +74,7 @@ function System.EditMusicFilter(attr, value)
 end
 
 function System.SetEffect(audioType, effect)
-    local effectName = assert(AudioEffects[effect], "Unknown audio effect: " .. effect)
-    AudioManager.setEffect(audioType, effectName)
+    AudioManager.setEffect(audioType, AudioEffects.Get(effect))
 end
 
 function System.PlaySound(soundFileName, applyFilter)

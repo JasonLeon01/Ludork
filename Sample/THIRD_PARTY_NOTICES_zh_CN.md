@@ -8,7 +8,7 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 
 | 组件 | 版本或 revision | 用途与分发范围 | 许可证 | 完整正文 | 官方来源 |
 | --- | --- | --- | --- | --- | --- |
-| LuaSF | 3.1.0.4-ME-OH | Sample 与所有工程模板中的 SFML 绑定 | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
+| LuaSF | v3.1.0.5-ME-OH | Sample 与所有工程模板中的 SFML 绑定 | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
 | Lua | 5.5.0 | 游戏脚本运行时与 `luac` | MIT | `Licenses/Lua/LICENSE.txt` | [Lua.org](https://www.lua.org/) |
 | SFML | 3.1.0，SFML-ME 分支 310ME-OH | 图形、窗口、音频、系统与网络运行时 | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME `310ME-OH`](https://github.com/JasonLeon01/SFML-ME/tree/310ME-OH) |
 | sol2 | 发行版 LuaSF 源码中的 3.2.3 | C++/Lua 绑定头文件 | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |

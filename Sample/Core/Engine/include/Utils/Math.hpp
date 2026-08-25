@@ -65,7 +65,8 @@ BIND_FUNCTION(name = "ToFloatRect")
 sf::FloatRect toFloatRect(float x, float y, float width, float height);
 
 BIND_FUNCTION(name = "Clamp")
-double clampNumber(double value, double minimum, double maximum);
+LUDORK_ENGINE_API double clampNumber(double value, double minimum,
+                                     double maximum);
 
 BIND_FUNCTION(name = "Lerp")
 double lerpNumber(double from, double to, double alpha);

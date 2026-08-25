@@ -59,6 +59,7 @@ void unregisterEditorCommands(lua_State* state) noexcept {
 void initializeGlobalLifecycle(lua_State* state) {
     PerformanceProfiler::setEnabled(false);
     System::initializeRuntimeSession();
+    AudioManager::initialize(state);
     initializeActorAudioBridge();
     initializeUiAudioBridge();
     registerVideoPlayback(state);

@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
@@ -34,6 +35,7 @@ local FocusNeighbor = GlobalCore.FocusNeighbor
 local FocusTransition = GlobalCore.FocusTransition
 local SceneBase = GlobalCore.SceneBase
 local GlobalSystem = GlobalCore.System
+local ManagerFunctions = GlobalFunctions.Manager
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
@@ -265,12 +267,14 @@ function Scene:_registerFocusGroups()
 end
 
 function Scene:onQuit()
+    ManagerFunctions.stopVoice()
     self._mapAudio:stopMapAudio()
     GlobalSystem.clearWeather()
     GlobalSystem.clearFog()
 end
 
 function Scene:onDestroy()
+    ManagerFunctions.stopVoice()
     if self._localeChangedToken ~= nil then
         Engine.unsubscribe(self._localeChangedToken)
         self._localeChangedToken = nil
@@ -715,10 +719,11 @@ function Scene:_formatDialogueText(text, localeArgs, localVars, instanceVars)
     text = LOC(text)
     local resolvedLocaleArgs = {}
     for key, value in pairs(localeArgs) do
+        local resolvedValue = value
         if type(value) == "string" then
-            value = LOC(value)
+            resolvedValue = LOC(value)
         end
-        resolvedLocaleArgs[key] = value
+        resolvedLocaleArgs[key] = resolvedValue
     end
     text = Engine.ApplyStringMappingFormat(text, resolvedLocaleArgs)
     text = Engine.ApplyStringMappingFormat(text, localVars)

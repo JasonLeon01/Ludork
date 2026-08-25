@@ -34,8 +34,10 @@ function System.EditSoundFilter(attr, value) end
 ---@param value Source.NodeFunctions.System.MusicFilterValue
 function System.EditMusicFilter(attr, value) end
 
----Select a native audio-effect preset for future playback in one category.
----Use the literal string `nil` to clear the category preset.
+--- Select a Lua audio-effect preset for future playback in one category.
+--- Existing sources keep their current processor. Unknown preset names fail immediately.
+--- Each future source receives a fresh processor closure in its own isolated audio Lua state.
+--- Use the literal string `nil` to clear the category preset.
 ---@param audioType string
 ---@param effect    string
 function System.SetEffect(audioType, effect) end
@@ -53,13 +55,13 @@ function System.PlayMusic(musicFileName, applyFilter) end
 ---@param skipable      boolean
 function System.PlayVideo(videoFileName, mute, skipable) end
 
---- @brief Freeze the current frame and wait until it is ready for a transition.
+---@brief Freeze the current frame and wait until it is ready for a transition.
 ---
 --- - @return A condition callable that becomes True when the frame has been captured.
 ---@return Source.NodeFunctions.System.FrozenCondition
 function System.FreezeTransitionBackground() end
 
---- @brief Request a screen transition and wait until it finishes.
+---@brief Request a screen transition and wait until it finishes.
 ---
 --- - @param transitionName Optional transition texture filename.
 --- - @param transitionTime Transition duration in seconds.
