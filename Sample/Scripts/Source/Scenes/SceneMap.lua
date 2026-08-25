@@ -430,9 +430,7 @@ function Scene:showMessage(name, message, refActor, localeArgs)
     local refPosition = nil
     if refActor ~= nil then
         local gameMap = self:getGameMap()
-        local camera = assert(gameMap:getCamera())
-        local viewPosition = assert(camera:getViewPosition())
-        refPosition = refActor:getPosition() - viewPosition + gameMap:getMapViewOffset()
+        refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
         ---@cast refPosition sf.Vector2f
     end
     local originMoveEnabled = self.player:getMoveEnabled()
@@ -469,9 +467,7 @@ function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
     local refPosition = nil
     if refActor ~= nil then
         local gameMap = self:getGameMap()
-        local camera = assert(gameMap:getCamera())
-        local viewPosition = assert(camera:getViewPosition())
-        refPosition = refActor:getPosition() - viewPosition + gameMap:getMapViewOffset()
+        refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
         ---@cast refPosition sf.Vector2f
     end
     local originMoveEnabled = self.player:getMoveEnabled()
@@ -979,7 +975,7 @@ function Scene:_drawSceneAnims()
         return
     end
     local gameMap = self:getGameMap()
-    GlobalSystem.setWindowMapView(gameMap:getMapViewOffset())
+    GlobalSystem.setWindowMapView(gameMap:getMapViewRect())
     for _, anim in ipairs(animSnapshot) do
         local worldPosition = anim:getPosition()
         local drawPosition = gameMap:worldToMapViewPosition(worldPosition)

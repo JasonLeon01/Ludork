@@ -280,9 +280,8 @@ public:
     BIND_IGNORE()
     static void clearCanvas();
 
-    BIND_METHOD(defaults = {[0.0, 0.0]})
-    static void setWindowMapView(sf::Vector2f offset = sf::Vector2f{0.0f,
-                                                                    0.0f});
+    BIND_METHOD()
+    static void setWindowMapView(const sf::IntRect& rect);
 
     BIND_METHOD()
     static void setWindowDefaultView();

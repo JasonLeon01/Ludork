@@ -31,7 +31,33 @@ local DEFAULT_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 1.0, 0.0)
 ---@class (partial) GameMap
 local GameMap = {}
 
-GameMap.MapViewOffset = sf.Vector2f.new(80.0, 0.0)
+local defaultMapViewRect = sf.IntRect.new(192, 32, 416, 416)
+---@cast defaultMapViewRect sf.IntRect
+GameMap.MapViewRect = defaultMapViewRect
+
+---@param gameMap GameMap
+---@return sf.IntRect
+local function validateMapViewRect(gameMap)
+    local rect = copy(gameMap.MapViewRect)
+    ---@cast rect sf.IntRect
+    local gameSize = System.getGameSize()
+    assert(rect.position.x >= 0 and rect.position.y >= 0, "MapViewRect position must not be negative")
+    assert(rect.size.x > 0 and rect.size.y > 0, "MapViewRect size must be positive")
+    assert(
+        rect.position.x + rect.size.x <= gameSize.x and rect.position.y + rect.size.y <= gameSize.y,
+        "MapViewRect must fit inside the logical game size"
+    )
+    return rect
+end
+
+---@param gameMap GameMap
+---@param camera  GlobalCore.Camera
+local function configureCamera(gameMap, camera)
+    local rect = gameMap:getMapViewRect()
+    camera:setMap(gameMap)
+    camera:setViewSize(sf.Vector2f.new(rect.size.x, rect.size.y))
+    camera:fixViewPosition()
+end
 
 function GameMap:init(mapName, tilemap, camera, previewOnly)
     local materialShader = nil
@@ -71,6 +97,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self.mapName = mapName
     self._scene = nil
     self._tilemap = tilemap
+    self._mapViewRect = validateMapViewRect(self)
     self._layersTopFirst = {}
     local layerNames = self._tilemap:getLayerNameList()
     self._layerNames = layerNames
@@ -98,7 +125,6 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._camera = nil
     if not self._previewOnly then
         self._camera = camera or Camera.new()
-        self._camera:setMap(self)
     end
     self._lights = {}
     self._ambientLight = sf.Color.new(255, 255, 255, 255)
@@ -178,6 +204,9 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
         self._unobstructedLightVertex = sf.Vertex.new()
     end
     self:setTilemap(self._tilemap)
+    if self._camera ~= nil then
+        configureCamera(self, self._camera)
+    end
     ---@type GameMap[]
     local selfRef = setmetatable({ self }, {
         __mode = "v"
@@ -239,6 +268,7 @@ end
 
 function GameMap:setCamera(camera)
     self._camera = camera
+    configureCamera(self, camera)
 end
 
 function GameMap:getTilemap()
@@ -249,14 +279,8 @@ function GameMap:getSize()
     return self._tilemap:getSize()
 end
 
-function GameMap:getMapViewOffset()
-    local offset = GameMap.MapViewOffset
-    local gameSize = System.getGameSize()
-    local mapSize = self._tilemap:getSize() * Engine.CellSize
-    return sf.Vector2f.new(
-        offset.x + (mapSize.x < gameSize.x and (gameSize.x - mapSize.x) / 2.0 or 0.0),
-        offset.y + (mapSize.y < gameSize.y and (gameSize.y - mapSize.y) / 2.0 or 0.0)
-    )
+function GameMap:getMapViewRect()
+    return self._mapViewRect
 end
 
 function GameMap:getScene()
@@ -294,8 +318,8 @@ end
 
 function GameMap:worldToUIScreenPosition(position)
     local mapPosition = self:worldToMapViewPosition(position)
-    local mapOffset = self:getMapViewOffset()
-    return sf.Vector2f.new(mapPosition.x + mapOffset.x, mapPosition.y + mapOffset.y)
+    local mapViewPosition = self._mapViewRect.position
+    return sf.Vector2f.new(mapPosition.x + mapViewPosition.x, mapPosition.y + mapViewPosition.y)
 end
 
 function GameMap:worldToCanvasPosition(position)
@@ -428,8 +452,7 @@ function GameMap:show()
     if self._camera ~= nil then
         self._camera:syncFollowTarget()
     end
-    local mapViewOffset = self:getMapViewOffset()
-    System.setWindowMapView(mapViewOffset)
+    System.setWindowMapView(self._mapViewRect)
     if self._camera ~= nil then
         self._camera:clear()
     end

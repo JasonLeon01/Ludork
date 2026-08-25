@@ -123,7 +123,7 @@ function GameMapLighting:refreshShader()
         self._materialShader:setUniform("staticDirectLight", self._staticDirectLight:getTexture())
     end
     self._materialShader:setUniform("useStaticDirectLight", self._useStaticDirectLight and 1.0 or 0.0)
-    self:_setViewShaderUniforms(self._materialShader, screenSize, self:getMapViewOffset(), false)
+    self:_setViewShaderUniforms(self._materialShader, screenSize, self._zeroShaderOffset, false)
     self._materialShader:setUniform("ambientColor", self:_toShaderColour(self._ambientLight, true))
 end
 

@@ -238,11 +238,16 @@ void FogController::drawShaderOverlay(sf::RenderTexture& canvas) {
     buffer.draw(sprite, states);
     buffer.display();
     const sf::View savedView = canvas.getView();
+    const sf::IntRect viewport = canvas.getViewport(savedView);
+    const sf::Vector2f viewSize = savedView.getSize();
     canvas.clear(sf::Color::Transparent);
-    canvas.setView(canvas.getDefaultView());
     sprite.setTexture(buffer.getTexture(), true);
-    canvas.draw(sprite, canvasRenderStates());
+    sprite.setTextureRect(viewport);
+    sprite.setPosition({0.0f, 0.0f});
+    sprite.setScale({viewSize.x / static_cast<float>(viewport.size.x),
+                     viewSize.y / static_cast<float>(viewport.size.y)});
     canvas.setView(savedView);
+    canvas.draw(sprite, canvasRenderStates());
     canvas.display();
 }
 

@@ -442,18 +442,24 @@ end
 
 ---@param positionX number
 ---@param positionY number
----@return sf.Vector2i
+---@return sf.Vector2i | nil
 function MapClickAutoPath:_getInputMapPosition(positionX, positionY)
     local scale = System.getScale()
     if scale > 0.0 then
         positionX = math.floor(positionX / scale)
         positionY = math.floor(positionY / scale)
     end
-    local mapOffset = self._parent:getMapViewOffset()
+    local mapViewRect = self._parent:getMapViewRect()
     local mapViewPixel = Pool.Get("sf.Vector2i", sf.Vector2i, {
-        x = positionX - mapOffset.x,
-        y = positionY - mapOffset.y
+        x = positionX,
+        y = positionY
     })
+    if not mapViewRect:contains(mapViewPixel) then
+        Pool.Put("sf.Vector2i", mapViewPixel)
+        return nil
+    end
+    mapViewPixel.x = mapViewPixel.x - mapViewRect.position.x
+    mapViewPixel.y = mapViewPixel.y - mapViewRect.position.y
     local camera = assert(self._parent:getCamera(), "Map click pathfinding requires a camera")
     local worldPos = camera:mapPixelToCoords(mapViewPixel)
     Pool.Put("sf.Vector2i", mapViewPixel)

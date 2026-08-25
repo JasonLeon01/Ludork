@@ -274,9 +274,11 @@ private:
                                              const Actor* excludedActor);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Check whether a pathfinding anchor node is passable for a moving
+    /// \brief Check whether a pathfinding transition is passable for a moving
     /// actor
     ///
+    /// - \param fromX Source anchor X coordinate
+    /// - \param fromY Source anchor Y coordinate
     /// - \param x Node anchor X coordinate
     /// - \param y Node anchor Y coordinate
     /// - \param sx Start anchor X coordinate
@@ -287,12 +289,18 @@ private:
     /// - \param height Search grid height
     /// - \param movingActor Moving actor used for footprint checks
     ///
-    /// - \return `true` when the node is passable
+    /// - \return `true` when the node and directional transition are passable
     ///
     ////////////////////////////////////////////////////////////
-    bool nodePassableForActor(int x, int y, int sx, int sy, int gx, int gy,
-                              unsigned int width, unsigned int height,
-                              const Actor& movingActor);
+    bool transitionPassableForActor(int fromX, int fromY, int x, int y, int sx,
+                                    int sy, int gx, int gy, unsigned int width,
+                                    unsigned int height,
+                                    const Actor& movingActor);
+
+    bool directionPassableForActor(const sf::Vector2i& fromPosition,
+                                   const sf::Vector2i& toPosition,
+                                   const std::vector<sf::Vector2i>& toCells,
+                                   const Actor& movingActor) const;
 
     bool isDirectionPassable(const sf::Vector2i& fromPosition,
                              const sf::Vector2i& toPosition,

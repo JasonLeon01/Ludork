@@ -20,11 +20,12 @@
 
 ---@class (partial) GameMap: GlobalCore.GameMapBase
 ---@field DefaultCoverAlpha                  integer
----@field MapViewOffset                      sf.Vector2f                                                                                               Manual adjustment added after automatic per-axis centring.
+---@field MapViewRect                        sf.IntRect                                                                                                Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
 ---@field _actorBatchDepth                   integer
 ---@field _initialisingActors                boolean
 ---@field _tilemap                           Engine.Tilemap
 ---@field _camera                            GlobalCore.Camera | nil
+---@field _mapViewRect                       sf.IntRect
 ---@field _components                        ComponentBase[]
 ---@field _actors                            table<string, Engine.Actor[]>
 ---@field _player                            Engine.Actor | nil
@@ -375,11 +376,11 @@ function GameMap:setAmbientLight(ambientLight) end
 ---@return sf.Vector2u
 function GameMap:getSize() end
 
----@brief Get the effective map view offset after centring undersized map axes.
+---@brief Get the logical-screen rectangle occupied by the map canvas.
 ---
---- - @return Automatic per-axis centring plus GameMap.MapViewOffset.
----@return sf.Vector2f
-function GameMap:getMapViewOffset() end
+--- - @return The immutable map canvas rectangle for this GameMap instance.
+---@return sf.IntRect
+function GameMap:getMapViewRect() end
 
 ---@brief Get the topmost visible material at a position.
 ---
@@ -479,7 +480,7 @@ function GameMap:worldToMapViewPosition(position) end
 ---@brief Convert a world position to logical UI-screen coordinates.
 ---
 --- - @param position World position to convert.
---- - @return Logical UI position aligned with map view offset.
+--- - @return Logical UI position aligned with the map canvas rectangle.
 ---@param position sf.Vector2f
 ---@return sf.Vector2f
 function GameMap:worldToUIScreenPosition(position) end

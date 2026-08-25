@@ -2,13 +2,16 @@ local _METADATA = {
     GameMap = {
         attrs = {
             "DefaultCoverAlpha",
-            "MapViewOffset",
+            "MapViewRect"
         },
         DefaultCoverAlpha = {
-            type = "int",
+            type = "int"
         },
-        MapViewOffset = {
-            type = "sf.Vector2f",
+        MapViewRect = {
+            type = "sf.IntRect",
+            default = {
+                { 192, 32, 416, 416 }
+            }
         },
         getPlayer = {
             type = "function",
@@ -17,10 +20,10 @@ local _METADATA = {
                 "player",
                 player = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         setPlayer = {
             type = "function",
@@ -28,14 +31,14 @@ local _METADATA = {
                 "player",
                 player = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         getAllActors = {
             type = "function",
@@ -44,25 +47,25 @@ local _METADATA = {
                 "actors",
                 actors = {
                     "Engine",
-                    "Actor[]",
-                },
+                    "Actor[]"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         getActorsByPosition = {
             type = "function",
             parameters = {
                 "position",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
             ["return"] = {
                 "actors",
                 actors = {
                     "Engine",
-                    "Actor[]",
-                },
+                    "Actor[]"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         getActorByLayerAndPosition = {
             type = "function",
@@ -70,16 +73,16 @@ local _METADATA = {
                 "layer",
                 "position",
                 layer = "string",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
             ["return"] = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         getActorsByRange = {
             type = "function",
@@ -87,31 +90,31 @@ local _METADATA = {
                 "position",
                 "radius",
                 position = "sf.Vector2i",
-                radius = "int",
+                radius = "int"
             },
             ["return"] = {
                 "actors",
                 actors = {
                     "Engine",
-                    "Actor[]",
-                },
+                    "Actor[]"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         getActorByTag = {
             type = "function",
             parameters = {
                 "tag",
-                tag = "string",
+                tag = "string"
             },
             ["return"] = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         isPassable = {
             type = "function",
@@ -120,15 +123,15 @@ local _METADATA = {
                 "targetPosition",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                targetPosition = "sf.Vector2i",
+                targetPosition = "sf.Vector2i"
             },
             ["return"] = {
                 "passable",
-                passable = "bool",
+                passable = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         spawnActor = {
             type = "function",
@@ -138,19 +141,19 @@ local _METADATA = {
                 "emitCreateEvent",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
                 layer = "string",
-                emitCreateEvent = "bool",
+                emitCreateEvent = "bool"
             },
             default = {
-                [3] = true,
+                [3] = true
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         createActor = {
             type = "function",
@@ -161,26 +164,26 @@ local _METADATA = {
                 "emitCreateEvent",
                 actorClass = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
                 layer = "string",
                 kwargs = "any",
-                emitCreateEvent = "bool",
+                emitCreateEvent = "bool"
             },
             default = {
-                [4] = true,
+                [4] = true
             },
             ["return"] = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         destroyActor = {
             type = "function",
@@ -188,44 +191,44 @@ local _METADATA = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         getCamera = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "camera",
-                camera = { "GlobalCore", "Camera" },
+                camera = { "GlobalCore", "Camera" }
             },
-            Pure = true,
+            Pure = true
         },
         setCamera = {
             type = "function",
             parameters = {
                 "camera",
-                camera = { "GlobalCore", "Camera" },
+                camera = { "GlobalCore", "Camera" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         getTilemap = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "tilemap",
-                tilemap = { "Engine", "Tilemap" },
+                tilemap = { "Engine", "Tilemap" }
             },
-            Pure = true,
+            Pure = true
         },
         getTerrainTile = {
             type = "function",
@@ -233,13 +236,13 @@ local _METADATA = {
                 "layerName",
                 "position",
                 layerName = "string",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
             ["return"] = {
                 "tileID",
-                tileID = "any",
+                tileID = "any"
             },
-            Pure = true,
+            Pure = true
         },
         getTerrainTilePositions = {
             type = "function",
@@ -247,13 +250,13 @@ local _METADATA = {
                 "layerName",
                 "tileID",
                 layerName = "string",
-                tileID = "any",
+                tileID = "any"
             },
             ["return"] = {
                 "positions",
-                positions = "sf.Vector2i[]",
+                positions = "sf.Vector2i[]"
             },
-            Pure = true,
+            Pure = true
         },
         setTerrainTile = {
             type = "function",
@@ -263,13 +266,13 @@ local _METADATA = {
                 "tileID",
                 layerName = "string",
                 position = "sf.Vector2i",
-                tileID = "any",
+                tileID = "any"
             },
             ["return"] = {
                 "success",
-                success = "bool",
+                success = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         setTerrainTiles = {
             type = "function",
@@ -279,13 +282,13 @@ local _METADATA = {
                 "tileID",
                 layerName = "string",
                 positions = "sf.Vector2i[]",
-                tileID = "any",
+                tileID = "any"
             },
             ["return"] = {
                 "positions",
-                positions = "sf.Vector2i[]",
+                positions = "sf.Vector2i[]"
             },
-            Pure = true,
+            Pure = true
         },
         getLights = {
             type = "function",
@@ -294,10 +297,10 @@ local _METADATA = {
                 "lights",
                 lights = {
                     "GlobalCore",
-                    "Light[]",
-                },
+                    "Light[]"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         setLights = {
             type = "function",
@@ -305,14 +308,14 @@ local _METADATA = {
                 "lights",
                 lights = {
                     "GlobalCore",
-                    "Light[]",
-                },
+                    "Light[]"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         addLight = {
             type = "function",
@@ -320,14 +323,14 @@ local _METADATA = {
                 "light",
                 light = {
                     "GlobalCore",
-                    "Light",
-                },
+                    "Light"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         removeLight = {
             type = "function",
@@ -335,14 +338,14 @@ local _METADATA = {
                 "light",
                 light = {
                     "GlobalCore",
-                    "Light",
-                },
+                    "Light"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         setLightPosition = {
             type = "function",
@@ -351,15 +354,15 @@ local _METADATA = {
                 "position",
                 light = {
                     "GlobalCore",
-                    "Light",
+                    "Light"
                 },
-                position = "sf.Vector2f",
+                position = "sf.Vector2f"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         setLightColour = {
             type = "function",
@@ -368,15 +371,15 @@ local _METADATA = {
                 "colour",
                 light = {
                     "GlobalCore",
-                    "Light",
+                    "Light"
                 },
-                colour = "sf.Color",
+                colour = "sf.Color"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         setLightRadius = {
             type = "function",
@@ -385,15 +388,15 @@ local _METADATA = {
                 "radius",
                 light = {
                     "GlobalCore",
-                    "Light",
+                    "Light"
                 },
-                radius = "float",
+                radius = "float"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         setLightIntensity = {
             type = "function",
@@ -402,60 +405,60 @@ local _METADATA = {
                 "intensity",
                 light = {
                     "GlobalCore",
-                    "Light",
+                    "Light"
                 },
-                intensity = "float",
+                intensity = "float"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         getAmbientLight = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "ambientLight",
-                ambientLight = "sf.Color",
+                ambientLight = "sf.Color"
             },
-            Pure = true,
+            Pure = true
         },
         setAmbientLight = {
             type = "function",
             parameters = {
                 "ambientLight",
-                ambientLight = "sf.Color",
+                ambientLight = "sf.Color"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         getSize = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "size",
-                size = "sf.Vector2u",
+                size = "sf.Vector2u"
             },
-            Pure = true,
+            Pure = true
         },
         getTopMaterial = {
             type = "function",
             parameters = {
                 "pos",
-                pos = "sf.Vector2i",
+                pos = "sf.Vector2i"
             },
             ["return"] = {
                 "topMaterial",
                 topMaterial = {
                     "Engine",
-                    "Material",
-                },
+                    "Material"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         findPath = {
             type = "function",
@@ -468,18 +471,18 @@ local _METADATA = {
                 goal = "sf.Vector2i",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                excludedAnchors = "sf.Vector2i[]",
+                excludedAnchors = "sf.Vector2i[]"
             },
             default = {
-                [4] = {},
+                [4] = {}
             },
             ["return"] = {
                 "path",
-                path = "sf.Vector2i[]",
+                path = "sf.Vector2i[]"
             },
-            Pure = true,
+            Pure = true
         },
         isPathfindingPassable = {
             type = "function",
@@ -488,15 +491,15 @@ local _METADATA = {
                 "targetPosition",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                targetPosition = "sf.Vector2i",
+                targetPosition = "sf.Vector2i"
             },
             ["return"] = {
                 "passable",
-                passable = "bool",
+                passable = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         hasPathBlockingOverlapActor = {
             type = "function",
@@ -505,36 +508,36 @@ local _METADATA = {
                 "targetPosition",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                targetPosition = "sf.Vector2i",
+                targetPosition = "sf.Vector2i"
             },
             ["return"] = {
                 "hasActor",
-                hasActor = "bool",
+                hasActor = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         getScene = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "scene",
-                scene = { "GlobalCore", "SceneBase" },
+                scene = { "GlobalCore", "SceneBase" }
             },
-            Pure = true,
+            Pure = true
         },
         addCommonTip = {
             type = "function",
             parameters = {
                 "text",
-                text = "string",
+                text = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         addDamageText = {
             type = "function",
@@ -542,15 +545,15 @@ local _METADATA = {
                 "text",
                 "position",
                 text = "string",
-                position = "sf.Vector2f",
+                position = "sf.Vector2f"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
-        },
-    },
+                default = "nil"
+            }
+        }
+    }
 }
 
 return _METADATA

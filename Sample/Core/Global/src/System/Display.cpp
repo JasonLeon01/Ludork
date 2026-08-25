@@ -593,17 +593,23 @@ void System::clearCanvas() {
     }
 }
 
-void System::setWindowMapView(sf::Vector2f offset) {
+void System::setWindowMapView(const sf::IntRect& rect) {
     ludork::global::system_runtime::DisplayRuntime& display =
         ludork::global::system_runtime::runtime().display;
     if (display.canvas_ == nullptr) {
         return;
     }
     const sf::Vector2u gameSize = getGameSize();
-    const sf::Vector2f size{static_cast<float>(gameSize.x),
-                            static_cast<float>(gameSize.y)};
-    const sf::Vector2f center = size / 2.0f - offset;
-    display.canvas_->setView(sf::View(center, size));
+    const sf::Vector2f gameSizeFloat{static_cast<float>(gameSize.x),
+                                     static_cast<float>(gameSize.y)};
+    const sf::Vector2f position{static_cast<float>(rect.position.x),
+                                static_cast<float>(rect.position.y)};
+    const sf::Vector2f size{static_cast<float>(rect.size.x),
+                            static_cast<float>(rect.size.y)};
+    sf::View view(size / 2.0f, size);
+    view.setViewport(sf::FloatRect(position.componentWiseDiv(gameSizeFloat),
+                                   size.componentWiseDiv(gameSizeFloat)));
+    display.canvas_->setView(view);
     display.canvasDefaultViewActive_ = false;
 }
 

@@ -154,8 +154,8 @@ PathResult GameMapBase::findPathExt(
                 excludedAnchorSet.find(nt) != excludedAnchorSet.end()) {
                 continue;
             }
-            if (!nodePassableForActor(nx, ny, sx, sy, gx, gy, width, height,
-                                      movingActor)) {
+            if (!transitionPassableForActor(cx, cy, nx, ny, sx, sy, gx, gy,
+                                            width, height, movingActor)) {
                 continue;
             }
             int tentative = gScore[current] + 1;
@@ -287,34 +287,9 @@ bool GameMapBase::isPassable(const Actor& actor,
             return false;
         }
     }
-    const sf::Vector2i currentPosition = actor.getMapPosition();
-    const sf::Vector2i delta = position - currentPosition;
-    int direction = -1;
-    if (delta == sf::Vector2i(0, 1)) {
-        direction = Direction.at("DOWN");
-    } else if (delta == sf::Vector2i(0, -1)) {
-        direction = Direction.at("UP");
-    } else if (delta == sf::Vector2i(1, 0)) {
-        direction = Direction.at("RIGHT");
-    } else if (delta == sf::Vector2i(-1, 0)) {
-        direction = Direction.at("LEFT");
-    }
-    if (direction >= 0) {
-        const std::vector<sf::Vector2i> currentCells =
-            actor.getOccupiedMapCellsAtMapPosition(currentPosition);
-        std::unordered_set<IntPair, IntPairHash> currentCellSet;
-        for (const sf::Vector2i& cell : currentCells) {
-            currentCellSet.emplace(cell.x, cell.y);
-        }
-        for (const sf::Vector2i& cell : occupied) {
-            if (currentCellSet.contains({cell.x, cell.y})) {
-                continue;
-            }
-            const sf::Vector2i previous(cell.x - delta.x, cell.y - delta.y);
-            if (!isDirectionPassable(previous, cell, direction)) {
-                return false;
-            }
-        }
+    if (!directionPassableForActor(actor.getMapPosition(), position, occupied,
+                                   actor)) {
+        return false;
     }
     for (const sf::Vector2i& cell : occupied) {
         if (!self->getCollisionAt(cell.x, cell.y, const_cast<Actor&>(actor))
@@ -709,14 +684,17 @@ void GameMapBase::refreshActorOccupancyCache() {
     }
 }
 
-bool GameMapBase::nodePassableForActor(int x, int y, int sx, int sy, int gx,
-                                       int gy, unsigned int width,
-                                       unsigned int height,
-                                       const Actor& movingActor) {
+bool GameMapBase::transitionPassableForActor(int fromX, int fromY, int x, int y,
+                                             int sx, int sy, int gx, int gy,
+                                             unsigned int width,
+                                             unsigned int height,
+                                             const Actor& movingActor) {
     const std::vector<sf::Vector2i> cells =
         movingActor.getOccupiedMapCellsAtMapPosition({x, y});
     if (cells.empty()) {
-        return passable(x, y, sx, sy, gx, gy);
+        return passable(x, y, sx, sy, gx, gy) &&
+               directionPassableForActor({fromX, fromY}, {x, y}, cells,
+                                         movingActor);
     }
     for (const sf::Vector2i& cell : cells) {
         if (cell.x < 0 || cell.y < 0 || cell.x >= static_cast<int>(width) ||
@@ -724,6 +702,43 @@ bool GameMapBase::nodePassableForActor(int x, int y, int sx, int sy, int gx,
             return false;
         }
         if (!passableForActor(cell.x, cell.y, sx, sy, gx, gy, &movingActor)) {
+            return false;
+        }
+    }
+    return directionPassableForActor({fromX, fromY}, {x, y}, cells,
+                                     movingActor);
+}
+
+bool GameMapBase::directionPassableForActor(
+    const sf::Vector2i& fromPosition, const sf::Vector2i& toPosition,
+    const std::vector<sf::Vector2i>& toCells, const Actor& movingActor) const {
+    const sf::Vector2i delta = toPosition - fromPosition;
+    int direction = -1;
+    if (delta == sf::Vector2i(0, 1)) {
+        direction = Direction.at("DOWN");
+    } else if (delta == sf::Vector2i(0, -1)) {
+        direction = Direction.at("UP");
+    } else if (delta == sf::Vector2i(1, 0)) {
+        direction = Direction.at("RIGHT");
+    } else if (delta == sf::Vector2i(-1, 0)) {
+        direction = Direction.at("LEFT");
+    }
+    if (direction < 0) {
+        return true;
+    }
+    const std::vector<sf::Vector2i> fromCells =
+        movingActor.getOccupiedMapCellsAtMapPosition(fromPosition);
+    std::unordered_set<IntPair, IntPairHash> fromCellSet;
+    fromCellSet.reserve(fromCells.size());
+    for (const sf::Vector2i& cell : fromCells) {
+        fromCellSet.emplace(cell.x, cell.y);
+    }
+    for (const sf::Vector2i& cell : toCells) {
+        if (fromCellSet.contains({cell.x, cell.y})) {
+            continue;
+        }
+        const sf::Vector2i previous(cell.x - delta.x, cell.y - delta.y);
+        if (!isDirectionPassable(previous, cell, direction)) {
             return false;
         }
     }

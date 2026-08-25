@@ -228,12 +228,19 @@ void Camera::fixViewPosition() {
         return;
     }
     const sf::Vector2u mapSize = map->getSize();
-    const float maxX = std::max(
-        0.0f, static_cast<float>(mapSize.x * CellSize) - viewport_->size.x);
-    const float maxY = std::max(
-        0.0f, static_cast<float>(mapSize.y * CellSize) - viewport_->size.y);
-    setViewPosition({std::clamp(viewport_->position.x, 0.0f, maxX),
-                     std::clamp(viewport_->position.y, 0.0f, maxY)});
+    const sf::Vector2f mapPixelSize{
+        static_cast<float>(mapSize.x * CellSize),
+        static_cast<float>(mapSize.y * CellSize),
+    };
+    const auto fixAxis = [](float position, float mapLength, float viewLength) {
+        if (mapLength < viewLength) {
+            return (mapLength - viewLength) / 2.0f;
+        }
+        return std::clamp(position, 0.0f, mapLength - viewLength);
+    };
+    setViewPosition(
+        {fixAxis(viewport_->position.x, mapPixelSize.x, viewport_->size.x),
+         fixAxis(viewport_->position.y, mapPixelSize.y, viewport_->size.y)});
 }
 
 void Camera::clear() {
