@@ -50,7 +50,7 @@ function WindowEquipSlot:onTick(deltaTime) end
 
 function WindowEquipSlot:onReturn() end
 
----@brief Open the slot window, refreshing slot list first.
+---@brief Open the slot window with the first slot and its first equipment candidate selected.
 function WindowEquipSlot:open() end
 
 ---@brief Close the slot window.

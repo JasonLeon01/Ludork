@@ -119,7 +119,7 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
         self._cellControllers[#self._cellControllers + 1] = cellController
         self._listView:addChild(cell)
     end
-    self.model.index = bool(entries) and 0 or nil
+    self.model:resetSelection()
     if self.model._rect:getParent() ~= nil then
         self._content:removeChild(self.model._rect)
     end

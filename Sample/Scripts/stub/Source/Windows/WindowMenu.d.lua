@@ -105,7 +105,7 @@ function WindowMenu:onTick(deltaTime) end
 ---@return boolean
 function WindowMenu:onDirectionalKey(direction) end
 
----@brief Open the menu window and disable player movement.
+---@brief Open the menu window at its first command and disable player movement.
 function WindowMenu:open() end
 
 ---@brief Close the menu window and restore player movement.

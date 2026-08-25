@@ -64,6 +64,11 @@ function WindowSelectable:getListView() end
 ---@param listView Engine.ListView | nil
 function WindowSelectable:setListView(listView) end
 
+---@brief Reset selection to the first item and scroll to the top without playing CursorSE.
+---
+--- Empty lists use a nil index.
+function WindowSelectable:resetSelection() end
+
 ---@param active boolean
 function WindowSelectable:setActive(active) end
 

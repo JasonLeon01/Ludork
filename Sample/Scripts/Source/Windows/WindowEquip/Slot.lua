@@ -176,6 +176,8 @@ end
 
 function WindowEquipSlotController:open()
     self:refreshSlots()
+    self.model:resetSelection()
+    self.model._lastSlotIndex = self.model.index
     self.model:setVisible(true)
     self.model:setActive(true)
     local slotKey = self:getCurrentSlotKey()

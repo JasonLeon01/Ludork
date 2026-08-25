@@ -100,7 +100,7 @@ function WindowAttrShop:setPlayer(player) end
 ---@return string
 function WindowAttrShop:getAttributeDisplayName(attributeName) end
 
----@brief Open the shop with the supplied actor, text, abilities, and price.
+---@brief Open the shop with the supplied actor, text, abilities, price, and first ability selected.
 ---
 --- - @param shopActor Actor whose first texture frame is used as the avatar.
 --- - @param shopName Locale key for the shop name.

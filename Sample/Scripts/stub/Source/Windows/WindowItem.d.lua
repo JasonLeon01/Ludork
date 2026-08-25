@@ -29,7 +29,7 @@ function WindowItem:setPlayer(player) end
 ---@param deltaTime number
 function WindowItem:onTick(deltaTime) end
 
----@brief Open the item window, refreshing inventory first.
+---@brief Open the item window, refreshing inventory and selecting its first item.
 function WindowItem:open() end
 
 ---@brief Refresh the currently selected item's localised name and description.

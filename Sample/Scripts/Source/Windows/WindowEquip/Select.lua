@@ -77,7 +77,7 @@ function WindowEquipSelectController:refreshForSlot(slotKey)
     end
     self:prepare(self._logicalSize)
     self.model:setListView(self.root)
-    self.model.index = bool(self.root:getChildren()) and 0 or nil
+    self.model:resetSelection()
     self.model._lastStatusIndex = nil
     if self.model:getActive() then
         self:updateStatus()

@@ -1,9 +1,5 @@
 ---@meta Source.Windows.WindowSaveLoad
 
----@class Source.Windows.SaveFileMTime
----@field [1] integer
----@field [2] number
-
 ---@brief Integrated save/load UI: command bar, slot list, and detail panel.
 ---
 --- Owner-agnostic coordinator. Hosts pass callbacks for close and load events
@@ -66,7 +62,7 @@ function WindowSaveLoad:setVisible(visible) end
 ---
 --- In load-only mode the slot list is activated directly. Otherwise the
 --- command bar is activated first and the user picks load/save before
---- choosing a slot.
+--- choosing a slot. Every child selector starts at its first item.
 function WindowSaveLoad:open() end
 
 ---@brief Close the save/load UI and deactivate all child windows.

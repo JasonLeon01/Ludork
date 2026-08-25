@@ -12,7 +12,6 @@ local System = GlobalCore.System
 
 local SHORT_NUMBER_UNITS = { { 1000000000, 1000000000, "b" }, { 1000000, 1000000, "m" }, { 10000, 1000, "k" } }
 
-local localRef
 local Utils = {}
 local AttrRef = {}
 local LocalRef = {}
@@ -175,12 +174,7 @@ end
 
 local FinalLocalRef = class(LocalRef)
 
----@generic T
----@param loc     table<string, T>
----@param name    string
----@param default T | nil
----@return Source.NodeFunctions.Utils.LocalRef<T>
-function localRef(loc, name, default)
+function Utils.CreateLocalRef(loc, name, default)
     return FinalLocalRef.new(loc, name, default)
 end
 
@@ -198,7 +192,7 @@ function Utils.GetLocalValue(valueName, default)
 end
 
 function Utils.GetLocalValueRef(valueName, default)
-    return localRef(Context.GetRefLocal(Utils.GetLocalValueRef), valueName, default)
+    return Utils.CreateLocalRef(Context.GetRefLocal(Utils.GetLocalValueRef), valueName, default)
 end
 
 function Utils.SetGameVariable(valueName, value)
@@ -211,7 +205,7 @@ function Utils.GetGameVariable(valueName, default)
 end
 
 function Utils.GetGameVariableRef(valueName, default)
-    return localRef(Context.RequireGameInstance():getVariables(), valueName, default)
+    return Utils.CreateLocalRef(Context.RequireGameInstance():getVariables(), valueName, default)
 end
 
 function Utils.AddPlayerByClass(playerClass)

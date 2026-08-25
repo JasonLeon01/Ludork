@@ -70,9 +70,10 @@ function WindowShop:open(buyItemIDs, canSell)
     self._canSell = bool(canSell)
     self._mode = self.SHOP_MODE_BUY
     self._closed = false
-    self._commandWindow.index = 0
+    self._commandWindow:resetSelection()
     self._commandWindow._lastIndex = 0
     self:_refreshItems()
+    self._itemWindow:resetSelection()
     if self._canSell then
         self._commandWindow:setVisible(true)
         self._commandWindow:setActive(true)

@@ -194,6 +194,7 @@ function WindowAttrShopUI:open(
     self._shopNameSource = tostring(shopName or "")
     self._descriptionSource = tostring(shopDescription or "")
     self:refreshLocale()
+    selectable:resetSelection()
     self.model._closed = false
     selectable:setVisible(true)
     selectable:setActive(true)

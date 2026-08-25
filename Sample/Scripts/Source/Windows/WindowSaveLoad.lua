@@ -16,51 +16,6 @@ local _DEFAULT_DETAIL_RECT = Engine.ToIntRect(352, 64, 256, 256)
 local CLOSE_REASON_CANCEL = "cancel"
 local CLOSE_REASON_SAVED = "saved"
 local CLOSE_REASON_LOADED = "loaded"
----@type function
-local getSaveFileMTime
----@type function
-local isNewerSaveFile
----@type function
-local findLatestSaveSlotIndex
-
----@param slotIndex integer
----@param filePath  string
----@return Source.Windows.SaveFileMTime | nil
-function getSaveFileMTime(slotIndex, filePath)
-    if not CoreSystem.exists(filePath) then
-        return nil
-    end
-    local modificationTime = os.path.getmtime(filePath)
-    return { slotIndex, modificationTime }
-end
-
----@param candidate Source.Windows.SaveFileMTime
----@param current   Source.Windows.SaveFileMTime | nil
----@return boolean
-function isNewerSaveFile(candidate, current)
-    if current == nil then
-        return true
-    end
-    if candidate[2] ~= current[2] then
-        return candidate[2] > current[2]
-    end
-    return candidate[1] < current[1]
-end
-
----@param maxSlots integer
----@return integer | nil
-function findLatestSaveSlotIndex(maxSlots)
-    ---@type Source.Windows.SaveFileMTime | nil
-    local latest = nil
-    for slotIndex = 0, maxSlots - 1 do
-        local filePath = Save.GetSavePath(slotIndex + 1)
-        local result = getSaveFileMTime(slotIndex, filePath)
-        if result ~= nil and isNewerSaveFile(result, latest) then
-            latest = result
-        end
-    end
-    return latest ~= nil and latest[1] or nil
-end
 
 ---@class Source.Windows.WindowSaveLoad
 local WindowSaveLoad = {}
@@ -86,7 +41,6 @@ function WindowSaveLoad:init(commandRect, slotRect, detailRect, loadOnly, getSav
     self._detailWindow:setActive(false)
     self._detailWindow:setVisible(false)
     self._lastSlotIndex = nil
-    self:_selectLatestSaveSlot()
 end
 
 function WindowSaveLoad:getCommandWindow()
@@ -114,6 +68,10 @@ function WindowSaveLoad:setVisible(visible)
 end
 
 function WindowSaveLoad:open()
+    if self._commandWindow ~= nil then
+        self._commandWindow:resetSelection()
+    end
+    self._slotWindow:resetSelection()
     self:setVisible(true)
     self._lastSlotIndex = nil
     if self._loadOnly then
@@ -195,13 +153,6 @@ function WindowSaveLoad:notifySlotIndexMaybeChanged(index)
     end
     self._lastSlotIndex = index
     self._detailWindow:setSlot(index)
-end
-
-function WindowSaveLoad:_selectLatestSaveSlot()
-    local latestIndex = findLatestSaveSlotIndex(WindowSaveSlot.MAX_SAVE_SLOTS)
-    if latestIndex ~= nil then
-        self._slotWindow.index = latestIndex
-    end
 end
 
 function WindowSaveLoad:onSlotConfirm(slot)

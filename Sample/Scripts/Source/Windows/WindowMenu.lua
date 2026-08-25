@@ -132,6 +132,7 @@ end
 function WindowMenuController:open()
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self.model._player:setMoveEnabled(false)
+    self.model:resetSelection()
     self.model:setVisible(true)
     self.model:setActive(true)
     self:_syncReturnButtonSuppression()

@@ -35,7 +35,7 @@ function WindowEquipSelect:setEquipSlotWindow(windowEquipSlot) end
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus
 function WindowEquipSelect:setEquipStatusWindow(windowEquipStatus) end
 
----@brief Rebuild the equip list for the given slot.
+---@brief Rebuild the equip list for the given slot and select its first entry.
 ---
 --- - @param slotKey The equipment slot identifier to filter by.
 ---@param slotKey string

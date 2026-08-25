@@ -140,10 +140,18 @@ end
 function ConfigWindow:open()
     self:_applyScaleRowChange(self._ui:refreshDisplayScaleOptions())
     self:_setSelectionInputPaused(false)
+    self._activePageIndex = _GRAPHICS_PAGE_INDEX
+    self._ui:setActivePage(self._activePageIndex)
     self._open = true
     self:setVisible(true)
     self:setActive(true)
     self:_focusTabs(false)
+    for _, session in ipairs(self._pageSessions) do
+        session.index = 0
+        session.scrollOriginY = 0.0
+    end
+    self:_restorePageScroll()
+    self:resetSelection()
 end
 
 function ConfigWindow:close()

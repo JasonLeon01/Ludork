@@ -48,7 +48,7 @@ function WindowFloorTeleporter:getPreviewWindow() end
 ---@return boolean
 function WindowFloorTeleporter:getVisible() end
 
----@brief Open and refresh the floor teleporter window.
+---@brief Open the floor teleporter with its map and telepoint selectors reset to their first entries.
 ---
 --- - @param inst Optional current game instance to bind before opening.
 ---@param inst Source.GameInstance.GameInstance | nil

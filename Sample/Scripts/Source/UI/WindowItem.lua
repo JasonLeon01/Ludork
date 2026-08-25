@@ -86,7 +86,7 @@ function WindowItemUI:refreshItems()
         self.model:_applyItem(cell)
         self._listView:addChild(cell)
     end
-    self.model.index = bool(self._listView:getChildren()) and 0 or nil
+    self.model:resetSelection()
     self:updateDescription()
 end
 

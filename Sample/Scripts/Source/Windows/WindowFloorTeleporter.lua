@@ -52,8 +52,12 @@ function WindowFloorTeleporterController:open(inst)
     end
     self.model._previewWindow:clearPreviewCache()
     self.model._telepointEntriesCache = dict()
+    self.model._telepointIndexes = {}
     self.model._lastMapKey = nil
+    self.model._commandWindow.index = nil
     self.model._commandWindow:refreshMaps(self:getVisitedRegionEntries())
+    self.model._commandWindow:resetSelection()
+    self.model._previewWindow:resetSelection()
     self.model._commandWindow:setVisible(true)
     self.model._commandWindow:setActive(true)
     self.model._previewWindow:setVisible(true)

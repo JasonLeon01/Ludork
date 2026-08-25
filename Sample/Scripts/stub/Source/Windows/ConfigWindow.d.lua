@@ -144,7 +144,7 @@ function ConfigWindow:getVoiceVolumeSlider() end
 ---@return boolean
 function ConfigWindow:isOpen() end
 
----@brief Show and activate the configuration window.
+---@brief Show the configuration window at the Graphics tab and reset every page cursor and scroll position.
 function ConfigWindow:open() end
 
 ---@brief Hide and deactivate the configuration window.

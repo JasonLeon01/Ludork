@@ -85,6 +85,14 @@ function WindowSelectable:setListView(listView)
     self._ensureSelectionVisibleRequested = true
 end
 
+function WindowSelectable:resetSelection()
+    self.index = self:_itemCount() > 0 and 0 or nil
+    self._oldIndex = self.index
+    self._wheelScrollTargetOriginY = nil
+    self:_setScrollOriginY(0.0)
+    self._ensureSelectionVisibleRequested = true
+end
+
 function WindowSelectable:setActive(active)
     local wasActive = self:getActive()
     super(WindowSelectable, self).setActive(active)

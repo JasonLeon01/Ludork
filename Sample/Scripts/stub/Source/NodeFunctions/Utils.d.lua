@@ -3,8 +3,8 @@
 ---@alias Source.NodeFunctions.Utils.NodeReference<T> Source.NodeFunctions.Utils.AttrRef<T> | Source.NodeFunctions.Utils.LocalRef<T>
 
 ---@class Source.NodeFunctions.Utils.AttrRef<T>
----@field obj              table
----@field name             string
+---@field obj  table
+---@field name string
 local AttrRef = {}
 
 ---@generic T
@@ -22,9 +22,9 @@ function AttrRef:get() end
 function AttrRef:set(value) end
 
 ---@class Source.NodeFunctions.Utils.LocalRef<T>
----@field loc              table<string, T>
----@field name             string
----@field default          T | nil
+---@field loc     table<string, T>
+---@field name    string
+---@field default T | nil
 local LocalRef = {}
 
 ---@generic T
@@ -42,11 +42,18 @@ function LocalRef:get() end
 ---@return T
 function LocalRef:set(value) end
 
+---@generic T
+---@param loc     table<string, T>
+---@param name    string
+---@param default T | nil
+---@return Source.NodeFunctions.Utils.LocalRef<T>
+function Utils.CreateLocalRef(loc, name, default) end
+
 ---@param value any
 ---@return boolean
 function Utils.IsNodeReference(value) end
 
---- @brief Blueprint conditional branch.
+---@brief Blueprint conditional branch.
 ---
 --- - @param condition The condition to evaluate.
 --- - @return 0 if True, 1 if False.
@@ -54,7 +61,7 @@ function Utils.IsNodeReference(value) end
 ---@return integer
 function Utils.IF(condition) end
 
---- @brief Set a local variable value.
+---@brief Set a local variable value.
 ---
 --- - @param valueName The variable name.
 --- - @param value The value to set.
@@ -63,7 +70,7 @@ function Utils.IF(condition) end
 ---@param value     T | nil
 function Utils.SetLocalValue(valueName, value) end
 
---- @brief Get a local variable value.
+---@brief Get a local variable value.
 ---
 --- - @param valueName The variable name.
 --- - @param default Default value if the variable is not found.
@@ -74,18 +81,18 @@ function Utils.SetLocalValue(valueName, value) end
 ---@return T | nil
 function Utils.GetLocalValue(valueName, default) end
 
---- @brief Get a reference wrapper for a local variable.
+---@brief Get a reference wrapper for a local variable.
 ---
 --- - @param valueName The variable name.
 --- - @param default Default value if the variable is not found.
---- - @return A _localRef wrapper.
+--- - @return A LocalRef wrapper.
 ---@generic T
 ---@param valueName string
 ---@param default   T | nil
 ---@return Source.NodeFunctions.Utils.LocalRef<T>
 function Utils.GetLocalValueRef(valueName, default) end
 
---- @brief Set a game variable on the current scene's game instance.
+---@brief Set a game variable on the current scene's game instance.
 ---
 --- - @param valueName The variable name.
 --- - @param value The value to set.
@@ -93,7 +100,7 @@ function Utils.GetLocalValueRef(valueName, default) end
 ---@param value     Source.GameInstance.RecordValue | Source.NodeFunctions.Utils.NodeReference<Source.GameInstance.RecordValue>
 function Utils.SetGameVariable(valueName, value) end
 
---- @brief Get a game variable from the current scene's game instance.
+---@brief Get a game variable from the current scene's game instance.
 ---
 --- - @param valueName The variable name.
 --- - @param default Default value if the variable is not found.
@@ -103,29 +110,29 @@ function Utils.SetGameVariable(valueName, value) end
 ---@return Source.GameInstance.RecordValue
 function Utils.GetGameVariable(valueName, default) end
 
---- @brief Get a reference wrapper for a game variable.
+---@brief Get a reference wrapper for a game variable.
 ---
 --- - @param valueName The variable name.
 --- - @param default Default value if the variable is not found.
---- - @return A _localRef wrapper.
+--- - @return A LocalRef wrapper.
 ---@param valueName string
 ---@param default   Source.GameInstance.RecordValue
 ---@return Source.NodeFunctions.Utils.LocalRef<Source.GameInstance.RecordValue>
 function Utils.GetGameVariableRef(valueName, default) end
 
---- @brief Add a new player by class path.
+---@brief Add a new player by class path.
 ---
 --- - @param playerClass The class path for the player blueprint.
 ---@param playerClass string
 function Utils.AddPlayerByClass(playerClass) end
 
---- @brief Remove a player by class path.
+---@brief Remove a player by class path.
 ---
 --- - @param playerClass The class path to remove.
 ---@param playerClass string
 function Utils.RemovePlayerByClass(playerClass) end
 
---- @brief Spawn an animation at a given position.
+---@brief Spawn an animation at a given position.
 ---
 --- - @param animName The animation name.
 --- - @param position The world position as an `sf.Vector2f`.
@@ -137,7 +144,7 @@ function Utils.RemovePlayerByClass(playerClass) end
 ---@param scale    sf.Vector2f
 function Utils.AddAnim(animName, position, rotation, scale) end
 
---- @brief Spawn an animation at an actor's current position.
+---@brief Spawn an animation at an actor's current position.
 ---
 --- - @param animName The animation name.
 --- - @param actorTag The target actor tag.
@@ -149,7 +156,7 @@ function Utils.AddAnim(animName, position, rotation, scale) end
 ---@param scale    sf.Vector2f
 function Utils.AddAnimOn(animName, actorTag, rotation, scale) end
 
---- @brief Get the duration of an animation.
+---@brief Get the duration of an animation.
 ---
 --- - @param animName The animation name.
 --- - @return The duration in seconds.
@@ -157,7 +164,7 @@ function Utils.AddAnimOn(animName, actorTag, rotation, scale) end
 ---@return number
 function Utils.GetAnimLength(animName) end
 
---- @brief Get the visual duration of an animation, excluding sound track length.
+---@brief Get the visual duration of an animation, excluding sound track length.
 ---
 --- - @param animName The animation name.
 --- - @return The visual duration in seconds.
@@ -165,7 +172,7 @@ function Utils.GetAnimLength(animName) end
 ---@return number
 function Utils.GetAnimVisualLength(animName) end
 
---- @brief Call the parent implementation of the current blueprint event.
+---@brief Call the parent implementation of the current blueprint event.
 ---
 --- - @param obj    The object instance calling super.
 --- - @param params Positional arguments forwarded to the parent event.
@@ -204,7 +211,7 @@ function Utils.GetScene() end
 ---@return boolean
 function Utils.IsValidValue(value) end
 
---- @brief Convert large numeric values to short display text.
+---@brief Convert large numeric values to short display text.
 ---
 --- - @param value Number or digit-only string to shorten.
 --- - @return Shortened text for large numeric values, or the original value.
@@ -216,7 +223,7 @@ function Utils.ToShortNumber(value) end
 ---@return table
 function Utils.RunCommonFunction(commonFunctionName) end
 
---- @brief Subscribe an object's event method to the shared EventBus.
+---@brief Subscribe an object's event method to the shared EventBus.
 ---
 --- - @param key EventBus key to subscribe to.
 --- - @param obj Target object that owns the event or method.
@@ -226,7 +233,7 @@ function Utils.RunCommonFunction(commonFunctionName) end
 ---@param functionName string
 function Utils.RegisterEventBus(key, obj, functionName) end
 
---- @brief Subscribe an object's blueprint event to the shared EventBus.
+---@brief Subscribe an object's blueprint event to the shared EventBus.
 ---
 --- EventBus payload is ignored; the blueprint event is invoked without arguments.
 ---
@@ -238,7 +245,7 @@ function Utils.RegisterEventBus(key, obj, functionName) end
 ---@param eventName string
 function Utils.RegisterEventBusEvent(key, obj, eventName) end
 
---- @brief Unsubscribe handlers from the shared EventBus by key.
+---@brief Unsubscribe handlers from the shared EventBus by key.
 ---
 --- - @param key EventBus key subscribed to.
 --- - @return True if any handler was found and removed, False otherwise.
@@ -246,7 +253,7 @@ function Utils.RegisterEventBusEvent(key, obj, eventName) end
 ---@return boolean
 function Utils.UnregisterEventBus(key) end
 
---- @brief Unsubscribe blueprint event handlers from the shared EventBus.
+---@brief Unsubscribe blueprint event handlers from the shared EventBus.
 ---
 --- - @param key EventBus key subscribed to.
 --- - @param obj Optional target object. If provided, only that object's handler is removed.
@@ -256,7 +263,7 @@ function Utils.UnregisterEventBus(key) end
 ---@return boolean
 function Utils.UnregisterEventBusEvent(key, obj) end
 
---- @brief Post an EventBus event with keyword arguments.
+---@brief Post an EventBus event with keyword arguments.
 ---
 --- - @param key EventBus key to trigger.
 --- - @param kwargs Keyword arguments passed to registered handlers.
@@ -264,7 +271,7 @@ function Utils.UnregisterEventBusEvent(key, obj) end
 ---@param kwargs table<string, any>
 function Utils.TriggerEventBus(key, kwargs) end
 
---- @brief Trigger a blueprint event on an object without arguments.
+---@brief Trigger a blueprint event on an object without arguments.
 ---
 --- - @param obj Target object that owns the blueprint event.
 --- - @param eventName Blueprint event name to invoke.
@@ -281,7 +288,7 @@ function Utils.Print(message) end
 ---@param script string
 function Utils.EXEC(script) end
 
---- @brief Get an attribute value from the blueprint owner.
+---@brief Get an attribute value from the blueprint owner.
 ---
 --- - @param attrName The attribute name.
 --- - @return The attribute value.
@@ -290,7 +297,7 @@ function Utils.EXEC(script) end
 ---@return T
 function Utils.GetSelfAttr(attrName) end
 
---- @brief Set an attribute value on the blueprint owner.
+---@brief Set an attribute value on the blueprint owner.
 ---
 --- - @param attrName The attribute name.
 --- - @param value The value to set.
@@ -299,13 +306,13 @@ function Utils.GetSelfAttr(attrName) end
 ---@param value    T
 function Utils.SetSelfAttr(attrName, value) end
 
---- @brief Check whether the player is overlapping the blueprint owner.
+---@brief Check whether the player is overlapping the blueprint owner.
 ---
 --- - @return True if the player shares the same cell as the owner.
 ---@return boolean
 function Utils.IfPlayerOverlaps() end
 
---- @brief Compare a game variable with a value.
+---@brief Compare a game variable with a value.
 ---
 --- - @param varName The game variable name.
 --- - @param op Comparison operator: "==", "!=", "<", "<=", ">", ">=".

@@ -22,7 +22,7 @@ function WindowEnemyBook:init(rect, player, onClose, onConfirm) end
 ---@param player Source.Player.Player
 function WindowEnemyBook:setPlayer(player) end
 
----@brief Open the handbook and rescan current-map enemies.
+---@brief Open the handbook, rescan current-map enemies, and select the first entry.
 ---
 --- - @param gameMap Current map to scan.
 ---@param gameMap GameMap | nil
