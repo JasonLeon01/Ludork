@@ -1,6 +1,8 @@
 # FFmpeg notice
 
-The optional Ludork video playback component uses FFmpeg 8.1.2 from
+The optional Ludork video playback component uses FFmpeg 8.1.2 from the
+official FFmpeg GitHub mirror at commit
+`38b88335f99e76ed89ff3c93f877fdefce736c13`. The project homepage is
 https://ffmpeg.org/. Windows and macOS builds use shared FFmpeg libraries.
 The C++ Source + FFmpeg template builds static FFmpeg archives for iOS,
 HarmonyOS and Android and links them into the application. Ludork does not

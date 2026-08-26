@@ -40,9 +40,39 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
-      - name: Initialize editor dependencies
+      - name: Restore FFmpeg source archive
+        id: ffmpeg-source-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
+
+      - name: Set up project Python environment
         shell: cmd
-        run: tools\init.bat
+        timeout-minutes: 10
+        run: tools\setup_python.bat
+
+      - name: Build ScriptTools
+        shell: cmd
+        timeout-minutes: 30
+        run: tools\build_script_tools.bat
+
+      - name: Initialize C++ dependencies
+        shell: cmd
+        timeout-minutes: 20
+        run: tools\init_cpp_dependencies.bat Sample
+
+      - name: Save FFmpeg source archive
+        if: steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
+
+      - name: Build UI preview host
+        shell: cmd
+        timeout-minutes: 60
+        run: tools\build_ui_preview_host.bat Release
 
       - name: Package editor
         shell: cmd
@@ -80,10 +110,37 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
-      - name: Initialize editor dependencies
+      - name: Restore FFmpeg source archive
+        id: ffmpeg-source-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
+
+      - name: Set up project Python environment
         env:
           PYTHON: python3
-        run: sh tools/init.sh
+        timeout-minutes: 10
+        run: sh tools/setup_python.sh
+
+      - name: Build ScriptTools
+        timeout-minutes: 30
+        run: sh tools/build_script_tools.sh
+
+      - name: Initialize C++ dependencies
+        timeout-minutes: 20
+        run: sh tools/init_cpp_dependencies.sh Sample
+
+      - name: Save FFmpeg source archive
+        if: steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
+
+      - name: Build UI preview host
+        timeout-minutes: 60
+        run: sh tools/build_ui_preview_host.sh Release
 
       - name: Package unsigned editor DMG
         run: sh tools/pack_editor.sh

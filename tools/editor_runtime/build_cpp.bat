@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001>nul
-if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=2"
+if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
 
 if "%~1"=="" goto usage
 if "%~2"=="" goto usage
@@ -56,6 +56,7 @@ if not errorlevel 1 if not defined GNU_MAKE (
 
 echo Project: %CPP_DIR%
 echo Configuration: %CONFIG%
+echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
 "%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 set "BUILD_DIR=%CPP_DIR%\build"
@@ -66,7 +67,7 @@ if defined GNU_MAKE (
 )
 if errorlevel 1 exit /b %errorlevel%
 
-cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target Main --parallel
+cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target Main --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
 if errorlevel 1 exit /b %errorlevel%
 
 set "OUTPUT_DIR=%CPP_DIR%\bin\%CONFIG%"

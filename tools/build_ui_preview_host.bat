@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 chcp 65001>nul
 cd /d "%~dp0.."
-if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=2"
+if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
 
 set "CONFIG=%~1"
 if "%CONFIG%"=="" set "CONFIG=Release"
@@ -26,7 +26,8 @@ if not exist "%GNU_MAKE%" (
 cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%"
 if errorlevel 1 exit /b %errorlevel%
 
-cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target UiPreviewHost --parallel
+echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
+cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target UiPreviewHost --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
 if errorlevel 1 exit /b %errorlevel%
 
 set "OUTPUT=%CD%\.tools\UiPreviewHost\bin\%CONFIG%\UiPreviewHost.exe"

@@ -26,9 +26,11 @@ fi
 require_macos_arm64
 SCRIPT_TOOLS=$(resolve_script_tools)
 CMAKE_BIN=$(find_cmake)
+BUILD_JOBS=$(resolve_parallel_jobs)
 
 echo "Project: $CPP_DIR"
 echo "Configuration: $CONFIG"
+echo "Parallel jobs: $BUILD_JOBS"
 "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 "$CMAKE_BIN" \
     -S "$CPP_DIR" \
@@ -37,7 +39,7 @@ echo "Configuration: $CONFIG"
     -DLUDORK_SCRIPT_TOOLS_EXECUTABLE="$SCRIPT_TOOLS" \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
-"$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel
+"$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel "$BUILD_JOBS"
 
 OUTPUT="$CPP_DIR/bin/$CONFIG/Main"
 if [ ! -x "$OUTPUT" ]; then

@@ -20,6 +20,13 @@ set "STANDALONE_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone"
 set "CPP_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Cpp-ffmpeg"
 set "STANDALONE_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone-ffmpeg"
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
+set "FFMPEG_VERSION="
+for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%CD%\versions.conf") do if /I "%%A"=="FFMPEG_VERSION" set "FFMPEG_VERSION=%%B"
+if not defined FFMPEG_VERSION (
+    echo FFMPEG_VERSION is not set in versions.conf.
+    exit /b 1
+)
+set "FFMPEG_SOURCE_ARCHIVE=%SOURCE_DIR%\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 if not exist "%SOURCE_DIR%\CMakeLists.txt" (
     echo Sample C++ project was not found: %SOURCE_DIR%
@@ -40,7 +47,7 @@ if not exist "%SOURCE_DIR%\ffmpeg\configure" (
     echo FFmpeg source was not found. Run tools\init.bat first.
     exit /b 1
 )
-if not exist "%SOURCE_DIR%\ThirdPartySource\ffmpeg-*.tar.xz" (
+if not exist "%FFMPEG_SOURCE_ARCHIVE%" (
     echo The distributable FFmpeg source archive was not found. Run tools\init.bat first.
     exit /b 1
 )
@@ -114,10 +121,15 @@ echo Usage: tools\create_templates.bat [Debug^|Release] [output-folder]
 exit /b 1
 
 :copy_cpp_template
-set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" __pycache__ UiPreviewHost UiPreviewCurveResolver
-if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\ffmpeg" "%SOURCE_DIR%\ThirdPartySource"
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__ UiPreviewHost UiPreviewCurveResolver
+if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\ffmpeg"
 robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
+if "%~2"=="1" (
+    if not exist "%~1\ThirdPartySource" mkdir "%~1\ThirdPartySource"
+    copy /Y "%FFMPEG_SOURCE_ARCHIVE%" "%~1\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz" >nul
+    if errorlevel 1 exit /b 1
+)
 exit /b 0
 
 :copy_standalone_files

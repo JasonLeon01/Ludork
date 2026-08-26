@@ -20,6 +20,7 @@ if [ ! -x "$SCRIPT_TOOLS" ]; then
 fi
 
 CMAKE=$(find_cmake)
+BUILD_JOBS=$(resolve_parallel_jobs)
 set -- \
     -S "$PROJECT_DIR" \
     -B "$BUILD_DIR" \
@@ -29,8 +30,9 @@ if [ -x "$GNU_MAKE" ]; then
     set -- "$@" -DLUDORK_GNU_MAKE_EXECUTABLE="$GNU_MAKE"
 fi
 "$CMAKE" "$@"
+echo "Parallel jobs: $BUILD_JOBS"
 "$CMAKE" --build "$BUILD_DIR" --config "$CONFIG" \
-    --target UiPreviewHost --parallel
+    --target UiPreviewHost --parallel "$BUILD_JOBS"
 
 OUTPUT="$PROJECT_ROOT/.tools/UiPreviewHost/bin/$CONFIG/UiPreviewHost"
 if [ ! -x "$OUTPUT" ]; then

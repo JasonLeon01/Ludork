@@ -2,6 +2,8 @@
 set -eu
 
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
+. "$PROJECT_ROOT/versions.conf"
+: "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 
 PROJECT_FILE="$PROJECT_ROOT/Ludork.csproj"
 WORK_DIR="$PROJECT_ROOT/obj/editor-package"
@@ -20,6 +22,7 @@ FINAL_DIR="$PROJECT_ROOT/dist"
 BACKUP_DIR="$WORK_DIR/previous-dist"
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
 SCRIPT_TOOLS_VERSION_REPORT="$PROJECT_ROOT/.tools/ScriptTools/runtime-versions.txt"
+FFMPEG_SOURCE_ARCHIVE="$PROJECT_ROOT/Sample/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
 LUAC="$PROJECT_ROOT/.tools/Lua/luac"
 DIST_BACKED_UP=0
 DMG_MOUNTED=0
@@ -895,17 +898,7 @@ require_directory "$PROJECT_ROOT/Sample/LuaSF"
 require_directory "$PROJECT_ROOT/Sample/lua-cjson"
 require_directory "$PROJECT_ROOT/Sample/zlib"
 require_file "$PROJECT_ROOT/Sample/ffmpeg/configure"
-ffmpeg_archive_found=0
-for source_path in "$PROJECT_ROOT"/Sample/ThirdPartySource/ffmpeg-*.tar.xz; do
-    if [ -f "$source_path" ]; then
-        ffmpeg_archive_found=1
-        break
-    fi
-done
-if [ "$ffmpeg_archive_found" -ne 1 ]; then
-    echo "The distributable FFmpeg source archive was not found." >&2
-    exit 1
-fi
+require_file "$FFMPEG_SOURCE_ARCHIVE"
 require_file "$PROJECT_ROOT/Locale/locale.json"
 require_file "$PROJECT_ROOT/LICENSE.md"
 require_file "$PROJECT_ROOT/README.md"

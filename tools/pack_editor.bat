@@ -31,11 +31,17 @@ if errorlevel 1 (
 )
 
 set "GNU_MAKE_VERSION="
+set "FFMPEG_VERSION="
 for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%ROOT_DIR%\versions.conf") do (
     if /I "%%A"=="GNU_MAKE_VERSION" set "GNU_MAKE_VERSION=%%B"
+    if /I "%%A"=="FFMPEG_VERSION" set "FFMPEG_VERSION=%%B"
 )
 if not defined GNU_MAKE_VERSION (
     echo GNU_MAKE_VERSION is not set in versions.conf.
+    exit /b 1
+)
+if not defined FFMPEG_VERSION (
+    echo FFMPEG_VERSION is not set in versions.conf.
     exit /b 1
 )
 
@@ -44,6 +50,7 @@ set "GNU_MAKE_SOURCE=%ROOT_DIR%\.tools\sources\make-%GNU_MAKE_VERSION%.tar.gz"
 set "GNU_MAKE_LICENSE=%ROOT_DIR%\.tools\build\make-%GNU_MAKE_VERSION%\COPYING"
 set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 set "SCRIPT_TOOLS_VERSION_REPORT=%ROOT_DIR%\.tools\ScriptTools\runtime-versions.txt"
+set "FFMPEG_SOURCE_ARCHIVE=%ROOT_DIR%\Sample\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 for %%F in (
     "%ROOT_DIR%\tools\create_templates.bat"
@@ -68,7 +75,7 @@ for %%D in (
 )
 for %%F in (
     "%ROOT_DIR%\Sample\ffmpeg\configure"
-    "%ROOT_DIR%\Sample\ThirdPartySource\ffmpeg-*.tar.xz"
+    "%FFMPEG_SOURCE_ARCHIVE%"
     "%GNU_MAKE_EXE%"
     "%GNU_MAKE_SOURCE%"
     "%ROOT_DIR%\Locale\locale.json"

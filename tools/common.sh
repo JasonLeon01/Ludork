@@ -40,6 +40,25 @@ find_cmake() {
     exit 1
 }
 
+resolve_parallel_jobs() {
+    parallel_jobs=${CMAKE_BUILD_PARALLEL_LEVEL:-}
+    if [ -z "$parallel_jobs" ]; then
+        if [ "$(uname -s)" = "Darwin" ]; then
+            parallel_jobs=$(sysctl -n hw.logicalcpu)
+        else
+            parallel_jobs=$(getconf _NPROCESSORS_ONLN)
+        fi
+    fi
+
+    case "$parallel_jobs" in
+        '' | *[!0-9]* | 0)
+            echo "CMAKE_BUILD_PARALLEL_LEVEL must be a positive integer." >&2
+            exit 1
+            ;;
+    esac
+    printf '%s\n' "$parallel_jobs"
+}
+
 absolute_path() {
     path=$1
     if [ -d "$path" ]; then

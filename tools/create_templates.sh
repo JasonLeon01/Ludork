@@ -2,6 +2,8 @@
 set -eu
 
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
+. "$PROJECT_ROOT/versions.conf"
+: "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 CONFIG=${1:-Release}
 if [ "$#" -gt 2 ] || { [ "$CONFIG" != "Debug" ] && [ "$CONFIG" != "Release" ]; }; then
     echo "Usage: tools/create_templates.sh [Debug|Release] [output-folder]" >&2
@@ -9,6 +11,7 @@ if [ "$#" -gt 2 ] || { [ "$CONFIG" != "Debug" ] && [ "$CONFIG" != "Release" ]; }
 fi
 
 SOURCE_DIR="$PROJECT_ROOT/Sample"
+FFMPEG_SOURCE_ARCHIVE="$SOURCE_DIR/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
 if [ "$#" -eq 2 ]; then
     TEMPLATES_DIR=$(absolute_path "$2")
 else
@@ -69,12 +72,17 @@ copy_cpp_template() {
         --exclude 'CMakeUserPresets.json' \
         --exclude 'generate_vs2022.bat' \
         --exclude 'generate_clion.bat' \
+        --exclude 'ThirdPartySource/' \
         --exclude 'UiPreviewHost*' \
         --exclude 'UiPreviewCurveResolver*'
     if [ "$include_ffmpeg" -ne 1 ]; then
-        set -- "$@" --exclude 'ffmpeg/' --exclude 'ThirdPartySource/'
+        set -- "$@" --exclude 'ffmpeg/'
     fi
     rsync "$@" "$SOURCE_DIR/" "$template_dir/"
+    if [ "$include_ffmpeg" -eq 1 ]; then
+        mkdir -p "$template_dir/ThirdPartySource"
+        cp "$FFMPEG_SOURCE_ARCHIVE" "$template_dir/ThirdPartySource/"
+    fi
 }
 
 if [ ! -x "$SCRIPT_TOOLS" ]; then
@@ -89,8 +97,7 @@ if [ ! -f "$SOURCE_DIR/ffmpeg/configure" ]; then
     echo "FFmpeg source was not found. Run tools/init.sh first." >&2
     exit 1
 fi
-set -- "$SOURCE_DIR"/ThirdPartySource/ffmpeg-*.tar.xz
-if [ ! -f "$1" ]; then
+if [ ! -f "$FFMPEG_SOURCE_ARCHIVE" ]; then
     echo "The distributable FFmpeg source archive was not found. Run tools/init.sh first." >&2
     exit 1
 fi

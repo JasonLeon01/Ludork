@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 chcp 65001>nul
 cd /d "%~dp0.."
-if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=2"
+if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
 
 if "%~1"=="" goto usage
 
@@ -41,6 +41,7 @@ if not exist "%SCRIPT_TOOLS%" (
 )
 echo Project: %CPP_DIR%
 echo Configuration: %CONFIG%
+echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
 "%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 
@@ -55,7 +56,7 @@ set "BUILD_DIR=%CPP_DIR%\build"
 cmake -S "%CPP_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_LUAC_CACHE_FILE=%LUAC_CACHE%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%"
 if errorlevel 1 exit /b %errorlevel%
 
-cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target Main --parallel
+cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target Main --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
 if errorlevel 1 exit /b %errorlevel%
 
 set "OUTPUT_DIR=%CPP_DIR%\bin\%CONFIG%"

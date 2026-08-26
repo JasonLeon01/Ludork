@@ -27,8 +27,10 @@ SCRIPT_TOOLS=$(resolve_script_tools)
 LUAC_CACHE="$PROJECT_ROOT/.tools/Lua/luac"
 
 CMAKE_BIN=$(find_cmake)
+BUILD_JOBS=$(resolve_parallel_jobs)
 echo "Project: $CPP_DIR"
 echo "Configuration: $CONFIG"
+echo "Parallel jobs: $BUILD_JOBS"
 "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 
 set -- \
@@ -78,7 +80,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
 fi
 
 "$CMAKE_BIN" "$@"
-"$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel
+"$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel "$BUILD_JOBS"
 
 OUTPUT="$CPP_DIR/bin/$CONFIG/Main"
 if [ ! -x "$OUTPUT" ]; then
