@@ -559,13 +559,21 @@
     "zh_CN": "2in1",
     "en_GB": "2in1"
   },
-  "PACK_HARMONY_DEVICE_TEMPORARILY_UNAVAILABLE": {
-    "zh_CN": "该设备形态暂不可用",
-    "en_GB": "This device form is temporarily unavailable"
+  "PACK_HARMONY_GRAPHICS_API": {
+    "zh_CN": "图形 API 后端",
+    "en_GB": "Graphics API backend"
+  },
+  "PACK_HARMONY_GRAPHICS_OPENGL": {
+    "zh_CN": "OpenGL",
+    "en_GB": "OpenGL"
+  },
+  "PACK_HARMONY_GRAPHICS_OPENGL_ES": {
+    "zh_CN": "OpenGL ES",
+    "en_GB": "OpenGL ES"
   },
   "PACK_EXPORT_TO_HARMONY_DEVICE": {
-    "zh_CN": "导出到移动设备",
-    "en_GB": "Export to mobile device"
+    "zh_CN": "导出到匹配的 HarmonyOS 设备",
+    "en_GB": "Export to matching HarmonyOS device"
   },
   "PACK_PLATFORM_NOT_IMPLEMENTED": {
     "zh_CN": "暂未实现",
@@ -652,8 +660,8 @@
     "en_GB": "The HarmonyOS packaging toolchain is unavailable. Install DevEco Studio and complete its first-launch setup"
   },
   "PACK_HARMONY_DEVICE_UNAVAILABLE": {
-    "zh_CN": "未找到唯一可用的 HarmonyOS 移动设备，请连接并解锁设备，并启用开发者模式",
-    "en_GB": "No single available HarmonyOS mobile device was found. Connect and unlock the device, and enable Developer Mode"
+    "zh_CN": "未找到唯一可用且与所选形态匹配的 HarmonyOS 设备，请连接并解锁设备，并启用开发者模式",
+    "en_GB": "No single available HarmonyOS device matching the selected form was found. Connect and unlock the device, and enable Developer Mode"
   },
   "PACK_HARMONY_SIGNING_UNAVAILABLE": {
     "zh_CN": "HarmonyOS 签名未完成或签名无效，请查看上方日志并在 DevEco Studio 中重新完成自动签名",

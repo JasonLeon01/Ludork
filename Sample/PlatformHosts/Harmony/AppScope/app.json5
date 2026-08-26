@@ -5,6 +5,6 @@
     "versionCode": 1000000,
     "versionName": "1.0.0",
     "label": "$string:app_name",
-    "icon": "$media:app_icon"
+    "icon": "$media:app_icon"__LUDORK_APP_ENVIRONMENTS__
   }
 }

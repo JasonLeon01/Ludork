@@ -22,7 +22,7 @@ Ludork 是一款面向 2D 角色扮演游戏创作的游戏编辑器与原生运
 | Ludork 编辑器 | macOS 13.3 或更高版本，Apple Silicon | 以原生 `.app` 应用包发布。 |
 | 桌面游戏工程 | Windows 10 或更高版本，x64；或 macOS 13.3 或更高版本，Apple Silicon | 新工程使用与编辑器宿主平台对应的模板。 |
 | iOS 游戏工程 | iOS 15.0 或更高版本，arm64 | 打包需要 C++ Source 工程、Apple Silicon macOS、完整 Xcode 与 Apple 开发签名。 |
-| HarmonyOS 游戏工程 | HarmonyOS 6.0.2 / API 22 或更高版本，arm64-v8a | Mobile HAP 打包需要 C++ Source 工程、Apple Silicon macOS 与 DevEco Studio。 |
+| HarmonyOS 游戏工程 | HarmonyOS 6.0.2 / API 22 或更高版本，arm64-v8a | Mobile 使用 OpenGL ES；2in1 默认使用 OpenGL，也可选择 OpenGL ES。HAP 打包需要 C++ Source 工程、Apple Silicon macOS 与 DevEco Studio。 |
 | Android 游戏工程 | Android 7.0 / API 24 或更高版本，arm64-v8a | APK 打包需要 C++ Source 工程、Apple Silicon macOS、Android Studio、SDK Platform 36、Build Tools 36.0.0、Android NDK r27 或更高版本，以及本机 CMake 3.28 或更高版本。默认输出未签名 APK，也可使用已有 JKS 或 PKCS12 keystore 进行可选签名。 |
 
 Ludork 1.0.0 不提供 Linux 或 Intel Mac 编辑器安装包。
@@ -45,7 +45,7 @@ Ludork 1.0.0 不提供 Linux 或 Intel Mac 编辑器安装包。
 | **C++ Source** | 需要修改原生引擎代码、添加绑定、调试 C++，或输出 iOS/HarmonyOS/Android 目标。 | CMake 3.21 或更高版本，以及对应平台的编译工具链；Android 打包要求 CMake 3.28 或更高版本。 |
 | **C++ Source + FFmpeg** | 同时需要原生源码与视频播放。 | 满足上述 C++ 要求；工程包含 FFmpeg 源码与构建配置。 |
 
-FFmpeg 默认关闭。预编译的 FFmpeg Standalone 模板只面向桌面平台；iOS、HarmonyOS 或 Android 输出应使用 C++ Source 模板。这些移动应用会静态链接各自的 FFmpeg 构建，因此还须履行 LGPL 对重新链接材料的额外要求；分发前应阅读随附的 FFmpeg 声明。
+FFmpeg 默认关闭。预编译的 FFmpeg Standalone 模板只面向桌面平台；iOS、HarmonyOS 或 Android 输出应使用 C++ Source 模板。这些平台包会静态链接各自的 FFmpeg 构建，因此还须履行 LGPL 对重新链接材料的额外要求；分发前应阅读随附的 FFmpeg 声明。
 
 ### 在 IDE 中调试 C++ Source 工程
 
@@ -66,6 +66,8 @@ Visual Studio 的运行和调试会复用编辑器 Play 的同一个 Debug C++ �
 从编辑器执行打包会运行已注册的插件准备 hook。Standalone 工程无需编译 C++ 即可编辑和打包；C++ Source 工程会执行所需的原生构建。
 
 Android 打包不勾选**签名 APK**时生成 `dist/<游戏名>-android-arm64-v8a-unsigned.apk`。勾选后会打开二级窗口，要求选择已有 JKS 或 PKCS12 keystore，并填写 key alias、keystore password 和 key password；key password 默认与 keystore password 相同。这些凭据只用于本次打包，不会保存。签名成功后只发布 `dist/<游戏名>-android-arm64-v8a-signed.apk`。同一已安装应用的后续版本必须复用相同签名密钥。两种 Android 模式都不会安装或启动 APK。
+
+HarmonyOS 打包可选择使用 OpenGL ES 的 **Mobile** 手机/平板宿主，或选择 **2in1** 后再选择 OpenGL/OpenGL ES；2in1 默认使用 OpenGL。未签名产物分别写入 `dist/<游戏名>-harmony-mobile-unsigned.hap`、`dist/<游戏名>-harmony-2in1-opengl-unsigned.hap` 或 `dist/<游戏名>-harmony-2in1-opengl-es-unsigned.hap`。勾选**导出到匹配的 HarmonyOS 设备**后，会签名对应 HAP，将其安装到唯一一台形态匹配的已连接设备并启动应用。
 
 ## 从源码构建 Ludork
 

@@ -22,7 +22,7 @@ Ludork is a game editor and native runtime for creating 2D role-playing games. I
 | Ludork editor | macOS 13.3 or newer, Apple Silicon | Distributed as a native `.app` bundle. |
 | Desktop game projects | Windows 10 or newer, x64; or macOS 13.3 or newer, Apple Silicon | A project is created from the template for the editor's host platform. |
 | iOS game projects | iOS 15.0 or newer, arm64 | Packaging requires a C++ Source project, Apple Silicon macOS, full Xcode, and Apple development signing. |
-| HarmonyOS game projects | HarmonyOS 6.0.2 / API 22 or newer, arm64-v8a | Mobile HAP packaging requires a C++ Source project, Apple Silicon macOS, and DevEco Studio. |
+| HarmonyOS game projects | HarmonyOS 6.0.2 / API 22 or newer, arm64-v8a | Mobile uses OpenGL ES; 2in1 uses OpenGL by default and can select OpenGL ES. HAP packaging requires a C++ Source project, Apple Silicon macOS, and DevEco Studio. |
 | Android game projects | Android 7.0 / API 24 or newer, arm64-v8a | APK packaging requires a C++ Source project, Apple Silicon macOS, Android Studio, SDK Platform 36, Build Tools 36.0.0, Android NDK r27 or newer, and host CMake 3.28 or newer. Output is unsigned by default and may optionally be signed with an existing JKS or PKCS12 keystore. |
 
 Linux and Intel-based macOS editor packages are not provided in Ludork 1.0.0.
@@ -45,7 +45,7 @@ Release packages are self-contained; installing a separate .NET runtime is not r
 | **C++ Source** | You need to change native engine code, add bindings, debug C++, or target iOS, HarmonyOS, or Android. | CMake 3.21 or newer and the platform compiler toolchain. Android packaging requires CMake 3.28 or newer. |
 | **C++ Source + FFmpeg** | You need native source access and video playback. | The C++ requirements above; the project contains the FFmpeg source and build configuration. |
 
-FFmpeg is disabled by default. The prebuilt FFmpeg Standalone templates target desktop platforms; use a C++ Source template for iOS, HarmonyOS or Android output. Those mobile applications statically link their FFmpeg builds and therefore have additional LGPL relinking-material obligations; review the bundled FFmpeg notice before distribution.
+FFmpeg is disabled by default. The prebuilt FFmpeg Standalone templates target desktop platforms; use a C++ Source template for iOS, HarmonyOS or Android output. Those platform packages statically link their FFmpeg builds and therefore have additional LGPL relinking-material obligations; review the bundled FFmpeg notice before distribution.
 
 ### Debug a C++ Source project in an IDE
 
@@ -66,6 +66,8 @@ The generators find the tools installed with Ludork automatically. If the editor
 Packaging through the editor runs registered plug-in preparation hooks. A Standalone project can be edited and packaged without compiling C++; a C++ Source project performs the required native build.
 
 For Android, leaving **Sign APK** clear creates `dist/<game-name>-android-arm64-v8a-unsigned.apk`. Selecting it opens a second dialog for an existing JKS or PKCS12 keystore, key alias, keystore password and key password; the key password defaults to the keystore password. These credentials are used only for the current package and are not saved. A successful signed build publishes only `dist/<game-name>-android-arm64-v8a-signed.apk`. Reuse the same signing key for later versions of an installed application. Neither Android mode installs or launches the APK.
+
+For HarmonyOS, choose **Mobile** for the OpenGL ES phone/tablet host, or **2in1** and then choose OpenGL or OpenGL ES; OpenGL is the 2in1 default. An unsigned package is written as `dist/<game-name>-harmony-mobile-unsigned.hap`, `dist/<game-name>-harmony-2in1-opengl-unsigned.hap`, or `dist/<game-name>-harmony-2in1-opengl-es-unsigned.hap`. **Export to matching HarmonyOS device** signs the corresponding HAP, installs it on the single connected device whose form matches the selection, and launches it.
 
 ## Build Ludork from source
 

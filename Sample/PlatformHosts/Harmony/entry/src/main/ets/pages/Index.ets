@@ -13,6 +13,92 @@ const RUNTIME_ARCHIVE = 'ludork-runtime.zip';
 const RUNTIME_HASH = '__LUDORK_RUNTIME_HASH__';
 const RUNTIME_MARKER = '.ludork-runtime-complete';
 const COPY_CHUNK_SIZE = 1024 * 1024;
+const GRAPHICS_API: string = '__LUDORK_GRAPHICS_API__';
+
+enum SfmlWindowCommandType {
+  Configure = 0,
+  Restore = 1,
+  SetPosition = 2,
+  SetSize = 3,
+  SetMinimumSize = 4,
+  SetMaximumSize = 5,
+  SetTitle = 6,
+  SetIcon = 7,
+  SetVisible = 8,
+  RequestFocus = 9
+}
+
+class SfmlWindowCommand {
+  requestId: number = 0;
+  timeoutMs: number = 0;
+  type: SfmlWindowCommandType = SfmlWindowCommandType.Configure;
+  x: number = 0;
+  y: number = 0;
+  width: number = 0;
+  height: number = 0;
+  hasSizeLimit: boolean = false;
+  limitWidth: number = 0;
+  limitHeight: number = 0;
+  title: string = '';
+  iconWidth: number = 0;
+  iconHeight: number = 0;
+  iconPixels: Uint8Array = new Uint8Array();
+  style: number = 0;
+  fullscreen: boolean = false;
+  visible: boolean = true;
+  keepScreenOn: boolean = false;
+  expiresAt: number = 0;
+}
+
+class SfmlWindowState {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  visible: boolean;
+  focused: boolean;
+  fullscreen: boolean;
+
+  constructor(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    visible: boolean,
+    focused: boolean,
+    fullscreen: boolean
+  ) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.visible = visible;
+    this.focused = focused;
+    this.fullscreen = fullscreen;
+  }
+}
+
+class SfmlWindowPosition {
+  x: number;
+  y: number;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+class SfmlWindowBaseline {
+  rect: window.Rect;
+  limits: window.WindowLimits;
+  decorVisible: boolean;
+
+  constructor(rect: window.Rect, limits: window.WindowLimits, decorVisible: boolean) {
+    this.rect = rect;
+    this.limits = limits;
+    this.decorVisible = decorVisible;
+  }
+}
 
 const SYSTEM_POINTER_STYLES: Array<pointer.PointerStyle> = [
   pointer.PointerStyle.DEFAULT,
@@ -50,6 +136,7 @@ class SfmlHostCallbacks {
   ) => void;
   setVirtualKeyboardVisible: (visible: boolean) => void;
   configureWindow: (fullscreen: boolean, keepScreenOn: boolean) => void;
+  executeWindowCommand: (command: SfmlWindowCommand) => void;
   requestExit: () => void;
 
   constructor(
@@ -64,6 +151,7 @@ class SfmlHostCallbacks {
     ) => void,
     setVirtualKeyboardVisible: (visible: boolean) => void,
     configureWindow: (fullscreen: boolean, keepScreenOn: boolean) => void,
+    executeWindowCommand: (command: SfmlWindowCommand) => void,
     requestExit: () => void
   ) {
     this.setPointerVisible = setPointerVisible;
@@ -71,6 +159,7 @@ class SfmlHostCallbacks {
     this.setCustomPointer = setCustomPointer;
     this.setVirtualKeyboardVisible = setVirtualKeyboardVisible;
     this.configureWindow = configureWindow;
+    this.executeWindowCommand = executeWindowCommand;
     this.requestExit = requestExit;
   }
 }
@@ -104,6 +193,27 @@ interface SfmlNativeContext {
   onBackground(): void;
   onXComponentDestroy(): void;
   onDestroy(): void;
+  completeWindowCommand(
+    requestId: number,
+    success: boolean,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    visible: boolean,
+    focused: boolean,
+    fullscreen: boolean
+  ): boolean;
+  isWindowCommandPending(requestId: number): boolean;
+  updateWindowState(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    visible: boolean,
+    focused: boolean,
+    fullscreen: boolean
+  ): boolean;
   submitText(text: string): void;
   submitKeyText(text: string): void;
   submitTextEdit(backwardDeletions: number, forwardDeletions: number, text: string): boolean;
@@ -111,6 +221,7 @@ interface SfmlNativeContext {
 
 class SurfaceNodeBinding {
   context?: SfmlNativeContext;
+  requestFocus?: () => void;
   registered: boolean = false;
   retired: boolean = false;
   destroyed: boolean = false;
@@ -121,6 +232,7 @@ struct SfmlSurfaceNode {
   private binding: SurfaceNodeBinding = new SurfaceNodeBinding();
   nodeAppeared: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
   surfaceLoaded: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
+  surfaceLoadFailed: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
   surfaceDestroyed: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
   surfaceFocusLost: (binding: SurfaceNodeBinding) => void = (_binding: SurfaceNodeBinding): void => {};
   surfacePreImeKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) => boolean = (
@@ -133,6 +245,9 @@ struct SfmlSurfaceNode {
   ): boolean => false;
 
   aboutToAppear(): void {
+    this.binding.requestFocus = (): void => {
+      this.getUIContext().getFocusController().requestFocus('sfml-surface-focus');
+    };
     if (!this.binding.registered) {
       this.binding.registered = true;
       this.nodeAppeared(this.binding);
@@ -141,7 +256,7 @@ struct SfmlSurfaceNode {
 
   private handleLoad(context?: object): void {
     if (!context) {
-      hilog.error(DOMAIN, TAG, 'XComponent onLoad did not provide a native context');
+      this.surfaceLoadFailed(this.binding);
       return;
     }
 
@@ -164,6 +279,7 @@ struct SfmlSurfaceNode {
       return;
     }
     this.binding.destroyed = true;
+    this.binding.requestFocus = undefined;
     this.surfaceDestroyed(this.binding);
   }
 
@@ -173,6 +289,7 @@ struct SfmlSurfaceNode {
       type: XComponentType.SURFACE,
       libraryname: 'entry'
     })
+      .id('sfml-surface-focus')
       .width('100%')
       .height('100%')
       .focusable(true)
@@ -231,6 +348,19 @@ struct Index {
   private customPointerRequest: number = 0;
   private exitRequested: boolean = false;
   private heldSurfaceKeys: Set<number> = new Set<number>();
+  private mainWindow?: window.Window;
+  private windowBaseline?: SfmlWindowBaseline;
+  private windowStateObserversRegistered: boolean = false;
+  private windowFocused: boolean = false;
+  private windowStateGeneration: number = 0;
+  private windowStatePublishSuppressed: boolean = false;
+  private windowStatePublishDirty: boolean = false;
+  private confirmedWindowTitle: string = "__LUDORK_GAME_NAME__";
+  private confirmedWindowIcon?: SfmlWindowCommand;
+  private confirmedWindowStyle: number = 0;
+  private confirmedKeepScreenOn: boolean = false;
+  private pendingFloatingPosition?: SfmlWindowPosition;
+  private suspendPendingFloatingPosition: boolean = false;
   private windowCommandQueue: Promise<void> = Promise.resolve();
   private windowHostGeneration: number = 0;
   private displayScaleRequest: number = 0;
@@ -337,7 +467,7 @@ struct Index {
         this.getUIContext().getFocusController().requestFocus('sfml-ime');
       } else {
         this.imeController.stopEditing();
-        this.getUIContext().getFocusController().requestFocus('sfml-surface');
+        this.getUIContext().getFocusController().requestFocus('sfml-surface-focus');
         this.resetImeEditor();
       }
     } catch (error) {
@@ -392,6 +522,797 @@ struct Index {
         return;
       }
       await this.applyWindowPresentation(mainWindow, fullscreen, keepScreenOn);
+    });
+  }
+
+  private queryWindowState(mainWindow: window.Window): SfmlWindowState {
+    const properties = mainWindow.getWindowProperties();
+    const rect = properties.globalDisplayRect ?? properties.windowRect;
+    const drawable = properties.drawableRect;
+    const status = mainWindow.getWindowStatus();
+    this.windowFocused = mainWindow.isFocused();
+    return new SfmlWindowState(
+      rect.left,
+      rect.top,
+      drawable.width,
+      drawable.height,
+      mainWindow.isWindowShowing() && status !== window.WindowStatusType.MINIMIZE,
+      this.windowFocused,
+      properties.isFullScreen || properties.isLayoutFullScreen ||
+        status === window.WindowStatusType.FULL_SCREEN
+    );
+  }
+
+  private publishWindowState(mainWindow: window.Window): void {
+    if (this.windowStatePublishSuppressed) {
+      this.windowStatePublishDirty = true;
+      return;
+    }
+
+    const nativeContext = this.nativeContext ?? this.lifecycleContext;
+    if (!nativeContext || this.nativeHostDestroyed) {
+      return;
+    }
+
+    try {
+      const state = this.queryWindowState(mainWindow);
+      nativeContext.updateWindowState(
+        state.x,
+        state.y,
+        state.width,
+        state.height,
+        state.visible,
+        state.focused,
+        state.fullscreen
+      );
+    } catch (error) {
+      this.logHostFailure('Publishing Stage window state', error as Error);
+    }
+  }
+
+  private bindWindowStateObservers(mainWindow: window.Window): void {
+    if (this.mainWindow === mainWindow && this.windowStateObserversRegistered) {
+      return;
+    }
+    this.unbindWindowStateObservers();
+    this.mainWindow = mainWindow;
+
+    try {
+      mainWindow.on('rectChangeInGlobalDisplay', (_options: window.RectChangeOptions) => {
+        ++this.windowStateGeneration;
+        this.publishWindowState(mainWindow);
+      });
+      mainWindow.on('windowStatusDidChange', (status: window.WindowStatusType) => {
+        ++this.windowStateGeneration;
+        this.publishWindowState(mainWindow);
+        if (status === window.WindowStatusType.FLOATING && this.pendingFloatingPosition &&
+          !this.suspendPendingFloatingPosition) {
+          this.applyPendingFloatingPosition(mainWindow).catch((error: Error) => {
+            this.logHostFailure('Applying deferred floating window position', error);
+          });
+        }
+      });
+      mainWindow.on('windowEvent', (event: window.WindowEventType) => {
+        ++this.windowStateGeneration;
+        if (event === window.WindowEventType.WINDOW_ACTIVE) {
+          this.windowFocused = true;
+        } else if (event === window.WindowEventType.WINDOW_INACTIVE ||
+          event === window.WindowEventType.WINDOW_HIDDEN ||
+          event === window.WindowEventType.WINDOW_DESTROYED) {
+          this.windowFocused = false;
+        }
+        this.publishWindowState(mainWindow);
+      });
+      this.windowStateObserversRegistered = true;
+      this.publishWindowState(mainWindow);
+    } catch (error) {
+      this.logHostFailure('Registering Stage window state observers', error as Error);
+    }
+  }
+
+  private unbindWindowStateObservers(): void {
+    const mainWindow = this.mainWindow;
+    this.mainWindow = undefined;
+    if (!mainWindow) {
+      this.windowStateObserversRegistered = false;
+      return;
+    }
+
+    try {
+      mainWindow.off('rectChangeInGlobalDisplay');
+    } catch (error) {
+      this.logHostFailure('Unregistering global window rect observer', error as Error);
+    }
+    try {
+      mainWindow.off('windowStatusDidChange');
+    } catch (error) {
+      this.logHostFailure('Unregistering window status observer', error as Error);
+    }
+    try {
+      mainWindow.off('windowEvent');
+    } catch (error) {
+      this.logHostFailure('Unregistering window event observer', error as Error);
+    }
+    this.windowStateObserversRegistered = false;
+  }
+
+  private captureWindowBaseline(mainWindow: window.Window): void {
+    if (this.windowBaseline) {
+      return;
+    }
+
+    const properties = mainWindow.getWindowProperties();
+    const currentRect = properties.globalDisplayRect ?? properties.windowRect;
+    const rect: window.Rect = {
+      left: currentRect.left,
+      top: currentRect.top,
+      width: currentRect.width,
+      height: currentRect.height
+    };
+    const currentLimits = mainWindow.getWindowLimits();
+    const limits: window.WindowLimits = {
+      minWidth: currentLimits.minWidth,
+      minHeight: currentLimits.minHeight,
+      maxWidth: currentLimits.maxWidth,
+      maxHeight: currentLimits.maxHeight
+    };
+    this.windowBaseline = new SfmlWindowBaseline(rect, limits, mainWindow.getWindowDecorVisible());
+  }
+
+  private cloneWindowBaseline(): SfmlWindowBaseline | undefined {
+    const baseline = this.windowBaseline;
+    if (!baseline) {
+      return undefined;
+    }
+
+    const rect: window.Rect = {
+      left: baseline.rect.left,
+      top: baseline.rect.top,
+      width: baseline.rect.width,
+      height: baseline.rect.height
+    };
+    const limits: window.WindowLimits = {
+      minWidth: baseline.limits.minWidth,
+      minHeight: baseline.limits.minHeight,
+      maxWidth: baseline.limits.maxWidth,
+      maxHeight: baseline.limits.maxHeight
+    };
+    return new SfmlWindowBaseline(rect, limits, baseline.decorVisible);
+  }
+
+  private setFullscreenPolicy(
+    mainWindow: window.Window,
+    fullscreen: boolean,
+    keepScreenOn: boolean
+  ): Promise<void> {
+    const systemBars: Array<'status' | 'navigation'> = fullscreen ? [] : ['status', 'navigation'];
+    if (fullscreen) {
+      mainWindow.setWindowDecorVisible(false);
+      const alreadyMaximized = mainWindow.getWindowStatus() === window.WindowStatusType.MAXIMIZE ||
+        mainWindow.getWindowStatus() === window.WindowStatusType.FULL_SCREEN;
+      return Promise.all([
+        mainWindow.setWindowLayoutFullScreen(true),
+        mainWindow.setWindowSystemBarEnable(systemBars),
+        mainWindow.setWindowKeepScreenOn(keepScreenOn)
+      ]).then(() => alreadyMaximized ? Promise.resolve() :
+        mainWindow.maximize(window.MaximizePresentation.ENTER_IMMERSIVE)).then((): void => {});
+    }
+
+    let recover: Promise<void> = Promise.resolve();
+    if (mainWindow.getWindowStatus() === window.WindowStatusType.MINIMIZE) {
+      recover = mainWindow.restore();
+    }
+    recover = recover.then(() => mainWindow.getWindowStatus() === window.WindowStatusType.FLOATING ?
+      Promise.resolve() : mainWindow.recover());
+    return recover.then(() => Promise.all([
+      mainWindow.setWindowLayoutFullScreen(fullscreen),
+      mainWindow.setWindowSystemBarEnable(systemBars),
+      mainWindow.setWindowKeepScreenOn(keepScreenOn)
+    ])).then((): void => {});
+  }
+
+  private applyPendingFloatingPosition(mainWindow: window.Window): Promise<void> {
+    const pending = this.pendingFloatingPosition;
+    if (!pending || mainWindow.getWindowStatus() !== window.WindowStatusType.FLOATING) {
+      return Promise.resolve();
+    }
+    this.pendingFloatingPosition = undefined;
+    return mainWindow.moveWindowToGlobalDisplay(pending.x, pending.y).catch((error: Error) => {
+      this.pendingFloatingPosition = pending;
+      throw error;
+    });
+  }
+
+  private applyWindowStyle(mainWindow: window.Window, style: number): Promise<void> {
+    const decorated = (style & 0x7) !== 0;
+    const resizable = (style & 0x2) !== 0;
+    const closeable = (style & 0x4) !== 0;
+    mainWindow.setWindowDecorVisible(decorated);
+    mainWindow.setWindowTitleMoveEnabled(decorated);
+    mainWindow.setWindowTitleButtonVisible(resizable, decorated, closeable);
+    return mainWindow.setResizeByDragEnabled(resizable);
+  }
+
+  private resizeClientArea(mainWindow: window.Window, width: number, height: number): Promise<void> {
+    const properties = mainWindow.getWindowProperties();
+    const horizontalDecor = Math.max(0, properties.windowRect.width - properties.drawableRect.width);
+    const verticalDecor = Math.max(0, properties.windowRect.height - properties.drawableRect.height);
+    return mainWindow.resize(
+      Math.max(1, Math.trunc(width) + horizontalDecor),
+      Math.max(1, Math.trunc(height) + verticalDecor)
+    );
+  }
+
+  private setWindowSizeLimit(
+    mainWindow: window.Window,
+    command: SfmlWindowCommand,
+    minimum: boolean
+  ): Promise<window.WindowLimits> {
+    const current = mainWindow.getWindowLimits();
+    const limits: window.WindowLimits = {
+      minWidth: current.minWidth,
+      minHeight: current.minHeight,
+      maxWidth: current.maxWidth,
+      maxHeight: current.maxHeight
+    };
+    const properties = mainWindow.getWindowProperties();
+    const horizontalDecor = Math.max(0, properties.windowRect.width - properties.drawableRect.width);
+    const verticalDecor = Math.max(0, properties.windowRect.height - properties.drawableRect.height);
+    const baseline = this.windowBaseline?.limits;
+
+    if (minimum) {
+      limits.minWidth = command.hasSizeLimit ? command.limitWidth + horizontalDecor : baseline?.minWidth;
+      limits.minHeight = command.hasSizeLimit ? command.limitHeight + verticalDecor : baseline?.minHeight;
+    } else {
+      limits.maxWidth = command.hasSizeLimit ? command.limitWidth + horizontalDecor : baseline?.maxWidth;
+      limits.maxHeight = command.hasSizeLimit ? command.limitHeight + verticalDecor : baseline?.maxHeight;
+    }
+    return mainWindow.setWindowLimits(limits);
+  }
+
+  private async setMissionWindowIcon(
+    context: common.UIAbilityContext,
+    command: SfmlWindowCommand
+  ): Promise<void> {
+    if (command.iconWidth <= 0 || command.iconHeight <= 0 ||
+      command.iconPixels.length !== command.iconWidth * command.iconHeight * 4) {
+      throw new Error('Invalid RGBA mission window icon payload');
+    }
+
+    const options: image.InitializationOptions = {
+      size: { width: command.iconWidth, height: command.iconHeight },
+      srcPixelFormat: image.PixelMapFormat.RGBA_8888,
+      pixelFormat: image.PixelMapFormat.RGBA_8888,
+      alphaType: image.AlphaType.UNPREMUL,
+      editable: false
+    };
+    const pixelMap = await image.createPixelMap(command.iconPixels.buffer, options);
+    try {
+      await context.setMissionWindowIcon(pixelMap);
+    } finally {
+      await pixelMap.release();
+    }
+  }
+
+  private async restoreWindowBaseline(mainWindow: window.Window): Promise<void> {
+    const baseline = this.windowBaseline;
+    this.suspendPendingFloatingPosition = true;
+    try {
+      await this.setFullscreenPolicy(mainWindow, false, false);
+      if (mainWindow.getWindowStatus() === window.WindowStatusType.MINIMIZE) {
+        await mainWindow.restore();
+      }
+
+      if (baseline) {
+        mainWindow.setWindowDecorVisible(baseline.decorVisible);
+        mainWindow.setWindowTitleMoveEnabled(baseline.decorVisible);
+        mainWindow.setWindowTitleButtonVisible(true, true, true);
+        await mainWindow.setResizeByDragEnabled(true);
+        await mainWindow.setWindowLimits(baseline.limits);
+        await mainWindow.resize(baseline.rect.width, baseline.rect.height);
+        await mainWindow.moveWindowToGlobalDisplay(baseline.rect.left, baseline.rect.top);
+      }
+    } finally {
+      this.suspendPendingFloatingPosition = false;
+    }
+    await this.applyPendingFloatingPosition(mainWindow);
+  }
+
+  private async applyWindowCommand(
+    context: common.UIAbilityContext,
+    mainWindow: window.Window,
+    command: SfmlWindowCommand
+  ): Promise<void> {
+    switch (command.type) {
+      case SfmlWindowCommandType.Configure:
+        this.captureWindowBaseline(mainWindow);
+        await mainWindow.setWindowTitle(command.title);
+        if (command.fullscreen) {
+          await this.applyWindowStyle(mainWindow, command.style);
+          await this.setFullscreenPolicy(mainWindow, true, command.keepScreenOn);
+        } else {
+          this.suspendPendingFloatingPosition = true;
+          try {
+            await this.setFullscreenPolicy(mainWindow, false, command.keepScreenOn);
+            await this.applyWindowStyle(mainWindow, command.style);
+            if (command.width > 0 && command.height > 0) {
+              await this.resizeClientArea(mainWindow, command.width, command.height);
+            }
+          } finally {
+            this.suspendPendingFloatingPosition = false;
+          }
+          await this.applyPendingFloatingPosition(mainWindow);
+        }
+        if (command.visible) {
+          await mainWindow.showWindow({ focusOnShow: true });
+        }
+        break;
+      case SfmlWindowCommandType.Restore:
+        await this.restoreWindowBaseline(mainWindow);
+        break;
+      case SfmlWindowCommandType.SetPosition:
+        if (mainWindow.getWindowStatus() === window.WindowStatusType.FLOATING) {
+          await mainWindow.moveWindowToGlobalDisplay(command.x, command.y);
+        } else {
+          this.pendingFloatingPosition = new SfmlWindowPosition(command.x, command.y);
+        }
+        break;
+      case SfmlWindowCommandType.SetSize:
+        await this.resizeClientArea(mainWindow, command.width, command.height);
+        break;
+      case SfmlWindowCommandType.SetMinimumSize:
+        await this.setWindowSizeLimit(mainWindow, command, true);
+        break;
+      case SfmlWindowCommandType.SetMaximumSize:
+        await this.setWindowSizeLimit(mainWindow, command, false);
+        break;
+      case SfmlWindowCommandType.SetTitle:
+        await mainWindow.setWindowTitle(command.title);
+        break;
+      case SfmlWindowCommandType.SetIcon:
+        await this.setMissionWindowIcon(context, command);
+        break;
+      case SfmlWindowCommandType.SetVisible:
+        if (command.visible) {
+          if (mainWindow.getWindowStatus() === window.WindowStatusType.MINIMIZE) {
+            await mainWindow.restore();
+          }
+          await mainWindow.showWindow({ focusOnShow: false });
+        } else {
+          await mainWindow.minimize();
+        }
+        break;
+      case SfmlWindowCommandType.RequestFocus:
+        if (!mainWindow.isWindowShowing() ||
+          mainWindow.getWindowStatus() === window.WindowStatusType.MINIMIZE) {
+          throw new Error('Cannot focus a hidden or minimized Stage window');
+        }
+        await mainWindow.showWindow({ focusOnShow: true });
+        let focusError: Error | undefined;
+        for (let attempt = 0; attempt < 25 && Date.now() + 100 < command.expiresAt; ++attempt) {
+          try {
+            const requestSurfaceFocus = this.activeSurfaceBinding?.requestFocus;
+            if (!requestSurfaceFocus) {
+              throw new Error('The SFML XComponent focus target is not available');
+            }
+            requestSurfaceFocus();
+            focusError = undefined;
+            break;
+          } catch (error) {
+            focusError = error as Error;
+            await this.delayWindowStatePoll();
+          }
+        }
+        if (focusError) {
+          if (!mainWindow.isFocused()) {
+            throw focusError;
+          }
+          hilog.warn(
+            DOMAIN,
+            TAG,
+            'requestFocus(sfml-surface) failed while the Stage window is focused; using the default-focus XComponent: %{public}s',
+            focusError.message
+          );
+        }
+        break;
+      default:
+        throw new Error(`Unknown SFML window command ${command.type}`);
+    }
+  }
+
+  private windowStateSignature(mainWindow: window.Window, state: SfmlWindowState): string {
+    return `${state.x},${state.y},${state.width},${state.height},${state.visible},${state.focused},` +
+      `${state.fullscreen},${mainWindow.getWindowStatus()}`;
+  }
+
+  private windowCommandStateMatches(
+    mainWindow: window.Window,
+    command: SfmlWindowCommand,
+    state: SfmlWindowState
+  ): boolean {
+    const status = mainWindow.getWindowStatus();
+    switch (command.type) {
+      case SfmlWindowCommandType.Configure:
+        if (command.fullscreen) {
+          return state.fullscreen && (status === window.WindowStatusType.MAXIMIZE ||
+            status === window.WindowStatusType.FULL_SCREEN);
+        }
+        return status === window.WindowStatusType.FLOATING &&
+          (command.width === 0 || state.width === command.width) &&
+          (command.height === 0 || state.height === command.height);
+      case SfmlWindowCommandType.Restore:
+        return status === window.WindowStatusType.FLOATING;
+      case SfmlWindowCommandType.SetPosition:
+        return status !== window.WindowStatusType.FLOATING || (state.x === command.x && state.y === command.y);
+      case SfmlWindowCommandType.SetSize:
+        return state.width === command.width && state.height === command.height;
+      case SfmlWindowCommandType.SetVisible:
+        return state.visible === command.visible;
+      case SfmlWindowCommandType.RequestFocus:
+        return state.focused;
+      default:
+        return true;
+    }
+  }
+
+  private delayWindowStatePoll(): Promise<void> {
+    return new Promise<void>((resolve: () => void) => {
+      setTimeout(() => resolve(), 20);
+    });
+  }
+
+  private async awaitWindowCommandState(
+    nativeContext: SfmlNativeContext,
+    mainWindow: window.Window,
+    command: SfmlWindowCommand,
+    startingGeneration: number,
+    startingState: SfmlWindowState
+  ): Promise<void> {
+    if (command.type === SfmlWindowCommandType.SetMinimumSize ||
+      command.type === SfmlWindowCommandType.SetMaximumSize ||
+      command.type === SfmlWindowCommandType.SetTitle || command.type === SfmlWindowCommandType.SetIcon) {
+      return;
+    }
+
+    let previousSignature = '';
+    let stablePolls = 0;
+    for (let attempt = 0; attempt < 80; ++attempt) {
+      if (Date.now() >= command.expiresAt || !nativeContext.isWindowCommandPending(command.requestId)) {
+        throw new Error(`Window command ${command.requestId} expired while waiting for Stage state`);
+      }
+      const state = this.queryWindowState(mainWindow);
+      const signature = this.windowStateSignature(mainWindow, state);
+      stablePolls = signature === previousSignature ? stablePolls + 1 : 0;
+      previousSignature = signature;
+      const observedEvent = this.windowStateGeneration !== startingGeneration;
+
+      if (this.windowCommandStateMatches(mainWindow, command, state) && (observedEvent || attempt >= 2)) {
+        return;
+      }
+      const clampableGeometry = command.type === SfmlWindowCommandType.SetSize ||
+        (command.type === SfmlWindowCommandType.SetPosition &&
+          mainWindow.getWindowStatus() === window.WindowStatusType.FLOATING) ||
+        (command.type === SfmlWindowCommandType.Configure && !command.fullscreen);
+      const relevantGeometryChanged = command.type === SfmlWindowCommandType.SetPosition ?
+        (state.x !== startingState.x || state.y !== startingState.y) :
+        (state.width !== startingState.width || state.height !== startingState.height);
+      // Only geometry can legitimately settle at a manager-clamped value.
+      // Do not treat an unrelated delayed event as acknowledgement of an
+      // unchanged drawable/position from the preceding serialized command.
+      if (clampableGeometry && relevantGeometryChanged &&
+        ((observedEvent && stablePolls >= 2) || (attempt >= 25 && stablePolls >= 5))) {
+        return;
+      }
+      await this.delayWindowStatePoll();
+    }
+    throw new Error(`Stage state did not settle for window command ${command.requestId}`);
+  }
+
+  private completeHostWindowCommand(
+    nativeContext: SfmlNativeContext,
+    command: SfmlWindowCommand,
+    success: boolean,
+    mainWindow?: window.Window
+  ): boolean {
+    let state = new SfmlWindowState(0, 0, 0, 0, false, false, false);
+    try {
+      if (mainWindow) {
+        state = this.queryWindowState(mainWindow);
+      }
+    } catch (error) {
+      this.logHostFailure('Querying Stage state for command acknowledgement', error as Error);
+    }
+    return nativeContext.completeWindowCommand(
+      command.requestId,
+      success,
+      state.x,
+      state.y,
+      state.width,
+      state.height,
+      state.visible,
+      state.focused,
+      state.fullscreen
+    );
+  }
+
+  private async compensateFailedConfigure(mainWindow: window.Window, startingTitle: string): Promise<void> {
+    try {
+      await this.restoreWindowBaseline(mainWindow);
+      await mainWindow.setWindowTitle(startingTitle);
+      this.windowBaseline = undefined;
+    } catch (error) {
+      this.logHostFailure('Compensating a failed or expired Configure command', error as Error);
+    }
+  }
+
+  private async compensateExpiredRestore(
+    mainWindow: window.Window,
+    startingState: SfmlWindowState,
+    startingLimits: window.WindowLimits,
+    startingPendingPosition: SfmlWindowPosition | undefined,
+    startingBaseline: SfmlWindowBaseline | undefined,
+    startingStyle: number,
+    startingKeepScreenOn: boolean,
+    startingDecorVisible: boolean
+  ): Promise<void> {
+    this.suspendPendingFloatingPosition = true;
+    try {
+      await mainWindow.setWindowLimits(startingLimits);
+      if (startingState.fullscreen) {
+        await this.applyWindowStyle(mainWindow, startingStyle);
+        await this.setFullscreenPolicy(mainWindow, true, startingKeepScreenOn);
+      } else {
+        await this.setFullscreenPolicy(mainWindow, false, startingKeepScreenOn);
+        await this.applyWindowStyle(mainWindow, startingStyle);
+        await this.resizeClientArea(mainWindow, startingState.width, startingState.height);
+        await mainWindow.moveWindowToGlobalDisplay(startingState.x, startingState.y);
+      }
+
+      mainWindow.setWindowDecorVisible(startingDecorVisible);
+      mainWindow.setWindowTitleMoveEnabled((startingStyle & 0x7) !== 0);
+      if (startingState.visible) {
+        await mainWindow.showWindow({ focusOnShow: startingState.focused });
+      } else if (mainWindow.getWindowStatus() !== window.WindowStatusType.MINIMIZE) {
+        await mainWindow.minimize();
+      }
+    } finally {
+      this.suspendPendingFloatingPosition = false;
+      // Applying Restore may consume a deferred position, but a rejected
+      // Restore must retain the exact Stage baseline for the next attempt.
+      this.pendingFloatingPosition = startingPendingPosition;
+      this.windowBaseline = startingBaseline;
+    }
+  }
+
+  private async compensateExpiredWindowCommand(
+    context: common.UIAbilityContext,
+    mainWindow: window.Window,
+    command: SfmlWindowCommand,
+    startingState: SfmlWindowState,
+    startingLimits: window.WindowLimits,
+    startingTitle: string,
+    startingIcon: SfmlWindowCommand | undefined,
+    startingPendingPosition: SfmlWindowPosition | undefined,
+    startingBaseline: SfmlWindowBaseline | undefined,
+    startingStyle: number,
+    startingKeepScreenOn: boolean,
+    startingDecorVisible: boolean
+  ): Promise<void> {
+    if (this.nativeHostDestroyed) {
+      return;
+    }
+
+    try {
+      switch (command.type) {
+        case SfmlWindowCommandType.Configure:
+          await this.compensateFailedConfigure(mainWindow, startingTitle);
+          break;
+        case SfmlWindowCommandType.Restore:
+          await this.compensateExpiredRestore(
+            mainWindow,
+            startingState,
+            startingLimits,
+            startingPendingPosition,
+            startingBaseline,
+            startingStyle,
+            startingKeepScreenOn,
+            startingDecorVisible
+          );
+          break;
+        case SfmlWindowCommandType.SetPosition:
+          this.pendingFloatingPosition = startingPendingPosition;
+          if (mainWindow.getWindowStatus() === window.WindowStatusType.FLOATING) {
+            await mainWindow.moveWindowToGlobalDisplay(startingState.x, startingState.y);
+          }
+          break;
+        case SfmlWindowCommandType.SetSize:
+          await this.resizeClientArea(mainWindow, startingState.width, startingState.height);
+          break;
+        case SfmlWindowCommandType.SetMinimumSize:
+        case SfmlWindowCommandType.SetMaximumSize:
+          await mainWindow.setWindowLimits(startingLimits);
+          break;
+        case SfmlWindowCommandType.SetTitle:
+          await mainWindow.setWindowTitle(startingTitle);
+          break;
+        case SfmlWindowCommandType.SetIcon:
+          if (startingIcon) {
+            await this.setMissionWindowIcon(context, startingIcon);
+          }
+          break;
+        case SfmlWindowCommandType.SetVisible:
+          if (startingState.visible) {
+            if (mainWindow.getWindowStatus() === window.WindowStatusType.MINIMIZE) {
+              await mainWindow.restore();
+            }
+            await mainWindow.showWindow({ focusOnShow: startingState.focused });
+          } else if (mainWindow.getWindowStatus() !== window.WindowStatusType.MINIMIZE) {
+            await mainWindow.minimize();
+          }
+          break;
+        case SfmlWindowCommandType.RequestFocus:
+          // Harmony has no public "restore prior focus owner" operation. The
+          // command is not started without the native deadline safety margin.
+          break;
+      }
+    } catch (error) {
+      this.logHostFailure(`Compensating expired window command ${command.requestId}`, error as Error);
+    }
+  }
+
+  private async runHostWindowCommand(
+    context: common.UIAbilityContext,
+    nativeContext: SfmlNativeContext,
+    command: SfmlWindowCommand
+  ): Promise<void> {
+    let mainWindow: window.Window | undefined;
+    let startingState: SfmlWindowState | undefined;
+    let startingLimits: window.WindowLimits | undefined;
+    let startingDecorVisible = false;
+    let statePublicationSuppressed = false;
+    let mutationStarted = false;
+    const startingTitle = this.confirmedWindowTitle;
+    const startingIcon = this.confirmedWindowIcon;
+    const startingStyle = this.confirmedWindowStyle;
+    const startingKeepScreenOn = this.confirmedKeepScreenOn;
+    const startingPendingPosition = this.pendingFloatingPosition ?
+      new SfmlWindowPosition(this.pendingFloatingPosition.x, this.pendingFloatingPosition.y) : undefined;
+    const startingBaseline = this.cloneWindowBaseline();
+    if (Date.now() >= command.expiresAt || !nativeContext.isWindowCommandPending(command.requestId)) {
+      if (nativeContext.isWindowCommandPending(command.requestId)) {
+        this.completeHostWindowCommand(nativeContext, command, false);
+      }
+      return;
+    }
+    try {
+      if (this.nativeHostDestroyed) {
+        throw new Error('Native host was destroyed');
+      }
+      mainWindow = await window.getLastWindow(context);
+      this.bindWindowStateObservers(mainWindow);
+      if (Date.now() >= command.expiresAt || !nativeContext.isWindowCommandPending(command.requestId)) {
+        if (nativeContext.isWindowCommandPending(command.requestId)) {
+          this.completeHostWindowCommand(nativeContext, command, false, mainWindow);
+        }
+        return;
+      }
+      const startingGeneration = this.windowStateGeneration;
+      startingState = this.queryWindowState(mainWindow);
+      const currentLimits = mainWindow.getWindowLimits();
+      startingLimits = {
+        minWidth: currentLimits.minWidth,
+        minHeight: currentLimits.minHeight,
+        maxWidth: currentLimits.maxWidth,
+        maxHeight: currentLimits.maxHeight
+      };
+      startingDecorVisible = mainWindow.getWindowDecorVisible();
+      if (Date.now() + 100 >= command.expiresAt) {
+        throw new Error(`Window command ${command.requestId} has insufficient time before its native deadline`);
+      }
+      this.windowStatePublishSuppressed = true;
+      this.windowStatePublishDirty = false;
+      statePublicationSuppressed = true;
+      mutationStarted = true;
+      await this.applyWindowCommand(context, mainWindow, command);
+      const stillPending = nativeContext.isWindowCommandPending(command.requestId);
+      if (Date.now() >= command.expiresAt || !stillPending) {
+        if (startingState && startingLimits) {
+          await this.compensateExpiredWindowCommand(
+            context,
+            mainWindow,
+            command,
+            startingState,
+            startingLimits,
+            startingTitle,
+            startingIcon,
+            startingPendingPosition,
+            startingBaseline,
+            startingStyle,
+            startingKeepScreenOn,
+            startingDecorVisible
+          );
+        }
+        if (nativeContext.isWindowCommandPending(command.requestId)) {
+          this.completeHostWindowCommand(nativeContext, command, false, mainWindow);
+        }
+        return;
+      }
+      await this.awaitWindowCommandState(nativeContext, mainWindow, command, startingGeneration, startingState);
+      const accepted = this.completeHostWindowCommand(nativeContext, command, true, mainWindow);
+      if (accepted) {
+        if (command.type === SfmlWindowCommandType.Configure || command.type === SfmlWindowCommandType.SetTitle) {
+          this.confirmedWindowTitle = command.title;
+        }
+        if (command.type === SfmlWindowCommandType.Configure) {
+          this.confirmedWindowStyle = command.style;
+          this.confirmedKeepScreenOn = command.keepScreenOn;
+        } else if (command.type === SfmlWindowCommandType.SetIcon) {
+          this.confirmedWindowIcon = command;
+        } else if (command.type === SfmlWindowCommandType.Restore) {
+          this.windowBaseline = undefined;
+        }
+      } else if (startingState && startingLimits) {
+        await this.compensateExpiredWindowCommand(
+          context,
+          mainWindow,
+          command,
+          startingState,
+          startingLimits,
+          startingTitle,
+          startingIcon,
+          startingPendingPosition,
+          startingBaseline,
+          startingStyle,
+          startingKeepScreenOn,
+          startingDecorVisible
+        );
+      }
+    } catch (error) {
+      this.logHostFailure(`Executing window command ${command.requestId}`, error as Error);
+      if (mutationStarted && mainWindow && startingState && startingLimits) {
+        await this.compensateExpiredWindowCommand(
+          context,
+          mainWindow,
+          command,
+          startingState,
+          startingLimits,
+          startingTitle,
+          startingIcon,
+          startingPendingPosition,
+          startingBaseline,
+          startingStyle,
+          startingKeepScreenOn,
+          startingDecorVisible
+        );
+      }
+      if (nativeContext.isWindowCommandPending(command.requestId)) {
+        this.completeHostWindowCommand(nativeContext, command, false, mainWindow);
+      }
+    } finally {
+      if (statePublicationSuppressed) {
+        // Successful acknowledgements already carry the final queried state;
+        // failed commands retain the native side's last confirmed snapshot.
+        this.windowStatePublishSuppressed = false;
+        this.windowStatePublishDirty = false;
+      }
+    }
+  }
+
+  private executeWindowCommand(context: common.UIAbilityContext, command: SfmlWindowCommand): void {
+    const nativeContext = this.nativeContext ?? this.lifecycleContext;
+    if (!nativeContext) {
+      hilog.warn(DOMAIN, TAG, 'Unable to acknowledge window command %{public}d without a native context', command.requestId);
+      return;
+    }
+    // Keep a compensation margin before the native three-second deadline.
+    command.expiresAt = Date.now() + Math.max(0, command.timeoutMs - 500);
+    this.windowCommandQueue = this.windowCommandQueue.then(() =>
+      this.runHostWindowCommand(context, nativeContext, command)
+    ).catch((error: Error) => {
+      this.logHostFailure(`Running window command ${command.requestId}`, error);
+      if (nativeContext.isWindowCommandPending(command.requestId)) {
+        this.completeHostWindowCommand(nativeContext, command, false);
+      }
     });
   }
 
@@ -635,6 +1556,7 @@ struct Index {
         this.setCustomPointer(pixels, width, height, hotspotX, hotspotY),
       (visible: boolean) => this.setVirtualKeyboardVisible(visible),
       (fullscreen: boolean, keepScreenOn: boolean) => this.configureWindow(context, fullscreen, keepScreenOn),
+      (command: SfmlWindowCommand) => this.executeWindowCommand(context, command),
       () => this.requestExit(context)
     );
   }
@@ -853,6 +1775,9 @@ struct Index {
     if (this.lifecycle === 'foreground') {
       this.refreshFreeWindowModeTracking();
       context.onForeground();
+      if (this.mainWindow !== undefined) {
+        this.publishWindowState(this.mainWindow);
+      }
     } else if (this.lifecycle === 'background') {
       this.releaseHeldSurfaceKeys(context);
       context.onBackground();
@@ -988,6 +1913,7 @@ struct Index {
     ++this.customPointerRequest;
     this.releaseCustomPointer();
     this.invalidateNativeBridges(context);
+    this.unbindWindowStateObservers();
     context?.onDestroy();
   }
 
@@ -1020,6 +1946,28 @@ struct Index {
 
   private handleSurfaceNodeLoad(binding: SurfaceNodeBinding): void {
     this.initializeNative(binding);
+  }
+
+  private handleSurfaceNodeLoadFailure(binding: SurfaceNodeBinding): void {
+    if (binding !== this.latestSurfaceBinding || binding.destroyed || binding.retired) {
+      return;
+    }
+
+    this.hostInitialized = false;
+    if (GRAPHICS_API === 'OpenGL') {
+      this.status = 'Native OpenGL module unavailable. This device may not provide libGLv4.so; ' +
+        'export the OpenGL ES backend or use a desktop-OpenGL-capable 2in1 device.';
+      hilog.error(
+        DOMAIN,
+        TAG,
+        'XComponent native context is unavailable for OpenGL. The device may be missing libGLv4.so; ' +
+          'no automatic OpenGL ES fallback was attempted.'
+      );
+      return;
+    }
+
+    this.status = 'Native OpenGL ES module unavailable. Check the device graphics runtime and HiLog.';
+    hilog.error(DOMAIN, TAG, 'XComponent native context is unavailable for OpenGL ES');
   }
 
   private handleSurfaceFocusLost(binding: SurfaceNodeBinding): void {
@@ -1232,6 +2180,7 @@ struct Index {
       SfmlSurfaceNode({
         nodeAppeared: (binding: SurfaceNodeBinding) => this.registerSurfaceNode(binding),
         surfaceLoaded: (binding: SurfaceNodeBinding) => this.handleSurfaceNodeLoad(binding),
+        surfaceLoadFailed: (binding: SurfaceNodeBinding) => this.handleSurfaceNodeLoadFailure(binding),
         surfaceDestroyed: (binding: SurfaceNodeBinding) => this.handleSurfaceNodeDestroy(binding),
         surfaceFocusLost: (binding: SurfaceNodeBinding) => this.handleSurfaceFocusLost(binding),
         surfacePreImeKeyEvent: (binding: SurfaceNodeBinding, event: KeyEvent) =>

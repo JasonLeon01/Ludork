@@ -42,7 +42,7 @@ local function getIniFilePath()
 end
 
 local function getDefaultDisplayScale()
-    if PLATFORM == "ohos" and System.isDisplayScaleConfigurable() then
+    if PLATFORM == "ohos" and LUDORK_MOBILE and System.isDisplayScaleConfigurable() then
         return 0.0
     end
     return DEFAULT_DISPLAY_SCALE

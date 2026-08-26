@@ -1,0 +1,98 @@
+name: Export Editor
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Initialize editor dependencies
+        shell: cmd
+        run: tools\init.bat
+
+      - name: Package editor
+        shell: cmd
+        run: tools\pack_editor.bat
+
+      - name: Upload editor package
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ludork-windows-x64-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+  macos:
+    name: macOS ARM64 unsigned
+    runs-on: macos-15
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Initialize editor dependencies
+        env:
+          PYTHON: python3
+        run: sh tools/init.sh
+
+      - name: Package unsigned editor DMG
+        run: sh tools/pack_editor.sh
+
+      - name: Upload unsigned editor DMG
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ludork-macos-arm64-unsigned-${{ github.sha }}
+          path: dist/Ludork-*-macos-arm64.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

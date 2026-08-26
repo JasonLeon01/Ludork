@@ -54,8 +54,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     if(NOT DEFINED OHOS_SDK_NATIVE OR OHOS_SDK_NATIVE STREQUAL "")
         message(FATAL_ERROR "OHOS_SDK_NATIVE is required for the FFmpeg OHOS build.")
     endif()
-    if(NOT EXISTS "${OHOS_SDK_NATIVE}/llvm/bin/aarch64-unknown-linux-ohos-clang")
+    if(NOT EXISTS "${OHOS_SDK_NATIVE}/llvm/bin/clang"
+       OR NOT EXISTS "${OHOS_SDK_NATIVE}/llvm/bin/clang++")
         message(FATAL_ERROR "The OHOS native LLVM toolchain was not found: ${OHOS_SDK_NATIVE}")
+    endif()
+    if(NOT OHOS_COMPATIBLE_SDK_VERSION STREQUAL "22.0.0")
+        message(FATAL_ERROR
+            "The FFmpeg OHOS build requires OHOS_COMPATIBLE_SDK_VERSION=22.")
+    endif()
+    if(NOT CMAKE_C_COMPILER_TARGET STREQUAL "aarch64-linux-ohos22.0.0"
+       OR NOT CMAKE_CXX_COMPILER_TARGET STREQUAL "aarch64-linux-ohos22.0.0")
+        message(FATAL_ERROR
+            "The FFmpeg OHOS build requires the API 22 native compiler target.")
     endif()
     find_program(LUDORK_GNU_MAKE_EXECUTABLE NAMES gmake make REQUIRED)
     ludork_use_static_ffmpeg_runtime()
@@ -66,7 +76,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
         "${LUDORK_FFMPEG_BUILD_DIR}"
         "${LUDORK_FFMPEG_INSTALL_DIR}"
         "${LUDORK_GNU_MAKE_EXECUTABLE}"
-        "${OHOS_SDK_NATIVE}")
+        "${OHOS_SDK_NATIVE}"
+        "${CMAKE_C_COMPILER_TARGET}")
 elseif(ANDROID)
     if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
         message(FATAL_ERROR

@@ -16,6 +16,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `run_standalone` | Run a flat standalone project |
 | `create_templates` | Recreate Cpp and Standalone template variants |
 | `pack_project` | Produce the platform distribution layout |
+| `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
 | `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG |
@@ -28,6 +29,7 @@ Typical commands:
 ./tools/build_cpp.sh Sample Debug
 ./tools/run_cpp.sh Sample Debug
 ./tools/pack_project.sh Sample Sample/dist
+./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Sample
 ./tools/pack_android.sh Sample
 ./tools/pack_editor.sh
 ```
@@ -92,7 +94,19 @@ required by an installed editor.
 
 Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`. The Official Locale Tools editor plug-in performs export through before-run and before-pack hooks. Run or pack from the editor, or provide an equivalent deliberate export step when automating outside it.
 
-`pack_harmony.sh` produces an arm64-v8a mobile HAP for HarmonyOS 6.0.2 / API 22 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK.
+`pack_harmony.sh` produces an arm64-v8a HAP for HarmonyOS 6.0.2 / API 22 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK. Its form/backend matrix is fixed: Mobile uses OpenGL ES, while 2in1 uses OpenGL by default and can instead use OpenGL ES. The editor passes both choices explicitly; direct commands use `--device-form mobile|2in1` and `--graphics-api opengl|opengl-es`. Omitting the graphics option selects OpenGL ES for Mobile and OpenGL for 2in1; explicitly selecting OpenGL for Mobile is rejected.
+
+```sh
+./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Sample
+./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl Sample
+./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Sample
+```
+
+The three unsigned outputs are `dist/<game>-harmony-mobile-unsigned.hap`, `dist/<game>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-harmony-2in1-opengl-es-unsigned.hap`. Add `--export-to-device` to build the corresponding `-signed.hap`, install it and launch it. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check` validates the same selected form/backend and, when combined with `--export-to-device`, the matching-device requirement without building or publishing a HAP.
+
+Every variant sets the HAP target and compatible SDK to `6.0.2(22)` and passes `OHOS_COMPATIBLE_SDK_VERSION=22` to the native build, producing the versioned compiler target `aarch64-linux-ohos22.0.0`. The Mobile CMake contract is `SFML_HARMONY_DEVICE_FORM=MOBILE` with `SFML_OPENGL_ES=ON`; the two 2in1 contracts use `SFML_HARMONY_DEVICE_FORM=2IN1` with `SFML_OPENGL_ES=OFF` for OpenGL or `ON` for OpenGL ES. FFmpeg-enabled builds use that same versioned target for compilation and linking.
+
+The 2in1 OpenGL HAP requires the target image to provide HarmonyOS desktop OpenGL through `libGLv4.so` and the platform capability query. Some API 24 PC emulator images omit that runtime even though the compile SDK contains its import library. Such an image cannot load the OpenGL native module; the app reports the missing runtime and never silently falls back to OpenGL ES. Export the separate OpenGL ES variant for that image, or use a 2in1 device/image that provides desktop OpenGL to validate the OpenGL variant.
 
 `pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-android-arm64-v8a-unsigned.apk` without installing or launching it.
 

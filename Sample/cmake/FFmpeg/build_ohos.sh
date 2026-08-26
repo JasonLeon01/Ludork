@@ -6,17 +6,23 @@ BUILD_DIR=$2
 INSTALL_DIR=$3
 GNU_MAKE=$4
 OHOS_SDK_NATIVE=$5
+COMPILER_TARGET=$6
+
+if [ "$COMPILER_TARGET" != "aarch64-linux-ohos22.0.0" ]; then
+    echo "The FFmpeg OHOS build requires the API 22 compiler target." >&2
+    exit 1
+fi
 
 TOOLCHAIN_BIN="$OHOS_SDK_NATIVE/llvm/bin"
 SYSROOT="$OHOS_SDK_NATIVE/sysroot"
-CC="$TOOLCHAIN_BIN/aarch64-unknown-linux-ohos-clang"
-CXX="$TOOLCHAIN_BIN/aarch64-unknown-linux-ohos-clang++"
+CC="$TOOLCHAIN_BIN/clang --target=$COMPILER_TARGET --sysroot=$SYSROOT"
+CXX="$TOOLCHAIN_BIN/clang++ --target=$COMPILER_TARGET --sysroot=$SYSROOT"
 AR="$TOOLCHAIN_BIN/llvm-ar"
 RANLIB="$TOOLCHAIN_BIN/llvm-ranlib"
 NM="$TOOLCHAIN_BIN/llvm-nm"
 STRIP="$TOOLCHAIN_BIN/llvm-strip"
 
-rm -rf "$INSTALL_DIR"
+rm -rf "$BUILD_DIR" "$INSTALL_DIR"
 mkdir -p "$BUILD_DIR" "$INSTALL_DIR"
 cd "$BUILD_DIR"
 
@@ -27,6 +33,7 @@ cd "$BUILD_DIR"
     --arch=aarch64 \
     --cc="$CC" \
     --cxx="$CXX" \
+    --ld="$CC" \
     --ar="$AR" \
     --ranlib="$RANLIB" \
     --nm="$NM" \
@@ -56,6 +63,7 @@ cd "$BUILD_DIR"
     --enable-parser=h264,aac \
     --enable-swscale \
     --enable-swresample \
-    --extra-cflags=-D__MUSL__ \
+    --extra-cflags="-D__MUSL__ -Wunguarded-availability" \
+    --extra-cxxflags="-D__MUSL__ -Wunguarded-availability" \
     --extra-ldflags=-Wl,--build-id=sha1
 "$GNU_MAKE" -j "$(sysctl -n hw.ncpu)" install

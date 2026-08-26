@@ -1,4 +1,4 @@
-# Ludork Sample 1.0.0 Licences and Third-Party Notices
+# LudorkSample 1.0.0 Licences and Third-Party Notices
 
 Ludork itself is licensed under the Zlib License in [`LICENSE.md`](LICENSE.md). That licence applies to Ludork software; it does not replace the licences of the components and assets listed below.
 
@@ -8,7 +8,7 @@ This notice covers the Sample project, the project templates shipped with Ludork
 
 | Component | Version or revision | Purpose and distribution | Licence | Complete text | Official source |
 | --- | --- | --- | --- | --- | --- |
-| LuaSF | v3.1.0.5-ME-OH | SFML bindings in the Sample and all project templates | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
+| LuaSF | v3.1.0.5-ME-OH-2in1-support | SFML bindings in the Sample and all project templates | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
 | Lua | 5.5.0 | Game scripting runtime and `luac` | MIT | `Licenses/Lua/LICENSE.txt` | [Lua.org](https://www.lua.org/) |
 | SFML | 3.1.0, SFML-ME branch 310ME-OH | Graphics, windowing, audio, system, and network runtime | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME `310ME-OH`](https://github.com/JasonLeon01/SFML-ME/tree/310ME-OH) |
 | sol2 | 3.2.3 in the distributed LuaSF source | C++/Lua binding headers | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |

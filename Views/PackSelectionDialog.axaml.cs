@@ -28,7 +28,9 @@ public partial class PackSelectionDialog : Window
         HarmonyOption.Content = LocaleService.Get("PACK_PLATFORM_HARMONYOS");
         HarmonyMobileOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_MOBILE");
         HarmonyTwoInOneOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_TWO_IN_ONE");
-        HarmonyTwoInOneStatusText.Text = LocaleService.Get("PACK_HARMONY_DEVICE_TEMPORARILY_UNAVAILABLE");
+        HarmonyGraphicsApiText.Text = LocaleService.Get("PACK_HARMONY_GRAPHICS_API");
+        HarmonyOpenGLOption.Content = LocaleService.Get("PACK_HARMONY_GRAPHICS_OPENGL");
+        HarmonyOpenGLESOption.Content = LocaleService.Get("PACK_HARMONY_GRAPHICS_OPENGL_ES");
         ExportToHarmonyDeviceOption.Content = LocaleService.Get("PACK_EXPORT_TO_HARMONY_DEVICE");
         AndroidOption.Content = LocaleService.Get("PACK_PLATFORM_ANDROID");
         AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
@@ -42,6 +44,7 @@ public partial class PackSelectionDialog : Window
         IosOption.IsCheckedChanged += (_, _) => updateExportToIPhoneVisibility();
         HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyMobileOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
+        HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         AndroidOption.IsCheckedChanged += (_, _) => updateAndroidSigningVisibility();
         Win32Option.IsVisible = OperatingSystem.IsWindows();
         MacOSOption.IsVisible = OperatingSystem.IsMacOS();
@@ -126,16 +129,24 @@ public partial class PackSelectionDialog : Window
             {
                 ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
             });
-        else if (HarmonyOption.IsChecked == true
-            && HarmonyMobileOption.IsChecked == true)
+        else if (HarmonyOption.IsChecked == true)
         {
+            HarmonyDeviceForm deviceForm = HarmonyTwoInOneOption.IsChecked == true
+                ? HarmonyDeviceForm.TwoInOne
+                : HarmonyDeviceForm.Mobile;
+            HarmonyGraphicsApi graphicsApi = deviceForm == HarmonyDeviceForm.Mobile
+                ? HarmonyGraphicsApi.OpenGLES
+                : HarmonyOpenGLESOption.IsChecked == true
+                    ? HarmonyGraphicsApi.OpenGLES
+                    : HarmonyGraphicsApi.OpenGL;
             Close(new ProjectPackOptions(
                 ProjectPackPlatform.HarmonyOS,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true)
             {
-                HarmonyDeviceForm = HarmonyDeviceForm.Mobile,
+                HarmonyDeviceForm = deviceForm,
+                HarmonyGraphicsApi = graphicsApi,
                 ExportToHarmonyDevice = ExportToHarmonyDeviceOption.IsChecked == true,
             });
         }
@@ -170,8 +181,9 @@ public partial class PackSelectionDialog : Window
     {
         HarmonyDevicePanel.IsVisible = HarmonyOption.IsVisible
             && HarmonyOption.IsChecked == true;
-        ExportToHarmonyDeviceOption.IsVisible = HarmonyDevicePanel.IsVisible
-            && HarmonyMobileOption.IsChecked == true;
+        HarmonyGraphicsApiPanel.IsVisible = HarmonyDevicePanel.IsVisible
+            && HarmonyTwoInOneOption.IsChecked == true;
+        ExportToHarmonyDeviceOption.IsVisible = HarmonyDevicePanel.IsVisible;
     }
 
     private void updateExportToIPhoneVisibility()

@@ -31,7 +31,6 @@ public enum ProjectPackFailure
     HarmonyDeviceUnavailable,
     HarmonySigningUnavailable,
     HarmonyProjectUnsupported,
-    HarmonyDeviceFormUnsupported,
     AndroidToolchainUnavailable,
     AndroidSigningUnavailable,
     AndroidProjectUnsupported,
@@ -51,6 +50,12 @@ public enum HarmonyDeviceForm
 {
     Mobile,
     TwoInOne,
+}
+
+public enum HarmonyGraphicsApi
+{
+    OpenGL,
+    OpenGLES,
 }
 
 public sealed record AndroidSigningOptions(
@@ -73,6 +78,8 @@ public sealed record ProjectPackOptions(
     public bool ExportToHarmonyDevice { get; init; }
     public HarmonyDeviceForm HarmonyDeviceForm { get; init; } =
         global::Ludork.Services.HarmonyDeviceForm.Mobile;
+    public HarmonyGraphicsApi HarmonyGraphicsApi { get; init; } =
+        global::Ludork.Services.HarmonyGraphicsApi.OpenGL;
     public AndroidSigningOptions? AndroidSigning { get; init; }
 }
 
@@ -157,6 +164,11 @@ public sealed class ProjectPackService
         HarmonyDeviceForm? harmonyDeviceForm = options.Platform == ProjectPackPlatform.HarmonyOS
             ? options.HarmonyDeviceForm
             : null;
+        HarmonyGraphicsApi? harmonyGraphicsApi = options.Platform == ProjectPackPlatform.HarmonyOS
+            ? options.HarmonyDeviceForm == HarmonyDeviceForm.Mobile
+                ? HarmonyGraphicsApi.OpenGLES
+                : options.HarmonyGraphicsApi
+            : null;
         AndroidSigningOptions? androidSigning = null;
         if (options.Platform == ProjectPackPlatform.Android
             && options.AndroidSigning is { } signing)
@@ -181,6 +193,7 @@ public sealed class ProjectPackService
                 exportToIPhone,
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
+                harmonyGraphicsApi,
                 androidSigning,
                 packaging,
                 cancellationToken);
@@ -224,6 +237,7 @@ public sealed class ProjectPackService
                 exportToIPhone,
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
+                harmonyGraphicsApi,
                 androidSigning,
                 packaging,
                 cancellationToken);
@@ -243,6 +257,7 @@ public sealed class ProjectPackService
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
+            harmonyGraphicsApi,
             androidSigning,
             packaging,
             cancellationToken);
@@ -254,14 +269,6 @@ public sealed class ProjectPackService
         ProjectPackOptions options,
         string projectFilePath)
     {
-        if (options.Platform == ProjectPackPlatform.HarmonyOS
-            && options.HarmonyDeviceForm != HarmonyDeviceForm.Mobile)
-        {
-            return ProjectPackResult.Failed(
-                ProjectPackFailure.HarmonyDeviceFormUnsupported,
-                options.HarmonyDeviceForm.ToString());
-        }
-
         ProjectPackResult? signingFailure = validateAndroidSigning(options);
         if (signingFailure is not null)
             return signingFailure;
@@ -368,6 +375,7 @@ public sealed class ProjectPackService
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
+        HarmonyGraphicsApi? harmonyGraphicsApi,
         AndroidSigningOptions? androidSigning,
         ProjectPackaging packaging,
         CancellationToken cancellationToken)
@@ -381,6 +389,7 @@ public sealed class ProjectPackService
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
+            harmonyGraphicsApi,
             androidSigning,
             packaging);
         using Process process = createProcess(startInfo);
@@ -391,9 +400,12 @@ public sealed class ProjectPackService
             + (encryptData ? " --encrypt-data" : string.Empty)
             + (exportToIPhone ? " --export-to-iphone" : string.Empty)
             + (exportToHarmonyDevice ? " --export-to-device" : string.Empty)
-            + (harmonyDeviceForm == HarmonyDeviceForm.Mobile
-                ? " --device-form mobile"
-                : string.Empty)
+            + (harmonyDeviceForm is null
+                ? string.Empty
+                : " --device-form " + getHarmonyDeviceFormArgument(harmonyDeviceForm.Value))
+            + (harmonyGraphicsApi is null
+                ? string.Empty
+                : " --graphics-api " + getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value))
             + (androidSigning is not null ? " --sign" : string.Empty);
         writeOutput(checkOnly
             ? $"> {scriptPath} --check{optionText} \"{projectPath}\""
@@ -538,6 +550,7 @@ public sealed class ProjectPackService
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
+        HarmonyGraphicsApi? harmonyGraphicsApi,
         AndroidSigningOptions? androidSigning,
         ProjectPackaging packaging)
     {
@@ -590,10 +603,15 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("--export-to-iphone");
         if (exportToHarmonyDevice)
             startInfo.ArgumentList.Add("--export-to-device");
-        if (harmonyDeviceForm == HarmonyDeviceForm.Mobile)
+        if (harmonyDeviceForm is not null)
         {
             startInfo.ArgumentList.Add("--device-form");
-            startInfo.ArgumentList.Add("mobile");
+            startInfo.ArgumentList.Add(getHarmonyDeviceFormArgument(harmonyDeviceForm.Value));
+        }
+        if (harmonyGraphicsApi is not null)
+        {
+            startInfo.ArgumentList.Add("--graphics-api");
+            startInfo.ArgumentList.Add(getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value));
         }
         if (androidSigning is not null)
         {
@@ -606,6 +624,22 @@ public sealed class ProjectPackService
         startInfo.ArgumentList.Add(projectPath);
         return startInfo;
     }
+
+    private static string getHarmonyDeviceFormArgument(HarmonyDeviceForm deviceForm) =>
+        deviceForm switch
+        {
+            HarmonyDeviceForm.Mobile => "mobile",
+            HarmonyDeviceForm.TwoInOne => "2in1",
+            _ => throw new ArgumentOutOfRangeException(nameof(deviceForm)),
+        };
+
+    private static string getHarmonyGraphicsApiArgument(HarmonyGraphicsApi graphicsApi) =>
+        graphicsApi switch
+        {
+            HarmonyGraphicsApi.OpenGL => "opengl",
+            HarmonyGraphicsApi.OpenGLES => "opengl-es",
+            _ => throw new ArgumentOutOfRangeException(nameof(graphicsApi)),
+        };
 
     private static Process createProcess(ProcessStartInfo startInfo)
     {

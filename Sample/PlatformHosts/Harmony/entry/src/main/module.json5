@@ -4,10 +4,7 @@
     "type": "entry",
     "description": "$string:module_desc",
     "mainElement": "EntryAbility",
-    "deviceTypes": [
-      "phone",
-      "tablet"
-    ],
+    "deviceTypes": __LUDORK_DEVICE_TYPES__,
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
@@ -19,8 +16,8 @@
         "label": "$string:ability_label",
         "startWindowIcon": "$media:app_icon",
         "startWindowBackground": "$color:start_window_background",
-        "orientation": "landscape",
         "exported": true,
+        __LUDORK_ABILITY_FORM_OPTIONS__
         "skills": [
           {
             "entities": [
@@ -34,6 +31,7 @@
       }
     ],
     "requestPermissions": [
+      __LUDORK_CURSOR_PERMISSION__
       {
         "name": "ohos.permission.INTERNET"
       },

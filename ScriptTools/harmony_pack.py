@@ -30,6 +30,11 @@ DEFAULT_APP_NAME_PATTERN = re.compile(
 )
 DEVECO_APP = pathlib.Path("/Applications/DevEco-Studio.app")
 RUNTIME_ARCHIVE_NAME = "ludork-runtime.zip"
+HARMONY_SDK_VERSION = "6.0.2(22)"
+HARMONY_COMPATIBLE_API = 22
+HARMONY_COMPILER_TARGET = "aarch64-linux-ohos22.0.0"
+HARMONY_MOBILE_DEVICE_TYPES = frozenset(("default", "phone", "tablet"))
+HARMONY_SIGNING_CONTRACT_VERSION = 2
 BUNDLE_NAME_PATTERN = re.compile(
     r"^[A-Za-z](?:[A-Za-z0-9_]*[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9_]*[A-Za-z0-9])?){2,}$"
@@ -50,6 +55,11 @@ SIGNING_POLL_SECONDS = 0.5
 SIGNING_VALIDATION_TIMEOUT_SECONDS = 5.0
 SIGNING_INVALID_RECHECK_SECONDS = 2.0
 SIGNING_FINAL_VALIDATION_TIMEOUT_SECONDS = 5.0
+HARMONY_LAUNCH_FOREGROUND_TIMEOUT_SECONDS = 10.0
+HARMONY_LAUNCH_POLL_SECONDS = 0.5
+HARMONY_LAUNCH_QUERY_TIMEOUT_SECONDS = 3.0
+HARMONY_LAUNCH_ATTEMPTS = 2
+HARMONY_LAUNCH_DIAGNOSTIC_LIMIT = 2048
 INVALID_SIGNING_FINGERPRINT_LIMIT = 64
 NATIVE_BUILD_LOG_READ_LIMIT = 512 * 1024
 NATIVE_BUILD_DIAGNOSTIC_LIMIT = 16 * 1024
@@ -97,12 +107,14 @@ class DevEcoTools:
     hdc: pathlib.Path
     sign_tool: pathlib.Path
     json5_module: pathlib.Path
+    readobj: pathlib.Path
 
 
 @dataclass(frozen=True)
 class HarmonyDevice:
     identifier: str
     udid: str | None = None
+    device_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -123,6 +135,8 @@ class PackContext:
     game_name: str
     artifact_name: str
     bundle_name: str
+    device_form: str
+    graphics_api: str
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
@@ -158,6 +172,15 @@ def resolve_deveco_tools() -> DevEcoTools:
         / "hvigor-ohos-plugin"
         / "node_modules"
         / "json5",
+        app
+        / "Contents"
+        / "sdk"
+        / "default"
+        / "openharmony"
+        / "native"
+        / "llvm"
+        / "bin"
+        / "llvm-readobj",
     )
     required = (
         tools.app,
@@ -165,6 +188,8 @@ def resolve_deveco_tools() -> DevEcoTools:
         tools.node_home / "bin" / "node",
         tools.sdk_home / "default" / "openharmony" / "native" / "oh-uni-package.json",
         tools.hvigor,
+        tools.json5_module / "package.json",
+        tools.readobj,
     )
     missing = [str(path) for path in required if not path.exists()]
     if missing:
@@ -181,7 +206,6 @@ def require_device_export_tools(tools: DevEcoTools) -> None:
         tools.executable,
         tools.hdc,
         tools.sign_tool,
-        tools.json5_module / "package.json",
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -312,8 +336,14 @@ def resolve_script_tools() -> pathlib.Path:
 def create_context(arguments: argparse.Namespace) -> PackContext:
     if sys.platform != "darwin":
         raise PackError("HarmonyOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
-    if arguments.device_form != "mobile":
-        raise PackError("HarmonyOS 2in1 packaging is temporarily unavailable.", EXIT_PROJECT)
+    graphics_api = arguments.graphics_api
+    if graphics_api is None:
+        graphics_api = "opengl-es" if arguments.device_form == "mobile" else "opengl"
+    if arguments.device_form == "mobile" and graphics_api != "opengl-es":
+        raise PackError(
+            "HarmonyOS mobile packaging supports only the OpenGL ES graphics backend.",
+            EXIT_PROJECT,
+        )
     project_dir = resolve_project(arguments.project_folder)
     game_name = read_game_name(project_dir)
     dist_dir = (
@@ -327,17 +357,58 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         project_dir=project_dir,
         dist_dir=dist_dir,
         stage_dir=project_dir / "build" / "harmony" / "stage",
-        signing_dir=project_dir / "build" / "harmony" / "signing" / bundle_name,
+        signing_dir=(
+            project_dir
+            / "build"
+            / "harmony"
+            / "signing"
+            / bundle_name
+            / arguments.device_form
+        ),
         template_dir=project_dir / "PlatformHosts" / "Harmony",
         script_tools=resolve_script_tools(),
         tools=resolve_deveco_tools(),
         game_name=game_name,
         artifact_name=safe_artifact_name(game_name),
         bundle_name=bundle_name,
+        device_form=arguments.device_form,
+        graphics_api=graphics_api,
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
     )
+
+
+def read_device_type(tools: DevEcoTools, identifier: str) -> str:
+    try:
+        result = subprocess.run(
+            [
+                str(tools.hdc),
+                "-t",
+                identifier,
+                "shell",
+                "param",
+                "get",
+                "const.product.devicetype",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exception:
+        raise PackError(
+            "Unable to determine the connected HarmonyOS device type.",
+            EXIT_DEVICE,
+        ) from exception
+    device_type = result.stdout.strip().casefold()
+    if result.returncode != 0 or not device_type or re.search(r"\s", device_type):
+        raise PackError(
+            "Unable to determine the connected HarmonyOS device type. "
+            "Unlock the device and reconnect it.",
+            EXIT_DEVICE,
+        )
+    return device_type
 
 
 def connected_harmony_devices(tools: DevEcoTools) -> list[HarmonyDevice]:
@@ -368,24 +439,40 @@ def connected_harmony_devices(tools: DevEcoTools) -> list[HarmonyDevice]:
         identifier = fields[0].strip()
         if identifier and identifier not in identifiers:
             identifiers.add(identifier)
-            devices.append(HarmonyDevice(identifier))
+            devices.append(
+                HarmonyDevice(
+                    identifier=identifier,
+                    device_type=read_device_type(tools, identifier),
+                )
+            )
     return devices
 
 
-def select_harmony_device(tools: DevEcoTools) -> HarmonyDevice:
+def device_matches_form(device: HarmonyDevice, device_form: str) -> bool:
+    if device.device_type is None:
+        return False
+    if device_form == "mobile":
+        return device.device_type in HARMONY_MOBILE_DEVICE_TYPES
+    return device.device_type == "2in1"
+
+
+def select_harmony_device(tools: DevEcoTools, device_form: str) -> HarmonyDevice:
     devices = connected_harmony_devices(tools)
-    if not devices:
+    matching = [device for device in devices if device_matches_form(device, device_form)]
+    form_name = "mobile" if device_form == "mobile" else "2in1"
+    if not matching:
         raise PackError(
-            "No connected HarmonyOS device was found. Connect and unlock one device, "
+            f"No connected HarmonyOS {form_name} device was found. Connect and unlock one, "
             "then enable Developer Mode.",
             EXIT_DEVICE,
         )
-    if len(devices) > 1:
+    if len(matching) > 1:
         raise PackError(
-            "More than one connected HarmonyOS device was found. Leave exactly one device connected.",
+            f"More than one connected HarmonyOS {form_name} device was found. "
+            "Leave exactly one matching device connected.",
             EXIT_DEVICE,
         )
-    return devices[0]
+    return matching[0]
 
 
 def read_device_udid(tools: DevEcoTools, device: HarmonyDevice) -> HarmonyDevice:
@@ -410,13 +497,13 @@ def read_device_udid(tools: DevEcoTools, device: HarmonyDevice) -> HarmonyDevice
             continue
         inline_value = line.partition(":")[2].strip()
         if re.fullmatch(r"[0-9A-Fa-f]{64}", inline_value):
-            return HarmonyDevice(device.identifier, inline_value)
+            return HarmonyDevice(device.identifier, inline_value, device.device_type)
         for value in lines[index + 1 :]:
             candidate = value.strip()
             if not candidate:
                 continue
             if re.fullmatch(r"[0-9A-Fa-f]{64}", candidate):
-                return HarmonyDevice(device.identifier, candidate)
+                return HarmonyDevice(device.identifier, candidate, device.device_type)
             break
     raise PackError(
         "The connected HarmonyOS device returned an invalid UDID.",
@@ -424,14 +511,22 @@ def read_device_udid(tools: DevEcoTools, device: HarmonyDevice) -> HarmonyDevice
     )
 
 
-def ensure_harmony_device_connected(tools: DevEcoTools, device: HarmonyDevice) -> None:
-    selected = select_harmony_device(tools)
+def ensure_harmony_device_connected(context: PackContext, device: HarmonyDevice) -> None:
+    selected = select_harmony_device(context.tools, context.device_form)
     if selected.identifier != device.identifier:
         raise PackError(
             "The selected HarmonyOS device changed during packaging. Reconnect the original device and retry.",
             EXIT_DEVICE,
         )
-    if device.udid is not None and read_device_udid(tools, selected).udid != device.udid:
+    if selected.device_type != device.device_type:
+        raise PackError(
+            "The selected HarmonyOS device type changed during packaging. Reconnect the original device and retry.",
+            EXIT_DEVICE,
+        )
+    if (
+        device.udid is not None
+        and read_device_udid(context.tools, selected).udid != device.udid
+    ):
         raise PackError(
             "The connected HarmonyOS device changed during packaging. Reconnect the original device and retry.",
             EXIT_DEVICE,
@@ -542,25 +637,66 @@ def cmake_configuration(context: PackContext) -> str:
     return "\n".join(lines)
 
 
+def cmake_device_form(context: PackContext) -> str:
+    return "MOBILE" if context.device_form == "mobile" else "2IN1"
+
+
+def cmake_opengl_es(context: PackContext) -> str:
+    return "ON" if context.graphics_api == "opengl-es" else "OFF"
+
+
+def harmony_artifact_variant(context: PackContext) -> str:
+    if context.device_form == "mobile":
+        return "mobile"
+    return f"2in1-{context.graphics_api}"
+
+
 def replace_template_tokens(
     context: PackContext,
     stage_dir: pathlib.Path,
     runtime_hash: str,
 ) -> None:
-    arguments = [
-        "-DSFML_HARMONY_DEVICE_FORM=MOBILE",
-        "-DSFML_USE_SYSTEM_DEPS=OFF",
-        "-DBUILD_SHARED_LIBS=OFF",
-    ]
+    arguments = generated_native_arguments(context)
+    app_environments = ""
+    ability_form_options = '"orientation": "landscape",'
+    cursor_permission = ""
+    device_types = ["phone", "tablet"]
+    if context.device_form == "2in1":
+        app_environments = (
+            ',\n    "appEnvironments": [\n'
+            "      {\n"
+            '        "name": "NEED_OPENGL",\n'
+            '        "value": "1"\n'
+            "      }\n"
+            "    ]"
+        )
+        ability_form_options = (
+            '"supportWindowMode": [\n'
+            '          "fullscreen",\n'
+            '          "floating"\n'
+            "        ],"
+        )
+        cursor_permission = (
+            "{\n"
+            '        "name": "ohos.permission.LOCK_WINDOW_CURSOR"\n'
+            "      },"
+        )
+        device_types = ["2in1"]
     replacements = {
         "__LUDORK_CMAKE_CONFIG__": cmake_configuration(context),
         "__LUDORK_RUNTIME_HASH__": runtime_hash,
+        "__LUDORK_GRAPHICS_API__": "OpenGL ES" if context.graphics_api == "opengl-es" else "OpenGL",
         "__LUDORK_BUNDLE_NAME__": context.bundle_name,
         "__LUDORK_GAME_NAME__": json.dumps(
             context.game_name,
             ensure_ascii=False,
         )[1:-1],
         "__LUDORK_CMAKE_ARGUMENTS__": json5_argument_text(arguments),
+        "__LUDORK_COMPILER_TARGET__": HARMONY_COMPILER_TARGET,
+        "__LUDORK_APP_ENVIRONMENTS__": app_environments,
+        "__LUDORK_DEVICE_TYPES__": json.dumps(device_types),
+        "__LUDORK_ABILITY_FORM_OPTIONS__": ability_form_options,
+        "__LUDORK_CURSOR_PERMISSION__": cursor_permission,
     }
     text_suffixes = {".json", ".json5", ".ts", ".ets", ".txt", ".cmake"}
     for path in sorted(stage_dir.rglob("*")):
@@ -701,6 +837,128 @@ def valid_harmony_project_profile(profile: dict[str, object]) -> bool:
     return isinstance(applied_products, list) and "default" in applied_products
 
 
+def harmony_project_sdk_contract(profile: dict[str, object]) -> bool:
+    app = profile.get("app")
+    if not isinstance(app, dict):
+        return False
+    products = app.get("products")
+    if not isinstance(products, list):
+        return False
+    default_products = [
+        product
+        for product in products
+        if isinstance(product, dict) and product.get("name") == "default"
+    ]
+    if len(default_products) != 1:
+        return False
+    product = default_products[0]
+    return (
+        product.get("targetSdkVersion") == HARMONY_SDK_VERSION
+        and product.get("compatibleSdkVersion") == HARMONY_SDK_VERSION
+    )
+
+
+def generated_native_arguments(context: PackContext) -> list[str]:
+    return [
+        f"-DSFML_HARMONY_DEVICE_FORM={cmake_device_form(context)}",
+        f"-DSFML_OPENGL_ES={cmake_opengl_es(context)}",
+        f"-DOHOS_COMPATIBLE_SDK_VERSION={HARMONY_COMPATIBLE_API}",
+        "-DSFML_USE_SYSTEM_DEPS=OFF",
+        "-DBUILD_SHARED_LIBS=OFF",
+    ]
+
+
+def valid_generated_module(context: PackContext, profile: dict[str, object]) -> bool:
+    module = profile.get("module")
+    if not isinstance(module, dict):
+        return False
+    expected_device_types = ["phone", "tablet"] if context.device_form == "mobile" else ["2in1"]
+    if module.get("deviceTypes") != expected_device_types:
+        return False
+    abilities = module.get("abilities")
+    if not isinstance(abilities, list):
+        return False
+    entry_abilities = [
+        ability
+        for ability in abilities
+        if isinstance(ability, dict) and ability.get("name") == "EntryAbility"
+    ]
+    if len(entry_abilities) != 1:
+        return False
+    ability = entry_abilities[0]
+    permissions = module.get("requestPermissions")
+    if not isinstance(permissions, list):
+        return False
+    permission_names = {
+        permission.get("name")
+        for permission in permissions
+        if isinstance(permission, dict)
+    }
+    has_cursor_permission = "ohos.permission.LOCK_WINDOW_CURSOR" in permission_names
+    if context.device_form == "mobile":
+        return (
+            ability.get("orientation") == "landscape"
+            and "supportWindowMode" not in ability
+            and not has_cursor_permission
+        )
+    return (
+        "orientation" not in ability
+        and ability.get("supportWindowMode") == ["fullscreen", "floating"]
+        and has_cursor_permission
+    )
+
+
+def valid_generated_app_scope(context: PackContext, app: dict[str, object]) -> bool:
+    environments = app.get("appEnvironments")
+    if context.device_form == "mobile":
+        return environments is None
+    return environments == [{"name": "NEED_OPENGL", "value": "1"}]
+
+
+def valid_generated_native_profile(
+    context: PackContext,
+    profile: dict[str, object],
+) -> bool:
+    build_option = profile.get("buildOption")
+    if not isinstance(build_option, dict):
+        return False
+    native_options = build_option.get("externalNativeOptions")
+    if not isinstance(native_options, dict):
+        return False
+    arguments = native_options.get("arguments")
+    return isinstance(arguments, str) and arguments.split() == generated_native_arguments(context)
+
+
+def valid_signing_native_profile(
+    context: PackContext,
+    profile: dict[str, object],
+) -> bool:
+    build_option = profile.get("buildOption")
+    if not isinstance(build_option, dict):
+        return False
+    native_options = build_option.get("externalNativeOptions")
+    if not isinstance(native_options, dict):
+        return False
+    arguments = native_options.get("arguments")
+    if not isinstance(arguments, str):
+        return False
+    actual = arguments.split()
+    expected = generated_native_arguments(context)
+    if context.device_form != "2in1":
+        return actual == expected
+    graphics_prefix = "-DSFML_OPENGL_ES="
+    graphics_indexes = [
+        index for index, argument in enumerate(actual) if argument.startswith(graphics_prefix)
+    ]
+    if len(graphics_indexes) != 1:
+        return False
+    graphics_index = graphics_indexes[0]
+    if actual[graphics_index] not in {f"{graphics_prefix}ON", f"{graphics_prefix}OFF"}:
+        return False
+    actual[graphics_index] = f"{graphics_prefix}{cmake_opengl_es(context)}"
+    return actual == expected
+
+
 def write_private_json(path: pathlib.Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor, temporary_name = tempfile.mkstemp(
@@ -721,7 +979,11 @@ def write_private_json(path: pathlib.Path, value: object) -> None:
         raise
 
 
-def validate_generated_project(context: PackContext, project_dir: pathlib.Path) -> None:
+def validate_project_contract(
+    context: PackContext,
+    project_dir: pathlib.Path,
+    signing_workspace: bool,
+) -> None:
     text_suffixes = {
         ".cmake",
         ".ets",
@@ -753,19 +1015,53 @@ def validate_generated_project(context: PackContext, project_dir: pathlib.Path) 
     app_path = project_dir / "AppScope" / "app.json5"
     app_profile = require_json5_object(context.tools, app_path)
     app = app_profile.get("app")
-    if not isinstance(app, dict) or app.get("bundleName") != context.bundle_name:
+    if (
+        not isinstance(app, dict)
+        or app.get("bundleName") != context.bundle_name
+        or not valid_generated_app_scope(context, app)
+    ):
         raise PackError(
-            f"Generated HarmonyOS project has an invalid bundle name in {app_path}.",
+            f"Generated HarmonyOS project has an invalid app contract in {app_path}.",
             EXIT_PROJECT,
         )
     project_profile_path = project_dir / "build-profile.json5"
     project_profile = require_json5_object(context.tools, project_profile_path)
-    if not valid_harmony_project_profile(project_profile):
+    if (
+        not valid_harmony_project_profile(project_profile)
+        or not harmony_project_sdk_contract(project_profile)
+    ):
         raise PackError(
             f"Generated HarmonyOS project has an invalid build profile: {project_profile_path}",
             EXIT_PROJECT,
         )
+    module_path = project_dir / "entry" / "src" / "main" / "module.json5"
+    module_profile = require_json5_object(context.tools, module_path)
+    if not valid_generated_module(context, module_profile):
+        raise PackError(
+            f"Generated HarmonyOS project has an invalid device form contract: {module_path}",
+            EXIT_PROJECT,
+        )
+    native_profile_path = project_dir / "entry" / "build-profile.json5"
+    native_profile = require_json5_object(context.tools, native_profile_path)
+    valid_native_profile = (
+        valid_signing_native_profile(context, native_profile)
+        if signing_workspace
+        else valid_generated_native_profile(context, native_profile)
+    )
+    if not valid_native_profile:
+        raise PackError(
+            f"Generated HarmonyOS project has an invalid native build contract: {native_profile_path}",
+            EXIT_PROJECT,
+        )
     validate_bundle_name(context.bundle_name)
+
+
+def validate_generated_project(context: PackContext, project_dir: pathlib.Path) -> None:
+    validate_project_contract(context, project_dir, False)
+
+
+def validate_signing_workspace(context: PackContext, project_dir: pathlib.Path) -> None:
+    validate_project_contract(context, project_dir, True)
 
 
 def absolute_signing_path(project_dir: pathlib.Path, value: str) -> pathlib.Path:
@@ -776,10 +1072,15 @@ def absolute_signing_path(project_dir: pathlib.Path, value: str) -> pathlib.Path
 
 
 def signing_overlay_from_profile(
+    context: PackContext,
     profile: dict[str, object],
     project_dir: pathlib.Path,
-    bundle_name: str,
 ) -> dict[str, object] | None:
+    if (
+        not valid_harmony_project_profile(profile)
+        or not harmony_project_sdk_contract(profile)
+    ):
+        return None
     app = profile.get("app")
     if not isinstance(app, dict):
         return None
@@ -838,7 +1139,10 @@ def signing_overlay_from_profile(
         "type": config_type,
     }
     return {
-        "bundleName": bundle_name,
+        "bundleName": context.bundle_name,
+        "deviceForm": context.device_form,
+        "compatibleSdkApi": HARMONY_COMPATIBLE_API,
+        "contractVersion": HARMONY_SIGNING_CONTRACT_VERSION,
         "productSigningConfig": signing_reference,
         "signingConfig": normalized_config,
     }
@@ -923,7 +1227,13 @@ def signing_candidate_from_overlay(
     device: HarmonyDevice,
     validation_timeout: float = SIGNING_VALIDATION_TIMEOUT_SECONDS,
 ) -> SigningCandidate | None:
-    if device.udid is None or overlay.get("bundleName") != context.bundle_name:
+    if (
+        device.udid is None
+        or overlay.get("bundleName") != context.bundle_name
+        or overlay.get("deviceForm") != context.device_form
+        or overlay.get("compatibleSdkApi") != HARMONY_COMPATIBLE_API
+        or overlay.get("contractVersion") != HARMONY_SIGNING_CONTRACT_VERSION
+    ):
         return None
     config = overlay.get("signingConfig")
     reference = overlay.get("productSigningConfig")
@@ -989,7 +1299,7 @@ def signing_candidate_from_project(
     )
     if not isinstance(profile, dict):
         return None
-    overlay = signing_overlay_from_profile(profile, project_dir, context.bundle_name)
+    overlay = signing_overlay_from_profile(context, profile, project_dir)
     if overlay is None:
         return None
     remaining = validation_timeout - (time.monotonic() - started)
@@ -1033,6 +1343,16 @@ def inject_signing_overlay(
     reference = overlay.get("productSigningConfig")
     if not isinstance(app, dict) or not isinstance(config, dict) or not isinstance(reference, str):
         raise PackError("Stored HarmonyOS signing configuration is invalid.", EXIT_SIGNING)
+    if (
+        overlay.get("bundleName") != context.bundle_name
+        or overlay.get("deviceForm") != context.device_form
+        or overlay.get("compatibleSdkApi") != HARMONY_COMPATIBLE_API
+        or overlay.get("contractVersion") != HARMONY_SIGNING_CONTRACT_VERSION
+    ):
+        raise PackError(
+            "Stored HarmonyOS signing configuration does not match the generated project contract.",
+            EXIT_SIGNING,
+        )
     products = app.get("products")
     if not isinstance(products, list):
         raise PackError("Generated HarmonyOS products configuration is invalid.", EXIT_PROJECT)
@@ -1170,13 +1490,13 @@ def reusable_signing_workspace(
 ) -> pathlib.Path | None:
     for workspace in workspaces:
         try:
-            validate_generated_project(context, workspace)
+            validate_signing_workspace(context, workspace)
         except (OSError, PackError):
             continue
         profile = read_json5(context.tools, workspace / "build-profile.json5")
         if not isinstance(profile, dict):
             continue
-        overlay = signing_overlay_from_profile(profile, workspace, context.bundle_name)
+        overlay = signing_overlay_from_profile(context, profile, workspace)
         if overlay is not None:
             fingerprint = signing_overlay_fingerprint(overlay)
             if fingerprint is not None and fingerprint in invalid_fingerprints:
@@ -1369,6 +1689,10 @@ def resolve_signing_overlay(
         if candidate is not None and candidate.fingerprint not in invalid_fingerprints:
             return candidate.overlay
     for workspace in workspaces:
+        try:
+            validate_signing_workspace(context, workspace)
+        except (OSError, PackError):
+            continue
         candidate = confirm_signing_candidate(context, workspace, device)
         if candidate is not None and candidate.fingerprint not in invalid_fingerprints:
             write_private_json(overlay_path, candidate.overlay)
@@ -1549,11 +1873,188 @@ def print_native_build_diagnostic(
     print(f"Full native build log: {log}", file=sys.stderr, flush=True)
 
 
+def validate_native_build_contract(context: PackContext) -> None:
+    native_root = context.stage_dir / "entry" / ".cxx"
+    compile_databases = sorted(native_root.glob("**/compile_commands.json"))
+    if len(compile_databases) != 1:
+        raise PackError(
+            "The HarmonyOS native build did not produce one fresh CMake configuration.",
+            EXIT_PROJECT,
+        )
+    cache_path = compile_databases[0].parent / "CMakeCache.txt"
+    if not cache_path.is_file():
+        raise PackError(
+            "The HarmonyOS native build did not produce one fresh CMake configuration.",
+            EXIT_PROJECT,
+        )
+    try:
+        commands = json.loads(compile_databases[0].read_text(encoding="utf-8"))
+        cache = cache_path.read_text(encoding="utf-8")
+    except (OSError, json.JSONDecodeError) as exception:
+        raise PackError(
+            "Unable to validate the HarmonyOS native build configuration.",
+            EXIT_PROJECT,
+        ) from exception
+    if not isinstance(commands, list) or not commands:
+        raise PackError(
+            "The HarmonyOS native compile database is empty.",
+            EXIT_PROJECT,
+        )
+    target_argument = f"--target={HARMONY_COMPILER_TARGET}"
+    for entry in commands:
+        if not isinstance(entry, dict):
+            raise PackError(
+                "The HarmonyOS native compile database is invalid.",
+                EXIT_PROJECT,
+            )
+        command = entry.get("command")
+        arguments = entry.get("arguments")
+        if isinstance(command, str):
+            command_text = command
+        elif isinstance(arguments, list):
+            command_text = " ".join(
+                value for value in arguments if isinstance(value, str)
+            )
+        else:
+            command_text = ""
+        if (
+            target_argument not in command_text
+            or "-D__MUSL__" not in command_text
+            or "-Wunguarded-availability" not in command_text
+        ):
+            raise PackError(
+                "A HarmonyOS native compilation command does not use the API 22 contract.",
+                EXIT_PROJECT,
+            )
+    expected_cache_values = (
+        f"SFML_HARMONY_DEVICE_FORM:STRING={cmake_device_form(context)}",
+        f"SFML_OPENGL_ES:BOOL={cmake_opengl_es(context)}",
+    )
+    if any(value not in cache for value in expected_cache_values):
+        raise PackError(
+            "The HarmonyOS native CMake cache does not match the selected export variant.",
+            EXIT_PROJECT,
+        )
+    native_sdk = (
+        context.tools.sdk_home / "default" / "openharmony" / "native"
+    )
+    try:
+        macros = subprocess.run(
+            [
+                str(native_sdk / "llvm" / "bin" / "clang"),
+                target_argument,
+                f"--sysroot={native_sdk / 'sysroot'}",
+                "-dM",
+                "-E",
+                "-x",
+                "c",
+                "/dev/null",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exception:
+        raise PackError(
+            "Unable to validate the HarmonyOS API 22 compiler macros.",
+            EXIT_TOOLCHAIN,
+        ) from exception
+    if macros.returncode != 0 or "#define __OHOS_Major__ 22" not in macros.stdout:
+        raise PackError(
+            "The HarmonyOS compiler target does not define __OHOS_Major__ as 22.",
+            EXIT_TOOLCHAIN,
+        )
+
+
+def hap_native_dependencies(
+    context: PackContext,
+    hap: pathlib.Path,
+) -> set[str]:
+    with tempfile.TemporaryDirectory(prefix="ludork-harmony-native-") as temporary:
+        library = pathlib.Path(temporary) / "libentry.so"
+        try:
+            with zipfile.ZipFile(hap) as archive:
+                with archive.open("libs/arm64-v8a/libentry.so") as source:
+                    with library.open("wb") as destination:
+                        shutil.copyfileobj(source, destination)
+            result = subprocess.run(
+                [str(context.tools.readobj), "--needed-libs", str(library)],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except (OSError, KeyError, subprocess.TimeoutExpired) as exception:
+            raise PackError(
+                "Unable to inspect the HarmonyOS native library dependencies.",
+                1,
+            ) from exception
+    if result.returncode != 0:
+        raise PackError(
+            "Unable to inspect the HarmonyOS native library dependencies.",
+            1,
+        )
+    dependencies = {
+        line.strip()
+        for line in result.stdout.splitlines()
+        if re.fullmatch(r"lib[^\s]+\.so", line.strip()) is not None
+    }
+    if not dependencies:
+        raise PackError(
+            "The HarmonyOS native library dependency list is empty.",
+            1,
+        )
+    return dependencies
+
+
+def validate_hap_native_dependencies(
+    context: PackContext,
+    hap: pathlib.Path,
+) -> None:
+    dependencies = hap_native_dependencies(context, hap)
+    desktop_libraries = {
+        "libnative_window_manager.so",
+        "libnative_display_manager.so",
+        "libohinput.so",
+    }
+    required = {"libEGL.so"}
+    forbidden: set[str]
+    if context.device_form == "mobile":
+        required.add("libGLESv2.so")
+        forbidden = desktop_libraries | {"libGLv4.so"}
+    else:
+        required.update(desktop_libraries)
+        if context.graphics_api == "opengl":
+            required.add("libGLv4.so")
+            forbidden = {"libGLESv2.so"}
+        else:
+            required.add("libGLESv2.so")
+            forbidden = {"libGLv4.so"}
+    missing = sorted(required - dependencies)
+    unexpected = sorted(forbidden & dependencies)
+    if missing or unexpected:
+        details: list[str] = []
+        if missing:
+            details.append("missing " + ", ".join(missing))
+        if unexpected:
+            details.append("unexpected " + ", ".join(unexpected))
+        raise PackError(
+            "HarmonyOS native dependencies do not match the selected graphics backend: "
+            + "; ".join(details),
+            1,
+        )
+
+
 def build_hap(
     context: PackContext,
     signed: bool = False,
     device: HarmonyDevice | None = None,
 ) -> pathlib.Path:
+    if signed:
+        if device is None:
+            raise PackError("A HarmonyOS device is required for signed export.", EXIT_DEVICE)
+        ensure_harmony_device_connected(context, device)
     environment = os.environ.copy()
     environment["JAVA_HOME"] = str(context.tools.java_home)
     environment["NODE_HOME"] = str(context.tools.node_home)
@@ -1595,6 +2096,7 @@ def build_hap(
             "DevEco Studio failed to build the HarmonyOS HAP.",
             result.returncode or 1,
         )
+    validate_native_build_contract(context)
     signature = "signed" if signed else "unsigned"
     hap = signed_hap if signed else unsigned_hap
     if not hap.is_file():
@@ -1604,39 +2106,84 @@ def build_hap(
         names = set(archive.namelist())
     if "libs/arm64-v8a/libentry.so" not in names:
         raise PackError("HarmonyOS HAP does not contain arm64-v8a/libentry.so.", 1)
+    validate_hap_native_dependencies(context, hap)
     if signed:
         if device is None:
             raise PackError("A HarmonyOS device is required for signed export.", EXIT_DEVICE)
+        ensure_harmony_device_connected(context, device)
         verify_signed_hap(context, hap, device)
     context.dist_dir.mkdir(parents=True, exist_ok=True)
-    output = context.dist_dir / f"{context.artifact_name}-harmony-mobile-{signature}.hap"
+    output = (
+        context.dist_dir
+        / f"{context.artifact_name}-harmony-{harmony_artifact_variant(context)}-{signature}.hap"
+    )
     shutil.copy2(hap, output)
     return output
 
 
-def install_and_launch_harmony_hap(
+def harmony_app_is_foreground(
     context: PackContext,
     device: HarmonyDevice,
-    hap: pathlib.Path,
-) -> None:
-    ensure_harmony_device_connected(context.tools, device)
-    print("Installing the signed HAP on the HarmonyOS device.", flush=True)
+    timeout: float,
+) -> bool:
+    if timeout <= 0:
+        return False
     try:
-        install = subprocess.run(
-            [str(context.tools.hdc), "-t", device.identifier, "install", "-r", str(hap)],
+        result = subprocess.run(
+            [
+                str(context.tools.hdc),
+                "-t",
+                device.identifier,
+                "shell",
+                "aa",
+                "dump",
+                "-l",
+            ],
             check=False,
             capture_output=True,
-            timeout=180,
+            text=True,
+            timeout=timeout,
         )
-    except (OSError, subprocess.TimeoutExpired) as exception:
-        raise PackError("Unable to install the HarmonyOS HAP.", EXIT_DEVICE) from exception
-    if install.returncode != 0:
-        raise PackError(
-            "Failed to install the HarmonyOS HAP. Unlock the device and verify Developer Mode.",
-            EXIT_DEVICE,
-        )
-    ensure_harmony_device_connected(context.tools, device)
-    print("Launching the HarmonyOS app.", flush=True)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if result.returncode != 0:
+        return False
+    for record in re.split(r"(?=^[ \t]*AbilityRecord ID #)", result.stdout, flags=re.MULTILINE):
+        if f"bundle name [{context.bundle_name}]" not in record:
+            continue
+        if "main name [EntryAbility]" not in record:
+            continue
+        if re.search(r"^[ \t]*state #FOREGROUND(?:[ \t]|$)", record, re.MULTILINE) is None:
+            continue
+        app_state = re.search(r"^[ \t]*app state #([A-Z]+)(?:[ \t]|$)", record, re.MULTILINE)
+        if app_state is not None and app_state.group(1) != "FOREGROUND":
+            continue
+        ready = re.search(r"^[ \t]*ready #([01])(?:[ \t]|$)", record, re.MULTILINE)
+        if ready is not None and ready.group(1) != "1":
+            continue
+        return True
+    return False
+
+
+def wait_for_harmony_app_foreground(context: PackContext, device: HarmonyDevice) -> bool:
+    deadline = time.monotonic() + HARMONY_LAUNCH_FOREGROUND_TIMEOUT_SECONDS
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        if harmony_app_is_foreground(
+            context,
+            device,
+            min(HARMONY_LAUNCH_QUERY_TIMEOUT_SECONDS, remaining),
+        ):
+            return True
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(HARMONY_LAUNCH_POLL_SECONDS, remaining))
+
+
+def launch_harmony_app(context: PackContext, device: HarmonyDevice) -> tuple[bool, str]:
     try:
         launch = subprocess.run(
             [
@@ -1652,18 +2199,64 @@ def install_and_launch_harmony_hap(
                 context.bundle_name,
                 "-m",
                 "entry",
+                "-W",
             ],
             check=False,
             capture_output=True,
+            text=True,
             timeout=60,
         )
+    except OSError as exception:
+        return False, str(exception)
+    except subprocess.TimeoutExpired:
+        return False, "aa start timed out."
+    diagnostic = redact_native_build_diagnostic(
+        "\n".join(part.strip() for part in (launch.stdout, launch.stderr) if part.strip())
+    )
+    if len(diagnostic) > HARMONY_LAUNCH_DIAGNOSTIC_LIMIT:
+        diagnostic = diagnostic[:HARMONY_LAUNCH_DIAGNOSTIC_LIMIT].rstrip() + "\n... launch output truncated ..."
+    return (
+        launch.returncode == 0 and wait_for_harmony_app_foreground(context, device),
+        diagnostic,
+    )
+
+
+def install_and_launch_harmony_hap(
+    context: PackContext,
+    device: HarmonyDevice,
+    hap: pathlib.Path,
+) -> None:
+    ensure_harmony_device_connected(context, device)
+    print("Installing the signed HAP on the HarmonyOS device.", flush=True)
+    try:
+        install = subprocess.run(
+            [str(context.tools.hdc), "-t", device.identifier, "install", "-r", str(hap)],
+            check=False,
+            capture_output=True,
+            timeout=180,
+        )
     except (OSError, subprocess.TimeoutExpired) as exception:
-        raise PackError("Unable to launch the HarmonyOS app.", EXIT_DEVICE) from exception
-    if launch.returncode != 0:
+        raise PackError("Unable to install the HarmonyOS HAP.", EXIT_DEVICE) from exception
+    if install.returncode != 0:
         raise PackError(
-            "The HarmonyOS HAP was installed, but the app could not be launched.",
+            "Failed to install the HarmonyOS HAP. Unlock the device and verify Developer Mode.",
             EXIT_DEVICE,
         )
+    ensure_harmony_device_connected(context, device)
+    print("Launching the HarmonyOS app.", flush=True)
+    launch_diagnostic = ""
+    for attempt in range(HARMONY_LAUNCH_ATTEMPTS):
+        ensure_harmony_device_connected(context, device)
+        launched, launch_diagnostic = launch_harmony_app(context, device)
+        if launched:
+            print("The HarmonyOS app is in the foreground.", flush=True)
+            return
+        if attempt + 1 < HARMONY_LAUNCH_ATTEMPTS:
+            print("The app did not reach the foreground; retrying launch.", flush=True)
+    message = "The HarmonyOS HAP was installed, but the app did not reach the foreground."
+    if launch_diagnostic:
+        message += "\n" + launch_diagnostic
+    raise PackError(message, EXIT_DEVICE)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -1674,6 +2267,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
     parser.add_argument("--device-form", choices=("mobile", "2in1"), default="mobile")
+    parser.add_argument("--graphics-api", choices=("opengl", "opengl-es"))
     parser.add_argument("project_folder", type=pathlib.Path)
     parser.add_argument("dist_folder", type=pathlib.Path, nargs="?")
     return parser
@@ -1687,18 +2281,26 @@ def main(arguments: list[str] | None = None) -> int:
         print(f"DevEco Studio: {context.tools.app}")
         print(f"Game name: {context.game_name}")
         print(f"Bundle name: {context.bundle_name}")
+        print(f"Device form: {context.device_form}")
+        print(f"Graphics API: {context.graphics_api}")
         device: HarmonyDevice | None = None
         if parsed.export_to_device:
             require_device_export_tools(context.tools)
-            device = select_harmony_device(context.tools)
-            print("One connected HarmonyOS device was found.")
+            device = select_harmony_device(context.tools, context.device_form)
+            print(
+                f"One matching HarmonyOS {context.device_form} device was found "
+                f"({device.device_type})."
+            )
         if parsed.check:
-            print("HarmonyOS mobile packaging check passed.")
+            print(
+                f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed."
+            )
             return 0
         if parsed.export_to_device:
             if device is None:
                 raise PackError("A HarmonyOS device is required for device export.", EXIT_DEVICE)
             device = read_device_udid(context.tools, device)
+            ensure_harmony_device_connected(context, device)
             overlay = resolve_signing_overlay(context, device)
             runtime_hash = prepare_stage(context)
             validate_generated_project(context, context.stage_dir)
@@ -1715,6 +2317,7 @@ def main(arguments: list[str] | None = None) -> int:
             print(f"Installed and launched {context.game_name} on the HarmonyOS device.")
             return 0
         runtime_hash = prepare_stage(context)
+        validate_generated_project(context, context.stage_dir)
         print(f"Runtime archive SHA-256: {runtime_hash}")
         output = build_hap(context)
         print(f"Pack complete: {output}")

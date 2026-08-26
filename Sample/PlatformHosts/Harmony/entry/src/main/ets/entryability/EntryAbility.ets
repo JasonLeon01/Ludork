@@ -4,8 +4,10 @@ import {
   Permissions,
   UIAbility,
   Want,
-  abilityAccessCtrl
+  abilityAccessCtrl,
+  bundleManager
 } from '@kit.AbilityKit';
+import { deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 
@@ -13,6 +15,21 @@ const DOMAIN = 0x4C44;
 const TAG = 'Ludork-Harmony';
 
 export default class EntryAbility extends UIAbility {
+  private configureSupportedWindowModes(windowStage: window.WindowStage): Promise<void> {
+    if (deviceInfo.deviceType !== '2in1') {
+      return Promise.resolve();
+    }
+
+    return windowStage.setSupportedWindowModes([
+      bundleManager.SupportWindowMode.FULL_SCREEN,
+      bundleManager.SupportWindowMode.FLOATING
+    ]).then(() => {
+      hilog.info(DOMAIN, TAG, 'Enabled full-screen and floating window modes');
+    }).catch((error: Error) => {
+      hilog.warn(DOMAIN, TAG, 'Unable to set supported window modes: %{public}s', error.message);
+    });
+  }
+
   private requestRuntimePermissions(): void {
     const permissions: Array<Permissions> = [
       'ohos.permission.MICROPHONE',
@@ -51,19 +68,21 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     this.requestRuntimePermissions();
 
-    windowStage.getMainWindow().then((mainWindow: window.Window) => {
-      AppStorage.set<number>('sfmlWindowId', mainWindow.getWindowProperties().id);
-    }).catch((error: Error) => {
-      hilog.error(DOMAIN, TAG, 'Unable to obtain main window: %{public}s', error.message);
-    });
+    this.configureSupportedWindowModes(windowStage).then(() => {
+      return windowStage.getMainWindow().then((mainWindow: window.Window) => {
+        AppStorage.set<number>('sfmlWindowId', mainWindow.getWindowProperties().id);
+      }).catch((error: Error) => {
+        hilog.error(DOMAIN, TAG, 'Unable to obtain main window: %{public}s', error.message);
+      });
+    }).then(() => {
+      windowStage.loadContent('pages/Index', (error) => {
+        if (error.code) {
+          hilog.error(DOMAIN, TAG, 'Unable to load page: %{public}s', JSON.stringify(error));
+          return;
+        }
 
-    windowStage.loadContent('pages/Index', (error) => {
-      if (error.code) {
-        hilog.error(DOMAIN, TAG, 'Unable to load page: %{public}s', JSON.stringify(error));
-        return;
-      }
-
-      hilog.info(DOMAIN, TAG, 'Ludork XComponent page loaded');
+        hilog.info(DOMAIN, TAG, 'Ludork XComponent page loaded');
+      });
     });
   }
 
