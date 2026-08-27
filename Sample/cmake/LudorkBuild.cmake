@@ -53,6 +53,7 @@ if(MSVC)
     endif()
     add_compile_options(
         /utf-8
+        /MP
         /FS
         "$<$<CONFIG:Release>:/experimental:deterministic>"
         "$<$<CONFIG:Release>:/pathmap:${CMAKE_SOURCE_DIR}=.>"

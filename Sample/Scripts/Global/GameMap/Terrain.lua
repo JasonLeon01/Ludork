@@ -302,7 +302,6 @@ end
 
 function GameMapTerrain:_rebuildPassabilityCache()
     local size = self._tilemap:getSize()
-    self:syncActorsRef(self._wholeActorList)
     self:_syncActorsForMapCache()
     self._tilePassableGrid = self:rebuildPassabilityCache(size)
 end

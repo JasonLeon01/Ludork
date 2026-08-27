@@ -253,6 +253,26 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
     return result
 end
 
+---@param actorsByTag table<string, Engine.Actor>
+---@param root        Engine.Actor
+local function indexActorTreeByTag(actorsByTag, root)
+    ---@type Engine.Actor[]
+    local actors = { root }
+    local index = 1
+    while index <= #actors do
+        local actor = actors[index]
+        ---@cast actor Engine.Actor
+        local actorTag = actor:getMapTag()
+        if actorTag ~= nil and actorsByTag[actorTag] == nil then
+            actorsByTag[actorTag] = actor
+        end
+        for _, child in ipairs(actor:getChildren()) do
+            actors[#actors + 1] = child
+        end
+        index = index + 1
+    end
+end
+
 ---@diagnostic disable-next-line: unused
 function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents)
     if not bool(addedActors) then
@@ -261,17 +281,28 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
     if emitCreateEvents == nil then
         emitCreateEvents = true
     end
+    ---@type table<string, Engine.Actor>
+    local actorsByTag = {}
+    for _, actor in ipairs(gameMap:getAllActors()) do
+        local actorTag = actor:getMapTag()
+        if actorTag ~= nil and actorsByTag[actorTag] == nil then
+            actorsByTag[actorTag] = actor
+        end
+    end
     local addedAny = false
+    gameMap:beginActorBatch()
     for _, actorRecord in ipairs(addedActors) do
-        if gameMap:getActorByTag(actorRecord.tag) == nil then
+        if actorsByTag[actorRecord.tag] == nil then
             local actor = Data.GenActorFromClassPath(actorRecord.bp, actorRecord.tag, actorRecord.classVarChanges)
             if actor ~= nil then
                 actor:setMapPosition(actorRecord.position)
                 gameMap:spawnActor(actor, actorRecord.layer, false)
+                indexActorTreeByTag(actorsByTag, actor)
                 addedAny = true
             end
         end
     end
+    gameMap:endActorBatch()
     if addedAny and emitCreateEvents then
         gameMap:initialiseActorsAndComponents()
     end

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <BindAnnotations.hpp>
+#include <EngineRuntimeApi.hpp>
 
 #include <memory>
 #include <unordered_map>
@@ -9,7 +10,7 @@
 class Actor;
 
 BIND_CLASS(metadata = false)
-class ActorUpdateBatch {
+class LUDORK_ENGINE_API ActorUpdateBatch {
 public:
     BIND_INIT()
     ActorUpdateBatch();

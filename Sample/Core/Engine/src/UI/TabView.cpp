@@ -314,7 +314,7 @@ TabView::KeyHint TabView::parseKeyHint(const RuntimeValue::Map& values,
     for (const auto& [name, value] : values) {
         if (name == "Keyboard") {
             result.keyboard = keyboardKeyText(value, source + ".Keyboard");
-        } else if (name == "Handle") {
+        } else if (name == "Joystick") {
             result.handle = handleKeyText(value, source + ".Handle");
         } else {
             throw std::invalid_argument(source + " has unknown key " + name);

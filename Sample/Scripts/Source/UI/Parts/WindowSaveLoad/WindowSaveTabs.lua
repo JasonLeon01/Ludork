@@ -28,11 +28,11 @@ function WindowSaveTabsUI:bind()
     self._tabView = self:requireControl("Tabs")
     self._tabView:setKeyHint({
         Keyboard = sf.Keyboard.Key.Q,
-        Handle = Engine.JoystickButton.LB
+        Joystick = Engine.JoystickButton.LB
     },
         {
             Keyboard = sf.Keyboard.Key.E,
-            Handle = Engine.JoystickButton.RB
+            Joystick = Engine.JoystickButton.RB
         })
     self._tabView:setCursorSound(GameSystem.GetCursorSE())
     setTabItems(self._tabView, self.model)

@@ -8,6 +8,16 @@ local ComponentsFunctions = GlobalFunctions.Components
 ---@class (partial) GameMap
 local GameMapActors = {}
 
+---@param actor Engine.Actor
+local function initialiseActorCreateEvent(actor)
+    Actor.BlueprintEvent(actor, Actor, "onCreate")
+end
+
+---@param actor Engine.Actor
+local function initialiseActorComponents(actor)
+    ComponentsFunctions.attachInstanceComponents(actor)
+end
+
 function GameMapActors:_syncActorsForMapCache()
     for _, actor in ipairs(self:getAllActors()) do
         actor:syncMapCache()
@@ -68,14 +78,11 @@ function GameMapActors:getAllActors()
 end
 
 function GameMapActors:getActorLayer(actor)
-    for layerName, actorList in pairs(self._actors) do
-        for _, listed in ipairs(actorList) do
-            if listed == actor then
-                return layerName
-            end
-        end
+    local registeredLayer = self:_getRegisteredActorLayer(actor)
+    if registeredLayer ~= nil then
+        return registeredLayer
     end
-    for layerName, actorList in pairs(self._wholeActorList) do
+    for layerName, actorList in pairs(self._actors) do
         for _, listed in ipairs(actorList) do
             if listed == actor then
                 return layerName
@@ -170,9 +177,17 @@ function GameMapActors:applyActorPositions(actorPositions)
     if actorPositions == nil then
         return
     end
+    ---@type table<string, Engine.Actor>
+    local actorsByTag = {}
+    for _, actor in ipairs(self:getAllActors()) do
+        local actorTag = actor:getMapTag()
+        if actorTag ~= nil and actorsByTag[actorTag] == nil then
+            actorsByTag[actorTag] = actor
+        end
+    end
     local movedAny = false
     for actorTag, position in pairs(actorPositions) do
-        local actor = self:getActorByTag(actorTag)
+        local actor = actorsByTag[actorTag]
         if actor ~= nil then
             actor:setMapPosition(position)
             movedAny = true
@@ -250,26 +265,11 @@ function GameMapActors:spawnActor(actor, layer, emitCreateEvent)
         emitCreateEvent = true
     end
     self:_addActorTreeToLayer(actor, layer)
-    if self._actorBatchDepth == 0 and not self._initialisingActors then
-        self:updateActorList()
-    end
+    self:_flushActorChanges()
     self._materialDirty = true
-    if emitCreateEvent and self._actorBatchDepth == 0 and not self._initialisingActors then
+    if emitCreateEvent then
         self:initialiseActorsAndComponents()
     end
-end
-
-function GameMapActors:beginActorBatch()
-    self._actorBatchDepth = self._actorBatchDepth + 1
-end
-
-function GameMapActors:endActorBatch()
-    assert(self._actorBatchDepth > 0, "Actor batch is not active")
-    self._actorBatchDepth = self._actorBatchDepth - 1
-    if self._actorBatchDepth > 0 then
-        return
-    end
-    self:updateActorList()
 end
 
 function GameMapActors:createActor(actorClass, layer, kwargs, emitCreateEvent)
@@ -289,63 +289,8 @@ function GameMapActors:createActor(actorClass, layer, kwargs, emitCreateEvent)
 end
 
 function GameMapActors:initialiseActorsAndComponents()
-    if self._initialisingActors then
-        return
-    end
-    self._initialisingActors = true
-    while true do
-        local createdAny = self:_initialisePendingActorCreateEvents()
-        local componentAny = self:_initialisePendingActorComponents()
-        if not createdAny and not componentAny then
-            break
-        end
-    end
-    self._initialisingActors = false
-    self:updateActorList()
+    self:_drainActorLifecycle(initialiseActorCreateEvent, initialiseActorComponents)
     self._materialDirty = true
-end
-
----@return boolean
-function GameMapActors:_initialisePendingActorCreateEvents()
-    local createdAny = false
-    while true do
-        local pendingActors = {}
-        for _, actor in ipairs(self:getAllActors()) do
-            if not self._createInitialisedActorIDs[actor] and not actor:isDestroyed() then
-                pendingActors[#pendingActors + 1] = actor
-            end
-        end
-        if not bool(pendingActors) then
-            return createdAny
-        end
-        for _, actor in ipairs(pendingActors) do
-            if not self._createInitialisedActorIDs[actor] then
-                self._createInitialisedActorIDs[actor] = true
-                Actor.BlueprintEvent(actor, Actor, "onCreate")
-                createdAny = true
-            end
-        end
-    end
-    return createdAny
-end
-
----@return boolean
-function GameMapActors:_initialisePendingActorComponents()
-    local componentAny = false
-    local pendingActors = {}
-    for _, actor in ipairs(self:getAllActors()) do
-        if not self._componentInitialisedActorIDs[actor] and not actor:isDestroyed() then
-            pendingActors[#pendingActors + 1] = actor
-        end
-    end
-    for _, actor in ipairs(pendingActors) do
-        if not self._componentInitialisedActorIDs[actor] then
-            self._componentInitialisedActorIDs[actor] = true
-            ComponentsFunctions.attachInstanceComponents(actor)
-            componentAny = true
-        end
-    end
-    return componentAny
 end
 
 ---@param actor Engine.Actor
@@ -365,12 +310,9 @@ function GameMapActors:_addActorToLayer(actor, layer)
     end
     actor:setMap(self)
     actor:ensureMapTag()
-    for _, listed in ipairs(self._actors[layer]) do
-        if listed == actor then
-            return
-        end
+    if self:_registerLayerActor(actor, layer) then
+        self._actors[layer][#self._actors[layer] + 1] = actor
     end
-    self._actors[layer][#self._actors[layer] + 1] = actor
 end
 
 function GameMapActors:destroyActor(actor)
@@ -520,31 +462,7 @@ function GameMapActors:_getDescendantActorIDs(actor)
 end
 
 function GameMapActors:updateActorList()
-    self._wholeActorList = {}
-    self._actorUpdateList = {}
-    for layerName, actorList in pairs(self._actors) do
-        self._wholeActorList[layerName] = {}
-        ---@type Engine.Actor[]
-        local queue = {}
-        for _, actor in ipairs(actorList) do
-            queue[#queue + 1] = actor
-            self._actorUpdateList[#self._actorUpdateList + 1] = actor
-        end
-        local index = 1
-        while index <= #queue do
-            local child = queue[index]
-            ---@cast child Engine.Actor
-            index = index + 1
-            child:setMap(self)
-            self._wholeActorList[layerName][#self._wholeActorList[layerName] + 1] = child
-            for _, nested in ipairs(child:getChildren()) do
-                queue[#queue + 1] = nested
-            end
-        end
-    end
-    self:syncActorsRef(self._wholeActorList)
-    self:syncMaterialActorsRef(self._actors)
-    self._actorUpdateBatch:syncActors(self._actorUpdateList)
+    self:_syncActorViews(self._actors)
 end
 
 function GameMapActors:_updateActorPixelShatterEffects(deltaTime)

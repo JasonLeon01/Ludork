@@ -1,5 +1,6 @@
 #include <Gameplay/Actor.hpp>
 
+#include <ConcurrentResourceCache.hpp>
 #include <Utils/ShaderLoader.hpp>
 
 #include <iostream>
@@ -11,6 +12,11 @@ namespace {
 std::unique_ptr<sf::Texture>& blankTextureStorage() {
     static std::unique_ptr<sf::Texture> texture;
     return texture;
+}
+
+ludork::core::ConcurrentResourceCache<sf::Shader, true>& actorShaderCache() {
+    static ludork::core::ConcurrentResourceCache<sf::Shader, true> cache;
+    return cache;
 }
 
 const sf::Texture& blankTexture() {
@@ -38,14 +44,19 @@ void Actor::ensureShaderLoaded() const {
     if (shaderPath.empty()) {
         return;
     }
-    ShaderLoadResult result =
-        ShaderLoader::load(shaderPath, sf::Shader::Type::Fragment);
-    if (!result) {
+    try {
+        shader_ = actorShaderCache().getOrLoad(shaderPath, [this]() {
+            ShaderLoadResult result =
+                ShaderLoader::load(shaderPath, sf::Shader::Type::Fragment);
+            if (!result) {
+                throw std::runtime_error(result.error);
+            }
+            return std::move(result.shader);
+        });
+    } catch (const std::exception& error) {
         shaderError_ = true;
-        std::cerr << result.error << '\n';
-        return;
+        std::cerr << error.what() << '\n';
     }
-    shader_ = std::move(result.shader);
 }
 
 void Actor::setShaderPath(const std::string& shaderPath) {
@@ -201,6 +212,7 @@ void Actor::_animate(float deltaTime) {
 }
 
 void shutdownActorResources() noexcept {
+    actorShaderCache().clear();
     blankTextureStorage().reset();
 }
 

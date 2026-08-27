@@ -21,8 +21,6 @@
 ---@class (partial) GameMap: GlobalCore.GameMapBase
 ---@field DefaultCoverAlpha                  integer
 ---@field MapViewRect                        sf.IntRect                                                                                                Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
----@field _actorBatchDepth                   integer
----@field _initialisingActors                boolean
 ---@field _tilemap                           Engine.Tilemap
 ---@field _camera                            GlobalCore.Camera | nil
 ---@field _mapViewRect                       sf.IntRect

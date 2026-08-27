@@ -14,7 +14,6 @@ local System = GlobalCore.System
 local WeatherController = GlobalCore.WeatherController
 local FogController = GlobalCore.FogController
 
-local ActorUpdateBatch = Engine.ActorUpdateBatch
 local Actor = Engine.Actor
 local Camera = GlobalCore.Camera
 local Character = Engine.Character
@@ -115,13 +114,6 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
         __mode = "k"
     })
     self._actorPixelShatterSeed = 0
-    self._wholeActorList = {}
-    self._actorUpdateList = {}
-    self._actorUpdateBatch = ActorUpdateBatch.new()
-    self._createInitialisedActorIDs = {}
-    self._componentInitialisedActorIDs = {}
-    self._actorBatchDepth = 0
-    self._initialisingActors = false
     self._camera = nil
     if not self._previewOnly then
         self._camera = camera or Camera.new()
@@ -213,7 +205,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     })
     self:setActorListUpdater(function ()
         local gameMap = selfRef[1]
-        if gameMap ~= nil and gameMap._actorBatchDepth == 0 and not gameMap._initialisingActors then
+        if gameMap ~= nil then
             gameMap:updateActorList()
         end
     end)
@@ -223,8 +215,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
             gameMap:destroyActor(actor)
         end
     end)
-    self:syncActorsRef(self._wholeActorList)
-    self:syncMaterialActorsRef(self._actors)
+    self:updateActorList()
 end
 
 function GameMap:addComponent(component)
@@ -374,23 +365,24 @@ function GameMap:onTick(deltaTime)
         component:onTick(deltaTime)
     end
     if bool(self._actorsOnDestroy) then
-        for _, actor in ipairs(self._actorsOnDestroy) do
-            for _, actorList in pairs(self._actors) do
-                for index, listed in ipairs(actorList) do
-                    if listed == actor then
-                        table.remove(actorList, index)
-                        self._actorPixelShatterByActor[actor] = nil
-                        Actor.BlueprintEvent(actor, Actor, "onDestroy")
-                        break
+        self:_withDeferredActorViewSync(function ()
+            for _, actor in ipairs(self._actorsOnDestroy) do
+                for _, actorList in pairs(self._actors) do
+                    for index, listed in ipairs(actorList) do
+                        if listed == actor then
+                            table.remove(actorList, index)
+                            self._actorPixelShatterByActor[actor] = nil
+                            Actor.BlueprintEvent(actor, Actor, "onDestroy")
+                            break
+                        end
                     end
                 end
             end
-        end
-        self:updateActorList()
+        end)
         self._actorsOnDestroy = {}
     end
     self:_updateActorPixelShatterEffects(deltaTime)
-    self._actorUpdateBatch:update(deltaTime)
+    self:_updateActors(deltaTime)
     self:_updateAudioListener()
     ---@cast self._particleSystem Engine.ParticleSystem
     self._particleSystem:onTick(deltaTime)
@@ -403,7 +395,7 @@ function GameMap:onLateTick(deltaTime)
     for _, component in ipairs(self._components) do
         component:onLateTick(deltaTime)
     end
-    self._actorUpdateBatch:lateUpdate(deltaTime)
+    self:_lateUpdateActors(deltaTime)
     ---@cast self._particleSystem Engine.ParticleSystem
     self._particleSystem:onLateTick(deltaTime)
 end
@@ -412,7 +404,7 @@ function GameMap:onFixedTick(fixedDelta)
     for _, component in ipairs(self._components) do
         component:onFixedTick(fixedDelta)
     end
-    self._actorUpdateBatch:fixedUpdate(fixedDelta)
+    self:_fixedUpdateActors(fixedDelta)
     if self._camera ~= nil then
         self._camera:onFixedTick(fixedDelta)
     end

@@ -23,6 +23,8 @@ struct IntPairHash {
 using OccupancyMap =
     std::unordered_map<IntPair, std::vector<Actor*>, IntPairHash>;
 
+class GameMapActorRegistry;
+
 ////////////////////////////////////////////////////////////
 /// \brief Pathfinding result in all runtime path formats
 ///
@@ -59,7 +61,9 @@ BIND_CLASS()
 class GameMapBase : public ActorMapService {
 public:
     BIND_INIT()
-    GameMapBase() = default;
+    GameMapBase();
+
+    ~GameMapBase() override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a grayscale texture from a material map
@@ -235,6 +239,40 @@ public:
     BIND_METHOD(metadata = false)
     void setPlayerActor(ActorPtr actor = nullptr);
 
+    BIND_METHOD(name = "_registerLayerActor", metadata = false)
+    bool registerLayerActor(ActorPtr actor, const std::string& layer);
+
+    BIND_METHOD(name = "_getRegisteredActorLayer", metadata = false)
+    std::optional<std::string> getRegisteredActorLayer(Actor& actor) const;
+
+    BIND_METHOD(metadata = false)
+    void beginActorBatch();
+
+    BIND_METHOD(metadata = false)
+    void endActorBatch();
+
+    BIND_METHOD(name = "_flushActorChanges", metadata = false)
+    void flushActorChanges();
+
+    BIND_METHOD(name = "_withDeferredActorViewSync", metadata = false)
+    void withDeferredActorViewSync(std::function<void()> handler);
+
+    BIND_METHOD(name = "_drainActorLifecycle", metadata = false)
+    void drainActorLifecycle(std::function<void(Actor&)> createHandler,
+                             std::function<void(Actor&)> componentHandler);
+
+    BIND_METHOD(name = "_syncActorViews", metadata = false)
+    void syncActorViews(const ActorDict& actors);
+
+    BIND_METHOD(name = "_updateActors", metadata = false)
+    void updateActors(float deltaTime);
+
+    BIND_METHOD(name = "_lateUpdateActors", metadata = false)
+    void lateUpdateActors(float deltaTime);
+
+    BIND_METHOD(name = "_fixedUpdateActors", metadata = false)
+    void fixedUpdateActors(float fixedDelta);
+
 private:
     ////////////////////////////////////////////////////////////
     /// \brief Check whether one grid node is traversable
@@ -366,4 +404,5 @@ private:
     ActorPtr playerActor_;
     std::function<void()> actorListUpdater_;
     std::function<void(Actor&)> actorDestroyer_;
+    std::unique_ptr<GameMapActorRegistry> actorRegistry_;
 };

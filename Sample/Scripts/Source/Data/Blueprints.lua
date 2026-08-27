@@ -176,13 +176,14 @@ local function applyActorGenerationClassVars(actor)
     actor:setOrigin(actor.defaultOrigin)
 end
 
----@param actor Engine.Actor
----@param key   string
----@param value Source.Data.ClassVarValue
+---@param actorType  Class.ClassType<any> | string
+---@param key        string
+---@param value      Source.Data.ClassVarValue
+---@param descriptor table | nil
 ---@return Source.Data.ClassVarValue
-local function resolveClassVarChangeValue(actor, key, value)
+local function resolveClassVarChangeValue(actorType, key, value, descriptor)
     if type(value) == "string" and not bool(value) then
-        local configName, settingName = Engine.resolveConfigVar(Class.type(actor), key)
+        local configName, settingName = Engine.resolveConfigVar(actorType, key)
         if configName ~= nil then
             local SourceSystem = require("Source.System")
 
@@ -190,9 +191,14 @@ local function resolveClassVarChangeValue(actor, key, value)
             return type(resolved) == "string" and resolved or tostring(resolved)
         end
     end
-    local fieldMetadata, declaringModule = Engine.resolveMemberMetadata(Class.type(actor), key)
-    local targetType = fieldMetadata ~= nil and fieldMetadata.type
-        or Engine.resolveAttrValueType(Class.type(actor), key)
+    local targetType
+    local declaringModule
+    if descriptor == nil then
+        targetType = Engine.resolveAttrValueType(actorType, key)
+    else
+        targetType = descriptor.type
+        declaringModule = descriptor.module
+    end
     if type(value) == "string" and Engine.shouldEvalValueType(targetType) then
         return Engine.evalDataExpression(value)
     end
@@ -202,11 +208,10 @@ local function resolveClassVarChangeValue(actor, key, value)
     return deepcopy(value)
 end
 
----@param actor Engine.Actor
----@param key   string
+---@param descriptor table | nil
 ---@return boolean
-local function isBlueprintOnlyClassVar(actor, key)
-    local fieldMetadata = Engine.resolveMemberMetadata(Class.type(actor), key)
+local function isBlueprintOnlyClassVar(descriptor)
+    local fieldMetadata = descriptor ~= nil and descriptor.metadata or nil
     local value = fieldMetadata ~= nil and fieldMetadata.Meta ~= nil and fieldMetadata.Meta.BlueprintOnly or nil
     return value == true
 end
@@ -268,15 +273,19 @@ local function applyActorClassVarChanges(actor, changes)
     else
         storedChanges = deepcopy(storedChanges)
     end
-    local componentTypes = ComponentsFunctions.getComponentTypes(Class.type(actor))
+    local actorType = Class.type(actor)
+    local componentTypes = ComponentsFunctions.getComponentTypes(actorType)
     for key, value in pairs(changes) do
-        if type(key) == "string" and not isBlueprintOnlyClassVar(actor, key) then
-            storedChanges[key] = deepcopy(value)
-            local componentType = componentTypes[key]
-            if componentType ~= nil then
-                applyComponentClassVarChange(actor, key, componentType, value)
-            else
-                actor[key] = resolveClassVarChangeValue(actor, key, value)
+        if type(key) == "string" then
+            local descriptor = Engine.resolveAttrMetadata(actorType, key)
+            if not isBlueprintOnlyClassVar(descriptor) then
+                storedChanges[key] = deepcopy(value)
+                local componentType = componentTypes[key]
+                if componentType ~= nil then
+                    applyComponentClassVarChange(actor, key, componentType, value)
+                else
+                    actor[key] = resolveClassVarChangeValue(actorType, key, value, descriptor)
+                end
             end
         end
     end
