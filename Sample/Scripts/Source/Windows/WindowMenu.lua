@@ -71,9 +71,8 @@ function WindowMenuController:bind()
         configureMenuControl(self.model), configureMenuControl(self.model._windowItem),
         configureMenuControl(self.model._windowEquipSlot), configureMenuControl(self.model._windowEquipSelect),
         configureMenuControl(self.model._windowEquipStatus),
-        configureMenuControl(
-            assert(self.model._windowSaveLoad:getCommandWindow(), "Menu save command window is missing")
-        ), configureMenuControl(self.model._windowSaveLoad:getSlotWindow()),
+        configureMenuControl(assert(self.model._windowSaveLoad:getTabWindow(), "Menu save tab window is missing")),
+        configureMenuControl(self.model._windowSaveLoad:getSlotWindow()),
         configureMenuControl(self.model._windowSaveLoad:getDetailWindow()),
         configureMenuControl(self.model._configWindow)
     }
@@ -171,9 +170,6 @@ function WindowMenuController:_handleCancel()
     if self:_returnEquipSelectToSlot() then
         return
     end
-    if self:_returnSaveSlotToCommand() then
-        return
-    end
     if self:_closeSubMenus() then
         ManagerFunctions.playSE(GameSystem.GetCancelSE())
         self.model:requestKeyboardFocus()
@@ -204,12 +200,6 @@ function WindowMenuController:_onMenuSave()
     self:_closeSubMenus("save")
     self.model._windowSaveLoad:open()
     self:_syncReturnButtonSuppression()
-    ---@type Source.Windows.Base.WindowSelectable | nil
-    local focusTarget = self.model._windowSaveLoad:getCommandWindow()
-    if focusTarget == nil or not focusTarget:getActive() then
-        focusTarget = self.model._windowSaveLoad:getSlotWindow()
-    end
-    focusTarget:requestKeyboardFocusAtCursor()
 end
 
 function WindowMenuController:_onMenuConfig()
@@ -246,12 +236,6 @@ function WindowMenuController:_getCurrentSubMenuFocusTarget()
         return asSelectableWindow(self.model._windowEquipSlot)
     end
     if self.model.index == 2 and self.model._windowSaveLoad:getVisible() then
-        local saveCommandWindow = assert(
-            self.model._windowSaveLoad:getCommandWindow(), "Menu save command window is missing"
-        )
-        if saveCommandWindow:getActive() then
-            return asSelectableWindow(saveCommandWindow)
-        end
         return asSelectableWindow(self.model._windowSaveLoad:getSlotWindow())
     end
     return nil
@@ -307,17 +291,6 @@ function WindowMenuController:_returnEquipSelectToSlot()
     end
     self.model._windowEquipSelect:returnToSlotWindow()
     return true
-end
-
-function WindowMenuController:_returnSaveSlotToCommand()
-    if not self.model._windowSaveLoad:getVisible() then
-        return false
-    end
-    local slotWindow = self.model._windowSaveLoad:getSlotWindow()
-    if not (slotWindow:getActive() or slotWindow:getFocused()) then
-        return false
-    end
-    return self.model._windowSaveLoad:returnToCommandWindow()
 end
 
 local FinalWindowMenuController = class(WindowMenuController, WindowCommand.Controller)
@@ -430,11 +403,6 @@ end
 ---@return boolean
 function WindowMenu:_returnEquipSelectToSlot()
     return self._menuController:_returnEquipSelectToSlot()
-end
-
----@return boolean
-function WindowMenu:_returnSaveSlotToCommand()
-    return self._menuController:_returnSaveSlotToCommand()
 end
 
 return class(WindowMenu, WindowCommand)

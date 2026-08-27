@@ -6,31 +6,31 @@
 
 --- Each setting row combines a label and an interactive control.
 ---@class Source.Windows.ConfigWindow: Source.Windows.Base.WindowSelectable
----@field _activePageIndex          integer
----@field _focusLevel               "tabs" | "settings"
----@field _pageSessions             Source.Windows.ConfigWindow.PageSession[]
----@field _ui                       Source.UI.ConfigWindow
----@field _windowContent            Engine.Canvas
----@field _settingsContent          Engine.Canvas
----@field _tabList                  Engine.ListView
----@field _languageRow              Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _graphicsPresetRow        Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _maximumRenderScaleRow    Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _framerateRow             Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _antiAliasingLevelRow     Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _lightingRenderScaleRow   Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _verticalSyncRow          Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _musicOnRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _musicVolumeRow           Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _soundOnRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _soundVolumeRow           Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _voiceOnRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _voiceVolumeRow           Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _onClose                  function | nil
----@field _open                     boolean
----@field _capturedTouchSlider      Engine.Slider | nil
----@field _capturedTouchSliderIndex integer | nil
----@field _capturedTouchOwner       "list" | "slider" | nil
+---@field _activePageIndex               integer
+---@field _pageSessions                  Source.Windows.ConfigWindow.PageSession[]
+---@field _ui                            Source.UI.ConfigWindow
+---@field _windowContent                 Engine.Canvas
+---@field _settingsContent               Engine.Canvas
+---@field _tabView                       Engine.TabView
+---@field _languageRow                   Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _graphicsPresetRow             Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _maximumRenderScaleRow         Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _framerateRow                  Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _antiAliasingLevelRow          Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _lightingRenderScaleRow        Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
+---@field _verticalSyncRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _musicOnRow                    Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _musicVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _soundOnRow                    Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _soundVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _voiceOnRow                    Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
+---@field _voiceVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _onClose                       function | nil
+---@field _open                          boolean
+---@field _capturedTouchSlider           Engine.Slider | nil
+---@field _capturedTouchSliderIndex      integer | nil
+---@field _capturedTouchOwner            "list" | "slider" | nil
+---@field _tabNavigationHandledThisFrame boolean
 local ConfigWindow = {}
 
 ---@param onClose function | nil
@@ -152,8 +152,11 @@ function ConfigWindow:close() end
 
 function ConfigWindow:dispose() end
 
----@brief Collapse an expanded DropBox, leave settings, or close the window.
+---@brief Collapse an expanded DropBox or close the window.
 function ConfigWindow:onReturn() end
+
+---@param deltaTime number
+function ConfigWindow:update(deltaTime) end
 
 ---@brief Update the active configuration page and selection input.
 ---
@@ -170,13 +173,16 @@ function ConfigWindow:_applyScaleRowChange(scaleRowChange) end
 ---@param kwargs table
 function ConfigWindow:onKeyDown(kwargs) end
 
----@brief Apply the state-aware cancel action on right-click.
+---@brief Move the selection within the active settings page.
 ---@param direction string
 ---@return boolean
 function ConfigWindow:onDirectionalKey(direction) end
 
+---@return boolean
+function ConfigWindow:_handleTabNavigation() end
+
 ---@param tabIndex integer
-function ConfigWindow:_onTabConfirmed(tabIndex) end
+function ConfigWindow:_onTabSelected(tabIndex) end
 
 ---@param expanded boolean
 function ConfigWindow:_onDropBoxExpandedChanged(expanded) end

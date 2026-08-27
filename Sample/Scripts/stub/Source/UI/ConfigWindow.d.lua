@@ -12,13 +12,12 @@
 ---@field _scaleValues              number[]
 ---@field _maximumRenderScaleValues number[]
 ---@field _pages                    Source.UI.ConfigWindow.Page[]
----@field _tabControllers           Source.UI.Helpers.CommandRow[]
 ---@field _activePageIndex          integer
 ---@field _applyingGraphicsPreset   boolean
 ---@field _windowFrame              Engine.Window
 ---@field _content                  Engine.Canvas
 ---@field _settingsWindowFrame      Engine.Window
----@field _tabList                  Engine.ListView
+---@field _tabView                  Engine.TabView
 ---@field _settingsContent          Engine.Canvas
 ---@field _graphicsList             Engine.ListView
 ---@field _audioList                Engine.ListView
@@ -68,8 +67,8 @@ function ConfigWindowUI:getWindowFrame() end
 ---@return Engine.Canvas
 function ConfigWindowUI:getContent() end
 
----@return Engine.ListView
-function ConfigWindowUI:getTabList() end
+---@return Engine.TabView
+function ConfigWindowUI:getTabView() end
 
 ---@return Engine.Canvas
 function ConfigWindowUI:getSettingsContent() end

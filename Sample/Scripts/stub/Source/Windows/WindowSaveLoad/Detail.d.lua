@@ -27,4 +27,6 @@ function WindowSaveDetail:refresh() end
 ---@param deltaTime number
 function WindowSaveDetail:onTick(deltaTime) end
 
+function WindowSaveDetail:dispose() end
+
 return WindowSaveDetail

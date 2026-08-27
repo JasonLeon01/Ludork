@@ -6,6 +6,7 @@
 #include <UI/CheckBox.hpp>
 #include <UI/DropBox.hpp>
 #include <UI/Slider.hpp>
+#include <UI/TabView.hpp>
 
 #include <memory>
 #include <utility>
@@ -177,4 +178,44 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
     };
     dropBox.properties.emplace("previewText");
     registry.registerAdapter<DropBoxUiControlAdapterTag>(std::move(dropBox));
+
+    UiControlAdapterRegistry::Adapter tabView;
+    tabView.factory = [](const RuntimeValue::Map& properties) {
+        const int tabCount = intProperty(properties, "tabCount", 1);
+        if (tabCount <= 0) {
+            throw std::invalid_argument("TabView tabCount must be positive");
+        }
+        return std::make_shared<TabView>(
+            vector2fProperty(properties, "size", {100.0f, 32.0f}),
+            loadWindowSkin(stringProperty(properties, "windowSkin")),
+            plainTextConfig(
+                stringProperty(properties, "textConfig", "UI/Default")),
+            std::vector<std::string>(static_cast<std::size_t>(tabCount)), 0);
+    };
+    tabView.setter = [](ControlBase& control, const std::string& propertyId,
+                        const RuntimeValue& value) {
+        TabView& tabs = requireControlType<TabView>(control, "Engine.TabView");
+        if (propertyId == "size") {
+            tabs.resize(requireVector2f(value, "size"));
+        } else if (propertyId == "windowSkin") {
+            tabs.setWindowSkin(
+                loadWindowSkin(requireString(value, "windowSkin")));
+        } else if (propertyId == "textConfig") {
+            tabs.setTextConfig(
+                plainTextConfig(requireString(value, "textConfig")));
+        } else if (propertyId == "tabCount") {
+            throw std::invalid_argument(
+                "tabCount is a construction-only TabView property");
+        } else {
+            throw std::invalid_argument("Unknown TabView property " +
+                                        propertyId);
+        }
+    };
+    tabView.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                          const sf::Vector2f& renderScale) {
+        TabView& tabs = requireControlType<TabView>(control, "Engine.TabView");
+        tabs.resize(size);
+        tabs.setScale(renderScale);
+    };
+    registry.registerAdapter<TabViewUiControlAdapterTag>(std::move(tabView));
 }

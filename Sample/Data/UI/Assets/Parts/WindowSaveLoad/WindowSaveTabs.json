@@ -1,0 +1,139 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 416,
+    "height": 64
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Save Tabs",
+    "category": "Windows"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        416,
+        64
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "WindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            416,
+            64
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "Content",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            384,
+            32
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": 16.0,
+            "right": 16.0,
+            "bottom": 16.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "name": "Tabs",
+            "controlId": "Engine.TabView",
+            "properties": {
+              "size": [
+                384,
+                32
+              ],
+              "windowSkin": "",
+              "textConfig": "UI/Default",
+              "tabCount": 2
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  1.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

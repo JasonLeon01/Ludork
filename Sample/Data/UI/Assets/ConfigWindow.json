@@ -94,16 +94,16 @@
         "editor": {},
         "children": [
           {
-            "name": "TabList",
-            "controlId": "Engine.ListView",
+            "name": "TabView",
+            "controlId": "Engine.TabView",
             "properties": {
               "size": [
                 448.0,
                 32.0
               ],
-              "defaultItemHeight": 32,
-              "fixItemHeight": true,
-              "columns": 3
+              "windowSkin": "",
+              "textConfig": "UI/Default",
+              "tabCount": 3
             },
             "slot": {
               "anchors": {

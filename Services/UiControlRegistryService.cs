@@ -193,6 +193,18 @@ public sealed class UiControlRegistryService
                     property("textConfig", "Text Config", "string", false, JsonValue.Create("UI/Text20")),
                 ]),
             descriptor(
+                "Engine.TabView",
+                "Tab View",
+                "Input",
+                "none",
+                null,
+                [
+                    property("size", "Size", "sf.Vector2f", false, jsonArray("[100.0,32.0]")),
+                    property("windowSkin", "Window Skin", "string", false, JsonValue.Create(string.Empty)),
+                    property("textConfig", "Text Config", "string", false, JsonValue.Create("UI/Default")),
+                    property("tabCount", "Tab Count", "int", false, JsonValue.Create(1)),
+                ]),
+            descriptor(
                 "Engine.Slider",
                 "Slider",
                 "Input",

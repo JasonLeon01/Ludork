@@ -1,5 +1,8 @@
+local Engine = require("Engine")
 local WindowSaveSlotUI = require("Source.UI.Parts.WindowSaveLoad.WindowSaveSlot")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+
+local Input = Engine.Input
 
 local _SLOT_ROW_HEIGHT = 32
 local WindowSaveSlot = {}
@@ -20,8 +23,27 @@ function WindowSaveSlot:onTick(deltaTime)
     self._owner:notifySlotIndexMaybeChanged(self.index)
 end
 
+function WindowSaveSlot:onKeyDown(kwargs)
+    if Input.isActionTriggered(Input.getCancelKeys(), false) then
+        self:onReturn()
+        Input.isActionTriggered(Input.getCancelKeys(), true)
+        return
+    end
+    if self._owner:handleTabNavigationInput() then
+        return
+    end
+    super(WindowSaveSlot, self).onKeyDown(kwargs)
+end
+
 function WindowSaveSlot:onReturn()
-    self._owner:cancelSlotSelection()
+    self._owner:closeByCancel()
+end
+
+function WindowSaveSlot:dispose()
+    self._ui:dispose()
+    self._ui = nil
+    self._listView = nil
+    self._owner = nil
 end
 
 return class(WindowSaveSlot, WindowSelectable)

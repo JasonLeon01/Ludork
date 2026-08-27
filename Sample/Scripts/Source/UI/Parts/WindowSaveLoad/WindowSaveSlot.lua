@@ -61,4 +61,13 @@ function WindowSaveSlotUI:getListView()
     return self._listView
 end
 
+function WindowSaveSlotUI:dispose()
+    for _, root in ipairs(self._slotItems) do
+        root:addConfirmCallback(nil)
+    end
+    self._slotItems = {}
+    self._listView = nil
+    super(WindowSaveSlotUI, self).dispose()
+end
+
 return Ui.Define("Parts/WindowSaveLoad/WindowSaveSlot", WindowSaveSlotUI)

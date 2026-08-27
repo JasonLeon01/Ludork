@@ -3,7 +3,7 @@ local GlobalCore = require("GlobalCore")
 local MainConfig = require("Source.Configs.Main")
 local EventKeys = require("Source.Configs.EventKeys")
 local Locale = require("Source.Locale.Core")
-local CommandRowUI = require("Source.UI.Helpers.CommandRow")
+local GameSystem = require("Source.System")
 local ConfigCheckBoxRowUI = require("Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow")
 local ConfigSettingRowUI = require("Source.UI.Parts.ConfigWindow.ConfigSettingRow")
 local ConfigSliderRowUI = require("Source.UI.Parts.ConfigWindow.ConfigSliderRow")
@@ -16,15 +16,13 @@ local LOC = Locale.ApplyStringLocaleFormat
 local _WINDOW_WIDTH = 480
 local _WINDOW_HEIGHT = 384
 local _CONTENT_WIDTH = 448
-local _TAB_COUNT = 3
-local _TAB_ROW_WIDTH = math.floor((_CONTENT_WIDTH - 32) / _TAB_COUNT)
 local _DROPBOX_WIDTH = 200
 local _CHECKBOX_SIZE = 32
 local _SLIDER_WIDTH = 160
 local _GRAPHICS_PAGE_INDEX = 0
 local _AUDIO_PAGE_INDEX = 1
 local _LANGUAGE_PAGE_INDEX = 2
-local _TAB_LOCALE_KEYS = { "graphics", "audio", "language" }
+local _TAB_LOCALE_KEYS = { "graphics", "audio", "other" }
 local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
 local _ANTI_ALIASING_LEVEL_ITEMS = { "0", "2", "4", "8" }
@@ -49,6 +47,20 @@ local function getGraphicsPresetLabels()
         labels[index] = LOC(key)
     end
     return labels
+end
+
+local function getTabLabels()
+    local labels = {}
+    for index, key in ipairs(_TAB_LOCALE_KEYS) do
+        labels[index] = LOC(key)
+    end
+    return labels
+end
+
+local function setTabItems(tabView, model)
+    tabView:setItems(getTabLabels(), function (index)
+        model:_onTabSelected(index)
+    end)
 end
 
 local function getScaleLabels(scaleValues)
@@ -158,7 +170,6 @@ function ConfigWindowUI:init(model, windowSkin)
     self._scaleValues = {}
     self._maximumRenderScaleValues = {}
     self._pages = {}
-    self._tabControllers = {}
     self._activePageIndex = _GRAPHICS_PAGE_INDEX
     self._applyingGraphicsPreset = false
     super(ConfigWindowUI, self).init(model, nil)
@@ -168,14 +179,21 @@ function ConfigWindowUI:bind()
     self._windowFrame = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
     self._settingsWindowFrame = self:requireControl("SettingsWindowFrame")
-    self._tabList = self:requireControl("TabList")
+    self._tabView = self:requireControl("TabView")
     self._settingsContent = self:requireControl("SettingsContent")
     self._graphicsList = self:requireControl("GraphicsList")
     self._audioList = self:requireControl("AudioList")
     self._languageList = self:requireControl("LanguageList")
     ---@cast self._settingsWindowFrame Engine.Window
+    ---@cast self._tabView Engine.TabView
     self._settingsWindowFrame:setWindowSkin(self._windowSkin, false)
-    self:_createTabs()
+    self._tabView:setWindowSkin(self._windowSkin)
+    self._tabView:setCursorSound(tostring(GameSystem.GetCursorSE()))
+    setTabItems(self._tabView, self.model)
+    self._tabView:setKeyHint(
+        { Keyboard = sf.Keyboard.Key.Q, Handle = Engine.JoystickButton.LB },
+        { Keyboard = sf.Keyboard.Key.E, Handle = Engine.JoystickButton.RB }
+    )
     self:_createRows()
     self:setActivePage(_GRAPHICS_PAGE_INDEX)
 end
@@ -185,9 +203,7 @@ function ConfigWindowUI:refresh()
         local page = self:getPage(index)
         refreshRowLabels(page.rows, page.localeKeys)
     end
-    for _, controller in ipairs(self._tabControllers) do
-        controller:refresh()
-    end
+    setTabItems(self._tabView, self.model)
     self._graphicsPresetRow:setItems(getGraphicsPresetLabels())
     self._languageRow:setItems(getLanguageLabels())
     if self._scaleRow ~= nil then
@@ -267,8 +283,8 @@ function ConfigWindowUI:getContent()
     return self._content
 end
 
-function ConfigWindowUI:getTabList()
-    return self._tabList
+function ConfigWindowUI:getTabView()
+    return self._tabView
 end
 
 function ConfigWindowUI:getSettingsContent()
@@ -425,33 +441,15 @@ function ConfigWindowUI:tick(deltaTime)
 end
 
 function ConfigWindowUI:dispose()
+    if self._tabView ~= nil then
+        self._tabView:setItems(self._tabView:getItems(), nil)
+    end
     for index = 0, self:getPageCount() - 1 do
         disposeRows(self:getPage(index).rows)
     end
-    for _, controller in ipairs(self._tabControllers) do
-        ---@diagnostic disable-next-line: param-type-mismatch
-        controller.root:addConfirmCallback(nil)
-    end
     self._pages = {}
-    self._tabControllers = {}
+    self._tabView = nil
     super(ConfigWindowUI, self).dispose()
-end
-
-function ConfigWindowUI:_createTabs()
-    for index, localeKey in ipairs(_TAB_LOCALE_KEYS) do
-        local tabIndex = index - 1
-        local controller = CommandRowUI.new({
-            localeKey = localeKey,
-            callback = function ()
-                self.model:_onTabConfirmed(tabIndex)
-            end
-        })
-        local logicalSize = sf.Vector2u.new(_TAB_ROW_WIDTH, 32)
-        ---@cast logicalSize sf.Vector2u
-        self._tabControllers[index] = controller
-        self._tabList:addChild(controller:prepare(logicalSize))
-    end
-    self._tabList:applyPositions()
 end
 
 function ConfigWindowUI:_createRows()
@@ -471,8 +469,12 @@ end
 
 function ConfigWindowUI:_bindDropBoxRow(rowUI)
     rowUI:addConfirmCallback(self.model.MakeSettingRowConfirmCallback(rowUI))
-    rowUI:getDropBox():setOnExpandedChanged(function (expanded)
+    local dropBox = rowUI:getDropBox()
+    dropBox:setOnExpandedChanged(function (expanded)
         self.model:_onDropBoxExpandedChanged(expanded)
+    end)
+    dropBox:addKeyDownCallback(function ()
+        self.model:_handleTabNavigation()
     end)
 end
 

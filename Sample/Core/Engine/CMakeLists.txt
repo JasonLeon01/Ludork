@@ -60,6 +60,9 @@ target_link_libraries(Engine
     PRIVATE
         Ludork::Standard
         zlibstatic)
+if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+    target_link_libraries(Engine PRIVATE deviceinfo_ndk.z)
+endif()
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
     find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)

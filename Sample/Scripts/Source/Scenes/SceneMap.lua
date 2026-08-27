@@ -190,12 +190,14 @@ function Scene:onCreate()
     self._regionTitleUI = RegionTitleUI.new(GlobalSystem.getGameSize())
     self._regionTitleUI:prepare()
     self._regionTitleText = self._regionTitleUI:getText()
+    ---@type any[]
     local uiWindows = {
         self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquipSlot,
         self._windowEquipSelect, self._windowEquipStatus, self._windowShop:getCommandWindow(),
         self._windowShop:getItemWindow(), self._windowAttrShop:getSelectable(), self._windowEnemyBook,
         self._windowEnemyEncyclopedia, self._windowFloorTeleporter:getCommandWindow(),
-        self._windowFloorTeleporter:getPreviewWindow(), self._windowSaveLoad:getCommandWindow(),
+        self._windowFloorTeleporter:getPreviewWindow(),
+        assert(self._windowSaveLoad:getTabWindow(), "Map save tab window is missing"),
         self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(), self._configWindow
     }
     for _, window in ipairs(uiWindows) do
@@ -248,18 +250,13 @@ function Scene:_registerFocusGroups()
     floorCommandGroup:setNeighbor(Direction.RIGHT, FocusNeighbor.new(floorPreviewGroup, FocusTransition.EXPLICIT))
     floorPreviewGroup:setNeighbor(Direction.LEFT, FocusNeighbor.new(floorCommandGroup, FocusTransition.EXPLICIT))
 
-    local saveCommandWindow = assert(self._windowSaveLoad:getCommandWindow())
-    local saveCommandGroup = createSingleControlFocusGroup("save-command", saveCommandWindow)
     local saveSlotWindow = self._windowSaveLoad:getSlotWindow()
     local saveSlotGroup = createSingleControlFocusGroup("save-slot", saveSlotWindow)
-    saveCommandGroup:setNeighbor(Direction.DOWN, FocusNeighbor.new(saveSlotGroup, FocusTransition.EXPLICIT))
-    saveCommandGroup:setNeighbor(Direction.LEFT, menuGroup)
-    saveSlotGroup:setNeighbor(Direction.UP, FocusNeighbor.new(saveCommandGroup, FocusTransition.EXPLICIT))
     saveSlotGroup:setNeighbor(Direction.LEFT, menuGroup)
 
     local groups = {
         menuGroup, itemGroup, equipSlotGroup, equipSelectGroup, shopCommandGroup, shopItemGroup, floorCommandGroup,
-        floorPreviewGroup, saveCommandGroup, saveSlotGroup
+        floorPreviewGroup, saveSlotGroup
     }
     for _, group in ipairs(groups) do
         uiManager:registerFocusGroup(group)
@@ -281,6 +278,7 @@ function Scene:onDestroy()
     end
     self._dialogueLocaleSource = nil
     self._mapAudio:stopMapAudio()
+    self._windowSaveLoad:dispose()
     self._configWindow:dispose()
     self._regionTitleUI:dispose()
 end
@@ -298,10 +296,6 @@ function Scene:_refreshMapUiLocale()
     self._windowEnemyBook:refreshLocale()
     self._windowEnemyEncyclopedia:refreshLocale()
     self._windowFloorTeleporter:refreshLocale()
-    local saveCommandWindow = self._windowSaveLoad:getCommandWindow()
-    if saveCommandWindow ~= nil then
-        saveCommandWindow:refreshRows()
-    end
 end
 
 function Scene:onFixedTick(fixedDelta)

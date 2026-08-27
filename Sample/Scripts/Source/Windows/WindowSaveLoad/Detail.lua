@@ -128,4 +128,12 @@ function WindowSaveDetail:_hideContent()
     self._ui:setTimestamp("")
 end
 
+function WindowSaveDetail:dispose()
+    self._ui:dispose()
+    self._ui = nil
+    self._thumbTexture = nil
+    self._thumbnail = nil
+    self._timestampText = nil
+end
+
 return class(WindowSaveDetail, WindowBase)

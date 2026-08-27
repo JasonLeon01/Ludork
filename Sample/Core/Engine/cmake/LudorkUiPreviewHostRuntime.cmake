@@ -31,13 +31,19 @@ function(ludork_add_ui_preview_host_runtime target)
         PUBLIC
             "${CMAKE_CURRENT_SOURCE_DIR}/include"
             "${LUDORK_CORE_SOURCE_DIR}/include"
-            ${LUDORK_LUASF_CONSUMER_INCLUDES})
+            ${LUDORK_LUASF_CONSUMER_INCLUDES}
+        PRIVATE
+            "${LUDORK_LUASF_SOURCE_DIR}/include")
     target_link_libraries(${target}
         PUBLIC
             Ludork::Standard
             SFML::Graphics
         PRIVATE
+            LuaSF::Lua
             zlibstatic)
+    if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+        target_link_libraries(${target} PRIVATE deviceinfo_ndk.z)
+    endif()
     if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
         find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)

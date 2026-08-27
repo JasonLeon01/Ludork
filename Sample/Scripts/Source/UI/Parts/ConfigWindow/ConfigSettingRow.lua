@@ -53,6 +53,7 @@ end
 
 function ConfigSettingRowUI:dispose()
     if self._dropBox ~= nil then
+        self._dropBox:addKeyDownCallback(nil)
         self._dropBox:setOnExpandedChanged(nil)
         self._dropBox:setOnSelectedIndexChanged(nil)
         self._dropBox:setOnSelectionConfirmed(nil)

@@ -23,4 +23,6 @@ function WindowSaveSlotUI:getContent() end
 ---@return Engine.ListView
 function WindowSaveSlotUI:getListView() end
 
+function WindowSaveSlotUI:dispose() end
+
 return WindowSaveSlotUI

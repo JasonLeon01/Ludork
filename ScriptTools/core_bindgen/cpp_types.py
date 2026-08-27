@@ -816,6 +816,8 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
         return "table"
     if parsed.name in OPTIONAL_TYPES | {"sol::optional"} and parsed.arguments:
         inner = lua_type_name(context, parsed.arguments[0])
+        if inner.startswith("fun("):
+            inner = f"({inner})"
         return inner if "nil" in inner.split("|") else inner + "|nil"
     if parsed.name in VARIANT_TYPES:
         values: list[str] = []

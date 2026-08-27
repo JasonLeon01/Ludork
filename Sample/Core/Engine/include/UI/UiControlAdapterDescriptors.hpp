@@ -149,6 +149,13 @@ struct UiControlAdapterTraits;
         UI_CONTROL_EDITOR_PROPERTY("previewText", "string", false,             \
                                    "\"Option\""))                              \
     BIND_UI_CONTROL(                                                           \
+        TabViewUiControlAdapterTag, "Engine.TabView", "Engine.TabView",        \
+        "Tab View", "Input", UiChildPolicy::None, UiControlSlotType::None,     \
+        UI_CONTROL_PROPERTY("size", "sf.Vector2f", false, "[100.0,32.0]"),     \
+        UI_CONTROL_PROPERTY("windowSkin", "string", false, "\"\""),            \
+        UI_CONTROL_PROPERTY("textConfig", "string", false, "\"UI/Default\""),  \
+        UI_CONTROL_PROPERTY("tabCount", "int", false, "1"))                    \
+    BIND_UI_CONTROL(                                                           \
         FunctionalImageUiControlAdapterTag, "Engine.FunctionalImage",          \
         "Engine.FunctionalImage", "Functional Image", "Input",                 \
         UiChildPolicy::None, UiControlSlotType::None,                          \

@@ -440,6 +440,15 @@ public sealed class UiAssetValidationService
         {
             add(issues, "propertyRange", path, "ListView columns must be positive");
         }
+        if (controlId == "Engine.TabView"
+            && propertyId == "tabCount"
+            && tryGetInteger(value, out long tabCount)
+            && tabCount >= int.MinValue
+            && tabCount <= int.MaxValue
+            && tabCount <= 0)
+        {
+            add(issues, "propertyRange", path, "TabView tabCount must be positive");
+        }
         if (controlId is "Engine.Canvas" or "Engine.Window"
             && propertyId == "size"
             && value is JsonArray size
@@ -532,6 +541,7 @@ public sealed class UiAssetValidationService
         {
             "Engine.CheckBox" => "plainTextConfig",
             "Engine.DropBox" => "plainTextConfig",
+            "Engine.TabView" => "plainTextConfig",
             "Engine.PlainText" => "plainTextConfig",
             "Engine.FunctionalPlainText" => "plainTextConfig",
             "Engine.RichText" => "richTextConfig",

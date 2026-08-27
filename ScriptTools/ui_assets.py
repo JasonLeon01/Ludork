@@ -230,6 +230,12 @@ def _validate_property_semantics(
     ):
         raise UiAssetError(f"{label} must be positive")
     if (
+        control_id == "Engine.TabView"
+        and property_id == "tabCount"
+        and _integer(value, label) <= 0
+    ):
+        raise UiAssetError(f"{label} must be positive")
+    if (
         control_id in {"Engine.Canvas", "Engine.Window"}
         and property_id == "size"
         and isinstance(value, list)

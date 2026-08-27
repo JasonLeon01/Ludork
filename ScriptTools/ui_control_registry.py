@@ -168,6 +168,19 @@ SYSTEM_CONTROLS = (
         ),
     ),
     _system_control(
+        "Engine.TabView",
+        "Tab View",
+        "Input",
+        "none",
+        None,
+        (
+            _property("size", "sf.Vector2f", [100.0, 32.0]),
+            _property("windowSkin", "string", ""),
+            _property("textConfig", "string", "UI/Default"),
+            _property("tabCount", "int", 1),
+        ),
+    ),
+    _system_control(
         "Engine.Slider",
         "Slider",
         "Input",
@@ -280,6 +293,7 @@ SYSTEM_CONTROL_LOOKUP = {
 PLAIN_TEXT_CONTROL_IDS = {
     "Engine.CheckBox",
     "Engine.DropBox",
+    "Engine.TabView",
     "Engine.PlainText",
     "Engine.FunctionalPlainText",
 }

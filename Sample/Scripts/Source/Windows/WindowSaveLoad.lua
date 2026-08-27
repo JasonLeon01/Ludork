@@ -3,13 +3,13 @@ local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
-local WindowSaveCommand = require("Source.Windows.WindowSaveLoad.Command")
 local WindowSaveDetail = require("Source.Windows.WindowSaveLoad.Detail")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
+local WindowSaveTabs = require("Source.Windows.WindowSaveLoad.Tabs")
 
 local ManagerFunctions = GlobalFunctions.Manager
 
-local _DEFAULT_COMMAND_RECT = Engine.ToIntRect(192, 0, 416, 64)
+local _DEFAULT_TAB_RECT = Engine.ToIntRect(192, 0, 416, 64)
 local _DEFAULT_SLOT_RECT = Engine.ToIntRect(192, 64, 160, 256)
 local _DEFAULT_DETAIL_RECT = Engine.ToIntRect(352, 64, 256, 256)
 
@@ -20,8 +20,8 @@ local CLOSE_REASON_LOADED = "loaded"
 ---@class Source.Windows.WindowSaveLoad
 local WindowSaveLoad = {}
 
-function WindowSaveLoad:init(commandRect, slotRect, detailRect, loadOnly, getSaveSource, onClose, onLoaded)
-    commandRect = commandRect or _DEFAULT_COMMAND_RECT
+function WindowSaveLoad:init(tabRect, slotRect, detailRect, loadOnly, getSaveSource, onClose, onLoaded)
+    tabRect = tabRect or _DEFAULT_TAB_RECT
     slotRect = slotRect or _DEFAULT_SLOT_RECT
     detailRect = detailRect or _DEFAULT_DETAIL_RECT
     self._loadOnly = loadOnly == true
@@ -29,12 +29,15 @@ function WindowSaveLoad:init(commandRect, slotRect, detailRect, loadOnly, getSav
     self._onCloseCallback = onClose
     self._onLoadedCallback = onLoaded
     self._mode = "load"
-    self._commandWindow = self._loadOnly and nil or WindowSaveCommand.new(commandRect, self)
+    self._tabWindow = nil
+    if not self._loadOnly then
+        self._tabWindow = WindowSaveTabs.new(tabRect, self)
+    end
     self._slotWindow = WindowSaveSlot.new(slotRect, self)
     self._detailWindow = WindowSaveDetail.new(detailRect)
-    if self._commandWindow ~= nil then
-        self._commandWindow:setActive(false)
-        self._commandWindow:setVisible(false)
+    if self._tabWindow ~= nil then
+        self._tabWindow:setActive(false)
+        self._tabWindow:setVisible(false)
     end
     self._slotWindow:setActive(false)
     self._slotWindow:setVisible(false)
@@ -43,8 +46,8 @@ function WindowSaveLoad:init(commandRect, slotRect, detailRect, loadOnly, getSav
     self._lastSlotIndex = nil
 end
 
-function WindowSaveLoad:getCommandWindow()
-    return self._commandWindow
+function WindowSaveLoad:getTabWindow()
+    return self._tabWindow
 end
 
 function WindowSaveLoad:getSlotWindow()
@@ -60,37 +63,33 @@ function WindowSaveLoad:getVisible()
 end
 
 function WindowSaveLoad:setVisible(visible)
-    if self._commandWindow ~= nil then
-        self._commandWindow:setVisible(visible)
+    if self._tabWindow ~= nil then
+        self._tabWindow:setVisible(visible)
     end
     self._slotWindow:setVisible(visible)
     self._detailWindow:setVisible(visible)
 end
 
 function WindowSaveLoad:open()
-    if self._commandWindow ~= nil then
-        self._commandWindow:resetSelection()
+    self._mode = "load"
+    if self._tabWindow ~= nil then
+        self._tabWindow:getTabView():setSelectedIndex(0)
     end
     self._slotWindow:resetSelection()
     self:setVisible(true)
     self._lastSlotIndex = nil
-    if self._loadOnly then
-        self._mode = "load"
-        self._slotWindow:setActive(true)
-        self._slotWindow:requestKeyboardFocus()
-    else
-        assert(self._commandWindow ~= nil)
-        self._commandWindow:setActive(true)
-        self._slotWindow:setActive(false)
-        self._commandWindow:requestKeyboardFocus()
+    if self._tabWindow ~= nil then
+        self._tabWindow:setActive(true)
     end
+    self._slotWindow:setActive(true)
+    self._slotWindow:requestKeyboardFocusAtCursor()
     self:notifySlotIndexMaybeChanged(self._slotWindow.index)
 end
 
 function WindowSaveLoad:close()
     self:setVisible(false)
-    if self._commandWindow ~= nil then
-        self._commandWindow:setActive(false)
+    if self._tabWindow ~= nil then
+        self._tabWindow:setActive(false)
     end
     self._slotWindow:setActive(false)
     self._detailWindow:setActive(false)
@@ -101,50 +100,24 @@ function WindowSaveLoad:closeByCancel()
     self:_closeWithReason(CLOSE_REASON_CANCEL)
 end
 
-function WindowSaveLoad:cancelSlotSelection()
-    if not self:returnToCommandWindow() then
-        self:closeByCancel()
-    end
-end
-
-function WindowSaveLoad:returnToCommandWindow(playSE)
-    if playSE == nil then
-        playSE = true
-    end
-    if self._loadOnly or self._commandWindow == nil then
+function WindowSaveLoad:handleTabNavigationInput()
+    if self._tabWindow == nil then
         return false
     end
-    if playSE then
-        ManagerFunctions.playSE(GameSystem.GetCancelSE())
-    end
-    self:focusCommand()
-    return true
+    return self._tabWindow:handleNavigationInput()
 end
 
----@param mode "load" | "save"
-function WindowSaveLoad:onCommandConfirm(mode)
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
-    self._mode = mode
-    self:focusSlotList()
-end
-
-function WindowSaveLoad:focusSlotList()
-    if self._commandWindow ~= nil then
-        self._commandWindow:setActive(false)
-    end
-    self._slotWindow:setActive(true)
-    self._lastSlotIndex = nil
-    self:notifySlotIndexMaybeChanged(self._slotWindow.index)
-    self._slotWindow:requestKeyboardFocusAtCursor()
-end
-
-function WindowSaveLoad:focusCommand()
-    if self._commandWindow == nil then
+---@param index integer
+function WindowSaveLoad:onTabSelected(index)
+    if self._loadOnly then
         return
     end
-    self._commandWindow:setActive(true)
-    self._slotWindow:setActive(false)
-    self._commandWindow:requestKeyboardFocus()
+    local mode = index == 0 and "load" or "save"
+    if mode == self._mode then
+        return
+    end
+    self._mode = mode
+    self._detailWindow:refresh()
 end
 
 function WindowSaveLoad:notifySlotIndexMaybeChanged(index)
@@ -215,6 +188,18 @@ function WindowSaveLoad:_closeWithReason(reason)
     if self._onCloseCallback ~= nil then
         self._onCloseCallback(reason)
     end
+end
+
+function WindowSaveLoad:dispose()
+    self:close()
+    if self._tabWindow ~= nil then
+        self._tabWindow:dispose()
+    end
+    self._slotWindow:dispose()
+    self._detailWindow:dispose()
+    self._getSaveSource = nil
+    self._onCloseCallback = nil
+    self._onLoadedCallback = nil
 end
 
 return class(WindowSaveLoad)

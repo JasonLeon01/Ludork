@@ -17,6 +17,11 @@ function WindowSaveSlot:init(rect, owner) end
 ---@param deltaTime number
 function WindowSaveSlot:onTick(deltaTime) end
 
+---@param kwargs table
+function WindowSaveSlot:onKeyDown(kwargs) end
+
 function WindowSaveSlot:onReturn() end
+
+function WindowSaveSlot:dispose() end
 
 return WindowSaveSlot

@@ -137,9 +137,6 @@ function WindowMenu:_closeSubMenus(exceptName) end
 ---@return boolean
 function WindowMenu:_returnEquipSelectToSlot() end
 
----@return boolean
-function WindowMenu:_returnSaveSlotToCommand() end
-
 function WindowMenu:onSaveLoadClose() end
 
 ---@brief Reactivate the command list and return focus after the Config window closes.

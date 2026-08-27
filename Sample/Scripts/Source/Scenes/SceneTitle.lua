@@ -66,6 +66,7 @@ end
 function Scene:onDestroy()
     ManagerFunctions.stopMusic("BGM")
     self._titleBGM = nil
+    self._windowSaveLoad:dispose()
     self._configWindow:dispose()
     self._ui:dispose()
 end
@@ -85,7 +86,6 @@ function Scene:_onLoadCommand()
     ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
     self._windowCommand:setActive(false)
     self._windowSaveLoad:open()
-    self._windowSaveLoad:getSlotWindow():requestKeyboardFocusAtCursor()
 end
 
 ---@param reason string
