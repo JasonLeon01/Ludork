@@ -56,18 +56,6 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
         </Style>
-        <Style Selector="Button.markdownLink">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#7ec8ff" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.markdownLink:pointerover">
-            <Setter Property="Foreground" Value="#b3ddff" />
-        </Style>
     </Window.Styles>
     <Grid Margin="8" RowDefinitions="Auto,Auto,Auto,8,*">
         <ScrollViewer x:Name="SectionTabsScrollViewer"

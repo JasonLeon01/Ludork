@@ -7,6 +7,7 @@ local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 local Data = require("Source.Data")
+local SceneInitAnimationCache = require("Source.Scenes.SceneInitAnimationCache")
 local SceneInitUI = require("Source.UI.Init")
 
 local GlobalSystem = GlobalCore.System
@@ -17,69 +18,6 @@ local ENCRYPTED_DATA_SUFFIX = ".ldc"
 local ANIMATION_CACHE_SUFFIX = ".anim.json"
 local ENCRYPTED_ANIMATION_CACHE_SUFFIX = ".anim.ldc"
 local ANIMATION_PROGRESS_WEIGHT = 0.5
-
----@param value  string
----@param suffix string
----@return string
-local function stripExactSuffix(value, suffix)
-    local normalized = Path.NormaliseSeparators(tostring(value or ""))
-    assert(string.endsWith(normalized, suffix), "Unexpected animation file suffix: " .. normalized)
-    return normalized:sub(1, #normalized - #suffix)
-end
-
----@param payload      Engine.AnimationSourceData
----@param assetsRoot   string
----@param relativePath string
----@return Source.Scenes.SceneInit.FrameAsset[]
-local function getFrameAssetPaths(payload, assetsRoot, relativePath)
-    local result = {}
-    local seen = {}
-    local assets = payload.assets or {}
-    for _, timeLine in ipairs(payload.timeLines or {}) do
-        for _, segment in ipairs(timeLine.timeSegments or {}) do
-            if segment.type == "frame" then
-                local assetIndex = tonumber(segment.asset)
-                assert(
-                    assetIndex ~= nil and assetIndex >= 0 and assetIndex % 1 == 0,
-                    "Invalid frame asset index in animation: " .. relativePath
-                )
-                local assetName = assets[assetIndex + 1]
-                assert(
-                    type(assetName) == "string" and bool(assetName),
-                    string.format("Frame asset index %d is unavailable in animation: %s", assetIndex, relativePath)
-                )
-                if not seen[assetName] then
-                    seen[assetName] = true
-                    result[#result + 1] = { name = assetName, path = os.path.join(assetsRoot, assetName) }
-                end
-            end
-        end
-    end
-    return result
-end
-
----@param sourcePath  string
----@param cachePath   string
----@param frameAssets Source.Scenes.SceneInit.FrameAsset[]
----@return boolean
-local function needsAnimationCompression(sourcePath, cachePath, frameAssets)
-    if not CoreSystem.exists(cachePath) then
-        return true
-    end
-    local cacheTime = os.path.getmtime(cachePath)
-    if cacheTime < os.path.getmtime(sourcePath) then
-        return true
-    end
-    for _, asset in ipairs(frameAssets) do
-        if not CoreSystem.exists(asset.path) then
-            return true
-        end
-        if cacheTime < os.path.getmtime(asset.path) then
-            return true
-        end
-    end
-    return false
-end
 
 ---@class Source.Scenes.SceneInit.SceneInit
 local Scene = {}
@@ -242,12 +180,13 @@ end
 ---@param cacheRoot  string
 ---@param assetsRoot string
 function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
-    local relativePath = Path.NormaliseSeparators(tostring(item.relativePath or ""))
-    local sourceKey = stripExactSuffix(relativePath, ANIMATION_SOURCE_SUFFIX)
+    local relativePath = Path.NormaliseSeparators(item.relativePath)
+    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_SOURCE_SUFFIX)
     local encryptedSource = item.encryptedData == true
     assert(bool(sourceKey), "Animation source filename must not be empty")
     assert(not self._animationSourceKeys[sourceKey], "Duplicate animation source key: " .. sourceKey)
-    local payload = cjson.decode(item.content)
+    local content = assert(item.content, "Animation source content is missing: " .. relativePath)
+    local payload = cjson.decode(content)
     ---@cast payload Engine.AnimationSourceData
     assert(payload.type == "animation", "Animation source has invalid type: " .. relativePath)
     self._animationSourceKeys[sourceKey] = true
@@ -257,8 +196,8 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
     local cacheRelativePath = sourceKey
         .. (encryptedSource and ENCRYPTED_ANIMATION_CACHE_SUFFIX or ANIMATION_CACHE_SUFFIX)
     local cachePath = os.path.join(cacheRoot, cacheRelativePath)
-    local frameAssets = getFrameAssetPaths(payload, assetsRoot, relativePath)
-    if needsAnimationCompression(sourcePath, cachePath, frameAssets) then
+    local frameAssets = SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePath)
+    if SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
         for _, asset in ipairs(frameAssets) do
             assert(
                 CoreSystem.exists(asset.path),
@@ -327,8 +266,8 @@ function Scene:_removeOrphanedAnimation(item)
     if item.category ~= "animations" then
         return false
     end
-    local relativePath = Path.NormaliseSeparators(tostring(item.relativePath or ""))
-    local sourceKey = stripExactSuffix(relativePath, ANIMATION_CACHE_SUFFIX)
+    local relativePath = Path.NormaliseSeparators(item.relativePath)
+    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_CACHE_SUFFIX)
     if self._animationSourceKeys[sourceKey] then
         return false
     end
@@ -341,7 +280,7 @@ function Scene:_removeOrphanedAnimation(item)
 end
 
 function Scene:_pumpInitialLoad()
-    ---@cast self._activeBatch userdata
+    ---@cast self._activeBatch FileBatchJob
     ---@cast self._loadStage Source.Data.InitialLoadStage
     while not self._loadCancelled do
         local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)

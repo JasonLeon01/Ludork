@@ -76,6 +76,13 @@ function WindowSaveLoad:open()
         self._tabWindow:getTabView():setSelectedIndex(0)
     end
     self._slotWindow:resetSelection()
+    local latestSlot = Save.FindLatestSlot(WindowSaveSlot.MAX_SAVE_SLOTS)
+    if latestSlot ~= nil then
+        local latestSlotIndex = latestSlot - 1
+        ---@cast latestSlotIndex integer
+        self._slotWindow.index = latestSlotIndex
+        self._slotWindow._oldIndex = latestSlotIndex
+    end
     self:setVisible(true)
     self._lastSlotIndex = nil
     if self._tabWindow ~= nil then

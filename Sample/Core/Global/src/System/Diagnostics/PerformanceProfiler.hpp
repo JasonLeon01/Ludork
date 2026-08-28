@@ -31,6 +31,18 @@ struct LogicTickPerformanceMeasurement {
     int fixedSteps{};
 };
 
+struct WorldStreamingPerformanceMeasurement {
+    int queueDepth{};
+    int reading{};
+    int prepared{};
+    int active{};
+    int dormant{};
+    std::int64_t cacheBytes{};
+    double publishMilliseconds{};
+    int visibleTileChunks{};
+    int activeActors{};
+};
+
 class PerformanceProfiler {
 public:
     static bool isEnabled() noexcept;
@@ -42,8 +54,27 @@ public:
         const MainFramePerformanceMeasurement& measurement);
     static void recordLogicTick(
         const LogicTickPerformanceMeasurement& measurement);
+    static void recordWorldStreaming(
+        const WorldStreamingPerformanceMeasurement& measurement);
 
 private:
+    struct WorldStreamingRecord {
+        int queueDepth{};
+        int reading{};
+        int prepared{};
+        int active{};
+        int dormant{};
+        std::uint64_t cacheBytes{};
+        double publishMilliseconds{};
+        int visibleTileChunks{};
+        int activeActors{};
+    };
+
+    struct PendingWorldStreamingRecord {
+        std::uint64_t generation{};
+        WorldStreamingRecord measurement;
+    };
+
     struct MainFrameRecord {
         double timeSeconds{};
         double intervalMilliseconds{};
@@ -66,6 +97,7 @@ private:
         double fixedTickMilliseconds{};
         double sleepMilliseconds{};
         int fixedSteps{};
+        std::optional<WorldStreamingRecord> worldStreaming;
     };
 
     struct Batch {
@@ -98,4 +130,6 @@ private:
     static std::vector<LogicTickRecord> logicTicks_;
     static std::uint64_t droppedLogicTicks_;
     static thread_local double presentWaitMilliseconds_;
+    static thread_local std::optional<PendingWorldStreamingRecord>
+        pendingWorldStreaming_;
 };

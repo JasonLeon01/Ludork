@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-BIND_CLASS(callbacks = "getSize,update")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Rect : public SpriteBase {
 public:
     BIND_INIT()

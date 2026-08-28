@@ -1587,6 +1587,18 @@
     "zh_CN": "丢弃: {count}",
     "en_GB": "Dropped: {count}"
   },
+  "PERFORMANCE_MONITOR_WORLD_STREAMING_STATES": {
+    "zh_CN": "大地图流送 | 队列 {queue} | 读取 {reading} | 准备/活动/休眠 {prepared}/{active}/{dormant}",
+    "en_GB": "World stream | Queue {queue} | Reading {reading} | P/A/D {prepared}/{active}/{dormant}"
+  },
+  "PERFORMANCE_MONITOR_WORLD_STREAMING_CACHE": {
+    "zh_CN": "缓存估算 ~{cache:.2f} MB | 可见块 {chunks} | 活动 Actor {actors}",
+    "en_GB": "Cache estimate ~{cache:.2f} MB | Visible chunks {chunks} | Active actors {actors}"
+  },
+  "PERFORMANCE_MONITOR_WORLD_STREAMING_PUBLISH": {
+    "zh_CN": "区域发布 {publish:.2f} ms",
+    "en_GB": "Region publish {publish:.2f} ms"
+  },
   "PERFORMANCE_MONITOR_FRAME_STATS": {
     "zh_CN": "逐帧 FPS  平均 {avg:.1f} | 最大 {max:.1f} | 最小 {min:.1f} | 内存 {memory:.1f} MB | 帧 {count}",
     "en_GB": "Per-frame FPS  Avg {avg:.1f} | Max {max:.1f} | Min {min:.1f} | Memory {memory:.1f} MB | Frames {count}"
@@ -3198,5 +3210,101 @@
   "LOCK": {
     "zh_CN": "锁定设计器变换",
     "en_GB": "Lock Designer Transform"
+  },
+  "NEW_WORLD_MAP": {
+    "zh_CN": "新建大地图",
+    "en_GB": "Create World Map"
+  },
+  "WORLD_MAP_PROPERTIES": {
+    "zh_CN": "大地图属性",
+    "en_GB": "World Map Properties"
+  },
+  "WORLD_FOLDER_NAME": {
+    "zh_CN": "大地图文件夹名",
+    "en_GB": "World Folder Name"
+  },
+  "WORLD_FOLDER_NAME_PROMPT": {
+    "zh_CN": "输入新的大地图文件夹名",
+    "en_GB": "Enter the new world folder name"
+  },
+  "WORLD_FOLDER_NAME_INVALID": {
+    "zh_CN": "文件夹名不能为空、不能包含路径分隔符或无效字符。",
+    "en_GB": "The folder name cannot be empty or contain path separators or invalid characters."
+  },
+  "WORLD_FOLDER_EXISTS": {
+    "zh_CN": "同名地图或大地图文件夹已经存在。",
+    "en_GB": "A map or world folder with this name already exists."
+  },
+  "WORLD_CREATE_FAILED": {
+    "zh_CN": "无法创建大地图，请检查名称、尺寸和地图目录。",
+    "en_GB": "Could not create the world map. Check its name, size, and map directory."
+  },
+  "NEW_WORLD_CHILD_MAP": {
+    "zh_CN": "新建子地图",
+    "en_GB": "Create Child Map"
+  },
+  "WORLD_CHILD_CREATE_FAILED": {
+    "zh_CN": "无法在该大地图中创建子地图。",
+    "en_GB": "Could not create the child map in this world."
+  },
+  "WORLD_CHILD_FILE_NAME_INVALID": {
+    "zh_CN": "子地图文件名不能包含文件夹路径。",
+    "en_GB": "A child map file name cannot contain a folder path."
+  },
+  "WORLD_CHILD_UPDATE_FAILED": {
+    "zh_CN": "无法更新子地图。新的尺寸可能使其越界、与其他子地图重叠，或文件名无效。",
+    "en_GB": "Could not update the child map. Its new size may be out of bounds, overlap another child map, or its file name may be invalid."
+  },
+  "RENAME_WORLD_MAP": {
+    "zh_CN": "重命名大地图",
+    "en_GB": "Rename World Map"
+  },
+  "WORLD_RENAME_FAILED": {
+    "zh_CN": "无法重命名大地图，请检查名称和目录状态。",
+    "en_GB": "Could not rename the world map. Check the name and directory state."
+  },
+  "WORLD_DELETE_CONFIRMATION": {
+    "zh_CN": "是否删除大地图“{0}”及其包含的 {1} 张子地图？",
+    "en_GB": "Delete world map '{0}' and its {1} child maps?"
+  },
+  "WORLD_CHILD_MAPS": {
+    "zh_CN": "子地图",
+    "en_GB": "Child Maps"
+  },
+  "WORLD_NO_CHILD_MAPS": {
+    "zh_CN": "该大地图还没有子地图。请在地图列表中右键大地图以创建。",
+    "en_GB": "This world has no child maps. Right-click it in the map list to create one."
+  },
+  "WORLD_PLACED_AT": {
+    "zh_CN": "已放置：({0}, {1})",
+    "en_GB": "Placed at ({0}, {1})"
+  },
+  "WORLD_NOT_PLACED": {
+    "zh_CN": "未放置",
+    "en_GB": "Not placed"
+  },
+  "WORLD_CURSOR_POSITION": {
+    "zh_CN": "坐标 ({0}, {1}) · 大地图 {2} × {3}",
+    "en_GB": "Cell ({0}, {1}) · World {2} x {3}"
+  },
+  "WORLD_SIZE_STATUS": {
+    "zh_CN": "大地图 {0} × {1} · 滚轮滚动 · Ctrl+滚轮缩放 · 中键拖动画布",
+    "en_GB": "World {0} x {1} · Wheel scrolls · Ctrl+wheel zooms · Middle-drag pans"
+  },
+  "WORLD_SIZE_STATUS_MAC": {
+    "zh_CN": "大地图 {0} × {1} · 触控板或滚轮滚动 · Command+滚轮或捏合缩放 · 中键拖动画布",
+    "en_GB": "World {0} x {1} · Trackpad or wheel scrolls · Command+wheel or pinch zooms · Middle-drag pans"
+  },
+  "WORLD_REMOVE_PLACEMENT": {
+    "zh_CN": "从大地图中移除",
+    "en_GB": "Remove from World"
+  },
+  "MAP_DELETE_USE_MAP_LIST": {
+    "zh_CN": "请通过地图列表删除地图或大地图，以保持大地图清单和引用一致。",
+    "en_GB": "Delete maps and world maps from the map list so manifests and references stay consistent."
+  },
+  "MAP_TARGET_REFERENCED": {
+    "zh_CN": "该地图目标仍被以下结构化字段引用，无法删除或取消摆放：",
+    "en_GB": "This map target is still used by the following structured references and cannot be deleted or unplaced:"
   }
 }

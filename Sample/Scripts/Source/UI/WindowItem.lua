@@ -35,10 +35,6 @@ function WindowItemUI:init(model)
     self._rowUIs = {}
 end
 
-local function loadItemIcon(iconPath)
-    return IconTexture.Load(iconPath, "Characters/items")
-end
-
 function WindowItemUI:attach()
     self:_updateLayout()
     local root = self:prepare(self._logicalSize)
@@ -73,7 +69,7 @@ function WindowItemUI:refreshItems()
             cost = true
         end
         local rowUI = ItemRowUI.new({
-            iconTexture = loadItemIcon(member.icon or ""),
+            iconTexture = IconTexture.LoadItem(member.icon or ""),
             usable = usable,
             cost = cost,
             count = count

@@ -1,10 +1,12 @@
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Ludork.Models;
 using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -67,20 +69,17 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     private IReadOnlyList<PluginMapSummary> listMaps()
     {
-        List<PluginMapSummary> maps = [];
-        foreach (KeyValuePair<string, JsonObject> entry in gameData.MapData)
-        {
-            maps.Add(new PluginMapSummary(
-                entry.Key,
-                gameData.getMapDisplayName(entry.Key)));
-        }
+        List<PluginMapSummary> maps = gameData.MapCatalog
+            .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
+            .Select(entry => new PluginMapSummary(entry.Key, entry.DisplayName))
+            .ToList();
         maps.Sort((left, right) => StringComparer.Ordinal.Compare(left.Key, right.Key));
         return maps.AsReadOnly();
     }
 
     private PluginMapSnapshot readMap(string mapKey)
     {
-        if (!gameData.MapData.TryGetValue(mapKey, out JsonObject? map))
+        if (gameData.getMap(mapKey) is not JsonObject map)
             throw new KeyNotFoundException($"Map '{mapKey}' does not exist.");
         int width = Math.Max(1, readInt(map["width"], 13));
         int height = Math.Max(1, readInt(map["height"], 13));

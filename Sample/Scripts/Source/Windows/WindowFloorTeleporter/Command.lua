@@ -37,11 +37,9 @@ function WindowFloorMapCommandController:refreshMaps(entries)
     else
         local previousIndex = nil
         if previousMapKey ~= nil then
-            for index, mapKey in ipairs(self._mapKeys) do
-                if mapKey == previousMapKey then
-                    previousIndex = index - 1
-                    break
-                end
+            local index = table.index(self._mapKeys, previousMapKey)
+            if index ~= nil then
+                previousIndex = index - 1
             end
         end
         self.model.index = previousIndex or 0

@@ -5,7 +5,7 @@
 
 #include <vector>
 
-BIND_CLASS(callbacks = "onAttach")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Component : public RuntimeObject {
 public:
     BIND_INIT()

@@ -5,6 +5,7 @@ local LocaleCore = require("Source.Locale.Core")
 local MapPath = require("Source.MapPath")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local GameSystem = require("Source.System")
+local TelepointKey = require("Source.UI.Helpers.TelepointKey")
 local UiLayout = require("Source.UI.UiLayout")
 local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
 local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
@@ -17,15 +18,6 @@ local _LIST_WIDTH = 208
 local _PREVIEW_WINDOW_WIDTH = 240
 local _PREVIEW_WINDOW_HEIGHT = 240
 
----@param point sf.Vector2u
----@return tuple<any>
-local function telepointKey(point)
-    return tuple { point.x, point.y }
-end
-local function normaliseMapName(mapPath)
-    local path = MapPath.Normalise(mapPath)
-    return path:gsub("%.[^%.]+$", "")
-end
 local function formatMapName(mapName)
     return LOC(tostring(mapName))
 end
@@ -175,7 +167,7 @@ function WindowFloorTeleporterController:getVisitedRegionEntries()
     local visited = self:getVisitedMapNames()
     local result = {}
     for _, mapKey in ipairs(regionMaps) do
-        if visited[normaliseMapName(mapKey)] and bool(self:getTelepointsForMap(mapKey)) then
+        if visited[MapPath.WithoutExtension(mapKey)] and bool(self:getTelepointsForMap(mapKey)) then
             result[#result + 1] = { mapKey, self:getMapDisplayName(mapKey) }
         end
     end
@@ -183,9 +175,9 @@ function WindowFloorTeleporterController:getVisitedRegionEntries()
 end
 
 function WindowFloorTeleporterController:getTelepointsForMap(mapKey)
-    local normalisedMapKey = normaliseMapName(mapKey)
+    local normalisedMapKey = MapPath.WithoutExtension(mapKey)
     for mapPath in pairs(self.model._inst._cachedTelepoints) do
-        if normaliseMapName(tostring(mapPath)) == normalisedMapKey then
+        if MapPath.WithoutExtension(tostring(mapPath)) == normalisedMapKey then
             return self.model._inst:getTelepoints(tostring(mapPath))
         end
     end
@@ -198,7 +190,7 @@ function WindowFloorTeleporterController:getTelepointEntries(mapKey, telepoints)
     end
     local telepointKeys = {}
     for index, telepoint in ipairs(telepoints) do
-        telepointKeys[index] = telepointKey(telepoint)
+        telepointKeys[index] = TelepointKey.FromPoint(telepoint)
     end
     local cacheKey = tuple { mapKey, tuple(telepointKeys) }
     local cached = self.model._telepointEntriesCache:get(cacheKey)
@@ -216,10 +208,10 @@ end
 function WindowFloorTeleporterController:getVisitedMapNames()
     local visited = {}
     if bool(self.model._inst._cachedMap) then
-        visited[normaliseMapName(self.model._inst._cachedMap)] = true
+        visited[MapPath.WithoutExtension(self.model._inst._cachedMap)] = true
     end
     for mapPath in pairs(self.model._inst._cachedTelepoints) do
-        visited[normaliseMapName(tostring(mapPath))] = true
+        visited[MapPath.WithoutExtension(tostring(mapPath))] = true
     end
     return visited
 end

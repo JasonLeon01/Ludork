@@ -23,4 +23,8 @@ function IconTexture.Load(iconPath, defaultFolder, defaultExtension)
     return ManagerFunctions.loadTexture(defaultFolder, filename)
 end
 
+function IconTexture.LoadItem(iconPath)
+    return IconTexture.Load(iconPath, "Characters/items")
+end
+
 return IconTexture

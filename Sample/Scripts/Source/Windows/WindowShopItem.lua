@@ -30,11 +30,9 @@ function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap)
     else
         local restoredIndex = nil
         if previousItemID ~= nil then
-            for luaIndex, itemID in ipairs(itemIDs) do
-                if itemID == previousItemID then
-                    restoredIndex = luaIndex - 1
-                    break
-                end
+            local luaIndex = table.index(itemIDs, previousItemID)
+            if luaIndex ~= nil then
+                restoredIndex = luaIndex - 1
             end
         end
         if restoredIndex ~= nil then

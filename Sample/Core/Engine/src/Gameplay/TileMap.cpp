@@ -13,11 +13,12 @@
 TileLayer::TileLayer(
     const TileLayerData& data, std::shared_ptr<sf::Texture> texture,
     const std::vector<std::shared_ptr<sf::Texture>>& autoTileTextures,
-    const std::vector<int>& autoTileFrameCounts, bool visible)
+    const std::vector<int>& autoTileFrameCounts, bool visible, bool deferred)
     : TileLayerGraphics(layerWidth(data), layerHeight(data), CellSize,
                         requireTexture(texture), data,
                         normalizeAutoTileTextures(data, autoTileTextures),
-                        normalizeFrameCounts(data, autoTileFrameCounts)),
+                        normalizeFrameCounts(data, autoTileFrameCounts),
+                        deferred),
       visible(visible),
       shaderPath(data.shaderPath),
       data_(data),
@@ -57,6 +58,19 @@ std::optional<std::string> TileLayer::getAutoTileKey(int poolIndex) const {
 
 TileLayerData TileLayer::getData() const {
     return data_;
+}
+
+void TileLayer::writeBlock(int x, int y, const TileGrid& tileBlock,
+                           const AutoTileGrid& autoTileBlock) {
+    data_.validateBlock(x, y, tileBlock, autoTileBlock);
+    writePendingBlock(x, y, tileBlock, autoTileBlock);
+    data_.writeBlock(x, y, tileBlock, autoTileBlock);
+    lightBlockMapCache_.reset();
+    reflectionStrengthMapCache_.reset();
+    ignoreLightingMapCache_.reset();
+    lightBlockImageCache_.reset();
+    reflectionStrengthImageCache_.reset();
+    ignoreLightingImageCache_.reset();
 }
 
 std::vector<std::shared_ptr<sf::Texture>> TileLayer::getAutoTileTextures()

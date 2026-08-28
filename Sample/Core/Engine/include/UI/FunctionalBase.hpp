@@ -13,10 +13,7 @@
 #include <optional>
 #include <string>
 
-BIND_CLASS(callbacks =
-               "onConfirm,onCancel,onClick,onMouseButtonDown,onHover,onUnHover,"
-               "onMouseMoved,onMouseWheelScrolled,onKeyDown,onKeyUp,onTick,"
-               "onLateTick,onFixedTick,onPointerInteractionReset")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API FunctionalBase : public FocusableMixin {
 public:
     using FocusResolver = std::function<bool(const FunctionalBase&)>;
@@ -135,13 +132,13 @@ public:
         std::function<void(FunctionalBase&, const RuntimeValue::Map&)>
             callback);
 
-    BIND_METHOD()
+    BIND_METHOD(callback = false)
     virtual void update(float deltaTime);
 
-    BIND_METHOD()
+    BIND_METHOD(callback = false)
     virtual void lateUpdate(float deltaTime);
 
-    BIND_METHOD()
+    BIND_METHOD(callback = false)
     virtual void fixedUpdate(float fixedDelta);
 
     BIND_METHOD()

@@ -3,7 +3,7 @@
 #include <BindAnnotations.hpp>
 #include <UI/SpriteBase.hpp>
 
-BIND_CLASS(callbacks = "_applyRenderStates,_getRenderTransform")
+BIND_CLASS(callbacks = true)
 class Image : public SpriteBase {
 public:
     BIND_INIT()

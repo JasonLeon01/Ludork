@@ -42,7 +42,7 @@ local list_value = {}
 function list_value:append(value) end
 
 --- Append every value from another sequence.
----@param values table<integer, T>|list<T>|tuple<T>
+---@param values table<integer, T> | list<T> | tuple<T>
 function list_value:extend(values) end
 
 --- Insert a value at a 1-based index.
@@ -134,26 +134,26 @@ local dict_value = {}
 
 --- Return a stored value or the optional default when the key is absent.
 ---@generic D
----@param key K
+---@param key      K
 ---@param default? D
----@return V|D|nil
+---@return V | D | nil
 function dict_value:get(key, default) end
 
 --- Return an existing value, or store and return the supplied default.
----@param key K
+---@param key      K
 ---@param default? V
----@return V|nil
+---@return V | nil
 function dict_value:setdefault(key, default) end
 
 --- Merge values from another mapping into this dictionary.
----@param values table<K, V>|dict<K, V>
+---@param values table<K, V> | dict<K, V>
 function dict_value:update(values) end
 
 --- Remove and return a value. A missing key raises unless default is supplied.
 ---@generic D
----@param key K
+---@param key      K
 ---@param default? D
----@return V|D|nil
+---@return V | D | nil
 function dict_value:pop(key, default) end
 
 --- Remove a key and report whether it existed.
@@ -214,25 +214,25 @@ tuple = {}
 
 --- Construct a mutable native dictionary from an optional mapping.
 ---@class dict.Type
----@overload fun<K, V>(values?: table<K, V>|dict<K, V>): dict<K, V>
+---@overload fun<K, V>(values?: table<K, V> | dict<K, V>): dict<K, V>
 dict = {}
 
 ---@param format string
----@param ... any
+---@param ...    any
 ---@return string
 function string.pformat(format, ...) end
 
----@param value string
+---@param value  string
 ---@param target string
 ---@return boolean
 function string.contains(value, target) end
 
----@param value string
+---@param value  string
 ---@param prefix string
 ---@return boolean
 function string.startsWith(value, prefix) end
 
----@param value string
+---@param value  string
 ---@param suffix string
 ---@return boolean
 function string.endsWith(value, suffix) end
@@ -257,13 +257,13 @@ function string.stripLeading(value) end
 ---@return string
 function string.stripTrailing(value) end
 
----@param value string
----@param target string
+---@param value       string
+---@param target      string
 ---@param replacement string
 ---@return string
 function string.replace(value, target, replacement) end
 
----@param value string
+---@param value     string
 ---@param separator string
 ---@return string[]
 function string.split(value, separator) end
@@ -272,19 +272,25 @@ function string.split(value, separator) end
 ---@return integer
 function string.utf8Length(value) end
 
----@param value string
----@param start integer
+---@param value  string
+---@param start  integer
 ---@param finish integer
 ---@return string
 function string.utf8Slice(value, start, finish) end
 
 ---@generic T
----@param values T[]
+---@param values   T[]
 ---@param expected T
 ---@return boolean
 function table.contains(values, expected) end
 
----@param values table<string, any>
+---@generic T
+---@param values   T[]
+---@param expected T
+---@return integer | nil
+function table.index(values, expected) end
+
+---@param values          table<string, any>
 ---@param preferredOrder? string[]
 ---@return string[]
 function table.orderedStringKeys(values, preferredOrder) end
@@ -307,36 +313,36 @@ function ConfigParser:has_section(section) end
 function ConfigParser:add_section(section) end
 
 ---@generic T
----@param section string
----@param key string
+---@param section   string
+---@param key       string
 ---@param fallback? T
----@return string|T|nil
+---@return string | T | nil
 function ConfigParser:get(section, key, fallback) end
 
 ---@generic T
----@param section string
----@param key string
+---@param section   string
+---@param key       string
 ---@param fallback? T
----@return number|T|nil
+---@return number | T | nil
 function ConfigParser:getfloat(section, key, fallback) end
 
 ---@generic T
----@param section string
----@param key string
+---@param section   string
+---@param key       string
 ---@param fallback? T
----@return integer|T|nil
+---@return integer | T | nil
 function ConfigParser:getint(section, key, fallback) end
 
 ---@generic T
----@param section string
----@param key string
+---@param section   string
+---@param key       string
 ---@param fallback? T
----@return boolean|T|nil
+---@return boolean | T | nil
 function ConfigParser:getboolean(section, key, fallback) end
 
 ---@param section string
----@param key string
----@param value string|number
+---@param key     string
+---@param value   string | number
 function ConfigParser:set(section, key, value) end
 
 ---@param path string
@@ -381,16 +387,26 @@ function os.path.dirname(path) end
 function os.path.abspath(path) end
 
 ---@param path string
+---@return boolean
+function os.path.isdir(path) end
+
+---@param path string
+---@return boolean
+function os.path.isfile(path) end
+
+---@param path string
 ---@return number
 function os.path.getmtime(path) end
 
 asyncio = {}
 
----@param callback function
----@param ... any
----@return table
+---@class AsyncioTask
+
+---@param callback fun(...: any)
+---@param ...      any
+---@return AsyncioTask
 function asyncio.create_task(callback, ...) end
----@param task table
+---@param task AsyncioTask
 ---@return boolean
 function asyncio.cancel_task(task) end
 
@@ -398,48 +414,67 @@ function asyncio.cancel_task(task) end
 function asyncio.sleep(seconds) end
 
 ---@class FileBatchSpec
----@field category string
----@field root string
----@field suffix? string
+---@field category       string
+---@field root           string
+---@field suffix?        string
 ---@field excludeSuffix? string
----@field recursive? boolean
----@field required? boolean
+---@field recursive?     boolean
+---@field required?      boolean
+---@field parseJson?     boolean
 
 ---@class FileBatchItem
----@field index integer
----@field category string
----@field relativePath string
----@field content string
+---@field index         integer
+---@field category      string
+---@field relativePath  string
+---@field content?      string
+---@field conversion?   FileBatchJsonConversion
+---@field contentBytes? integer
 ---@field encryptedData boolean
 
+---@class FileBatchJsonConversion
+
+---@class FileBatchJob
+
 ---@class FileBatchError
----@field operation "scan"|"open"|"read"
----@field category string
----@field path string
----@field code integer
----@field message string
+---@field operation "scan" | "open" | "read" | "parse"
+---@field category  string
+---@field path      string
+---@field code      integer
+---@field message   string
 
 ---@class FileBatchSnapshot
----@field state "scanning"|"running"|"completed"|"cancelling"|"cancelled"|"failed"
----@field total integer
+---@field state     "scanning" | "running" | "completed" | "cancelling" | "cancelled" | "failed"
+---@field total     integer
 ---@field completed integer
 ---@field delivered integer
----@field drained boolean
----@field items FileBatchItem[]
----@field error? FileBatchError
+---@field drained   boolean
+---@field items     FileBatchItem[]
+---@field error?    FileBatchError
 
 ---@param specs FileBatchSpec[]
----@return userdata
+---@return FileBatchJob
 function asyncio.start_file_batch(specs) end
 
----@param job userdata
+---@param job       FileBatchJob
 ---@param maxItems? integer
 ---@return FileBatchSnapshot
 function asyncio.poll_file_batch(job, maxItems) end
 
----@param job userdata
+---@param job FileBatchJob
 ---@return boolean
 function asyncio.cancel_file_batch(job) end
+
+---@param conversion      FileBatchJsonConversion
+---@param maxNodes        integer
+---@param maxMilliseconds number
+---@return boolean completed
+---@return integer processed
+---@return any data
+function asyncio.step_file_batch_json(conversion, maxNodes, maxMilliseconds) end
+
+---@param conversion FileBatchJsonConversion
+---@return boolean
+function asyncio.clear_file_batch_json(conversion) end
 
 ---@generic T
 ---@param value T

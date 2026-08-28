@@ -12,11 +12,11 @@ After changing first-party C++ sources (`.h`, `.hpp`, `.cc`, `.cpp`, and similar
 
 Before changing Lua runtime behaviour, Standard or other native globals, Core bindings, blueprints or mixins, declarative UI, or Sample gameplay, read the matching English docs first. Primary Lua entry points:
 
-- `docs/en_GB/03.Lua and Blueprint Scripting/01.Lua Runtime and Modules.md` — Standard natives (`list` / `tuple` / `dict`, `bool`, `copy` / `deepcopy`, `PLATFORM`, module load order, `toTable` boundaries)
-- `docs/en_GB/03.Lua and Blueprint Scripting/02.Classes Defaults and Lifecycle.md`
+- `docs/en_GB/01.Getting Started/04.Ludork Lua Advanced.md` — Standard natives (`class`, `list` / `tuple` / `dict`, `bool`, copy, platform/filesystem and `asyncio`)
+- `docs/en_GB/03.Lua and Blueprint Scripting/01.Lua Runtime and Modules.md` — module load order, native-module boundaries and Lua/stub/metadata ownership
 - Plus the relevant subsection under Mixin, Blueprint, declarative UI, Sample, or API reference as needed
 
-Standard is a native layer (implementation under `Sample/Standard/`, LuaLS surface in `Scripts/stub/Standard.d.lua`). Container, `toTable`, and truthiness rules for Standard live in the Lua runtime docs above; follow those pages rather than assuming ordinary Lua tables alone.
+Standard is a native layer (implementation under `Sample/Standard/`, LuaLS surface in `Scripts/stub/Standard.d.lua`). Its class, container, `toTable` and truthiness rules live in Ludork Lua Advanced; follow that page rather than assuming ordinary Lua tables alone.
 
 When a change alters behaviour, APIs, paths, or conventions described in docs, update every locale tree under `docs/` in the same task (at least `docs/en_GB/` and `docs/zh_CN/`) so all languages stay in sync. For Sample code under `Sample/` (especially `Sample/Scripts/`), also check `docs/en_GB/03.Lua and Blueprint Scripting/06.Sample Gameplay/` and the matching pages in other locales, plus any API pages that describe the affected behaviour. Do not leave any locale describing the old protocol.
 
@@ -148,6 +148,7 @@ Purely declarative decorators (`Meta`, `InvalidVars`, `RectRangeVars`) and `["re
 
 ## Lua script modules
 
+- Before adding any Lua `local function`, inspect the existing Native API surfaces in `Standard.d.lua`, `Engine.d.lua`, `GlobalCore.d.lua`, `GlobalFunctions.d.lua`, and `LuaSF.d.lua`, plus the relevant Native implementation when necessary. Reuse a Native API directly only after confirming that its input, return value, mutation, ordering, nil, equality, and error semantics completely cover the helper; do not add a wrapper or reimplementation when they do. If a missing capability is generic and reusable, implement it once in the appropriate Native layer and update its stubs, all locale docs, and tests. Keep a local helper only for domain logic or genuinely different semantics, and never replace code from name similarity alone.
 - The Lua tree does not mimic a Python package: do not create `__init__.py` counterparts, and do not add `init.lua` aggregation entries for directories.
 - Engine, GlobalCore, and GlobalFunctions load only through their root modules, in the fixed order `require("Engine")`, `require("GlobalCore")`, `require("GlobalFunctions")`; free functions under GlobalFunctions are accessed from the `Components`, `UI`, `NodeGraph`, and `Manager` groups. Other Global and Source modules load explicitly by full path.
 - Runtime Lua lives in ordinary `.lua` files and keeps only logic and implementation-state annotations such as `---@cast`, local variable types, and local/private function signatures.

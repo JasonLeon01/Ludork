@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Ludork.Controls;
+using Ludork.Models;
 using Ludork.Services;
 using System;
 using System.Collections.Generic;
@@ -118,15 +119,17 @@ public sealed class BlueprintNodeParameterEditorFactory
                 request.Commit(current, false);
             }
             summary.Text = BlueprintNodeParameterValues.FormatPosition(current);
-            if (relatedFieldName.Length == 0
-                || selected.MapKey.Length == 0
-                || isValidMapReference(getRawSiblingValue(relatedFieldName)))
-            {
+            if (relatedFieldName.Length == 0 || selected.MapKey.Length == 0)
                 return;
-            }
             string resolvedPath = resolveMapPath(selected.MapKey);
-            if (resolvedPath.Length != 0 && isControlAlive(editor, isAlive))
+            string currentPath = resolveMapPath(
+                BlueprintNodeParameterValues.GetString(getRawSiblingValue(relatedFieldName)));
+            if (resolvedPath.Length != 0
+                && !string.Equals(resolvedPath, currentPath, StringComparison.Ordinal)
+                && isControlAlive(editor, isAlive))
+            {
                 setRawSiblingValue(relatedFieldName, JsonValue.Create(resolvedPath));
+            }
         };
         return editor;
     }
@@ -192,12 +195,6 @@ public sealed class BlueprintNodeParameterEditorFactory
             request.Commit(JsonValue.Create(current), false);
         };
         return editor;
-    }
-
-    private bool isValidMapReference(JsonNode? value)
-    {
-        string mapKey = normalizeMapKey(BlueprintNodeParameterValues.GetString(value));
-        return mapKey.Length != 0 && gameData.MapData.ContainsKey(mapKey);
     }
 
     private static Grid createSummaryEditor(TextBox summary, Button button)
@@ -671,17 +668,16 @@ internal sealed class MoveRouteEditWindow : Window
     private void loadMaps(string preferredKey)
     {
         ListBoxItem? preferred = null;
-        foreach (string key in gameData.MapData.Keys.OrderBy(value => value, StringComparer.Ordinal))
+        foreach (MapCatalogEntry entry in gameData.MapCatalog
+                     .Where(item => item.Kind != MapCatalogEntryKind.WorldMap)
+                     .OrderBy(item => item.Key, StringComparer.Ordinal))
         {
-            JsonObject map = gameData.MapData[key];
-            string mapName = BlueprintNodeParameterValues.GetString(map["mapName"]);
-            if (mapName.Length == 0)
-                mapName = key;
+            string key = entry.Key;
             ListBoxItem item = new()
             {
                 Content = new HintedTextPresenter
                 {
-                    Text = mapName,
+                    Text = entry.DisplayName,
                 },
                 Tag = key,
             };
@@ -700,7 +696,7 @@ internal sealed class MoveRouteEditWindow : Window
             mapView.SetMap(null, null);
             return;
         }
-        mapView.SetMap(key, gameData.MapData.TryGetValue(key, out JsonObject? map) ? map : null);
+        mapView.SetMap(key, gameData.getMap(key));
     }
 
     private void refreshRouteLabel()
@@ -752,136 +748,21 @@ internal sealed class MoveRouteEditWindow : Window
     }
 }
 
-internal sealed class TransferPositionPickWindow : Window
+internal static class TransferPositionPickWindow
 {
-    private readonly GameDataService gameData;
-    private readonly ListBox mapList;
-    private readonly TransferPositionMapReferenceView mapView;
-    private readonly TextBlock positionLabel;
-
-    private TransferPositionPickWindow(
-        GameDataService gameData,
-        JsonNode? initial,
-        string mapReference)
-    {
-        this.gameData = gameData;
-        Title = LocaleService.Get("TRANSFER_POS_EDITOR_TITLE");
-        Width = 960;
-        Height = 615;
-        MinWidth = 825;
-        MinHeight = 540;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        EditorWindowIcon.Apply(this);
-
-        mapList = new ListBox { MinWidth = 180 };
-        mapView = new TransferPositionMapReferenceView(gameData);
-        positionLabel = new TextBlock();
-        mapList.SelectionChanged += (_, _) => selectMap();
-        mapView.PositionChanged += (_, _) => refreshPositionLabel();
-
-        TextBlock hint = new()
-        {
-            Text = LocaleService.Get("TRANSFER_POS_EDITOR_HINT"),
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Control mapArea = MoveRouteEditWindow.createMapArea(mapList, mapView);
-        Button clearButton = new() { Content = LocaleService.Get("TRANSFER_POS_CLEAR") };
-        Button confirmButton = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
-        Button cancelButton = new() { Content = LocaleService.Get("CANCEL"), MinWidth = 80 };
-        clearButton.Click += (_, _) => mapView.ClearPosition();
-        confirmButton.Click += (_, _) => Close(new TransferPositionSelection(getPosition(), getMapKey()));
-        cancelButton.Click += (_, _) => Close(null);
-
-        Grid root = new()
-        {
-            Margin = new Thickness(12),
-            RowDefinitions = new RowDefinitions("Auto,8,*,8,Auto,8,Auto"),
-        };
-        root.Children.Add(hint);
-        Grid.SetRow(mapArea, 2);
-        root.Children.Add(mapArea);
-        Grid.SetRow(positionLabel, 4);
-        root.Children.Add(positionLabel);
-        Control actions = MoveRouteEditWindow.createActions(clearButton, confirmButton, cancelButton);
-        Grid.SetRow(actions, 6);
-        root.Children.Add(actions);
-        Content = root;
-
-        KeyDown += onKeyDown;
-        Closed += (_, _) => mapView.Dispose();
-        loadMaps(BlueprintNodeParameterEditorFactory.normalizeMapKey(mapReference));
-        mapView.SetPosition(initial);
-        refreshPositionLabel();
-    }
-
-    public static Task<TransferPositionSelection?> ShowAsync(
+    public static async Task<TransferPositionSelection?> ShowAsync(
         Window owner,
         GameDataService gameData,
         JsonNode? initial,
         string mapReference)
     {
-        TransferPositionPickWindow window = new(
+        MapTargetPickerResult? result = await MapTargetPickerWindow.ShowPositionAsync(
+            owner,
             gameData,
-            initial,
-            mapReference);
-        return window.ShowDialog<TransferPositionSelection?>(owner);
-    }
-
-    private void loadMaps(string preferredKey)
-    {
-        ListBoxItem? preferred = null;
-        foreach (string key in gameData.MapData.Keys.OrderBy(value => value, StringComparer.Ordinal))
-        {
-            JsonObject map = gameData.MapData[key];
-            string mapName = BlueprintNodeParameterValues.GetString(map["mapName"]);
-            if (mapName.Length == 0)
-                mapName = key;
-            ListBoxItem item = new()
-            {
-                Content = new HintedTextPresenter
-                {
-                    Text = mapName,
-                },
-                Tag = key,
-            };
-            ToolTip.SetTip(item, key);
-            mapList.Items.Add(item);
-            if (string.Equals(key, preferredKey, StringComparison.Ordinal))
-                preferred = item;
-        }
-        mapList.SelectedItem = preferred ?? mapList.Items.OfType<ListBoxItem>().FirstOrDefault();
-    }
-
-    private void selectMap()
-    {
-        if (mapList.SelectedItem is not ListBoxItem item || item.Tag is not string key)
-        {
-            mapView.SetMap(null, null);
-            return;
-        }
-        mapView.SetMap(key, gameData.MapData.TryGetValue(key, out JsonObject? map) ? map : null);
-    }
-
-    private JsonArray? getPosition()
-    {
-        return mapView.GetPosition();
-    }
-
-    private string getMapKey()
-    {
-        return mapList.SelectedItem is ListBoxItem item && item.Tag is string key ? key : string.Empty;
-    }
-
-    private void refreshPositionLabel()
-    {
-        positionLabel.Text = BlueprintNodeParameterValues.FormatPosition(mapView.GetPosition());
-    }
-
-    private void onKeyDown(object? sender, KeyEventArgs args)
-    {
-        if (args.Key != Key.Escape)
-            return;
-        Close(null);
-        args.Handled = true;
+            mapReference,
+            initial);
+        return result is null
+            ? null
+            : new TransferPositionSelection(result.Position, result.RuntimePath);
     }
 }

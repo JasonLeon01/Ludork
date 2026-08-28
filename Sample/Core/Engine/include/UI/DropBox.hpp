@@ -25,10 +25,7 @@ class PlainText;
 class Rect;
 class Window;
 
-BIND_CLASS(callbacks =
-               "getSize,getLocalBounds,update,onConfirm,onCancel,onClick,"
-               "onMouseButtonDown,onMouseMoved,onMouseWheelScrolled,onKeyDown,"
-               "draw")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API DropBox : public ControlBase, public FunctionalBase {
 public:
     BIND_INIT(defaults = {{}, 0, false})

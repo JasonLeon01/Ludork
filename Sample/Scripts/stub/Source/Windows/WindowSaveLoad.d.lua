@@ -61,8 +61,7 @@ function WindowSaveLoad:setVisible(visible) end
 
 ---@brief Open the save/load UI in Load mode with the slot list focused.
 ---
---- Every open session resets the active tab, slot cursor, and slot-list scroll
---- origin. Load-only mode omits the tab window.
+--- Selects the latest existing save, or the first slot when none exists.
 function WindowSaveLoad:open() end
 
 ---@brief Close the save/load UI and deactivate all child windows.

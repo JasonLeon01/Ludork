@@ -1,71 +1,52 @@
 #include <Graphics/TilemapGraphics.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <limits>
 #include <utility>
 
-////////////////////////////////////////////////////////////
-// Autotile mask helpers (RPG Maker XP 48-state composition).
-//
-// Bit layout of the 8-bit neighbour mask matches the Python-side
-// `AutoTileRenderer`:
-//   bit0=top, bit1=right, bit2=bottom, bit3=left,
-//   bit4=top-left, bit5=top-right, bit6=bottom-right, bit7=bottom-left.
-////////////////////////////////////////////////////////////
 namespace {
+struct LocalViewBounds {
+    float left;
+    float top;
+    float right;
+    float bottom;
+};
 
-constexpr int MASK_TOP = 0x01;
-constexpr int MASK_RIGHT = 0x02;
-constexpr int MASK_BOTTOM = 0x04;
-constexpr int MASK_LEFT = 0x08;
-constexpr int MASK_TOP_LEFT = 0x10;
-constexpr int MASK_TOP_RIGHT = 0x20;
-constexpr int MASK_BOTTOM_RIGHT = 0x40;
-constexpr int MASK_BOTTOM_LEFT = 0x80;
-
-constexpr int kInnerFillerCell = 3;
-
-// Base 4-quadrant cell pattern (1-based mini-pattern indices) keyed by the
-// 4-bit orthogonal mask. Order: (TL, TR, BL, BR).
-constexpr std::array<std::array<int, 4>, 16> kBasePattern = {{
-    {{1, 1, 1, 1}},      // 0x00
-    {{10, 12, 10, 12}},  // 0x01
-    {{4, 4, 10, 10}},    // 0x02
-    {{10, 10, 10, 10}},  // 0x03
-    {{4, 6, 4, 6}},      // 0x04
-    {{7, 9, 7, 9}},      // 0x05
-    {{4, 4, 4, 4}},      // 0x06
-    {{7, 7, 7, 7}},      // 0x07
-    {{6, 6, 12, 12}},    // 0x08
-    {{12, 12, 12, 12}},  // 0x09
-    {{5, 5, 11, 11}},    // 0x0A
-    {{11, 11, 11, 11}},  // 0x0B
-    {{6, 6, 6, 6}},      // 0x0C
-    {{9, 9, 9, 9}},      // 0x0D
-    {{5, 5, 5, 5}},      // 0x0E
-    {{8, 8, 8, 8}}       // 0x0F
-}};
-
-// (orthoA, orthoB, diagonal) for each quadrant (TL, TR, BL, BR).
-constexpr std::array<std::array<int, 3>, 4> kQuadBits = {{
-    {{MASK_TOP, MASK_LEFT, MASK_TOP_LEFT}},
-    {{MASK_TOP, MASK_RIGHT, MASK_TOP_RIGHT}},
-    {{MASK_BOTTOM, MASK_LEFT, MASK_BOTTOM_LEFT}},
-    {{MASK_BOTTOM, MASK_RIGHT, MASK_BOTTOM_RIGHT}},
-}};
-
-std::array<int, 4> composeCellPattern(int mask) {
-    int orthoMask = mask & 0x0F;
-    std::array<int, 4> out = kBasePattern[orthoMask];
-    for (int q = 0; q < 4; ++q) {
-        int oa = kQuadBits[q][0];
-        int ob = kQuadBits[q][1];
-        int d = kQuadBits[q][2];
-        if ((mask & oa) && (mask & ob) && !(mask & d)) {
-            out[q] = kInnerFillerCell;
-        }
+LocalViewBounds getLocalViewBounds(sf::RenderTarget& target,
+                                   const sf::Transform& transform) {
+    const sf::View& view = target.getView();
+    const sf::FloatRect viewport = view.getViewport();
+    const sf::Vector2u targetSize = target.getSize();
+    const int left = static_cast<int>(
+        std::floor(viewport.position.x * static_cast<float>(targetSize.x)));
+    const int top = static_cast<int>(
+        std::floor(viewport.position.y * static_cast<float>(targetSize.y)));
+    const int right =
+        static_cast<int>(std::ceil((viewport.position.x + viewport.size.x) *
+                                   static_cast<float>(targetSize.x)));
+    const int bottom =
+        static_cast<int>(std::ceil((viewport.position.y + viewport.size.y) *
+                                   static_cast<float>(targetSize.y)));
+    const std::array<sf::Vector2i, 4> pixelCorners = {
+        sf::Vector2i(left, top), sf::Vector2i(right, top),
+        sf::Vector2i(left, bottom), sf::Vector2i(right, bottom)};
+    const sf::Transform inverse = transform.getInverse();
+    LocalViewBounds bounds{std::numeric_limits<float>::max(),
+                           std::numeric_limits<float>::max(),
+                           std::numeric_limits<float>::lowest(),
+                           std::numeric_limits<float>::lowest()};
+    for (const sf::Vector2i& pixel : pixelCorners) {
+        const sf::Vector2f world = target.mapPixelToCoords(pixel, view);
+        const sf::Vector2f local = inverse.transformPoint(world);
+        bounds.left = std::min(bounds.left, local.x);
+        bounds.top = std::min(bounds.top, local.y);
+        bounds.right = std::max(bounds.right, local.x);
+        bounds.bottom = std::max(bounds.bottom, local.y);
     }
-    return out;
+    return bounds;
 }
 
 std::optional<int> autoTileIndexAt(const AutoTileGrid& grid, int x, int y) {
@@ -86,63 +67,14 @@ std::optional<int> autoTileIndexAt(const AutoTileGrid& grid, int x, int y) {
     return std::nullopt;
 }
 
-bool sameAutoTileAt(const AutoTileGrid& grid, int x, int y, int width,
-                    int height, int self) {
-    if (x < 0 || y < 0 || x >= width || y >= height) {
-        return false;
-    }
-    auto cellIndex = autoTileIndexAt(grid, x, y);
-    if (!cellIndex.has_value()) {
-        return false;
-    }
-    return cellIndex.value() == self;
-}
-
-int computeAutoTileMask(const AutoTileGrid& grid, int x, int y, int width,
-                        int height) {
-    auto selfIndex = autoTileIndexAt(grid, x, y);
-    if (!selfIndex.has_value()) {
-        return 0;
-    }
-    int self = selfIndex.value();
-    int mask = 0;
-    if (sameAutoTileAt(grid, x, y - 1, width, height, self)) {
-        mask |= MASK_TOP;
-    }
-    if (sameAutoTileAt(grid, x + 1, y, width, height, self)) {
-        mask |= MASK_RIGHT;
-    }
-    if (sameAutoTileAt(grid, x, y + 1, width, height, self)) {
-        mask |= MASK_BOTTOM;
-    }
-    if (sameAutoTileAt(grid, x - 1, y, width, height, self)) {
-        mask |= MASK_LEFT;
-    }
-    if (sameAutoTileAt(grid, x - 1, y - 1, width, height, self)) {
-        mask |= MASK_TOP_LEFT;
-    }
-    if (sameAutoTileAt(grid, x + 1, y - 1, width, height, self)) {
-        mask |= MASK_TOP_RIGHT;
-    }
-    if (sameAutoTileAt(grid, x + 1, y + 1, width, height, self)) {
-        mask |= MASK_BOTTOM_RIGHT;
-    }
-    if (sameAutoTileAt(grid, x - 1, y + 1, width, height, self)) {
-        mask |= MASK_BOTTOM_LEFT;
-    }
-    return mask;
-}
-
 }  // namespace
 
 TileLayerGraphics::TileLayerGraphics(
     int width, int height, int tileSize, std::shared_ptr<sf::Texture> texture,
     const TileLayerData& data,
     const std::vector<std::shared_ptr<sf::Texture>>& autoTileTextures,
-    const std::vector<int>& autoTileFrameCounts)
-    : vertexArray_(std::make_unique<sf::VertexArray>(
-          sf::PrimitiveType::Triangles, width * height * 6)),
-      texture_(std::move(texture)),
+    const std::vector<int>& autoTileFrameCounts, bool deferred)
+    : texture_(std::move(texture)),
       size_(static_cast<float>(width), static_cast<float>(height)),
       tileSize_(tileSize),
       tiles_(data.tiles),
@@ -158,11 +90,40 @@ TileLayerGraphics::TileLayerGraphics(
         autoTileMaterials_.push_back(autoTile.material);
     }
     autoTileCurrentFrames_.assign(autoTileTextures_.size(), 0);
-    init(tileSize);
-    initAutoTiles(tileSize);
+    initChunks();
+    if (deferred) {
+        buildComplete_ = chunks_.empty();
+    } else {
+        buildAllChunks();
+    }
 }
 
 TileLayerGraphics::~TileLayerGraphics() = default;
+
+void TileLayerGraphics::initChunks() {
+    const int width = static_cast<int>(size_.x);
+    const int height = static_cast<int>(size_.y);
+    chunkColumns_ = width > 0 ? (width + ChunkSize - 1) / ChunkSize : 0;
+    chunkRows_ = height > 0 ? (height + ChunkSize - 1) / ChunkSize : 0;
+    chunks_.clear();
+    chunks_.reserve(static_cast<std::size_t>(chunkColumns_ * chunkRows_));
+    for (int chunkY = 0; chunkY < chunkRows_; ++chunkY) {
+        for (int chunkX = 0; chunkX < chunkColumns_; ++chunkX) {
+            TileChunk chunk;
+            chunk.x = chunkX * ChunkSize;
+            chunk.y = chunkY * ChunkSize;
+            chunk.width = std::min(ChunkSize, width - chunk.x);
+            chunk.height = std::min(ChunkSize, height - chunk.y);
+            chunks_.push_back(std::move(chunk));
+        }
+    }
+    builtChunks_.assign(chunks_.size(), false);
+}
+
+TileLayerGraphics::TileChunk& TileLayerGraphics::getChunk(int x, int y) {
+    return chunks_[static_cast<std::size_t>((y / ChunkSize) * chunkColumns_ +
+                                            x / ChunkSize)];
+}
 
 void TileLayerGraphics::setTileColor(int x, int y, sf::Color color) {
     int width = static_cast<int>(size_.x);
@@ -174,9 +135,15 @@ void TileLayerGraphics::setTileColor(int x, int y, sf::Color color) {
         return;
     }
 
-    int start = (x + y * width) * 6;
+    TileChunk& chunk = getChunk(x, y);
+    if (chunk.vertexArray == nullptr) {
+        return;
+    }
+    int localX = x - chunk.x;
+    int localY = y - chunk.y;
+    int start = (localX + localY * chunk.width) * 6;
     for (int i = 0; i < 6; ++i) {
-        (*vertexArray_)[start + i].color = color;
+        (*chunk.vertexArray)[start + i].color = color;
     }
 }
 
@@ -386,7 +353,7 @@ std::vector<std::vector<float>> TileLayerGraphics::getIgnoreLightingMap()
 
 void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
                                                 float frameInterval) {
-    if (autoTileVertexArrays_.empty() || frameInterval <= 0.0f) {
+    if (autoTileTextures_.empty() || frameInterval <= 0.0f) {
         return;
     }
     autoTileAnimationAccum_ += deltaTime;
@@ -395,7 +362,7 @@ void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
     }
     int steps = static_cast<int>(autoTileAnimationAccum_ / frameInterval);
     autoTileAnimationAccum_ -= steps * frameInterval;
-    for (std::size_t i = 0; i < autoTileVertexArrays_.size(); ++i) {
+    for (std::size_t i = 0; i < autoTileTextures_.size(); ++i) {
         int frameCount =
             i < autoTileFrameCounts_.size() ? autoTileFrameCounts_[i] : 1;
         if (frameCount <= 1) {
@@ -410,214 +377,85 @@ void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
     }
 }
 
-void TileLayerGraphics::draw(sf::RenderTarget& target,
-                             sf::RenderStates states) const {
-    states.transform *= getTransform();
-    sf::RenderStates tileStates = states;
-    tileStates.texture = texture_.get();
-    target.draw(*vertexArray_, tileStates);
-    for (std::size_t i = 0; i < autoTileVertexArrays_.size(); ++i) {
-        if (autoTileVertexArrays_[i] == nullptr) {
-            continue;
-        }
-        if (autoTileVertexArrays_[i]->getVertexCount() == 0) {
-            continue;
-        }
-        sf::RenderStates autoStates = states;
-        autoStates.texture = autoTileTextures_[i].get();
-        target.draw(*autoTileVertexArrays_[i], autoStates);
-    }
+int TileLayerGraphics::getLastVisibleChunkCount() const {
+    return lastVisibleChunkCount_.load(std::memory_order_relaxed);
 }
 
-void TileLayerGraphics::init(int tileSize) {
-    if (texture_ == nullptr) {
+void TileLayerGraphics::draw(sf::RenderTarget& target,
+                             sf::RenderStates states) const {
+    lastVisibleChunkCount_.store(0, std::memory_order_relaxed);
+    states.transform *= getTransform();
+    if (chunkColumns_ == 0 || chunkRows_ == 0 || tileSize_ <= 0) {
         return;
     }
-    int columns = texture_->getSize().x / tileSize;
-    int width = size_.x;
-    int height = size_.y;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            auto tileNumberObj = tiles_[y][x];
-            if (!tileNumberObj.has_value()) {
-                continue;
-            }
-            int tileNumber = tileNumberObj.value();
-            if (tileNumber < 0 ||
-                tileNumber >= static_cast<int>(materials_.size())) {
-                continue;
-            }
+    const LocalViewBounds visible =
+        getLocalViewBounds(target, states.transform);
+    const float layerWidth = size_.x * static_cast<float>(tileSize_);
+    const float layerHeight = size_.y * static_cast<float>(tileSize_);
+    if (visible.right <= 0.0f || visible.bottom <= 0.0f ||
+        visible.left >= layerWidth || visible.top >= layerHeight) {
+        return;
+    }
+    const float chunkPixelSize = static_cast<float>(ChunkSize * tileSize_);
+    const int firstChunkX =
+        std::clamp(static_cast<int>(std::floor(visible.left / chunkPixelSize)),
+                   0, chunkColumns_ - 1);
+    const int firstChunkY =
+        std::clamp(static_cast<int>(std::floor(visible.top / chunkPixelSize)),
+                   0, chunkRows_ - 1);
+    const int lastChunkX = std::clamp(
+        static_cast<int>(std::ceil(visible.right / chunkPixelSize)) - 1, 0,
+        chunkColumns_ - 1);
+    const int lastChunkY = std::clamp(
+        static_cast<int>(std::ceil(visible.bottom / chunkPixelSize)) - 1, 0,
+        chunkRows_ - 1);
 
-            int tu = tileNumber % columns;
-            int tv = tileNumber / columns;
-            int start = (x + y * width) * 6;
-
-            float opacity = materials_[tileNumber].opacity;
-            sf::Color color = sf::Color::White;
-            color.a = static_cast<std::uint8_t>(opacity * 255);
-
-            std::vector<sf::Vector2f> positions = {
-                sf::Vector2f(x * tileSize, y * tileSize),
-                sf::Vector2f((x + 1) * tileSize, y * tileSize),
-                sf::Vector2f(x * tileSize, (y + 1) * tileSize),
-                sf::Vector2f(x * tileSize, (y + 1) * tileSize),
-                sf::Vector2f((x + 1) * tileSize, y * tileSize),
-                sf::Vector2f((x + 1) * tileSize, (y + 1) * tileSize),
-            };
-            std::vector<sf::Vector2f> texCoords = {
-                sf::Vector2f(tu * tileSize, tv * tileSize),
-                sf::Vector2f((tu + 1) * tileSize, tv * tileSize),
-                sf::Vector2f(tu * tileSize, (tv + 1) * tileSize),
-                sf::Vector2f(tu * tileSize, (tv + 1) * tileSize),
-                sf::Vector2f((tu + 1) * tileSize, tv * tileSize),
-                sf::Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize),
-            };
-
-            for (int i = 0; i < 6; ++i) {
-                if (opacity > 0.0f) {
-                    (*vertexArray_)[start + i].position = positions[i];
-                    (*vertexArray_)[start + i].texCoords = texCoords[i];
-                    if (opacity < 1.0f) {
-                        (*vertexArray_)[start + i].color = color;
+    int submittedChunks = 0;
+    for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
+        for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
+            const TileChunk& chunk = chunks_[static_cast<std::size_t>(
+                chunkY * chunkColumns_ + chunkX)];
+            bool hasGeometry = chunk.vertexArray != nullptr;
+            if (!hasGeometry) {
+                for (const auto& autoTileVertexArray :
+                     chunk.autoTileVertexArrays) {
+                    if (autoTileVertexArray != nullptr) {
+                        hasGeometry = true;
+                        break;
                     }
                 }
             }
-        }
-    }
-}
-
-void TileLayerGraphics::initAutoTiles(int tileSize) {
-    int width = static_cast<int>(size_.x);
-    int height = static_cast<int>(size_.y);
-    std::size_t poolSize = autoTileTextures_.size();
-    autoTileVertexArrays_.clear();
-    autoTileVertexArrays_.resize(poolSize);
-    autoTileCells_.assign(poolSize, {});
-    autoTileMasks_.assign(poolSize, {});
-
-    if (poolSize == 0 || autoTiles_.empty()) {
-        return;
-    }
-
-    for (std::size_t i = 0; i < poolSize; ++i) {
-        autoTileVertexArrays_[i] =
-            std::make_unique<sf::VertexArray>(sf::PrimitiveType::Triangles, 0);
-    }
-
-    for (int y = 0; y < height; ++y) {
-        if (y >= static_cast<int>(autoTiles_.size())) {
-            break;
-        }
-        auto& row = autoTiles_[y];
-        for (int x = 0; x < width; ++x) {
-            if (x >= static_cast<int>(row.size())) {
-                break;
-            }
-            auto poolIndexValue = autoTileIndexAt(autoTiles_, x, y);
-            if (!poolIndexValue.has_value()) {
-                continue;
-            }
-            int poolIndex = poolIndexValue.value();
-            if (poolIndex < 0 || poolIndex >= static_cast<int>(poolSize)) {
-                continue;
-            }
-            int mask = computeAutoTileMask(autoTiles_, x, y, width, height);
-            autoTileCells_[poolIndex].push_back({x, y});
-            autoTileMasks_[poolIndex].push_back(mask);
-        }
-    }
-
-    for (std::size_t i = 0; i < poolSize; ++i) {
-        std::size_t cellCount = autoTileCells_[i].size();
-        autoTileVertexArrays_[i]->resize(cellCount * 4 * 6);
-
-        for (std::size_t k = 0; k < cellCount; ++k) {
-            int cx = autoTileCells_[i][k].first;
-            int cy = autoTileCells_[i][k].second;
-            int half = tileSize / 2;
-            for (int q = 0; q < 4; ++q) {
-                int qx = q % 2;
-                int qy = q / 2;
-                float px0 = static_cast<float>(cx * tileSize + qx * half);
-                float py0 = static_cast<float>(cy * tileSize + qy * half);
-                float px1 = px0 + half;
-                float py1 = py0 + half;
-                std::size_t base = (k * 4 + q) * 6;
-                (*autoTileVertexArrays_[i])[base + 0].position =
-                    sf::Vector2f(px0, py0);
-                (*autoTileVertexArrays_[i])[base + 1].position =
-                    sf::Vector2f(px1, py0);
-                (*autoTileVertexArrays_[i])[base + 2].position =
-                    sf::Vector2f(px0, py1);
-                (*autoTileVertexArrays_[i])[base + 3].position =
-                    sf::Vector2f(px0, py1);
-                (*autoTileVertexArrays_[i])[base + 4].position =
-                    sf::Vector2f(px1, py0);
-                (*autoTileVertexArrays_[i])[base + 5].position =
-                    sf::Vector2f(px1, py1);
+            if (hasGeometry) {
+                ++submittedChunks;
             }
         }
+    }
 
-        float opacity = i < autoTileMaterials_.size()
-                            ? autoTileMaterials_[i].opacity
-                            : 1.0f;
-        sf::Color color = sf::Color::White;
-        color.a = static_cast<std::uint8_t>(opacity * 255);
-        if (opacity < 1.0f) {
-            for (std::size_t v = 0;
-                 v < autoTileVertexArrays_[i]->getVertexCount(); ++v) {
-                (*autoTileVertexArrays_[i])[v].color = color;
+    sf::RenderStates tileStates = states;
+    tileStates.texture = texture_.get();
+    for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
+        for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
+            const TileChunk& chunk = chunks_[static_cast<std::size_t>(
+                chunkY * chunkColumns_ + chunkX)];
+            if (chunk.vertexArray != nullptr) {
+                target.draw(*chunk.vertexArray, tileStates);
             }
         }
-
-        refreshAutoTileTexCoords(static_cast<int>(i));
     }
-}
-
-void TileLayerGraphics::refreshAutoTileTexCoords(int poolIndex) {
-    if (poolIndex < 0 ||
-        poolIndex >= static_cast<int>(autoTileVertexArrays_.size())) {
-        return;
-    }
-    sf::VertexArray* va = autoTileVertexArrays_[poolIndex].get();
-    if (va == nullptr) {
-        return;
-    }
-    int half = tileSize_ / 2;
-    int frameCount = poolIndex < static_cast<int>(autoTileFrameCounts_.size())
-                         ? autoTileFrameCounts_[poolIndex]
-                         : 1;
-    if (frameCount <= 0) {
-        frameCount = 1;
-    }
-    int frame = autoTileCurrentFrames_[poolIndex] % frameCount;
-    int frameOffsetX = frame * 3 * tileSize_;
-
-    auto& cells = autoTileCells_[poolIndex];
-    auto& masks = autoTileMasks_[poolIndex];
-    for (std::size_t k = 0; k < cells.size(); ++k) {
-        std::array<int, 4> pattern = composeCellPattern(masks[k]);
-        for (int q = 0; q < 4; ++q) {
-            int cell0Based = pattern[q] - 1;
-            int col = cell0Based % 3;
-            int row = cell0Based / 3;
-            int cellX = col * tileSize_;
-            int cellY = row * tileSize_;
-            int qx = q % 2;
-            int qy = q / 2;
-            int srcX = cellX + qx * half + frameOffsetX;
-            int srcY = cellY + qy * half;
-            float tx0 = static_cast<float>(srcX);
-            float ty0 = static_cast<float>(srcY);
-            float tx1 = tx0 + half;
-            float ty1 = ty0 + half;
-            std::size_t base = (k * 4 + q) * 6;
-            (*va)[base + 0].texCoords = sf::Vector2f(tx0, ty0);
-            (*va)[base + 1].texCoords = sf::Vector2f(tx1, ty0);
-            (*va)[base + 2].texCoords = sf::Vector2f(tx0, ty1);
-            (*va)[base + 3].texCoords = sf::Vector2f(tx0, ty1);
-            (*va)[base + 4].texCoords = sf::Vector2f(tx1, ty0);
-            (*va)[base + 5].texCoords = sf::Vector2f(tx1, ty1);
+    for (std::size_t i = 0; i < autoTileTextures_.size(); ++i) {
+        sf::RenderStates autoStates = states;
+        autoStates.texture = autoTileTextures_[i].get();
+        for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
+            for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
+                const TileChunk& chunk = chunks_[static_cast<std::size_t>(
+                    chunkY * chunkColumns_ + chunkX)];
+                if (i >= chunk.autoTileVertexArrays.size() ||
+                    chunk.autoTileVertexArrays[i] == nullptr) {
+                    continue;
+                }
+                target.draw(*chunk.autoTileVertexArrays[i], autoStates);
+            }
         }
     }
+    lastVisibleChunkCount_.store(submittedChunks, std::memory_order_relaxed);
 }

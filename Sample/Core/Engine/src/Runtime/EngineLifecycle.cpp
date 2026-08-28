@@ -2,8 +2,10 @@
 
 #include <Animation.hpp>
 #include <EditorCommandServices.hpp>
+#include <FileBatchJson.hpp>
 #include <Gameplay/Actor.hpp>
 #include <Input/InputService.hpp>
+#include <LudorkCoreBinding/ValueCodec.hpp>
 #include <NodeGraph/LatentManager.hpp>
 #include <Runtime/EngineRuntimeServices.hpp>
 #include <Runtime/EngineState.hpp>
@@ -16,7 +18,12 @@
 #include <UI/UiResources.hpp>
 #include <UI/UiVector4CurveResource.hpp>
 #include <Utils/EventBus.hpp>
+#include <Utils/File.hpp>
 #include <Utils/Inner.hpp>
+
+#include "FileBatchJsonConversion.hpp"
+
+#include <memory>
 
 extern "C" {
 #include <lua.h>
@@ -48,6 +55,14 @@ void unregisterEditorCommands(lua_State* state) noexcept {
 }  // namespace
 
 void initializeEngineLifecycle(lua_State* state) {
+    ludork::standard::configureFileBatchJson(
+        state,
+        [](const std::string& content) {
+            return std::make_shared<const RuntimeValue>(parseJSONText(content));
+        },
+        ludork::engine::beginFileBatchJsonConversion,
+        ludork::engine::stepFileBatchJsonConversion,
+        ludork::engine::clearFileBatchJsonConversion);
     ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
     registerEditorCommands(state);
 }
@@ -62,6 +77,7 @@ void shutdown(lua_State* state) noexcept {
     if (!execution.active()) {
         return;
     }
+    ludork::standard::clearFileBatchJson(state);
     unregisterEditorCommands(state);
     GameRunning = false;
     shutdownEngineRuntimeServices(state);

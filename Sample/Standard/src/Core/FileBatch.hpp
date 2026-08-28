@@ -1,5 +1,7 @@
 #pragma once
 
+#include <FileBatchJson.hpp>
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
@@ -29,6 +31,7 @@ struct FileBatchSpec {
     std::string excludeSuffix;
     bool recursive = false;
     bool required = true;
+    bool parseJson = false;
 };
 
 struct FileBatchError {
@@ -45,6 +48,8 @@ struct FileBatchItem {
     std::string relativePath;
     std::string content;
     bool encryptedData = false;
+    FileBatchParsedJson parsedJson;
+    std::size_t contentBytes = 0;
 };
 
 struct FileBatchSnapshot {
@@ -58,6 +63,7 @@ struct FileBatchSnapshot {
 };
 
 class FileBatchJob;
+class FileBatchJsonConversionState;
 
 class FileBatchRuntime {
 public:
@@ -73,6 +79,19 @@ public:
     bool cancel(const std::shared_ptr<FileBatchJob>& job);
     void release(const std::shared_ptr<FileBatchJob>& job) noexcept;
     void shutdown() noexcept;
+    void configureJson(FileBatchJsonParser parser, FileBatchJsonBegin begin,
+                       FileBatchJsonStep step, FileBatchJsonClear clear);
+    void clearJson() noexcept;
+    std::shared_ptr<FileBatchJsonConversionState> beginJsonConversion(
+        lua_State* state, const std::shared_ptr<FileBatchJob>& job,
+        const FileBatchParsedJson& parsedJson);
+    FileBatchJsonStepResult stepJsonConversion(
+        lua_State* state,
+        const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+        std::size_t maximumNodes, double maximumMilliseconds);
+    bool clearJsonConversion(
+        const std::shared_ptr<FileBatchJsonConversionState>&
+            conversion) noexcept;
 
 private:
     class Implementation;

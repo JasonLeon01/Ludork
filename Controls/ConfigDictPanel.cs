@@ -306,6 +306,8 @@ public sealed class ConfigDictPanel : Border
     private async Task<string?> selectFileName(JsonObject value, string current)
     {
         string root = getFileRoot(value);
+        if (gameData.MapPathPolicy.IsMapsRoot(root))
+            return await MapTargetPickerWindow.ShowPathAsync(owner, gameData, current);
         IReadOnlyList<string> extensions = getExtensions(value["ext"]);
         string filterStr = extensions.Count == 0
             ? FileSelectorDialog.AllFilesFilter(star: true)

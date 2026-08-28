@@ -23,6 +23,11 @@ uniform float lightRadius;
 uniform float lightIntensity;
 uniform float traceStatic;
 uniform float traceDynamic;
+uniform float staticViewMode;
+uniform vec2 staticTextureOrigin;
+uniform vec2 staticTextureSize;
+uniform vec2 staticOccupancyOrigin;
+uniform vec2 staticOccupancySize;
 
 
 vec2 rotate2D(vec2 v, float a) {
@@ -32,6 +37,22 @@ vec2 rotate2D(vec2 v, float a) {
 }
 
 float SampleStaticTransmission(vec2 worldPosTL) {
+    if (staticViewMode > 0.5) {
+        vec2 viewUV = (worldPosTL - staticTextureOrigin) / staticTextureSize;
+        if (
+            viewUV.x < 0.0 ||
+            viewUV.y < 0.0 ||
+            viewUV.x >= 1.0 ||
+            viewUV.y >= 1.0
+        ) {
+            return 1.0;
+        }
+        return clamp(
+            texture2D(staticTransmission, vec2(viewUV.x, 1.0 - viewUV.y)).r,
+            0.0,
+            1.0
+        );
+    }
     vec2 worldSize = gridSize * cellSize;
     vec2 uv = worldPosTL / worldSize;
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x >= 1.0 || uv.y >= 1.0) {
@@ -45,6 +66,22 @@ float SampleStaticTransmission(vec2 worldPosTL) {
 }
 
 float SampleStaticOccupancy(vec2 cell) {
+    if (staticViewMode > 0.5) {
+        vec2 localCell = cell - staticOccupancyOrigin;
+        if (
+            localCell.x < 0.0 ||
+            localCell.y < 0.0 ||
+            localCell.x >= staticOccupancySize.x ||
+            localCell.y >= staticOccupancySize.y
+        ) {
+            return 0.0;
+        }
+        vec2 viewUV = (localCell + vec2(0.5)) / staticOccupancySize;
+        return texture2D(
+            staticOccupancy,
+            vec2(viewUV.x, 1.0 - viewUV.y)
+        ).r;
+    }
     if (
         cell.x < 0.0 ||
         cell.y < 0.0 ||

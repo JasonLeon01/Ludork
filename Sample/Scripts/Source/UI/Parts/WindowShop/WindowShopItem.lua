@@ -7,10 +7,6 @@ local _SHOP_ITEM_ROW_HEIGHT = 32
 
 local WindowShopItemUI = {}
 
-local function loadItemIcon(iconPath)
-    return IconTexture.Load(iconPath, "Characters/items")
-end
-
 function WindowShopItemUI:init(model, size)
     self._size = size
     self._cellControllers = {}
@@ -57,7 +53,7 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
         end
         self.model._cellAvailable[#self.model._cellAvailable + 1] = available
         local cellController = WindowShopCellUI.new({
-            iconTexture = loadItemIcon(member.icon or ""),
+            iconTexture = IconTexture.LoadItem(member.icon or ""),
             value = valueMap[itemID] or 0,
             available = available,
             callback = function (_obj, _kwargs)

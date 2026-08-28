@@ -83,10 +83,8 @@ function GameMapActors:getActorLayer(actor)
         return registeredLayer
     end
     for layerName, actorList in pairs(self._actors) do
-        for _, listed in ipairs(actorList) do
-            if listed == actor then
-                return layerName
-            end
+        if table.contains(actorList, actor) then
+            return layerName
         end
     end
     return nil
@@ -233,13 +231,13 @@ function GameMapActors:isPassable(actor, targetPosition)
         direction = Engine.Direction.LEFT
     end
     if direction ~= nil then
-        ---@type dict<tuple<any>, boolean>
+        ---@type dict<tuple<integer>, boolean>
         local currentCells = dict()
         for _, cell in ipairs(actor:getOccupiedMapCellsAtMapPosition(currentPosition)) do
-            currentCells[tuple { cell.x, cell.y }] = true
+            currentCells[tuple(cell.x, cell.y)] = true
         end
         for _, cell in ipairs(occupied) do
-            if not currentCells:get(tuple { cell.x, cell.y }) then
+            if not currentCells:get(tuple(cell.x, cell.y)) then
                 local previousX = cell.x - delta.x
                 local previousY = cell.y - delta.y
                 local previousPosition = sf.Vector2i.new(previousX, previousY)

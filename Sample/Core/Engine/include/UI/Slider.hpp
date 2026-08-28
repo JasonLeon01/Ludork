@@ -14,9 +14,7 @@
 #include <memory>
 #include <utility>
 
-BIND_CLASS(callbacks =
-               "getSize,getLocalBounds,update,onClick,onMouseButtonDown,"
-               "onMouseMoved,onKeyDown,draw")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Slider : public ControlBase, public FunctionalBase {
 public:
     BIND_INIT()
@@ -30,7 +28,7 @@ public:
     Slider(Slider&&) = delete;
     Slider& operator=(Slider&&) = delete;
 
-    BIND_METHOD()
+    BIND_METHOD(callback = false)
     void setVisible(bool visible) override;
 
     BIND_METHOD(Pure = true)

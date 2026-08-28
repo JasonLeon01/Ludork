@@ -34,7 +34,7 @@ public:
     std::string transition;
 };
 
-BIND_CLASS(callbacks = "moveWithin")
+BIND_CLASS(callbacks = true)
 class FocusGroup : public RuntimeObject {
 public:
     BIND_INIT(defaults = {{}, nil})

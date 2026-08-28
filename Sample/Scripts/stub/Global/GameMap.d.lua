@@ -1,6 +1,8 @@
 ---@meta Global.GameMap
 
 ---@alias Global.GameMap.TerrainTileID integer | string | nil
+---@alias Global.GameMap.StaticTransmissionElement boolean | tuple<string | integer>
+---@alias Global.GameMap.StaticTransmissionSignature tuple<Global.GameMap.StaticTransmissionElement>
 
 ---@brief Game map managing tile layers, actors, lights, collisions, and pathfinding.
 ---
@@ -18,9 +20,37 @@
 ---@field layer   Engine.TileLayer
 ---@field visible boolean
 
+---@class Global.GameMap.SparseWorldConfig
+---@field size                      sf.Vector2u
+---@field layerOrder                string[]
+---@field tilePassabilityQuery      fun(position: sf.Vector2i): boolean
+---@field directionPassabilityQuery fun(fromPosition: sf.Vector2i, toPosition: sf.Vector2i, direction: integer): boolean
+---@field topMaterialQuery          fun(position: sf.Vector2i): Engine.Material | nil
+
+---@class Global.GameMap.WorldTileMaskConfig
+---@field targetSize     sf.Vector2f
+---@field viewSize       sf.Vector2f
+---@field viewPosition   sf.Vector2f
+---@field viewRotation   number
+---@field regionSize     sf.Vector2f
+---@field regionPosition sf.Vector2f
+
+---@class Global.GameMap.ActiveLight
+---@field light GlobalCore.Light
+---@field owner Engine.Actor | nil
+
+---@class Global.GameMap.LightCacheEntry
+---@field [1] number
+---@field [2] number
+---@field [3] number
+---@field [4] number
+---@field [5] number
+---@field [6] number
+---@field [7] number
+
 ---@class (partial) GameMap: GlobalCore.GameMapBase
 ---@field DefaultCoverAlpha                  integer
----@field MapViewRect                        sf.IntRect                                                                                                Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
+---@field MapViewRect                        sf.IntRect                                                                                                                                                      Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
 ---@field _tilemap                           Engine.Tilemap
 ---@field _camera                            GlobalCore.Camera | nil
 ---@field _mapViewRect                       sf.IntRect
@@ -36,6 +66,7 @@
 ---@field _staticTransmission                sf.RenderTexture | nil
 ---@field _dynamicTransmission               sf.RenderTexture | nil
 ---@field _directLight                       sf.RenderTexture | nil
+---@field _directLightCleared                boolean
 ---@field _staticDirectLight                 sf.RenderTexture | nil
 ---@field _surfaceMask                       sf.RenderTexture | nil
 ---@field _lightPassQuad                     sf.RectangleShape | nil
@@ -51,12 +82,17 @@
 ---@field _damageTextConfig                  Engine.PlainTextConfig | nil
 ---@field _actorShaderBuffer                 sf.RenderTexture | nil
 ---@field _actorHueBuffer                    sf.RenderTexture | nil
----@field _cachedActiveLights                table[] | nil
+---@field _cachedActiveLights                Global.GameMap.LightCacheEntry[] | nil
+---@field _unobstructedLightCache            Global.GameMap.LightCacheEntry[] | nil
 ---@field _cachedLightMaterialRevision       integer
----@field _cachedLightTransmissionSignature  tuple<any> | nil
+---@field _cachedLightTransmissionSignature  Global.GameMap.StaticTransmissionSignature | nil
 ---@field _staticTransmissionRevision        integer
----@field _staticTransmissionSignature       tuple<any> | nil
+---@field _staticTransmissionSignature       Global.GameMap.StaticTransmissionSignature | nil
 ---@field _staticHasTransmissionLoss         boolean
+---@field _staticTextureOrigin               sf.Vector2f
+---@field _staticTextureSize                 sf.Vector2f
+---@field _staticOccupancyOrigin             sf.Vector2f
+---@field _staticOccupancySize               sf.Vector2f
 ---@field _materialDirty                     boolean
 ---@field _materialRevision                  integer
 ---@field _tilePassableGrid                  boolean[][] | nil
@@ -64,7 +100,7 @@
 ---@field _layerMaskTextureCache             table<string, GameMapLayerMaskTextureCacheEntry>
 ---@field _coverLayerStates                  GameMapCoverLayerState[] | nil
 ---@field mapName                            string
----@field new                                fun(mapName: string, tilemap: Engine.Tilemap, camera?: GlobalCore.Camera, previewOnly?: boolean): GameMap
+---@field new                                fun(mapName: string, tilemap: Engine.Tilemap, camera?: GlobalCore.Camera, previewOnly?: boolean, sparseWorldConfig?: Global.GameMap.SparseWorldConfig): GameMap
 local GameMap = {}
 
 ---@brief Construct a game map.
@@ -73,11 +109,23 @@ local GameMap = {}
 --- - @param tilemap The tilemap data.
 --- - @param camera Optional camera; a default one is created if not provided.
 --- - @param previewOnly Whether to skip resources only needed by the live map.
----@param mapName     string
----@param tilemap     Engine.Tilemap
----@param camera      GlobalCore.Camera | nil
----@param previewOnly boolean | nil
-function GameMap:init(mapName, tilemap, camera, previewOnly) end
+--- - @param sparseWorldConfig Optional sparse-world native query configuration.
+---@param mapName           string
+---@param tilemap           Engine.Tilemap
+---@param camera            GlobalCore.Camera | nil
+---@param previewOnly       boolean | nil
+---@param sparseWorldConfig Global.GameMap.SparseWorldConfig | nil
+function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig) end
+
+---@return boolean
+function GameMap:isWorldMap() end
+
+---@param deltaTime number
+function GameMap:updateAutoTileAnimation(deltaTime) end
+
+function GameMap:disposeStreaming() end
+
+function GameMap:drawMapFogOverlay() end
 
 ---@param component ComponentBase
 function GameMap:addComponent(component) end
@@ -374,6 +422,9 @@ function GameMap:setAmbientLight(ambientLight) end
 ---@return sf.Vector2u
 function GameMap:getSize() end
 
+---@return Global.WorldGeometry.CellRect
+function GameMap:_getGameplayCellRect() end
+
 ---@brief Get the logical-screen rectangle occupied by the map canvas.
 ---
 --- - @return The immutable map canvas rectangle for this GameMap instance.
@@ -556,7 +607,7 @@ function GameMap:onFixedTick(fixedDelta) end
 --- - @param states Optional render states for normal map draws.
 --- - @param applyPlayerCover Whether to apply the player cover transparency pass.
 ---@param target            sf.RenderTarget
----@param states            Engine.RenderStates | nil
+---@param states            sf.RenderStates | nil
 ---@param applyPlayerCover? boolean
 function GameMap:drawMapContent(target, states, applyPlayerCover) end
 

@@ -8,7 +8,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/System/Vector2.hpp>
 
-BIND_CLASS(callbacks = "getSize,getLocalBounds,draw")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ProgressBar : public ControlBase {
 public:
     BIND_INIT()

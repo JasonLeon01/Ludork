@@ -10,9 +10,7 @@
 #include <memory>
 #include <optional>
 
-BIND_CLASS(callbacks =
-               "getSize,getLocalBounds,getGlobalBounds,getRenderStates,draw,_"
-               "applyRenderStates,_getRenderTransform")
+BIND_CLASS(callbacks = true)
 class SpriteBase : public ControlBase {
 public:
     BIND_INIT()

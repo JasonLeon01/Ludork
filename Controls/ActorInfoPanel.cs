@@ -431,10 +431,10 @@ public sealed class ActorInfoPanel : UserControl
         {
             return;
         }
-        gameData.RecordSnapshot();
+        recordMapSnapshot();
         changes.Remove(name);
         cleanupClassVarChanges(actorData);
-        gameData.refreshModifiedState();
+        markMapModified();
         editorPanel.refreshSelectedActor();
         refreshClassDetail();
     }
@@ -447,10 +447,10 @@ public sealed class ActorInfoPanel : UserControl
         {
             return;
         }
-        gameData.RecordSnapshot();
+        recordMapSnapshot();
         changes.Clear();
         cleanupClassVarChanges(actorData);
-        gameData.refreshModifiedState();
+        markMapModified();
         editorPanel.refreshSelectedActor();
         refreshClassDetail();
     }
@@ -530,9 +530,13 @@ public sealed class ActorInfoPanel : UserControl
         }
         if (string.Equals(oldTag, tag, StringComparison.Ordinal))
             return;
-        gameData.RecordSnapshot();
+        recordMapSnapshot();
         actorData["tag"] = tag;
         moveClassVarChanges(oldTag, tag);
+        if (mapKey is not null)
+            gameData.NotifyMapActorsChanged(mapKey);
+        if (mapKey is not null)
+            gameData.NotifyMapContentChanged(mapKey);
         gameData.refreshModifiedState();
         editorPanel.refreshSelectedActor();
         ActorTagChanged?.Invoke(this, new ActorSelectionChangedEventArgs(
@@ -564,7 +568,7 @@ public sealed class ActorInfoPanel : UserControl
             return;
         }
 
-        gameData.RecordSnapshot();
+        recordMapSnapshot();
         if (isDefault)
         {
             changes!.Remove(args.Name);
@@ -579,11 +583,30 @@ public sealed class ActorInfoPanel : UserControl
             displayValues[args.Name] = cloneNode(value);
             overriddenFields.Add(args.Name);
         }
-        gameData.refreshModifiedState();
+        markMapModified();
         editorPanel.refreshSelectedActor();
         updateResetActions();
         if (args.RequiresRefresh)
             Dispatcher.UIThread.Post(refreshClassDetail);
+    }
+
+    private void recordMapSnapshot()
+    {
+        if (gameData is null)
+            return;
+        if (mapKey is null)
+            gameData.RecordSnapshot();
+        else
+            gameData.RecordMapSnapshot(mapKey);
+    }
+
+    private void markMapModified()
+    {
+        if (gameData is null)
+            return;
+        if (mapKey is not null)
+            gameData.NotifyMapContentChanged(mapKey);
+        gameData.refreshModifiedState();
     }
 
     private void onPositionChanged(object? sender, NumericUpDownValueChangedEventArgs args)

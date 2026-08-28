@@ -277,6 +277,7 @@ def parse_binding_options(
         "aliases",
         "allow_nil",
         "cache",
+        "callback",
         "defaults",
         "global",
         "globals",
@@ -697,6 +698,20 @@ def validate_member_annotation(
     )
     location = f"{path}:{member.line}: {qualified_name}"
     validate_lowercase_literals(member.options, member.decorators, location)
+    if "callback" in member.options:
+        if member.kind != "METHOD":
+            raise ValueError(
+                f"{location}: callback is supported only by BIND_METHOD"
+            )
+        if member.options["callback"].lower() != "false":
+            raise ValueError(
+                f"{location}: BIND_METHOD callback only supports false; "
+                "enable automatic callbacks with BIND_CLASS(callbacks = true)"
+            )
+        if "property" in member.options:
+            raise ValueError(
+                f"{location}: computed properties cannot declare callback"
+            )
     decorator_kinds = {kind for kind, _ in member.decorators}
     execution_kinds = decorator_kinds & {
         "EXECSPLIT",
@@ -819,6 +834,13 @@ def parse_header(
         )
         class_options = parse_macro_options(match.group(1))
         class_line = text.count("\n", 0, match.start()) + 1
+        if "callbacks" in class_options and (
+            class_options["callbacks"].lower() != "true"
+        ):
+            raise ValueError(
+                f"{path}:{class_line}: BIND_CLASS callbacks only supports "
+                "callbacks = true; callback name lists are no longer supported"
+            )
         validate_retired_path_options(
             class_options,
             "CLASS",

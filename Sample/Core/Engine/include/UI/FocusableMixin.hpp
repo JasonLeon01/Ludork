@@ -12,7 +12,7 @@ BIND_MODULE_PROPERTY(name = "FocusDirection", readonly = true)
 extern LUDORK_ENGINE_API const std::unordered_map<std::string, std::string>
     FocusDirection;
 
-BIND_CLASS(callbacks = "onFocusGained,onFocusLost")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API FocusableMixin {
 public:
     BIND_INIT()

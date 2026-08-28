@@ -18,11 +18,7 @@
 #include <thread>
 #include <vector>
 
-BIND_CLASS(bind_bases = false, cast_bases = "SceneRuntime",
-           callbacks =
-               "onEnter,onQuit,onCreate,onInput,onTick,onLateTick,"
-               "onFixedTick,onDestroy,_drawSceneAnims,"
-               "_drawCommonTipOverlay,_renderHandle")
+BIND_CLASS(bind_bases = false, cast_bases = "SceneRuntime", callbacks = true)
 class SceneBase : public SceneRuntime {
 public:
     BIND_INIT()

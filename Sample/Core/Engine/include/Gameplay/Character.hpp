@@ -8,7 +8,7 @@
 #include <string>
 
 BIND_INVALID_VARS(vars = "defaultRect")
-BIND_CLASS(callbacks = "MapMove,_animate,_applyDirection")
+BIND_CLASS(callbacks = true)
 class Character : public Actor {
 public:
     BIND_INIT()

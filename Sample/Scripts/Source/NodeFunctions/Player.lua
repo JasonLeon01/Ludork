@@ -207,10 +207,8 @@ function Player.MeetPlayer(actors)
     if player == nil then
         return nil
     end
-    for _, actor in ipairs(actors) do
-        if actor == player then
-            return player
-        end
+    if table.contains(actors, player) then
+        return player
     end
     return nil
 end

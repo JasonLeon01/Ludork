@@ -65,4 +65,37 @@ struct TileLayerData {
         std::vector<AutoTile> autoTilePool = std::vector<AutoTile>(),
         std::vector<std::string> autoTileKeys = std::vector<std::string>(),
         std::string shaderPath = "");
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Construct preallocated layer data for incremental writes
+    ///
+    /// - \param layerName Layer name
+    /// - \param layerTileset Tileset used by this layer
+    /// - \param width Grid width in cells
+    /// - \param height Grid height in cells
+    /// - \param autoTilePool Autotile lookup pool
+    /// - \param autoTileKeys Autotile data keys matching the pool
+    /// - \param shaderPath Shader path relative to Assets/Shaders
+    ////////////////////////////////////////////////////////////
+    BIND_INIT()
+    TileLayerData(
+        std::string layerName, Tileset layerTileset, int width, int height,
+        std::vector<AutoTile> autoTilePool = std::vector<AutoTile>(),
+        std::vector<std::string> autoTileKeys = std::vector<std::string>(),
+        std::string shaderPath = "");
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Replace one rectangular block in both preallocated grids
+    ///
+    /// - \param x Zero-based destination column
+    /// - \param y Zero-based destination row
+    /// - \param tileBlock Static-tile block
+    /// - \param autoTileBlock Autotile block with the same dimensions
+    ////////////////////////////////////////////////////////////
+    BIND_METHOD(metadata = false)
+    void writeBlock(int x, int y, const TileGrid& tileBlock,
+                    const AutoTileGrid& autoTileBlock);
+
+    void validateBlock(int x, int y, const TileGrid& tileBlock,
+                       const AutoTileGrid& autoTileBlock) const;
 };

@@ -16,24 +16,29 @@ namespace ludork::standard::binding {
 
 namespace {
 
-bool tableContains(const sol::table& values, const sol::object& expected) {
+sol::optional<lua_Integer> tableIndex(const sol::table& values,
+                                      const sol::object& expected) {
     lua_State* state = values.lua_state();
     values.push();
-    const int tableIndex = lua_gettop(state);
+    const int valuesIndex = lua_gettop(state);
     for (lua_Integer index = 1;; ++index) {
-        lua_geti(state, tableIndex, index);
+        lua_geti(state, valuesIndex, index);
         if (lua_isnil(state, -1)) {
             lua_pop(state, 2);
-            return false;
+            return sol::nullopt;
         }
         expected.push();
         const bool equal = lua_compare(state, -2, -1, LUA_OPEQ) != 0;
         lua_pop(state, 2);
         if (equal) {
             lua_pop(state, 1);
-            return true;
+            return index;
         }
     }
+}
+
+bool tableContains(const sol::table& values, const sol::object& expected) {
+    return tableIndex(values, expected).has_value();
 }
 
 sol::table orderedStringKeys(const sol::table& values,
@@ -90,6 +95,7 @@ void registerTable(sol::state_view lua) {
     }
     sol::table tableLibrary = rawTable.as<sol::table>();
     tableLibrary.set_function("contains", &tableContains);
+    tableLibrary.set_function("index", &tableIndex);
     tableLibrary.set_function("orderedStringKeys", &orderedStringKeys);
 }
 

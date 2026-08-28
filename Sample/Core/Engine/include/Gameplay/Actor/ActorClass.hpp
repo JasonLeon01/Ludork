@@ -28,27 +28,7 @@ BIND_CLASS(
     bind_bases = false, runtime_bases = "BPBase,sf::Sprite",
     native_bases = "RuntimeObject,sf::Sprite",
     cast_bases = "RuntimeObject,sf::Sprite,sf::Drawable,sf::Transformable",
-    callbacks =
-        "update,lateUpdate,fixedUpdate,getPosition,getRelativePosition,"
-        "getMapPosition,getOccupiedMapCells,getOccupiedMapCellsAtMapPosition,"
-        "getCollisionEnabled,setCollisionEnabled,getPathfindingBlocks,"
-        "setPathfindingBlocks,isDestroyed,markDestroyed,"
-        "getRelativeMapPosition,getLocalBounds,getGlobalBounds,setPosition,"
-        "setRelativePosition,setMapPosition,setRelativeMapPosition,move,"
-        "getRotation,getRelativeRotation,setRotation,rotate,"
-        "setRelativeRotation,getScale,getRelativeScale,setScale,scale,"
-        "setRelativeScale,getOrigin,setOrigin,getTranslation,setTranslation,"
-        "setAlignment,getMap,setMap,getParent,setParent,getChildren,addChild,"
-        "removeChild,getVisible,setVisible,getAnimatable,setAnimatable,"
-        "getSpriteTexture,getTexture,setSpriteTexture,setTexture,"
-        "setTextureRect,getMaterial,setMaterial,getLightBlock,setLightBlock,"
-        "getMirror,setMirror,getReflectionStrength,setReflectionStrength,"
-        "getOpacity,setOpacity,getIgnoreLighting,setIgnoreLighting,setGraph,"
-        "getGraph,hasGraph,getMapTag,setMapTag,ensureMapTag,syncMapCache,"
-        "_superMove,_updatePositionFromParent,_updateRotationFromParent,"
-        "_updateScaleFromParent,_animate,destroy,MapMove,onCreate,onTick,"
-        "onLateTick,onFixedTick,onDestroy,onCollision,onOverlap,"
-        "_getContinueMoveOffset,_onArrivedAtMapCell")
+    callbacks = true)
 class LUDORK_ENGINE_API Actor : public RuntimeObject, public sf::Sprite {
 public:
     BIND_INIT()
@@ -413,6 +393,14 @@ public:
     BIND_REGISTER_EVENT()
     BIND_METHOD()
     virtual void onDestroy();
+
+    BIND_REGISTER_EVENT()
+    BIND_METHOD()
+    virtual void onWorldSleep();
+
+    BIND_REGISTER_EVENT()
+    BIND_METHOD()
+    virtual void onWorldWake(float elapsedSeconds);
 
     BIND_REGISTER_EVENT()
     BIND_METHOD()

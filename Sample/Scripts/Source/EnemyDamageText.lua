@@ -5,6 +5,7 @@ local Battler = require("Source.Battler")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Data = require("Source.Data")
+local EnemyText = require("Source.EnemyText")
 local Utils = require("Source.NodeFunctions.Utils")
 
 local Actor = Engine.Actor
@@ -30,8 +31,6 @@ end
 local getParentSize
 ---@type function
 local getPlayer
----@type function
-local formatCriticalText
 ---@type function
 local getBlankTexture
 ---@type function
@@ -113,7 +112,7 @@ function EnemyDamageText:onTick(_deltaTime)
     ---@cast damageType Source.Battler.DamageType
     ---@cast damage integer
     local damageText = damageType == DamageType.UNDEFEATABLE and "???" or tostring(Utils.ToShortNumber(damage))
-    local criticalText = formatCriticalText(parent:getCriticalValue(player))
+    local criticalText = EnemyText.FormatCritical(parent:getCriticalValue(player))
     local playerHP = player.infoComp.HP
     ---@cast playerHP integer
     if self:_setOverlayText(
@@ -328,17 +327,6 @@ function EnemyDamageText.GetDamageColor(damageType, damage, playerHP)
         return sf.Color.Red
     end
     return UIFunctions.GetDimGrey()
-end
-
----@param criticalValue integer
----@return string
-function formatCriticalText(criticalValue)
-    if criticalValue == -2 then
-        return ""
-    elseif criticalValue == -1 then
-        return "???"
-    end
-    return tostring(Utils.ToShortNumber(criticalValue))
 end
 
 ---@return sf.Texture

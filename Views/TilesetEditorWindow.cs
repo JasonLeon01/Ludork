@@ -8,6 +8,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Controls;
+using Ludork.Models;
 using Ludork.Services;
 using Ludork.ViewModels;
 using Ludork.Views.Utils;
@@ -266,6 +267,7 @@ internal sealed class TilesetEditorTab : Grid
         target.Remove(oldKey);
         target[nextKey] = value;
         value["name"] = nextKey;
+        gameData.NotifyAllMapPreviewsChanged();
         gameData.refreshModifiedState();
         refreshAll(nextKey);
     }
@@ -291,6 +293,7 @@ internal sealed class TilesetEditorTab : Grid
         copy["name"] = key;
         gameData.RecordSnapshot();
         target[key] = copy;
+        gameData.NotifyAllMapPreviewsChanged();
         gameData.refreshModifiedState();
         refreshAll(key);
     }
@@ -309,6 +312,7 @@ internal sealed class TilesetEditorTab : Grid
             ? (Dictionary<string, JsonObject>)gameData.AutoTileData
             : (Dictionary<string, JsonObject>)gameData.TilesetData;
         target.Remove(key);
+        gameData.NotifyAllMapPreviewsChanged();
         gameData.refreshModifiedState();
         refreshAll();
     }
@@ -388,14 +392,17 @@ internal sealed class TilesetEditorTab : Grid
 
     private List<string> getReferencingMaps(string key)
     {
-        return gameData.MapData
-            .Where(map => map.Value["layers"] is JsonObject layers && layers.Any(layer => layer.Value?["layerTileset"]?.GetValue<string>() == key))
-            .Select(map => map.Key)
+        return gameData.MapCatalog
+            .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
+            .Where(entry => gameData.ReadMapSnapshotWithoutCaching(entry.Key)?["layers"] is JsonObject layers
+                && layers.Any(layer => layer.Value?["layerTileset"]?.GetValue<string>() == key))
+            .Select(entry => entry.Key)
             .ToList();
     }
 
     private void onDataChanged()
     {
+        gameData.NotifyAllMapPreviewsChanged();
         gameData.refreshModifiedState();
         tileSelect.RefreshData();
     }

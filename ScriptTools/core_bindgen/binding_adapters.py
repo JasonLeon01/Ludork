@@ -43,21 +43,39 @@ def is_virtual_method(member: Member) -> bool:
 
 
 def declared_callback_members(info: TypeInfo) -> list[Member]:
-    names = option_list(info.options, "callbacks")
+    callbacks_enabled = info.options.get("callbacks", "false").lower() == "true"
+    excluded_members = [
+        member for member in info.methods if "callback" in member.options
+    ]
+    if excluded_members and not callbacks_enabled:
+        member = excluded_members[0]
+        raise ValueError(
+            f"BIND_METHOD callback exclusion {info.name}.{member.name} requires "
+            "BIND_CLASS(callbacks = true)"
+        )
+    for member in excluded_members:
+        if is_static_method(member) or not is_virtual_method(member):
+            raise ValueError(
+                f"BIND_METHOD callback exclusion {info.name}.{member.name} "
+                "requires a non-static virtual or override method"
+            )
+    if not callbacks_enabled:
+        return []
     result: list[Member] = []
-    for name in names:
-        matches = [member for member in info.methods if member.name == name]
-        if not matches:
+    names: set[str] = set()
+    for member in info.methods:
+        if member.options.get("callback", "true").lower() == "false":
+            continue
+        if is_static_method(member) or not is_virtual_method(member):
+            continue
+        if member.name in names:
             raise ValueError(
-                f"BIND_CLASS callback {info.name}.{name} must be a BIND_METHOD"
+                f"automatic BIND_CLASS callback {info.name}.{member.name} "
+                "cannot be overloaded; exclude all but one overload with "
+                "BIND_METHOD(callback = false)"
             )
-        if len(matches) != 1:
-            raise ValueError(
-                f"BIND_CLASS callback {info.name}.{name} cannot be overloaded"
-            )
-        if is_static_method(matches[0]):
-            raise ValueError(f"BIND_CLASS callback {info.name}.{name} cannot be static")
-        result.append(matches[0])
+        names.add(member.name)
+        result.append(member)
     return result
 
 
@@ -213,7 +231,7 @@ def singleton_registrations(
 
 def adapter_members(
     info: TypeInfo, type_map: dict[str, TypeInfo]
-) -> tuple[list[Member], list[Member], bool]:
+) -> tuple[list[Member], list[Member]]:
     callbacks = callback_members(info, type_map)
     protected = [
         member
@@ -221,17 +239,11 @@ def adapter_members(
         if member.access == "protected"
         and member.options.get("super", "true").lower() != "false"
     ]
-    virtual_callbacks = [member for member in callbacks if is_virtual_method(member)]
-    if callbacks and virtual_callbacks and len(virtual_callbacks) != len(callbacks):
-        raise ValueError(
-            f"BIND_CLASS callbacks on {info.name} must either all be virtual or all use the legacy callback constructor"
-        )
-    legacy = bool(callbacks) and not virtual_callbacks and not protected
     base_members: list[Member] = []
     for member in [*callbacks, *protected]:
         if member not in base_members:
             base_members.append(member)
-    return callbacks, base_members, legacy
+    return callbacks, base_members
 
 
 def callback_result_lines(
@@ -323,8 +335,8 @@ def callback_result_lines(
 def adapter_class_lines(
     context: GeneratorContext, info: TypeInfo, type_map: dict[str, TypeInfo]
 ) -> tuple[list[str], str | None]:
-    callbacks, base_members, legacy = adapter_members(info, type_map)
-    if legacy or (not callbacks and not base_members):
+    callbacks, base_members = adapter_members(info, type_map)
+    if not callbacks and not base_members:
         return [], None
     context.require_binding_feature("native")
     if callbacks:

@@ -258,12 +258,10 @@ function Battler:removeState(state)
         return
     end
     existing:setOwner(nil)
-    for index, value in ipairs(self._states) do
-        if value == existing then
-            table.remove(self._states, index)
-            self:_incrementCombatRevision()
-            return
-        end
+    local index = table.index(self._states, existing)
+    if index ~= nil then
+        table.remove(self._states, index)
+        self:_incrementCombatRevision()
     end
 end
 

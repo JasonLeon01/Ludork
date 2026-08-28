@@ -1,66 +1,37 @@
 local cjson = require("cjson")
 local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
+require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local GameMap = require("Global.GameMap")
+local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
+local WorldGeometry = require("Global.WorldGeometry")
 local PathPreviewComponent = require("Global.Components.PathPreviewComponent")
 local PathRouteState = require("Global.Components.PathRouteState")
 local Data = require("Source.Data")
 local MapPath = require("Source.MapPath")
-local System = require("Source.System")
 local MapClickAutoPath = require("Source.SceneComponents.MapClickAutoPath")
 local MovementDangerPreviewComponent = require("Source.SceneComponents.MovementDangerPreviewComponent")
 local MovementDangerState = require("Source.SceneComponents.MovementDangerState")
+local WorldDirectoryValidator = require("Source.SceneComponents.WorldDirectoryValidator")
+local MapDataParser = require("Source.SceneComponents.MapBuilder.MapDataParser")
+local MapBuilderWorldActors = require("Source.SceneComponents.MapBuilder.WorldActors")
+local MapBuilderWorldRegion = require("Source.SceneComponents.MapBuilder.WorldRegion")
+local MapBuilderWorldTiles = require("Source.SceneComponents.MapBuilder.WorldTiles")
 
 local ManagerFunctions = GlobalFunctions.Manager
 
-local MAP_DATA_ROOT = os.path.join(".", "Data", "Maps")
-local MAP_DATA_EXTENSION = ".json"
 local DAMAGE_TEXT_CONFIG = "Global/DamageText"
 local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
-
----@param data table
-local function normaliseMapData(data)
-    local seenLayers = {}
-    for _, layerName in ipairs(data.layerOrder) do
-        assert(data.layers[layerName] ~= nil, "Map layerOrder references a missing layer: " .. layerName)
-        assert(not seenLayers[layerName], "Map layerOrder contains a duplicate layer: " .. layerName)
-        seenLayers[layerName] = true
-    end
-    for layerName in pairs(data.layers) do
-        assert(seenLayers[layerName], "Map layer is missing from layerOrder: " .. layerName)
-    end
-    for layerName in pairs(data.actors or {}) do
-        assert(seenLayers[layerName], "Map actor group is missing from layerOrder: " .. layerName)
-    end
-    local ambientLight = data.ambientLight or { 255, 255, 255, 255 }
-    data.ambientLight = sf.Color.new(table.unpack(ambientLight))
-    local lights = {}
-    for index, lightData in ipairs(data.lights or {}) do
-        lights[index] = GlobalCore.Light.fromDict(lightData)
-    end
-    data.lights = lights
-    local serializedActors = data.actors or {}
-    local actors = {}
-    ---@cast serializedActors table<string, Source.Data.SerializedActorData[]>
-    ---@cast actors table<string, Source.Data.ActorData[]>
-    data.actors = actors
-    for layerName, actorDatas in pairs(serializedActors) do
-        local normalisedActorDatas = {}
-        actors[layerName] = normalisedActorDatas
-        for index, actorData in ipairs(actorDatas) do
-            local position = actorData.position or { 0, 0 }
-            local x = position[1] or 0
-            local y = position[2] or 0
-            normalisedActorDatas[index] = { bp = actorData.bp, tag = actorData.tag, position = sf.Vector2u.new(x, y) }
-        end
-    end
-end
-
----@type function
-local getMapPathCandidates
----@class Source.SceneComponents.SceneMapBuilder
+---@class (partial) Source.SceneComponents.SceneMapBuilder
 local SceneMapBuilder = {}
+
+---@param data integer[] | nil
+---@return sf.Color
+function SceneMapBuilder.BuildAmbientLight(data)
+    local values = data or { 255, 255, 255, 255 }
+    ---@diagnostic disable-next-line: param-type-mismatch, the map schema supplies three or four colour channels
+    return sf.Color.new(table.unpack(values))
+end
 
 function SceneMapBuilder:init()
     self._floorMapPreviewGameMaps = {}
@@ -72,7 +43,7 @@ end
 
 ---@diagnostic disable-next-line: unused
 function SceneMapBuilder:resolveMapPath(mapPath, currentMap)
-    local candidates = getMapPathCandidates(mapPath, currentMap)
+    local candidates = MapDataParser.GetPathCandidates(mapPath, currentMap)
     for _, candidate in ipairs(candidates) do
         if Engine.jsonExists(SceneMapBuilder.GetMapDataPath(candidate)) then
             return candidate
@@ -87,50 +58,73 @@ end
 function SceneMapBuilder:loadMapData(mapPath, currentMap)
     local resolvedPath = self:resolveMapPath(mapPath, currentMap)
     local _, extension = os.path.splitext(resolvedPath)
-    assert(extension:lower() == MAP_DATA_EXTENSION, "Unsupported map data format: " .. resolvedPath)
+    assert(extension:lower() == MapDataParser.EXTENSION, "Unsupported map data format: " .. resolvedPath)
+    local isWorldManifest = MapDataParser.IsWorldManifest(resolvedPath)
+    if isWorldManifest then
+        WorldDirectoryValidator.Validate(MapDataParser.DATA_ROOT, resolvedPath)
+    end
     local data = cjson.decode(Engine.getJSONText(SceneMapBuilder.GetMapDataPath(resolvedPath)))
     ---@cast data table
-    normaliseMapData(data)
-    ---@cast data Source.SceneComponents.MapData
-    return resolvedPath, data
+    if isWorldManifest then
+        assert(data.type == "worldMap", "_world.json must declare type as worldMap: " .. resolvedPath)
+        MapDataParser.NormaliseWorld(data, resolvedPath)
+        ---@cast data Source.SceneComponents.WorldMapData
+        return resolvedPath, data
+    end
+    assert(data.type ~= "worldMap", "worldMap data must use the fixed _world.json filename: " .. resolvedPath)
+    ---@cast data Source.SceneComponents.SerializedMapData
+    return resolvedPath, MapDataParser.NormaliseMap(data, SceneMapBuilder.BuildAmbientLight)
+end
+
+function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position)
+    local resolvedPath = self:resolveMapPath(mapPath, currentMap)
+    local worldManifestPath = nil
+    if MapDataParser.IsWorldManifest(resolvedPath) then
+        worldManifestPath = resolvedPath
+    else
+        local parent = os.path.dirname(resolvedPath)
+        if bool(parent) then
+            local candidate = MapPath.Normalise(os.path.join(parent, MapDataParser.WORLD_MANIFEST_FILE))
+            if Engine.jsonExists(SceneMapBuilder.GetMapDataPath(candidate)) then
+                worldManifestPath = candidate
+            end
+        end
+    end
+    if worldManifestPath == nil then
+        return resolvedPath, position, false, nil
+    end
+    local manifestFile, manifest = self:loadMapData(worldManifestPath, currentMap)
+    ---@cast manifest Source.SceneComponents.WorldMapData
+    if resolvedPath == manifestFile then
+        if position ~= nil then
+            local worldBounds = { x = 0, y = 0, width = manifest.width, height = manifest.height }
+            assert(
+                WorldGeometry.RectContainsPosition(worldBounds, position),
+                "World destination is outside world bounds: " .. manifestFile
+            )
+        end
+        return manifestFile, position, false, nil
+    end
+    for _, region in ipairs(manifest.regions) do
+        if region.path == resolvedPath then
+            if position == nil then
+                return manifestFile, nil, true, region
+            end
+            local childBounds = { x = 0, y = 0, width = region.width, height = region.height }
+            assert(
+                WorldGeometry.RectContainsPosition(childBounds, position),
+                "World child destination is outside the child map: " .. resolvedPath
+            )
+            local worldPosition = sf.Vector2i.new(position.x + region.x, position.y + region.y)
+            ---@cast worldPosition sf.Vector2i
+            return manifestFile, worldPosition, true, region
+        end
+    end
+    error("World child map is not placed in its manifest: " .. resolvedPath, 2)
 end
 
 function SceneMapBuilder.GetMapDataPath(mapPath)
-    return os.path.join(MAP_DATA_ROOT, MapPath.Normalise(mapPath))
-end
-
----@param mapPath    string
----@param currentMap string | nil
----@return string[]
-function getMapPathCandidates(mapPath, currentMap)
-    mapPath = MapPath.Normalise(mapPath)
-    if not bool(mapPath) then
-        return {}
-    end
-    local candidates = {}
-    local seen = {}
-    ---@param candidate string
-    local function append(candidate)
-        if not seen[candidate] then
-            seen[candidate] = true
-            candidates[#candidates + 1] = candidate
-        end
-    end
-    local stem, extension = os.path.splitext(mapPath)
-    extension = extension:lower()
-    if bool(extension) then
-        append(mapPath)
-        if extension == MAP_DATA_EXTENSION then
-            append(stem .. MAP_DATA_EXTENSION)
-        end
-    else
-        local _, currentExtension = os.path.splitext(MapPath.Normalise(currentMap or System.GetStartMap()))
-        if currentExtension:lower() == MAP_DATA_EXTENSION then
-            append(mapPath .. currentExtension:lower())
-        end
-        append(mapPath .. MAP_DATA_EXTENSION)
-    end
-    return candidates
+    return MapDataParser.GetDataPath(mapPath)
 end
 
 function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
@@ -145,8 +139,9 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         local tiles = {}
         for y = 1, mapHeight do
             local row = { n = mapWidth }
+            local rawTileRow = assert(layerTiles[y], "Map tile grid row is missing")
             for x = 1, mapWidth do
-                local tile = layerTiles[y][x]
+                local tile = rawTileRow[x]
                 if tile ~= cjson.null then
                     row[x] = tile
                 end
@@ -196,9 +191,7 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         for index, entry in ipairs(autoTilePool) do
             local texture = ManagerFunctions.loadAutotile(entry.fileName)
             autoTileTextures[index] = texture
-            local size = texture:getSize()
-            local frames = Engine.CellSize > 0 and math.floor(size.x / (3 * Engine.CellSize)) or 1
-            autoTileFrameCounts[index] = math.max(1, frames)
+            autoTileFrameCounts[index] = AutoTileRuntime.GetFrameCount(texture)
         end
         mapLayers[#mapLayers + 1] = Engine.TileLayer.new(
             tileLayerData, ManagerFunctions.loadTileset(tileLayerData.layerTileset.fileName), autoTileTextures,
@@ -206,6 +199,39 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         )
     end
     return Engine.Tilemap.new(mapLayers)
+end
+
+function SceneMapBuilder.GenerateActors(data)
+    local classVarChanges = data.BPClassVarChanged
+    local actors = {}
+    for _, layerName in ipairs(data.layerOrder) do
+        local layerActors = {}
+        actors[layerName] = layerActors
+        for _, actorData in ipairs(data.actors[layerName] or {}) do
+            local actorChanges = nil
+            if classVarChanges ~= nil then
+                actorChanges = classVarChanges[tostring(actorData.tag or "")]
+            end
+            local actor = Data.GenActorFromData(actorData, layerName, actorChanges)
+            if actor ~= nil then
+                layerActors[#layerActors + 1] = actor
+            end
+        end
+    end
+    return actors
+end
+
+---@param gameMap GameMap
+---@diagnostic disable-next-line: unused
+function SceneMapBuilder:_configureInteractiveMap(gameMap)
+    local pathRouteState = PathRouteState.new()
+    local movementDangerState = MovementDangerState.new(gameMap)
+    gameMap:addComponent(movementDangerState)
+    gameMap:addComponent(MovementDangerPreviewComponent.new(gameMap, movementDangerState))
+    gameMap:addComponent(MapClickAutoPath.new(gameMap, pathRouteState, movementDangerState))
+    gameMap:addComponent(PathPreviewComponent.new(gameMap, pathRouteState))
+    gameMap:setDamageTextConfig(Data.GetPlainTextConfig(DAMAGE_TEXT_CONFIG))
+    gameMap:setDamageTextSpeedCurve(Data.GetCurve(DAMAGE_TEXT_SPEED_CURVE))
 end
 
 ---@diagnostic disable-next-line: unused
@@ -217,33 +243,17 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
     local result = GameMap.new(data.mapName, tilemap, camera, previewOnly)
     result:setAutoTileResolver(Data.GetAutoTile)
     if not previewOnly then
-        local pathRouteState = PathRouteState.new()
-        local movementDangerState = MovementDangerState.new(result)
-        result:addComponent(movementDangerState)
-        result:addComponent(MovementDangerPreviewComponent.new(result, movementDangerState))
-        result:addComponent(MapClickAutoPath.new(result, pathRouteState, movementDangerState))
-        result:addComponent(PathPreviewComponent.new(result, pathRouteState))
-        result:setDamageTextConfig(Data.GetPlainTextConfig(DAMAGE_TEXT_CONFIG))
-        result:setDamageTextSpeedCurve(Data.GetCurve(DAMAGE_TEXT_SPEED_CURVE))
+        self:_configureInteractiveMap(result)
         result:setAmbientLight(data.ambientLight)
         for _, light in ipairs(data.lights) do
             result:addLight(light)
         end
     end
-    local classVarChanges = data.BPClassVarChanged
-    local actors = data.actors
+    local actors = SceneMapBuilder.GenerateActors(data)
     result:beginActorBatch()
     for _, layerName in ipairs(data.layerOrder) do
-        local actorDatas = actors[layerName] or {}
-        for _, actorData in ipairs(actorDatas) do
-            local actorChanges = nil
-            if classVarChanges ~= nil then
-                actorChanges = classVarChanges[tostring(actorData.tag or "")]
-            end
-            local actor = Data.GenActorFromData(actorData, layerName, actorChanges)
-            if actor ~= nil then
-                result:spawnActor(actor, layerName, false)
-            end
+        for _, actor in ipairs(actors[layerName]) do
+            result:spawnActor(actor, layerName, false)
         end
     end
     result:endActorBatch()
@@ -251,26 +261,6 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
         result:initialiseActorsAndComponents()
     end
     return result
-end
-
----@param actorsByTag table<string, Engine.Actor>
----@param root        Engine.Actor
-local function indexActorTreeByTag(actorsByTag, root)
-    ---@type Engine.Actor[]
-    local actors = { root }
-    local index = 1
-    while index <= #actors do
-        local actor = actors[index]
-        ---@cast actor Engine.Actor
-        local actorTag = actor:getMapTag()
-        if actorTag ~= nil and actorsByTag[actorTag] == nil then
-            actorsByTag[actorTag] = actor
-        end
-        for _, child in ipairs(actor:getChildren()) do
-            actors[#actors + 1] = child
-        end
-        index = index + 1
-    end
 end
 
 ---@diagnostic disable-next-line: unused
@@ -297,7 +287,7 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
             if actor ~= nil then
                 actor:setMapPosition(actorRecord.position)
                 gameMap:spawnActor(actor, actorRecord.layer, false)
-                indexActorTreeByTag(actorsByTag, actor)
+                self:_indexActorTreeByTag(actorsByTag, actor)
                 addedAny = true
             end
         end
@@ -315,6 +305,8 @@ function SceneMapBuilder:buildFloorMapPreview(
     if self._floorMapPreviewGameMaps[mapPath] == nil then
         local resolvedPath, mapData = self:loadMapData(mapPath, currentMap)
         mapPath = resolvedPath
+        assert(mapData.type ~= "worldMap", "Floor map preview does not support world manifests: " .. mapPath)
+        ---@cast mapData Source.SceneComponents.MapData
         local gameMap = self:generateGameMap(mapData, nil, false, true)
         gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
         self:applyAddedActors(gameMap, inst:getAddedActors(mapPath), false)
@@ -382,4 +374,4 @@ function SceneMapBuilder:resolveRegionMapPath(mapKey, currentMap)
     return self:resolveMapPath(mapKey, currentMap)
 end
 
-return class(SceneMapBuilder)
+return class(SceneMapBuilder, MapBuilderWorldActors, MapBuilderWorldRegion, MapBuilderWorldTiles)

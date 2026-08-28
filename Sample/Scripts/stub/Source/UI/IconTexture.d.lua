@@ -9,4 +9,8 @@ local IconTexture = {}
 ---@return sf.Texture | nil
 function IconTexture.Load(iconPath, defaultFolder, defaultExtension) end
 
+---@param iconPath string
+---@return sf.Texture | nil
+function IconTexture.LoadItem(iconPath) end
+
 return IconTexture

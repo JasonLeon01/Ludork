@@ -1,0 +1,61 @@
+{
+  "type": "worldMap",
+  "width": 40,
+  "height": 30,
+  "fog": "",
+  "fogPower": 0,
+  "fogOx": 0,
+  "fogOy": 0,
+  "fogDistort": 0,
+  "layerOrder": [
+    "floor",
+    "default"
+  ],
+  "placements": [
+    {
+      "map": "Map_w01_01.json",
+      "rect": [
+        0,
+        0,
+        20,
+        15
+      ]
+    },
+    {
+      "map": "Map_W01_02.json",
+      "rect": [
+        20,
+        0,
+        20,
+        15
+      ]
+    },
+    {
+      "map": "Map_W01_03.json",
+      "rect": [
+        0,
+        15,
+        15,
+        15
+      ]
+    },
+    {
+      "map": "Map_W01_04.json",
+      "rect": [
+        15,
+        15,
+        10,
+        15
+      ]
+    },
+    {
+      "map": "Map_W01_05.json",
+      "rect": [
+        25,
+        15,
+        15,
+        15
+      ]
+    }
+  ]
+}

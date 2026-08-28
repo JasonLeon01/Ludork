@@ -253,16 +253,9 @@ function WindowAttrShopUI:confirmItem()
         self:closeByCancel()
         return
     end
-    ---@type integer | nil
-    local abilityIndex = nil
-    for index, key in ipairs(self.model._abilityKeys) do
-        if key == abilityKey then
-            abilityIndex = index
-            break
-        end
-    end
-    assert(abilityIndex ~= nil, "Selected attribute is missing from the attribute shop model")
-    ---@cast abilityIndex - nil
+    local abilityIndex = assert(
+        table.index(self.model._abilityKeys, abilityKey), "Selected attribute is missing from the attribute shop model"
+    )
     local price = self:getPrices()[abilityIndex]
     ---@cast price - nil
     if not selectable:isCurrentAvailable() or self.model._player.infoComp[self.model._moneyName] == nil

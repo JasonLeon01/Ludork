@@ -51,11 +51,9 @@ function DamageTextParticle:destroy()
             parent:removeText(particleState.textParticle)
         end
     end
-    for index, current in ipairs(DamageTextParticle._active) do
-        if current == self then
-            table.remove(DamageTextParticle._active, index)
-            break
-        end
+    local index = table.index(DamageTextParticle._active, self)
+    if index ~= nil then
+        table.remove(DamageTextParticle._active, index)
     end
 end
 

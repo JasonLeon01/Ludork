@@ -25,6 +25,7 @@ local _LANGUAGE_PAGE_INDEX = 2
 local _TAB_LOCALE_KEYS = { "graphics", "audio", "other" }
 local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
 local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
+---@type string[]
 local _ANTI_ALIASING_LEVEL_ITEMS = { "0", "2", "4", "8" }
 local _LIGHTING_RENDER_SCALE_VALUES = { 0.5, 0.75, 1.0 }
 local _LIGHTING_RENDER_SCALE_ITEMS = { "50%", "75%", "100%" }
@@ -91,21 +92,14 @@ end
 ---@param scale       number
 ---@return integer
 local function findScaleIndex(scaleValues, scale)
-    for index, value in ipairs(scaleValues) do
-        if value == scale then
-            return index - 1
-        end
-    end
-    return 0
+    return (table.index(scaleValues, scale) or 1) - 1
 end
 
 local function getAntiAliasingLevelItems(level)
     local items = copy(_ANTI_ALIASING_LEVEL_ITEMS)
     local value = tostring(level)
-    for _, item in ipairs(items) do
-        if item == value then
-            return items
-        end
+    if table.contains(items, value) then
+        return items
     end
     items[#items + 1] = value
     table.sort(items, function (left, right)

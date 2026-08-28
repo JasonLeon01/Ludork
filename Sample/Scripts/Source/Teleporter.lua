@@ -6,8 +6,6 @@ local MapPath = require("Source.MapPath")
 
 local Actor = Engine.Actor
 local ManagerFunctions = GlobalFunctions.Manager
----@type function
-local normaliseMapName
 
 local Teleporter = {}
 
@@ -113,28 +111,20 @@ function Teleporter.IsAsideOrOverlapping(actors, position)
         return false
     end
     local actorPosition = nearest:getMapPosition()
-    return math.abs(actorPosition.x - position.x) + math.abs(actorPosition.y - position.y) <= 1
+    return Engine.ManhattanDistance(actorPosition, position) <= 1
 end
 
 ---@param regionMaps string[]
 ---@param currentMap string
 ---@return integer | nil
 function Teleporter.FindCurrentMapIndex(regionMaps, currentMap)
-    local currentName = normaliseMapName(currentMap)
+    local currentName = MapPath.BasenameWithoutExtension(currentMap)
     for index, mapPath in ipairs(regionMaps) do
-        if normaliseMapName(mapPath) == currentName then
+        if MapPath.BasenameWithoutExtension(mapPath) == currentName then
             return index
         end
     end
     return nil
-end
-
----@param mapPath string
----@return string
-function normaliseMapName(mapPath)
-    local path = MapPath.Normalise(mapPath)
-    path = path:match("([^/]+)$") or path
-    return path:gsub("%.[^%.]+$", "")
 end
 
 return class(Teleporter, Actor)

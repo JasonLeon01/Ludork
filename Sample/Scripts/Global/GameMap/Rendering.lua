@@ -69,10 +69,8 @@ function GameMapRendering:_getPlayerLayerIndex(layerKeys)
         return -1
     end
     for index, name in ipairs(layerKeys) do
-        for _, actor in ipairs(self._actors[name] or {}) do
-            if actor == self._player then
-                return index - 1
-            end
+        if table.contains(self._actors[name] or {}, self._player) then
+            return index - 1
         end
     end
     return -1
@@ -102,7 +100,7 @@ function GameMapRendering:_applyPlayerCover(layer, layerIndex, playerLayerIndex,
 end
 
 ---@param target           sf.RenderTarget
----@param states           Engine.RenderStates
+---@param states           sf.RenderStates
 ---@param layerName        string
 ---@param layerIndex       integer
 ---@param playerLayerIndex integer
@@ -149,7 +147,7 @@ function GameMapRendering:_drawActorPixelShatterEffects(target, layerName)
 end
 
 ---@param target     sf.RenderTarget
----@param states     Engine.RenderStates
+---@param states     sf.RenderStates
 ---@param actor      Engine.Actor
 ---@param actorAlpha integer
 function GameMapRendering:_drawActor(target, states, actor, actorAlpha)

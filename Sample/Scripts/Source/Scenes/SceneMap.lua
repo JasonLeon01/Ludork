@@ -1,17 +1,15 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local WorldGameMap = require("Global.WorldGameMap")
 local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
-local LocaleCore = require("Source.Locale.Core")
 local EventKeys = require("Source.Configs.EventKeys")
----@type { Item: Source.Configs.GeneralEnum.Item }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MapPath = require("Source.MapPath")
+local SceneMapInteractions = require("Source.Scenes.SceneMapInteractions")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local RegionTitleUI = require("Source.UI.RegionTitle")
-local UiLayout = require("Source.UI.UiLayout")
 local PlayerAttrHUD = require("Source.Windows.HUDPlayerAttr")
 local WindowEquipSelect = require("Source.Windows.WindowEquip.Select")
 local WindowEquipSlot = require("Source.Windows.WindowEquip.Slot")
@@ -28,7 +26,6 @@ local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
 local WindowShop = require("Source.Windows.WindowShop")
 
 local Input = Engine.Input
-local Node = Engine.Node
 local Direction = Engine.FocusDirection
 local FocusGroup = GlobalCore.FocusGroup
 local FocusNeighbor = GlobalCore.FocusNeighbor
@@ -36,40 +33,47 @@ local FocusTransition = GlobalCore.FocusTransition
 local SceneBase = GlobalCore.SceneBase
 local GlobalSystem = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
----@type fun(value: string): string
-local LOC = LocaleCore.ApplyStringLocaleFormat
 
-local ENEMY_BOOK_SIZE = 352
-local ENEMY_ENCYCLOPEDIA_WIDTH = 640
-local ENEMY_ENCYCLOPEDIA_HEIGHT = 480
 local EQUIP_SLOT_WIDTH = 196
 local EQUIP_SLOT_HEIGHT = 160
 local EQUIP_SELECT_HEIGHT = 192
 local EQUIP_STATUS_X = 384
-local MAP_TRANSITION_NAME = ""
-local MAP_TRANSITION_TIME = 0.5
-local ENEMY_BOOK_ITEM_ID = GeneralEnum.Item.EnemyBook
-local FLOOR_TELEPORTER_ITEM_ID = GeneralEnum.Item.Teleport
----@cast ENEMY_BOOK_ITEM_ID string
----@cast FLOOR_TELEPORTER_ITEM_ID string
+local WORLD_AMBIENT_TRANSITION_TIME = 0.5
 
 ---@param name    string
----@param control any
+---@param control Engine.FunctionalBase
 ---@return GlobalCore.FocusGroup
 local function createSingleControlFocusGroup(name, control)
-    ---@cast control Engine.FunctionalBase
     return FocusGroup.new(name, { control }, control)
 end
 
 ---@param uiManager GlobalCore.UIManager
----@param control   any
-local function loadUiControl(uiManager, control)
-    ---@cast control Engine.ControlBase
-    uiManager:loadUI(control)
+---@param ...       Engine.ControlBase
+local function loadUiControls(uiManager, ...)
+    ---@type Engine.ControlBase[]
+    local controls = { ... }
+    for _, control in ipairs(controls) do
+        uiManager:loadUI(control)
+    end
 end
 
----@class Source.Scenes.SceneMap.SceneMap: GlobalCore.SceneBase
+---@param from  sf.Color
+---@param to    sf.Color
+---@param alpha number
+---@return sf.Color
+local function interpolateColour(from, to, alpha)
+    return sf.Color.new(
+        Engine.Round(Engine.Lerp(from.r, to.r, alpha)), Engine.Round(Engine.Lerp(from.g, to.g, alpha)),
+        Engine.Round(Engine.Lerp(from.b, to.b, alpha)), Engine.Round(Engine.Lerp(from.a, to.a, alpha))
+    )
+end
+
+---@class (partial) Source.Scenes.SceneMap.SceneMap: GlobalCore.SceneBase
 local Scene = {}
+
+for name, method in pairs(SceneMapInteractions) do
+    Scene[name] = method
+end
 
 ---@diagnostic disable-next-line: unused
 function Scene:onEnter()
@@ -81,8 +85,7 @@ function Scene:setInst(inst)
 end
 
 function Scene:onCreate()
-    local uiManager = self:getUIManager()
-    ---@cast uiManager GlobalCore.UIManager
+    local uiManager = assert(self:getUIManager(), "Scene map UI manager is unavailable")
     uiManager:setFocusNavigationEnabled(true)
     self.player = self.inst:getPlayer()
     self._mapBuilder = SceneMapBuilder.new()
@@ -190,19 +193,15 @@ function Scene:onCreate()
     self._regionTitleUI = RegionTitleUI.new(GlobalSystem.getGameSize())
     self._regionTitleUI:prepare()
     self._regionTitleText = self._regionTitleUI:getText()
-    ---@type any[]
-    local uiWindows = {
-        self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquipSlot,
+    local tabWindow = assert(self._windowSaveLoad:getTabWindow(), "Map save tab window is missing")
+    loadUiControls(
+        uiManager, self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquipSlot,
         self._windowEquipSelect, self._windowEquipStatus, self._windowShop:getCommandWindow(),
         self._windowShop:getItemWindow(), self._windowAttrShop:getSelectable(), self._windowEnemyBook,
         self._windowEnemyEncyclopedia, self._windowFloorTeleporter:getCommandWindow(),
-        self._windowFloorTeleporter:getPreviewWindow(),
-        assert(self._windowSaveLoad:getTabWindow(), "Map save tab window is missing"),
-        self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(), self._configWindow
-    }
-    for _, window in ipairs(uiWindows) do
-        loadUiControl(uiManager, window)
-    end
+        self._windowFloorTeleporter:getPreviewWindow(), tabWindow, self._windowSaveLoad:getSlotWindow(),
+        self._windowSaveLoad:getDetailWindow(), self._configWindow
+    )
     self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
         local scene = sceneRef[1]
         if scene ~= nil then
@@ -218,14 +217,18 @@ function Scene:onCreate()
     self._mapInputBlockFrames = 0
     self._pendingMenuOpen = false
     self._pendingFloorTransfer = nil
+    self._pendingWorldTransfer = nil
     self._mapTransferInProgress = false
+    self._worldEnvironmentKey = nil
+    self._worldAmbientStartColour = nil
+    self._worldAmbientTargetColour = nil
+    self._worldAmbientTransitionElapsed = 0
     local startMap = self.inst._cachedMap or GameSystem.GetStartMap()
     self:gotoMapAndPos(startMap, nil, true)
 end
 
 function Scene:_registerFocusGroups()
-    local uiManager = self:getUIManager()
-    ---@cast uiManager GlobalCore.UIManager
+    local uiManager = assert(self:getUIManager(), "Scene map UI manager is unavailable")
     local menuGroup = createSingleControlFocusGroup("menu", self._windowMenu)
     local itemGroup = createSingleControlFocusGroup("item", self._windowItem)
     itemGroup:setNeighbor(Direction.LEFT, menuGroup)
@@ -271,6 +274,9 @@ function Scene:onQuit()
 end
 
 function Scene:onDestroy()
+    if self._gameMap ~= nil then
+        self._gameMap:disposeStreaming()
+    end
     ManagerFunctions.stopVoice()
     if self._localeChangedToken ~= nil then
         Engine.unsubscribe(self._localeChangedToken)
@@ -285,8 +291,15 @@ end
 
 function Scene:_refreshMapUiLocale()
     if self._dialogueLocaleSource ~= nil and self._messageWindow:isInDialogue() then
-        local name, content = self:_formatDialogueSource(self._dialogueLocaleSource)
-        self._messageWindow:refreshContent(name, content)
+        if self._dialogueLocaleSource.kind == "selection" then
+            ---@cast self._dialogueLocaleSource Source.Scenes.SceneMap.DialogueSelectionLocaleSource
+            local name, options = Scene.FormatDialogueSelectionSource(self._dialogueLocaleSource)
+            self._messageWindow:refreshSelection(name, options)
+        else
+            ---@cast self._dialogueLocaleSource Source.Scenes.SceneMap.DialogueMessageLocaleSource
+            local name, message = Scene.FormatDialogueMessageSource(self._dialogueLocaleSource)
+            self._messageWindow:refreshMessage(name, message)
+        end
     end
     self._windowMenu:refreshRows()
     self._windowItem:refreshLocale()
@@ -314,15 +327,7 @@ function Scene:onInput()
     for key, hotKeyConfig in pairs(HotKey) do
         local sceneType = hotKeyConfig.Scene
         if Class.isInstance(self, sceneType) then
-            local casual = false
-            if bool(hotKeyConfig.Filter) then
-                for _, filter in ipairs(hotKeyConfig.Filter) do
-                    if filter == "casual" then
-                        casual = true
-                        break
-                    end
-                end
-            end
+            local casual = bool(hotKeyConfig.Filter) and table.contains(hotKeyConfig.Filter, "casual")
             if casual then
                 local functionWhenPressed = hotKeyConfig.FunctionWhenPressed
                 if Scene.IsHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, false) then
@@ -339,7 +344,7 @@ function Scene:onInput()
     end
 end
 
----@param sceneType table
+---@param sceneType Class.ClassType<any>
 ---@param function_ function | nil
 ---@return boolean
 function Scene.IsHotKeySceneMethod(sceneType, function_)
@@ -357,6 +362,8 @@ function Scene.IsHotKeySceneMethod(sceneType, function_)
 end
 
 function Scene:onTick(deltaTime)
+    WorldGameMap.StepGarbageCollector()
+    self._mapAudio:onTick(deltaTime)
     if self._dialogueLocaleSource ~= nil and not self._messageWindow:isInDialogue() then
         self._dialogueLocaleSource = nil
     end
@@ -366,7 +373,8 @@ function Scene:onTick(deltaTime)
     self._mapClickMoveBlockedUntilLateTick = self:_isMapClickMoveBlocked()
     local gameMap = self:getGameMap()
     gameMap:onTick(deltaTime)
-    gameMap:getTilemap():updateAutoTileAnimation(deltaTime)
+    gameMap:updateAutoTileAnimation(deltaTime)
+    self:_updateWorldEnvironment(deltaTime)
     self:_updateRegionTitle(deltaTime)
     if self:_canOpenMenu() and Scene.IsMenuOpenTriggered() then
         self:openMenu()
@@ -392,566 +400,104 @@ function Scene:onLateTick(deltaTime)
     return super(Scene, self).onLateTick(deltaTime)
 end
 
-function Scene:loadMap(mapPath)
-    Logging.info("Loading map: %s", tostring(mapPath))
+function Scene:loadMap(mapPath, initialPosition)
+    Logging.info("Loading map: %s", mapPath)
     local startTime = perfCounter()
     local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:_getCurrentRegionMap())
-    local gameMap = self._mapBuilder:generateGameMap(mapData)
+    ---@type GameMap
+    local gameMap
+    if mapData.type == "worldMap" then
+        ---@cast mapData Source.SceneComponents.WorldMapData
+        gameMap = self._mapBuilder:generateWorldGameMap(mapFile, mapData, self.inst, initialPosition)
+    else
+        ---@cast mapData Source.SceneComponents.MapData
+        gameMap = self._mapBuilder:generateGameMap(mapData)
+    end
+    if self._gameMap ~= nil then
+        self._gameMap:disposeStreaming()
+    end
     self._gameMap = gameMap
     gameMap:setScene(self)
-    gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
-    self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile))
-    gameMap:applyActorPositions(self.inst:getActorPositions(mapFile))
-    gameMap:removeActorsByTags(self.inst:getDestroyedActors(mapFile))
-    gameMap:spawnActor(self.player, "default")
-    gameMap:setPlayer(self.player)
-    self._mapAudio:playMapAudio(mapData)
-    GlobalSystem.clearFog()
-    GlobalSystem.applyFogFromMapData({
-        fog = mapData.fog,
-        fogPower = mapData.fogPower,
-        fogOx = mapData.fogOx,
-        fogOy = mapData.fogOy,
-        fogDistort = mapData.fogDistort
-    })
+    if not gameMap:isWorldMap() then
+        gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
+        self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile))
+        gameMap:applyActorPositions(self.inst:getActorPositions(mapFile))
+        gameMap:removeActorsByTags(self.inst:getDestroyedActors(mapFile))
+    end
+    if gameMap:isWorldMap() then
+        gameMap:setPlayer(self.player)
+        gameMap:spawnActor(self.player, "default")
+    else
+        gameMap:spawnActor(self.player, "default")
+        gameMap:setPlayer(self.player)
+    end
+    self._worldEnvironmentKey = nil
+    self._worldAmbientStartColour = nil
+    self._worldAmbientTargetColour = nil
+    self._worldAmbientTransitionElapsed = 0
+    if not gameMap:isWorldMap() then
+        ---@cast mapData Source.SceneComponents.MapData
+        self._mapAudio:playMapAudio(mapData)
+        GlobalSystem.clearFog()
+        GlobalSystem.applyFogFromMapData({
+            fog = mapData.fog,
+            fogPower = mapData.fogPower,
+            fogOx = mapData.fogOx,
+            fogOy = mapData.fogOy,
+            fogDistort = mapData.fogDistort
+        })
+    end
     self:_updateCurrentRegion(mapFile)
     Logging.info("Loaded map %s in %.3fs", mapFile, perfCounter() - startTime)
+    if gameMap:isWorldMap() then
+        local worldMap = gameMap
+        ---@cast worldMap Global.WorldGameMap.WorldGameMap
+        worldMap:activateStreamingGarbageCollector()
+    end
     return mapFile
 end
 
-function Scene:getGameMap()
-    assert(self._gameMap ~= nil, "Scene map is not loaded")
-    return self._gameMap
-end
-
-function Scene:showMessage(name, message, refActor, localeArgs)
-    local refPosition = nil
-    if refActor ~= nil then
-        local gameMap = self:getGameMap()
-        refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
-        ---@cast refPosition sf.Vector2f
-    end
-    local originMoveEnabled = self.player:getMoveEnabled()
-    local restored = false
-    local function restoreMove()
-        if restored then
-            return
-        end
-        restored = true
-        self.player:setMoveEnabled(originMoveEnabled)
-        self:_blockMapInput(2)
-    end
-    self.player:setMoveEnabled(false)
-    local dialogueSource = self:_createDialogueLocaleSource(name, message, localeArgs, Scene.showMessage)
-    self._dialogueLocaleSource = dialogueSource
-    local formattedName, formattedMessage = self:_formatDialogueSource(dialogueSource)
-    local function finishDialogue()
-        restoreMove()
-    end
-    self._messageWindow:setMessage(refPosition, formattedName, formattedMessage, true, finishDialogue)
-    return function ()
-        if self._messageWindow:isInDialogue() then
-            return false
-        end
-        restoreMove()
-        return true
-    end
-end
-
-function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
-    if allowCancel == nil then
-        allowCancel = true
-    end
-    local refPosition = nil
-    if refActor ~= nil then
-        local gameMap = self:getGameMap()
-        refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
-        ---@cast refPosition sf.Vector2f
-    end
-    local originMoveEnabled = self.player:getMoveEnabled()
-    local restored = false
-    local function restoreMove()
-        if restored then
-            return
-        end
-        restored = true
-        self.player:setMoveEnabled(originMoveEnabled)
-        self:_blockMapInput(2)
-    end
-    self.player:setMoveEnabled(false)
-    local dialogueSource = self:_createDialogueLocaleSource(name, options, localeArgs, Scene.showSelection)
-    self._dialogueLocaleSource = dialogueSource
-    local formattedName, formattedOptions = self:_formatDialogueSource(dialogueSource)
-    local function finishDialogue()
-        restoreMove()
-    end
-    self._messageWindow:setMessage(refPosition, formattedName, formattedOptions, allowCancel, finishDialogue)
-    return function ()
-        local selectionResult = self._messageWindow:getSelectionResult()
-        if selectionResult == nil then
-            return nil
-        end
-        restoreMove()
-        return selectionResult
-    end
-end
-
-function Scene:applyLoadedGame(inst)
-    self.inst = inst
-    self.player = inst:getPlayer()
-    self:_rebindPlayerToUI()
-    local mapPath = inst._cachedMap or GameSystem.GetStartMap()
-    local position = self.player:getMapPosition()
-    self._cachedMapFile = nil
-    self._currentRegion = nil
-    self:gotoMapAndPos(mapPath, position)
-end
-
-function Scene:_rebindPlayerToUI()
-    self._windowItem:setPlayer(self.player)
-    self._windowEquipSlot:setPlayer(self.player)
-    self._windowEquipSelect:setPlayer(self.player)
-    self._windowEquipStatus:setPlayer(self.player)
-    self._windowMenu:setPlayer(self.player)
-    self._windowShop:setPlayer(self.player)
-    self._windowAttrShop:setPlayer(self.player)
-    self._windowEnemyBook:setPlayer(self.player)
-    self._playerHUD:setPlayer(self.player)
-end
-
-function Scene:showEnemyBook()
-    if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(ENEMY_BOOK_ITEM_ID) then
+function Scene:_updateWorldEnvironment(deltaTime, force)
+    if self._gameMap == nil or not self._gameMap:isWorldMap() then
         return
     end
-    if not self._windowEnemyBook:getVisible() then
-        self._enemyBookMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
-        self.player:setMoveEnabled(false)
+    local worldMap = self._gameMap
+    ---@cast worldMap Global.WorldGameMap.WorldGameMap
+    local region = worldMap:getRegionPosition(self.player:getMapPosition())
+    local regionPath = region ~= nil and region.path or ""
+    local mapData = worldMap:getEnvironmentDataAt(self.player:getMapPosition())
+    local environmentKey = regionPath .. ":" .. (mapData ~= nil and "loaded" or "empty")
+    if force or self._worldEnvironmentKey ~= environmentKey then
+        self._worldEnvironmentKey = environmentKey
+        local targetColour
+        if mapData == nil then
+            self._mapAudio:playMapAudio({}, 0.5)
+            targetColour = sf.Color.new(255, 255, 255, 255)
+        else
+            self._mapAudio:playMapAudio(mapData, 0.5)
+            targetColour = mapData.ambientLight
+        end
+        if self._worldAmbientTargetColour == nil then
+            self._worldAmbientTargetColour = copy(targetColour)
+            worldMap:setAmbientLight(self._worldAmbientTargetColour)
+        elseif self._worldAmbientTargetColour ~= targetColour then
+            self._worldAmbientStartColour = copy(worldMap:getAmbientLight())
+            self._worldAmbientTargetColour = copy(targetColour)
+            self._worldAmbientTransitionElapsed = 0
+        end
     end
-    self._windowEnemyBook:open(self:getGameMap())
-    self:_blockMapInput(2)
-end
-
-function Scene:showFloorTeleporter()
-    if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
+    if self._worldAmbientStartColour == nil then
         return
     end
-    if not self._windowFloorTeleporter:getVisible() then
-        self._floorTeleporterMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
-        self.player:setMoveEnabled(false)
-    end
-    self:_recordCurrentFloorTelepoint()
-    self._windowFloorTeleporter:open(self.inst)
-    self:_blockMapInput(2)
-end
-
-function Scene:openMenu()
-    if self:_canOpenMenu() then
-        self._pendingMenuOpen = true
-    end
-end
-
-function Scene:openShop(buyItemIDs, canSell)
-    self._shopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
-    self.player:setMoveEnabled(false)
-    self._windowShop:open(buyItemIDs, canSell)
-    return function ()
-        return not self._windowShop:getVisible()
-    end
-end
-
-function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
-    self._attrShopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
-    self.player:setMoveEnabled(false)
-    self._windowAttrShop:open(
-        actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName, Scene.GetAttrShopRect()
+    self._worldAmbientTransitionElapsed = Engine.Clamp(
+        self._worldAmbientTransitionElapsed + deltaTime, 0.0, WORLD_AMBIENT_TRANSITION_TIME
     )
-    return function ()
-        return not self._windowAttrShop:getVisible()
-    end
-end
-
-function Scene:_onShopClose()
-    self.player:setMoveEnabled(self._shopMoveEnabledBeforeOpen)
-end
-
-function Scene:_onAttrShopClose()
-    self.player:setMoveEnabled(self._attrShopMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
-end
-
-function Scene:_onEnemyBookClose()
-    self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
-end
-
----@param entry table
-function Scene:_onEnemyBookConfirm(entry)
-    self._windowEnemyEncyclopedia:open(entry)
-    self:_blockMapInput(2)
-end
-
-function Scene:_onEnemyEncyclopediaClose()
-    self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
-end
-
-function Scene:_onFloorTeleporterClose()
-    self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
-end
-
----@param mapKey    string
----@param telepoint sf.Vector2u
-function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
-    local targetMap = self:resolveRegionMapPath(mapKey)
-    self._windowFloorTeleporter:close()
-    self:gotoMapAndPos(targetMap, telepoint)
-    self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
-    self:_blockMapInput(2)
-end
-
-function Scene:_recordCurrentFloorTelepoint()
-    if self._gameMap == nil or self._cachedMapFile == nil then
-        return
-    end
-    local telepoint = self:_findNearestFloorTelepoint()
-    if telepoint == nil then
-        return
-    end
-    local savedTelepoint = sf.Vector2u.new(telepoint.x, telepoint.y)
-    ---@cast savedTelepoint sf.Vector2u
-    self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint)
-end
-
----@return sf.Vector2i | nil
-function Scene:_findNearestFloorTelepoint()
-    local gameMap = self:getGameMap()
-    local player = gameMap:getPlayer()
-    if player == nil then
-        return nil
-    end
-    local Teleporter = require("Source.Teleporter")
-
-    local nearest = Teleporter.FindNearestTeleporter(gameMap:getAllActors(), player:getMapPosition())
-    return nearest ~= nil and nearest:getTeleportPosition() or nil
-end
-
----@return sf.IntRect, sf.IntRect
-function Scene.GetShopRects()
-    return WindowShop.GetDefaultRects()
-end
-
----@return sf.IntRect
-function Scene.GetAttrShopRect()
-    return WindowAttrShop.GetDefaultRect()
-end
-
----@param nodeFunction function
----@return table<string, any>
-function Scene.GetDialogueLocalVars(nodeFunction)
-    local refLocal = Node.getRefLocal(nodeFunction)
-    if not bool(refLocal) or refLocal.__activeNodeFunction__ ~= nodeFunction then
-        return {}
-    end
-    local result = {}
-    for key, value in pairs(refLocal) do
-        if type(key) == "string" and key:sub(1, 2) ~= "__" then
-            result[key] = value
-        end
-    end
-    return result
-end
-
----@param name         string
----@param content      string | string[]
----@param localeArgs   table<string, any> | nil
----@param nodeFunction function
----@return table
-function Scene:_createDialogueLocaleSource(name, content, localeArgs, nodeFunction)
-    local instanceVars = {}
-    if self.inst ~= nil then
-        instanceVars = copy(self.inst:getVariables())
-    end
-    return {
-        name = name,
-        content = type(content) == "table" and copy(content) or content,
-        localeArgs = copy(localeArgs or {}),
-        localVars = Scene.GetDialogueLocalVars(nodeFunction),
-        instanceVars = instanceVars
-    }
-end
-
----@param source table
----@return string, string | string[]
-function Scene:_formatDialogueSource(source)
-    local formattedName = self:_formatDialogueText(
-        source.name, source.localeArgs, source.localVars, source.instanceVars
+    local alpha = self._worldAmbientTransitionElapsed / WORLD_AMBIENT_TRANSITION_TIME
+    worldMap:setAmbientLight(
+        interpolateColour(self._worldAmbientStartColour, assert(self._worldAmbientTargetColour), alpha)
     )
-    if type(source.content) ~= "table" then
-        return formattedName,
-            self:_formatDialogueText(source.content, source.localeArgs, source.localVars, source.instanceVars)
-    end
-    local formattedOptions = {}
-    for _, option in ipairs(source.content) do
-        formattedOptions[#formattedOptions + 1] = self:_formatDialogueText(
-            option, source.localeArgs, source.localVars, source.instanceVars
-        )
-    end
-    return formattedName, formattedOptions
-end
-
----@param text         string
----@param localeArgs   table<string, any>
----@param localVars    table<string, any>
----@param instanceVars table<string, any>
----@return string
----@diagnostic disable-next-line: unused
-function Scene:_formatDialogueText(text, localeArgs, localVars, instanceVars)
-    if type(text) ~= "string" then
-        return tostring(text)
-    end
-    text = LOC(text)
-    local resolvedLocaleArgs = {}
-    for key, value in pairs(localeArgs) do
-        local resolvedValue = value
-        if type(value) == "string" then
-            resolvedValue = LOC(value)
-        end
-        resolvedLocaleArgs[key] = resolvedValue
-    end
-    text = Engine.ApplyStringMappingFormat(text, resolvedLocaleArgs)
-    text = Engine.ApplyStringMappingFormat(text, localVars)
-    text = Engine.ApplyStringMappingFormat(text, instanceVars)
-    return text
-end
-
----@return sf.IntRect
-function Scene.GetEnemyBookRect()
-    return UiLayout.GetCenteredRect(ENEMY_BOOK_SIZE, ENEMY_BOOK_SIZE)
-end
-
----@return sf.IntRect
-function Scene.GetEnemyEncyclopediaRect()
-    return UiLayout.GetCenteredRect(ENEMY_ENCYCLOPEDIA_WIDTH, ENEMY_ENCYCLOPEDIA_HEIGHT)
-end
-
----@return boolean
-function Scene:_canRestoreMoveAfterMenuClose()
-    return not self:_hasVisibleBlockingWindow()
-end
-
----@return boolean
-function Scene:_hasVisibleBlockingWindow()
-    for _, window in ipairs(self._blockingWindows) do
-        if window:getVisible() then
-            return true
-        end
-    end
-    return false
-end
-
----@param frames integer
-function Scene:_blockMapInput(frames)
-    frames = frames or 1
-    self._mapInputBlockFrames = math.max(self._mapInputBlockFrames, frames)
-end
-
-function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled)
-    if self._pendingFloorTransfer ~= nil then
-        return false
-    end
-    self._pendingFloorTransfer = { targetMap = targetMap, anchorPos = anchorPos, moveEnabled = moveEnabled }
-    GlobalSystem.freezeTransitionBackground()
-    return true
-end
-
-function Scene:_processPendingFloorTransfer()
-    if self._pendingFloorTransfer == nil or not GlobalSystem.isTransitionBackgroundFrozen() then
-        return
-    end
-    local transferData = {
-        targetMap = self._pendingFloorTransfer.targetMap,
-        anchorPos = self._pendingFloorTransfer.anchorPos,
-        moveEnabled = self._pendingFloorTransfer.moveEnabled
-    }
-    self._pendingFloorTransfer = nil
-    self._mapTransferInProgress = true
-    local targetMap = transferData.targetMap
-    local anchorPos = transferData.anchorPos
-    local moveEnabled = bool(transferData.moveEnabled)
-    self:gotoMapAndPos(targetMap, anchorPos, true)
-    local targetGameMap = self:getGameMap()
-    local targetPlayer = targetGameMap:getPlayer()
-    if targetPlayer == nil then
-        self:_cancelFloorTransfer(moveEnabled)
-        self._mapTransferInProgress = false
-        return
-    end
-    local Teleporter = require("Source.Teleporter")
-
-    local targetTeleporter = Teleporter.FindNearestTeleporter(
-        targetGameMap:getAllActors(), targetPlayer:getMapPosition()
-    )
-    if targetTeleporter == nil then
-        self:_cancelFloorTransfer(moveEnabled)
-        self._mapTransferInProgress = false
-        return
-    end
-    local targetPos = targetTeleporter:getTeleportPosition()
-    self:gotoMapAndPos(targetMap, targetPos)
-    if self._cachedMapFile ~= nil then
-        local savedTelepoint = sf.Vector2u.new(targetPos.x, targetPos.y)
-        ---@cast savedTelepoint sf.Vector2u
-        self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint)
-    end
-    targetPlayer:setMoveEnabled(moveEnabled)
-    self._mapTransferInProgress = false
-end
-
----@param moveEnabled boolean
-function Scene:_cancelFloorTransfer(moveEnabled)
-    self.player:setMoveEnabled(moveEnabled)
-    GlobalSystem.cancelTransitionBackgroundFreeze()
-    GlobalSystem.cancelPendingTransition()
-end
-
----@return Source.GameInstance.GameInstance
-function Scene:_getSaveSource()
-    return self.inst
-end
-
----@param reason string
-function Scene:_onSaveLoadClose(reason)
-    if reason == "cancel" then
-        self._windowMenu:onSaveLoadClose()
-        return
-    end
-    self._windowMenu:close()
-end
-
-function Scene:_onConfigClose()
-    self._windowMenu:onConfigClose()
-end
-
-function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
-    local targetMap = mapPath
-    if bool(mapPath) then
-        targetMap = self._mapBuilder:resolveMapPath(mapPath, self:_getCurrentRegionMap())
-    end
-    if bool(targetMap) and self._cachedMapFile ~= targetMap then
-        targetMap = self:loadMap(targetMap)
-        self._cachedMapFile = targetMap
-    end
-    self.inst:applyMapInfo(targetMap, pos)
-    if not blockTransition then
-        GlobalSystem.requestTransition(MAP_TRANSITION_NAME, MAP_TRANSITION_TIME)
-    end
-end
-
-function Scene:tryCenterSymmetricTeleport()
-    local gameMap = self:getGameMap()
-    local player = gameMap:getPlayer()
-    if player == nil then
-        return false
-    end
-    local size = gameMap:getSize()
-    local position = player:getMapPosition()
-    local targetPosition = sf.Vector2i.new(size.x - 1 - position.x, size.y - 1 - position.y)
-    ---@cast targetPosition sf.Vector2i
-    if not gameMap:isPassable(player, targetPosition) then
-        return false
-    end
-    player:setMapPosition(targetPosition)
-    gameMap:updateActorOccupancy(player)
-    return true
-end
-
-function Scene:tryAdjacentFloorSamePos(step)
-    local RegionDict = require("Source.Configs.RegionDict")
-    local Teleporter = require("Source.Teleporter")
-
-    local gameMap = self:getGameMap()
-    local player = gameMap:getPlayer()
-    if player == nil then
-        return false
-    end
-    if not bool(self._cachedMapFile) then
-        return false
-    end
-    ---@cast self._cachedMapFile string
-    local sourceMap = self._cachedMapFile .. ""
-    local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
-    local currentIndex = Teleporter.FindCurrentMapIndex(regionMaps, self._cachedMapFile)
-    if currentIndex == nil then
-        return false
-    end
-    local targetIndex = currentIndex + step
-    if targetIndex < 1 or targetIndex > #regionMaps then
-        return false
-    end
-
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local targetMap = self:resolveRegionMapPath(regionMaps[targetIndex])
-    local sourcePosition = player:getMapPosition()
-    local targetPosition = sf.Vector2i.new(sourcePosition.x, sourcePosition.y)
-    ---@cast targetPosition sf.Vector2i
-    if not self:_isMapPositionPassable(targetMap, player, targetPosition) then
-        return false
-    end
-
-    self:gotoMapAndPos(targetMap, targetPosition, true)
-    local targetGameMap = self:getGameMap()
-    local targetPlayer = targetGameMap:getPlayer()
-    if targetPlayer == nil or not targetGameMap:isPassable(targetPlayer, targetPosition) then
-        self:gotoMapAndPos(sourceMap, sourcePosition, true)
-        return false
-    end
-    GlobalSystem.requestTransition(MAP_TRANSITION_NAME, MAP_TRANSITION_TIME)
-    return true
-end
-
----@param mapPath  string
----@param actor    Engine.Actor
----@param position sf.Vector2i
----@return boolean
-function Scene:_isMapPositionPassable(mapPath, actor, position)
-    local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:_getCurrentRegionMap())
-    local gameMap = self._mapBuilder:generateGameMap(mapData, nil, false, true)
-    gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
-    self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile), false)
-    gameMap:applyActorPositions(self.inst:getActorPositions(mapFile))
-    gameMap:removeActorsByTags(self.inst:getDestroyedActors(mapFile))
-    return gameMap:isPassable(actor, position)
-end
-
-function Scene:recordAddedActor(actor)
-    local layerName = self:getGameMap():getActorLayer(actor)
-    if layerName ~= nil then
-        assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
-        self.inst:recordAddedActor(self._cachedMapFile, actor, layerName)
-    end
-end
-
-function Scene:recordActorPosition(actor, position)
-    assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
-    self.inst:recordActorPosition(self._cachedMapFile, actor, position)
-end
-
-function Scene:recordDestroyedActor(actor)
-    assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
-    self.inst:recordDestroyedActor(self._cachedMapFile, actor)
-end
-
-function Scene:recordTerrainDestructions(layerName, positions)
-    if not bool(positions) then
-        return
-    end
-    assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
-    local gameMap = self:getGameMap()
-    for _, position in ipairs(positions) do
-        self.inst:recordTerrainDestruction(
-            self._cachedMapFile, layerName, position, gameMap:getTerrainTile(layerName, position)
-        )
+    if self._worldAmbientTransitionElapsed >= WORLD_AMBIENT_TRANSITION_TIME then
+        self._worldAmbientStartColour = nil
     end
 end
 
@@ -997,6 +543,7 @@ function Scene:_renderHandle(deltaTime)
     self:getGameMap():show()
     super(Scene, self)._renderHandle(deltaTime)
     self:_processPendingFloorTransfer()
+    self:_processPendingWorldTransfer()
     if self._pendingMenuOpen then
         self._pendingMenuOpen = false
         Scene.CaptureScreenSnapshot()
@@ -1114,6 +661,7 @@ end
 ---@param mapFile string
 ---@return string | nil
 function Scene.FindRegionForMap(mapFile)
+    ---@type table<string, string[]>
     local RegionDict = require("Source.Configs.RegionDict")
 
     local currentName = Scene.NormaliseRegionMapName(mapFile)

@@ -2,10 +2,10 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local System = require("Source.System")
-local Data = require("Source.Data")
 local TextLayout = require("Source.TextLayout")
 local WindowMessageUI = require("Source.UI.WindowMessage")
 local WindowBase = require("Source.Windows.Base.WindowBase")
+local WindowMessageLayout = require("Source.Windows.WindowMessageLayout")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
 local Input = Engine.Input
@@ -26,18 +26,6 @@ local _NAME_TEXT_CONFIG = "UI/CenterText24"
 local _MESSAGE_TEXT_CONFIG = "UI/Message"
 local _OPTION_TEXT_CONFIG = "UI/Default"
 
----@type function
-local normalizeText
----@type function
-local getFadeCurve
----@type function
-local getCurveDuration
----@type function
-local getTextLineHeight
----@type function
-local wrapMessage
----@type function
-local resizeCanvas
 ---@class Source.Windows.WindowMessage
 local WindowMessage = {}
 
@@ -177,79 +165,97 @@ function WindowMessage:getSelectionResult()
     return self._selectionResult
 end
 
----@param text string
----@return string
-function normalizeText(text)
-    return (text:gsub("\\n", "\n"))
+---@param window      Source.Windows.WindowMessage
+---@param refPosition sf.Vector2f | nil
+---@param name        string
+---@param allowCancel boolean
+---@param onFinished  fun() | nil
+local function beginDialogue(window, refPosition, name, allowCancel, onFinished)
+    window:hidePauseMark()
+    window:setColour(sf.Color.new(255, 255, 255, 0))
+    window._inDialogue = true
+    window._selectionResult = nil
+    window._allowCancel = allowCancel
+    window._onFinished = onFinished
+    window._fadePhase = FadePhase.IN
+    window._fadeTime = 0.0
+    window._name = WindowMessageLayout.NormaliseText(name)
+    window._ui:setName(window._name)
+    window._nameText:setVisible(window._name:match("%S") ~= nil)
+    window._nameText:setColour(sf.Color.new(255, 255, 255, 0))
+    window._pendingRefPosition = refPosition
 end
 
-function WindowMessage:setMessage(refPosition, name, message, allowCancel, onFinished)
+---@param window Source.Windows.WindowMessage
+local function finishDialogueSetup(window)
+    window._pendingLayout = true
+    window:setVisible(true)
+    window:requestKeyboardFocus()
+end
+
+---@param window Source.Windows.WindowMessage
+---@param name   string
+local function refreshName(window, name)
+    assert(window._inDialogue, "Message content can only be refreshed during dialogue")
+    window._name = WindowMessageLayout.NormaliseText(name)
+    window._ui:setName(window._name)
+    window._nameText:setVisible(window._name:match("%S") ~= nil)
+end
+
+function WindowMessage:setMessage(refPosition, name, message, onFinished)
+    beginDialogue(self, refPosition, name, true, onFinished)
+    self._contentMode = ContentMode.MESSAGE
+    self._message = WindowMessageLayout.NormaliseText(message)
+    self._ui:showMessageList()
+    self.index = 0
+    self._text:setVisible(true)
+    self._text:setColour(sf.Color.new(255, 255, 255, 0))
+    self._ui:setMessage(self._message)
+    finishDialogueSetup(self)
+end
+
+function WindowMessage:setSelection(refPosition, name, options, allowCancel, onFinished)
     if allowCancel == nil then
         allowCancel = true
     end
-    self:hidePauseMark()
-    self:setColour(sf.Color.new(255, 255, 255, 0))
-    self._inDialogue = true
-    self._selectionResult = nil
-    self._allowCancel = allowCancel
-    self._onFinished = onFinished
-    self._fadePhase = FadePhase.IN
-    self._fadeTime = 0.0
-    self._name = normalizeText(name)
-    self._ui:setName(self._name)
-    self._nameText:setVisible(self._name:match("%S") ~= nil)
-    self._nameText:setColour(sf.Color.new(255, 255, 255, 0))
-    if type(message) == "table" then
-        self._contentMode = ContentMode.SELECTION
-        self._message = ""
-        self._ui:setMessage(self._message)
-        self._text:setVisible(false)
-        local options = {}
-        for _, item in ipairs(message) do
-            options[#options + 1] = normalizeText(tostring(item))
-        end
-        self:_setupSelectionList(options)
-        if self._selectionListView ~= nil then
-            for _, child in ipairs(self._selectionListView:getChildren()) do
-                ---@cast child Engine.PlainText
-                child:setColour(sf.Color.new(255, 255, 255, 0))
-            end
-        end
-    else
-        self._contentMode = ContentMode.MESSAGE
-        self._message = normalizeText(message)
-        self._ui:showMessageList()
-        self.index = 0
-        self._text:setVisible(true)
-        self._text:setColour(sf.Color.new(255, 255, 255, 0))
-        self._ui:setMessage(self._message)
+    beginDialogue(self, refPosition, name, allowCancel, onFinished)
+    self._contentMode = ContentMode.SELECTION
+    self._message = ""
+    self._ui:setMessage(self._message)
+    self._text:setVisible(false)
+    local normalizedOptions = {}
+    for _, option in ipairs(options) do
+        normalizedOptions[#normalizedOptions + 1] = WindowMessageLayout.NormaliseText(option)
     end
-    self._pendingLayout = true
-    self._pendingRefPosition = refPosition
-    self:setVisible(true)
-    self:requestKeyboardFocus()
+    self:_setupSelectionList(normalizedOptions)
+    if self._selectionListView ~= nil then
+        for _, child in ipairs(self._selectionListView:getChildren()) do
+            ---@cast child Engine.PlainText
+            child:setColour(sf.Color.new(255, 255, 255, 0))
+        end
+    end
+    finishDialogueSetup(self)
 end
 
-function WindowMessage:refreshContent(name, message)
-    assert(self._inDialogue, "Message content can only be refreshed during dialogue")
-    self._name = normalizeText(name)
-    self._ui:setName(self._name)
-    self._nameText:setVisible(self._name:match("%S") ~= nil)
-    if self._contentMode == ContentMode.SELECTION then
-        assert(type(message) == "table", "Selection dialogue requires option text")
-        local selectionListView = assert(self._selectionListView, "Selection list is missing")
-        local children = selectionListView:getChildren()
-        local optionCount = math.min(#message, self._MAX_OPTIONS)
-        assert(#children == optionCount, "Selection option count changed during dialogue")
-        for index = 1, optionCount do
-            local child = children[index]
-            ---@cast child Engine.PlainText
-            child:setString(normalizeText(tostring(message[index])))
-        end
-    else
-        assert(type(message) == "string", "Message dialogue requires text")
-        self._message = normalizeText(message)
-        self._ui:setMessage(self._message)
+function WindowMessage:refreshMessage(name, message)
+    assert(self._contentMode == ContentMode.MESSAGE, "Dialogue is not showing a message")
+    refreshName(self, name)
+    self._message = WindowMessageLayout.NormaliseText(message)
+    self._ui:setMessage(self._message)
+    self._pendingLayout = true
+end
+
+function WindowMessage:refreshSelection(name, options)
+    assert(self._contentMode == ContentMode.SELECTION, "Dialogue is not showing a selection")
+    refreshName(self, name)
+    local selectionListView = assert(self._selectionListView, "Selection list is missing")
+    local children = selectionListView:getChildren()
+    local optionCount = math.min(#options, self._MAX_OPTIONS)
+    assert(#children == optionCount, "Selection option count changed during dialogue")
+    for index = 1, optionCount do
+        local child = children[index]
+        ---@cast child Engine.PlainText
+        child:setString(WindowMessageLayout.NormaliseText(assert(options[index])))
     end
     self._pendingLayout = true
 end
@@ -270,11 +276,11 @@ function WindowMessage:_resolveSelection(selectionResult)
     end
 end
 
----@param options table
+---@param options string[]
 function WindowMessage:_setupSelectionList(options)
     local limitedOptions = {}
     for index = 1, math.min(#options, self._MAX_OPTIONS) do
-        limitedOptions[index] = options[index]
+        limitedOptions[index] = assert(options[index])
     end
     self._selectionListView = self._ui:showSelectionList(
         limitedOptions,
@@ -323,28 +329,27 @@ end
 
 ---@param deltaTime number
 function WindowMessage:_fadeIn(deltaTime)
-    ---@type any[]
-    local fadeTargets = { self, self._nameText }
-    if self._contentMode == ContentMode.MESSAGE then
-        fadeTargets[#fadeTargets + 1] = self._text
-    elseif self._contentMode == ContentMode.SELECTION and self._selectionListView ~= nil then
-        for _, child in ipairs(self._selectionListView:getChildren()) do
-            fadeTargets[#fadeTargets + 1] = child
-        end
-    end
     self._fadeTime = self._fadeTime + deltaTime
-    local curve = getFadeCurve(_FADE_IN_CURVE_KEY)
+    local curve = WindowMessageLayout.GetFadeCurve(WindowMessage._fadeCurves, _FADE_IN_CURVE_KEY)
     local alpha = nil
     local duration = nil
-    if bool(curve) and bool(curve.keys) then
+    if not curve:isEmpty() then
         alpha = math.floor(Engine.Clamp(curve:evaluate(self._fadeTime), 0.0, 255.0))
-        duration = getCurveDuration(curve)
+        duration = curve:getDuration()
     else
-        alpha = math.floor(math.min(255.0, self._fadeTime * _FALLBACK_FADE_SPEED))
+        alpha = math.floor(Engine.Clamp(self._fadeTime * _FALLBACK_FADE_SPEED, 0.0, 255.0))
         duration = 255.0 / _FALLBACK_FADE_SPEED
     end
-    for _, component in ipairs(fadeTargets) do
-        component:setColour(sf.Color.new(255, 255, 255, alpha))
+    local colour = sf.Color.new(255, 255, 255, alpha)
+    self:setColour(colour)
+    self._nameText:setColour(colour)
+    if self._contentMode == ContentMode.MESSAGE then
+        self._text:setColour(colour)
+    elseif self._contentMode == ContentMode.SELECTION and self._selectionListView ~= nil then
+        for _, child in ipairs(self._selectionListView:getChildren()) do
+            ---@cast child Engine.PlainText
+            child:setColour(colour)
+        end
     end
     if self._fadeTime >= duration then
         self._fadePhase = FadePhase.NOTHING
@@ -362,14 +367,14 @@ end
 ---@param deltaTime number
 function WindowMessage:_fadeOut(deltaTime)
     self._fadeTime = self._fadeTime + deltaTime
-    local curve = getFadeCurve(_FADE_OUT_CURVE_KEY)
+    local curve = WindowMessageLayout.GetFadeCurve(WindowMessage._fadeCurves, _FADE_OUT_CURVE_KEY)
     local alpha = nil
     local duration = nil
-    if bool(curve) and bool(curve.keys) then
+    if not curve:isEmpty() then
         alpha = math.floor(Engine.Clamp(curve:evaluate(self._fadeTime), 0.0, 255.0))
-        duration = getCurveDuration(curve)
+        duration = curve:getDuration()
     else
-        alpha = math.floor(math.max(0.0, 255.0 - self._fadeTime * _FALLBACK_FADE_SPEED))
+        alpha = math.floor(Engine.Clamp(255.0 - self._fadeTime * _FALLBACK_FADE_SPEED, 0.0, 255.0))
         duration = 255.0 / _FALLBACK_FADE_SPEED
     end
     self:setColour(sf.Color.new(255, 255, 255, alpha))
@@ -378,29 +383,6 @@ function WindowMessage:_fadeOut(deltaTime)
         self._inDialogue = false
         self:setVisible(false)
     end
-end
-
----@param key string
----@return Engine.Curve
-function getFadeCurve(key)
-    local cached = WindowMessage._fadeCurves[key]
-    if cached ~= nil then
-        return cached
-    end
-    local curve = Data.GetCurve(key)
-    WindowMessage._fadeCurves[key] = curve
-    return curve
-end
-
----@param curve Engine.Curve | nil
----@return number
-function getCurveDuration(curve)
-    if curve == nil or #curve.keys < 2 then
-        return 0.0
-    end
-    local firstKey = curve.keys[1]
-    local lastKey = curve.keys[#curve.keys]
-    return lastKey.time - firstKey.time
 end
 
 ---@return integer
@@ -421,19 +403,6 @@ function WindowMessage:_getBoundsHeight(bounds)
     return math.max(1, math.ceil(bounds.size.y) + self._TEXT_RENDER_GUTTER * 2)
 end
 
----@param bounds sf.FloatRect
----@return integer
-function getTextLineHeight(bounds)
-    return math.max(1, math.ceil(bounds.position.y + bounds.size.y))
-end
-
----@param text     string
----@param maxWidth number
----@return string
-function wrapMessage(text, maxWidth)
-    return TextLayout.WrapRichText(text, maxWidth, _MESSAGE_TEXT_CONFIG)
-end
-
 function WindowMessage:_updateLayoutByTextSize()
     local nameBounds = self._nameText:getLocalBounds()
     local hasName = self._nameText:getVisible()
@@ -441,21 +410,21 @@ function WindowMessage:_updateLayoutByTextSize()
     local nameHeight = 0
     if hasName then
         nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, self._name))
-        nameHeight = getTextLineHeight(nameBounds)
+        nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
-    ---@cast nameWidth integer
-    local displayMessage = self._message .. ""
+    local displayMessage = self._message
     local maxContentWidth = Engine.ToInteger(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
     self._ui:setMessage(displayMessage)
     local textBounds = self._text:getLocalBounds()
     local textWidth = self:_getTextRenderWidth(TextLayout.MeasureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
     if textWidth > maxContentWidth then
-        displayMessage = wrapMessage(displayMessage, math.max(1.0, maxContentWidth - self._TEXT_RENDER_GUTTER * 2.0))
+        displayMessage = WindowMessageLayout.WrapMessage(
+            displayMessage, math.max(1.0, maxContentWidth - self._TEXT_RENDER_GUTTER * 2.0), _MESSAGE_TEXT_CONFIG
+        )
         self._ui:setMessage(displayMessage)
         textBounds = self._text:getLocalBounds()
         textWidth = self:_getTextRenderWidth(TextLayout.MeasureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
     end
-    ---@cast textWidth integer
     local textHeight = self:_getBoundsHeight(textBounds)
     local pauseMarkSize = WindowBase._PAUSE_MARK_SIZE
     ---@cast pauseMarkSize integer
@@ -468,9 +437,9 @@ function WindowMessage:_updateLayoutByTextSize()
     local totalWidth = contentWidth + self._WINDOW_PADDING * 2
     totalWidth = math.min(totalWidth, self:_getMaxWindowWidth())
     local totalHeight = contentHeight + self._WINDOW_PADDING * 2
-    resizeCanvas(self, totalWidth, totalHeight)
+    WindowMessageLayout.ResizeCanvas(self, totalWidth, totalHeight)
     self:_resizeWindow(totalWidth, totalHeight)
-    resizeCanvas(self.content, contentWidth, contentHeight)
+    WindowMessageLayout.ResizeCanvas(self.content, contentWidth, contentHeight)
     self.content:setPosition(sf.Vector2f.new(self._WINDOW_PADDING, self._WINDOW_PADDING))
     local textY = 0.0
     if hasName then
@@ -492,9 +461,8 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local nameHeight = 0
     if hasName then
         nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, self._name))
-        nameHeight = getTextLineHeight(nameBounds)
+        nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
-    ---@cast nameWidth integer
     local maxOptionTextWidth = 1
     local optionCount = 0
     if self._selectionListView ~= nil then
@@ -503,7 +471,7 @@ function WindowMessage:_updateLayoutBySelectionSize()
         for _, child in ipairs(children) do
             local optionText = ""
             if Class.isInstance(child, PlainText) or Class.isInstance(child, RichText) then
-                ---@cast child any
+                ---@cast child Engine.PlainText | Engine.RichText
                 optionText = child:getString()
             end
             maxOptionTextWidth = math.max(
@@ -524,9 +492,9 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local totalWidth = contentWidth + self._WINDOW_PADDING * 2
     totalWidth = math.min(totalWidth, self:_getMaxWindowWidth())
     local totalHeight = contentHeight + self._WINDOW_PADDING * 2
-    resizeCanvas(self, totalWidth, totalHeight)
+    WindowMessageLayout.ResizeCanvas(self, totalWidth, totalHeight)
     self:_resizeWindow(totalWidth, totalHeight)
-    resizeCanvas(self.content, contentWidth, contentHeight)
+    WindowMessageLayout.ResizeCanvas(self.content, contentWidth, contentHeight)
     self.content:setPosition(sf.Vector2f.new(self._WINDOW_PADDING, self._WINDOW_PADDING))
     local currentY = 0.0
     if hasName then
@@ -573,16 +541,6 @@ function WindowMessage:_getRectWidth()
         return super(WindowMessage, self)._getRectWidth()
     end
     return math.max(1, Engine.Round(self._selectionListView:getSize().x / columns))
-end
-
----@param target Engine.Canvas
----@param width  integer
----@param height integer
-function resizeCanvas(target, width, height)
-    local logicalSize = sf.Vector2u.new(width, height)
-    ---@cast logicalSize sf.Vector2u
-    target:resize(logicalSize)
-    target:setView(target:getDefaultView())
 end
 
 ---@param width  integer

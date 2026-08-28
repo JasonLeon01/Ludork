@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local ActorTree = require("Global.ActorTree")
 local EventKeys = require("Source.Configs.EventKeys")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
@@ -9,29 +10,11 @@ local Special = GeneralEnum.Special
 local MovementSpecials = {}
 local handlersRegistered = false
 
----@param value number
----@return integer
-local function getSign(value)
-    if value > 0 then
-        return 1
-    elseif value < 0 then
-        return -1
-    end
-    return 0
-end
-
----@param a sf.Vector2i
----@param b sf.Vector2i
----@return integer
-local function getManhattanDistance(a, b)
-    return math.abs(a.x - b.x) + math.abs(a.y - b.y)
-end
-
 ---@param x integer
 ---@param y integer
----@return tuple<any>
+---@return tuple<integer>
 local function positionKey(x, y)
-    return tuple { x, y }
+    return tuple(x, y)
 end
 
 ---@param enemy          Source.Enemy
@@ -39,7 +22,8 @@ end
 local function doBlockadeRetreat(enemy, playerPosition)
     local enemyPosition = enemy:getMapPosition()
     local offset = sf.Vector2i.new(
-        getSign(enemyPosition.x - playerPosition.x), getSign(enemyPosition.y - playerPosition.y)
+        Engine.ToInteger(Engine.Clamp(enemyPosition.x - playerPosition.x, -1, 1)),
+        Engine.ToInteger(Engine.Clamp(enemyPosition.y - playerPosition.y, -1, 1))
     )
     ---@cast offset sf.Vector2i
     local moved = enemy:MapMove(offset)
@@ -56,16 +40,16 @@ local function doBlockadeRetreat(enemy, playerPosition)
 
     local SetGameVariable = NodeUtils.SetGameVariable
     local tag = enemy.tag or enemy.ID
-    SetGameVariable("Blockade_" .. tostring(tag) .. "_X", newPosition.x)
-    SetGameVariable("Blockade_" .. tostring(tag) .. "_Y", newPosition.y)
+    SetGameVariable("Blockade_" .. tag .. "_X", newPosition.x)
+    SetGameVariable("Blockade_" .. tag .. "_Y", newPosition.y)
 end
 
----@param flankEnemies   list<Source.Enemy>
+---@param flankEnemies   Source.Enemy[]
 ---@param player         Source.Player.Player
 ---@param playerPosition sf.Vector2i
 ---@return integer, Source.MovementSpecials.DangerSource[]
 local function checkFlankDamage(flankEnemies, player, playerPosition)
-    ---@type dict<tuple<any>, Source.Enemy>
+    ---@type dict<tuple<integer>, Source.Enemy>
     local positionMap = dict()
     for _, enemy in ipairs(flankEnemies) do
         local enemyPosition = enemy:getMapPosition()
@@ -74,6 +58,7 @@ local function checkFlankDamage(flankEnemies, player, playerPosition)
     end
 
     local totalDamage = 0
+    ---@type Source.MovementSpecials.DangerSource[]
     local sources = {}
     local left = positionMap:get(positionKey(-1, 0))
     local right = positionMap:get(positionKey(1, 0))
@@ -82,7 +67,6 @@ local function checkFlankDamage(flankEnemies, player, playerPosition)
         local rightDamage = right:getDamagePerRound(player)
         totalDamage = totalDamage + leftDamage
         totalDamage = totalDamage + rightDamage
-        ---@cast totalDamage integer
         sources[#sources + 1] = { enemy = left, special = Special.Flank, damage = leftDamage }
         sources[#sources + 1] = { enemy = right, special = Special.Flank, damage = rightDamage }
     end
@@ -93,38 +77,35 @@ local function checkFlankDamage(flankEnemies, player, playerPosition)
         local downDamage = down:getDamagePerRound(player)
         totalDamage = totalDamage + upDamage
         totalDamage = totalDamage + downDamage
-        ---@cast totalDamage integer
         sources[#sources + 1] = { enemy = up, special = Special.Flank, damage = upDamage }
         sources[#sources + 1] = { enemy = down, special = Special.Flank, damage = downDamage }
     end
     return totalDamage, sources
 end
 
----@param enemies        list<Source.Enemy>
+---@param enemies        Source.Enemy[]
 ---@param player         Source.Player.Player
 ---@param playerPosition sf.Vector2i
 ---@param ignoredEnemies Source.Enemy[] | nil
 ---@param applyBlockade  boolean
 ---@return integer, Source.MovementSpecials.DangerSource[]
 local function calculateDangerAtPosition(enemies, player, playerPosition, ignoredEnemies, applyBlockade)
+    ---@type table<Source.Enemy, boolean> | nil
     local ignoredEnemySet = nil
     if bool(ignoredEnemies) then
         ---@cast ignoredEnemies - nil
-        ignoredEnemySet = {}
-        for _, enemy in ipairs(ignoredEnemies) do
-            ignoredEnemySet[enemy] = true
-        end
+        ignoredEnemySet = ActorTree.ToSet(ignoredEnemies)
     end
     local totalDamage = 0
+    ---@type Source.MovementSpecials.DangerSource[]
     local sources = {}
     for _, enemy in ipairs(enemies) do
         local enemyPosition = enemy:getMapPosition()
-        local distance = getManhattanDistance(playerPosition, enemyPosition)
+        local distance = Engine.ManhattanDistance(playerPosition, enemyPosition)
         if enemy:hasSpecial(Special.Domain) and (ignoredEnemySet == nil or not ignoredEnemySet[enemy]) then
             local domainRange = enemy:getSpecialIntValue(Special.Domain, 0, 1)
             if distance < domainRange then
                 local damage = enemy:getDamagePerRound(player)
-                ---@cast damage integer
                 totalDamage = totalDamage + damage
                 sources[#sources + 1] = { enemy = enemy, special = Special.Domain, damage = damage }
             end
@@ -132,7 +113,6 @@ local function calculateDangerAtPosition(enemies, player, playerPosition, ignore
         if enemy:hasSpecial(Special.Blockade) and distance == 1
             and (ignoredEnemySet == nil or not ignoredEnemySet[enemy]) then
             local damage = enemy:getDamagePerRound(player)
-            ---@cast damage integer
             totalDamage = totalDamage + damage
             sources[#sources + 1] = { enemy = enemy, special = Special.Blockade, damage = damage }
             if applyBlockade then
@@ -141,10 +121,11 @@ local function calculateDangerAtPosition(enemies, player, playerPosition, ignore
         end
     end
 
-    local flankEnemies = list()
+    ---@type Source.Enemy[]
+    local flankEnemies = {}
     for _, enemy in ipairs(enemies) do
         if enemy:hasSpecial(Special.Flank) then
-            flankEnemies:append(enemy)
+            flankEnemies[#flankEnemies + 1] = enemy
         end
     end
     if #flankEnemies >= 2 then
@@ -178,12 +159,13 @@ local function applyMovementSpecials(player, pathPositions)
         return
     end
     ---@cast gameMap GameMap
-    local enemies = list()
+    ---@type Source.Enemy[]
+    local enemies = {}
     for _, actor in ipairs(gameMap:getAllActors()) do
         if Class.isInstance(actor, Enemy) and not actor:isDestroyed() then
             ---@cast actor Source.Enemy
             if bool(actor:getSpecial()) then
-                enemies:append(actor)
+                enemies[#enemies + 1] = actor
             end
         end
     end
@@ -192,12 +174,13 @@ local function applyMovementSpecials(player, pathPositions)
     end
 
     local totalDamage = 0
-    local damagingEnemies = list()
+    ---@type Source.Enemy[]
+    local damagingEnemies = {}
     for _, playerPosition in ipairs(pathPositions) do
         local stepDamage, stepSources = calculateDangerAtPosition(enemies, player, playerPosition, nil, true)
         totalDamage = totalDamage + stepDamage
         for _, source in ipairs(stepSources) do
-            damagingEnemies:append(source.enemy)
+            damagingEnemies[#damagingEnemies + 1] = source.enemy
         end
     end
     if totalDamage <= 0 then

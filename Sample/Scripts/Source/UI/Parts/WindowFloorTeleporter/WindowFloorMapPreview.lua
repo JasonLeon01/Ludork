@@ -1,29 +1,11 @@
 local Engine = require("Engine")
+local TelepointKey = require("Source.UI.Helpers.TelepointKey")
 local CommandRowController = require("Source.UI.Helpers.CommandRow")
 local Ui = require("Source.UI.Ui")
 
 local _PREVIEW_CONTENT_SIZE = 208
 local _PREVIEW_SCALE = 0.5
 local _TELEPOINT_LIST_HEIGHT = 32
-
----@param point sf.Vector2u | nil
----@return tuple<any>
-local function telepointKey(point)
-    if point == nil then
-        return tuple()
-    end
-    return tuple { point.x, point.y }
-end
-
----@param entries table
----@return tuple<any>
-local function entriesKey(entries)
-    local parts = {}
-    for index, entry in ipairs(entries) do
-        parts[index] = tuple { telepointKey(entry[1]), tostring(entry[2]) }
-    end
-    return tuple(parts)
-end
 
 local WindowFloorMapPreviewUI = {}
 
@@ -91,7 +73,7 @@ function WindowFloorMapPreviewUI:onActiveChanged(active, wasActive)
 end
 
 function WindowFloorMapPreviewUI:setMapKeyAndTelepoints(mapKey, entries, selectedIndex)
-    local listKey = tuple { tostring(mapKey or ""), entriesKey(entries) }
+    local listKey = tuple { tostring(mapKey or ""), TelepointKey.FromEntries(entries) }
     if listKey ~= self.model._currentListKey then
         self.model._currentListKey = listKey
         self.model._mapKey = mapKey
@@ -150,7 +132,7 @@ function WindowFloorMapPreviewUI:refreshSelectedPreview()
     if self._resolvePreviewMapPath ~= nil and bool(mapPath) then
         mapPath = self._resolvePreviewMapPath(mapPath)
     end
-    local currentKey = tuple { tostring(mapPath or ""), telepointKey(telepoint), showMarker }
+    local currentKey = tuple { tostring(mapPath or ""), TelepointKey.FromPoint(telepoint), showMarker }
     if currentKey == self.model._currentPreviewKey then
         return
     end

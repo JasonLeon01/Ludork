@@ -6,11 +6,11 @@
 ---@field sources  Source.MovementSpecials.DangerSource[]
 
 ---@class Source.SceneComponents.MovementDangerEnemySnapshot
----@field x?              integer
----@field y?              integer
----@field combatRevision? integer
----@field infoComp?       Source.Components.EnemyInfoComponent
----@field scanRevision?   integer
+---@field x              integer
+---@field y              integer
+---@field combatRevision integer
+---@field infoComp       Source.Components.EnemyInfoComponent
+---@field scanRevision   integer
 
 ---@brief Cached movement-special danger grid for the current map and player.
 ---@class Source.SceneComponents.MovementDangerState: ComponentBase
@@ -21,9 +21,12 @@
 ---@field _enemies              Source.Enemy[]
 ---@field _enemyScanRevision    integer
 ---@field _entryGrid            table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
----@field _mapWidth             integer
----@field _mapHeight            integer
----@field _revision             integer
+---@field _areaX                integer | nil
+---@field _areaY                integer | nil
+---@field _areaWidth            integer | nil
+---@field _areaHeight           integer | nil
+---@field _pathfindingRevision  integer
+---@field _previewRevision      integer
 ---@field _entries              Source.SceneComponents.MovementDangerEntry[]
 ---@field _enemySnapshots       table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
 local MovementDangerState = {}
@@ -39,7 +42,10 @@ function MovementDangerState:init(gameMap) end
 function MovementDangerState:onTick(deltaTime) end
 
 ---@return integer
-function MovementDangerState:getRevision() end
+function MovementDangerState:getPathfindingRevision() end
+
+---@return integer
+function MovementDangerState:getPreviewRevision() end
 
 ---@return Source.SceneComponents.MovementDangerEntry[]
 function MovementDangerState:getEntries() end

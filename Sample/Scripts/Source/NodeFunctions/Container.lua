@@ -114,10 +114,16 @@ function Container.ListRemove(list_, index)
 end
 
 function Container.ListFind(list_, value)
-    for index, item in ipairs(list_) do
-        if item == value then
-            return index - 1
+    local index
+    if Class.isInstance(list_, list) then
+        if list_:contains(value) then
+            index = list_:index(value)
         end
+    else
+        index = table.index(list_, value)
+    end
+    if index ~= nil then
+        return index - 1
     end
     error(tostring(value) .. " is not in list")
 end

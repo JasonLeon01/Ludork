@@ -477,10 +477,9 @@ end
 ---@return integer
 function ConfigWindow.FindSelectedIndex(items, value)
     local textValue = tostring(value)
-    for luaIndex, item in ipairs(items) do
-        if item == textValue then
-            return luaIndex - 1
-        end
+    local exactIndex = table.index(items, textValue)
+    if exactIndex ~= nil then
+        return exactIndex - 1
     end
     local numericValue = tonumber(value)
     if numericValue == nil then

@@ -88,10 +88,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameVariables.Saved += onGameVariablesSaved;
         GameData.UndoRedoStateChanged += onUndoRedoStateChanged;
         GameData.DataRestored += onDataRestored;
-        foreach (KeyValuePair<string, JsonObject> pair in GameData.MapData.OrderBy(item => item.Key, StringComparer.Ordinal))
-        {
-            Maps.Add(new MapListItemViewModel(pair.Key, GameData.getMapDisplayName(pair.Key)));
-        }
+        rebuildMapTree();
         SelectedMap = Maps.FirstOrDefault();
     }
 
@@ -189,6 +186,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (!SetProperty(ref selectedMap, value))
                 return;
             refreshLayerTabs();
+            IReadOnlyCollection<string> pinnedMaps = value is { IsWorldChild: true }
+                ? new[] { value.Key }
+                : Array.Empty<string>();
+            GameData.TrimWorldChildCache(pinnedMaps);
             SelectedMapChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -208,7 +209,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public JsonObject? SelectedMapData => SelectedMap is null ? null : GameData.getMap(SelectedMap.Key);
     public bool IsSelectedLayerEditable => SelectedLayerTab is
         {
             IsOverview: false,
@@ -371,18 +371,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         return differences;
     }
 
-    public void refreshMaps(string? selectedMapKey = null)
-    {
-        selectedMapKey ??= SelectedMap?.Key;
-        Maps.Clear();
-        foreach (KeyValuePair<string, JsonObject> pair in GameData.MapData.OrderBy(item => item.Key, StringComparer.Ordinal))
-        {
-            Maps.Add(new MapListItemViewModel(pair.Key, GameData.getMapDisplayName(pair.Key)));
-        }
-        SelectedMap = Maps.FirstOrDefault(map => map.Key == selectedMapKey) ?? Maps.FirstOrDefault();
-        refreshLayerTabs();
-    }
-
     public void Dispose()
     {
         if (disposed)
@@ -397,6 +385,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         PreviewService.Dispose();
         ReferenceIndex.Dispose();
         BlueprintClasses.Dispose();
+        GameData.Dispose();
     }
 
     private void executeUndo() => UndoChanges();
@@ -407,6 +396,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         string? previousName = preferredLayerName ?? (SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null);
         LayerTabs.Clear();
+        if (SelectedMap is not { IsMap: true })
+        {
+            SelectedLayerTab = null;
+            refreshActorOutliner();
+            updateLayerEditability();
+            return;
+        }
         LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true));
         if (SelectedMap is not null)
         {
@@ -592,7 +588,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 Actions.OpenAutoTiles(info.Key);
                 break;
             case EditorDataOpenTarget.Map:
-                SelectedMap = Maps.FirstOrDefault(map => map.Key == info.Key);
+                SelectedMap = findMapItem(info.Key);
                 break;
             case EditorDataOpenTarget.CommonFunctions:
                 Actions.OpenCommonFunctions(info.Key);
@@ -686,7 +682,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public string Console => LocaleService.Get("CONSOLE");
 }
 
-public sealed record MapListItemViewModel(string Key, string DisplayName);
 public sealed class HistoryCompletedEventArgs(string action, IReadOnlyList<string> differences) : EventArgs
 {
     public string Action { get; } = action;

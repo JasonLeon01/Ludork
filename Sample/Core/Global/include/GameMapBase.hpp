@@ -6,6 +6,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
+#include <array>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -142,6 +143,7 @@ public:
     BIND_METHOD()
     void updateActorOccupancy(Actor& actor) override;
 
+    BIND_METHOD(metadata = false)
     sf::Vector2u getSize() const override;
     bool isPassable(const Actor& actor,
                     const sf::Vector2i& position) const override;
@@ -218,6 +220,21 @@ public:
     BIND_METHOD()
     void setTilemap(std::shared_ptr<Tilemap> tilemap);
 
+    BIND_METHOD(metadata = false)
+    void configureSparseWorld(
+        const sf::Vector2u& size, const std::vector<std::string>& layerOrder,
+        std::function<bool(const sf::Vector2i&)> tilePassabilityQuery,
+        std::function<bool(const sf::Vector2i&, const sf::Vector2i&, int)>
+            directionPassabilityQuery,
+        std::function<std::optional<Material>(const sf::Vector2i&)>
+            topMaterialQuery);
+
+    BIND_METHOD(metadata = false)
+    void clearSparseWorld();
+
+    BIND_METHOD(metadata = false)
+    std::size_t getSparseOccupancyPageCount() const;
+
     ////////////////////////////////////////////////////////////
     /// \brief Synchronise cached actor pointers from typed actor lists
     ///
@@ -264,6 +281,9 @@ public:
     BIND_METHOD(name = "_syncActorViews", metadata = false)
     void syncActorViews(const ActorDict& actors);
 
+    BIND_METHOD(name = "_forgetActors", metadata = false)
+    void forgetActors(const std::vector<ActorPtr>& actors);
+
     BIND_METHOD(name = "_updateActors", metadata = false)
     void updateActors(float deltaTime);
 
@@ -274,6 +294,17 @@ public:
     void fixedUpdateActors(float fixedDelta);
 
 private:
+    static constexpr int OccupancyPageSize = 32;
+
+    struct SparseOccupancyPage {
+        std::array<std::vector<Actor*>, OccupancyPageSize * OccupancyPageSize>
+            cells;
+        std::size_t occupiedCellCount = 0;
+    };
+
+    using SparseOccupancyPageMap =
+        std::unordered_map<IntPair, SparseOccupancyPage, IntPairHash>;
+
     ////////////////////////////////////////////////////////////
     /// \brief Check whether one grid node is traversable
     ///
@@ -307,6 +338,15 @@ private:
     ///
     ////////////////////////////////////////////////////////////
     void unregisterActorOccupancy(Actor& actor);
+
+    void clearActorOccupancy();
+
+    const std::vector<Actor*>* findActorsAtCell(int x, int y) const;
+
+    static int getOccupancyPageCoordinate(int value);
+    static int getOccupancyPageOffset(int value);
+    static IntPair getOccupancyPageKey(int x, int y);
+    static std::size_t getOccupancyPageCellIndex(int x, int y);
 
     std::vector<Actor*> getActorsInRangeImpl(int x, int y, int radius,
                                              const Actor* excludedActor);
@@ -393,9 +433,17 @@ private:
                                      const Actor* selfActor) const;
 
     std::shared_ptr<Tilemap> tilemap_;
+    std::optional<sf::Vector2u> sparseWorldSize_;
+    std::vector<std::string> sparseWorldLayerOrder_;
+    std::function<bool(const sf::Vector2i&)> sparseTilePassabilityQuery_;
+    std::function<bool(const sf::Vector2i&, const sf::Vector2i&, int)>
+        sparseDirectionPassabilityQuery_;
+    std::function<std::optional<Material>(const sf::Vector2i&)>
+        sparseTopMaterialQuery_;
     std::vector<std::vector<bool>> tilePassableGrid_;
     bool passabilityDirty_ = true;
     OccupancyMap occupancyMap_;
+    SparseOccupancyPageMap sparseOccupancyPages_;
     std::unordered_map<Actor*, std::vector<sf::Vector2i>>
         registeredOccupancyCells_;
     ActorDict actorsRef_;

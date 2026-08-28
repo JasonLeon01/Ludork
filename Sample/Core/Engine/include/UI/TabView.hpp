@@ -24,9 +24,7 @@ class PlainText;
 class Rect;
 class SolidRect;
 
-BIND_CLASS(callbacks =
-               "getSize,getLocalBounds,update,onClick,onMouseButtonDown,"
-               "onMouseMoved,draw")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TabView : public ControlBase, public FunctionalBase {
 public:
     BIND_INIT(defaults = {0})

@@ -67,19 +67,24 @@ public sealed class ActorPreviewLease : IDisposable
     private AlphaFormat? frameAlphaFormat;
     private bool isActive = true;
     private bool disposed;
+    private bool nativeRenderDirty;
     private PixelRect renderedTextureRect;
     private readonly int presentationSize;
+    private readonly bool staticFrame;
 
     internal ActorPreviewLease(
         ActorPreviewService owner,
         ActorVisualDescriptor descriptor,
         int presentationSize,
-        bool active)
+        bool active,
+        bool staticFrame)
     {
         this.owner = owner;
         Descriptor = descriptor;
         this.presentationSize = Math.Max(0, presentationSize);
+        this.staticFrame = staticFrame;
         isActive = active;
+        nativeRenderDirty = descriptor.RequiresNativePreview;
         SourceRect = new PixelRect(0, 0, descriptor.BaseTextureRect.Width, descriptor.BaseTextureRect.Height);
     }
 
@@ -107,6 +112,7 @@ public sealed class ActorPreviewLease : IDisposable
             return;
         Descriptor = descriptor;
         renderedTextureRect = default;
+        nativeRenderDirty = descriptor.RequiresNativePreview;
         ShaderError = null;
         owner.onLeaseDescriptorChanged(this);
     }
@@ -123,7 +129,20 @@ public sealed class ActorPreviewLease : IDisposable
     }
 
     internal bool IsDisposed => disposed;
+    internal bool IsStatic => staticFrame;
+    internal bool NeedsNativeRender => nativeRenderDirty;
     internal PixelRect RenderedTextureRect => renderedTextureRect;
+
+    internal PixelRect getTextureRect(TimeSpan elapsed)
+    {
+        return Descriptor.GetTextureRect(staticFrame ? TimeSpan.Zero : elapsed);
+    }
+
+    internal void markNativeRenderDirty()
+    {
+        if (!disposed && staticFrame && Descriptor.RequiresNativePreview)
+            nativeRenderDirty = true;
+    }
 
     internal void publish(
         PixelRect textureRect,
@@ -186,6 +205,7 @@ public sealed class ActorPreviewLease : IDisposable
         }
         SourceRect = new PixelRect(0, 0, width, height);
         renderedTextureRect = textureRect;
+        nativeRenderDirty = false;
         ShaderError = shaderError;
         FrameChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -204,24 +224,41 @@ public sealed class ActorPreviewLease : IDisposable
         frame = atlas;
         SourceRect = atlasRect;
         renderedTextureRect = textureRect;
+        nativeRenderDirty = false;
         ShaderError = shaderError;
         FrameChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    internal bool UsesAtlas => presentationSize == 0;
+    internal bool UsesAtlas => presentationSize == 0 && !staticFrame;
 
-    internal void clearFrame(PixelRect textureRect)
+    internal void clearFrame(
+        PixelRect textureRect,
+        string? shaderError = null,
+        bool nativeRenderPending = false)
     {
-        if (disposed || presentationSize != 0)
+        if (disposed)
             return;
-        bool changed = frame is not null;
+        bool changed = frame is not null || !string.Equals(ShaderError, shaderError, StringComparison.Ordinal);
         ownedFrame?.Dispose();
         ownedFrame = null;
         frameAlphaFormat = null;
         frame = null;
         SourceRect = new PixelRect(0, 0, textureRect.Width, textureRect.Height);
         renderedTextureRect = textureRect;
-        ShaderError = null;
+        nativeRenderDirty = nativeRenderPending;
+        ShaderError = shaderError;
+        if (changed)
+            FrameChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal void publishRenderError(PixelRect textureRect, string shaderError)
+    {
+        if (disposed)
+            return;
+        bool changed = !string.Equals(ShaderError, shaderError, StringComparison.Ordinal);
+        renderedTextureRect = textureRect;
+        nativeRenderDirty = false;
+        ShaderError = shaderError;
         if (changed)
             FrameChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -304,17 +341,21 @@ public sealed class ActorPreviewLease : IDisposable
     }
 }
 
-public sealed class ActorPreviewService : IDisposable
+public sealed partial class ActorPreviewService : IDisposable
 {
+    private const int MaximumSourceTextures = 128;
+    private const long MaximumSourceTextureBytes = 128L * 1024L * 1024L;
     private readonly PreviewHostConnection connection;
     private readonly DispatcherTimer timer;
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly CancellationTokenSource lifetime = new();
     private readonly HashSet<ActorPreviewLease> leases = [];
-    private readonly Dictionary<string, SourceTexture> sourceTextures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedSourceTexture> sourceTextures = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<WriteableBitmap> retiredAtlasPages = [];
     private List<WriteableBitmap> atlasPages = [];
     private long generation;
+    private long sourceTextureAccessOrder;
+    private long sourceTextureBytes;
     private bool inFlight;
     private bool refreshPending;
     private bool disposed;
@@ -352,12 +393,30 @@ public sealed class ActorPreviewService : IDisposable
         int presentationSize,
         bool active)
     {
+        return acquire(descriptor, presentationSize, active, false);
+    }
+
+    internal ActorPreviewLease AcquireStatic(ActorVisualDescriptor descriptor)
+    {
+        return acquire(descriptor, 0, true, true);
+    }
+
+    private ActorPreviewLease acquire(
+        ActorVisualDescriptor descriptor,
+        int presentationSize,
+        bool active,
+        bool staticFrame)
+    {
         ObjectDisposedException.ThrowIf(disposed, this);
-        ActorPreviewLease lease = new(this, descriptor, presentationSize, active);
+        ActorPreviewLease lease = new(this, descriptor, presentationSize, active, staticFrame);
         leases.Add(lease);
-        ensureTimerState();
         if (!lease.UsesAtlas)
-            updateFallback(lease, descriptor.GetTextureRect(clock.Elapsed), true);
+        {
+            PixelRect textureRect = lease.getTextureRect(clock.Elapsed);
+            if (!staticFrame || descriptor.ShaderPath.Length == 0)
+                updateFallback(lease, textureRect, true);
+        }
+        ensureTimerState();
         if (active)
             Refresh();
         return lease;
@@ -389,9 +448,10 @@ public sealed class ActorPreviewService : IDisposable
         foreach (ActorPreviewLease lease in leases.ToArray())
             lease.Dispose();
         leases.Clear();
-        foreach (SourceTexture source in sourceTextures.Values)
-            source.Dispose();
+        foreach (CachedSourceTexture source in sourceTextures.Values)
+            source.Texture.Dispose();
         sourceTextures.Clear();
+        sourceTextureBytes = 0;
         foreach (WriteableBitmap page in atlasPages)
             page.Dispose();
         atlasPages.Clear();
@@ -422,17 +482,17 @@ public sealed class ActorPreviewService : IDisposable
     internal void onLeaseActivityChanged(ActorPreviewLease lease)
     {
         if (lease.UsesAtlas)
-            lease.clearFrame(lease.Descriptor.GetTextureRect(clock.Elapsed));
+            lease.clearFrame(lease.getTextureRect(clock.Elapsed));
         ensureTimerState();
         Refresh();
     }
 
     internal void onLeaseDescriptorChanged(ActorPreviewLease lease)
     {
-        PixelRect textureRect = lease.Descriptor.GetTextureRect(clock.Elapsed);
+        PixelRect textureRect = lease.getTextureRect(clock.Elapsed);
         if (lease.UsesAtlas)
             lease.clearFrame(textureRect);
-        else
+        else if (!lease.IsStatic || lease.Descriptor.ShaderPath.Length == 0)
             updateFallback(lease, textureRect, true);
         ensureTimerState();
         Refresh();
@@ -457,20 +517,26 @@ public sealed class ActorPreviewService : IDisposable
         if (active.Count == 0)
             return;
         inFlight = true;
-        List<ActorPreviewLease> native = [];
+        List<ActorPreviewLease> realtimeNative = [];
+        List<ActorPreviewLease> staticNative = [];
         CancellationToken cancellationToken = lifetime.Token;
         try
         {
             TimeSpan elapsed = clock.Elapsed;
             foreach (ActorPreviewLease lease in active)
             {
-                PixelRect textureRect = lease.Descriptor.GetTextureRect(elapsed);
+                PixelRect textureRect = lease.getTextureRect(elapsed);
                 if (lease.Descriptor.RequiresNativePreview)
-                    native.Add(lease);
+                {
+                    if (!lease.IsStatic)
+                        realtimeNative.Add(lease);
+                    else if (lease.NeedsNativeRender)
+                        staticNative.Add(lease);
+                }
                 else if (lease.RenderedTextureRect != textureRect)
                     updateFallback(lease, textureRect, true);
             }
-            if (native.Count == 0)
+            if (realtimeNative.Count == 0 && staticNative.Count == 0)
                 return;
             if (!IsAvailable && DateTime.UtcNow >= nextConnectionAttempt)
             {
@@ -481,17 +547,28 @@ public sealed class ActorPreviewService : IDisposable
                 return;
             if (!IsAvailable)
             {
-                foreach (ActorPreviewLease lease in native)
-                {
-                    PixelRect textureRect = lease.Descriptor.GetTextureRect(elapsed);
-                    if (lease.RenderedTextureRect != textureRect)
-                        updateFallback(lease, textureRect, true);
-                }
+                foreach (ActorPreviewLease lease in realtimeNative.Concat(staticNative))
+                    publishUnavailableFallback(lease, elapsed);
                 return;
             }
-            ActorPreviewBatchFrame? frame = await requestFrameAsync(native, elapsed, cancellationToken);
-            if (!disposed && !cancellationToken.IsCancellationRequested && frame is not null)
-                publishFrame(frame, native, elapsed);
+            if (staticNative.Count != 0)
+            {
+                ActorPreviewBatchFrame? staticFrame = await requestFrameAsync(
+                    staticNative,
+                    TimeSpan.Zero,
+                    cancellationToken);
+                if (!disposed && !cancellationToken.IsCancellationRequested && staticFrame is not null)
+                    publishFrame(staticFrame, staticNative, TimeSpan.Zero);
+            }
+            if (realtimeNative.Count != 0)
+            {
+                ActorPreviewBatchFrame? realtimeFrame = await requestFrameAsync(
+                    realtimeNative,
+                    elapsed,
+                    cancellationToken);
+                if (!disposed && !cancellationToken.IsCancellationRequested && realtimeFrame is not null)
+                    publishFrame(realtimeFrame, realtimeNative, elapsed);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -501,8 +578,8 @@ public sealed class ActorPreviewService : IDisposable
             if (disposed)
                 return;
             TimeSpan elapsed = clock.Elapsed;
-            foreach (ActorPreviewLease lease in native)
-                updateFallback(lease, lease.Descriptor.GetTextureRect(elapsed), true);
+            foreach (ActorPreviewLease lease in realtimeNative.Concat(staticNative))
+                publishUnavailableFallback(lease, elapsed);
             StatusChanged?.Invoke(this, EventArgs.Empty);
         }
         finally
@@ -516,209 +593,26 @@ public sealed class ActorPreviewService : IDisposable
         }
     }
 
-    private async Task<ActorPreviewBatchFrame?> requestFrameAsync(
-        IReadOnlyList<ActorPreviewLease> active,
-        TimeSpan elapsed,
-        CancellationToken cancellationToken)
-    {
-        long requestGeneration = Interlocked.Increment(ref generation);
-        JsonArray items = [];
-        Dictionary<string, ActorVisualDescriptor> descriptors = new(StringComparer.Ordinal);
-        foreach (ActorPreviewLease lease in active)
-        {
-            ActorVisualDescriptor descriptor = lease.Descriptor;
-            PixelRect textureRect = descriptor.GetTextureRect(elapsed);
-            string id = createRequestId(descriptor, textureRect);
-            if (!descriptors.TryAdd(id, descriptor))
-                continue;
-            items.Add(new JsonObject
-            {
-                ["id"] = id,
-                ["texturePath"] = descriptor.TexturePath,
-                ["textureRect"] = new JsonObject
-                {
-                    ["x"] = textureRect.X,
-                    ["y"] = textureRect.Y,
-                    ["width"] = textureRect.Width,
-                    ["height"] = textureRect.Height,
-                },
-                ["shaderPath"] = descriptor.ShaderPath,
-                ["hue"] = normalizeHue(descriptor.Hue),
-            });
-        }
-        JsonObject request = new()
-        {
-            ["type"] = "renderActorBatch",
-            ["generation"] = requestGeneration,
-            ["time"] = elapsed.TotalSeconds,
-            ["items"] = items,
-        };
-        JsonObject response = await connection.ExchangeAsync(request, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!string.Equals(getString(response, "type"), "actorFrame", StringComparison.Ordinal))
-            throw new InvalidDataException(getString(response, "message", "UiPreviewHost returned an invalid actor frame."));
-        long responseGeneration = response["generation"]?.GetValue<long>() ?? 0;
-        if (responseGeneration != requestGeneration)
-            return null;
-        if (!string.Equals(getString(response, "pixelFormat"), "Bgra8888Premultiplied", StringComparison.Ordinal))
-            throw new InvalidDataException("UiPreviewHost returned an unsupported actor pixel format.");
-        List<ActorPreviewAtlasPage> pages = [];
-        if (response["pages"] is JsonArray pageData)
-        {
-            foreach (JsonObject page in pageData.OfType<JsonObject>())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                int width = page["width"]?.GetValue<int>() ?? 0;
-                int height = page["height"]?.GetValue<int>() ?? 0;
-                int stride = page["stride"]?.GetValue<int>() ?? width * 4;
-                if (width <= 0 || height <= 0 || stride < width * 4)
-                    throw new InvalidDataException("UiPreviewHost returned invalid actor atlas dimensions.");
-                pages.Add(new ActorPreviewAtlasPage(
-                    width,
-                    height,
-                    stride,
-                    connection.ReadPixels(page, checked(stride * height))));
-            }
-        }
-        List<ActorPreviewAtlasItem> resultItems = [];
-        if (response["items"] is JsonArray itemData)
-        {
-            foreach (JsonObject item in itemData.OfType<JsonObject>())
-            {
-                resultItems.Add(new ActorPreviewAtlasItem(
-                    getString(item, "id"),
-                    item["page"]?.GetValue<int>() ?? -1,
-                    new PixelRect(
-                        item["x"]?.GetValue<int>() ?? 0,
-                        item["y"]?.GetValue<int>() ?? 0,
-                        item["width"]?.GetValue<int>() ?? 0,
-                        item["height"]?.GetValue<int>() ?? 0),
-                    item["shaderError"]?.GetValue<bool>() == true,
-                    getString(item, "error")));
-            }
-        }
-        return new ActorPreviewBatchFrame(responseGeneration, pages, resultItems);
-    }
-
-    private void publishFrame(
-        ActorPreviewBatchFrame frame,
-        IReadOnlyList<ActorPreviewLease> active,
-        TimeSpan elapsed)
-    {
-        if (disposed || frame.Generation != Interlocked.Read(ref generation))
-            return;
-        Dictionary<string, ActorPreviewAtlasItem> items = frame.Items.ToDictionary(item => item.Id, StringComparer.Ordinal);
-        List<(ActorPreviewLease Lease, ActorPreviewAtlasItem Item, PixelRect TextureRect, ActorPreviewAtlasPage Page)>
-            publications = [];
-        foreach (ActorPreviewLease lease in active)
-        {
-            if (lease.IsDisposed || !lease.IsActive)
-                continue;
-            ActorVisualDescriptor descriptor = lease.Descriptor;
-            PixelRect textureRect = descriptor.GetTextureRect(elapsed);
-            string id = createRequestId(descriptor, textureRect);
-            if (!items.TryGetValue(id, out ActorPreviewAtlasItem? item)
-                || item.Page < 0 || item.Page >= frame.Pages.Count
-                || item.Rect.Width <= 0 || item.Rect.Height <= 0)
-            {
-                updateFallback(lease, textureRect, true);
-                continue;
-            }
-            ActorPreviewAtlasPage page = frame.Pages[item.Page];
-            if (item.Rect.X < 0 || item.Rect.Y < 0
-                || item.Rect.Right > page.Width || item.Rect.Bottom > page.Height)
-                throw new InvalidDataException("UiPreviewHost returned an actor atlas item outside its page.");
-            publications.Add((lease, item, textureRect, page));
-        }
-        List<WriteableBitmap> nextAtlasPages = frame.Pages.Select(createAtlasBitmap).ToList();
-        List<WriteableBitmap> previousAtlasPages = atlasPages;
-        atlasPages = nextAtlasPages;
-        foreach ((ActorPreviewLease lease, ActorPreviewAtlasItem item, PixelRect textureRect, ActorPreviewAtlasPage page)
-            in publications)
-        {
-            string? shaderError = item.ShaderError ? item.Error : null;
-            if (lease.UsesAtlas)
-            {
-                lease.publishAtlas(
-                    nextAtlasPages[item.Page],
-                    item.Rect,
-                    textureRect,
-                    shaderError);
-            }
-            else
-            {
-                lease.publish(
-                    textureRect,
-                    item.Rect.Width,
-                    item.Rect.Height,
-                    page.Stride,
-                    page.Pixels,
-                    item.Rect.X,
-                    item.Rect.Y,
-                    true,
-                    shaderError);
-            }
-        }
-        retireAtlasPages(previousAtlasPages);
-    }
-
-    private static WriteableBitmap createAtlasBitmap(ActorPreviewAtlasPage page)
-    {
-        WriteableBitmap bitmap = new(
-            new PixelSize(page.Width, page.Height),
-            new Vector(96, 96),
-            PixelFormat.Bgra8888,
-            AlphaFormat.Premul);
-        using (ILockedFramebuffer frame = bitmap.Lock())
-        {
-            byte[] target = new byte[frame.RowBytes * page.Height];
-            for (int y = 0; y < page.Height; y += 1)
-            {
-                Buffer.BlockCopy(
-                    page.Pixels,
-                    y * page.Stride,
-                    target,
-                    y * frame.RowBytes,
-                    page.Width * 4);
-            }
-            Marshal.Copy(target, 0, frame.Address, target.Length);
-        }
-        return bitmap;
-    }
-
-    private void retireAtlasPages(IReadOnlyList<WriteableBitmap> pages)
-    {
-        if (pages.Count == 0)
-            return;
-        foreach (WriteableBitmap page in pages)
-            retiredAtlasPages.Add(page);
-        Dispatcher.UIThread.Post(
-            () =>
-            {
-                foreach (WriteableBitmap page in pages)
-                {
-                    if (retiredAtlasPages.Remove(page))
-                        page.Dispose();
-                }
-            },
-            DispatcherPriority.Background);
-    }
-
-    private void updateFallback(ActorPreviewLease lease, PixelRect textureRect, bool applyHue)
+    private bool updateFallback(
+        ActorPreviewLease lease,
+        PixelRect textureRect,
+        bool applyHue,
+        string? shaderError = null,
+        bool nativeRenderPending = false)
     {
         if (disposed || lease.IsDisposed)
-            return;
+            return false;
         if (lease.UsesAtlas)
         {
             lease.clearFrame(textureRect);
-            return;
+            return false;
         }
         SourceTexture? source = getSourceTexture(lease.Descriptor.TexturePath);
         if (source is null
             || textureRect.X < 0 || textureRect.Y < 0
             || textureRect.Right > source.Width || textureRect.Bottom > source.Height)
         {
-            return;
+            return false;
         }
         byte[] pixels = source.Copy(textureRect, applyHue ? normalizeHue(lease.Descriptor.Hue) : 0);
         lease.publish(
@@ -730,34 +624,43 @@ public sealed class ActorPreviewService : IDisposable
             0,
             0,
             false,
-            null);
+            shaderError);
+        if (nativeRenderPending)
+            lease.markNativeRenderDirty();
+        return true;
     }
 
-    private SourceTexture? getSourceTexture(string path)
+    private void publishUnavailableFallback(ActorPreviewLease lease, TimeSpan elapsed)
     {
-        if (disposed || !File.Exists(path))
-            return null;
-        FileInfo info = new(path);
-        if (sourceTextures.TryGetValue(path, out SourceTexture? source)
-            && source.LastWriteTimeUtc == info.LastWriteTimeUtc
-            && source.Length == info.Length)
+        PixelRect textureRect = lease.getTextureRect(elapsed);
+        if (lease.IsStatic && lease.Descriptor.ShaderPath.Length != 0)
         {
-            return source;
+            if (lease.Frame is not null)
+            {
+                lease.markNativeRenderDirty();
+                return;
+            }
+            string message = string.IsNullOrWhiteSpace(StatusMessage)
+                ? lease.ShaderError ?? "Actor shader preview is unavailable."
+                : StatusMessage;
+            if (!updateFallback(lease, textureRect, true, message, true))
+                lease.clearFrame(textureRect, message, true);
+            return;
         }
-        source?.Dispose();
-        SourceTexture loaded = SourceTexture.Load(path, info.LastWriteTimeUtc, info.Length);
-        sourceTextures[path] = loaded;
-        return loaded;
+        if (lease.RenderedTextureRect != textureRect)
+            updateFallback(lease, textureRect, true);
     }
 
     private void ensureTimerState()
     {
         bool realtime = !disposed && leases.Any(lease => lease.IsActive && !lease.IsDisposed
+            && !lease.IsStatic
             && (lease.Descriptor.Animated
                 || IsAvailable && lease.Descriptor.ShaderPath.Length != 0));
         bool retryConnection = !disposed && !IsAvailable
             && leases.Any(lease => lease.IsActive && !lease.IsDisposed
-                && lease.Descriptor.RequiresNativePreview);
+                && lease.Descriptor.RequiresNativePreview
+                && (!lease.IsStatic || lease.NeedsNativeRender));
         bool shouldRun = realtime || retryConnection;
         timer.Interval = realtime
             ? TimeSpan.FromMilliseconds(1000.0 / 30.0)
@@ -783,8 +686,20 @@ public sealed class ActorPreviewService : IDisposable
             foreach (ActorPreviewLease lease in leases.Where(lease => lease.IsActive && !lease.IsDisposed
                 && lease.Descriptor.RequiresNativePreview))
             {
-                updateFallback(lease, lease.Descriptor.GetTextureRect(elapsed), true);
+                publishUnavailableFallback(lease, elapsed);
             }
+        }
+        else
+        {
+            bool refreshStatic = false;
+            foreach (ActorPreviewLease lease in leases.Where(lease => lease.IsActive && !lease.IsDisposed
+                && lease.IsStatic && lease.Descriptor.RequiresNativePreview))
+            {
+                lease.markNativeRenderDirty();
+                refreshStatic = true;
+            }
+            if (refreshStatic)
+                Refresh();
         }
         ensureTimerState();
         StatusChanged?.Invoke(this, EventArgs.Empty);
@@ -813,131 +728,4 @@ public sealed class ActorPreviewService : IDisposable
         return value[propertyName]?.GetValue<string>() ?? fallback;
     }
 
-    private sealed class SourceTexture : IDisposable
-    {
-        private readonly byte[] pixels;
-
-        private SourceTexture(
-            int width,
-            int height,
-            int stride,
-            byte[] pixels,
-            DateTime lastWriteTimeUtc,
-            long length)
-        {
-            Width = width;
-            Height = height;
-            Stride = stride;
-            this.pixels = pixels;
-            LastWriteTimeUtc = lastWriteTimeUtc;
-            Length = length;
-        }
-
-        public int Width { get; }
-        public int Height { get; }
-        public int Stride { get; }
-        public DateTime LastWriteTimeUtc { get; }
-        public long Length { get; }
-
-        public static SourceTexture Load(string path, DateTime lastWriteTimeUtc, long length)
-        {
-            using Bitmap bitmap = new(path);
-            using WriteableBitmap buffer = new(
-                bitmap.PixelSize,
-                bitmap.Dpi,
-                PixelFormat.Bgra8888,
-                AlphaFormat.Unpremul);
-            using ILockedFramebuffer frame = buffer.Lock();
-            bitmap.CopyPixels(frame);
-            byte[] pixels = new byte[frame.RowBytes * frame.Size.Height];
-            Marshal.Copy(frame.Address, pixels, 0, pixels.Length);
-            int width = frame.Size.Width;
-            int height = frame.Size.Height;
-            int stride = frame.RowBytes;
-            return new SourceTexture(width, height, stride, pixels, lastWriteTimeUtc, length);
-        }
-
-        public byte[] Copy(PixelRect rect, double hue)
-        {
-            byte[] result = new byte[rect.Width * rect.Height * 4];
-            for (int y = 0; y < rect.Height; y += 1)
-            {
-                int sourceOffset = (rect.Y + y) * Stride + rect.X * 4;
-                int targetOffset = y * rect.Width * 4;
-                Buffer.BlockCopy(pixels, sourceOffset, result, targetOffset, rect.Width * 4);
-            }
-            if (hue > 0.001)
-                applyHue(result, hue);
-            return result;
-        }
-
-        public void Dispose()
-        {
-        }
-
-        private static void applyHue(byte[] data, double hue)
-        {
-            float offset = (float)(hue / 360.0);
-            for (int index = 0; index < data.Length; index += 4)
-            {
-                if (data[index + 3] == 0)
-                    continue;
-                rgbToHsv(data[index + 2], data[index + 1], data[index], out float h, out float s, out float v);
-                hsvToRgb((h + offset) % 1f, s, v, out byte r, out byte g, out byte b);
-                data[index + 2] = r;
-                data[index + 1] = g;
-                data[index] = b;
-            }
-        }
-
-        private static void rgbToHsv(byte r, byte g, byte b, out float h, out float s, out float v)
-        {
-            float rf = r / 255f;
-            float gf = g / 255f;
-            float bf = b / 255f;
-            float max = Math.Max(rf, Math.Max(gf, bf));
-            float min = Math.Min(rf, Math.Min(gf, bf));
-            float delta = max - min;
-            v = max;
-            if (delta <= 0.00001f)
-            {
-                h = 0;
-                s = 0;
-                return;
-            }
-            s = delta / max;
-            if (rf >= max)
-                h = (gf - bf) / delta % 6f;
-            else if (gf >= max)
-                h = (bf - rf) / delta + 2f;
-            else
-                h = (rf - gf) / delta + 4f;
-            h /= 6f;
-            if (h < 0)
-                h += 1f;
-        }
-
-        private static void hsvToRgb(float h, float s, float v, out byte r, out byte g, out byte b)
-        {
-            float c = v * s;
-            float x = c * (1 - Math.Abs(h * 6f % 2f - 1));
-            float m = v - c;
-            float rf;
-            float gf;
-            float bf;
-            int sector = (int)(h * 6f) % 6;
-            switch (sector)
-            {
-                case 0: rf = c; gf = x; bf = 0; break;
-                case 1: rf = x; gf = c; bf = 0; break;
-                case 2: rf = 0; gf = c; bf = x; break;
-                case 3: rf = 0; gf = x; bf = c; break;
-                case 4: rf = x; gf = 0; bf = c; break;
-                default: rf = c; gf = 0; bf = x; break;
-            }
-            r = (byte)Math.Clamp((rf + m) * 255f, 0, 255);
-            g = (byte)Math.Clamp((gf + m) * 255f, 0, 255);
-            b = (byte)Math.Clamp((bf + m) * 255f, 0, 255);
-        }
-    }
 }

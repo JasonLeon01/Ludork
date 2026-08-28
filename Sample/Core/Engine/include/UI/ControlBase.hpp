@@ -29,10 +29,7 @@ protected:
     ~ControlBaseSharedOwner() = default;
 };
 
-BIND_CLASS(callbacks =
-               "getChildren,getSize,getLocalBounds,getRenderStates,getOrigin,"
-               "setOrigin,draw",
-           cast_bases = "sf::Drawable,sf::Transformable")
+BIND_CLASS(callbacks = true, cast_bases = "sf::Drawable,sf::Transformable")
 class LUDORK_ENGINE_API ControlBase : public sf::Drawable,
                                       public sf::Transformable,
                                       public ControlBaseSharedOwner {
@@ -44,7 +41,7 @@ public:
     BIND_METHOD(Pure = true)
     bool getVisible() const;
 
-    BIND_METHOD()
+    BIND_METHOD(callback = false)
     virtual void setVisible(bool visible);
 
     BIND_METHOD(Pure = true)
@@ -129,16 +126,16 @@ public:
     virtual void refreshDisplayScale();
 
 protected:
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual sf::Transform _getScreenTransform() const;
 
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual void _applyRenderStates(sf::RenderStates& states) const;
 
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual sf::Transform _getRenderTransform() const;
 
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual sf::Transform _getScreenRenderTransform() const;
 
     BIND_METHOD()

@@ -17,6 +17,7 @@ void registerTable(sol::state_view lua);
 void updateAsyncio(sol::state_view lua);
 void shutdownAsyncio(sol::state_view lua) noexcept;
 void shutdownFileBatch(sol::state_view lua) noexcept;
+void clearFileBatchJsonRuntime(lua_State* state) noexcept;
 void shutdownContainers(lua_State* state) noexcept;
 
 }  // namespace ludork::standard::binding

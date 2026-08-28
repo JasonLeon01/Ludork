@@ -7,11 +7,17 @@ varying vec4 sf_TexCoord0;
 
 uniform sampler2D screenTex;
 uniform sampler2D fogTex;
-uniform vec2 texSize;
 uniform vec2 fogScroll;
 uniform float power;
 uniform float distort;
 uniform float time;
+uniform float worldMode;
+uniform vec2 worldOrigin;
+uniform vec2 worldAxisX;
+uniform vec2 worldAxisY;
+uniform vec2 fogTextureSize;
+uniform vec2 clipMin;
+uniform vec2 clipMax;
 
 float hash21(vec2 p)
 {
@@ -50,6 +56,15 @@ void main()
 {
     vec2 uv = sf_TexCoord0.xy;
     vec3 src = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
+    vec2 worldUV = vec2(uv.x, 1.0 - uv.y);
+    vec2 worldPosition = worldOrigin + worldUV.x * worldAxisX + worldUV.y * worldAxisY;
+    if (worldMode > 0.5 &&
+        (worldPosition.x < clipMin.x || worldPosition.y < clipMin.y ||
+         worldPosition.x > clipMax.x || worldPosition.y > clipMax.y))
+    {
+        gl_FragColor = vec4(src, 1.0);
+        return;
+    }
     float p = clamp(power, 0.0, 1.0);
     if (p <= 0.001)
     {
@@ -58,7 +73,9 @@ void main()
     }
 
     float distortAmt = clamp(distort, 0.0, 1.0) * 0.22;
-    vec2 fogUV = uv * 2.0 + fogScroll;
+    vec2 fogUV = worldMode > 0.5
+        ? worldPosition / max(fogTextureSize, vec2(1.0)) + fogScroll
+        : uv * 2.0 + fogScroll;
     fogUV = flowWarp(fogUV, distortAmt, time, 0.0);
     vec2 fogUV2 = fogUV * 1.55 + fogScroll * 0.6;
     fogUV2 = flowWarp(fogUV2, distortAmt * 0.75, time, 2.17);

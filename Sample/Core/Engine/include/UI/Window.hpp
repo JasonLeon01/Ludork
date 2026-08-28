@@ -13,7 +13,7 @@
 #include <memory>
 #include <vector>
 
-BIND_CLASS(callbacks = "getSize")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Window : public SpriteBase {
 public:
     BIND_INIT()

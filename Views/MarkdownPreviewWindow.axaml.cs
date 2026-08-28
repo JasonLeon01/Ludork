@@ -40,6 +40,8 @@ public partial class MarkdownPreviewWindow : Window
         Unnamed,
     }
 
+    private sealed record MarkdownLinkRange(int Start, int Length, string Target, Run TextRun);
+
     private static readonly IBrush codeForeground = new SolidColorBrush(Color.Parse("#dcdcdc"));
     private static readonly IBrush codeKeyword = new SolidColorBrush(Color.Parse("#c586c0"));
     private static readonly IBrush codeString = new SolidColorBrush(Color.Parse("#ce9178"));
@@ -48,7 +50,10 @@ public partial class MarkdownPreviewWindow : Window
     private static readonly IBrush codeVariable = new SolidColorBrush(Color.Parse("#9cdcfe"));
     private static readonly IBrush codeDirective = new SolidColorBrush(Color.Parse("#dcdcaa"));
     private static readonly IBrush codeCommand = new SolidColorBrush(Color.Parse("#4ec9b0"));
+    private static readonly IBrush linkForeground = new SolidColorBrush(Color.Parse("#7ec8ff"));
+    private static readonly IBrush linkHoverForeground = new SolidColorBrush(Color.Parse("#b3ddff"));
     private static readonly FontFamily codeFont = FontFamily.Parse("Cascadia Mono,Menlo,Monaco,Consolas");
+    private readonly Cursor linkCursor = new(StandardCursorType.Hand);
     private bool singleFile;
     private readonly List<MarkdownDocumentEntry> entries = [];
     private readonly List<MarkdownDocumentSection> sections = [];
@@ -473,7 +478,7 @@ public partial class MarkdownPreviewWindow : Window
         };
         if (fontFamily is not null)
             block.FontFamily = fontFamily;
-        appendInlineMarkdown(getInlines(block), text);
+        appendInlineMarkdown(block, text);
         return block;
     }
 
@@ -484,56 +489,81 @@ public partial class MarkdownPreviewWindow : Window
         return inlines;
     }
 
-    private void appendInlineMarkdown(InlineCollection inlines, string text, bool linksEnabled = true)
+    private void appendInlineMarkdown(TextBlock block, string text, bool linksEnabled = true)
     {
+        InlineCollection inlines = getInlines(block);
+        List<MarkdownLinkRange> links = [];
         MatchCollection matches = Regex.Matches(
             text,
             @"`[^`\n]+`|\*\*[^*\n]+?\*\*|__[^_\n]+?__|~~[^~\n]+?~~|(?<!\*)\*[^*\n]+?\*(?!\*)|!?\[[^\]]*\]\([^)]+\)");
         int position = 0;
+        int textPosition = 0;
         foreach (Match match in matches)
         {
             if (match.Index > position)
-                inlines.Add(new Run(text[position..match.Index]));
-            appendInlineToken(inlines, match.Value, linksEnabled);
+            {
+                string plainText = text[position..match.Index];
+                inlines.Add(new Run(plainText));
+                textPosition += plainText.Length;
+            }
+            textPosition += appendInlineToken(inlines, match.Value, links, textPosition, linksEnabled);
             position = match.Index + match.Length;
         }
         if (position < text.Length)
-            inlines.Add(new Run(text[position..]));
+        {
+            string plainText = text[position..];
+            inlines.Add(new Run(plainText));
+        }
+        if (links.Count == 0)
+            return;
+        block.Tag = links;
+        block.PointerMoved += onMarkdownLinkPointerMoved;
+        block.PointerExited += onMarkdownLinkPointerExited;
+        block.Tapped += onMarkdownLinkTapped;
     }
 
-    private void appendInlineToken(InlineCollection inlines, string token, bool linksEnabled)
+    private int appendInlineToken(
+        InlineCollection inlines,
+        string token,
+        ICollection<MarkdownLinkRange> links,
+        int textPosition,
+        bool linksEnabled)
     {
         if (token.StartsWith('`'))
         {
-            Run code = new("\u2009" + token[1..^1] + "\u2009")
+            string codeText = "\u2009" + token[1..^1] + "\u2009";
+            Run code = new(codeText)
             {
                 Background = new SolidColorBrush(Color.Parse("#2d2d2d")),
                 Foreground = codeString,
                 FontFamily = codeFont,
             };
             inlines.Add(code);
-            return;
+            return codeText.Length;
         }
         if (token.StartsWith("**", StringComparison.Ordinal) || token.StartsWith("__", StringComparison.Ordinal))
         {
-            inlines.Add(new Run(token[2..^2]) { FontWeight = FontWeight.Bold });
-            return;
+            string boldText = token[2..^2];
+            inlines.Add(new Run(boldText) { FontWeight = FontWeight.Bold });
+            return boldText.Length;
         }
         if (token.StartsWith("~~", StringComparison.Ordinal))
         {
-            inlines.Add(new Run(token[2..^2]) { TextDecorations = TextDecorations.Strikethrough });
-            return;
+            string strikeText = token[2..^2];
+            inlines.Add(new Run(strikeText) { TextDecorations = TextDecorations.Strikethrough });
+            return strikeText.Length;
         }
         if (token.StartsWith('*'))
         {
-            inlines.Add(new Run(token[1..^1]) { FontStyle = FontStyle.Italic });
-            return;
+            string italicText = token[1..^1];
+            inlines.Add(new Run(italicText) { FontStyle = FontStyle.Italic });
+            return italicText.Length;
         }
         Match link = Regex.Match(token, @"^!?\[([^\]]+)\]\(([^)]+)\)$");
         if (!link.Success)
         {
             inlines.Add(new Run(token));
-            return;
+            return token.Length;
         }
         string label = link.Groups[1].Value;
         string target = link.Groups[2].Value;
@@ -541,31 +571,29 @@ public partial class MarkdownPreviewWindow : Window
         {
             inlines.Add(new Run(label)
             {
-                Foreground = new SolidColorBrush(Color.Parse("#7ec8ff")),
+                Foreground = linkForeground,
                 TextDecorations = TextDecorations.Underline,
             });
+            int length = label.Length;
             if (token.StartsWith("![", StringComparison.Ordinal))
             {
-                inlines.Add(new Run(" (" + target + ")")
+                string targetText = " (" + target + ")";
+                inlines.Add(new Run(targetText)
                 {
                     Foreground = new SolidColorBrush(Color.Parse("#a0a0a0")),
                 });
+                length += targetText.Length;
             }
-            return;
+            return length;
         }
-        TextBlock linkText = new()
+        Run linkText = new(label)
         {
-            Text = label,
+            Foreground = linkForeground,
             TextDecorations = TextDecorations.Underline,
         };
-        Button linkButton = new()
-        {
-            Classes = { "markdownLink" },
-            Content = linkText,
-            Tag = target,
-        };
-        linkButton.Click += onLinkClicked;
-        inlines.Add(linkButton);
+        inlines.Add(linkText);
+        links.Add(new MarkdownLinkRange(textPosition, label.Length, target, linkText));
+        return label.Length;
     }
 
     private void addImageBlock(string alt, string target)
@@ -698,15 +726,57 @@ public partial class MarkdownPreviewWindow : Window
         renderedBitmaps.Clear();
     }
 
-    private void onLinkClicked(object? sender, RoutedEventArgs args)
+    private void onMarkdownLinkPointerMoved(object? sender, PointerEventArgs args)
     {
-        if (sender is not Button { Tag: string rawTarget })
+        if (sender is not TextBlock block)
             return;
+        MarkdownLinkRange? link = findMarkdownLink(block, args.GetPosition(block));
+        updateMarkdownLinkHover(block, link);
+    }
+
+    private void onMarkdownLinkPointerExited(object? sender, PointerEventArgs args)
+    {
+        if (sender is TextBlock block)
+            updateMarkdownLinkHover(block, null);
+    }
+
+    private void onMarkdownLinkTapped(object? sender, TappedEventArgs args)
+    {
+        if (sender is not TextBlock block)
+            return;
+        MarkdownLinkRange? link = findMarkdownLink(block, args.GetPosition(block));
+        if (link is null)
+            return;
+        navigateToLink(link.Target);
+        args.Handled = true;
+    }
+
+    private static MarkdownLinkRange? findMarkdownLink(TextBlock block, Point point)
+    {
+        if (block.Tag is not IReadOnlyList<MarkdownLinkRange> links)
+            return null;
+        TextHitTestResult hit = block.TextLayout.HitTestPoint(point);
+        if (!hit.IsInside)
+            return null;
+        return links.FirstOrDefault(link =>
+            hit.TextPosition >= link.Start && hit.TextPosition < link.Start + link.Length);
+    }
+
+    private void updateMarkdownLinkHover(TextBlock block, MarkdownLinkRange? hoveredLink)
+    {
+        if (block.Tag is not IReadOnlyList<MarkdownLinkRange> links)
+            return;
+        foreach (MarkdownLinkRange link in links)
+            link.TextRun.Foreground = ReferenceEquals(link, hoveredLink) ? linkHoverForeground : linkForeground;
+        block.Cursor = hoveredLink is null ? null : linkCursor;
+    }
+
+    private void navigateToLink(string rawTarget)
+    {
         string target = unwrapLinkTarget(rawTarget);
         if (target.StartsWith('#'))
         {
             navigateToAnchor(target[1..]);
-            args.Handled = true;
             return;
         }
         if (Uri.TryCreate(target, UriKind.Absolute, out Uri? absoluteUri))
@@ -714,7 +784,6 @@ public partial class MarkdownPreviewWindow : Window
             if (absoluteUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
                 && absoluteUri.Host.Length > 0)
                 openExternalLink(absoluteUri);
-            args.Handled = true;
             return;
         }
         int fragmentIndex = target.IndexOf('#');
@@ -724,10 +793,7 @@ public partial class MarkdownPreviewWindow : Window
             || !tryResolveLocalPath(pathTarget, getCurrentDocumentDirectory(), documentRoot, out string documentPath)
             || !Path.GetExtension(documentPath).Equals(".md", StringComparison.OrdinalIgnoreCase)
             || !File.Exists(documentPath))
-        {
-            args.Handled = true;
             return;
-        }
         MarkdownDocumentEntry? entry = entries.FirstOrDefault(candidate =>
             !candidate.IsDirectory && pathsEqual(candidate.Path, documentPath));
         if (entry is null && singleFile)
@@ -736,12 +802,8 @@ public partial class MarkdownPreviewWindow : Window
             entries.Add(entry);
         }
         if (entry is null)
-        {
-            args.Handled = true;
             return;
-        }
         navigateToEntry(entry, fragment);
-        args.Handled = true;
     }
 
     private void navigateToEntry(MarkdownDocumentEntry entry, string fragment)
@@ -1232,7 +1294,7 @@ public partial class MarkdownPreviewWindow : Window
         InlineCollection inlines = getInlines(content);
         if (heading.Level > 1)
             inlines.Add(new Run((heading.IsCollapsed ? "▶" : "▼") + " "));
-        appendInlineMarkdown(inlines, heading.Text, false);
+        appendInlineMarkdown(content, heading.Text, false);
         heading.Button.Content = content;
     }
 
@@ -1336,6 +1398,7 @@ public partial class MarkdownPreviewWindow : Window
     protected override void OnClosed(EventArgs args)
     {
         clearRenderedContent();
+        linkCursor.Dispose();
         base.OnClosed(args);
     }
 }

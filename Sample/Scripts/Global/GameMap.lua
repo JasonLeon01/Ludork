@@ -58,7 +58,8 @@ local function configureCamera(gameMap, camera)
     camera:fixViewPosition()
 end
 
-function GameMap:init(mapName, tilemap, camera, previewOnly)
+function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
+    previewOnly = bool(previewOnly)
     local materialShader = nil
     local tilemapLightMaskShader = nil
     local lightMaskShader = nil
@@ -72,7 +73,9 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
                 "Global/TilemapLightMask.frag", sf.Shader.Type.Fragment
             )
             lightMaskShader = ManagerFunctions.loadShader("Global/LightMask.frag", sf.Shader.Type.Fragment)
-            materialShader = ManagerFunctions.loadShader("Global/Material.frag", sf.Shader.Type.Fragment)
+            local materialShaderPath = sparseWorldConfig == nil and "Global/Material.frag"
+                or "Global/WorldMaterial.frag"
+            materialShader = ManagerFunctions.loadShader(materialShaderPath, sf.Shader.Type.Fragment)
             lightPassShader = ManagerFunctions.loadShader("Global/LightPass.frag", sf.Shader.Type.Fragment)
             unobstructedLightPassShader = ManagerFunctions.loadShader(
                 "Global/UnoccludedLightPass.frag", sf.Shader.Type.Fragment
@@ -85,6 +88,12 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
         actorHueShader = ManagerFunctions.loadShader("Global/Hue.frag", sf.Shader.Type.Fragment)
     end
     GameMapBase.init(self)
+    if sparseWorldConfig ~= nil then
+        self:configureSparseWorld(
+            sparseWorldConfig.size, sparseWorldConfig.layerOrder, sparseWorldConfig.tilePassabilityQuery,
+            sparseWorldConfig.directionPassabilityQuery, sparseWorldConfig.topMaterialQuery
+        )
+    end
     self._tilemapLightMaskShader = tilemapLightMaskShader
     self._lightMaskShader = lightMaskShader
     self._lightPassShader = lightPassShader
@@ -92,13 +101,14 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._materialShader = materialShader
     self._actorHueShader = actorHueShader
     self._actorPixelShatterShader = actorPixelShatterShader
-    self._previewOnly = previewOnly == true
+    self._previewOnly = previewOnly
     self.mapName = mapName
     self._scene = nil
     self._tilemap = tilemap
     self._mapViewRect = validateMapViewRect(self)
     self._layersTopFirst = {}
-    local layerNames = self._tilemap:getLayerNameList()
+    local layerNames = sparseWorldConfig ~= nil and copy(sparseWorldConfig.layerOrder)
+        or self._tilemap:getLayerNameList()
     self._layerNames = layerNames
     for index = #layerNames, 1, -1 do
         self._layersTopFirst[#self._layersTopFirst + 1] = self._tilemap:getLayer(layerNames[index])
@@ -121,7 +131,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._lights = {}
     self._ambientLight = sf.Color.new(255, 255, 255, 255)
     self._lightBlockSize = sf.Vector2f.new(Engine.CellSize, Engine.CellSize)
-    local tilemapSize = self._tilemap:getSize()
+    local tilemapSize = sparseWorldConfig ~= nil and sparseWorldConfig.size or self._tilemap:getSize()
     self._shaderMapSize = sf.Vector2f.new(tilemapSize.x, tilemapSize.y)
     self._playerCoverColour = sf.Color.new(255, 255, 255, GameMap.DefaultCoverAlpha)
     self._staticTransmission = nil
@@ -130,6 +140,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._surfaceMask = nil
     self._dynamicTransmission = nil
     self._directLight = nil
+    self._directLightCleared = false
     self._staticDirectLight = nil
     self._useStaticDirectLight = false
     self._lightPassQuad = nil
@@ -142,6 +153,10 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._staticTransmissionRevision = -1
     self._staticTransmissionSignature = nil
     self._staticHasTransmissionLoss = false
+    self._staticTextureOrigin = sf.Vector2f.new(0.0, 0.0)
+    self._staticTextureSize = sf.Vector2f.new(1.0, 1.0)
+    self._staticOccupancyOrigin = sf.Vector2f.new(0.0, 0.0)
+    self._staticOccupancySize = sf.Vector2f.new(1.0, 1.0)
     self._dynamicTransmissionPixelSize = 0
     self._zeroShaderOffset = sf.Vector2f.new(0.0, 0.0)
     self._shaderColour = sf.Vector3f.new(0.0, 0.0, 0.0)
@@ -173,10 +188,11 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
     self._unobstructedLightPassRenderStates = nil
     if not self._previewOnly then
         ---@cast self._camera GlobalCore.Camera
-        local mapPixelSize = self._tilemap:getSize() * Engine.CellSize
-        self._staticTransmission = sf.RenderTexture.new(mapPixelSize)
+        local maskPixelSize = sparseWorldConfig == nil and self._tilemap:getSize() * Engine.CellSize
+            or assert(self._camera:getRenderTexture()):getSize()
+        self._staticTransmission = sf.RenderTexture.new(maskPixelSize)
         self._staticTransmission:setSmooth(false)
-        self._surfaceMask = sf.RenderTexture.new(mapPixelSize)
+        self._surfaceMask = sf.RenderTexture.new(maskPixelSize)
         self._surfaceMask:setSmooth(false)
         self._surfaceTileRenderStates = sf.RenderStates.new(self._camera:getRenderStates().blendMode)
         self._surfaceTileRenderStates.shader = self._tilemapLightMaskShader
@@ -216,6 +232,23 @@ function GameMap:init(mapName, tilemap, camera, previewOnly)
         end
     end)
     self:updateActorList()
+end
+
+---@diagnostic disable-next-line: unused
+function GameMap:isWorldMap()
+    return false
+end
+
+function GameMap:updateAutoTileAnimation(deltaTime)
+    self._tilemap:updateAutoTileAnimation(deltaTime)
+end
+
+---@diagnostic disable-next-line: unused
+function GameMap:disposeStreaming()
+end
+
+---@diagnostic disable-next-line: unused
+function GameMap:drawMapFogOverlay()
 end
 
 function GameMap:addComponent(component)
@@ -267,7 +300,13 @@ function GameMap:getTilemap()
 end
 
 function GameMap:getSize()
-    return self._tilemap:getSize()
+    return GameMapBase.getSize(self)
+end
+
+---@return Global.WorldGeometry.CellRect
+function GameMap:_getGameplayCellRect()
+    local size = self:getSize()
+    return { x = 0, y = 0, width = size.x, height = size.y }
 end
 
 function GameMap:getMapViewRect()
@@ -368,13 +407,11 @@ function GameMap:onTick(deltaTime)
         self:_withDeferredActorViewSync(function ()
             for _, actor in ipairs(self._actorsOnDestroy) do
                 for _, actorList in pairs(self._actors) do
-                    for index, listed in ipairs(actorList) do
-                        if listed == actor then
-                            table.remove(actorList, index)
-                            self._actorPixelShatterByActor[actor] = nil
-                            Actor.BlueprintEvent(actor, Actor, "onDestroy")
-                            break
-                        end
+                    local index = table.index(actorList, actor)
+                    if index ~= nil then
+                        table.remove(actorList, index)
+                        self._actorPixelShatterByActor[actor] = nil
+                        Actor.BlueprintEvent(actor, Actor, "onDestroy")
                     end
                 end
             end
@@ -413,10 +450,11 @@ end
 function GameMap:drawMapContent(target, states, applyPlayerCover)
     self:_prepareActorPixelShatterEffects()
     states = states or sf.RenderStates.new()
-    local playerLayerIndex = applyPlayerCover and self:_getPlayerLayerIndex(self._layerNames) or -1
+    local applyCover = bool(applyPlayerCover)
+    local playerLayerIndex = applyCover and self:_getPlayerLayerIndex(self._layerNames) or -1
     local refreshPlayerCover = false
     local playerPosition = nil
-    if applyPlayerCover then
+    if applyCover then
         refreshPlayerCover, playerPosition = self:_preparePlayerCover(self._layerNames, playerLayerIndex)
     end
     for index, layerName in ipairs(self._layerNames) do
@@ -435,38 +473,46 @@ function GameMap:drawMapContent(target, states, applyPlayerCover)
                 layerStates.shader = layer.shader
             end
             target:draw(layer, layerStates)
-            self:_drawLayerActors(target, states, layerName, index - 1, playerLayerIndex, applyPlayerCover == true)
+            self:_drawLayerActors(target, states, layerName, index - 1, playerLayerIndex, applyCover)
         end
     end
 end
 
-function GameMap:show()
+---@return boolean
+function GameMap:_prepareCameraFrame()
     if self._camera ~= nil then
         self._camera:syncFollowTarget()
     end
+    return true
+end
+
+function GameMap:show()
+    local renderCameraFrame = self:_prepareCameraFrame()
     System.setWindowMapView(self._mapViewRect)
-    if self._camera ~= nil then
+    if renderCameraFrame and self._camera ~= nil then
         self._camera:clear()
     end
-    if self._camera ~= nil then
-        ---@diagnostic disable-next-line: param-type-mismatch
-        self:drawMapContent(self._camera:getRenderTexture(), self._camera:getRenderStates(), true)
-    else
+    if renderCameraFrame and self._camera ~= nil then
+        self:drawMapContent(assert(self._camera:getRenderTexture()), self._camera:getRenderStates(), true)
+    elseif renderCameraFrame then
         self:_resetTransparentTiles()
     end
     ---@cast self._camera GlobalCore.Camera
-    for _, component in ipairs(self._components) do
-        component:onRender(self._camera)
-    end
-    if self:_lightingShadersAvailable() then
-        self:_renderLighting(self:_getActiveLights())
-    end
-    if self._camera ~= nil then
-        self._camera:display()
-    end
-    self:refreshShader()
-    if self._camera ~= nil then
-        WeatherController.drawShaderOverlay(self._camera)
+    if renderCameraFrame then
+        for _, component in ipairs(self._components) do
+            component:onRender(self._camera)
+        end
+        if self:_lightingShadersAvailable() then
+            self:_renderLighting(self:_getActiveLights())
+        end
+        self:drawMapFogOverlay()
+        if self._camera ~= nil then
+            self._camera:display()
+        end
+        self:refreshShader()
+        if self._camera ~= nil then
+            WeatherController.drawShaderOverlay(self._camera)
+        end
     end
     ---@diagnostic disable-next-line: param-type-mismatch
     System.draw(self._camera, self._materialShader)

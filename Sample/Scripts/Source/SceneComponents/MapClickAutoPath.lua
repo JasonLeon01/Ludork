@@ -6,7 +6,7 @@ local Enemy = require("Source.Enemy")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MovementSpecials = require("Source.MovementSpecials")
-local Teleporter = require("Source.Teleporter")
+local MapClickAutoPathRuntime = require("Source.SceneComponents.MapClickAutoPathRuntime")
 
 local Input = Engine.Input
 local Actor = Engine.Actor
@@ -19,28 +19,6 @@ local NEIGHBOUR_OFFSET_RIGHT = sf.Vector2i.new(1, 0)
 local NEIGHBOUR_OFFSET_LEFT = sf.Vector2i.new(-1, 0)
 local NEIGHBOUR_OFFSETS = { NEIGHBOUR_OFFSET_DOWN, NEIGHBOUR_OFFSET_UP, NEIGHBOUR_OFFSET_RIGHT, NEIGHBOUR_OFFSET_LEFT }
 
----@param gameMap GameMap
----@param goal    sf.Vector2i
----@return boolean
-local function hasTeleporterAt(gameMap, goal)
-    for _, actor in ipairs(gameMap:getAllActors()) do
-        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() then
-            if table.contains(actor:getOccupiedMapCells(), goal) then
-                return true
-            end
-        end
-    end
-    return false
-end
-
----@type function
-local getTeleportPathPositions
----@type function
-local getInstantWalkCount
----@type function
-local triggerInstantWalkStates
----@type function
-local setActorDirection
 ---@class Source.SceneComponents.MapClickAutoPath
 local MapClickAutoPath = {}
 
@@ -105,21 +83,25 @@ function MapClickAutoPath:onTick(_deltaTime)
         self._previewMapY = nil
         return
     end
-    if self._autoPathing and (player:isMoving() or player:isInRoute())
-        and self._routeDangerRevision ~= self._dangerState:getRevision() then
-        self:_replanForDangerChange(player)
-    end
     local currentPos = player:getMapPosition()
+    if self._autoPathing and (not player:isInRoute() or self._activeGoal ~= nil and currentPos == self._activeGoal) then
+        self._autoPathing = false
+        self._activeGoal = nil
+        self._routeDangerRevision = nil
+        self._routeState:clear()
+    end
     if self._previewMapX ~= currentPos.x or self._previewMapY ~= currentPos.y then
         self:_trimPreviewRoute(currentPos)
         self._previewMapX = currentPos.x
         self._previewMapY = currentPos.y
     end
-    if self._autoPathing and not player:isMoving() and not player:isInRoute() then
-        self._autoPathing = false
-        self._activeGoal = nil
-        self._routeDangerRevision = nil
-        self._routeState:clear()
+    local dangerRevision = self._dangerState:getPathfindingRevision()
+    if self._autoPathing and self._routeDangerRevision ~= dangerRevision then
+        if MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(self, player) then
+            self:_replanForDangerChange(player)
+        else
+            self._routeDangerRevision = dangerRevision
+        end
     end
     local goals = self:_drainPendingGoals()
     if not bool(goals) then
@@ -145,7 +127,7 @@ function MapClickAutoPath:onTick(_deltaTime)
             local start = player:getMapPosition()
             if start == goal then
                 self._routeState:clear()
-                setActorDirection(player, start, goal, true)
+                MapClickAutoPathRuntime.SetActorDirection(player, start, goal, true)
             else
                 local plan = self:_buildAutoPathPlan(player, start, goal)
                 if plan ~= nil then
@@ -166,7 +148,7 @@ function MapClickAutoPath:_startAutoPath(player, start, goal, plan)
     self._previewMapX = start.x
     self._previewMapY = start.y
     self._activeGoal = copy(goal)
-    self._routeDangerRevision = self._dangerState:getRevision()
+    self._routeDangerRevision = self._dangerState:getPathfindingRevision()
     player:setRoute(plan.routeSteps)
     self._autoPathing = true
 end
@@ -180,7 +162,7 @@ function MapClickAutoPath:_replanForDangerChange(player)
     self._parent:updateActorOccupancy(player)
     self._autoPathing = false
     self._routeState:clear()
-    self._routeDangerRevision = self._dangerState:getRevision()
+    self._routeDangerRevision = self._dangerState:getPathfindingRevision()
     if goal == nil then
         return
     end
@@ -216,8 +198,8 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     local goalPassable = self._parent:isPassable(player, goal)
     player:stop()
     local destination = goalPassable and goal or (#route >= 2 and route[#route - 1] or start)
-    local walkCount = getInstantWalkCount(route, destination)
-    local teleportPath = getTeleportPathPositions(route, destination)
+    local walkCount = MapClickAutoPathRuntime.GetInstantWalkCount(route, destination)
+    local teleportPath = MapClickAutoPathRuntime.GetTeleportPathPositions(route, destination)
     local destinationPosition = Pool.Get("sf.Vector2u", sf.Vector2u, {
         x = destination.x,
         y = destination.y
@@ -226,9 +208,9 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     Pool.Put("sf.Vector2u", destinationPosition)
     self._parent:updateActorOccupancy(player)
     self:_dispatchInstantMoveOverlaps(player)
-    triggerInstantWalkStates(player, walkCount)
+    MapClickAutoPathRuntime.TriggerInstantWalkStates(player, walkCount)
     local fromPos = #route >= 2 and route[#route - 1] or start
-    setActorDirection(player, fromPos, goal, start == goal)
+    MapClickAutoPathRuntime.SetActorDirection(player, fromPos, goal, start == goal)
     if not goalPassable and destination ~= goal then
         local moveOffset = Pool.Get("sf.Vector2i", sf.Vector2i, {
             x = goal.x - destination.x,
@@ -248,43 +230,6 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
         pathPositions[1] = copy(destination)
     end
     MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
-end
-
----@param route       sf.Vector2i[]
----@param destination sf.Vector2i
----@return sf.Vector2i[]
-function getTeleportPathPositions(route, destination)
-    local path = {}
-    for _, point in ipairs(route) do
-        path[#path + 1] = copy(point)
-        if point == destination then
-            break
-        end
-    end
-    return path
-end
-
----@param route       sf.Vector2i[]
----@param destination sf.Vector2i
----@return integer
-function getInstantWalkCount(route, destination)
-    for index, point in ipairs(route) do
-        if point == destination then
-            return index
-        end
-    end
-    return 0
-end
-
----@param player    Source.Player.Player
----@param walkCount integer
-function triggerInstantWalkStates(player, walkCount)
-    if walkCount <= 0 then
-        return
-    end
-    for _ = 1, walkCount do
-        player:triggerStateWalk()
-    end
 end
 
 ---@param player Source.Player.Player
@@ -324,7 +269,7 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
         return nil
     end
     if direct ~= nil and direct.route[#direct.route] == goal then
-        if goalActuallyPassable and not goalPassable and not hasTeleporterAt(self._parent, goal) then
+        if goalActuallyPassable and not goalPassable and not MapClickAutoPathRuntime.HasTeleporterAt(self._parent, goal) then
             local routeSteps = deepcopy(direct.routeSteps) ---@type sf.Vector2i[]
             table.remove(routeSteps)
             local route = deepcopy(direct.route) ---@type sf.Vector2i[]
@@ -413,11 +358,8 @@ function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
         if Class.isInstance(actor, Enemy) then
             ---@cast actor Source.Enemy
             if not actor:isDestroyed() and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
-                for _, cell in ipairs(actor:getOccupiedMapCells()) do
-                    if cell == goal then
-                        enemies[#enemies + 1] = actor
-                        break
-                    end
+                if table.contains(actor:getOccupiedMapCells(), goal) then
+                    enemies[#enemies + 1] = actor
                 end
             end
         end
@@ -477,30 +419,6 @@ function MapClickAutoPath:_isInMap(position)
     return position.x >= 0 and position.x < size.x and position.y >= 0 and position.y < size.y
 end
 
----@param actor          Source.Player.Player
----@param fromPos        sf.Vector2i
----@param goal           sf.Vector2i
----@param rotateWhenSame boolean
-function setActorDirection(actor, fromPos, goal, rotateWhenSame)
-    if actor.direction == nil then
-        return
-    end
-    if rotateWhenSame then
-        actor.direction = (actor.direction + 1) % 4
-        return
-    end
-    local dx = goal.x - fromPos.x
-    local dy = goal.y - fromPos.y
-    if dx == 0 and dy == 0 then
-        return
-    end
-    if math.abs(dx) > math.abs(dy) then
-        actor.direction = dx > 0 and Engine.Direction.RIGHT or Engine.Direction.LEFT
-    else
-        actor.direction = dy > 0 and Engine.Direction.DOWN or Engine.Direction.UP
-    end
-end
-
 ---@return sf.Vector2i[]
 function MapClickAutoPath:_drainPendingGoals()
     local goals = {}
@@ -528,13 +446,7 @@ function MapClickAutoPath:_trimPreviewRoute(currentPos)
     if not bool(route) then
         return
     end
-    local index = -1
-    for currentIndex, point in ipairs(route) do
-        if point == currentPos then
-            index = currentIndex
-            break
-        end
-    end
+    local index = table.index(route, currentPos) or -1
     if index >= 0 then
         ---@type sf.Vector2i[]
         local remaining = {}

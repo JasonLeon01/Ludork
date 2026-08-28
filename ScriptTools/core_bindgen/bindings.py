@@ -352,7 +352,7 @@ def class_binding_body(
             )
         )
         injection_index += 1
-    callbacks, base_members, legacy_callbacks = adapter_members(info, type_map)
+    callbacks, base_members = adapter_members(info, type_map)
     callback_names = [member.name for member in callbacks]
     if callback_names:
         output.append(
@@ -397,17 +397,6 @@ def class_binding_body(
                     "        });",
                 ]
             )
-    elif legacy_callbacks:
-        context.require_binding_feature("native")
-        context.require_binding_feature("function")
-        owner_types = [info.name, *conversion_bases]
-        base_arguments = f"<{', '.join(owner_types)}>"
-        output.append(
-            f'    root["{public_name}"].get<sol::table>().set_function("__classFactory", '
-            f"[lua](sol::table callbacks) -> sol::object {{ "
-            f"auto result = std::make_shared<{info.name}>(std::move(callbacks)); "
-            f"return ludork_core::writeOwningLuaObject{base_arguments}(lua, result); }});"
-        )
     minimum_factory_arity: int | None = None
     if adapter is not None:
         adapter_constructors = [
@@ -417,8 +406,6 @@ def class_binding_body(
             minimum_factory_arity = minimum_member_arity(adapter_constructors)
         elif not info.constructors:
             minimum_factory_arity = 0
-    elif legacy_callbacks:
-        minimum_factory_arity = 0
     elif factories:
         if info.options.get("table_init", "false").lower() == "true":
             minimum_factory_arity = 0

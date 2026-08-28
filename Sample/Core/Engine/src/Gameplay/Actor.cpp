@@ -121,6 +121,12 @@ void Actor::onFixedTick(float fixedDelta) {
 
 void Actor::onDestroy() {}
 
+void Actor::onWorldSleep() {}
+
+void Actor::onWorldWake(float elapsedSeconds) {
+    static_cast<void>(elapsedSeconds);
+}
+
 void Actor::onCollision(const std::vector<Actor*>& other) {
     static_cast<void>(other);
 }

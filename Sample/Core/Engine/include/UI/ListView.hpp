@@ -11,9 +11,7 @@
 #include <memory>
 #include <vector>
 
-BIND_CLASS(callbacks =
-               "getChildren,getSize,getRenderStates,getOrigin,setOrigin,update,"
-               "lateUpdate,fixedUpdate,applyPositions,draw")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ListView : public ControlBase, public FunctionalBase {
 public:
     BIND_INIT()

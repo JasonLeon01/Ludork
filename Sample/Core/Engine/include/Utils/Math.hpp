@@ -71,6 +71,10 @@ LUDORK_ENGINE_API double clampNumber(double value, double minimum,
 BIND_FUNCTION(name = "Lerp")
 double lerpNumber(double from, double to, double alpha);
 
+BIND_FUNCTION(name = "ManhattanDistance")
+std::int64_t manhattanDistance(const sf::Vector2i& left,
+                               const sf::Vector2i& right);
+
 BIND_FUNCTION(name = "GCD")
 std::int64_t greatestCommonDivisor(std::int64_t left, std::int64_t right);
 

@@ -23,7 +23,19 @@ public sealed record LogicTickTiming(
     double Maintenance,
     double FixedTick,
     double Sleep,
-    int FixedSteps);
+    int FixedSteps,
+    WorldStreamingTiming? WorldStreaming = null);
+
+public sealed record WorldStreamingTiming(
+    int QueueDepth,
+    int Reading,
+    int Prepared,
+    int Active,
+    int Dormant,
+    long CacheBytes,
+    double PublishMilliseconds,
+    int VisibleTileChunks,
+    int ActiveActors);
 
 public sealed record PerformanceSample(double Fps, double MemoryMegabytes)
 {

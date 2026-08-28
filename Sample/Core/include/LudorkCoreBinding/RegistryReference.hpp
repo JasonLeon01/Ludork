@@ -37,11 +37,7 @@ inline sol::object readLuaRegistryReference(
     if (!execution.active()) {
         throw std::runtime_error("Lua runtime session is stopping");
     }
-    if (reference.state() != state) {
-        throw std::invalid_argument(
-            "Lua registry reference belongs to another state");
-    }
-    if (!reference.pushUnderExecutionScope()) {
+    if (!reference.pushUnderExecutionScope(state)) {
         throw std::runtime_error(
             "Lua registry reference is no longer available");
     }

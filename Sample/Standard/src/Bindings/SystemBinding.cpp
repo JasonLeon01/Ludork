@@ -124,6 +124,12 @@ void registerSystemServices(sol::state_view lua) {
     path.set_function("abspath", [](const sol::object& value) {
         return pathToUtf8(absolutePath(pathFromUtf8(luaString(value))));
     });
+    path.set_function("isdir", [](const sol::object& value) {
+        return isDirectory(pathFromUtf8(luaString(value)));
+    });
+    path.set_function("isfile", [](const sol::object& value) {
+        return isRegularFile(pathFromUtf8(luaString(value)));
+    });
     path.set_function("getmtime", [](const sol::object& value) {
         return modificationTime(pathFromUtf8(luaString(value)));
     });

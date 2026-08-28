@@ -21,6 +21,7 @@ public sealed class MapEditWindow : Window
 {
     private readonly GameDataService gameData;
     private readonly string currentKey;
+    private readonly string keyPrefix;
     private readonly bool isNew;
     private readonly TextBox fileNameBox = EditorInputs.CreateEditableTextBox();
     private readonly TextBox mapNameBox = EditorInputs.CreateEditableTextBox();
@@ -40,10 +41,16 @@ public sealed class MapEditWindow : Window
     private JsonObject bgsFilter;
     private Color ambientColor;
 
-    private MapEditWindow(GameDataService gameData, MapInfo initial, string currentKey, bool isNew)
+    private MapEditWindow(
+        GameDataService gameData,
+        MapInfo initial,
+        string currentKey,
+        bool isNew,
+        string? keyPrefix)
     {
         this.gameData = gameData;
         this.currentKey = currentKey;
+        this.keyPrefix = keyPrefix?.Trim().Trim('/') ?? string.Empty;
         this.isNew = isNew;
         bgmFilter = cloneObject(initial.BgmFilter);
         bgsFilter = cloneObject(initial.BgsFilter);
@@ -107,9 +114,15 @@ public sealed class MapEditWindow : Window
         Opened += (_, _) => fileNameBox.Focus();
     }
 
-    public static Task<MapInfo?> ShowAsync(Window owner, GameDataService gameData, MapInfo initial, string currentKey, bool isNew)
+    public static Task<MapInfo?> ShowAsync(
+        Window owner,
+        GameDataService gameData,
+        MapInfo initial,
+        string currentKey,
+        bool isNew,
+        string? keyPrefix = null)
     {
-        return new MapEditWindow(gameData, initial, currentKey, isNew).ShowDialog<MapInfo?>(owner);
+        return new MapEditWindow(gameData, initial, currentKey, isNew, keyPrefix).ShowDialog<MapInfo?>(owner);
     }
 
     private Control createFileRow(TextBox textBox, string rootName, bool? isBgm)
@@ -180,7 +193,14 @@ public sealed class MapEditWindow : Window
             errorText.Text = LocaleService.Get("MAP_FILE_NAME_EMPTY");
             return;
         }
-        if (gameData.MapData.ContainsKey(key) && (isNew || !string.Equals(key, currentKey, StringComparison.Ordinal)))
+        if (keyPrefix.Length != 0 && key.Contains('/'))
+        {
+            errorText.Text = LocaleService.Get("WORLD_CHILD_FILE_NAME_INVALID");
+            return;
+        }
+        string lookupKey = keyPrefix.Length == 0 ? key : keyPrefix + "/" + key;
+        if (gameData.MapData.ContainsKey(lookupKey)
+            && (isNew || !string.Equals(lookupKey, currentKey, StringComparison.Ordinal)))
         {
             errorText.Text = LocaleService.Get("MAP_FILE_NAME_EXISTS");
             return;

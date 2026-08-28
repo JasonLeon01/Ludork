@@ -15,9 +15,7 @@
 
 class Rect;
 
-BIND_CLASS(callbacks =
-               "getSize,getLocalBounds,update,onConfirm,onClick,"
-               "onMouseButtonDown,onKeyDown,draw")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API CheckBox : public ControlBase, public FunctionalBase {
 public:
     BIND_INIT()

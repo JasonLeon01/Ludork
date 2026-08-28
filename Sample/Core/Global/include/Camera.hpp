@@ -18,7 +18,7 @@
 /// transforms, and can follow a parent actor with position clamping.
 ///
 ////////////////////////////////////////////////////////////
-BIND_CLASS(cast_bases = "sf::Drawable,sf::Transformable", callbacks = "draw")
+BIND_CLASS(cast_bases = "sf::Drawable,sf::Transformable", callbacks = true)
 class Camera : public sf::Drawable, public sf::Transformable {
 public:
     ////////////////////////////////////////////////////////////

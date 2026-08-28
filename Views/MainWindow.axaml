@@ -199,6 +199,10 @@
             <Setter Property="Padding" Value="4,6" />
             <Setter Property="IsExpanded" Value="True" />
         </Style>
+        <Style Selector="TreeView.mapList TreeViewItem">
+            <Setter Property="Padding" Value="4,6" />
+            <Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}" />
+        </Style>
     </Window.Styles>
 
     <DockPanel>
@@ -227,25 +231,40 @@
                     <TextBlock Grid.Row="0"
                                Classes="panelTitle"
                                Text="{Binding MapList}" />
-                    <ListBox x:Name="MapList"
-                             Grid.Row="1"
-                             ItemsSource="{Binding Maps}"
-                             SelectedItem="{Binding SelectedMap}"
-                             DoubleTapped="onMapListDoubleTapped"
-                             KeyDown="onMapListKeyDown">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:MapListItemViewModel">
-                                <utils:HintedTextPresenter Text="{Binding DisplayName}"
-                                                           ToolTip.Tip="{Binding Key}" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <TreeView x:Name="MapList"
+                              Classes="mapList"
+                              Grid.Row="1"
+                              ItemsSource="{Binding Maps}"
+                              SelectedItem="{Binding SelectedMap}"
+                              DoubleTapped="onMapListDoubleTapped"
+                              KeyDown="onMapListKeyDown">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate x:DataType="vm:MapListItemViewModel"
+                                              ItemsSource="{Binding Children}">
+                                <Grid ColumnDefinitions="18,*">
+                                    <TextBlock Grid.Column="0"
+                                               Text="▣"
+                                               Foreground="{DynamicResource LudorkPrimaryBrush}"
+                                               IsVisible="{Binding IsWorld}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0"
+                                               Text="◇"
+                                               IsVisible="{Binding IsMap}"
+                                               VerticalAlignment="Center" />
+                                    <utils:HintedTextPresenter Grid.Column="1"
+                                                               Text="{Binding DisplayName}"
+                                                               ToolTip.Tip="{Binding Key}" />
+                                </Grid>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
                 </Grid>
 
                 <GridSplitter x:Name="UpperLeftSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
                 <Grid x:Name="CenterArea" Grid.Column="2" RowDefinitions="Auto,*">
-                    <Grid Grid.Row="0"
+                    <Grid x:Name="MapEditToolbar"
+                          Grid.Row="0"
                           ColumnDefinitions="*,192,128"
                           Background="{DynamicResource LudorkSurfaceBrush}">
                         <ScrollViewer Grid.Column="0"
@@ -335,6 +354,8 @@
                                       VerticalScrollBarVisibility="Auto">
                             <controls:MapPanel x:Name="EditorPanel" />
                         </ScrollViewer>
+                        <controls:WorldMapPanel x:Name="WorldEditorPanel"
+                                                IsVisible="False" />
                         <Border x:Name="GameViewport"
                                 Background="#000000"
                                 IsVisible="False">

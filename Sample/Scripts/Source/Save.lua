@@ -38,4 +38,22 @@ function Save.GetSavePath(slot)
     return Engine.getSavePath() .. "/Save_" .. tostring(slot) .. SAVE_FILE_EXTENSION
 end
 
+function Save.FindLatestSlot(maxSlots)
+    ---@type integer | nil
+    local latestSlot = nil
+    ---@type number | nil
+    local latestModificationTime = nil
+    for slot = 1, maxSlots do
+        local filePath = Save.GetSavePath(slot)
+        if CoreSystem.exists(filePath) then
+            local modificationTime = os.path.getmtime(filePath)
+            if latestModificationTime == nil or modificationTime > latestModificationTime then
+                latestSlot = slot
+                latestModificationTime = modificationTime
+            end
+        end
+    end
+    return latestSlot
+end
+
 return Save

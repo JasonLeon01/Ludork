@@ -7,6 +7,7 @@
 #include <System/SceneRuntime.hpp>
 
 #include <functional>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -307,6 +308,15 @@ public:
 
     BIND_METHOD()
     static void applyFogFromMapData(const RuntimeValue::Map& mapData);
+
+    BIND_METHOD(metadata = false)
+    static bool isPerformanceProfilerEnabled();
+
+    BIND_METHOD(metadata = false)
+    static void recordWorldStreamingPerformance(
+        int queueDepth, int reading, int prepared, int active, int dormant,
+        std::int64_t cacheBytes, double publishMilliseconds,
+        int visibleTileChunks, int activeActors);
 
     BIND_METHOD(defaults = {nil})
     static void draw(const sf::Drawable& drawable,

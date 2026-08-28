@@ -1,22 +1,17 @@
-#include "FileBatch.hpp"
+#include "FileBatchInternal.hpp"
+#include "FileBatchJsonRuntime.hpp"
 
 #include <DataFile.hpp>
 #include <Utf8Path.hpp>
 
 #include <algorithm>
-#include <array>
 #include <atomic>
-#include <cerrno>
 #include <condition_variable>
 #include <cstddef>
-#include <cstdint>
 #include <deque>
 #include <filesystem>
-#include <fstream>
-#include <map>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -25,11 +20,6 @@
 #include <vector>
 
 namespace ludork::standard {
-
-namespace {
-constexpr std::size_t READ_CHUNK_SIZE = 64 * 1024;
-
-}  // namespace
 
 const char* fileBatchStateName(FileBatchState state) {
     switch (state) {
@@ -57,63 +47,9 @@ bool isTerminal(FileBatchState state) {
            state == FileBatchState::Failed;
 }
 
-struct ManifestEntry {
-    std::size_t index = 0;
-    std::string category;
-    std::filesystem::path path;
-    std::string relativePath;
-    std::uintmax_t fileSize = 0;
-    bool jsonData = false;
-    bool encryptedData = false;
-};
-
 }  // namespace
 
-class FileBatchJob {
-public:
-    explicit FileBatchJob(std::vector<FileBatchSpec> batchSpecs,
-                          std::size_t capacity)
-        : specs(std::move(batchSpecs)), resultCapacity(capacity) {}
-
-    std::mutex mutex;
-    std::condition_variable resultSpace;
-    std::vector<FileBatchSpec> specs;
-    std::map<std::size_t, FileBatchItem> results;
-    std::optional<FileBatchError> error;
-    std::atomic_bool cancellationRequested = false;
-    FileBatchState state = FileBatchState::Scanning;
-    std::size_t resultCapacity = 0;
-    std::size_t total = 0;
-    std::size_t completed = 0;
-    std::size_t delivered = 0;
-    std::size_t nextDeliveryIndex = 1;
-    std::size_t pendingWork = 0;
-};
-
 namespace {
-
-enum class WorkKind {
-    Scan,
-    Read
-};
-
-struct WorkItem {
-    WorkKind kind = WorkKind::Scan;
-    std::shared_ptr<FileBatchJob> job;
-    ManifestEntry entry;
-};
-
-struct ScanResult {
-    std::vector<ManifestEntry> entries;
-    std::optional<FileBatchError> error;
-    bool cancelled = false;
-};
-
-struct ReadResult {
-    std::optional<FileBatchItem> item;
-    std::optional<FileBatchError> error;
-    bool cancelled = false;
-};
 
 FileBatchError filesystemError(std::string operation, const FileBatchSpec& spec,
                                const std::filesystem::path& path,
@@ -121,24 +57,6 @@ FileBatchError filesystemError(std::string operation, const FileBatchSpec& spec,
     return {
         std::move(operation), spec.category,   pathToUtf8(path),
         error.value(),        error.message(),
-    };
-}
-
-FileBatchError ioError(std::string operation, const ManifestEntry& entry,
-                       std::error_code error) {
-    if (!error) {
-        error = std::make_error_code(std::errc::io_error);
-    }
-    return {
-        std::move(operation), entry.category,  pathToUtf8(entry.path),
-        error.value(),        error.message(),
-    };
-}
-
-FileBatchError readError(const ManifestEntry& entry,
-                         const std::string& message) {
-    return {
-        "read", entry.category, pathToUtf8(entry.path), 0, message,
     };
 }
 
@@ -204,6 +122,7 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
                     relativePath,
                     fileSize,
                     jsonSuffix(relativePath),
+                    spec.parseJson,
                     encryptedData,
                 });
             }
@@ -297,71 +216,6 @@ ScanResult scanManifest(const std::shared_ptr<FileBatchJob>& job) {
     return result;
 }
 
-ReadResult readFile(const std::shared_ptr<FileBatchJob>& job,
-                    const ManifestEntry& entry) {
-    ReadResult result;
-    if (entry.jsonData) {
-        if (job->cancellationRequested.load(std::memory_order_relaxed)) {
-            result.cancelled = true;
-            return result;
-        }
-        try {
-            std::string content = readJsonText(entry.path);
-            if (job->cancellationRequested.load(std::memory_order_relaxed)) {
-                result.cancelled = true;
-                return result;
-            }
-            result.item = FileBatchItem{
-                entry.index,        entry.category,      entry.relativePath,
-                std::move(content), entry.encryptedData,
-            };
-        } catch (const std::exception& exception) {
-            result.error = readError(entry, exception.what());
-        }
-        return result;
-    }
-
-    errno = 0;
-    std::ifstream input(entry.path, std::ios::binary);
-    if (!input) {
-        result.error = ioError(
-            "open", entry,
-            errno == 0 ? std::error_code{}
-                       : std::error_code(errno, std::generic_category()));
-        return result;
-    }
-
-    std::string content;
-    if (entry.fileSize <= content.max_size()) {
-        content.reserve(static_cast<std::size_t>(entry.fileSize));
-    }
-    std::array<char, READ_CHUNK_SIZE> buffer{};
-    while (input) {
-        if (job->cancellationRequested.load(std::memory_order_relaxed)) {
-            result.cancelled = true;
-            return result;
-        }
-        input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        const std::streamsize count = input.gcount();
-        if (count > 0) {
-            content.append(buffer.data(), static_cast<std::size_t>(count));
-        }
-    }
-    if (input.bad()) {
-        result.error = ioError("read", entry, {});
-        return result;
-    }
-    if (static_cast<std::uintmax_t>(content.size()) != entry.fileSize) {
-        result.error = ioError("read", entry, {});
-        return result;
-    }
-    result.item = FileBatchItem{
-        entry.index,        entry.category,      entry.relativePath,
-        std::move(content), entry.encryptedData,
-    };
-    return result;
-}
-
 }  // namespace
 
 class FileBatchRuntime::Implementation {
@@ -372,12 +226,24 @@ public:
     }
 
     ~Implementation() {
-        shutdown();
+        clearJson();
     }
 
     std::shared_ptr<FileBatchJob> start(std::vector<FileBatchSpec> specs) {
+        FileBatchJsonCallbacks callbacks = jsonRuntime_.callbacks();
+        const bool needsJson = std::any_of(specs.begin(), specs.end(),
+                                           [](const FileBatchSpec& spec) {
+                                               return spec.parseJson;
+                                           });
+        if (needsJson && (!callbacks.parser || !callbacks.begin ||
+                          !callbacks.step || !callbacks.clear)) {
+            throw std::runtime_error(
+                "file batch JSON conversion is not configured");
+        }
         std::shared_ptr<FileBatchJob> job = std::make_shared<FileBatchJob>(
-            std::move(specs), static_cast<std::size_t>(workerCount_) * 2);
+            std::move(specs), static_cast<std::size_t>(workerCount_) * 2,
+            std::move(callbacks.parser), std::move(callbacks.begin),
+            std::move(callbacks.step), std::move(callbacks.clear));
         {
             std::lock_guard<std::mutex> queueLock(queueMutex_);
             if (stopping_.load(std::memory_order_acquire)) {
@@ -400,34 +266,44 @@ public:
         if (!job) {
             return false;
         }
+        const bool clearedConversion = jsonRuntime_.clearConversionsForJob(job);
+        std::vector<FileBatchJsonDisposal> disposals;
         std::size_t removed = 0;
+        bool cancelled = false;
+        bool discardedResults = false;
         {
             std::lock_guard<std::mutex> queueLock(queueMutex_);
             std::lock_guard<std::mutex> jobLock(job->mutex);
+            discardedResults = !job->results.empty();
+            takeParsedJsonDisposals(job->results, disposals);
+            job->results.clear();
             if (isTerminal(job->state) ||
                 job->state == FileBatchState::Cancelling) {
-                return false;
-            }
-            job->cancellationRequested.store(true, std::memory_order_release);
-            job->state = FileBatchState::Cancelling;
-            job->results.clear();
-            for (auto iterator = work_.begin(); iterator != work_.end();) {
-                if (iterator->job == job) {
-                    iterator = work_.erase(iterator);
-                    ++removed;
-                } else {
-                    ++iterator;
+            } else {
+                cancelled = true;
+                job->cancellationRequested.store(true,
+                                                 std::memory_order_release);
+                job->state = FileBatchState::Cancelling;
+                for (auto iterator = work_.begin(); iterator != work_.end();) {
+                    if (iterator->job == job) {
+                        iterator = work_.erase(iterator);
+                        ++removed;
+                    } else {
+                        ++iterator;
+                    }
+                }
+                job->pendingWork = removed >= job->pendingWork
+                                       ? 0
+                                       : job->pendingWork - removed;
+                if (job->pendingWork == 0) {
+                    job->state = FileBatchState::Cancelled;
                 }
             }
-            job->pendingWork =
-                removed >= job->pendingWork ? 0 : job->pendingWork - removed;
-            if (job->pendingWork == 0) {
-                job->state = FileBatchState::Cancelled;
-            }
         }
+        jsonRuntime_.deferDisposals(std::move(disposals));
         job->resultSpace.notify_all();
         workReady_.notify_all();
-        return true;
+        return cancelled || clearedConversion || discardedResults;
     }
 
     FileBatchSnapshot poll(const std::shared_ptr<FileBatchJob>& job,
@@ -466,6 +342,13 @@ public:
             return;
         }
         job->cancellationRequested.store(true, std::memory_order_release);
+        std::vector<FileBatchJsonDisposal> disposals;
+        {
+            std::lock_guard<std::mutex> jobLock(job->mutex);
+            takeParsedJsonDisposals(job->results, disposals);
+            job->results.clear();
+        }
+        jsonRuntime_.deferDisposals(std::move(disposals));
         job->resultSpace.notify_all();
     }
 
@@ -511,6 +394,61 @@ public:
                 job->state = FileBatchState::Cancelled;
             }
         }
+    }
+
+    void configureJson(FileBatchJsonParser parser, FileBatchJsonBegin begin,
+                       FileBatchJsonStep step, FileBatchJsonClear clear) {
+        jsonRuntime_.configure(std::move(parser), std::move(begin),
+                               std::move(step), std::move(clear));
+    }
+
+    void clearJson() noexcept {
+        shutdown();
+        std::vector<std::shared_ptr<FileBatchJob>> jobs;
+        {
+            std::lock_guard<std::mutex> queueLock(queueMutex_);
+            for (const std::weak_ptr<FileBatchJob>& weakJob : jobs_) {
+                if (std::shared_ptr<FileBatchJob> job = weakJob.lock()) {
+                    jobs.push_back(std::move(job));
+                }
+            }
+            jobs_.clear();
+            work_.clear();
+        }
+        jsonRuntime_.clearAllConversions();
+        std::vector<FileBatchJsonDisposal> disposals;
+        for (const std::shared_ptr<FileBatchJob>& job : jobs) {
+            std::lock_guard<std::mutex> jobLock(job->mutex);
+            takeParsedJsonDisposals(job->results, disposals);
+            job->results.clear();
+            job->jsonParser = {};
+            job->jsonBegin = {};
+            job->jsonStep = {};
+            job->jsonClear = {};
+        }
+        jsonRuntime_.deferDisposals(std::move(disposals));
+        jsonRuntime_.reset();
+        stopping_.store(false, std::memory_order_release);
+    }
+
+    std::shared_ptr<FileBatchJsonConversionState> beginJsonConversion(
+        lua_State* state, const std::shared_ptr<FileBatchJob>& job,
+        const FileBatchParsedJson& parsedJson) {
+        return jsonRuntime_.beginConversion(state, job, parsedJson);
+    }
+
+    FileBatchJsonStepResult stepJsonConversion(
+        lua_State* state,
+        const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+        std::size_t maximumNodes, double maximumMilliseconds) {
+        return jsonRuntime_.stepConversion(state, conversion, maximumNodes,
+                                           maximumMilliseconds);
+    }
+
+    bool clearJsonConversion(
+        const std::shared_ptr<FileBatchJsonConversionState>&
+            conversion) noexcept {
+        return jsonRuntime_.clearConversion(conversion);
     }
 
 private:
@@ -711,6 +649,7 @@ private:
     std::deque<WorkItem> work_;
     std::vector<std::thread> workers_;
     std::vector<std::weak_ptr<FileBatchJob>> jobs_;
+    FileBatchJsonRuntime jsonRuntime_;
 };
 
 FileBatchRuntime::FileBatchRuntime()
@@ -739,6 +678,38 @@ void FileBatchRuntime::release(
 
 void FileBatchRuntime::shutdown() noexcept {
     implementation_->shutdown();
+}
+
+void FileBatchRuntime::configureJson(FileBatchJsonParser parser,
+                                     FileBatchJsonBegin begin,
+                                     FileBatchJsonStep step,
+                                     FileBatchJsonClear clear) {
+    implementation_->configureJson(std::move(parser), std::move(begin),
+                                   std::move(step), std::move(clear));
+}
+
+void FileBatchRuntime::clearJson() noexcept {
+    implementation_->clearJson();
+}
+
+std::shared_ptr<FileBatchJsonConversionState>
+FileBatchRuntime::beginJsonConversion(lua_State* state,
+                                      const std::shared_ptr<FileBatchJob>& job,
+                                      const FileBatchParsedJson& parsedJson) {
+    return implementation_->beginJsonConversion(state, job, parsedJson);
+}
+
+FileBatchJsonStepResult FileBatchRuntime::stepJsonConversion(
+    lua_State* state,
+    const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+    std::size_t maximumNodes, double maximumMilliseconds) {
+    return implementation_->stepJsonConversion(state, conversion, maximumNodes,
+                                               maximumMilliseconds);
+}
+
+bool FileBatchRuntime::clearJsonConversion(
+    const std::shared_ptr<FileBatchJsonConversionState>& conversion) noexcept {
+    return implementation_->clearJsonConversion(conversion);
 }
 
 }  // namespace ludork::standard

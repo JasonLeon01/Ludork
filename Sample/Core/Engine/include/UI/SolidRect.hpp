@@ -6,7 +6,7 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 
-BIND_CLASS(callbacks = "getSize,getLocalBounds,getGlobalBounds,draw")
+BIND_CLASS(callbacks = true)
 class SolidRect : public ControlBase {
 public:
     BIND_INIT()

@@ -50,9 +50,9 @@ struct LuaFunctionAdapter<Return(Arguments...)> {
         if (!function) {
             return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
         }
-        lua_State* state = lua.lua_state();
-        auto wrapper = [state,
-                        function](sol::variadic_args arguments) -> sol::object {
+        auto wrapper = [function](sol::this_state currentState,
+                                  sol::variadic_args arguments) -> sol::object {
+            lua_State* state = currentState;
             ludork::standard::LuaExecutionScope execution(state);
             if (!execution.active()) {
                 throw std::runtime_error("Lua runtime session is stopping");

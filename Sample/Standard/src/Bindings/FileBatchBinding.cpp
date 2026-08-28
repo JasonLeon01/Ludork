@@ -11,10 +11,13 @@ extern "C" {
 }
 
 #include <cstddef>
+#include <cmath>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -25,6 +28,37 @@ namespace {
 
 constexpr const char* RUNTIME_KEY = "Ludork.Standard.FileBatchRuntime";
 constexpr std::size_t MAX_POLL_RESULTS = 4096;
+
+class ScopedLuaGarbageCollectorPause {
+public:
+    explicit ScopedLuaGarbageCollectorPause(lua_State* state) : state_(state) {
+        const int running = lua_gc(state, LUA_GCISRUNNING);
+        if (running < 0) {
+            throw std::runtime_error(
+                "file batch JSON conversion could not query Lua garbage "
+                "collection");
+        }
+        wasRunning_ = running != 0;
+        if (wasRunning_) {
+            lua_gc(state_, LUA_GCSTOP);
+        }
+    }
+
+    ~ScopedLuaGarbageCollectorPause() {
+        if (wasRunning_) {
+            lua_gc(state_, LUA_GCRESTART);
+        }
+    }
+
+    ScopedLuaGarbageCollectorPause(const ScopedLuaGarbageCollectorPause&) =
+        delete;
+    ScopedLuaGarbageCollectorPause& operator=(
+        const ScopedLuaGarbageCollectorPause&) = delete;
+
+private:
+    lua_State* state_;
+    bool wasRunning_ = false;
+};
 
 class FileBatchHandle {
 public:
@@ -50,6 +84,50 @@ public:
 private:
     std::shared_ptr<FileBatchRuntime> runtime_;
     std::shared_ptr<FileBatchJob> job_;
+};
+
+class FileBatchJsonHandle {
+public:
+    FileBatchJsonHandle(
+        std::shared_ptr<FileBatchRuntime> runtime,
+        std::shared_ptr<FileBatchJsonConversionState> conversion)
+        : runtime_(std::move(runtime)), conversion_(std::move(conversion)) {}
+
+    ~FileBatchJsonHandle() {
+        clear();
+    }
+
+    FileBatchJsonHandle(const FileBatchJsonHandle&) = delete;
+    FileBatchJsonHandle& operator=(const FileBatchJsonHandle&) = delete;
+    FileBatchJsonHandle(FileBatchJsonHandle&&) noexcept = default;
+    FileBatchJsonHandle& operator=(FileBatchJsonHandle&& other) noexcept {
+        if (this != &other) {
+            clear();
+            runtime_ = std::move(other.runtime_);
+            conversion_ = std::move(other.conversion_);
+        }
+        return *this;
+    }
+
+    FileBatchJsonStepResult step(lua_State* state, std::size_t maximumNodes,
+                                 double maximumMilliseconds) {
+        if (!runtime_ || !conversion_) {
+            throw std::runtime_error(
+                "file batch JSON conversion handle is invalid");
+        }
+        return runtime_->stepJsonConversion(state, conversion_, maximumNodes,
+                                            maximumMilliseconds);
+    }
+
+    bool clear() noexcept {
+        return runtime_ && conversion_
+                   ? runtime_->clearJsonConversion(conversion_)
+                   : false;
+    }
+
+private:
+    std::shared_ptr<FileBatchRuntime> runtime_;
+    std::shared_ptr<FileBatchJsonConversionState> conversion_;
 };
 
 std::string requiredString(const sol::table& table, const char* name) {
@@ -129,6 +207,11 @@ std::vector<FileBatchSpec> readSpecs(const sol::object& value) {
         spec.excludeSuffix = optionalString(specTable, "excludeSuffix");
         spec.recursive = optionalBoolean(specTable, "recursive", false);
         spec.required = optionalBoolean(specTable, "required", true);
+        spec.parseJson = optionalBoolean(specTable, "parseJson", false);
+        if (spec.parseJson && !spec.suffix.ends_with(".json")) {
+            throw std::invalid_argument(
+                "file batch parseJson requires a .json suffix");
+        }
         specs.push_back(std::move(spec));
     }
     return specs;
@@ -152,20 +235,63 @@ std::size_t readMaximum(const sol::optional<sol::object>& value) {
     return static_cast<std::size_t>(maximum);
 }
 
+std::size_t readPositiveInteger(const sol::object& value, const char* name) {
+    lua_State* state = value.lua_state();
+    value.push();
+    const bool integer = lua_isinteger(state, -1) != 0;
+    const lua_Integer raw = integer ? lua_tointeger(state, -1) : 0;
+    lua_pop(state, 1);
+    if (!integer || raw <= 0 ||
+        static_cast<lua_Unsigned>(raw) >
+            static_cast<lua_Unsigned>(
+                std::numeric_limits<std::size_t>::max())) {
+        throw std::invalid_argument(std::string(name) +
+                                    " must be a positive integer");
+    }
+    return static_cast<std::size_t>(raw);
+}
+
+double readPositiveNumber(const sol::object& value, const char* name) {
+    lua_State* state = value.lua_state();
+    value.push();
+    const bool number = lua_type(state, -1) == LUA_TNUMBER;
+    const double raw =
+        number ? static_cast<double>(lua_tonumber(state, -1)) : 0.0;
+    lua_pop(state, 1);
+    if (!number || !std::isfinite(raw) || !(raw > 0.0)) {
+        throw std::invalid_argument(std::string(name) +
+                                    " must be a positive finite number");
+    }
+    return raw;
+}
+
 sol::table writeError(sol::state_view lua, const FileBatchError& error) {
     return lua.create_table_with("operation", error.operation, "category",
                                  error.category, "path", error.path, "code",
                                  error.code, "message", error.message);
 }
 
-sol::table writeItem(sol::state_view lua, const FileBatchItem& item) {
-    return lua.create_table_with("index", item.index, "category", item.category,
-                                 "relativePath", item.relativePath, "content",
-                                 item.content, "encryptedData",
-                                 item.encryptedData);
+sol::table writeItem(sol::state_view lua,
+                     const std::shared_ptr<FileBatchRuntime>& runtime,
+                     const std::shared_ptr<FileBatchJob>& job,
+                     const FileBatchItem& item) {
+    sol::table result = lua.create_table_with(
+        "index", item.index, "category", item.category, "relativePath",
+        item.relativePath, "encryptedData", item.encryptedData);
+    if (item.parsedJson) {
+        result["contentBytes"] = item.contentBytes;
+        result["conversion"] = FileBatchJsonHandle(
+            runtime, runtime->beginJsonConversion(lua.lua_state(), job,
+                                                  item.parsedJson));
+    } else {
+        result["content"] = item.content;
+    }
+    return result;
 }
 
 sol::table writeSnapshot(sol::state_view lua,
+                         const std::shared_ptr<FileBatchRuntime>& runtime,
+                         const std::shared_ptr<FileBatchJob>& job,
                          const FileBatchSnapshot& snapshot) {
     sol::table result = lua.create_table_with(
         "state", fileBatchStateName(snapshot.state), "total", snapshot.total,
@@ -173,7 +299,7 @@ sol::table writeSnapshot(sol::state_view lua,
         "drained", snapshot.drained);
     sol::table items = lua.create_table();
     for (const FileBatchItem& item : snapshot.items) {
-        items.add(writeItem(lua, item));
+        items.add(writeItem(lua, runtime, job, item));
     }
     result["items"] = std::move(items);
     if (snapshot.error.has_value()) {
@@ -197,8 +323,11 @@ void registerFileBatch(sol::state_view lua) {
                                        sol::no_constructor);
     lua.new_usertype<FileBatchHandle>("LudorkStandardFileBatchJob",
                                       sol::no_constructor);
+    lua.new_usertype<FileBatchJsonHandle>(
+        "LudorkStandardFileBatchJsonConversion", sol::no_constructor);
     lua["LudorkStandardFileBatchRuntime"] = sol::lua_nil;
     lua["LudorkStandardFileBatchJob"] = sol::lua_nil;
+    lua["LudorkStandardFileBatchJsonConversion"] = sol::lua_nil;
 
     std::shared_ptr<FileBatchRuntime> runtime = runtimeFromRegistry(lua);
     if (!runtime) {
@@ -215,21 +344,87 @@ void registerFileBatch(sol::state_view lua) {
         [runtime](FileBatchHandle& handle, sol::optional<sol::object> maximum,
                   sol::this_state state) {
             return writeSnapshot(
-                sol::state_view(state),
+                sol::state_view(state), runtime, handle.job(),
                 runtime->poll(handle.job(), readMaximum(maximum)));
         });
     asyncio.set_function("cancel_file_batch",
                          [runtime](FileBatchHandle& handle) {
                              return runtime->cancel(handle.job());
                          });
+    asyncio.set_function(
+        "step_file_batch_json",
+        [](FileBatchJsonHandle& conversion, const sol::object& maximumNodes,
+           const sol::object& maximumMilliseconds, sol::this_state state) {
+            lua_State* target = state;
+            ScopedLuaGarbageCollectorPause garbageCollectorPause(target);
+            const FileBatchJsonStepResult step = conversion.step(
+                target, readPositiveInteger(maximumNodes, "maxNodes"),
+                readPositiveNumber(maximumMilliseconds, "maxMilliseconds"));
+            sol::state_view lua(target);
+            sol::object data = sol::make_object(lua, sol::lua_nil);
+            if (step.completed) {
+                data = sol::stack::get<sol::object>(target, -1);
+                lua_pop(target, 1);
+            }
+            return std::make_tuple(step.completed, step.processedNodes,
+                                   std::move(data));
+        });
+    asyncio.set_function("clear_file_batch_json",
+                         [](FileBatchJsonHandle& conversion) {
+                             return conversion.clear();
+                         });
     lua["asyncio"] = std::move(asyncio);
+}
+
+void configureFileBatchJsonRuntime(lua_State* state, FileBatchJsonParser parser,
+                                   FileBatchJsonBegin begin,
+                                   FileBatchJsonStep step,
+                                   FileBatchJsonClear clear) {
+    if (state == nullptr) {
+        throw std::invalid_argument("file batch Lua state must not be null");
+    }
+    std::shared_ptr<FileBatchRuntime> runtime =
+        runtimeFromRegistry(sol::state_view(state));
+    if (!runtime) {
+        throw std::runtime_error("file batch runtime is not registered");
+    }
+    runtime->configureJson(std::move(parser), std::move(begin), std::move(step),
+                           std::move(clear));
+}
+
+void clearFileBatchJsonRuntime(lua_State* state) noexcept {
+    if (state == nullptr) {
+        return;
+    }
+    std::shared_ptr<FileBatchRuntime> runtime =
+        runtimeFromRegistry(sol::state_view(state));
+    if (runtime) {
+        runtime->clearJson();
+    }
 }
 
 void shutdownFileBatch(sol::state_view lua) noexcept {
     std::shared_ptr<FileBatchRuntime> runtime = runtimeFromRegistry(lua);
     if (runtime) {
+        runtime->clearJson();
         runtime->shutdown();
     }
 }
 
 }  // namespace ludork::standard::binding
+
+namespace ludork::standard {
+
+void configureFileBatchJson(lua_State* state, FileBatchJsonParser parser,
+                            FileBatchJsonBegin begin, FileBatchJsonStep step,
+                            FileBatchJsonClear clear) {
+    binding::configureFileBatchJsonRuntime(state, std::move(parser),
+                                           std::move(begin), std::move(step),
+                                           std::move(clear));
+}
+
+void clearFileBatchJson(lua_State* state) noexcept {
+    binding::clearFileBatchJsonRuntime(state);
+}
+
+}  // namespace ludork::standard

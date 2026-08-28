@@ -23,6 +23,8 @@ std::vector<PerformanceProfiler::LogicTickRecord>
     PerformanceProfiler::logicTicks_;
 std::uint64_t PerformanceProfiler::droppedLogicTicks_ = 0;
 thread_local double PerformanceProfiler::presentWaitMilliseconds_ = 0.0;
+thread_local std::optional<PerformanceProfiler::PendingWorldStreamingRecord>
+    PerformanceProfiler::pendingWorldStreaming_;
 
 bool PerformanceProfiler::isEnabled() noexcept {
     return enabled_.load(std::memory_order_acquire);
@@ -120,6 +122,8 @@ void PerformanceProfiler::recordMainFrame(
 
 void PerformanceProfiler::recordLogicTick(
     const LogicTickPerformanceMeasurement& measurement) {
+    std::optional<PendingWorldStreamingRecord> pendingWorldStreaming =
+        std::exchange(pendingWorldStreaming_, std::nullopt);
     if (!isEnabled()) {
         return;
     }
@@ -144,7 +148,39 @@ void PerformanceProfiler::recordLogicTick(
         std::max(0.0, measurement.fixedTickMilliseconds);
     record.sleepMilliseconds = std::max(0.0, measurement.sleepMilliseconds);
     record.fixedSteps = std::max(0, measurement.fixedSteps);
+    if (pendingWorldStreaming.has_value() &&
+        pendingWorldStreaming->generation ==
+            generation_.load(std::memory_order_relaxed)) {
+        record.worldStreaming = pendingWorldStreaming->measurement;
+    }
     logicTicks_.push_back(record);
+}
+
+void PerformanceProfiler::recordWorldStreaming(
+    const WorldStreamingPerformanceMeasurement& measurement) {
+    if (!isEnabled()) {
+        return;
+    }
+    const auto nonnegative = [](int value) {
+        return std::max(0, value);
+    };
+    PendingWorldStreamingRecord record;
+    record.generation = generation_.load(std::memory_order_acquire);
+    record.measurement.queueDepth = nonnegative(measurement.queueDepth);
+    record.measurement.reading = nonnegative(measurement.reading);
+    record.measurement.prepared = nonnegative(measurement.prepared);
+    record.measurement.active = nonnegative(measurement.active);
+    record.measurement.dormant = nonnegative(measurement.dormant);
+    record.measurement.cacheBytes = static_cast<std::uint64_t>(
+        std::max<std::int64_t>(0, measurement.cacheBytes));
+    record.measurement.publishMilliseconds =
+        std::isfinite(measurement.publishMilliseconds)
+            ? std::max(0.0, measurement.publishMilliseconds)
+            : 0.0;
+    record.measurement.visibleTileChunks =
+        nonnegative(measurement.visibleTileChunks);
+    record.measurement.activeActors = nonnegative(measurement.activeActors);
+    pendingWorldStreaming_ = std::move(record);
 }
 
 void PerformanceProfiler::resetLocked(
@@ -203,7 +239,22 @@ void PerformanceProfiler::emit(Batch batch) {
                << ",\"maintenance\":" << finite(record.maintenanceMilliseconds)
                << ",\"fixedTick\":" << finite(record.fixedTickMilliseconds)
                << ",\"sleep\":" << finite(record.sleepMilliseconds)
-               << ",\"fixedSteps\":" << record.fixedSteps << '}';
+               << ",\"fixedSteps\":" << record.fixedSteps;
+        if (record.worldStreaming.has_value()) {
+            const WorldStreamingRecord& streaming = *record.worldStreaming;
+            output << ",\"worldStreaming\":{\"queueDepth\":"
+                   << streaming.queueDepth
+                   << ",\"reading\":" << streaming.reading
+                   << ",\"prepared\":" << streaming.prepared
+                   << ",\"active\":" << streaming.active
+                   << ",\"dormant\":" << streaming.dormant
+                   << ",\"cacheBytes\":" << streaming.cacheBytes
+                   << ",\"publishMilliseconds\":"
+                   << finite(streaming.publishMilliseconds)
+                   << ",\"visibleTileChunks\":" << streaming.visibleTileChunks
+                   << ",\"activeActors\":" << streaming.activeActors << '}';
+        }
+        output << '}';
     }
     output << "],\"droppedLogicTicks\":" << batch.droppedLogicTicks << "}\n";
     const std::string message = output.str();

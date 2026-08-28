@@ -1,12 +1,28 @@
-local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
+local TerrainValue = require("Global.GameMap.TerrainValue")
 
 local GameMapBase = GlobalCore.GameMapBase
 local ManagerFunctions = GlobalFunctions.Manager
 
 ---@class (partial) GameMap
 local GameMapTerrain = {}
+
+---@param layerData           Engine.TileLayerData
+---@param autoTileTextures    sf.Texture[]
+---@param autoTileFrameCounts integer[]
+local function ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFrameCounts)
+    while #autoTileTextures < #layerData.autoTilePool do
+        local autoTile = layerData.autoTilePool[#autoTileTextures + 1]
+        ---@cast autoTile Engine.AutoTile
+        autoTileTextures[#autoTileTextures + 1] = ManagerFunctions.loadAutotile(autoTile.fileName)
+    end
+    while #autoTileFrameCounts < #autoTileTextures do
+        local texture = autoTileTextures[#autoTileFrameCounts + 1]
+        autoTileFrameCounts[#autoTileFrameCounts + 1] = AutoTileRuntime.GetFrameCount(texture)
+    end
+end
 
 function GameMapTerrain:getTerrainTile(layerName, position)
     local layer = self._tilemap:getLayer(layerName)
@@ -99,16 +115,7 @@ end
 ---@return Global.GameMap.TerrainTileID
 ---@diagnostic disable-next-line: unused
 function GameMapTerrain:_normaliseTerrainTileID(tileID)
-    if tileID == nil then
-        return nil
-    elseif type(tileID) == "string" then
-        return bool(tileID) and tileID or nil
-    end
-    assert(
-        type(tileID) == "number" and math.type(tileID) == "integer",
-        "terrain tile ID must be an integer, string, or nil"
-    )
-    return tileID
+    return TerrainValue.Normalise(tileID)
 end
 
 ---@param layer    Engine.TileLayer
@@ -226,11 +233,10 @@ function GameMapTerrain:_resolveAutoTileIndex(layerData, autoTileTextures, autoT
         end
         layerData.autoTileKeys = autoTileKeys
     end
-    for index, name in ipairs(autoTileKeys) do
-        if name == autoTileName then
-            self:_ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFrameCounts)
-            return index - 1
-        end
+    local index = table.index(autoTileKeys, autoTileName)
+    if index ~= nil then
+        ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFrameCounts)
+        return index - 1
     end
     if self._autoTileResolver == nil then
         error("AutoTile resolver is not configured", 2)
@@ -243,35 +249,8 @@ function GameMapTerrain:_resolveAutoTileIndex(layerData, autoTileTextures, autoT
     autoTileKeys[#autoTileKeys + 1] = autoTileName
     layerData.autoTilePool = autoTilePool
     layerData.autoTileKeys = autoTileKeys
-    self:_ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFrameCounts)
+    ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFrameCounts)
     return #autoTilePool - 1
-end
-
----@param layerData           Engine.TileLayerData
----@param autoTileTextures    sf.Texture[]
----@param autoTileFrameCounts integer[]
-function GameMapTerrain:_ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFrameCounts)
-    while #autoTileTextures < #layerData.autoTilePool do
-        local autoTile = layerData.autoTilePool[#autoTileTextures + 1]
-        ---@cast autoTile Engine.AutoTile
-        autoTileTextures[#autoTileTextures + 1] = ManagerFunctions.loadAutotile(autoTile.fileName)
-    end
-    while #autoTileFrameCounts < #autoTileTextures do
-        local texture = autoTileTextures[#autoTileFrameCounts + 1]
-        autoTileFrameCounts[#autoTileFrameCounts + 1] = self:_getAutoTileFrameCount(texture)
-    end
-end
-
----@param texture sf.Texture | nil
----@return integer
----@diagnostic disable-next-line: unused
-function GameMapTerrain:_getAutoTileFrameCount(texture)
-    if texture == nil then
-        return 1
-    end
-    local size = texture:getSize()
-    local frames = Engine.CellSize > 0 and math.floor(size.x / (3 * Engine.CellSize)) or 1
-    return math.max(frames, 1)
 end
 
 ---@param _layerName          string

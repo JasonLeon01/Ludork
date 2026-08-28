@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local Data = require("Source.Data")
+local EnemyText = require("Source.EnemyText")
 local Locale = require("Source.Locale.Core")
 local TextLayout = require("Source.TextLayout")
 local NodeUtils = require("Source.NodeFunctions.Utils")
@@ -29,8 +30,6 @@ local _SPECIAL_TOP_MARGIN = 16
 
 ---@class Source.UI.WindowEnemyEncyclopedia
 local WindowEnemyEncyclopediaUI = {}
----@type function
-local formatCriticalText
 ---@type function
 local formatHitCount
 ---@type function
@@ -178,7 +177,7 @@ function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY)
             )
         end
     end
-    local criticalText = formatCriticalText(entry.critical or -2)
+    local criticalText = EnemyText.FormatCritical(entry.critical or -2)
     local hitCount = formatHitCount(entry.hitCount)
     local criticalColumnIndex = 0
     if bool(hitCount) then
@@ -226,16 +225,6 @@ function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
         self.model._infoTexts[#self.model._infoTexts + 1] = controller:getNameText()
         self.model._infoTexts[#self.model._infoTexts + 1] = controller:getDescriptionText()
     end
-end
-
-function formatCriticalText(criticalValue)
-    if criticalValue == nil or criticalValue == -2 then
-        return ""
-    end
-    if criticalValue == -1 then
-        return "???"
-    end
-    return tostring(ToShortNumber(criticalValue))
 end
 
 function formatHitCount(hitCount)

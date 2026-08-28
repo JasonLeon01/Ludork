@@ -70,11 +70,9 @@ function WindowEquipSlotController:refreshSlots()
     self.model:setListView(self.root)
     if savedSlotKey ~= nil then
         local restoredIndex = nil
-        for index, slotKey in ipairs(self.model._slotKeys) do
-            if slotKey == savedSlotKey then
-                restoredIndex = index - 1
-                break
-            end
+        local index = table.index(self.model._slotKeys, savedSlotKey)
+        if index ~= nil then
+            restoredIndex = index - 1
         end
         self.model.index = restoredIndex
     else

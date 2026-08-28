@@ -25,7 +25,7 @@ function MovementDangerPreviewComponent:onRender(camera)
         or not player:hasItem(EnemyDamageText.requiredItemID) then
         return
     end
-    local revision = self._dangerState:getRevision()
+    local revision = self._dangerState:getPreviewRevision()
     local displayScale = Engine.Scale
     if revision ~= self._cachedRevision or displayScale ~= self._cachedDisplayScale then
         self:_refreshEntries(player)

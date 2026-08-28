@@ -145,6 +145,13 @@ double lerpNumber(double from, double to, double alpha) {
     return from + (to - from) * alpha;
 }
 
+std::int64_t manhattanDistance(const sf::Vector2i& left,
+                               const sf::Vector2i& right) {
+    const std::int64_t horizontal = static_cast<std::int64_t>(left.x) - right.x;
+    const std::int64_t vertical = static_cast<std::int64_t>(left.y) - right.y;
+    return std::abs(horizontal) + std::abs(vertical);
+}
+
 std::int64_t greatestCommonDivisor(std::int64_t left, std::int64_t right) {
     return std::gcd(left, right);
 }

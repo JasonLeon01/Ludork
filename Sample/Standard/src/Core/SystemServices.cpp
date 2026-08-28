@@ -144,6 +144,24 @@ std::filesystem::path absolutePath(const std::filesystem::path& value) {
     return result;
 }
 
+bool isDirectory(const std::filesystem::path& value) {
+    std::error_code error;
+    const bool result = std::filesystem::is_directory(value, error);
+    if (error) {
+        throw std::runtime_error("cannot inspect path: " + error.message());
+    }
+    return result;
+}
+
+bool isRegularFile(const std::filesystem::path& value) {
+    std::error_code error;
+    const bool result = std::filesystem::is_regular_file(value, error);
+    if (error) {
+        throw std::runtime_error("cannot inspect path: " + error.message());
+    }
+    return result;
+}
+
 double modificationTime(const std::filesystem::path& value) {
     std::error_code error;
     const std::filesystem::file_time_type writeTime =

@@ -25,11 +25,21 @@ struct ThreadSessionEntry {
 
 thread_local ThreadSessionEntry enteredSession;
 
+lua_State* mainThreadFromRegistry(lua_State* state) noexcept {
+    if (state == nullptr || lua_checkstack(state, 1) == 0) {
+        return nullptr;
+    }
+    const int originalTop = lua_gettop(state);
+    lua_rawgeti(state, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);
+    lua_State* mainState = lua_tothread(state, -1);
+    lua_settop(state, originalTop);
+    return mainState;
+}
+
 bool isEnteredSession(
-    lua_State* state,
     const std::shared_ptr<RuntimeSessionState>& session) noexcept {
-    return enteredSession.depth != 0 && enteredSession.state == state &&
-           enteredSession.session == session;
+    return enteredSession.depth != 0 && enteredSession.session == session &&
+           enteredSession.state == session->state;
 }
 
 bool sessionAllowsCurrentThread(const RuntimeSessionState& session) noexcept {
@@ -41,28 +51,51 @@ bool sessionAllowsCurrentThread(const RuntimeSessionState& session) noexcept {
 }
 
 std::shared_ptr<RuntimeSessionState> findSession(lua_State* state) {
-    std::scoped_lock lock(sessionMutex);
-    if (activeSession == nullptr || activeSession->state != state) {
+    std::shared_ptr<RuntimeSessionState> session;
+    {
+        std::scoped_lock lock(sessionMutex);
+        session = activeSession;
+    }
+    if (session == nullptr) {
         return {};
     }
-    return activeSession;
+    if (session->state != state) {
+        std::scoped_lock luaLock(session->luaMutex);
+        if (session->state != mainThreadFromRegistry(state)) {
+            return {};
+        }
+    }
+    return session;
 }
 
 std::shared_ptr<RuntimeSessionState> tryFindSession(lua_State* state) {
+    std::shared_ptr<RuntimeSessionState> session;
     std::unique_lock lock(sessionMutex, std::try_to_lock);
-    if (!lock.owns_lock() || activeSession == nullptr ||
-        activeSession->state != state) {
+    if (!lock.owns_lock()) {
         return {};
     }
-    return activeSession;
+    session = activeSession;
+    lock.unlock();
+    if (session == nullptr) {
+        return {};
+    }
+    if (session->state != state) {
+        std::unique_lock luaLock(session->luaMutex, std::try_to_lock);
+        if (!luaLock.owns_lock() ||
+            session->state != mainThreadFromRegistry(state)) {
+            return {};
+        }
+    }
+    return session;
 }
 
 int enterSession(lua_State* state, bool blocking) noexcept {
     try {
         if (enteredSession.depth != 0) {
-            if (enteredSession.state != state ||
-                enteredSession.session == nullptr ||
-                enteredSession.session->state != state ||
+            if (enteredSession.session == nullptr ||
+                enteredSession.session->state != enteredSession.state ||
+                (enteredSession.state != state &&
+                 enteredSession.state != mainThreadFromRegistry(state)) ||
                 !sessionAllowsCurrentThread(*enteredSession.session)) {
                 return 0;
             }
@@ -79,11 +112,12 @@ int enterSession(lua_State* state, bool blocking) noexcept {
         } else if (!session->luaMutex.try_lock()) {
             return 0;
         }
-        if (session->state != state || !sessionAllowsCurrentThread(*session)) {
+        if (session->state == nullptr ||
+            !sessionAllowsCurrentThread(*session)) {
             session->luaMutex.unlock();
             return 0;
         }
-        enteredSession.state = state;
+        enteredSession.state = session->state;
         enteredSession.session = session;
         enteredSession.depth = 1;
         return 1;
@@ -108,7 +142,7 @@ struct RuntimeRegistryReferenceState {
             }
             session->registryReferences.erase(this);
         };
-        if (isEnteredSession(state, session)) {
+        if (isEnteredSession(session)) {
             release();
         } else {
             std::scoped_lock luaLock(session->luaMutex);
@@ -158,25 +192,24 @@ LuaExecutionPause::~LuaExecutionPause() {
 }
 
 LuaRegistryReference::LuaRegistryReference(lua_State* state, int stackIndex) {
-    const std::shared_ptr<RuntimeSessionState> session =
-        enteredSession.depth != 0 && enteredSession.state == state
-            ? enteredSession.session
-            : findSession(state);
+    const std::shared_ptr<RuntimeSessionState> session = findSession(state);
     if (session == nullptr) {
         throw std::logic_error("Lua registry reference has no runtime session");
     }
+    lua_State* canonicalState = session->state;
     std::shared_ptr<RuntimeRegistryReferenceState> reference =
-        std::make_shared<RuntimeRegistryReferenceState>(session, state,
+        std::make_shared<RuntimeRegistryReferenceState>(session, canonicalState,
                                                         LUA_NOREF);
     const auto create = [&]() {
-        if (!sessionAllowsCurrentThread(*session)) {
+        if (session->state != canonicalState ||
+            !sessionAllowsCurrentThread(*session)) {
             throw std::logic_error("Lua runtime session is stopping");
         }
         session->registryReferences.insert(reference.get());
         lua_pushvalue(state, stackIndex);
         reference->reference = luaL_ref(state, LUA_REGISTRYINDEX);
     };
-    if (isEnteredSession(state, session)) {
+    if (isEnteredSession(session)) {
         create();
     } else {
         std::scoped_lock luaLock(session->luaMutex);
@@ -208,16 +241,22 @@ bool LuaRegistryReference::push() const noexcept {
 }
 
 bool LuaRegistryReference::pushUnderExecutionScope() const noexcept {
+    return pushUnderExecutionScope(state());
+}
+
+bool LuaRegistryReference::pushUnderExecutionScope(
+    lua_State* targetState) const noexcept {
     if (reference_ == nullptr || reference_->reference < 0 ||
-        enteredSession.depth == 0 ||
-        enteredSession.state != reference_->state ||
+        targetState == nullptr || enteredSession.depth == 0 ||
         enteredSession.session != reference_->session ||
         reference_->session->state != reference_->state ||
         !sessionAllowsCurrentThread(*reference_->session) ||
-        lua_checkstack(reference_->state, 1) == 0) {
+        (targetState != reference_->state &&
+         mainThreadFromRegistry(targetState) != reference_->state) ||
+        lua_checkstack(targetState, 1) == 0) {
         return false;
     }
-    lua_rawgeti(reference_->state, LUA_REGISTRYINDEX, reference_->reference);
+    lua_rawgeti(targetState, LUA_REGISTRYINDEX, reference_->reference);
     return true;
 }
 
@@ -243,7 +282,7 @@ bool LuaRegistryReference::equals(
         lua_pop(reference_->state, 2);
         return result;
     };
-    if (isEnteredSession(reference_->state, session)) {
+    if (isEnteredSession(session)) {
         return compare();
     }
     std::scoped_lock luaLock(session->luaMutex);
@@ -260,10 +299,7 @@ void registerRuntimeOpaqueValue(const void* identity,
         throw std::invalid_argument("Runtime opaque value is unavailable");
     }
     lua_State* state = reference.state();
-    const std::shared_ptr<RuntimeSessionState> session =
-        enteredSession.depth != 0 && enteredSession.state == state
-            ? enteredSession.session
-            : findSession(state);
+    const std::shared_ptr<RuntimeSessionState> session = findSession(state);
     if (session == nullptr) {
         throw std::logic_error("Runtime opaque value has no active session");
     }
@@ -273,7 +309,7 @@ void registerRuntimeOpaqueValue(const void* identity,
         }
         session->opaqueValues[identity] = &reference;
     };
-    if (isEnteredSession(state, session)) {
+    if (isEnteredSession(session)) {
         registerValue();
     } else {
         std::scoped_lock luaLock(session->luaMutex);
@@ -286,14 +322,11 @@ void unregisterRuntimeOpaqueValue(lua_State* state,
     if (state == nullptr || identity == nullptr) {
         return;
     }
-    const std::shared_ptr<RuntimeSessionState> session =
-        enteredSession.depth != 0 && enteredSession.state == state
-            ? enteredSession.session
-            : findSession(state);
+    const std::shared_ptr<RuntimeSessionState> session = findSession(state);
     if (session == nullptr) {
         return;
     }
-    if (isEnteredSession(state, session)) {
+    if (isEnteredSession(session)) {
         session->opaqueValues.erase(identity);
     } else {
         std::scoped_lock luaLock(session->luaMutex);
@@ -306,15 +339,13 @@ LuaRegistryReference findRuntimeOpaqueValue(lua_State* state,
     if (state == nullptr || identity == nullptr) {
         return {};
     }
-    const std::shared_ptr<RuntimeSessionState> session =
-        enteredSession.depth != 0 && enteredSession.state == state
-            ? enteredSession.session
-            : findSession(state);
+    const std::shared_ptr<RuntimeSessionState> session = findSession(state);
     if (session == nullptr) {
         return {};
     }
     const auto findValue = [&]() -> LuaRegistryReference {
-        if (session->state != state || !sessionAllowsCurrentThread(*session)) {
+        if (session->state == nullptr ||
+            !sessionAllowsCurrentThread(*session)) {
             return {};
         }
         const auto iterator = session->opaqueValues.find(identity);
@@ -324,7 +355,7 @@ LuaRegistryReference findRuntimeOpaqueValue(lua_State* state,
         }
         return *iterator->second;
     };
-    if (isEnteredSession(state, session)) {
+    if (isEnteredSession(session)) {
         return findValue();
     }
     std::scoped_lock luaLock(session->luaMutex);
@@ -335,16 +366,21 @@ void initializeRuntimeSession(lua_State* state) {
     if (state == nullptr) {
         throw std::invalid_argument("Runtime session state cannot be null");
     }
+    lua_State* canonicalState = mainThreadFromRegistry(state);
+    if (canonicalState == nullptr) {
+        throw std::invalid_argument(
+            "Runtime session main state is unavailable");
+    }
     std::scoped_lock lock(sessionMutex);
     if (activeSession != nullptr) {
-        if (activeSession->state == state &&
+        if (activeSession->state == canonicalState &&
             activeSession->phase.load(std::memory_order_acquire) ==
                 RuntimeSessionPhase::running) {
             return;
         }
         throw std::logic_error("Only one Lua runtime session may be active");
     }
-    activeSession = std::make_shared<RuntimeSessionState>(state);
+    activeSession = std::make_shared<RuntimeSessionState>(canonicalState);
 }
 
 int enterRuntimeSession(lua_State* state) noexcept {
@@ -356,7 +392,9 @@ int tryEnterRuntimeSession(lua_State* state) noexcept {
 }
 
 void leaveRuntimeSession(lua_State* state) noexcept {
-    if (enteredSession.depth == 0 || enteredSession.state != state) {
+    if (enteredSession.depth == 0 || enteredSession.session == nullptr ||
+        (enteredSession.state != state &&
+         enteredSession.state != mainThreadFromRegistry(state))) {
         return;
     }
     const std::shared_ptr<RuntimeSessionState> session = enteredSession.session;
@@ -388,7 +426,7 @@ void registerRuntimeCleanup(lua_State* state, RuntimeCleanup cleanup) {
         throw std::logic_error("Runtime cleanup has no active session");
     }
     std::scoped_lock luaLock(session->luaMutex);
-    if (session->state != state ||
+    if (session->state == nullptr ||
         session->phase.load(std::memory_order_acquire) !=
             RuntimeSessionPhase::running) {
         throw std::logic_error("Lua runtime session is stopping");
@@ -406,16 +444,19 @@ void runRuntimeCleanups(lua_State* state) noexcept {
         return;
     }
     std::vector<RuntimeCleanup> cleanups;
+    lua_State* canonicalState = nullptr;
     {
         std::scoped_lock luaLock(session->luaMutex);
-        if (session->state != state || !sessionAllowsCurrentThread(*session)) {
+        if (session->state == nullptr ||
+            !sessionAllowsCurrentThread(*session)) {
             return;
         }
+        canonicalState = session->state;
         cleanups.swap(session->moduleCleanups);
     }
     for (auto cleanup = cleanups.rbegin(); cleanup != cleanups.rend();
          ++cleanup) {
-        (*cleanup)(state);
+        (*cleanup)(canonicalState);
     }
 }
 
@@ -425,7 +466,7 @@ void clearRuntimeRegistryReferences(lua_State* state) noexcept {
         return;
     }
     std::scoped_lock luaLock(session->luaMutex);
-    if (session->state != state || !sessionAllowsCurrentThread(*session)) {
+    if (session->state == nullptr || !sessionAllowsCurrentThread(*session)) {
         return;
     }
     session->opaqueValues.clear();
@@ -434,7 +475,7 @@ void clearRuntimeRegistryReferences(lua_State* state) noexcept {
         if (reference == nullptr || reference->reference < 0) {
             continue;
         }
-        luaL_unref(state, LUA_REGISTRYINDEX, reference->reference);
+        luaL_unref(session->state, LUA_REGISTRYINDEX, reference->reference);
         reference->reference = LUA_NOREF;
     }
     session->registryReferences.clear();
@@ -442,10 +483,14 @@ void clearRuntimeRegistryReferences(lua_State* state) noexcept {
 
 void releaseRuntimeSession(lua_State* state) noexcept {
     clearRuntimeRegistryReferences(state);
+    const std::shared_ptr<RuntimeSessionState> active = findSession(state);
+    if (active == nullptr) {
+        return;
+    }
     std::shared_ptr<RuntimeSessionState> session;
     {
         std::scoped_lock lock(sessionMutex);
-        if (activeSession == nullptr || activeSession->state != state) {
+        if (activeSession != active) {
             return;
         }
         session = std::move(activeSession);

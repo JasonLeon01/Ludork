@@ -17,8 +17,7 @@
 
 class LUDORK_ENGINE_API ParticleSystem;
 
-BIND_CLASS(cast_bases = "sf::Drawable,sf::Transformable",
-           callbacks = "getLocalBounds,getGlobalBounds,draw")
+BIND_CLASS(cast_bases = "sf::Drawable,sf::Transformable", callbacks = true)
 class LUDORK_ENGINE_API TextParticle : public ParticleBase,
                                        public sf::Drawable,
                                        public sf::Transformable {

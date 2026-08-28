@@ -18,7 +18,7 @@ struct AnimationPlayingSound {
     int endFrame = -1;
 };
 
-BIND_CLASS(callbacks = "setData,update,playSoundsUpToFrame,stopSoundsAtFrame")
+BIND_CLASS(callbacks = true)
 class Animation : public AnimSprite {
 public:
     BIND_INIT(defaults = {false})

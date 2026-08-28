@@ -15,9 +15,7 @@
 #include <memory>
 #include <vector>
 
-BIND_CLASS(callbacks =
-               "getChildren,getSize,getContentRect,update,render,lateUpdate,"
-               "fixedUpdate,_getScreenRenderTransform")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Canvas : public SpriteBase, public FunctionalBase {
 public:
     BIND_INIT()
@@ -107,14 +105,14 @@ protected:
     BIND_METHOD(metadata = false)
     virtual sf::Transform _getScreenRenderTransform() const override;
 
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual void _appendRenderNode(const std::shared_ptr<ControlBase>& node,
                                    const sf::RenderStates& parentStates);
 
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual void _buildRenderQueue();
 
-    BIND_METHOD(metadata = false)
+    BIND_METHOD(callback = false, metadata = false)
     virtual sf::RenderStates _getAnimRenderStates() const;
 
 private:

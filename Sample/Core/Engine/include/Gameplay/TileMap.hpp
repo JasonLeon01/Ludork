@@ -16,18 +16,16 @@
 #include <unordered_map>
 #include <vector>
 
-BIND_CLASS(callbacks =
-               "getName,getVisible,setVisible,hasContent,isDirectionPassable,"
-               "getMaterialProperty,updateShader")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TileLayer : public TileLayerGraphics {
 public:
-    BIND_INIT()
+    BIND_INIT(defaults = {{}, {}, true, false})
     TileLayer(
         const TileLayerData& data, std::shared_ptr<sf::Texture> texture,
         const std::vector<std::shared_ptr<sf::Texture>>& autoTileTextures =
             std::vector<std::shared_ptr<sf::Texture>>(),
         const std::vector<int>& autoTileFrameCounts = std::vector<int>(),
-        bool visible = true);
+        bool visible = true, bool deferred = false);
     ~TileLayer() override;
 
     BIND_METHOD(Pure = true, returns = "name")
@@ -47,6 +45,10 @@ public:
 
     BIND_METHOD(metadata = false)
     TileLayerData getData() const;
+
+    BIND_METHOD(metadata = false)
+    void writeBlock(int x, int y, const TileGrid& tileBlock,
+                    const AutoTileGrid& autoTileBlock);
 
     BIND_METHOD(metadata = false)
     std::vector<std::shared_ptr<sf::Texture>> getAutoTileTextures() const;
@@ -155,7 +157,7 @@ private:
     std::shared_ptr<sf::Image> ignoreLightingImageCache_;
 };
 
-BIND_CLASS(callbacks = "getLayer,getAllLayers,getLayerNameList,getSize")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Tilemap {
 public:
     BIND_INIT()

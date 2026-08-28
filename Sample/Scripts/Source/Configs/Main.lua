@@ -121,10 +121,8 @@ end
 function MainConfig.GetMaximumRenderScaleOptions(configuredScale)
     configuredScale = normalizeMaximumRenderScale(configuredScale)
     local values = copy(MAXIMUM_RENDER_SCALE_PRESETS)
-    for _, preset in ipairs(values) do
-        if configuredScale == preset then
-            return values, configuredScale
-        end
+    if table.contains(values, configuredScale) then
+        return values, configuredScale
     end
     local insertIndex = #values
     for index = 1, #values - 1 do

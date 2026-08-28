@@ -15,9 +15,9 @@
 ---@field hasSwitched          boolean
 ---@field _loadCancelled       boolean
 ---@field _loadStage           Source.Data.InitialLoadStage | nil
----@field _activeBatch         userdata | nil
+---@field _activeBatch         FileBatchJob | nil
 ---@field _animationSourceKeys table<string, boolean>
----@field _loadTask            table | nil
+---@field _loadTask            AsyncioTask | nil
 ---@field new                  fun(): Source.Scenes.SceneInit.SceneInit
 local Scene = {}
 

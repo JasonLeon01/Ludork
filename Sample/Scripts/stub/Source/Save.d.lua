@@ -9,7 +9,7 @@ SAVE_AS_LDC = SAVE_AS_LDC or false
 --- Save data is serialized as JSON and stored in plain `.json` or encrypted
 --- `.ldc` files.
 
---- @brief Save game state to the file format selected by `SAVE_AS_LDC`.
+---@brief Save game state to the file format selected by `SAVE_AS_LDC`.
 ---
 --- - @param filePath Path whose extension matches the configured save format.
 --- - @param instance GameInstance object to serialize and save.
@@ -17,7 +17,7 @@ SAVE_AS_LDC = SAVE_AS_LDC or false
 ---@param instance Source.GameInstance.GameInstance
 function Save.SaveGame(filePath, instance) end
 
---- @brief Load game state from the file format selected by `SAVE_AS_LDC`.
+---@brief Load game state from the file format selected by `SAVE_AS_LDC`.
 ---
 --- - @param filePath Path whose extension matches the configured save format.
 --- - @return Restored GameInstance object, or nil if the file doesn't exist.
@@ -25,7 +25,7 @@ function Save.SaveGame(filePath, instance) end
 ---@return Source.GameInstance.GameInstance | nil
 function Save.LoadGame(filePath) end
 
---- @brief Get the platform-specific save file path.
+---@brief Get the platform-specific save file path.
 ---
 --- - @param slot Save slot number (1-based).
 ---   The `SAVE_AS_LDC` global selects `.ldc`; otherwise `.json` is used.
@@ -33,5 +33,10 @@ function Save.LoadGame(filePath) end
 ---@param slot integer
 ---@return string
 function Save.GetSavePath(slot) end
+
+---@brief Find the most recently modified existing standard save slot.
+---@param maxSlots integer
+---@return integer | nil
+function Save.FindLatestSlot(maxSlots) end
 
 return Save
