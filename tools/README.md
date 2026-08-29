@@ -43,6 +43,13 @@ tools\pack_project.bat Sample
 tools\pack_editor.bat
 ```
 
+Windows automation may pass `--templates <folder>` to copy an already generated
+set of four editor templates and `--use-current-ui-preview-host` after preparing
+the matching Release preview host under `.tools/UiPreviewHost`. The normal
+command without these options rebuilds both inputs before packaging. The
+prepared template folder must remain outside `obj/editor-package`, which is
+recreated during packaging.
+
 Both editor packaging scripts use the shared ScriptTools command
 `editor-official-plugins prepare <source> <output-root>` to clean-copy the fixed
 official plug-ins and generate their registry. The matching

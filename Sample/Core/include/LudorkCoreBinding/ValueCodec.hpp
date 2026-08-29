@@ -204,6 +204,11 @@ Pointer readPointer(const sol::object& value);
 
 sol::object nativePointerOwner(sol::state_view lua, const void* pointer);
 
+int pushNativePointerOwnerTable(sol::state_view lua);
+
+bool pushNativePointerOwnerFromTable(lua_State* state, int tableIndex,
+                                     const void* pointer);
+
 template <typename T, typename... Bases>
 sol::object writeOwningLuaObject(sol::state_view lua,
                                  const std::shared_ptr<T>& value);
@@ -627,26 +632,66 @@ T readLuaValue(const sol::object& value) {
 
 template <typename Sequence>
 sol::object writeSequence(sol::state_view lua, const Sequence& value) {
-    sol::table table = lua.create_table(static_cast<int>(value.size()), 0);
+    lua_State* state = lua.lua_state();
+    const int stackTop = lua_gettop(state);
+    struct StackRestore {
+        lua_State* state;
+        int top;
+
+        ~StackRestore() noexcept {
+            lua_settop(state, top);
+        }
+    } stackRestore{state, stackTop};
     using Item = typename Sequence::value_type;
+    constexpr bool NativeOwnerItem =
+        (IsSharedPointer<Item>::value &&
+         !IsOpaqueIdentityPointer<Item>::value) ||
+        (std::is_pointer_v<Item> &&
+         std::is_object_v<std::remove_pointer_t<Item>>);
+    constexpr bool StoresLength = IsOptionalValue<Item> || IsDynamicValue<Item>;
+    lua_createtable(state, static_cast<int>(value.size()),
+                    StoresLength ? 1 : 0);
+    const int tableIndex = lua_absindex(state, -1);
     if constexpr (IsOptionalValue<Item> || IsDynamicValue<Item>) {
-        table.raw_set("n", value.size());
+        lua_pushliteral(state, "n");
+        lua_pushinteger(state, static_cast<lua_Integer>(value.size()));
+        lua_rawset(state, tableIndex);
+    }
+    int ownerTableIndex = 0;
+    if constexpr (NativeOwnerItem) {
+        ownerTableIndex = pushNativePointerOwnerTable(lua);
     }
     std::size_t index = 1;
     for (const auto& item : value) {
+        bool pushed = false;
+        if constexpr (NativeOwnerItem) {
+            const void* pointer = nullptr;
+            if constexpr (IsSharedPointer<Item>::value) {
+                pointer = item.get();
+            } else {
+                pointer = item;
+            }
+            pushed = pushNativePointerOwnerFromTable(state, ownerTableIndex,
+                                                     pointer);
+        }
         sol::object output;
         if constexpr (std::is_same_v<Item, bool>) {
             const bool converted = static_cast<bool>(item);
             output = writeLuaValue(lua, converted);
-        } else {
+        } else if (!pushed) {
             output = writeLuaValue(lua, item);
         }
-        if (!isNil(output)) {
-            table.raw_set(index, output);
+        if (!pushed && !isNil(output)) {
+            output.push(state);
+            pushed = true;
+        }
+        if (pushed) {
+            lua_rawseti(state, tableIndex, static_cast<lua_Integer>(index));
         }
         ++index;
     }
-    return sol::make_object(lua, table);
+    sol::object result = sol::stack::get<sol::object>(state, tableIndex);
+    return result;
 }
 
 template <typename Map>

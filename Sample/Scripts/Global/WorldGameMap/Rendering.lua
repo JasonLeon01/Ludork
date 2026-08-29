@@ -100,14 +100,6 @@ function WorldGameMapRendering:_rebuildStaticTransmission(activeLights)
     self._staticTransmission:setView(sf.View.new(viewCentre, viewSize))
     self._staticTransmission:clear(sf.Color.White)
     self._tilemapLightMaskShader:setUniform("transmissionMode", 1.0)
-    local occupancy = {}
-    for y = 1, lightingRect.height do
-        local row = {}
-        for x = 1, lightingRect.width do
-            row[x] = 0.0
-        end
-        occupancy[y] = row
-    end
     for _, layerName in ipairs(self._worldConfig.layerOrder) do
         for _, region in ipairs(self._worldRegions) do
             if region.payload ~= nil and WorldGeometry.RectIntersects(region, lightingRect) then
@@ -117,39 +109,21 @@ function WorldGameMapRendering:_rebuildStaticTransmission(activeLights)
                         self._staticTransmission, self._transmissionTileRenderStates, layerName, layer, region,
                         viewPosition, viewSize, 0.0
                     )
-                    local firstX = math.max(lightingRect.x, region.x)
-                    local firstY = math.max(lightingRect.y, region.y)
-                    local lastX = math.min(lightingRect.x + lightingRect.width, region.x + region.width) - 1
-                    local lastY = math.min(lightingRect.y + lightingRect.height, region.y + region.height) - 1
-                    local localPosition = sf.Vector2i.new()
-                    ---@cast localPosition sf.Vector2i
-                    for worldY = firstY, lastY do
-                        localPosition.y = worldY - region.y
-                        local occupancyRow = occupancy[worldY - lightingRect.y + 1]
-                        ---@cast occupancyRow number[]
-                        for worldX = firstX, lastX do
-                            localPosition.x = worldX - region.x
-                            local lightBlock = layer:getLightBlock(localPosition)
-                            if lightBlock ~= nil and lightBlock > 0.0 then
-                                local occupancyX = worldX - lightingRect.x + 1
-                                ---@cast occupancyX integer
-                                occupancyRow[occupancyX] = 1.0
-                            end
-                        end
-                    end
                 end
             end
         end
     end
     self._staticTransmission:display()
+    local occupancyOrigin = sf.Vector2i.new(lightingRect.x, lightingRect.y)
     local occupancySize = sf.Vector2u.new(lightingRect.width, lightingRect.height)
+    ---@cast occupancyOrigin sf.Vector2i
     ---@cast occupancySize sf.Vector2u
-    self:_rebuildStaticOccupancy(occupancySize, occupancy)
+    self._staticOccupancy = assert(self:rebuildStaticLightOccupancy(occupancyOrigin, occupancySize))
     self._staticTransmissionRevision = self._materialRevision
     self._staticTransmissionSignature = signature
 end
 
----@return table<Engine.Actor, boolean>
+---@return Engine.Actor[]
 function WorldGameMapRendering:_renderSurfaceMask()
     self:_ensureWorldLightingTargets()
     assert(self._camera ~= nil, "World surface mask requires a camera")
@@ -168,6 +142,7 @@ function WorldGameMapRendering:_renderSurfaceMask()
     self._lightMaskShader:setUniform("transmissionMode", 0.0)
     local visibleRect = self:_getVisibleCellRect()
     local visibleActors = {}
+    local visibleActorSet = {}
     for _, layerName in ipairs(self._worldLayerOrder) do
         for _, region in ipairs(self._worldRegions) do
             if region.payload ~= nil and WorldGeometry.RectIntersects(region, visibleRect) then
@@ -182,7 +157,10 @@ function WorldGameMapRendering:_renderSurfaceMask()
         end
         for _, actor in ipairs(self._actors[layerName] or {}) do
             if not actor:isDestroyed() and self:_isWorldActorLayerVisible(actor, layerName) then
-                visibleActors[actor] = true
+                if not visibleActorSet[actor] then
+                    visibleActorSet[actor] = true
+                    visibleActors[#visibleActors + 1] = actor
+                end
                 self:_setActorMaskUniforms(actor)
                 self._surfaceMask:draw(actor, self._surfaceActorRenderStates)
             end
@@ -190,18 +168,6 @@ function WorldGameMapRendering:_renderSurfaceMask()
     end
     self._surfaceMask:display()
     return visibleActors
-end
-
----@param light GlobalCore.Light
----@return boolean
-function WorldGameMapRendering:_lightHasStaticTransmissionLoss(light)
-    if not self._staticHasTransmissionLoss then
-        return false
-    end
-    local right = self._staticTextureOrigin.x + self._staticTextureSize.x
-    local bottom = self._staticTextureOrigin.y + self._staticTextureSize.y
-    return light.position.x + light.radius >= self._staticTextureOrigin.x and light.position.x - light.radius <= right
-        and light.position.y + light.radius >= self._staticTextureOrigin.y and light.position.y - light.radius <= bottom
 end
 
 ---@return sf.RenderTexture

@@ -187,10 +187,7 @@ std::shared_ptr<sf::Shader> TileLayer::getShader() const {
 
 std::shared_ptr<sf::Image> TileLayer::getLightBlockImage() {
     if (lightBlockImageCache_ == nullptr) {
-        if (!lightBlockMapCache_.has_value()) {
-            lightBlockMapCache_ = TileLayerGraphics::getLightBlockMap();
-        }
-        lightBlockImageCache_ = buildMaterialImage(*lightBlockMapCache_);
+        lightBlockImageCache_ = buildMaterialImage(getLightBlockMapView());
     }
     return lightBlockImageCache_;
 }
@@ -221,6 +218,17 @@ std::shared_ptr<sf::Image> TileLayer::getIgnoreLightingImage() {
 sf::Vector2u TileLayer::getGridSize() const {
     return {static_cast<unsigned int>(std::max(0, width_)),
             static_cast<unsigned int>(std::max(0, height_))};
+}
+
+bool TileLayer::isCellBuilt(const sf::Vector2i& position) const {
+    return TileLayerGraphics::isCellBuilt(position);
+}
+
+const std::vector<std::vector<float>>& TileLayer::getLightBlockMapView() {
+    if (!lightBlockMapCache_.has_value()) {
+        lightBlockMapCache_ = TileLayerGraphics::getLightBlockMap();
+    }
+    return *lightBlockMapCache_;
 }
 
 int TileLayer::layerWidth(const TileLayerData& data) {

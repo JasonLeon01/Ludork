@@ -221,6 +221,9 @@ public:
     BIND_METHOD(Pure = true)
     virtual const std::vector<std::shared_ptr<Actor>>& getChildren() const;
 
+    BIND_METHOD(metadata = false)
+    std::vector<std::shared_ptr<Actor>> collectTree();
+
     BIND_METHOD(outpins(default = nil))
     virtual void addChild(const std::shared_ptr<Actor>& child);
 

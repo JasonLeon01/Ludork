@@ -21,11 +21,9 @@
 ---@field visible boolean
 
 ---@class Global.GameMap.SparseWorldConfig
----@field size                      sf.Vector2u
----@field layerOrder                string[]
----@field tilePassabilityQuery      fun(position: sf.Vector2i): boolean
----@field directionPassabilityQuery fun(fromPosition: sf.Vector2i, toPosition: sf.Vector2i, direction: integer): boolean
----@field topMaterialQuery          fun(position: sf.Vector2i): Engine.Material | nil
+---@field size        sf.Vector2u
+---@field layerOrder  string[]
+---@field regionRects sf.IntRect[]
 
 ---@class Global.GameMap.WorldTileMaskConfig
 ---@field targetSize     sf.Vector2f
@@ -35,7 +33,7 @@
 ---@field regionSize     sf.Vector2f
 ---@field regionPosition sf.Vector2f
 
----@class Global.GameMap.ActiveLight
+---@class Global.GameMap.ActiveLight: GlobalCore.LightOcclusionInput
 ---@field light GlobalCore.Light
 ---@field owner Engine.Actor | nil
 
@@ -88,7 +86,6 @@
 ---@field _cachedLightTransmissionSignature  Global.GameMap.StaticTransmissionSignature | nil
 ---@field _staticTransmissionRevision        integer
 ---@field _staticTransmissionSignature       Global.GameMap.StaticTransmissionSignature | nil
----@field _staticHasTransmissionLoss         boolean
 ---@field _staticTextureOrigin               sf.Vector2f
 ---@field _staticTextureSize                 sf.Vector2f
 ---@field _staticOccupancyOrigin             sf.Vector2f
@@ -96,7 +93,6 @@
 ---@field _materialDirty                     boolean
 ---@field _materialRevision                  integer
 ---@field _tilePassableGrid                  boolean[][] | nil
----@field _staticOccupancyPrefix             number[][] | nil
 ---@field _layerMaskTextureCache             table<string, GameMapLayerMaskTextureCacheEntry>
 ---@field _coverLayerStates                  GameMapCoverLayerState[] | nil
 ---@field mapName                            string

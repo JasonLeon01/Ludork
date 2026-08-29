@@ -346,6 +346,7 @@ function WorldGameMapRegionPublishing:_drainRegionActors(region)
             recordBuilderStage(self, builder)
         end
     end
+    self:setSparseWorldRegionActorsReady(region.index)
     if builder.completed then
         region.backgroundBuilder = nil
     end
@@ -389,12 +390,16 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
         end
         recordBuilderStage(self, builder)
         region.geometryRevision = builder.geometryRevision
+        local actorsAreReady = builder.areActorsReady()
+        if not actorsWereReady and actorsAreReady then
+            self:setSparseWorldRegionActorsReady(region.index)
+        end
         if region.lightingRevision ~= builder.lightingRevision then
             region.lightingRevision = builder.lightingRevision
             self:_refreshWorldLights()
         end
         if region.state == "Active"
-            and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and builder.areActorsReady()) then
+            and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
             self:_syncRegionActorActivation(region)
         end
         self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
@@ -416,12 +421,16 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
         end
         recordBuilderStage(self, builder)
         region.geometryRevision = builder.geometryRevision
+        local actorsAreReady = builder.areActorsReady()
+        if not actorsWereReady and actorsAreReady then
+            self:setSparseWorldRegionActorsReady(region.index)
+        end
         if region.lightingRevision ~= builder.lightingRevision then
             region.lightingRevision = builder.lightingRevision
             self:_refreshWorldLights()
         end
         if region.state == "Active"
-            and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and builder.areActorsReady()) then
+            and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
             self:_syncRegionActorActivation(region)
         end
         if builder.completed and builder.actorPublishQueue == nil and not bool(builder.readyActorRoots) then

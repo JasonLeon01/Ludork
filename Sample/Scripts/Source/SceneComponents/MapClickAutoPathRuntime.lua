@@ -4,11 +4,9 @@ local Teleporter = require("Source.Teleporter")
 local MapClickAutoPathRuntime = {}
 
 function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal)
-    for _, actor in ipairs(gameMap:getAllActors()) do
+    for _, actor in ipairs(gameMap:getActorsAt(goal.x, goal.y)) do
         if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() then
-            if table.contains(actor:getOccupiedMapCells(), goal) then
-                return true
-            end
+            return true
         end
     end
     return false

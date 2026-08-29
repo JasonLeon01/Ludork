@@ -117,6 +117,13 @@ bool TileLayerGraphics::isChunkBuilt(int chunkX, int chunkY) const {
     return builtChunks_[index];
 }
 
+bool TileLayerGraphics::isCellBuilt(const sf::Vector2i& position) const {
+    if (!inBounds(position)) {
+        return false;
+    }
+    return isChunkBuilt(position.x / ChunkSize, position.y / ChunkSize);
+}
+
 bool TileLayerGraphics::isBuildComplete() const {
     return buildComplete_;
 }

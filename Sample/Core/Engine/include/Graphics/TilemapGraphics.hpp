@@ -212,6 +212,8 @@ public:
     BIND_METHOD(metadata = false)
     bool isChunkBuilt(int chunkX, int chunkY) const;
 
+    bool isCellBuilt(const sf::Vector2i& position) const;
+
     ////////////////////////////////////////////////////////////
     /// \brief Check whether deferred geometry construction is complete
     ///

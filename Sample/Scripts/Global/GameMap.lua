@@ -89,10 +89,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     end
     GameMapBase.init(self)
     if sparseWorldConfig ~= nil then
-        self:configureSparseWorld(
-            sparseWorldConfig.size, sparseWorldConfig.layerOrder, sparseWorldConfig.tilePassabilityQuery,
-            sparseWorldConfig.directionPassabilityQuery, sparseWorldConfig.topMaterialQuery
-        )
+        self:configureSparseWorld(sparseWorldConfig.size, sparseWorldConfig.layerOrder, sparseWorldConfig.regionRects)
     end
     self._tilemapLightMaskShader = tilemapLightMaskShader
     self._lightMaskShader = lightMaskShader
@@ -136,7 +133,6 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     self._playerCoverColour = sf.Color.new(255, 255, 255, GameMap.DefaultCoverAlpha)
     self._staticTransmission = nil
     self._staticOccupancy = nil
-    self._staticOccupancyPrefix = nil
     self._surfaceMask = nil
     self._dynamicTransmission = nil
     self._directLight = nil
@@ -152,7 +148,6 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     self._cachedLightTransmissionSignature = nil
     self._staticTransmissionRevision = -1
     self._staticTransmissionSignature = nil
-    self._staticHasTransmissionLoss = false
     self._staticTextureOrigin = sf.Vector2f.new(0.0, 0.0)
     self._staticTextureSize = sf.Vector2f.new(1.0, 1.0)
     self._staticOccupancyOrigin = sf.Vector2f.new(0.0, 0.0)

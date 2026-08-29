@@ -32,6 +32,17 @@ local function getEnsuredDirectLight(gameMap)
     return gameMap._directLight
 end
 
+---@param analyses GlobalCore.LightOcclusionResult[]
+---@return boolean
+local function hasRelevantLightBlockingActors(analyses)
+    for _, analysis in ipairs(analyses) do
+        if bool(analysis.occluders) then
+            return true
+        end
+    end
+    return false
+end
+
 ---@param activeLights Global.GameMap.ActiveLight[]
 function GameMapLighting:_renderLighting(activeLights)
     if self._materialDirty then
@@ -42,13 +53,14 @@ function GameMapLighting:_renderLighting(activeLights)
         self:_rebuildStaticTransmission(activeLights)
     end
     local visibleActors = self:_renderSurfaceMask()
+    local analyses = bool(activeLights) and self:analyseLightOcclusion(activeLights, visibleActors) or {}
     local previousDirectLight = self._directLight
     local directLight = getEnsuredDirectLight(self)
     ---@cast self._camera GlobalCore.Camera
     self._useStaticDirectLight = not self:isWorldMap() and bool(activeLights)
-        and not self:_hasRelevantLightBlockingActors(activeLights, visibleActors)
+        and not hasRelevantLightBlockingActors(analyses)
     if self._useStaticDirectLight then
-        self:_renderCachedLighting(activeLights)
+        self:_renderCachedLighting(activeLights, analyses)
         return
     end
     if not bool(activeLights) then
@@ -63,7 +75,7 @@ function GameMapLighting:_renderLighting(activeLights)
     self._directLightCleared = false
     directLight:setView(self._camera:getView())
     directLight:clear(sf.Color.Black)
-    self:_renderDynamicLighting(activeLights, visibleActors)
+    self:_renderDynamicLighting(activeLights, analyses)
     directLight:display()
 end
 
@@ -208,34 +220,6 @@ function GameMapLighting:_renderLight(entry, dynamicOrigin, dynamicSize, traceSt
     target:draw(self._lightPassQuad, self._lightPassRenderStates)
 end
 
----@param light GlobalCore.Light
----@return boolean
-function GameMapLighting:_lightHasStaticTransmissionLoss(light)
-    if not self._staticHasTransmissionLoss then
-        return false
-    end
-    local size = self._tilemap:getSize()
-    local cellSize = Engine.CellSize
-    local minimumX = math.max(0, math.floor((light.position.x - light.radius) / cellSize) - 1)
-    local minimumY = math.max(0, math.floor((light.position.y - light.radius) / cellSize) - 1)
-    local maximumX = Engine.ToInteger(
-        math.min(size.x - 1, math.floor((light.position.x + light.radius) / cellSize) + 1)
-    )
-    local maximumY = Engine.ToInteger(
-        math.min(size.y - 1, math.floor((light.position.y + light.radius) / cellSize) + 1)
-    )
-    if minimumX > maximumX or minimumY > maximumY then
-        return false
-    end
-    ---@cast self._staticOccupancyPrefix number[][]
-    ---@diagnostic disable: need-check-nil
-    local total = self._staticOccupancyPrefix[maximumY + 2][maximumX + 2] - self._staticOccupancyPrefix[minimumY + 1][maximumX
-            + 2] - self._staticOccupancyPrefix[maximumY + 2][minimumX + 1]
-        + self._staticOccupancyPrefix[minimumY + 1][minimumX + 1]
-    ---@diagnostic enable: need-check-nil
-    return total > 0
-end
-
 ---@param entries Global.GameMap.ActiveLight[]
 ---@param target  sf.RenderTexture
 function GameMapLighting:_renderStaticLights(entries, target)
@@ -349,98 +333,27 @@ function GameMapLighting:_appendLightBatchVertex(vertices, vertex, x, y, texture
     vertices:append(vertex)
 end
 
----@param light         GlobalCore.Light
----@param owner         Engine.Actor | nil
----@param visibleActors table<Engine.Actor, boolean>
+---@param analysis GlobalCore.LightOcclusionResult
 ---@return sf.Vector2f, sf.Vector2f, boolean
-function GameMapLighting:_renderDynamicTransmission(light, owner, visibleActors)
-    local cellRadius = math.ceil((light.radius + Engine.CellSize) / Engine.CellSize)
-    local mapX = math.floor(light.position.x / Engine.CellSize)
-    local mapY = math.floor(light.position.y / Engine.CellSize)
-    local actors
-    if owner == nil then
-        actors = self:getActorsInRange(mapX, mapY, cellRadius)
-    else
-        actors = self:getActorsInRangeExcluding(mapX, mapY, cellRadius, owner)
-    end
-    ---@cast actors Engine.Actor[]
-    local occluders = {}
-    for _, actor in ipairs(actors) do
-        if visibleActors[actor] == true and not actor:isDestroyed()
-            and actor:getLightBlock() > 0.0 and self:_actorIntersectsLight(actor, light) then
-            occluders[#occluders + 1] = actor
-        end
-    end
-    if not bool(occluders) then
+function GameMapLighting:_renderDynamicTransmission(analysis)
+    local maskRect = analysis.maskRect
+    if maskRect == nil then
         return self._zeroShaderOffset, self._zeroShaderOffset, false
     end
-
-    local minimumX = nil
-    local minimumY = nil
-    local maximumX = nil
-    local maximumY = nil
-    for _, actor in ipairs(occluders) do
-        local bounds = actor:getGlobalBounds()
-        if minimumX == nil or bounds.position.x < minimumX then
-            minimumX = bounds.position.x
-        end
-        if minimumY == nil or bounds.position.y < minimumY then
-            minimumY = bounds.position.y
-        end
-        local right = bounds.position.x + bounds.size.x
-        if maximumX == nil or right > maximumX then
-            maximumX = right
-        end
-        local bottom = bounds.position.y + bounds.size.y
-        if maximumY == nil or bottom > maximumY then
-            maximumY = bottom
-        end
-    end
-    ---@cast minimumX number
-    ---@cast minimumY number
-    ---@cast maximumX number
-    ---@cast maximumY number
-    minimumX = math.max(
-        math.floor(light.position.x - light.radius) - DYNAMIC_TRANSMISSION_PADDING,
-        math.floor(minimumX) - DYNAMIC_TRANSMISSION_PADDING
-    )
-    minimumY = math.max(
-        math.floor(light.position.y - light.radius) - DYNAMIC_TRANSMISSION_PADDING,
-        math.floor(minimumY) - DYNAMIC_TRANSMISSION_PADDING
-    )
-    maximumX = math.min(
-        math.ceil(light.position.x + light.radius) + DYNAMIC_TRANSMISSION_PADDING,
-        math.ceil(maximumX) + DYNAMIC_TRANSMISSION_PADDING
-    )
-    maximumY = math.min(
-        math.ceil(light.position.y + light.radius) + DYNAMIC_TRANSMISSION_PADDING,
-        math.ceil(maximumY) + DYNAMIC_TRANSMISSION_PADDING
-    )
-    local origin = sf.Vector2f.new(minimumX, minimumY)
-    local size = sf.Vector2f.new(math.max(1.0, maximumX - minimumX), math.max(1.0, maximumY - minimumY))
+    local origin = maskRect.position
+    local size = maskRect.size
     local centre = sf.Vector2f.new(origin.x + size.x * 0.5, origin.y + size.y * 0.5)
     ---@cast self._dynamicTransmission sf.RenderTexture
     ---@cast self._transmissionActorRenderStates sf.RenderStates
     self._dynamicTransmission:setView(sf.View.new(centre, size))
     self._dynamicTransmission:clear(sf.Color.White)
     self._lightMaskShader:setUniform("transmissionMode", 1.0)
-    for _, actor in ipairs(occluders) do
+    for _, actor in ipairs(analysis.occluders) do
         self:_setActorMaskUniforms(actor)
         self._dynamicTransmission:draw(actor, self._transmissionActorRenderStates)
     end
     self._dynamicTransmission:display()
     return origin, size, true
-end
-
----@param actor Engine.Actor
----@param light GlobalCore.Light
----@return boolean
----@diagnostic disable-next-line: unused
-function GameMapLighting:_actorIntersectsLight(actor, light)
-    local bounds = actor:getGlobalBounds()
-    return bounds.position.x <= light.position.x + light.radius and bounds.position.x + bounds.size.x
-            >= light.position.x - light.radius and bounds.position.y <= light.position.y + light.radius
-        and bounds.position.y + bounds.size.y >= light.position.y - light.radius
 end
 
 ---@return Global.GameMap.ActiveLight[]

@@ -1,5 +1,4 @@
 local Engine = require("Engine")
-local ActorTree = require("Global.ActorTree")
 local GameMap = require("Global.GameMap")
 local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
@@ -52,7 +51,7 @@ end
 local function removeRootsFromLiveActors(world, roots)
     local targets = {}
     for _, root in ipairs(roots) do
-        for _, actor in ipairs(ActorTree.Collect(root)) do
+        for _, actor in ipairs(root:collectTree()) do
             targets[actor] = true
         end
     end
@@ -91,7 +90,7 @@ local function sleepRoots(world, roots)
     end
     removeRootsFromLiveActors(world, sleeping)
     for _, root in ipairs(sleeping) do
-        for _, actor in ipairs(ActorTree.Collect(root)) do
+        for _, actor in ipairs(root:collectTree()) do
             if not actor:isDestroyed() then
                 Actor.BlueprintEvent(actor, Actor, "onWorldSleep")
             end
@@ -123,7 +122,7 @@ local function activateRoots(world, roots)
     local wakeTime = perfCounter()
     for _, root in ipairs(waking) do
         local elapsedSeconds = math.max(0.0, wakeTime - (world._worldRootSleepTimes[root] or wakeTime))
-        for _, actor in ipairs(ActorTree.Collect(root)) do
+        for _, actor in ipairs(root:collectTree()) do
             if not actor:isDestroyed() then
                 Actor.BlueprintEvent(actor, Actor, "onWorldWake", { elapsedSeconds = elapsedSeconds })
             end
@@ -207,7 +206,7 @@ local function removeRegionRootMetadata(world, payload, root)
     removeRegionRootChunk(world, payload, root)
     payload.activeRoots[root] = nil
     payload.definitionRegions[root] = nil
-    for _, actor in ipairs(ActorTree.Collect(root)) do
+    for _, actor in ipairs(root:collectTree()) do
         payload.actorSet[actor] = nil
         payload.actorRoots[actor] = nil
     end
@@ -245,7 +244,7 @@ end
 ---@return boolean
 local function filterSuppressedActorTree(actor, suppressed, objects)
     if suppressed[actor:getMapTag()] or objects[actor] then
-        for _, listed in ipairs(ActorTree.Collect(actor)) do
+        for _, listed in ipairs(actor:collectTree()) do
             objects[listed] = true
             listed:markDestroyed(true)
         end
@@ -510,7 +509,7 @@ function WorldGameMapActors:_indexRegionActors(region)
             if definitionRegion ~= nil then
                 self._worldActorDefinitionRegions[root] = definitionRegion
             end
-            for _, actor in ipairs(ActorTree.Collect(root)) do
+            for _, actor in ipairs(root:collectTree()) do
                 self:_indexRegionActor(payload, layerName, actor, region, root)
             end
         end
@@ -521,7 +520,7 @@ end
 ---@param layer string
 function WorldGameMapActors:_registerWorldActorTree(actor, layer)
     self:_ensureWorldLayer(layer)
-    for _, listed in ipairs(ActorTree.Collect(actor)) do
+    for _, listed in ipairs(actor:collectTree()) do
         if not bool(listed:getMapTag()) then
             listed:setMapTag(self:_allocateRuntimeTag(listed:getMapPosition()))
         end
@@ -537,7 +536,7 @@ end
 
 ---@param actor Engine.Actor
 function WorldGameMapActors:_unindexWorldActorTree(actor)
-    for _, listed in ipairs(ActorTree.Collect(actor)) do
+    for _, listed in ipairs(actor:collectTree()) do
         local tag = listed:getMapTag()
         if bool(tag) and self._worldActorsByTag[tag] == listed then
             self._worldActorsByTag[tag] = nil
@@ -567,7 +566,7 @@ function WorldGameMapActors:_attachRegionRoot(region, actor, layer, definitionRe
         payload.definitionRegions[actor] = definitionRegion
     end
     self._worldActorRegions[actor] = region
-    for _, listed in ipairs(ActorTree.Collect(actor)) do
+    for _, listed in ipairs(actor:collectTree()) do
         payload.actorSet[listed] = true
         payload.actorRoots[listed] = actor
     end

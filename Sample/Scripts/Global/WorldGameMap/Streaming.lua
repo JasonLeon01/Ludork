@@ -122,6 +122,9 @@ function WorldGameMapStreaming:_refreshStreamingStates()
     prepared.width = preparedWidth
     prepared.height = preparedHeight
     self._worldPreparedRect = prepared
+    local preparedRect = sf.IntRect.new(prepared.x, prepared.y, prepared.width, prepared.height)
+    ---@cast preparedRect sf.IntRect
+    self:setSparseWorldPreparedRect(preparedRect)
     self._worldDemandGeneration = self._worldDemandGeneration + 1
     self:_refreshActorRegionDemands()
     for _, region in ipairs(self._worldRegions) do

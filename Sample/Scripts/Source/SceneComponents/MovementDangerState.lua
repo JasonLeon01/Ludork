@@ -60,6 +60,14 @@ function MovementDangerState:onTick(_deltaTime)
                     local combatRevision = actor:getCombatRevision()
                     local snapshot = self._enemySnapshots[actor]
                     if snapshot == nil then
+                        snapshot = {
+                            x = position.x,
+                            y = position.y,
+                            combatRevision = combatRevision,
+                            infoComp = actor.infoComp,
+                            scanRevision = enemyScanRevision
+                        }
+                        self._enemySnapshots[actor] = snapshot
                         dangerChanged = true
                         pathfindingChanged = true
                     elseif snapshot.x ~= position.x or snapshot.y ~= position.y
@@ -67,13 +75,11 @@ function MovementDangerState:onTick(_deltaTime)
                         dangerChanged = true
                         pathfindingChanged = true
                     end
-                    self._enemySnapshots[actor] = {
-                        x = position.x,
-                        y = position.y,
-                        combatRevision = combatRevision,
-                        infoComp = actor.infoComp,
-                        scanRevision = enemyScanRevision
-                    }
+                    snapshot.x = position.x
+                    snapshot.y = position.y
+                    snapshot.combatRevision = combatRevision
+                    snapshot.infoComp = actor.infoComp
+                    snapshot.scanRevision = enemyScanRevision
                     enemyCount = enemyCount + 1
                     if self._enemies[enemyCount] ~= actor then
                         self._enemies[enemyCount] = actor

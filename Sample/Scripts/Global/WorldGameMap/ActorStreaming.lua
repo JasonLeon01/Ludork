@@ -43,7 +43,7 @@ local function collectDesiredRoots(world, rootChunks, active, region)
                 elseif root:isDestroyed() then
                     world._worldDestroyedRootsDirty = true
                 elseif not world._worldSuppressedActorObjects[root]
-                    and world:_isWorldCellReady(region, root:getMapPosition()) then
+                    and world:isSparseWorldCellReady(root:getMapPosition()) then
                     desired[root] = true
                 end
             end
@@ -270,6 +270,7 @@ function WorldGameMapActorStreaming:_evictRegion(region)
     payload.lights = {}
     GlobalCore.FogController.removeWorldRegionFog(region.path)
     self:_releaseWorldRegionTileMaskCache(region)
+    self:detachSparseWorldRegion(region.index)
     region.backgroundBuilder = nil
     region.payload = nil
     region.payloadBytes = nil
@@ -288,7 +289,7 @@ function WorldGameMapActorStreaming:_refreshActorRegionDemands()
             self._worldPendingRehomes[root] = nil
         else
             local region = self:_findRegionAt(root:getMapPosition())
-            if region ~= nil and not self:_isWorldCellReady(region, root:getMapPosition()) then
+            if region ~= nil and not self:isSparseWorldCellReady(root:getMapPosition()) then
                 self._worldActorDemandRegions[region] = true
             end
         end
@@ -420,7 +421,7 @@ local function advancePendingRehomes(world, touchedRegions, looseTouched)
         elseif requestedRegion ~= nil then
             local position = root:getMapPosition()
             local destinationRegion = world:_findRegionAt(position)
-            if destinationRegion == nil or world:_isWorldCellReady(destinationRegion, position) then
+            if destinationRegion == nil or world:isSparseWorldCellReady(position) then
                 local sourceRegion = world._worldActorRegions[root]
                 local layerName = world._worldActorLayers[root]
                 local changedLoose
@@ -453,7 +454,7 @@ local function rehomeChangedRoot(world, root, position, touchedRegions, looseTou
     local sourceRegion = world._worldActorRegions[root]
     local destinationRegion = world:_findRegionAt(position)
     if sourceRegion ~= nil and destinationRegion ~= nil and destinationRegion.path == sourceRegion.path then
-        if world:_isWorldCellReady(sourceRegion, position) then
+        if world:isSparseWorldCellReady(position) then
             if world:_refreshRegionRootChunk(assert(sourceRegion.payload), root) then
                 touchedRegions = touchedRegions or {}
                 touchedRegions[sourceRegion] = true
@@ -483,11 +484,11 @@ local function rehomeChangedRoot(world, root, position, touchedRegions, looseTou
             looseTouched = looseTouched or changedLoose
         end
     else
-        if not world:_isWorldCellReady(destinationRegion, position) then
+        if not world:isSparseWorldCellReady(position) then
             if root:getCollisionEnabled() then
                 world:ensureRegionLoadedAt(position)
             end
-            if not world:_isWorldCellReady(destinationRegion, position) then
+            if not world:isSparseWorldCellReady(position) then
                 local changedLoose
                 touchedRegions, changedLoose = queuePendingRehome(
                     world, root, destinationRegion, sourceRegion, position, touchedRegions

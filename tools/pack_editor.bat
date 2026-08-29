@@ -3,6 +3,26 @@ setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001>nul
 
 for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
+set "PREBUILT_TEMPLATES_DIR="
+set "USE_CURRENT_UI_PREVIEW_HOST=0"
+
+:parse_arguments
+if "%~1"=="" goto arguments_ready
+if /I "%~1"=="--templates" (
+    if "%~2"=="" goto usage
+    for %%I in ("%~2") do set "PREBUILT_TEMPLATES_DIR=%%~fI"
+    shift
+    shift
+    goto parse_arguments
+)
+if /I "%~1"=="--use-current-ui-preview-host" (
+    set "USE_CURRENT_UI_PREVIEW_HOST=1"
+    shift
+    goto parse_arguments
+)
+goto usage
+
+:arguments_ready
 set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-package"
 set "STAGE_DIR=%WORK_DIR%\dist"
@@ -100,9 +120,13 @@ for %%D in (
     if errorlevel 1 exit /b 1
 )
 
-echo Building native UI preview host...
-call "%ROOT_DIR%\tools\build_ui_preview_host.bat" Release
-if errorlevel 1 exit /b 1
+if "%USE_CURRENT_UI_PREVIEW_HOST%"=="1" (
+    echo Using current native UI preview host...
+) else (
+    echo Building native UI preview host...
+    call "%ROOT_DIR%\tools\build_ui_preview_host.bat" Release
+    if errorlevel 1 exit /b 1
+)
 call :resolve_vc_runtime
 if errorlevel 1 exit /b 1
 
@@ -125,9 +149,15 @@ popd
 if not "!PACK_RESULT!"=="0" goto failed
 if exist "%STAGE_DIR%\Locale\locale.json" del /Q "%STAGE_DIR%\Locale\locale.json"
 
-echo Generating editor project templates...
-call "%ROOT_DIR%\tools\create_templates.bat" Release "%STAGE_DIR%\Templates"
-if errorlevel 1 goto failed
+if defined PREBUILT_TEMPLATES_DIR (
+    echo Copying prepared editor project templates...
+    call :copy_directory "%PREBUILT_TEMPLATES_DIR%" "%STAGE_DIR%\Templates"
+    if errorlevel 1 goto failed
+) else (
+    echo Generating editor project templates...
+    call "%ROOT_DIR%\tools\create_templates.bat" Release "%STAGE_DIR%\Templates"
+    if errorlevel 1 goto failed
+)
 
 echo Copying editor resources...
 if exist "%STAGE_DIR%\docs" rmdir /S /Q "%STAGE_DIR%\docs"
@@ -703,6 +733,10 @@ for /d /r "%~1" %%D in (UiPreviewCurveResolver*) do if exist "%%~fD" (
     exit /b 1
 )
 exit /b 0
+
+:usage
+echo Usage: tools\pack_editor.bat [--templates ^<folder^>] [--use-current-ui-preview-host]
+exit /b 1
 
 :failed
 set "PACK_RESULT=%ERRORLEVEL%"

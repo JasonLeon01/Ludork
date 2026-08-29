@@ -115,42 +115,26 @@ function GameMapLighting:_lightingShadersAvailable()
         and self._staticTransmission ~= nil and self._surfaceMask ~= nil
 end
 
----@param activeLights  Global.GameMap.ActiveLight[]
----@param visibleActors table<Engine.Actor, boolean>
----@return boolean
-function GameMapLighting:_hasRelevantLightBlockingActors(activeLights, visibleActors)
-    for actor in pairs(visibleActors) do
-        if not actor:isDestroyed() and actor:getLightBlock() > 0.0 then
-            for _, entry in ipairs(activeLights) do
-                if actor ~= entry.owner and self:_actorIntersectsLight(actor, entry.light) then
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
-
----@param activeLights  Global.GameMap.ActiveLight[]
----@param visibleActors table<Engine.Actor, boolean>
-function GameMapLighting:_renderDynamicLighting(activeLights, visibleActors)
+---@param activeLights Global.GameMap.ActiveLight[]
+---@param analyses     GlobalCore.LightOcclusionResult[]
+function GameMapLighting:_renderDynamicLighting(activeLights, analyses)
     ---@cast self._directLight sf.RenderTexture
     local unobstructedLights = {}
     local staticLights = {}
     self:_ensureDynamicTransmission(activeLights)
     local commonUniformsSet = false
-    for _, entry in ipairs(activeLights) do
-        local hasStaticTransmissionLoss = self:_lightHasStaticTransmissionLoss(entry.light)
-        local dynamicOrigin, dynamicSize, hasDynamicTransmissionLoss = self:_renderDynamicTransmission(
-            entry.light, entry.owner, visibleActors
-        )
+    for index, entry in ipairs(activeLights) do
+        local analysis = assert(analyses[index])
+        local dynamicOrigin, dynamicSize, hasDynamicTransmissionLoss = self:_renderDynamicTransmission(analysis)
         if hasDynamicTransmissionLoss then
             if not commonUniformsSet then
                 self:_setLightPassCommonUniforms()
                 commonUniformsSet = true
             end
-            self:_renderLight(entry, dynamicOrigin, dynamicSize, hasStaticTransmissionLoss, true, self._directLight)
-        elseif hasStaticTransmissionLoss then
+            self:_renderLight(
+                entry, dynamicOrigin, dynamicSize, analysis.hasStaticTransmissionLoss, true, self._directLight
+            )
+        elseif analysis.hasStaticTransmissionLoss then
             staticLights[#staticLights + 1] = entry
         else
             unobstructedLights[#unobstructedLights + 1] = entry
@@ -166,7 +150,8 @@ function GameMapLighting:_renderDynamicLighting(activeLights, visibleActors)
 end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
-function GameMapLighting:_renderCachedLighting(activeLights)
+---@param analyses     GlobalCore.LightOcclusionResult[]
+function GameMapLighting:_renderCachedLighting(activeLights, analyses)
     self:_ensureStaticDirectLight()
     ---@cast self._staticDirectLight sf.RenderTexture
     local cacheValid = self._cachedLightMaterialRevision == self._materialRevision and self._cachedLightTransmissionSignature
@@ -176,8 +161,8 @@ function GameMapLighting:_renderCachedLighting(activeLights)
     end
     local unobstructedLights = {}
     local staticLights = {}
-    for _, entry in ipairs(activeLights) do
-        if self:_lightHasStaticTransmissionLoss(entry.light) then
+    for index, entry in ipairs(activeLights) do
+        if assert(analyses[index]).hasStaticTransmissionLoss then
             staticLights[#staticLights + 1] = entry
         else
             unobstructedLights[#unobstructedLights + 1] = entry
@@ -211,29 +196,10 @@ function GameMapLighting:_rebuildStaticTransmission(_activeLights)
     self._staticTransmission:clear(sf.Color.White)
     self._tilemapLightMaskShader:setUniform("transmissionMode", 1.0)
     local size = self._tilemap:getSize()
-    ---@type number[][]
-    local occupancy = {}
-    for y = 1, size.y do
-        local row = {}
-        for x = 1, size.x do
-            row[x] = 0.0
-        end
-        occupancy[y] = row
-    end
     for _, layerName in ipairs(self._layerNames) do
         local layer = self._tilemap:getLayer(layerName)
         ---@cast layer Engine.TileLayer
         if layer.visible then
-            local lightBlockMap = layer:getLightBlockMap()
-            for y, row in ipairs(lightBlockMap) do
-                local occupancyRow = occupancy[y]
-                ---@cast occupancyRow number[]
-                for x, lightBlock in ipairs(row) do
-                    if lightBlock > 0.0 then
-                        occupancyRow[x] = 1.0
-                    end
-                end
-            end
             self:_setTileMaskUniforms(layerName, layer)
             local drawable = layer
             ---@cast drawable sf.Drawable
@@ -241,50 +207,11 @@ function GameMapLighting:_rebuildStaticTransmission(_activeLights)
         end
     end
     self._staticTransmission:display()
-    self:_rebuildStaticOccupancy(size, occupancy)
+    local origin = sf.Vector2i.new(0, 0)
+    ---@cast origin sf.Vector2i
+    self._staticOccupancy = assert(self:rebuildStaticLightOccupancy(origin, size))
     self._staticTransmissionRevision = self._materialRevision
     self._staticTransmissionSignature = transmissionSignature
-end
-
----@param size      sf.Vector2u
----@param occupancy number[][]
-function GameMapLighting:_rebuildStaticOccupancy(size, occupancy)
-    local prefix = {}
-    local firstPrefixRow = {}
-    prefix[1] = firstPrefixRow
-    ---@cast prefix number[][]
-    ---@cast firstPrefixRow number[]
-    for x = 1, size.x + 1 do
-        firstPrefixRow[x] = 0
-    end
-    local textureRows = {}
-    for y = 1, size.y do
-        local prefixRow = { 0 } ---@type number[]
-        local previousPrefixRow = prefix[y]
-        local occupancyRow = occupancy[y]
-        ---@cast previousPrefixRow number[]
-        ---@cast occupancyRow number[]
-        for x = 1, size.x do
-            local occupancyValue = occupancyRow[x]
-            local previousPrefixValue = previousPrefixRow[x + 1]
-            local prefixValue = prefixRow[x]
-            local previousRowPrefixValue = previousPrefixRow[x]
-            ---@cast occupancyValue number
-            ---@cast previousPrefixValue number
-            ---@cast prefixValue number
-            ---@cast previousRowPrefixValue number
-            prefixRow[x + 1] = occupancyValue + previousPrefixValue + prefixValue - previousRowPrefixValue
-        end
-        prefix[y + 1] = prefixRow
-        textureRows[size.y - y + 1] = occupancyRow
-    end
-    self._staticOccupancyPrefix = prefix
-    local lastPrefixRow = prefix[size.y + 1]
-    ---@cast lastPrefixRow number[]
-    local lastPrefixValue = lastPrefixRow[size.x + 1]
-    ---@cast lastPrefixValue number
-    self._staticHasTransmissionLoss = lastPrefixValue > 0
-    self._staticOccupancy = self:generateDataFromMap(size, textureRows, false)
 end
 
 ---@return Global.GameMap.StaticTransmissionSignature
@@ -315,9 +242,10 @@ function GameMapLighting:_getStaticTransmissionSignature()
     return signature
 end
 
----@return table<Engine.Actor, boolean>
+---@return Engine.Actor[]
 function GameMapLighting:_renderSurfaceMask()
     local visibleActors = {}
+    local visibleActorSet = {}
     ---@cast self._surfaceMask sf.RenderTexture
     ---@cast self._surfaceTileRenderStates sf.RenderStates
     ---@cast self._surfaceActorRenderStates sf.RenderStates
@@ -334,7 +262,10 @@ function GameMapLighting:_renderSurfaceMask()
             self._surfaceMask:draw(drawable, self._surfaceTileRenderStates)
             for _, actor in ipairs(self._actors[layerName] or {}) do
                 if not actor:isDestroyed() then
-                    visibleActors[actor] = true
+                    if not visibleActorSet[actor] then
+                        visibleActorSet[actor] = true
+                        visibleActors[#visibleActors + 1] = actor
+                    end
                     self:_setActorMaskUniforms(actor)
                     self._surfaceMask:draw(actor, self._surfaceActorRenderStates)
                 end

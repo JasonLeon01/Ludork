@@ -4,10 +4,37 @@
 #include <Gameplay/TileMap.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <optional>
+#include <stdexcept>
 #include <unordered_set>
 #include <utility>
+
+namespace {
+bool rectContains(const sf::IntRect& rect, const sf::Vector2i& position) {
+    const std::int64_t right = static_cast<std::int64_t>(rect.position.x) +
+                               static_cast<std::int64_t>(rect.size.x);
+    const std::int64_t bottom = static_cast<std::int64_t>(rect.position.y) +
+                                static_cast<std::int64_t>(rect.size.y);
+    return position.x >= rect.position.x && position.y >= rect.position.y &&
+           static_cast<std::int64_t>(position.x) < right &&
+           static_cast<std::int64_t>(position.y) < bottom;
+}
+
+bool rectsIntersect(const sf::IntRect& left, const sf::IntRect& right) {
+    const std::int64_t leftRight =
+        static_cast<std::int64_t>(left.position.x) + left.size.x;
+    const std::int64_t leftBottom =
+        static_cast<std::int64_t>(left.position.y) + left.size.y;
+    const std::int64_t rightRight =
+        static_cast<std::int64_t>(right.position.x) + right.size.x;
+    const std::int64_t rightBottom =
+        static_cast<std::int64_t>(right.position.y) + right.size.y;
+    return left.position.x < rightRight && right.position.x < leftRight &&
+           left.position.y < rightBottom && right.position.y < leftBottom;
+}
+}  // namespace
 
 std::size_t IntPairHash::operator()(const IntPair& value) const {
     std::size_t xHash = std::hash<int>{}(value.first);
@@ -17,37 +44,271 @@ std::size_t IntPairHash::operator()(const IntPair& value) const {
 
 void GameMapBase::configureSparseWorld(
     const sf::Vector2u& size, const std::vector<std::string>& layerOrder,
-    std::function<bool(const sf::Vector2i&)> tilePassabilityQuery,
-    std::function<bool(const sf::Vector2i&, const sf::Vector2i&, int)>
-        directionPassabilityQuery,
-    std::function<std::optional<Material>(const sf::Vector2i&)>
-        topMaterialQuery) {
-    if (!tilePassabilityQuery || !directionPassabilityQuery ||
-        !topMaterialQuery) {
-        throw std::invalid_argument(
-            "Sparse world queries must all be configured");
+    const std::vector<sf::IntRect>& regionRects) {
+    if (size.x > static_cast<unsigned int>(std::numeric_limits<int>::max()) ||
+        size.y > static_cast<unsigned int>(std::numeric_limits<int>::max())) {
+        throw std::invalid_argument("Sparse world size is out of range");
     }
+
+    std::unordered_set<std::string> uniqueLayerNames;
+    uniqueLayerNames.reserve(layerOrder.size());
+    for (const std::string& layerName : layerOrder) {
+        if (!uniqueLayerNames.insert(layerName).second) {
+            throw std::invalid_argument(
+                "Sparse world layer order contains a duplicate name");
+        }
+    }
+
+    std::vector<SparseWorldRegion> regions;
+    regions.reserve(regionRects.size());
+    SparseWorldRegionPageMap regionPages;
+    for (const sf::IntRect& rect : regionRects) {
+        const std::int64_t right =
+            static_cast<std::int64_t>(rect.position.x) + rect.size.x;
+        const std::int64_t bottom =
+            static_cast<std::int64_t>(rect.position.y) + rect.size.y;
+        if (rect.position.x < 0 || rect.position.y < 0 || rect.size.x <= 0 ||
+            rect.size.y <= 0 || right > static_cast<std::int64_t>(size.x) ||
+            bottom > static_cast<std::int64_t>(size.y)) {
+            throw std::invalid_argument(
+                "Sparse world region rectangle is outside the world");
+        }
+        for (const SparseWorldRegion& existing : regions) {
+            if (rectsIntersect(existing.rect, rect)) {
+                throw std::invalid_argument(
+                    "Sparse world region rectangles must not overlap");
+            }
+        }
+        regions.push_back({.rect = rect});
+        const std::size_t regionIndex = regions.size() - 1;
+        const IntPair firstPage =
+            getOccupancyPageKey(rect.position.x, rect.position.y);
+        const IntPair lastPage = getOccupancyPageKey(
+            static_cast<int>(right - 1), static_cast<int>(bottom - 1));
+        for (int pageY = firstPage.second; pageY <= lastPage.second; ++pageY) {
+            for (int pageX = firstPage.first; pageX <= lastPage.first;
+                 ++pageX) {
+                regionPages[{pageX, pageY}].push_back(regionIndex);
+            }
+        }
+    }
+
     sparseWorldSize_ = size;
     sparseWorldLayerOrder_ = layerOrder;
-    sparseTilePassabilityQuery_ = std::move(tilePassabilityQuery);
-    sparseDirectionPassabilityQuery_ = std::move(directionPassabilityQuery);
-    sparseTopMaterialQuery_ = std::move(topMaterialQuery);
+    sparseWorldRegions_ = std::move(regions);
+    sparseWorldRegionPages_ = std::move(regionPages);
+    sparseWorldPreparedRect_.reset();
+    clearStaticLightOccupancy();
     clearActorOccupancy();
     registeredOccupancyCells_.clear();
     tilePassableGrid_.clear();
     passabilityDirty_ = true;
 }
 
+void GameMapBase::setSparseWorldRegion(int regionIndex,
+                                       std::shared_ptr<Tilemap> tilemap,
+                                       bool actorsReady) {
+    if (!tilemap) {
+        throw std::invalid_argument("Sparse world region Tilemap is null");
+    }
+    SparseWorldRegion& region = requireSparseWorldRegion(regionIndex);
+    const sf::Vector2u expectedSize(
+        static_cast<unsigned int>(region.rect.size.x),
+        static_cast<unsigned int>(region.rect.size.y));
+    if (tilemap->getSize() != expectedSize) {
+        throw std::invalid_argument(
+            "Sparse world region Tilemap size does not match its rectangle");
+    }
+
+    std::vector<std::shared_ptr<TileLayer>> layersTopFirst;
+    layersTopFirst.reserve(sparseWorldLayerOrder_.size());
+    for (auto layerName = sparseWorldLayerOrder_.rbegin();
+         layerName != sparseWorldLayerOrder_.rend(); ++layerName) {
+        std::shared_ptr<TileLayer> layer = tilemap->getLayer(*layerName);
+        if (!layer) {
+            throw std::invalid_argument(
+                "Sparse world region Tilemap is missing a configured layer");
+        }
+        if (layer->getGridSize() != expectedSize) {
+            throw std::invalid_argument(
+                "Sparse world region layer size does not match its rectangle");
+        }
+        layersTopFirst.push_back(std::move(layer));
+    }
+
+    region.tilemap = std::move(tilemap);
+    region.layersTopFirst = std::move(layersTopFirst);
+    region.actorsReady = actorsReady;
+    clearStaticLightOccupancy();
+}
+
+void GameMapBase::setSparseWorldRegionActorsReady(int regionIndex) {
+    SparseWorldRegion& region = requireSparseWorldRegion(regionIndex);
+    if (!region.tilemap) {
+        throw std::logic_error(
+            "Sparse world region Tilemap must be set before Actors are ready");
+    }
+    region.actorsReady = true;
+}
+
+void GameMapBase::detachSparseWorldRegion(int regionIndex) {
+    SparseWorldRegion& region = requireSparseWorldRegion(regionIndex);
+    if (!region.tilemap && region.layersTopFirst.empty() &&
+        !region.actorsReady) {
+        return;
+    }
+    region.tilemap.reset();
+    region.layersTopFirst.clear();
+    region.actorsReady = false;
+    clearStaticLightOccupancy();
+}
+
+void GameMapBase::setSparseWorldPreparedRect(std::optional<sf::IntRect> rect) {
+    if (!rect.has_value()) {
+        sparseWorldPreparedRect_.reset();
+        return;
+    }
+    if (!sparseWorldSize_.has_value()) {
+        throw std::logic_error("Sparse world is not configured");
+    }
+    const std::int64_t right =
+        static_cast<std::int64_t>(rect->position.x) + rect->size.x;
+    const std::int64_t bottom =
+        static_cast<std::int64_t>(rect->position.y) + rect->size.y;
+    if (rect->position.x < 0 || rect->position.y < 0 || rect->size.x < 0 ||
+        rect->size.y < 0 ||
+        right > static_cast<std::int64_t>(sparseWorldSize_->x) ||
+        bottom > static_cast<std::int64_t>(sparseWorldSize_->y)) {
+        throw std::invalid_argument(
+            "Sparse world prepared rectangle is outside the world");
+    }
+    sparseWorldPreparedRect_ = *rect;
+}
+
+bool GameMapBase::isSparseWorldCellReady(const sf::Vector2i& position) const {
+    if (!sparseWorldSize_.has_value() || position.x < 0 || position.y < 0 ||
+        position.x >= static_cast<int>(sparseWorldSize_->x) ||
+        position.y >= static_cast<int>(sparseWorldSize_->y)) {
+        return false;
+    }
+    const SparseWorldRegion* region = findSparseWorldRegion(position);
+    if (region == nullptr) {
+        return true;
+    }
+    if (!region->tilemap || !region->actorsReady) {
+        return false;
+    }
+    const sf::Vector2i localPosition = position - region->rect.position;
+    for (const std::shared_ptr<TileLayer>& layer : region->layersTopFirst) {
+        if (!layer->isCellBuilt(localPosition)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool GameMapBase::isSparseWorldGameplayPositionReady(
+    const sf::Vector2i& position) const {
+    return (!sparseWorldPreparedRect_.has_value() ||
+            rectContains(*sparseWorldPreparedRect_, position)) &&
+           isSparseWorldCellReady(position);
+}
+
 void GameMapBase::clearSparseWorld() {
     sparseWorldSize_.reset();
     sparseWorldLayerOrder_.clear();
-    sparseTilePassabilityQuery_ = {};
-    sparseDirectionPassabilityQuery_ = {};
-    sparseTopMaterialQuery_ = {};
+    sparseWorldRegions_.clear();
+    sparseWorldRegionPages_.clear();
+    sparseWorldPreparedRect_.reset();
+    clearStaticLightOccupancy();
     clearActorOccupancy();
     registeredOccupancyCells_.clear();
     tilePassableGrid_.clear();
     passabilityDirty_ = true;
+}
+
+const GameMapBase::SparseWorldRegion* GameMapBase::findSparseWorldRegion(
+    const sf::Vector2i& position) const {
+    const auto pageIt = sparseWorldRegionPages_.find(
+        getOccupancyPageKey(position.x, position.y));
+    if (pageIt == sparseWorldRegionPages_.end()) {
+        return nullptr;
+    }
+    for (const std::size_t regionIndex : pageIt->second) {
+        const SparseWorldRegion& region = sparseWorldRegions_[regionIndex];
+        if (rectContains(region.rect, position)) {
+            return &region;
+        }
+    }
+    return nullptr;
+}
+
+GameMapBase::SparseWorldRegion& GameMapBase::requireSparseWorldRegion(
+    int regionIndex) {
+    if (!sparseWorldSize_.has_value()) {
+        throw std::logic_error("Sparse world is not configured");
+    }
+    if (regionIndex <= 0 ||
+        regionIndex > static_cast<int>(sparseWorldRegions_.size())) {
+        throw std::out_of_range("Sparse world region index is out of range");
+    }
+    return sparseWorldRegions_[static_cast<std::size_t>(regionIndex - 1)];
+}
+
+bool GameMapBase::isSparseWorldTilePassable(
+    const sf::Vector2i& position) const {
+    if (!isSparseWorldGameplayPositionReady(position)) {
+        return false;
+    }
+    const SparseWorldRegion* region = findSparseWorldRegion(position);
+    if (region == nullptr) {
+        return true;
+    }
+    const sf::Vector2i localPosition = position - region->rect.position;
+    for (const std::shared_ptr<TileLayer>& layer : region->layersTopFirst) {
+        if (!layer->getVisible() || !layer->hasContent(localPosition)) {
+            continue;
+        }
+        return layer->isPassable(localPosition);
+    }
+    return true;
+}
+
+std::optional<Material> GameMapBase::getSparseWorldTopMaterial(
+    const sf::Vector2i& position) const {
+    if (!isSparseWorldCellReady(position)) {
+        return std::nullopt;
+    }
+    const SparseWorldRegion* region = findSparseWorldRegion(position);
+    if (region == nullptr) {
+        return std::nullopt;
+    }
+    const sf::Vector2i localPosition = position - region->rect.position;
+    for (std::size_t index = 0; index < sparseWorldLayerOrder_.size();
+         ++index) {
+        const std::string& layerName =
+            sparseWorldLayerOrder_[sparseWorldLayerOrder_.size() - index - 1];
+        const auto actorLayerIt = materialActorsRef_.find(layerName);
+        if (actorLayerIt != materialActorsRef_.end()) {
+            for (const ActorPtr& actor : actorLayerIt->second) {
+                if (actor && actor.get() != playerActor_.get() &&
+                    !actor->isDestroyed() &&
+                    actor->getMapPosition() == position) {
+                    return actor->getMaterial();
+                }
+            }
+        }
+        const std::shared_ptr<TileLayer>& layer = region->layersTopFirst[index];
+        if (!layer->getVisible()) {
+            continue;
+        }
+        const std::optional<Material> material =
+            layer->getMaterial(localPosition);
+        if (material.has_value()) {
+            return material;
+        }
+    }
+    return std::nullopt;
 }
 
 std::size_t GameMapBase::getSparseOccupancyPageCount() const {
@@ -175,7 +436,7 @@ bool GameMapBase::isPassable(const Actor& actor,
         }
         const bool tilePassable =
             sparseWorldSize_.has_value()
-                ? sparseTilePassabilityQuery_(cell)
+                ? isSparseWorldTilePassable(cell)
                 : tilePassableGrid_[static_cast<std::size_t>(cell.y)]
                                    [static_cast<std::size_t>(cell.x)];
         if (!tilePassable) {
@@ -231,7 +492,7 @@ std::vector<Actor*> GameMapBase::getOverlaps(Actor& actor) {
 std::optional<Material> GameMapBase::getTopMaterial(
     const sf::Vector2i& position) const {
     if (sparseWorldSize_.has_value()) {
-        return sparseTopMaterialQuery_(position);
+        return getSparseWorldTopMaterial(position);
     }
     for (const std::string& layerName : getTopFirstLayerNames()) {
         const std::shared_ptr<TileLayer> layer = tilemap_->getLayer(layerName);
@@ -430,7 +691,7 @@ bool GameMapBase::passableForActor(int x, int y, int sx, int sy, int gx, int gy,
     }
     const sf::Vector2i position(x, y);
     if (sparseWorldSize_.has_value()) {
-        return sparseTilePassabilityQuery_(position);
+        return isSparseWorldTilePassable(position);
     }
     for (const std::string& layerName : getTopFirstLayerNames()) {
         const std::shared_ptr<TileLayer> layer = tilemap_->getLayer(layerName);
@@ -661,7 +922,7 @@ MaterialValue GameMapBase::getMaterialProperty(
     const sf::Vector2i& pos, const std::string& propertyName,
     const MaterialValue& invalidValue) const {
     if (sparseWorldSize_.has_value()) {
-        const std::optional<Material> material = sparseTopMaterialQuery_(pos);
+        const std::optional<Material> material = getSparseWorldTopMaterial(pos);
         if (!material.has_value()) {
             return invalidValue;
         }

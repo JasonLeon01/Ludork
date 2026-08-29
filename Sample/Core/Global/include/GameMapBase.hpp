@@ -3,6 +3,7 @@
 #include <Gameplay/Actor.hpp>
 #include <Gameplay/TileMap.hpp>
 #include <General/Material.hpp>
+#include <Light.hpp>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
@@ -52,6 +53,27 @@ struct PathResult {
     ////////////////////////////////////////////////////////////
     BIND_PROPERTY()
     std::vector<sf::Vector2i> route;
+};
+
+BIND_CLASS(copyable = true, table_init = true, metadata = false)
+struct LightOcclusionInput {
+    BIND_PROPERTY(metadata = false)
+    Light light;
+
+    BIND_PROPERTY(metadata = false)
+    std::shared_ptr<Actor> owner;
+};
+
+BIND_CLASS(copyable = true, metadata = false)
+struct LightOcclusionResult {
+    BIND_PROPERTY(metadata = false)
+    bool hasStaticTransmissionLoss = false;
+
+    BIND_PROPERTY(metadata = false)
+    std::vector<std::shared_ptr<Actor>> occluders;
+
+    BIND_PROPERTY(metadata = false)
+    std::optional<sf::FloatRect> maskRect;
 };
 
 ////////////////////////////////////////////////////////////
@@ -221,19 +243,43 @@ public:
     void setTilemap(std::shared_ptr<Tilemap> tilemap);
 
     BIND_METHOD(metadata = false)
-    void configureSparseWorld(
-        const sf::Vector2u& size, const std::vector<std::string>& layerOrder,
-        std::function<bool(const sf::Vector2i&)> tilePassabilityQuery,
-        std::function<bool(const sf::Vector2i&, const sf::Vector2i&, int)>
-            directionPassabilityQuery,
-        std::function<std::optional<Material>(const sf::Vector2i&)>
-            topMaterialQuery);
+    void configureSparseWorld(const sf::Vector2u& size,
+                              const std::vector<std::string>& layerOrder,
+                              const std::vector<sf::IntRect>& regionRects);
+
+    BIND_METHOD(metadata = false)
+    void setSparseWorldRegion(int regionIndex, std::shared_ptr<Tilemap> tilemap,
+                              bool actorsReady);
+
+    BIND_METHOD(metadata = false)
+    void setSparseWorldRegionActorsReady(int regionIndex);
+
+    BIND_METHOD(metadata = false)
+    void detachSparseWorldRegion(int regionIndex);
+
+    BIND_METHOD(metadata = false)
+    void setSparseWorldPreparedRect(std::optional<sf::IntRect> rect);
+
+    BIND_METHOD(metadata = false)
+    bool isSparseWorldCellReady(const sf::Vector2i& position) const;
+
+    BIND_METHOD(metadata = false)
+    bool isSparseWorldGameplayPositionReady(const sf::Vector2i& position) const;
 
     BIND_METHOD(metadata = false)
     void clearSparseWorld();
 
     BIND_METHOD(metadata = false)
     std::size_t getSparseOccupancyPageCount() const;
+
+    BIND_METHOD(metadata = false)
+    std::shared_ptr<sf::Texture> rebuildStaticLightOccupancy(
+        const sf::Vector2i& origin, const sf::Vector2u& size);
+
+    BIND_METHOD(metadata = false)
+    std::vector<LightOcclusionResult> analyseLightOcclusion(
+        const std::vector<LightOcclusionInput>& inputs,
+        const std::vector<std::shared_ptr<Actor>>& visibleActors);
 
     ////////////////////////////////////////////////////////////
     /// \brief Synchronise cached actor pointers from typed actor lists
@@ -304,6 +350,16 @@ private:
 
     using SparseOccupancyPageMap =
         std::unordered_map<IntPair, SparseOccupancyPage, IntPairHash>;
+
+    struct SparseWorldRegion {
+        sf::IntRect rect;
+        std::shared_ptr<Tilemap> tilemap;
+        std::vector<std::shared_ptr<TileLayer>> layersTopFirst;
+        bool actorsReady = false;
+    };
+
+    using SparseWorldRegionPageMap =
+        std::unordered_map<IntPair, std::vector<std::size_t>, IntPairHash>;
 
     ////////////////////////////////////////////////////////////
     /// \brief Check whether one grid node is traversable
@@ -384,6 +440,19 @@ private:
                              const sf::Vector2i& toPosition,
                              int direction) const;
 
+    const SparseWorldRegion* findSparseWorldRegion(
+        const sf::Vector2i& position) const;
+    SparseWorldRegion& requireSparseWorldRegion(int regionIndex);
+    bool isSparseWorldTilePassable(const sf::Vector2i& position) const;
+    bool isSparseWorldDirectionPassable(const sf::Vector2i& fromPosition,
+                                        const sf::Vector2i& toPosition,
+                                        int direction) const;
+    std::optional<Material> getSparseWorldTopMaterial(
+        const sf::Vector2i& position) const;
+
+    void clearStaticLightOccupancy();
+    bool hasStaticLightOccupancy(const Light& light) const;
+
     void ensurePassabilityCache() const;
     void refreshActorOccupancyCache();
 
@@ -435,11 +504,13 @@ private:
     std::shared_ptr<Tilemap> tilemap_;
     std::optional<sf::Vector2u> sparseWorldSize_;
     std::vector<std::string> sparseWorldLayerOrder_;
-    std::function<bool(const sf::Vector2i&)> sparseTilePassabilityQuery_;
-    std::function<bool(const sf::Vector2i&, const sf::Vector2i&, int)>
-        sparseDirectionPassabilityQuery_;
-    std::function<std::optional<Material>(const sf::Vector2i&)>
-        sparseTopMaterialQuery_;
+    std::vector<SparseWorldRegion> sparseWorldRegions_;
+    SparseWorldRegionPageMap sparseWorldRegionPages_;
+    std::optional<sf::IntRect> sparseWorldPreparedRect_;
+    std::shared_ptr<sf::Texture> staticLightOccupancy_;
+    sf::Vector2i staticLightOccupancyOrigin_;
+    sf::Vector2u staticLightOccupancySize_;
+    std::vector<std::size_t> staticLightOccupancyPrefix_;
     std::vector<std::vector<bool>> tilePassableGrid_;
     bool passabilityDirty_ = true;
     OccupancyMap occupancyMap_;

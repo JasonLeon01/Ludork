@@ -1,7 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local ActorTree = require("Global.ActorTree")
 local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
 local RegionTerrain = require("Global.GameMap.RegionTerrain")
 local WorldGeometry = require("Global.WorldGeometry")
@@ -363,7 +362,7 @@ local function createWorldRegionBuildCoroutine(
                     )
                     ---@cast worldPosition sf.Vector2i
                     actor:setMapPosition(worldPosition)
-                    for _, listed in ipairs(ActorTree.Collect(actor)) do
+                    for _, listed in ipairs(actor:collectTree()) do
                         local savedPosition = actorPositions[listed:getMapTag()]
                         if savedPosition ~= nil then
                             listed:setMapPosition(savedPosition)
@@ -621,10 +620,10 @@ function WorldRegionBuildState.Create(
             if localX < 0 or localY < 0 or localX >= data.width or localY >= data.height then
                 return false
             end
-            local chunkX = localX // WORLD_TILE_GRAPHICS_CHUNK_SIZE
-            local chunkY = localY // WORLD_TILE_GRAPHICS_CHUNK_SIZE
+            local localPosition = sf.Vector2i.new(localX, localY)
+            ---@cast localPosition sf.Vector2i
             for _, layerBuildState in ipairs(state.layerBuildStates) do
-                if not layerBuildState.tileLayer:isChunkBuilt(chunkX, chunkY) then
+                if not layerBuildState.tileLayer:isCellBuilt(localPosition) then
                     return false
                 end
             end

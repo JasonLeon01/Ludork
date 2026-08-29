@@ -1,4 +1,3 @@
-local ActorTree = require("Global.ActorTree")
 local WorldGameMap = require("Global.WorldGameMap")
 local Data = require("Source.Data")
 local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorRecords")
@@ -52,7 +51,7 @@ function MapBuilderWorldActors:_generatePersistedActor(
         return nil
     end
     actor:setMapPosition(actorRecord.position)
-    for _, listed in ipairs(ActorTree.Collect(actor)) do
+    for _, listed in ipairs(actor:collectTree()) do
         if listed ~= actor or not preserveRootPosition then
             local savedPosition = actorPositions[listed:getMapTag()]
             if savedPosition ~= nil then
@@ -144,7 +143,7 @@ end
 ---@param root        Engine.Actor
 ---@diagnostic disable-next-line: unused
 function MapBuilderWorldActors:_indexActorTreeByTag(actorsByTag, root)
-    for _, actor in ipairs(ActorTree.Collect(root)) do
+    for _, actor in ipairs(root:collectTree()) do
         local actorTag = actor:getMapTag()
         if actorTag ~= nil then
             assert(

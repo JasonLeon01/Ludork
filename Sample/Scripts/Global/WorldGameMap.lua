@@ -18,23 +18,16 @@ local SIGNIFICANT_PUBLISH_OVERRUN_MILLISECONDS = 4.0
 ---@class (partial) Global.WorldGameMap.WorldGameMap: GameMap
 local WorldGameMap = {}
 
----@param rect     Global.WorldGeometry.CellRect | nil
----@param position sf.Vector2i
----@return boolean
-local function rectContains(rect, position)
-    return rect == nil or WorldGeometry.RectContainsPosition(rect, position)
-end
-
 ---@param world    Global.WorldGameMap.WorldGameMap
 ---@param actor    Engine.Actor
 ---@param position sf.Vector2i
 ---@return boolean
 local function isActorPositionReady(world, actor, position)
-    if not world:_isWorldGameplayPositionReady(position) then
+    if not world:isSparseWorldGameplayPositionReady(position) then
         return false
     end
     for _, occupiedPosition in ipairs(actor:getOccupiedMapCellsAtMapPosition(position)) do
-        if not world:_isWorldGameplayPositionReady(occupiedPosition) then
+        if not world:isSparseWorldGameplayPositionReady(occupiedPosition) then
             return false
         end
     end
@@ -97,27 +90,15 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldPrewarmMilliseconds = 0.0
     self._worldPrewarmReadbackMilliseconds = 0.0
     self:_indexRegions()
-    ---@type Global.WorldGameMap.WorldGameMap[]
-    local selfRef = setmetatable({ self }, { __mode = "v" })
     local worldSize = sf.Vector2u.new(config.width, config.height)
+    local regionRects = {}
+    for _, region in ipairs(self._worldRegions) do
+        regionRects[#regionRects + 1] = sf.IntRect.new(region.x, region.y, region.width, region.height)
+    end
     ---@cast worldSize sf.Vector2u
+    ---@cast regionRects sf.IntRect[]
     ---@type Global.GameMap.SparseWorldConfig
-    local sparseWorldConfig = {
-        size = worldSize,
-        layerOrder = config.layerOrder,
-        tilePassabilityQuery = function (position)
-            local world = assert(selfRef[1], "World map is no longer available")
-            return world:_isWorldTilePassable(position)
-        end,
-        directionPassabilityQuery = function (fromPosition, toPosition, direction)
-            local world = assert(selfRef[1], "World map is no longer available")
-            return world:_isWorldDirectionPassable(fromPosition, toPosition, direction)
-        end,
-        topMaterialQuery = function (position)
-            local world = assert(selfRef[1], "World map is no longer available")
-            return world:_getWorldTopMaterial(position)
-        end
-    }
+    local sparseWorldConfig = { size = worldSize, layerOrder = config.layerOrder, regionRects = regionRects }
     GameMap.init(self, config.worldName, Engine.Tilemap.new({}), nil, false, sparseWorldConfig)
     self._layerNames = self._worldLayerOrder
     self._worldLastReadyCameraPosition = nil
@@ -247,6 +228,8 @@ function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
     self._worldLoadedRegions[region] = true
     region.state = "Prepared"
     region.lastUsed = perfCounter()
+    local builder = region.backgroundBuilder
+    self:setSparseWorldRegion(region.index, payload.tilemap, builder == nil or builder.areActorsReady())
     local regionRect = sf.IntRect.new(region.x, region.y, region.width, region.height)
     ---@cast regionRect sf.IntRect
     local fog = payload.mapData.fog
@@ -430,12 +413,12 @@ function WorldGameMap:findPathResult(start, goal, actor, excludedAnchors)
 end
 
 function WorldGameMap:getTopMaterial(position)
-    return self:_getWorldTopMaterial(position)
+    return ActorMapService.getTopMaterial(self, position)
 end
 
 function WorldGameMap:getTerrainTile(layerName, position)
     local region, localPosition = self:getRegionPosition(position)
-    if region == nil or not self:_isWorldCellReady(region, position) then
+    if region == nil or not self:isSparseWorldCellReady(position) then
         return nil
     end
     local payload = assert(region.payload)
@@ -470,10 +453,11 @@ function WorldGameMap:setTerrainTiles(layerName, positions, tileID)
     local changed = {}
     for _, position in ipairs(positions) do
         local region, localPosition = self:getRegionPosition(position)
-        if region ~= nil and self:_isWorldCellReady(region, position)
+        if region ~= nil and self:isSparseWorldCellReady(position)
             and assert(region.payload).terrain:setTerrainTile(layerName, assert(localPosition), tileID) then
             local payload = assert(region.payload)
             payload.tilemap = payload.terrain:getTilemap()
+            self:setSparseWorldRegion(region.index, payload.tilemap, true)
             if payload.prewarmedLayerShaders ~= nil then
                 payload.prewarmedLayerShaders[layerName] = nil
             end
@@ -496,129 +480,6 @@ function WorldGameMap:_findRegionAt(position)
     for _, region in ipairs(self._worldRegionBuckets[key] or {}) do
         if WorldGeometry.RectContainsPosition(region, position) then
             return region
-        end
-    end
-    return nil
-end
-
----@param region   Source.SceneComponents.WorldRegionData
----@param position sf.Vector2i
----@return boolean
-function WorldGameMap:_isWorldCellReady(region, position)
-    if self._worldDisposed or region.payload == nil or region.publishState ~= nil then
-        return false
-    end
-    local builder = region.backgroundBuilder
-    return builder == nil or builder.isCellReady(position)
-end
-
----@param position sf.Vector2i
----@return boolean
-function WorldGameMap:_isWorldPositionReady(position)
-    if not WorldGeometry.RectContainsPosition(self._worldBounds, position) then
-        return false
-    end
-    local region = self:_findRegionAt(position)
-    return region == nil or self:_isWorldCellReady(region, position)
-end
-
----@param position sf.Vector2i
----@return boolean
-function WorldGameMap:_isWorldGameplayPositionReady(position)
-    return rectContains(self._worldPreparedRect, position) and self:_isWorldPositionReady(position)
-end
-
----@param position sf.Vector2i
----@return boolean
-function WorldGameMap:_isWorldTilePassable(position)
-    if not self:_isWorldGameplayPositionReady(position) then
-        return false
-    end
-    local region, localPosition = self:getRegionPosition(position)
-    if region == nil then
-        return true
-    end
-    local payload = assert(region.payload)
-    ---@cast localPosition sf.Vector2i
-    for index = #self._worldConfig.layerOrder, 1, -1 do
-        local layer = payload.tilemap:getLayer(self._worldConfig.layerOrder[index])
-        if layer ~= nil and layer.visible and layer:hasContent(localPosition) then
-            return layer:isPassable(localPosition)
-        end
-    end
-    return true
-end
-
----@param fromPosition sf.Vector2i
----@param toPosition   sf.Vector2i
----@param direction    integer
----@return boolean
-function WorldGameMap:_isWorldDirectionPassable(fromPosition, toPosition, direction)
-    if not rectContains(self._worldPreparedRect, fromPosition) or not rectContains(self._worldPreparedRect, toPosition) then
-        return false
-    end
-    local oppositeDirection = Engine.OppositeDirection(direction)
-    local fromFound = false
-    local toFound = false
-    local fromRegion, fromLocal = self:getRegionPosition(fromPosition)
-    local toRegion, toLocal = self:getRegionPosition(toPosition)
-    if fromRegion ~= nil and not self:_isWorldCellReady(fromRegion, fromPosition)
-        or toRegion ~= nil and not self:_isWorldCellReady(toRegion, toPosition) then
-        return false
-    end
-    for index = #self._worldConfig.layerOrder, 1, -1 do
-        local layerName = self._worldConfig.layerOrder[index]
-        if not fromFound and fromRegion ~= nil then
-            local fromPayload = assert(fromRegion.payload)
-            ---@cast fromLocal sf.Vector2i
-            local layer = fromPayload.tilemap:getLayer(layerName)
-            if layer ~= nil and layer.visible and layer:hasContent(fromLocal) then
-                if not layer:isDirectionPassable(fromLocal, direction) then
-                    return false
-                end
-                fromFound = true
-            end
-        end
-        if not toFound and toRegion ~= nil then
-            local toPayload = assert(toRegion.payload)
-            ---@cast toLocal sf.Vector2i
-            local layer = toPayload.tilemap:getLayer(layerName)
-            if layer ~= nil and layer.visible and layer:hasContent(toLocal) then
-                if not layer:isDirectionPassable(toLocal, oppositeDirection) then
-                    return false
-                end
-                toFound = true
-            end
-        end
-        if fromFound and toFound then
-            break
-        end
-    end
-    return true
-end
-
----@param position sf.Vector2i
----@return Engine.Material | nil
-function WorldGameMap:_getWorldTopMaterial(position)
-    local region, localPosition = self:getRegionPosition(position)
-    if region == nil or not self:_isWorldCellReady(region, position) then
-        return nil
-    end
-    local payload = assert(region.payload)
-    ---@cast localPosition sf.Vector2i
-    for index = #self._worldConfig.layerOrder, 1, -1 do
-        local layerName = self._worldConfig.layerOrder[index]
-        for _, actor in ipairs(self._actors[layerName] or {}) do
-            if actor ~= self._player and not actor:isDestroyed() and actor:getMapPosition() == position then
-                return actor:getMaterial()
-            end
-        end
-        local layer = payload.tilemap:getLayer(layerName)
-        if layer ~= nil and layer.visible then
-            local material = layer:getMaterial(localPosition)
-            if material ~= nil then
-                return material
-            end
         end
     end
     return nil

@@ -62,6 +62,32 @@ inline sol::object nativePointerOwner(sol::state_view lua,
     return result;
 }
 
+inline int pushNativePointerOwnerTable(sol::state_view lua) {
+    lua_State* state = lua.lua_state();
+    lua_getfield(state, LUA_REGISTRYINDEX,
+                 ludork::standard::class_runtime::protocol::
+                     NATIVE_POINTER_OWNERS_REGISTRY_KEY);
+    if (lua_type(state, -1) != LUA_TTABLE) {
+        lua_pop(state, 1);
+        return 0;
+    }
+    return lua_absindex(state, -1);
+}
+
+inline bool pushNativePointerOwnerFromTable(lua_State* state, int tableIndex,
+                                            const void* pointer) {
+    if (tableIndex == 0 || pointer == nullptr) {
+        return false;
+    }
+    lua_pushlightuserdata(state, const_cast<void*>(pointer));
+    lua_rawget(state, tableIndex);
+    if (lua_isnil(state, -1)) {
+        lua_pop(state, 1);
+        return false;
+    }
+    return true;
+}
+
 inline void registerNativePointerOwner(sol::state_view lua, const void* pointer,
                                        const sol::object& owner) {
     if (pointer == nullptr || isNil(owner)) {

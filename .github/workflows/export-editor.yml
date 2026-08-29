@@ -28,7 +28,17 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Read runner image version
+        id: runner-image
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ImageVersion)) {
+            throw "ImageVersion is not available on this runner."
+          }
+          "version=$env:ImageVersion" >> $env:GITHUB_OUTPUT
+
       - name: Set up Python
+        id: python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -52,7 +62,15 @@ jobs:
         timeout-minutes: 10
         run: tools\setup_python.bat
 
+      - name: Cache ScriptTools
+        id: script-tools-cache
+        uses: actions/cache@v5
+        with:
+          path: .tools/ScriptTools
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.runner-image.outputs.version }}-script-tools-v1-${{ steps.python.outputs.python-version }}-${{ hashFiles('requirements.txt', 'ScriptTools/**/*.py', 'tools/build_script_tools.bat', 'tools/script_tools_hash.ps1') }}
+
       - name: Build ScriptTools
+        if: steps.script-tools-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 30
         run: tools\build_script_tools.bat
@@ -69,14 +87,46 @@ jobs:
           path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
 
+      - name: Cache Windows editor templates
+        id: editor-templates-cache
+        uses: actions/cache@v5
+        with:
+          path: .tools/EditorTemplates/windows-x64
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.runner-image.outputs.version }}-editor-templates-v1-${{ hashFiles('versions.conf', 'requirements.txt', 'ScriptTools/**/*.py', 'Sample/**', 'Sample/.emmyrc.json', 'Sample/.gitignore', 'patches/**', 'tools/build_cpp.bat', 'tools/build_script_tools.bat', 'tools/build_standalone.bat', 'tools/create_templates.bat', '.tools/ScriptTools/source.sha256', '.tools/ScriptTools/runtime-versions.txt') }}
+
+      - name: Build Windows editor templates
+        if: steps.editor-templates-cache.outputs.cache-hit != 'true'
+        shell: cmd
+        timeout-minutes: 90
+        env:
+          LUDORK_FFMPEG_BUILD_JOBS: 4
+        run: tools\create_templates.bat Release .tools\EditorTemplates\windows-x64
+
+      - name: Cache Windows UI preview host
+        id: ui-preview-host-cache
+        uses: actions/cache@v5
+        with:
+          path: .tools/UiPreviewHost/bin/Release
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.runner-image.outputs.version }}-ui-preview-host-v1-${{ hashFiles('versions.conf', 'requirements.txt', 'ScriptTools/**/*.py', 'patches/**', 'UiPreviewHost/**', 'Sample/CMakeLists.txt', 'Sample/cmake/**', 'Sample/Core/**', 'Sample/LuaSF/**', 'Sample/Standard/**', 'Sample/lua-cjson/**', 'Sample/zlib/**', 'tools/build_script_tools.bat', 'tools/build_ui_preview_host.bat', '.tools/ScriptTools/source.sha256', '.tools/ScriptTools/runtime-versions.txt') }}
+
       - name: Build UI preview host
+        if: steps.ui-preview-host-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 60
         run: tools\build_ui_preview_host.bat Release
 
+      - name: Validate native build inputs
+        shell: cmd
+        timeout-minutes: 10
+        run: |
+          .tools\ScriptTools\ScriptTools.exe ui-adapter-check "%CD%"
+          if errorlevel 1 exit /b 1
+          .tools\ScriptTools\ScriptTools.exe ui-assets validate Sample
+          if errorlevel 1 exit /b 1
+
       - name: Package editor
         shell: cmd
-        run: tools\pack_editor.bat
+        run: tools\pack_editor.bat --templates .tools\EditorTemplates\windows-x64 --use-current-ui-preview-host
 
       - name: Upload editor package
         uses: actions/upload-artifact@v7

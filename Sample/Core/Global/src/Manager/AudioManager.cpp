@@ -8,12 +8,14 @@
 
 #include <Utf8Path.hpp>
 
+#include <SFML/Audio/AudioResource.hpp>
 #include <SFML/Audio/PlaybackDevice.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <condition_variable>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -27,6 +29,13 @@ constexpr float SpatialMinDistance = 64.0f;
 using ludork::global::audio::AudioEffectAttacher;
 using ludork::global::audio::ManagedMusic;
 using ludork::global::audio::ManagedSound;
+
+class AudioDeviceLease final : private sf::AudioResource {
+public:
+    AudioDeviceLease() = default;
+};
+
+std::unique_ptr<AudioDeviceLease> audioDeviceLease;
 
 void requireLogicThreadAudioLifecycle() {
     if (ludork::global::audio::isManagedAudioCallbackThread()) {
@@ -838,6 +847,9 @@ std::size_t AudioManager::getMemory() {
 void AudioManager::initialize(lua_State* state) {
     ludork::global::audio::initializeAudioEffectLuaRuntime(state);
     const std::lock_guard<std::recursive_mutex> lock(audioMutex);
+    if (audioDeviceLease == nullptr) {
+        audioDeviceLease = std::make_unique<AudioDeviceLease>();
+    }
     shuttingDown = false;
 }
 
@@ -959,6 +971,7 @@ void AudioManager::stopAll() {
 }
 
 void AudioManager::shutdown() noexcept {
+    std::unique_ptr<AudioDeviceLease> stoppedAudioDeviceLease;
     std::vector<SoundRecord> stoppedSounds;
     VoiceRecord stoppedVoice;
     std::vector<MusicRecord> stoppedMusics;
@@ -1007,6 +1020,7 @@ void AudioManager::shutdown() noexcept {
         stoppedBuffers = std::move(soundBuffers);
         soundBuffers.clear();
         musicGenerations.clear();
+        stoppedAudioDeviceLease = std::move(audioDeviceLease);
     }
     ludork::global::audio::shutdownAudioEffectLuaRuntime();
 }

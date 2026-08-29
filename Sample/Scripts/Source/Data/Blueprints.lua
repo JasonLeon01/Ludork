@@ -213,7 +213,6 @@ function DataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
     if actor == nil then
         return nil
     end
-    BlueprintActorOverrides.ApplyGeneration(actor)
     actor:setMapPosition(position)
     return actor
 end

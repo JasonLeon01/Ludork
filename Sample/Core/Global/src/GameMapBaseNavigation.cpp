@@ -185,8 +185,8 @@ bool GameMapBase::isDirectionPassable(const sf::Vector2i& fromPosition,
                                       const sf::Vector2i& toPosition,
                                       int direction) const {
     if (sparseWorldSize_.has_value()) {
-        return sparseDirectionPassabilityQuery_(fromPosition, toPosition,
-                                                direction);
+        return isSparseWorldDirectionPassable(fromPosition, toPosition,
+                                              direction);
     }
     const int opposite = oppositeDirection(direction);
     bool fromFound = false;
@@ -207,6 +207,53 @@ bool GameMapBase::isDirectionPassable(const sf::Vector2i& fromPosition,
                 return false;
             }
             toFound = true;
+        }
+        if (fromFound && toFound) {
+            break;
+        }
+    }
+    return true;
+}
+
+bool GameMapBase::isSparseWorldDirectionPassable(
+    const sf::Vector2i& fromPosition, const sf::Vector2i& toPosition,
+    int direction) const {
+    if (!isSparseWorldGameplayPositionReady(fromPosition) ||
+        !isSparseWorldGameplayPositionReady(toPosition)) {
+        return false;
+    }
+    const int opposite = oppositeDirection(direction);
+    const SparseWorldRegion* fromRegion = findSparseWorldRegion(fromPosition);
+    const SparseWorldRegion* toRegion = findSparseWorldRegion(toPosition);
+    const sf::Vector2i fromLocal =
+        fromRegion == nullptr ? sf::Vector2i{}
+                              : fromPosition - fromRegion->rect.position;
+    const sf::Vector2i toLocal = toRegion == nullptr
+                                     ? sf::Vector2i{}
+                                     : toPosition - toRegion->rect.position;
+    bool fromFound = false;
+    bool toFound = false;
+    for (std::size_t index = 0; index < sparseWorldLayerOrder_.size();
+         ++index) {
+        if (!fromFound && fromRegion != nullptr) {
+            const std::shared_ptr<TileLayer>& layer =
+                fromRegion->layersTopFirst[index];
+            if (layer->getVisible() && layer->hasContent(fromLocal)) {
+                if (!layer->isDirectionPassable(fromLocal, direction)) {
+                    return false;
+                }
+                fromFound = true;
+            }
+        }
+        if (!toFound && toRegion != nullptr) {
+            const std::shared_ptr<TileLayer>& layer =
+                toRegion->layersTopFirst[index];
+            if (layer->getVisible() && layer->hasContent(toLocal)) {
+                if (!layer->isDirectionPassable(toLocal, opposite)) {
+                    return false;
+                }
+                toFound = true;
+            }
         }
         if (fromFound && toFound) {
             break;

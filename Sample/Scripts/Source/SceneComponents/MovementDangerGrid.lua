@@ -107,10 +107,12 @@ function MovementDangerGrid.Refresh(
     local previousBottom = previousAreaY + previousAreaHeight
     local position = sf.Vector2i.new(0, 0)
     ---@cast position sf.Vector2i
+    local candidates = buildCandidateRows(enemies, areaX, areaY, areaWidth, areaHeight)
     for y = areaY, areaY + areaHeight - 1 do
         ---@type table<integer, Source.SceneComponents.MovementDangerEntry>
         local row = {}
         grid[y + 1] = row
+        local candidateRow = candidates[y]
         local previousRow = previousGrid[y + 1]
         local reusePreviousRow = y >= previousAreaY and y < previousBottom
         position.y = y
@@ -118,7 +120,7 @@ function MovementDangerGrid.Refresh(
             local entry
             if reusePreviousRow and x >= previousAreaX and x < previousRight then
                 entry = previousRow ~= nil and previousRow[x + 1] or nil
-            else
+            elseif candidateRow ~= nil and candidateRow[x] then
                 position.x = x
                 entry = calculateEntry(enemies, player, position)
             end

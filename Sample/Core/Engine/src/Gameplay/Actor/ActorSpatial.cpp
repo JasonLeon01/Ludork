@@ -270,6 +270,29 @@ const std::vector<std::shared_ptr<Actor>>& Actor::getChildren() const {
     return children_;
 }
 
+std::vector<std::shared_ptr<Actor>> Actor::collectTree() {
+    const std::shared_ptr<Actor> root =
+        std::static_pointer_cast<Actor>(weak_from_this().lock());
+    if (root == nullptr) {
+        throw std::logic_error("Actor hierarchy root is not shared");
+    }
+    std::vector<std::shared_ptr<Actor>> result{root};
+    std::unordered_set<Actor*> visited{this};
+    for (std::size_t index = 0; index < result.size(); ++index) {
+        for (const std::shared_ptr<Actor>& child : result[index]->children_) {
+            if (child == nullptr) {
+                throw std::logic_error("Actor hierarchy contains a null child");
+            }
+            if (!visited.insert(child.get()).second) {
+                throw std::logic_error(
+                    "Actor hierarchy contains a cycle or repeated Actor");
+            }
+            result.push_back(child);
+        }
+    }
+    return result;
+}
+
 void Actor::addChild(const std::shared_ptr<Actor>& child) {
     if (!child || child.get() == this) {
         return;
