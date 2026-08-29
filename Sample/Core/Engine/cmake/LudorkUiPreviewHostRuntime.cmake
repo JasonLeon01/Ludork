@@ -18,7 +18,7 @@ function(ludork_add_ui_preview_host_runtime target)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/ShaderLoader.cpp")
     if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         list(APPEND preview_runtime_sources
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/Platform/PlatformInputBridgeMac.mm")
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/InputService/Platform/PlatformInputBridgeMac.mm")
     endif()
 
     add_library(${target} SHARED ${preview_runtime_sources})

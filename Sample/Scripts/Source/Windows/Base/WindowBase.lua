@@ -109,6 +109,7 @@ function WindowBase:_refreshReturnButtonState()
         return
     end
     local enabled = self:_canUseReturnButton()
+    ---@cast enabled boolean
     self._returnButton:setActive(enabled)
     self._returnButton:setVisible(enabled)
 end

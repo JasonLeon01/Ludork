@@ -6,7 +6,7 @@ local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
 local MapPath = require("Source.MapPath")
-local SceneMapInteractions = require("Source.Scenes.SceneMapInteractions")
+local SceneMapInteractions = require("Source.Scenes.SceneMap.Interactions")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local RegionTitleUI = require("Source.UI.RegionTitle")
@@ -71,9 +71,7 @@ end
 ---@class (partial) Source.Scenes.SceneMap.SceneMap: GlobalCore.SceneBase
 local Scene = {}
 
-for name, method in pairs(SceneMapInteractions) do
-    Scene[name] = method
-end
+---@alias SceneMapInteractionsState Source.Scenes.SceneMap.SceneMap
 
 ---@diagnostic disable-next-line: unused
 function Scene:onEnter()
@@ -694,6 +692,196 @@ end
 ---@param deltaTime number
 function Scene:_updateRegionTitle(deltaTime)
     self._regionTitleUI:update(deltaTime)
+end
+
+function Scene:getGameMap()
+    return SceneMapInteractions.getGameMap(self)
+end
+
+function Scene:showMessage(name, message, refActor, localeArgs)
+    return SceneMapInteractions.showMessage(self, name, message, refActor, localeArgs)
+end
+
+function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
+    return SceneMapInteractions.showSelection(self, name, options, refActor, allowCancel, localeArgs)
+end
+
+function Scene:applyLoadedGame(inst)
+    return SceneMapInteractions.applyLoadedGame(self, inst)
+end
+
+function Scene:_rebindPlayerToUI()
+    return SceneMapInteractions._rebindPlayerToUI(self)
+end
+
+function Scene:showEnemyBook()
+    return SceneMapInteractions.showEnemyBook(self)
+end
+
+function Scene:showFloorTeleporter()
+    return SceneMapInteractions.showFloorTeleporter(self)
+end
+
+function Scene:openMenu()
+    return SceneMapInteractions.openMenu(self)
+end
+
+function Scene:openShop(buyItemIDs, canSell)
+    return SceneMapInteractions.openShop(self, buyItemIDs, canSell)
+end
+
+function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
+    return SceneMapInteractions.openAttrShop(
+        self, actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName
+    )
+end
+
+function Scene:_onShopClose()
+    return SceneMapInteractions._onShopClose(self)
+end
+
+function Scene:_onAttrShopClose()
+    return SceneMapInteractions._onAttrShopClose(self)
+end
+
+function Scene:_onEnemyBookClose()
+    return SceneMapInteractions._onEnemyBookClose(self)
+end
+
+function Scene:_onEnemyBookConfirm(entry)
+    return SceneMapInteractions._onEnemyBookConfirm(self, entry)
+end
+
+function Scene:_onEnemyEncyclopediaClose()
+    return SceneMapInteractions._onEnemyEncyclopediaClose(self)
+end
+
+function Scene:_onFloorTeleporterClose()
+    return SceneMapInteractions._onFloorTeleporterClose(self)
+end
+
+function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
+    return SceneMapInteractions._onFloorTeleporterConfirm(self, mapKey, telepoint)
+end
+
+function Scene:_recordCurrentFloorTelepoint()
+    return SceneMapInteractions._recordCurrentFloorTelepoint(self)
+end
+
+function Scene:_findNearestFloorTelepoint()
+    return SceneMapInteractions._findNearestFloorTelepoint(self)
+end
+
+function Scene.GetShopRects()
+    return SceneMapInteractions.GetShopRects()
+end
+
+function Scene.GetAttrShopRect()
+    return SceneMapInteractions.GetAttrShopRect()
+end
+
+function Scene.GetDialogueLocalVars(nodeFunction)
+    return SceneMapInteractions.GetDialogueLocalVars(nodeFunction)
+end
+
+function Scene.FormatDialogueMessageSource(source)
+    return SceneMapInteractions.FormatDialogueMessageSource(source)
+end
+
+function Scene.FormatDialogueSelectionSource(source)
+    return SceneMapInteractions.FormatDialogueSelectionSource(source)
+end
+
+function Scene.GetEnemyBookRect()
+    return SceneMapInteractions.GetEnemyBookRect()
+end
+
+function Scene.GetEnemyEncyclopediaRect()
+    return SceneMapInteractions.GetEnemyEncyclopediaRect()
+end
+
+function Scene:_canRestoreMoveAfterMenuClose()
+    return SceneMapInteractions._canRestoreMoveAfterMenuClose(self)
+end
+
+function Scene:_hasVisibleBlockingWindow()
+    return SceneMapInteractions._hasVisibleBlockingWindow(self)
+end
+
+function Scene:_blockMapInput(frames)
+    return SceneMapInteractions._blockMapInput(self, frames)
+end
+
+function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled)
+    return SceneMapInteractions.requestFloorTransfer(self, targetMap, anchorPos, moveEnabled)
+end
+
+function Scene:_processPendingFloorTransfer()
+    return SceneMapInteractions._processPendingFloorTransfer(self)
+end
+
+function Scene:_cancelFloorTransfer(moveEnabled)
+    return SceneMapInteractions._cancelFloorTransfer(self, moveEnabled)
+end
+
+function Scene:_applyMapDestination(targetMap, targetPosition, blockTransition)
+    return SceneMapInteractions._applyMapDestination(self, targetMap, targetPosition, blockTransition)
+end
+
+function Scene:_queueWorldTransfer(targetMap, targetPosition)
+    return SceneMapInteractions._queueWorldTransfer(self, targetMap, targetPosition)
+end
+
+function Scene:_processPendingWorldTransfer()
+    return SceneMapInteractions._processPendingWorldTransfer(self)
+end
+
+function Scene:_getSaveSource()
+    return SceneMapInteractions._getSaveSource(self)
+end
+
+function Scene:_onSaveLoadClose(reason)
+    return SceneMapInteractions._onSaveLoadClose(self, reason)
+end
+
+function Scene:_onConfigClose()
+    return SceneMapInteractions._onConfigClose(self)
+end
+
+function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
+    return SceneMapInteractions.gotoMapAndPos(self, mapPath, pos, blockTransition)
+end
+
+function Scene:tryCenterSymmetricTeleport()
+    return SceneMapInteractions.tryCenterSymmetricTeleport(self)
+end
+
+function Scene:tryAdjacentFloorSamePos(step)
+    return SceneMapInteractions.tryAdjacentFloorSamePos(self, step)
+end
+
+function Scene:_isMapPositionPassable(mapPath, actor, position)
+    return SceneMapInteractions._isMapPositionPassable(self, mapPath, actor, position)
+end
+
+function Scene:recordAddedActor(actor)
+    return SceneMapInteractions.recordAddedActor(self, actor)
+end
+
+function Scene:recordActorPosition(actor, position)
+    return SceneMapInteractions.recordActorPosition(self, actor, position)
+end
+
+function Scene:recordDestroyedActor(actor)
+    return SceneMapInteractions.recordDestroyedActor(self, actor)
+end
+
+function Scene:recordDestroyedActorTag(actorTag)
+    return SceneMapInteractions.recordDestroyedActorTag(self, actorTag)
+end
+
+function Scene:recordTerrainDestructions(layerName, positions)
+    return SceneMapInteractions.recordTerrainDestructions(self, layerName, positions)
 end
 
 return class(Scene, SceneBase)

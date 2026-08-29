@@ -18,7 +18,10 @@ struct WindowedFramePlacement;
 namespace system_runtime {
 struct DisplayRuntime;
 struct FramePipelineRuntime;
+struct PendingSceneOperation;
+struct PendingTransition;
 struct SceneStackRuntime;
+enum class SceneOperationType;
 struct LifecycleRuntime;
 struct SystemRuntime;
 }  // namespace system_runtime
@@ -463,35 +466,14 @@ public:
 
 private:
     friend class SceneBase;
-    friend struct ludork::global::system_runtime::DisplayRuntime;
-    friend struct ludork::global::system_runtime::FramePipelineRuntime;
-    friend struct ludork::global::system_runtime::SceneStackRuntime;
-    friend struct ludork::global::system_runtime::LifecycleRuntime;
-    friend struct ludork::global::system_runtime::SystemRuntime;
-
-    struct PendingTransition {
-        std::optional<std::string> name;
-        float time = 1.0f;
-    };
-
-    enum class SceneOperationType {
-        Replace,
-        Push,
-        Pop,
-        Exit,
-    };
-
-    struct PendingSceneOperation {
-        SceneOperationType type;
-        std::shared_ptr<SceneRuntime> scene;
-    };
-
     static void onConfigChanged(const std::string& key);
     static void unbindSceneOperationThread();
     static bool hasPendingSceneOperations();
-    static void requestSceneOperation(SceneOperationType type,
-                                      std::shared_ptr<SceneRuntime> scene = {});
-    static void applySceneOperation(PendingSceneOperation operation);
+    static void requestSceneOperation(
+        ludork::global::system_runtime::SceneOperationType type,
+        std::shared_ptr<SceneRuntime> scene = {});
+    static void applySceneOperation(
+        ludork::global::system_runtime::PendingSceneOperation operation);
     static void applySetScene(const std::shared_ptr<SceneRuntime>& scene);
     static void applyPushScene(const std::shared_ptr<SceneRuntime>& scene);
     static void applyPopScene();

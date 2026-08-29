@@ -68,7 +68,7 @@ bool InputRuntime::axisMatches(float position, const InputActionKey& key) {
 void InputRuntime::dispatchActionMappings() {
     struct MoveAction {
         float position = 0.0f;
-        InputService::ActionCallback callback;
+        InputActionCallback callback;
         RuntimeIdentityPtr object;
     };
     std::vector<MoveAction> moveActions;
@@ -491,7 +491,7 @@ std::vector<InputActionKey> InputRuntime::getRightKeys() const {
 void InputRuntime::registerActionMapping(RuntimeIdentityPtr object,
                                          std::string actionName,
                                          std::vector<InputActionKey> actionKeys,
-                                         InputService::ActionCallback callback,
+                                         InputActionCallback callback,
                                          bool triggerOnHold) {
     const auto iterator = std::find_if(
         actions_.mappings_.begin(), actions_.mappings_.end(),

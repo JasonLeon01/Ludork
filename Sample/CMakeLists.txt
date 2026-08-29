@@ -168,6 +168,10 @@ add_subdirectory(Standard)
 add_subdirectory(Core)
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
+ludork_add_impl_boundary_validation_target(
+    ImplBoundaryValidate
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+add_dependencies(Engine ImplBoundaryValidate)
 ludork_add_ui_validation_target(
     UiAssetValidate
     "${CMAKE_CURRENT_SOURCE_DIR}"

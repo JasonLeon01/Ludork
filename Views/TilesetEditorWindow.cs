@@ -8,7 +8,6 @@ using Avalonia.Controls.Templates;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Controls;
-using Ludork.Models;
 using Ludork.Services;
 using Ludork.ViewModels;
 using Ludork.Views.Utils;
@@ -249,24 +248,48 @@ internal sealed class TilesetEditorTab : Grid
 
     private async void renameAsync()
     {
-        if (dataList.SelectedItem is not string oldKey || !data.TryGetValue(oldKey, out JsonObject? value))
+        if (dataList.SelectedItem is not string oldKey || !data.ContainsKey(oldKey))
             return;
         string? nextKey = await SingleRowDialog.ShowAsync(owner, renameTitle, prompt, data.Keys.Where(key => key != oldKey), oldKey);
         if (string.IsNullOrWhiteSpace(nextKey) || nextKey == oldKey)
             return;
-        if (!isAutoTile && mapsReferenceTileset(oldKey))
+        if (!isAutoTile)
         {
-            bool proceed = await ConfirmationDialog.ShowAsync(owner, renameTitle, string.Format(LocaleService.Get("TILESET_REFERENCED_WARNING"), string.Join(Environment.NewLine, getReferencingMaps(oldKey))));
-            if (!proceed)
+            IReadOnlyList<string> referencingMaps = gameData.GetMapsReferencingTileset(oldKey);
+            bool updateReferences = referencingMaps.Count != 0;
+            if (updateReferences)
+            {
+                string mapFiles = string.Join(
+                    Environment.NewLine,
+                    referencingMaps.Select(gameData.GetMapRuntimePath));
+                bool confirmed = await ConfirmationDialog.ShowAsync(
+                    owner,
+                    renameTitle,
+                    string.Format(
+                        LocaleService.Get("TILESET_REFERENCED_WARNING"),
+                        mapFiles,
+                        oldKey,
+                        nextKey));
+                if (!confirmed)
+                    return;
+            }
+            if (!gameData.RenameTileset(oldKey, nextKey, updateReferences))
+            {
+                await AlertDialog.ShowAsync(
+                    owner,
+                    LocaleService.Get("ERROR"),
+                    LocaleService.Get("TILESET_RENAME_FAILED"));
                 return;
+            }
+            tileSelect.setCurrentTilesetKey(nextKey);
+            refreshAll(nextKey);
+            return;
         }
+        JsonObject value = data[oldKey];
         gameData.RecordSnapshot();
-        Dictionary<string, JsonObject> target = isAutoTile
-            ? (Dictionary<string, JsonObject>)gameData.AutoTileData
-            : (Dictionary<string, JsonObject>)gameData.TilesetData;
+        Dictionary<string, JsonObject> target = (Dictionary<string, JsonObject>)gameData.AutoTileData;
         target.Remove(oldKey);
         target[nextKey] = value;
-        value["name"] = nextKey;
         gameData.NotifyAllMapPreviewsChanged();
         gameData.refreshModifiedState();
         refreshAll(nextKey);
@@ -386,18 +409,6 @@ internal sealed class TilesetEditorTab : Grid
         for (int index = 1; data.ContainsKey(candidate); index++)
             candidate = $"{baseName} (copy) ({index})";
         return candidate;
-    }
-
-    private bool mapsReferenceTileset(string key) => getReferencingMaps(key).Count != 0;
-
-    private List<string> getReferencingMaps(string key)
-    {
-        return gameData.MapCatalog
-            .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
-            .Where(entry => gameData.ReadMapSnapshotWithoutCaching(entry.Key)?["layers"] is JsonObject layers
-                && layers.Any(layer => layer.Value?["layerTileset"]?.GetValue<string>() == key))
-            .Select(entry => entry.Key)
-            .ToList();
     }
 
     private void onDataChanged()

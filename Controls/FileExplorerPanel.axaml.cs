@@ -138,10 +138,20 @@ public partial class FileExplorerPanel : UserControl
         }
         if (externalOpenTarget == ExternalOpenTarget.VsCode)
         {
-            await openExternalEditor("code", "Visual Studio Code");
+            await openExternalIde(ExternalIde.VsCode, "Visual Studio Code");
             return;
         }
-        await openExternalEditor("cursor", "Cursor");
+        if (externalOpenTarget == ExternalOpenTarget.Cursor)
+        {
+            await openExternalIde(ExternalIde.Cursor, "Cursor");
+            return;
+        }
+        if (externalOpenTarget == ExternalOpenTarget.Clion)
+        {
+            await openExternalIde(ExternalIde.Clion, "CLion");
+            return;
+        }
+        await openExternalIde(ExternalIde.VisualStudio, "Visual Studio");
     }
 
     private void onSelectFolder(object? sender, RoutedEventArgs args)
@@ -159,12 +169,24 @@ public partial class FileExplorerPanel : UserControl
         selectExternalOpenTarget(ExternalOpenTarget.Cursor);
     }
 
+    private void onSelectClion(object? sender, RoutedEventArgs args)
+    {
+        selectExternalOpenTarget(ExternalOpenTarget.Clion);
+    }
+
+    private void onSelectVisualStudio(object? sender, RoutedEventArgs args)
+    {
+        selectExternalOpenTarget(ExternalOpenTarget.VisualStudio);
+    }
+
     private void selectExternalOpenTarget(ExternalOpenTarget target)
     {
         externalOpenTarget = target;
         FolderOpenButtonIcon.IsVisible = target == ExternalOpenTarget.Folder;
         VSCodeButtonIcon.IsVisible = target == ExternalOpenTarget.VsCode;
         CursorButtonIcon.IsVisible = target == ExternalOpenTarget.Cursor;
+        ClionButtonIcon.IsVisible = target == ExternalOpenTarget.Clion;
+        VisualStudioButtonIcon.IsVisible = target == ExternalOpenTarget.VisualStudio;
     }
 
     private async Task openContainingFolder()
@@ -180,13 +202,44 @@ public partial class FileExplorerPanel : UserControl
         );
     }
 
-    private async Task openExternalEditor(string command, string displayName)
+    private async Task openExternalIde(ExternalIde ide, string displayName)
     {
-        if ((DataContext as FileExplorerViewModel)?.OpenExternalEditor(command) != false)
+        if (DataContext is not FileExplorerViewModel viewModel)
             return;
         if (TopLevel.GetTopLevel(this) is not Window owner)
             return;
-        string message = LocaleService.Get("EXTERNAL_EDITOR_NOT_FOUND").Replace("{app}", displayName);
+        if (viewModel.RequiresIdeInitialization(ide))
+        {
+            string prompt = LocaleService.Get("INITIALIZE_IDE_ENVIRONMENT_CONFIRM")
+                .Replace("{app}", displayName);
+            bool confirmed = await ConfirmationDialog.ShowAsync(
+                owner,
+                LocaleService.Get("INITIALIZE_IDE_ENVIRONMENT"),
+                prompt);
+            if (!confirmed)
+                return;
+            ExternalOpenButton.IsEnabled = false;
+            IdeInitializationResult result;
+            try
+            {
+                result = await viewModel.InitializeIdeAsync(ide);
+            }
+            finally
+            {
+                ExternalOpenButton.IsEnabled = true;
+            }
+            if (!result.Succeeded)
+            {
+                string failure = LocaleService.Get("INITIALIZE_IDE_ENVIRONMENT_FAILED")
+                    .Replace("{app}", displayName)
+                    .Replace("{details}", result.Details);
+                await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), failure);
+                return;
+            }
+        }
+        if (viewModel.OpenExternalIde(ide))
+            return;
+        string message = LocaleService.Get("OPEN_EXTERNAL_EDITOR_FAILED").Replace("{app}", displayName);
         await AlertDialog.ShowAsync(
             owner,
             LocaleService.Get("ERROR"),
@@ -669,5 +722,7 @@ public partial class FileExplorerPanel : UserControl
         Folder,
         VsCode,
         Cursor,
+        Clion,
+        VisualStudio,
     }
 }

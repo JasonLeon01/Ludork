@@ -2,7 +2,7 @@ local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 
----@class (partial) Global.WorldGameMap.WorldGameMap
+---@type WorldGameMapImplState
 local WorldGameMapActorStreaming = {}
 
 ---@param active Global.WorldGeometry.CellRect | nil
@@ -604,4 +604,4 @@ function WorldGameMapActorStreaming:_pruneDestroyedRegionActors()
     end
 end
 
-return class(WorldGameMapActorStreaming)
+return WorldGameMapActorStreaming

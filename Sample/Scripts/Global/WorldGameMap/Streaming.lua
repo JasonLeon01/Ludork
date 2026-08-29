@@ -9,7 +9,7 @@ assert(GlobalCore ~= nil)
 local STREAM_BATCH_SIZE = 4
 local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 
----@class (partial) Global.WorldGameMap.WorldGameMap
+---@type WorldGameMapImplState
 local WorldGameMapStreaming = {}
 
 function WorldGameMapStreaming:_syncStreamingCamera()
@@ -74,6 +74,7 @@ function WorldGameMapStreaming:_refreshStreamingStates()
         width = visible.width * 3,
         height = visible.height * 3
     }
+    ---@cast active Global.WorldGeometry.CellRect
     local activeRight = math.min(self._worldConfig.width, active.x + active.width)
     local activeBottom = math.min(self._worldConfig.height, active.y + active.height)
     active.x = math.max(0, active.x)
@@ -87,6 +88,7 @@ function WorldGameMapStreaming:_refreshStreamingStates()
         width = visible.width * 5,
         height = visible.height * 5
     }
+    ---@cast prepared Global.WorldGeometry.CellRect
     local viewport = assert(self._camera):getViewport()
     ---@cast viewport sf.FloatRect
     local centerX = (viewport.position.x + viewport.size.x / 2) / Engine.CellSize
@@ -98,13 +100,17 @@ function WorldGameMapStreaming:_refreshStreamingStates()
     if moveX > 0 then
         prepared.width = prepared.width + visible.width
     elseif moveX < 0 then
-        prepared.x = prepared.x - visible.width
+        local preparedX = prepared.x - visible.width
+        ---@cast preparedX integer
+        prepared.x = preparedX
         prepared.width = prepared.width + visible.width
     end
     if moveY > 0 then
         prepared.height = prepared.height + visible.height
     elseif moveY < 0 then
-        prepared.y = prepared.y - visible.height
+        local preparedY = prepared.y - visible.height
+        ---@cast preparedY integer
+        prepared.y = preparedY
         prepared.height = prepared.height + visible.height
     end
     local preparedRight = math.min(self._worldConfig.width, prepared.x + prepared.width)
@@ -387,4 +393,4 @@ function WorldGameMapStreaming:_pumpStreaming()
     self:_pumpRegionBackgroundBuilds(deadline)
 end
 
-return class(WorldGameMapStreaming)
+return WorldGameMapStreaming

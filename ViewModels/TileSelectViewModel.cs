@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -7,29 +8,21 @@ using Ludork.Services;
 
 namespace Ludork.ViewModels;
 
-public sealed class TileSelectViewModel : ViewModelBase
+public sealed class TileSelectViewModel : ViewModelBase, IDisposable
 {
     private TilesetTabViewModel? selectedTileset;
     private AutoTileItemViewModel? selectedAutoTile;
     private TileSelection? selectedTiles;
     private bool isLayerSelected;
     private bool syncingTilesetSelection;
+    private bool disposed;
 
     public TileSelectViewModel(GameDataService gameData)
     {
         GameData = gameData;
         CellSize = gameData.getCellSize();
-        foreach (string key in gameData.TilesetData.Keys)
-        {
-            string fileName = gameData.TilesetData[key]["fileName"]?.GetValue<string>() ?? string.Empty;
-            Tilesets.Add(new TilesetTabViewModel(key, Path.Combine(gameData.ProjectPath, "Assets", "Tilesets", fileName)));
-        }
-        foreach (string key in gameData.AutoTileData.Keys)
-        {
-            string fileName = gameData.AutoTileData[key]["fileName"]?.GetValue<string>() ?? string.Empty;
-            AutoTiles.Add(new AutoTileItemViewModel(key, Path.Combine(gameData.ProjectPath, "Assets", "Autotiles", fileName)));
-        }
-        SelectedTileset = Tilesets.FirstOrDefault();
+        gameData.DataChanged += onDataChanged;
+        RefreshData();
     }
 
     public GameDataService GameData { get; }
@@ -104,21 +97,19 @@ public sealed class TileSelectViewModel : ViewModelBase
         string? tilesetKey = SelectedTileset?.Key;
         string? autoTileKey = SelectedAutoTile?.Key;
         syncingTilesetSelection = true;
-        Tilesets.Clear();
-        AutoTiles.Clear();
-        foreach (string key in GameData.TilesetData.Keys)
-        {
-            string fileName = GameData.TilesetData[key]["fileName"]?.GetValue<string>() ?? string.Empty;
-            Tilesets.Add(new TilesetTabViewModel(key, Path.Combine(GameData.ProjectPath, "Assets", "Tilesets", fileName)));
-        }
-        foreach (string key in GameData.AutoTileData.Keys)
-        {
-            string fileName = GameData.AutoTileData[key]["fileName"]?.GetValue<string>() ?? string.Empty;
-            AutoTiles.Add(new AutoTileItemViewModel(key, Path.Combine(GameData.ProjectPath, "Assets", "Autotiles", fileName)));
-        }
+        syncTilesets();
+        syncAutoTiles();
         SelectedTileset = Tilesets.FirstOrDefault(item => item.Key == tilesetKey) ?? Tilesets.FirstOrDefault();
         syncingTilesetSelection = false;
         SelectedAutoTile = AutoTiles.FirstOrDefault(item => item.Key == autoTileKey);
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
+            return;
+        disposed = true;
+        GameData.DataChanged -= onDataChanged;
     }
 
     public void selectTiles(int originTileNumber, int width, int height)
@@ -152,9 +143,86 @@ public sealed class TileSelectViewModel : ViewModelBase
     {
         SetProperty(ref selectedTiles, null, nameof(SelectedTiles));
     }
+
+    private void onDataChanged(object? sender, EventArgs args)
+    {
+        RefreshData();
+    }
+
+    private void syncTilesets()
+    {
+        int index = 0;
+        foreach (KeyValuePair<string, JsonObject> pair in GameData.TilesetData)
+        {
+            string name = pair.Value["name"]?.GetValue<string>() ?? pair.Key;
+            string fileName = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
+            string imagePath = Path.Combine(GameData.ProjectPath, "Assets", "Tilesets", fileName);
+            int currentIndex = findTilesetIndex(pair.Key, index);
+            if (currentIndex < 0)
+            {
+                Tilesets.Insert(index, new TilesetTabViewModel(pair.Key, name, imagePath));
+                index += 1;
+                continue;
+            }
+            if (currentIndex != index)
+                Tilesets.Move(currentIndex, index);
+            if (!string.Equals(Tilesets[index].Name, name, StringComparison.Ordinal)
+                || !string.Equals(Tilesets[index].ImagePath, imagePath, StringComparison.Ordinal))
+            {
+                Tilesets[index] = new TilesetTabViewModel(pair.Key, name, imagePath);
+            }
+            index += 1;
+        }
+        while (Tilesets.Count > index)
+            Tilesets.RemoveAt(Tilesets.Count - 1);
+    }
+
+    private int findTilesetIndex(string key, int startIndex)
+    {
+        for (int index = startIndex; index < Tilesets.Count; index++)
+        {
+            if (string.Equals(Tilesets[index].Key, key, StringComparison.Ordinal))
+                return index;
+        }
+        return -1;
+    }
+
+    private void syncAutoTiles()
+    {
+        int index = 0;
+        foreach (KeyValuePair<string, JsonObject> pair in GameData.AutoTileData)
+        {
+            string fileName = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
+            string imagePath = Path.Combine(GameData.ProjectPath, "Assets", "Autotiles", fileName);
+            int currentIndex = findAutoTileIndex(pair.Key, index);
+            if (currentIndex < 0)
+            {
+                AutoTiles.Insert(index, new AutoTileItemViewModel(pair.Key, imagePath));
+                index += 1;
+                continue;
+            }
+            if (currentIndex != index)
+                AutoTiles.Move(currentIndex, index);
+            if (!string.Equals(AutoTiles[index].ImagePath, imagePath, StringComparison.Ordinal))
+                AutoTiles[index] = new AutoTileItemViewModel(pair.Key, imagePath);
+            index += 1;
+        }
+        while (AutoTiles.Count > index)
+            AutoTiles.RemoveAt(AutoTiles.Count - 1);
+    }
+
+    private int findAutoTileIndex(string key, int startIndex)
+    {
+        for (int index = startIndex; index < AutoTiles.Count; index++)
+        {
+            if (string.Equals(AutoTiles[index].Key, key, StringComparison.Ordinal))
+                return index;
+        }
+        return -1;
+    }
 }
 
-public sealed record TilesetTabViewModel(string Key, string ImagePath);
+public sealed record TilesetTabViewModel(string Key, string Name, string ImagePath);
 
 public sealed class AutoTileItemViewModel
 {

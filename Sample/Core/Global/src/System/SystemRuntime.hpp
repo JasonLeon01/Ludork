@@ -1,6 +1,10 @@
 #pragma once
 
-#include <System.hpp>
+#include <System/GraphicsTypes.hpp>
+#include <System/SceneRuntime.hpp>
+
+#include <SFML/Graphics.hpp>
+#include <SFML/Window/Cursor.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -16,6 +20,23 @@
 #include <vector>
 
 namespace ludork::global::system_runtime {
+
+struct PendingTransition {
+    std::optional<std::string> name;
+    float time = 1.0f;
+};
+
+enum class SceneOperationType {
+    Replace,
+    Push,
+    Pop,
+    Exit,
+};
+
+struct PendingSceneOperation {
+    SceneOperationType type;
+    std::shared_ptr<SceneRuntime> scene;
+};
 
 struct DisplayRuntime {
     std::shared_ptr<sf::RenderWindow> window_;
@@ -58,7 +79,7 @@ struct FramePipelineRuntime {
     bool transitionCompletionPending_ = false;
     bool transitionFrozen_ = false;
     bool transitionFreezePending_ = false;
-    std::optional<System::PendingTransition> pendingTransition_;
+    std::optional<PendingTransition> pendingTransition_;
     std::mutex transitionMutex_;
     std::mutex presentMutex_;
 
@@ -91,7 +112,7 @@ struct FramePipelineRuntime {
 struct SceneStackRuntime {
     std::vector<std::shared_ptr<SceneRuntime>> scenes_;
     std::deque<std::shared_ptr<SceneRuntime>> retiredScenes_;
-    std::deque<System::PendingSceneOperation> pendingSceneOperations_;
+    std::deque<PendingSceneOperation> pendingSceneOperations_;
     std::mutex sceneMutex_;
     std::mutex pendingSceneMutex_;
     std::thread::id sceneOperationThread_;

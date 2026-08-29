@@ -21,7 +21,7 @@ local MAP_TRANSITION_TIME = 0.5
 local ENEMY_BOOK_ITEM_ID = GeneralEnum.Item.EnemyBook
 local FLOOR_TELEPORTER_ITEM_ID = GeneralEnum.Item.Teleport
 
----@class (partial) Source.Scenes.SceneMap.SceneMap
+---@type SceneMapInteractionsState
 local Scene = {}
 
 ---@param scene Source.Scenes.SceneMap.SceneMap
@@ -486,6 +486,7 @@ function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
             )
         end
     end
+    ---@cast targetMap string
     local isWorldTarget = bool(targetMap) and os.path.basename(targetMap) == "_world.json"
     if isWorldTarget and not blockTransition and not GlobalSystem.isTransitionBackgroundFrozen() then
         assert(targetPosition ~= nil, "World map transfer requires a resolved target position: " .. targetMap)

@@ -1,7 +1,9 @@
 #pragma once
 
-#include <Input/InputService.hpp>
+#include <Input/InputAction.hpp>
+#include <Input/InputEvent.hpp>
 
+#include <SFML/Graphics/Rect.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Joystick.hpp>
 
@@ -18,6 +20,9 @@
 #include <vector>
 
 class InputRuntime;
+
+using InputActionCallback =
+    std::function<void(const RuntimeIdentityPtr&, std::optional<float>)>;
 
 struct InputTriggerEntry {
     int count = 0;
@@ -165,7 +170,7 @@ struct InputActionMapping {
     RuntimeIdentityPtr object;
     std::string actionName;
     std::vector<InputActionKey> actionKeys;
-    InputService::ActionCallback callback;
+    InputActionCallback callback;
     bool triggerOnHold = false;
 };
 
@@ -290,7 +295,7 @@ public:
     void registerActionMapping(RuntimeIdentityPtr object,
                                std::string actionName,
                                std::vector<InputActionKey> actionKeys,
-                               InputService::ActionCallback callback,
+                               InputActionCallback callback,
                                bool triggerOnHold);
     void unregisterActionMapping(const RuntimeIdentityPtr& object,
                                  const std::string& actionName);

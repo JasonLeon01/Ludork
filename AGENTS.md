@@ -160,6 +160,7 @@ Purely declarative decorators (`Meta`, `InvalidVars`, `RectRangeVars`) and `["re
 - Project templates must keep the full `Scripts/stub/**/*.d.lua` tree for development tools; game packaging must delete the entire `Scripts/stub` directory, the Lua compiler must ignore `.d.lua`, and the final package must not retain any `.d.lua`.
 - After editing Lua, run the EmmyLua formatter on every changed `.lua` and `.d.lua` file before verification. Use EmmyLua's built-in formatter through the editor or its `textDocument/formatting` language-server request; do not substitute an unrelated Lua formatter.
 - After changing Lua, run full-workspace EmmyLua diagnostics and keep errors, warnings, and hints at zero whenever reasonably possible. Fix the underlying type or control flow instead of weakening contracts or adding broad ignores; use a narrowly scoped suppression only for a confirmed analyser limitation.
+- Never silence EmmyLua diagnostics by widening a type that is already authoritative in `_meta.lua`, generated Core metadata, a native binding signature, or another settled schema/API into a union with unrelated types. Keep the authoritative type exact and fix the control flow, call site, or override model; use a cast only after a real runtime check, or a narrowly scoped suppression for a confirmed analyser limitation. A union is valid only when the runtime protocol genuinely accepts every member and the corresponding source of truth describes that contract; satisfying the analyser alone is not evidence for a union.
 
 ## Lua platform detection
 

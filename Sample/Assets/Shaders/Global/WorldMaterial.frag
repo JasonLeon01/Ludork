@@ -13,17 +13,18 @@ uniform float useStaticDirectLight;
 
 uniform vec2 screenSize;
 uniform vec2 viewPos;
-uniform float viewRot;
+uniform vec2 viewSinCos;
 uniform vec2 gridSize;
 uniform float cellSize;
 
 uniform vec3 ambientColor;
 
 
-vec2 rotate2D(vec2 v, float a) {
-    float s = sin(a);
-    float c = cos(a);
-    return vec2(v.x * c - v.y * s, v.x * s + v.y * c);
+vec2 rotate2D(vec2 v, vec2 sinCos) {
+    return vec2(
+        v.x * sinCos.y - v.y * sinCos.x,
+        v.x * sinCos.x + v.y * sinCos.y
+    );
 }
 
 vec2 ToMaskUV(vec2 worldPosTL) {
@@ -32,8 +33,9 @@ vec2 ToMaskUV(vec2 worldPosTL) {
     return vec2(clamp(uv.x, 0.0, 1.0), clamp(1.0 - uv.y, 0.0, 1.0));
 }
 
-vec2 WorldTLToSceneUV(vec2 worldPosTL, vec2 center, float rad) {
-    vec2 viewPosTL = screenSize * 0.5 + rotate2D(worldPosTL - center, -rad);
+vec2 WorldTLToSceneUV(vec2 worldPosTL, vec2 center) {
+    vec2 inverseSinCos = vec2(-viewSinCos.x, viewSinCos.y);
+    vec2 viewPosTL = screenSize * 0.5 + rotate2D(worldPosTL - center, inverseSinCos);
     return vec2(
         viewPosTL.x / screenSize.x,
         1.0 - viewPosTL.y / screenSize.y
@@ -41,9 +43,8 @@ vec2 WorldTLToSceneUV(vec2 worldPosTL, vec2 center, float rad) {
 }
 
 vec4 SampleSurfaceMaskWorldTL(vec2 worldPosTL) {
-    float rad = viewRot * 0.017453292519943295;
     vec2 center = viewPos + screenSize * 0.5;
-    vec2 sceneUV = WorldTLToSceneUV(worldPosTL, center, rad);
+    vec2 sceneUV = WorldTLToSceneUV(worldPosTL, center);
     if (
         sceneUV.x < 0.0 ||
         sceneUV.y < 0.0 ||
@@ -58,15 +59,17 @@ vec4 SampleSurfaceMaskWorldTL(vec2 worldPosTL) {
 vec4 GetReflectionSample(
     vec2 pixelPosTLWorld,
     vec2 center,
-    float rad,
     float reflectionStrength
 ) {
-    vec2 cellPos = floor(pixelPosTLWorld / float(cellSize));
-    vec2 localPos = fract(pixelPosTLWorld / float(cellSize));
     reflectionStrength = clamp(reflectionStrength, 0.0, 1.0);
-    if (reflectionStrength <= 0.0 || cellPos.y <= 0.0) {
+    if (reflectionStrength <= 0.0) {
         return vec4(0.0);
     }
+    vec2 cellPos = floor(pixelPosTLWorld / float(cellSize));
+    if (cellPos.y <= 0.0) {
+        return vec4(0.0);
+    }
+    vec2 localPos = fract(pixelPosTLWorld / float(cellSize));
 
     vec2 reflectionSourceCell = cellPos + vec2(0.0, -1.0);
     vec2 sourceLocal = vec2(localPos.x, 1.0 - localPos.y);
@@ -82,7 +85,7 @@ vec4 GetReflectionSample(
         return vec4(0.0);
     }
 
-    vec2 sourceUV = WorldTLToSceneUV(sourceWorldPosTL, center, rad);
+    vec2 sourceUV = WorldTLToSceneUV(sourceWorldPosTL, center);
     if (
         sourceUV.x < 0.0 ||
         sourceUV.y < 0.0 ||
@@ -99,10 +102,9 @@ void main() {
     vec2 uv = clamp(sf_TexCoord0.xy, 0.0, 1.0);
     vec2 pixelPosTLView =
         vec2(uv.x, 1.0 - uv.y) * screenSize;
-    float rad = viewRot * 0.017453292519943295;
     vec2 center = viewPos + screenSize * 0.5;
     vec2 pixelPosTLWorld =
-        center + rotate2D(pixelPosTLView - screenSize * 0.5, rad);
+        center + rotate2D(pixelPosTLView - screenSize * 0.5, viewSinCos);
 
     vec4 pixel = texture2D(texture, uv);
     vec3 direct;
@@ -121,7 +123,6 @@ void main() {
     vec4 reflection = GetReflectionSample(
         pixelPosTLWorld,
         center,
-        rad,
         surface.g
     );
     vec3 reflectedColor = mix(litColor, reflection.rgb, reflection.a);

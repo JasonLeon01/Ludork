@@ -12,6 +12,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
@@ -25,6 +26,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     private readonly BlueprintPreviewService previewService;
     private readonly FileIconService iconService;
     private readonly ReferenceIndexService referenceIndex;
+    private readonly ExternalIdeService externalIdeService;
     private bool previewsActive;
     private bool disposed;
     [ObservableProperty] private string currentPath;
@@ -45,6 +47,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         this.previewService = previewService;
         this.iconService = iconService;
         this.referenceIndex = referenceIndex;
+        externalIdeService = new ExternalIdeService(this.projectPath, !projectConfig.IsStandalone);
         string? savedPath = projectConfig.LastFileExplorerPath;
         currentPath = !string.IsNullOrWhiteSpace(savedPath)
             && Directory.Exists(Path.Combine(this.projectPath, savedPath))
@@ -95,6 +98,14 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     public string OpenContainingFolder => LocaleService.Get("OPEN_CONTAINING_FOLDER");
     public string ExternalEditorVSCode => LocaleService.Get("EXTERNAL_EDITOR_VSCODE");
     public string ExternalEditorCursor => LocaleService.Get("EXTERNAL_EDITOR_CURSOR");
+    public string ExternalEditorClion => LocaleService.Get("EXTERNAL_EDITOR_CLION");
+    public string ExternalEditorVisualStudio => LocaleService.Get("EXTERNAL_EDITOR_VISUAL_STUDIO");
+    public bool HasVSCode => externalIdeService.IsInstalled(ExternalIde.VsCode);
+    public bool HasCursor => externalIdeService.IsInstalled(ExternalIde.Cursor);
+    public bool HasClion => !projectConfig.IsStandalone && externalIdeService.IsInstalled(ExternalIde.Clion);
+    public bool HasVisualStudio => !projectConfig.IsStandalone
+        && OperatingSystem.IsWindows()
+        && externalIdeService.IsInstalled(ExternalIde.VisualStudio);
 
     partial void OnIconViewChanged(bool value)
     {
@@ -183,24 +194,19 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         clipboardCut = cut && clipboardPaths.Count != 0;
     }
 
-    public bool OpenExternalEditor(string command)
+    public bool RequiresIdeInitialization(ExternalIde ide)
     {
-        ProcessStartInfo startInfo = new();
-        if (OperatingSystem.IsMacOS())
-        {
-            startInfo.FileName = "/usr/bin/open";
-            startInfo.UseShellExecute = false;
-            startInfo.ArgumentList.Add("-a");
-            startInfo.ArgumentList.Add(command == "code" ? "Visual Studio Code" : "Cursor");
-            startInfo.ArgumentList.Add(projectPath);
-        }
-        else
-        {
-            startInfo.FileName = command;
-            startInfo.UseShellExecute = true;
-            startInfo.Arguments = $"\"{projectPath}\"";
-        }
-        return startProcess(startInfo);
+        return externalIdeService.RequiresInitialization(ide);
+    }
+
+    public Task<IdeInitializationResult> InitializeIdeAsync(ExternalIde ide)
+    {
+        return externalIdeService.InitializeAsync(ide);
+    }
+
+    public bool OpenExternalIde(ExternalIde ide)
+    {
+        return externalIdeService.Open(ide);
     }
 
     public bool OpenCurrentFolder()

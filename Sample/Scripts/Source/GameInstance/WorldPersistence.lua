@@ -1,6 +1,6 @@
 local MapPath = require("Source.MapPath")
 
----@class (partial) Source.GameInstance.GameInstance
+---@type GameInstanceImplState
 local GameInstanceWorldPersistence = {}
 
 function GameInstanceWorldPersistence:getAddedActors(mapPath)
@@ -141,4 +141,4 @@ function GameInstanceWorldPersistence:getDestroyedActors(mapPath)
     return self._cachedDestroyedActors[MapPath.Normalise(mapPath)] or {}
 end
 
-return class(GameInstanceWorldPersistence)
+return GameInstanceWorldPersistence

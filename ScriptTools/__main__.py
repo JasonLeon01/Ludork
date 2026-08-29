@@ -11,6 +11,7 @@ from ScriptTools import editor_official_plugins
 from ScriptTools import finalize_package
 from ScriptTools import harmony_pack
 from ScriptTools import ide_config
+from ScriptTools import impl_boundary_check
 from ScriptTools import ios_pack
 from ScriptTools import macos_bundle
 from ScriptTools import project_runtime_mode
@@ -34,6 +35,7 @@ COMMANDS: dict[str, Command] = {
     "finalize-package": finalize_package.main,
     "harmony-pack": harmony_pack.main,
     "ide-config": ide_config.main,
+    "impl-boundary-check": impl_boundary_check.main,
     "project-runtime-mode": project_runtime_mode.main,
     "macos-bundle": macos_bundle.main,
     "ios-pack": ios_pack.main,

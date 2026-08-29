@@ -8,7 +8,7 @@ local STREAM_CONVERSION_NODE_BUDGET = 64
 local NON_ACTIVE_CACHE_REGION_LIMIT = 32
 local NON_ACTIVE_CACHE_BYTE_LIMIT = 256 * 1024 * 1024
 
----@class (partial) Global.WorldGameMap.WorldGameMap
+---@type WorldGameMapImplState
 local WorldGameMapRegionPublishing = {}
 
 ---@param world        Global.WorldGameMap.WorldGameMap
@@ -587,4 +587,4 @@ function WorldGameMapRegionPublishing:_recordStreamingProfile()
     )
 end
 
-return class(WorldGameMapRegionPublishing)
+return WorldGameMapRegionPublishing

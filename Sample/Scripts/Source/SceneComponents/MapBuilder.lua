@@ -25,6 +25,8 @@ local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
 ---@class (partial) Source.SceneComponents.SceneMapBuilder
 local SceneMapBuilder = {}
 
+---@alias SceneMapBuilderImplState Source.SceneComponents.SceneMapBuilder
+
 ---@param data integer[] | nil
 ---@return sf.Color
 function SceneMapBuilder.BuildAmbientLight(data)
@@ -374,4 +376,71 @@ function SceneMapBuilder:resolveRegionMapPath(mapKey, currentMap)
     return self:resolveMapPath(mapKey, currentMap)
 end
 
-return class(SceneMapBuilder, MapBuilderWorldActors, MapBuilderWorldRegion, MapBuilderWorldTiles)
+function SceneMapBuilder:_selectWorldMovedActors(records, targetRegion)
+    return MapBuilderWorldActors._selectWorldMovedActors(self, records, targetRegion)
+end
+
+function SceneMapBuilder:_pruneDestroyedActorTree(actor, destroyedActors)
+    return MapBuilderWorldActors._pruneDestroyedActorTree(self, actor, destroyedActors)
+end
+
+---@param actorRecord          Source.GameInstance.AddedActorRecord | Source.GameInstance.WorldMovedActorRecord
+---@param actorPositions       table<string, sf.Vector2i>
+---@param destroyedActors      table<string, boolean>
+---@param preserveRootPosition boolean
+---@return Engine.Actor | nil
+function SceneMapBuilder:_generatePersistedActor(actorRecord, actorPositions, destroyedActors, preserveRootPosition)
+    return MapBuilderWorldActors._generatePersistedActor(
+        self, actorRecord, actorPositions, destroyedActors, preserveRootPosition
+    )
+end
+
+function SceneMapBuilder:_applyHoleWorldMovedActors(gameMap, movedActors, actorPositions, destroyedActors)
+    return MapBuilderWorldActors._applyHoleWorldMovedActors(self, gameMap, movedActors, actorPositions, destroyedActors)
+end
+
+function SceneMapBuilder:generateWorldGameMap(worldPath, worldData, inst, initialPosition)
+    return MapBuilderWorldActors.generateWorldGameMap(self, worldPath, worldData, inst, initialPosition)
+end
+
+function SceneMapBuilder:_indexActorTreeByTag(actorsByTag, root)
+    return MapBuilderWorldActors._indexActorTreeByTag(self, actorsByTag, root)
+end
+
+function SceneMapBuilder:createWorldRegionBuildState(
+    worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
+)
+    return MapBuilderWorldRegion.createWorldRegionBuildState(
+        self, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
+    )
+end
+
+function SceneMapBuilder:_createWorldRegionChunks(region, width, height, priorityRect)
+    return MapBuilderWorldTiles._createWorldRegionChunks(self, region, width, height, priorityRect)
+end
+
+function SceneMapBuilder:_createWorldTileGraphicsChunks(region, width, height, priorityRect)
+    return MapBuilderWorldTiles._createWorldTileGraphicsChunks(self, region, width, height, priorityRect)
+end
+
+function SceneMapBuilder:_createWorldTerrainOverrides(data, terrainDestructions, yieldStep)
+    return MapBuilderWorldTiles._createWorldTerrainOverrides(self, data, terrainDestructions, yieldStep)
+end
+
+function SceneMapBuilder:_normaliseActorData(actorData)
+    return MapBuilderWorldTiles._normaliseActorData(self, actorData)
+end
+
+function SceneMapBuilder:_validateIncrementalMapData(data)
+    return MapBuilderWorldTiles._validateIncrementalMapData(self, data)
+end
+
+function SceneMapBuilder:_writeWorldLayerDataChunk(layerState, chunk)
+    return MapBuilderWorldTiles._writeWorldLayerDataChunk(self, layerState, chunk)
+end
+
+function SceneMapBuilder:_prepareWorldLayerNativeChunk(layerState, chunk, deadline)
+    return MapBuilderWorldTiles._prepareWorldLayerNativeChunk(self, layerState, chunk, deadline)
+end
+
+return class(SceneMapBuilder)

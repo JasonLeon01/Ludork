@@ -1,14 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local DamageTextParticle = require("Global.CustomParticles.DamageTextParticle")
-local Pool = require("Global.Pool")
 local GameMapActors = require("Global.GameMap.Actors")
 local GameMapTerrain = require("Global.GameMap.Terrain")
 local GameMapLighting = require("Global.GameMap.Lighting")
+local GameMapPresentation = require("Global.GameMap.Presentation")
 local GameMapRendering = require("Global.GameMap.Rendering")
 
-local ManagerFunctions = GlobalFunctions.Manager
 local ShaderManager = GlobalCore.ShaderManager
 local System = GlobalCore.System
 local WeatherController = GlobalCore.WeatherController
@@ -16,19 +14,13 @@ local FogController = GlobalCore.FogController
 
 local Actor = Engine.Actor
 local Camera = GlobalCore.Camera
-local Character = Engine.Character
 local GameMapBase = GlobalCore.GameMapBase
-
-local LISTENER_DIRECTION_UP = sf.Vector3f.new(0.0, -1.0, 0.0)
-local LISTENER_DIRECTION_DOWN = sf.Vector3f.new(0.0, 1.0, 0.0)
-local LISTENER_DIRECTION_LEFT = sf.Vector3f.new(-1.0, 0.0, 0.0)
-local LISTENER_DIRECTION_RIGHT = sf.Vector3f.new(1.0, 0.0, 0.0)
-local DEFAULT_LISTENER_DIRECTION = sf.Vector3f.new(0.0, 0.0, -1.0)
-local CHARACTER_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 0.0, -1.0)
-local DEFAULT_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 1.0, 0.0)
+local GameMapRenderer = GlobalCore.GameMapRenderer
 
 ---@class (partial) GameMap
 local GameMap = {}
+
+---@alias GameMapImplState GameMap
 
 local defaultMapViewRect = sf.IntRect.new(192, 32, 416, 416)
 ---@cast defaultMapViewRect sf.IntRect
@@ -60,43 +52,17 @@ end
 
 function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     previewOnly = bool(previewOnly)
-    local materialShader = nil
-    local tilemapLightMaskShader = nil
-    local lightMaskShader = nil
-    local lightPassShader = nil
-    local unobstructedLightPassShader = nil
-    local actorHueShader = nil
     local actorPixelShatterShader = nil
-    if sf.Shader.isAvailable() then
-        if not previewOnly then
-            tilemapLightMaskShader = ManagerFunctions.loadShader(
-                "Global/TilemapLightMask.frag", sf.Shader.Type.Fragment
-            )
-            lightMaskShader = ManagerFunctions.loadShader("Global/LightMask.frag", sf.Shader.Type.Fragment)
-            local materialShaderPath = sparseWorldConfig == nil and "Global/Material.frag"
-                or "Global/WorldMaterial.frag"
-            materialShader = ManagerFunctions.loadShader(materialShaderPath, sf.Shader.Type.Fragment)
-            lightPassShader = ManagerFunctions.loadShader("Global/LightPass.frag", sf.Shader.Type.Fragment)
-            unobstructedLightPassShader = ManagerFunctions.loadShader(
-                "Global/UnoccludedLightPass.frag", sf.Shader.Type.Fragment
-            )
-            actorPixelShatterShader = assert(
-                ShaderManager.loadFull("Global/ActorPixelShatter.vert", "Global/ActorPixelShatter.frag"),
-                "Actor pixel shatter shader must not be nil"
-            )
-        end
-        actorHueShader = ManagerFunctions.loadShader("Global/Hue.frag", sf.Shader.Type.Fragment)
+    if sf.Shader.isAvailable() and not previewOnly then
+        actorPixelShatterShader = assert(
+            ShaderManager.loadFull("Global/ActorPixelShatter.vert", "Global/ActorPixelShatter.frag"),
+            "Actor pixel shatter shader must not be nil"
+        )
     end
     GameMapBase.init(self)
     if sparseWorldConfig ~= nil then
         self:configureSparseWorld(sparseWorldConfig.size, sparseWorldConfig.layerOrder, sparseWorldConfig.regionRects)
     end
-    self._tilemapLightMaskShader = tilemapLightMaskShader
-    self._lightMaskShader = lightMaskShader
-    self._lightPassShader = lightPassShader
-    self._unobstructedLightPassShader = unobstructedLightPassShader
-    self._materialShader = materialShader
-    self._actorHueShader = actorHueShader
     self._actorPixelShatterShader = actorPixelShatterShader
     self._previewOnly = previewOnly
     self.mapName = mapName
@@ -127,93 +93,39 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     end
     self._lights = {}
     self._ambientLight = sf.Color.new(255, 255, 255, 255)
-    self._lightBlockSize = sf.Vector2f.new(Engine.CellSize, Engine.CellSize)
-    local tilemapSize = sparseWorldConfig ~= nil and sparseWorldConfig.size or self._tilemap:getSize()
-    self._shaderMapSize = sf.Vector2f.new(tilemapSize.x, tilemapSize.y)
-    self._playerCoverColour = sf.Color.new(255, 255, 255, GameMap.DefaultCoverAlpha)
-    self._staticTransmission = nil
-    self._staticOccupancy = nil
-    self._surfaceMask = nil
-    self._dynamicTransmission = nil
-    self._directLight = nil
-    self._directLightCleared = false
-    self._staticDirectLight = nil
-    self._useStaticDirectLight = false
-    self._lightPassQuad = nil
-    self._unobstructedLightVertices = nil
-    self._unobstructedLightVertex = nil
-    self._unobstructedLightCache = nil
-    self._cachedActiveLights = nil
-    self._cachedLightMaterialRevision = -1
-    self._cachedLightTransmissionSignature = nil
-    self._staticTransmissionRevision = -1
-    self._staticTransmissionSignature = nil
-    self._staticTextureOrigin = sf.Vector2f.new(0.0, 0.0)
-    self._staticTextureSize = sf.Vector2f.new(1.0, 1.0)
-    self._staticOccupancyOrigin = sf.Vector2f.new(0.0, 0.0)
-    self._staticOccupancySize = sf.Vector2f.new(1.0, 1.0)
-    self._dynamicTransmissionPixelSize = 0
-    self._zeroShaderOffset = sf.Vector2f.new(0.0, 0.0)
-    self._shaderColour = sf.Vector3f.new(0.0, 0.0, 0.0)
-    self._actorShaderBuffer = nil
-    self._actorHueBuffer = nil
-    self._actorHueSourceSprite = nil
     self._materialDirty = true
     self._materialRevision = 0
-    self._layerMaskTextureCache = {}
     self._shaderTime = 0.0
-    self._transparentTiles = {}
-    self._coverLayerStates = nil
-    self._coverPlayerX = nil
-    self._coverPlayerY = nil
-    self._coverPlayerLayerIndex = nil
-    self._coverAlpha = nil
-    self._coverMaterialRevision = nil
     self._tilePassableGrid = nil
     self._player = nil
     self._components = {}
     self._autoTileResolver = nil
     self._damageTextSpeedCurve = nil
     self._damageTextConfig = nil
-    self._surfaceTileRenderStates = nil
-    self._surfaceActorRenderStates = nil
-    self._transmissionTileRenderStates = nil
-    self._transmissionActorRenderStates = nil
-    self._lightPassRenderStates = nil
-    self._unobstructedLightPassRenderStates = nil
-    if not self._previewOnly then
-        ---@cast self._camera GlobalCore.Camera
-        local maskPixelSize = sparseWorldConfig == nil and self._tilemap:getSize() * Engine.CellSize
-            or assert(self._camera:getRenderTexture()):getSize()
-        self._staticTransmission = sf.RenderTexture.new(maskPixelSize)
-        self._staticTransmission:setSmooth(false)
-        self._surfaceMask = sf.RenderTexture.new(maskPixelSize)
-        self._surfaceMask:setSmooth(false)
-        self._surfaceTileRenderStates = sf.RenderStates.new(self._camera:getRenderStates().blendMode)
-        self._surfaceTileRenderStates.shader = self._tilemapLightMaskShader
-        self._surfaceActorRenderStates = sf.RenderStates.new(self._camera:getRenderStates().blendMode)
-        self._surfaceActorRenderStates.shader = self._lightMaskShader
-        self._transmissionTileRenderStates = sf.RenderStates.new(sf.BlendMultiply)
-        self._transmissionTileRenderStates.shader = self._tilemapLightMaskShader
-        self._transmissionActorRenderStates = sf.RenderStates.new(sf.BlendMultiply)
-        self._transmissionActorRenderStates.shader = self._lightMaskShader
-        self._lightPassRenderStates = sf.RenderStates.new(sf.BlendAdd)
-        self._lightPassRenderStates.shader = self._lightPassShader
-        self._lightPassQuad = sf.RectangleShape.new()
-        self._lightPassQuad:setFillColor(sf.Color.White)
-        self._unobstructedLightPassRenderStates = sf.RenderStates.new(sf.BlendAdd)
-        self._unobstructedLightPassRenderStates.shader = self._unobstructedLightPassShader
-        self._unobstructedLightVertices = sf.VertexArray.new(sf.PrimitiveType.Triangles)
-        self._unobstructedLightVertex = sf.Vertex.new()
-    end
+    self._renderer = nil
     self:setTilemap(self._tilemap)
     if self._camera ~= nil then
         configureCamera(self, self._camera)
+    end
+    if sparseWorldConfig ~= nil then
+        ---@diagnostic disable-next-line: undefined-field
+        self:_initialiseWorldRendering()
+    else
+        self._renderer = GameMapRenderer.new(
+            self, self._tilemap, self._camera, self._layerNames, self.DefaultCoverAlpha, self._previewOnly
+        )
     end
     ---@type GameMap[]
     local selfRef = setmetatable({ self }, {
         __mode = "v"
     })
+    self._renderEffectTarget = nil
+    self._drawLayerEffects = function (layerName)
+        local gameMap = selfRef[1]
+        if gameMap ~= nil and gameMap._renderEffectTarget ~= nil then
+            gameMap:_drawActorPixelShatterEffects(gameMap._renderEffectTarget, layerName)
+        end
+    end
     self:setActorListUpdater(function ()
         local gameMap = selfRef[1]
         if gameMap ~= nil then
@@ -265,22 +177,6 @@ function GameMap:setDamageTextConfig(config)
     self._damageTextConfig = config
 end
 
-function GameMap:getPlayer()
-    return self._player
-end
-
-function GameMap:setPlayer(player)
-    if self._camera == nil then
-        return
-    end
-    if self._player == nil then
-        self._camera:setParent(player)
-    end
-    self._player = player
-    self:setPlayerActor(player)
-    self:_updateAudioListener()
-end
-
 function GameMap:getCamera()
     return self._camera
 end
@@ -288,6 +184,9 @@ end
 function GameMap:setCamera(camera)
     self._camera = camera
     configureCamera(self, camera)
+    if self._renderer ~= nil then
+        self._renderer:setCamera(camera)
+    end
 end
 
 function GameMap:getTilemap()
@@ -329,67 +228,6 @@ function GameMap:addDamageText(text, position)
     DamageTextParticle.new(self._particleSystem, text, drawPosition, self._damageTextConfig, self._damageTextSpeedCurve)
 end
 
-function GameMap:worldToMapViewPosition(position)
-    local camera = self:getCamera()
-    if camera == nil then
-        return copy(position)
-    end
-    local viewPosition = camera:getViewPosition()
-    if viewPosition == nil then
-        return copy(position)
-    end
-    return sf.Vector2f.new(position.x - viewPosition.x, position.y - viewPosition.y)
-end
-
-function GameMap:worldToUIScreenPosition(position)
-    local mapPosition = self:worldToMapViewPosition(position)
-    local mapViewPosition = self._mapViewRect.position
-    return sf.Vector2f.new(mapPosition.x + mapViewPosition.x, mapPosition.y + mapViewPosition.y)
-end
-
-function GameMap:worldToCanvasPosition(position)
-    local uiPosition = self:worldToUIScreenPosition(position)
-    local scale = System.getScale()
-    return sf.Vector2f.new(uiPosition.x * scale, uiPosition.y * scale)
-end
-
-function GameMap:_updateAudioListener()
-    if self._player == nil then
-        return
-    end
-    local position = self._player:getPosition()
-    local listenerVector = Pool.Get("sf.Vector3f", sf.Vector3f, {
-        x = position.x,
-        y = position.y,
-        z = 0.0
-    })
-    ---@cast listenerVector sf.Vector3f
-    sf.Listener.setPosition(listenerVector)
-    Pool.Put("sf.Vector3f", listenerVector)
-    if Class.isInstance(self._player, Character) then
-        ---@cast self._player Engine.Character
-        sf.Listener.setDirection(self:_getAudioListenerDirection(self._player.direction))
-        sf.Listener.setUpVector(CHARACTER_LISTENER_UP_VECTOR)
-    else
-        sf.Listener.setDirection(DEFAULT_LISTENER_DIRECTION)
-        sf.Listener.setUpVector(DEFAULT_LISTENER_UP_VECTOR)
-    end
-end
-
----@param direction integer
----@return sf.Vector3f
----@diagnostic disable-next-line: unused
-function GameMap:_getAudioListenerDirection(direction)
-    if direction == Engine.Direction.UP then
-        return LISTENER_DIRECTION_UP
-    elseif direction == Engine.Direction.LEFT then
-        return LISTENER_DIRECTION_LEFT
-    elseif direction == Engine.Direction.RIGHT then
-        return LISTENER_DIRECTION_RIGHT
-    end
-    return LISTENER_DIRECTION_DOWN
-end
-
 function GameMap:onTick(deltaTime)
     self._shaderTime = self._shaderTime + deltaTime
     if self._camera ~= nil then
@@ -406,6 +244,7 @@ function GameMap:onTick(deltaTime)
                     if index ~= nil then
                         table.remove(actorList, index)
                         self._actorPixelShatterByActor[actor] = nil
+                        self:_setActorEffectHidden(actor, false)
                         Actor.BlueprintEvent(actor, Actor, "onDestroy")
                     end
                 end
@@ -444,33 +283,13 @@ end
 
 function GameMap:drawMapContent(target, states, applyPlayerCover)
     self:_prepareActorPixelShatterEffects()
-    states = states or sf.RenderStates.new()
-    local applyCover = bool(applyPlayerCover)
-    local playerLayerIndex = applyCover and self:_getPlayerLayerIndex(self._layerNames) or -1
-    local refreshPlayerCover = false
-    local playerPosition = nil
-    if applyCover then
-        refreshPlayerCover, playerPosition = self:_preparePlayerCover(self._layerNames, playerLayerIndex)
-    end
-    for index, layerName in ipairs(self._layerNames) do
-        local layer = self._tilemap:getLayer(layerName)
-        ---@cast layer Engine.TileLayer
-        if layer.visible then
-            if refreshPlayerCover then
-                ---@cast playerPosition sf.Vector2i
-                self:_applyPlayerCover(layer, index - 1, playerLayerIndex, playerPosition)
-            end
-            local layerStates = states
-            if layer.shader ~= nil then
-                layerStates = sf.RenderStates.new(states.blendMode)
-                layerStates.transform = states.transform
-                layerStates.texture = states.texture
-                layerStates.shader = layer.shader
-            end
-            target:draw(layer, layerStates)
-            self:_drawLayerActors(target, states, layerName, index - 1, playerLayerIndex, applyCover)
-        end
-    end
+    assert(self._renderer ~= nil, "GameMap renderer is unavailable")
+    self._renderEffectTarget = target
+    self._renderer:drawContent(
+        target, states or sf.RenderStates.new(), bool(applyPlayerCover), self._shaderTime, self._materialRevision,
+        self._drawLayerEffects
+    )
+    self._renderEffectTarget = nil
 end
 
 ---@return boolean
@@ -510,7 +329,7 @@ function GameMap:show()
         end
     end
     ---@diagnostic disable-next-line: param-type-mismatch
-    System.draw(self._camera, self._materialShader)
+    System.draw(self._camera, self:_getMaterialShader())
     FogController.drawOverlay()
     ---@cast self._particleSystem Engine.ParticleSystem
     WeatherController.registerParticleSystem(self._particleSystem)
@@ -518,4 +337,290 @@ function GameMap:show()
     System.setWindowDefaultView()
 end
 
-return class(GameMap, GameMapBase, GameMapActors, GameMapTerrain, GameMapLighting, GameMapRendering)
+function GameMap:_syncActorsForMapCache()
+    return GameMapActors._syncActorsForMapCache(self)
+end
+
+function GameMap:_syncActorsForPathfinding()
+    return GameMapActors._syncActorsForPathfinding(self)
+end
+
+function GameMap:_checkDir4Between(fromPosition, toPosition, direction)
+    return GameMapActors._checkDir4Between(self, fromPosition, toPosition, direction)
+end
+
+function GameMap:getAllActors()
+    return GameMapActors.getAllActors(self)
+end
+
+function GameMap:getActorLayer(actor)
+    return GameMapActors.getActorLayer(self, actor)
+end
+
+function GameMap:getActorsByPosition(position)
+    return GameMapActors.getActorsByPosition(self, position)
+end
+
+function GameMap:getActorByLayerAndPosition(layer, position)
+    return GameMapActors.getActorByLayerAndPosition(self, layer, position)
+end
+
+function GameMap:getActorsByRange(position, radius)
+    return GameMapActors.getActorsByRange(self, position, radius)
+end
+
+function GameMap:getActorByTag(tag)
+    return GameMapActors.getActorByTag(self, tag)
+end
+
+function GameMap:getAllActorsByTag(tag)
+    return GameMapActors.getAllActorsByTag(self, tag)
+end
+
+function GameMap:removeActorsByTags(tags)
+    return GameMapActors.removeActorsByTags(self, tags)
+end
+
+function GameMap:applyActorPositions(actorPositions)
+    return GameMapActors.applyActorPositions(self, actorPositions)
+end
+
+function GameMap:isPassable(actor, targetPosition)
+    return GameMapActors.isPassable(self, actor, targetPosition)
+end
+
+function GameMap:spawnActor(actor, layer, emitCreateEvent)
+    return GameMapActors.spawnActor(self, actor, layer, emitCreateEvent)
+end
+
+function GameMap:createActor(actorClass, layer, kwargs, emitCreateEvent)
+    return GameMapActors.createActor(self, actorClass, layer, kwargs, emitCreateEvent)
+end
+
+function GameMap:initialiseActorsAndComponents()
+    return GameMapActors.initialiseActorsAndComponents(self)
+end
+
+function GameMap:_addActorTreeToLayer(actor, layer)
+    return GameMapActors._addActorTreeToLayer(self, actor, layer)
+end
+
+function GameMap:_addActorToLayer(actor, layer)
+    return GameMapActors._addActorToLayer(self, actor, layer)
+end
+
+function GameMap:destroyActor(actor)
+    return GameMapActors.destroyActor(self, actor)
+end
+
+function GameMap:playActorPixelShatterEffect(actor)
+    return GameMapActors.playActorPixelShatterEffect(self, actor)
+end
+
+function GameMap:getTopMaterial(pos)
+    return GameMapActors.getTopMaterial(self, pos)
+end
+
+function GameMap:findPathResult(start, goal, actor, excludedAnchors)
+    return GameMapActors.findPathResult(self, start, goal, actor, excludedAnchors)
+end
+
+function GameMap:_clearActorsPathfindingBlocks()
+    return GameMapActors._clearActorsPathfindingBlocks(self)
+end
+
+function GameMap:findPath(start, goal, actor, excludedAnchors)
+    return GameMapActors.findPath(self, start, goal, actor, excludedAnchors)
+end
+
+function GameMap:isPathfindingPassable(actor, targetPosition)
+    return GameMapActors.isPathfindingPassable(self, actor, targetPosition)
+end
+
+function GameMap:hasPathBlockingOverlapActor(actor, targetPosition)
+    return GameMapActors.hasPathBlockingOverlapActor(self, actor, targetPosition)
+end
+
+function GameMap:getCollision(actor, targetPosition)
+    return GameMapActors.getCollision(self, actor, targetPosition)
+end
+
+function GameMap:getOverlaps(actor)
+    return GameMapActors.getOverlaps(self, actor)
+end
+
+function GameMap:_getDescendantActorIDs(actor)
+    return GameMapActors._getDescendantActorIDs(self, actor)
+end
+
+function GameMap:updateActorList()
+    return GameMapActors.updateActorList(self)
+end
+
+function GameMap:_updateActorPixelShatterEffects(deltaTime)
+    return GameMapActors._updateActorPixelShatterEffects(self, deltaTime)
+end
+
+function GameMap:getTerrainTile(layerName, position)
+    return GameMapTerrain.getTerrainTile(self, layerName, position)
+end
+
+function GameMap:getTerrainTilePositions(layerName, tileID)
+    return GameMapTerrain.getTerrainTilePositions(self, layerName, tileID)
+end
+
+function GameMap:setTerrainTile(layerName, position, tileID)
+    return GameMapTerrain.setTerrainTile(self, layerName, position, tileID)
+end
+
+function GameMap:setTerrainTiles(layerName, positions, tileID)
+    return GameMapTerrain.setTerrainTiles(self, layerName, positions, tileID)
+end
+
+function GameMap:applyTerrainDestructions(terrainDestructions)
+    return GameMapTerrain.applyTerrainDestructions(self, terrainDestructions)
+end
+
+function GameMap:markPassabilityDirty()
+    return GameMapTerrain.markPassabilityDirty(self)
+end
+
+function GameMap:updateActorOccupancy(actor)
+    return GameMapTerrain.updateActorOccupancy(self, actor)
+end
+
+function GameMap:_replaceTerrainLayer(_layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
+    return GameMapTerrain._replaceTerrainLayer(
+        self, _layerName, layer, layerData, autoTileTextures, autoTileFrameCounts
+    )
+end
+
+function GameMap:_getMaterialPropertyTexture(functionName, invalidValue, smooth)
+    return GameMapTerrain._getMaterialPropertyTexture(self, functionName, invalidValue, smooth)
+end
+
+function GameMap:_rebuildPassabilityCache()
+    return GameMapTerrain._rebuildPassabilityCache(self)
+end
+
+function GameMap:getLights()
+    return GameMapLighting.getLights(self)
+end
+
+function GameMap:setLights(lights)
+    return GameMapLighting.setLights(self, lights)
+end
+
+function GameMap:addLight(light)
+    return GameMapLighting.addLight(self, light)
+end
+
+function GameMap:removeLight(light)
+    return GameMapLighting.removeLight(self, light)
+end
+
+function GameMap:_requireLight(light)
+    return GameMapLighting._requireLight(self, light)
+end
+
+function GameMap:setLightPosition(light, position)
+    return GameMapLighting.setLightPosition(self, light, position)
+end
+
+function GameMap:setLightColour(light, colour)
+    return GameMapLighting.setLightColour(self, light, colour)
+end
+
+function GameMap:setLightRadius(light, radius)
+    return GameMapLighting.setLightRadius(self, light, radius)
+end
+
+function GameMap:setLightIntensity(light, intensity)
+    return GameMapLighting.setLightIntensity(self, light, intensity)
+end
+
+function GameMap:getAmbientLight()
+    return GameMapLighting.getAmbientLight(self)
+end
+
+function GameMap:setAmbientLight(ambientLight)
+    return GameMapLighting.setAmbientLight(self, ambientLight)
+end
+
+function GameMap:getMaterialPropertyMap(functionName, invalidValue)
+    return GameMapLighting.getMaterialPropertyMap(self, functionName, invalidValue)
+end
+
+function GameMap:getActorLayerLightBlockMap(layerName, size)
+    return GameMapLighting.getActorLayerLightBlockMap(self, layerName, size)
+end
+
+function GameMap:_lightingShadersAvailable()
+    return GameMapLighting._lightingShadersAvailable(self)
+end
+
+function GameMap:_getActiveLights()
+    return GameMapLighting._getActiveLights(self)
+end
+
+function GameMap:_renderLighting(mapLights)
+    return GameMapLighting._renderLighting(self, mapLights)
+end
+
+function GameMap:refreshShader()
+    return GameMapLighting.refreshShader(self)
+end
+
+function GameMap:_getMaterialShader()
+    return GameMapLighting._getMaterialShader(self)
+end
+
+function GameMap:getPlayer()
+    return GameMapPresentation.getPlayer(self)
+end
+
+function GameMap:setPlayer(player)
+    return GameMapPresentation.setPlayer(self, player)
+end
+
+function GameMap:worldToMapViewPosition(position)
+    return GameMapPresentation.worldToMapViewPosition(self, position)
+end
+
+function GameMap:worldToUIScreenPosition(position)
+    return GameMapPresentation.worldToUIScreenPosition(self, position)
+end
+
+function GameMap:worldToCanvasPosition(position)
+    return GameMapPresentation.worldToCanvasPosition(self, position)
+end
+
+function GameMap:_updateAudioListener()
+    return GameMapPresentation._updateAudioListener(self)
+end
+
+function GameMap:_getAudioListenerDirection(direction)
+    return GameMapPresentation._getAudioListenerDirection(self, direction)
+end
+
+function GameMap:_resetTransparentTiles()
+    return GameMapRendering._resetTransparentTiles(self)
+end
+
+function GameMap:_drawActor(target, states, actor, actorAlpha)
+    return GameMapRendering._drawActor(self, target, states, actor, actorAlpha)
+end
+
+function GameMap:_setActorEffectHidden(actor, hidden)
+    return GameMapRendering._setActorEffectHidden(self, actor, hidden)
+end
+
+function GameMap:_prepareActorPixelShatterEffects()
+    return GameMapRendering._prepareActorPixelShatterEffects(self)
+end
+
+function GameMap:_drawActorPixelShatterEffects(target, layerName)
+    return GameMapRendering._drawActorPixelShatterEffects(self, target, layerName)
+end
+
+return class(GameMap, GameMapBase)

@@ -144,4 +144,20 @@
             </DrawingGroup>
         </DrawingImage.Drawing>
     </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ExternalClion" Viewbox="0,0,100,100">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#21D4FD" Geometry="M0,0 H100 V100 H0 Z" />
+                <GeometryDrawing Brush="#FC4D9D" Geometry="M0,0 H72 L32,100 H0 Z" />
+                <GeometryDrawing Brush="#7BEA82" Geometry="M100,36 V100 H32 Z" />
+                <GeometryDrawing Brush="#101010" Geometry="M17,17 H83 V83 H17 Z" />
+                <GeometryDrawing Brush="White" Geometry="M28,31 H49 V38 H36 V55 H49 V62 H28 Z M55,31 H63 V55 H75 V62 H55 Z M28,70 H61 V75 H28 Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    <DrawingImage x:Key="EditorImage.ExternalVisualStudio" Viewbox="0,0,100,100">
+        <DrawingImage.Drawing>
+            <GeometryDrawing Brush="#A477DB" Geometry="F0 M4,29 L20,13 L47,34 L88,5 L98,10 L98,90 L88,95 L47,66 L20,87 L4,71 L27,50 Z M52,50 L86,73 L86,27 Z" />
+        </DrawingImage.Drawing>
+    </DrawingImage>
 </ResourceDictionary>

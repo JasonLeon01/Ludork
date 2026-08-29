@@ -74,6 +74,15 @@ struct LightOcclusionResult {
 
     BIND_PROPERTY(metadata = false)
     std::optional<sf::FloatRect> maskRect;
+
+    BIND_PROPERTY(metadata = false)
+    std::shared_ptr<sf::Texture> dynamicOccupancy;
+
+    BIND_PROPERTY(metadata = false)
+    sf::Vector2f dynamicOccupancyOrigin;
+
+    BIND_PROPERTY(metadata = false)
+    sf::Vector2f dynamicOccupancySize;
 };
 
 ////////////////////////////////////////////////////////////
@@ -274,7 +283,8 @@ public:
 
     BIND_METHOD(metadata = false)
     std::shared_ptr<sf::Texture> rebuildStaticLightOccupancy(
-        const sf::Vector2i& origin, const sf::Vector2u& size);
+        const sf::Vector2i& origin, const sf::Vector2u& size,
+        const std::vector<std::shared_ptr<Actor>>& actors);
 
     BIND_METHOD(metadata = false)
     std::vector<LightOcclusionResult> analyseLightOcclusion(
@@ -338,6 +348,12 @@ public:
 
     BIND_METHOD(name = "_fixedUpdateActors", metadata = false)
     void fixedUpdateActors(float fixedDelta);
+
+    BIND_IGNORE()
+    const ActorDict& getMaterialActorsForRenderer() const;
+
+    BIND_IGNORE()
+    const ActorPtr& getPlayerActorForRenderer() const;
 
 private:
     static constexpr int OccupancyPageSize = 32;
@@ -511,6 +527,7 @@ private:
     sf::Vector2i staticLightOccupancyOrigin_;
     sf::Vector2u staticLightOccupancySize_;
     std::vector<std::size_t> staticLightOccupancyPrefix_;
+    std::vector<std::shared_ptr<sf::Texture>> dynamicLightOccupancies_;
     std::vector<std::vector<bool>> tilePassableGrid_;
     bool passabilityDirty_ = true;
     OccupancyMap occupancyMap_;

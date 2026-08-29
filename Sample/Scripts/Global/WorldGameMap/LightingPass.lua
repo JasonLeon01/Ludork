@@ -2,6 +2,8 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Pool = require("Global.Pool")
 
+---@diagnostic disable: need-check-nil, param-type-mismatch
+
 local Light = GlobalCore.Light
 local System = GlobalCore.System
 
@@ -21,10 +23,10 @@ local function getLightingTargetSize(size, scale)
     return targetSize
 end
 
----@class (partial) GameMap
+---@type WorldGameMapImplState
 local GameMapLighting = {}
 
----@param gameMap GameMap
+---@param gameMap Global.WorldGameMap.WorldGameMap
 ---@return sf.RenderTexture
 local function getEnsuredDirectLight(gameMap)
     gameMap:_ensureDirectLight()
@@ -45,22 +47,28 @@ end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
 function GameMapLighting:_renderLighting(activeLights)
+    ---@diagnostic disable-next-line: unnecessary-if
     if self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
     end
-    if bool(activeLights) then
-        self:_rebuildStaticTransmission(activeLights)
-    end
     local visibleActors = self:_renderSurfaceMask()
-    local analyses = bool(activeLights) and self:analyseLightOcclusion(activeLights, visibleActors) or {}
+    local dynamicOccluders, staticOccluders = self:_partitionLightBlockingActors(visibleActors)
+    if bool(activeLights) then
+        self:_rebuildStaticTransmission(activeLights, staticOccluders)
+    end
     local previousDirectLight = self._directLight
     local directLight = getEnsuredDirectLight(self)
+    if directLight == previousDirectLight and self:_renderedLightingMatches(activeLights, dynamicOccluders) then
+        return
+    end
+    local analyses = bool(activeLights) and self:analyseLightOcclusion(activeLights, dynamicOccluders) or {}
     ---@cast self._camera GlobalCore.Camera
     self._useStaticDirectLight = not self:isWorldMap() and bool(activeLights)
         and not hasRelevantLightBlockingActors(analyses)
     if self._useStaticDirectLight then
         self:_renderCachedLighting(activeLights, analyses)
+        self:_cacheRenderedLighting(activeLights, dynamicOccluders)
         return
     end
     if not bool(activeLights) then
@@ -70,6 +78,7 @@ function GameMapLighting:_renderLighting(activeLights)
             directLight:display()
             self._directLightCleared = true
         end
+        self:_cacheRenderedLighting(activeLights, dynamicOccluders)
         return
     end
     self._directLightCleared = false
@@ -77,6 +86,7 @@ function GameMapLighting:_renderLighting(activeLights)
     directLight:clear(sf.Color.Black)
     self:_renderDynamicLighting(activeLights, analyses)
     directLight:display()
+    self:_cacheRenderedLighting(activeLights, dynamicOccluders)
 end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
@@ -102,10 +112,11 @@ end
 
 function GameMapLighting:_ensureDirectLight()
     ---@cast self._camera GlobalCore.Camera
-    local renderTexture = self._camera:getRenderTexture()
-    ---@cast renderTexture sf.RenderTexture
+    local viewSize = assert(self._camera:getViewSize())
+    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(viewSize.x)), math.max(1, math.floor(viewSize.y)))
+    ---@cast logicalSize sf.Vector2u
     local lightingRenderScale = System.getLightingRenderScale()
-    local requiredSize = getLightingTargetSize(renderTexture:getSize(), lightingRenderScale)
+    local requiredSize = getLightingTargetSize(logicalSize, lightingRenderScale)
     if self._directLight ~= nil and self._directLight:getSize() == requiredSize then
         self._directLight:setSmooth(lightingRenderScale < 1.0)
         return
@@ -139,6 +150,7 @@ function GameMapLighting:_setLightPassCommonUniforms()
     self._lightPassShader:setUniform(
         "targetPixelScale", sf.Vector2f.new(targetSize.x / screenSize.x, targetSize.y / screenSize.y)
     )
+    self._lightPassShader:setUniform("useCachedStaticLight", 0.0)
     self:_setViewShaderUniforms(self._lightPassShader, screenSize, self._zeroShaderOffset, true)
 end
 
@@ -154,9 +166,68 @@ function GameMapLighting:_setLightPassWorldUniforms()
     self._lightPassShader:setUniform("screenSize", screenSize)
     self._lightPassShader:setUniform("mapViewOffset", self._zeroShaderOffset)
     self._lightPassShader:setUniform("viewPos", self._zeroShaderOffset)
-    self._lightPassShader:setUniform("viewRot", 0.0)
+    self._lightPassShader:setUniform("viewSinCos", self._identityShaderRotation)
+    self._lightPassShader:setUniform("useCachedStaticLight", 0.0)
     self._lightPassShader:setUniform("gridSize", self._shaderMapSize)
     self._lightPassShader:setUniform("cellSize", Engine.CellSize)
+end
+
+---@param target sf.RenderTexture
+---@param light  GlobalCore.Light
+function GameMapLighting:_setLightPassCacheUniforms(target, light)
+    local diameter = light.radius * 2.0
+    local screenSize = sf.Vector2f.new(diameter, diameter)
+    local targetSize = target:getSize()
+    self:_setLightPassTextureUniforms()
+    self._lightPassShader:setUniform(
+        "targetPixelScale", sf.Vector2f.new(targetSize.x / diameter, targetSize.y / diameter)
+    )
+    self._lightPassShader:setUniform("screenSize", screenSize)
+    self._lightPassShader:setUniform("mapViewOffset", self._zeroShaderOffset)
+    self._lightPassShader:setUniform(
+        "viewPos", sf.Vector2f.new(light.position.x - light.radius, light.position.y - light.radius)
+    )
+    self._lightPassShader:setUniform("viewSinCos", self._identityShaderRotation)
+    self._lightPassShader:setUniform("gridSize", self._shaderMapSize)
+    self._lightPassShader:setUniform("cellSize", Engine.CellSize)
+end
+
+---@param index integer
+---@param entry Global.GameMap.ActiveLight
+---@return sf.Texture
+function GameMapLighting:_ensureStaticLightCache(index, entry)
+    local light = entry.light
+    local diameter = light.radius * 2.0
+    local logicalSize = sf.Vector2u.new(math.max(1, math.ceil(diameter)), math.max(1, math.ceil(diameter)))
+    ---@cast logicalSize sf.Vector2u
+    local lightingRenderScale = System.getLightingRenderScale()
+    local requiredSize = getLightingTargetSize(logicalSize, lightingRenderScale)
+    local cache = self._staticLightCaches[index]
+    if cache == nil then
+        cache = {}
+        self._staticLightCaches[index] = cache
+    end
+    local target = cache.target
+    local targetChanged = target == nil or target:getSize() ~= requiredSize
+    if targetChanged then
+        target = sf.RenderTexture.new(requiredSize)
+        cache.target = target
+    end
+    ---@cast target sf.RenderTexture
+    target:setSmooth(lightingRenderScale < 1.0)
+    local lightMatches = cache.light ~= nil and self:_lightsMatchCache({ entry }, { cache.light })
+    if not targetChanged and cache.generation == self._staticTransmissionGeneration and lightMatches then
+        return target:getTexture()
+    end
+    target:setView(sf.View.new(light.position, sf.Vector2f.new(diameter, diameter)))
+    target:clear(sf.Color.Black)
+    self:_setLightPassCacheUniforms(target, light)
+    self._lightPassShader:setUniform("useCachedStaticLight", 0.0)
+    self:_renderLight(entry, self._zeroShaderOffset, self._zeroShaderOffset, true, false, target)
+    target:display()
+    cache.light = self:_cacheLightValues(light)
+    cache.generation = self._staticTransmissionGeneration
+    return target:getTexture()
 end
 
 function GameMapLighting:_setLightPassTextureUniforms()
@@ -187,7 +258,10 @@ function GameMapLighting:_setViewShaderUniforms(shader, screenSize, mapViewOffse
     local viewPosition = self._camera:getViewPosition()
     ---@cast viewPosition sf.Vector2f
     shader:setUniform("viewPos", viewPosition)
-    shader:setUniform("viewRot", self._camera:getViewRotation():asDegrees())
+    local viewRadians = math.rad(self._camera:getViewRotation():asDegrees())
+    self._shaderViewSinCos.x = math.sin(viewRadians)
+    self._shaderViewSinCos.y = math.cos(viewRadians)
+    shader:setUniform("viewSinCos", self._shaderViewSinCos)
     shader:setUniform("gridSize", self._shaderMapSize)
     shader:setUniform("cellSize", Engine.CellSize)
 end
@@ -353,6 +427,9 @@ function GameMapLighting:_renderDynamicTransmission(analysis)
         self._dynamicTransmission:draw(actor, self._transmissionActorRenderStates)
     end
     self._dynamicTransmission:display()
+    self._lightPassShader:setUniform("dynamicOccupancy", assert(analysis.dynamicOccupancy))
+    self._lightPassShader:setUniform("dynamicOccupancyOrigin", analysis.dynamicOccupancyOrigin)
+    self._lightPassShader:setUniform("dynamicOccupancySize", analysis.dynamicOccupancySize)
     return origin, size, true
 end
 

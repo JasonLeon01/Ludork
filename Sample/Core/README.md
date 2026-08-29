@@ -35,4 +35,10 @@ Bindgen writes outputs only when their content changes, so adding or removing a 
 
 A file-level `BIND_FUNCTION_GROUP(name = "...")` puts every `BIND_FUNCTION` in that header only into the named table. Ungrouped functions remain at the module root. Cross-module signatures include the complete declaration they require; generic conversions belong in the self-contained feature headers under `include/LudorkCoreBinding/`, and bindgen includes only the features required by each generated module.
 
+## Host and implementation boundaries
+
+A `.cpp` that implements a public bound class is its host and is the only source allowed to define that class's `Host::...` members. Host-only state, ports, algorithms and runtime services live below the corresponding same-name directory. They must not include the host header, name the host type, use `../` includes or call back into the host contract. The host owns cross-component orchestration and passes explicit data or lower-level dependencies to those files.
+
+An independently bound companion remains its own host. Add a child `CMakeLists.txt` only for a real target boundary with an independent build contract; Engine and GlobalCore already discover ordinary implementation sources recursively. CMake's `ImplBoundaryValidate` target discovers host/same-name-directory boundaries and invokes `.tools/ScriptTools/ScriptTools impl-boundary-check Sample` (or the Windows `.exe` path). Lua child modules with mirrored `.d.lua` declarations are excluded as independent hosts. The same validation runs in native CI, with no separate manifest.
+
 Build from the repository root with `tools/build_cpp.bat Sample Debug` or `./tools/build_cpp.sh Sample Debug`. See [Build and Module Layout](<../../docs/en_GB/04.Native C++ Development/01.Build and Module Layout.md>) for class, property, method, event, function-group, metadata and troubleshooting examples.

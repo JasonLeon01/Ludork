@@ -6,7 +6,7 @@ local WorldMapConstants = require("Global.WorldMapConstants")
 local WORLD_REGION_BUILD_CHUNK_SIZE = WorldMapConstants.REGION_BUILD_CHUNK_SIZE
 local WORLD_TILE_GRAPHICS_CHUNK_SIZE = WorldMapConstants.SPATIAL_CHUNK_SIZE
 
----@class (partial) Source.SceneComponents.SceneMapBuilder
+---@type SceneMapBuilderImplState
 local MapBuilderWorldTiles = {}
 
 ---@param region       Source.SceneComponents.WorldRegionData
@@ -299,4 +299,4 @@ function MapBuilderWorldTiles:_prepareWorldLayerNativeChunk(layerState, chunk, d
     return true
 end
 
-return class(MapBuilderWorldTiles)
+return MapBuilderWorldTiles

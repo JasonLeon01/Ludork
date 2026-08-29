@@ -5,7 +5,7 @@ local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorR
 ---@diagnostic disable-next-line: cast-type-mismatch, inherited constructor type does not retain the derived init signature
 ---@cast WorldGameMap Class.ClassType<Global.WorldGameMap.WorldGameMap>
 
----@class (partial) Source.SceneComponents.SceneMapBuilder
+---@type SceneMapBuilderImplState
 local MapBuilderWorldActors = {}
 
 ---@param records      Source.GameInstance.WorldMovedActorRecord[]
@@ -71,10 +71,12 @@ function MapBuilderWorldActors:_applyHoleWorldMovedActors(gameMap, movedActors, 
     gameMap:beginActorBatch()
     for _, actorRecord in ipairs(movedActors) do
         assert(gameMap:getActorByTag(actorRecord.tag) == nil, "Duplicate restored world MapTag: " .. actorRecord.tag)
+        ---@diagnostic disable-next-line: assign-type-mismatch
         local actor = assert(
-            self:_generatePersistedActor(actorRecord, actorPositions, destroyedActors, true),
+            MapBuilderWorldActors._generatePersistedActor(self, actorRecord, actorPositions, destroyedActors, true),
             "Failed to restore moved world Actor: " .. actorRecord.tag
         )
+        ---@diagnostic disable-next-line: param-type-mismatch
         gameMap:spawnPersistedWorldActor(actor, actorRecord.layer, actorRecord.definitionRegion, false)
         addedAny = true
     end
@@ -155,4 +157,4 @@ function MapBuilderWorldActors:_indexActorTreeByTag(actorsByTag, root)
     end
 end
 
-return class(MapBuilderWorldActors)
+return MapBuilderWorldActors

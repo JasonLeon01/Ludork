@@ -425,6 +425,64 @@ public sealed partial class GameDataService
         return true;
     }
 
+    public IReadOnlyList<string> GetMapsReferencingTileset(string key)
+    {
+        key = normalizeDataKey(key);
+        return MapCatalog
+            .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
+            .Where(entry => ReadMapSnapshotWithoutCaching(entry.Key)?["layers"] is JsonObject layers
+                && layers.Any(layer => string.Equals(
+                    getString(layer.Value?["layerTileset"]),
+                    key,
+                    StringComparison.Ordinal)))
+            .Select(entry => entry.Key)
+            .OrderBy(mapKey => mapKey, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public bool RenameTileset(string oldKey, string newKey, bool updateReferences)
+    {
+        oldKey = normalizeDataKey(oldKey);
+        newKey = normalizeDataKey(newKey);
+        Dictionary<string, JsonObject> tilesets = sections["Tilesets"].Data;
+        if (newKey.Length == 0
+            || !tilesets.ContainsKey(oldKey)
+            || tilesets.ContainsKey(newKey))
+        {
+            return false;
+        }
+        IReadOnlyList<string> referencingMapKeys = GetMapsReferencingTileset(oldKey);
+        if (referencingMapKeys.Count != 0 && !updateReferences)
+            return false;
+        List<(string Key, JsonObject Data)> referencingMaps = [];
+        foreach (string mapKey in referencingMapKeys)
+        {
+            if (getMap(mapKey) is not JsonObject map)
+                return false;
+            referencingMaps.Add((mapKey, map));
+        }
+
+        RecordSnapshot();
+        List<KeyValuePair<string, JsonObject>> entries = tilesets.ToList();
+        tilesets.Clear();
+        foreach (KeyValuePair<string, JsonObject> entry in entries)
+            tilesets.Add(entry.Key == oldKey ? newKey : entry.Key, entry.Value);
+        foreach ((string mapKey, JsonObject map) in referencingMaps)
+        {
+            if (map["layers"] is not JsonObject layers)
+                continue;
+            foreach (JsonObject layer in layers.Select(entry => entry.Value).OfType<JsonObject>())
+            {
+                if (string.Equals(getString(layer["layerTileset"]), oldKey, StringComparison.Ordinal))
+                    layer["layerTileset"] = newKey;
+            }
+            NotifyMapContentChanged(mapKey);
+        }
+        NotifyAllMapPreviewsChanged();
+        refreshModifiedState();
+        return true;
+    }
+
     public bool CreateTileset(string key)
     {
         key = normalizeDataKey(key);

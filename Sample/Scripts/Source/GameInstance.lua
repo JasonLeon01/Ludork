@@ -6,6 +6,8 @@ local MapPath = require("Source.MapPath")
 ---@class (partial) Source.GameInstance.GameInstance
 local GameInstance = {}
 
+---@alias GameInstanceImplState Source.GameInstance.GameInstance
+
 function GameInstance:init(skipDefaultPlayer)
     self._playerKeys = {}
     self._players = {}
@@ -194,4 +196,50 @@ function GameInstance:setCachedNewItem(itemID)
     self._cachedNewItem[itemID] = true
 end
 
-return class(GameInstance, GameInstanceWorldPersistence)
+function GameInstance:getAddedActors(mapPath)
+    return GameInstanceWorldPersistence.getAddedActors(self, mapPath)
+end
+
+function GameInstance:recordAddedActorPosition(mapPath, actor, actorPosition)
+    return GameInstanceWorldPersistence.recordAddedActorPosition(self, mapPath, actor, actorPosition)
+end
+
+function GameInstance:recordActorPosition(mapPath, actor, actorPosition)
+    return GameInstanceWorldPersistence.recordActorPosition(self, mapPath, actor, actorPosition)
+end
+
+function GameInstance:getActorPositions(mapPath)
+    return GameInstanceWorldPersistence.getActorPositions(self, mapPath)
+end
+
+function GameInstance:recordWorldMovedActor(worldPath, actor, definitionRegion, currentRegion, layerName, actorPosition)
+    return GameInstanceWorldPersistence.recordWorldMovedActor(
+        self, worldPath, actor, definitionRegion, currentRegion, layerName, actorPosition
+    )
+end
+
+function GameInstance:removeWorldMovedActor(worldPath, actorTag)
+    return GameInstanceWorldPersistence.removeWorldMovedActor(self, worldPath, actorTag)
+end
+
+function GameInstance:getWorldMovedActors(worldPath)
+    return GameInstanceWorldPersistence.getWorldMovedActors(self, worldPath)
+end
+
+function GameInstance:_validateWorldActorRecordTags()
+    return GameInstanceWorldPersistence._validateWorldActorRecordTags(self)
+end
+
+function GameInstance:recordDestroyedActorTag(mapPath, actorTag)
+    return GameInstanceWorldPersistence.recordDestroyedActorTag(self, mapPath, actorTag)
+end
+
+function GameInstance:recordDestroyedActor(mapPath, actor)
+    return GameInstanceWorldPersistence.recordDestroyedActor(self, mapPath, actor)
+end
+
+function GameInstance:getDestroyedActors(mapPath)
+    return GameInstanceWorldPersistence.getDestroyedActors(self, mapPath)
+end
+
+return class(GameInstance)

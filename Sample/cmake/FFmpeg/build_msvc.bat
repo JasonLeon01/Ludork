@@ -9,6 +9,8 @@ for %%I in ("%~4") do set "GNU_MAKE=%%~fI"
 set "WORK_SOURCE_DIR=%BUILD_DIR%\src"
 set "BUILD_JOBS=%LUDORK_FFMPEG_BUILD_JOBS%"
 if not defined BUILD_JOBS set "BUILD_JOBS=1"
+set "FFMPEG_CC=cl.exe"
+if defined LUDORK_FFMPEG_CC_LAUNCHER set "FFMPEG_CC=%LUDORK_FFMPEG_CC_LAUNCHER% cl.exe"
 cd /d "%~dp0"
 
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -65,6 +67,7 @@ pushd "%BUILD_DIR%"
 "%BASH%" "%WORK_SOURCE_DIR%\configure" ^
     --prefix=../install ^
     --toolchain=msvc ^
+    "--cc=%FFMPEG_CC%" ^
     --target-os=win32 ^
     --arch=x86_64 ^
     --enable-shared ^

@@ -21,6 +21,15 @@ jobs:
     name: Windows x64
     runs-on: windows-2022
     timeout-minutes: 180
+    env:
+      CLCACHE_DIR: ${{ github.workspace }}\.cache\clcache
+      CMAKE_GENERATOR: Ninja
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      LUDORK_FFMPEG_CC_LAUNCHER: sccache
+      SCCACHE_BASEDIRS: ${{ github.workspace }}
+      SCCACHE_GHA_ENABLED: "true"
+      SCCACHE_IGNORE_SERVER_IO_ERROR: "true"
 
     steps:
       - name: Check out repository
@@ -50,6 +59,16 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
+      - name: Set up MSVC command-line environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Set up native compiler cache
+        uses: mozilla-actions/sccache-action@v0.0.11
+        with:
+          version: "v0.17.0"
+
       - name: Restore FFmpeg source archive
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
@@ -68,6 +87,15 @@ jobs:
         with:
           path: .tools/ScriptTools
           key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.runner-image.outputs.version }}-script-tools-v1-${{ steps.python.outputs.python-version }}-${{ hashFiles('requirements.txt', 'ScriptTools/**/*.py', 'tools/build_script_tools.bat', 'tools/script_tools_hash.ps1') }}
+
+      - name: Cache ScriptTools compiler outputs
+        if: steps.script-tools-cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v5
+        with:
+          path: .cache/clcache
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ steps.runner-image.outputs.version }}-script-tools-clcache-v1-${{ steps.python.outputs.python-version }}-${{ hashFiles('requirements.txt', 'ScriptTools/**/*.py', 'tools/build_script_tools.bat') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-${{ steps.runner-image.outputs.version }}-script-tools-clcache-v1-${{ steps.python.outputs.python-version }}-
 
       - name: Build ScriptTools
         if: steps.script-tools-cache.outputs.cache-hit != 'true'
@@ -119,6 +147,8 @@ jobs:
         shell: cmd
         timeout-minutes: 10
         run: |
+          .tools\ScriptTools\ScriptTools.exe impl-boundary-check Sample
+          if errorlevel 1 exit /b 1
           .tools\ScriptTools\ScriptTools.exe ui-adapter-check "%CD%"
           if errorlevel 1 exit /b 1
           .tools\ScriptTools\ScriptTools.exe ui-assets validate Sample
@@ -135,6 +165,7 @@ jobs:
           path: dist/
           if-no-files-found: error
           include-hidden-files: true
+          compression-level: 0
           retention-days: 14
 
   macos:
@@ -187,6 +218,10 @@ jobs:
         with:
           path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
+
+      - name: Validate implementation boundaries
+        timeout-minutes: 10
+        run: .tools/ScriptTools/ScriptTools impl-boundary-check Sample
 
       - name: Build UI preview host
         timeout-minutes: 60

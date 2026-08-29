@@ -175,6 +175,15 @@ function(ludork_add_ui_validation_target target project_root)
         VERBATIM)
 endfunction()
 
+function(ludork_add_impl_boundary_validation_target target project_root)
+    add_custom_target(${target}
+        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+            impl-boundary-check
+            "${project_root}"
+        WORKING_DIRECTORY "${project_root}"
+        VERBATIM)
+endfunction()
+
 function(ludork_add_ios_bundle_directory_sync
     target source_directory bundle_subdirectory)
     set(multi_value_args EXCLUDES)

@@ -5,7 +5,7 @@ local WorldMapConstants = require("Global.WorldMapConstants")
 
 local Actor = Engine.Actor
 
----@class (partial) Global.WorldGameMap.WorldGameMap
+---@type WorldGameMapImplState
 local WorldGameMapActors = {}
 
 ---@param actors Engine.Actor[]
@@ -818,4 +818,4 @@ function WorldGameMapActors:_initialiseRegionActorPayload(payload, region)
     initialisePayloadActorState(payload, region)
 end
 
-return class(WorldGameMapActors)
+return WorldGameMapActors

@@ -11,7 +11,7 @@ file(GLOB_RECURSE LUDORK_ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     list(APPEND LUDORK_ENGINE_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/Platform/PlatformInputBridgeMac.mm")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/InputService/Platform/PlatformInputBridgeMac.mm")
 endif()
 
 ludork_generate_lua_bindings(
@@ -26,8 +26,6 @@ add_library(Ludork::Engine ALIAS Engine)
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/ClassDict.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Graph.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/GraphExecution.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/GraphQueries.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Node.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeData.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeDescriptors.cpp"

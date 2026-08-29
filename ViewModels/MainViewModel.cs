@@ -380,6 +380,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameVariables.Changed -= onModifiedChanged;
         GameVariables.Saved -= onGameVariablesSaved;
         TileSelect.TilesetSelected -= onTilesetSelected;
+        TileSelect.Dispose();
         ActorQueue.Dispose();
         FileExplorerPanel.Dispose();
         PreviewService.Dispose();

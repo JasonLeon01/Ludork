@@ -79,6 +79,69 @@
 
 ---@class Global.WorldGameMap.WorldGameMap: GameMap
 ---@field _staticTransmissionSignature Global.WorldGameMap.StaticTransmissionSignature | nil
+---@field _tilemapLightMaskShader       sf.Shader | nil
+---@field _lightMaskShader              sf.Shader | nil
+---@field _lightPassShader              sf.Shader | nil
+---@field _unobstructedLightPassShader  sf.Shader | nil
+---@field _materialShader               sf.Shader | nil
+---@field _actorHueShader               sf.Shader | nil
+---@field _lightBlockSize               sf.Vector2f
+---@field _shaderMapSize                sf.Vector2f
+---@field _playerCoverColour            sf.Color
+---@field _staticTransmission           sf.RenderTexture | nil
+---@field _staticOccupancy              sf.Texture | nil
+---@field _dynamicTransmission          sf.RenderTexture | nil
+---@field _directLight                  sf.RenderTexture | nil
+---@field _directLightCleared           boolean
+---@field _staticDirectLight            sf.RenderTexture | nil
+---@field _surfaceMask                  sf.RenderTexture | nil
+---@field _useStaticDirectLight         boolean
+---@field _lightPassQuad                sf.RectangleShape | nil
+---@field _unobstructedLightVertices    sf.VertexArray | nil
+---@field _unobstructedLightVertex      sf.Vertex | nil
+---@field _surfaceTileRenderStates      sf.RenderStates | nil
+---@field _surfaceActorRenderStates     sf.RenderStates | nil
+---@field _transmissionTileRenderStates sf.RenderStates | nil
+---@field _transmissionActorRenderStates sf.RenderStates | nil
+---@field _lightPassRenderStates        sf.RenderStates | nil
+---@field _unobstructedLightPassRenderStates sf.RenderStates | nil
+---@field _actorShaderBuffer            sf.RenderTexture | nil
+---@field _actorHueBuffer               sf.RenderTexture | nil
+---@field _actorHueSourceSprite         sf.Sprite | nil
+---@field _cachedActiveLights           Global.GameMap.LightCacheEntry[] | nil
+---@field _unobstructedLightCache       Global.GameMap.LightCacheEntry[] | nil
+---@field _cachedLightMaterialRevision  integer
+---@field _cachedLightTransmissionSignature Global.GameMap.StaticTransmissionSignature | nil
+---@field _staticTransmissionRevision   integer
+---@field _staticTransmissionActorCache table[] | nil
+---@field _staticTransmissionGeneration integer
+---@field _surfaceMaskRevision          integer
+---@field _surfaceMaskSignature         Global.GameMap.StaticTransmissionSignature | nil
+---@field _surfaceMaskActorCache        table[] | nil
+---@field _renderedLightingLights       Global.GameMap.LightCacheEntry[] | nil
+---@field _renderedLightingOwners       (Engine.Actor | boolean)[] | nil
+---@field _renderedLightingActors       table[] | nil
+---@field _renderedLightingStaticGeneration integer
+---@field _renderedLightingView         number[] | nil
+---@field _renderedLightingTargetSize   integer[] | nil
+---@field _staticLightCaches            table[]
+---@field _staticTextureOrigin          sf.Vector2f
+---@field _staticTextureSize            sf.Vector2f
+---@field _staticOccupancyOrigin        sf.Vector2f
+---@field _staticOccupancySize          sf.Vector2f
+---@field _dynamicTransmissionPixelSize integer
+---@field _zeroShaderOffset             sf.Vector2f
+---@field _identityShaderRotation        sf.Vector2f
+---@field _shaderViewSinCos             sf.Vector2f
+---@field _shaderColour                 sf.Vector3f
+---@field _layerMaskTextureCache        table<string, table>
+---@field _transparentTiles             table[]
+---@field _coverLayerStates             GameMapCoverLayerState[] | nil
+---@field _coverPlayerX                 integer | nil
+---@field _coverPlayerY                 integer | nil
+---@field _coverPlayerLayerIndex        integer | nil
+---@field _coverAlpha                   integer | nil
+---@field _coverMaterialRevision        integer | nil
 ---@field _worldConfig                 Source.SceneComponents.WorldMapData
 ---@field _worldManifestPath           string
 ---@field _worldDataRoot               string

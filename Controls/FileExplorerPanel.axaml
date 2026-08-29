@@ -56,6 +56,14 @@
                            Source="{StaticResource EditorImage.ExternalCursor}"
                            Stretch="Uniform"
                            IsVisible="False" />
+                    <Image x:Name="ClionButtonIcon"
+                           Source="{StaticResource EditorImage.ExternalClion}"
+                           Stretch="Uniform"
+                           IsVisible="False" />
+                    <Image x:Name="VisualStudioButtonIcon"
+                           Source="{StaticResource EditorImage.ExternalVisualStudio}"
+                           Stretch="Uniform"
+                           IsVisible="False" />
                 </Grid>
                 <SplitButton.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedRight">
@@ -67,7 +75,9 @@
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
-                        <MenuItem Header="{Binding ExternalEditorVSCode}" Click="onSelectVsCode">
+                        <MenuItem Header="{Binding ExternalEditorVSCode}"
+                                  Click="onSelectVsCode"
+                                  IsVisible="{Binding HasVSCode}">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.ExternalVSCode}"
                                        Width="18"
@@ -75,9 +85,31 @@
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
-                        <MenuItem Header="{Binding ExternalEditorCursor}" Click="onSelectCursor">
+                        <MenuItem Header="{Binding ExternalEditorCursor}"
+                                  Click="onSelectCursor"
+                                  IsVisible="{Binding HasCursor}">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.ExternalCursor}"
+                                       Width="18"
+                                       Height="18"
+                                       Stretch="Uniform" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="{Binding ExternalEditorClion}"
+                                  Click="onSelectClion"
+                                  IsVisible="{Binding HasClion}">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource EditorImage.ExternalClion}"
+                                       Width="18"
+                                       Height="18"
+                                       Stretch="Uniform" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="{Binding ExternalEditorVisualStudio}"
+                                  Click="onSelectVisualStudio"
+                                  IsVisible="{Binding HasVisualStudio}">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource EditorImage.ExternalVisualStudio}"
                                        Width="18"
                                        Height="18"
                                        Stretch="Uniform" />

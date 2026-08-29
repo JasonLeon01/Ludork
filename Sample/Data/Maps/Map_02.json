@@ -21,7 +21,7 @@
   "layers": {
     "floor": {
       "layerName": "floor",
-      "layerTileset": "Tileset_01",
+      "layerTileset": "Mota",
       "tiles": [
         [
           11,
@@ -420,7 +420,7 @@
     },
     "default": {
       "layerName": "default",
-      "layerTileset": "Tileset_01",
+      "layerTileset": "Mota",
       "tiles": [
         [
           null,
@@ -819,7 +819,7 @@
     },
     "top": {
       "layerName": "top",
-      "layerTileset": "Tileset_01",
+      "layerTileset": "Mota",
       "tiles": [
         [
           119,

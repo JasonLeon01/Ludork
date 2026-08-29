@@ -8,14 +8,6 @@
 ---
 --- Provides the core gameplay map with lighting, occlusion, actor management,
 --- and pathfinding support. Integrates with Camera and SceneBase.
----@class GameMapLayerMaskTextureCacheEntry
----@field [1] sf.Image
----@field [2] sf.Image
----@field [3] sf.Image
----@field [4] sf.Texture
----@field [5] sf.Texture
----@field [6] sf.Texture
-
 ---@class GameMapCoverLayerState
 ---@field layer   Engine.TileLayer
 ---@field visible boolean
@@ -47,56 +39,30 @@
 ---@field [7] number
 
 ---@class (partial) GameMap: GlobalCore.GameMapBase
----@field DefaultCoverAlpha                  integer
----@field MapViewRect                        sf.IntRect                                                                                                                                                      Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
----@field _tilemap                           Engine.Tilemap
----@field _camera                            GlobalCore.Camera | nil
----@field _mapViewRect                       sf.IntRect
----@field _components                        ComponentBase[]
----@field _actors                            table<string, Engine.Actor[]>
----@field _player                            Engine.Actor | nil
----@field _scene                             GlobalCore.SceneBase | nil
----@field _particleSystem                    Engine.ParticleSystem | nil
----@field _actorPixelShatterShader           sf.Shader | nil
----@field _actorPixelShatterEffects          table<string, Global.CustomEffects.ActorPixelShatterEffect[]>
----@field _actorPixelShatterByActor          table<Engine.Actor, Global.CustomEffects.ActorPixelShatterEffect>
----@field _actorPixelShatterSeed             integer
----@field _staticTransmission                sf.RenderTexture | nil
----@field _dynamicTransmission               sf.RenderTexture | nil
----@field _directLight                       sf.RenderTexture | nil
----@field _directLightCleared                boolean
----@field _staticDirectLight                 sf.RenderTexture | nil
----@field _surfaceMask                       sf.RenderTexture | nil
----@field _lightPassQuad                     sf.RectangleShape | nil
----@field _unobstructedLightVertices         sf.VertexArray | nil
----@field _unobstructedLightVertex           sf.Vertex | nil
----@field _surfaceTileRenderStates           sf.RenderStates | nil
----@field _surfaceActorRenderStates          sf.RenderStates | nil
----@field _transmissionTileRenderStates      sf.RenderStates | nil
----@field _transmissionActorRenderStates     sf.RenderStates | nil
----@field _lightPassRenderStates             sf.RenderStates | nil
----@field _unobstructedLightPassRenderStates sf.RenderStates | nil
----@field _autoTileResolver                  fun(autoTileName: string): Engine.AutoTile | nil
----@field _damageTextConfig                  Engine.PlainTextConfig | nil
----@field _actorShaderBuffer                 sf.RenderTexture | nil
----@field _actorHueBuffer                    sf.RenderTexture | nil
----@field _cachedActiveLights                Global.GameMap.LightCacheEntry[] | nil
----@field _unobstructedLightCache            Global.GameMap.LightCacheEntry[] | nil
----@field _cachedLightMaterialRevision       integer
----@field _cachedLightTransmissionSignature  Global.GameMap.StaticTransmissionSignature | nil
----@field _staticTransmissionRevision        integer
----@field _staticTransmissionSignature       Global.GameMap.StaticTransmissionSignature | nil
----@field _staticTextureOrigin               sf.Vector2f
----@field _staticTextureSize                 sf.Vector2f
----@field _staticOccupancyOrigin             sf.Vector2f
----@field _staticOccupancySize               sf.Vector2f
----@field _materialDirty                     boolean
----@field _materialRevision                  integer
----@field _tilePassableGrid                  boolean[][] | nil
----@field _layerMaskTextureCache             table<string, GameMapLayerMaskTextureCacheEntry>
----@field _coverLayerStates                  GameMapCoverLayerState[] | nil
----@field mapName                            string
----@field new                                fun(mapName: string, tilemap: Engine.Tilemap, camera?: GlobalCore.Camera, previewOnly?: boolean, sparseWorldConfig?: Global.GameMap.SparseWorldConfig): GameMap
+---@field DefaultCoverAlpha         integer
+---@field MapViewRect               sf.IntRect                                                                                                                                                      Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
+---@field _tilemap                  Engine.Tilemap
+---@field _camera                   GlobalCore.Camera | nil
+---@field _mapViewRect              sf.IntRect
+---@field _components               ComponentBase[]
+---@field _actors                   table<string, Engine.Actor[]>
+---@field _player                   Engine.Actor | nil
+---@field _scene                    GlobalCore.SceneBase | nil
+---@field _particleSystem           Engine.ParticleSystem | nil
+---@field _actorPixelShatterShader  sf.Shader | nil
+---@field _actorPixelShatterEffects table<string, Global.CustomEffects.ActorPixelShatterEffect[]>
+---@field _actorPixelShatterByActor table<Engine.Actor, Global.CustomEffects.ActorPixelShatterEffect>
+---@field _actorPixelShatterSeed    integer
+---@field _autoTileResolver         fun(autoTileName: string): Engine.AutoTile | nil
+---@field _damageTextConfig         Engine.PlainTextConfig | nil
+---@field _materialDirty            boolean
+---@field _materialRevision         integer
+---@field _tilePassableGrid         boolean[][] | nil
+---@field _renderer                 GlobalCore.GameMapRenderer | nil
+---@field _renderEffectTarget       sf.RenderTarget | nil
+---@field _drawLayerEffects         fun(layerName: string)
+---@field mapName                   string
+---@field new                       fun(mapName: string, tilemap: Engine.Tilemap, camera?: GlobalCore.Camera, previewOnly?: boolean, sparseWorldConfig?: Global.GameMap.SparseWorldConfig): GameMap
 local GameMap = {}
 
 ---@brief Construct a game map.

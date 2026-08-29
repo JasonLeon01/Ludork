@@ -3,11 +3,13 @@ local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
 local RenderSupport = require("Global.WorldGameMap.RenderSupport")
 
+---@diagnostic disable: need-check-nil, param-type-mismatch, duplicate-set-field
+
 local FogController = GlobalCore.FogController
 local WORLD_SHADER_PREWARM_SIZE = sf.Vector2u.new(1, 1)
 ---@cast WORLD_SHADER_PREWARM_SIZE sf.Vector2u
 
----@class (partial) Global.WorldGameMap.WorldGameMap
+---@type WorldGameMapImplState
 local WorldGameMapRendering = {}
 
 function WorldGameMapRendering:drawMapFogOverlay()
@@ -60,8 +62,9 @@ function WorldGameMapRendering:_releaseWorldRegionTileMaskCache(region)
     end
 end
 
----@param activeLights Global.GameMap.ActiveLight[]
-function WorldGameMapRendering:_rebuildStaticTransmission(activeLights)
+---@param activeLights  Global.GameMap.ActiveLight[]
+---@param _staticActors Engine.Actor[]
+function WorldGameMapRendering:_rebuildStaticTransmission(activeLights, _staticActors)
     self:_ensureWorldLightingTargets()
     ---@cast self._staticTransmission sf.RenderTexture
     ---@cast self._transmissionTileRenderStates sf.RenderStates
@@ -118,9 +121,10 @@ function WorldGameMapRendering:_rebuildStaticTransmission(activeLights)
     local occupancySize = sf.Vector2u.new(lightingRect.width, lightingRect.height)
     ---@cast occupancyOrigin sf.Vector2i
     ---@cast occupancySize sf.Vector2u
-    self._staticOccupancy = assert(self:rebuildStaticLightOccupancy(occupancyOrigin, occupancySize))
+    self._staticOccupancy = assert(self:rebuildStaticLightOccupancy(occupancyOrigin, occupancySize, {}))
     self._staticTransmissionRevision = self._materialRevision
     self._staticTransmissionSignature = signature
+    self._staticTransmissionGeneration = self._staticTransmissionGeneration + 1
 end
 
 ---@return Engine.Actor[]
@@ -424,4 +428,4 @@ function WorldGameMapRendering:drawMapContent(target, states, _applyPlayerCover)
     end
 end
 
-return class(WorldGameMapRendering)
+return WorldGameMapRendering

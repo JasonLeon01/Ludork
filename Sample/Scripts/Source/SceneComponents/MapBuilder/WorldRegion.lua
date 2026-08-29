@@ -1,6 +1,6 @@
 local WorldRegionBuildState = require("Source.SceneComponents.MapBuilder.WorldRegionBuildState")
 
----@class (partial) Source.SceneComponents.SceneMapBuilder
+---@type SceneMapBuilderImplState
 local MapBuilderWorldRegion = {}
 
 ---@param worldData    Source.SceneComponents.WorldMapData
@@ -20,4 +20,4 @@ function MapBuilderWorldRegion:createWorldRegionBuildState(
     )
 end
 
-return class(MapBuilderWorldRegion)
+return MapBuilderWorldRegion

@@ -5,7 +5,7 @@ local ActorPixelShatterEffect = require("Global.CustomEffects.ActorPixelShatterE
 local Actor = Engine.Actor
 local ComponentsFunctions = GlobalFunctions.Components
 
----@class (partial) GameMap
+---@type GameMapImplState
 local GameMapActors = {}
 
 ---@param actor Engine.Actor
@@ -219,7 +219,11 @@ function GameMapActors:isPassable(actor, targetPosition)
         end
     end
     local currentPosition = actor:getMapPosition()
-    local delta = sf.Vector2i.new(targetPosition.x - currentPosition.x, targetPosition.y - currentPosition.y)
+    local deltaX = targetPosition.x - currentPosition.x
+    local deltaY = targetPosition.y - currentPosition.y
+    ---@cast deltaX integer
+    ---@cast deltaY integer
+    local delta = sf.Vector2i.new(deltaX, deltaY)
     local direction = nil
     if delta.x == 0 and delta.y == 1 then
         direction = Engine.Direction.DOWN
@@ -339,6 +343,7 @@ function GameMapActors:playActorPixelShatterEffect(actor)
     local effectIndex = #self._actorPixelShatterEffects[layerName] + 1
     self._actorPixelShatterEffects[layerName][effectIndex] = effect
     self._actorPixelShatterByActor[actor] = effect
+    self:_setActorEffectHidden(actor, true)
     return true
 end
 
@@ -472,6 +477,7 @@ function GameMapActors:_updateActorPixelShatterEffects(deltaTime)
                 for actor, actorEffect in pairs(self._actorPixelShatterByActor) do
                     if actorEffect == effect then
                         self._actorPixelShatterByActor[actor] = nil
+                        self:_setActorEffectHidden(actor, false)
                         break
                     end
                 end
@@ -487,4 +493,4 @@ function GameMapActors:_updateActorPixelShatterEffects(deltaTime)
     end
 end
 
-return class(GameMapActors)
+return GameMapActors
