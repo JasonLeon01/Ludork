@@ -45,7 +45,8 @@ function WorldGameMapRendering:_drawWorldTileMaskLayer(
 )
     self:_setTileMaskUniforms(
         RenderSupport.TileMaskCacheKey(region, layerName), layer,
-        RenderSupport.CreateTileMaskConfig(target, viewPosition, viewSize, viewRotation, region)
+        RenderSupport.CreateTileMaskConfig(target, viewPosition, viewSize, viewRotation, region),
+        region.lightingRevision
     )
     local regionStates = sf.RenderStates.new(baseStates.blendMode)
     regionStates.transform = copy(baseStates.transform)
@@ -160,7 +161,7 @@ function WorldGameMapRendering:_renderSurfaceMask()
             end
         end
         for _, actor in ipairs(self._actors[layerName] or {}) do
-            if not actor:isDestroyed() and self:_isWorldActorLayerVisible(actor, layerName) then
+            if not actor:isDestroyed() and self:_isWorldActorLayerVisible(actor, layerName, visibleRect) then
                 if not visibleActorSet[actor] then
                     visibleActorSet[actor] = true
                     visibleActors[#visibleActors + 1] = actor
@@ -228,6 +229,9 @@ end
 ---@param _drain      boolean
 ---@return boolean
 function WorldGameMapRendering:_prewarmWorldViewport(visibleRect, _drain)
+    if PLATFORM == "ohos" then
+        return true
+    end
     local started = perfCounter()
     local target = self:_getWorldShaderPrewarmTarget()
     local prewarmed = self:_prewarmWorldShaderPrograms(target)
@@ -240,10 +244,10 @@ function WorldGameMapRendering:_prewarmWorldViewport(visibleRect, _drain)
                 if layer ~= nil and layer.visible then
                     local shader = layer:getShader()
                     if shader ~= nil
-                        and (payload.prewarmedLayerShaders == nil or payload.prewarmedLayerShaders[layerName] ~= shader) then
+                        and (payload.prewarmedLayerShaders == nil or not payload.prewarmedLayerShaders[layerName]) then
                         prewarmed = prewarmShader(self, target, sourceTexture, shader) or prewarmed
                         payload.prewarmedLayerShaders = payload.prewarmedLayerShaders or {}
-                        payload.prewarmedLayerShaders[layerName] = shader
+                        payload.prewarmedLayerShaders[layerName] = true
                     end
                 end
             end
@@ -420,7 +424,8 @@ function WorldGameMapRendering:drawMapContent(target, states, _applyPlayerCover)
             end
         end
         for _, actor in ipairs(self._actors[layerName] or {}) do
-            if self:_isWorldActorLayerVisible(actor, layerName) and self._actorPixelShatterByActor[actor] == nil then
+            if self:_isWorldActorLayerVisible(actor, layerName, visibleRect)
+                and self._actorPixelShatterByActor[actor] == nil then
                 self:_drawActor(target, states, actor, 255)
             end
         end

@@ -228,7 +228,6 @@ float Actor::autoSoundListenerDistance() const {
 }
 
 void Actor::updateAutoSound(float deltaTime) {
-    normaliseAutoSoundParams();
     if (autoSound.empty()) {
         stopAutoSound();
         autoSoundCooldown_ = 0.0f;

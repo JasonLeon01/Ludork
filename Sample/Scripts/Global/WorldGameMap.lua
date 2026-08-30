@@ -12,7 +12,6 @@ local WorldGameMapLightingPass = require("Global.WorldGameMap.LightingPass")
 local WorldGameMapRendering = require("Global.WorldGameMap.Rendering")
 local WorldGameMapRegionPublishing = require("Global.WorldGameMap.RegionPublishing")
 local WorldGameMapStreaming = require("Global.WorldGameMap.Streaming")
-local WorldGarbageCollector = require("Global.WorldGameMap.GarbageCollector")
 local Logging = require("Global.Utils.Logging")
 local ActorMapService = Engine.ActorMapService
 local FogController = GlobalCore.FogController
@@ -80,7 +79,6 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldPreparedRect = nil
     self._worldStreamingCameraPosition = nil
     self._worldDisposed = false
-    self._worldGarbageCollectorRegistered = false
     self._worldCacheBytes = 0
     self._worldCacheBytesDirty = true
     self._worldPublishMilliseconds = 0.0
@@ -120,19 +118,6 @@ function WorldGameMap:getManifestPath()
     return self._worldManifestPath
 end
 
-function WorldGameMap:activateStreamingGarbageCollector()
-    assert(not self._worldDisposed, "Cannot activate garbage collection for a disposed world")
-    if self._worldGarbageCollectorRegistered then
-        return
-    end
-    WorldGarbageCollector.Acquire()
-    self._worldGarbageCollectorRegistered = true
-end
-
-function WorldGameMap.StepGarbageCollector()
-    WorldGarbageCollector.Step()
-end
-
 ---@param movedActorRecorder fun(actor: Engine.Actor, definitionRegion: string, currentRegion: string, layerName: string, position: sf.Vector2i)
 function WorldGameMap:setMovedActorPersistenceCallback(movedActorRecorder)
     self._worldMovedActorRecorder = movedActorRecorder
@@ -159,10 +144,6 @@ end
 function WorldGameMap:disposeStreaming()
     if self._worldDisposed then
         return
-    end
-    if self._worldGarbageCollectorRegistered then
-        WorldGarbageCollector.Release()
-        self._worldGarbageCollectorRegistered = false
     end
     self._worldDisposed = true
     if self._worldStreamJob ~= nil then
@@ -641,8 +622,8 @@ function WorldGameMap:_getChangedWorldRootPosition(root)
     return WorldGameMapActors._getChangedWorldRootPosition(self, root)
 end
 
-function WorldGameMap:_isWorldActorLayerVisible(actor, layerName)
-    return WorldGameMapActors._isWorldActorLayerVisible(self, actor, layerName)
+function WorldGameMap:_isWorldActorLayerVisible(actor, layerName, visibleRect)
+    return WorldGameMapActors._isWorldActorLayerVisible(self, actor, layerName, visibleRect)
 end
 
 function WorldGameMap:_removeWorldRoot(roots, root)
@@ -903,8 +884,8 @@ function WorldGameMap:_getStaticTransmissionSignature()
     return WorldGameMapLighting._getStaticTransmissionSignature(self)
 end
 
-function WorldGameMap:_setTileMaskUniforms(cacheKey, layer, worldMask)
-    return WorldGameMapLighting._setTileMaskUniforms(self, cacheKey, layer, worldMask)
+function WorldGameMap:_setTileMaskUniforms(cacheKey, layer, worldMask, regionRevision)
+    return WorldGameMapLighting._setTileMaskUniforms(self, cacheKey, layer, worldMask, regionRevision)
 end
 
 function WorldGameMap:_setActorMaskUniforms(actor)

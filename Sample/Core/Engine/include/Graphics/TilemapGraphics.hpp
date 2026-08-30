@@ -226,6 +226,9 @@ protected:
     void writePendingBlock(int x, int y, const TileGrid& tileBlock,
                            const AutoTileGrid& autoTileBlock);
 
+    virtual void draw(sf::RenderTarget& target,
+                      sf::RenderStates states) const override;
+
 private:
     static constexpr int ChunkSize = 32;
 
@@ -311,16 +314,6 @@ private:
     /// - \return Owning chunk
     ////////////////////////////////////////////////////////////
     TileChunk& getChunk(int x, int y);
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Draw tile vertices to a render target
-    ///
-    /// - \param target Destination render target
-    /// - \param states Render state bundle
-    ///
-    ////////////////////////////////////////////////////////////
-    virtual void draw(sf::RenderTarget& target,
-                      sf::RenderStates states) const override;
 
     std::shared_ptr<sf::Texture> texture_;
     sf::Vector2f size_;

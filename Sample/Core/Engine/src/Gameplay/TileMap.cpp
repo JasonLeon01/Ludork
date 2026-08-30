@@ -178,7 +178,13 @@ void TileLayer::updateShader(float deltaTime) {
         return;
     }
     shaderTime_ += deltaTime;
-    shader->setUniform("time", shaderTime_);
+}
+
+void TileLayer::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    if (shader != nullptr && shaderUsesTime_ && states.shader == shader.get()) {
+        shader->setUniform("time", shaderTime_);
+    }
+    TileLayerGraphics::draw(target, states);
 }
 
 std::shared_ptr<sf::Shader> TileLayer::getShader() const {

@@ -126,7 +126,9 @@ local function actorLightingStateMatches(cached, actor)
     local origin = actor:getOrigin()
     local textureRect = actor:getTextureRect()
     local colour = actor:getColor()
-    return cached.actor == actor and cached.texture == actor:getSpriteTexture() and cached.positionX == position.x
+    local texture = actor:getSpriteTexture()
+    local textureHandle = texture ~= nil and texture:getNativeHandle() or 0
+    return cached.actor == actor and cached.textureHandle == textureHandle and cached.positionX == position.x
         and cached.positionY == position.y and cached.translationX == translation.x
         and cached.translationY == translation.y and cached.rotation == actor:getRotation():asDegrees()
         and cached.scaleX == scale.x and cached.scaleY == scale.y and cached.originX == origin.x
@@ -147,9 +149,10 @@ local function captureActorLightingState(actor)
     local origin = actor:getOrigin()
     local textureRect = actor:getTextureRect()
     local colour = actor:getColor()
+    local texture = actor:getSpriteTexture()
     return {
         actor = actor,
-        texture = actor:getSpriteTexture(),
+        textureHandle = texture ~= nil and texture:getNativeHandle() or 0,
         positionX = position.x,
         positionY = position.y,
         translationX = translation.x,
@@ -236,7 +239,9 @@ function GameMapLighting:_staticTransmissionActorsMatch(actors)
         local origin = actor:getOrigin()
         local textureRect = actor:getTextureRect()
         local colour = actor:getColor()
-        if cached.actor ~= actor or cached.texture ~= actor:getSpriteTexture() or cached.positionX ~= position.x
+        local texture = actor:getSpriteTexture()
+        local textureHandle = texture ~= nil and texture:getNativeHandle() or 0
+        if cached.actor ~= actor or cached.textureHandle ~= textureHandle or cached.positionX ~= position.x
             or cached.positionY ~= position.y or cached.translationX ~= translation.x
             or cached.translationY ~= translation.y or cached.rotation ~= actor:getRotation():asDegrees()
             or cached.scaleX ~= scale.x or cached.scaleY ~= scale.y or cached.originX ~= origin.x
@@ -260,9 +265,10 @@ function GameMapLighting:_cacheStaticTransmissionActors(actors)
         local origin = actor:getOrigin()
         local textureRect = actor:getTextureRect()
         local colour = actor:getColor()
+        local texture = actor:getSpriteTexture()
         cache[index] = {
             actor = actor,
-            texture = actor:getSpriteTexture(),
+            textureHandle = texture ~= nil and texture:getNativeHandle() or 0,
             positionX = position.x,
             positionY = position.y,
             translationX = translation.x,
@@ -553,34 +559,30 @@ function GameMapLighting:_renderSurfaceMask()
     return visibleActors
 end
 
----@param cacheKey   string
----@param layer      Engine.TileLayer
----@param worldMask? Global.GameMap.WorldTileMaskConfig
-function GameMapLighting:_setTileMaskUniforms(cacheKey, layer, worldMask)
-    local lightBlockImage = layer:getLightBlockImage()
-    local reflectionStrengthImage = layer:getReflectionStrengthImage()
-    local ignoreLightingImage = layer:getIgnoreLightingImage()
-    ---@cast lightBlockImage sf.Image
-    ---@cast reflectionStrengthImage sf.Image
-    ---@cast ignoreLightingImage sf.Image
-    local lightBlockTexture
-    local reflectionStrengthTexture
-    local ignoreLightingTexture
-    if self._layerMaskTextureCache[cacheKey] == nil or self._layerMaskTextureCache[cacheKey][1] ~= lightBlockImage
-        or self._layerMaskTextureCache[cacheKey][2] ~= reflectionStrengthImage
-        or self._layerMaskTextureCache[cacheKey][3] ~= ignoreLightingImage then
-        lightBlockTexture = sf.Texture.new(lightBlockImage)
-        reflectionStrengthTexture = sf.Texture.new(reflectionStrengthImage)
-        ignoreLightingTexture = sf.Texture.new(ignoreLightingImage)
-        self._layerMaskTextureCache[cacheKey] = {
-            lightBlockImage, reflectionStrengthImage, ignoreLightingImage, lightBlockTexture, reflectionStrengthTexture,
-            ignoreLightingTexture
+---@param cacheKey        string
+---@param layer           Engine.TileLayer
+---@param worldMask?      Global.GameMap.WorldTileMaskConfig
+---@param regionRevision? integer
+function GameMapLighting:_setTileMaskUniforms(cacheKey, layer, worldMask, regionRevision)
+    local effectiveRegionRevision = regionRevision or false
+    local cached = self._layerMaskTextureCache[cacheKey]
+    ---@cast cached Global.GameMap.LayerMaskTextureCacheEntry | nil
+    if cached == nil or cached[1] ~= self._materialRevision or cached[2] ~= effectiveRegionRevision then
+        local lightBlockImage = layer:getLightBlockImage()
+        local reflectionStrengthImage = layer:getReflectionStrengthImage()
+        local ignoreLightingImage = layer:getIgnoreLightingImage()
+        ---@cast lightBlockImage sf.Image
+        ---@cast reflectionStrengthImage sf.Image
+        ---@cast ignoreLightingImage sf.Image
+        cached = {
+            self._materialRevision, effectiveRegionRevision, sf.Texture.new(lightBlockImage),
+            sf.Texture.new(reflectionStrengthImage), sf.Texture.new(ignoreLightingImage)
         }
-    else
-        lightBlockTexture = self._layerMaskTextureCache[cacheKey][4]
-        reflectionStrengthTexture = self._layerMaskTextureCache[cacheKey][5]
-        ignoreLightingTexture = self._layerMaskTextureCache[cacheKey][6]
+        self._layerMaskTextureCache[cacheKey] = cached
     end
+    local lightBlockTexture = cached[3]
+    local reflectionStrengthTexture = cached[4]
+    local ignoreLightingTexture = cached[5]
     ---@cast lightBlockTexture sf.Texture
     ---@cast reflectionStrengthTexture sf.Texture
     ---@cast ignoreLightingTexture sf.Texture

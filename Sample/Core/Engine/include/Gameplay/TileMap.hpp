@@ -129,6 +129,7 @@ public:
     std::shared_ptr<sf::Shader> shader;
 
 private:
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
     static int layerWidth(const TileLayerData& data);
     static int layerHeight(const TileLayerData& data);
     static const std::shared_ptr<sf::Texture>& requireTexture(

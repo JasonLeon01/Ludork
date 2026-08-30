@@ -1,7 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local WorldGameMap = require("Global.WorldGameMap")
 local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
@@ -360,7 +359,6 @@ function Scene.IsHotKeySceneMethod(sceneType, function_)
 end
 
 function Scene:onTick(deltaTime)
-    WorldGameMap.StepGarbageCollector()
     self._mapAudio:onTick(deltaTime)
     if self._dialogueLocaleSource ~= nil and not self._messageWindow:isInDialogue() then
         self._dialogueLocaleSource = nil
@@ -447,11 +445,6 @@ function Scene:loadMap(mapPath, initialPosition)
     end
     self:_updateCurrentRegion(mapFile)
     Logging.info("Loaded map %s in %.3fs", mapFile, perfCounter() - startTime)
-    if gameMap:isWorldMap() then
-        local worldMap = gameMap
-        ---@cast worldMap Global.WorldGameMap.WorldGameMap
-        worldMap:activateStreamingGarbageCollector()
-    end
     return mapFile
 end
 

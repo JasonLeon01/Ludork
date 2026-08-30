@@ -28,7 +28,7 @@
 ---@field rootChunks        table<string, Engine.Actor[]>
 ---@field rootChunkKeys     table<Engine.Actor, string>
 ---@field estimatedRuntimeBytes integer | nil
----@field prewarmedLayerShaders table<string, sf.Shader> | nil
+---@field prewarmedLayerShaders table<string, boolean> | nil
 
 ---@class Global.WorldGameMap.RegionBuildState
 ---@field completed              boolean
@@ -134,7 +134,7 @@
 ---@field _identityShaderRotation        sf.Vector2f
 ---@field _shaderViewSinCos             sf.Vector2f
 ---@field _shaderColour                 sf.Vector3f
----@field _layerMaskTextureCache        table<string, table>
+---@field _layerMaskTextureCache        table<string, Global.GameMap.LayerMaskTextureCacheEntry>
 ---@field _transparentTiles             table[]
 ---@field _coverLayerStates             GameMapCoverLayerState[] | nil
 ---@field _coverPlayerX                 integer | nil
@@ -192,7 +192,6 @@
 ---@field _worldPreparedRect           Global.WorldGeometry.CellRect | nil
 ---@field _worldStreamingCameraPosition sf.Vector2f | nil
 ---@field _worldDisposed               boolean
----@field _worldGarbageCollectorRegistered boolean
 ---@field _worldCacheBytes             integer
 ---@field _worldCacheBytesDirty        boolean
 ---@field _worldPublishMilliseconds    number
@@ -219,12 +218,6 @@ function WorldGameMap:isWorldMap() end
 
 ---@return string
 function WorldGameMap:getManifestPath() end
-
----Activates the world streaming garbage-collector lease after the map has been fully configured.
-function WorldGameMap:activateStreamingGarbageCollector() end
-
----Advances the shared world garbage collector once for the current logic frame.
-function WorldGameMap.StepGarbageCollector() end
 
 ---@param movedActorRecorder fun(actor: Engine.Actor, definitionRegion: string, currentRegion: string, layerName: string, position: sf.Vector2i)
 function WorldGameMap:setMovedActorPersistenceCallback(movedActorRecorder) end

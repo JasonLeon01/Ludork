@@ -735,21 +735,33 @@ function WorldGameMapActors:_getChangedWorldRootPosition(root)
     return position
 end
 
----@param actor     Engine.Actor
----@param layerName string
+---@param actor        Engine.Actor
+---@param layerName    string
+---@param visibleRect? Global.WorldGeometry.CellRect
 ---@return boolean
-function WorldGameMapActors:_isWorldActorLayerVisible(actor, layerName)
+function WorldGameMapActors:_isWorldActorLayerVisible(actor, layerName, visibleRect)
     local root = self._worldActorRoots[actor] or actor
     ---@type Source.SceneComponents.WorldRegionData | nil
     local region = self._worldActorRegions[root]
     if region == nil and actor == self._player then
         region = self:_findRegionAt(actor:getMapPosition())
     end
-    if region == nil or region.payload == nil then
+    if region ~= nil and region.payload ~= nil then
+        local layer = region.payload.tilemap:getLayer(layerName)
+        if layer ~= nil and not layer.visible then
+            return false
+        end
+    end
+    if visibleRect == nil then
         return true
     end
-    local layer = region.payload.tilemap:getLayer(layerName)
-    return layer == nil or layer.visible
+    local bounds = actor:getGlobalBounds()
+    local left = visibleRect.x * Engine.CellSize
+    local top = visibleRect.y * Engine.CellSize
+    local right = (visibleRect.x + visibleRect.width) * Engine.CellSize
+    local bottom = (visibleRect.y + visibleRect.height) * Engine.CellSize
+    return bounds.position.x + bounds.size.x >= left and bounds.position.x <= right
+        and bounds.position.y + bounds.size.y >= top and bounds.position.y <= bottom
 end
 
 ---@param roots Engine.Actor[]

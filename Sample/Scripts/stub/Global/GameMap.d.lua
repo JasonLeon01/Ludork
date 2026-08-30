@@ -25,6 +25,8 @@
 ---@field regionSize     sf.Vector2f
 ---@field regionPosition sf.Vector2f
 
+---@alias Global.GameMap.LayerMaskTextureCacheEntry { [1]: integer, [2]: integer | boolean, [3]: sf.Texture, [4]: sf.Texture, [5]: sf.Texture }
+
 ---@class Global.GameMap.ActiveLight: GlobalCore.LightOcclusionInput
 ---@field light GlobalCore.Light
 ---@field owner Engine.Actor | nil

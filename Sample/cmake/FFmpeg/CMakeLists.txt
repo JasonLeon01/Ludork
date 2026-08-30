@@ -174,6 +174,14 @@ set(LUDORK_FFMPEG_RUNTIME_FILES
     "${FFMPEG_AVFORMAT_RUNTIME}"
     "${FFMPEG_SWSCALE_RUNTIME}"
     "${FFMPEG_SWRESAMPLE_RUNTIME}")
+set(LUDORK_FFMPEG_BUILD_BYPRODUCTS ${LUDORK_FFMPEG_RUNTIME_FILES})
+if(WIN32)
+    foreach(ffmpeg_library IN ITEMS
+        avutil avcodec avformat swscale swresample)
+        list(APPEND LUDORK_FFMPEG_BUILD_BYPRODUCTS
+            "${LUDORK_FFMPEG_INSTALL_DIR}/bin/${ffmpeg_library}.lib")
+    endforeach()
+endif()
 
 ExternalProject_Add(LudorkFFmpegExternal
     SOURCE_DIR "${LUDORK_FFMPEG_SOURCE_DIR}"
@@ -182,7 +190,7 @@ ExternalProject_Add(LudorkFFmpegExternal
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
-    BUILD_BYPRODUCTS ${LUDORK_FFMPEG_RUNTIME_FILES})
+    BUILD_BYPRODUCTS ${LUDORK_FFMPEG_BUILD_BYPRODUCTS})
 
 function(ludork_ffmpeg_import target library runtime)
     add_library(${target} ${FFMPEG_LIBRARY_TYPE} IMPORTED GLOBAL)
