@@ -252,9 +252,11 @@ public partial class MainWindow
     {
         if (viewModel is null)
             return;
+        string directoryName = getNewWorldMapName();
         WorldMapInfo initial = new()
         {
-            DirectoryName = getNewWorldMapName(),
+            DirectoryName = directoryName,
+            WorldName = directoryName,
             Width = 256,
             Height = 192,
         };
@@ -565,4 +567,3 @@ public partial class MainWindow
             LocaleService.Get("MAP_TARGET_REFERENCED") + Environment.NewLine + details);
     }
 }
-

@@ -19,6 +19,7 @@ public sealed class WorldMapEditWindow : Window
     private readonly GameDataService gameData;
     private readonly bool isNew;
     private readonly TextBox directoryNameBox = EditorInputs.CreateEditableTextBox();
+    private readonly TextBox worldNameBox = EditorInputs.CreateEditableTextBox();
     private readonly NumericUpDown widthBox = EditorInputs.CreateNumericUpDown(256, 1, 32768, 1);
     private readonly NumericUpDown heightBox = EditorInputs.CreateNumericUpDown(192, 1, 32768, 1);
     private readonly TextBox fogBox = EditorInputs.CreateReadOnlyTextBox();
@@ -49,6 +50,7 @@ public sealed class WorldMapEditWindow : Window
         EditorWindowIcon.Apply(this);
 
         directoryNameBox.Text = initial.DirectoryName;
+        worldNameBox.Text = initial.WorldName;
         widthBox.Value = initial.Width;
         heightBox.Value = initial.Height;
         fogBox.Text = initial.Fog;
@@ -60,6 +62,7 @@ public sealed class WorldMapEditWindow : Window
         Grid form = new() { RowSpacing = 8 };
         if (isNew)
             addRow(form, LocaleService.Get("WORLD_FOLDER_NAME"), directoryNameBox);
+        addRow(form, LocaleService.Get("WORLD_NAME"), worldNameBox);
         addRow(form, LocaleService.Get("MAP_WIDTH"), widthBox);
         addRow(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
         addRow(form, LocaleService.Get("MAP_FOG"), createFileRow());
@@ -150,6 +153,7 @@ public sealed class WorldMapEditWindow : Window
         string directoryName = isNew
             ? directoryNameBox.Text?.Trim() ?? string.Empty
             : directoryNameBox.Text ?? string.Empty;
+        string worldName = worldNameBox.Text?.Trim() ?? string.Empty;
         if (isNew && !isValidDirectoryName(directoryName))
         {
             errorText.Text = LocaleService.Get("WORLD_FOLDER_NAME_INVALID");
@@ -162,9 +166,15 @@ public sealed class WorldMapEditWindow : Window
             errorText.Text = LocaleService.Get("WORLD_FOLDER_EXISTS");
             return;
         }
+        if (worldName.Length == 0)
+        {
+            errorText.Text = LocaleService.Get("WORLD_NAME_EMPTY");
+            return;
+        }
         Close(new WorldMapInfo
         {
             DirectoryName = directoryName,
+            WorldName = worldName,
             Width = decimal.ToInt32(widthBox.Value ?? 0),
             Height = decimal.ToInt32(heightBox.Value ?? 0),
             Fog = fogBox.Text?.Trim() ?? string.Empty,

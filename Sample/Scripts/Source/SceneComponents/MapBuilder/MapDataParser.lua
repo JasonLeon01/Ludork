@@ -6,6 +6,7 @@ local System = require("Source.System")
 
 local WORLD_MANIFEST_FIELDS = {
     type = true,
+    worldName = true,
     width = true,
     height = true,
     fog = true,
@@ -104,6 +105,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
             and data.ambientLight == nil,
         "World manifest must not define BGM, BGS, audio filters, or ambientLight: " .. manifestPath)
     rejectUnknownFields(data, WORLD_MANIFEST_FIELDS, "worldMap")
+    assert(type(data.worldName) == "string" and bool(data.worldName), "worldMap.worldName must be a non-empty string")
     data.width = requireInteger(data.width, "worldMap.width", 1)
     data.height = requireInteger(data.height, "worldMap.height", 1)
     assert(type(data.fog) == "string", "worldMap.fog must be a string")
@@ -122,8 +124,8 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
         seenLayers[layerName] = true
     end
     local worldDirectory = os.path.dirname(manifestPath)
-    local worldName = os.path.basename(worldDirectory)
-    assert(bool(worldName), "World manifest must be inside a direct world directory")
+    local directoryName = os.path.basename(worldDirectory)
+    assert(bool(directoryName), "World manifest must be inside a direct world directory")
     assert(os.path.dirname(worldDirectory) == "", "World directories cannot be nested: " .. worldDirectory)
     requireArray(data.placements, "worldMap.placements")
     local regions = {}
@@ -178,7 +180,6 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
     if not bool(regions) then
         assert(not bool(data.layerOrder), "worldMap.layerOrder must be empty when no child maps are placed")
     end
-    data.worldName = worldName
     data.manifestPath = manifestPath
     data.dataRoot = MapDataParser.GetDataPath(worldDirectory)
     data.regions = regions

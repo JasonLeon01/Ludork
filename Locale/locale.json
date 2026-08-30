@@ -3243,6 +3243,14 @@
     "zh_CN": "大地图文件夹名",
     "en_GB": "World Folder Name"
   },
+  "WORLD_NAME": {
+    "zh_CN": "大地图名称",
+    "en_GB": "World Name"
+  },
+  "WORLD_NAME_EMPTY": {
+    "zh_CN": "大地图名称不能为空。",
+    "en_GB": "The world name cannot be empty."
+  },
   "WORLD_FOLDER_NAME_PROMPT": {
     "zh_CN": "输入新的大地图文件夹名",
     "en_GB": "Enter the new world folder name"

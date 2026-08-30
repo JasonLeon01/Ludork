@@ -1,5 +1,6 @@
 {
   "type": "worldMap",
+  "worldName": "{WORLD_01}",
   "width": 40,
   "height": 30,
   "fog": "",
@@ -12,15 +13,6 @@
     "default"
   ],
   "placements": [
-    {
-      "map": "Map_w01_01.json",
-      "rect": [
-        0,
-        0,
-        20,
-        15
-      ]
-    },
     {
       "map": "Map_W01_02.json",
       "rect": [
@@ -54,6 +46,15 @@
         25,
         15,
         15,
+        15
+      ]
+    },
+    {
+      "map": "Map_W01_01.json",
+      "rect": [
+        0,
+        0,
+        20,
         15
       ]
     }

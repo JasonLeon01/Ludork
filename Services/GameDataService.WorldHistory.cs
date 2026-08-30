@@ -142,8 +142,6 @@ public sealed partial class GameDataService
         {
             entry["worldKey"] = newKey[..separator];
         }
-        else if (string.Equals(kind, MapCatalogEntryKind.WorldMap.ToString(), StringComparison.Ordinal))
-            entry["displayName"] = newKey;
         catalog[kind + ":" + newKey] = entry;
     }
 
@@ -375,10 +373,15 @@ public sealed partial class GameDataService
                 return false;
             expectedPaths.Add(Path.GetFullPath(Path.Combine(directory, suffix + ".json")));
         }
-        string[] actualPaths = Directory.EnumerateFileSystemEntries(
-            directory,
-            "*",
-            SearchOption.TopDirectoryOnly).Select(Path.GetFullPath).ToArray();
+        if (Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly).Any())
+            return false;
+        string[] actualPaths = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
+            .Where(path => string.Equals(
+                Path.GetExtension(path),
+                ".json",
+                StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetFullPath)
+            .ToArray();
         if (actualPaths.Length != expectedPaths.Count
             || actualPaths.Any(path => !expectedPaths.Contains(path)))
         {
@@ -602,4 +605,3 @@ public sealed partial class GameDataService
         }
     }
 }
-

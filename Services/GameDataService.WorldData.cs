@@ -54,10 +54,14 @@ public sealed partial class GameDataService
     private void loadWorldDirectory(string directory)
     {
         string worldKey = Path.GetFileName(directory);
-        string[] directFiles = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
+        string[] directJsonFiles = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
+            .Where(path => string.Equals(
+                Path.GetExtension(path),
+                ".json",
+                StringComparison.OrdinalIgnoreCase))
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
-        string[] manifestPaths = directFiles
+        string[] manifestPaths = directJsonFiles
             .Where(path => string.Equals(
                 Path.GetFileName(path),
                 "_world.json",
@@ -69,30 +73,22 @@ public sealed partial class GameDataService
             directory,
             "*",
             SearchOption.AllDirectories).ToArray();
-        string[] invalidDirectFiles = directFiles
-            .Where(path => !string.Equals(
-                Path.GetExtension(path),
-                ".json",
-                StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (nestedDirectories.Length != 0
-            || invalidDirectFiles.Length != 0
-            || manifestPaths.Length != 1
-            || !string.Equals(
+        bool manifestValid = manifestPaths.Length == 1
+            && string.Equals(
                 Path.GetFileName(manifestPath),
                 "_world.json",
-                StringComparison.Ordinal))
+                StringComparison.Ordinal);
+        if (nestedDirectories.Length != 0 || !manifestValid)
         {
             foreach (string nested in nestedDirectories)
                 addInvalidLoadPath(nested);
-            foreach (string invalidFile in invalidDirectFiles)
-                addInvalidLoadPath(invalidFile);
-            foreach (string duplicateManifest in manifestPaths)
-                addInvalidLoadPath(duplicateManifest);
-            if (manifestPaths.Length == 0)
-                addInvalidLoadPath(directory);
-            else if (File.Exists(manifestPath))
-                addInvalidLoadPath(manifestPath);
+            if (!manifestValid)
+            {
+                foreach (string invalidManifest in manifestPaths)
+                    addInvalidLoadPath(invalidManifest);
+                if (manifestPaths.Length == 0)
+                    addInvalidLoadPath(directory);
+            }
             return;
         }
         if (!File.Exists(manifestPath)
@@ -104,7 +100,7 @@ public sealed partial class GameDataService
         }
         Dictionary<string, MapCatalogEntry> children = new(StringComparer.Ordinal);
         bool childrenValid = true;
-        foreach (string path in Directory.EnumerateFiles(directory, "*.json", SearchOption.TopDirectoryOnly)
+        foreach (string path in directJsonFiles
                      .Where(path => !string.Equals(
                          Path.GetFileName(path),
                          "_world.json",
@@ -135,7 +131,7 @@ public sealed partial class GameDataService
         sections["WorldMaps"].Data[worldKey] = manifest;
         setMapCatalogEntry(new MapCatalogEntry(
             worldKey,
-            worldKey,
+            manifest["worldName"]!.GetValue<string>(),
             MapCatalogEntryKind.WorldMap,
             null,
             manifest["width"]!.GetValue<int>(),
@@ -193,6 +189,7 @@ public sealed partial class GameDataService
         return new JsonObject
         {
             ["type"] = "worldMap",
+            ["worldName"] = info.WorldName.Trim(),
             ["width"] = info.Width,
             ["height"] = info.Height,
             ["fog"] = fog,

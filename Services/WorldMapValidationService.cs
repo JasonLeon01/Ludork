@@ -12,6 +12,7 @@ public sealed class WorldMapValidationService
     private static readonly HashSet<string> AllowedFields = new(StringComparer.Ordinal)
     {
         "type",
+        "worldName",
         "width",
         "height",
         "fog",
@@ -101,6 +102,12 @@ public sealed class WorldMapValidationService
             issues.Add(new WorldMapValidationIssue(
                 "invalidType",
                 "World manifests must declare type as worldMap."));
+        }
+        if (string.IsNullOrWhiteSpace(readString(manifest["worldName"])))
+        {
+            issues.Add(new WorldMapValidationIssue(
+                "invalidWorldName",
+                "worldName must be a non-empty string."));
         }
     }
 

@@ -102,6 +102,7 @@ public sealed partial class GameDataService
         return new WorldMapInfo
         {
             DirectoryName = worldKey,
+            WorldName = world["worldName"]!.GetValue<string>(),
             Width = world["width"]?.GetValue<int?>() ?? 13,
             Height = world["height"]?.GetValue<int?>() ?? 13,
             Fog = world["fog"]?.GetValue<string>() ?? string.Empty,
@@ -284,7 +285,7 @@ public sealed partial class GameDataService
         sections["WorldMaps"].Data[worldKey] = world;
         setMapCatalogEntry(new MapCatalogEntry(
             worldKey,
-            worldKey,
+            info.WorldName.Trim(),
             MapCatalogEntryKind.WorldMap,
             null,
             info.Width,
@@ -321,7 +322,7 @@ public sealed partial class GameDataService
         sections["WorldMaps"].Data[worldKey] = candidate;
         setMapCatalogEntry(new MapCatalogEntry(
             worldKey,
-            worldKey,
+            info.WorldName.Trim(),
             MapCatalogEntryKind.WorldMap,
             null,
             info.Width,
@@ -374,7 +375,7 @@ public sealed partial class GameDataService
             removeMapCatalogEntry(MapCatalogEntryKind.WorldChildMap, child);
         setMapCatalogEntry(new MapCatalogEntry(
             newKey,
-            newKey,
+            world["worldName"]!.GetValue<string>(),
             MapCatalogEntryKind.WorldMap,
             null,
             world["width"]?.GetValue<int?>() ?? 0,

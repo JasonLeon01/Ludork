@@ -37,6 +37,7 @@ public sealed record WorldMapPlacement(string Map, WorldMapRect Rect);
 public sealed class WorldMapInfo
 {
     public string DirectoryName { get; set; } = string.Empty;
+    public string WorldName { get; set; } = string.Empty;
     public int Width { get; set; } = 13;
     public int Height { get; set; } = 13;
     public string Fog { get; set; } = string.Empty;
