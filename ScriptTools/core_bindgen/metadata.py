@@ -311,6 +311,8 @@ def metadata_type(
 ) -> MetadataType:
     value = remove_pointer(value)
     parsed = parse_cpp_type(context, value)
+    if parsed.name in context.enum_types:
+        return MetadataType("int")
     nested_dynamic_type = dynamic_value_nested_type(context, value)
     if parsed.name in context.dynamic_value_types:
         return MetadataType("any")
@@ -753,15 +755,9 @@ def decorator_lines(
             lines.append(f"{indent}LatentStates = {{ {values} }},")
             continue
         if kind == "LOOP_NODE":
-            values = ", ".join(
-                [lua_string(key) for key in options]
-                + [
-                    f"{lua_key(key)} = "
-                    f"{lua_decorator_value(value, indent + '    ', f'{kind}.{key}')}"
-                    for key, value in options.items()
-                ]
+            lines.append(
+                f"{indent}LoopNode = {lua_string(options['value'])},"
             )
-            lines.append(f"{indent}LoopNode = {{ {values} }},")
             continue
         decorator_name = (
             "ExecSplit"
@@ -785,8 +781,6 @@ def decorator_lines(
             lines.append(
                 f"{indent}{decorator_name} = {{ {', '.join(lua_string(name) for name in names)} }},"
             )
-        elif kind == "LOOP_NODE" and set(options) == {"value"}:
-            lines.append(f"{indent}{decorator_name} = {lua_string(options['value'])},")
         elif kind == "META":
             values = ", ".join(
                 f"{lua_key(key)} = "

@@ -74,7 +74,6 @@ public:
     BIND_METHOD()
     virtual void applyPositions();
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
 
 protected:

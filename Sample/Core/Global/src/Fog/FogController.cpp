@@ -1,5 +1,8 @@
 #include <Fog/FogController.hpp>
 
+#include "FogController/FogRenderRuntime.hpp"
+#include "FogController/WorldFogRuntime.hpp"
+
 #include <Camera.hpp>
 #include <Manager/AssetPath.hpp>
 #include <Manager/ShaderManager.hpp>
@@ -7,16 +10,13 @@
 #include <Runtime/EngineState.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <System.hpp>
-#include <Utils/Inner.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <exception>
 #include <iostream>
 #include <stdexcept>
-#include <unordered_map>
 #include <utility>
 
 namespace {
@@ -40,23 +40,27 @@ float optionalFloat(const RuntimeValue::Map& mapData, const std::string& name) {
                : requireFloat(*value, "mapData." + name);
 }
 
-struct WorldFogLayer {
-    std::string graphic;
-    float power = 0.0f;
-    sf::Vector2f scroll;
-    float distort = 0.0f;
-    sf::IntRect cellRect;
-    std::shared_ptr<sf::Texture> texture;
-    std::optional<sf::Sprite> sprite;
-};
+using ludork::global::fog_controller_impl::WorldFogLayer;
 
-struct WorldFogState {
-    std::optional<WorldFogLayer> base;
-    std::unordered_map<std::string, WorldFogLayer> regions;
-    float time = 0.0f;
-};
-
-std::optional<WorldFogState> worldFogState;
+auto& worldFogState =
+    ludork::global::fog_controller_impl::worldFogRuntime().state;
+auto& graphic_ =
+    ludork::global::fog_controller_impl::fogRenderRuntime().graphic;
+auto& power_ = ludork::global::fog_controller_impl::fogRenderRuntime().power;
+auto& scroll_ = ludork::global::fog_controller_impl::fogRenderRuntime().scroll;
+auto& distort_ =
+    ludork::global::fog_controller_impl::fogRenderRuntime().distort;
+auto& offset_ = ludork::global::fog_controller_impl::fogRenderRuntime().offset;
+auto& time_ = ludork::global::fog_controller_impl::fogRenderRuntime().time;
+auto& active_ = ludork::global::fog_controller_impl::fogRenderRuntime().active;
+auto& fogTexture_ =
+    ludork::global::fog_controller_impl::fogRenderRuntime().fogTexture;
+auto& fogShader_ =
+    ludork::global::fog_controller_impl::fogRenderRuntime().fogShader;
+auto& fogBuffer_ =
+    ludork::global::fog_controller_impl::fogRenderRuntime().fogBuffer;
+auto& bufferSprite_ =
+    ludork::global::fog_controller_impl::fogRenderRuntime().bufferSprite;
 
 std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
                                                const sf::Vector2f& scroll,
@@ -85,7 +89,6 @@ std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
             return std::nullopt;
         }
         layer.texture->setRepeated(true);
-        layer.sprite.emplace(*layer.texture);
     } catch (const std::exception& error) {
         std::cerr << "Failed to load fog texture '" << graphic
                   << "': " << error.what() << '\n';
@@ -132,20 +135,6 @@ std::optional<sf::FloatRect> worldFogRect(const WorldFogLayer& layer,
 
 }  // namespace
 
-std::string FogController::graphic_;
-float FogController::power_ = 0.0f;
-sf::Vector2f FogController::scroll_;
-float FogController::distort_ = 0.0f;
-sf::Vector2f FogController::offset_;
-float FogController::time_ = 0.0f;
-bool FogController::active_ = false;
-std::shared_ptr<sf::Texture> FogController::fogTexture_;
-std::optional<sf::Sprite> FogController::fogSprite_;
-std::shared_ptr<sf::Shader> FogController::fogShader_;
-bool FogController::shaderFailed_ = false;
-std::unique_ptr<sf::RenderTexture> FogController::fogBuffer_;
-std::optional<sf::Sprite> FogController::bufferSprite_;
-
 void FogController::applyFromMapData(const RuntimeValue::Map& mapData) {
     clearFog();
     const RuntimeValue* fogValue = findValue(mapData, "fog");
@@ -174,9 +163,6 @@ void FogController::applyFromMapData(const RuntimeValue::Map& mapData) {
     }
     active_ = true;
     ensureShader();
-    if (fogShader_ == nullptr) {
-        ensureFallbackSprite();
-    }
 }
 
 void FogController::applyWorldFromMapData(const RuntimeValue::Map& mapData) {
@@ -221,7 +207,6 @@ void FogController::clearFog() {
     offset_ = {};
     time_ = 0.0f;
     fogTexture_.reset();
-    fogSprite_.reset();
 }
 
 void FogController::shutdown() noexcept {
@@ -229,7 +214,6 @@ void FogController::shutdown() noexcept {
     bufferSprite_.reset();
     fogBuffer_.reset();
     fogShader_.reset();
-    shaderFailed_ = false;
 }
 
 void FogController::update(float deltaTime) {
@@ -242,10 +226,6 @@ void FogController::update(float deltaTime) {
     }
     time_ += deltaTime;
     offset_ += scroll_ * deltaTime;
-    if (fogShader_ == nullptr && fogSprite_.has_value() &&
-        fogTexture_ != nullptr) {
-        updateFallbackSprite();
-    }
 }
 
 void FogController::drawOverlay() {
@@ -259,11 +239,7 @@ void FogController::drawOverlay() {
     if (canvas == nullptr) {
         return;
     }
-    if (fogShader_ == nullptr) {
-        drawFallbackOverlay(*canvas);
-    } else {
-        drawShaderOverlay(*canvas);
-    }
+    drawShaderOverlay(*canvas);
 }
 
 void FogController::drawWorldOverlay(Camera& camera) {
@@ -308,27 +284,6 @@ void FogController::drawWorldOverlay(Camera& camera) {
             return;
         }
         target->display();
-        if (fogShader_ == nullptr) {
-            if (!layer.sprite.has_value()) {
-                layer.sprite.emplace(*layer.texture);
-            }
-            const sf::FloatRect worldRect = *layerRect;
-            layer.sprite->setPosition(worldRect.position);
-            const sf::Vector2f offset = layer.scroll * worldTime;
-            const sf::Vector2f samplePosition = worldRect.position + offset;
-            layer.sprite->setTextureRect(
-                sf::IntRect(sf::Vector2i(static_cast<int>(samplePosition.x),
-                                         static_cast<int>(samplePosition.y)),
-                            sf::Vector2i(static_cast<int>(worldRect.size.x),
-                                         static_cast<int>(worldRect.size.y))));
-            layer.sprite->setColor(sf::Color(
-                255, 255, 255,
-                static_cast<std::uint8_t>(std::clamp(
-                    std::floor(255.0f * layer.power / 100.0f), 0.0f, 255.0f))));
-            target->draw(*layer.sprite, canvasRenderStates());
-            target->display();
-            return;
-        }
         const sf::Vector2u size = target->getSize();
         sf::RenderTexture& buffer = ensureBuffer(size);
         sf::Sprite& sprite = ensureBufferSprite();
@@ -401,67 +356,14 @@ bool FogController::loadFogTexture() {
 }
 
 void FogController::ensureShader() {
-    if (fogShader_ != nullptr || shaderFailed_) {
+    if (fogShader_ != nullptr) {
         return;
     }
-    try {
-        fogShader_ = ShaderManager::load("Global/Fog.frag");
-    } catch (const std::exception&) {
-        fogShader_.reset();
-        shaderFailed_ = true;
-        warnOnce("FogController.shader",
-                 "Fog shader failed to load; falling back to sprite fog");
-    }
-}
-
-void FogController::ensureFallbackSprite() {
-    if (fogTexture_ == nullptr) {
-        return;
-    }
-    const sf::Vector2u gameSize = System::getGameSize();
-    if (!fogSprite_.has_value()) {
-        fogSprite_.emplace(*fogTexture_);
-    } else {
-        fogSprite_->setTexture(*fogTexture_, true);
-    }
-    fogSprite_->setTextureRect(sf::IntRect(
-        {0, 0}, {static_cast<int>(gameSize.x), static_cast<int>(gameSize.y)}));
-    updateFallbackSprite();
-}
-
-void FogController::updateFallbackSprite() {
-    if (!fogSprite_.has_value() || fogTexture_ == nullptr) {
-        return;
-    }
-    const sf::Vector2u textureSize = fogTexture_->getSize();
-    const float width = static_cast<float>(std::max(1u, textureSize.x));
-    const float height = static_cast<float>(std::max(1u, textureSize.y));
-    float offsetX = std::fmod(offset_.x, width);
-    float offsetY = std::fmod(offset_.y, height);
-    if (offsetX < 0.0f) {
-        offsetX += width;
-    }
-    if (offsetY < 0.0f) {
-        offsetY += height;
-    }
-    fogSprite_->setPosition({-offsetX, -offsetY});
-    const std::uint8_t alpha = static_cast<std::uint8_t>(
-        std::clamp(std::floor(255.0f * power_ / 100.0f), 0.0f, 255.0f));
-    fogSprite_->setColor({255, 255, 255, alpha});
-}
-
-void FogController::drawFallbackOverlay(sf::RenderTexture& canvas) {
-    if (!fogSprite_.has_value()) {
-        ensureFallbackSprite();
-    }
-    if (fogSprite_.has_value()) {
-        canvas.draw(*fogSprite_, canvasRenderStates());
-    }
+    fogShader_ = ShaderManager::load("Global/Fog.frag");
 }
 
 void FogController::drawShaderOverlay(sf::RenderTexture& canvas) {
-    if (fogShader_ == nullptr || fogTexture_ == nullptr) {
-        drawFallbackOverlay(canvas);
+    if (fogTexture_ == nullptr) {
         return;
     }
     const sf::Vector2u size = canvas.getSize();

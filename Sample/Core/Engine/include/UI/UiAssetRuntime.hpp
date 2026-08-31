@@ -12,11 +12,15 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-struct UiAssetInstanceState;
+namespace ludork::engine::ui_asset_runtime_impl {
+struct AssetState;
+}
+
+using UiAssetInstanceState = ludork::engine::ui_asset_runtime_impl::AssetState;
 class UiAssetRuntime;
-class UiLayoutEngine;
 
 struct LUDORK_ENGINE_API UiAssetNodeView {
     std::string nodeName;
@@ -30,7 +34,6 @@ struct LUDORK_ENGINE_API UiAssetNodeView {
 BIND_CLASS(name = "AssetInstance")
 class LUDORK_ENGINE_API UiAssetInstance {
 public:
-    BIND_IGNORE()
     explicit UiAssetInstance(std::shared_ptr<UiAssetInstanceState> state);
 
     virtual ~UiAssetInstance();
@@ -59,14 +62,13 @@ public:
     BIND_METHOD(defaults = {nil})
     void reflow(std::optional<sf::Vector2u> logicalSize = std::nullopt);
 
-    BIND_IGNORE()
     std::vector<UiAssetNodeView> getNodeViews() const;
 
 private:
     friend class UiAssetRuntime;
-    friend class UiLayoutEngine;
-
     std::shared_ptr<UiAssetInstanceState> state_;
+    std::unordered_map<std::string, std::shared_ptr<UiAssetInstance>>
+        nestedAssets_;
 };
 
 class LUDORK_ENGINE_API UiAssetRuntime {

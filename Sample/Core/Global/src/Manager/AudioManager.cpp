@@ -1,5 +1,11 @@
 #include <Manager/AudioManager.hpp>
 
+#include "AudioManager/AudioRuntime.hpp"
+#include "AudioManager/EffectAttachmentRuntime.hpp"
+#include "AudioManager/ResourceRuntime.hpp"
+#include "AudioManager/ShutdownBarrier.hpp"
+#include "AudioManager/SpatialRuntime.hpp"
+
 #include <Filters/SoundFilter.hpp>
 #include <Manager/TimeManager.hpp>
 #include <SystemConfigBase.hpp>
@@ -8,12 +14,8 @@
 
 #include <Utf8Path.hpp>
 
-#include <SFML/Audio/AudioResource.hpp>
-#include <SFML/Audio/PlaybackDevice.hpp>
-
 #include <algorithm>
 #include <cctype>
-#include <condition_variable>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -24,18 +26,49 @@
 #include <vector>
 
 namespace {
-constexpr float SpatialMinDistance = 64.0f;
-
 using ludork::global::audio::AudioEffectAttacher;
 using ludork::global::audio::ManagedMusic;
 using ludork::global::audio::ManagedSound;
+using ludork::global::audio_manager_impl::AudioDeviceLease;
+using AudioCreationScope = ludork::global::audio_manager_impl::CreationScope;
+using ludork::global::audio_manager_impl::applyAudioFilter;
+using ludork::global::audio_manager_impl::applyMusicSettings;
+using ludork::global::audio_manager_impl::applySoundSettings;
+using ludork::global::audio_manager_impl::attachEffect;
+using ludork::global::audio_manager_impl::isSpatial;
+using ludork::global::audio_manager_impl::MusicRecord;
+using ludork::global::audio_manager_impl::positionOf;
+using ludork::global::audio_manager_impl::SoundRecord;
+using ludork::global::audio_manager_impl::VoiceRecord;
 
-class AudioDeviceLease final : private sf::AudioResource {
-public:
-    AudioDeviceLease() = default;
-};
-
-std::unique_ptr<AudioDeviceLease> audioDeviceLease;
+auto& audioDeviceLease =
+    ludork::global::audio_manager_impl::audioRuntime().deviceLease;
+auto& soundBuffers =
+    ludork::global::audio_manager_impl::audioRuntime().soundBuffers;
+auto& soundBufferCounts =
+    ludork::global::audio_manager_impl::audioRuntime().soundBufferCounts;
+auto& sounds = ludork::global::audio_manager_impl::audioRuntime().sounds;
+auto& voice = ludork::global::audio_manager_impl::audioRuntime().voice;
+auto& musics = ludork::global::audio_manager_impl::audioRuntime().musics;
+auto& soundEffect =
+    ludork::global::audio_manager_impl::audioRuntime().soundEffect;
+auto& voiceEffect =
+    ludork::global::audio_manager_impl::audioRuntime().voiceEffect;
+auto& musicEffect =
+    ludork::global::audio_manager_impl::audioRuntime().musicEffect;
+auto& soundGeneration =
+    ludork::global::audio_manager_impl::audioRuntime().soundGeneration;
+auto& voiceGeneration =
+    ludork::global::audio_manager_impl::audioRuntime().voiceGeneration;
+auto& musicGenerations =
+    ludork::global::audio_manager_impl::audioRuntime().musicGenerations;
+auto& shuttingDown =
+    ludork::global::audio_manager_impl::audioRuntime().shuttingDown;
+auto& audioMutex = ludork::global::audio_manager_impl::audioRuntime().mutex;
+auto& audioCreationCondition =
+    ludork::global::audio_manager_impl::audioRuntime().creationCondition;
+auto& audioCreationsInFlight =
+    ludork::global::audio_manager_impl::audioRuntime().creationsInFlight;
 
 void requireLogicThreadAudioLifecycle() {
     if (ludork::global::audio::isManagedAudioCallbackThread()) {
@@ -44,111 +77,11 @@ void requireLogicThreadAudioLifecycle() {
     }
 }
 
-struct SoundRecord {
-    std::shared_ptr<ManagedSound> sound;
-    std::string filePath;
-    std::shared_ptr<sf::Transformable> parent;
-    float baseVolume = 100.0f;
-    float basePitch = 1.0f;
-    std::shared_ptr<AudioEffectControl> effectControl;
-};
-
-struct VoiceRecord {
-    std::shared_ptr<ManagedSound> sound;
-    std::string filePath;
-    std::shared_ptr<sf::Transformable> refActor;
-    float baseVolume = 100.0f;
-    std::shared_ptr<AudioEffectControl> effectControl;
-};
-
-struct MusicRecord {
-    std::shared_ptr<ManagedMusic> music;
-    std::string filePath;
-    float baseVolume = 100.0f;
-    std::shared_ptr<AudioEffectControl> effectControl;
-};
-
 enum class SoundCategory {
     Unmanaged,
     Sound,
     Voice
 };
-
-std::unordered_map<std::string, std::shared_ptr<sf::SoundBuffer>> soundBuffers;
-std::unordered_map<std::string, std::size_t> soundBufferCounts;
-std::vector<SoundRecord> sounds;
-VoiceRecord voice;
-std::unordered_map<std::string, MusicRecord> musics;
-AudioEffectAttacher soundEffect;
-AudioEffectAttacher voiceEffect;
-AudioEffectAttacher musicEffect;
-std::uint64_t soundGeneration = 0;
-std::uint64_t voiceGeneration = 0;
-std::unordered_map<std::string, std::uint64_t> musicGenerations;
-bool shuttingDown = false;
-std::recursive_mutex audioMutex;
-std::condition_variable_any audioCreationCondition;
-std::size_t audioCreationsInFlight = 0;
-
-class AudioCreationScope {
-public:
-    AudioCreationScope() = default;
-    AudioCreationScope(const AudioCreationScope&) = delete;
-    AudioCreationScope& operator=(const AudioCreationScope&) = delete;
-
-    ~AudioCreationScope() {
-        if (!active_) {
-            return;
-        }
-        {
-            const std::lock_guard<std::recursive_mutex> lock(audioMutex);
-            --audioCreationsInFlight;
-        }
-        audioCreationCondition.notify_all();
-    }
-
-    void activate() noexcept {
-        ++audioCreationsInFlight;
-        active_ = true;
-    }
-
-private:
-    bool active_ = false;
-};
-
-sf::Vector3f positionOf(
-    const std::shared_ptr<sf::Transformable>& transformable) {
-    if (transformable == nullptr) {
-        return {};
-    }
-    const sf::Vector2f position = transformable->getPosition();
-    return {position.x, position.y, 0.0f};
-}
-
-void retainBuffer(const std::string& filePath,
-                  const std::shared_ptr<sf::SoundBuffer>& buffer) {
-    soundBuffers[filePath] = buffer;
-    ++soundBufferCounts[filePath];
-}
-
-std::shared_ptr<sf::SoundBuffer> releaseBuffer(const std::string& filePath) {
-    const auto iterator = soundBufferCounts.find(filePath);
-    if (iterator == soundBufferCounts.end()) {
-        return nullptr;
-    }
-    if (iterator->second > 1) {
-        --iterator->second;
-        return nullptr;
-    }
-    soundBufferCounts.erase(iterator);
-    const auto bufferIterator = soundBuffers.find(filePath);
-    if (bufferIterator == soundBuffers.end()) {
-        return nullptr;
-    }
-    std::shared_ptr<sf::SoundBuffer> buffer = std::move(bufferIterator->second);
-    soundBuffers.erase(bufferIterator);
-    return buffer;
-}
 
 std::string caseAlias(const std::string& value) {
     std::string upper = value;
@@ -186,109 +119,9 @@ MusicRecord* findMusicRecord(const sf::Music* music) {
 }
 
 template <typename Source>
-std::shared_ptr<AudioEffectControl> attachEffect(
-    Source& source, const AudioEffectAttacher& effect) {
-    if (!effect) {
-        return nullptr;
-    }
-    const std::optional<std::uint32_t> sampleRate =
-        sf::PlaybackDevice::getDeviceSampleRate();
-    if (!sampleRate.has_value() || *sampleRate == 0) {
-        throw std::runtime_error(
-            "Audio playback device sample rate is unavailable");
-    }
-    auto control = std::make_shared<AudioEffectControl>();
-    source.beginEffectAttachment(control);
-    try {
-        effect(source, control, *sampleRate);
-        source.finishEffectAttachment();
-    } catch (...) {
-        source.abortEffectAttachment();
-        throw;
-    }
-    return control;
-}
-
-template <typename Source>
 bool isFinished(const Source& source) noexcept {
     return source.getStatus() == sf::SoundSource::Status::Stopped &&
            source.isNaturalInputDrained();
-}
-
-void applyAudioFilter(sf::SoundSource& source, const SoundFilter& filter) {
-    if (filter.pan.has_value()) {
-        source.setPan(*filter.pan);
-    }
-    if (filter.spatial.has_value()) {
-        source.setSpatializationEnabled(*filter.spatial);
-    }
-    if (filter.position.has_value()) {
-        source.setPosition(*filter.position);
-    }
-    if (filter.direction.has_value()) {
-        source.setDirection(*filter.direction);
-    }
-    if (filter.cone.has_value()) {
-        source.setCone(*filter.cone);
-    }
-    if (filter.velocity.has_value()) {
-        source.setVelocity(*filter.velocity);
-    }
-    if (filter.dopplerFactor.has_value()) {
-        source.setDopplerFactor(*filter.dopplerFactor);
-    }
-    if (filter.directionalAttenuationFactor.has_value()) {
-        source.setDirectionalAttenuationFactor(
-            *filter.directionalAttenuationFactor);
-    }
-    if (filter.relativeToListener.has_value()) {
-        source.setRelativeToListener(*filter.relativeToListener);
-    }
-    if (filter.minDistance.has_value()) {
-        source.setMinDistance(*filter.minDistance);
-    } else if (filter.spatial.value_or(false)) {
-        source.setMinDistance(SpatialMinDistance);
-    }
-    if (filter.maxDistance.has_value()) {
-        source.setMaxDistance(*filter.maxDistance);
-    }
-    if (filter.minGain.has_value()) {
-        source.setMinGain(*filter.minGain);
-    }
-    if (filter.maxGain.has_value()) {
-        source.setMaxGain(*filter.maxGain);
-    }
-    if (filter.attenuation.has_value()) {
-        source.setAttenuation(*filter.attenuation);
-    }
-}
-
-void applySoundSettings(sf::Sound& sound, const SoundFilter& filter) {
-    if (filter.loop.has_value()) {
-        sound.setLooping(*filter.loop);
-    }
-    if (filter.offset.has_value()) {
-        sound.setPlayingOffset(*filter.offset);
-    }
-    applyAudioFilter(sound, filter);
-}
-
-void applyMusicSettings(sf::Music& music, const MusicFilter& filter) {
-    if (filter.loop.has_value()) {
-        music.setLooping(*filter.loop);
-    }
-    if (filter.offset.has_value()) {
-        music.setPlayingOffset(*filter.offset);
-    }
-    if (filter.loopPoint.has_value()) {
-        music.setLoopPoints(*filter.loopPoint);
-    }
-    applyAudioFilter(music, filter);
-    music.setSpatializationEnabled(false);
-}
-
-bool isSpatial(const SoundFilter* filter) {
-    return filter != nullptr && filter->spatial.value_or(false);
 }
 
 void stopSoundRecords(std::vector<SoundRecord>& records) {
@@ -307,7 +140,10 @@ void stopSoundRecords(std::vector<SoundRecord>& records) {
     {
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
         for (const std::string& filePath : filePaths) {
-            std::shared_ptr<sf::SoundBuffer> buffer = releaseBuffer(filePath);
+            std::shared_ptr<sf::SoundBuffer> buffer =
+                ludork::global::audio_manager_impl::releaseBuffer(
+                    ludork::global::audio_manager_impl::audioRuntime(),
+                    filePath);
             if (buffer != nullptr) {
                 releasedBuffers.push_back(std::move(buffer));
             }
@@ -325,7 +161,8 @@ void stopVoiceRecord(VoiceRecord& record) {
     std::shared_ptr<sf::SoundBuffer> releasedBuffer;
     {
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
-        releasedBuffer = releaseBuffer(filePath);
+        releasedBuffer = ludork::global::audio_manager_impl::releaseBuffer(
+            ludork::global::audio_manager_impl::audioRuntime(), filePath);
     }
 }
 
@@ -361,7 +198,8 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     if (!SystemConfigBase::getSoundOn()) {
         return nullptr;
     }
-    AudioCreationScope creation;
+    AudioCreationScope creation(
+        ludork::global::audio_manager_impl::audioRuntime());
     AudioEffectAttacher effect;
     std::uint64_t generation = 0;
     {
@@ -400,7 +238,9 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     {
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
         if (!shuttingDown && generation == soundGeneration) {
-            retainBuffer(filePath, buffer);
+            ludork::global::audio_manager_impl::retainBuffer(
+                ludork::global::audio_manager_impl::audioRuntime(), filePath,
+                buffer);
             sounds.push_back({managedSound, filePath, parent, baseVolume,
                               basePitch, std::move(effectControl)});
             accepted = true;
@@ -439,7 +279,8 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     if (!SystemConfigBase::getVoiceOn()) {
         return nullptr;
     }
-    AudioCreationScope creation;
+    AudioCreationScope creation(
+        ludork::global::audio_manager_impl::audioRuntime());
     AudioEffectAttacher effect;
     std::uint64_t generation = 0;
     {
@@ -481,7 +322,9 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
         if (!shuttingDown && generation == voiceGeneration &&
             voice.sound == nullptr) {
-            retainBuffer(filePath, buffer);
+            ludork::global::audio_manager_impl::retainBuffer(
+                ludork::global::audio_manager_impl::audioRuntime(), filePath,
+                buffer);
             voice = {activeVoice, filePath, refActor, baseVolume,
                      std::move(effectControl)};
             accepted = true;
@@ -521,7 +364,8 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
     if (alias != musicType) {
         stopMusic(alias);
     }
-    AudioCreationScope creation;
+    AudioCreationScope creation(
+        ludork::global::audio_manager_impl::audioRuntime());
     AudioEffectAttacher effect;
     std::uint64_t generation = 0;
     {

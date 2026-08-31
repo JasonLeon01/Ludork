@@ -15,6 +15,11 @@
 #include <utility>
 #include <vector>
 
+namespace ludork::engine::graph_detail {
+struct ExecutionState;
+struct LoopResult;
+}  // namespace ludork::engine::graph_detail
+
 BIND_CLASS(copyable = true, table_init = true, metadata = false)
 struct GraphLink {
     BIND_PROPERTY(metadata = false)
@@ -33,7 +38,7 @@ struct GraphLink {
     std::string linkType;
 };
 
-BIND_CLASS(bind_bases = false, cast_bases = "RuntimeObject", metadata = false)
+BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class Graph : public RuntimeObject {
 public:
     using DataNodeMap =
@@ -60,7 +65,9 @@ public:
           RuntimeValue nodeModel = {}, RuntimeValue startNodeValues = {},
           EventParams eventParams = {});
 
-    ~Graph() override = default;
+    Graph(const Graph& other);
+    Graph& operator=(const Graph& other);
+    ~Graph() override;
 
     BIND_METHOD()
     void genNodesFromDataNodes();
@@ -163,26 +170,6 @@ public:
 private:
     struct InstanceTag {};
 
-    struct LoopFrame {
-        std::string key;
-        int loopNodeIndex = 0;
-        std::vector<NodeResult> remainingResults;
-        std::size_t nextResult = 0;
-        int bodyStart = 0;
-        std::vector<NodeIndex> bodyCacheKeys;
-        NodeCache baseCache;
-        NodeResult lastResult;
-        std::size_t loopSteps = 0;
-        std::optional<int> completedNext;
-        std::size_t limit = 1000000;
-    };
-
-    struct LoopResult {
-        std::optional<int> next;
-        NodeResult result;
-        std::size_t steps = 0;
-    };
-
     void ensureInitialised();
     void ensureEventInitialised(const std::string& key);
     void initializeContext(RuntimeValue parentValue);
@@ -196,9 +183,9 @@ private:
     const EventParams& eventParams() const;
     const RelyMap& nodeRely() const;
     const NextMap& nodeNexts() const;
-    LoopResult executeLoopNode(const std::string& key, int nodeIndex,
-                               const NodeResult& controlResult,
-                               NodeCache& cache, std::size_t limit);
+    ludork::engine::graph_detail::LoopResult executeLoopNode(
+        const std::string& key, int nodeIndex, const NodeResult& controlResult,
+        NodeCache& cache, std::size_t limit);
     std::optional<int> getNamedExecPinIndex(const NodeMemberMetadata& metadata,
                                             const std::string& pinName) const;
     NodeResult getLoopEmptyResult(const NodeMemberMetadata& metadata) const;
@@ -224,13 +211,8 @@ private:
     RuntimeValue graphContext_;
     RelyMap nodeRely_;
     NextMap nodeNexts_;
-    std::unordered_map<std::string, bool> executionLocked_;
-    std::unordered_map<std::string, std::size_t> latentPendingCount_;
-    std::unordered_map<std::string, std::vector<std::function<void()>>>
-        executionCompleteCallbacks_;
-    std::vector<std::shared_ptr<LoopFrame>> loopFrames_;
-    std::string doingPartKey_;
-    bool suspendedByLatent_ = false;
+    std::unique_ptr<ludork::engine::graph_detail::ExecutionState>
+        executionState_;
     bool initialised_ = false;
     bool initialising_ = false;
     std::unordered_set<std::string> initialisedEvents_;

@@ -12,6 +12,9 @@ sol::object ensureDefaultNativeObject(sol::state_view lua,
                                       const sol::object& instance,
                                       const sol::table& nativeType);
 int classInstanceGc(lua_State* state);
+sol::object instanceDisposeMethod(sol::state_view lua,
+                                  const sol::table& classTable,
+                                  const sol::object& key);
 bool disposeInstanceCore(sol::state_view lua, const sol::object& instance,
                          bool invokeDispose);
 sol::object allocateInstance(

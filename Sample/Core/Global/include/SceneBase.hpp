@@ -6,10 +6,9 @@
 #include <Manager/TimeManager.hpp>
 #include <Particles/ParticleSystem.hpp>
 #include <Runtime/RuntimeValue.hpp>
-#include <System.hpp>
+#include <System/SceneRuntime.hpp>
 #include <UIManager.hpp>
 
-#include <atomic>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -18,7 +17,11 @@
 #include <thread>
 #include <vector>
 
-BIND_CLASS(bind_bases = false, cast_bases = "SceneRuntime", callbacks = true)
+namespace ludork::global::scene_base_impl {
+class LifecycleRuntime;
+}
+
+BIND_CLASS(bind_bases = false, cast_bases = {"SceneRuntime"}, callbacks = true)
 class SceneBase : public SceneRuntime {
 public:
     BIND_INIT()
@@ -123,9 +126,6 @@ private:
     int maxFixedSteps_ = 5;
     mutable std::recursive_mutex logicDataMutex_;
     std::vector<std::shared_ptr<TimerEntry>> timerEntries_;
-    bool created_ = false;
-    bool entered_ = false;
-    bool destroyed_ = false;
     std::vector<std::shared_ptr<Animation>> animations_;
     std::shared_ptr<UIManager> uiManager_;
     std::shared_ptr<ParticleSystem> commonTipParticleSystem_;
@@ -134,6 +134,6 @@ private:
     std::thread logicThread_;
     std::mutex logicFailureMutex_;
     std::exception_ptr logicFailure_;
-    std::atomic_bool runtimeStopping_ = false;
-    std::atomic_bool mainRunning_ = false;
+    std::unique_ptr<ludork::global::scene_base_impl::LifecycleRuntime>
+        lifecycle_;
 };

@@ -25,7 +25,6 @@ public:
     BIND_METHOD()
     void onTick(float deltaTime);
 
-    BIND_IGNORE()
     static void shutdown() noexcept;
 
 private:

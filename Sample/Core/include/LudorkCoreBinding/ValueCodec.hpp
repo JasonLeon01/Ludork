@@ -1,5 +1,6 @@
 #pragma once
 
+#include <LudorkCoreBinding/ValueTraits.hpp>
 #include <utils.hpp>
 
 #include <array>
@@ -20,31 +21,9 @@
 
 namespace ludork_core {
 
-template <typename T, typename = void>
-struct DynamicValueTraits {
-    static constexpr bool enabled = false;
-};
-
-template <typename T>
-struct DynamicValueTraits<T,
-                          std::void_t<typename T::LuaBindingDynamicValueTag>> {
-    static constexpr bool enabled = true;
-};
-
 template <typename T>
 struct TableValueTraits {
     static constexpr bool enabled = false;
-};
-
-template <typename T, typename = void>
-struct OpaqueIdentityTraits {
-    static constexpr bool enabled = false;
-};
-
-template <typename T>
-struct OpaqueIdentityTraits<
-    T, std::void_t<typename T::LuaBindingOpaqueIdentityTag>> {
-    static constexpr bool enabled = true;
 };
 
 template <typename T>
@@ -458,6 +437,8 @@ bool canReadLuaValue(const sol::object& value) {
         return value.valid();
     } else if constexpr (std::is_same_v<Value, sol::table>) {
         return value.is<sol::table>();
+    } else if constexpr (std::is_enum_v<Value>) {
+        return canReadLuaValue<std::underlying_type_t<Value>>(value);
     } else if constexpr (lua_sf::is_lua_integral_v<Value>) {
         return value.is<lua_sf::LuaIntegral<Value>>();
     } else {
@@ -621,6 +602,9 @@ T readLuaValue(const sol::object& value) {
         return readVariant<Value, std::variant_size_v<Value>>(value);
     } else if constexpr (std::is_same_v<Value, sol::object>) {
         return value;
+    } else if constexpr (std::is_enum_v<Value>) {
+        return static_cast<Value>(
+            readLuaValue<std::underlying_type_t<Value>>(value));
     } else {
         if (!canReadLuaValue<Value>(value)) {
             throw std::invalid_argument(
@@ -755,6 +739,9 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
             value);
     } else if constexpr (std::is_same_v<Value, sol::object>) {
         return value;
+    } else if constexpr (std::is_enum_v<Value>) {
+        return writeLuaValue(lua,
+                             static_cast<std::underlying_type_t<Value>>(value));
     } else if constexpr (IsSharedPointer<Value>::value) {
         if (!value) {
             return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);

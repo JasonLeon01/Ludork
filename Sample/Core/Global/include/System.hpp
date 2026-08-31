@@ -5,6 +5,7 @@
 #include <Runtime/RuntimeValue.hpp>
 #include <System/GraphicsTypes.hpp>
 #include <System/SceneRuntime.hpp>
+#include <Weather/WeatherController.hpp>
 
 #include <functional>
 #include <cstdint>
@@ -254,34 +255,26 @@ public:
     BIND_METHOD(Pure = true)
     static bool isDebugMode();
 
-    BIND_IGNORE()
     static void setDebugMode(bool debugMode);
 
     BIND_METHOD(Pure = true)
     static sf::Vector2u getGameSize();
 
-    BIND_IGNORE()
     static void setGameSize(const sf::Vector2u& gameSize);
 
-    BIND_IGNORE()
     static bool isActive();
 
-    BIND_IGNORE()
     static bool shouldLoop();
 
-    BIND_IGNORE()
     static void initWindow(const std::shared_ptr<sf::RenderWindow>& window);
 
-    BIND_IGNORE()
     static std::shared_ptr<sf::RenderWindow> getWindow();
 
     BIND_METHOD()
     static void setInputMethodDisabled(bool disabled);
 
-    BIND_IGNORE()
     static void initCanvas(const sf::Vector2u& size);
 
-    BIND_IGNORE()
     static void clearCanvas();
 
     BIND_METHOD()
@@ -294,16 +287,13 @@ public:
     static sf::RenderTexture* getCanvas();
 
     BIND_METHOD()
-    static void setWeather(const RuntimeValue& weatherType, float power,
-                           int maxCount);
+    static void setWeather(WeatherType weatherType, float power, int maxCount);
 
     BIND_METHOD()
     static void clearWeather();
 
-    BIND_IGNORE()
     static void updateWeather(float deltaTime);
 
-    BIND_IGNORE()
     static void updateFog(float deltaTime);
 
     BIND_METHOD()
@@ -325,16 +315,12 @@ public:
     static void draw(const sf::Drawable& drawable,
                      sf::Shader* shader = nullptr);
 
-    BIND_IGNORE()
     static void applyScreenTonePass();
 
-    BIND_IGNORE()
     static void composeFrame(float deltaTime);
 
-    BIND_IGNORE()
     static void present();
 
-    BIND_IGNORE()
     static void completeFrame();
 
     BIND_METHOD(defaults = {nil})
@@ -419,13 +405,10 @@ public:
     BIND_METHOD(Pure = true)
     static bool isInTransition();
 
-    BIND_IGNORE()
     static void applyPendingTransition();
 
-    BIND_IGNORE()
     static void bindSceneOperationThread();
 
-    BIND_IGNORE()
     static void applyPendingSceneReplace();
 
     BIND_METHOD(Pure = true)
@@ -455,13 +438,10 @@ public:
     BIND_INJECT(global = "_LUDORK_STANDARD_UPDATE")
     static void setStandardUpdate(std::function<void()> update);
 
-    BIND_IGNORE()
     static void updateRuntime();
 
-    BIND_IGNORE()
     static void initializeRuntimeSession() noexcept;
 
-    BIND_IGNORE()
     static void shutdownRuntime() noexcept;
 
 private:

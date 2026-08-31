@@ -1,20 +1,31 @@
 #include "GameMapBase.hpp"
 #include "GameMapBase/ActorRegistry.hpp"
+#include "GameMapBase/LightOcclusionRuntime.hpp"
+#include "GameMapBase/OccupancyRuntime.hpp"
+#include "GameMapBase/PathfindingRuntime.hpp"
+#include "GameMapBase/SparseWorldRuntime.hpp"
 
 #include <Gameplay/Actor.hpp>
 #include <Gameplay/TileMap.hpp>
 #include <Runtime/EngineState.hpp>
 
+#include <SFML/Graphics/Image.hpp>
+
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <optional>
 #include <queue>
 #include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
+#include <vector>
 
 static float materialValueToFloat(const MaterialValue& value) {
     return std::visit(
@@ -28,6 +39,11 @@ static float materialValueToFloat(const MaterialValue& value) {
         },
         value);
 }
+
+using ludork::global::game_map_impl::CellBounds;
+using ludork::global::game_map_impl::cellBounds;
+using ludork::global::game_map_impl::intersection;
+using ludork::global::game_map_impl::isEmpty;
 
 GameMapBase::GameMapBase()
     : actorRegistry_(std::make_unique<GameMapActorRegistry>()) {}
@@ -90,16 +106,6 @@ std::vector<std::vector<MaterialValue>> GameMapBase::getMaterialPropertyMapExt(
     }
     return materialPropertyMap;
 }
-
-#include "GameMapBase.hpp"
-#include "GameMapBase/ActorRegistry.hpp"
-
-#include <Gameplay/Actor.hpp>
-
-#include <algorithm>
-#include <stdexcept>
-#include <unordered_set>
-#include <utility>
 
 namespace {
 
@@ -545,126 +551,6 @@ void GameMapBase::setPlayerActor(ActorPtr actor) {
     playerActor_ = std::move(actor);
 }
 
-#include "GameMapBase.hpp"
-
-#include <Runtime/EngineState.hpp>
-
-#include <SFML/Graphics/Image.hpp>
-
-#include <algorithm>
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <limits>
-#include <stdexcept>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-namespace {
-constexpr float kDynamicTransmissionPadding = 2.0f;
-
-struct CellBounds {
-    std::int64_t left = 0;
-    std::int64_t top = 0;
-    std::int64_t right = 0;
-    std::int64_t bottom = 0;
-};
-
-CellBounds cellBounds(const sf::Vector2i& origin, const sf::Vector2u& size) {
-    return {origin.x, origin.y, static_cast<std::int64_t>(origin.x) + size.x,
-            static_cast<std::int64_t>(origin.y) + size.y};
-}
-
-CellBounds cellBounds(const sf::IntRect& rect) {
-    return {rect.position.x, rect.position.y,
-            static_cast<std::int64_t>(rect.position.x) + rect.size.x,
-            static_cast<std::int64_t>(rect.position.y) + rect.size.y};
-}
-
-CellBounds intersection(const CellBounds& left, const CellBounds& right) {
-    return {std::max(left.left, right.left), std::max(left.top, right.top),
-            std::min(left.right, right.right),
-            std::min(left.bottom, right.bottom)};
-}
-
-bool isEmpty(const CellBounds& bounds) {
-    return bounds.left >= bounds.right || bounds.top >= bounds.bottom;
-}
-
-bool actorIntersectsLight(const sf::FloatRect& bounds, const Light& light) {
-    return bounds.position.x <= light.position.x + light.radius &&
-           bounds.position.x + bounds.size.x >=
-               light.position.x - light.radius &&
-           bounds.position.y <= light.position.y + light.radius &&
-           bounds.position.y + bounds.size.y >= light.position.y - light.radius;
-}
-
-void rebuildDynamicLightOccupancy(LightOcclusionResult& result,
-                                  std::shared_ptr<sf::Texture>& texture,
-                                  float cellSize) {
-    const sf::FloatRect& maskRect = *result.maskRect;
-    const std::int64_t originX = static_cast<std::int64_t>(
-        std::floor(static_cast<double>(maskRect.position.x) / cellSize));
-    const std::int64_t originY = static_cast<std::int64_t>(
-        std::floor(static_cast<double>(maskRect.position.y) / cellSize));
-    const std::int64_t endX = static_cast<std::int64_t>(std::ceil(
-        static_cast<double>(maskRect.position.x + maskRect.size.x) / cellSize));
-    const std::int64_t endY = static_cast<std::int64_t>(std::ceil(
-        static_cast<double>(maskRect.position.y + maskRect.size.y) / cellSize));
-    const sf::Vector2u size(
-        static_cast<unsigned int>(std::max<std::int64_t>(1, endX - originX)),
-        static_cast<unsigned int>(std::max<std::int64_t>(1, endY - originY)));
-    std::vector<std::uint8_t> pixels(
-        static_cast<std::size_t>(size.x) * size.y * 4, 0);
-    for (const std::shared_ptr<Actor>& actor : result.occluders) {
-        const sf::FloatRect bounds = actor->getGlobalBounds();
-        const std::int64_t left = std::max(
-            originX, static_cast<std::int64_t>(std::floor(
-                         static_cast<double>(bounds.position.x) / cellSize)));
-        const std::int64_t top = std::max(
-            originY, static_cast<std::int64_t>(std::floor(
-                         static_cast<double>(bounds.position.y) / cellSize)));
-        const std::int64_t right = std::min(
-            endX, static_cast<std::int64_t>(std::ceil(
-                      static_cast<double>(bounds.position.x + bounds.size.x) /
-                      cellSize)));
-        const std::int64_t bottom = std::min(
-            endY, static_cast<std::int64_t>(std::ceil(
-                      static_cast<double>(bounds.position.y + bounds.size.y) /
-                      cellSize)));
-        for (std::int64_t worldY = top; worldY < bottom; ++worldY) {
-            const std::size_t textureY =
-                size.y - static_cast<std::size_t>(worldY - originY) - 1;
-            for (std::int64_t worldX = left; worldX < right; ++worldX) {
-                const std::size_t textureX =
-                    static_cast<std::size_t>(worldX - originX);
-                const std::size_t pixelIndex =
-                    (textureY * size.x + textureX) * 4;
-                pixels[pixelIndex] = 255;
-                pixels[pixelIndex + 1] = 255;
-                pixels[pixelIndex + 2] = 255;
-                pixels[pixelIndex + 3] = 255;
-            }
-        }
-    }
-    if (!texture) {
-        texture = std::make_shared<sf::Texture>();
-    }
-    if (texture->getSize() != size && !texture->resize(size)) {
-        throw std::runtime_error(
-            "Failed to resize the dynamic light occupancy texture");
-    }
-    texture->update(pixels.data());
-    texture->setSmooth(false);
-    result.dynamicOccupancy = texture;
-    result.dynamicOccupancyOrigin = {static_cast<float>(originX),
-                                     static_cast<float>(originY)};
-    result.dynamicOccupancySize = {static_cast<float>(size.x),
-                                   static_cast<float>(size.y)};
-}
-}  // namespace
-
 void GameMapBase::clearStaticLightOccupancy() {
     staticLightOccupancy_.reset();
     staticLightOccupancyOrigin_ = {};
@@ -820,76 +706,9 @@ std::shared_ptr<sf::Texture> GameMapBase::rebuildStaticLightOccupancy(
 }
 
 bool GameMapBase::hasStaticLightOccupancy(const Light& light) const {
-    if (staticLightOccupancyPrefix_.empty() ||
-        staticLightOccupancySize_.x == 0 || staticLightOccupancySize_.y == 0 ||
-        light.radius <= 0.0f || !std::isfinite(light.position.x) ||
-        !std::isfinite(light.position.y) || !std::isfinite(light.radius)) {
-        return false;
-    }
-    const double cellSize = static_cast<double>(CellSize);
-    const double minimumXValue =
-        std::floor((static_cast<double>(light.position.x) - light.radius) /
-                   cellSize) -
-        1.0;
-    const double minimumYValue =
-        std::floor((static_cast<double>(light.position.y) - light.radius) /
-                   cellSize) -
-        1.0;
-    const double maximumXValue =
-        std::floor((static_cast<double>(light.position.x) + light.radius) /
-                   cellSize) +
-        1.0;
-    const double maximumYValue =
-        std::floor((static_cast<double>(light.position.y) + light.radius) /
-                   cellSize) +
-        1.0;
-    constexpr double MinimumCoordinate = -4611686018427387904.0;
-    constexpr double MaximumCoordinate = 4611686018427387904.0;
-    if (minimumXValue < MinimumCoordinate ||
-        minimumYValue < MinimumCoordinate ||
-        maximumXValue > MaximumCoordinate ||
-        maximumYValue > MaximumCoordinate) {
-        return false;
-    }
-    std::int64_t minimumX = static_cast<std::int64_t>(minimumXValue);
-    std::int64_t minimumY = static_cast<std::int64_t>(minimumYValue);
-    std::int64_t maximumX = static_cast<std::int64_t>(maximumXValue);
-    std::int64_t maximumY = static_cast<std::int64_t>(maximumYValue);
-    const std::int64_t occupancyRight =
-        static_cast<std::int64_t>(staticLightOccupancyOrigin_.x) +
-        staticLightOccupancySize_.x;
-    const std::int64_t occupancyBottom =
-        static_cast<std::int64_t>(staticLightOccupancyOrigin_.y) +
-        staticLightOccupancySize_.y;
-    minimumX = std::max(
-        minimumX, static_cast<std::int64_t>(staticLightOccupancyOrigin_.x));
-    minimumY = std::max(
-        minimumY, static_cast<std::int64_t>(staticLightOccupancyOrigin_.y));
-    maximumX = std::min(maximumX, occupancyRight - 1);
-    maximumY = std::min(maximumY, occupancyBottom - 1);
-    if (minimumX > maximumX || minimumY > maximumY) {
-        return false;
-    }
-
-    const std::size_t firstX =
-        static_cast<std::size_t>(minimumX - staticLightOccupancyOrigin_.x);
-    const std::size_t firstY =
-        static_cast<std::size_t>(minimumY - staticLightOccupancyOrigin_.y);
-    const std::size_t lastX =
-        static_cast<std::size_t>(maximumX - staticLightOccupancyOrigin_.x);
-    const std::size_t lastY =
-        static_cast<std::size_t>(maximumY - staticLightOccupancyOrigin_.y);
-    const std::size_t prefixWidth = staticLightOccupancySize_.x + 1;
-    const std::size_t topLeft = firstY * prefixWidth + firstX;
-    const std::size_t topRight = firstY * prefixWidth + lastX + 1;
-    const std::size_t bottomLeft = (lastY + 1) * prefixWidth + firstX;
-    const std::size_t bottomRight = (lastY + 1) * prefixWidth + lastX + 1;
-    const std::size_t included = staticLightOccupancyPrefix_[bottomRight] +
-                                 staticLightOccupancyPrefix_[topLeft];
-    const std::size_t excluded = staticLightOccupancyPrefix_[topRight] +
-                                 staticLightOccupancyPrefix_[bottomLeft];
-    const std::size_t total = included - excluded;
-    return total > 0;
+    return ludork::global::game_map_impl::hasStaticOccupancy(
+        staticLightOccupancyPrefix_, staticLightOccupancyOrigin_,
+        staticLightOccupancySize_, light, CellSize);
 }
 
 std::vector<LightOcclusionResult> GameMapBase::analyseLightOcclusion(
@@ -939,6 +758,7 @@ std::vector<LightOcclusionResult> GameMapBase::analyseLightOcclusion(
             getActorsInRangeImpl(mapX, mapY, cellRadius, input.owner.get());
 
         std::optional<sf::FloatRect> actorBounds;
+        std::vector<sf::FloatRect> occluderBounds;
         for (Actor* actor : actors) {
             const auto visibleActor = visibleActorOwners.find(actor);
             if (visibleActor == visibleActorOwners.end() ||
@@ -946,89 +766,36 @@ std::vector<LightOcclusionResult> GameMapBase::analyseLightOcclusion(
                 continue;
             }
             const sf::FloatRect bounds = actor->getGlobalBounds();
-            if (!actorIntersectsLight(bounds, light)) {
+            if (!ludork::global::game_map_impl::actorIntersectsLight(bounds,
+                                                                     light)) {
                 continue;
             }
             result.occluders.push_back(visibleActor->second);
+            occluderBounds.push_back(bounds);
             if (!actorBounds.has_value()) {
                 actorBounds = bounds;
                 continue;
             }
-            const float left =
-                std::min(actorBounds->position.x, bounds.position.x);
-            const float top =
-                std::min(actorBounds->position.y, bounds.position.y);
-            const float right =
-                std::max(actorBounds->position.x + actorBounds->size.x,
-                         bounds.position.x + bounds.size.x);
-            const float bottom =
-                std::max(actorBounds->position.y + actorBounds->size.y,
-                         bounds.position.y + bounds.size.y);
-            actorBounds =
-                sf::FloatRect({left, top}, {right - left, bottom - top});
+            actorBounds = ludork::global::game_map_impl::enclosingRect(
+                *actorBounds, bounds);
         }
 
-        if (actorBounds.has_value()) {
-            const float minimumX =
-                std::max(std::floor(light.position.x - light.radius) -
-                             kDynamicTransmissionPadding,
-                         std::floor(actorBounds->position.x) -
-                             kDynamicTransmissionPadding);
-            const float minimumY =
-                std::max(std::floor(light.position.y - light.radius) -
-                             kDynamicTransmissionPadding,
-                         std::floor(actorBounds->position.y) -
-                             kDynamicTransmissionPadding);
-            const float maximumX = std::min(
-                std::ceil(light.position.x + light.radius) +
-                    kDynamicTransmissionPadding,
-                std::ceil(actorBounds->position.x + actorBounds->size.x) +
-                    kDynamicTransmissionPadding);
-            const float maximumY = std::min(
-                std::ceil(light.position.y + light.radius) +
-                    kDynamicTransmissionPadding,
-                std::ceil(actorBounds->position.y + actorBounds->size.y) +
-                    kDynamicTransmissionPadding);
-            result.maskRect = sf::FloatRect(
-                {minimumX, minimumY}, {std::max(1.0f, maximumX - minimumX),
-                                       std::max(1.0f, maximumY - minimumY)});
-            rebuildDynamicLightOccupancy(
-                result, dynamicLightOccupancies_[inputIndex], cellSize);
+        result.maskRect = ludork::global::game_map_impl::dynamicMaskRect(
+            light, actorBounds, 2.0f);
+        if (result.maskRect.has_value()) {
+            ludork::global::game_map_impl::DynamicOccupancyResult occupancy =
+                ludork::global::game_map_impl::rebuildDynamicOccupancy(
+                    *result.maskRect, occluderBounds,
+                    dynamicLightOccupancies_[inputIndex], cellSize);
+            dynamicLightOccupancies_[inputIndex] = occupancy.texture;
+            result.dynamicOccupancy = std::move(occupancy.texture);
+            result.dynamicOccupancyOrigin = occupancy.origin;
+            result.dynamicOccupancySize = occupancy.size;
         }
         results.push_back(std::move(result));
     }
     return results;
 }
-
-#include "GameMapBase.hpp"
-
-#include <Gameplay/Actor.hpp>
-#include <Runtime/EngineState.hpp>
-
-#include <algorithm>
-#include <cmath>
-#include <map>
-#include <queue>
-#include <unordered_set>
-#include <utility>
-
-using Node = std::pair<int, IntPair>;
-
-namespace {
-
-bool inBounds(int x, int y, int width, int height) {
-    return x >= 0 && x < width && y >= 0 && y < height;
-}
-
-int getNodeFScore(const std::map<IntPair, int>& fScore, const IntPair& node) {
-    const auto iterator = fScore.find(node);
-    if (iterator == fScore.end()) {
-        return 1 << 30;
-    }
-    return iterator->second;
-}
-
-}  // namespace
 
 PathResult GameMapBase::findPathExt(
     const sf::Vector2i& start, const sf::Vector2i& goal,
@@ -1042,81 +809,40 @@ PathResult GameMapBase::findPathExt(
     int gy = goal.y;
     unsigned int width = size.x;
     unsigned int height = size.y;
-    IntPair dirs[4] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
     IntPair start_t = {sx, sy};
     IntPair goal_t = {gx, gy};
-    std::unordered_set<IntPair, IntPairHash> excludedAnchorSet;
+    std::vector<IntPair> excludedAnchorSet;
     excludedAnchorSet.reserve(excludedAnchors.size());
     for (const sf::Vector2i& anchor : excludedAnchors) {
-        excludedAnchorSet.emplace(anchor.x, anchor.y);
+        excludedAnchorSet.emplace_back(anchor.x, anchor.y);
     }
     PathResult result;
     if (start_t == goal_t) {
         result.route.emplace_back(sx, sy);
         return result;
     }
-    std::map<IntPair, IntPair> cameFrom;
-    std::map<IntPair, int> gScore;
-    gScore[start_t] = 0;
-    std::map<IntPair, int> fScore;
-    fScore[start_t] = std::abs(sx - gx) + std::abs(sy - gy);
-    std::priority_queue<Node, std::vector<Node>, std::greater<Node>> openQueue;
-    openQueue.push({fScore[start_t], start_t});
-    while (!openQueue.empty()) {
-        IntPair current = openQueue.top().second;
-        int currentF = openQueue.top().first;
-        openQueue.pop();
-        if (currentF > getNodeFScore(fScore, current)) {
-            continue;
-        }
-        if (current == goal_t) {
-            std::vector<IntPair> pathPosition;
-            auto c = current;
-            while (cameFrom.find(c) != cameFrom.end()) {
-                pathPosition.push_back(c);
-                c = cameFrom[c];
-            }
-            std::reverse(pathPosition.begin(), pathPosition.end());
-            result.offsets.reserve(pathPosition.size());
-            result.points.reserve(pathPosition.size());
-            result.route.reserve(pathPosition.size() + 1);
-            result.route.emplace_back(sx, sy);
-            int px = sx;
-            int py = sy;
-            for (auto& [x, y] : pathPosition) {
-                result.offsets.emplace_back(x - px, y - py);
-                result.points.emplace_back(x, y);
-                result.route.emplace_back(x, y);
-                px = x;
-                py = y;
-            }
-            return result;
-        }
-        auto [cx, cy] = current;
-        for (auto& [dx, dy] : dirs) {
-            int nx = cx + dx;
-            int ny = cy + dy;
-            if (!inBounds(nx, ny, width, height)) {
-                continue;
-            }
-            const IntPair nt = {nx, ny};
-            if (nt != start_t &&
-                excludedAnchorSet.find(nt) != excludedAnchorSet.end()) {
-                continue;
-            }
-            if (!transitionPassableForActor(cx, cy, nx, ny, sx, sy, gx, gy,
-                                            width, height, movingActor)) {
-                continue;
-            }
-            int tentative = gScore[current] + 1;
-            int prevG = (gScore.count(nt)) ? gScore[nt] : (1 << 30);
-            if (tentative < prevG) {
-                cameFrom[nt] = current;
-                gScore[nt] = tentative;
-                int nextF = tentative + std::abs(nx - gx) + std::abs(ny - gy);
-                fScore[nt] = nextF;
-                openQueue.push({nextF, nt});
-            }
+    const std::vector<IntPair> pathPosition =
+        ludork::global::game_map_base_impl::findPath(
+            start_t, goal_t, width, height, excludedAnchorSet,
+            [this, sx, sy, gx, gy, width, height, &movingActor](
+                int fromX, int fromY, int toX, int toY) {
+                return transitionPassableForActor(fromX, fromY, toX, toY, sx,
+                                                  sy, gx, gy, width, height,
+                                                  movingActor);
+            });
+    if (!pathPosition.empty()) {
+        result.offsets.reserve(pathPosition.size());
+        result.points.reserve(pathPosition.size());
+        result.route.reserve(pathPosition.size() + 1);
+        result.route.emplace_back(sx, sy);
+        int px = sx;
+        int py = sy;
+        for (const auto& [x, y] : pathPosition) {
+            result.offsets.emplace_back(x - px, y - py);
+            result.points.emplace_back(x, y);
+            result.route.emplace_back(x, y);
+            px = x;
+            py = y;
         }
     }
     return result;
@@ -1264,43 +990,8 @@ bool GameMapBase::isSparseWorldDirectionPassable(
     return true;
 }
 
-#include "GameMapBase.hpp"
-
-#include <Gameplay/Actor.hpp>
-#include <Gameplay/TileMap.hpp>
-
-#include <algorithm>
-#include <cstdint>
-#include <limits>
-#include <optional>
-#include <stdexcept>
-#include <unordered_set>
-#include <utility>
-
-namespace {
-bool rectContains(const sf::IntRect& rect, const sf::Vector2i& position) {
-    const std::int64_t right = static_cast<std::int64_t>(rect.position.x) +
-                               static_cast<std::int64_t>(rect.size.x);
-    const std::int64_t bottom = static_cast<std::int64_t>(rect.position.y) +
-                                static_cast<std::int64_t>(rect.size.y);
-    return position.x >= rect.position.x && position.y >= rect.position.y &&
-           static_cast<std::int64_t>(position.x) < right &&
-           static_cast<std::int64_t>(position.y) < bottom;
-}
-
-bool rectsIntersect(const sf::IntRect& left, const sf::IntRect& right) {
-    const std::int64_t leftRight =
-        static_cast<std::int64_t>(left.position.x) + left.size.x;
-    const std::int64_t leftBottom =
-        static_cast<std::int64_t>(left.position.y) + left.size.y;
-    const std::int64_t rightRight =
-        static_cast<std::int64_t>(right.position.x) + right.size.x;
-    const std::int64_t rightBottom =
-        static_cast<std::int64_t>(right.position.y) + right.size.y;
-    return left.position.x < rightRight && right.position.x < leftRight &&
-           left.position.y < rightBottom && right.position.y < leftBottom;
-}
-}  // namespace
+using ludork::global::game_map_base_impl::rectContains;
+using ludork::global::game_map_base_impl::rectsIntersect;
 
 std::size_t IntPairHash::operator()(const IntPair& value) const {
     std::size_t xHash = std::hash<int>{}(value.first);
@@ -1582,24 +1273,22 @@ std::size_t GameMapBase::getSparseOccupancyPageCount() const {
 }
 
 int GameMapBase::getOccupancyPageCoordinate(int value) {
-    if (value >= 0) {
-        return value / OccupancyPageSize;
-    }
-    return -1 - (-(value + 1) / OccupancyPageSize);
+    return ludork::global::game_map_base_impl::pageCoordinate(
+        value, OccupancyPageSize);
 }
 
 int GameMapBase::getOccupancyPageOffset(int value) {
-    return value - getOccupancyPageCoordinate(value) * OccupancyPageSize;
+    return ludork::global::game_map_base_impl::pageOffset(value,
+                                                          OccupancyPageSize);
 }
 
 IntPair GameMapBase::getOccupancyPageKey(int x, int y) {
-    return {getOccupancyPageCoordinate(x), getOccupancyPageCoordinate(y)};
+    return ludork::global::game_map_base_impl::pageKey(x, y, OccupancyPageSize);
 }
 
 std::size_t GameMapBase::getOccupancyPageCellIndex(int x, int y) {
-    return static_cast<std::size_t>(getOccupancyPageOffset(y) *
-                                        OccupancyPageSize +
-                                    getOccupancyPageOffset(x));
+    return ludork::global::game_map_base_impl::pageCellIndex(x, y,
+                                                             OccupancyPageSize);
 }
 
 void GameMapBase::clearActorOccupancy() {

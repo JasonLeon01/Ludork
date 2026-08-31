@@ -34,6 +34,5 @@ public:
     BIND_METHOD()
     static std::size_t getMemory();
 
-    BIND_IGNORE()
     static void clear() noexcept;
 };

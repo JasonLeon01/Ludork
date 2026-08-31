@@ -19,6 +19,10 @@
 #include <utility>
 #include <vector>
 
+namespace ludork::engine::tilemap_graphics_impl {
+struct TileChunk;
+}
+
 ////////////////////////////////////////////////////////////
 /// \brief GPU-accelerated tile layer renderer using vertex arrays
 ///
@@ -232,17 +236,6 @@ protected:
 private:
     static constexpr int ChunkSize = 32;
 
-    struct TileChunk {
-        int x = 0;
-        int y = 0;
-        int width = 0;
-        int height = 0;
-        std::unique_ptr<sf::VertexArray> vertexArray;
-        std::vector<std::unique_ptr<sf::VertexArray>> autoTileVertexArrays;
-        std::vector<std::vector<std::pair<int, int>>> autoTileCells;
-        std::vector<std::vector<int>> autoTileMasks;
-    };
-
     ////////////////////////////////////////////////////////////
     /// \brief Create the fixed-size chunk index for this layer
     ///
@@ -260,7 +253,8 @@ private:
     /// - \param chunk Chunk to populate
     ///
     ////////////////////////////////////////////////////////////
-    void buildStaticChunk(TileChunk& chunk);
+    void buildStaticChunk(
+        ludork::engine::tilemap_graphics_impl::TileChunk& chunk);
 
     ////////////////////////////////////////////////////////////
     /// \brief Build one autotile geometry chunk
@@ -268,7 +262,8 @@ private:
     /// - \param chunk Chunk to populate
     ///
     ////////////////////////////////////////////////////////////
-    void buildAutoTileChunk(TileChunk& chunk);
+    void buildAutoTileChunk(
+        ludork::engine::tilemap_graphics_impl::TileChunk& chunk);
 
     ////////////////////////////////////////////////////////////
     /// \brief Refresh vertex texture coordinates for one autotile pool
@@ -285,7 +280,8 @@ private:
     /// - \param poolIndex Autotile pool index
     ///
     ////////////////////////////////////////////////////////////
-    void refreshAutoTileTexCoords(TileChunk& chunk, int poolIndex);
+    void refreshAutoTileTexCoords(
+        ludork::engine::tilemap_graphics_impl::TileChunk& chunk, int poolIndex);
 
     ////////////////////////////////////////////////////////////
     /// \brief Check whether a grid position is inside this layer
@@ -313,14 +309,14 @@ private:
     ///
     /// - \return Owning chunk
     ////////////////////////////////////////////////////////////
-    TileChunk& getChunk(int x, int y);
+    ludork::engine::tilemap_graphics_impl::TileChunk& getChunk(int x, int y);
 
     std::shared_ptr<sf::Texture> texture_;
     sf::Vector2f size_;
     int tileSize_;
     int chunkColumns_ = 0;
     int chunkRows_ = 0;
-    std::vector<TileChunk> chunks_;
+    std::vector<ludork::engine::tilemap_graphics_impl::TileChunk> chunks_;
     mutable std::atomic<int> lastVisibleChunkCount_{0};
     std::size_t nextBuildChunk_ = 0;
     std::size_t builtChunkCount_ = 0;

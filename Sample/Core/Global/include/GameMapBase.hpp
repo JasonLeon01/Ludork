@@ -349,10 +349,8 @@ public:
     BIND_METHOD(name = "_fixedUpdateActors", metadata = false)
     void fixedUpdateActors(float fixedDelta);
 
-    BIND_IGNORE()
     const ActorDict& getMaterialActorsForRenderer() const;
 
-    BIND_IGNORE()
     const ActorPtr& getPlayerActorForRenderer() const;
 
 private:

@@ -209,6 +209,7 @@ private:
     void beginMousePress(sf::Mouse::Button button);
     void beginTouchPress();
     void endPointerPress();
+    void clearEventCallbacks() noexcept;
 
     static FunctionalInputProvider* inputProvider_;
     static FocusResolver keyboardFocusResolver_;

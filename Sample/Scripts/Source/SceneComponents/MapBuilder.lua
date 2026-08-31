@@ -14,6 +14,7 @@ local MovementDangerPreviewComponent = require("Source.SceneComponents.MovementD
 local MovementDangerState = require("Source.SceneComponents.MovementDangerState")
 local WorldDirectoryValidator = require("Source.SceneComponents.WorldDirectoryValidator")
 local MapDataParser = require("Source.SceneComponents.MapBuilder.MapDataParser")
+local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorRecords")
 local MapBuilderWorldActors = require("Source.SceneComponents.MapBuilder.WorldActors")
 local MapBuilderWorldRegion = require("Source.SceneComponents.MapBuilder.WorldRegion")
 local MapBuilderWorldTiles = require("Source.SceneComponents.MapBuilder.WorldTiles")
@@ -307,14 +308,17 @@ function SceneMapBuilder:buildFloorMapPreview(
     if self._floorMapPreviewGameMaps[mapPath] == nil then
         local resolvedPath, mapData = self:loadMapData(mapPath, currentMap)
         mapPath = resolvedPath
-        assert(mapData.type ~= "worldMap", "Floor map preview does not support world manifests: " .. mapPath)
-        ---@cast mapData Source.SceneComponents.MapData
-        local gameMap = self:generateGameMap(mapData, nil, false, true)
-        gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
-        self:applyAddedActors(gameMap, inst:getAddedActors(mapPath), false)
-        gameMap:applyActorPositions(inst:getActorPositions(mapPath))
-        gameMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
-        self._floorMapPreviewGameMaps[mapPath] = { gameMap = gameMap, mapData = mapData }
+        if mapData.type == "worldMap" then
+            self._floorMapPreviewGameMaps[mapPath] = { mapData = mapData, regions = {} }
+        else
+            ---@cast mapData Source.SceneComponents.MapData
+            local gameMap = self:generateGameMap(mapData, nil, false, true)
+            gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
+            self:applyAddedActors(gameMap, inst:getAddedActors(mapPath), false)
+            gameMap:applyActorPositions(inst:getActorPositions(mapPath))
+            gameMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
+            self._floorMapPreviewGameMaps[mapPath] = { gameMap = gameMap, mapData = mapData }
+        end
     end
     local scale = previewScale > 0.0 and previewScale or 1.0
     local targetSize = sf.Vector2u.new(previewSize, previewSize)
@@ -340,7 +344,84 @@ function SceneMapBuilder:buildFloorMapPreview(
     end
     target:setView(sf.View.new(centre, viewSize))
     local states = Engine.CanvasRenderStates()
-    self._floorMapPreviewGameMaps[mapPath].gameMap:drawMapContent(target, states)
+    local preview = self._floorMapPreviewGameMaps[mapPath]
+    if preview.mapData.type == "worldMap" then
+        ---@cast preview Source.SceneComponents.WorldFloorMapPreview
+        local visibleLeft = math.floor((centre.x - halfView.x) / Engine.CellSize)
+        local visibleTop = math.floor((centre.y - halfView.y) / Engine.CellSize)
+        local visibleRight = math.ceil((centre.x + halfView.x) / Engine.CellSize)
+        local visibleBottom = math.ceil((centre.y + halfView.y) / Engine.CellSize)
+        local visibleRect = {
+            x = visibleLeft,
+            y = visibleTop,
+            width = visibleRight - visibleLeft,
+            height = visibleBottom - visibleTop
+        }
+        local movedActors = WorldActorRecords.CollectMoved(preview.mapData, inst, mapPath)
+        local movedActorTags = {}
+        for _, actorRecord in ipairs(movedActors) do
+            movedActorTags[#movedActorTags + 1] = actorRecord.tag
+        end
+        for _, region in ipairs(preview.mapData.regions) do
+            if WorldGeometry.RectIntersects(region, visibleRect) then
+                if preview.regions[region.path] == nil then
+                    local _, regionData = self:loadMapData(region.path, mapPath)
+                    assert(
+                        regionData.type ~= "worldMap", "World preview child cannot be a world manifest: " .. region.path
+                    )
+                    ---@cast regionData Source.SceneComponents.MapData
+                    local regionMap = self:generateGameMap(regionData, nil, false, true)
+                    regionMap:applyTerrainDestructions(inst:getTerrainDestructions(region.path))
+                    regionMap:removeActorsByTags(movedActorTags)
+                    local persistedActors = {}
+                    for _, actorRecord in ipairs(WorldActorRecords.SelectAdded(preview.mapData, inst, mapPath, region)) do
+                        ---@type Source.GameInstance.AddedActorRecord
+                        local localRecord = copy(actorRecord)
+                        local localX = actorRecord.position.x - region.x
+                        local localY = actorRecord.position.y - region.y
+                        ---@cast localX integer
+                        ---@cast localY integer
+                        local localPosition = sf.Vector2i.new(localX, localY)
+                        ---@cast localPosition sf.Vector2i
+                        localRecord.position = localPosition
+                        persistedActors[#persistedActors + 1] = localRecord
+                    end
+                    for _, actorRecord in ipairs(self:_selectWorldMovedActors(movedActors, region)) do
+                        ---@type Source.GameInstance.AddedActorRecord
+                        local localRecord = copy(actorRecord)
+                        local localX = actorRecord.position.x - region.x
+                        local localY = actorRecord.position.y - region.y
+                        ---@cast localX integer
+                        ---@cast localY integer
+                        local localPosition = sf.Vector2i.new(localX, localY)
+                        ---@cast localPosition sf.Vector2i
+                        localRecord.position = localPosition
+                        persistedActors[#persistedActors + 1] = localRecord
+                    end
+                    self:applyAddedActors(regionMap, persistedActors, false)
+                    local localActorPositions = {}
+                    for tag, position in pairs(inst:getActorPositions(mapPath)) do
+                        local localX = position.x - region.x
+                        local localY = position.y - region.y
+                        ---@cast localX integer
+                        ---@cast localY integer
+                        localActorPositions[tag] = sf.Vector2i.new(localX, localY)
+                    end
+                    regionMap:applyActorPositions(localActorPositions)
+                    regionMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
+                    preview.regions[region.path] = regionMap
+                end
+                local regionStates = Engine.CanvasRenderStates()
+                regionStates.transform:translate(
+                    sf.Vector2f.new(region.x * Engine.CellSize, region.y * Engine.CellSize)
+                )
+                preview.regions[region.path]:drawMapContent(target, regionStates)
+            end
+        end
+    else
+        ---@cast preview Source.SceneComponents.SingleFloorMapPreview
+        preview.gameMap:drawMapContent(target, states)
+    end
     if showTelepointMarker then
         local marker = sf.RectangleShape.new(sf.Vector2f.new(Engine.CellSize, Engine.CellSize))
         marker:setPosition(sf.Vector2f.new(telepoint.x * Engine.CellSize, telepoint.y * Engine.CellSize))
@@ -356,9 +437,29 @@ function SceneMapBuilder:buildFloorMapPreview(
 end
 
 function SceneMapBuilder:getFloorTelepointTag(currentMap, mapKey, telepoint)
-    local _, mapData = self:loadMapData(mapKey, currentMap)
+    local mapPath, mapData = self:loadMapData(mapKey, currentMap)
+    if mapData.type == "worldMap" then
+        local matchedRegion = nil
+        local signedTelepoint = sf.Vector2i.new(telepoint.x, telepoint.y)
+        ---@cast matchedRegion Source.SceneComponents.WorldRegionData | nil
+        ---@cast signedTelepoint sf.Vector2i
+        for _, region in ipairs(mapData.regions) do
+            if WorldGeometry.RectContainsPosition(region, signedTelepoint) then
+                matchedRegion = region
+                break
+            end
+        end
+        if matchedRegion == nil then
+            return nil
+        end
+        local _, childData = self:loadMapData(matchedRegion.path, mapPath)
+        assert(childData.type ~= "worldMap", "World telepoint child cannot be a world manifest: " .. matchedRegion.path)
+        mapData = childData
+        telepoint = sf.Vector2u.new(telepoint.x - matchedRegion.x, telepoint.y - matchedRegion.y)
+    end
+    ---@cast mapData Source.SceneComponents.MapData
     local teleporterPrefix = "Data.Blueprints.Teleportations"
-    local actors = mapData.actors or {}
+    local actors = mapData.actors
     for _, layerName in ipairs(mapData.layerOrder) do
         local actorDatas = actors[layerName] or {}
         for _, actorData in ipairs(actorDatas) do

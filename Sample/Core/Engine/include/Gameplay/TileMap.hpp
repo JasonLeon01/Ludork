@@ -116,7 +116,6 @@ public:
     BIND_METHOD(metadata = false)
     bool isCellBuilt(const sf::Vector2i& position) const;
 
-    BIND_IGNORE()
     const std::vector<std::vector<float>>& getLightBlockMapView();
 
     BIND_PROPERTY()

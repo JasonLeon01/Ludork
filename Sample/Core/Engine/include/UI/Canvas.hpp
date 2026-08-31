@@ -83,7 +83,6 @@ public:
     BIND_METHOD()
     virtual void render();
 
-    BIND_IGNORE()
     void render(sf::RenderTarget& target);
 
     BIND_METHOD()
@@ -92,13 +91,10 @@ public:
     BIND_METHOD()
     virtual void fixedUpdate(float fixedDelta) override;
 
-    BIND_IGNORE()
     sf::RenderTexture& getRenderTexture();
 
-    BIND_IGNORE()
     const sf::RenderTexture& getRenderTexture() const;
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
 
 protected:

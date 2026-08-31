@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .annotations import (
+    cast_bases,
     native_bases,
     native_cast_base_name,
     runtime_bases,
@@ -56,11 +57,78 @@ from .layout import (
     stub_binding_source_name,
 )
 from .metadata import raw_string_chunks
-from .model import Member, TypeInfo
+from .model import EnumInfo, Member, TypeInfo
 
 
 def class_binder_name(module: str, native_class: str) -> str:
     return f"bind_{module}_{native_class}"
+
+
+def enum_binding_lines(enums: list[EnumInfo]) -> list[str]:
+    output: list[str] = []
+    for index, info in enumerate(enums):
+        public_name = exposed_type_name(info)
+        variable = f"bindingEnum{index}"
+        output.append(
+            f"sol::table {variable} = lua.create_table(0, {len(info.values)});"
+        )
+        for value in info.values:
+            output.append(
+                f'{variable}.raw_set("{value.name}", '
+                f"static_cast<std::underlying_type_t<{info.name}>>("
+                f"{info.name}::{value.name}));"
+            )
+        output.append(f'root.raw_set("{public_name}", {variable});')
+    return output
+
+
+def generate_binding_traits_header(types: list[TypeInfo]) -> str:
+    unique_types = {info.name: info for info in types}
+    dynamic_types = sorted(
+        info.name
+        for info in unique_types.values()
+        if info.options.get("dynamic_value", "false").lower() == "true"
+    )
+    opaque_types = sorted(
+        info.name
+        for info in unique_types.values()
+        if info.options.get("opaque_identity", "false").lower() == "true"
+    )
+    declared_types = sorted({*dynamic_types, *opaque_types})
+    output = [
+        CPP_GENERATED_FILE_MARKER,
+        "#pragma once",
+        "",
+        "#include <LudorkCoreBinding/ValueTraits.hpp>",
+        "",
+    ]
+    output.extend(f"class {name};" for name in declared_types)
+    if declared_types:
+        output.append("")
+    if dynamic_types or opaque_types:
+        output.append("namespace ludork_core {")
+        output.append("")
+        for name in dynamic_types:
+            output.extend(
+                [
+                    f"template <> struct DynamicValueTraits<{name}> {{",
+                    "    static constexpr bool enabled = true;",
+                    "};",
+                    "",
+                ]
+            )
+        for name in opaque_types:
+            output.extend(
+                [
+                    f"template <> struct OpaqueIdentityTraits<{name}> {{",
+                    "    static constexpr bool enabled = true;",
+                    "};",
+                    "",
+                ]
+            )
+        output.append("}  // namespace ludork_core")
+        output.append("")
+    return "\n".join(output)
 
 
 def include_lines(
@@ -148,38 +216,6 @@ def trait_lines(
 ) -> list[str]:
     complete_trait_requirements(context, trait_types)
     output: list[str] = []
-    dynamic_types = [
-        info
-        for info in trait_types
-        if info.name in context.required_dynamic_traits
-    ]
-    if dynamic_types:
-        output.append("namespace ludork_core {")
-        for info in dynamic_types:
-            output.extend(
-                [
-                    f"template <> struct DynamicValueTraits<{info.name}> {{",
-                    "    static constexpr bool enabled = true;",
-                    "};",
-                ]
-            )
-        output.extend(["}", ""])
-    opaque_types = [
-        info
-        for info in trait_types
-        if info.name in context.required_opaque_traits
-    ]
-    if opaque_types:
-        output.append("namespace ludork_core {")
-        for info in opaque_types:
-            output.extend(
-                [
-                    f"template <> struct OpaqueIdentityTraits<{info.name}> {{",
-                    "    static constexpr bool enabled = true;",
-                    "};",
-                ]
-            )
-        output.extend(["}", ""])
     output.extend(
         table_value_trait_lines(
             context, trait_types, context.required_table_traits
@@ -258,15 +294,15 @@ def class_binding_body(
         if info.options.get("bind_bases", "true").lower() != "false"
         else []
     )
-    cast_bases = [
+    explicit_cast_bases = [
         cast_base
-        for item in info.options.get("cast_bases", "").split(",")
+        for item in cast_bases(info)
         if (cast_base := native_cast_base_name(context, item)) is not None
     ]
     conversion_bases = list(
         dict.fromkeys(
             transitive_binding_bases(context, declared_bases, type_map)
-            + cast_bases
+            + explicit_cast_bases
         )
     )
     for type_name in conversion_bases:
@@ -556,6 +592,7 @@ def generate_stub_binding(
     include_directories: list[Path],
     module: str,
     types: list[TypeInfo],
+    enums: list[EnumInfo],
     functions: list[Member],
     stub: str,
     metadata: str,
@@ -583,6 +620,7 @@ def generate_stub_binding(
             '    root.raw_set("__runtimeMetadata", bindingRuntimeMetadata);',
         ]
     )
+    output.extend("    " + line for line in enum_binding_lines(enums))
     module_property_lines, module_property_values = module_property_bindings(
         context, functions
     )
@@ -686,6 +724,7 @@ def generate_stub_binding(
     initial_sources = {
         member.source for member in functions if member.source is not None
     }
+    initial_sources.update(info.source for info in enums)
     return compose_source(
         context,
         trait_types,
@@ -702,6 +741,7 @@ def generate_bindings(
     include_directory: Path,
     module: str,
     types: list[TypeInfo],
+    enums: list[EnumInfo],
     functions: list[Member],
     stub: str,
     metadata: str,
@@ -727,6 +767,7 @@ def generate_bindings(
         include_directories,
         module,
         types,
+        enums,
         functions,
         stub,
         metadata,

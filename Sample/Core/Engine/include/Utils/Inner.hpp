@@ -8,9 +8,6 @@
 #include <string>
 #include <unordered_map>
 
-BIND_MODULE_PROPERTY(name = "IS_IOS_PLATFORM", readonly = true)
-extern LUDORK_ENGINE_API bool IS_IOS_PLATFORM;
-
 BIND_FUNCTION(name = "setAppName")
 void setAppName(const std::string& value);
 

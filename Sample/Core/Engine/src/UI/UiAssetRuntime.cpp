@@ -1,24 +1,22 @@
 #include <UI/UiAssetRuntime.hpp>
 
-#include "UiAssetRuntimeInternal.hpp"
+#include "UiAssetRuntime/AssetBuilder.hpp"
+#include "UiAssetRuntime/PathResolver.hpp"
+#include "UiAssetRuntime/NodeViewCollector.hpp"
+#include "UiAssetRuntime/RuntimeModel.hpp"
 
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiLayoutEngine.hpp>
 #include <Utils/File.hpp>
 
-#include <Utf8Path.hpp>
-
 #include <algorithm>
-#include <filesystem>
 #include <functional>
 #include <stdexcept>
 #include <unordered_set>
 #include <utility>
 
 namespace {
-
-constexpr const char* projectControlPrefix = "Project:";
 
 using ludork::engine::runtime_value_reader::findValue;
 using ludork::engine::runtime_value_reader::requireArray;
@@ -39,40 +37,17 @@ sf::Vector2f requireVector2f(const RuntimeValue& value,
 }
 
 bool isProjectControl(const std::string& controlId) {
-    return controlId.starts_with(projectControlPrefix);
+    return ludork::engine::ui_asset_runtime_impl::isProjectControl(controlId);
 }
 
 std::string nestedAssetKey(const std::string& controlId) {
-    if (!isProjectControl(controlId) ||
-        controlId.size() ==
-            std::char_traits<char>::length(projectControlPrefix)) {
-        throw std::invalid_argument("Invalid project UI control id: " +
-                                    controlId);
-    }
-    return controlId.substr(
-        std::char_traits<char>::length(projectControlPrefix));
+    return ludork::engine::ui_asset_runtime_impl::nestedAssetKey(controlId);
 }
 
 sf::Vector2f parseDesignSize(const RuntimeValue::Map& asset,
                              const std::string& source) {
-    const RuntimeValue* value = findValue(asset, "designSize");
-    if (value == nullptr) {
-        throw std::invalid_argument(source + " is missing designSize");
-    }
-    const RuntimeValue::Map& size = requireMap(*value, source + ".designSize");
-    const RuntimeValue* width = findValue(size, "width");
-    const RuntimeValue* height = findValue(size, "height");
-    if (width == nullptr || height == nullptr) {
-        throw std::invalid_argument(source +
-                                    ".designSize requires width and height");
-    }
-    const sf::Vector2f result{
-        requireFloat(*width, source + ".designSize.width"),
-        requireFloat(*height, source + ".designSize.height")};
-    if (result.x <= 0.0f || result.y <= 0.0f) {
-        throw std::invalid_argument(source + ".designSize must be positive");
-    }
-    return result;
+    return ludork::engine::ui_asset_runtime_impl::parseDesignSize(asset,
+                                                                  source);
 }
 
 void requireOnlyKeys(const RuntimeValue::Map& values,
@@ -155,138 +130,8 @@ UiCanvasSlotData parseCanvasSlot(const RuntimeValue& value,
     return result;
 }
 
-std::filesystem::path validateLogicalAssetKey(const std::string& assetKey) {
-    if (assetKey.empty()) {
-        throw std::invalid_argument("UI asset key cannot be empty");
-    }
-    if (assetKey.find('\\') != std::string::npos) {
-        throw std::invalid_argument("UI asset key must use forward slashes: " +
-                                    assetKey);
-    }
-    if (assetKey.find(':') != std::string::npos) {
-        throw std::invalid_argument("UI asset key cannot contain a colon: " +
-                                    assetKey);
-    }
-    if (assetKey.front() == '/' || assetKey.back() == '/' ||
-        assetKey.find("//") != std::string::npos) {
-        throw std::invalid_argument("UI asset key must be canonical: " +
-                                    assetKey);
-    }
-    std::filesystem::path relative = ludork::standard::pathFromUtf8(assetKey);
-    if (relative.empty() || relative.is_absolute() ||
-        relative.has_root_path()) {
-        throw std::invalid_argument("UI asset key must be relative: " +
-                                    assetKey);
-    }
-    for (const std::filesystem::path& part : relative) {
-        if (part == "." || part == "..") {
-            throw std::invalid_argument(
-                "UI asset key cannot contain relative path segments: " +
-                assetKey);
-        }
-    }
-    if (ludork::standard::pathToGenericUtf8(relative.filename()).find('.') !=
-        std::string::npos) {
-        throw std::invalid_argument(
-            "UI asset key must not include a file extension: " + assetKey);
-    }
-    const std::string generic = ludork::standard::pathToGenericUtf8(relative);
-    if (generic != assetKey) {
-        throw std::invalid_argument("UI asset key must be canonical: " +
-                                    assetKey);
-    }
-    static const std::vector<std::string> forbiddenPrefixes = {
-        "Assets", "UI/Assets", "Data/UI/Assets"};
-    for (const std::string& prefix : forbiddenPrefixes) {
-        if (generic == prefix || generic.starts_with(prefix + "/")) {
-            throw std::invalid_argument(
-                "UI asset key must be relative to Data/UI/Assets: " + assetKey);
-        }
-    }
-    return relative;
-}
-
-bool isWithinDirectory(const std::filesystem::path& path,
-                       const std::filesystem::path& directory) {
-    const std::filesystem::path relative = path.lexically_relative(directory);
-    if (relative.empty() || relative.is_absolute()) {
-        return false;
-    }
-    const auto first = relative.begin();
-    return first != relative.end() && *first != "..";
-}
-
-std::optional<std::filesystem::path> findExactChild(
-    const std::filesystem::path& directory, const std::string& name,
-    bool requireDirectory) {
-    for (const std::filesystem::directory_entry& entry :
-         std::filesystem::directory_iterator(directory)) {
-        if (ludork::standard::pathToUtf8(entry.path().filename()) != name) {
-            continue;
-        }
-        if (requireDirectory && !entry.is_directory()) {
-            break;
-        }
-        if (!requireDirectory && !entry.is_regular_file()) {
-            break;
-        }
-        return entry.path();
-    }
-    return std::nullopt;
-}
-
-std::filesystem::path requireExactChild(const std::filesystem::path& directory,
-                                        const std::string& name,
-                                        const std::string& assetKey,
-                                        bool requireDirectory) {
-    const std::optional<std::filesystem::path> result =
-        findExactChild(directory, name, requireDirectory);
-    if (result.has_value()) {
-        return *result;
-    }
-    throw std::out_of_range(
-        "UI asset key was not found or does not match filesystem case: " +
-        assetKey);
-}
-
-std::filesystem::path assetPath(const std::string& assetKey) {
-    const std::filesystem::path relative = validateLogicalAssetKey(assetKey);
-    const std::filesystem::path root = std::filesystem::weakly_canonical(
-        std::filesystem::current_path() / "Data" / "UI" / "Assets");
-    if (!std::filesystem::is_directory(root)) {
-        throw std::invalid_argument(
-            "UI asset directory was not found: Data/UI/Assets");
-    }
-    std::filesystem::path current = root;
-    std::vector<std::string> parts;
-    for (const std::filesystem::path& part : relative) {
-        parts.push_back(ludork::standard::pathToGenericUtf8(part));
-    }
-    for (std::size_t index = 0; index + 1 < parts.size(); ++index) {
-        current = requireExactChild(current, parts[index], assetKey, true);
-    }
-    const std::string jsonName = parts.back() + ".json";
-    const std::string encryptedName = parts.back() + ".ldc";
-    std::optional<std::filesystem::path> dataPath =
-        findExactChild(current, jsonName, false);
-    if (!dataPath.has_value()) {
-        dataPath = findExactChild(current, encryptedName, false);
-    }
-    if (!dataPath.has_value()) {
-        throw std::out_of_range(
-            "UI asset key was not found or does not match filesystem case: " +
-            assetKey);
-    }
-    const std::filesystem::path resolved =
-        std::filesystem::weakly_canonical(*dataPath);
-    if (!isWithinDirectory(resolved, root)) {
-        throw std::invalid_argument("UI asset path escapes Data/UI/Assets: " +
-                                    assetKey);
-    }
-    std::filesystem::path logicalPath = *dataPath;
-    logicalPath.replace_extension(".json");
-    return logicalPath;
-}
+using ludork::engine::ui_asset_runtime_impl::assetPath;
+using ludork::engine::ui_asset_runtime_impl::validateLogicalAssetKey;
 
 using AssetLoader = std::function<RuntimeValue(const std::string& assetKey)>;
 
@@ -315,7 +160,7 @@ std::string assetReferenceChain(
     return result;
 }
 
-std::shared_ptr<UiAssetInstance> buildAsset(
+std::shared_ptr<UiAssetInstanceState> buildAsset(
     const RuntimeValue& value, const std::string& expectedAssetKey,
     BuildContext& context,
     std::optional<sf::Vector2f> logicalSize = std::nullopt);
@@ -327,7 +172,7 @@ std::shared_ptr<UiRuntimeNode> buildNode(
 
 void attachChildren(const std::shared_ptr<UiRuntimeNode>& node,
                     const std::string& source) {
-    if (node->nestedAsset != nullptr) {
+    if (node->nestedState != nullptr) {
         if (!node->children.empty()) {
             throw std::invalid_argument(
                 source + " nested asset cannot have inline children");
@@ -392,36 +237,8 @@ RuntimeValue::Map effectiveProperties(const RuntimeValue::Map& node,
                                       const std::string& controlId,
                                       bool designMode,
                                       const std::string& source) {
-    RuntimeValue::Map result = properties;
-    if (!designMode) {
-        return result;
-    }
-    const RuntimeValue* editorValue = findValue(node, "editor");
-    if (editorValue == nullptr) {
-        return result;
-    }
-    const RuntimeValue::Map& editor =
-        requireMap(*editorValue, source + ".editor");
-    const RuntimeValue* previewText = findValue(editor, "previewText");
-    if (previewText == nullptr) {
-        return result;
-    }
-    if (controlId == "Engine.DropBox") {
-        result.insert_or_assign(
-            "previewText", RuntimeValue(requireString(
-                               *previewText, source + ".editor.previewText")));
-        return result;
-    }
-    if (controlId != "Engine.PlainText" && controlId != "Engine.RichText" &&
-        controlId != "Engine.FunctionalPlainText" &&
-        controlId != "Engine.FunctionalRichText") {
-        throw std::invalid_argument(
-            source + ".editor.previewText is only valid on text controls");
-    }
-    result.insert_or_assign(
-        "text", RuntimeValue(requireString(*previewText,
-                                           source + ".editor.previewText")));
-    return result;
+    return ludork::engine::ui_asset_runtime_impl::effectiveProperties(
+        node, properties, controlId, designMode, source);
 }
 
 std::shared_ptr<UiRuntimeNode> buildNode(
@@ -486,9 +303,9 @@ std::shared_ptr<UiRuntimeNode> buildNode(
                     exception.what());
             }
         }();
-        result->nestedAsset = buildAsset(childAsset, childAssetKey, context);
-        result->control = result->nestedAsset->getRoot();
-        state.nestedAssets.emplace(result->name, result->nestedAsset);
+        result->nestedState = buildAsset(childAsset, childAssetKey, context);
+        result->control = result->nestedState->root->control;
+        state.nestedStates.emplace(result->name, result->nestedState);
     } else {
         const UiControlAdapterRegistry& registry =
             UiControlAdapterRegistry::instance();
@@ -554,7 +371,7 @@ std::shared_ptr<UiRuntimeNode> buildNode(
     return result;
 }
 
-std::shared_ptr<UiAssetInstance> buildAsset(
+std::shared_ptr<UiAssetInstanceState> buildAsset(
     const RuntimeValue& value, const std::string& expectedAssetKey,
     BuildContext& context, std::optional<sf::Vector2f> logicalSize) {
     static_cast<void>(validateLogicalAssetKey(expectedAssetKey));
@@ -608,42 +425,12 @@ std::shared_ptr<UiAssetInstance> buildAsset(
         state->root = buildNode(*rootValue, expectedAssetKey + ".root", *state,
                                 context, localNames, true);
 
-        std::shared_ptr<UiAssetInstance> result(new UiAssetInstance(state));
-        UiLayoutEngine::reflow(*result, state->logicalSize);
+        UiLayoutEngine::reflow(*state, state->logicalSize);
         context.assetStack.pop_back();
-        return result;
+        return state;
     } catch (...) {
         context.assetStack.pop_back();
         throw;
-    }
-}
-
-void collectNodeViews(const std::shared_ptr<UiRuntimeNode>& node,
-                      std::vector<UiAssetNodeView>& result,
-                      std::size_t& drawOrder) {
-    UiAssetNodeView view;
-    view.nodeName = node->name;
-    view.control = node->control;
-    view.bounds = node->control->getAbsoluteBounds();
-    view.nestedBoundary = node->nestedAsset != nullptr;
-    view.zOrder = node->canvasSlot.zOrder;
-    view.drawOrder = drawOrder++;
-    result.push_back(std::move(view));
-    if (node->nestedAsset != nullptr) {
-        return;
-    }
-    std::vector<std::shared_ptr<UiRuntimeNode>> children = node->children;
-    if (UiControlAdapterRegistry::instance().slotType(node->controlId) ==
-        UiControlSlotType::Canvas) {
-        std::stable_sort(children.begin(), children.end(),
-                         [](const std::shared_ptr<UiRuntimeNode>& left,
-                            const std::shared_ptr<UiRuntimeNode>& right) {
-                             return left->canvasSlot.zOrder <
-                                    right->canvasSlot.zOrder;
-                         });
-    }
-    for (const std::shared_ptr<UiRuntimeNode>& child : children) {
-        collectNodeViews(child, result, drawOrder);
     }
 }
 
@@ -675,7 +462,8 @@ std::shared_ptr<UiAssetInstance> instantiateLoadedAsset(
         size = sf::Vector2f{static_cast<float>(logicalSize->x),
                             static_cast<float>(logicalSize->y)};
     }
-    return buildAsset(loader(assetKey), assetKey, context, size);
+    return std::shared_ptr<UiAssetInstance>(new UiAssetInstance(
+        buildAsset(loader(assetKey), assetKey, context, size)));
 }
 
 }  // namespace
@@ -685,6 +473,10 @@ UiAssetInstance::UiAssetInstance(std::shared_ptr<UiAssetInstanceState> state)
     if (state_ == nullptr || state_->root == nullptr) {
         throw std::invalid_argument(
             "UI asset instance state must not be empty");
+    }
+    for (const auto& [name, nestedState] : state_->nestedStates) {
+        nestedAssets_.emplace(name, std::shared_ptr<UiAssetInstance>(
+                                        new UiAssetInstance(nestedState)));
     }
 }
 
@@ -700,7 +492,7 @@ std::shared_ptr<ControlBase> UiAssetInstance::requireControl(
     if (iterator != state_->controls.end()) {
         return iterator->second->control;
     }
-    if (state_->nestedAssets.contains(localName)) {
+    if (nestedAssets_.contains(localName)) {
         throw std::invalid_argument(
             localName + " is a nested UI asset; use requireAsset instead");
     }
@@ -728,8 +520,8 @@ std::shared_ptr<ControlBase> UiAssetInstance::getNodeByName(
 
 std::shared_ptr<UiAssetInstance> UiAssetInstance::requireAsset(
     const std::string& localName) const {
-    const auto iterator = state_->nestedAssets.find(localName);
-    if (iterator == state_->nestedAssets.end()) {
+    const auto iterator = nestedAssets_.find(localName);
+    if (iterator == nestedAssets_.end()) {
         throw std::out_of_range("Nested UI asset not found in " +
                                 state_->assetKey + ": " + localName);
     }
@@ -741,7 +533,7 @@ void UiAssetInstance::setProperty(const std::string& localName,
                                   const RuntimeValue& value) {
     const auto iterator = state_->controls.find(localName);
     if (iterator == state_->controls.end()) {
-        if (state_->nestedAssets.contains(localName)) {
+        if (nestedAssets_.contains(localName)) {
             throw std::invalid_argument(
                 "Nested UI asset properties cannot be overridden: " +
                 localName);
@@ -773,7 +565,7 @@ void UiAssetInstance::setText(const std::string& localName,
                               const std::string& text) {
     const auto iterator = state_->controls.find(localName);
     if (iterator == state_->controls.end()) {
-        if (state_->nestedAssets.contains(localName)) {
+        if (nestedAssets_.contains(localName)) {
             throw std::invalid_argument(
                 "Nested UI asset text cannot be overridden: " + localName);
         }
@@ -799,13 +591,18 @@ void UiAssetInstance::reflow(std::optional<sf::Vector2u> logicalSize) {
         state_->logicalSize = {static_cast<float>(logicalSize->x),
                                static_cast<float>(logicalSize->y)};
     }
-    UiLayoutEngine::reflow(*this, state_->logicalSize);
+    UiLayoutEngine::reflow(*state_, state_->logicalSize);
 }
 
 std::vector<UiAssetNodeView> UiAssetInstance::getNodeViews() const {
     std::vector<UiAssetNodeView> result;
-    std::size_t drawOrder = 0;
-    collectNodeViews(state_->root, result, drawOrder);
+    const auto views =
+        ludork::engine::ui_asset_runtime_impl::collectNodeViews(state_->root);
+    result.reserve(views.size());
+    for (const auto& view : views) {
+        result.push_back({view.nodeName, view.control, view.bounds,
+                          view.nestedBoundary, view.zOrder, view.drawOrder});
+    }
     return result;
 }
 

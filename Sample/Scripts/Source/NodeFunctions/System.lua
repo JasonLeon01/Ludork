@@ -8,6 +8,7 @@ local Context = require("Source.NodeFunctions.Context")
 local AudioManager = GlobalCore.AudioManager
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
+local WeatherType = GlobalCore.WeatherType
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 local System = {}
@@ -167,13 +168,12 @@ function System.StopScreenShake()
 end
 
 local function coerceWeatherType(weatherType)
-    local names = { "NONE", "RAIN", "STORM", "SNOW" }
-    for _, name in ipairs(names) do
-        if weatherType == LOC("WEATHER_TYPE_" .. name) then
-            return GlobalCore[name]
+    for name, value in pairs(WeatherType) do
+        if weatherType == value or weatherType == name or weatherType == LOC("WEATHER_TYPE_" .. name) then
+            return value
         end
     end
-    return GlobalCore.coerce(weatherType)
+    return WeatherType.NONE
 end
 
 function System.SetWeather(weatherType, power, maxCount)

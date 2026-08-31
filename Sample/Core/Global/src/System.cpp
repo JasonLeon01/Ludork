@@ -6,23 +6,41 @@ using ludork::global::system_runtime::SceneOperationType;
 
 #include "System/Platform/NativeDisplay.hpp"
 #include "System/Platform/NativeInputMethod.hpp"
+#include "System/Diagnostics/PerformanceProfiler.hpp"
+#include "System/DisplayRuntime.hpp"
+#include "System/ScreenEffectsRuntime.hpp"
 #include "System/SystemRuntime.hpp"
+#include "System/TransitionRuntime.hpp"
 
 #include <Fog/FogController.hpp>
 #include <GlobalRuntimeApi.hpp>
 #include <Input/InputService.hpp>
+#include <LudorkPlatform.hpp>
+#include <Manager/AssetPath.hpp>
 #include <Manager/AudioManager.hpp>
+#include <Manager/ShaderManager.hpp>
+#include <Manager/TextureManager.hpp>
 #include <Manager/TimeManager.hpp>
 #include <Runtime/EngineState.hpp>
 #include <System/NativeDisplayHost.hpp>
 #include <SystemConfigBase.hpp>
+#include <Utils/Inner.hpp>
+#include <Utils/Render.hpp>
 #include <Weather/WeatherController.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstddef>
 #include <deque>
 #include <exception>
+#include <filesystem>
 #include <iostream>
+#include <limits>
+#include <random>
 #include <stdexcept>
+#include <thread>
+#include <type_traits>
 #include <utility>
 
 void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
@@ -522,42 +540,6 @@ void System::onConfigChanged(const std::string& key) {
         AudioManager::applyVoiceVolumes();
     }
 }
-#include <System.hpp>
-
-#include "System/SystemRuntime.hpp"
-#include "System/Platform/NativeDisplay.hpp"
-#include "System/Platform/NativeInputMethod.hpp"
-
-#include <Input/InputService.hpp>
-#include <LudorkPlatform.hpp>
-#include <Manager/AssetPath.hpp>
-#include <Manager/ShaderManager.hpp>
-#include <Manager/TextureManager.hpp>
-#include <Runtime/EngineState.hpp>
-#include <System/NativeDisplayHost.hpp>
-#include <SystemConfigBase.hpp>
-#include <Utils/Inner.hpp>
-
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <exception>
-#include <filesystem>
-#include <iostream>
-#include <limits>
-
-namespace {
-
-bool viewsEqual(const sf::View& left, const sf::View& right) {
-    return left.getCenter() == right.getCenter() &&
-           left.getSize() == right.getSize() &&
-           left.getRotation() == right.getRotation() &&
-           left.getViewport() == right.getViewport() &&
-           left.getScissor() == right.getScissor();
-}
-
-}  // namespace
-
 void System::initializeDisplay(const std::string& title,
                                const sf::Vector2u& gameSize,
                                const std::string& iconPath,
@@ -710,34 +692,18 @@ bool System::isDisplayScaleConfigurable() {
 }
 
 float System::windowFitScale(const sf::Vector2u& size) {
-    const sf::Vector2u gameSize = getGameSize();
-    const float scale =
-        std::min(static_cast<float>(size.x) / static_cast<float>(gameSize.x),
-                 static_cast<float>(size.y) / static_cast<float>(gameSize.y));
-    return std::max(0.01f, scale);
+    return ludork::global::system_display_impl::windowFitScale(size,
+                                                               getGameSize());
 }
 
 float System::effectiveRenderScale(float surfaceFitScale) {
-    const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
-    const float maximumRenderScale = getMaximumRenderScale();
-    const float effectiveScale =
-        maximumRenderScale > 0.0f
-            ? std::min(normalizedSurfaceFitScale, maximumRenderScale)
-            : normalizedSurfaceFitScale;
-    return std::max(0.01f, effectiveScale);
+    return ludork::global::system_display_impl::effectiveRenderScale(
+        surfaceFitScale, getMaximumRenderScale());
 }
 
 sf::Vector2u System::windowSizeForScale(float scale) {
-    const sf::Vector2u gameSize = getGameSize();
-    const float normalizedScale = std::max(0.01f, scale);
-    return {
-        static_cast<unsigned int>(std::max(
-            1.0f,
-            std::floor(static_cast<float>(gameSize.x) * normalizedScale))),
-        static_cast<unsigned int>(std::max(
-            1.0f,
-            std::floor(static_cast<float>(gameSize.y) * normalizedScale))),
-    };
+    return ludork::global::system_display_impl::scaledSize(getGameSize(),
+                                                           scale);
 }
 
 sf::Vector2u System::renderSizeForScale(float scale) {
@@ -1065,7 +1031,8 @@ void System::initCanvas(const sf::Vector2u& size) {
     } else {
         const sf::View currentView = display.canvas_->getView();
         if (!display.canvasDefaultViewActive_ ||
-            !viewsEqual(currentView, display.canvas_->getDefaultView())) {
+            !ludork::global::system_display_impl::viewsEqual(
+                currentView, display.canvas_->getDefaultView())) {
             preservedView = currentView;
         }
         if (display.canvas_->getSize() != size &&
@@ -1151,34 +1118,7 @@ sf::RenderTexture* System::getCanvas() {
         ludork::global::system_runtime::runtime().display;
     return display.canvas_.get();
 }
-#include <System.hpp>
-
-#include "System/Diagnostics/PerformanceProfiler.hpp"
-#include "System/Platform/NativeDisplay.hpp"
-#include "System/Platform/NativeInputMethod.hpp"
-#include "System/SystemRuntime.hpp"
-
-#include <Fog/FogController.hpp>
-#include <Manager/AssetPath.hpp>
-#include <Manager/ShaderManager.hpp>
-#include <Manager/TextureManager.hpp>
-#include <Utils/Inner.hpp>
-#include <Utils/Render.hpp>
-#include <Weather/WeatherController.hpp>
-
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <cstddef>
-#include <exception>
-#include <iostream>
-#include <limits>
-#include <random>
-#include <type_traits>
-#include <utility>
-
-void System::setWeather(const RuntimeValue& weatherType, float power,
-                        int maxCount) {
+void System::setWeather(WeatherType weatherType, float power, int maxCount) {
     WeatherController::setWeather(weatherType, power, maxCount);
 }
 
@@ -1268,8 +1208,9 @@ void System::composeFrame(float deltaTime) {
     }
     if (framePipeline.inTransition_) {
         framePipeline.transitionTimeCount_ =
-            std::min(framePipeline.transitionTimeCount_ + deltaTime,
-                     framePipeline.transitionTime_);
+            ludork::global::system_transition_impl::advanceElapsed(
+                framePipeline.transitionTimeCount_,
+                framePipeline.transitionTime_, deltaTime);
     }
     updateFlash(deltaTime);
     updateScreenTone(deltaTime);
@@ -1375,7 +1316,8 @@ void System::composeFrame(float deltaTime) {
         framePipeline.transitionRevision_;
     framePipeline.transitionCompletionPending_ =
         framePipeline.inTransition_ &&
-        framePipeline.transitionTimeCount_ >= framePipeline.transitionTime_;
+        ludork::global::system_transition_impl::isComplete(
+            framePipeline.transitionTimeCount_, framePipeline.transitionTime_);
 }
 
 void System::present() {
@@ -1809,23 +1751,10 @@ void System::updateScreenTone(float deltaTime) {
                      framePipeline.toneDuration_);
         const float ratio = std::min(
             1.0f, framePipeline.toneTimeCount_ / framePipeline.toneDuration_);
-        framePipeline.toneCurrentColour_ = {
-            framePipeline.toneStartColour_.x +
-                (framePipeline.toneTargetColour_.x -
-                 framePipeline.toneStartColour_.x) *
-                    ratio,
-            framePipeline.toneStartColour_.y +
-                (framePipeline.toneTargetColour_.y -
-                 framePipeline.toneStartColour_.y) *
-                    ratio,
-            framePipeline.toneStartColour_.z +
-                (framePipeline.toneTargetColour_.z -
-                 framePipeline.toneStartColour_.z) *
-                    ratio,
-            framePipeline.toneStartColour_.w +
-                (framePipeline.toneTargetColour_.w -
-                 framePipeline.toneStartColour_.w) *
-                    ratio};
+        framePipeline.toneCurrentColour_ =
+            ludork::global::system_screen_effects_impl::interpolateTone(
+                framePipeline.toneStartColour_, framePipeline.toneTargetColour_,
+                ratio);
     }
     applyScreenToneUniform();
     if (framePipeline.toneDuration_ > 0.0f &&
@@ -1907,17 +1836,13 @@ void System::ensureToneBuffer(const sf::Vector2u& size) {
 
 sf::Glsl::Vec4 System::makeToneColour(float red, float green, float blue,
                                       float gray) {
-    return {std::clamp(red, -255.0f, 255.0f) / 255.0f,
-            std::clamp(green, -255.0f, 255.0f) / 255.0f,
-            std::clamp(blue, -255.0f, 255.0f) / 255.0f,
-            std::clamp(gray, 0.0f, 255.0f) / 255.0f};
+    return ludork::global::system_screen_effects_impl::makeToneColour(
+        red, green, blue, gray);
 }
 
 bool System::isNeutralTone(const sf::Glsl::Vec4& toneColour) {
-    return std::abs(toneColour.x) <= 0.0001f &&
-           std::abs(toneColour.y) <= 0.0001f &&
-           std::abs(toneColour.z) <= 0.0001f &&
-           std::abs(toneColour.w) <= 0.0001f;
+    return ludork::global::system_screen_effects_impl::isNeutralTone(
+        toneColour);
 }
 
 void System::applyGraphicsShadersLength() {
@@ -1981,17 +1906,6 @@ void System::setShaderUniform(sf::Shader& shader, const std::string& name,
 bool System::shadersAvailable() {
     return sf::Shader::isAvailable();
 }
-#include <System.hpp>
-
-#include "System/SystemRuntime.hpp"
-
-#include <GlobalRuntimeApi.hpp>
-
-#include <exception>
-#include <stdexcept>
-#include <thread>
-#include <utility>
-
 std::shared_ptr<SceneRuntime> System::getScene() {
     ludork::global::system_runtime::SceneStackRuntime& sceneStack =
         ludork::global::system_runtime::runtime().sceneStack;
@@ -2250,9 +2164,6 @@ void System::drainRetiredScenes() {
         std::rethrow_exception(failure);
     }
 }
-#include <System.hpp>
-
-#include "System/Diagnostics/PerformanceProfiler.hpp"
 
 bool System::isPerformanceProfilerEnabled() {
     return PerformanceProfiler::isEnabled();

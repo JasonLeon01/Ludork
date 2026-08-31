@@ -36,6 +36,7 @@ from .cpp_types import (
 )
 from .annotations import (
     binding_base_lua_path,
+    cast_bases,
     native_bases,
     native_cast_base_name,
     runtime_bases,
@@ -83,11 +84,7 @@ def transitive_binding_bases(
         base_info = type_map.get(name)
         if base_info is None:
             return
-        for cast_base in (
-            item.strip()
-            for item in base_info.options.get("cast_bases", "").split(",")
-            if item.strip()
-        ):
+        for cast_base in cast_bases(base_info):
             cast_name = native_cast_base_name(context, cast_base)
             if cast_name is not None and cast_name not in result:
                 result.append(cast_name)

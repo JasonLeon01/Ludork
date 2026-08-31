@@ -332,7 +332,6 @@ function GameMap:show()
     System.draw(self._camera, self:_getMaterialShader())
     FogController.drawOverlay()
     ---@cast self._particleSystem Engine.ParticleSystem
-    WeatherController.registerParticleSystem(self._particleSystem)
     System.draw(self._particleSystem)
     System.setWindowDefaultView()
 end

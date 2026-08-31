@@ -1,5 +1,7 @@
 #include <FocusManager.hpp>
 
+#include "FocusManager/FocusRuntime.hpp"
+
 #include <UI/ControlBase.hpp>
 
 #include <algorithm>
@@ -12,7 +14,15 @@ const std::string FocusTransition::EXPLICIT = "explicit";
 
 FocusNeighbor::FocusNeighbor(std::shared_ptr<FocusGroup> groupValue,
                              std::string transitionValue)
-    : group(std::move(groupValue)), transition(std::move(transitionValue)) {}
+    : group_(std::move(groupValue)), transition(std::move(transitionValue)) {}
+
+std::shared_ptr<FocusGroup> FocusNeighbor::getGroup() const {
+    return group_.lock();
+}
+
+void FocusNeighbor::setGroup(const std::shared_ptr<FocusGroup>& group) {
+    group_ = group;
+}
 
 FocusGroup::FocusGroup(std::string nameValue,
                        std::vector<std::shared_ptr<FunctionalBase>> items,
@@ -99,6 +109,19 @@ std::shared_ptr<FunctionalBase> FocusGroup::moveWithin(
     return nullptr;
 }
 
+void FocusGroup::releaseRuntimeState() noexcept {
+    for (const std::shared_ptr<FunctionalBase>& item : items_) {
+        if (item != nullptr && item->getFocusGroup().get() == this) {
+            item->setFocusGroup(nullptr);
+        }
+    }
+    activeOwner.reset();
+    neighborMap_.clear();
+    items_.clear();
+    lastFocusedElement_.reset();
+    self_.reset();
+}
+
 bool FocusGroup::contains(
     const std::shared_ptr<FunctionalBase>& element) const {
     return std::find(items_.begin(), items_.end(), element) != items_.end();
@@ -127,6 +150,29 @@ bool FocusGroup::isOwnerAvailable(
     const ControlBase* control =
         dynamic_cast<const ControlBase*>(element.get());
     return control == nullptr || control->getVisible();
+}
+
+FocusManager::~FocusManager() {
+    shutdown();
+}
+
+void FocusManager::shutdown() noexcept {
+    navigationEnabled_ = false;
+    focusedElement_.reset();
+    cursorFocusElement_.reset();
+    for (const auto& [element, group] : autoFocusGroups_) {
+        static_cast<void>(element);
+        if (group != nullptr) {
+            group->releaseRuntimeState();
+        }
+    }
+    autoFocusGroups_.clear();
+    for (const std::shared_ptr<FocusGroup>& group : focusGroups_) {
+        if (group != nullptr) {
+            group->releaseRuntimeState();
+        }
+    }
+    focusGroups_.clear();
 }
 
 void FocusManager::setNavigationEnabled(bool enabled) {
@@ -362,20 +408,48 @@ std::shared_ptr<FunctionalBase> FocusManager::findDefaultFocus() const {
 std::shared_ptr<FunctionalBase> FocusManager::findDirectionalTarget(
     const std::shared_ptr<FocusGroup>& group,
     const std::string& direction) const {
-    std::shared_ptr<FocusGroup> current = group;
-    std::unordered_set<FocusGroup*> visited{current.get()};
-    while (current != nullptr) {
+    using ludork::global::focus_manager_impl::ElementId;
+    using ludork::global::focus_manager_impl::FocusRuntime;
+    using ludork::global::focus_manager_impl::GroupId;
+    using ludork::global::focus_manager_impl::GroupState;
+    using ludork::global::focus_manager_impl::NeighborState;
+
+    const std::vector<std::shared_ptr<FocusGroup>> groups = allGroups();
+    std::unordered_map<GroupId, std::shared_ptr<FocusGroup>> publicGroups;
+    FocusRuntime runtime;
+    for (const std::shared_ptr<FocusGroup>& publicGroup : groups) {
+        if (publicGroup == nullptr) {
+            continue;
+        }
+        const GroupId id = reinterpret_cast<GroupId>(publicGroup.get());
+        publicGroups.emplace(id, publicGroup);
+        GroupState state;
+        state.activeOwner =
+            reinterpret_cast<ElementId>(publicGroup->activeOwner.get());
+        for (const std::shared_ptr<FunctionalBase>& item :
+             publicGroup->getItems()) {
+            state.elements.push_back(reinterpret_cast<ElementId>(item.get()));
+        }
         const std::shared_ptr<FocusNeighbor> neighbor =
-            current->getNeighbor(direction);
-        if (neighbor == nullptr || neighbor->transition != "directional" ||
-            neighbor->group == nullptr ||
-            visited.contains(neighbor->group.get())) {
+            publicGroup->getNeighbor(direction);
+        const std::shared_ptr<FocusGroup> target =
+            neighbor == nullptr ? nullptr : neighbor->getGroup();
+        if (neighbor != nullptr) {
+            state.neighbors.emplace(
+                direction,
+                NeighborState{reinterpret_cast<GroupId>(target.get()),
+                              neighbor->transition});
+        }
+        runtime.addGroup(id, std::move(state));
+    }
+    const GroupId start = reinterpret_cast<GroupId>(group.get());
+    for (const GroupId id : runtime.directionalPath(start, direction)) {
+        const auto iterator = publicGroups.find(id);
+        if (iterator == publicGroups.end()) {
             return nullptr;
         }
-        current = neighbor->group;
-        visited.insert(current.get());
         const std::shared_ptr<FunctionalBase> target =
-            current->findInitialFocus();
+            iterator->second->findInitialFocus();
         if (target != nullptr) {
             return target;
         }

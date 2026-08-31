@@ -56,6 +56,22 @@ class TypeInfo:
     properties: list[Member] = field(default_factory=list)
     class_properties: list[Member] = field(default_factory=list)
     injectors: list[Member] = field(default_factory=list)
+    line: int = 0
+
+
+@dataclass(frozen=True)
+class EnumValueInfo:
+    name: str
+
+
+@dataclass
+class EnumInfo:
+    name: str
+    values: list[EnumValueInfo]
+    doc: str
+    source: Path
+    options: dict[str, str] = field(default_factory=dict)
+    line: int = 0
 
 
 @dataclass(frozen=True)

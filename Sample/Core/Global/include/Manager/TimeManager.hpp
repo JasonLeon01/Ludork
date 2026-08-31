@@ -48,7 +48,6 @@ using TimerHandle = std::function<bool()>;
 BIND_CLASS()
 class TimeManager {
 public:
-    BIND_IGNORE()
     static void init();
 
     BIND_METHOD()
@@ -57,7 +56,6 @@ public:
     BIND_METHOD()
     static sf::Time getDeltaTime();
 
-    BIND_IGNORE()
     static void update();
 
     BIND_METHOD()
@@ -66,7 +64,6 @@ public:
     BIND_METHOD()
     static void setSpeed(float speed);
 
-    BIND_IGNORE()
     static void shutdown() noexcept;
 
 private:

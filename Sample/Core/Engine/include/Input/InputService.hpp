@@ -38,13 +38,10 @@ public:
     BIND_METHOD()
     void setUseInjectedMouseOnly(bool value);
 
-    BIND_IGNORE()
     void setPointerViewport(std::optional<sf::IntRect> viewport);
 
-    BIND_IGNORE()
     void onWindowRecreated(sf::WindowBase& window);
 
-    BIND_IGNORE()
     static void requestSystemCancel() noexcept;
 
     BIND_METHOD(Pure = true)

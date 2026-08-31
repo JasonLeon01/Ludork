@@ -105,7 +105,7 @@ function System.ScreenShake(power, speed, duration) end
 
 function System.StopScreenShake() end
 
----@param weatherType integer | string
+---@param weatherType GlobalCore.WeatherType | string
 ---@param power       integer
 ---@param maxCount    integer
 function System.SetWeather(weatherType, power, maxCount) end

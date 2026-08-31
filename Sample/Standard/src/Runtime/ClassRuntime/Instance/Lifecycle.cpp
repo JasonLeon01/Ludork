@@ -147,6 +147,19 @@ void reportDisposeError(const char* phase, const std::string& message) {
 
 namespace {
 
+int classInstanceDispose(lua_State* state) {
+    try {
+        if (lua_gettop(state) < 1) {
+            return luaL_error(state, "dispose requires a class instance");
+        }
+        sol::state_view lua(state);
+        disposeInstanceCore(lua, sol::stack::get<sol::object>(state, 1), true);
+        return 0;
+    } catch (const std::exception& error) {
+        return luaL_error(state, "%s", error.what());
+    }
+}
+
 template <typename Callback>
 void runDisposePhase(const char* phase, Callback&& callback) noexcept {
     try {
@@ -282,6 +295,22 @@ void clearInstanceFields(sol::table fields) {
 }
 
 }  // namespace
+
+sol::object instanceDisposeMethod(sol::state_view lua,
+                                  const sol::table& classTable,
+                                  const sol::object& key) {
+    if (!key.is<std::string>() || key.as<std::string>() != "dispose") {
+        return nilObject(lua);
+    }
+    const sol::object dispose = findScriptMember(lua, classTable, key);
+    if (!dispose.is<sol::function>()) {
+        return nilObject(lua);
+    }
+    lua_pushcfunction(lua.lua_state(), classInstanceDispose);
+    sol::object method = sol::stack::get<sol::object>(lua.lua_state(), -1);
+    lua_pop(lua.lua_state(), 1);
+    return method;
+}
 
 bool disposeInstanceCore(sol::state_view lua, const sol::object& instance,
                          bool invokeDispose) {

@@ -1,10 +1,14 @@
 #include <SceneBase.hpp>
 
+#include "SceneBase/LifecycleRuntime.hpp"
+#include "SceneBase/LogicRuntime.hpp"
+#include "SceneBase/TimerRuntime.hpp"
 #include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <Input/InputService.hpp>
 #include <Manager/AudioManager.hpp>
 #include <RuntimeSession.hpp>
+#include <System.hpp>
 #include <Utils/EventBus.hpp>
 #include <VideoPlayback.hpp>
 
@@ -13,19 +17,15 @@
 #include <stdexcept>
 #include <utility>
 
-namespace {
-
-double durationMilliseconds(std::chrono::steady_clock::duration duration) {
-    return std::chrono::duration<double, std::milli>(duration).count();
-}
-
-}  // namespace
+using ludork::global::scene_base_impl::durationMilliseconds;
 
 SceneBase::SceneBase()
     : uiManager_(std::make_shared<UIManager>()),
       commonTipParticleSystem_(std::make_shared<ParticleSystem>()),
       commonTipController_(
-          std::make_shared<CommonTipController>(commonTipParticleSystem_)) {}
+          std::make_shared<CommonTipController>(commonTipParticleSystem_)),
+      lifecycle_(std::make_unique<
+                 ludork::global::scene_base_impl::LifecycleRuntime>()) {}
 
 SceneBase::~SceneBase() {
     systemShutdown();
@@ -107,17 +107,17 @@ void SceneBase::addCommonTip(const std::string& text) {
 
 void SceneBase::systemMain() {
     ludork::standard::LuaExecutionPause luaExecutionPause;
-    if (destroyed_ || mainRunning_.exchange(true)) {
+    if (!lifecycle_->tryStartMain()) {
         return;
     }
     std::exception_ptr failure;
     try {
         systemEnter();
-        if (!destroyed_) {
+        if (!lifecycle_->isDestroyed()) {
             TimeManager::update();
             startLogicThread();
         }
-        while (!runtimeStopping_.load() && System::isActive() &&
+        while (!lifecycle_->isStopping() && System::isActive() &&
                System::getScene().get() == this) {
             PerformanceProfiler::beginMainFrame();
             const bool profile = PerformanceProfiler::isEnabled();
@@ -131,12 +131,12 @@ void SceneBase::systemMain() {
                 std::unique_lock<std::recursive_mutex> lock =
                     lockLogicDataForMain();
                 if (System::hasPendingSceneOperations()) {
-                    runtimeStopping_.store(true);
+                    lifecycle_->requestStop();
                     break;
                 }
                 System::updateRuntime();
                 if (System::hasPendingSceneOperations()) {
-                    runtimeStopping_.store(true);
+                    lifecycle_->requestStop();
                     break;
                 }
             }
@@ -256,7 +256,7 @@ void SceneBase::systemMain() {
             failure = std::current_exception();
         }
     }
-    mainRunning_.store(false);
+    lifecycle_->finishMain();
 
     try {
         System::drainRetiredScenes();
@@ -271,34 +271,33 @@ void SceneBase::systemMain() {
 }
 
 void SceneBase::systemEnter() {
-    if (destroyed_) {
+    if (lifecycle_->isDestroyed()) {
         return;
     }
-    if (!created_) {
+    if (!lifecycle_->isCreated()) {
         onCreate();
-        created_ = true;
+        lifecycle_->markCreated();
     }
-    if (entered_) {
+    if (lifecycle_->isEntered()) {
         return;
     }
-    entered_ = true;
-    runtimeStopping_.store(false);
+    lifecycle_->markEntered();
     fixedAccumulator_ = 0.0f;
     onEnter();
 }
 
 void SceneBase::systemQuit() {
     stopLogicThread();
-    if (!entered_) {
+    if (!lifecycle_->isEntered()) {
         return;
     }
-    entered_ = false;
+    lifecycle_->markExited();
     onQuit();
 }
 
 void SceneBase::systemDestroy() {
     stopLogicThread();
-    if (destroyed_) {
+    if (lifecycle_->isDestroyed()) {
         return;
     }
     std::exception_ptr failure;
@@ -307,8 +306,8 @@ void SceneBase::systemDestroy() {
     } catch (...) {
         failure = std::current_exception();
     }
-    destroyed_ = true;
-    if (created_) {
+    lifecycle_->markDestroyed();
+    if (lifecycle_->isCreated()) {
         try {
             onDestroy();
         } catch (...) {
@@ -324,19 +323,18 @@ void SceneBase::systemDestroy() {
 }
 
 void SceneBase::systemShutdown() noexcept {
-    runtimeStopping_.store(true);
+    lifecycle_->requestStop();
     stopLogicThread();
-    entered_ = false;
-    destroyed_ = true;
+    lifecycle_->shutdown();
     clearRuntimeState();
 }
 
 bool SceneBase::systemIsRunning() const noexcept {
-    return mainRunning_.load();
+    return lifecycle_->isRunning();
 }
 
 void SceneBase::systemInput() {
-    if (entered_ && !destroyed_) {
+    if (lifecycle_->isEntered() && !lifecycle_->isDestroyed()) {
         onInput();
     }
 }
@@ -396,20 +394,8 @@ void SceneBase::logicHandle(float deltaTime) {
     std::vector<std::shared_ptr<Animation>> animationSnapshot;
     {
         const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
-        for (const std::shared_ptr<TimerEntry>& entry : timerEntries_) {
-            entry->time = std::max(0.0f, entry->time - deltaTime);
-            if (entry->isReady()) {
-                readyTimers.push_back(entry);
-            }
-        }
-        for (const std::shared_ptr<TimerEntry>& entry : readyTimers) {
-            const auto iterator =
-                std::find(timerEntries_.begin(), timerEntries_.end(), entry);
-            if (iterator != timerEntries_.end()) {
-                timerEntries_.erase(iterator);
-            }
-            releaseBlockingTimer(entry);
-        }
+        readyTimers = ludork::global::scene_base_impl::advanceTimers(
+            timerEntries_, deltaTime, blockingTimerCount_);
         animationSnapshot = animations_;
     }
     for (const std::shared_ptr<TimerEntry>& entry : readyTimers) {
@@ -475,7 +461,7 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
                                                         bool profile) {
     const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
     LogicStepPerformance performance;
-    if (runtimeStopping_.load() || !System::isActive() ||
+    if (lifecycle_->isStopping() || !System::isActive() ||
         System::getScene().get() != this ||
         System::hasPendingSceneOperations()) {
         return performance;
@@ -499,8 +485,8 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
         performance.maintenanceMilliseconds =
             durationMilliseconds(phaseEnd - phaseStart);
     }
-    const int targetFps = std::max(1, System::getFrameRate());
-    fixedStep_ = 1.0f / static_cast<float>(targetFps);
+    fixedStep_ = ludork::global::scene_base_impl::fixedStepForFrameRate(
+        System::getFrameRate());
     fixedAccumulator_ += deltaTime;
     int steps = 0;
     while (fixedAccumulator_ >= fixedStep_ && steps < maxFixedSteps_) {
@@ -531,7 +517,7 @@ void SceneBase::startLogicThread() {
     if (logicThread_.joinable()) {
         return;
     }
-    runtimeStopping_.store(false);
+    lifecycle_->resetStop();
     {
         const std::lock_guard<std::mutex> lock(logicFailureMutex_);
         logicFailure_ = nullptr;
@@ -542,13 +528,13 @@ void SceneBase::startLogicThread() {
         } catch (...) {
             const std::lock_guard<std::mutex> lock(logicFailureMutex_);
             logicFailure_ = std::current_exception();
-            runtimeStopping_.store(true);
+            lifecycle_->requestStop();
         }
     });
 }
 
 void SceneBase::stopLogicThread() noexcept {
-    runtimeStopping_.store(true);
+    lifecycle_->requestStop();
     if (!logicThread_.joinable()) {
         return;
     }
@@ -561,7 +547,7 @@ void SceneBase::logicLoop() {
     fixedAccumulator_ = 0.0f;
     auto lastTime = std::chrono::steady_clock::now();
     std::uint64_t videoPlaybackSequence = getVideoPlaybackCompletionSequence();
-    while (!runtimeStopping_.load() && System::isActive() &&
+    while (!lifecycle_->isStopping() && System::isActive() &&
            System::getScene().get() == this &&
            !System::hasPendingSceneOperations()) {
         const int targetFps = std::max(1, System::getFrameRate());
@@ -569,10 +555,8 @@ void SceneBase::logicLoop() {
             std::chrono::duration<double>(1.0 / static_cast<double>(targetFps));
         const auto frameStart = std::chrono::steady_clock::now();
         const float deltaTime =
-            std::max(
-                0.0f,
-                std::chrono::duration<float>(frameStart - lastTime).count()) *
-            TimeManager::getSpeed();
+            ludork::global::scene_base_impl::nonNegativeScaledDelta(
+                frameStart, lastTime, TimeManager::getSpeed());
         lastTime = frameStart;
         const bool profile = PerformanceProfiler::isEnabled();
         const LogicStepPerformance stepPerformance =

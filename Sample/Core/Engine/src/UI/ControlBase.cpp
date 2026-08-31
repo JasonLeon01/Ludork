@@ -4,6 +4,57 @@
 #include <UI/FunctionalBase.hpp>
 #include <Utils/Render.hpp>
 
+std::weak_ptr<RuntimeCallbackRegistry>
+    ControlBase::activeRuntimeCallbackRegistry_;
+
+void RuntimeCallbackRegistry::registerControl(ControlBase* control) {
+    if (control == nullptr) {
+        return;
+    }
+    const std::lock_guard<std::mutex> lock(mutex_);
+    controls_.insert(control);
+}
+
+void RuntimeCallbackRegistry::unregisterControl(ControlBase* control) noexcept {
+    const std::lock_guard<std::mutex> lock(mutex_);
+    controls_.erase(control);
+}
+
+void RuntimeCallbackRegistry::releaseRuntimeCallbacks() noexcept {
+    std::vector<ControlBase*> controls;
+    {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        controls.assign(controls_.begin(), controls_.end());
+    }
+    for (ControlBase* control : controls) {
+        if (!contains(control)) {
+            continue;
+        }
+        const std::shared_ptr<ControlBase> owner =
+            control->weak_from_this().lock();
+        if (owner != nullptr && owner->getParent() == nullptr) {
+            owner->releaseRuntimeCallbacks();
+        }
+    }
+}
+
+bool RuntimeCallbackRegistry::contains(ControlBase* control) const noexcept {
+    const std::lock_guard<std::mutex> lock(mutex_);
+    return controls_.contains(control);
+}
+
+ControlBase::ControlBase() {
+    adoptRuntimeCallbackRegistry(activeRuntimeCallbackRegistry_.lock());
+}
+
+ControlBase::~ControlBase() {
+    const std::shared_ptr<RuntimeCallbackRegistry> registry =
+        runtimeCallbackRegistry_.lock();
+    if (registry != nullptr) {
+        registry->unregisterControl(this);
+    }
+}
+
 bool ControlBase::getVisible() const {
     return visible_;
 }
@@ -36,6 +87,13 @@ void ControlBase::setParent(const std::shared_ptr<ControlBase>& parent) {
     }
     resetFunctionalInteractions(*this);
     parent_ = parent;
+    if (parent != nullptr) {
+        const std::shared_ptr<RuntimeCallbackRegistry> registry =
+            parent->runtimeCallbackRegistry_.lock();
+        if (registry != nullptr) {
+            adoptRuntimeCallbackRegistry(registry);
+        }
+    }
 }
 
 std::vector<std::shared_ptr<ControlBase>> ControlBase::getChildren() const {
@@ -135,6 +193,53 @@ void ControlBase::refreshDisplayScale() {
             child->refreshDisplayScale();
         }
     }
+}
+
+void ControlBase::releaseRuntimeCallbacks() noexcept {
+    if (FunctionalBase* functional = dynamic_cast<FunctionalBase*>(this)) {
+        functional->clearEventCallbacks();
+    }
+    for (const std::shared_ptr<ControlBase>& child : getChildren()) {
+        if (child != nullptr) {
+            child->releaseRuntimeCallbacks();
+        }
+    }
+}
+
+void ControlBase::adoptRuntimeCallbackRegistry(
+    const std::shared_ptr<RuntimeCallbackRegistry>& registry) {
+    const std::shared_ptr<RuntimeCallbackRegistry> current =
+        runtimeCallbackRegistry_.lock();
+    if (current != registry) {
+        if (current != nullptr) {
+            current->unregisterControl(this);
+        }
+        runtimeCallbackRegistry_ = registry;
+        if (registry != nullptr) {
+            registry->registerControl(this);
+        }
+    }
+    for (const std::shared_ptr<ControlBase>& child : getChildren()) {
+        if (child != nullptr) {
+            child->adoptRuntimeCallbackRegistry(registry);
+        }
+    }
+}
+
+void ControlBase::activateRuntimeCallbackRegistry(
+    const std::shared_ptr<RuntimeCallbackRegistry>& registry) noexcept {
+    activeRuntimeCallbackRegistry_ = registry;
+}
+
+void ControlBase::deactivateRuntimeCallbackRegistry(
+    const std::shared_ptr<RuntimeCallbackRegistry>& registry) noexcept {
+    if (activeRuntimeCallbackRegistry_.lock() == registry) {
+        activeRuntimeCallbackRegistry_.reset();
+    }
+}
+
+void ControlBase::resetActiveRuntimeCallbackRegistry() noexcept {
+    activeRuntimeCallbackRegistry_.reset();
 }
 
 void ControlBase::resetFunctionalInteractions(ControlBase& control) {

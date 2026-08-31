@@ -17,4 +17,7 @@ add_library(Ludork::System ALIAS CoreSystem)
 target_include_directories(CoreSystem PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(CoreSystem PRIVATE zlibstatic)
-ludork_configure_core_library(CoreSystem "${LUDORK_SYSTEM_BINDINGS}")
+ludork_configure_core_library(
+    CoreSystem
+    "${LUDORK_SYSTEM_BINDINGS}"
+    "${LUDORK_SYSTEM_BINDINGS_TRAITS}")

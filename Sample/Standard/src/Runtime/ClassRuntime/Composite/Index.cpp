@@ -40,6 +40,13 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
         return nilObject(lua);
     }
     const sol::table classTable = rawClass.as<sol::table>();
+    const sol::object disposeMethod =
+        instanceDisposeMethod(lua, classTable, key);
+    if (disposeMethod.is<sol::function>()) {
+        cacheFastIndex(lua, fields, classTable, key, FastIndexKind::Value,
+                       disposeMethod);
+        return disposeMethod;
+    }
     const sol::object getter = findAccessor(lua, classTable, "__getters", key);
     if (getter.is<sol::function>()) {
         cacheFastClassOwner(lua, fields, classTable, key, "__getters",

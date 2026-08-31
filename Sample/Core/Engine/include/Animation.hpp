@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-BIND_CLASS(cast_bases = "sf::Drawable,sf::Transformable", callbacks = true)
+BIND_CLASS(cast_bases = {"sf::Drawable", "sf::Transformable"}, callbacks = true)
 class LUDORK_ENGINE_API AnimSprite : public sf::Sprite {
 public:
     BIND_INIT()

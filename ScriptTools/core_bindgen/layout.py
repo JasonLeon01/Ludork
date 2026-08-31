@@ -62,7 +62,7 @@ def parse_module(include_directory: Path) -> list[TypeInfo]:
         context.type_aliases.update(parse_aliases(path.read_text(encoding="utf-8")))
     types: list[TypeInfo] = []
     for path in header_paths:
-        parsed_types, _ = parse_header(context, path)
+        parsed_types, _, _ = parse_header(context, path)
         types.extend(parsed_types)
     return types
 

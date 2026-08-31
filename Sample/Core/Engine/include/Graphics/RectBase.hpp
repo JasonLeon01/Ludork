@@ -32,7 +32,6 @@ public:
     /// - \param cornerPositions Destination corner positions
     ///
     ////////////////////////////////////////////////////////////
-    BIND_IGNORE()
     void renderCorners(sf::RenderTarget& dst,
                        const std::vector<sf::Texture*>& areaCaches,
                        const std::vector<sf::Vector2f>& cornerPositions);
@@ -45,7 +44,6 @@ public:
     /// - \param edgePositions Destination edge anchor positions
     ///
     ////////////////////////////////////////////////////////////
-    BIND_IGNORE()
     void renderEdges(sf::RenderTarget& dst,
                      const std::vector<sf::Texture*>& areaCaches,
                      const std::vector<sf::Vector2f>& edgePositions);
@@ -58,7 +56,6 @@ public:
     /// - \param cachedEdges Cached edge textures
     ///
     ////////////////////////////////////////////////////////////
-    BIND_IGNORE()
     void renderSides(sf::RenderTexture& edge,
                      const std::vector<sf::Texture*>& cachedCorners,
                      const std::vector<sf::Texture*>& cachedEdges);

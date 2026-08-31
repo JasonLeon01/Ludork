@@ -68,7 +68,10 @@ if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${APPKIT_FRAMEWORK}"
         "${COREGRAPHICS_FRAMEWORK}")
 endif()
-ludork_configure_core_library(Engine "${LUDORK_ENGINE_BINDINGS}")
+ludork_configure_core_library(
+    Engine
+    "${LUDORK_ENGINE_BINDINGS}"
+    "${LUDORK_ENGINE_BINDINGS_TRAITS}")
 endif()
 
 if(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)

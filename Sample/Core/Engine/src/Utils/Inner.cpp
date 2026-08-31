@@ -19,13 +19,6 @@ namespace {
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#if TARGET_OS_IPHONE
-constexpr bool iosPlatform = true;
-#else
-constexpr bool iosPlatform = false;
-#endif
-#else
-constexpr bool iosPlatform = false;
 #endif
 
 std::string appName;
@@ -147,8 +140,6 @@ std::string runtimeValueString(const RuntimeValue& value) {
 }
 
 }  // namespace
-
-bool IS_IOS_PLATFORM = iosPlatform;
 
 void setAppName(const std::string& value) {
     const std::string normalized = trim(value);

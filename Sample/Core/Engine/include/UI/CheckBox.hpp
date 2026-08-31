@@ -70,8 +70,9 @@ public:
     BIND_METHOD()
     virtual void onKeyDown(const RuntimeValue::Map& arguments) override;
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
+
+    void releaseRuntimeCallbacks() noexcept override;
 
 protected:
     BIND_METHOD()

@@ -1,84 +1,17 @@
 #include <Graphics/TilemapGraphics.hpp>
+#include "TilemapGraphics/ChunkBuilder.hpp"
 #include "TilemapGraphics/Pattern.hpp"
+#include "TilemapGraphics/RenderRuntime.hpp"
 #include <SFML/Graphics/PrimitiveType.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <limits>
 #include <utility>
 
+using ludork::engine::tilemap_graphics_impl::ChunkRange;
 using ludork::engine::tilemap_graphics_impl::composeCellPattern;
-using ludork::engine::tilemap_graphics_impl::kMaskBottom;
-using ludork::engine::tilemap_graphics_impl::kMaskBottomLeft;
-using ludork::engine::tilemap_graphics_impl::kMaskBottomRight;
-using ludork::engine::tilemap_graphics_impl::kMaskLeft;
-using ludork::engine::tilemap_graphics_impl::kMaskRight;
-using ludork::engine::tilemap_graphics_impl::kMaskTop;
-using ludork::engine::tilemap_graphics_impl::kMaskTopLeft;
-using ludork::engine::tilemap_graphics_impl::kMaskTopRight;
-
-namespace {
-struct LocalViewBounds {
-    float left;
-    float top;
-    float right;
-    float bottom;
-};
-
-LocalViewBounds getLocalViewBounds(sf::RenderTarget& target,
-                                   const sf::Transform& transform) {
-    const sf::View& view = target.getView();
-    const sf::FloatRect viewport = view.getViewport();
-    const sf::Vector2u targetSize = target.getSize();
-    const int left = static_cast<int>(
-        std::floor(viewport.position.x * static_cast<float>(targetSize.x)));
-    const int top = static_cast<int>(
-        std::floor(viewport.position.y * static_cast<float>(targetSize.y)));
-    const int right =
-        static_cast<int>(std::ceil((viewport.position.x + viewport.size.x) *
-                                   static_cast<float>(targetSize.x)));
-    const int bottom =
-        static_cast<int>(std::ceil((viewport.position.y + viewport.size.y) *
-                                   static_cast<float>(targetSize.y)));
-    const std::array<sf::Vector2i, 4> pixelCorners = {
-        sf::Vector2i(left, top), sf::Vector2i(right, top),
-        sf::Vector2i(left, bottom), sf::Vector2i(right, bottom)};
-    const sf::Transform inverse = transform.getInverse();
-    LocalViewBounds bounds{std::numeric_limits<float>::max(),
-                           std::numeric_limits<float>::max(),
-                           std::numeric_limits<float>::lowest(),
-                           std::numeric_limits<float>::lowest()};
-    for (const sf::Vector2i& pixel : pixelCorners) {
-        const sf::Vector2f world = target.mapPixelToCoords(pixel, view);
-        const sf::Vector2f local = inverse.transformPoint(world);
-        bounds.left = std::min(bounds.left, local.x);
-        bounds.top = std::min(bounds.top, local.y);
-        bounds.right = std::max(bounds.right, local.x);
-        bounds.bottom = std::max(bounds.bottom, local.y);
-    }
-    return bounds;
-}
-
-std::optional<int> autoTileIndexAt(const AutoTileGrid& grid, int x, int y) {
-    if (y < 0 || y >= static_cast<int>(grid.size())) {
-        return std::nullopt;
-    }
-    const auto& row = grid[y];
-    if (x < 0 || x >= static_cast<int>(row.size())) {
-        return std::nullopt;
-    }
-    const auto& cell = row[x];
-    if (!cell.has_value()) {
-        return std::nullopt;
-    }
-    if (const auto index = std::get_if<int>(&cell.value())) {
-        return *index;
-    }
-    return std::nullopt;
-}
-
-}  // namespace
+using ludork::engine::tilemap_graphics_impl::TileChunk;
 
 TileLayerGraphics::TileLayerGraphics(
     int width, int height, int tileSize, std::shared_ptr<sf::Texture> texture,
@@ -116,22 +49,12 @@ void TileLayerGraphics::initChunks() {
     const int height = static_cast<int>(size_.y);
     chunkColumns_ = width > 0 ? (width + ChunkSize - 1) / ChunkSize : 0;
     chunkRows_ = height > 0 ? (height + ChunkSize - 1) / ChunkSize : 0;
-    chunks_.clear();
-    chunks_.reserve(static_cast<std::size_t>(chunkColumns_ * chunkRows_));
-    for (int chunkY = 0; chunkY < chunkRows_; ++chunkY) {
-        for (int chunkX = 0; chunkX < chunkColumns_; ++chunkX) {
-            TileChunk chunk;
-            chunk.x = chunkX * ChunkSize;
-            chunk.y = chunkY * ChunkSize;
-            chunk.width = std::min(ChunkSize, width - chunk.x);
-            chunk.height = std::min(ChunkSize, height - chunk.y);
-            chunks_.push_back(std::move(chunk));
-        }
-    }
+    chunks_ = ludork::engine::tilemap_graphics_impl::createChunks(width, height,
+                                                                  ChunkSize);
     builtChunks_.assign(chunks_.size(), false);
 }
 
-TileLayerGraphics::TileChunk& TileLayerGraphics::getChunk(int x, int y) {
+TileChunk& TileLayerGraphics::getChunk(int x, int y) {
     return chunks_[static_cast<std::size_t>((y / ChunkSize) * chunkColumns_ +
                                             x / ChunkSize)];
 }
@@ -240,7 +163,8 @@ std::optional<int> TileLayerGraphics::getAutoTileIndex(
     if (!inBounds(position)) {
         return std::nullopt;
     }
-    auto index = autoTileIndexAt(autoTiles_, position.x, position.y);
+    auto index = ludork::engine::tilemap_graphics_impl::autoTileIndexAt(
+        autoTiles_, position.x, position.y);
     if (!index.has_value()) {
         return std::nullopt;
     }
@@ -399,31 +323,18 @@ void TileLayerGraphics::draw(sf::RenderTarget& target,
     if (chunkColumns_ == 0 || chunkRows_ == 0 || tileSize_ <= 0) {
         return;
     }
-    const LocalViewBounds visible =
-        getLocalViewBounds(target, states.transform);
-    const float layerWidth = size_.x * static_cast<float>(tileSize_);
-    const float layerHeight = size_.y * static_cast<float>(tileSize_);
-    if (visible.right <= 0.0f || visible.bottom <= 0.0f ||
-        visible.left >= layerWidth || visible.top >= layerHeight) {
+    const auto visible = ludork::engine::tilemap_graphics_impl::localViewBounds(
+        target, states.transform);
+    const ChunkRange range =
+        ludork::engine::tilemap_graphics_impl::visibleChunkRange(
+            visible, size_, tileSize_, ChunkSize, chunkColumns_, chunkRows_);
+    if (range.lastX < range.firstX || range.lastY < range.firstY) {
         return;
     }
-    const float chunkPixelSize = static_cast<float>(ChunkSize * tileSize_);
-    const int firstChunkX =
-        std::clamp(static_cast<int>(std::floor(visible.left / chunkPixelSize)),
-                   0, chunkColumns_ - 1);
-    const int firstChunkY =
-        std::clamp(static_cast<int>(std::floor(visible.top / chunkPixelSize)),
-                   0, chunkRows_ - 1);
-    const int lastChunkX = std::clamp(
-        static_cast<int>(std::ceil(visible.right / chunkPixelSize)) - 1, 0,
-        chunkColumns_ - 1);
-    const int lastChunkY = std::clamp(
-        static_cast<int>(std::ceil(visible.bottom / chunkPixelSize)) - 1, 0,
-        chunkRows_ - 1);
 
     int submittedChunks = 0;
-    for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
-        for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
+    for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
+        for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
             const TileChunk& chunk = chunks_[static_cast<std::size_t>(
                 chunkY * chunkColumns_ + chunkX)];
             bool hasGeometry = chunk.vertexArray != nullptr;
@@ -444,8 +355,8 @@ void TileLayerGraphics::draw(sf::RenderTarget& target,
 
     sf::RenderStates tileStates = states;
     tileStates.texture = texture_.get();
-    for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
-        for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
+    for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
+        for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
             const TileChunk& chunk = chunks_[static_cast<std::size_t>(
                 chunkY * chunkColumns_ + chunkX)];
             if (chunk.vertexArray != nullptr) {
@@ -456,8 +367,8 @@ void TileLayerGraphics::draw(sf::RenderTarget& target,
     for (std::size_t i = 0; i < autoTileTextures_.size(); ++i) {
         sf::RenderStates autoStates = states;
         autoStates.texture = autoTileTextures_[i].get();
-        for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
-            for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
+        for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
+            for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
                 const TileChunk& chunk = chunks_[static_cast<std::size_t>(
                     chunkY * chunkColumns_ + chunkX)];
                 if (i >= chunk.autoTileVertexArrays.size() ||
@@ -657,36 +568,9 @@ void TileLayerGraphics::buildAutoTileChunk(TileChunk& chunk) {
             if (poolIndex < 0 || poolIndex >= static_cast<int>(poolSize)) {
                 continue;
             }
-            const auto sameAt = [this, poolIndex](int cellX, int cellY) {
-                const std::optional<int> other =
-                    getAutoTileIndex(sf::Vector2i(cellX, cellY));
-                return other.has_value() && *other == poolIndex;
-            };
-            int mask = 0;
-            if (sameAt(x, y - 1)) {
-                mask |= kMaskTop;
-            }
-            if (sameAt(x + 1, y)) {
-                mask |= kMaskRight;
-            }
-            if (sameAt(x, y + 1)) {
-                mask |= kMaskBottom;
-            }
-            if (sameAt(x - 1, y)) {
-                mask |= kMaskLeft;
-            }
-            if (sameAt(x - 1, y - 1)) {
-                mask |= kMaskTopLeft;
-            }
-            if (sameAt(x + 1, y - 1)) {
-                mask |= kMaskTopRight;
-            }
-            if (sameAt(x + 1, y + 1)) {
-                mask |= kMaskBottomRight;
-            }
-            if (sameAt(x - 1, y + 1)) {
-                mask |= kMaskBottomLeft;
-            }
+            const int mask =
+                ludork::engine::tilemap_graphics_impl::autoTileMask(
+                    autoTiles_, x, y, poolIndex);
             chunk.autoTileCells[poolIndex].push_back({x, y});
             chunk.autoTileMasks[poolIndex].push_back(mask);
         }

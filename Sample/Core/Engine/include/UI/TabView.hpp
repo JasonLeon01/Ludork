@@ -100,8 +100,9 @@ public:
     BIND_METHOD()
     virtual void onMouseMoved(const RuntimeValue::Map& arguments) override;
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
+
+    void releaseRuntimeCallbacks() noexcept override;
 
 protected:
     BIND_METHOD()
@@ -120,13 +121,6 @@ private:
     static int clampedIndex(int index, std::size_t count);
     static KeyHint parseKeyHint(const RuntimeValue::Map& values,
                                 const std::string& source);
-    static std::string keyboardKeyText(const RuntimeValue& value,
-                                       const std::string& source);
-    static std::string handleKeyText(const RuntimeValue& value,
-                                     const std::string& source);
-    static std::optional<sf::Vector2f> pointerPosition(
-        const RuntimeValue::Map& arguments);
-    static std::optional<int> pointerButton(const RuntimeValue::Map& arguments);
     static bool anyJoystickConnected();
     static bool keyboardHintsAvailableWithoutJoystick();
 

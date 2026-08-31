@@ -5,6 +5,7 @@ import re
 from .constants import GENERATED_FILE_MARKER
 from .context import GeneratorContext
 from .model import (
+    EnumInfo,
     Member,
     TypeInfo,
 )
@@ -15,7 +16,6 @@ from .cpp_types import (
     lua_parameters,
     lua_type,
     module_property_type,
-    option_list,
     parameter_declarations,
     parameter_default,
     parameter_types,
@@ -24,6 +24,7 @@ from .cpp_types import (
     stub_return_lines,
 )
 from .annotations import (
+    cast_bases,
     singleton_options,
     stub_bases,
     validate_lua_path,
@@ -125,6 +126,7 @@ def module_fields(
     context: GeneratorContext,
     module: str,
     types: list[TypeInfo],
+    enums: list[EnumInfo],
     functions: list[Member],
 ) -> dict[str, str]:
     result: dict[str, str] = {}
@@ -141,6 +143,9 @@ def module_fields(
         singleton = singleton_options(info)
         if singleton is not None:
             add_scope(singleton[0], True)
+    for info in enums:
+        public_name = exposed_type_name(info)
+        result[public_name] = f"{module}.{public_name}"
     for member in functions:
         exposed_name = member.options.get("name", member.name)
         if member.kind == "FUNCTION" and "group" in member.options:
@@ -167,12 +172,13 @@ def generate_stub(
     context: GeneratorContext,
     module: str,
     types: list[TypeInfo],
+    enums: list[EnumInfo],
     functions: list[Member],
 ) -> str:
     output = [GENERATED_FILE_MARKER, f"---@meta {module}", ""]
     cast_base_aliases: dict[str, list[str]] = {}
     for info in types:
-        for cast_base in option_list(info.options, "cast_base", "cast_bases"):
+        for cast_base in cast_bases(info):
             if (
                 cast_base in context.exposed_type_names
                 or re.fullmatch(r"[A-Za-z_]\w*", cast_base) is None
@@ -186,12 +192,28 @@ def generate_stub(
         output.append(f"---@alias {cast_base} {'|'.join(targets)}")
     if cast_base_aliases:
         output.append("")
+    for info in enums:
+        public_name = exposed_type_name(info)
+        if info.doc:
+            output.extend(stub_doc_lines(info.doc))
+        output.append(f"---@class {module}.{public_name}")
+        output.extend(
+            f"---@field {value.name} {module}.{public_name}"
+            for value in info.values
+        )
+        output.append("")
     output.append(f"---@class {module}Module")
     output.extend(
         f"---@field {name} {type_name}"
-        for name, type_name in module_fields(context, module, types, functions).items()
+        for name, type_name in module_fields(
+            context, module, types, enums, functions
+        ).items()
     )
     output.extend([f"---@type {module}Module", module + " = {}", ""])
+    for info in enums:
+        output.append(f"{module}.{exposed_type_name(info)} = {{}}")
+    if enums:
+        output.append("")
     function_group_targets: dict[str, str] = {}
     declared_function_groups: set[str] = set()
     for function in functions:

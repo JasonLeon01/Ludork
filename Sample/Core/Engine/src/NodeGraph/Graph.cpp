@@ -1,57 +1,19 @@
 #include <NodeGraph/Graph.hpp>
+#include "Graph/DefinitionRuntime.hpp"
+#include "Graph/ExecutionRuntime.hpp"
+#include "Graph/ExecutionState.hpp"
 #include "Graph/Internal.hpp"
+#include "Graph/LatentRuntime.hpp"
+#include "Graph/LoopRuntime.hpp"
+#include "Graph/RelationRuntime.hpp"
 
 #include <NodeGraph/LatentManager.hpp>
 #include <Runtime/NodeGraphRuntime.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <limits>
 #include <set>
 #include <stdexcept>
 #include <utility>
-
-namespace ludork::engine::graph_detail {
-
-RuntimeIdentityPtr identityValue(const RuntimeValue* value) {
-    if (value == nullptr) {
-        return nullptr;
-    }
-    const RuntimeIdentityPtr* identity = value->getIf<RuntimeIdentityPtr>();
-    return identity == nullptr ? nullptr : *identity;
-}
-
-std::optional<int> integerValue(const RuntimeValue& value) {
-    if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
-        if (*integer < std::numeric_limits<int>::min() ||
-            *integer > std::numeric_limits<int>::max()) {
-            return std::nullopt;
-        }
-        return static_cast<int>(*integer);
-    }
-    if (const double* number = value.getIf<double>()) {
-        if (!std::isfinite(*number) || std::floor(*number) != *number ||
-            *number < std::numeric_limits<int>::min() ||
-            *number > std::numeric_limits<int>::max()) {
-            return std::nullopt;
-        }
-        return static_cast<int>(*number);
-    }
-    return std::nullopt;
-}
-
-std::optional<NodeIndex> nodeIndexValue(const RuntimeValue& value) {
-    if (const std::optional<int> index = integerValue(value)) {
-        return NodeIndex(*index);
-    }
-    if (const std::string* name = value.getIf<std::string>()) {
-        return NodeIndex(*name);
-    }
-    return std::nullopt;
-}
-
-}  // namespace ludork::engine::graph_detail
 
 using namespace ludork::engine::graph_detail;
 
@@ -64,34 +26,65 @@ Graph::Graph(std::string className, RuntimeValue classValue,
       dataNodes_(std::move(inNodes)),
       links_(std::move(graphLinks)),
       nodeModel_(std::move(nodeModel)),
-      eventParams_(std::move(eventParams)) {
+      eventParams_(std::move(eventParams)),
+      executionState_(std::make_unique<ExecutionState>()) {
     initializeContext(std::move(parentValue));
-    const RuntimeValue::Map* startNodeMap =
-        startNodeValues.isNil() ? nullptr
-                                : startNodeValues.getIf<RuntimeValue::Map>();
-    if (!startNodeValues.isNil() && startNodeMap == nullptr) {
-        throw std::invalid_argument("Graph startNodes must be a map");
-    }
-    if (startNodeMap != nullptr) {
-        for (const auto& [key, value] : *startNodeMap) {
-            if (value.isNil()) {
-                continue;
-            }
-            const std::optional<int> index = integerValue(value);
-            if (!index.has_value()) {
-                throw std::runtime_error("Start node for key '" + key +
-                                         "' must be an integer");
-            }
-            startNodes.emplace(key, *index);
-        }
-    }
+    startNodes = ludork::engine::graph_detail::parseStartNodes(startNodeValues);
     genRelationsFromLinks();
+}
+
+Graph::~Graph() = default;
+
+Graph::Graph(const Graph& other)
+    : RuntimeObject(other),
+      parentClassName(other.parentClassName),
+      parentClass(other.parentClass),
+      localGraph(other.localGraph),
+      startNodes(other.startNodes),
+      dataNodes_(other.dataNodes_),
+      nodes_(other.nodes_),
+      definition_(other.definition_),
+      links_(other.links_),
+      nodeModel_(other.nodeModel_),
+      eventParams_(other.eventParams_),
+      graphContext_(other.graphContext_),
+      nodeRely_(other.nodeRely_),
+      nodeNexts_(other.nodeNexts_),
+      executionState_(std::make_unique<ExecutionState>(*other.executionState_)),
+      initialised_(other.initialised_),
+      initialising_(other.initialising_),
+      initialisedEvents_(other.initialisedEvents_) {}
+
+Graph& Graph::operator=(const Graph& other) {
+    if (this == &other) {
+        return *this;
+    }
+    RuntimeObject::operator=(other);
+    parentClassName = other.parentClassName;
+    parentClass = other.parentClass;
+    localGraph = other.localGraph;
+    startNodes = other.startNodes;
+    dataNodes_ = other.dataNodes_;
+    nodes_ = other.nodes_;
+    definition_ = other.definition_;
+    links_ = other.links_;
+    nodeModel_ = other.nodeModel_;
+    eventParams_ = other.eventParams_;
+    graphContext_ = other.graphContext_;
+    nodeRely_ = other.nodeRely_;
+    nodeNexts_ = other.nodeNexts_;
+    executionState_ = std::make_unique<ExecutionState>(*other.executionState_);
+    initialised_ = other.initialised_;
+    initialising_ = other.initialising_;
+    initialisedEvents_ = other.initialisedEvents_;
+    return *this;
 }
 
 Graph::Graph(const Graph& definition, RuntimeValue parentValue, InstanceTag)
     : parentClassName(definition.parentClassName),
       parentClass(definition.parentClass),
-      startNodes(definition.startNodes) {
+      startNodes(definition.startNodes),
+      executionState_(std::make_unique<ExecutionState>()) {
     initializeContext(std::move(parentValue));
 }
 
@@ -223,13 +216,7 @@ void Graph::buildNodesForEvent(const std::string& key) {
     nodes.clear();
     nodes.reserve(event->second.size());
     for (const std::shared_ptr<DataNode>& dataNode : event->second) {
-        if (dataNode == nullptr) {
-            throw std::runtime_error("Graph contains a nil DataNode");
-        }
-        if (dataNode->getResolvedDefinition().isNil()) {
-            throw std::runtime_error("DataNode '" + dataNode->nodeFunction +
-                                     "' is not compiled");
-        }
+        ludork::engine::graph_detail::requireCompiledDataNode(dataNode);
         std::shared_ptr<Node> node(
             new Node(*this, getParent(), dataNode->nodeFunction,
                      dataNode->getResolvedDefinition(),
@@ -247,147 +234,14 @@ void Graph::genRelationsFromLinks() {
     if (definition_ != nullptr) {
         return;
     }
-    nodeRely_.clear();
-    nodeNexts_.clear();
-    for (const auto& [key, links] : links_) {
-        EventRely& eventRely = nodeRely_[key];
-        EventNexts& eventNexts = nodeNexts_[key];
-        for (const GraphLink& link : links) {
-            const std::optional<NodeIndex> left = nodeIndexValue(link.left);
-            const std::optional<NodeIndex> right = nodeIndexValue(link.right);
-            if (!left.has_value() || !right.has_value()) {
-                continue;
-            }
-            if (link.linkType == "Params") {
-                const int* rightIndex = std::get_if<int>(&*right);
-                if (rightIndex != nullptr) {
-                    eventRely[*rightIndex][link.rightInPin] =
-                        NodeSource{*left, link.leftOutPin};
-                }
-            } else if (link.linkType == "Exec") {
-                const int* leftIndex = std::get_if<int>(&*left);
-                if (leftIndex != nullptr) {
-                    eventNexts[*leftIndex][link.leftOutPin] =
-                        NodeSource{*right, link.rightInPin};
-                }
-            }
-        }
-    }
+    buildRelations(links_, nodeRely_, nodeNexts_);
 }
-
-#include <NodeGraph/Graph.hpp>
-#include "Graph/Internal.hpp"
-
-#include <NodeGraph/LatentManager.hpp>
-#include <Runtime/NodeGraphRuntime.hpp>
-#include <Runtime/RuntimeValueServices.hpp>
-
-#include <algorithm>
-#include <cstdint>
-#include <set>
-#include <stdexcept>
-#include <utility>
-
-using namespace ludork::engine::graph_detail;
-
-namespace {
-
-RuntimeValue runtimeMember(const RuntimeValue& value, const std::string& name) {
-    return ludork::engine::runtime_services::invokeFirst(
-        "reflect.get", {value, RuntimeValue(name)});
-}
-
-RuntimeIdentityPtr callableWithin(const RuntimeValue& value,
-                                  const std::string& path) {
-    RuntimeValue current = value;
-    std::size_t start = 0;
-    while (start < path.size()) {
-        const std::size_t separator = path.find('.', start);
-        const std::size_t end =
-            separator == std::string::npos ? path.size() : separator;
-        if (end > start) {
-            current = runtimeMember(current, path.substr(start, end - start));
-        }
-        if (current.isNil()) {
-            return nullptr;
-        }
-        if (separator == std::string::npos) {
-            break;
-        }
-        start = separator + 1;
-    }
-    return identityValue(&current);
-}
-
-}  // namespace
-
-namespace ludork::engine::graph_detail {
-
-std::vector<int> sortedPins(
-    const std::unordered_map<int, Graph::NodeSource>& pins) {
-    std::vector<int> result;
-    result.reserve(pins.size());
-    for (const auto& [pin, _] : pins) {
-        result.push_back(pin);
-    }
-    std::sort(result.begin(), result.end());
-    return result;
-}
-
-NodeCache decodeNodeCache(const RuntimeIdentityPtr& cacheIdentity) {
-    return cacheIdentity == nullptr
-               ? NodeCache{}
-               : nodeGraphRuntime().readCache(cacheIdentity);
-}
-
-void syncNodeCache(const RuntimeIdentityPtr& cacheIdentity,
-                   const NodeCache& cache) {
-    if (cacheIdentity == nullptr) {
-        return;
-    }
-    nodeGraphRuntime().writeCache(cacheIdentity, cache);
-}
-
-}  // namespace ludork::engine::graph_detail
 
 std::vector<NodeIndex> Graph::getRelyNodeIndexList(
     const std::string& key, const NodeIndex& nodeIndex) const {
     const_cast<Graph*>(this)->ensureEventInitialised(key);
-    std::vector<NodeIndex> result;
-    std::set<NodeIndex> visited;
-    std::vector<NodeIndex> order;
     const RelyMap& relies = nodeRely();
-    const auto event = relies.find(key);
-    if (event == relies.end()) {
-        return result;
-    }
-
-    const auto visit = [&](const auto& self, const NodeIndex& current) -> void {
-        if (!visited.insert(current).second) {
-            return;
-        }
-        if (const std::string* name = std::get_if<std::string>(&current);
-            name != nullptr && name->rfind("default_", 0) == 0) {
-            return;
-        }
-        const int* currentIndex = std::get_if<int>(&current);
-        if (currentIndex == nullptr) {
-            return;
-        }
-        const auto dependencies = event->second.find(*currentIndex);
-        if (dependencies == event->second.end()) {
-            return;
-        }
-        for (const int inputPin : sortedPins(dependencies->second)) {
-            const NodeIndex& left = dependencies->second.at(inputPin).node;
-            self(self, left);
-            if (std::find(order.begin(), order.end(), left) == order.end()) {
-                order.push_back(left);
-            }
-        }
-    };
-    visit(visit, nodeIndex);
-    return order;
+    return dependencyOrder(relies, key, nodeIndex);
 }
 
 std::vector<std::shared_ptr<Node>> Graph::getNodes(
@@ -423,39 +277,31 @@ bool Graph::hasExecutableEvent(const std::string& key) const {
 }
 
 bool Graph::tryLockExecution(const std::string& key) {
-    if (executionLocked_[key]) {
-        return false;
-    }
-    executionLocked_[key] = true;
-    return true;
+    return ludork::engine::graph_detail::tryLockExecution(*executionState_,
+                                                          key);
 }
 
 bool Graph::isExecutionLocked(const std::string& key) const {
-    const auto locked = executionLocked_.find(key);
-    return locked != executionLocked_.end() && locked->second;
+    return ludork::engine::graph_detail::isExecutionLocked(*executionState_,
+                                                           key);
 }
 
 void Graph::onLatentAdded(const std::string& key) {
-    ++latentPendingCount_[key];
+    ludork::engine::graph_detail::addLatent(*executionState_, key);
 }
 
 void Graph::onLatentResolved(const std::string& key) {
-    const auto count = latentPendingCount_.find(key);
-    if (count != latentPendingCount_.end() && count->second > 0) {
-        --count->second;
-    }
+    ludork::engine::graph_detail::resolveLatent(*executionState_, key);
 }
 
 std::size_t Graph::getLatentPendingCount(const std::string& key) const {
-    const auto count = latentPendingCount_.find(key);
-    return count == latentPendingCount_.end() ? 0 : count->second;
+    return ludork::engine::graph_detail::latentCount(*executionState_, key);
 }
 
 void Graph::addExecutionCompleteCallback(const std::string& key,
                                          std::function<void()> callback) {
-    if (callback) {
-        executionCompleteCallbacks_[key].push_back(std::move(callback));
-    }
+    ludork::engine::graph_detail::addCompletionCallback(*executionState_, key,
+                                                        std::move(callback));
 }
 
 RuntimeValue::Map Graph::asDict() const {
@@ -544,7 +390,7 @@ const RuntimeValue& Graph::getGraphContext() const {
 }
 
 const std::string& Graph::getDoingPartKey() const {
-    return doingPartKey_;
+    return executionState_->doingPartKey;
 }
 
 const Graph::DataNodeMap& Graph::dataNodes() const {
@@ -574,102 +420,6 @@ RuntimeValue Graph::contextValue(const std::string& name) const {
     return nodeGraphRuntime().getContextValue(localGraph, name);
 }
 
-#include <NodeGraph/Graph.hpp>
-#include "Graph/Internal.hpp"
-
-#include <NodeGraph/LatentManager.hpp>
-
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <limits>
-#include <set>
-#include <stdexcept>
-#include <utility>
-
-using namespace ludork::engine::graph_detail;
-
-namespace {
-
-bool runtimeValueEqual(const RuntimeValue& left, const RuntimeValue& right) {
-    if (left.isNil() || right.isNil()) {
-        return left.isNil() && right.isNil();
-    }
-    if (const bool* leftValue = left.getIf<bool>()) {
-        const bool* rightValue = right.getIf<bool>();
-        return rightValue != nullptr && *leftValue == *rightValue;
-    }
-    if (const std::int64_t* leftValue = left.getIf<std::int64_t>()) {
-        if (const std::int64_t* rightValue = right.getIf<std::int64_t>()) {
-            return *leftValue == *rightValue;
-        }
-        if (const double* rightValue = right.getIf<double>()) {
-            return static_cast<double>(*leftValue) == *rightValue;
-        }
-        return false;
-    }
-    if (const double* leftValue = left.getIf<double>()) {
-        if (const double* rightValue = right.getIf<double>()) {
-            return *leftValue == *rightValue;
-        }
-        if (const std::int64_t* rightValue = right.getIf<std::int64_t>()) {
-            return *leftValue == static_cast<double>(*rightValue);
-        }
-        return false;
-    }
-    if (const std::string* leftValue = left.getIf<std::string>()) {
-        const std::string* rightValue = right.getIf<std::string>();
-        return rightValue != nullptr && *leftValue == *rightValue;
-    }
-    if (const RuntimeIdentityPtr* leftValue =
-            left.getIf<RuntimeIdentityPtr>()) {
-        const RuntimeIdentityPtr* rightValue =
-            right.getIf<RuntimeIdentityPtr>();
-        if (rightValue == nullptr || *leftValue == nullptr ||
-            *rightValue == nullptr) {
-            return rightValue != nullptr && *leftValue == *rightValue;
-        }
-        return (*leftValue)->equals(**rightValue);
-    }
-    if (const RuntimeValue::Object* leftValue =
-            left.getIf<RuntimeValue::Object>()) {
-        const RuntimeValue::Object* rightValue =
-            right.getIf<RuntimeValue::Object>();
-        return rightValue != nullptr && *leftValue == *rightValue;
-    }
-    return false;
-}
-
-RuntimeValue normaliseMatchValue(const RuntimeValue& value) {
-    const std::string* text = value.getIf<std::string>();
-    if (text == nullptr) {
-        return value;
-    }
-    if (*text == "nil") {
-        return RuntimeValue();
-    }
-    return value;
-}
-
-class StringRestore {
-public:
-    explicit StringRestore(std::string& value)
-        : value_(value), previous_(value) {}
-
-    ~StringRestore() {
-        value_ = std::move(previous_);
-    }
-
-    StringRestore(const StringRestore&) = delete;
-    StringRestore& operator=(const StringRestore&) = delete;
-
-private:
-    std::string& value_;
-    std::string previous_;
-};
-
-}  // namespace
-
 RuntimeValue::Array Graph::execute(const std::string& key,
                                    std::optional<int> startNode,
                                    std::optional<std::size_t> limit,
@@ -689,8 +439,8 @@ NodeResult Graph::executeResult(const std::string& key,
                                 std::optional<int> startNode, std::size_t limit,
                                 NodeCache* externalCache) {
     ensureEventInitialised(key);
-    suspendedByLatent_ = false;
-    doingPartKey_ = key;
+    executionState_->suspendedByLatent = false;
+    executionState_->doingPartKey = key;
     const auto nodeEvent = nodes_.find(key);
     if (nodeEvent == nodes_.end()) {
         throw std::runtime_error("Graph key '" + key + "' not found");
@@ -730,12 +480,12 @@ NodeResult Graph::executeResult(const std::string& key,
                 std::dynamic_pointer_cast<Graph>(shared_from_this());
             latentManager().add(self, key, condition, localGraph, current,
                                 cache);
-            suspendedByLatent_ = true;
+            executionState_->suspendedByLatent = true;
             return result;
         }
 
         if (metadata.loop || !metadata.loopNode.empty()) {
-            LoopResult loop =
+            ludork::engine::graph_detail::LoopResult loop =
                 executeLoopNode(key, current, result, cache, limit);
             result = std::move(loop.result);
             steps += loop.steps;
@@ -743,7 +493,7 @@ NodeResult Graph::executeResult(const std::string& key,
                 throw std::runtime_error(
                     "Max steps exceeded while executing graph '" + key + "'");
             }
-            if (suspendedByLatent_) {
+            if (executionState_->suspendedByLatent) {
                 return result;
             }
             if (!loop.next.has_value()) {
@@ -819,9 +569,9 @@ NodeResult Graph::executeResult(const std::string& key,
     }
 }
 
-Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
-                                         const NodeResult& controlResult,
-                                         NodeCache& cache, std::size_t limit) {
+ludork::engine::graph_detail::LoopResult Graph::executeLoopNode(
+    const std::string& key, int nodeIndex, const NodeResult& controlResult,
+    NodeCache& cache, std::size_t limit) {
     const std::shared_ptr<Node>& node = nodes_.at(key).at(nodeIndex);
     const NodeMemberMetadata& metadata = node->getMemberMetadata();
     const PinNexts& nexts = getNodeNexts(key, nodeIndex);
@@ -844,7 +594,7 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
         }
     }
 
-    LoopResult loop;
+    ludork::engine::graph_detail::LoopResult loop;
     loop.result = getLoopEmptyResult(metadata);
     if (body != nullptr) {
         const int* bodyStart = std::get_if<int>(&body->node);
@@ -854,7 +604,8 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
             std::vector<NodeResult> iterations =
                 iterateLoopResults(metadata, controlResult);
             for (std::size_t index = 0; index < iterations.size(); ++index) {
-                const std::size_t frameBaseIndex = loopFrames_.size();
+                const std::size_t frameBaseIndex =
+                    executionState_->loopFrames.size();
                 NodeResult iteration = iterations[index];
                 const bool suspended =
                     runLoopBodyIteration(key, nodeIndex, *bodyStart, cacheKeys,
@@ -867,8 +618,9 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
                         "'");
                 }
                 if (suspended) {
-                    std::shared_ptr<LoopFrame> frame =
-                        std::make_shared<LoopFrame>();
+                    std::shared_ptr<ludork::engine::graph_detail::LoopFrame>
+                        frame = std::make_shared<
+                            ludork::engine::graph_detail::LoopFrame>();
                     frame->key = key;
                     frame->loopNodeIndex = nodeIndex;
                     frame->remainingResults = std::move(iterations);
@@ -885,11 +637,11 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
                         }
                     }
                     frame->limit = limit;
-                    loopFrames_.insert(
-                        loopFrames_.begin() +
+                    executionState_->loopFrames.insert(
+                        executionState_->loopFrames.begin() +
                             static_cast<std::ptrdiff_t>(frameBaseIndex),
                         std::move(frame));
-                    suspendedByLatent_ = true;
+                    executionState_->suspendedByLatent = true;
                     return loop;
                 }
             }
@@ -916,95 +668,24 @@ bool Graph::runLoopBodyIteration(const std::string& key, int loopNodeIndex,
         iterationCache.erase(cacheKey);
     }
     iterationCache[NodeIndex(loopNodeIndex)] = loopResult;
-    suspendedByLatent_ = false;
-    StringRestore partKeyRestore(doingPartKey_);
+    executionState_->suspendedByLatent = false;
+    StringRestore partKeyRestore(executionState_->doingPartKey);
     executeResult(key, bodyStart, limit, &iterationCache);
-    return suspendedByLatent_;
+    return executionState_->suspendedByLatent;
 }
 
 std::optional<int> Graph::getNamedExecPinIndex(
     const NodeMemberMetadata& metadata, const std::string& pinName) const {
-    for (std::size_t index = 0; index < metadata.execSplits.size(); ++index) {
-        if (metadata.execSplits[index].name == pinName) {
-            return static_cast<int>(index);
-        }
-    }
-    return std::nullopt;
+    return namedExecPinIndex(metadata, pinName);
 }
 
 NodeResult Graph::getLoopEmptyResult(const NodeMemberMetadata& metadata) const {
-    if (metadata.loopNode == "ForEach") {
-        return NodeResult{{RuntimeValue(), RuntimeValue(std::int64_t{-1})}, 2};
-    }
-    return NodeResult{{RuntimeValue(std::int64_t{0})}, 1};
+    return emptyLoopResult(metadata);
 }
 
 std::vector<NodeResult> Graph::iterateLoopResults(
     const NodeMemberMetadata& metadata, const NodeResult& controlResult) const {
-    std::vector<NodeResult> result;
-    if (metadata.loopNode == "ForEach") {
-        if (controlResult.count == 0 || controlResult.values.empty()) {
-            return result;
-        }
-        if (const RuntimeValue::Array* items =
-                controlResult.values.front().getIf<RuntimeValue::Array>()) {
-            result.reserve(items->size());
-            for (std::size_t index = 0; index < items->size(); ++index) {
-                result.push_back(
-                    NodeResult{{(*items)[index],
-                                RuntimeValue(static_cast<std::int64_t>(index))},
-                               2});
-            }
-        } else if (const RuntimeValue::Map* items =
-                       controlResult.values.front()
-                           .getIf<RuntimeValue::Map>()) {
-            result.reserve(items->size());
-            std::size_t index = 0;
-            for (const auto& [_, value] : *items) {
-                result.push_back(NodeResult{
-                    {value, RuntimeValue(static_cast<std::int64_t>(index))},
-                    2});
-                ++index;
-            }
-        }
-        return result;
-    }
-    if (metadata.loopNode != "ForLoop") {
-        return result;
-    }
-
-    auto integerAt = [&controlResult](std::size_t index,
-                                      std::int64_t fallback) {
-        if (index >= controlResult.count ||
-            index >= controlResult.values.size()) {
-            return fallback;
-        }
-        const RuntimeValue& value = controlResult.values[index];
-        if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
-            return *integer;
-        }
-        if (const double* number = value.getIf<double>()) {
-            return static_cast<std::int64_t>(std::floor(*number));
-        }
-        return fallback;
-    };
-    const std::int64_t first = integerAt(0, 0);
-    const std::int64_t last = integerAt(1, 0);
-    const std::int64_t step = integerAt(2, 1);
-    if (step == 0) {
-        throw std::runtime_error("ForLoop step cannot be 0");
-    }
-    for (std::int64_t current = first;
-         step > 0 ? current <= last : current >= last; current += step) {
-        result.push_back(NodeResult{{RuntimeValue(current)}, 1});
-        if ((step > 0 &&
-             current > std::numeric_limits<std::int64_t>::max() - step) ||
-            (step < 0 &&
-             current < std::numeric_limits<std::int64_t>::min() - step)) {
-            break;
-        }
-    }
-    return result;
+    return loopResults(metadata, controlResult);
 }
 
 std::vector<NodeIndex> Graph::getLoopBodyCacheKeys(const std::string& key,
@@ -1144,8 +825,9 @@ NodeResult Graph::executeNodeResult(const std::string& key,
 }
 
 void Graph::resumeSuspendedLoops(const std::string& key) {
-    while (!loopFrames_.empty()) {
-        const std::shared_ptr<LoopFrame> frame = loopFrames_.back();
+    while (!executionState_->loopFrames.empty()) {
+        const std::shared_ptr<ludork::engine::graph_detail::LoopFrame> frame =
+            executionState_->loopFrames.back();
         if (frame == nullptr || frame->key != key) {
             return;
         }
@@ -1167,35 +849,27 @@ void Graph::resumeSuspendedLoops(const std::string& key) {
             }
         }
 
-        if (loopFrames_.back() != frame) {
+        if (executionState_->loopFrames.back() != frame) {
             return;
         }
-        loopFrames_.pop_back();
+        executionState_->loopFrames.pop_back();
         frame->baseCache[NodeIndex(frame->loopNodeIndex)] = frame->lastResult;
         if (!frame->completedNext.has_value()) {
             continue;
         }
-        suspendedByLatent_ = false;
-        StringRestore partKeyRestore(doingPartKey_);
+        executionState_->suspendedByLatent = false;
+        StringRestore partKeyRestore(executionState_->doingPartKey);
         executeResult(key, *frame->completedNext, frame->limit,
                       &frame->baseCache);
-        if (suspendedByLatent_) {
+        if (executionState_->suspendedByLatent) {
             return;
         }
     }
 }
 
 void Graph::completeExecution(const std::string& key) {
-    executionLocked_[key] = false;
-    if (getLatentPendingCount(key) > 0) {
-        return;
-    }
-    auto callbacks = executionCompleteCallbacks_.find(key);
-    if (callbacks == executionCompleteCallbacks_.end()) {
-        return;
-    }
-    std::vector<std::function<void()>> pending = std::move(callbacks->second);
-    executionCompleteCallbacks_.erase(callbacks);
+    const std::vector<std::function<void()>> pending =
+        ludork::engine::graph_detail::completeExecution(*executionState_, key);
     for (const std::function<void()>& callback : pending) {
         callback();
     }

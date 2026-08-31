@@ -71,7 +71,8 @@ target_link_libraries(LudorkCoreBinding INTERFACE
     SFML::Audio
     SFML::Network)
 
-function(ludork_configure_core_library target generated_bindings)
+function(ludork_configure_core_library
+         target generated_bindings generated_traits)
     add_dependencies(${target} ${target}Stub)
     target_compile_features(${target} PRIVATE cxx_std_20)
     target_link_libraries(${target} PRIVATE Ludork::CoreBinding)
@@ -90,6 +91,12 @@ function(ludork_configure_core_library target generated_bindings)
         set_property(SOURCE "${generated_binding}" PROPERTY
             SKIP_UNITY_BUILD_INCLUSION ON)
     endforeach()
+    if(MSVC)
+        target_compile_options(${target} PRIVATE "/FI${generated_traits}")
+    else()
+        target_compile_options(${target} PRIVATE
+            -include "${generated_traits}")
+    endif()
     if(MSVC)
         foreach(generated_binding IN LISTS generated_bindings)
             set_property(SOURCE "${generated_binding}" APPEND PROPERTY

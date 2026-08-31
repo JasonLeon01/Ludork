@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .context import GeneratorContext
 from .model import (
+    EnumInfo,
+    EnumValueInfo,
     LuaAlternative,
     LuaEmit,
     MacroInvocation,
@@ -188,6 +190,35 @@ def braced_token_list_contents(value: str, option_name: str) -> str | None:
     return stripped[1:-1].strip()
 
 
+def braced_string_list(value: str, option_name: str, location: str) -> list[str]:
+    try:
+        contents = braced_token_list_contents(value, option_name)
+    except ValueError as error:
+        raise ValueError(f"{location}: {error}") from error
+    if contents is None:
+        raise ValueError(
+            f"{location}: {option_name} must use a braced string list"
+        )
+    result: list[str] = []
+    for item in split_macro_arguments(contents):
+        parsed = parse_macro_options(item, preserve_quoted=True)
+        if set(parsed) != {"value"} or not isinstance(
+            parsed["value"], QuotedAnnotationValue
+        ):
+            raise ValueError(
+                f"{location}: {option_name} entries must be non-empty "
+                "string literals"
+            )
+        entry = str(parsed["value"]).strip()
+        if not entry:
+            raise ValueError(
+                f"{location}: {option_name} entries must be non-empty "
+                "string literals"
+            )
+        result.append(entry)
+    return result
+
+
 def normalize_binding_token_lists(
     option_items: list[str], options: dict[str, str]
 ) -> None:
@@ -205,27 +236,45 @@ def normalize_binding_token_lists(
 
 def parse_binding_options(
     arguments: str,
-    execution: bool = False,
+    annotation_kind: str,
 ) -> tuple[dict[str, str], list[tuple[str, dict[str, str]]]]:
+    allowed_decorators = {
+        "CLASS": {"invalid_vars", "rect_range_vars"},
+        "METHOD": {"meta", "latent", "outpins", "loop_node"},
+        "FUNCTION": {"meta", "latent", "outpins", "loop_node"},
+        "PROPERTY": {"meta"},
+    }.get(annotation_kind, set())
+    execution = annotation_kind in {"METHOD", "FUNCTION"}
     option_items: list[str] = []
     decorators: list[tuple[str, dict[str, str]]] = []
     for item in split_macro_arguments(arguments):
         decorator_match = re.fullmatch(
-            r"(meta|latent|outpins)\s*\((.*)\)", item, re.DOTALL
+            r"(meta|latent|outpins|invalid_vars|rect_range_vars|loop_node)"
+            r"\s*\((.*)\)",
+            item,
+            re.DOTALL,
         )
         if decorator_match is None:
             if execution and split_top_level_assignment(item) is None:
                 raise ValueError(
                     "BIND_METHOD/BIND_FUNCTION arguments must be named options, "
-                    "meta(...), outpins(...), or latent(...)"
+                    "meta(...), outpins(...), latent(...), or loop_node(...)"
                 )
             option_items.append(item)
             continue
         decorator_name = decorator_match.group(1)
+        if decorator_name not in allowed_decorators:
+            raise ValueError(
+                f"{decorator_name}(...) is not supported by "
+                f"BIND_{annotation_kind}"
+            )
         decorator_kind = {
             "meta": "META",
             "latent": "LATENT",
             "outpins": "EXECSPLIT",
+            "invalid_vars": "INVALID_VARS",
+            "rect_range_vars": "RECT_RANGE_VARS",
+            "loop_node": "LOOP_NODE",
         }[decorator_name]
         if any(kind == decorator_kind for kind, _ in decorators):
             raise ValueError(
@@ -233,14 +282,70 @@ def parse_binding_options(
                 "blocks"
             )
         decorator_arguments = split_macro_arguments(decorator_match.group(2))
-        decorator_options = parse_macro_options(
-            decorator_match.group(2),
-            preserve_quoted=True,
-        )
         decorator_assignments = [
             split_top_level_assignment(argument)
             for argument in decorator_arguments
         ]
+        if decorator_kind == "INVALID_VARS":
+            if not decorator_arguments or any(
+                assignment is not None for assignment in decorator_assignments
+            ):
+                raise ValueError(
+                    "invalid_vars(...) requires one or more field identifiers"
+                )
+            if any(
+                re.fullmatch(r"[A-Za-z_]\w*", argument) is None
+                for argument in decorator_arguments
+            ):
+                raise ValueError(
+                    "invalid_vars(...) contains an invalid field identifier"
+                )
+            if len(set(decorator_arguments)) != len(decorator_arguments):
+                raise ValueError(
+                    "invalid_vars(...) contains duplicate field identifiers"
+                )
+            decorator_options = {"vars": ",".join(decorator_arguments)}
+        elif decorator_kind == "RECT_RANGE_VARS":
+            if not decorator_arguments or any(
+                assignment is None for assignment in decorator_assignments
+            ):
+                raise ValueError(
+                    "rect_range_vars(...) requires one or more field mappings"
+                )
+            mappings = [
+                assignment
+                for assignment in decorator_assignments
+                if assignment is not None
+            ]
+            if any(
+                re.fullmatch(r"[A-Za-z_]\w*", name) is None
+                or re.fullmatch(r"[A-Za-z_]\w*", source) is None
+                for name, source in mappings
+            ):
+                raise ValueError(
+                    "rect_range_vars(...) mappings must use field identifiers"
+                )
+            names = [name for name, _ in mappings]
+            if len(set(names)) != len(names):
+                raise ValueError(
+                    "rect_range_vars(...) contains duplicate field identifiers"
+                )
+            decorator_options = dict(mappings)
+        elif decorator_kind == "LOOP_NODE":
+            if (
+                len(decorator_arguments) != 1
+                or decorator_assignments[0] is not None
+                or re.fullmatch(r"[A-Za-z_]\w*", decorator_arguments[0]) is None
+            ):
+                raise ValueError(
+                    "loop_node(...) requires exactly one loop type identifier"
+                )
+            decorator_options = {"value": decorator_arguments[0]}
+        else:
+            decorator_options = parse_macro_options(
+                decorator_match.group(2),
+                preserve_quoted=True,
+            )
         if decorator_kind in {"EXECSPLIT", "LATENT"} and (
             not decorator_arguments
             or any(assignment is None for assignment in decorator_assignments)
@@ -312,6 +417,17 @@ def parse_binding_options(
             f"replace direct {assignments} with outpins({assignments})"
         )
     return options, decorators
+
+
+def cast_bases(info: TypeInfo) -> list[str]:
+    value = info.options.get("cast_bases")
+    if value is None:
+        return []
+    return braced_string_list(
+        value,
+        "BIND_CLASS cast_bases",
+        f"{info.source}:{info.line}",
+    )
 
 
 def runtime_bases(info: TypeInfo) -> list[str]:
@@ -626,9 +742,7 @@ def singleton_options(info: TypeInfo) -> tuple[str, str] | None:
 
 
 def decorators_in(text: str) -> list[tuple[str, dict[str, str]]]:
-    pattern = re.compile(
-        r"BIND_(REGISTER_EVENT|INVALID_VARS|RECT_RANGE_VARS|LOOP_NODE)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)"
-    )
+    pattern = re.compile(r"BIND_(REGISTER_EVENT)\s*\(([^()]*)\)")
     return [
         (match.group(1), parse_macro_options(match.group(2)))
         for match in pattern.finditer(text)
@@ -752,9 +866,37 @@ def validate_member_annotation(
             )
 
 
+def parse_enum_values(
+    body: str, path: Path, line: int, enum_name: str
+) -> list[EnumValueInfo]:
+    values: list[EnumValueInfo] = []
+    for raw_value in split_macro_arguments(body):
+        without_blocks = re.sub(r"/\*.*?\*/", "", raw_value, flags=re.DOTALL)
+        declaration = "\n".join(
+            source_line.split("//", 1)[0]
+            for source_line in without_blocks.splitlines()
+        ).strip()
+        if not declaration:
+            continue
+        match = re.fullmatch(
+            r"([A-Za-z_]\w*)\s*(?:=\s*.+)?",
+            declaration,
+            flags=re.DOTALL,
+        )
+        if match is None:
+            raise ValueError(
+                f"{path}:{line}: unsupported BIND_ENUM value declaration "
+                f"in {enum_name}: {declaration}"
+            )
+        values.append(EnumValueInfo(match.group(1)))
+    if not values:
+        raise ValueError(f"{path}:{line}: BIND_ENUM {enum_name} has no values")
+    return values
+
+
 def parse_header(
     context: GeneratorContext, path: Path
-) -> tuple[list[TypeInfo], list[Member]]:
+) -> tuple[list[TypeInfo], list[EnumInfo], list[Member]]:
     text = path.read_text(encoding="utf-8")
     function_group_matches = macro_invocations(text, ("FUNCTION_GROUP",))
     if len(function_group_matches) > 1:
@@ -791,6 +933,27 @@ def parse_header(
             "LATENT",
             "use latent(...) inside BIND_METHOD or BIND_FUNCTION",
         ),
+        ("IGNORE", "remove the annotation from the unbound declaration"),
+        (
+            "DYNAMIC_VALUE_TYPE",
+            "use dynamic_value = true inside BIND_CLASS",
+        ),
+        (
+            "OPAQUE_IDENTITY_TYPE",
+            "use opaque_identity = true inside BIND_CLASS",
+        ),
+        (
+            "INVALID_VARS",
+            "use invalid_vars(...) inside BIND_CLASS",
+        ),
+        (
+            "RECT_RANGE_VARS",
+            "use rect_range_vars(...) inside BIND_CLASS",
+        ),
+        (
+            "LOOP_NODE",
+            "use loop_node(...) inside BIND_METHOD or BIND_FUNCTION",
+        ),
     )
     for macro_name, replacement in legacy_annotations:
         legacy_match = re.search(rf"\bBIND_{macro_name}\s*\(", text)
@@ -809,8 +972,41 @@ def parse_header(
             "bindings expose only their unique canonical path"
         )
     types: list[TypeInfo] = []
+    enums: list[EnumInfo] = []
     free_functions: list[Member] = []
     class_spans: list[tuple[int, int]] = []
+    enum_pattern = re.compile(
+        r"BIND_ENUM\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*"
+        r"enum\s+class\s+(?:[A-Z][A-Z0-9_]*_API\s+)?"
+        r"(\w+)\s*(?::\s*([^\{]+))?"
+    )
+    for match in enum_pattern.finditer(text):
+        body, _ = balanced_body(text, match.end())
+        options = parse_macro_options(match.group(1))
+        enum_line = text.count("\n", 0, match.start()) + 1
+        unsupported_options = set(options) - {"name"}
+        if unsupported_options:
+            raise ValueError(
+                f"{path}:{enum_line}: unsupported BIND_ENUM options: "
+                + ", ".join(sorted(unsupported_options))
+            )
+        validate_root_exposed_name(
+            options,
+            match.group(2),
+            "ENUM",
+            path,
+            enum_line,
+        )
+        enums.append(
+            EnumInfo(
+                match.group(2),
+                parse_enum_values(body, path, enum_line, match.group(2)),
+                documentation_before(text, match.start()),
+                path,
+                options,
+                enum_line,
+            )
+        )
     class_pattern = re.compile(
         r"BIND_CLASS\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*"
         r"(class|struct)\s+(?:[A-Z][A-Z0-9_]*_API\s+)?"
@@ -832,7 +1028,10 @@ def parse_header(
         class_boundary = max(
             class_prefix.rfind(";"), class_prefix.rfind("}"), class_prefix.rfind("{")
         )
-        class_options = parse_macro_options(match.group(1))
+        class_options, class_decorators = parse_binding_options(
+            match.group(1),
+            "CLASS",
+        )
         class_line = text.count("\n", 0, match.start()) + 1
         if "callbacks" in class_options and (
             class_options["callbacks"].lower() != "true"
@@ -860,8 +1059,13 @@ def parse_header(
             documentation_before(text, match.start()),
             path,
             class_options,
-            decorators_in(class_prefix[class_boundary + 1 :]),
+            [
+                *decorators_in(class_prefix[class_boundary + 1 :]),
+                *class_decorators,
+            ],
+            line=class_line,
         )
+        cast_bases(info)
         markers = macro_invocations(
             body,
             ("INIT", "METHOD", "PROPERTY", "CLASS_PROPERTY", "INJECT"),
@@ -879,7 +1083,7 @@ def parse_header(
             doc = documentation_before(body, member_match.start)
             options, inline_decorators = parse_binding_options(
                 member_match.arguments,
-                execution=kind == "METHOD",
+                kind,
             )
             decorators = decorators_in(body[previous_marker_end : member_match.start])
             decorators.extend(inline_decorators)
@@ -1051,7 +1255,7 @@ def parse_header(
             if member_match.kind == "FUNCTION":
                 options, inline_decorators = parse_binding_options(
                     member_match.arguments,
-                    execution=True,
+                    "FUNCTION",
                 )
             else:
                 options = parse_macro_options(member_match.arguments)
@@ -1121,4 +1325,4 @@ def parse_header(
                 source=path,
             )
         )
-    return types, free_functions
+    return types, enums, free_functions

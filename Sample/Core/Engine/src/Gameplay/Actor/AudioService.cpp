@@ -1,6 +1,6 @@
 #include "AudioService.hpp"
 
-#include <Gameplay/Actor/ActorApiTypes.hpp>
+#include <Gameplay/ActorApiTypes.hpp>
 
 namespace {
 ActorAudioService* service = nullptr;

@@ -205,6 +205,8 @@ def require_binding_type_features(context: GeneratorContext, value: str) -> None
             context.require_binding_feature("callback")
             visit_expression(codec.canonical_type)
             return
+        if item.name in context.enum_types:
+            return
         if item.name.endswith("*"):
             context.require_binding_feature("native")
             visit_expression(remove_pointer(item.name))

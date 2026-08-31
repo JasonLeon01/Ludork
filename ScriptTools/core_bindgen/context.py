@@ -34,6 +34,7 @@ class GeneratorContext:
     type_aliases: dict[str, str] = field(default_factory=dict)
     callback_codecs: dict[str, CallbackCodec] = field(default_factory=dict)
     exposed_type_names: dict[str, str] = field(default_factory=dict)
+    enum_types: set[str] = field(default_factory=set)
     dynamic_value_types: set[str] = field(default_factory=set)
     table_value_types: set[str] = field(default_factory=set)
     lua_alternative_types: set[str] = field(default_factory=set)
@@ -51,6 +52,7 @@ class GeneratorContext:
             type_aliases=self.type_aliases,
             callback_codecs=self.callback_codecs,
             exposed_type_names=self.exposed_type_names,
+            enum_types=self.enum_types,
             dynamic_value_types=self.dynamic_value_types,
             table_value_types=self.table_value_types,
             lua_alternative_types=self.lua_alternative_types,

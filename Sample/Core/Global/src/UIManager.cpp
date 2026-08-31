@@ -28,27 +28,30 @@ void renderCanvas(const std::shared_ptr<ControlBase>& ui) {
 UIManager* UIManager::activeManager_ = nullptr;
 
 UIManager::UIManager()
-    : focusManager_(std::make_shared<FocusManager>()), displayScale_(Scale) {
+    : focusManager_(std::make_shared<FocusManager>()),
+      callbackRegistry_(std::make_shared<RuntimeCallbackRegistry>()),
+      displayScale_(Scale) {
     activateFocusResolvers();
 }
 
 UIManager::~UIManager() {
-    if (activeManager_ != this) {
-        return;
-    }
-    FunctionalBase::setKeyboardFocusResolver({});
-    FunctionalBase::setDirectionalFocusRequester({});
-    FunctionalBase::setKeyboardFocusSetter({});
-    FunctionalBase::setKeyboardCursorResolver({});
-    activeManager_ = nullptr;
+    releaseRuntimeState();
 }
 
 void UIManager::shutdown() noexcept {
+    if (activeManager_ != nullptr) {
+        activeManager_->releaseRuntimeState();
+        return;
+    }
+    deactivateFocusResolvers();
+    ControlBase::resetActiveRuntimeCallbackRegistry();
+}
+
+void UIManager::deactivateFocusResolvers() noexcept {
     FunctionalBase::setKeyboardFocusResolver({});
     FunctionalBase::setDirectionalFocusRequester({});
     FunctionalBase::setKeyboardFocusSetter({});
     FunctionalBase::setKeyboardCursorResolver({});
-    activeManager_ = nullptr;
 }
 
 std::shared_ptr<FocusManager> UIManager::getFocusManager() const {
@@ -67,6 +70,7 @@ void UIManager::loadUI(const std::shared_ptr<ControlBase>& ui) {
     if (ui == nullptr) {
         throw std::invalid_argument("UI cannot be null");
     }
+    ui->adoptRuntimeCallbackRegistry(callbackRegistry_);
     ui->refreshDisplayScale();
     const std::lock_guard<std::mutex> lock(mutex_);
     uis_.push_back(ui);
@@ -184,6 +188,7 @@ void UIManager::activateFocusResolvers() {
         return;
     }
     activeManager_ = this;
+    ControlBase::activateRuntimeCallbackRegistry(callbackRegistry_);
     FunctionalBase::setKeyboardFocusResolver(
         [this](const FunctionalBase& element) {
             return focusManager_->shouldDispatchKeyboardTo(element);
@@ -199,6 +204,36 @@ void UIManager::activateFocusResolvers() {
         [this](const FunctionalBase& element) {
             return focusManager_->isCursorFocusOwner(element);
         });
+}
+
+void UIManager::releaseRuntimeState() noexcept {
+    if (released_) {
+        return;
+    }
+    released_ = true;
+    if (activeManager_ == this) {
+        deactivateFocusResolvers();
+        ControlBase::deactivateRuntimeCallbackRegistry(callbackRegistry_);
+        activeManager_ = nullptr;
+    }
+    std::vector<std::shared_ptr<ControlBase>> controls;
+    {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        controls.swap(uis_);
+    }
+    if (callbackRegistry_ != nullptr) {
+        callbackRegistry_->releaseRuntimeCallbacks();
+    }
+    for (const std::shared_ptr<ControlBase>& control : controls) {
+        if (control != nullptr) {
+            control->releaseRuntimeCallbacks();
+        }
+    }
+    if (focusManager_ != nullptr) {
+        focusManager_->shutdown();
+        focusManager_.reset();
+    }
+    callbackRegistry_.reset();
 }
 
 std::shared_ptr<FunctionalBase> UIManager::functionalUI(

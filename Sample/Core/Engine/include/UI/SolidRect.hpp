@@ -46,7 +46,6 @@ public:
     BIND_METHOD(Pure = true)
     virtual sf::FloatRect getGlobalBounds() const;
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
 
 protected:

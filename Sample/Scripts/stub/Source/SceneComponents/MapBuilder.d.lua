@@ -141,9 +141,19 @@
 ---@field fogOy        number
 ---@field fogDistort   integer
 
+---@class Source.SceneComponents.SingleFloorMapPreview
+---@field gameMap GameMap
+---@field mapData Source.SceneComponents.MapData
+
+---@class Source.SceneComponents.WorldFloorMapPreview
+---@field mapData Source.SceneComponents.WorldMapData
+---@field regions table<string, GameMap>
+
+---@alias Source.SceneComponents.FloorMapPreview Source.SceneComponents.SingleFloorMapPreview | Source.SceneComponents.WorldFloorMapPreview
+
 ---@brief Build map runtime objects and floor-map previews for SceneMap.
 ---@class Source.SceneComponents.SceneMapBuilder
----@field _floorMapPreviewGameMaps table<string, { gameMap: GameMap, mapData: Source.SceneComponents.MapData }>
+---@field _floorMapPreviewGameMaps table<string, Source.SceneComponents.FloorMapPreview>
 local SceneMapBuilder = {}
 
 ---@return Source.SceneComponents.SceneMapBuilder
@@ -253,7 +263,7 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
 --- - @param inst Current game instance.
 --- - @param currentMap Current map path used to resolve extension-less map keys.
 --- - @param mapKey Region map key.
---- - @param telepoint Telepoint tile position.
+--- - @param telepoint Telepoint tile position, in world coordinates for a world manifest.
 --- - @param previewSize Preview texture size in pixels.
 --- - @param previewScale Preview map scale.
 --- - @param showTelepointMarker Whether to draw the selected telepoint marker.

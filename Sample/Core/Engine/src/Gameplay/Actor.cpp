@@ -1,10 +1,18 @@
 #include <Gameplay/Actor.hpp>
 
+#include "Actor/ActorRuntime.hpp"
+#include "Actor/AudioRuntime.hpp"
 #include "Actor/AudioService.hpp"
+#include "Actor/MovementRuntime.hpp"
+#include "Actor/SpatialRuntime.hpp"
+#include "Actor/VisualRuntime.hpp"
 
 #include <Gameplay/BPBase.hpp>
+#include <Runtime/EngineState.hpp>
 #include <Runtime/RuntimeValue.hpp>
 
+#include <algorithm>
+#include <iostream>
 #include <stdexcept>
 #include <utility>
 
@@ -15,6 +23,38 @@ RuntimeValue optionalStringValue(const std::optional<std::string>& value) {
 }
 
 }  // namespace
+
+Actor::RuntimeHandle::RuntimeHandle()
+    : state_(std::make_unique<ludork::engine::actor_impl::ActorRuntime>()) {}
+
+Actor::RuntimeHandle::~RuntimeHandle() = default;
+
+Actor::RuntimeHandle::RuntimeHandle(const RuntimeHandle& other)
+    : state_(std::make_unique<ludork::engine::actor_impl::ActorRuntime>(
+          other.get())) {}
+
+Actor::RuntimeHandle& Actor::RuntimeHandle::operator=(
+    const RuntimeHandle& other) {
+    if (this != &other) {
+        state_ = std::make_unique<ludork::engine::actor_impl::ActorRuntime>(
+            other.get());
+    }
+    return *this;
+}
+
+Actor::RuntimeHandle::RuntimeHandle(RuntimeHandle&& other) noexcept = default;
+
+Actor::RuntimeHandle& Actor::RuntimeHandle::operator=(
+    RuntimeHandle&& other) noexcept = default;
+
+ludork::engine::actor_impl::ActorRuntime& Actor::RuntimeHandle::get() noexcept {
+    return *state_;
+}
+
+const ludork::engine::actor_impl::ActorRuntime& Actor::RuntimeHandle::get()
+    const noexcept {
+    return *state_;
+}
 
 Actor::Actor(std::shared_ptr<sf::Texture> texture,
              std::optional<sf::IntRect> rect, std::string actorTag)
@@ -206,57 +246,58 @@ RuntimeValue Actor::GenActor(const RuntimeIdentityPtr& actorModel,
 }
 
 std::shared_ptr<AutoSoundParams> Actor::getAutoSoundParams() const {
-    return autoSoundParams_;
+    return runtime_.get().autoSoundParams;
 }
 
 void Actor::setAutoSoundParams(const AutoSoundParams& params) {
-    autoSoundParams_ = std::make_shared<AutoSoundParams>(params);
+    runtime_.get().autoSoundParams = std::make_shared<AutoSoundParams>(params);
 }
 
 void Actor::normaliseAutoSoundParams() {
-    autoSoundParams_ =
-        autoSoundParams_ ? std::make_shared<AutoSoundParams>(*autoSoundParams_)
-                         : std::make_shared<AutoSoundParams>();
+    std::shared_ptr<AutoSoundParams>& autoSoundParams =
+        runtime_.get().autoSoundParams;
+    autoSoundParams = autoSoundParams
+                          ? std::make_shared<AutoSoundParams>(*autoSoundParams)
+                          : std::make_shared<AutoSoundParams>();
 }
 
 float Actor::autoSoundListenerDistance() const {
-    const sf::Vector3f listenerPosition = sf::Listener::getPosition();
-    const sf::Vector2f actorPosition = getPosition();
-    const float x = actorPosition.x - listenerPosition.x;
-    const float y = actorPosition.y - listenerPosition.y;
-    return std::sqrt(x * x + y * y);
+    return ludork::engine::actor_impl::listenerDistance(getPosition());
 }
 
 void Actor::updateAutoSound(float deltaTime) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
     if (autoSound.empty()) {
         stopAutoSound();
-        autoSoundCooldown_ = 0.0f;
+        runtime.autoSoundCooldown = 0.0f;
         return;
     }
-    const float stopDistance = autoSoundParams_->maxDistance;
+    const float stopDistance = runtime.autoSoundParams->maxDistance;
     if (stopDistance > 0.0f) {
         const float distance = autoSoundListenerDistance();
         const float startDistance = stopDistance * 0.85f;
         if (distance > stopDistance) {
             stopAutoSound();
-            autoSoundCooldown_ = 0.0f;
+            runtime.autoSoundCooldown = 0.0f;
             return;
         }
-        if (!autoSoundObject_ && distance > startDistance) {
+        if (!runtime.autoSoundObject && distance > startDistance) {
             return;
         }
     }
-    if (autoSoundObject_) {
-        if (autoSoundObject_->getStatus() == sf::SoundSource::Status::Stopped) {
-            autoSoundObject_.reset();
-            autoSoundCooldown_ = std::max(0.0f, autoSoundInterval);
+    if (runtime.autoSoundObject) {
+        if (runtime.autoSoundObject->getStatus() ==
+            sf::SoundSource::Status::Stopped) {
+            runtime.autoSoundObject.reset();
+            runtime.autoSoundCooldown = std::max(0.0f, autoSoundInterval);
         } else {
             applyAutoSoundParams();
             return;
         }
     }
-    if (autoSoundCooldown_ > 0.0f) {
-        autoSoundCooldown_ = std::max(0.0f, autoSoundCooldown_ - deltaTime);
+    if (runtime.autoSoundCooldown > 0.0f) {
+        runtime.autoSoundCooldown =
+            std::max(0.0f, runtime.autoSoundCooldown - deltaTime);
         return;
     }
     playAutoSound();
@@ -266,107 +307,82 @@ void Actor::playAutoSound() {
     if (actorAudioService() == nullptr) {
         return;
     }
-    autoSoundObject_ =
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    runtime.autoSoundObject =
         actorAudioService()->playSoundEffect(autoSound, buildAutoSoundFilter());
-    if (!autoSoundObject_) {
+    if (!runtime.autoSoundObject) {
         return;
     }
     const sf::Vector2f position = getPosition();
-    autoSoundLastPosition_ = sf::Vector3f(position.x, position.y, 0.0f);
+    runtime.autoSoundLastPosition = sf::Vector3f(position.x, position.y, 0.0f);
 }
 
 void Actor::stopAutoSound() {
-    if (!autoSoundObject_) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    if (!runtime.autoSoundObject) {
         return;
     }
-    if (autoSoundObject_->getStatus() != sf::SoundSource::Status::Stopped) {
-        autoSoundObject_->stop();
+    if (runtime.autoSoundObject->getStatus() !=
+        sf::SoundSource::Status::Stopped) {
+        runtime.autoSoundObject->stop();
     }
-    autoSoundObject_.reset();
-    autoSoundLastPosition_.reset();
+    runtime.autoSoundObject.reset();
+    runtime.autoSoundLastPosition.reset();
 }
 
 void Actor::applyAutoSoundParams() {
-    if (!autoSoundObject_ || actorAudioService() == nullptr) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    if (!runtime.autoSoundObject || actorAudioService() == nullptr) {
         return;
     }
     const sf::Vector2f position = getPosition();
     const sf::Vector3f newPosition(position.x, position.y, 0.0f);
-    if (autoSoundLastPosition_.has_value() &&
-        *autoSoundLastPosition_ == newPosition) {
+    if (runtime.autoSoundLastPosition.has_value() &&
+        *runtime.autoSoundLastPosition == newPosition) {
         return;
     }
-    autoSoundLastPosition_ = newPosition;
-    actorAudioService()->setSoundFilter(autoSoundObject_,
+    runtime.autoSoundLastPosition = newPosition;
+    actorAudioService()->setSoundFilter(runtime.autoSoundObject,
                                         buildAutoSoundFilter());
 }
 
 SoundFilter Actor::buildAutoSoundFilter() const {
-    SoundFilter filter;
-    const sf::Vector2f position = getPosition();
-    filter.volume = autoSoundParams_->volume;
-    filter.spatial = true;
-    filter.position = sf::Vector3f(position.x, position.y, 0.0f);
-    filter.relativeToListener = false;
-    filter.minDistance = autoSoundParams_->minDistance;
-    filter.attenuation = autoSoundParams_->attenuation;
-    if (autoSoundParams_->loop) {
-        filter.loop = true;
-    }
-    if (autoSoundParams_->maxDistance > 0.0f) {
-        filter.maxDistance = autoSoundParams_->maxDistance;
-    }
-    return filter;
+    return ludork::engine::actor_impl::buildSoundFilter(
+        *runtime_.get().autoSoundParams, getPosition());
 }
-
-#include <Gameplay/Actor.hpp>
-
-#include <Gameplay/BPBase.hpp>
-#include <Runtime/EngineState.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <algorithm>
-#include <stdexcept>
-#include <utility>
-
-namespace {
-
-int directionComponent(int value) {
-    return value > 0 ? 1 : value < 0 ? -1 : 0;
-}
-
-}  // namespace
 
 void Actor::fixedUpdate(float fixedDelta) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
     const sf::Vector2f start = getPosition();
     float remaining = fixedDelta;
     while (remaining > 0.0f) {
-        if (!moving_) {
+        if (!runtime.moving) {
             tryStartNextRouteStep();
         }
-        if (!moving_) {
+        if (!runtime.moving) {
             const std::optional<sf::Vector2i> offset = _getContinueMoveOffset();
             if (offset.has_value()) {
                 MapMove(*offset);
             }
         }
-        if (!moving_) {
+        if (!runtime.moving) {
             break;
         }
         remaining = processMoving(remaining);
     }
     const float distance = (getPosition() - start).length();
-    realSpeed_ =
+    runtime.realSpeed =
         fixedDelta <= 0.0f || distance <= 0.001f ? 0.0f : distance / fixedDelta;
 }
 
 bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
     const std::shared_ptr<ActorMapService> map = getMap();
-    if (!moveEnabled_ || !map || moving_) {
+    if (!runtime.moveEnabled || !map || runtime.moving) {
         return false;
     }
-    const sf::Vector2i offset(directionComponent(requestedOffset.x),
-                              directionComponent(requestedOffset.y));
+    const sf::Vector2i offset =
+        ludork::engine::actor_impl::normaliseDirection(requestedOffset);
     if (offset.x == 0 && offset.y == 0) {
         return false;
     }
@@ -399,76 +415,77 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
         }
         return false;
     }
-    moving_ = true;
-    moveOriginMapPosition_ = getMapPosition();
-    departure_ = getPosition();
-    destination_ =
-        *departure_ + sf::Vector2f(static_cast<float>(offset.x * CellSize),
-                                   static_cast<float>(offset.y * CellSize));
+    runtime.moving = true;
+    runtime.moveOriginMapPosition = getMapPosition();
+    runtime.departure = getPosition();
+    runtime.destination = *runtime.departure +
+                          sf::Vector2f(static_cast<float>(offset.x * CellSize),
+                                       static_cast<float>(offset.y * CellSize));
     return true;
 }
 
 bool Actor::isMoving() const {
-    return moving_ || realSpeed_ > 0.0f || inRoute_;
+    const ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    return runtime.moving || runtime.realSpeed > 0.0f || runtime.inRoute;
 }
 
 sf::Vector2i Actor::getMapPosition() const {
+    const ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
     syncMapCache();
-    if (moving_ && moveOriginMapPosition_.has_value()) {
-        return *moveOriginMapPosition_;
+    if (runtime.moving && runtime.moveOriginMapPosition.has_value()) {
+        return *runtime.moveOriginMapPosition;
     }
     return cachedMapPosition_;
 }
 
 bool Actor::isInRoute() const {
-    return inRoute_;
+    return runtime_.get().inRoute;
 }
 
 void Actor::setRoute(const std::optional<std::vector<sf::Vector2i>>& route) {
-    route_ = route;
-    inRoute_ = route_.has_value() && !route_->empty();
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    runtime.route = route;
+    runtime.inRoute = runtime.route.has_value() && !runtime.route->empty();
 }
 
 std::optional<std::vector<sf::Vector2i>> Actor::getRoute() const {
-    return route_;
+    return runtime_.get().route;
 }
 
 bool Actor::getMoveEnabled() const {
-    return moveEnabled_;
+    return runtime_.get().moveEnabled;
 }
 
 void Actor::setMoveEnabled(bool enabled) {
-    moveEnabled_ = enabled;
-    if (!moveEnabled_) {
+    runtime_.get().moveEnabled = enabled;
+    if (!runtime_.get().moveEnabled) {
         stop();
     }
 }
 
 void Actor::stop() {
-    moving_ = false;
-    inRoute_ = false;
-    route_.reset();
-    departure_.reset();
-    destination_.reset();
-    moveOriginMapPosition_.reset();
-    realSpeed_ = 0.0f;
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    runtime.moving = false;
+    runtime.inRoute = false;
+    runtime.route.reset();
+    runtime.departure.reset();
+    runtime.destination.reset();
+    runtime.moveOriginMapPosition.reset();
+    runtime.realSpeed = 0.0f;
     autoFixMapPosition();
 }
 
 std::optional<sf::Vector2f> Actor::getVelocity() const {
     const std::shared_ptr<ActorMapService> map = getMap();
-    if (!map || !departure_.has_value() || !destination_.has_value()) {
+    if (!map) {
         return std::nullopt;
     }
     const std::optional<Material> topMaterial =
         map->getTopMaterial(getMapPosition());
-    const float actualSpeed =
-        speed * (topMaterial.has_value() ? topMaterial->speedRate : 1.0f);
-    if (actualSpeed == 0.0f) {
-        throw std::runtime_error("attempt to divide by zero");
-    }
-    const sf::Vector2f distance = *destination_ - *departure_;
-    return distance / (distance.length() / actualSpeed);
+    const ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    return ludork::engine::actor_impl::movementVelocity(
+        runtime.departure, runtime.destination, speed,
+        topMaterial.has_value() ? topMaterial->speedRate : 1.0f);
 }
 
 std::optional<sf::Vector2i> Actor::_getContinueMoveOffset() {
@@ -478,27 +495,25 @@ std::optional<sf::Vector2i> Actor::_getContinueMoveOffset() {
 void Actor::_onArrivedAtMapCell() {}
 
 float Actor::processMoving(float deltaTime) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
     const std::optional<sf::Vector2f> velocity = getVelocity();
     const std::shared_ptr<ActorMapService> map = getMap();
-    if (!velocity.has_value() || !destination_.has_value() ||
-        !departure_.has_value() || !map) {
+    if (!velocity.has_value() || !runtime.destination.has_value() ||
+        !runtime.departure.has_value() || !map) {
         return 0.0f;
     }
-    const float remainingDistance = (*destination_ - getPosition()).length();
-    const float actualSpeed = velocity->length();
-    if (actualSpeed <= 0.0f) {
+    const ludork::engine::actor_impl::MovementAdvance advance =
+        ludork::engine::actor_impl::advanceMovement(
+            getPosition(), *runtime.destination, *velocity, deltaTime);
+    if (!advance.completed) {
+        move(advance.position - getPosition());
         return 0.0f;
     }
-    const float time = remainingDistance / actualSpeed;
-    if (time > deltaTime) {
-        move(*velocity * deltaTime);
-        return 0.0f;
-    }
-    setPosition(*destination_);
-    moving_ = false;
-    departure_.reset();
-    destination_.reset();
-    moveOriginMapPosition_.reset();
+    setPosition(advance.position);
+    runtime.moving = false;
+    runtime.departure.reset();
+    runtime.destination.reset();
+    runtime.moveOriginMapPosition.reset();
     autoFixMapPosition();
     const std::vector<Actor*> overlaps = map->getOverlaps(*this);
     if (!overlaps.empty()) {
@@ -513,33 +528,31 @@ float Actor::processMoving(float deltaTime) {
         }
     }
     _onArrivedAtMapCell();
-    return std::max(0.0f, deltaTime - time);
+    return advance.remainingTime;
 }
 
 void Actor::tryStartNextRouteStep() {
-    if (!inRoute_) {
+    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    if (!runtime.inRoute) {
         return;
     }
-    if (!route_.has_value() || route_->empty()) {
-        inRoute_ = false;
+    if (!runtime.route.has_value() || runtime.route->empty()) {
+        runtime.inRoute = false;
         return;
     }
-    const sf::Vector2i step = route_->front();
-    route_->erase(route_->begin());
+    const sf::Vector2i step = runtime.route->front();
+    runtime.route->erase(runtime.route->begin());
     if (!MapMove(step)) {
-        inRoute_ = false;
-        route_ = std::vector<sf::Vector2i>{};
+        runtime.inRoute = false;
+        runtime.route = std::vector<sf::Vector2i>{};
     }
 }
 
 void Actor::autoFixMapPosition() {
     const sf::Vector2f position = getPosition();
-    moveOriginMapPosition_.reset();
-    setMapPosition(sf::Vector2u(
-        static_cast<unsigned int>(position.x / static_cast<float>(CellSize) +
-                                  0.5f),
-        static_cast<unsigned int>(position.y / static_cast<float>(CellSize) +
-                                  0.5f)));
+    runtime_.get().moveOriginMapPosition.reset();
+    setMapPosition(
+        ludork::engine::actor_impl::snappedMapPosition(position, CellSize));
     const std::shared_ptr<ActorMapService> map = getMap();
     if (map) {
         map->updateActorOccupancy(*this);
@@ -561,44 +574,6 @@ RuntimeValue Actor::actorListValue(const std::vector<Actor*>& actors) {
     return RuntimeValue(std::move(values));
 }
 
-#include <Gameplay/Actor.hpp>
-
-#include <Runtime/EngineState.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <stdexcept>
-
-namespace {
-
-bool boundsIntersectCell(const sf::Vector2f& boundsPos,
-                         const sf::Vector2f& boundsSize, float cellX,
-                         float cellY, float cellSize) {
-    const float boundsRight = boundsPos.x + boundsSize.x;
-    const float boundsBottom = boundsPos.y + boundsSize.y;
-    const float cellRight = cellX + cellSize;
-    const float cellBottom = cellY + cellSize;
-    return boundsPos.x < cellRight && boundsRight > cellX &&
-           boundsPos.y < cellBottom && boundsBottom > cellY;
-}
-
-int roundHalfToEven(float value) {
-    const float lower = std::floor(value);
-    const float fraction = value - lower;
-    if (fraction < 0.5f) {
-        return static_cast<int>(lower);
-    }
-    if (fraction > 0.5f) {
-        return static_cast<int>(lower + 1.0f);
-    }
-    const int lowerInteger = static_cast<int>(lower);
-    return lowerInteger % 2 == 0 ? lowerInteger : lowerInteger + 1;
-}
-
-}  // namespace
-
 ActorMapService::~ActorMapService() = default;
 
 sf::Vector2f Actor::getPosition() const {
@@ -616,9 +591,10 @@ std::vector<sf::Vector2i> Actor::getOccupiedMapCells(
         return occupiedCells_;
     }
     const sf::Vector2f delta = *worldPosition - getPosition();
-    const sf::Vector2i mapDelta(
-        roundHalfToEven(delta.x / static_cast<float>(CellSize)),
-        roundHalfToEven(delta.y / static_cast<float>(CellSize)));
+    const sf::Vector2i mapDelta(ludork::engine::actor_impl::roundHalfToEven(
+                                    delta.x / static_cast<float>(CellSize)),
+                                ludork::engine::actor_impl::roundHalfToEven(
+                                    delta.y / static_cast<float>(CellSize)));
     return getOccupiedMapCellsAtMapPosition(getMapPosition() + mapDelta);
 }
 
@@ -891,11 +867,8 @@ void Actor::syncMapCache() const {
     Actor* self = const_cast<Actor*>(this);
     self->cachedPosition_ = getPosition();
     self->cachedGlobalBounds_ = sf::Sprite::getGlobalBounds();
-    self->cachedMapPosition_ = sf::Vector2i(
-        static_cast<int>(
-            self->cachedPosition_.x / static_cast<float>(CellSize) + 0.5f),
-        static_cast<int>(
-            self->cachedPosition_.y / static_cast<float>(CellSize) + 0.5f));
+    self->cachedMapPosition_ = ludork::engine::actor_impl::mapPosition(
+        self->cachedPosition_, CellSize);
     self->occupiedCells_ = computeOccupiedCells(self->cachedGlobalBounds_);
 }
 
@@ -976,67 +949,13 @@ bool Actor::blocksPassability() const {
 
 std::vector<sf::Vector2i> Actor::computeOccupiedCells(
     const sf::FloatRect& bounds) const {
-    if (bounds.size.x <= 0.f || bounds.size.y <= 0.f) {
-        return {cachedMapPosition_};
-    }
-    const float cellSize = static_cast<float>(CellSize);
-    const int minX = static_cast<int>(std::floor(bounds.position.x / cellSize));
-    const int minY = static_cast<int>(std::floor(bounds.position.y / cellSize));
-    const int maxX = static_cast<int>(
-        std::floor((bounds.position.x + bounds.size.x - 1e-9f) / cellSize));
-    const int maxY = static_cast<int>(
-        std::floor((bounds.position.y + bounds.size.y - 1e-9f) / cellSize));
-    std::vector<sf::Vector2i> cells;
-    for (int cellY = minY; cellY <= maxY; ++cellY) {
-        for (int cellX = minX; cellX <= maxX; ++cellX) {
-            if (boundsIntersectCell(bounds.position, bounds.size,
-                                    static_cast<float>(cellX) * cellSize,
-                                    static_cast<float>(cellY) * cellSize,
-                                    cellSize)) {
-                cells.emplace_back(cellX, cellY);
-            }
-        }
-    }
-    if (cells.empty()) {
-        return {cachedMapPosition_};
-    }
-    return cells;
+    return ludork::engine::actor_impl::occupiedCells(bounds, cachedMapPosition_,
+                                                     CellSize);
 }
-
-#include <Gameplay/Actor.hpp>
-
-#include <ConcurrentResourceCache.hpp>
-#include <Utils/ShaderLoader.hpp>
-
-#include <iostream>
-#include <stdexcept>
-#include <utility>
-
-namespace {
-
-std::unique_ptr<sf::Texture>& blankTextureStorage() {
-    static std::unique_ptr<sf::Texture> texture;
-    return texture;
-}
-
-ludork::core::ConcurrentResourceCache<sf::Shader, true>& actorShaderCache() {
-    static ludork::core::ConcurrentResourceCache<sf::Shader, true> cache;
-    return cache;
-}
-
-const sf::Texture& blankTexture() {
-    std::unique_ptr<sf::Texture>& texture = blankTextureStorage();
-    if (texture == nullptr) {
-        texture = std::make_unique<sf::Texture>();
-    }
-    return *texture;
-}
-
-}  // namespace
 
 const sf::Texture& Actor::textureOrBlank(
     const std::shared_ptr<sf::Texture>& texture) {
-    return texture ? *texture : blankTexture();
+    return ludork::engine::actor_impl::textureOrBlank(texture);
 }
 
 void Actor::ensureShaderLoaded() const {
@@ -1049,19 +968,10 @@ void Actor::ensureShaderLoaded() const {
     if (shaderPath.empty()) {
         return;
     }
-    try {
-        shader_ = actorShaderCache().getOrLoad(shaderPath, [this]() {
-            ShaderLoadResult result =
-                ShaderLoader::load(shaderPath, sf::Shader::Type::Fragment);
-            if (!result) {
-                throw std::runtime_error(result.error);
-            }
-            return std::move(result.shader);
-        });
-    } catch (const std::exception& error) {
-        shaderError_ = true;
-        std::cerr << error.what() << '\n';
-    }
+    const ludork::engine::actor_impl::ShaderResult result =
+        ludork::engine::actor_impl::loadShader(shaderPath);
+    shader_ = result.shader;
+    shaderError_ = result.failed;
 }
 
 void Actor::setShaderPath(const std::string& shaderPath) {
@@ -1203,22 +1113,15 @@ void Actor::_animate(float deltaTime) {
     }
     switchTimer_ = 0.0f;
     const sf::IntRect currentRect = getTextureRect();
-    const unsigned int width = texture_->getSize().x;
-    if (width == 0) {
-        return;
-    }
-    const sf::IntRect nextRect({(currentRect.position.x + currentRect.size.x) %
-                                    static_cast<int>(width),
-                                currentRect.position.y},
-                               currentRect.size);
+    const sf::IntRect nextRect = ludork::engine::actor_impl::nextAnimationRect(
+        currentRect, texture_->getSize().x);
     if (nextRect != currentRect) {
         setTextureRect(nextRect);
     }
 }
 
 void shutdownActorResources() noexcept {
-    actorShaderCache().clear();
-    blankTextureStorage().reset();
+    ludork::engine::actor_impl::shutdownVisualResources();
 }
 
 sf::Color Actor::getLightColour() const {

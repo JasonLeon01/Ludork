@@ -32,6 +32,12 @@ int classInstanceIndex(lua_State* state) {
         const sol::table classTable = constructorClass(state);
         const sol::object target = sol::stack::get<sol::object>(state, 1);
         const sol::object key = sol::stack::get<sol::object>(state, 2);
+        const sol::object disposeMethod =
+            instanceDisposeMethod(lua, classTable, key);
+        if (disposeMethod.is<sol::function>()) {
+            disposeMethod.push();
+            return 1;
+        }
         const sol::object getter =
             findAccessor(lua, classTable, "__getters", key);
         if (getter.is<sol::function>()) {

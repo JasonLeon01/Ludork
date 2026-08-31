@@ -27,11 +27,16 @@ public:
     FocusNeighbor(std::shared_ptr<FocusGroup> group,
                   std::string transition = "directional");
 
-    BIND_PROPERTY()
-    std::shared_ptr<FocusGroup> group;
+    BIND_METHOD(property = "group", setter = "setGroup")
+    std::shared_ptr<FocusGroup> getGroup() const;
+
+    void setGroup(const std::shared_ptr<FocusGroup>& group);
 
     BIND_PROPERTY()
     std::string transition;
+
+private:
+    std::weak_ptr<FocusGroup> group_;
 };
 
 BIND_CLASS(callbacks = true)
@@ -85,6 +90,7 @@ public:
         const std::string& direction);
 
 private:
+    void releaseRuntimeState() noexcept;
     bool contains(const std::shared_ptr<FunctionalBase>& element) const;
     std::shared_ptr<FunctionalBase> findInitialFocusLocal() const;
     static bool isLocallyFocusable(
@@ -106,6 +112,9 @@ class FocusManager {
 public:
     BIND_INIT()
     FocusManager() = default;
+    ~FocusManager();
+
+    void shutdown() noexcept;
 
     BIND_METHOD()
     void setNavigationEnabled(bool enabled);

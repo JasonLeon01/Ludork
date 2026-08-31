@@ -12,6 +12,9 @@ namespace ludork::engine::graph_detail {
 RuntimeIdentityPtr identityValue(const RuntimeValue* value);
 std::optional<int> integerValue(const RuntimeValue& value);
 std::optional<NodeIndex> nodeIndexValue(const RuntimeValue& value);
+RuntimeValue runtimeMember(const RuntimeValue& value, const std::string& name);
+RuntimeIdentityPtr callableWithin(const RuntimeValue& value,
+                                  const std::string& path);
 template <typename Value>
 std::vector<int> sortedPins(const std::unordered_map<int, Value>& pins) {
     std::vector<int> result;

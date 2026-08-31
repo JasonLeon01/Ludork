@@ -61,8 +61,6 @@ std::shared_ptr<T> canonicalRuntimeOwner(const std::shared_ptr<T>& value) {
 BIND_CLASS(opaque_identity = true, bind_bases = false, metadata = false)
 class LUDORK_ENGINE_API RuntimeIdentity {
 public:
-    BIND_OPAQUE_IDENTITY_TYPE();
-
     virtual ~RuntimeIdentity();
     virtual bool equals(const RuntimeIdentity& other) const = 0;
 };
@@ -72,8 +70,6 @@ using RuntimeIdentityPtr = std::shared_ptr<RuntimeIdentity>;
 BIND_CLASS(copyable = true, dynamic_value = true)
 class LUDORK_ENGINE_API RuntimeValue {
 public:
-    BIND_DYNAMIC_VALUE_TYPE();
-
     using Object = std::shared_ptr<RuntimeObject>;
     using Array = std::vector<RuntimeValue>;
     using Map = std::unordered_map<std::string, RuntimeValue>;

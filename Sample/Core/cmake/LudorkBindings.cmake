@@ -134,6 +134,8 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
         "${CMAKE_CURRENT_BINARY_DIR}/generated-declarations")
     set(generated_bindings_directory
         "${CMAKE_CURRENT_BINARY_DIR}/generated-bindings")
+    set(binding_traits
+        "${generated_bindings_directory}/${module_name}.traits.auto.hpp")
     file(REMOVE
         "${CMAKE_CURRENT_BINARY_DIR}/${module_name}Bindings.cpp")
     set(published_scripts_directory
@@ -199,6 +201,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
         OUTPUT "${bindings_stamp}"
         BYPRODUCTS
             ${bindings}
+            "${binding_traits}"
             "${stub}"
             "${metadata}"
             "${metadata_stamp}"
@@ -237,4 +240,5 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
         DEPENDS "${bindings_stamp}"
         VERBATIM)
     set(${output_variable} "${bindings}" PARENT_SCOPE)
+    set(${output_variable}_TRAITS "${binding_traits}" PARENT_SCOPE)
 endfunction()

@@ -1,12 +1,11 @@
 #include <UI/FunctionalBase.hpp>
 
+#include "FunctionalBase/InteractionRuntime.hpp"
+
 #include <Runtime/EngineState.hpp>
 #include <UI/ControlBase.hpp>
 
 #include <array>
-#include <cmath>
-#include <cstdint>
-#include <stdexcept>
 
 FunctionalInputProvider* FunctionalBase::inputProvider_ = nullptr;
 FunctionalBase::FocusResolver FunctionalBase::keyboardFocusResolver_;
@@ -111,14 +110,7 @@ void FunctionalBase::setActive(bool active) {
 
 void FunctionalBase::setTouchHitBounds(
     const std::optional<sf::FloatRect>& bounds) {
-    if (bounds.has_value() &&
-        (!std::isfinite(bounds->position.x) ||
-         !std::isfinite(bounds->position.y) || !std::isfinite(bounds->size.x) ||
-         !std::isfinite(bounds->size.y) || bounds->size.x < 0.0f ||
-         bounds->size.y < 0.0f)) {
-        throw std::invalid_argument(
-            "Touch hit bounds must be finite with non-negative size");
-    }
+    ludork::engine::functional_base_impl::validateTouchHitBounds(bounds);
     touchHitBounds_ = bounds;
 }
 
@@ -173,6 +165,19 @@ void FunctionalBase::addKeyDownCallback(EventCallback callback) {
 
 void FunctionalBase::addKeyUpCallback(EventCallback callback) {
     keyUpCallback_ = std::move(callback);
+}
+
+void FunctionalBase::clearEventCallbacks() noexcept {
+    confirmCallback_ = {};
+    cancelCallback_ = {};
+    clickCallback_ = {};
+    mouseButtonDownCallback_ = {};
+    hoverCallback_ = {};
+    unHoverCallback_ = {};
+    mouseMovedCallback_ = {};
+    mouseWheelScrolledCallback_ = {};
+    keyDownCallback_ = {};
+    keyUpCallback_ = {};
 }
 
 void FunctionalBase::update(float deltaTime) {
@@ -475,7 +480,8 @@ bool FunctionalBase::hasTouchCapture() const {
 void FunctionalBase::onPointerInteractionReset() {}
 
 void FunctionalBase::resetPointerInteraction() {
-    if (!hovered_ && !pressed_ && pointerSource_ == PointerSource::None) {
+    if (ludork::engine::functional_base_impl::pointerStateIsEmpty(
+            hovered_, pressed_, pointerSource_ != PointerSource::None)) {
         onPointerInteractionReset();
         return;
     }
@@ -494,23 +500,19 @@ void FunctionalBase::onInteractionStateChanged() {}
 
 RuntimeValue::Map FunctionalBase::pointerArguments(
     const sf::Vector2f& position) {
-    return {{"position",
-             RuntimeValue(RuntimeValue::Map{{"x", RuntimeValue(position.x)},
-                                            {"y", RuntimeValue(position.y)}})}};
+    return ludork::engine::functional_base_impl::pointerArguments(position);
 }
 
 RuntimeValue::Map FunctionalBase::mouseButtonArguments(
     const sf::Vector2f& position, sf::Mouse::Button button) {
-    RuntimeValue::Map result = pointerArguments(position);
-    result.emplace("button", RuntimeValue(static_cast<std::int64_t>(button)));
-    return result;
+    return ludork::engine::functional_base_impl::mouseButtonArguments(position,
+                                                                      button);
 }
 
 RuntimeValue::Map FunctionalBase::mouseWheelArguments(
     const sf::Vector2f& position, float delta) {
-    RuntimeValue::Map result = pointerArguments(position);
-    result.emplace("delta", RuntimeValue(static_cast<double>(delta)));
-    return result;
+    return ludork::engine::functional_base_impl::mouseWheelArguments(position,
+                                                                     delta);
 }
 
 void FunctionalBase::setHovered(bool hovered, const sf::Vector2f& position) {

@@ -30,7 +30,6 @@ public:
     BIND_METHOD()
     void setWindowSkin(const sf::Image& windowSkin, bool repeated = false);
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
 
 private:

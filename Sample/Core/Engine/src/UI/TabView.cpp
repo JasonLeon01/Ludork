@@ -1,27 +1,23 @@
 #include <UI/TabView.hpp>
 
+#include "Interaction/InputArguments.hpp"
+#include "TabView/KeyHintRuntime.hpp"
+#include "TabView/NavigationRuntime.hpp"
+#include "TabView/VisualLayout.hpp"
+
 #include <Input/InputService.hpp>
 #include <Runtime/EngineState.hpp>
 #include <UI/Rect.hpp>
 #include <UI/SolidRect.hpp>
 #include <UI/UiAudioService.hpp>
 
-#include <LudorkCoreBinding/RegistryReference.hpp>
-#include <LudorkPlatform.hpp>
-
-#include <SFML/Window/Joystick.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
-
-#if defined(SFML_SYSTEM_HARMONY) && defined(SFML_HARMONY_MOBILE)
-#include <deviceinfo.h>
-#endif
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
-#include <string_view>
 #include <utility>
 
 namespace {
@@ -30,20 +26,8 @@ constexpr float HintSize = 16.0f;
 constexpr float HintContentSize = 14.0f;
 constexpr unsigned int HintCharacterSize = 8;
 
-std::optional<double> numericValue(const RuntimeValue& value) {
-    if (const double* number = value.getIf<double>()) {
-        return *number;
-    }
-    if (const std::int64_t* number = value.getIf<std::int64_t>()) {
-        return static_cast<double>(*number);
-    }
-    return std::nullopt;
-}
-
-std::string toUtf8String(const sf::String& value) {
-    const sf::U8String bytes = value.toUtf8();
-    return {bytes.begin(), bytes.end()};
-}
+using ludork::engine::ui_interaction::pointerButtonIndex;
+using ludork::engine::ui_interaction::pointerPosition;
 
 std::shared_ptr<PlainTextConfig> hintTextConfig(
     const std::shared_ptr<PlainTextConfig>& source) {
@@ -250,7 +234,7 @@ bool TabView::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     if (!isInteractionEnabled()) {
         return callbackHandled;
     }
-    const std::optional<int> button = pointerButton(arguments);
+    const std::optional<int> button = pointerButtonIndex(arguments);
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
     const int leftButton = static_cast<int>(sf::Mouse::Button::Left);
     if (!button.has_value() || *button != leftButton || !position.has_value()) {
@@ -278,6 +262,11 @@ void TabView::refreshDisplayScale() {
     ControlBase::refreshDisplayScale();
 }
 
+void TabView::releaseRuntimeCallbacks() noexcept {
+    selectedIndexChangedCallback_ = {};
+    ControlBase::releaseRuntimeCallbacks();
+}
+
 void TabView::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     _applyRenderStates(states);
     if (!getVisible()) {
@@ -298,154 +287,27 @@ bool TabView::acceptsTouchCapture() const {
 }
 
 sf::Vector2f TabView::normalizedSize(const sf::Vector2f& size) {
-    return {
-        std::isfinite(size.x) ? std::max(0.0f, size.x) : 0.0f,
-        std::isfinite(size.y) ? std::max(0.0f, size.y) : 0.0f,
-    };
+    return ludork::engine::tab_view_impl::normalizedSize(size);
 }
 
 int TabView::clampedIndex(int index, std::size_t count) {
-    return std::clamp(index, 0, static_cast<int>(count) - 1);
+    return ludork::engine::tab_view_impl::clampedIndex(index, count);
 }
 
 TabView::KeyHint TabView::parseKeyHint(const RuntimeValue::Map& values,
                                        const std::string& source) {
-    KeyHint result;
-    for (const auto& [name, value] : values) {
-        if (name == "Keyboard") {
-            result.keyboard = keyboardKeyText(value, source + ".Keyboard");
-        } else if (name == "Joystick") {
-            result.handle = handleKeyText(value, source + ".Handle");
-        } else {
-            throw std::invalid_argument(source + " has unknown key " + name);
-        }
-    }
-    return result;
-}
-
-std::string TabView::keyboardKeyText(const RuntimeValue& value,
-                                     const std::string& source) {
-    const std::int64_t* code = value.getIf<std::int64_t>();
-    if (code == nullptr || *code < 0 ||
-        static_cast<std::uint64_t>(*code) >= sf::Keyboard::KeyCount) {
-        throw std::invalid_argument(
-            source + " must be a valid non-Unknown sf.Keyboard.Key");
-    }
-    const sf::Keyboard::Key key = static_cast<sf::Keyboard::Key>(*code);
-    const sf::Keyboard::Scancode scan = sf::Keyboard::delocalize(key);
-    std::string result = toUtf8String(sf::Keyboard::getDescription(scan));
-    if (result.empty()) {
-        result = std::to_string(*code);
-    }
-    return result;
-}
-
-std::string TabView::handleKeyText(const RuntimeValue& value,
-                                   const std::string& source) {
-    const RuntimeIdentityPtr* identity = value.getIf<RuntimeIdentityPtr>();
-    const auto* opaque =
-        identity == nullptr || *identity == nullptr
-            ? nullptr
-            : dynamic_cast<
-                  const ludork_core::LuaOpaqueIdentity<RuntimeIdentity>*>(
-                  identity->get());
-    if (opaque == nullptr) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    sol::state_view lua(opaque->value().state());
-    const sol::object luaValue =
-        ludork_core::readLuaRegistryReference(lua, opaque->value());
-    if (!luaValue.is<sol::table>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const sol::object engineValue =
-        lua.globals().raw_get<sol::object>("Engine");
-    if (!engineValue.is<sol::table>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const sol::object inputValue =
-        engineValue.as<sol::table>().raw_get<sol::object>("Input");
-    if (!inputValue.is<sol::table>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const sol::object reverseValue =
-        inputValue.as<sol::table>().raw_get<sol::object>("JoyStickButtonName");
-    if (!reverseValue.is<sol::table>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const sol::object nameValue =
-        reverseValue.as<sol::table>().raw_get<sol::object>(luaValue);
-    if (!nameValue.is<std::string>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const std::string name = nameValue.as<std::string>();
-    const auto iterator = inputJoystickButtons.find(name);
-    if (iterator == inputJoystickButtons.end()) {
-        throw std::invalid_argument(
-            source + " must match a registered Engine.JoystickButton value");
-    }
-    return iterator->second.name;
-}
-
-std::optional<sf::Vector2f> TabView::pointerPosition(
-    const RuntimeValue::Map& arguments) {
-    const auto positionIterator = arguments.find("position");
-    if (positionIterator == arguments.end()) {
-        return std::nullopt;
-    }
-    const RuntimeValue::Map* position =
-        positionIterator->second.getIf<RuntimeValue::Map>();
-    if (position == nullptr) {
-        return std::nullopt;
-    }
-    const auto xIterator = position->find("x");
-    const auto yIterator = position->find("y");
-    if (xIterator == position->end() || yIterator == position->end()) {
-        return std::nullopt;
-    }
-    const std::optional<double> x = numericValue(xIterator->second);
-    const std::optional<double> y = numericValue(yIterator->second);
-    if (!x.has_value() || !y.has_value()) {
-        return std::nullopt;
-    }
-    return sf::Vector2f(static_cast<float>(*x), static_cast<float>(*y));
-}
-
-std::optional<int> TabView::pointerButton(const RuntimeValue::Map& arguments) {
-    const auto iterator = arguments.find("button");
-    if (iterator == arguments.end()) {
-        return std::nullopt;
-    }
-    const std::optional<double> value = numericValue(iterator->second);
-    return value.has_value() ? std::optional<int>(static_cast<int>(*value))
-                             : std::nullopt;
+    const auto result =
+        ludork::engine::tab_view_impl::parseKeyHint(values, source);
+    return {result.keyboard, result.handle};
 }
 
 bool TabView::anyJoystickConnected() {
-    for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
-         ++joystickId) {
-        if (sf::Joystick::isConnected(joystickId)) {
-            return true;
-        }
-    }
-    return false;
+    return ludork::engine::tab_view_impl::anyJoystickConnected();
 }
 
 bool TabView::keyboardHintsAvailableWithoutJoystick() {
-#if !defined(LUDORK_MOBILE)
-    return true;
-#elif defined(SFML_SYSTEM_HARMONY) && defined(SFML_HARMONY_MOBILE)
-    const char* deviceType = OH_GetDeviceType();
-    return deviceType != nullptr && std::string_view(deviceType) == "tablet";
-#else
-    return false;
-#endif
+    return ludork::engine::tab_view_impl::
+        keyboardHintsAvailableWithoutJoystick();
 }
 
 bool TabView::setSelectedIndexInternal(int index, bool playSound) {
@@ -487,20 +349,8 @@ void TabView::selectMouseHover(const RuntimeValue::Map& arguments) {
 
 std::optional<int> TabView::tabIndexAt(
     const sf::Vector2f& localPosition) const {
-    const float right = size_.x - HintSize;
-    if (localPosition.x < HintSize || localPosition.x >= right ||
-        localPosition.y < 0.0f || localPosition.y >= size_.y ||
-        right <= HintSize) {
-        return std::nullopt;
-    }
-    const float slotWidth =
-        (size_.x - HintSize * 2.0f) / static_cast<float>(items_.size());
-    if (slotWidth <= 0.0f) {
-        return std::nullopt;
-    }
-    const int index =
-        static_cast<int>((localPosition.x - HintSize) / slotWidth);
-    return std::clamp(index, 0, static_cast<int>(items_.size()) - 1);
+    return ludork::engine::tab_view_impl::tabIndexAt(size_, localPosition,
+                                                     items_.size(), HintSize);
 }
 
 sf::Vector2f TabView::toLocalPosition(
@@ -539,8 +389,10 @@ void TabView::rebuildHintVisuals() {
 }
 
 void TabView::layoutVisuals() {
-    const float contentWidth = std::max(0.0f, size_.x - HintSize * 2.0f);
-    const float slotWidth = contentWidth / static_cast<float>(items_.size());
+    const float contentWidth =
+        ludork::engine::tab_view_impl::contentWidth(size_.x, HintSize);
+    const float slotWidth = ludork::engine::tab_view_impl::slotWidth(
+        size_.x, HintSize, items_.size());
     selectionRect_->resize({slotWidth, size_.y});
     for (std::size_t index = 0; index < labels_.size(); ++index) {
         layoutLabel(*labels_[index], static_cast<int>(index));
@@ -553,43 +405,28 @@ void TabView::layoutVisuals() {
 }
 
 void TabView::layoutLabel(PlainText& label, int index) const {
-    const float contentWidth = std::max(0.0f, size_.x - HintSize * 2.0f);
-    const float slotWidth = contentWidth / static_cast<float>(items_.size());
     const sf::FloatRect bounds = label.getLocalBounds();
     label.setOrigin({0.0f, 0.0f});
-    label.setPosition(
-        {HintSize + slotWidth * (static_cast<float>(index) + 0.5f) -
-             bounds.position.x - bounds.size.x * 0.5f,
-         size_.y * 0.5f - bounds.position.y - bounds.size.y * 0.5f});
+    label.setPosition(ludork::engine::tab_view_impl::labelPosition(
+        bounds, size_, index, items_.size(), HintSize));
 }
 
 void TabView::layoutHint(PlainText& text, SolidRect& background,
                          bool left) const {
-    const float x = left ? 0.0f : size_.x - HintSize;
-    const float y = (size_.y - HintSize) * 0.5f;
-    background.setPosition({x, y});
     const sf::FloatRect bounds = text.getLocalBounds();
-    float fitScale = 1.0f;
-    if (bounds.size.x > 0.0f) {
-        fitScale = std::min(fitScale, HintContentSize / bounds.size.x);
-    }
-    if (bounds.size.y > 0.0f) {
-        fitScale = std::min(fitScale, HintContentSize / bounds.size.y);
-    }
+    const ludork::engine::tab_view_impl::HintLayout layout =
+        ludork::engine::tab_view_impl::hintLayout(bounds, size_, left, HintSize,
+                                                  HintContentSize);
+    background.setPosition(layout.backgroundPosition);
     text.setOrigin({0.0f, 0.0f});
-    text.setScale({fitScale, fitScale});
-    text.setPosition(
-        {x + HintSize * 0.5f -
-             (bounds.position.x + bounds.size.x * 0.5f) * fitScale,
-         y + HintSize * 0.5f -
-             (bounds.position.y + bounds.size.y * 0.5f) * fitScale});
+    text.setScale({layout.textScale, layout.textScale});
+    text.setPosition(layout.textPosition);
 }
 
 void TabView::updateSelectionVisual() {
-    const float contentWidth = std::max(0.0f, size_.x - HintSize * 2.0f);
-    const float slotWidth = contentWidth / static_cast<float>(items_.size());
     selectionRect_->setPosition(
-        {HintSize + slotWidth * static_cast<float>(selectedIndex_), 0.0f});
+        ludork::engine::tab_view_impl::selectionPosition(
+            size_.x, items_.size(), selectedIndex_, HintSize));
 }
 
 void TabView::updateHintVisibility() {

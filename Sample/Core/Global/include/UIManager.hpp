@@ -40,19 +40,22 @@ public:
     void renderHandle(float deltaTime,
                       const std::function<void()>& overlayRenderer = {});
 
-    BIND_IGNORE()
     static void shutdown() noexcept;
 
 private:
     std::vector<std::shared_ptr<ControlBase>> sortedUIs(bool descending) const;
     void activateFocusResolvers();
+    void releaseRuntimeState() noexcept;
+    static void deactivateFocusResolvers() noexcept;
     static std::shared_ptr<FunctionalBase> functionalUI(
         const std::shared_ptr<ControlBase>& ui);
 
     std::vector<std::shared_ptr<ControlBase>> uis_;
     std::shared_ptr<FocusManager> focusManager_;
+    std::shared_ptr<RuntimeCallbackRegistry> callbackRegistry_;
     mutable std::mutex mutex_;
     float displayScale_ = 1.0f;
+    bool released_ = false;
 
     static UIManager* activeManager_;
 };

@@ -56,4 +56,7 @@ if(LUDORK_ENABLE_FFMPEG)
 else()
     target_compile_definitions(GlobalCore PRIVATE LUDORK_HAS_FFMPEG=0)
 endif()
-ludork_configure_core_library(GlobalCore "${LUDORK_GLOBAL_BINDINGS}")
+ludork_configure_core_library(
+    GlobalCore
+    "${LUDORK_GLOBAL_BINDINGS}"
+    "${LUDORK_GLOBAL_BINDINGS_TRAITS}")

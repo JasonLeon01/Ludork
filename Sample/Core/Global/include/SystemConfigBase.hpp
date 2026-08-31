@@ -196,11 +196,9 @@ public:
     BIND_METHOD()
     static void saveVoiceVolume(float value);
 
-    BIND_IGNORE()
     static void setChangeHandler(
         std::function<void(const std::string&)> handler);
 
-    BIND_IGNORE()
     static void shutdown() noexcept;
 
 private:

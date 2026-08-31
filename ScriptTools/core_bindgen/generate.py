@@ -11,6 +11,7 @@ from .callback_codecs import (
     validate_callback_codec_aliases,
 )
 from .model import (
+    EnumInfo,
     Member,
     TypeInfo,
 )
@@ -28,7 +29,7 @@ from .metadata import (
     metadata_type_names,
     write_metadata,
 )
-from .bindings import generate_bindings
+from .bindings import generate_binding_traits_header, generate_bindings
 
 
 def write_if_different(path: Path, contents: str) -> None:
@@ -106,6 +107,7 @@ def main(arguments: list[str] | None = None) -> int:
     context = GeneratorContext()
     context.callback_codecs = load_callback_codecs(arguments.callback_codecs)
     types: list[TypeInfo] = []
+    enums: list[EnumInfo] = []
     functions: list[Member] = []
     registry_entries: list[tuple[str, Path]] = []
     for value in arguments.type_registry:
@@ -128,29 +130,37 @@ def main(arguments: list[str] | None = None) -> int:
         context, arguments.callback_codecs.with_name("sfml_api.json")
     )
     external_types: list[TypeInfo] = []
+    external_enums: list[EnumInfo] = []
     external_type_modules: dict[str, str] = {}
     for module_name, directory in registry_entries:
         for path in sorted(directory.glob("**/*.hpp")):
-            parsed_types, _ = parse_header(context, path)
-            for info in parsed_types:
+            parsed_types, parsed_enums, _ = parse_header(context, path)
+            for info in [*parsed_types, *parsed_enums]:
                 previous_module = external_type_modules.get(info.name)
                 if previous_module is not None and previous_module != module_name:
                     raise ValueError(
                         f"ambiguous external type registry for {info.name}"
                     )
                 external_type_modules[info.name] = module_name
-                external_types.append(info)
+            external_types.extend(parsed_types)
+            external_enums.extend(parsed_enums)
     for path in header_paths:
-        parsed_types, parsed_functions = parse_header(context, path)
+        parsed_types, parsed_enums, parsed_functions = parse_header(context, path)
         types.extend(parsed_types)
+        enums.extend(parsed_enums)
         functions.extend(parsed_functions)
     all_types = [*external_types, *types]
+    all_enums = [*external_enums, *enums]
+    all_exposed_types = [*all_types, *all_enums]
     context.exposed_type_names = {
-        info.name: exposed_type_name(info) for info in all_types
+        info.name: exposed_type_name(info) for info in all_exposed_types
     }
-    local_exposed_names = [exposed_type_name(info) for info in types]
+    local_exposed_names = [
+        exposed_type_name(info) for info in [*types, *enums]
+    ]
     if len(set(local_exposed_names)) != len(local_exposed_names):
         raise ValueError("duplicate exposed type names in module")
+    context.enum_types = {info.name for info in all_enums}
     context.dynamic_value_types = {
         info.name
         for info in all_types
@@ -189,7 +199,9 @@ def main(arguments: list[str] | None = None) -> int:
             "table_init: " + ", ".join(sorted(identity_overlap))
         )
     type_modules = dict(external_type_modules)
-    type_modules.update({info.name: arguments.module for info in types})
+    type_modules.update(
+        {info.name: arguments.module for info in [*types, *enums]}
+    )
     context.type_modules = type_modules
     metadata_path = (
         arguments.scripts_directory.resolve() / f"{arguments.module}_meta.lua"
@@ -202,12 +214,13 @@ def main(arguments: list[str] | None = None) -> int:
         type_modules,
         metadata_type_names(context, all_types),
     )
-    stub = generate_stub(context, arguments.module, types, functions)
+    stub = generate_stub(context, arguments.module, types, enums, functions)
     binding_sources = generate_bindings(
         context,
         arguments.include_directory,
         arguments.module,
         types,
+        enums,
         functions,
         stub,
         metadata,
@@ -215,6 +228,10 @@ def main(arguments: list[str] | None = None) -> int:
         [directory for _, directory in registry_entries],
     )
     bindings_directory = arguments.bindings_directory.resolve()
+    traits_header = binding_output_path(
+        bindings_directory,
+        f"{arguments.module}.traits.auto.hpp",
+    )
     bindings_manifest = arguments.bindings_manifest.resolve()
     bindings_stamp = arguments.bindings_stamp.resolve()
     previous_binding_outputs = read_previous_binding_outputs(
@@ -223,10 +240,15 @@ def main(arguments: list[str] | None = None) -> int:
     current_binding_outputs = {
         binding_output_path(bindings_directory, name) for name in binding_sources
     }
+    current_binding_outputs.add(traits_header)
     for name, contents in binding_sources.items():
         write_generated_binding(
             binding_output_path(bindings_directory, name), contents
         )
+    write_generated_binding(
+        traits_header,
+        generate_binding_traits_header(all_types),
+    )
     write_metadata(metadata_path, metadata)
     write_if_different(arguments.stub, stub)
     write_if_different(arguments.metadata_stamp, str(metadata_path) + "\n")

@@ -99,15 +99,11 @@ public:
     BIND_METHOD()
     static std::size_t getMemory();
 
-    BIND_IGNORE()
     static void initialize(lua_State* state);
 
-    BIND_IGNORE()
     static void update();
 
-    BIND_IGNORE()
     static void stopAll();
 
-    BIND_IGNORE()
     static void shutdown() noexcept;
 };

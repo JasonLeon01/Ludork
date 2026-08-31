@@ -11,7 +11,7 @@
 using ContextSettingValue = std::variant<unsigned int, bool>;
 using ContextSettingMap = std::unordered_map<std::string, ContextSettingValue>;
 
-BIND_CLASS(name = "ContextSettings", cast_bases = "sf::ContextSettings")
+BIND_CLASS(name = "ContextSettings")
 class ModifiedContextSettings : public sf::ContextSettings {
 public:
     BIND_INIT()

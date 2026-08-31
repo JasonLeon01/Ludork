@@ -13,12 +13,35 @@
 #include <SFML/System/Vector2.hpp>
 
 #include <memory>
+#include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 class ControlBase;
 class Canvas;
 class FunctionalBase;
+
+class RuntimeCallbackReleasable {
+public:
+    virtual ~RuntimeCallbackReleasable() = 0;
+    virtual void releaseRuntimeCallbacks() noexcept = 0;
+};
+
+inline RuntimeCallbackReleasable::~RuntimeCallbackReleasable() = default;
+
+class LUDORK_ENGINE_API RuntimeCallbackRegistry {
+public:
+    void registerControl(ControlBase* control);
+    void unregisterControl(ControlBase* control) noexcept;
+    void releaseRuntimeCallbacks() noexcept;
+
+private:
+    bool contains(ControlBase* control) const noexcept;
+
+    mutable std::mutex mutex_;
+    std::unordered_set<ControlBase*> controls_;
+};
 
 class ControlBaseSharedOwner
     : public std::enable_shared_from_this<ControlBase> {
@@ -29,14 +52,15 @@ protected:
     ~ControlBaseSharedOwner() = default;
 };
 
-BIND_CLASS(callbacks = true, cast_bases = "sf::Drawable,sf::Transformable")
+BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ControlBase : public sf::Drawable,
                                       public sf::Transformable,
-                                      public ControlBaseSharedOwner {
+                                      public ControlBaseSharedOwner,
+                                      public RuntimeCallbackReleasable {
 public:
     BIND_INIT()
-    ControlBase() = default;
-    virtual ~ControlBase() = default;
+    ControlBase();
+    virtual ~ControlBase();
 
     BIND_METHOD(Pure = true)
     bool getVisible() const;
@@ -116,14 +140,24 @@ public:
     BIND_METHOD(Pure = true)
     sf::Transform getInverseTransform() const;
 
-    BIND_IGNORE()
     sf::Transform renderTransform() const;
 
-    BIND_IGNORE()
     sf::Transform screenRenderTransform() const;
 
-    BIND_IGNORE()
     virtual void refreshDisplayScale();
+
+    void releaseRuntimeCallbacks() noexcept override;
+
+    void adoptRuntimeCallbackRegistry(
+        const std::shared_ptr<RuntimeCallbackRegistry>& registry);
+
+    static void activateRuntimeCallbackRegistry(
+        const std::shared_ptr<RuntimeCallbackRegistry>& registry) noexcept;
+
+    static void deactivateRuntimeCallbackRegistry(
+        const std::shared_ptr<RuntimeCallbackRegistry>& registry) noexcept;
+
+    static void resetActiveRuntimeCallbackRegistry() noexcept;
 
 protected:
     BIND_METHOD(callback = false, metadata = false)
@@ -155,4 +189,8 @@ private:
     bool visible_ = true;
     std::string name_;
     std::weak_ptr<ControlBase> parent_;
+    std::weak_ptr<RuntimeCallbackRegistry> runtimeCallbackRegistry_;
+
+    static std::weak_ptr<RuntimeCallbackRegistry>
+        activeRuntimeCallbackRegistry_;
 };

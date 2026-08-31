@@ -29,4 +29,6 @@ target_link_libraries(GlobalFunctions
         SFML::Graphics
         SFML::Audio)
 ludork_configure_core_library(
-    GlobalFunctions "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS}")
+    GlobalFunctions
+    "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS}"
+    "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS_TRAITS}")

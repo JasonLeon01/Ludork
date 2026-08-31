@@ -7,8 +7,7 @@
 #include <optional>
 #include <string>
 
-BIND_INVALID_VARS(vars = "defaultRect")
-BIND_CLASS(callbacks = true)
+BIND_CLASS(callbacks = true, invalid_vars(defaultRect))
 class Character : public Actor {
 public:
     BIND_INIT()

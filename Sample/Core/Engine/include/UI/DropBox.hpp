@@ -140,8 +140,9 @@ public:
     BIND_METHOD()
     virtual void onKeyDown(const RuntimeValue::Map& arguments) override;
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
+
+    void releaseRuntimeCallbacks() noexcept override;
 
 protected:
     BIND_METHOD()
@@ -163,10 +164,6 @@ private:
 
     static sf::Vector2f normalizedSize(const sf::Vector2f& size);
     static sf::Vector2i roundedSize(const sf::Vector2f& size);
-    static std::optional<sf::Vector2f> pointerPosition(
-        const RuntimeValue::Map& arguments);
-    static std::optional<int> pointerButton(const RuntimeValue::Map& arguments);
-
     int clampedIndex(int index) const;
     float expandedHeight() const;
     PopupGeometry calculatePopupGeometry() const;

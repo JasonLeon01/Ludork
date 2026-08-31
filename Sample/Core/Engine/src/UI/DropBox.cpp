@@ -1,5 +1,9 @@
 #include <UI/DropBox.hpp>
 
+#include "DropBox/PopupRuntime.hpp"
+#include "DropBox/VisualRuntime.hpp"
+#include "Interaction/InputArguments.hpp"
+
 #include <Input/InputService.hpp>
 #include <Runtime/EngineState.hpp>
 #include <UI/Canvas.hpp>
@@ -36,30 +40,12 @@ constexpr bool MobilePlatform = true;
 constexpr bool MobilePlatform = false;
 #endif
 
-std::optional<double> numericValue(const RuntimeValue& value) {
-    if (const double* result = value.getIf<double>()) {
-        return *result;
-    }
-    if (const std::int64_t* result = value.getIf<std::int64_t>()) {
-        return static_cast<double>(*result);
-    }
-    return std::nullopt;
-}
+using ludork::engine::ui_interaction::numericValue;
+using ludork::engine::ui_interaction::pointerButtonIndex;
+using ludork::engine::ui_interaction::pointerPosition;
 
 bool nearlyEqual(float left, float right) {
     return std::abs(left - right) <= GeometryEpsilon;
-}
-
-sf::FloatRect intersectRects(const sf::FloatRect& left,
-                             const sf::FloatRect& right) {
-    const float minX = std::max(left.position.x, right.position.x);
-    const float minY = std::max(left.position.y, right.position.y);
-    const float maxX = std::min(left.position.x + left.size.x,
-                                right.position.x + right.size.x);
-    const float maxY = std::min(left.position.y + left.size.y,
-                                right.position.y + right.size.y);
-    return {{minX, minY},
-            {std::max(0.0f, maxX - minX), std::max(0.0f, maxY - minY)}};
 }
 
 sf::FloatRect canvasContentScreenBounds(const Canvas& canvas) {
@@ -293,7 +279,7 @@ void DropBox::onClick(const RuntimeValue::Map& arguments) {
 
 bool DropBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
-    const std::optional<int> button = pointerButton(arguments);
+    const std::optional<int> button = pointerButtonIndex(arguments);
     if (position.has_value() && handlePointerAction(*position, button)) {
         suppressNextClick_ = true;
         return true;
@@ -429,40 +415,6 @@ sf::Vector2i DropBox::roundedSize(const sf::Vector2f& size) {
     };
 }
 
-std::optional<sf::Vector2f> DropBox::pointerPosition(
-    const RuntimeValue::Map& arguments) {
-    const auto positionIterator = arguments.find("position");
-    if (positionIterator == arguments.end()) {
-        return std::nullopt;
-    }
-    const RuntimeValue::Map* position =
-        positionIterator->second.getIf<RuntimeValue::Map>();
-    if (position == nullptr) {
-        return std::nullopt;
-    }
-    const auto xIterator = position->find("x");
-    const auto yIterator = position->find("y");
-    if (xIterator == position->end() || yIterator == position->end()) {
-        return std::nullopt;
-    }
-    const std::optional<double> x = numericValue(xIterator->second);
-    const std::optional<double> y = numericValue(yIterator->second);
-    if (!x.has_value() || !y.has_value()) {
-        return std::nullopt;
-    }
-    return sf::Vector2f(static_cast<float>(*x), static_cast<float>(*y));
-}
-
-std::optional<int> DropBox::pointerButton(const RuntimeValue::Map& arguments) {
-    const auto iterator = arguments.find("button");
-    if (iterator == arguments.end()) {
-        return std::nullopt;
-    }
-    const std::optional<double> value = numericValue(iterator->second);
-    return value.has_value() ? std::optional<int>(static_cast<int>(*value))
-                             : std::nullopt;
-}
-
 int DropBox::clampedIndex(int index) const {
     if (items_.empty()) {
         return 0;
@@ -490,8 +442,8 @@ DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
         parent = parent->getParent();
     }
     if (host != nullptr) {
-        constraint =
-            intersectRects(constraint, canvasContentScreenBounds(*host));
+        constraint = ludork::engine::drop_box_impl::intersectRects(
+            constraint, canvasContentScreenBounds(*host));
     }
 
     PopupGeometry result;
@@ -502,46 +454,22 @@ DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
         screenRenderTransform().transformRect(
             {{0.0f, 0.0f}, collapsedSize_ * Scale});
     const sf::FloatRect visibleAnchor =
-        intersectRects(collapsedScreenBounds, constraint);
+        ludork::engine::drop_box_impl::intersectRects(collapsedScreenBounds,
+                                                      constraint);
     if (visibleAnchor.size.x <= 0.0f || visibleAnchor.size.y <= 0.0f) {
         return result;
     }
 
     const sf::FloatRect localConstraint =
         screenRenderTransform().getInverse().transformRect(constraint);
-    const float constraintTop = localConstraint.position.y / Scale;
-    const float constraintBottom =
-        (localConstraint.position.y + localConstraint.size.y) / Scale;
     const float naturalHeight = expandedHeight();
-    const float downwardTop = std::max(0.0f, constraintTop);
-    const float upwardBottom = std::min(collapsedSize_.y, constraintBottom);
-    const float downwardSpace = std::max(0.0f, constraintBottom - downwardTop);
-    const float upwardSpace = std::max(0.0f, upwardBottom - constraintTop);
-
-    bool upward = false;
-    if (naturalHeight <= downwardSpace) {
-        result.positionY = downwardTop;
-        result.height = naturalHeight;
-    } else if (naturalHeight <= upwardSpace) {
-        upward = true;
-        result.height = naturalHeight;
-    } else if (downwardSpace >= upwardSpace) {
-        result.positionY = downwardTop;
-        result.height = std::min(naturalHeight, downwardSpace);
-    } else {
-        upward = true;
-        result.height = std::min(naturalHeight, upwardSpace);
-    }
-    result.height = std::floor(result.height);
-    if (upward) {
-        result.positionY = upwardBottom - result.height;
-    }
-    result.contentHeight = std::max(0.0f, result.height - ExpandedBorderHeight);
-    const float itemContentHeight =
-        RowHeight *
-        static_cast<float>(std::max<std::size_t>(items_.size(), 1U));
-    result.maxScrollOffset =
-        std::max(0.0f, itemContentHeight - result.contentHeight);
+    const auto geometry = ludork::engine::drop_box_impl::calculatePopupGeometry(
+        collapsedSize_, localConstraint, naturalHeight, items_.size(), Scale,
+        ExpandedBorderHeight, RowHeight);
+    result.positionY = geometry.positionY;
+    result.height = geometry.height;
+    result.contentHeight = geometry.contentHeight;
+    result.maxScrollOffset = geometry.maxScrollOffset;
     return result;
 }
 
@@ -562,21 +490,22 @@ void DropBox::syncPopupGeometry(bool ensureCursor) const {
 }
 
 void DropBox::clampScrollOffsets() const {
-    scrollOffset_ =
-        std::clamp(scrollOffset_, 0.0f, popupGeometry_.maxScrollOffset);
+    scrollOffset_ = ludork::engine::drop_box_impl::clampScrollOffset(
+        scrollOffset_, popupGeometry_.maxScrollOffset);
     if (scrollTargetOffset_.has_value()) {
-        *scrollTargetOffset_ = std::clamp(*scrollTargetOffset_, 0.0f,
-                                          popupGeometry_.maxScrollOffset);
+        *scrollTargetOffset_ = ludork::engine::drop_box_impl::clampScrollOffset(
+            *scrollTargetOffset_, popupGeometry_.maxScrollOffset);
     }
 }
 
 void DropBox::setScrollOffset(float offset) const {
-    scrollOffset_ = std::clamp(offset, 0.0f, popupGeometry_.maxScrollOffset);
+    scrollOffset_ = ludork::engine::drop_box_impl::clampScrollOffset(
+        offset, popupGeometry_.maxScrollOffset);
 }
 
 void DropBox::setScrollTargetOffset(float offset) const {
-    scrollTargetOffset_ =
-        std::clamp(offset, 0.0f, popupGeometry_.maxScrollOffset);
+    scrollTargetOffset_ = ludork::engine::drop_box_impl::clampScrollOffset(
+        offset, popupGeometry_.maxScrollOffset);
 }
 
 void DropBox::updateWheelScroll(float deltaTime) const {
@@ -589,9 +518,8 @@ void DropBox::updateWheelScroll(float deltaTime) const {
         scrollTargetOffset_.reset();
         return;
     }
-    const float factor =
-        1.0f - std::exp(-WheelScrollResponse * std::max(0.0f, deltaTime));
-    setScrollOffset(scrollOffset_ + distance * factor);
+    setScrollOffset(ludork::engine::drop_box_impl::advanceScrollOffset(
+        scrollOffset_, *scrollTargetOffset_, deltaTime, WheelScrollResponse));
 }
 
 void DropBox::ensureCursorVisible() const {
@@ -807,6 +735,13 @@ void DropBox::refreshDisplayScale() {
     ControlBase::refreshDisplayScale();
 }
 
+void DropBox::releaseRuntimeCallbacks() noexcept {
+    selectedIndexChangedCallback_ = {};
+    selectionConfirmedCallback_ = {};
+    expandedChangedCallback_ = {};
+    ControlBase::releaseRuntimeCallbacks();
+}
+
 void DropBox::ensureVisuals() const {
     if (visualsDirty_) {
         rebuildVisuals();
@@ -853,11 +788,9 @@ void DropBox::ensurePopupVisuals() const {
         popupWindowSize_ = windowSize;
     }
 
-    const sf::Vector2u contentTextureSize(
-        static_cast<unsigned int>(
-            std::max(0L, std::lround(collapsedSize_.x * Scale))),
-        static_cast<unsigned int>(
-            std::max(0L, std::lround(popupGeometry_.contentHeight * Scale))));
+    const sf::Vector2u contentTextureSize =
+        ludork::engine::drop_box_impl::popupTextureSize(
+            collapsedSize_.x, popupGeometry_.contentHeight, Scale);
     if (contentTextureSize.x == 0U || contentTextureSize.y == 0U) {
         popupContentCanvas_.reset();
         popupContentSprite_.reset();
@@ -883,18 +816,16 @@ void DropBox::renderPopupContent() const {
     sf::RenderStates states = canvasRenderStates();
     states.transform.translate({0.0f, -scrollOffset_ * Scale});
 
-    const float viewportBottom = scrollOffset_ + popupGeometry_.contentHeight;
     if (!items_.empty()) {
-        const float selectionTop = RowHeight * static_cast<float>(cursorIndex_);
-        if (selectionTop < viewportBottom &&
-            selectionTop + RowHeight > scrollOffset_) {
+        if (ludork::engine::drop_box_impl::selectionIntersectsViewport(
+                cursorIndex_, RowHeight, scrollOffset_,
+                popupGeometry_.contentHeight)) {
             popupContentCanvas_->draw(*selectionRect_, states);
         }
-        const int firstIndex = std::max(
-            0, static_cast<int>(std::floor(scrollOffset_ / RowHeight)));
-        const int lastIndex =
-            std::min(static_cast<int>(items_.size()),
-                     static_cast<int>(std::ceil(viewportBottom / RowHeight)));
+        const auto [firstIndex, lastIndex] =
+            ludork::engine::drop_box_impl::visibleItemRange(
+                items_.size(), RowHeight, scrollOffset_,
+                popupGeometry_.contentHeight);
         for (int index = firstIndex; index < lastIndex; ++index) {
             popupContentCanvas_->draw(
                 *itemTexts_[static_cast<std::size_t>(index)], states);
@@ -918,14 +849,12 @@ void DropBox::positionCollapsedText() const {
     }
     const sf::FloatRect bounds = collapsedText_->getLocalBounds();
     collapsedText_->setPosition(
-        {CollapsedTextInset - bounds.position.x,
-         (collapsedSize_.y - bounds.size.y) * 0.5f - bounds.position.y});
+        ludork::engine::drop_box_impl::collapsedTextPosition(
+            bounds, collapsedSize_, CollapsedTextInset));
 }
 
 void DropBox::positionItemText(PlainText& text, int index) const {
     const sf::FloatRect bounds = text.getLocalBounds();
-    text.setPosition(
-        {(collapsedSize_.x - bounds.size.x) * 0.5f - bounds.position.x,
-         RowHeight * static_cast<float>(index) +
-             (RowHeight - bounds.size.y) * 0.5f - bounds.position.y});
+    text.setPosition(ludork::engine::drop_box_impl::itemTextPosition(
+        bounds, collapsedSize_, index, RowHeight));
 }

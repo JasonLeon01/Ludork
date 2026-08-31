@@ -212,7 +212,6 @@ public:
     BIND_METHOD()
     void setColour(const sf::Color& colour);
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
 
 protected:
@@ -285,7 +284,6 @@ public:
     BIND_METHOD()
     virtual void setOrigin(const sf::Vector2f& origin) override;
 
-    BIND_IGNORE()
     void refreshDisplayScale() override;
 
 protected:
