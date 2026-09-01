@@ -64,17 +64,6 @@
     "Skeleton": {
       "name": "{SKELETON_SODIER}",
       "desc": "{SKELETON_SODIER_DESC}",
-      "_graph": {
-        "nodeGraph": {
-          "onDefeat": {
-            "nodes": [],
-            "links": []
-          }
-        },
-        "startNodes": {
-          "onDefeat": null
-        }
-      },
       "MAXHP": 100,
       "ATK": 70,
       "DEF": 0,
@@ -236,9 +225,5 @@
       },
       "ANIMATION_KEY": "attack"
     }
-  },
-  "linkedType": "EnemyInfo",
-  "events": [
-    "onDefeat"
-  ]
+  }
 }

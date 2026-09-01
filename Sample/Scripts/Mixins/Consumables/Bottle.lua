@@ -1,4 +1,5 @@
 local Pickup = require("Source.Pickup")
+local Effects = require("Source.Gameplay.Effects")
 
 ---@class (partial) Mixins.Consumables.Bottle
 local Bottle = {}
@@ -9,7 +10,7 @@ Bottle.getSE = ""
 function Bottle:onCollision(other)
     local parentCollision = super().onCollision
     Pickup.HandleCollision(self, other, parentCollision, function (player)
-        player.infoComp.HP = player.infoComp.HP + self.HP_plus
+        Effects.ApplyInstantModifier(player, "Consumable.Bottle.Heal", "HP", "Add", self.HP_plus)
     end)
 end
 

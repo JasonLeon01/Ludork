@@ -43,7 +43,8 @@ void invokeMonitorCallback(sol::state_view lua, sol::table entry,
 void registerMonitor(sol::this_state state, const sol::object& target,
                      const std::string& name,
                      const sol::protected_function& callback,
-                     sol::optional<sol::table> params);
+                     sol::optional<sol::table> params,
+                     sol::optional<bool> notifyEqualWrites);
 void unregisterMonitor(sol::this_state state, const sol::object& target,
                        const std::string& name);
 

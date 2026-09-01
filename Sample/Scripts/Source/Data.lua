@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 ---@type { GeneralDataKey: Source.Configs.GeneralEnum.GeneralDataKey }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
+local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
 local DataLoading = require("Source.Data.Loading")
 local DataTextConfigs = require("Source.Data.TextConfigs")
 local DataBlueprints = require("Source.Data.Blueprints")
@@ -140,6 +141,14 @@ local function generalMembers(name)
     local members = requireNamedValue(data, "members", "General data members not found: " .. tostring(name))
     ---@cast members table<string, table<string, Source.Data.GeneralValue>>
     return members
+end
+
+function Data.CreateGeneralAttributeSet(typeName, memberID)
+    local member = requireNamedValue(
+        generalMembers(typeName), memberID,
+        "General data member not found: " .. tostring(typeName) .. "." .. tostring(memberID)
+    )
+    return GeneralDataTypes.Create(typeName, memberID, member)
 end
 
 function Data.GetGeneralClassData(key)

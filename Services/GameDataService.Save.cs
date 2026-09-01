@@ -13,7 +13,7 @@ namespace Ludork.Services;
 
 public sealed partial class GameDataService
 {
-    public bool CreateGeneralType(string key, string? linkedType = null)
+    public bool CreateGeneralType(string key)
     {
         if (string.IsNullOrWhiteSpace(key) || sections["General"].Data.ContainsKey(key))
             return false;
@@ -23,8 +23,6 @@ public sealed partial class GameDataService
             ["params"] = new JsonObject(),
             ["members"] = new JsonObject(),
         };
-        if (!string.IsNullOrWhiteSpace(linkedType))
-            entry["linkedType"] = linkedType;
         sections["General"].Data[key] = entry;
         refreshModifiedState();
         return true;
@@ -58,6 +56,9 @@ public sealed partial class GameDataService
     public SaveResult SaveAllModified()
     {
         BreakHistoryGesture();
+        IReadOnlyList<string> generalDataErrors = GeneralDataSchemaValidation.Validate(sections["General"].Data);
+        if (generalDataErrors.Count != 0)
+            return new SaveResult(false, string.Join(Environment.NewLine, generalDataErrors));
         WorldMapMutationResult worldValidation = ValidateAllWorldMaps();
         if (!worldValidation.Success)
             return new SaveResult(false, worldValidation.Details);
@@ -167,14 +168,11 @@ public sealed partial class GameDataService
         if (!generalSaveFailed)
         {
             GeneralEnumSaveResult generalEnumResult = generalEnums.Save(sections["General"].Data);
-            generalEnumSavePending = !generalEnumResult.Success;
+            generalDataGenerationPending = !generalEnumResult.Success;
             if (!generalEnumResult.Success)
-                failed.Add("GeneralEnum (" + generalEnumResult.Detail + ")");
-            else if (generalEnumResult.Changed)
-            {
-                updated.Add(GeneralEnumService.RuntimeRelativePath);
-                updated.Add(GeneralEnumService.StubRelativePath);
-            }
+                failed.Add("General Data code generation (" + generalEnumResult.Detail + ")");
+            else
+                updated.AddRange(generalEnumResult.ChangedPaths);
         }
         if (failed.Count == 0)
         {
@@ -354,7 +352,7 @@ public sealed partial class GameDataService
     public void refreshModifiedState()
     {
         DataChanged?.Invoke(this, EventArgs.Empty);
-        bool modified = generalEnumSavePending
+        bool modified = generalDataGenerationPending
             || sections.Any(section => !sectionEqual(section.Value.Data, originData[section.Key]));
         if (modified == isModified)
             return;
@@ -429,4 +427,3 @@ public sealed partial class GameDataService
     }
 
 }
-

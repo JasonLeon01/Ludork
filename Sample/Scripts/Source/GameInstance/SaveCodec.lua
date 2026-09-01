@@ -4,6 +4,7 @@ local Records = require("Source.GameInstance.Records")
 local MapPath = require("Source.MapPath")
 
 local SaveCodec = {}
+local SAVE_VERSION = 2
 
 local function vectorArray(position)
     return { position.x, position.y }
@@ -291,6 +292,7 @@ function SaveCodec.Encode(instance)
     local cachedMap = assert(instance._cachedMap, "Cannot serialise a GameInstance before its current map is set")
     local worldMovedActors = serialiseWorldMovedActors(instance._cachedWorldMovedActors)
     local saveData = {
+        version = SAVE_VERSION,
         region = instance._currentRegion,
         playerKeys = copy(instance._playerKeys),
         players = players,
@@ -311,6 +313,11 @@ function SaveCodec.Encode(instance)
 end
 
 function SaveCodec.DecodeInto(instance, data)
+    assert(type(data) == "table", "Save data must be an object")
+    assert(
+        type(data.version) == "number" and data.version == SAVE_VERSION,
+        "Unsupported save version: expected " .. tostring(SAVE_VERSION) .. ", got " .. tostring(data.version)
+    )
     local Player = require("Source.Player")
 
     instance._currentRegion = data.region

@@ -3,12 +3,16 @@ local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
-local EnemyInfoComponent = require("Source.Components.EnemyInfoComponent")
+local GameplayEffectSpec = require("Global.Gameplay.GameplayEffectSpec")
+local GameplayEventData = require("Global.Gameplay.GameplayEventData")
 ---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local DefeatSpawns = require("Source.Enemy.DefeatSpawns")
-local EnemyInfo = require("Source.Infos.EnemyInfo")
 local Battler = require("Source.Battler")
+local DefeatSpawns = require("Source.Enemy.DefeatSpawns")
+local Effects = require("Source.Gameplay.Effects")
+local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
+local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
+local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 
 local ComponentsFunctions = GlobalFunctions.Components
 local Actor = Engine.Actor
@@ -16,14 +20,33 @@ local actorComponentOwner = Actor
 ---@cast actorComponentOwner + { _componentTypes: table<string, table> }
 local Special = GeneralEnum.Special
 local State = GeneralEnum.State
-local DamageType = Battler.DamageType
 
 local componentTypes = {}
 for name, componentType in pairs(actorComponentOwner._componentTypes or {}) do
     componentTypes[name] = componentType
 end
 componentTypes.childActorComp = ChildActorComponent
-componentTypes.infoComp = EnemyInfoComponent
+
+local operationExpressions = {
+    ["="] = "value",
+    ["+"] = "current + value",
+    ["-"] = "current - value",
+    ["*"] = "current * value",
+    ["/"] = "current / value",
+    ["//"] = "current // value",
+    ["%"] = "current % value",
+    ["**"] = "current ^ value"
+}
+
+---@return Global.Gameplay.GameplayEventData
+local function createCombatEvent(player, enemy, eventTag, payload)
+    return GameplayEventData.new({
+        instigator = player,
+        target = enemy,
+        eventTag = eventTag,
+        payload = payload or {}
+    })
+end
 
 ---@class Source.Enemy
 local Enemy = {}
@@ -31,7 +54,6 @@ local Enemy = {}
 Enemy.ID = "FILL_IT_BY_YOURSELF"
 Enemy.DefeatShatterEffectEnabled = true
 Enemy._componentTypes = componentTypes
-Enemy.infoComp = EnemyInfoComponent.new()
 Enemy.childActorComp = ChildActorComponent.new({
     className = "Source.EnemyDamageText.EnemyDamageText",
     relativePosition = sf.Vector2f.new(0.0, 0.0)
@@ -45,11 +67,23 @@ Enemy.afterBattleVarChanges = {}
 function Enemy:init(texture, rect, tag)
     Actor.init(self, texture, rect, tag)
     self:_normaliseChildActorComp()
-    Battler.init(self)
+    local attributes = Data.CreateGeneralAttributeSet("Enemy", self.ID)
+    Battler.init(self, attributes)
     self._battleCondition = nil
     self._defeatFinalising = false
     self._defeatFinalised = false
-    self:initInfo(Data)
+    local abilitySystem = self:getAbilitySystemComponent()
+    abilitySystem:giveAbility(MotaBattleAbility.new(), "Builtin.MotaBattle")
+    for _, specialID in ipairs(table.orderedStringKeys(self.attributes.special)) do
+        local effect = SpecialAbilities.CreateEffect(specialID, self.attributes.special[specialID])
+        abilitySystem:applyGameplayEffectSpec(
+            GameplayEffectSpec.new(
+                effect,
+                GameplayEventData.new({ instigator = self, target = self, eventTag = "Event.Special.Initialise" }), 1,
+                "Special." .. specialID
+            )
+        )
+    end
 end
 
 function Enemy:_normaliseChildActorComp()
@@ -58,74 +92,104 @@ function Enemy:_normaliseChildActorComp()
     end
 end
 
-function Enemy:battle()
-    local scene = GlobalCore.System.getScene()
-    ---@cast scene Source.Scenes.SceneMap.SceneMap
-    local player = scene.inst:getPlayer()
-    local damageType, damage = self:getDamage(player)
-    ---@cast damage integer
-    if damageType == DamageType.UNDEFEATABLE then
-        return 1
-    end
-    local won = damage < player.infoComp.HP
-    player.infoComp.HP = player.infoComp.HP - damage
-    scene:getGameMap():addDamageText(tostring(damage), player:getPosition())
-    if not won then
-        return 1
-    end
-    return 0
+function Enemy:_getAfterBattleOperation(key)
+    return self.afterBattleVarChanges[key][1], self.afterBattleVarChanges[key][2]
 end
 
-function Enemy:afterBattle(against)
-    local player = against
-    for specialKey in pairs(self:getSpecial()) do
-        ---@type string | nil
-        local specialType = nil
-        if specialKey == Special.Poisoning then
-            specialType = State.Poisoned
-        elseif specialKey == Special.Weaken then
-            specialType = State.Weak
+function Enemy:_evaluateAfterBattleVariableChanges()
+    local Utils = require("Source.NodeFunctions.Utils")
+
+    local changes = {}
+    for _, key in ipairs(table.orderedStringKeys(self.afterBattleVarChanges)) do
+        local operator, value = self:_getAfterBattleOperation(key)
+        local expression = operationExpressions[operator]
+        assert(expression ~= nil, "Unsupported after-battle variable operator: " .. tostring(operator))
+        if operator == "/" or operator == "//" or operator == "%" then
+            assert(value ~= 0, "After-battle variable operation cannot divide by zero")
         end
-        if specialType ~= nil then
-            local stacks = self:getSpecialIntValue(specialKey)
-            if stacks > 0 then
-                player:addState(specialType, stacks)
+        local defaultValue = operator == "=" and nil or 0
+        local current = Utils.GetGameVariable(key, defaultValue)
+        changes[key] = Engine.Eval(expression, { current = current, value = value })
+    end
+    return changes
+end
+
+function Enemy:_preparePostBattle(player, scene)
+    self:_evaluateAfterBattleVariableChanges()
+    local rebornEnemy, droppedActors, spawnLayer = DefeatSpawns.Prepare(self, scene)
+    local eventData = GameplayEventData.new({
+        instigator = self,
+        target = player,
+        eventTag = "Event.Combat.Reward"
+    })
+    local effectSpecs = {
+        Effects.CreateInstantModifierSpec("Combat.Reward.Gold", "GOLD", "Add", self.attributes.GOLD, eventData),
+        Effects.CreateInstantModifierSpec("Combat.Reward.Exp", "EXP", "Add", self.attributes.EXP, eventData)
+    }
+    local stateSpecials = { { Special.Poisoning, State.Poisoned }, { Special.Weaken, State.Weak } }
+    for _, stateSpecial in ipairs(stateSpecials) do
+        local specialID = stateSpecial[1]
+        local stateID = stateSpecial[2]
+        local magnitude = SpecialAbilities.GetMagnitude(self:getAbilitySystemComponent(), specialID)
+        if magnitude ~= nil then
+            assert(math.type(magnitude) == "integer", specialID .. " special magnitude must be an integer")
+            if magnitude > 0 then
+                effectSpecs[#effectSpecs + 1] = Effects.CreateStateSpec(stateID, magnitude, eventData)
             end
         end
     end
+    local playerAbilitySystem = player:getAbilitySystemComponent()
+    for _, effectSpec in ipairs(effectSpecs) do
+        playerAbilitySystem:validateGameplayEffectSpec(effectSpec)
+    end
+    return {
+        player = player,
+        rebornEnemy = rebornEnemy,
+        droppedActors = droppedActors,
+        spawnLayer = spawnLayer,
+        effectSpecs = effectSpecs
+    }
 end
 
-function Enemy:getSpecial()
-    local result = {}
-    for key, value in pairs(self.infoComp.special) do
-        result[key] = value
-    end
-    return result
+function Enemy:_executeDropAbility(player, droppedActor)
+    local ability = GeneralDataGraphAbility.new("Item", droppedActor.ID, "onDrop")
+    ability:activate(
+        player:getAbilitySystemComponent(),
+        GameplayEventData.new({
+            instigator = self,
+            target = droppedActor,
+            eventTag = "Event.Item.Drop",
+            payload = { itemID = droppedActor.ID }
+        })
+    )
 end
 
-function Enemy:getDrops()
-    local result = {}
-    for blueprintPath, offset in pairs(self.infoComp.drops) do
-        result[blueprintPath] = copy(offset)
+function Enemy:_finaliseDefeat(scene, prepared)
+    if self._defeatFinalised then
+        return
     end
-    return result
-end
+    self._defeatFinalised = true
+    local Utils = require("Source.NodeFunctions.Utils")
 
-function Enemy:getCriticalValue(battler)
-    local attackerATK = battler:getATK(self)
-    local enemyDEF = self:getDEF(battler)
-    if attackerATK <= enemyDEF then
-        return enemyDEF + 1
+    local variableChanges = self:_evaluateAfterBattleVariableChanges()
+    for _, key in ipairs(table.orderedStringKeys(variableChanges)) do
+        Utils.SetGameVariable(key, variableChanges[key])
     end
-    if attackerATK >= self.infoComp.MAXHP + enemyDEF then
-        return -2
+    scene:recordDestroyedActor(self)
+    if bool(Enemy.DefeatShatterEffectEnabled) then
+        scene:getGameMap():playActorPixelShatterEffect(self)
     end
-    if self:hasSpecial(Special.Hard) then
-        return -1
+    self:destroy()
+    if prepared.rebornEnemy ~= nil then
+        DefeatSpawns.Spawn(scene, prepared.rebornEnemy, prepared.spawnLayer)
     end
-    local damage = attackerATK - enemyDEF
-    local turns = math.max(math.ceil(self.infoComp.MAXHP / damage) - 1, 0)
-    return math.ceil(self.infoComp.MAXHP / turns) + enemyDEF
+    for _, droppedActor in ipairs(prepared.droppedActors) do
+        DefeatSpawns.Spawn(scene, droppedActor, prepared.spawnLayer)
+        self:_executeDropAbility(prepared.player, droppedActor)
+    end
+    for _, effectSpec in ipairs(prepared.effectSpecs) do
+        prepared.player:getAbilitySystemComponent():applyGameplayEffectSpec(effectSpec)
+    end
 end
 
 function Enemy:onCollision(other)
@@ -134,79 +198,37 @@ function Enemy:onCollision(other)
     local PlayerFunctions = require("Source.NodeFunctions.Player")
 
     local player = PlayerFunctions.MeetPlayer(other)
-    if player ~= nil and not bool(self._defeatFinalising) and (self._battleCondition == nil or self._battleCondition()) then
-        self._battleCondition = nil
-        local result = self:battle()
-        local animationLength = math.max(
-            player:playAttackAnimationAt(scene, self:getPosition()),
-            self:playAttackAnimationAt(scene, player:getPosition())
-        )
-        self._battleCondition = scene:addTimer(animationLength, function ()
-            self._battleCondition = nil
-            if result == 0 then
-                self._defeatFinalising = true
-                local rewards = { self.infoComp.GOLD, self.infoComp.EXP }
-                self:triggerEvent("onDefeat", nil, function ()
-                    if bool(self._defeatFinalised) then
-                        return
-                    end
-                    local rebornEnemy, droppedActors, spawnLayer = DefeatSpawns.Prepare(self, scene)
-                    self._defeatFinalised = true
-                    scene:recordDestroyedActor(self)
-                    if bool(Enemy.DefeatShatterEffectEnabled) then
-                        scene:getGameMap():playActorPixelShatterEffect(self)
-                    end
-                    self:destroy()
-                    if rebornEnemy ~= nil then
-                        ---@cast spawnLayer string
-                        DefeatSpawns.Spawn(scene, rebornEnemy, spawnLayer)
-                    end
-                    for _, droppedActor in ipairs(droppedActors) do
-                        ---@cast spawnLayer string
-                        DefeatSpawns.Spawn(scene, droppedActor, spawnLayer)
-                        droppedActor:triggerEvent("onDrop")
-                    end
-                    player.infoComp.GOLD = player.infoComp.GOLD + rewards[1]
-                    player.infoComp.EXP = player.infoComp.EXP + rewards[2]
-                    self:afterBattle(player)
-                end)
-            elseif result == 1 then
-                player.infoComp.HP = 0
-                DefeatSpawns.GameOver()
-            end
-        end)
-    end
-end
-
-function Enemy:onDefeat()
-    if not bool(self.afterBattleVarChanges) then
+    if player == nil or self._defeatFinalising or (self._battleCondition ~= nil and not self._battleCondition()) then
         return
     end
-    local Utils = require("Source.NodeFunctions.Utils")
-
-    for key, operation in pairs(self.afterBattleVarChanges) do
-        local operator = operation[1]
-        local value = operation[2]
-        local defaultValue = operator == "=" and nil or 0
-        local originValue = Utils.GetGameVariable(key, defaultValue)
-        local newValue = value
-        if operator == "+" then
-            newValue = originValue + value
-        elseif operator == "-" then
-            newValue = originValue - value
-        elseif operator == "*" then
-            newValue = originValue * value
-        elseif operator == "/" then
-            newValue = originValue / value
-        elseif operator == "//" then
-            newValue = originValue // value
-        elseif operator == "%" then
-            newValue = originValue % value
-        elseif operator == "**" then
-            newValue = originValue ^ value
-        end
-        Utils.SetGameVariable(key, newValue)
+    self._battleCondition = nil
+    local battleEvent = createCombatEvent(player, self, "Event.Combat.MotaBattle", { commit = false })
+    battleEvent.target = player
+    local result = self:getAbilitySystemComponent():tryActivateAbility(MotaBattleAbility.id, battleEvent)
+    local won = result.code == MotaBattleAbility.BattleResult.WIN
+    local prepared = won and self:_preparePostBattle(player, scene) or nil
+    MotaBattleAbility.CommitResult(result)
+    if result.data.damage > 0 then
+        scene:getGameMap():addDamageText(tostring(result.data.damage), player:getPosition())
     end
+    local animationLength = math.max(
+        player:playAttackAnimationAt(scene, self:getPosition()), self:playAttackAnimationAt(scene, player:getPosition())
+    )
+    self._battleCondition = scene:addTimer(animationLength, function ()
+        self._battleCondition = nil
+        if won then
+            self._defeatFinalising = true
+            Actor.BlueprintEvent(self, Actor, "onDefeat", {}, function ()
+                self:_finaliseDefeat(scene, prepared)
+            end)
+        else
+            player:getAbilitySystemComponent():applyGameplayEffectSpec(result.data.gameOverEffectSpec)
+            DefeatSpawns.GameOver()
+        end
+    end)
 end
 
-return class(Enemy, Actor, EnemyInfo, Battler)
+---@diagnostic disable-next-line: unused, Blueprint event implementations use colon dispatch
+function Enemy:onDefeat() end
+
+return class(Enemy, Actor, Battler)

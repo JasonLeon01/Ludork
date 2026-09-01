@@ -96,7 +96,8 @@ public sealed class BlueprintGraphNodeDefinition
         LuaTypeReference? declaringType = null,
         bool isParent = false,
         bool isContextRelevant = false,
-        bool hasExplicitDisplayName = false)
+        bool hasExplicitDisplayName = false,
+        bool isLatent = false)
     {
         RuntimePath = runtimePath;
         Title = title;
@@ -110,6 +111,7 @@ public sealed class BlueprintGraphNodeDefinition
         IsParent = isParent;
         IsContextRelevant = isContextRelevant;
         HasExplicitDisplayName = hasExplicitDisplayName;
+        IsLatent = isLatent;
     }
 
     public string RuntimePath { get; }
@@ -124,6 +126,7 @@ public sealed class BlueprintGraphNodeDefinition
     public bool IsParent { get; }
     public bool IsContextRelevant { get; }
     public bool HasExplicitDisplayName { get; }
+    public bool IsLatent { get; }
 }
 
 public sealed class BlueprintGraphEventParameterDefinition

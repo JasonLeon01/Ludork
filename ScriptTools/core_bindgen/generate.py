@@ -69,9 +69,14 @@ def read_previous_binding_outputs(
             raise ValueError(
                 f"binding manifest path is outside bindings directory: {resolved}"
             ) from error
-        if resolved.suffix != ".cpp":
+        is_binding_source = resolved.suffix == ".cpp"
+        is_traits_header = (
+            re.fullmatch(r"[A-Za-z_]\w*\.traits\.auto\.hpp", resolved.name)
+            is not None
+        )
+        if not is_binding_source and not is_traits_header:
             raise ValueError(
-                f"binding manifest path is not a C++ source: {resolved}"
+                f"binding manifest path is not a generated binding output: {resolved}"
             )
         result.add(resolved)
     return result

@@ -3,16 +3,13 @@ local GlobalCore = require("GlobalCore")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Pool = require("Global.Pool")
 local Enemy = require("Source.Enemy")
----@type { Special: Source.Configs.GeneralEnum.Special }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local MovementSpecials = require("Source.MovementSpecials")
+local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local MapClickAutoPathRuntime = require("Source.SceneComponents.MapClickAutoPathRuntime")
 
 local Input = Engine.Input
 local Actor = Engine.Actor
 local System = GlobalCore.System
-local Special = GeneralEnum.Special
-
 local NEIGHBOUR_OFFSET_DOWN = sf.Vector2i.new(0, 1)
 local NEIGHBOUR_OFFSET_UP = sf.Vector2i.new(0, -1)
 local NEIGHBOUR_OFFSET_RIGHT = sf.Vector2i.new(1, 0)
@@ -357,7 +354,8 @@ function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
     for _, actor in ipairs(self._parent:getAllActors()) do
         if Class.isInstance(actor, Enemy) then
             ---@cast actor Source.Enemy
-            if not actor:isDestroyed() and (actor:hasSpecial(Special.Domain) or actor:hasSpecial(Special.Blockade)) then
+            local abilitySystem = actor:getAbilitySystemComponent()
+            if not actor:isDestroyed() and abilitySystem:hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG) then
                 if table.contains(actor:getOccupiedMapCells(), goal) then
                     enemies[#enemies + 1] = actor
                 end

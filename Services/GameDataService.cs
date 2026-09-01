@@ -57,7 +57,7 @@ public sealed partial class GameDataService : IDisposable
     private long activeHistoryGestureId;
     private bool activeHistoryGestureHasSnapshot;
     private bool isModified;
-    private bool generalEnumSavePending;
+    private bool generalDataGenerationPending;
     private bool disposed;
 
     public GameDataService(string projectPath)

@@ -2,11 +2,9 @@ local Engine = require("Engine")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Data = require("Source.Data")
 local EnemyDamageText = require("Source.EnemyDamageText")
-local Battler = require("Source.Battler")
 local Utils = require("Source.NodeFunctions.Utils")
 
 local PlainText = Engine.PlainText
-local DamageType = Battler.DamageType
 
 local MovementDangerPreviewComponent = {}
 
@@ -52,9 +50,7 @@ function MovementDangerPreviewComponent:_refreshEntries(player)
         end
         self._texts[index]:setString(tostring(Utils.ToShortNumber(entry.damage)))
         self._texts[index]:setScale(sf.Vector2f.new(inverseScale, inverseScale))
-        self._texts[index]:setColour(
-            EnemyDamageText.GetDamageColor(DamageType.NORMAL, entry.damage, player.infoComp.HP)
-        )
+        self._texts[index]:setColour(EnemyDamageText.GetDamageColor(entry.damage, player.attributes.HP))
         local bounds = self._texts[index]:getLocalBounds()
         local worldX = entry.position.x * cellSize + (cellSize - bounds.size.x) * 0.5 - bounds.position.x
         local worldY = entry.position.y * cellSize + (cellSize - bounds.size.y) * 0.5 - bounds.position.y

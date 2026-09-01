@@ -54,8 +54,6 @@ local function blueprintRelativePathToClassPath(relativePath)
 end
 
 function System.Init()
-    local MovementSpecials = require("Source.MovementSpecials")
-
     local systemData = Engine.getJSONData("./Data/Configs/System.json")
     System._title = systemData.title.value
     local size = systemData.gameSize.value
@@ -106,7 +104,6 @@ function System.Init()
     System._getSE = tostring(System._audioConfigValues.getSE or "")
     System._equipSE = tostring(System._audioConfigValues.equipSE or "")
     System._titleBGM = tostring(System._audioConfigValues.titleBGM or "")
-    MovementSpecials.RegisterHandlers()
 end
 
 ---@param configData table<string, string | { value: string }>

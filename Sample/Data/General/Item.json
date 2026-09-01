@@ -902,7 +902,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Player.ReducePlayerState",
+                "nodeFunction": "NodeFunctions.Gameplay.ReducePlayerState",
                 "params": [
                   "Poisoned",
                   5
@@ -952,7 +952,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Player.RemovePlayerState",
+                "nodeFunction": "NodeFunctions.Gameplay.RemovePlayerState",
                 "params": [
                   "Poisoned"
                 ],
@@ -1001,7 +1001,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Player.ReducePlayerState",
+                "nodeFunction": "NodeFunctions.Gameplay.ReducePlayerState",
                 "params": [
                   "Weak",
                   5
@@ -1051,7 +1051,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Player.RemovePlayerState",
+                "nodeFunction": "NodeFunctions.Gameplay.RemovePlayerState",
                 "params": [
                   "Weak"
                 ],
@@ -1089,7 +1089,6 @@
       }
     }
   },
-  "linkedType": "ItemInfo",
   "events": [
     "onDrop",
     "onUse"

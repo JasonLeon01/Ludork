@@ -177,7 +177,7 @@ function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY)
             )
         end
     end
-    local criticalText = EnemyText.FormatCritical(entry.critical or -2)
+    local criticalText = EnemyText.FormatCritical(entry.critical)
     local hitCount = formatHitCount(entry.hitCount)
     local criticalColumnIndex = 0
     if bool(hitCount) then

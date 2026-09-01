@@ -4,7 +4,6 @@
 #include <Runtime/RuntimeValue.hpp>
 
 #include <string>
-#include <vector>
 
 class LUDORK_ENGINE_API BlueprintRuntimeFacade {
 public:
@@ -15,10 +14,6 @@ public:
                        const RuntimeIdentityPtr& onComplete) const;
     bool hasEvent(const RuntimeValue& object,
                   const std::string& eventName) const;
-    bool tryExecuteInfoGraph(const RuntimeValue& object,
-                             const std::string& eventName,
-                             const RuntimeValue& keywordArguments,
-                             const RuntimeIdentityPtr& onComplete) const;
     bool classHasEvent(const RuntimeIdentityPtr& classType,
                        const std::string& eventName) const;
     bool graphHasExecutableEvent(const RuntimeIdentityPtr& graph,
@@ -37,16 +32,6 @@ public:
                       const RuntimeValue& keywordArguments,
                       const RuntimeIdentityPtr& localGraph,
                       const RuntimeIdentityPtr& onComplete) const;
-    void executeInfoGraph(const RuntimeValue& object,
-                          const std::string& eventName,
-                          const RuntimeValue& keywordArguments) const;
-    void applyGeneralData(const RuntimeValue& object,
-                          const RuntimeValue& data) const;
-    void initializeInfo(const RuntimeValue& object,
-                        const RuntimeIdentityPtr& dataProvider) const;
-    std::vector<std::string> registeredEvents(
-        const RuntimeIdentityPtr& classType) const;
-    std::string infoType(const RuntimeIdentityPtr& classType) const;
 };
 
 LUDORK_ENGINE_API BlueprintRuntimeFacade& blueprintRuntime();

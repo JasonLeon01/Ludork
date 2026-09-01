@@ -22,7 +22,6 @@ public static class BlueprintClassSelector
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
     private const string ActorRoot = "Engine.Actor";
-    private const string InfoRoot = "Engine.InfoBase";
 
     public static Task<string?> ShowAsync(
         Window owner,
@@ -96,8 +95,7 @@ public static class BlueprintClassSelector
         string reference,
         BlueprintClassResolver classResolver)
     {
-        return classResolver.IsDerivedFrom(reference, ActorRoot)
-            || classResolver.IsDerivedFrom(reference, InfoRoot);
+        return classResolver.IsDerivedFrom(reference, ActorRoot);
     }
 
     private static bool createsCycle(

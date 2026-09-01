@@ -3,26 +3,24 @@ local _METADATA = {
         attrs = {},
         GetPlayer = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {
                 "player",
                 player = {
                     "Source.Player",
-                    "Player",
-                },
+                    "Player"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         GetPlayerFrontPosition = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {
                 "position",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
-            Pure = true,
+            Pure = true
         },
         AddItem = {
             type = "function",
@@ -30,24 +28,24 @@ local _METADATA = {
                 "itemID",
                 "count",
                 itemID = "string",
-                count = "int",
+                count = "int"
             },
             default = {
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 GeneralDataVars = {
                     {
                         "itemID",
-                        "Item",
-                    },
-                },
-            },
+                        "Item"
+                    }
+                }
+            }
         },
         RemoveItem = {
             type = "function",
@@ -55,73 +53,73 @@ local _METADATA = {
                 "itemID",
                 "count",
                 itemID = "string",
-                count = "int",
+                count = "int"
             },
             default = {
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "return",
-                ["return"] = "int",
+                ["return"] = "int"
             },
             ExecSplit = {
                 "Success",
                 "Failed",
                 Success = {
-                    0,
+                    0
                 },
                 Failed = {
-                    1,
-                },
+                    1
+                }
             },
             Meta = {
                 GeneralDataVars = {
                     {
                         "itemID",
-                        "Item",
-                    },
-                },
-            },
+                        "Item"
+                    }
+                }
+            }
         },
         HasItem = {
             type = "function",
             parameters = {
                 "itemID",
-                itemID = "string",
+                itemID = "string"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
                 GeneralDataVars = {
                     {
                         "itemID",
-                        "Item",
-                    },
-                },
-            },
+                        "Item"
+                    }
+                }
+            }
         },
         GetItemCount = {
             type = "function",
             parameters = {
                 "itemID",
-                itemID = "string",
+                itemID = "string"
             },
             ["return"] = {
                 "count",
-                count = "int",
+                count = "int"
             },
             Pure = true,
             Meta = {
                 GeneralDataVars = {
                     {
                         "itemID",
-                        "Item",
-                    },
-                },
-            },
+                        "Item"
+                    }
+                }
+            }
         },
         AddEquip = {
             type = "function",
@@ -129,24 +127,24 @@ local _METADATA = {
                 "equipID",
                 "count",
                 equipID = "string",
-                count = "int",
+                count = "int"
             },
             default = {
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 GeneralDataVars = {
                     {
                         "equipID",
-                        "Equip",
-                    },
-                },
-            },
+                        "Equip"
+                    }
+                }
+            }
         },
         RemoveEquip = {
             type = "function",
@@ -154,109 +152,109 @@ local _METADATA = {
                 "equipID",
                 "count",
                 equipID = "string",
-                count = "int",
+                count = "int"
             },
             default = {
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "return",
-                ["return"] = "int",
+                ["return"] = "int"
             },
             ExecSplit = {
                 "Success",
                 "Failed",
                 Success = {
-                    0,
+                    0
                 },
                 Failed = {
-                    1,
-                },
+                    1
+                }
             },
             Meta = {
                 GeneralDataVars = {
                     {
                         "equipID",
-                        "Equip",
-                    },
-                },
-            },
+                        "Equip"
+                    }
+                }
+            }
         },
         HasEquip = {
             type = "function",
             parameters = {
                 "equipID",
-                equipID = "string",
+                equipID = "string"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
                 GeneralDataVars = {
                     {
                         "equipID",
-                        "Equip",
-                    },
-                },
-            },
+                        "Equip"
+                    }
+                }
+            }
         },
         EquipItem = {
             type = "function",
             parameters = {
                 "equipID",
-                equipID = "string",
+                equipID = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 GeneralDataVars = {
                     {
                         "equipID",
-                        "Equip",
-                    },
-                },
-            },
+                        "Equip"
+                    }
+                }
+            }
         },
         UnequipSlot = {
             type = "function",
             parameters = {
                 "slotID",
-                slotID = "string",
+                slotID = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         GetEquipInSlot = {
             type = "function",
             parameters = {
                 "slotID",
-                slotID = "string",
+                slotID = "string"
             },
             ["return"] = {
                 "equipID",
-                equipID = "string",
+                equipID = "string"
             },
-            Pure = true,
+            Pure = true
         },
         GetPlayerAttr = {
             type = "function",
             parameters = {
                 "attrName",
-                attrName = "string",
+                attrName = "string"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         SetPlayerAttr = {
             type = "function",
@@ -264,175 +262,130 @@ local _METADATA = {
                 "attrName",
                 "value",
                 attrName = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         GetPlayerAttrRef = {
             type = "function",
             parameters = {
                 "attrName",
-                attrName = "string",
+                attrName = "string"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         HealPlayer = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         DamagePlayer = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
-        },
-        RemovePlayerState = {
-            type = "function",
-            parameters = {
-                "stateID",
-                stateID = "string",
-            },
-            ["return"] = {},
-            ExecSplit = {
-                "default",
-                default = "nil",
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "stateID",
-                        "State",
-                    },
-                },
-            },
-        },
-        ReducePlayerState = {
-            type = "function",
-            parameters = {
-                "stateID",
-                "stacks",
-                stateID = "string",
-                stacks = "int",
-            },
-            default = {
-                [2] = 1,
-            },
-            ["return"] = {},
-            ExecSplit = {
-                "default",
-                default = "nil",
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "stateID",
-                        "State",
-                    },
-                },
-            },
+                default = "nil"
+            }
         },
         AddHP = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         AddGold = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         AddATK = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         AddDEF = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         AddEXP = {
             type = "function",
             parameters = {
                 "amount",
-                amount = "int",
+                amount = "int"
             },
             default = {
-                [1] = 1,
+                [1] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         MeetPlayer = {
             type = "function",
@@ -440,19 +393,19 @@ local _METADATA = {
                 "actors",
                 actors = {
                     "Engine",
-                    "Actor[]",
-                },
+                    "Actor[]"
+                }
             },
             ["return"] = {
                 "playerInfo",
                 playerInfo = {
                     "Source.Player",
-                    "Player",
-                },
+                    "Player"
+                }
             },
-            Pure = true,
-        },
-    },
+            Pure = true
+        }
+    }
 }
 
 return _METADATA

@@ -287,9 +287,18 @@ public sealed class GeneralDataEditorWindow : Window
             MenuItem renameItem = new() { Header = LocaleService.Get("RENAME_DATA_TYPE") };
             renameItem.Click += async (_, _) => await onRenameDataTypeAsync(typeKey);
             menu.Items.Add(renameItem);
-            MenuItem linkItem = new() { Header = LocaleService.Get("SET_LINKED_TYPE") };
-            linkItem.Click += async (_, _) => await onSetLinkedTypeAsync(typeKey);
-            menu.Items.Add(linkItem);
+            MenuItem addEventItem = new() { Header = LocaleService.Get("NEW_EVENT") };
+            addEventItem.Click += async (_, _) => await onAddEventAsync(typeKey);
+            menu.Items.Add(addEventItem);
+            if (getEventNames(gameData.GeneralData[typeKey]).Count != 0)
+            {
+                MenuItem renameEventItem = new() { Header = LocaleService.Get("RENAME_EVENT") };
+                renameEventItem.Click += async (_, _) => await onRenameEventAsync(typeKey);
+                menu.Items.Add(renameEventItem);
+                MenuItem deleteEventItem = new() { Header = LocaleService.Get("DELETE_EVENT") };
+                deleteEventItem.Click += async (_, _) => await onDeleteEventAsync(typeKey);
+                menu.Items.Add(deleteEventItem);
+            }
             menu.Items.Add(new Separator());
             MenuItem deleteItem = new() { Header = LocaleService.Get("DELETE_DATA_TYPE") };
             deleteItem.Click += async (_, _) => await onDeleteDataTypeAsync(typeKey);
@@ -300,15 +309,6 @@ public sealed class GeneralDataEditorWindow : Window
 
     private async Task onAddDataTypeAsync()
     {
-        List<string> infoTypes = getInfoTypes();
-        string noLink = LocaleService.Get("NO_LINKED_TYPE");
-        string? linkedType = await ItemSelectorDialog.ShowAsync(
-            this,
-            LocaleService.Get("SELECT_LINKED_TYPE"),
-            LocaleService.Get("SELECT_LINKED_TYPE_DESC"),
-            new[] { noLink }.Concat(infoTypes));
-        if (linkedType is null)
-            return;
         string? name = await SingleRowDialog.ShowAsync(
             this,
             LocaleService.Get("NEW_DATA_TYPE"),
@@ -316,8 +316,7 @@ public sealed class GeneralDataEditorWindow : Window
             gameData.GeneralData.Keys);
         if (string.IsNullOrWhiteSpace(name))
             return;
-        string? actualLinked = linkedType == noLink ? null : linkedType;
-        gameData.CreateGeneralType(name, actualLinked);
+        gameData.CreateGeneralType(name);
         buildTabs(name);
     }
 
@@ -338,32 +337,88 @@ public sealed class GeneralDataEditorWindow : Window
         buildTabs(newName);
     }
 
-    private async Task onSetLinkedTypeAsync(string typeKey)
+    private async Task onAddEventAsync(string typeKey)
     {
-        List<string> infoTypes = getInfoTypes();
-        string noLink = LocaleService.Get("NO_LINKED_TYPE");
         JsonObject typeData = gameData.GeneralData[typeKey];
-        string? currentLinked = typeData["linkedType"]?.GetValue<string>();
-        string initialSelection = currentLinked is not null && infoTypes.Contains(currentLinked)
-            ? currentLinked : noLink;
-
-        string? chosen = await ItemSelectorDialog.ShowAsync(
+        IReadOnlyList<string> eventNames = getEventNames(typeData);
+        string? eventName = await SingleRowDialog.ShowAsync(
             this,
-            LocaleService.Get("SELECT_LINKED_TYPE"),
-            LocaleService.Get("SELECT_LINKED_TYPE_DESC"),
-            new[] { noLink }.Concat(infoTypes),
-            initialSelection);
-        if (chosen is null)
-            return;
-        string? selectedLinked = chosen == noLink ? null : chosen;
-        if (string.Equals(selectedLinked, currentLinked, StringComparison.Ordinal))
+            LocaleService.Get("NEW_EVENT"),
+            LocaleService.Get("ENTER_EVENT_NAME"),
+            eventNames);
+        if (!isValidEventName(eventName))
             return;
         closeBlueprintEditors(typeKey);
         gameData.RecordSnapshot();
-        if (selectedLinked is null)
-            typeData.Remove("linkedType");
-        else
-            typeData["linkedType"] = selectedLinked;
+        JsonArray events = typeData["events"] as JsonArray ?? new JsonArray();
+        events.Add(eventName!.Trim());
+        typeData["events"] = events;
+        gameData.refreshModifiedState();
+        buildTabs(typeKey);
+    }
+
+    private async Task onRenameEventAsync(string typeKey)
+    {
+        JsonObject typeData = gameData.GeneralData[typeKey];
+        IReadOnlyList<string> eventNames = getEventNames(typeData);
+        string? currentName = await ItemSelectorDialog.ShowAsync(
+            this,
+            LocaleService.Get("RENAME_EVENT"),
+            LocaleService.Get("ENTER_EVENT_NAME"),
+            eventNames);
+        if (currentName is null)
+            return;
+        string? newName = await SingleRowDialog.ShowAsync(
+            this,
+            LocaleService.Get("RENAME_EVENT"),
+            LocaleService.Get("ENTER_EVENT_NAME"),
+            eventNames.Where(name => name != currentName),
+            currentName);
+        if (!isValidEventName(newName) || string.Equals(currentName, newName!.Trim(), StringComparison.Ordinal))
+            return;
+        closeBlueprintEditors(typeKey);
+        gameData.RecordSnapshot();
+        JsonArray events = (JsonArray)typeData["events"]!;
+        for (int index = 0; index < events.Count; index++)
+        {
+            if (string.Equals(events[index]?.GetValue<string>(), currentName, StringComparison.Ordinal))
+                events[index] = newName.Trim();
+        }
+        foreachGeneralMember(typeData, member => renameGraphEvent(member, currentName, newName.Trim()));
+        gameData.refreshModifiedState();
+        buildTabs(typeKey);
+    }
+
+    private async Task onDeleteEventAsync(string typeKey)
+    {
+        JsonObject typeData = gameData.GeneralData[typeKey];
+        IReadOnlyList<string> eventNames = getEventNames(typeData);
+        string? eventName = await ItemSelectorDialog.ShowAsync(
+            this,
+            LocaleService.Get("DELETE_EVENT"),
+            LocaleService.Get("ENTER_EVENT_NAME"),
+            eventNames);
+        if (eventName is null)
+            return;
+        string message = LocaleService.Get("CONFIRM_DELETE_EVENT")
+            .Replace("{name}", eventName, StringComparison.Ordinal);
+        bool confirmed = await ConfirmationDialog.ShowAsync(
+            this,
+            LocaleService.Get("DELETE_EVENT"),
+            message);
+        if (!confirmed)
+            return;
+        closeBlueprintEditors(typeKey);
+        gameData.RecordSnapshot();
+        JsonArray events = (JsonArray)typeData["events"]!;
+        for (int index = events.Count - 1; index >= 0; index--)
+        {
+            if (string.Equals(events[index]?.GetValue<string>(), eventName, StringComparison.Ordinal))
+                events.RemoveAt(index);
+        }
+        if (events.Count == 0)
+            typeData.Remove("events");
+        foreachGeneralMember(typeData, member => removeGraphEvent(member, eventName));
         gameData.refreshModifiedState();
         buildTabs(typeKey);
     }
@@ -380,15 +435,53 @@ public sealed class GeneralDataEditorWindow : Window
         buildTabs(null);
     }
 
-    private List<string> getInfoTypes()
+    private static IReadOnlyList<string> getEventNames(JsonObject typeData)
     {
-        return metadataService.EnumerateTypes()
-            .Where(metadata => metadata.Type.ModuleName?.StartsWith("Source.Infos.", StringComparison.Ordinal) == true)
-            .Where(metadata => classResolver.IsDerivedFrom(metadata.Type.QualifiedName, "Engine.InfoBase"))
-            .Select(metadata => metadata.Type.TypeName)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(typeName => typeName, StringComparer.Ordinal)
-            .ToList();
+        return typeData["events"] is JsonArray events
+            ? events.Select(value => value?.GetValue<string>() ?? string.Empty).ToArray()
+            : [];
+    }
+
+    private static bool isValidEventName(string? eventName)
+    {
+        string value = eventName?.Trim() ?? string.Empty;
+        return value.Length != 0 && !char.IsDigit(value[0]);
+    }
+
+    private static void foreachGeneralMember(JsonObject typeData, Action<JsonObject> action)
+    {
+        if (typeData["members"] is not JsonObject members)
+            return;
+        foreach (JsonObject member in members.Select(entry => entry.Value).OfType<JsonObject>())
+            action(member);
+    }
+
+    private static void renameGraphEvent(JsonObject member, string oldName, string newName)
+    {
+        if (member["_graph"] is not JsonObject graph)
+            return;
+        if (graph["nodeGraph"] is JsonObject nodeGraph && nodeGraph.ContainsKey(oldName))
+            graph["nodeGraph"] = renameObjectKey(nodeGraph, oldName, newName);
+        if (graph["startNodes"] is JsonObject startNodes && startNodes.ContainsKey(oldName))
+            graph["startNodes"] = renameObjectKey(startNodes, oldName, newName);
+    }
+
+    private static void removeGraphEvent(JsonObject member, string eventName)
+    {
+        if (member["_graph"] is not JsonObject graph)
+            return;
+        if (graph["nodeGraph"] is JsonObject nodeGraph)
+            nodeGraph.Remove(eventName);
+        if (graph["startNodes"] is JsonObject startNodes)
+            startNodes.Remove(eventName);
+    }
+
+    private static JsonObject renameObjectKey(JsonObject source, string oldName, string newName)
+    {
+        JsonObject result = [];
+        foreach (KeyValuePair<string, JsonNode?> entry in source)
+            result[entry.Key == oldName ? newName : entry.Key] = entry.Value?.DeepClone();
+        return result;
     }
 }
 
@@ -416,9 +509,8 @@ internal sealed class GeneralDataPage : Grid
     private readonly GeneralDataPageSessionState sessionState;
     private readonly TextBox searchBox;
     private readonly ListBox memberList;
-    private readonly Border linkedTypeBar;
-    private readonly TextBlock linkedTypeLabel;
-    private readonly Button editBlueprintButton;
+    private readonly Border actionBar;
+    private readonly Button editAbilityGraphButton;
     private readonly Button formViewButton;
     private readonly Button tableViewButton;
     private readonly ScrollViewer formScroll;
@@ -491,23 +583,17 @@ internal sealed class GeneralDataPage : Grid
         Children.Add(splitter);
 
         Grid rightGrid = new() { RowDefinitions = new RowDefinitions("Auto,*") };
-        linkedTypeBar = new Border
+        actionBar = new Border
         {
             Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
             Padding = new Thickness(8, 6),
         };
-        linkedTypeLabel = new TextBlock
+        editAbilityGraphButton = new Button
         {
-            VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new SolidColorBrush(Color.Parse("#88aaff")),
-            FontWeight = FontWeight.Bold,
-        };
-        editBlueprintButton = new Button
-        {
-            Content = LocaleService.Get("EDIT_BLUEPRINT"),
+            Content = LocaleService.Get("EDIT_ABILITY_GRAPH"),
             IsEnabled = false,
         };
-        editBlueprintButton.Click += (_, _) => openSelectedBlueprint();
+        editAbilityGraphButton.Click += (_, _) => openSelectedAbilityGraph();
         formViewButton = new Button
         {
             Content = LocaleService.Get("GENERAL_DATA_FORM_VIEW"),
@@ -520,20 +606,19 @@ internal sealed class GeneralDataPage : Grid
             MinWidth = 72,
         };
         tableViewButton.Click += (_, _) => setViewMode(GeneralDataViewMode.Table);
-        Grid linkedTypeContent = new()
+        Grid actionContent = new()
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto,8,Auto,4,Auto"),
         };
-        linkedTypeContent.Children.Add(linkedTypeLabel);
-        Grid.SetColumn(editBlueprintButton, 1);
-        linkedTypeContent.Children.Add(editBlueprintButton);
+        Grid.SetColumn(editAbilityGraphButton, 1);
+        actionContent.Children.Add(editAbilityGraphButton);
         Grid.SetColumn(formViewButton, 3);
-        linkedTypeContent.Children.Add(formViewButton);
+        actionContent.Children.Add(formViewButton);
         Grid.SetColumn(tableViewButton, 5);
-        linkedTypeContent.Children.Add(tableViewButton);
-        linkedTypeBar.Child = linkedTypeContent;
-        Grid.SetRow(linkedTypeBar, 0);
-        rightGrid.Children.Add(linkedTypeBar);
+        actionContent.Children.Add(tableViewButton);
+        actionBar.Child = actionContent;
+        Grid.SetRow(actionBar, 0);
+        rightGrid.Children.Add(actionBar);
 
         formContent = new StackPanel { Spacing = 6, Margin = new Thickness(8) };
         formScroll = new ScrollViewer
@@ -578,7 +663,7 @@ internal sealed class GeneralDataPage : Grid
         Children.Add(rightGrid);
 
         populateMemberList(sessionState.SelectedMemberId);
-        updateLinkedTypeBar();
+        updateActionBar();
         updateViewMode();
     }
 
@@ -607,21 +692,10 @@ internal sealed class GeneralDataPage : Grid
             rebuildTable();
     }
 
-    private void updateLinkedTypeBar()
+    private void updateActionBar()
     {
-        string? linked = typeData["linkedType"]?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(linked))
-        {
-            linkedTypeLabel.IsVisible = false;
-            editBlueprintButton.IsVisible = false;
-        }
-        else
-        {
-            linkedTypeLabel.Text = LocaleService.Get("LINKED_TYPE") + ": " + linked;
-            linkedTypeLabel.IsVisible = true;
-            editBlueprintButton.IsVisible = true;
-        }
-        updateEditBlueprintButton();
+        editAbilityGraphButton.IsVisible = hasEvents();
+        updateEditAbilityGraphButton();
     }
 
     private void onMemberSelectionChanged(object? sender, SelectionChangedEventArgs args)
@@ -664,7 +738,7 @@ internal sealed class GeneralDataPage : Grid
         syncingSelection = false;
         if (sessionState.ViewMode == GeneralDataViewMode.Form)
             buildForm(memberId);
-        updateEditBlueprintButton();
+        updateEditAbilityGraphButton();
     }
 
     private void setViewMode(GeneralDataViewMode mode)
@@ -1013,11 +1087,11 @@ internal sealed class GeneralDataPage : Grid
             duplicateItem.Click += async (_, _) => await onDuplicateMemberAsync(memberId);
             menu.Items.Add(duplicateItem);
 
-            if (canEditBlueprint(memberId))
+            if (canEditAbilityGraph(memberId))
             {
-                MenuItem editBlueprintItem = new() { Header = LocaleService.Get("EDIT_BLUEPRINT") };
-                editBlueprintItem.Click += (_, _) => owner.showBlueprintEditor(typeKey, memberId);
-                menu.Items.Add(editBlueprintItem);
+                MenuItem editAbilityGraphItem = new() { Header = LocaleService.Get("EDIT_ABILITY_GRAPH") };
+                editAbilityGraphItem.Click += (_, _) => owner.showBlueprintEditor(typeKey, memberId);
+                menu.Items.Add(editAbilityGraphItem);
             }
 
             menu.Items.Add(new Separator());
@@ -1029,15 +1103,14 @@ internal sealed class GeneralDataPage : Grid
         menu.Open(anchor);
     }
 
-    private void updateEditBlueprintButton()
+    private void updateEditAbilityGraphButton()
     {
-        editBlueprintButton.IsEnabled = canEditBlueprint(selectedMemberId);
+        editAbilityGraphButton.IsEnabled = canEditAbilityGraph(selectedMemberId);
     }
 
-    private bool canEditBlueprint(string? memberId)
+    private bool canEditAbilityGraph(string? memberId)
     {
         if (string.IsNullOrWhiteSpace(memberId)
-            || string.IsNullOrWhiteSpace(typeData["linkedType"]?.GetValue<string>())
             || typeData["members"]?[memberId] is not JsonObject
             || typeData["events"] is not JsonArray events)
         {
@@ -1048,9 +1121,17 @@ internal sealed class GeneralDataPage : Grid
             && !string.IsNullOrWhiteSpace(eventName));
     }
 
-    private void openSelectedBlueprint()
+    private bool hasEvents()
     {
-        if (canEditBlueprint(selectedMemberId))
+        return typeData["events"] is JsonArray events
+            && events.Any(value => value is JsonValue scalar
+                && scalar.TryGetValue(out string? eventName)
+                && !string.IsNullOrWhiteSpace(eventName));
+    }
+
+    private void openSelectedAbilityGraph()
+    {
+        if (canEditAbilityGraph(selectedMemberId))
             owner.showBlueprintEditor(typeKey, selectedMemberId!);
     }
 

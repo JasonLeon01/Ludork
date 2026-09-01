@@ -82,11 +82,6 @@ bool blueprintGraphHasExecutableEvent(sol::state_view lua,
 bool blueprintGraphDataHasExecutableEvent(sol::state_view lua,
                                           const sol::object& graphData,
                                           const std::string& eventName);
-bool tryExecuteInfoBlueprintGraph(sol::this_state state,
-                                  const sol::object& object,
-                                  const std::string& eventName,
-                                  const sol::object& rawKeywordArguments,
-                                  const std::function<void()>& onComplete);
 bool classHasBlueprintEvent(sol::this_state state, const sol::object& rawClass,
                             const std::string& eventName);
 bool executeParentBlueprintEvent(sol::this_state state,
@@ -102,12 +97,6 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
                            const sol::object& rawKeywordArguments,
                            const sol::object& graphClass,
                            const std::function<void()>& onComplete);
-void applyBlueprintGeneralData(sol::state_view lua, const sol::object& object,
-                               const sol::object& rawData);
-void initializeBlueprintInfo(sol::this_state state, const sol::object& object,
-                             const sol::object& dataProvider);
-sol::table registeredBlueprintEvents(sol::state_view lua,
-                                     const sol::object& rawClass);
 
 const std::vector<std::string>& runtimeValueServiceNames();
 ServiceDispatchResult dispatchRuntimeValueService(

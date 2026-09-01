@@ -2,6 +2,8 @@ local Data = require("Source.Data")
 local EventKeys = require("Source.Configs.EventKeys")
 ---@type { Item: Source.Configs.GeneralEnum.Item, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
+local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
+local Effects = require("Source.Gameplay.Effects")
 local LocaleCore = require("Source.Locale.Core")
 local NodeUtils = require("Source.NodeFunctions.Utils")
 local IconTexture = require("Source.UI.IconTexture")
@@ -226,7 +228,7 @@ function PlayerAttrHUDUI:stateSignatureMatches(states)
     return stateSignatureMatches(self, getStateSignature(states))
 end
 
----@param states    Source.Infos.StateInfo[]
+---@param states    Source.Configs.GeneralDataTypes.StateAttributeSet[]
 ---@param signature tuple<string>
 function PlayerAttrHUDUI:_rebuildStateRows(states, signature)
     self:clearStateRows()
@@ -241,7 +243,7 @@ function PlayerAttrHUDUI:_rebuildStateRows(states, signature)
     self.model._stateSignature = self._stateSignature
 end
 
----@param states Source.Infos.StateInfo[]
+---@param states Source.Configs.GeneralDataTypes.StateAttributeSet[]
 function PlayerAttrHUDUI:_updateStateRows(states)
     local x = 0.0
     for index, state in ipairs(states) do
@@ -264,7 +266,10 @@ function PlayerAttrHUDUI:_updateStateRows(states)
 end
 
 function PlayerAttrHUDUI:refreshStates(language)
-    local states = self.model._player:getStates()
+    local states = {}
+    for _, stateID in ipairs(Effects.GetStateIDs(self.model._player)) do
+        states[#states + 1] = GeneralDataTypes.Create("State", stateID, Data.GetGeneralStateData(stateID))
+    end
     local signature = getStateSignature(states)
     local rebuild = not stateSignatureMatches(self, signature)
     if rebuild then
@@ -317,34 +322,35 @@ function PlayerAttrHUDUI:refresh()
         layoutDirty = true
     end
 
-    local combatSignature = createSignature(self.model._player.infoComp, self.model._player:getCombatRevision())
+    local abilitySystem = self.model._player:getAbilitySystemComponent()
+    local combatSignature = createSignature(self.model._player.attributes, abilitySystem:getRevision())
     local refreshStateRows = localeChanged
     if self._combatSignature ~= combatSignature then
         self._combatSignature = combatSignature
         refreshStateRows = true
 
-        local hpSignature = createSignature(self.model._player.infoComp.HP, self.model._player.infoComp.MAXHP)
+        local hpSignature = createSignature(self.model._player.attributes.HP, self.model._player.attributes.MAXHP)
         if self._hpSignature ~= hpSignature then
             self._hpSignature = hpSignature
             self:setText(
                 "HpValue",
-                "#default#" .. tostring(ToShortNumber(self.model._player.infoComp.HP)) .. "/#max#"
-                    .. tostring(ToShortNumber(self.model._player.infoComp.MAXHP)) .. "#default#"
+                "#default#" .. tostring(ToShortNumber(self.model._player.attributes.HP)) .. "/#max#"
+                    .. tostring(ToShortNumber(self.model._player.attributes.MAXHP)) .. "#default#"
             )
-            self._hpRate = self.model._player.infoComp.HP / self.model._player.infoComp.MAXHP
+            self._hpRate = self.model._player.attributes.HP / self.model._player.attributes.MAXHP
             layoutDirty = true
         end
 
-        local statSignature = createSignature(self.model._player.infoComp.ATK, self.model._player.infoComp.DEF)
+        local statSignature = createSignature(self.model._player.attributes.ATK, self.model._player.attributes.DEF)
         if self._statSignature ~= statSignature then
             self._statSignature = statSignature
-            self:setText("AtkValue", tostring(ToShortNumber(self.model._player.infoComp.ATK)))
-            self:setText("DefValue", tostring(ToShortNumber(self.model._player.infoComp.DEF)))
+            self:setText("AtkValue", tostring(ToShortNumber(self.model._player.attributes.ATK)))
+            self:setText("DefValue", tostring(ToShortNumber(self.model._player.attributes.DEF)))
             layoutDirty = true
         end
 
-        local weakStacks = self.model._player:getStateStackCount(State.Weak)
-        local poisonStacks = self.model._player:getStateStackCount(State.Poisoned)
+        local weakStacks = abilitySystem:getActiveEffectStacks("State." .. State.Weak)
+        local poisonStacks = abilitySystem:getActiveEffectStacks("State." .. State.Poisoned)
         local stackSignature = createSignature(weakStacks, poisonStacks)
         if self._stackSignature ~= stackSignature then
             self._stackSignature = stackSignature
@@ -357,13 +363,13 @@ function PlayerAttrHUDUI:refresh()
     end
 
     local progressSignature = createSignature(
-        self.model._player.infoComp.LEVEL, self.model._player.infoComp.EXP, self.model._player.infoComp.GOLD
+        self.model._player.attributes.LEVEL, self.model._player.attributes.EXP, self.model._player.attributes.GOLD
     )
     if self._progressSignature ~= progressSignature then
         self._progressSignature = progressSignature
-        self:setText("Level", "Lv. " .. tostring(self.model._player.infoComp.LEVEL))
-        self:setText("ExpValue", tostring(ToShortNumber(self.model._player.infoComp.EXP)))
-        self:setText("GoldValue", tostring(ToShortNumber(self.model._player.infoComp.GOLD)))
+        self:setText("Level", "Lv. " .. tostring(self.model._player.attributes.LEVEL))
+        self:setText("ExpValue", tostring(ToShortNumber(self.model._player.attributes.EXP)))
+        self:setText("GoldValue", tostring(ToShortNumber(self.model._player.attributes.GOLD)))
         layoutDirty = true
     end
 

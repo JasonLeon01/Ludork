@@ -1,7 +1,5 @@
-local GlobalFunctions = require("GlobalFunctions")
 local Pickup = require("Source.Pickup")
-
-local ComponentsFunctions = GlobalFunctions.Components
+local Effects = require("Source.Gameplay.Effects")
 
 ---@class (partial) Mixins.Consumables.Gem
 local Gem = {}
@@ -13,14 +11,11 @@ Gem.getSE = ""
 function Gem:onCollision(other)
     local parentCollision = super().onCollision
     Pickup.HandleCollision(self, other, parentCollision, function (player)
-        local originAttr = ComponentsFunctions.getComponentFieldValue(player, self.ATTR_key, nil)
-        if originAttr == nil then
-            ---@type table
-            local dynamicPlayer = player
-            dynamicPlayer[self.ATTR_key] = dynamicPlayer[self.ATTR_key] + self.plus
-        else
-            ComponentsFunctions.setComponentFieldValue(player, self.ATTR_key, originAttr + self.plus)
-        end
+        local schema = assert(
+            player.attributes:getAttributeSchema(self.ATTR_key), "Gem attribute is not in the player AttributeSet"
+        )
+        assert(schema.type == "int" or schema.type == "float", "Gem attribute must be numeric")
+        Effects.ApplyInstantModifier(player, "Consumable.Gem." .. self.ATTR_key, self.ATTR_key, "Add", self.plus)
     end)
 end
 

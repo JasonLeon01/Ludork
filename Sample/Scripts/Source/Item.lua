@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local ItemInfo = require("Source.Infos.ItemInfo")
+local Data = require("Source.Data")
 local Pickup = require("Source.Pickup")
 
 local Actor = Engine.Actor
@@ -11,11 +11,9 @@ Item.count = 1
 Item.getSE = ""
 
 function Item:init(texture, rect, tag)
-    local Data = require("Source.Data")
-
     ---@cast self Source.Item
     Actor.init(self, texture, rect, tag)
-    self:initInfo(Data)
+    self.attributes = Data.CreateGeneralAttributeSet("Item", self.ID)
 end
 
 function Item:onCollision(other)
@@ -26,4 +24,4 @@ function Item:onCollision(other)
     end)
 end
 
-return class(Item, Actor, ItemInfo)
+return class(Item, Actor)

@@ -1,4 +1,3 @@
-
-local EventKeys = { LocaleChanged = "LocaleChanged", PlayerMovementFinished = "PlayerMovementFinished" }
+local EventKeys = { LocaleChanged = "LocaleChanged" }
 
 return EventKeys

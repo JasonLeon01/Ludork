@@ -1384,6 +1384,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private void commit(BlueprintVariableField field, JsonNode? value, bool refresh)
     {
+        if (isReadOnly || field.IsReadOnly)
+            return;
         values.TryGetValue(field.Name, out JsonNode? previous);
         JsonNode? next = cloneNode(value);
         field.Value = cloneNode(next);

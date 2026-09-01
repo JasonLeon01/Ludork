@@ -415,26 +415,4 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
     return true;
 }
 
-bool tryExecuteInfoBlueprintGraph(sol::this_state state,
-                                  const sol::object& object,
-                                  const std::string& eventName,
-                                  const sol::object& keywordArguments,
-                                  const std::function<void()>& onComplete) {
-    sol::state_view lua(state);
-    const sol::object infoBase = blueprintEngineType(lua, "InfoBase");
-    if (!blueprintIsInstance(state, object, infoBase)) {
-        return false;
-    }
-    const sol::object graph =
-        callRuntimeMethodFirst(lua, object, "getInfoGraph");
-    if (!blueprintGraphHasExecutableEvent(lua, graph, eventName)) {
-        return false;
-    }
-    if (!executeBlueprintGraph(lua, graph, eventName, keywordArguments,
-                               nilObject(lua), onComplete)) {
-        invokeCompletion(onComplete);
-    }
-    return true;
-}
-
 }  // namespace ludork::engine::runtime_detail

@@ -113,10 +113,16 @@ public sealed class ProjectSaveService
                 GameVariableResult = gameVariableResult,
             };
         }
-        IReadOnlyList<BlueprintValidationResult> validationResults =
+        IReadOnlyList<BlueprintValidationResult> blueprintValidationResults =
             blueprintValidation.ValidateBlueprints(gameData.GetModifiedBlueprintKeys());
-        bool hasValidationErrors = validationResults.Any(result => !result.IsValid);
-        if (hasValidationErrors && !allowInvalidBlueprints)
+        IReadOnlyList<BlueprintValidationResult> generalDataValidationResults =
+            blueprintValidation.ValidateGeneralDataGraphs();
+        BlueprintValidationResult[] validationResults = blueprintValidationResults
+            .Concat(generalDataValidationResults)
+            .ToArray();
+        bool hasBlueprintValidationErrors = blueprintValidationResults.Any(result => !result.IsValid);
+        bool hasGeneralDataValidationErrors = generalDataValidationResults.Any(result => !result.IsValid);
+        if (hasGeneralDataValidationErrors || hasBlueprintValidationErrors && !allowInvalidBlueprints)
         {
             return new ProjectSaveAttempt(
                 false,

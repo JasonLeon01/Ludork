@@ -9,8 +9,8 @@ local MovementDangerState = {}
 function MovementDangerState:init(gameMap)
     super(MovementDangerState, self).init(gameMap)
     self._player = nil
-    self._playerInfoComp = nil
-    self._playerCombatRevision = nil
+    self._playerAttributes = nil
+    self._playerAbilityRevision = nil
     self._enemySnapshots = {}
     self._enemies = {}
     self._enemyScanRevision = 0
@@ -33,15 +33,15 @@ function MovementDangerState:onTick(_deltaTime)
     local areaChanged = self._areaX ~= area.x or self._areaY ~= area.y
         or self._areaWidth ~= area.width or self._areaHeight ~= area.height
     ---@type integer | nil
-    local playerCombatRevision
-    ---@type Source.Components.PlayerInfoComponent | nil
-    local playerInfoComp
+    local playerAbilityRevision
+    ---@type Source.Configs.GeneralDataTypes.PlayerAttributeSet | nil
+    local playerAttributes
     if player ~= nil then
         ---@cast player Source.Player.Player
-        playerCombatRevision = player:getCombatRevision()
-        playerInfoComp = player.infoComp
+        playerAbilityRevision = player:getAbilitySystemComponent():getRevision()
+        playerAttributes = player.attributes
     end
-    if playerCombatRevision ~= self._playerCombatRevision or playerInfoComp ~= self._playerInfoComp then
+    if playerAbilityRevision ~= self._playerAbilityRevision or playerAttributes ~= self._playerAttributes then
         dangerChanged = true
         pathfindingChanged = true
     end
@@ -57,28 +57,28 @@ function MovementDangerState:onTick(_deltaTime)
                     and MovementDangerGrid.HasMovementSpecial(actor) then
                     ---@cast actor Source.Enemy
                     local position = actor:getMapPosition()
-                    local combatRevision = actor:getCombatRevision()
+                    local abilityRevision = actor:getAbilitySystemComponent():getRevision()
                     local snapshot = self._enemySnapshots[actor]
                     if snapshot == nil then
                         snapshot = {
                             x = position.x,
                             y = position.y,
-                            combatRevision = combatRevision,
-                            infoComp = actor.infoComp,
+                            abilityRevision = abilityRevision,
+                            attributes = actor.attributes,
                             scanRevision = enemyScanRevision
                         }
                         self._enemySnapshots[actor] = snapshot
                         dangerChanged = true
                         pathfindingChanged = true
                     elseif snapshot.x ~= position.x or snapshot.y ~= position.y
-                        or snapshot.combatRevision ~= combatRevision or snapshot.infoComp ~= actor.infoComp then
+                        or snapshot.abilityRevision ~= abilityRevision or snapshot.attributes ~= actor.attributes then
                         dangerChanged = true
                         pathfindingChanged = true
                     end
                     snapshot.x = position.x
                     snapshot.y = position.y
-                    snapshot.combatRevision = combatRevision
-                    snapshot.infoComp = actor.infoComp
+                    snapshot.abilityRevision = abilityRevision
+                    snapshot.attributes = actor.attributes
                     snapshot.scanRevision = enemyScanRevision
                     enemyCount = enemyCount + 1
                     if self._enemies[enemyCount] ~= actor then
@@ -111,8 +111,8 @@ function MovementDangerState:onTick(_deltaTime)
     local previousAreaWidth = self._areaWidth
     local previousAreaHeight = self._areaHeight
     self._player = player
-    self._playerInfoComp = playerInfoComp
-    self._playerCombatRevision = playerCombatRevision
+    self._playerAttributes = playerAttributes
+    self._playerAbilityRevision = playerAbilityRevision
     self._areaX = area.x
     self._areaY = area.y
     self._areaWidth = area.width

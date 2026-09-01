@@ -189,6 +189,76 @@ public sealed class BlueprintValidationService
             .ToArray();
     }
 
+    public IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs()
+    {
+        List<BlueprintValidationResult> results = [];
+        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(gameData.GeneralData);
+        if (schemaErrors.Count != 0)
+            results.Add(new BlueprintValidationResult("GeneralData", false, schemaErrors));
+
+        using IDisposable metadataBatch = classResolver.BeginBatch();
+        BlueprintNodeDefinitionSet definitionSet = BlueprintNodeDefinitionCatalog
+            .CreateGlobal(metadataService, classResolver)
+            .GetNodeDefinitionSet();
+        foreach (KeyValuePair<string, JsonObject> typeEntry in gameData.GeneralData
+            .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            if (typeEntry.Value["members"] is not JsonObject members)
+                continue;
+            foreach (KeyValuePair<string, JsonNode?> memberEntry in members)
+            {
+                if (memberEntry.Value?["_graph"] is not JsonObject graph)
+                    continue;
+                List<string> errors = [];
+                validateGraphStructure(graph, errors);
+                if (errors.Count == 0)
+                {
+                    JsonObject graphDocument = new()
+                    {
+                        ["attrs"] = new JsonObject(),
+                        ["graph"] = graph.DeepClone(),
+                    };
+                    validateGraphDefinitions(
+                        $"General/{typeEntry.Key}/{memberEntry.Key}",
+                        graphDocument,
+                        graph,
+                        errors);
+                    validateGeneralDataLatentNodes(graph, definitionSet.RuntimeLookup, errors);
+                }
+                results.Add(new BlueprintValidationResult(
+                    $"General/{typeEntry.Key}/{memberEntry.Key}",
+                    errors.Count == 0,
+                    errors));
+            }
+        }
+        return results;
+    }
+
+    private static void validateGeneralDataLatentNodes(
+        JsonObject graph,
+        IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> definitions,
+        ICollection<string> errors)
+    {
+        if (graph["nodeGraph"] is not JsonObject nodeGraph)
+            return;
+        foreach (KeyValuePair<string, JsonNode?> eventEntry in nodeGraph)
+        {
+            if (eventEntry.Value?["nodes"] is not JsonArray nodes)
+                continue;
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                string? nodeFunction = getString(nodes[index]?["nodeFunction"]);
+                if (nodeFunction is not null
+                    && definitions.TryGetValue(nodeFunction, out BlueprintGraphNodeDefinition? definition)
+                    && definition.IsLatent)
+                {
+                    errors.Add(
+                        $"graph.nodeGraph[\"{eventEntry.Key}\"].nodes[{index}] uses latent node '{nodeFunction}'");
+                }
+            }
+        }
+    }
+
     private void validateParent(
         string blueprintKey,
         JsonObject data,

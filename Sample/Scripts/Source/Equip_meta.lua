@@ -2,39 +2,38 @@ local _METADATA = {
     Equip = {
         attrs = {
             "ID",
-            "getSE",
+            "getSE"
         },
         bases = {
-            { "Engine", "Actor" },
-            { "Source.Infos.EquipInfo", "EquipInfo" },
+            { "Engine", "Actor" }
         },
         ID = {
             type = "string",
             default = "FILL_IT_BY_YOURSELF",
             Meta = {
-                GeneralDataVars = "Equip",
-            },
+                GeneralDataVars = "Equip"
+            }
         },
         getSE = {
             type = "string",
             default = "",
             Meta = {
                 PathVars = "Sounds",
-                ConfigVars = { "Audio", "getSE" },
-            },
+                ConfigVars = { "Audio", "getSE" }
+            }
         },
         Meta = {
             GeneralDataVars = {
-                { "ID", "Equip" },
+                { "ID", "Equip" }
             },
             PathVars = {
-                { "getSE", "Sounds" },
+                { "getSE", "Sounds" }
             },
             ConfigVars = {
-                { "getSE", "Audio", "getSE" },
-            },
-        },
-    },
+                { "getSE", "Audio", "getSE" }
+            }
+        }
+    }
 }
 
 return _METADATA

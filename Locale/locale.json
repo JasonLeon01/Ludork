@@ -2615,6 +2615,10 @@
     "zh_CN": "编辑蓝图",
     "en_GB": "Edit Blueprint"
   },
+  "EDIT_ABILITY_GRAPH": {
+    "zh_CN": "编辑能力图",
+    "en_GB": "Edit Ability Graph"
+  },
   "VALIDATE_BLUEPRINT": {
     "zh_CN": "校验蓝图",
     "en_GB": "Validate Blueprint"
@@ -2642,26 +2646,6 @@
   "ORGANIZE_GRAPH_TIP": {
     "zh_CN": "自动整理蓝图节点布局，不影响节点数据和连接关系",
     "en_GB": "Automatically arrange blueprint nodes without changing data or connections"
-  },
-  "LINKED_TYPE": {
-    "zh_CN": "关联类型",
-    "en_GB": "Linked Type"
-  },
-  "NO_LINKED_TYPE": {
-    "zh_CN": "(无 - 不关联类型)",
-    "en_GB": "(None - No Linked Type)"
-  },
-  "SELECT_LINKED_TYPE": {
-    "zh_CN": "选择关联类型",
-    "en_GB": "Select Linked Type"
-  },
-  "SELECT_LINKED_TYPE_DESC": {
-    "zh_CN": "选择一个 InfoType 关联（或无）：",
-    "en_GB": "Choose a linked InfoType (or none):"
-  },
-  "SET_LINKED_TYPE": {
-    "zh_CN": "设置关联类型",
-    "en_GB": "Set Linked Type"
   },
   "ABOUT_MENU": {
     "zh_CN": "关于",

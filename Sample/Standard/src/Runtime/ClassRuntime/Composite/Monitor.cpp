@@ -86,7 +86,8 @@ void originalMonitoredNewIndex(sol::state_view lua, const sol::table& state,
 void invokeMonitorCallback(sol::state_view lua, sol::table entry,
                            const sol::object& oldValue,
                            const sol::object& newValue) {
-    if (luaValuesEqual(lua, oldValue, newValue)) {
+    if (!rawBool(entry, "notifyEqualWrites") &&
+        luaValuesEqual(lua, oldValue, newValue)) {
         return;
     }
     const sol::object rawRunning = entry.raw_get<sol::object>("running");
@@ -216,7 +217,8 @@ sol::table createTableMonitorState(sol::state_view lua, sol::table target) {
 void registerMonitor(sol::this_state state, const sol::object& target,
                      const std::string& name,
                      const sol::protected_function& callback,
-                     sol::optional<sol::table> params) {
+                     sol::optional<sol::table> params,
+                     sol::optional<bool> notifyEqualWrites) {
     sol::state_view lua(state);
     if (name.empty()) {
         throw std::invalid_argument("Monitor field name must not be empty");
@@ -233,6 +235,8 @@ void registerMonitor(sol::this_state state, const sol::object& target,
             sol::table entry = rawEntry.as<sol::table>();
             entry.raw_set("callback", callback);
             entry.raw_set("params", params.value_or(lua.create_table()));
+            entry.raw_set("notifyEqualWrites",
+                          notifyEqualWrites.value_or(false));
             return;
         }
         const sol::object rawValue = object.raw_get<sol::object>(name);
@@ -250,6 +254,7 @@ void registerMonitor(sol::this_state state, const sol::object& target,
         }
         entry.raw_set("callback", callback);
         entry.raw_set("params", params.value_or(lua.create_table()));
+        entry.raw_set("notifyEqualWrites", notifyEqualWrites.value_or(false));
         entry.raw_set("running", false);
         entry.raw_set("raw", rawValue.valid() &&
                                  rawValue.get_type() != sol::type::lua_nil);
@@ -275,6 +280,7 @@ void registerMonitor(sol::this_state state, const sol::object& target,
     sol::table entry = lua.create_table();
     entry.raw_set("callback", callback);
     entry.raw_set("params", params.value_or(lua.create_table()));
+    entry.raw_set("notifyEqualWrites", notifyEqualWrites.value_or(false));
     entry.raw_set("running", false);
     entry.raw_set("missing", monitorMissing(lua));
     callbacks.raw_set(name, entry);

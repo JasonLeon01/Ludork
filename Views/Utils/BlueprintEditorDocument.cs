@@ -9,7 +9,7 @@ namespace Ludork.Views.Utils;
 public enum BlueprintEditorDocumentKind
 {
     Blueprint,
-    GeneralData,
+    GeneralDataAbility,
 }
 
 public sealed class BlueprintEditorDocument
@@ -43,13 +43,15 @@ public sealed class BlueprintEditorDocument
     public JsonObject Data => data;
     public IReadOnlyList<string> RequiredEvents => requiredEvents;
     public bool CanEditAttributes => Kind == BlueprintEditorDocumentKind.Blueprint;
+    public bool CanEditGraphEvents => Kind == BlueprintEditorDocumentKind.Blueprint;
+    public bool IsGraphOnly => Kind == BlueprintEditorDocumentKind.GeneralDataAbility;
     public string? BlueprintKey => blueprintKey;
     public string DocumentKey => Kind == BlueprintEditorDocumentKind.Blueprint
         ? "Blueprint:" + blueprintKey
         : GetGeneralDocumentKey(generalTypeKey ?? string.Empty, generalMemberId ?? string.Empty);
     public string Title => Kind == BlueprintEditorDocumentKind.Blueprint
         ? blueprintKey ?? string.Empty
-        : $"__info__/{generalTypeKey}/{generalMemberId}";
+        : $"General/{generalTypeKey}/{generalMemberId}";
 
     public static BlueprintEditorDocument? CreateBlueprint(GameDataService gameData, string reference)
     {
@@ -70,7 +72,6 @@ public sealed class BlueprintEditorDocument
         string memberId)
     {
         if (!gameData.GeneralData.TryGetValue(typeKey, out JsonObject? typeData)
-            || string.IsNullOrWhiteSpace(typeData["linkedType"]?.GetValue<string>())
             || typeData["events"] is not JsonArray events
             || !events.Any(value => !string.IsNullOrWhiteSpace(getString(value)))
             || typeData["members"]?[memberId] is not JsonObject)
@@ -79,7 +80,7 @@ public sealed class BlueprintEditorDocument
         }
         return new BlueprintEditorDocument(
             gameData,
-            BlueprintEditorDocumentKind.GeneralData,
+            BlueprintEditorDocumentKind.GeneralDataAbility,
             null,
             typeKey,
             memberId);
@@ -135,8 +136,7 @@ public sealed class BlueprintEditorDocument
 
         JsonObject? typeData = getGeneralTypeData();
         JsonObject? member = getGeneralMember();
-        string? linkedType = typeData?["linkedType"]?.GetValue<string>();
-        if (typeData is null || member is null || string.IsNullOrWhiteSpace(linkedType))
+        if (typeData is null || member is null)
         {
             data = [];
             return false;
@@ -152,11 +152,7 @@ public sealed class BlueprintEditorDocument
         }
         data = new JsonObject
         {
-            ["parent"] = "Source." + linkedType,
-            ["attrs"] = new JsonObject
-            {
-                ["ID"] = generalMemberId,
-            },
+            ["attrs"] = new JsonObject(),
             ["graph"] = normalizeGraph(member["_graph"], requiredEvents),
         };
         return true;
@@ -168,7 +164,10 @@ public sealed class BlueprintEditorDocument
         if (Kind == BlueprintEditorDocumentKind.Blueprint)
             collectInheritedGraphNames(data["parent"]?.GetValue<string>(), result, new HashSet<string>(StringComparer.Ordinal));
         else
+        {
             addUnique(result, requiredEvents);
+            return result;
+        }
         if (getNodeGraph(data) is JsonObject nodeGraph)
             addUnique(result, nodeGraph.Select(entry => entry.Key));
         return result;
@@ -295,6 +294,8 @@ public sealed class BlueprintEditorDocument
 
     public bool AddEvent(string name)
     {
+        if (!CanEditGraphEvents)
+            return false;
         string eventName = name.Trim();
         if (eventName.Length == 0 || char.IsDigit(eventName[0])
             || GetGraphNames().Contains(eventName, StringComparer.Ordinal))
@@ -307,6 +308,8 @@ public sealed class BlueprintEditorDocument
 
     public bool RenameEvent(string oldName, string newName)
     {
+        if (!CanEditGraphEvents)
+            return false;
         string eventName = newName.Trim();
         if (eventName.Length == 0 || char.IsDigit(eventName[0])
             || string.Equals(oldName, eventName, StringComparison.Ordinal)
@@ -325,6 +328,8 @@ public sealed class BlueprintEditorDocument
 
     public bool DeleteEvent(string name)
     {
+        if (!CanEditGraphEvents)
+            return false;
         JsonObject graph = ensureGraph(data);
         bool removed = graph["nodeGraph"] is JsonObject nodeGraph && nodeGraph.Remove(name);
         if (graph["startNodes"] is JsonObject startNodes)

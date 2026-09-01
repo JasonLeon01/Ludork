@@ -1,6 +1,5 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local StateInfo = require("Source.Infos.StateInfo")
 
 local Node = Engine.Node
 
@@ -27,12 +26,7 @@ function Context.GetGraphOwner(fn)
     if graph == nil or graph.parent == nil then
         return nil
     end
-    local parent = graph.parent
-    if Class.isInstance(parent, StateInfo) then
-        ---@cast parent Source.Infos.StateInfo
-        return parent:getOwner()
-    end
-    return parent
+    return graph.parent
 end
 
 ---@return Source.Scenes.SceneMap.SceneMap

@@ -139,7 +139,52 @@ local function canonicaliseValue(value, typeName, param, relativePath, context)
     return canonicaliseScalar(value, typeName, relativePath, context)
 end
 
+local function validateGraph(member, memberName, declaredEvents, relativePath)
+    local graph = member._graph
+    if graph == nil then
+        return
+    end
+    if not isDictionary(graph) then
+        generalDataError(relativePath, "member " .. memberName .. "._graph", "must be a JSON object")
+    end
+    local nodeGraph = graph.nodeGraph
+    local startNodes = graph.startNodes
+    if not isDictionary(nodeGraph) then
+        generalDataError(relativePath, "member " .. memberName .. "._graph", "nodeGraph must be a JSON object")
+    end
+    if not isDictionary(startNodes) then
+        generalDataError(relativePath, "member " .. memberName .. "._graph", "startNodes must be a JSON object")
+    end
+    for eventName, eventGraph in pairs(nodeGraph) do
+        if declaredEvents[eventName] ~= true then
+            generalDataError(
+                relativePath, "member " .. memberName .. "._graph", "undeclared graph event " .. tostring(eventName)
+            )
+        end
+        if not isDictionary(eventGraph) or not isArray(eventGraph.nodes) or not isArray(eventGraph.links) then
+            generalDataError(
+                relativePath, "member " .. memberName .. "._graph." .. eventName, "nodes and links must be arrays"
+            )
+        end
+    end
+    for eventName in pairs(startNodes) do
+        if declaredEvents[eventName] ~= true then
+            generalDataError(
+                relativePath, "member " .. memberName .. "._graph", "undeclared start event " .. tostring(eventName)
+            )
+        end
+        if nodeGraph[eventName] == nil then
+            generalDataError(
+                relativePath, "member " .. memberName .. "._graph", "start event has no matching graph " .. eventName
+            )
+        end
+    end
+end
+
 function GeneralDataSchema.Canonicalise(payload, relativePath)
+    if payload.linkedType ~= nil then
+        generalDataError(relativePath, "schema", "linkedType is not supported")
+    end
     local params = payload.params
     if not isDictionary(params) then
         generalDataError(relativePath, "schema", "params must be a JSON object")
@@ -147,6 +192,24 @@ function GeneralDataSchema.Canonicalise(payload, relativePath)
     local members = payload.members
     if not isDictionary(members) then
         generalDataError(relativePath, "schema", "members must be a JSON object")
+    end
+    local declaredEvents = {}
+    if payload.events ~= nil then
+        if not isArray(payload.events) then
+            generalDataError(relativePath, "schema", "events must be a JSON array")
+        end
+        if #payload.events == 0 then
+            generalDataError(relativePath, "schema", "events must not be empty")
+        end
+        for index, eventName in ipairs(payload.events) do
+            if type(eventName) ~= "string" or not bool(eventName) then
+                generalDataError(relativePath, "schema", "events[" .. tostring(index) .. "] must be a non-empty string")
+            end
+            if declaredEvents[eventName] then
+                generalDataError(relativePath, "schema", "duplicate event " .. eventName)
+            end
+            declaredEvents[eventName] = true
+        end
     end
     for fieldName, param in pairs(params) do
         if type(param) ~= "table" then
@@ -181,6 +244,7 @@ function GeneralDataSchema.Canonicalise(payload, relativePath)
                 value, param.type, param, relativePath, "member " .. memberName .. "." .. fieldName
             )
         end
+        validateGraph(member, memberName, declaredEvents, relativePath)
     end
 end
 

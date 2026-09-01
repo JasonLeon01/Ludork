@@ -1,17 +1,17 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local Battler = require("Source.Battler")
+local GameplayEventData = require("Global.Gameplay.GameplayEventData")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Data = require("Source.Data")
 local EnemyText = require("Source.EnemyText")
+local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local Utils = require("Source.NodeFunctions.Utils")
 
 local Actor = Engine.Actor
 local PlainText = Engine.PlainText
 local UIFunctions = GlobalFunctions.UI
-local DamageType = Battler.DamageType
 local Item = GeneralEnum.Item
 
 ---@param self Source.EnemyDamageText
@@ -99,8 +99,8 @@ function EnemyDamageText:onTick(_deltaTime)
     local width, height = getParentSize(parent)
     ---@cast width integer
     ---@cast height integer
-    local parentRevision = parent:getCombatRevision()
-    local playerRevision = player:getCombatRevision()
+    local parentRevision = parent:getAbilitySystemComponent():getRevision()
+    local playerRevision = player:getAbilitySystemComponent():getRevision()
     if not self._renderDirty and rawequal(parent, self._currentBattlers[1])
         and rawequal(player, self._currentBattlers[2]) and parentRevision == self._currentParentRevision
         and playerRevision == self._currentPlayerRevision and width == self._currentOverlayWidth
@@ -108,16 +108,19 @@ function EnemyDamageText:onTick(_deltaTime)
         return
     end
     self:_ensureText()
-    local damageType, damage = parent:getDamage(player)
-    ---@cast damageType Source.Battler.DamageType
-    ---@cast damage integer
-    local damageText = damageType == DamageType.UNDEFEATABLE and "???" or tostring(Utils.ToShortNumber(damage))
-    local criticalText = EnemyText.FormatCritical(parent:getCriticalValue(player))
-    local playerHP = player.infoComp.HP
+    local battleResult = MotaBattleAbility
+        .new()
+        :calculate(parent:getAbilitySystemComponent(), GameplayEventData.new({ target = player }))
+    ---@type integer | nil
+    local damage = nil
+    if battleResult.code ~= MotaBattleAbility.BattleResult.CANNOT_DAMAGE then
+        damage = battleResult.data.damage
+    end
+    local damageText = damage == nil and "???" or tostring(Utils.ToShortNumber(damage))
+    local criticalText = EnemyText.FormatCritical(MotaBattleAbility.CalculateCriticalValue(parent, player))
+    local playerHP = player.attributes.HP
     ---@cast playerHP integer
-    if self:_setOverlayText(
-        damageText, criticalText, EnemyDamageText.GetDamageColor(damageType, damage, playerHP), width, height
-    ) then
+    if self:_setOverlayText(damageText, criticalText, EnemyDamageText.GetDamageColor(damage, playerHP), width, height) then
         self._currentBattlers[1] = parent
         self._currentBattlers[2] = player
         self._currentParentRevision = parentRevision
@@ -303,12 +306,11 @@ function getPlayer()
     return player
 end
 
----@param damageType Source.Battler.DamageType
----@param damage     integer
----@param playerHP   integer
+---@param damage   integer | nil
+---@param playerHP integer
 ---@return sf.Color
-function EnemyDamageText.GetDamageColor(damageType, damage, playerHP)
-    if damageType == DamageType.UNDEFEATABLE then
+function EnemyDamageText.GetDamageColor(damage, playerHP)
+    if damage == nil then
         return UIFunctions.GetDimGrey()
     end
     damage = math.max(0, damage)

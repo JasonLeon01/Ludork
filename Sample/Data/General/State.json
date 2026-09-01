@@ -67,7 +67,6 @@
             "stackable": true
         }
     },
-    "linkedType": "StateInfo",
     "events": [
         "onWalk",
         "onHookTriggered"

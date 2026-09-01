@@ -1,69 +1,78 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
 local Data = require("Source.Data")
 local Battler = require("Source.Battler")
-local PlayerInfoComponent = require("Source.Components.PlayerInfoComponent")
-local EquipInfo = require("Source.Infos.EquipInfo")
-local PlayerInfo = require("Source.Infos.PlayerInfo")
+local GameplayEffectSpec = require("Global.Gameplay.GameplayEffectSpec")
+local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local Effects = require("Source.Gameplay.Effects")
+local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 
 local Character = Engine.Character
 local Input = Engine.Input
-local ComponentsFunctions = GlobalFunctions.Components
 
 local LEVEL_HP_GAIN = 400
 local LEVEL_ATK_GAIN = 2
 local LEVEL_DEF_GAIN = 2
 
----@param old    integer | Class.MissingValue
----@param new    integer | Class.MissingValue
+---@param _old   integer | Class.MissingValue
+---@param _new   integer | Class.MissingValue
+---@param change Global.Gameplay.AttributeChange
 ---@param player Source.Player.Player
-local function onHPChange(old, new, player)
+local function onHPChange(_old, _new, change, player)
     if player == nil then
         return
     end
-    ---@cast new integer
-    if new < 0 then
-        player.infoComp.HP = 0
-    elseif new > player.infoComp.MAXHP then
-        player.infoComp.HP = player.infoComp.MAXHP
+    if change.source ~= "Base" then
+        return
     end
-    if old ~= player.infoComp.HP then
-        player:_incrementCombatRevision()
+    local base = player:getAbilitySystemComponent():getNumericAttributeBase("HP")
+    if base < 0 then
+        player:getAbilitySystemComponent():setNumericAttributeBase("HP", 0)
+    elseif base > player.attributes.MAXHP then
+        player:getAbilitySystemComponent():setNumericAttributeBase("HP", player.attributes.MAXHP)
     end
 end
 
----@param old    integer | Class.MissingValue
----@param new    integer | Class.MissingValue
+---@param _old   integer | Class.MissingValue
+---@param _new   integer | Class.MissingValue
+---@param change Global.Gameplay.AttributeChange
 ---@param player Source.Player.Player
-local function onMAXHPChange(old, new, player)
+local function onMAXHPChange(_old, _new, change, player)
     if player == nil then
         return
     end
-    ---@cast new integer
-    if player.infoComp.HP > new then
-        player.infoComp.HP = new
+    if change.source ~= "Base" then
+        return
+    end
+    local abilitySystem = player:getAbilitySystemComponent()
+    if abilitySystem:getNumericAttributeBase("HP") > player.attributes.MAXHP then
+        abilitySystem:setNumericAttributeBase("HP", player.attributes.MAXHP)
     end
     if not player._loading then
-        local oldValue = old == Class.MISSING and 0 or old
-        local delta = new - oldValue
-        ---@cast oldValue integer
+        local oldBase = change.oldBase == Class.MISSING and 0 or change.oldBase
+        local newBase = change.newBase
+        ---@cast oldBase integer
+        ---@cast newBase integer
+        local delta = newBase - oldBase
         ---@cast delta integer
         if delta > 0 then
-            local hp = player.infoComp.HP + delta
-            ---@cast hp integer
-            player.infoComp.HP = hp
+            abilitySystem:setNumericAttributeBase("HP", abilitySystem:getNumericAttributeBase("HP") + delta)
         end
-    end
-    if old ~= new then
-        player:_incrementCombatRevision()
     end
 end
 
----@param player Source.Player.Player
-local function syncInitialHP(player)
-    if player.infoComp.HP <= 0 then
-        player.infoComp.HP = player.infoComp.MAXHP
-    end
+local function constrainHP(value, abilitySystem, resolvedValues)
+    local maxHP = resolvedValues.MAXHP or abilitySystem:getNumericAttribute("MAXHP")
+    return math.max(0, math.min(value, maxHP))
+end
+
+---@return Global.Gameplay.GameplayEventData
+local function createPlayerEvent(player, eventTag, payload)
+    return GameplayEventData.new({
+        instigator = player,
+        target = player,
+        eventTag = eventTag,
+        payload = payload or {}
+    })
 end
 
 ---@type function
@@ -76,39 +85,53 @@ Player.tickable = true
 Player.collisionEnabled = true
 Player.animatable = true
 Player.speed = 96.0
-Player._componentTypes = { infoComp = PlayerInfoComponent }
-Player.infoComp = PlayerInfoComponent.new()
 
 function Player:init(texture, tag)
     Character.init(self, texture, tag or "")
-    Battler.init(self)
     self._loading = true
-    Class.monitor(self.infoComp, "HP", onHPChange, self._combatMonitorParams)
-    Class.monitor(self.infoComp, "MAXHP", onMAXHPChange, self._combatMonitorParams)
-    self:initInfo(Data)
-    syncInitialHP(self)
-    self._loading = false
-
-    Class.monitor(self.infoComp, "LEVEL", function (old, new)
-        local oldValue = old == Class.MISSING and 0 or old
-        ---@cast oldValue integer
-        ---@cast new integer
-        local delta = new - oldValue
+    local attributes = Data.CreateGeneralAttributeSet("Player", self.ID)
+    Battler.init(self, attributes)
+    local abilitySystem = self:getAbilitySystemComponent()
+    local listenerParams = setmetatable({ self }, { __mode = "v" })
+    abilitySystem:setNumericAttributeConstraint("HP", constrainHP)
+    abilitySystem:addAttributeChangeListener("HP", onHPChange, listenerParams)
+    abilitySystem:addAttributeChangeListener("MAXHP", onMAXHPChange, listenerParams)
+    abilitySystem:addAttributeChangeListener("LEVEL", function (_old, _new, change)
+        if self._loading or change.source ~= "Base" then
+            return
+        end
+        local oldBase = change.oldBase == Class.MISSING and 0 or change.oldBase
+        local newBase = change.newBase
+        ---@cast oldBase integer
+        ---@cast newBase integer
+        local delta = newBase - oldBase
         ---@cast delta integer
-        self.infoComp.HP = self.infoComp.HP + delta * LEVEL_HP_GAIN
-        self.infoComp.ATK = self.infoComp.ATK + delta * LEVEL_ATK_GAIN
-        self.infoComp.DEF = self.infoComp.DEF + delta * LEVEL_DEF_GAIN
-    end, {}
-    )
+        local playerAbilitySystem = self:getAbilitySystemComponent()
+        playerAbilitySystem:setNumericAttributeBase(
+            "HP", playerAbilitySystem:getNumericAttributeBase("HP") + delta * LEVEL_HP_GAIN
+        )
+        playerAbilitySystem:setNumericAttributeBase(
+            "ATK", playerAbilitySystem:getNumericAttributeBase("ATK") + delta * LEVEL_ATK_GAIN
+        )
+        playerAbilitySystem:setNumericAttributeBase(
+            "DEF", playerAbilitySystem:getNumericAttributeBase("DEF") + delta * LEVEL_DEF_GAIN
+        )
+    end)
     self._items = {}
     self._equips = {}
     self._equipInfo = {}
+    self._equipEffectHandles = {}
     self._classPath = ""
     self._forbiddenMoving = false
     self._wasMovingOnLastFixedTick = false
     self._movementSpecialPath = {}
-    local classData = Data.GetGeneralClassData(self.infoComp.CLASS)
-    for _, equipID in pairs(classData.slot or {}) do
+    self._loading = false
+end
+
+function Player:_applyInitialEquipment()
+    local classData = Data.GetGeneralClassData(self.attributes.CLASS)
+    for _, slot in ipairs(table.orderedStringKeys(classData.slot or {})) do
+        local equipID = classData.slot[slot]
         if bool(equipID) then
             self:equip(equipID)
         end
@@ -141,7 +164,7 @@ function Player:onFixedTick(_fixedDelta)
         MovementSpecials.NotifyPlayerMovementFinished(self, self:consumeMovementSpecialPath())
     end
     if self._wasMovingOnLastFixedTick and not self:isMoving() then
-        self:triggerStateWalk()
+        self:getAbilitySystemComponent():handleGameplayEvent(createPlayerEvent(self, "Event.Movement.Step"))
     end
     self._wasMovingOnLastFixedTick = self:isMoving()
 end
@@ -184,38 +207,42 @@ end
 
 function Player:asDict()
     local position = self:getMapPosition()
+    local bases = self:getAbilitySystemComponent():getNumericAttributeBases()
     return {
         playerClass = self._classPath,
         tag = self.tag,
         position = { position.x, position.y },
         attr = {
-            LEVEL = self.infoComp.LEVEL,
-            HP = self.infoComp.HP,
-            MAXHP = self.infoComp.MAXHP,
-            ATK = self.infoComp.ATK,
-            DEF = self.infoComp.DEF,
-            EXP = self.infoComp.EXP,
-            GOLD = self.infoComp.GOLD
+            LEVEL = bases.LEVEL,
+            HP = bases.HP,
+            MAXHP = bases.MAXHP,
+            ATK = bases.ATK,
+            DEF = bases.DEF,
+            EXP = bases.EXP,
+            GOLD = bases.GOLD
         },
         items = self._items,
         equips = self._equips,
         equipInfo = self._equipInfo,
-        states = self:getStateStacks()
+        states = Effects.GetStateStacks(self)
     }
 end
 
-function Player.InitPlayer(playerPath)
+function Player.InitPlayer(playerPath, applyInitialEquipment)
     local actor = assert(Data.GenActorFromClassPath(playerPath, "PLAYER"), "Player blueprint class is missing")
     ---@cast actor Source.Player.Player
     actor:setClassPath(playerPath)
     actor:setAnimatable(true, true)
     actor:setCollisionEnabled(true)
     assert(actor:hasGraph(), "Player blueprint graph is missing")
+    if applyInitialEquipment ~= false then
+        actor:_applyInitialEquipment()
+    end
     return actor
 end
 
 function Player.FromDict(data)
-    local player = Player.InitPlayer(data.playerClass)
+    local player = Player.InitPlayer(data.playerClass, false)
     player.tag = data.tag
     local positionX = data.position[1]
     local positionY = data.position[2]
@@ -224,29 +251,45 @@ function Player.FromDict(data)
     local position = sf.Vector2u.new(positionX, positionY)
     ---@cast position sf.Vector2u
     player:setMapPosition(position)
-    for key, value in pairs(data.attr) do
-        if not ComponentsFunctions.setComponentFieldValue(player, key, value) then
-            player[key] = value
+    player._loading = true
+    player:_clearEquipmentEffects()
+    Effects.ClearStates(player)
+    player:getAbilitySystemComponent():setNumericAttributeBases(data.attr)
+    player._items = deepcopy(data.items)
+    player._equips = deepcopy(data.equips)
+    player._equipInfo = {}
+    player._equipEffectHandles = {}
+    for _, itemID in ipairs(table.orderedStringKeys(player._items)) do
+        player:_syncItemAbility(itemID)
+    end
+    for _, slot in ipairs(table.orderedStringKeys(data.equipInfo)) do
+        local equipID = data.equipInfo[slot]
+        if bool(equipID) then
+            player:_setEquippedItem(slot, equipID, false)
         end
     end
-    player._items = data.items
-    player._equips = data.equips
-    player._equipInfo = data.equipInfo
-    local states = data.states or {}
-    if #states > 0 then
-        ---@cast states string[]
-        player:setStateIDs(states)
-    else
-        ---@cast states table<string, integer>
-        player:setStateStacks(states)
+    for _, stateID in ipairs(table.orderedStringKeys(data.states)) do
+        local stacks = data.states[stateID]
+        Effects.ApplyState(player, stateID, stacks, createPlayerEvent(player, "Event.State.Restore"))
     end
+    player._loading = false
     return player
+end
+
+function Player:_syncItemAbility(itemID)
+    local abilitySystem = self:getAbilitySystemComponent()
+    local sourceKey = "Item." .. itemID
+    abilitySystem:removeAbilitiesBySource(sourceKey)
+    if self:getItemCount(itemID) > 0 then
+        abilitySystem:giveAbility(GeneralDataGraphAbility.new("Item", itemID, "onUse"), sourceKey)
+    end
 end
 
 function Player:addItem(itemID, count)
     local itemCount = count == nil and 1 or count
     ---@cast itemCount integer
     self._items[itemID] = (self._items[itemID] or 0) + itemCount
+    self:_syncItemAbility(itemID)
 end
 
 function Player:removeItem(itemID, count)
@@ -259,7 +302,16 @@ function Player:removeItem(itemID, count)
     if self._items[itemID] == 0 then
         self._items[itemID] = nil
     end
+    self:_syncItemAbility(itemID)
     return true
+end
+
+function Player:activateItem(itemID)
+    return self
+        :getAbilitySystemComponent()
+        :tryActivateAbility("GeneralData.Item." .. itemID .. ".onUse", createPlayerEvent(
+            self, "Event.Item.Use", { itemID = itemID }
+        ))
 end
 
 function Player:getItemCount(itemID)
@@ -289,39 +341,63 @@ function Player:removeEquip(equipID, count)
     return true
 end
 
+function Player:_executeEquipGraph(equipID, graphEvent)
+    local ability = GeneralDataGraphAbility.new("Equip", equipID, graphEvent)
+    local eventTag = graphEvent == "onEquip" and "Event.Equipment.Equip" or "Event.Equipment.Unequip"
+    return ability:activate(self:getAbilitySystemComponent(), createPlayerEvent(self, eventTag, { equipID = equipID }))
+end
+
+function Player:_setEquippedItem(slot, equipID, executeGraph)
+    local equipData = Data.GetGeneralEquipData(equipID)
+    local effect = Effects.CreateEquipmentEffect(equipID, slot, equipData.attrPlus)
+    local eventData = createPlayerEvent(self, "Event.Equipment.Equip", { equipID = equipID, slot = slot })
+    local handle = self
+        :getAbilitySystemComponent()
+        :applyGameplayEffectSpec(GameplayEffectSpec.new(effect, eventData, 1, "Equipment." .. slot))
+    self._equipInfo[slot] = equipID
+    self._equipEffectHandles[slot] = handle
+    if executeGraph then
+        self:_executeEquipGraph(equipID, "onEquip")
+    end
+end
+
 function Player:equip(equipID)
     local equipData = Data.GetGeneralEquipData(equipID)
-    local classData = Data.GetGeneralClassData(self.infoComp.CLASS)
+    local classData = Data.GetGeneralClassData(self.attributes.CLASS)
     local slot = equipData.slot or ""
     if classData.slot[slot] == nil then
         error("Equip " .. tostring(equipID) .. " is not in the player's class")
     end
-    local currentID = self._equipInfo[slot] or ""
-    if bool(currentID) and currentID ~= equipID then
+    local currentID = self:getEquipInfo(slot)
+    if currentID == equipID then
+        return
+    end
+    if bool(currentID) then
         self:unequip(slot)
     end
-    self:_updateEquipInfo(slot, equipID)
-    self:_applyEquipAttributeChanges(equipData.attrPlus, 1)
-    local info = EquipInfo.new()
-    info.ID = equipID
-    info:initInfo(Data)
-    info:triggerEvent("onEquip")
+    self:_setEquippedItem(slot, equipID, true)
     self:removeEquip(equipID)
 end
 
 function Player:unequip(slotID)
-    local equipID = self._equipInfo[slotID] or ""
+    local equipID = self:getEquipInfo(slotID)
     if not bool(equipID) then
         return
     end
-    self:_updateEquipInfo(slotID, "")
-    local equipData = Data.GetGeneralEquipData(equipID)
-    self:_applyEquipAttributeChanges(equipData.attrPlus, -1)
-    local info = EquipInfo.new()
-    info.ID = equipID
-    info:initInfo(Data)
-    info:triggerEvent("onUnequip")
+    assert(self._equipEffectHandles[slotID] ~= nil, "Equipped item is missing its Gameplay Effect")
+    self:getAbilitySystemComponent():removeActiveGameplayEffect(self._equipEffectHandles[slotID])
+    self._equipInfo[slotID] = ""
+    self._equipEffectHandles[slotID] = nil
+    self:_executeEquipGraph(equipID, "onUnequip")
     self:addEquip(equipID)
+end
+
+function Player:_clearEquipmentEffects()
+    for _, handle in pairs(self._equipEffectHandles) do
+        self:getAbilitySystemComponent():removeActiveGameplayEffect(handle)
+    end
+    self._equipInfo = {}
+    self._equipEffectHandles = {}
 end
 
 function Player:getEquipCount(equipID)
@@ -355,28 +431,4 @@ function Player:_isSceneInputBlocked()
     return scene ~= nil and scene:isInputBlocked()
 end
 
----@param slot    string
----@param equipID string
-function Player:_updateEquipInfo(slot, equipID)
-    local result = {}
-    local classData = Data.GetGeneralClassData(self.infoComp.CLASS)
-    for slotName in pairs(classData.slot or {}) do
-        result[slotName] = slotName == slot and equipID or self._equipInfo[slotName] or ""
-    end
-    self._equipInfo = result
-end
-
----@param attrPlus   table<string, integer>
----@param multiplier integer
-function Player:_applyEquipAttributeChanges(attrPlus, multiplier)
-    for attrKey, attrValue in pairs(attrPlus) do
-        local delta = attrValue * multiplier
-        if self.infoComp[attrKey] ~= nil then
-            self.infoComp[attrKey] = self.infoComp[attrKey] + delta
-        else
-            self[attrKey] = self[attrKey] + delta
-        end
-    end
-end
-
-return class(Player, Character, PlayerInfo, Battler)
+return class(Player, Character, Battler)

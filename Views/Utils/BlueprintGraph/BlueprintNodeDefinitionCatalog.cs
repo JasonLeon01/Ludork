@@ -345,7 +345,8 @@ public sealed class BlueprintNodeDefinitionCatalog
             member.DeclaringType,
             isParent,
             isContextRelevant,
-            displayName is not null);
+            displayName is not null,
+            member.IsLatent);
     }
 
     private static string getGlobalRuntimePath(string runtimePath)

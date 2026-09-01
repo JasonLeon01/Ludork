@@ -56,7 +56,7 @@ function PlayerAttrHUDUI:loadStateIcon(iconPath) end
 
 function PlayerAttrHUDUI:clearStateRows() end
 
----@param states table
+---@param states Source.Configs.GeneralDataTypes.StateAttributeSet[]
 ---@return boolean
 function PlayerAttrHUDUI:stateSignatureMatches(states) end
 

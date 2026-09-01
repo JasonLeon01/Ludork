@@ -254,6 +254,11 @@ function Data.HasAutoTile(name) end
 ---@return table<string, Source.Data.GeneralValue>
 function Data.GetGeneralData(name) end
 
+---@param typeName string
+---@param memberID string
+---@return Global.Gameplay.AttributeSet
+function Data.CreateGeneralAttributeSet(typeName, memberID) end
+
 ---@brief Get class data by its key.
 ---
 --- - @param classKey The class key.

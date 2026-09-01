@@ -1,10 +1,11 @@
 local Render = require("Global.Utils.Render")
+local GameplayEventData = require("Global.Gameplay.GameplayEventData")
 local Data = require("Source.Data")
 local Locale = require("Source.Locale.Core")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local Battler = require("Source.Battler")
 local Enemy = require("Source.Enemy")
+local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local IconTexture = require("Source.UI.IconTexture")
 local Ui = require("Source.UI.Ui")
 local WindowEnemyBookCellUI = require("Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell")
@@ -12,7 +13,6 @@ local WindowEnemyBookCellUI = require("Source.UI.Parts.WindowEnemyBook.WindowEne
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 local Special = GeneralEnum.Special
-local DamageType = Battler.DamageType
 
 local _CELL_WIDTH = 320
 local _CELL_HEIGHT = 64
@@ -142,8 +142,12 @@ end
 
 function WindowEnemyBookUI:buildEntry(enemy, visual)
     visual = visual or Render.CaptureActorVisual(enemy)
-    local damageType, damage = enemy:getDamage(self.model._player)
-    local special = enemy:getSpecial()
+    local abilitySystem = enemy:getAbilitySystemComponent()
+    local battleResult = MotaBattleAbility
+        .new()
+        :calculate(abilitySystem, GameplayEventData.new({ target = self.model._player }))
+    local battleData = battleResult.data
+    local special = enemy.attributes.special
     local sourceRect = enemy:getTextureRect()
     local textureRect = nil
     if sourceRect ~= nil then
@@ -151,21 +155,23 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
     end
     local sourceScale = enemy:getScale()
     local scale = copy(sourceScale)
-    local nameSource = tostring(enemy.infoComp.name or enemy.ID)
-    local descSource = enemy.infoComp.desc
+    local nameSource = tostring(enemy.attributes.name or enemy.attributes.ID)
+    local descSource = enemy.attributes.desc
     return {
         nameSource = nameSource,
         descSource = descSource,
         name = self:formatName(nameSource),
         desc = self:formatText(descSource),
-        MAXHP = enemy.infoComp.MAXHP,
-        ATK = enemy:getATK(self.model._player),
-        DEF = enemy:getDEF(self.model._player),
-        EXP = enemy.infoComp.EXP,
-        GOLD = enemy.infoComp.GOLD,
-        damage = damageType == DamageType.UNDEFEATABLE and "???" or damage,
-        critical = enemy:getCriticalValue(self.model._player),
-        hitCount = enemy:hasSpecial(Special.MultiHit) and enemy:getHitCount() or nil,
+        MAXHP = enemy.attributes.MAXHP,
+        ATK = battleData.enemyAttack.attackerATK,
+        DEF = battleData.playerAttack.defenderDEF,
+        EXP = enemy.attributes.EXP,
+        GOLD = enemy.attributes.GOLD,
+        damage = battleResult.code == MotaBattleAbility.BattleResult.CANNOT_DAMAGE and "???" or battleData.damage,
+        critical = MotaBattleAbility.CalculateCriticalValue(enemy, self.model._player),
+        hitCount = abilitySystem:hasMatchingGameplayTag("Special." .. Special.MultiHit)
+            and battleData.enemyAttack.hitCount
+            or nil,
         specialDisplays = self:buildSpecialDisplays(special),
         specialDetails = self:buildSpecialDetails(special),
         visual = visual,

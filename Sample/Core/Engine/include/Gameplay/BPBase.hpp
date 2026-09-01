@@ -28,12 +28,6 @@ public:
     static bool IsBlueprintEventEmpty(const RuntimeIdentityPtr& object,
                                       const std::string& eventName);
 
-    BIND_METHOD(defaults = {nil, nil}, metadata = false)
-    static bool _tryExecuteInfoGraph(
-        const RuntimeIdentityPtr& object, const std::string& eventName,
-        const RuntimeValue& keywordArguments = {},
-        const RuntimeIdentityPtr& onComplete = nullptr);
-
     BIND_METHOD(metadata = false)
     static bool _classHasBlueprintEvent(const RuntimeIdentityPtr& classType,
                                         const std::string& eventName);
@@ -55,20 +49,11 @@ public:
         const RuntimeIdentityPtr& onComplete = nullptr);
 
     BIND_METHOD(defaults = {nil, nil, nil}, metadata = false)
-    static bool _executeGraph(const RuntimeIdentityPtr& graph,
-                              const std::string& eventName,
-                              const RuntimeValue& keywordArguments = {},
-                              const RuntimeIdentityPtr& localGraph = nullptr,
-                              const RuntimeIdentityPtr& onComplete = nullptr);
-
-    BIND_METHOD(defaults = {nil})
-    static void ExecuteInfoGraph(const RuntimeIdentityPtr& object,
-                                 const std::string& eventName,
-                                 const RuntimeValue& keywordArguments = {});
-
-    BIND_METHOD()
-    static void ApplyGeneralData(const RuntimeIdentityPtr& object,
-                                 const RuntimeValue& data);
+    static bool ExecuteGraph(const RuntimeIdentityPtr& graph,
+                             const std::string& eventName,
+                             const RuntimeValue& keywordArguments = {},
+                             const RuntimeIdentityPtr& localGraph = nullptr,
+                             const RuntimeIdentityPtr& onComplete = nullptr);
 
     static void BlueprintEventNative(
         RuntimeObject& object, const std::string& eventName,
@@ -76,13 +61,6 @@ public:
 
     static bool HasBlueprintEventNative(const RuntimeObject& object,
                                         const std::string& eventName);
-
-    static bool TryExecuteInfoGraphNative(
-        RuntimeObject& object, const std::string& eventName,
-        const RuntimeValue::Map& keywordArguments = {});
-
-    static void ApplyGeneralDataNative(RuntimeObject& object,
-                                       const RuntimeValue& data);
 
 private:
     static RuntimeValue objectValue(const RuntimeObject& object);

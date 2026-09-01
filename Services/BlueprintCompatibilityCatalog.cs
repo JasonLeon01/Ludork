@@ -34,7 +34,7 @@ internal static class BlueprintCompatibilityCatalog
             }),
             ["Source.Enemy"] = new(
                 "Engine.Actor",
-                ["Engine.InfoBase"],
+                [],
                 new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
             {
                 ["ID"] = JsonValue.Create("FILL_IT_BY_YOURSELF"),
@@ -45,7 +45,7 @@ internal static class BlueprintCompatibilityCatalog
             }),
             ["Source.Item"] = new(
                 "Engine.Actor",
-                ["Engine.InfoBase"],
+                [],
                 new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
             {
                 ["ID"] = JsonValue.Create("FILL_IT_BY_YOURSELF"),
@@ -53,7 +53,7 @@ internal static class BlueprintCompatibilityCatalog
             }),
             ["Source.Player"] = new(
                 "Engine.Character",
-                ["Engine.InfoBase"],
+                [],
                 new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
             {
                 ["ID"] = JsonValue.Create("FILL_IT_BY_YOURSELF"),

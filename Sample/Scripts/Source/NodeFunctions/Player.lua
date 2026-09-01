@@ -1,8 +1,7 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
 local Context = require("Source.NodeFunctions.Context")
+local Effects = require("Source.Gameplay.Effects")
 
-local ComponentsFunctions = GlobalFunctions.Components
 local Player = {}
 
 function Player.GetPlayer()
@@ -105,16 +104,25 @@ function Player.GetPlayerAttr(attrName)
     if player == nil then
         return nil
     end
-    local value = ComponentsFunctions.getComponentFieldValue(player, attrName, Class.MISSING)
-    if value ~= Class.MISSING then
-        return value
+    if player.attributes:getAttributeSchema(attrName) ~= nil then
+        return player.attributes[attrName]
     end
     return player[attrName]
 end
 
 function Player.SetPlayerAttr(attrName, value)
     local player = Player.GetPlayer()
-    if player ~= nil and not ComponentsFunctions.setComponentFieldValue(player, attrName, value) then
+    if player == nil then
+        return
+    end
+    local schema = player.attributes:getAttributeSchema(attrName)
+    if schema ~= nil then
+        if schema.type == "int" or schema.type == "float" then
+            player:getAbilitySystemComponent():setNumericAttributeBase(attrName, value)
+        else
+            player.attributes[attrName] = value
+        end
+    else
         player[attrName] = value
     end
 end
@@ -126,6 +134,9 @@ function Player.GetPlayerAttrRef(attrName)
     end
     local NodeUtils = require("Source.NodeFunctions.Utils")
 
+    if player.attributes:getAttributeSchema(attrName) ~= nil then
+        return NodeUtils.GetAttrRef(player.attributes, attrName)
+    end
     return NodeUtils.GetAttrRef(player, attrName)
 end
 
@@ -133,7 +144,7 @@ function Player.HealPlayer(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.HP = player.infoComp.HP + amount
+        Effects.ApplyInstantModifier(player, "Blueprint.Heal", "HP", "Add", amount)
     end
 end
 
@@ -141,24 +152,7 @@ function Player.DamagePlayer(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        local hp = player.infoComp.HP - amount
-        ---@cast hp integer
-        player.infoComp.HP = hp
-    end
-end
-
-function Player.RemovePlayerState(stateID)
-    local player = Player.GetPlayer()
-    if player ~= nil then
-        player:removeState(stateID)
-    end
-end
-
-function Player.ReducePlayerState(stateID, stacks)
-    stacks = stacks == nil and 1 or stacks
-    local player = Player.GetPlayer()
-    if player ~= nil then
-        player:reduceStateStacks(stateID, stacks)
+        Effects.ApplyInstantModifier(player, "Blueprint.Damage", "HP", "Add", -amount)
     end
 end
 
@@ -166,7 +160,7 @@ function Player.AddHP(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.HP = player.infoComp.HP + amount
+        Effects.ApplyInstantModifier(player, "Blueprint.AddHP", "HP", "Add", amount)
     end
 end
 
@@ -174,7 +168,7 @@ function Player.AddGold(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.GOLD = player.infoComp.GOLD + amount
+        Effects.ApplyInstantModifier(player, "Blueprint.AddGold", "GOLD", "Add", amount)
     end
 end
 
@@ -182,7 +176,7 @@ function Player.AddATK(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.ATK = player.infoComp.ATK + amount
+        Effects.ApplyInstantModifier(player, "Blueprint.AddATK", "ATK", "Add", amount)
     end
 end
 
@@ -190,7 +184,7 @@ function Player.AddDEF(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.DEF = player.infoComp.DEF + amount
+        Effects.ApplyInstantModifier(player, "Blueprint.AddDEF", "DEF", "Add", amount)
     end
 end
 
@@ -198,7 +192,7 @@ function Player.AddEXP(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        player.infoComp.EXP = player.infoComp.EXP + amount
+        Effects.ApplyInstantModifier(player, "Blueprint.AddEXP", "EXP", "Add", amount)
     end
 end
 

@@ -19,7 +19,6 @@ extern "C" {
 #include <cstddef>
 #include <fstream>
 #include <functional>
-#include <memory>
 #include <optional>
 #include <regex>
 #include <stdexcept>
@@ -43,26 +42,6 @@ void invokeCompletion(const std::function<void()>& callback) {
         callback();
     }
 }
-
-class CompletionBarrier {
-public:
-    CompletionBarrier(std::size_t count, std::function<void()> callback)
-        : remaining_(count), callback_(std::move(callback)) {}
-
-    void complete() {
-        if (remaining_ == 0) {
-            return;
-        }
-        --remaining_;
-        if (remaining_ == 0) {
-            invokeCompletion(callback_);
-        }
-    }
-
-private:
-    std::size_t remaining_;
-    std::function<void()> callback_;
-};
 
 bool hasBlueprintEvent(sol::this_state state, const sol::object& object,
                        const std::string& eventName);
@@ -153,14 +132,6 @@ bool hasBlueprintEvent(sol::this_state state, const sol::object& object,
             ? callRuntimeMethodFirst(lua, object, "getGraph")
             : nilObject(lua);
     if (blueprintGraphHasExecutableEvent(lua, actorGraph, eventName)) {
-        return true;
-    }
-    const sol::object infoBase = blueprintEngineType(lua, "InfoBase");
-    const sol::object infoGraph =
-        blueprintIsInstance(state, object, infoBase)
-            ? callRuntimeMethodFirst(lua, object, "getInfoGraph")
-            : nilObject(lua);
-    if (blueprintGraphHasExecutableEvent(lua, infoGraph, eventName)) {
         return true;
     }
     sol::object instanceMethod = nilObject(lua);
@@ -274,33 +245,12 @@ void dispatchBlueprintEvent(sol::this_state state, const sol::object& object,
         rawClass.as<sol::table>().get<sol::object>("scriptMixin").is<bool>() &&
         rawClass.as<sol::table>().get<sol::object>("scriptMixin").as<bool>();
     if (scriptMixin) {
-        if (onComplete) {
-            const std::shared_ptr<CompletionBarrier> barrier =
-                std::make_shared<CompletionBarrier>(2, onComplete);
-            const bool infoExecuted = tryExecuteInfoBlueprintGraph(
-                state, object, eventName,
-                sol::make_object(lua, keywordArguments), [barrier]() {
-                    barrier->complete();
-                });
-            if (!infoExecuted) {
-                barrier->complete();
-            }
-            const sol::object method = runtimeIndex(
-                lua, object, sol::make_object(lua, eventName), false);
-            invokeNamedRuntimeMethod(lua, object, method,
-                                     rawClass.as<sol::table>(), eventName,
-                                     sol::make_object(lua, keywordArguments));
-            barrier->complete();
-            return;
-        }
-        tryExecuteInfoBlueprintGraph(state, object, eventName,
-                                     sol::make_object(lua, keywordArguments),
-                                     {});
         const sol::object method =
             runtimeIndex(lua, object, sol::make_object(lua, eventName), false);
         invokeNamedRuntimeMethod(lua, object, method, rawClass.as<sol::table>(),
                                  eventName,
                                  sol::make_object(lua, keywordArguments));
+        invokeCompletion(onComplete);
         return;
     }
     const sol::object actorType = blueprintEngineType(lua, "Actor");
@@ -329,16 +279,6 @@ void dispatchBlueprintEvent(sol::this_state state, const sol::object& object,
                 }
                 return;
             }
-            if (tryExecuteInfoBlueprintGraph(
-                    state, object, eventName,
-                    sol::make_object(lua, keywordArguments), onComplete)) {
-                return;
-            }
-        }
-        if (tryExecuteInfoBlueprintGraph(
-                state, object, eventName,
-                sol::make_object(lua, keywordArguments), onComplete)) {
-            return;
         }
         if (executeParentBlueprintEvent(state, object, rawClass, eventName,
                                         nilObject(lua),
@@ -352,11 +292,6 @@ void dispatchBlueprintEvent(sol::this_state state, const sol::object& object,
                                  eventName,
                                  sol::make_object(lua, keywordArguments));
         invokeCompletion(onComplete);
-        return;
-    }
-    if (tryExecuteInfoBlueprintGraph(state, object, eventName,
-                                     sol::make_object(lua, keywordArguments),
-                                     onComplete)) {
         return;
     }
     const sol::object method =

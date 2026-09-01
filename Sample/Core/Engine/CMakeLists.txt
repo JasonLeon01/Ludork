@@ -27,7 +27,7 @@ ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/ClassDict.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Graph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Node.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeData.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeCache.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeDescriptors.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeEvents.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeExecution.cpp"

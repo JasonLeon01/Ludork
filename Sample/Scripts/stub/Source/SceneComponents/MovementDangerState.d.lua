@@ -6,29 +6,29 @@
 ---@field sources  Source.MovementSpecials.DangerSource[]
 
 ---@class Source.SceneComponents.MovementDangerEnemySnapshot
----@field x              integer
----@field y              integer
----@field combatRevision integer
----@field infoComp       Source.Components.EnemyInfoComponent
----@field scanRevision   integer
+---@field x               integer
+---@field y               integer
+---@field abilityRevision integer
+---@field attributes      Source.Configs.GeneralDataTypes.EnemyAttributeSet
+---@field scanRevision    integer
 
 ---@brief Cached movement-special danger grid for the current map and player.
 ---@class Source.SceneComponents.MovementDangerState: ComponentBase
----@field _parent               GameMap
----@field _player               Source.Player.Player | nil
----@field _playerInfoComp       Source.Components.PlayerInfoComponent | nil
----@field _playerCombatRevision integer | nil
----@field _enemies              Source.Enemy[]
----@field _enemyScanRevision    integer
----@field _entryGrid            table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
----@field _areaX                integer | nil
----@field _areaY                integer | nil
----@field _areaWidth            integer | nil
----@field _areaHeight           integer | nil
----@field _pathfindingRevision  integer
----@field _previewRevision      integer
----@field _entries              Source.SceneComponents.MovementDangerEntry[]
----@field _enemySnapshots       table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
+---@field _parent                GameMap
+---@field _player                Source.Player.Player | nil
+---@field _playerAttributes      Source.Configs.GeneralDataTypes.PlayerAttributeSet | nil
+---@field _playerAbilityRevision integer | nil
+---@field _enemies               Source.Enemy[]
+---@field _enemyScanRevision     integer
+---@field _entryGrid             table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
+---@field _areaX                 integer | nil
+---@field _areaY                 integer | nil
+---@field _areaWidth             integer | nil
+---@field _areaHeight            integer | nil
+---@field _pathfindingRevision   integer
+---@field _previewRevision       integer
+---@field _entries               Source.SceneComponents.MovementDangerEntry[]
+---@field _enemySnapshots        table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
 local MovementDangerState = {}
 
 ---@param gameMap GameMap

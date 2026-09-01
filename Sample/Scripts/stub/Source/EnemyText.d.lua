@@ -2,8 +2,8 @@
 
 local EnemyText = {}
 
----@param criticalValue integer
+---@param result Source.Gameplay.MotaCriticalResult
 ---@return string
-function EnemyText.FormatCritical(criticalValue) end
+function EnemyText.FormatCritical(result) end
 
 return EnemyText

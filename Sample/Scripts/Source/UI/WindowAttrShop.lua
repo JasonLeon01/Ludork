@@ -117,8 +117,8 @@ function WindowAttrShopUI:refreshRows(abilities, prices, moneyName, moneyAmount)
         local price = prices[luaIndex]
         ---@cast price - nil
         local delta = abilities[abilityKey]
-        local infoComp = self.model:getPlayer().infoComp
-        local available = moneyAmount >= price and infoComp[moneyName] ~= nil and infoComp[abilityKey] ~= nil
+        local attributes = self.model:getPlayer().attributes
+        local available = moneyAmount >= price and attributes[moneyName] ~= nil and attributes[abilityKey] ~= nil
         selectable._cellAvailable[#selectable._cellAvailable + 1] = available
         self:_addRow(self:formatPurchaseText(abilityKey, delta, price, moneyDisplayName), available, cellWidth)
     end
@@ -227,7 +227,7 @@ end
 function WindowAttrShopUI:refreshItems()
     self:refreshRows(
         self.model._abilities, self:getPrices(), self.model._moneyName,
-        Engine.ToInteger(tonumber(self.model._player.infoComp[self.model._moneyName]) or 0)
+        Engine.ToInteger(tonumber(self.model._player.attributes[self.model._moneyName]) or 0)
     )
 end
 
@@ -258,15 +258,20 @@ function WindowAttrShopUI:confirmItem()
     )
     local price = self:getPrices()[abilityIndex]
     ---@cast price - nil
-    if not selectable:isCurrentAvailable() or self.model._player.infoComp[self.model._moneyName] == nil
-        or self.model._player.infoComp[self.model._moneyName] < price or self.model._player.infoComp[abilityKey] == nil then
+    local player = self.model:getPlayer()
+    if not selectable:isCurrentAvailable() or player.attributes[self.model._moneyName] == nil
+        or player.attributes[self.model._moneyName] < price or player.attributes[abilityKey] == nil then
         ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         self:refreshItems()
         return
     end
-    self.model._player.infoComp[self.model._moneyName] = self.model._player.infoComp[self.model._moneyName] - price
-    self.model._player.infoComp[abilityKey] = self.model._player.infoComp[abilityKey]
+    local abilitySystem = player:getAbilitySystemComponent()
+    local changedAttributes = {
+        [self.model._moneyName] = abilitySystem:getNumericAttributeBase(self.model._moneyName) - price
+    }
+    changedAttributes[abilityKey] = (changedAttributes[abilityKey] or abilitySystem:getNumericAttributeBase(abilityKey))
         + self.model._abilities[abilityKey]
+    abilitySystem:setNumericAttributeBases(changedAttributes)
     self:increasePrice(abilityIndex)
     ManagerFunctions.playSE(GameSystem.GetShopSE())
     self:refreshPriceText()

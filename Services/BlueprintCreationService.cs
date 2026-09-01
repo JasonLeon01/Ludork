@@ -123,8 +123,7 @@ public sealed class BlueprintCreationService
 
     private bool isValidParent(string parentClass)
     {
-        return classResolver.IsDerivedFrom(parentClass, "Engine.Actor")
-            || classResolver.IsDerivedFrom(parentClass, "Engine.InfoBase");
+        return classResolver.IsDerivedFrom(parentClass, "Engine.Actor");
     }
 
     private void collectBlueprintEvents(

@@ -40,7 +40,7 @@ end
 
 function WindowEquipSlotController:refreshSlots()
     local savedSlotKey = self:getCurrentSlotKey()
-    local classData = Data.GetGeneralClassData(self.model._player.infoComp.CLASS)
+    local classData = Data.GetGeneralClassData(self.model._player.attributes.CLASS)
     local classSlots = classData.slot
     if classSlots == nil then
         classSlots = {}

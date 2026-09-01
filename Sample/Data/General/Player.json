@@ -24,6 +24,11 @@
             "comment": "The player's starting maximum HP.",
             "defaultValue": 1000
         },
+        "HP": {
+            "type": "int",
+            "comment": "The player's starting current HP.",
+            "defaultValue": 1000
+        },
         "ATK": {
             "type": "int",
             "comment": "The player's starting attack value.",
@@ -64,6 +69,7 @@
             "desc": "{BRAVOR_DESC}",
             "CLASS": "Warrior",
             "MAXHP": 2000,
+            "HP": 1000,
             "ATK": 10,
             "DEF": 10,
             "EXP": 0,

@@ -20,8 +20,8 @@ local function showNewItemMessage(actor, inst, scene)
     end
     inst:setCachedNewItem(actor.ID)
     scene:showMessage("", "ITEM_NEW", nil, {
-        name = actor.name,
-        desc = actor.desc
+        name = actor.attributes.name,
+        desc = actor.attributes.desc
     })
 end
 

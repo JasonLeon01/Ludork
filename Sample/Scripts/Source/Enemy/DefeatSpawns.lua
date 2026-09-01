@@ -4,6 +4,7 @@ local Data = require("Source.Data")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Item = require("Source.Item")
+local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 
 local Special = GeneralEnum.Special
 
@@ -103,8 +104,8 @@ end
 
 function DefeatSpawns.Prepare(enemy, scene)
     ---@type string | nil
-    local blueprintPath = enemy.infoComp.special[Special.Reborn]
-    local drops = enemy:getDrops()
+    local blueprintPath = SpecialAbilities.GetMagnitude(enemy:getAbilitySystemComponent(), Special.Reborn)
+    local drops = deepcopy(enemy.attributes.drops)
     if blueprintPath == nil and not bool(drops) then
         return nil, {}, nil
     end

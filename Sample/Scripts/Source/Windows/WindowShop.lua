@@ -207,18 +207,19 @@ end
 ---@param itemID string
 ---@return boolean
 function WindowShop:_canBuy(itemID)
-    return self._player.infoComp.GOLD >= WindowShop.GetItemPrice(itemID)
+    return self._player.attributes.GOLD >= WindowShop.GetItemPrice(itemID)
 end
 
 ---@param itemID string
 function WindowShop:_buyItem(itemID)
     local price = WindowShop.GetItemPrice(itemID)
-    if not self._itemWindow:isCurrentAvailable() or self._player.infoComp.GOLD < price then
+    if not self._itemWindow:isCurrentAvailable() or self._player.attributes.GOLD < price then
         ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         self:_refreshItems()
         return
     end
-    self._player.infoComp.GOLD = self._player.infoComp.GOLD - price
+    local abilitySystem = self._player:getAbilitySystemComponent()
+    abilitySystem:setNumericAttributeBase("GOLD", abilitySystem:getNumericAttributeBase("GOLD") - price)
     self._player:addItem(itemID, 1)
     ManagerFunctions.playSE(GameSystem.GetShopSE())
     self:_refreshItems()
@@ -232,7 +233,8 @@ function WindowShop:_sellItem(itemID)
         self:_refreshItems()
         return
     end
-    self._player.infoComp.GOLD = self._player.infoComp.GOLD + price
+    local abilitySystem = self._player:getAbilitySystemComponent()
+    abilitySystem:setNumericAttributeBase("GOLD", abilitySystem:getNumericAttributeBase("GOLD") + price)
     ManagerFunctions.playSE(GameSystem.GetShopSE())
     self:_refreshItems()
 end

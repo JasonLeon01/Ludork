@@ -217,6 +217,8 @@ public sealed class BlueprintEditorWindow : Window
         rightPanel.Children.Add(tabBar);
         Grid.SetRow(contentHost, 1);
         rightPanel.Children.Add(contentHost);
+        if (document.IsGraphOnly)
+            return rightPanel;
 
         GridSplitter splitter = new()
         {
@@ -890,10 +892,13 @@ public sealed class BlueprintEditorWindow : Window
             startNodes[eventName],
             definitionSet,
             eventParameters);
+        IReadOnlyList<BlueprintGraphNodeDefinition> definitions = document.IsGraphOnly
+            ? definitionSet.Definitions.Where(definition => !definition.IsLatent).ToArray()
+            : definitionSet.Definitions;
         BlueprintGraphControl control = new(
             gameData,
             graphDocument,
-            definitionSet.Definitions,
+            definitions,
             fieldBuilder,
             nodeParameterEditorFactory,
             projectSave.GameVariables,
@@ -1000,13 +1005,16 @@ public sealed class BlueprintEditorWindow : Window
     private void showGraphContextMenu(BlueprintEditorTabItem? item)
     {
         ContextMenu menu = new();
-        MenuItem newEvent = new()
+        if (document.CanEditGraphEvents)
         {
-            Header = LocaleService.Get("NEW_EVENT"),
-            IsEnabled = !isGraphReadOnly(),
-        };
-        newEvent.Click += async (_, _) => await addEventAsync();
-        menu.Items.Add(newEvent);
+            MenuItem newEvent = new()
+            {
+                Header = LocaleService.Get("NEW_EVENT"),
+                IsEnabled = !isGraphReadOnly(),
+            };
+            newEvent.Click += async (_, _) => await addEventAsync();
+            menu.Items.Add(newEvent);
+        }
         if (item is { IsPreview: false, EventName: not null })
         {
             MenuItem organize = new()
@@ -1017,27 +1025,30 @@ public sealed class BlueprintEditorWindow : Window
             ToolTip.SetTip(organize, LocaleService.Get("ORGANIZE_GRAPH_TIP"));
             organize.Click += (_, _) => organizeSelectedGraph();
             menu.Items.Add(organize);
-            MenuItem rename = new()
+            if (document.CanEditGraphEvents)
             {
-                Header = LocaleService.Get("RENAME_EVENT"),
-                IsEnabled = !isGraphReadOnly(),
-            };
-            rename.Click += async (_, _) => await renameSelectedEventAsync();
-            menu.Items.Add(rename);
-            MenuItem delete = new()
-            {
-                Header = LocaleService.Get("DELETE_EVENT"),
-                IsEnabled = !isGraphReadOnly(),
-            };
-            delete.Click += async (_, _) => await deleteSelectedEventAsync();
-            menu.Items.Add(delete);
+                MenuItem rename = new()
+                {
+                    Header = LocaleService.Get("RENAME_EVENT"),
+                    IsEnabled = !isGraphReadOnly(),
+                };
+                rename.Click += async (_, _) => await renameSelectedEventAsync();
+                menu.Items.Add(rename);
+                MenuItem delete = new()
+                {
+                    Header = LocaleService.Get("DELETE_EVENT"),
+                    IsEnabled = !isGraphReadOnly(),
+                };
+                delete.Click += async (_, _) => await deleteSelectedEventAsync();
+                menu.Items.Add(delete);
+            }
         }
         menu.Open(graphList);
     }
 
     private async Task addEventAsync()
     {
-        if (isGraphReadOnly())
+        if (isGraphReadOnly() || !document.CanEditGraphEvents)
             return;
         string? name = await SingleRowDialog.ShowAsync(
             this,
@@ -1056,7 +1067,7 @@ public sealed class BlueprintEditorWindow : Window
 
     private async Task renameSelectedEventAsync()
     {
-        if (isGraphReadOnly())
+        if (isGraphReadOnly() || !document.CanEditGraphEvents)
             return;
         if (graphList.SelectedItem is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
             return;
@@ -1080,7 +1091,7 @@ public sealed class BlueprintEditorWindow : Window
 
     private async Task deleteSelectedEventAsync()
     {
-        if (isGraphReadOnly())
+        if (isGraphReadOnly() || !document.CanEditGraphEvents)
             return;
         if (graphList.SelectedItem is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
             return;
@@ -1145,7 +1156,7 @@ public sealed class BlueprintEditorWindow : Window
             return;
         if (args.Key == Key.F2 && graphList.IsKeyboardFocusWithin)
         {
-            if (isGraphReadOnly())
+            if (isGraphReadOnly() || !document.CanEditGraphEvents)
                 return;
             await renameSelectedEventAsync();
             args.Handled = true;
@@ -1153,7 +1164,7 @@ public sealed class BlueprintEditorWindow : Window
         }
         if (args.Key == Key.Delete && graphList.IsKeyboardFocusWithin)
         {
-            if (isGraphReadOnly())
+            if (isGraphReadOnly() || !document.CanEditGraphEvents)
                 return;
             await deleteSelectedEventAsync();
             args.Handled = true;

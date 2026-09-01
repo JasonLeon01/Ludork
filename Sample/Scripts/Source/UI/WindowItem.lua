@@ -1,6 +1,5 @@
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
-local ItemInfo = require("Source.Infos.ItemInfo")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
 local TextLayout = require("Source.TextLayout")
@@ -127,10 +126,9 @@ function WindowItemUI:_onUseItem()
         return
     end
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
-    local info = ItemInfo.new()
-    info.ID = self.model._itemList[self.model.index + 1][1]
-    info:initInfo(Data)
-    info:triggerEvent("onUse")
+    local itemID = self.model._itemList[self.model.index + 1][1]
+    local result = self.model._player:activateItem(itemID)
+    assert(result.ok, "Item Ability failed: " .. tostring(result.code))
     self:close()
     if self.model._onUseCallback ~= nil then
         self.model._onUseCallback()

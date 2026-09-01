@@ -63,7 +63,6 @@
             }
         }
     },
-    "linkedType": "EquipInfo",
     "events": [
         "onEquip",
         "onUnequip"

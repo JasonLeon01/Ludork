@@ -3,43 +3,42 @@ local _METADATA = {
         attrs = {
             "ID",
             "count",
-            "getSE",
+            "getSE"
         },
         bases = {
-            { "Engine", "Actor" },
-            { "Source.Infos.ItemInfo", "ItemInfo" },
+            { "Engine", "Actor" }
         },
         ID = {
             type = "string",
             default = "",
             Meta = {
-                GeneralDataVars = "Item",
-            },
+                GeneralDataVars = "Item"
+            }
         },
         count = {
             type = "int",
-            default = 1,
+            default = 1
         },
         getSE = {
             type = "string",
             default = "",
             Meta = {
                 PathVars = "Sounds",
-                ConfigVars = { "Audio", "getSE" },
-            },
+                ConfigVars = { "Audio", "getSE" }
+            }
         },
         Meta = {
             GeneralDataVars = {
-                { "ID", "Item" },
+                { "ID", "Item" }
             },
             PathVars = {
-                { "getSE", "Sounds" },
+                { "getSE", "Sounds" }
             },
             ConfigVars = {
-                { "getSE", "Audio", "getSE" },
-            },
-        },
-    },
+                { "getSE", "Audio", "getSE" }
+            }
+        }
+    }
 }
 
 return _METADATA

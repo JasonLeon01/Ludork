@@ -33,6 +33,7 @@
 ---@field tileID   integer | string | lightuserdata
 
 ---@class Source.GameInstance.SaveData
+---@field version          integer
 ---@field region           string
 ---@field playerKeys       string[]
 ---@field players          table<string, Source.Player.SaveData>
