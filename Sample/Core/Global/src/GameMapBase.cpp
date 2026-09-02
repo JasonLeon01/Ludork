@@ -1171,6 +1171,22 @@ bool GameMapBase::isSparseWorldGameplayPositionReady(
            isSparseWorldCellReady(position);
 }
 
+std::optional<int> GameMapBase::getSparseWorldRegionIndexAt(
+    const sf::Vector2i& position) const {
+    const auto pageIt = sparseWorldRegionPages_.find(
+        getOccupancyPageKey(position.x, position.y));
+    if (pageIt == sparseWorldRegionPages_.end()) {
+        return std::nullopt;
+    }
+    for (const std::size_t regionIndex : pageIt->second) {
+        const SparseWorldRegion& region = sparseWorldRegions_[regionIndex];
+        if (rectContains(region.rect, position)) {
+            return static_cast<int>(regionIndex + 1);
+        }
+    }
+    return std::nullopt;
+}
+
 void GameMapBase::clearSparseWorld() {
     sparseWorldSize_.reset();
     sparseWorldLayerOrder_.clear();
@@ -1186,18 +1202,12 @@ void GameMapBase::clearSparseWorld() {
 
 const GameMapBase::SparseWorldRegion* GameMapBase::findSparseWorldRegion(
     const sf::Vector2i& position) const {
-    const auto pageIt = sparseWorldRegionPages_.find(
-        getOccupancyPageKey(position.x, position.y));
-    if (pageIt == sparseWorldRegionPages_.end()) {
+    const std::optional<int> regionIndex =
+        getSparseWorldRegionIndexAt(position);
+    if (!regionIndex.has_value()) {
         return nullptr;
     }
-    for (const std::size_t regionIndex : pageIt->second) {
-        const SparseWorldRegion& region = sparseWorldRegions_[regionIndex];
-        if (rectContains(region.rect, position)) {
-            return &region;
-        }
-    }
-    return nullptr;
+    return &sparseWorldRegions_[static_cast<std::size_t>(*regionIndex - 1)];
 }
 
 GameMapBase::SparseWorldRegion& GameMapBase::requireSparseWorldRegion(

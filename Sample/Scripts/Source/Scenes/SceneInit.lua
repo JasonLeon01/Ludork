@@ -4,8 +4,6 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
----@type Global.Utils.Path.Module
-local Path = require("Global.Utils.Path")
 local Data = require("Source.Data")
 local SceneInitAnimationCache = require("Source.Scenes.SceneInitAnimationCache")
 local SceneInitUI = require("Source.UI.Init")
@@ -180,7 +178,7 @@ end
 ---@param cacheRoot  string
 ---@param assetsRoot string
 function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
-    local relativePath = Path.NormaliseSeparators(item.relativePath)
+    local relativePath = item.relativePath
     local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_SOURCE_SUFFIX)
     local encryptedSource = item.encryptedData == true
     assert(bool(sourceKey), "Animation source filename must not be empty")
@@ -200,7 +198,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
     if SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
         for _, asset in ipairs(frameAssets) do
             assert(
-                CoreSystem.exists(asset.path),
+                os.path.isfile(asset.path),
                 string.format(
                     "Cannot compress animation %s: referenced frame asset is missing: %s", relativePath, asset.name
                 )
@@ -214,7 +212,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
     local alternateCachePath = os.path.join(
         cacheRoot, sourceKey .. (encryptedSource and ANIMATION_CACHE_SUFFIX or ENCRYPTED_ANIMATION_CACHE_SUFFIX)
     )
-    if CoreSystem.exists(alternateCachePath) then
+    if os.path.isfile(alternateCachePath) then
         CoreSystem.removeFile(alternateCachePath)
         Logging.debug("Removed alternate animation cache: %s", alternateCachePath)
     end
@@ -266,7 +264,7 @@ function Scene:_removeOrphanedAnimation(item)
     if item.category ~= "animations" then
         return false
     end
-    local relativePath = Path.NormaliseSeparators(item.relativePath)
+    local relativePath = item.relativePath
     local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_CACHE_SUFFIX)
     if self._animationSourceKeys[sourceKey] then
         return false

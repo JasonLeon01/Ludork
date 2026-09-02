@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GameplayEventData = GlobalCore.GameplayEventData
 ---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Data = require("Source.Data")
@@ -110,7 +110,7 @@ function EnemyDamageText:onTick(_deltaTime)
     self:_ensureText()
     local battleResult = MotaBattleAbility
         .new()
-        :calculate(parent:getAbilitySystemComponent(), GameplayEventData.new({ target = player }))
+        :calculate(parent:getAbilitySystemComponent(), GameplayEventData.new(nil, player))
     ---@type integer | nil
     local damage = nil
     if battleResult.code ~= MotaBattleAbility.BattleResult.CANNOT_DAMAGE then

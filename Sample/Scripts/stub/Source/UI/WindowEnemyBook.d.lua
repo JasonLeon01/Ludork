@@ -22,7 +22,7 @@
 ---@field EXP             integer
 ---@field GOLD            integer
 ---@field damage          integer | string
----@field critical        Global.Gameplay.GameplayAbilityResult
+---@field critical        GlobalCore.GameplayAbilityResult
 ---@field hitCount        integer | nil
 ---@field specialDisplays Source.UI.WindowEnemyBook.SpecialDisplay[]
 ---@field specialDetails  Source.UI.WindowEnemyBook.SpecialDetail[]

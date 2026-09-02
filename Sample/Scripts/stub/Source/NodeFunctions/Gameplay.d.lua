@@ -2,7 +2,7 @@
 
 local Gameplay = {}
 
----@return Global.Gameplay.GameplayEventData
+---@return GlobalCore.GameplayEventData
 function Gameplay.GetContext() end
 
 ---@return any
@@ -66,11 +66,11 @@ function Gameplay.ReducePlayerState(stateID, stacks) end
 ---@param target   Source.Battler.Battler
 ---@param eventTag string
 ---@param payload? table<string, any>
----@return Global.Gameplay.GameplayAbilityResult[]
+---@return GlobalCore.GameplayAbilityResult[]
 function Gameplay.SendEvent(target, eventTag, payload) end
 
 ---@param target     Source.Battler.Battler
----@param effect     Global.Gameplay.GameplayEffect
+---@param effect     GlobalCore.GameplayEffect
 ---@param stacks?    integer
 ---@param sourceKey? any
 ---@return integer | nil

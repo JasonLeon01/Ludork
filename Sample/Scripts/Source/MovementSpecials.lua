@@ -1,8 +1,8 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local ActorTree = require("Global.ActorTree")
-local GameplayAbilityResult = require("Global.Gameplay.GameplayAbilityResult")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
+local GameplayEventData = GlobalCore.GameplayEventData
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Effects = require("Source.Gameplay.Effects")
@@ -46,29 +46,39 @@ local function doBlockadeRetreat(enemy, playerPosition)
     NodeUtils.SetGameVariable("Blockade_" .. tag .. "_Y", newPosition.y)
 end
 
-local function queryEnemy(enemy, player, playerPosition)
+local function queryEnemy(enemy, player, playerPosition, previewContext)
     local enemyPosition = enemy:getMapPosition()
-    local damage = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
-    local eventData = GameplayEventData.new({
-        instigator = enemy,
-        target = player,
-        eventTag = "Event.Movement.QueryHazard",
-        payload = {
-            distance = Engine.ManhattanDistance(playerPosition, enemyPosition),
-            damagePerRound = damage,
-            playerPosition = playerPosition,
-            enemyPosition = enemyPosition
-        }
+    local damage
+    if previewContext == nil then
+        damage = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
+    else
+        assert(previewContext.player == player, "Movement preview context belongs to another player")
+        damage = assert(previewContext.damageByEnemy[enemy], "Movement preview context is missing an enemy")
+    end
+    local eventData = GameplayEventData.new(enemy, player, "Event.Movement.QueryHazard", {
+        distance = Engine.ManhattanDistance(playerPosition, enemyPosition),
+        damagePerRound = damage,
+        playerPosition = playerPosition,
+        enemyPosition = enemyPosition
     })
     return enemy:getAbilitySystemComponent():handleGameplayEvent(eventData)
+end
+
+function MovementSpecials.CreatePreviewContext(enemies, player)
+    local damageByEnemy = {}
+    for _, enemy in ipairs(enemies) do
+        damageByEnemy[enemy] = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
+    end
+    return { player = player, damageByEnemy = damageByEnemy }
 end
 
 ---@param enemies        Source.Enemy[]
 ---@param player         Source.Player.Player
 ---@param playerPosition sf.Vector2i
 ---@param ignoredEnemies Source.Enemy[] | nil
----@return Global.Gameplay.GameplayAbilityResult
-function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemies)
+---@param previewContext Source.MovementSpecials.PreviewContext | nil
+---@return GlobalCore.GameplayAbilityResult
+function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemies, previewContext)
     ---@type table<Source.Enemy, boolean> | nil
     local ignoredEnemySet = nil
     if bool(ignoredEnemies) then
@@ -80,7 +90,7 @@ function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemie
     ---@type { enemy: Source.Enemy, damage: integer } []
     local flankEnemies = {}
     for _, enemy in ipairs(enemies) do
-        for _, result in ipairs(queryEnemy(enemy, player, playerPosition)) do
+        for _, result in ipairs(queryEnemy(enemy, player, playerPosition, previewContext)) do
             if result.code == "MovementHazard" and result.data.active then
                 if result.data.special == Special.Flank then
                     flankEnemies[#flankEnemies + 1] = { enemy = enemy, damage = result.data.damage }
@@ -123,11 +133,11 @@ function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemie
             end
         end
     end
-    return GameplayAbilityResult.Success("MovementHazard", {
-        damage = totalDamage,
-        sources = sources,
-        playerPosition = copy(playerPosition)
-    })
+    return assert(GameplayAbilityResult.Success("MovementHazard", {
+            damage = totalDamage,
+            sources = sources,
+            playerPosition = copy(playerPosition)
+        }))
 end
 
 local function collectEnemies(player)
@@ -154,13 +164,14 @@ end
 function MovementSpecials.Commit(player, pathPositions)
     local gameMap, enemies = collectEnemies(player)
     if gameMap == nil or not bool(enemies) then
-        return GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = {} })
+        return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = {} }))
     end
     local totalDamage = 0
     local allSources = {}
     local blockadeRetreats = {}
+    local previewContext = MovementSpecials.CreatePreviewContext(enemies, player)
     for _, playerPosition in ipairs(pathPositions) do
-        local result = MovementSpecials.Preview(enemies, player, playerPosition)
+        local result = MovementSpecials.Preview(enemies, player, playerPosition, nil, previewContext)
         totalDamage = totalDamage + result.data.damage
         for _, source in ipairs(result.data.sources) do
             allSources[#allSources + 1] = source
@@ -176,7 +187,7 @@ function MovementSpecials.Commit(player, pathPositions)
         doBlockadeRetreat(retreat.enemy, retreat.playerPosition)
     end
     if totalDamage <= 0 then
-        return GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = allSources })
+        return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = allSources }))
     end
     local scene = gameMap:getScene()
     local animationLength = 0.0
@@ -191,12 +202,9 @@ function MovementSpecials.Commit(player, pathPositions)
             end
         end
     end
-    local eventData = GameplayEventData.new({
-        instigator = allSources[1].enemy,
-        target = player,
-        eventTag = "Event.Movement.HazardDamage",
-        payload = { sources = allSources }
-    })
+    local eventData = GameplayEventData.new(
+        allSources[1].enemy, player, "Event.Movement.HazardDamage", { sources = allSources }
+    )
     Effects.ApplyInstantModifier(player, "Movement.HazardDamage", "HP", "Add", -totalDamage, eventData)
     gameMap:addDamageText(tostring(totalDamage), player:getPosition())
     if player.attributes.HP <= 0 then
@@ -212,10 +220,10 @@ function MovementSpecials.Commit(player, pathPositions)
             scene:addTimer(animationLength, gameOver)
         end
     end
-    return GameplayAbilityResult.Success("MovementHazardCommitted", {
-        damage = totalDamage,
-        sources = allSources
-    })
+    return assert(GameplayAbilityResult.Success("MovementHazardCommitted", {
+            damage = totalDamage,
+            sources = allSources
+        }))
 end
 
 function MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)

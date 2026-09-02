@@ -3,8 +3,8 @@ local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 
 local MovementDangerGrid = {}
 
-local function calculateEntry(enemies, player, position)
-    local result = MovementSpecials.Preview(enemies, player, position, nil)
+local function calculateEntry(enemies, player, position, previewContext)
+    local result = MovementSpecials.Preview(enemies, player, position, nil, previewContext)
     local damage = result.data.damage
     if damage <= 0 then
         return nil
@@ -31,7 +31,7 @@ function MovementDangerGrid.GetEntryDamage(entry, ignoredEnemySet)
     return damage
 end
 
-function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, areaHeight)
+function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, areaHeight, previewContext)
     local entries = {}
     local grid = {}
     local position = sf.Vector2i.new(0, 0)
@@ -43,7 +43,7 @@ function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, area
         position.y = y
         for x = areaX, areaX + areaWidth - 1 do
             position.x = x
-            local entry = calculateEntry(enemies, player, position)
+            local entry = calculateEntry(enemies, player, position, previewContext)
             if entry ~= nil then
                 entries[#entries + 1] = entry
                 row[x + 1] = entry
@@ -55,7 +55,7 @@ end
 
 function MovementDangerGrid.Refresh(
     enemies, player, areaX, areaY, areaWidth, areaHeight, previousAreaX, previousAreaY, previousAreaWidth,
-    previousAreaHeight, previousGrid
+    previousAreaHeight, previousGrid, previewContext
 )
     local entries = {}
     local grid = {}
@@ -76,7 +76,7 @@ function MovementDangerGrid.Refresh(
                 entry = previousRow ~= nil and previousRow[x + 1] or nil
             else
                 position.x = x
-                entry = calculateEntry(enemies, player, position)
+                entry = calculateEntry(enemies, player, position, previewContext)
             end
             if entry ~= nil then
                 entries[#entries + 1] = entry

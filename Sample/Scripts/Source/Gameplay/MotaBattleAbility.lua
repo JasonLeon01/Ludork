@@ -1,9 +1,10 @@
-local GameplayAbility = require("Global.Gameplay.GameplayAbility")
-local GameplayAbilityResult = require("Global.Gameplay.GameplayAbilityResult")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GlobalCore = require("GlobalCore")
+local GameplayAbility = GlobalCore.GameplayAbility
+local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
+local GameplayEventData = GlobalCore.GameplayEventData
 local Effects = require("Source.Gameplay.Effects")
 
----@class Source.Gameplay.MotaBattleAbility: Global.Gameplay.GameplayAbility
+---@class Source.Gameplay.MotaBattleAbility: GlobalCore.GameplayAbility
 local MotaBattleAbility = {}
 
 MotaBattleAbility.id = "Ability.Combat.MotaBattle"
@@ -11,12 +12,7 @@ MotaBattleAbility.BattleResult = { WIN = 1, CANNOT_DAMAGE = 2, LETHAL_COUNTER_DA
 MotaBattleAbility.CriticalResult = { VALUE = 1, NOT_NEEDED = 2, UNKNOWN = 3 }
 
 local function dispatchValue(abilitySystem, eventTag, instigator, target, payload)
-    abilitySystem:handleGameplayEvent(GameplayEventData.new({
-            instigator = instigator,
-            target = target,
-            eventTag = eventTag,
-            payload = payload
-        }))
+    abilitySystem:handleGameplayEvent(GameplayEventData.new(instigator, target, eventTag, payload))
     return payload.value
 end
 
@@ -49,28 +45,23 @@ local function resolveHitCount(attacker, defender)
 end
 
 function MotaBattleAbility:init()
-    GameplayAbility.init(self, { id = MotaBattleAbility.id })
+    GameplayAbility.init(self, {})
+    self.id = MotaBattleAbility.id
 end
 
 function MotaBattleAbility.CalculateDamagePerRound(attacker, defender)
     local attackerATK = resolveAttack(attacker, defender)
     local defenderDEF = resolveDefense(defender, attacker, attackerATK)
     local payload = { attackerATK = attackerATK, defenderDEF = defenderDEF }
-    attacker:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new({
-            instigator = attacker,
-            target = defender,
-            eventTag = "Event.Combat.ResolveDamage",
-            payload = payload
-        }))
+    attacker:getAbilitySystemComponent():handleGameplayEvent(
+        GameplayEventData.new(attacker, defender, "Event.Combat.ResolveDamage", payload)
+    )
     local hitCount = resolveHitCount(attacker, defender)
     local damage = math.max(0, payload.attackerATK - payload.defenderDEF) * hitCount
     local incomingPayload = { value = damage }
-    defender:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new({
-            instigator = attacker,
-            target = defender,
-            eventTag = "Event.Combat.ResolveIncomingDamage",
-            payload = incomingPayload
-        }))
+    defender:getAbilitySystemComponent():handleGameplayEvent(
+        GameplayEventData.new(attacker, defender, "Event.Combat.ResolveIncomingDamage", incomingPayload)
+    )
     return incomingPayload.value, {
             attackerATK = payload.attackerATK,
             defenderDEF = payload.defenderDEF,
@@ -116,7 +107,7 @@ function MotaBattleAbility:calculate(abilitySystem, eventData)
         )
         playerAbilitySystem:validateGameplayEffectSpec(resultData.gameOverEffectSpec)
     end
-    return GameplayAbilityResult.Success(code, resultData)
+    return assert(GameplayAbilityResult.Success(code, resultData))
 end
 
 function MotaBattleAbility:activate(abilitySystem, eventData)
@@ -140,19 +131,21 @@ function MotaBattleAbility.CalculateCriticalValue(enemy, player)
     local playerATK = resolveAttack(player, enemy)
     local enemyDEF = resolveDefense(enemy, player, playerATK)
     if playerATK <= enemyDEF then
-        return GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, { value = enemyDEF + 1 })
+        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, { value = enemyDEF + 1 }))
     end
     if playerATK >= enemy.attributes.MAXHP + enemyDEF then
-        return GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.NOT_NEEDED)
+        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.NOT_NEEDED))
     end
     if enemy:getAbilitySystemComponent():hasMatchingGameplayTag("Special.Hard") then
-        return GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.UNKNOWN)
+        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.UNKNOWN))
     end
     local damage = playerATK - enemyDEF
     local turns = math.max(math.ceil(enemy.attributes.MAXHP / damage) - 1, 0)
-    return GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
-        value = math.ceil(enemy.attributes.MAXHP / turns) + enemyDEF
-    })
+    return assert(
+        GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
+            value = math.ceil(enemy.attributes.MAXHP / turns) + enemyDEF
+        })
+    )
 end
 
 return class(MotaBattleAbility, GameplayAbility)

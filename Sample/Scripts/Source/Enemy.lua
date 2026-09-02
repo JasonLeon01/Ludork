@@ -3,8 +3,8 @@ local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
-local GameplayEffectSpec = require("Global.Gameplay.GameplayEffectSpec")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
+local GameplayEventData = GlobalCore.GameplayEventData
 ---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Battler = require("Source.Battler")
@@ -38,14 +38,9 @@ local operationExpressions = {
     ["**"] = "current ^ value"
 }
 
----@return Global.Gameplay.GameplayEventData
+---@return GlobalCore.GameplayEventData
 local function createCombatEvent(player, enemy, eventTag, payload)
-    return GameplayEventData.new({
-        instigator = player,
-        target = enemy,
-        eventTag = eventTag,
-        payload = payload or {}
-    })
+    return GameplayEventData.new(player, enemy, eventTag, payload or {})
 end
 
 ---@class Source.Enemy
@@ -78,9 +73,7 @@ function Enemy:init(texture, rect, tag)
         local effect = SpecialAbilities.CreateEffect(specialID, self.attributes.special[specialID])
         abilitySystem:applyGameplayEffectSpec(
             GameplayEffectSpec.new(
-                effect,
-                GameplayEventData.new({ instigator = self, target = self, eventTag = "Event.Special.Initialise" }), 1,
-                "Special." .. specialID
+                effect, GameplayEventData.new(self, self, "Event.Special.Initialise"), 1, "Special." .. specialID
             )
         )
     end
@@ -117,11 +110,7 @@ end
 function Enemy:_preparePostBattle(player, scene)
     self:_evaluateAfterBattleVariableChanges()
     local rebornEnemy, droppedActors, spawnLayer = DefeatSpawns.Prepare(self, scene)
-    local eventData = GameplayEventData.new({
-        instigator = self,
-        target = player,
-        eventTag = "Event.Combat.Reward"
-    })
+    local eventData = GameplayEventData.new(self, player, "Event.Combat.Reward")
     local effectSpecs = {
         Effects.CreateInstantModifierSpec("Combat.Reward.Gold", "GOLD", "Add", self.attributes.GOLD, eventData),
         Effects.CreateInstantModifierSpec("Combat.Reward.Exp", "EXP", "Add", self.attributes.EXP, eventData)
@@ -155,12 +144,7 @@ function Enemy:_executeDropAbility(player, droppedActor)
     local ability = GeneralDataGraphAbility.new("Item", droppedActor.ID, "onDrop")
     ability:activate(
         player:getAbilitySystemComponent(),
-        GameplayEventData.new({
-            instigator = self,
-            target = droppedActor,
-            eventTag = "Event.Item.Drop",
-            payload = { itemID = droppedActor.ID }
-        })
+        GameplayEventData.new(self, droppedActor, "Event.Item.Drop", { itemID = droppedActor.ID })
     )
 end
 
@@ -204,7 +188,7 @@ function Enemy:onCollision(other)
     self._battleCondition = nil
     local battleEvent = createCombatEvent(player, self, "Event.Combat.MotaBattle", { commit = false })
     battleEvent.target = player
-    local result = self:getAbilitySystemComponent():tryActivateAbility(MotaBattleAbility.id, battleEvent)
+    local result = assert(self:getAbilitySystemComponent():tryActivateAbility(MotaBattleAbility.id, battleEvent))
     local won = result.code == MotaBattleAbility.BattleResult.WIN
     local prepared = won and self:_preparePostBattle(player, scene) or nil
     MotaBattleAbility.CommitResult(result)

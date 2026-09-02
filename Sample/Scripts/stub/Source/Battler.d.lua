@@ -1,14 +1,14 @@
 ---@meta Source.Battler
 
 ---@class Source.Battler.Battler
----@field attributes                      Global.Gameplay.AttributeSet
----@field private _abilitySystemComponent Global.Gameplay.AbilitySystemComponent
+---@field attributes                      GlobalCore.AttributeSet
+---@field private _abilitySystemComponent GlobalCore.AbilitySystemComponent
 local Battler = {}
 
----@param attributes Global.Gameplay.AttributeSet
+---@param attributes GlobalCore.AttributeSet
 function Battler:init(attributes) end
 
----@return Global.Gameplay.AbilitySystemComponent
+---@return GlobalCore.AbilitySystemComponent
 function Battler:getAbilitySystemComponent() end
 
 ---@param scene          Source.Scenes.SceneMap.SceneMap

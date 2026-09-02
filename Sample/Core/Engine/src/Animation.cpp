@@ -1,5 +1,7 @@
 #include <Animation.hpp>
 
+#include <Base64.hpp>
+
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -7,7 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
@@ -29,41 +30,11 @@ const sf::Texture& placeholderTexture() {
 }
 
 std::vector<std::uint8_t> decodeBase64(const std::string& data) {
-    static constexpr std::array<signed char, 256> lookup = [] {
-        std::array<signed char, 256> result{};
-        result.fill(-1);
-        const std::string alphabet =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        for (std::size_t index = 0; index < alphabet.size(); ++index) {
-            result[static_cast<unsigned char>(alphabet[index])] =
-                static_cast<signed char>(index);
-        }
-        return result;
-    }();
-    std::vector<std::uint8_t> result;
-    result.reserve(data.size() * 3 / 4);
-    std::uint32_t buffer = 0;
-    int bits = 0;
-    for (const unsigned char character : data) {
-        if (character == '=') {
-            break;
-        }
-        if (std::isspace(character) != 0) {
-            continue;
-        }
-        const int value = lookup[character];
-        if (value < 0) {
-            throw std::invalid_argument("Invalid base64 animation frame");
-        }
-        buffer = (buffer << 6u) | static_cast<std::uint32_t>(value);
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            result.push_back(
-                static_cast<std::uint8_t>((buffer >> bits) & 0xffu));
-        }
+    try {
+        return ludork::standard::decodeBase64(data);
+    } catch (const std::invalid_argument&) {
+        throw std::invalid_argument("Invalid base64 animation frame");
     }
-    return result;
 }
 
 std::vector<std::uint8_t> decompressFrame(const std::uint8_t* data,

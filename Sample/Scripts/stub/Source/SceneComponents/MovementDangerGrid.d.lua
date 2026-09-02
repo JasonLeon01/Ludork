@@ -11,15 +11,16 @@ function MovementDangerGrid.HasMovementSpecial(enemy) end
 ---@return integer
 function MovementDangerGrid.GetEntryDamage(entry, ignoredEnemySet) end
 
----@param enemies    Source.Enemy[]
----@param player     Source.Player.Player
----@param areaX      integer
----@param areaY      integer
----@param areaWidth  integer
----@param areaHeight integer
+---@param enemies        Source.Enemy[]
+---@param player         Source.Player.Player
+---@param areaX          integer
+---@param areaY          integer
+---@param areaWidth      integer
+---@param areaHeight     integer
+---@param previewContext Source.MovementSpecials.PreviewContext
 ---@return Source.SceneComponents.MovementDangerEntry[] entries
 ---@return table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>> grid
-function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, areaHeight) end
+function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, areaHeight, previewContext) end
 
 ---@param enemies            Source.Enemy[]
 ---@param player             Source.Player.Player
@@ -32,11 +33,12 @@ function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, area
 ---@param previousAreaWidth  integer
 ---@param previousAreaHeight integer
 ---@param previousGrid       table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
+---@param previewContext     Source.MovementSpecials.PreviewContext
 ---@return Source.SceneComponents.MovementDangerEntry[] entries
 ---@return table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>> grid
 function MovementDangerGrid.Refresh(
     enemies, player, areaX, areaY, areaWidth, areaHeight, previousAreaX, previousAreaY, previousAreaWidth,
-    previousAreaHeight, previousGrid
+    previousAreaHeight, previousGrid, previewContext
 ) end
 
 return MovementDangerGrid

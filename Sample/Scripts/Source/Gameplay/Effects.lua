@@ -1,5 +1,6 @@
-local GameplayEffect = require("Global.Gameplay.GameplayEffect")
-local GameplayEffectSpec = require("Global.Gameplay.GameplayEffectSpec")
+local GlobalCore = require("GlobalCore")
+local GameplayEffect = GlobalCore.GameplayEffect
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local Data = require("Source.Data")
@@ -108,7 +109,9 @@ function Effects.ClearStates(target)
     local abilitySystem = target:getAbilitySystemComponent()
     local handles = {}
     for _, activeEffect in ipairs(abilitySystem:getActiveGameplayEffects()) do
-        if string.startsWith(activeEffect.spec.effect.id, "State.") then
+        local spec = assert(activeEffect.spec)
+        local effect = assert(spec.effect)
+        if string.startsWith(effect.id, "State.") then
             handles[#handles + 1] = activeEffect.handle
         end
     end
@@ -120,7 +123,9 @@ end
 function Effects.GetStateStacks(target)
     local result = {}
     for _, activeEffect in ipairs(target:getAbilitySystemComponent():getActiveGameplayEffects()) do
-        local stateID = activeEffect.spec.effect.data.stateID
+        local spec = assert(activeEffect.spec)
+        local effect = assert(spec.effect)
+        local stateID = effect.data.stateID
         if stateID ~= nil then
             result[stateID] = activeEffect.stacks
         end
@@ -134,7 +139,9 @@ end
 
 function Effects.FindActiveEffectHandle(abilitySystem, effectID)
     for _, activeEffect in ipairs(abilitySystem:getActiveGameplayEffects()) do
-        if activeEffect.spec.effect.id == effectID then
+        local spec = assert(activeEffect.spec)
+        local effect = assert(spec.effect)
+        if effect.id == effectID then
             return activeEffect.handle
         end
     end

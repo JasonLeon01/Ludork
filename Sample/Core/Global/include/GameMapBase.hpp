@@ -276,6 +276,10 @@ public:
     bool isSparseWorldGameplayPositionReady(const sf::Vector2i& position) const;
 
     BIND_METHOD(metadata = false)
+    std::optional<int> getSparseWorldRegionIndexAt(
+        const sf::Vector2i& position) const;
+
+    BIND_METHOD(metadata = false)
     void clearSparseWorld();
 
     BIND_METHOD(metadata = false)

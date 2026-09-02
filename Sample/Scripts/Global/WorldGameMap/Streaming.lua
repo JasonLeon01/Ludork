@@ -1,10 +1,9 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local FileBatch = require("Global.Utils.FileBatch")
-local WorldGeometry = require("Global.WorldGeometry")
-local RegionOrdering = require("Global.WorldGameMap.RegionOrdering")
 
-assert(GlobalCore ~= nil)
+local WorldRegionDemand = GlobalCore.WorldRegionDemand
+local WorldRegionState = GlobalCore.WorldRegionState
 
 local STREAM_BATCH_SIZE = 4
 local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
@@ -93,21 +92,20 @@ function WorldGameMapStreaming:_refreshStreamingStates()
     ---@cast viewport sf.FloatRect
     local centerX = (viewport.position.x + viewport.size.x / 2) / Engine.CellSize
     local centerY = (viewport.position.y + viewport.size.y / 2) / Engine.CellSize
-    local moveX = self._worldPreviousCameraCenterX ~= nil and centerX - self._worldPreviousCameraCenterX or 0
-    local moveY = self._worldPreviousCameraCenterY ~= nil and centerY - self._worldPreviousCameraCenterY or 0
-    self._worldPreviousCameraCenterX = centerX
-    self._worldPreviousCameraCenterY = centerY
-    if moveX > 0 then
+    local center = sf.Vector2f.new(centerX, centerY)
+    ---@cast center sf.Vector2f
+    local movement = self._worldStreamingState:updateCameraCenter(center)
+    if movement.x > 0 then
         prepared.width = prepared.width + visible.width
-    elseif moveX < 0 then
+    elseif movement.x < 0 then
         local preparedX = prepared.x - visible.width
         ---@cast preparedX integer
         prepared.x = preparedX
         prepared.width = prepared.width + visible.width
     end
-    if moveY > 0 then
+    if movement.y > 0 then
         prepared.height = prepared.height + visible.height
-    elseif moveY < 0 then
+    elseif movement.y < 0 then
         local preparedY = prepared.y - visible.height
         ---@cast preparedY integer
         prepared.y = preparedY
@@ -131,92 +129,41 @@ function WorldGameMapStreaming:_refreshStreamingStates()
     local preparedRect = sf.IntRect.new(prepared.x, prepared.y, prepared.width, prepared.height)
     ---@cast preparedRect sf.IntRect
     self:setSparseWorldPreparedRect(preparedRect)
-    self._worldDemandGeneration = self._worldDemandGeneration + 1
-    self:_refreshActorRegionDemands()
+    local activeRect = sf.IntRect.new(active.x, active.y, active.width, active.height)
+    ---@cast activeRect sf.IntRect
+    local actorDemandRegions = self:_refreshActorRegionDemands()
+    self._worldStreamingState:updateDemand(activeRect, preparedRect, center, actorDemandRegions)
     for _, region in ipairs(self._worldRegions) do
-        local demand = nil
-        if WorldGeometry.RectIntersects(region, active) then
-            demand = "Active"
-        elseif WorldGeometry.RectIntersects(region, prepared) then
-            demand = "Prepared"
+        if region.publishState ~= nil
+            and not self:_isRegionDemanded(region)
+            and not region.publishState.forceActivate then
+            self:_cancelRegionPublish(region)
         end
-        if demand ~= "Prepared" then
-            region.preparedEvicted = nil
-        end
-        region.demand = demand
-        region.demandGeneration = self._worldDemandGeneration
     end
-    self:_dropStaleStreamQueue()
-    self:_dropStalePublishQueue()
     self:_cancelExpiredStreamingBatch()
     for _, region in ipairs(self._worldRegions) do
-        if region.demand == "Active" then
+        local demand = self._worldStreamingState:getRegionDemand(region.index)
+        local state = self._worldStreamingState:getRegionState(region.index)
+        if demand == WorldRegionDemand.Active then
             if region.payload ~= nil then
                 self:_activateRegion(region)
-            else
-                self:_queueRegion(region)
             end
-        elseif region.demand == "Prepared" then
+        elseif demand == WorldRegionDemand.Prepared then
             if region.payload ~= nil then
-                self:_deactivateRegion(region, "Prepared")
-            elseif not region.preparedEvicted then
-                self:_queueRegion(region)
+                self:_deactivateRegion(region, WorldRegionState.Prepared)
             end
         elseif region.payload ~= nil then
-            self:_deactivateRegion(region, "Dormant")
-        elseif self._worldActorDemandRegions[region] and region.state ~= "Reading" then
-            region.state = "Unloaded"
-            self:_queueRegion(region)
-        elseif region.state ~= "Reading" then
-            region.state = "Unloaded"
+            self:_deactivateRegion(region, WorldRegionState.Dormant)
+        elseif state ~= WorldRegionState.Reading and state ~= WorldRegionState.Unloaded then
+            error("World region without payload has an invalid streaming state: " .. region.path)
         end
     end
-    self:_sortStreamQueue()
-    self:_sortPublishQueue()
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
 ---@return boolean
 function WorldGameMapStreaming:_isRegionDemanded(region)
-    return region.demandGeneration == self._worldDemandGeneration and region.demand ~= nil
-        or self._worldActorDemandRegions[region] == true
-end
-
-function WorldGameMapStreaming:_dropStaleStreamQueue()
-    local queue = {}
-    for _, region in ipairs(self._worldStreamQueue) do
-        if self:_isRegionDemanded(region) and region.payload == nil then
-            queue[#queue + 1] = region
-        else
-            self._worldStreamQueued[region] = nil
-            if region.state ~= "Reading" then
-                region.state = "Unloaded"
-            end
-        end
-    end
-    self._worldStreamQueue = queue
-end
-
-function WorldGameMapStreaming:_dropStalePublishQueue()
-    local regions = self._worldPublishQueue
-    self._worldPublishQueue = {}
-    self._worldPublishQueued = {}
-    for _, region in ipairs(regions) do
-        if region.publishState ~= nil and (self:_isRegionDemanded(region) or region.publishState.forceActivate) then
-            self._worldPublishQueued[region] = true
-            self._worldPublishQueue[#self._worldPublishQueue + 1] = region
-        else
-            self:_cancelRegionPublish(region)
-        end
-    end
-end
-
-function WorldGameMapStreaming:_sortStreamQueue()
-    RegionOrdering.SortByDemand(self, self._worldStreamQueue)
-end
-
-function WorldGameMapStreaming:_sortPublishQueue()
-    RegionOrdering.SortByDemand(self, self._worldPublishQueue)
+    return self._worldStreamingState:isRegionDemanded(region.index)
 end
 
 ---@return boolean
@@ -242,15 +189,9 @@ function WorldGameMapStreaming:_finishStreamingBatch(requeue)
     self._worldStreamJobRegions = {}
     self._worldStreamBatchRegions = {}
     for _, region in ipairs(regions) do
-        if region.payload == nil and region.publishState == nil and region.state == "Reading" then
-            region.state = "Unloaded"
+        if region.payload == nil and region.publishState == nil then
+            self._worldStreamingState:cancelRead(region.index, requeue)
         end
-        if requeue and region.payload == nil and region.publishState == nil and self:_isRegionDemanded(region) then
-            self:_queueRegion(region)
-        end
-    end
-    if requeue then
-        self:_sortStreamQueue()
     end
 end
 
@@ -262,42 +203,26 @@ function WorldGameMapStreaming:_cancelExpiredStreamingBatch()
     self:_finishStreamingBatch(true)
 end
 
----@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapStreaming:_queueRegion(region)
-    if not self:_isRegionDemanded(region) or region.payload ~= nil
-        or region.state ~= "Unloaded" or region.publishState ~= nil
-        or self._worldStreamQueued[region] or region.demand == "Prepared" and region.preparedEvicted then
-        return
-    end
-    self._worldStreamQueued[region] = true
-    self._worldStreamQueue[#self._worldStreamQueue + 1] = region
-end
-
 function WorldGameMapStreaming:_startStreamingBatch()
-    if self._worldStreamJob ~= nil or not bool(self._worldStreamQueue) then
+    if self._worldStreamJob ~= nil then
         return
     end
     local specs = {}
     local jobRegions = {}
     local batchRegions = {}
-    while #specs < STREAM_BATCH_SIZE and bool(self._worldStreamQueue) do
-        local region = table.remove(self._worldStreamQueue, 1)
-        self._worldStreamQueued[region] = nil
-        if self:_isRegionDemanded(region) and region.payload == nil and region.state == "Unloaded"
-            and not (region.demand == "Prepared" and region.preparedEvicted) then
-            region.state = "Reading"
-            local category = tostring(region.index)
-            jobRegions[category] = region
-            batchRegions[#batchRegions + 1] = region
-            specs[#specs + 1] = {
-                category = category,
-                root = self._worldDataRoot,
-                suffix = region.map,
-                recursive = false,
-                required = true,
-                parseJson = true
-            }
-        end
+    for _, regionIndex in ipairs(self._worldStreamingState:takeReadBatch(STREAM_BATCH_SIZE)) do
+        local region = assert(self._worldRegions[regionIndex], "Native world read queue returned an invalid region")
+        local category = tostring(regionIndex)
+        jobRegions[category] = region
+        batchRegions[#batchRegions + 1] = region
+        specs[#specs + 1] = {
+            category = category,
+            root = self._worldDataRoot,
+            suffix = region.map,
+            recursive = false,
+            required = true,
+            parseJson = true
+        }
     end
     if not bool(specs) then
         return
@@ -323,7 +248,7 @@ function WorldGameMapStreaming:_consumeStreamingItem(item)
             )
         else
             asyncio.clear_file_batch_json(conversion)
-            region.state = "Unloaded"
+            self._worldStreamingState:cancelRead(region.index, false)
         end
     else
         asyncio.clear_file_batch_json(conversion)
@@ -361,7 +286,7 @@ function WorldGameMapStreaming:_pumpStreaming()
                 error(message)
             end
             if failedRegion ~= nil and failedRegion.payload == nil and failedRegion.publishState == nil then
-                failedRegion.state = "Unloaded"
+                self._worldStreamingState:cancelRead(failedRegion.index, false)
             end
             asyncio.cancel_file_batch(self._worldStreamJob)
             self:_finishStreamingBatch(true)

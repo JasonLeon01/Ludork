@@ -1,15 +1,30 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
-local AbilitySystemComponent = require("Global.Gameplay.AbilitySystemComponent")
-local AttributeSet = require("Global.Gameplay.AttributeSet")
+local AbilitySystemComponent = GlobalCore.AbilitySystemComponent
+local AttributeSet = GlobalCore.AttributeSet
 
 local Battler = {}
+
+local function onAttributeWrite(oldValue, newValue, abilitySystem, name)
+    if abilitySystem ~= nil then
+        abilitySystem:onAttributeWrite(name, oldValue, newValue)
+    end
+end
 
 function Battler:init(attributes)
     assert(Class.isInstance(attributes, AttributeSet), "Battler requires a generated AttributeSet")
     self.attributes = attributes
     self._abilitySystemComponent = AbilitySystemComponent.new(self, attributes)
+    self._attributeMonitorParams = {}
+    for _, name in ipairs(attributes:getAttributeNames()) do
+        local schema = attributes:getAttributeSchema(name)
+        if schema.type == "int" or schema.type == "float" then
+            local params = setmetatable({ self._abilitySystemComponent, name }, { __mode = "v" })
+            self._attributeMonitorParams[#self._attributeMonitorParams + 1] = params
+            Class.monitor(attributes, name, onAttributeWrite, params, true)
+        end
+    end
 end
 
 function Battler:getAbilitySystemComponent()

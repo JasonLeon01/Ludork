@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
-local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
+
+local WorldRegionState = GlobalCore.WorldRegionState
 
 ---@type WorldGameMapImplState
 local WorldGameMapActorStreaming = {}
@@ -18,12 +19,12 @@ local function getActiveChunkBounds(active)
     return firstX, firstY, lastX - firstX + 1, lastY - firstY + 1
 end
 
----@param world      Global.WorldGameMap.WorldGameMap
----@param rootChunks table<string, Engine.Actor[]>
----@param active     Global.WorldGeometry.CellRect | nil
----@param region     Source.SceneComponents.WorldRegionData | nil
+---@param world  Global.WorldGameMap.WorldGameMap
+---@param roots  Engine.Actor[]
+---@param active Global.WorldGeometry.CellRect | nil
+---@param region Source.SceneComponents.WorldRegionData | nil
 ---@return table<Engine.Actor, boolean>
-local function collectDesiredRoots(world, rootChunks, active, region)
+local function collectDesiredRoots(world, roots, active, region)
     local desired = {}
     if active == nil or active.width <= 0 or active.height <= 0 then
         return desired
@@ -32,21 +33,35 @@ local function collectDesiredRoots(world, rootChunks, active, region)
     local firstY = math.floor(active.y / WorldMapConstants.SPATIAL_CHUNK_SIZE)
     local lastX = math.floor((active.x + active.width - 1) / WorldMapConstants.SPATIAL_CHUNK_SIZE)
     local lastY = math.floor((active.y + active.height - 1) / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    for chunkY = firstY, lastY do
-        for chunkX = firstX, lastX do
-            local roots = rootChunks[WorldGeometry.GridKey(chunkX, chunkY)] or {}
-            for _, root in ipairs(roots) do
-                if region == nil then
-                    if world._worldPendingRehomes[root] == nil then
-                        desired[root] = true
-                    end
-                elseif root:isDestroyed() then
-                    world._worldDestroyedRootsDirty = true
-                elseif not world._worldSuppressedActorObjects[root]
-                    and world:isSparseWorldCellReady(root:getMapPosition()) then
+    for _, root in ipairs(roots) do
+        local position = root:getMapPosition()
+        local chunkX = math.floor(position.x / WorldMapConstants.SPATIAL_CHUNK_SIZE)
+        local chunkY = math.floor(position.y / WorldMapConstants.SPATIAL_CHUNK_SIZE)
+        if chunkX >= firstX and chunkX <= lastX and chunkY >= firstY and chunkY <= lastY then
+            if region == nil then
+                if world._worldPendingRehomes[root] == nil then
                     desired[root] = true
                 end
+            elseif root:isDestroyed() then
+                world._worldDestroyedRootsDirty = true
+            elseif not world._worldSuppressedActorObjects[root] and world:isSparseWorldCellReady(position) then
+                desired[root] = true
             end
+        end
+    end
+    return desired
+end
+
+---@param world   Global.WorldGameMap.WorldGameMap
+---@param payload Global.WorldGameMap.RegionPayload
+---@param active  Global.WorldGeometry.CellRect | nil
+---@param region  Source.SceneComponents.WorldRegionData
+---@return table<Engine.Actor, boolean>
+local function collectDesiredRegionRoots(world, payload, active, region)
+    local desired = {}
+    for _, roots in pairs(payload.actors) do
+        for root in pairs(collectDesiredRoots(world, roots, active, region)) do
+            desired[root] = true
         end
     end
     return desired
@@ -90,7 +105,7 @@ function WorldGameMapActorStreaming:_syncWorldActiveChunkActivation()
         return
     end
     for _, region in ipairs(self._worldRegions) do
-        if region.payload ~= nil and region.state == "Active"
+        if region.payload ~= nil and self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
             and region.activeChunkGeneration ~= self._worldActiveChunkGeneration then
             self:_syncRegionActorActivation(region)
         end
@@ -111,7 +126,7 @@ function WorldGameMapActorStreaming:_syncRegionActorActivation(region)
         self._worldActiveChunkReconcilePending = true
         return
     end
-    local desired = collectDesiredRoots(self, payload.rootChunks, self._worldActiveRect, region)
+    local desired = collectDesiredRegionRoots(self, payload, self._worldActiveRect, region)
     local sleeping = {}
     for root in pairs(payload.activeRoots) do
         if not desired[root] then
@@ -138,7 +153,7 @@ function WorldGameMapActorStreaming:_syncLooseRootActivation()
         self._worldActiveChunkReconcilePending = true
         return
     end
-    local desired = collectDesiredRoots(self, self._worldLooseRootChunks, self._worldActiveRect, nil)
+    local desired = collectDesiredRoots(self, self._worldLooseRoots, self._worldActiveRect, nil)
     if self._player ~= nil then
         desired[self._player] = true
     end
@@ -165,23 +180,20 @@ end
 function WorldGameMapActorStreaming:_activateRegion(region)
     self:_updateWorldActiveChunkGeneration()
     if self._worldActivationDeferred then
-        if region.state == "Active" then
+        if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
             return false
         end
         local payload = assert(region.payload)
         self:_filterSuppressedRegionActors(region, payload)
         region.wasActive = true
-        region.state = "Active"
-        region.lastUsed = perfCounter()
-        region.preparedEvicted = nil
+        self._worldStreamingState:markActive(region.index)
         region.activeChunkGeneration = nil
-        self._worldCacheBytesDirty = true
         return true
     end
     if self._worldLooseActiveChunkGeneration ~= self._worldActiveChunkGeneration then
         self:_syncLooseRootActivation()
     end
-    if region.state == "Active" then
+    if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
         if region.activeChunkGeneration ~= self._worldActiveChunkGeneration then
             self:_syncRegionActorActivation(region)
         end
@@ -190,26 +202,23 @@ function WorldGameMapActorStreaming:_activateRegion(region)
     local payload = assert(region.payload)
     self:_filterSuppressedRegionActors(region, payload)
     region.wasActive = true
-    region.state = "Active"
-    region.lastUsed = perfCounter()
-    region.preparedEvicted = nil
+    self._worldStreamingState:markActive(region.index)
     self:_syncRegionActorActivation(region)
-    self._worldCacheBytesDirty = true
     self:_refreshWorldLights()
     return true
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
----@param state  "Prepared" | "Dormant"
+---@param state  GlobalCore.WorldRegionState
 function WorldGameMapActorStreaming:_deactivateRegion(region, state)
-    if region.state ~= "Active" then
-        if state == "Dormant" and not region.wasActive then
+    local currentState = self._worldStreamingState:getRegionState(region.index)
+    if currentState ~= WorldRegionState.Active then
+        if state == WorldRegionState.Dormant and not region.wasActive then
             return
         end
-        if region.state ~= state and state == "Prepared" then
-            region.lastUsed = perfCounter()
+        if currentState ~= state then
+            self._worldStreamingState:markInactive(region.index, state)
         end
-        region.state = state
         region.activeChunkGeneration = nil
         return
     end
@@ -221,17 +230,18 @@ function WorldGameMapActorStreaming:_deactivateRegion(region, state)
     payload.activeRoots = {}
     self:_sleepWorldRoots(sleeping)
     region.sleepTime = perfCounter()
-    region.lastUsed = region.sleepTime
-    region.state = state
+    self._worldStreamingState:markInactive(region.index, state)
     region.activeChunkGeneration = nil
-    self._worldCacheBytesDirty = true
     self:_refreshWorldLights()
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
 function WorldGameMapActorStreaming:_evictRegion(region)
-    assert(region.state ~= "Active", "Cannot evict an Active world region: " .. region.path)
-    assert(self._worldLoadedRegions[region], "World region is missing from the loaded set: " .. region.path)
+    assert(
+        self._worldStreamingState:getRegionState(region.index) ~= WorldRegionState.Active,
+        "Cannot evict an Active world region: " .. region.path
+    )
+    assert(self._worldStreamingState:isRegionLoaded(region.index), "World region is not loaded: " .. region.path)
     local payload = assert(region.payload)
     region.wakeTags = {}
     local actors = {}
@@ -263,8 +273,6 @@ function WorldGameMapActorStreaming:_evictRegion(region)
     payload.actorSet = {}
     payload.actorRoots = {}
     payload.activeRoots = {}
-    payload.rootChunks = {}
-    payload.rootChunkKeys = {}
     payload.actors = {}
     payload.definitionRegions = {}
     payload.lights = {}
@@ -273,27 +281,27 @@ function WorldGameMapActorStreaming:_evictRegion(region)
     self:detachSparseWorldRegion(region.index)
     region.backgroundBuilder = nil
     region.payload = nil
-    region.payloadBytes = nil
-    self._worldLoadedRegions[region] = nil
-    region.preparedEvicted = region.demand == "Prepared" or nil
-    region.state = "Unloaded"
+    self._worldStreamingState:markEvicted(region.index)
     region.activeChunkGeneration = nil
-    self._worldCacheBytesDirty = true
     self:markPassabilityDirty()
 end
 
 function WorldGameMapActorStreaming:_refreshActorRegionDemands()
-    self._worldActorDemandRegions = {}
+    local demands = {}
+    local demanded = {}
     for root in pairs(self._worldPendingRehomes) do
         if root:isDestroyed() then
             self._worldPendingRehomes[root] = nil
         else
-            local region = self:_findRegionAt(root:getMapPosition())
-            if region ~= nil and not self:isSparseWorldCellReady(root:getMapPosition()) then
-                self._worldActorDemandRegions[region] = true
+            local regionIndex = self:getSparseWorldRegionIndexAt(root:getMapPosition())
+            local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
+            if region ~= nil and not self:isSparseWorldCellReady(root:getMapPosition()) and not demanded[region.index] then
+                demanded[region.index] = true
+                demands[#demands + 1] = region.index
             end
         end
     end
+    return demands
 end
 
 ---@param _region Source.SceneComponents.WorldRegionData
@@ -342,20 +350,15 @@ local function queuePendingRehome(world, root, destinationRegion, sourceRegion, 
         touchedRegions[sourceRegion] = true
         world:_appendWorldActorOnce(world._worldLooseRoots, root)
         world._worldActorRegions[root] = nil
-        world:_refreshLooseRootChunk(root)
         looseTouched = true
     else
-        looseTouched = world:_refreshLooseRootChunk(root)
+        looseTouched = true
     end
     world._worldPendingRehomes[root] = destinationRegion
-    world._worldActorDemandRegions[destinationRegion] = true
+    world._worldStreamingState:requestRegion(destinationRegion.index)
     world:_recordWorldRootPosition(root, destinationRegion.path, position)
     world:_rememberWorldRootPosition(root, position)
     world:_sleepWorldRoot(root)
-    world._worldCacheBytesDirty = true
-    if destinationRegion.state == "Unloaded" then
-        world:_queueRegion(destinationRegion)
-    end
     return touchedRegions, looseTouched
 end
 
@@ -377,28 +380,26 @@ local function transferRoot(world, root, sourceRegion, destinationRegion, layerN
         touchedRegions[sourceRegion] = true
     else
         world:_removeWorldRoot(world._worldLooseRoots, root)
-        world:_removeLooseRootChunk(root)
         looseTouched = true
     end
     if destinationRegion ~= nil then
         world:_attachRegionRoot(destinationRegion, root, layerName, world._worldActorDefinitionRegions[root])
         touchedRegions = touchedRegions or {}
         touchedRegions[destinationRegion] = true
-        if destinationRegion.state == "Active" and world._worldRootStates[root] == "Active" then
+        if world._worldStreamingState:getRegionState(destinationRegion.index) == WorldRegionState.Active
+            and world._worldRootStates[root] == "Active" then
             assert(destinationRegion.payload).activeRoots[root] = true
-        elseif destinationRegion.state ~= "Active" then
+        elseif world._worldStreamingState:getRegionState(destinationRegion.index) ~= WorldRegionState.Active then
             world:_sleepWorldRoot(root)
         end
     else
         world:_appendWorldActorOnce(world._worldLooseRoots, root)
         world._worldActorRegions[root] = nil
-        world:_refreshLooseRootChunk(root)
         looseTouched = true
     end
     world:_recordWorldRootPosition(root, destinationRegion ~= nil and destinationRegion.path or "", position)
     world:_rememberWorldRootPosition(root, position)
     world._worldPendingRehomes[root] = nil
-    world._worldCacheBytesDirty = true
     return touchedRegions, looseTouched
 end
 
@@ -420,7 +421,8 @@ local function advancePendingRehomes(world, touchedRegions, looseTouched)
             world._worldPendingRehomes[root] = nil
         elseif requestedRegion ~= nil then
             local position = root:getMapPosition()
-            local destinationRegion = world:_findRegionAt(position)
+            local regionIndex = world:getSparseWorldRegionIndexAt(position)
+            local destinationRegion = regionIndex ~= nil and world._worldRegions[regionIndex] or nil
             if destinationRegion == nil or world:isSparseWorldCellReady(position) then
                 local sourceRegion = world._worldActorRegions[root]
                 local layerName = world._worldActorLayers[root]
@@ -452,13 +454,12 @@ local function rehomeChangedRoot(world, root, position, touchedRegions, looseTou
         return touchedRegions, looseTouched
     end
     local sourceRegion = world._worldActorRegions[root]
-    local destinationRegion = world:_findRegionAt(position)
+    local regionIndex = world:getSparseWorldRegionIndexAt(position)
+    local destinationRegion = regionIndex ~= nil and world._worldRegions[regionIndex] or nil
     if sourceRegion ~= nil and destinationRegion ~= nil and destinationRegion.path == sourceRegion.path then
         if world:isSparseWorldCellReady(position) then
-            if world:_refreshRegionRootChunk(assert(sourceRegion.payload), root) then
-                touchedRegions = touchedRegions or {}
-                touchedRegions[sourceRegion] = true
-            end
+            touchedRegions = touchedRegions or {}
+            touchedRegions[sourceRegion] = true
             world:_recordWorldRootPosition(root, sourceRegion.path, position)
             world:_rememberWorldRootPosition(root, position)
         else
@@ -470,9 +471,7 @@ local function rehomeChangedRoot(world, root, position, touchedRegions, looseTou
         end
     elseif destinationRegion == nil then
         if sourceRegion == nil then
-            if world:_refreshLooseRootChunk(root) then
-                looseTouched = true
-            end
+            looseTouched = true
             world:_recordWorldRootPosition(root, "", position)
             world:_rememberWorldRootPosition(root, position)
         else
@@ -516,7 +515,8 @@ function WorldGameMapActorStreaming:_rehomeRegionActors()
     ---@type table<Engine.Actor, sf.Vector2i> | nil
     local changedPositions
     for _, sourceRegion in ipairs(self._worldRegions) do
-        if sourceRegion.payload ~= nil and sourceRegion.state == "Active" then
+        if sourceRegion.payload ~= nil
+            and self._worldStreamingState:getRegionState(sourceRegion.index) == WorldRegionState.Active then
             for root in pairs(sourceRegion.payload.activeRoots) do
                 if root:isDestroyed() then
                     self._worldDestroyedRootsDirty = true
@@ -551,9 +551,7 @@ function WorldGameMapActorStreaming:_rehomeRegionActors()
     if destroyedLooseRoots ~= nil then
         for _, root in ipairs(destroyedLooseRoots) do
             self:_removeWorldRoot(self._worldLooseRoots, root)
-            self:_removeLooseRootChunk(root)
             self:_unindexWorldActorTree(root)
-            self._worldCacheBytesDirty = true
             looseTouched = true
         end
     end
@@ -566,7 +564,8 @@ function WorldGameMapActorStreaming:_rehomeRegionActors()
     end
     if touchedRegions ~= nil then
         for _, region in ipairs(self._worldRegions) do
-            if touchedRegions[region] and region.payload ~= nil and region.state == "Active" then
+            if touchedRegions[region] and region.payload ~= nil
+                and self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
                 self:_syncRegionActorActivation(region)
             end
         end
@@ -581,14 +580,12 @@ function WorldGameMapActorStreaming:_pruneDestroyedRegionActors()
         return
     end
     self._worldDestroyedRootsDirty = false
-    local cacheChanged = false
     for _, region in ipairs(self._worldRegions) do
         if region.payload ~= nil then
             for layerName, roots in pairs(region.payload.actors) do
                 local kept = {}
                 for _, root in ipairs(roots) do
                     if root:isDestroyed() then
-                        cacheChanged = true
                         self:_removeRegionRootMetadata(region.payload, root)
                         self:_unindexWorldActorTree(root)
                     else
@@ -598,9 +595,6 @@ function WorldGameMapActorStreaming:_pruneDestroyedRegionActors()
                 region.payload.actors[layerName] = kept
             end
         end
-    end
-    if cacheChanged then
-        self._worldCacheBytesDirty = true
     end
 end
 

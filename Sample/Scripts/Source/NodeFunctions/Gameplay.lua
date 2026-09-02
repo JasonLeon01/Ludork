@@ -1,5 +1,6 @@
-local GameplayEffectSpec = require("Global.Gameplay.GameplayEffectSpec")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GlobalCore = require("GlobalCore")
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
+local GameplayEventData = GlobalCore.GameplayEventData
 local Context = require("Source.NodeFunctions.Context")
 local Effects = require("Source.Gameplay.Effects")
 
@@ -74,12 +75,9 @@ end
 
 function Gameplay.SendEvent(target, eventTag, payload)
     local sourceContext = requireGameplayContext(Gameplay.SendEvent)
-    return target:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new({
-            instigator = sourceContext.instigator,
-            target = target,
-            eventTag = eventTag,
-            payload = payload or {}
-        }))
+    return target:getAbilitySystemComponent():handleGameplayEvent(
+        GameplayEventData.new(sourceContext.instigator, target, eventTag, payload or {})
+    )
 end
 
 function Gameplay.ApplyEffect(target, effect, stacks, sourceKey)

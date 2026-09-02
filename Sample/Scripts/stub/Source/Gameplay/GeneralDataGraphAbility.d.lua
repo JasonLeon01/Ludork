@@ -1,6 +1,6 @@
 ---@meta Source.Gameplay.GeneralDataGraphAbility
 
----@class Source.Gameplay.GeneralDataGraphAbility: Global.Gameplay.GameplayAbility
+---@class Source.Gameplay.GeneralDataGraphAbility: GlobalCore.GameplayAbility
 ---@field generalType string
 ---@field memberID    string
 ---@field graphEvent  string

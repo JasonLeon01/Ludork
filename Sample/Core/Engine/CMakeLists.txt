@@ -48,7 +48,8 @@ target_compile_definitions(Engine PRIVATE
     LUDORK_ENGINE_EXPORTS=1
     LUDORK_PLATFORM="${LUDORK_PLATFORM}")
 target_include_directories(Engine
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
 target_link_libraries(Engine
     PUBLIC
         Ludork::CoreBinding

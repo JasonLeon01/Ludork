@@ -1,31 +1,27 @@
 #include <Utils/ShaderLoader.hpp>
 
+#include <EncryptedPayload.hpp>
 #include <Utf8Path.hpp>
 
-#include <zlib.h>
-
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <limits>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace {
 
-constexpr std::array<std::uint8_t, 4> ShaderMagic = {'L', 'D', 'S', 'C'};
-constexpr std::uint8_t ShaderVersion = 1;
-constexpr std::uint8_t ShaderZlibFlag = 1;
-constexpr std::size_t ShaderHeaderSize = 24;
 constexpr std::uint32_t MaximumShaderSize = 64U * 1024U * 1024U;
-constexpr std::uint64_t KeySeed = 0xD6E8FEB86659FD93ULL;
-constexpr std::uint64_t StreamMultiplier = 0x2545F4914F6CDD1DULL;
-constexpr std::uint64_t StreamFallback = 0x9E3779B97F4A7C15ULL;
+constexpr ludork::standard::EncryptedPayloadFormat ShaderFormat{
+    .magic = {'L', 'D', 'S', 'C'},
+    .maximumSourceSize = MaximumShaderSize,
+    .formatName = "shader",
+};
 
 std::string lowerString(std::string value) {
     std::transform(value.begin(), value.end(), value.begin(),
@@ -103,42 +99,6 @@ std::filesystem::path resolveShaderPath(const std::string& value) {
     return requested;
 }
 
-std::uint32_t readUint32(const std::uint8_t* data) {
-    return static_cast<std::uint32_t>(data[0]) |
-           static_cast<std::uint32_t>(data[1]) << 8U |
-           static_cast<std::uint32_t>(data[2]) << 16U |
-           static_cast<std::uint32_t>(data[3]) << 24U;
-}
-
-std::uint64_t readUint64(const std::uint8_t* data) {
-    std::uint64_t value = 0;
-    for (std::size_t index = 0; index < 8; ++index) {
-        value |= static_cast<std::uint64_t>(data[index]) << (index * 8U);
-    }
-    return value;
-}
-
-void applyStream(std::vector<std::uint8_t>& data, std::uint64_t nonce) {
-    std::uint64_t state = nonce ^ KeySeed;
-    if (state == 0) {
-        state = StreamFallback;
-    }
-    std::size_t offset = 0;
-    while (offset < data.size()) {
-        state ^= state >> 12U;
-        state ^= state << 25U;
-        state ^= state >> 27U;
-        const std::uint64_t block = state * StreamMultiplier;
-        const std::size_t count =
-            std::min<std::size_t>(8, data.size() - offset);
-        for (std::size_t index = 0; index < count; ++index) {
-            data[offset + index] ^=
-                static_cast<std::uint8_t>(block >> (index * 8U));
-        }
-        offset += count;
-    }
-}
-
 bool readFile(const std::filesystem::path& path,
               std::vector<std::uint8_t>& contents) {
     std::ifstream stream(path, std::ios::binary);
@@ -152,72 +112,14 @@ bool readFile(const std::filesystem::path& path,
 
 ShaderSourceResult decodeShader(const std::filesystem::path& path,
                                 const std::vector<std::uint8_t>& encoded) {
-    if (encoded.size() < ShaderHeaderSize) {
-        return {{},
+    try {
+        return {ludork::standard::decodeEncryptedPayload(encoded, ShaderFormat,
+                                                         pathText(path)),
                 path,
-                "Encrypted shader header is truncated: " + pathText(path)};
+                {}};
+    } catch (const std::runtime_error& error) {
+        return {{}, path, error.what()};
     }
-    if (!std::equal(ShaderMagic.begin(), ShaderMagic.end(), encoded.begin())) {
-        return {
-            {}, path, "Encrypted shader magic is invalid: " + pathText(path)};
-    }
-    if (encoded[4] != ShaderVersion) {
-        return {{},
-                path,
-                "Unsupported encrypted shader version: " +
-                    std::to_string(encoded[4]) + " in " + pathText(path)};
-    }
-    if (encoded[5] != ShaderZlibFlag || encoded[6] != 0 || encoded[7] != 0) {
-        return {
-            {}, path, "Encrypted shader flags are invalid: " + pathText(path)};
-    }
-
-    const std::uint32_t sourceSize = readUint32(encoded.data() + 8);
-    const std::uint32_t expectedChecksum = readUint32(encoded.data() + 12);
-    const std::uint64_t nonce = readUint64(encoded.data() + 16);
-    if (sourceSize > MaximumShaderSize) {
-        return {{},
-                path,
-                "Encrypted shader source is too large: " + pathText(path)};
-    }
-
-    std::vector<std::uint8_t> compressed(
-        encoded.begin() + static_cast<std::ptrdiff_t>(ShaderHeaderSize),
-        encoded.end());
-    if (compressed.empty()) {
-        return {
-            {}, path, "Encrypted shader payload is empty: " + pathText(path)};
-    }
-    applyStream(compressed, nonce);
-    if (compressed.size() > std::numeric_limits<uLong>::max()) {
-        return {{},
-                path,
-                "Encrypted shader payload is too large: " + pathText(path)};
-    }
-
-    std::string source(std::max<std::size_t>(1, sourceSize), '\0');
-    uLongf destinationSize = static_cast<uLongf>(sourceSize);
-    const int result =
-        uncompress(reinterpret_cast<Bytef*>(source.data()), &destinationSize,
-                   reinterpret_cast<const Bytef*>(compressed.data()),
-                   static_cast<uLong>(compressed.size()));
-    if (result != Z_OK || destinationSize != sourceSize) {
-        return {{},
-                path,
-                "Encrypted shader payload could not be decompressed: " +
-                    pathText(path)};
-    }
-    source.resize(sourceSize);
-
-    uLong checksum = crc32(0L, Z_NULL, 0);
-    checksum = crc32(checksum, reinterpret_cast<const Bytef*>(source.data()),
-                     static_cast<uInt>(source.size()));
-    if (static_cast<std::uint32_t>(checksum) != expectedChecksum) {
-        return {{},
-                path,
-                "Encrypted shader checksum does not match: " + pathText(path)};
-    }
-    return {std::move(source), path, {}};
 }
 
 ShaderSourceResult readShaderSource(const std::string& value) {

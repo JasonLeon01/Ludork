@@ -2,8 +2,6 @@ local cjson = require("cjson")
 local Engine = require("Engine")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
----@type Global.Utils.Path.Module
-local Path = require("Global.Utils.Path")
 local GeneralDataSchema = require("Source.Data.GeneralDataSchema")
 
 local Curve = Engine.Curve
@@ -151,7 +149,7 @@ end
 function DataLoading:applyInitialLoadItem(stage, item)
     assert(not stage._aborted, "Initial data stage is unavailable")
     assert(not stage._committed, "Initial data stage is already committed")
-    local relativePath = Path.NormaliseSeparators(item.relativePath)
+    local relativePath = item.relativePath
     local category = item.category
     Logging.debug("Loading %s: %s", category, relativePath)
     local payload = self:normaliseJsonNull(cjson.decode(item.content))

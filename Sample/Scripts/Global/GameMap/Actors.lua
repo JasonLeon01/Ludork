@@ -197,71 +197,6 @@ function GameMapActors:applyActorPositions(actorPositions)
     end
 end
 
-function GameMapActors:isPassable(actor, targetPosition)
-    if not actor:getCollisionEnabled() then
-        return true
-    end
-    local size = self._tilemap:getSize()
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-    end
-    ---@type sf.Vector2i[]
-    local occupied = actor:getOccupiedMapCellsAtMapPosition(targetPosition)
-    for _, cell in ipairs(occupied) do
-        if cell.x < 0 or cell.y < 0 or cell.x >= size.x or cell.y >= size.y then
-            return false
-        end
-        if self._tilePassableGrid ~= nil then
-            if not assert(self._tilePassableGrid[cell.y + 1])[cell.x + 1] then
-                return false
-            end
-        end
-    end
-    local currentPosition = actor:getMapPosition()
-    local deltaX = targetPosition.x - currentPosition.x
-    local deltaY = targetPosition.y - currentPosition.y
-    ---@cast deltaX integer
-    ---@cast deltaY integer
-    local delta = sf.Vector2i.new(deltaX, deltaY)
-    local direction = nil
-    if delta.x == 0 and delta.y == 1 then
-        direction = Engine.Direction.DOWN
-    elseif delta.x == 0 and delta.y == -1 then
-        direction = Engine.Direction.UP
-    elseif delta.x == 1 and delta.y == 0 then
-        direction = Engine.Direction.RIGHT
-    elseif delta.x == -1 and delta.y == 0 then
-        direction = Engine.Direction.LEFT
-    end
-    if direction ~= nil then
-        ---@type dict<tuple<integer>, boolean>
-        local currentCells = dict()
-        for _, cell in ipairs(actor:getOccupiedMapCellsAtMapPosition(currentPosition)) do
-            currentCells[tuple(cell.x, cell.y)] = true
-        end
-        for _, cell in ipairs(occupied) do
-            if not currentCells:get(tuple(cell.x, cell.y)) then
-                local previousX = cell.x - delta.x
-                local previousY = cell.y - delta.y
-                local previousPosition = sf.Vector2i.new(previousX, previousY)
-                local occupiedPosition = sf.Vector2i.new(cell.x, cell.y)
-                ---@cast previousPosition sf.Vector2i
-                ---@cast occupiedPosition sf.Vector2i
-                if not self:_checkDir4Between(previousPosition, occupiedPosition, direction) then
-                    return false
-                end
-            end
-        end
-    end
-    for _, cell in ipairs(occupied) do
-        if bool(self:getCollisionAt(cell.x, cell.y, actor)) then
-            return false
-        end
-    end
-    return true
-end
-
 function GameMapActors:spawnActor(actor, layer, emitCreateEvent)
     if emitCreateEvent == nil then
         emitCreateEvent = true
@@ -347,24 +282,6 @@ function GameMapActors:playActorPixelShatterEffect(actor)
     return true
 end
 
-function GameMapActors:getTopMaterial(pos)
-    for index = #self._layerNames, 1, -1 do
-        local layer = self._tilemap:getLayer(self._layerNames[index])
-        if layer ~= nil and layer.visible then
-            for _, actor in ipairs(self._actors[self._layerNames[index]] or {}) do
-                if actor ~= self._player and actor:getMapPosition() == pos then
-                    return actor:getMaterial()
-                end
-            end
-            local material = layer:getMaterial(pos)
-            if material ~= nil then
-                return material
-            end
-        end
-    end
-    return nil
-end
-
 function GameMapActors:findPathResult(start, goal, actor, excludedAnchors)
     self:_syncActorsForPathfinding()
     local result = self:findPathExt(start, goal, self._tilemap:getSize(), actor, excludedAnchors or {})
@@ -402,45 +319,6 @@ function GameMapActors:hasPathBlockingOverlapActor(actor, targetPosition)
         end
     end
     return false
-end
-
-function GameMapActors:getCollision(actor, targetPosition)
-    if not actor:getCollisionEnabled() then
-        return {}
-    end
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-    end
-    local collisions = {}
-    local seen = {}
-    for _, cell in ipairs(actor:getOccupiedMapCellsAtMapPosition(targetPosition)) do
-        for _, other in ipairs(self:getCollisionAt(cell.x, cell.y, actor)) do
-            if not seen[other] then
-                seen[other] = true
-                collisions[#collisions + 1] = other
-            end
-        end
-    end
-    return collisions
-end
-
-function GameMapActors:getOverlaps(actor)
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-    end
-    local overlaps = {}
-    local seen = {}
-    for _, cell in ipairs(actor:getOccupiedMapCells()) do
-        for _, other in ipairs(self:getOverlapsAt(cell.x, cell.y, actor)) do
-            if not seen[other] then
-                seen[other] = true
-                overlaps[#overlaps + 1] = other
-            end
-        end
-    end
-    return overlaps
 end
 
 ---@param actor Engine.Actor

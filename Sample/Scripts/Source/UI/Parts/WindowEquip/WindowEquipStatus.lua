@@ -1,11 +1,12 @@
+local Engine = require("Engine")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
-local TextLayout = require("Source.TextLayout")
 local Ui = require("Source.UI.Ui")
 local EquipStatusRowUI = require("Source.UI.Parts.WindowEquip.EquipStatusRow")
 
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
+local TextLayout = Engine.TextLayout
 
 local _ROW_HEIGHT = 20
 local _MAX_ROWS = 3
@@ -131,9 +132,7 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
     local descMaxWidth = math.max(1, math.floor(self.model.content:getSize().x))
     if showUnequip then
         self._descriptionName = LOC("EQUIP_UNEQUIP")
-        self._descriptionText = wrapDescription(
-            LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth, self._descriptionControl
-        )
+        self._descriptionText = wrapDescription(LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth, self._descriptionControl)
     elseif not bool(candidateEquipID) then
         self._descriptionName = ""
         self._descriptionText = ""
@@ -141,9 +140,7 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
         ---@cast candidateEquipID string
         local equipInfo = Data.GetGeneralEquipData(candidateEquipID)
         self._descriptionName = LOC(equipInfo.name or "")
-        self._descriptionText = wrapDescription(
-            LOC(equipInfo.desc or ""), descMaxWidth, self._descriptionControl
-        )
+        self._descriptionText = wrapDescription(LOC(equipInfo.desc or ""), descMaxWidth, self._descriptionControl)
     end
     self:refresh()
     self.view:reflow(self._logicalSize)
@@ -208,7 +205,7 @@ function WindowEquipStatusUI:setRightAligned(text, y)
 end
 
 function wrapDescription(text, maxWidth, control)
-    return TextLayout.WrapPlainText(text, maxWidth, control)
+    return TextLayout.wrapPlainText(text, maxWidth, control)
 end
 
 function WindowEquipStatusUI:_refreshLogicalSize()

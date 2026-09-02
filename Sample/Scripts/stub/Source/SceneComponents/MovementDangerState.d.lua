@@ -21,6 +21,12 @@
 ---@field _enemies               Source.Enemy[]
 ---@field _enemyScanRevision     integer
 ---@field _entryGrid             table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
+---@field _entriesValid          boolean
+---@field _entryAreaX            integer | nil
+---@field _entryAreaY            integer | nil
+---@field _entryAreaWidth        integer | nil
+---@field _entryAreaHeight       integer | nil
+---@field _previewContext        Source.MovementSpecials.PreviewContext | nil
 ---@field _areaX                 integer | nil
 ---@field _areaY                 integer | nil
 ---@field _areaWidth             integer | nil

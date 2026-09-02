@@ -5,12 +5,6 @@
 #include <string>
 
 BIND_FUNCTION()
-bool exists(const std::string& path);
-
-BIND_FUNCTION()
-std::string currentPath();
-
-BIND_FUNCTION()
 void createDirectories(const std::string& path);
 
 BIND_FUNCTION()

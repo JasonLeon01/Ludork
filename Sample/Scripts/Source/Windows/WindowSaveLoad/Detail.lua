@@ -1,4 +1,3 @@
-local CoreSystem = require("CoreSystem")
 local Save = require("Source.Save")
 local WindowSaveDetailUI = require("Source.UI.Parts.WindowSaveLoad.WindowSaveDetail")
 local WindowBase = require("Source.Windows.Base.WindowBase")
@@ -50,7 +49,7 @@ function WindowSaveDetail:_refreshIfFileChanged()
     local slotNumber = self._currentSlot + 1
     ---@cast slotNumber integer
     local filePath = Save.GetSavePath(slotNumber)
-    if not CoreSystem.exists(filePath) then
+    if not os.path.isfile(filePath) then
         if bool(self._cachedFilePath) or self._thumbnail:getVisible() then
             self._cachedFilePath = ""
             self._cachedFileMTime = -1.0
@@ -75,7 +74,7 @@ function WindowSaveDetail:_refreshContent()
     local slotNumber = self._currentSlot + 1
     ---@cast slotNumber integer
     local filePath = Save.GetSavePath(slotNumber)
-    if not CoreSystem.exists(filePath) then
+    if not os.path.isfile(filePath) then
         self:_hideContent()
         return
     end

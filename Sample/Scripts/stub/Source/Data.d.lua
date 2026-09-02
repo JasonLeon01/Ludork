@@ -256,7 +256,7 @@ function Data.GetGeneralData(name) end
 
 ---@param typeName string
 ---@param memberID string
----@return Global.Gameplay.AttributeSet
+---@return GlobalCore.AttributeSet
 function Data.CreateGeneralAttributeSet(typeName, memberID) end
 
 ---@brief Get class data by its key.

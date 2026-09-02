@@ -384,10 +384,6 @@ function GameMap:applyActorPositions(actorPositions)
     return GameMapActors.applyActorPositions(self, actorPositions)
 end
 
-function GameMap:isPassable(actor, targetPosition)
-    return GameMapActors.isPassable(self, actor, targetPosition)
-end
-
 function GameMap:spawnActor(actor, layer, emitCreateEvent)
     return GameMapActors.spawnActor(self, actor, layer, emitCreateEvent)
 end
@@ -416,10 +412,6 @@ function GameMap:playActorPixelShatterEffect(actor)
     return GameMapActors.playActorPixelShatterEffect(self, actor)
 end
 
-function GameMap:getTopMaterial(pos)
-    return GameMapActors.getTopMaterial(self, pos)
-end
-
 function GameMap:findPathResult(start, goal, actor, excludedAnchors)
     return GameMapActors.findPathResult(self, start, goal, actor, excludedAnchors)
 end
@@ -438,14 +430,6 @@ end
 
 function GameMap:hasPathBlockingOverlapActor(actor, targetPosition)
     return GameMapActors.hasPathBlockingOverlapActor(self, actor, targetPosition)
-end
-
-function GameMap:getCollision(actor, targetPosition)
-    return GameMapActors.getCollision(self, actor, targetPosition)
-end
-
-function GameMap:getOverlaps(actor)
-    return GameMapActors.getOverlaps(self, actor)
 end
 
 function GameMap:_getDescendantActorIDs(actor)

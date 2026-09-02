@@ -1,13 +1,14 @@
+local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
-local TextLayout = require("Source.TextLayout")
 local IconTexture = require("Source.UI.IconTexture")
 local Ui = require("Source.UI.Ui")
 local ItemRowUI = require("Source.UI.Parts.WindowItem.ItemRow")
 
 local ManagerFunctions = GlobalFunctions.Manager
+local TextLayout = Engine.TextLayout
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
@@ -110,7 +111,7 @@ function WindowItemUI:tick()
 end
 
 function WindowItemUI:wrapDescription(text)
-    return TextLayout.WrapPlainText(text, self.model._descMaxWidth, self._descriptionControl)
+    return TextLayout.wrapPlainText(text, self.model._descMaxWidth, self._descriptionControl)
 end
 
 function WindowItemUI:updateDescription()

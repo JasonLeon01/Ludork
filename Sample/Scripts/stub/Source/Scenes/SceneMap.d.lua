@@ -47,7 +47,7 @@
 ---@field _configWindow                         Source.Windows.ConfigWindow
 ---@field _blockingWindows                      Source.Scenes.SceneMap.BlockingWindow[]
 ---@field _regionTitleUI                        Source.UI.RegionTitle
----@field _regionTitleText                      Engine.RichText
+---@field _regionTitleText                      Engine.PlainText
 ---@field _localeChangedToken                   integer | nil
 ---@field _dialogueLocaleSource                 Source.Scenes.SceneMap.DialogueMessageLocaleSource | Source.Scenes.SceneMap.DialogueSelectionLocaleSource | nil
 ---@field _gameMap                              GameMap | nil

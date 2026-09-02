@@ -1,9 +1,9 @@
 local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
 local GameMap = require("Global.GameMap")
-local WorldGeometry = require("Global.WorldGeometry")
-local WorldMapConstants = require("Global.WorldMapConstants")
 
 local Actor = Engine.Actor
+local WorldRegionState = GlobalCore.WorldRegionState
 
 ---@type WorldGameMapImplState
 local WorldGameMapActors = {}
@@ -134,76 +134,7 @@ end
 ---@param _world  Global.WorldGameMap.WorldGameMap
 ---@param payload Global.WorldGameMap.RegionPayload
 ---@param root    Engine.Actor
-local function removeRegionRootChunk(_world, payload, root)
-    local key = payload.rootChunkKeys[root]
-    if key == nil then
-        return
-    end
-    local roots = payload.rootChunks[key]
-    if roots ~= nil then
-        removeRoot(roots, root)
-        if not bool(roots) then
-            payload.rootChunks[key] = nil
-        end
-    end
-    payload.rootChunkKeys[root] = nil
-end
-
----@param world   Global.WorldGameMap.WorldGameMap
----@param payload Global.WorldGameMap.RegionPayload
----@param root    Engine.Actor
----@return boolean
-local function refreshRegionRootChunk(world, payload, root)
-    local key = WorldGeometry.CellChunkKey(root:getMapPosition(), WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    if payload.rootChunkKeys[root] == key then
-        return false
-    end
-    removeRegionRootChunk(world, payload, root)
-    local roots = payload.rootChunks[key] or {}
-    payload.rootChunks[key] = roots
-    appendActorOnce(roots, root)
-    payload.rootChunkKeys[root] = key
-    return true
-end
-
----@param world Global.WorldGameMap.WorldGameMap
----@param root  Engine.Actor
-local function removeLooseRootChunk(world, root)
-    local key = world._worldLooseRootChunkKeys[root]
-    if key == nil then
-        return
-    end
-    local roots = world._worldLooseRootChunks[key]
-    if roots ~= nil then
-        removeRoot(roots, root)
-        if not bool(roots) then
-            world._worldLooseRootChunks[key] = nil
-        end
-    end
-    world._worldLooseRootChunkKeys[root] = nil
-end
-
----@param world Global.WorldGameMap.WorldGameMap
----@param root  Engine.Actor
----@return boolean
-local function refreshLooseRootChunk(world, root)
-    local key = WorldGeometry.CellChunkKey(root:getMapPosition(), WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    if world._worldLooseRootChunkKeys[root] == key then
-        return false
-    end
-    removeLooseRootChunk(world, root)
-    local roots = world._worldLooseRootChunks[key] or {}
-    world._worldLooseRootChunks[key] = roots
-    appendActorOnce(roots, root)
-    world._worldLooseRootChunkKeys[root] = key
-    return true
-end
-
----@param world   Global.WorldGameMap.WorldGameMap
----@param payload Global.WorldGameMap.RegionPayload
----@param root    Engine.Actor
-local function removeRegionRootMetadata(world, payload, root)
-    removeRegionRootChunk(world, payload, root)
+local function removeRegionRootMetadata(_world, payload, root)
     payload.activeRoots[root] = nil
     payload.definitionRegions[root] = nil
     for _, actor in ipairs(root:collectTree()) do
@@ -268,10 +199,7 @@ function WorldGameMapActors:_initialiseWorldActorState(config, reservedTags)
     self._worldRootStates = {}
     self._worldRootSleepTimes = {}
     self._worldLooseRoots = {}
-    self._worldLooseRootChunks = {}
-    self._worldLooseRootChunkKeys = {}
     self._worldPendingRehomes = {}
-    self._worldActorDemandRegions = {}
     self._worldObservedRootPositions = {}
     self._worldDestroyedRootsDirty = false
     self._worldActiveChunkBounds = nil
@@ -343,7 +271,6 @@ function WorldGameMapActors:_applySuppressedActorTags()
         if filterSuppressedActorTree(root, self._worldSuppressedActorTags, self._worldSuppressedActorObjects) then
             keptLooseRoots[#keptLooseRoots + 1] = root
         else
-            removeLooseRootChunk(self, root)
             self:_unindexWorldActorTree(root)
         end
     end
@@ -379,8 +306,6 @@ function WorldGameMapActors:_filterSuppressedRegionActors(region, payload)
     payload.actorSet = payload.actorSet or {}
     payload.actorRoots = payload.actorRoots or {}
     payload.activeRoots = payload.activeRoots or {}
-    payload.rootChunks = payload.rootChunks or {}
-    payload.rootChunkKeys = payload.rootChunkKeys or {}
     self:_refreshSuppressedActorTags()
     local filteredTags = copy(self._worldSuppressedActorTags)
     for tag in pairs(self:_getPendingWorldActorTags(region)) do
@@ -415,7 +340,8 @@ end
 ---@param position sf.Vector2i
 ---@return string
 function WorldGameMapActors:_getRuntimeTagNamespace(position)
-    local region = self:_findRegionAt(position)
+    local regionIndex = self:getSparseWorldRegionIndexAt(position)
+    local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     if region ~= nil then
         local stem = os.path.splitext(os.path.basename(region.map))
         return stem
@@ -457,8 +383,6 @@ local function initialisePayloadActorState(payload, region)
     payload.actorSet = payload.actorSet or {}
     payload.actorRoots = payload.actorRoots or {}
     payload.activeRoots = payload.activeRoots or {}
-    payload.rootChunks = payload.rootChunks or {}
-    payload.rootChunkKeys = payload.rootChunkKeys or {}
 end
 
 ---@param payload   Global.WorldGameMap.RegionPayload
@@ -493,7 +417,6 @@ function WorldGameMapActors:_indexRegionActor(payload, layerName, actor, region,
         local wakeTime = targetRegion.wakeTags ~= nil and targetRegion.wakeTags[tag] or nil
         self._worldRootStates[root] = wakeTime ~= nil and "Dormant" or "NeverActive"
         self._worldRootSleepTimes[root] = wakeTime
-        refreshRegionRootChunk(self, payload, root)
         self:_rememberWorldRootPosition(root)
     end
     return true
@@ -570,7 +493,6 @@ function WorldGameMapActors:_attachRegionRoot(region, actor, layer, definitionRe
         payload.actorSet[listed] = true
         payload.actorRoots[listed] = actor
     end
-    refreshRegionRootChunk(self, payload, actor)
 end
 
 ---@param actor           Engine.Actor
@@ -593,17 +515,16 @@ function WorldGameMapActors:spawnActor(actor, layer, emitCreateEvent)
         self._worldRootStates[actor] = "Active"
         return GameMap.spawnActor(self, actor, layer, emitCreateEvent)
     end
-    local region = self:_findRegionAt(actor:getMapPosition())
+    local regionIndex = self:getSparseWorldRegionIndexAt(actor:getMapPosition())
+    local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     if region == nil then
         appendActorOnce(self._worldLooseRoots, actor)
-        refreshLooseRootChunk(self, actor)
         self:_syncLooseRootActivation()
         return
     end
     assert(region.payload ~= nil, "Cannot spawn Actor into unloaded world region: " .. region.path)
     self:_attachRegionRoot(region, actor, layer, self._worldActorDefinitionRegions[actor])
-    self._worldCacheBytesDirty = true
-    if region.state == "Active" then
+    if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
         self:_syncRegionActorActivation(region)
     end
 end
@@ -614,7 +535,8 @@ end
 ---@param emitCreateEvent  boolean | nil
 function WorldGameMapActors:spawnPersistedWorldActor(actor, layer, definitionRegion, emitCreateEvent)
     assert(bool(definitionRegion), "Persisted world Actor definition region must be a non-empty map path")
-    local region = self:_findRegionAt(actor:getMapPosition())
+    local regionIndex = self:getSparseWorldRegionIndexAt(actor:getMapPosition())
+    local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     assert(region == nil or region.payload ~= nil, "Cannot restore Actor into unloaded world region")
     assert(self._worldActorDefinitionRegions[actor] == nil, "World Actor definition region is already registered")
     self._worldActorDefinitionRegions[actor] = definitionRegion
@@ -684,7 +606,8 @@ end
 function WorldGameMapActors:recordWorldActorPosition(actor, position)
     position = position or actor:getMapPosition()
     local root = self._worldActorRoots[actor] or actor
-    local currentRegion = self:_findRegionAt(position)
+    local regionIndex = self:getSparseWorldRegionIndexAt(position)
+    local currentRegion = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     self:_recordWorldRootPosition(root, currentRegion ~= nil and currentRegion.path or "", position)
 end
 
@@ -744,7 +667,8 @@ function WorldGameMapActors:_isWorldActorLayerVisible(actor, layerName, visibleR
     ---@type Source.SceneComponents.WorldRegionData | nil
     local region = self._worldActorRegions[root]
     if region == nil and actor == self._player then
-        region = self:_findRegionAt(actor:getMapPosition())
+        local regionIndex = self:getSparseWorldRegionIndexAt(actor:getMapPosition())
+        region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     end
     if region ~= nil and region.payload ~= nil then
         local layer = region.payload.tilemap:getLayer(layerName)
@@ -791,30 +715,6 @@ end
 ---@param roots Engine.Actor[]
 function WorldGameMapActors:_activateWorldRoots(roots)
     activateRoots(self, roots)
-end
-
----@param payload Global.WorldGameMap.RegionPayload
----@param root    Engine.Actor
-function WorldGameMapActors:_removeRegionRootChunk(payload, root)
-    removeRegionRootChunk(self, payload, root)
-end
-
----@param payload Global.WorldGameMap.RegionPayload
----@param root    Engine.Actor
----@return boolean
-function WorldGameMapActors:_refreshRegionRootChunk(payload, root)
-    return refreshRegionRootChunk(self, payload, root)
-end
-
----@param root Engine.Actor
-function WorldGameMapActors:_removeLooseRootChunk(root)
-    removeLooseRootChunk(self, root)
-end
-
----@param root Engine.Actor
----@return boolean
-function WorldGameMapActors:_refreshLooseRootChunk(root)
-    return refreshLooseRootChunk(self, root)
 end
 
 ---@param payload Global.WorldGameMap.RegionPayload

@@ -25,7 +25,7 @@ function Save.LoadGame(filePath)
     local GameInstance = require("Source.GameInstance")
 
     assertConfiguredSavePath(filePath)
-    if not CoreSystem.exists(filePath) then
+    if not os.path.isfile(filePath) then
         return nil
     end
     local instance = GameInstance.FromDict(Engine.getJSONData(filePath))
@@ -45,7 +45,7 @@ function Save.FindLatestSlot(maxSlots)
     local latestModificationTime = nil
     for slot = 1, maxSlots do
         local filePath = Save.GetSavePath(slot)
-        if CoreSystem.exists(filePath) then
+        if os.path.isfile(filePath) then
             local modificationTime = os.path.getmtime(filePath)
             if latestModificationTime == nil or modificationTime > latestModificationTime then
                 latestSlot = slot

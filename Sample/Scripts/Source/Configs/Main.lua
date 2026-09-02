@@ -1,4 +1,3 @@
-local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Logging = require("Global.Utils.Logging")
@@ -138,7 +137,7 @@ end
 function MainConfig.LoadOrCreate()
     local iniFilePath = getIniFilePath()
     local iniFile = configparser.ConfigParser()
-    if CoreSystem.exists(iniFilePath) then
+    if os.path.isfile(iniFilePath) then
         iniFile:read(iniFilePath)
         Logging.debug("Loaded main configuration: %s", iniFilePath)
     else

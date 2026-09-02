@@ -6,8 +6,8 @@ local Effects = {}
 ---@param attribute  string
 ---@param operation  "Add" | "Multiply" | "Override"
 ---@param magnitude  number
----@param eventData? Global.Gameplay.GameplayEventData
----@return Global.Gameplay.GameplayEffectSpec
+---@param eventData? GlobalCore.GameplayEventData
+---@return GlobalCore.GameplayEffectSpec
 function Effects.CreateInstantModifierSpec(effectID, attribute, operation, magnitude, eventData) end
 
 ---@param target     Source.Battler.Battler
@@ -15,31 +15,31 @@ function Effects.CreateInstantModifierSpec(effectID, attribute, operation, magni
 ---@param attribute  string
 ---@param operation  'Add' | 'Multiply' | 'Override'
 ---@param magnitude  number
----@param eventData? Global.Gameplay.GameplayEventData
+---@param eventData? GlobalCore.GameplayEventData
 ---@return integer | nil
 function Effects.ApplyInstantModifier(target, effectID, attribute, operation, magnitude, eventData) end
 
 ---@param equipID  string
 ---@param slot     string
 ---@param attrPlus table<string, integer>
----@return Global.Gameplay.GameplayEffect
+---@return GlobalCore.GameplayEffect
 function Effects.CreateEquipmentEffect(equipID, slot, attrPlus) end
 
 ---@param stateID string
----@return Global.Gameplay.GameplayEffect
+---@return GlobalCore.GameplayEffect
 function Effects.CreateStateEffect(stateID) end
 
 ---@param target     Source.Battler.Battler
 ---@param stateID    string
 ---@param stacks?    integer
----@param eventData? Global.Gameplay.GameplayEventData
+---@param eventData? GlobalCore.GameplayEventData
 ---@return integer
 function Effects.ApplyState(target, stateID, stacks, eventData) end
 
 ---@param stateID    string
 ---@param stacks?    integer
----@param eventData? Global.Gameplay.GameplayEventData
----@return Global.Gameplay.GameplayEffectSpec
+---@param eventData? GlobalCore.GameplayEventData
+---@return GlobalCore.GameplayEffectSpec
 function Effects.CreateStateSpec(stateID, stacks, eventData) end
 
 ---@param target  Source.Battler.Battler
@@ -64,7 +64,7 @@ function Effects.GetStateStacks(target) end
 ---@return string[]
 function Effects.GetStateIDs(target) end
 
----@param abilitySystem Global.Gameplay.AbilitySystemComponent
+---@param abilitySystem GlobalCore.AbilitySystemComponent
 ---@param effectID      string
 ---@return integer | nil
 function Effects.FindActiveEffectHandle(abilitySystem, effectID) end

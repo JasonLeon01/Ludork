@@ -1,5 +1,7 @@
-local TextLayout = require("Source.TextLayout")
+local Engine = require("Engine")
 local Ui = require("Source.UI.Ui")
+
+local TextLayout = Engine.TextLayout
 
 local _NAME_WIDTH = 60
 local _DESCRIPTION_X = 64
@@ -20,12 +22,12 @@ function EnemyEncyclopediaSpecialRowUI:refresh()
     local descriptionControl = self:requireControl("Description")
     ---@cast nameControl Engine.PlainText
     ---@cast descriptionControl Engine.PlainText
-    self._displayName = TextLayout.FitPlainText(tostring(self.model.name or ""), _NAME_WIDTH, nameControl)
-    local wrappedDescription = TextLayout.WrapPlainText(
+    self._displayName = TextLayout.fitPlainText(tostring(self.model.name or ""), _NAME_WIDTH, nameControl)
+    local wrappedDescription = TextLayout.wrapPlainText(
         tostring(self.model.description or ""), descriptionWidth, descriptionControl
     )
     self._displayDescription = wrappedDescription:find("\n", 1, true) ~= nil and wrappedDescription
-        or TextLayout.FitPlainText(wrappedDescription, descriptionWidth, descriptionControl)
+        or TextLayout.fitPlainText(wrappedDescription, descriptionWidth, descriptionControl)
     local _, newlineCount = self._displayDescription:gsub("\n", "")
     local lineCount = math.max(1, newlineCount + 1)
     self._height = math.max(_ROW_HEIGHT, lineCount * _ROW_HEIGHT)

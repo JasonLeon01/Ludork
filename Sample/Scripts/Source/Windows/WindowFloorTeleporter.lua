@@ -99,7 +99,7 @@ function WindowFloorTeleporterController:activateMapList(playCancelSE)
         ManagerFunctions.playSE(GameSystem.GetCancelSE())
     end
     self.model._previewWindow:setActive(false)
-    self.model:setVisible(false)
+    self.model:setVisible(true)
     self.model._commandWindow:setVisible(true)
     self.model._commandWindow:setActive(true)
     self.model._commandWindow:requestKeyboardFocus()
@@ -223,7 +223,7 @@ function WindowFloorTeleporterController:getMapDisplayName(mapKey)
     local _, mapData = SceneMapBuilder
         .new()
         :loadMapData(mapKey, self.model._inst._cachedMap or GameSystem.GetStartMap())
-    local mapName = mapData.mapName
+    local mapName = mapData.type == "worldMap" and mapData.worldName or mapData.mapName
     if not bool(mapName) then
         return formatMapName(mapKey)
     end

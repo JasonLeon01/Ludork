@@ -1,5 +1,7 @@
 #include "UiControlAdapterSupport.hpp"
 
+#include <Text/TextConfigCodec.hpp>
+
 #include <Curve.hpp>
 #include <UI/UIState.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
@@ -228,176 +230,17 @@ sf::Image loadWindowSkin(const std::string& requestedKey) {
 
 std::shared_ptr<sf::Font> loadFont(const std::string& fontKey,
                                    const std::string& source) {
-    if (fontKey.empty()) {
-        if (defaultFont == nullptr) {
-            throw std::runtime_error(
-                "Default font is unavailable for UI text config " + source);
-        }
-        return defaultFont;
-    }
-    const std::filesystem::path path = safeAssetPath(fontKey, "Fonts");
-    std::shared_ptr<sf::Font> font = std::make_shared<sf::Font>();
-    if (!font->openFromFile(path)) {
-        throw std::runtime_error("Failed to load UI font: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-    return font;
+    return ludork::engine::text_config::loadFont(fontKey, source);
 }
 
 sf::Text::LineAlignment lineAlignment(const std::string& value,
                                       const std::string& source) {
-    if (value == "default") {
-        return sf::Text::LineAlignment::Default;
-    }
-    if (value == "left") {
-        return sf::Text::LineAlignment::Left;
-    }
-    if (value == "center") {
-        return sf::Text::LineAlignment::Center;
-    }
-    if (value == "right") {
-        return sf::Text::LineAlignment::Right;
-    }
-    throw std::invalid_argument(source + " has invalid alignment " + value);
-}
-
-void applyGlow(TextGlowConfig& target, const RuntimeValue* value,
-               const std::string& source) {
-    if (value == nullptr) {
-        return;
-    }
-    const RuntimeValue::Map& map = requireMap(*value, source);
-    if (const RuntimeValue* enabled = findValue(map, "enabled")) {
-        target.enabled = requireBool(*enabled, source + ".enabled");
-    }
-    if (const RuntimeValue* color = findValue(map, "color")) {
-        target.color = requireColor(*color, source + ".color");
-    }
-    if (const RuntimeValue* radius = findValue(map, "radius")) {
-        target.radius = requireFloat(*radius, source + ".radius");
-    }
-    if (const RuntimeValue* intensity = findValue(map, "intensity")) {
-        target.intensity = requireFloat(*intensity, source + ".intensity");
-    }
-}
-
-void applyGradient(TextGradientConfig& target, const RuntimeValue* value,
-                   const std::string& source) {
-    if (value == nullptr) {
-        return;
-    }
-    const RuntimeValue::Map& map = requireMap(*value, source);
-    if (const RuntimeValue* enabled = findValue(map, "enabled")) {
-        target.enabled = requireBool(*enabled, source + ".enabled");
-    }
-    if (const RuntimeValue* direction = findValue(map, "direction")) {
-        target.direction = requireString(*direction, source + ".direction");
-    }
-    const RuntimeValue* curve = findValue(map, "curve");
-    if (target.enabled) {
-        const std::string curveKey =
-            curve == nullptr ? std::string()
-                             : requireString(*curve, source + ".curve");
-        if (curveKey.empty()) {
-            throw std::invalid_argument(source +
-                                        " requires a curve when enabled");
-        }
-        target.curve = loadUiVector4CurveResource(curveKey);
-    }
-}
-
-RuntimeValue::Map loadTextConfigData(const std::string& textConfigKey) {
-    std::filesystem::path relative =
-        ludork::standard::pathFromUtf8(textConfigKey);
-    if (relative.is_absolute()) {
-        throw std::invalid_argument("UI text config key must be relative: " +
-                                    textConfigKey);
-    }
-    for (const std::filesystem::path& part : relative) {
-        if (part == "..") {
-            throw std::invalid_argument(
-                "UI text config key cannot traverse parent directories: " +
-                textConfigKey);
-        }
-    }
-    if (relative.extension().empty()) {
-        relative += ".json";
-    }
-    const std::filesystem::path path =
-        std::filesystem::path(".") / "Data" / "TextConfigs" / relative;
-    return requireMap(getJSONData(path), ludork::standard::pathToUtf8(path));
+    return ludork::engine::text_config::parseLineAlignment(value, source);
 }
 
 std::shared_ptr<PlainTextConfig> plainTextConfig(
     const std::string& textConfigKey) {
-    std::shared_ptr<PlainTextConfig> result =
-        std::make_shared<PlainTextConfig>();
-    const RuntimeValue::Map data = loadTextConfigData(textConfigKey);
-    const RuntimeValue* type = findValue(data, "type");
-    if (type == nullptr ||
-        requireString(*type, textConfigKey + ".type") != "plainTextConfig") {
-        throw std::invalid_argument("UI text config is not plain text: " +
-                                    textConfigKey);
-    }
-    result->name = stringProperty(data, "name", textConfigKey);
-    result->font = loadFont(stringProperty(data, "font"), textConfigKey);
-    if (const RuntimeValue* characterSize = findValue(data, "characterSize")) {
-        result->characterSize =
-            requireUnsigned(*characterSize, textConfigKey + ".characterSize");
-    }
-    if (const RuntimeValue* style = findValue(data, "style")) {
-        const RuntimeValue::Map& flags =
-            requireMap(*style, textConfigKey + ".style");
-        result->style = sf::Text::Regular;
-        auto enable = [&](const std::string& name, std::uint32_t flag) {
-            const RuntimeValue* setting = findValue(flags, name);
-            if (setting != nullptr &&
-                requireBool(*setting, textConfigKey + ".style." + name)) {
-                result->style |= flag;
-            }
-        };
-        enable("bold", sf::Text::Bold);
-        enable("italic", sf::Text::Italic);
-        enable("underlined", sf::Text::Underlined);
-        enable("strikeThrough", sf::Text::StrikeThrough);
-    }
-    if (const RuntimeValue* slantAngle = findValue(data, "slantAngle")) {
-        result->slantAngle =
-            requireFloat(*slantAngle, textConfigKey + ".slantAngle");
-    }
-    if (const RuntimeValue* fillColor = findValue(data, "fillColor")) {
-        result->fillColor =
-            requireColor(*fillColor, textConfigKey + ".fillColor");
-    }
-    if (const RuntimeValue* letterSpacing = findValue(data, "letterSpacing")) {
-        result->letterSpacing =
-            requireFloat(*letterSpacing, textConfigKey + ".letterSpacing");
-    }
-    if (const RuntimeValue* lineSpacing = findValue(data, "lineSpacing")) {
-        result->lineSpacing =
-            requireFloat(*lineSpacing, textConfigKey + ".lineSpacing");
-    }
-    if (const RuntimeValue* alignment = findValue(data, "lineAlignment")) {
-        result->lineAlignment = lineAlignment(
-            requireString(*alignment, textConfigKey + ".lineAlignment"),
-            textConfigKey + ".lineAlignment");
-    }
-    if (const RuntimeValue* outline = findValue(data, "outline")) {
-        const RuntimeValue::Map& map =
-            requireMap(*outline, textConfigKey + ".outline");
-        if (const RuntimeValue* color = findValue(map, "color")) {
-            result->outline.color =
-                requireColor(*color, textConfigKey + ".outline.color");
-        }
-        if (const RuntimeValue* thickness = findValue(map, "thickness")) {
-            result->outline.thickness =
-                requireFloat(*thickness, textConfigKey + ".outline.thickness");
-        }
-    }
-    applyGlow(result->glow, findValue(data, "glow"), textConfigKey + ".glow");
-    applyGradient(result->gradient, findValue(data, "gradient"),
-                  textConfigKey + ".gradient");
-    return result;
+    return ludork::engine::text_config::loadPlain(textConfigKey);
 }
 
 std::shared_ptr<PlainTextConfig> plainTextControlConfig(
@@ -484,117 +327,16 @@ std::shared_ptr<PlainTextConfig> plainTextControlConfig(
     return result;
 }
 
-std::shared_ptr<TextStyle> richTextStyle(const RuntimeValue& value,
-                                         const std::string& source) {
-    const RuntimeValue::Map& map = requireMap(value, source);
-    std::shared_ptr<TextStyle> result = std::make_shared<TextStyle>();
-    if (const RuntimeValue* characterSize = findValue(map, "characterSize")) {
-        result->characterSize =
-            requireUnsigned(*characterSize, source + ".characterSize");
-    }
-    if (const RuntimeValue* style = findValue(map, "style")) {
-        const RuntimeValue::Map& flags = requireMap(*style, source + ".style");
-        if (const RuntimeValue* bold = findValue(flags, "bold")) {
-            result->bold = requireBool(*bold, source + ".style.bold");
-        }
-        if (const RuntimeValue* italic = findValue(flags, "italic")) {
-            result->italic = requireBool(*italic, source + ".style.italic");
-        }
-        if (const RuntimeValue* underlined = findValue(flags, "underlined")) {
-            result->underlined =
-                requireBool(*underlined, source + ".style.underlined");
-        }
-        if (const RuntimeValue* strike = findValue(flags, "strikeThrough")) {
-            result->strikeThrough =
-                requireBool(*strike, source + ".style.strikeThrough");
-        }
-    }
-    if (const RuntimeValue* fillColor = findValue(map, "fillColor")) {
-        result->fillColor = requireColor(*fillColor, source + ".fillColor");
-    }
-    if (const RuntimeValue* letterSpacing = findValue(map, "letterSpacing")) {
-        result->letterSpacing =
-            requireFloat(*letterSpacing, source + ".letterSpacing");
-    }
-    if (const RuntimeValue* lineSpacing = findValue(map, "lineSpacing")) {
-        result->lineSpacing =
-            requireFloat(*lineSpacing, source + ".lineSpacing");
-    }
-    if (const RuntimeValue* outline = findValue(map, "outline")) {
-        const RuntimeValue::Map& outlineMap =
-            requireMap(*outline, source + ".outline");
-        if (const RuntimeValue* color = findValue(outlineMap, "color")) {
-            result->outlineColor =
-                requireColor(*color, source + ".outline.color");
-        }
-        if (const RuntimeValue* thickness =
-                findValue(outlineMap, "thickness")) {
-            result->outlineThickness =
-                requireFloat(*thickness, source + ".outline.thickness");
-        }
-    }
-    return result;
-}
-
 std::shared_ptr<RichTextConfig> richTextConfig(
     const std::string& textConfigKey) {
-    std::shared_ptr<RichTextConfig> result = std::make_shared<RichTextConfig>();
     if (textConfigKey.empty()) {
+        std::shared_ptr<RichTextConfig> result =
+            std::make_shared<RichTextConfig>();
         result->name = "UI Asset Default";
         result->font = loadFont({}, result->name);
         return result;
     }
-
-    const RuntimeValue::Map data = loadTextConfigData(textConfigKey);
-    const RuntimeValue* type = findValue(data, "type");
-    if (type == nullptr ||
-        requireString(*type, textConfigKey + ".type") != "richTextConfig") {
-        throw std::invalid_argument("UI text config is not rich text: " +
-                                    textConfigKey);
-    }
-    result->name = stringProperty(data, "name", textConfigKey);
-    result->font = loadFont(stringProperty(data, "font"), textConfigKey);
-    if (const RuntimeValue* alignment = findValue(data, "lineAlignment")) {
-        result->lineAlignment = lineAlignment(
-            requireString(*alignment, textConfigKey + ".lineAlignment"),
-            textConfigKey + ".lineAlignment");
-    }
-    if (const RuntimeValue* defaultStyle = findValue(data, "defaultStyle")) {
-        result->defaultStyle =
-            richTextStyle(*defaultStyle, textConfigKey + ".defaultStyle");
-    }
-    if (const RuntimeValue* styleOrder = findValue(data, "styleOrder")) {
-        const RuntimeValue::Array& order =
-            requireArray(*styleOrder, textConfigKey + ".styleOrder");
-        result->styleOrder.reserve(order.size());
-        for (std::size_t index = 0; index < order.size(); ++index) {
-            result->styleOrder.push_back(requireString(
-                order[index],
-                textConfigKey + ".styleOrder[" + std::to_string(index) + "]"));
-        }
-    }
-    if (const RuntimeValue* styles = findValue(data, "styles")) {
-        const RuntimeValue::Map& styleMap =
-            requireMap(*styles, textConfigKey + ".styles");
-        for (const std::string& name : result->styleOrder) {
-            const RuntimeValue* style = findValue(styleMap, name);
-            if (style == nullptr) {
-                throw std::invalid_argument(textConfigKey +
-                                            ".styles is missing " + name);
-            }
-            result->styles.emplace(
-                name, richTextStyle(*style, textConfigKey + ".styles." + name));
-        }
-        if (styleMap.size() != result->styles.size()) {
-            throw std::invalid_argument(
-                textConfigKey +
-                ".styles contains entries not listed by styleOrder");
-        }
-    }
-    applyGlow(result->glow, findValue(data, "glow"), textConfigKey + ".glow");
-    applyGradient(result->gradient, findValue(data, "gradient"),
-                  textConfigKey + ".gradient");
-    return result;
+    return ludork::engine::text_config::loadRich(textConfigKey);
 }
 
 void arrangeByScale(ControlBase& control, const sf::Vector2f& size,

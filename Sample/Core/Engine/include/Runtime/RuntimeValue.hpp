@@ -67,6 +67,8 @@ public:
 
 using RuntimeIdentityPtr = std::shared_ptr<RuntimeIdentity>;
 
+LUDORK_ENGINE_API RuntimeIdentityPtr createRuntimeMapIdentity();
+
 BIND_CLASS(copyable = true, dynamic_value = true)
 class LUDORK_ENGINE_API RuntimeValue {
 public:

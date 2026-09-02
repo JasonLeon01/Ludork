@@ -1,9 +1,10 @@
+local Engine = require("Engine")
 local LocaleCore = require("Source.Locale.Core")
-local TextLayout = require("Source.TextLayout")
 local Ui = require("Source.UI.Ui")
 
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
+local TextLayout = Engine.TextLayout
 
 local _DETAIL_TEXT_WIDTH = 320
 local WindowShopDetailUI = {}
@@ -33,7 +34,7 @@ function WindowShopDetailUI:refresh()
         local description = LOC(self.model._itemInfo.desc or ""):gsub("\\n", "\n")
         self:setText(
             "Description",
-            TextLayout.WrapPlainText(description, _DETAIL_TEXT_WIDTH, self._descriptionControl)
+            TextLayout.wrapPlainText(description, _DETAIL_TEXT_WIDTH, self._descriptionControl)
         )
     end
     self.view:reflow(sf.Vector2u.new(self._size.x, self._size.y))

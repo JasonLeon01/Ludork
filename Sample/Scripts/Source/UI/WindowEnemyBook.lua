@@ -1,5 +1,6 @@
+local GlobalCore = require("GlobalCore")
 local Render = require("Global.Utils.Render")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GameplayEventData = GlobalCore.GameplayEventData
 local Data = require("Source.Data")
 local Locale = require("Source.Locale.Core")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
@@ -142,7 +143,7 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
     local abilitySystem = enemy:getAbilitySystemComponent()
     local battleResult = MotaBattleAbility
         .new()
-        :calculate(abilitySystem, GameplayEventData.new({ target = self.model._player }))
+        :calculate(abilitySystem, GameplayEventData.new(nil, self.model._player))
     local battleData = battleResult.data
     local special = enemy.attributes.special
     local textureRect = copy(assert(visual.rect or visual.textureRect))

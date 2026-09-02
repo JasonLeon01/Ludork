@@ -466,8 +466,6 @@ local function createWorldRegionBuildCoroutine(
             definitionRegions = definitionRegions,
             actorRoots = {},
             activeRoots = {},
-            rootChunks = {},
-            rootChunkKeys = {},
             estimatedRuntimeBytes = WORLD_REGION_FIXED_CACHE_BYTES + data.width * data.height
                     * #data.layerOrder * WORLD_REGION_LAYER_CELL_CACHE_BYTES
                 + (#priorityActorDescriptors + #backgroundActorDescriptors) * WORLD_REGION_ACTOR_CACHE_BYTES

@@ -1,4 +1,3 @@
-local CoreSystem = require("CoreSystem")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 
@@ -38,7 +37,7 @@ function SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePat
 end
 
 function SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets)
-    if not CoreSystem.exists(cachePath) then
+    if not os.path.isfile(cachePath) then
         return true
     end
     local cacheTime = os.path.getmtime(cachePath)
@@ -46,7 +45,7 @@ function SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAs
         return true
     end
     for _, asset in ipairs(frameAssets) do
-        if not CoreSystem.exists(asset.path) then
+        if not os.path.isfile(asset.path) then
             return true
         end
         if cacheTime < os.path.getmtime(asset.path) then

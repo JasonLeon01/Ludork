@@ -2,7 +2,6 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local System = require("Source.System")
-local TextLayout = require("Source.TextLayout")
 local WindowMessageUI = require("Source.UI.WindowMessage")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 local WindowMessageLayout = require("Source.Windows.WindowMessageLayout")
@@ -10,6 +9,7 @@ local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
 local Input = Engine.Input
 local PlainText = Engine.PlainText
+local TextLayout = Engine.TextLayout
 local RichText = Engine.RichText
 local FunctionalBase = Engine.FunctionalBase
 local ManagerFunctions = GlobalFunctions.Manager
@@ -411,21 +411,21 @@ function WindowMessage:_updateLayoutByTextSize()
     local nameWidth = 0
     local nameHeight = 0
     if hasName then
-        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(self._nameText, self._name))
+        nameWidth = self:_getTextRenderWidth(TextLayout.measurePlainText(self._nameText, self._name))
         nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
     local displayMessage = self._message
     local maxContentWidth = Engine.ToInteger(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
     self._ui:setMessage(displayMessage)
     local textBounds = self._text:getLocalBounds()
-    local textWidth = self:_getTextRenderWidth(TextLayout.MeasureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
+    local textWidth = self:_getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
     if textWidth > maxContentWidth then
         displayMessage = WindowMessageLayout.WrapMessage(
             displayMessage, math.max(1.0, maxContentWidth - self._TEXT_RENDER_GUTTER * 2.0), _MESSAGE_TEXT_CONFIG
         )
         self._ui:setMessage(displayMessage)
         textBounds = self._text:getLocalBounds()
-        textWidth = self:_getTextRenderWidth(TextLayout.MeasureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
+        textWidth = self:_getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
     end
     local textHeight = self:_getBoundsHeight(textBounds)
     local pauseMarkSize = WindowBase._PAUSE_MARK_SIZE
@@ -461,7 +461,7 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local nameWidth = 0
     local nameHeight = 0
     if hasName then
-        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(self._nameText, self._name))
+        nameWidth = self:_getTextRenderWidth(TextLayout.measurePlainText(self._nameText, self._name))
         nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
     local maxOptionTextWidth = 1

@@ -6,6 +6,8 @@ local RenderSupport = require("Global.WorldGameMap.RenderSupport")
 ---@diagnostic disable: need-check-nil, param-type-mismatch, duplicate-set-field
 
 local FogController = GlobalCore.FogController
+local WorldRegionDemand = GlobalCore.WorldRegionDemand
+local WorldRegionState = GlobalCore.WorldRegionState
 local WORLD_SHADER_PREWARM_SIZE = sf.Vector2u.new(1, 1)
 ---@cast WORLD_SHADER_PREWARM_SIZE sf.Vector2u
 
@@ -264,7 +266,8 @@ end
 function WorldGameMapRendering:_isWorldViewportReady(visibleRect)
     for _, region in ipairs(self._worldRegions) do
         if WorldGeometry.RectIntersects(region, visibleRect) then
-            if region.payload == nil or region.state ~= "Active" or region.publishState ~= nil then
+            if region.payload == nil or self._worldStreamingState:getRegionState(region.index)
+                    ~= WorldRegionState.Active or region.publishState ~= nil then
                 return false
             end
             if region.backgroundBuilder ~= nil and not region.backgroundBuilder.isRectReady(visibleRect) then
@@ -359,7 +362,7 @@ function WorldGameMapRendering:prepareViewportAt(position)
     local activeRect = assert(self._worldActiveRect, "World viewport preparation requires an Active rect")
     local initialActiveRegions = {}
     for _, region in ipairs(self._worldRegions) do
-        if region.demand == "Active" then
+        if self._worldStreamingState:getRegionDemand(region.index) == WorldRegionDemand.Active then
             initialActiveRegions[#initialActiveRegions + 1] = region
         end
     end
@@ -378,7 +381,7 @@ function WorldGameMapRendering:prepareViewportAt(position)
     end
     self._worldActivationDeferred = false
     for _, region in ipairs(initialActiveRegions) do
-        if region.state == "Active" then
+        if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
             self:_syncRegionActorActivation(region)
         end
     end
@@ -392,7 +395,7 @@ function WorldGameMapRendering:prepareViewportAt(position)
     )
     for _, region in ipairs(initialActiveRegions) do
         assert(
-            region.payload ~= nil and region.state == "Active",
+            region.payload ~= nil and self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active,
             "World viewport region was not fully prepared: " .. region.path
         )
         local builder = region.backgroundBuilder

@@ -1,12 +1,6 @@
 ---@meta Global.WorldGameMap
 
----@class Global.WorldGameMap.StreamingStats
----@field Unloaded integer
----@field Reading  integer
----@field Prepared integer
----@field Active   integer
----@field Dormant  integer
----@field queued   integer
+---@alias Global.WorldGameMap.StreamingStats GlobalCore.WorldStreamingStats
 
 ---@alias Global.WorldGameMap.StaticTransmissionSignature tuple<string | integer | boolean>
 
@@ -25,8 +19,6 @@
 ---@field worldRegion       Source.SceneComponents.WorldRegionData | nil
 ---@field actorRoots        table<Engine.Actor, Engine.Actor>
 ---@field activeRoots       table<Engine.Actor, boolean>
----@field rootChunks        table<string, Engine.Actor[]>
----@field rootChunkKeys     table<Engine.Actor, string>
 ---@field estimatedRuntimeBytes integer | nil
 ---@field prewarmedLayerShaders table<string, boolean> | nil
 
@@ -148,8 +140,7 @@
 ---@field _worldBounds                 Global.WorldGeometry.CellRect
 ---@field _worldRegions                Source.SceneComponents.WorldRegionData[]
 ---@field _worldRegionFactory          fun(region: Source.SceneComponents.WorldRegionData, data: Source.SceneComponents.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
----@field _worldRegionBuckets          table<string, Source.SceneComponents.WorldRegionData[]>
----@field _worldLoadedRegions          table<Source.SceneComponents.WorldRegionData, boolean>
+---@field _worldStreamingState         GlobalCore.WorldStreamingState
 ---@field _worldActorsByTag            table<string, Engine.Actor>
 ---@field _worldActorLayers            table<Engine.Actor, string>
 ---@field _worldActorDefinitionRegions table<Engine.Actor, string>
@@ -158,10 +149,7 @@
 ---@field _worldRootStates             table<Engine.Actor, "NeverActive" | "Active" | "Dormant">
 ---@field _worldRootSleepTimes         table<Engine.Actor, number>
 ---@field _worldLooseRoots             Engine.Actor[]
----@field _worldLooseRootChunks        table<string, Engine.Actor[]>
----@field _worldLooseRootChunkKeys     table<Engine.Actor, string>
 ---@field _worldPendingRehomes         table<Engine.Actor, Source.SceneComponents.WorldRegionData>
----@field _worldActorDemandRegions     table<Source.SceneComponents.WorldRegionData, boolean>
 ---@field _worldObservedRootPositions  table<Engine.Actor, Global.WorldGameMap.ObservedRootPosition>
 ---@field _worldDestroyedRootsDirty    boolean
 ---@field _worldActiveChunkBounds      Global.WorldGeometry.CellRect | nil
@@ -178,22 +166,13 @@
 ---@field _worldLayerOrder             string[]
 ---@field _worldLayerNames             table<string, boolean>
 ---@field _worldMovedActorRecorder     fun(actor: Engine.Actor, definitionRegion: string, currentRegion: string, layerName: string, position: sf.Vector2i) | nil
----@field _worldStreamQueue            Source.SceneComponents.WorldRegionData[]
----@field _worldStreamQueued           table<Source.SceneComponents.WorldRegionData, boolean>
 ---@field _worldStreamJob              FileBatchJob | nil
 ---@field _worldStreamJobRegions       table<string, Source.SceneComponents.WorldRegionData>
 ---@field _worldStreamBatchRegions     Source.SceneComponents.WorldRegionData[]
----@field _worldPublishQueue           Source.SceneComponents.WorldRegionData[]
----@field _worldPublishQueued          table<Source.SceneComponents.WorldRegionData, boolean>
----@field _worldDemandGeneration       integer
----@field _worldPreviousCameraCenterX  number | nil
----@field _worldPreviousCameraCenterY  number | nil
 ---@field _worldActiveRect             Global.WorldGeometry.CellRect | nil
 ---@field _worldPreparedRect           Global.WorldGeometry.CellRect | nil
 ---@field _worldStreamingCameraPosition sf.Vector2f | nil
 ---@field _worldDisposed               boolean
----@field _worldCacheBytes             integer
----@field _worldCacheBytesDirty        boolean
 ---@field _worldPublishMilliseconds    number
 ---@field _worldPublishSlowStage       string
 ---@field _worldPublishSlowStageMilliseconds number

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <tuple>
 #include <vector>
 
@@ -25,6 +26,11 @@ namespace ludork::standard {
 namespace {
 
 std::string configuredDefaultLocale;
+
+bool isMissingPathError(const std::error_code& error) {
+    return error == std::errc::no_such_file_or_directory ||
+           error == std::errc::not_a_directory;
+}
 
 std::string normalizeLocale(std::string language) {
     const std::size_t dot = language.find('.');
@@ -147,6 +153,9 @@ std::filesystem::path absolutePath(const std::filesystem::path& value) {
 bool isDirectory(const std::filesystem::path& value) {
     std::error_code error;
     const bool result = std::filesystem::is_directory(value, error);
+    if (isMissingPathError(error)) {
+        return false;
+    }
     if (error) {
         throw std::runtime_error("cannot inspect path: " + error.message());
     }
@@ -156,6 +165,9 @@ bool isDirectory(const std::filesystem::path& value) {
 bool isRegularFile(const std::filesystem::path& value) {
     std::error_code error;
     const bool result = std::filesystem::is_regular_file(value, error);
+    if (isMissingPathError(error)) {
+        return false;
+    }
     if (error) {
         throw std::runtime_error("cannot inspect path: " + error.message());
     }

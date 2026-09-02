@@ -1,5 +1,7 @@
+local Engine = require("Engine")
 local Data = require("Source.Data")
-local TextLayout = require("Source.TextLayout")
+
+local TextLayout = Engine.TextLayout
 
 local WindowMessageLayout = {}
 
@@ -22,7 +24,7 @@ function WindowMessageLayout.GetTextLineHeight(bounds)
 end
 
 function WindowMessageLayout.WrapMessage(text, maxWidth, textConfigKey)
-    return TextLayout.WrapRichText(text, maxWidth, textConfigKey)
+    return TextLayout.wrapRichText(text, maxWidth, textConfigKey)
 end
 
 function WindowMessageLayout.ResizeCanvas(target, width, height)

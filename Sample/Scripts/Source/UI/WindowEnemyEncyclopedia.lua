@@ -1,7 +1,6 @@
 local Engine = require("Engine")
 local EnemyText = require("Source.EnemyText")
 local Locale = require("Source.Locale.Core")
-local TextLayout = require("Source.TextLayout")
 local NodeUtils = require("Source.NodeFunctions.Utils")
 local Ui = require("Source.UI.Ui")
 local WindowEnemyBookUI = require("Source.UI.WindowEnemyBook")
@@ -10,6 +9,7 @@ local EnemyEncyclopediaSpecialRowUI = require("Source.UI.Parts.WindowEnemyEncycl
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
+local TextLayout = Engine.TextLayout
 local ToShortNumber = NodeUtils.ToShortNumber
 
 local _PORTRAIT_AREA_HEIGHT = Engine.CellSize
@@ -97,11 +97,11 @@ end
 ---@param entry Source.UI.WindowEnemyBook.Entry
 function WindowEnemyEncyclopediaUI:_renderEntry(entry)
     local contentWidth = math.max(1, math.floor(self._content:getSize().x))
-    local fittedName = TextLayout.FitPlainText(tostring(entry.name or ""), contentWidth, self._nameControl)
+    local fittedName = TextLayout.fitPlainText(tostring(entry.name or ""), contentWidth, self._nameControl)
     self:setText("Name", fittedName)
     self:setProperty("Name", "visible", true)
     local displayDescription = limitLines(
-        TextLayout.WrapPlainText(tostring(entry.desc or ""), contentWidth, self._descriptionControl), _DESC_MAX_LINES,
+        TextLayout.wrapPlainText(tostring(entry.desc or ""), contentWidth, self._descriptionControl), _DESC_MAX_LINES,
         contentWidth, self._descriptionControl
     )
     self:setText("Description", displayDescription)
@@ -110,7 +110,7 @@ function WindowEnemyEncyclopediaUI:_renderEntry(entry)
 
     local portraitHeight = self:_layoutPortrait()
     local nameY = portraitHeight + _NAME_TOP_MARGIN
-    local nameWidth = TextLayout.MeasurePlainText(self._nameControl, fittedName)
+    local nameWidth = TextLayout.measurePlainText(self._nameControl, fittedName)
     self._nameControl:setPosition(sf.Vector2f.new((contentWidth - nameWidth) / 2.0, nameY))
     local nameBottom = nameY + self._nameControl:getCharacterSize()
     local infoY = nameBottom + _INFO_TOP_MARGIN
@@ -249,7 +249,7 @@ function limitLines(text, maxLines, maxWidth, control)
         limitedLines[index] = lines[index]
     end
     if bool(limitedLines) then
-        limitedLines[#limitedLines] = TextLayout.FitPlainText(limitedLines[#limitedLines] .. ".", maxWidth, control)
+        limitedLines[#limitedLines] = TextLayout.fitPlainText(limitedLines[#limitedLines] .. ".", maxWidth, control)
     end
     return table.concat(limitedLines, "\n")
 end

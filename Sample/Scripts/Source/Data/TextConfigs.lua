@@ -1,7 +1,8 @@
-local TextConfigParser = require("Source.Data.TextConfigParser")
+local Engine = require("Engine")
 local Validation = require("Source.Data.Validation")
 
 local requireNamedValue = Validation.RequireNamedValue
+local TextConfig = Engine.TextConfig
 
 local DataTextConfigs = {}
 
@@ -15,7 +16,7 @@ function DataTextConfigs:getPlainTextConfig(name)
     end
     local value = requireNamedValue(self._data._textConfigData, name, "Text config data not found: " .. tostring(name))
     assert(value.type == "plainTextConfig", "Text config is not plain text: " .. tostring(name))
-    local cached = TextConfigParser.BuildPlain(self._data, name, value)
+    local cached = TextConfig.buildPlain(value, name)
     self._data._plainTextConfigs[name] = cached
     return cached
 end
@@ -26,7 +27,7 @@ function DataTextConfigs:getRichTextConfig(name)
     end
     local value = requireNamedValue(self._data._textConfigData, name, "Text config data not found: " .. tostring(name))
     assert(value.type == "richTextConfig", "Text config is not rich text: " .. tostring(name))
-    local cached = TextConfigParser.BuildRich(self._data, name, value)
+    local cached = TextConfig.buildRich(value, name)
     self._data._richTextConfigs[name] = cached
     return cached
 end

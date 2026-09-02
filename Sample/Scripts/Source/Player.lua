@@ -1,8 +1,9 @@
 local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local Battler = require("Source.Battler")
-local GameplayEffectSpec = require("Global.Gameplay.GameplayEffectSpec")
-local GameplayEventData = require("Global.Gameplay.GameplayEventData")
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
+local GameplayEventData = GlobalCore.GameplayEventData
 local Effects = require("Source.Gameplay.Effects")
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 
@@ -15,7 +16,7 @@ local LEVEL_DEF_GAIN = 2
 
 ---@param _old   integer | Class.MissingValue
 ---@param _new   integer | Class.MissingValue
----@param change Global.Gameplay.AttributeChange
+---@param change { attribute: string, source: string, oldBase: number, newBase: number }
 ---@param player Source.Player.Player
 local function onHPChange(_old, _new, change, player)
     if player == nil then
@@ -34,7 +35,7 @@ end
 
 ---@param _old   integer | Class.MissingValue
 ---@param _new   integer | Class.MissingValue
----@param change Global.Gameplay.AttributeChange
+---@param change { attribute: string, source: string, oldBase: number, newBase: number }
 ---@param player Source.Player.Player
 local function onMAXHPChange(_old, _new, change, player)
     if player == nil then
@@ -65,14 +66,9 @@ local function constrainHP(value, abilitySystem, resolvedValues)
     return math.max(0, math.min(value, maxHP))
 end
 
----@return Global.Gameplay.GameplayEventData
+---@return GlobalCore.GameplayEventData
 local function createPlayerEvent(player, eventTag, payload)
-    return GameplayEventData.new({
-        instigator = player,
-        target = player,
-        eventTag = eventTag,
-        payload = payload or {}
-    })
+    return GameplayEventData.new(player, player, eventTag, payload or {})
 end
 
 ---@type function

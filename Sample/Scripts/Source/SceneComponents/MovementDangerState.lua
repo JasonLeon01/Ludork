@@ -1,6 +1,7 @@
 local ActorTree = require("Global.ActorTree")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Enemy = require("Source.Enemy")
+local MovementSpecials = require("Source.MovementSpecials")
 local MovementDangerGrid = require("Source.SceneComponents.MovementDangerGrid")
 
 ---@class (partial) Source.SceneComponents.MovementDangerState
@@ -16,6 +17,12 @@ function MovementDangerState:init(gameMap)
     self._enemyScanRevision = 0
     self._entries = {}
     self._entryGrid = {}
+    self._entriesValid = false
+    self._entryAreaX = nil
+    self._entryAreaY = nil
+    self._entryAreaWidth = nil
+    self._entryAreaHeight = nil
+    self._previewContext = nil
     self._pathfindingRevision = 0
     self._previewRevision = 0
     self._areaX = nil
@@ -106,10 +113,6 @@ function MovementDangerState:onTick(_deltaTime)
         return
     end
 
-    local previousAreaX = self._areaX
-    local previousAreaY = self._areaY
-    local previousAreaWidth = self._areaWidth
-    local previousAreaHeight = self._areaHeight
     self._player = player
     self._playerAttributes = playerAttributes
     self._playerAbilityRevision = playerAbilityRevision
@@ -117,12 +120,15 @@ function MovementDangerState:onTick(_deltaTime)
     self._areaY = area.y
     self._areaWidth = area.width
     self._areaHeight = area.height
-    if dangerChanged or previousAreaX == nil
-        or previousAreaY == nil or previousAreaWidth == nil
-        or previousAreaHeight == nil then
-        self:_rebuildEntries()
-    else
-        self:_refreshEntriesForArea(previousAreaX, previousAreaY, previousAreaWidth, previousAreaHeight)
+    self._entriesValid = false
+    if dangerChanged then
+        self._entries = {}
+        self._entryGrid = {}
+        self._entryAreaX = nil
+        self._entryAreaY = nil
+        self._entryAreaWidth = nil
+        self._entryAreaHeight = nil
+        self._previewContext = nil
     end
     self._previewRevision = self._previewRevision + 1
     if pathfindingChanged then
@@ -130,33 +136,50 @@ function MovementDangerState:onTick(_deltaTime)
     end
 end
 
-function MovementDangerState:_rebuildEntries()
-    self._entries = {}
-    self._entryGrid = {}
-    if self._player == nil or not bool(self._enemies) then
-        return
+function MovementDangerState:_getPreviewContext()
+    if self._previewContext == nil and self._player ~= nil and bool(self._enemies) then
+        self._previewContext = MovementSpecials.CreatePreviewContext(self._enemies, self._player)
     end
-    self._entries, self._entryGrid = MovementDangerGrid.Build(
-        self._enemies, self._player, assert(self._areaX), assert(self._areaY), assert(self._areaWidth),
-        assert(self._areaHeight)
-    )
+    return self._previewContext
 end
 
----@param previousAreaX      integer
----@param previousAreaY      integer
----@param previousAreaWidth  integer
----@param previousAreaHeight integer
-function MovementDangerState:_refreshEntriesForArea(previousAreaX, previousAreaY, previousAreaWidth, previousAreaHeight)
-    local previousGrid = self._entryGrid
-    self._entries = {}
-    self._entryGrid = {}
-    if self._player == nil or not bool(self._enemies) then
+function MovementDangerState:_ensureEntries()
+    if self._entriesValid then
         return
     end
-    self._entries, self._entryGrid = MovementDangerGrid.Refresh(
-        self._enemies, self._player, assert(self._areaX), assert(self._areaY), assert(self._areaWidth),
-        assert(self._areaHeight), previousAreaX, previousAreaY, previousAreaWidth, previousAreaHeight, previousGrid
-    )
+    local areaX = self._areaX
+    local areaY = self._areaY
+    local areaWidth = self._areaWidth
+    local areaHeight = self._areaHeight
+    if self._player == nil or not bool(self._enemies) then
+        self._entries = {}
+        self._entryGrid = {}
+        self._entryAreaX = areaX
+        self._entryAreaY = areaY
+        self._entryAreaWidth = areaWidth
+        self._entryAreaHeight = areaHeight
+        self._entriesValid = true
+        return
+    end
+    local previewContext = assert(self:_getPreviewContext())
+    if self._entryAreaX == nil or self._entryAreaY == nil
+        or self._entryAreaWidth == nil or self._entryAreaHeight == nil then
+        self._entries, self._entryGrid = MovementDangerGrid.Build(
+            self._enemies, self._player, assert(areaX), assert(areaY), assert(areaWidth), assert(areaHeight),
+            previewContext
+        )
+    else
+        self._entries, self._entryGrid = MovementDangerGrid.Refresh(
+            self._enemies, self._player, assert(areaX), assert(areaY), assert(areaWidth), assert(areaHeight),
+            self._entryAreaX, self._entryAreaY, self._entryAreaWidth, self._entryAreaHeight, self._entryGrid,
+            previewContext
+        )
+    end
+    self._entryAreaX = areaX
+    self._entryAreaY = areaY
+    self._entryAreaWidth = areaWidth
+    self._entryAreaHeight = areaHeight
+    self._entriesValid = true
 end
 
 function MovementDangerState:getPathfindingRevision()
@@ -168,10 +191,20 @@ function MovementDangerState:getPreviewRevision()
 end
 
 function MovementDangerState:getEntries()
+    self:_ensureEntries()
     return self._entries
 end
 
 function MovementDangerState:getDamageAt(position, ignoredEnemies)
+    if not self._entriesValid then
+        if self._player == nil or not bool(self._enemies) then
+            return 0
+        end
+        local result = MovementSpecials.Preview(
+            self._enemies, self._player, position, ignoredEnemies, assert(self:_getPreviewContext())
+        )
+        return result.data.damage
+    end
     local entry = self._entryGrid[position.y + 1] ~= nil and self._entryGrid[position.y + 1][position.x + 1] or nil
     if entry == nil then
         return 0
@@ -185,6 +218,7 @@ function MovementDangerState:getDamageAt(position, ignoredEnemies)
 end
 
 function MovementDangerState:getExcludedAnchors(goal, ignoredGoalEnemies, allowGoal)
+    self:_ensureEntries()
     local result = {}
     local ignoredEnemySet = nil
     if bool(ignoredGoalEnemies) then

@@ -1,11 +1,12 @@
+local Engine = require("Engine")
 local Locale = require("Source.Locale.Core")
 local NodeUtils = require("Source.NodeFunctions.Utils")
-local TextLayout = require("Source.TextLayout")
 local Ui = require("Source.UI.Ui")
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 local ToShortNumber = NodeUtils.ToShortNumber
+local TextLayout = Engine.TextLayout
 
 local _CELL_WIDTH = 320
 local _CELL_HEIGHT = 64
@@ -97,7 +98,7 @@ end
 function WindowEnemyBookCellUI:refresh()
     local specialAreaWidth = measureSpecialAreaWidth(self._specialDisplays, self._specialTexts)
     local nameMaxWidth = math.max(32, math.floor(_CELL_WIDTH - _ICON_AREA_WIDTH - specialAreaWidth))
-    self:setText("Name", TextLayout.FitPlainText(self.model.entry.name or "", nameMaxWidth, self._nameText))
+    self:setText("Name", TextLayout.fitPlainText(self.model.entry.name or "", nameMaxWidth, self._nameText))
     for _, stat in ipairs(_STAT_FIELDS) do
         local value = tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
         local colour = value == "???" and _UNDEFEATABLE_TEXT_COLOUR or _STAT_TEXT_COLOUR
@@ -120,9 +121,7 @@ function WindowEnemyBookCellUI:refresh()
             self:setProperty("SpecialIcon" .. tostring(index), "visible", true)
         else
             local specialText = assert(self._specialTexts[index])
-            local displayName = TextLayout.FitPlainText(
-                tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, specialText
-            )
+            local displayName = TextLayout.fitPlainText(tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, specialText)
             self._specialDisplayTexts[index] = displayName
             self:setText("SpecialText" .. tostring(index), displayName)
             self:setProperty("SpecialText" .. tostring(index), "visible", true)
@@ -157,10 +156,8 @@ function measureSpecialAreaWidth(specialDisplays, specialTexts)
             width = width + _SPECIAL_ICON_SIZE
         else
             local specialText = assert(specialTexts[index])
-            local displayName = TextLayout.FitPlainText(
-                tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, specialText
-            )
-            width = width + TextLayout.MeasurePlainText(specialText, displayName)
+            local displayName = TextLayout.fitPlainText(tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, specialText)
+            width = width + TextLayout.measurePlainText(specialText, displayName)
         end
     end
     return width
@@ -181,7 +178,7 @@ function WindowEnemyBookCellUI:_layoutSpecials()
         else
             local displayName = assert(self._specialDisplayTexts[index])
             local specialText = assert(self._specialTexts[index])
-            local textWidth = TextLayout.MeasurePlainText(specialText, displayName)
+            local textWidth = TextLayout.measurePlainText(specialText, displayName)
             specialText:setPosition(sf.Vector2f.new(currentX, 0.0))
             currentX = currentX - textWidth - _SPECIAL_GAP
         end

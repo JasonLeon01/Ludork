@@ -1,4 +1,3 @@
-local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
@@ -191,7 +190,7 @@ end
 ---@param slotNumber integer
 function WindowSaveLoad:_handleLoad(slotNumber)
     local filePath = Save.GetSavePath(slotNumber)
-    if not CoreSystem.exists(filePath) then
+    if not os.path.isfile(filePath) then
         ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
         return
     end

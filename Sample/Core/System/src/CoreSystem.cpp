@@ -1,15 +1,14 @@
 #include <CoreSystem.hpp>
 
+#include <Base64.hpp>
 #include <Utf8Path.hpp>
 
 #include <zlib.h>
 
 #include <array>
-#include <cctype>
 #include <filesystem>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 
 namespace {
 std::string transform(const std::string& value, int windowBits) {
@@ -35,14 +34,6 @@ std::string transform(const std::string& value, int windowBits) {
     return result;
 }
 }  // namespace
-
-bool exists(const std::string& path) {
-    return std::filesystem::exists(ludork::standard::pathFromUtf8(path));
-}
-
-std::string currentPath() {
-    return ludork::standard::pathToUtf8(std::filesystem::current_path());
-}
 
 void createDirectories(const std::string& path) {
     std::filesystem::create_directories(ludork::standard::pathFromUtf8(path));
@@ -73,63 +64,16 @@ std::string decompress(const std::string& value) {
 }
 
 std::string encodeBase64(const std::string& value) {
-    static constexpr std::string_view alphabet =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string result;
-    result.reserve(((value.size() + 2) / 3) * 4);
-    std::size_t index = 0;
-    while (index + 3 <= value.size()) {
-        const unsigned int first = static_cast<unsigned char>(value[index]);
-        const unsigned int second =
-            static_cast<unsigned char>(value[index + 1]);
-        const unsigned int third = static_cast<unsigned char>(value[index + 2]);
-        result.push_back(alphabet[(first >> 2) & 0x3F]);
-        result.push_back(alphabet[((first & 0x03) << 4) | (second >> 4)]);
-        result.push_back(alphabet[((second & 0x0F) << 2) | (third >> 6)]);
-        result.push_back(alphabet[third & 0x3F]);
-        index += 3;
-    }
-    const std::size_t remaining = value.size() - index;
-    if (remaining == 1) {
-        const unsigned int first = static_cast<unsigned char>(value[index]);
-        result.push_back(alphabet[(first >> 2) & 0x3F]);
-        result.push_back(alphabet[(first & 0x03) << 4]);
-        result.append("==");
-    } else if (remaining == 2) {
-        const unsigned int first = static_cast<unsigned char>(value[index]);
-        const unsigned int second =
-            static_cast<unsigned char>(value[index + 1]);
-        result.push_back(alphabet[(first >> 2) & 0x3F]);
-        result.push_back(alphabet[((first & 0x03) << 4) | (second >> 4)]);
-        result.push_back(alphabet[(second & 0x0F) << 2]);
-        result.push_back('=');
-    }
-    return result;
+    return ludork::standard::encodeBase64(std::span<const std::uint8_t>(
+        reinterpret_cast<const std::uint8_t*>(value.data()), value.size()));
 }
 
 std::string decodeBase64(const std::string& value) {
-    static constexpr std::string_view alphabet =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string result;
-    unsigned int accumulator = 0;
-    int bits = -8;
-    for (const unsigned char character : value) {
-        if (std::isspace(character)) {
-            continue;
-        }
-        if (character == '=') {
-            break;
-        }
-        const std::size_t index = alphabet.find(static_cast<char>(character));
-        if (index == std::string_view::npos) {
-            throw std::runtime_error("Invalid base64 data");
-        }
-        accumulator = (accumulator << 6) | static_cast<unsigned int>(index);
-        bits += 6;
-        if (bits >= 0) {
-            result.push_back(static_cast<char>((accumulator >> bits) & 0xFF));
-            bits -= 8;
-        }
+    try {
+        const std::vector<std::uint8_t> bytes =
+            ludork::standard::decodeBase64(value);
+        return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+    } catch (const std::invalid_argument&) {
+        throw std::runtime_error("Invalid base64 data");
     }
-    return result;
 }

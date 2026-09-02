@@ -100,7 +100,7 @@ function Player:addItem(itemID, count) end
 function Player:removeItem(itemID, count) end
 
 ---@param itemID string
----@return Global.Gameplay.GameplayAbilityResult
+---@return GlobalCore.GameplayAbilityResult
 function Player:activateItem(itemID) end
 
 ---@brief Get the count of a specific item in the player's inventory.

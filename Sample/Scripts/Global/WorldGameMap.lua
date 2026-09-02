@@ -2,7 +2,6 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local cjson = require("cjson")
 local GameMap = require("Global.GameMap")
-local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local WorldGameMapActors = require("Global.WorldGameMap.Actors")
 local WorldGameMapActorStreaming = require("Global.WorldGameMap.ActorStreaming")
@@ -15,8 +14,12 @@ local WorldGameMapStreaming = require("Global.WorldGameMap.Streaming")
 local Logging = require("Global.Utils.Logging")
 local ActorMapService = Engine.ActorMapService
 local FogController = GlobalCore.FogController
+local WorldRegionState = GlobalCore.WorldRegionState
+local WorldStreamingState = GlobalCore.WorldStreamingState
 
 local SIGNIFICANT_PUBLISH_OVERRUN_MILLISECONDS = 4.0
+local NON_ACTIVE_CACHE_REGION_LIMIT = 32
+local NON_ACTIVE_CACHE_BYTE_LIMIT = 256 * 1024 * 1024
 ---@class (partial) Global.WorldGameMap.WorldGameMap: GameMap
 local WorldGameMap = {}
 
@@ -61,26 +64,15 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldBounds = { x = 0, y = 0, width = config.width, height = config.height }
     self._worldRegions = config.regions
     self._worldRegionFactory = regionFactory
-    self._worldRegionBuckets = {}
-    self._worldLoadedRegions = {}
     self._worldMovedActorRecorder = nil
     self:_initialiseWorldActorState(config, reservedTags)
-    self._worldStreamQueue = {}
-    self._worldStreamQueued = {}
     self._worldStreamJob = nil
     self._worldStreamJobRegions = {}
     self._worldStreamBatchRegions = {}
-    self._worldPublishQueue = {}
-    self._worldPublishQueued = {}
-    self._worldDemandGeneration = 0
-    self._worldPreviousCameraCenterX = nil
-    self._worldPreviousCameraCenterY = nil
     self._worldActiveRect = nil
     self._worldPreparedRect = nil
     self._worldStreamingCameraPosition = nil
     self._worldDisposed = false
-    self._worldCacheBytes = 0
-    self._worldCacheBytesDirty = true
     self._worldPublishMilliseconds = 0.0
     self._worldPublishSlowStage = "idle"
     self._worldPublishSlowStageMilliseconds = 0.0
@@ -92,14 +84,22 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldShadersPrewarmed = false
     self._worldPrewarmMilliseconds = 0.0
     self._worldPrewarmReadbackMilliseconds = 0.0
-    self:_indexRegions()
     local worldSize = sf.Vector2u.new(config.width, config.height)
     local regionRects = {}
     for _, region in ipairs(self._worldRegions) do
+        region.payload = nil
+        region.publishState = nil
+        region.backgroundBuilder = nil
+        region.wasActive = false
+        region.wakeTags = nil
+        region.activeChunkGeneration = nil
         regionRects[#regionRects + 1] = sf.IntRect.new(region.x, region.y, region.width, region.height)
     end
     ---@cast worldSize sf.Vector2u
     ---@cast regionRects sf.IntRect[]
+    self._worldStreamingState = WorldStreamingState.new(
+        regionRects, NON_ACTIVE_CACHE_REGION_LIMIT, NON_ACTIVE_CACHE_BYTE_LIMIT
+    )
     ---@type Global.GameMap.SparseWorldConfig
     local sparseWorldConfig = { size = worldSize, layerOrder = config.layerOrder, regionRects = regionRects }
     GameMap.init(self, config.worldName, Engine.Tilemap.new({}), nil, false, sparseWorldConfig)
@@ -124,21 +124,13 @@ function WorldGameMap:setMovedActorPersistenceCallback(movedActorRecorder)
 end
 
 function WorldGameMap:getStreamingStats()
-    local result = {
-        Unloaded = 0,
-        Reading = 0,
-        Prepared = 0,
-        Active = 0,
-        Dormant = 0,
-        queued = #self._worldStreamQueue + #self._worldPublishQueue
-    }
+    local backgroundQueueDepth = 0
     for _, region in ipairs(self._worldRegions) do
-        result[region.state] = result[region.state] + 1
         if region.backgroundBuilder ~= nil then
-            result.queued = result.queued + 1
+            backgroundQueueDepth = backgroundQueueDepth + 1
         end
     end
-    return result
+    return self._worldStreamingState:getStats(backgroundQueueDepth)
 end
 
 function WorldGameMap:disposeStreaming()
@@ -155,18 +147,15 @@ function WorldGameMap:disposeStreaming()
         region.backgroundBuilder = nil
         region.activeChunkGeneration = nil
     end
-    self._worldPublishQueue = {}
-    self._worldPublishQueued = {}
     self:clearSparseWorld()
-    for region in pairs(self._worldLoadedRegions) do
-        assert(region.payload ~= nil, "Loaded world region has no payload: " .. region.path)
-        FogController.removeWorldRegionFog(region.path)
-        region.payload = nil
-        region.payloadBytes = nil
-        region.backgroundBuilder = nil
-        region.state = "Unloaded"
+    for _, region in ipairs(self._worldRegions) do
+        if region.payload ~= nil then
+            FogController.removeWorldRegionFog(region.path)
+            region.payload = nil
+            region.backgroundBuilder = nil
+        end
     end
-    self._worldLoadedRegions = {}
+    self._worldStreamingState:reset()
     self._worldActorsByTag = {}
     self._worldActorLayers = {}
     self._worldActorDefinitionRegions = {}
@@ -175,10 +164,7 @@ function WorldGameMap:disposeStreaming()
     self._worldRootStates = {}
     self._worldRootSleepTimes = {}
     self._worldLooseRoots = {}
-    self._worldLooseRootChunks = {}
-    self._worldLooseRootChunkKeys = {}
     self._worldPendingRehomes = {}
-    self._worldActorDemandRegions = {}
     self._worldObservedRootPositions = {}
     self._worldDestroyedRootsDirty = false
     self._worldActiveChunkBounds = nil
@@ -188,8 +174,6 @@ function WorldGameMap:disposeStreaming()
     self._worldActivationDeferred = false
     self._layerMaskTextureCache = {}
     self._worldShaderPrewarmTarget = nil
-    self._worldCacheBytes = 0
-    self._worldCacheBytesDirty = false
 end
 
 ---@param region   Source.SceneComponents.WorldRegionData
@@ -210,10 +194,9 @@ end
 function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
     local payload = assert(region.payload)
     self:_filterSuppressedRegionActors(region, payload)
-    assert(not self._worldLoadedRegions[region], "World region is already in the loaded set: " .. region.path)
-    self._worldLoadedRegions[region] = true
-    region.state = "Prepared"
-    region.lastUsed = perfCounter()
+    assert(
+        not self._worldStreamingState:isRegionLoaded(region.index), "World region is already loaded: " .. region.path
+    )
     local builder = region.backgroundBuilder
     self:setSparseWorldRegion(region.index, payload.tilemap, builder == nil or builder.areActorsReady())
     local regionRect = sf.IntRect.new(region.x, region.y, region.width, region.height)
@@ -250,8 +233,7 @@ function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
         or WorldMapConstants.REGION_FIXED_CACHE_BYTES
             + region.width * region.height
                 * #self._worldConfig.layerOrder * WorldMapConstants.REGION_LAYER_CELL_CACHE_BYTES
-    region.payloadBytes = sourceBytes * 4 + runtimeBytes
-    self._worldCacheBytesDirty = true
+    self._worldStreamingState:completePublish(region.index, sourceBytes * 4 + runtimeBytes, false)
     if activate then
         self:_activateRegion(region)
     end
@@ -273,7 +255,8 @@ end
 ---@param position sf.Vector2i
 ---@return Source.SceneComponents.WorldRegionData | nil, sf.Vector2i | nil
 function WorldGameMap:getRegionPosition(position)
-    local region = self:_findRegionAt(position)
+    local regionIndex = self:getSparseWorldRegionIndexAt(position)
+    local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     if region == nil then
         return nil, nil
     end
@@ -289,7 +272,8 @@ end
 ---@param position sf.Vector2i
 ---@return Source.SceneComponents.WorldRegionEnvironmentData | nil
 function WorldGameMap:getEnvironmentDataAt(position)
-    local region = self:_findRegionAt(position)
+    local regionIndex = self:getSparseWorldRegionIndexAt(position)
+    local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     if region == nil or region.payload == nil then
         return nil
     end
@@ -297,7 +281,8 @@ function WorldGameMap:getEnvironmentDataAt(position)
 end
 
 function WorldGameMap:ensureRegionLoadedAt(position)
-    local region = self:_findRegionAt(position)
+    local regionIndex = self:getSparseWorldRegionIndexAt(position)
+    local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     if region == nil then
         return nil
     end
@@ -456,48 +441,10 @@ function WorldGameMap:setTerrainTiles(layerName, positions, tileID)
     return changed
 end
 
----@param position sf.Vector2i
----@return Source.SceneComponents.WorldRegionData | nil
-function WorldGameMap:_findRegionAt(position)
-    if not WorldGeometry.RectContainsPosition(self._worldBounds, position) then
-        return nil
-    end
-    local key = WorldGeometry.CellChunkKey(position, WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    for _, region in ipairs(self._worldRegionBuckets[key] or {}) do
-        if WorldGeometry.RectContainsPosition(region, position) then
-            return region
-        end
-    end
-    return nil
-end
-
-function WorldGameMap:_indexRegions()
-    for _, region in ipairs(self._worldRegions) do
-        region.state = "Unloaded"
-        region.payload = nil
-        region.publishState = nil
-        region.backgroundBuilder = nil
-        region.wasActive = false
-        region.wakeTags = nil
-        region.activeChunkGeneration = nil
-        local firstX = math.floor(region.x / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-        local firstY = math.floor(region.y / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-        local lastX = math.floor((region.x + region.width - 1) / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-        local lastY = math.floor((region.y + region.height - 1) / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-        for bucketY = firstY, lastY do
-            for bucketX = firstX, lastX do
-                local key = WorldGeometry.GridKey(bucketX, bucketY)
-                self._worldRegionBuckets[key] = self._worldRegionBuckets[key] or {}
-                self._worldRegionBuckets[key][#self._worldRegionBuckets[key] + 1] = region
-            end
-        end
-    end
-end
-
 function WorldGameMap:_refreshWorldLights()
     local lights = copy(self._worldRuntimeLights)
     for _, region in ipairs(self._worldRegions) do
-        if region.payload ~= nil and region.state == "Active" then
+        if region.payload ~= nil and self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
             for _, light in ipairs(region.payload.lights) do
                 lights[#lights + 1] = light
             end
@@ -644,22 +591,6 @@ end
 
 function WorldGameMap:_activateWorldRoots(roots)
     return WorldGameMapActors._activateWorldRoots(self, roots)
-end
-
-function WorldGameMap:_removeRegionRootChunk(payload, root)
-    return WorldGameMapActors._removeRegionRootChunk(self, payload, root)
-end
-
-function WorldGameMap:_refreshRegionRootChunk(payload, root)
-    return WorldGameMapActors._refreshRegionRootChunk(self, payload, root)
-end
-
-function WorldGameMap:_removeLooseRootChunk(root)
-    return WorldGameMapActors._removeLooseRootChunk(self, root)
-end
-
-function WorldGameMap:_refreshLooseRootChunk(root)
-    return WorldGameMapActors._refreshLooseRootChunk(self, root)
 end
 
 function WorldGameMap:_removeRegionRootMetadata(payload, root)
@@ -992,10 +923,6 @@ function WorldGameMap:_toShaderColour(colour, applyAlpha)
     return WorldGameMapLightingPass._toShaderColour(self, colour, applyAlpha)
 end
 
-function WorldGameMap:_removeRegionFromPublishQueue(region)
-    return WorldGameMapRegionPublishing._removeRegionFromPublishQueue(self, region)
-end
-
 function WorldGameMap:_cancelRegionPublish(region)
     return WorldGameMapRegionPublishing._cancelRegionPublish(self, region)
 end
@@ -1042,10 +969,6 @@ function WorldGameMap:_publishRegion(region, data, activate)
     return WorldGameMapRegionPublishing._publishRegion(self, region, data, activate)
 end
 
-function WorldGameMap:_refreshCacheBytes()
-    return WorldGameMapRegionPublishing._refreshCacheBytes(self)
-end
-
 function WorldGameMap:_enforceCacheBudget()
     return WorldGameMapRegionPublishing._enforceCacheBudget(self)
 end
@@ -1082,22 +1005,6 @@ function WorldGameMap:_isRegionDemanded(region)
     return WorldGameMapStreaming._isRegionDemanded(self, region)
 end
 
-function WorldGameMap:_dropStaleStreamQueue()
-    return WorldGameMapStreaming._dropStaleStreamQueue(self)
-end
-
-function WorldGameMap:_dropStalePublishQueue()
-    return WorldGameMapStreaming._dropStalePublishQueue(self)
-end
-
-function WorldGameMap:_sortStreamQueue()
-    return WorldGameMapStreaming._sortStreamQueue(self)
-end
-
-function WorldGameMap:_sortPublishQueue()
-    return WorldGameMapStreaming._sortPublishQueue(self)
-end
-
 function WorldGameMap:_streamBatchHasDemand()
     return WorldGameMapStreaming._streamBatchHasDemand(self)
 end
@@ -1108,10 +1015,6 @@ end
 
 function WorldGameMap:_cancelExpiredStreamingBatch()
     return WorldGameMapStreaming._cancelExpiredStreamingBatch(self)
-end
-
-function WorldGameMap:_queueRegion(region)
-    return WorldGameMapStreaming._queueRegion(self, region)
 end
 
 function WorldGameMap:_startStreamingBatch()

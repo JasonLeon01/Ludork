@@ -1,5 +1,6 @@
 #include <Graphics/CompressAnimation.hpp>
 
+#include <Base64.hpp>
 #include <Utf8Path.hpp>
 
 #include <SFML/Graphics/Color.hpp>
@@ -82,25 +83,6 @@ sf::Texture* getTexture(
     std::unique_ptr<sf::Texture> texture = std::make_unique<sf::Texture>(path);
     sf::Texture* result = texture.get();
     cache.emplace(index, std::move(texture));
-    return result;
-}
-
-std::string encodeBase64(const std::uint8_t* bytes, std::size_t size) {
-    static constexpr char alphabet[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string result;
-    result.reserve(((size + 2) / 3) * 4);
-    for (std::size_t index = 0; index < size; index += 3) {
-        const std::uint32_t first = bytes[index];
-        const std::uint32_t second = index + 1 < size ? bytes[index + 1] : 0u;
-        const std::uint32_t third = index + 2 < size ? bytes[index + 2] : 0u;
-        const std::uint32_t value = (first << 16u) | (second << 8u) | third;
-        result.push_back(alphabet[(value >> 18u) & 0x3fu]);
-        result.push_back(alphabet[(value >> 12u) & 0x3fu]);
-        result.push_back(index + 1 < size ? alphabet[(value >> 6u) & 0x3fu]
-                                          : '=');
-        result.push_back(index + 2 < size ? alphabet[value & 0x3fu] : '=');
-    }
     return result;
 }
 
@@ -337,8 +319,10 @@ AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
     result.duration = compressed.duration;
     result.frames.reserve(compressed.frames.size());
     for (const std::string& frame : compressed.frames) {
-        result.frames.emplace_back(encodeBase64(
-            reinterpret_cast<const std::uint8_t*>(frame.data()), frame.size()));
+        result.frames.emplace_back(
+            ludork::standard::encodeBase64(std::span<const std::uint8_t>(
+                reinterpret_cast<const std::uint8_t*>(frame.data()),
+                frame.size())));
     }
     result.sounds = std::move(compressed.sounds);
     return result;

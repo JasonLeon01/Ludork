@@ -1,12 +1,11 @@
 local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
-local RegionOrdering = require("Global.WorldGameMap.RegionOrdering")
 
 local System = GlobalCore.System
+local WorldRegionDemand = GlobalCore.WorldRegionDemand
+local WorldRegionState = GlobalCore.WorldRegionState
 local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 local STREAM_CONVERSION_NODE_BUDGET = 64
-local NON_ACTIVE_CACHE_REGION_LIMIT = 32
-local NON_ACTIVE_CACHE_BYTE_LIMIT = 256 * 1024 * 1024
 
 ---@type WorldGameMapImplState
 local WorldGameMapRegionPublishing = {}
@@ -42,20 +41,11 @@ local function beginRegionPublishState(world, region, forceActivate)
     if region.publishState ~= nil then
         if forceActivate then
             region.publishState.forceActivate = true
+            world._worldStreamingState:beginPublish(region.index, true)
         end
         return nil
     end
     assert(region.payload == nil, "World region is already installed: " .. region.path)
-    if world._worldStreamQueued[region] then
-        local queue = {}
-        for _, queuedRegion in ipairs(world._worldStreamQueue) do
-            if queuedRegion ~= region then
-                queue[#queue + 1] = queuedRegion
-            end
-        end
-        world._worldStreamQueue = queue
-        world._worldStreamQueued[region] = nil
-    end
     local state = {
         forceActivate = forceActivate,
         phase = "build",
@@ -68,25 +58,8 @@ local function beginRegionPublishState(world, region, forceActivate)
         definitionRoots = {}
     }
     region.publishState = state
-    region.state = "Reading"
-    world._worldPublishQueued[region] = true
-    world._worldPublishQueue[#world._worldPublishQueue + 1] = region
+    world._worldStreamingState:beginPublish(region.index, forceActivate)
     return state
-end
-
----@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapRegionPublishing:_removeRegionFromPublishQueue(region)
-    if not self._worldPublishQueued[region] then
-        return
-    end
-    local queue = {}
-    for _, queuedRegion in ipairs(self._worldPublishQueue) do
-        if queuedRegion ~= region then
-            queue[#queue + 1] = queuedRegion
-        end
-    end
-    self._worldPublishQueue = queue
-    self._worldPublishQueued[region] = nil
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
@@ -114,13 +87,10 @@ function WorldGameMapRegionPublishing:_cancelRegionPublish(region)
         state.payload.actorSet = {}
         state.payload.actorRoots = {}
         state.payload.activeRoots = {}
-        state.payload.rootChunks = {}
-        state.payload.rootChunkKeys = {}
     end
     region.publishState = nil
-    self:_removeRegionFromPublishQueue(region)
     if region.payload == nil then
-        region.state = "Unloaded"
+        self._worldStreamingState:cancelPublish(region.index, false)
     end
 end
 
@@ -260,9 +230,12 @@ function WorldGameMapRegionPublishing:_stepRegionPublish(region, deadline)
         region.backgroundBuilder = state.builder
     end
     region.publishState = nil
-    self._worldPublishQueued[region] = nil
     local installStarted = perfCounter()
-    self:_completeRegionInstall(region, state.forceActivate or region.demand == "Active", state.contentBytes)
+    self:_completeRegionInstall(
+        region,
+        state.forceActivate or self._worldStreamingState:getRegionDemand(region.index) == WorldRegionDemand.Active,
+        state.contentBytes
+    )
     recordPublishStage(self, "installRegion", (perfCounter() - installStarted) * 1000.0)
     return true
 end
@@ -322,7 +295,6 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundActors(region, builde
                 builder.actorPublishQueue = nil
                 builder.actorPublishRoot = nil
                 builder.actorPublishLayer = nil
-                self._worldCacheBytesDirty = true
             end
         end
     end
@@ -361,17 +333,16 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
     local visibleRect = self._camera ~= nil and self:_getVisibleCellRect() or nil
     local urgent = {}
     local background = {}
-    for region in pairs(self._worldLoadedRegions) do
+    for _, region in ipairs(self._worldRegions) do
         local builder = region.backgroundBuilder
         if builder ~= nil and self:_isRegionDemanded(region) then
-            if region.demand == "Active" and visibleRect ~= nil and not builder.isRectReady(visibleRect) then
+            if self._worldStreamingState:getRegionDemand(region.index) == WorldRegionDemand.Active and visibleRect
+                    ~= nil and not builder.isRectReady(visibleRect) then
                 urgent[#urgent + 1] = region
             end
             background[#background + 1] = region
         end
     end
-    RegionOrdering.SortByIndex(urgent)
-    RegionOrdering.SortByIndex(background)
     if bool(urgent) then
         local index = self._worldUrgentBuildCursor % #urgent + 1
         self._worldUrgentBuildCursor = self._worldUrgentBuildCursor + 1
@@ -398,7 +369,7 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
             region.lightingRevision = builder.lightingRevision
             self:_refreshWorldLights()
         end
-        if region.state == "Active"
+        if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
             and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
             self:_syncRegionActorActivation(region)
         end
@@ -429,7 +400,7 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
             region.lightingRevision = builder.lightingRevision
             self:_refreshWorldLights()
         end
-        if region.state == "Active"
+        if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
             and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
             self:_syncRegionActorActivation(region)
         end
@@ -442,7 +413,6 @@ end
 
 ---@param region Source.SceneComponents.WorldRegionData
 function WorldGameMapRegionPublishing:_drainRegionPublish(region)
-    self:_removeRegionFromPublishQueue(region)
     local started = perfCounter()
     while region.publishState ~= nil do
         local deadline = region.publishState.phase == "convert" and perfCounter() + STREAM_PUBLISH_BUDGET_SECONDS
@@ -454,17 +424,19 @@ end
 
 ---@param deadline number
 function WorldGameMapRegionPublishing:_pumpRegionPublishing(deadline)
-    while bool(self._worldPublishQueue) and perfCounter() < deadline do
-        local region = table.remove(self._worldPublishQueue, 1)
-        self._worldPublishQueued[region] = nil
+    while perfCounter() < deadline do
+        local regionIndex = self._worldStreamingState:takePublishItem()
+        if regionIndex == nil then
+            break
+        end
+        local region = assert(self._worldRegions[regionIndex], "Native world publish queue returned an invalid region")
         if region.publishState ~= nil then
             if self:_isRegionDemanded(region) or region.publishState.forceActivate then
                 local started = perfCounter()
                 local completed = self:_stepRegionPublish(region, deadline)
                 self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
                 if not completed then
-                    self._worldPublishQueued[region] = true
-                    self._worldPublishQueue[#self._worldPublishQueue + 1] = region
+                    self._worldStreamingState:deferPublish(region.index)
                 end
             else
                 self:_cancelRegionPublish(region)
@@ -481,66 +453,10 @@ function WorldGameMapRegionPublishing:_publishRegion(region, data, activate)
     self:_drainRegionPublish(region)
 end
 
-function WorldGameMapRegionPublishing:_refreshCacheBytes()
-    if not self._worldCacheBytesDirty then
-        return
-    end
-    local cacheBytes = 0
-    for region in pairs(self._worldLoadedRegions) do
-        assert(region.payload ~= nil, "Loaded world region has no payload: " .. region.path)
-        if region.state ~= "Active" then
-            cacheBytes = cacheBytes
-                + assert(region.payloadBytes, "World region cache size is unavailable: " .. region.path)
-        end
-    end
-    self._worldCacheBytes = cacheBytes
-    self._worldCacheBytesDirty = false
-end
-
 function WorldGameMapRegionPublishing:_enforceCacheBudget()
-    self:_refreshCacheBytes()
-    local dormant = {}
-    local prepared = {}
-    local cacheCount = 0
-    ---@cast dormant Source.SceneComponents.WorldRegionData[]
-    ---@cast prepared Source.SceneComponents.WorldRegionData[]
-    for region in pairs(self._worldLoadedRegions) do
-        assert(region.payload ~= nil, "Loaded world region has no payload: " .. region.path)
-        if region.state ~= "Active" then
-            cacheCount = cacheCount + 1
-            if not self._worldActorDemandRegions[region] then
-                if region.state == "Dormant" then
-                    dormant[#dormant + 1] = region
-                else
-                    prepared[#prepared + 1] = region
-                end
-            end
-        end
+    for _, regionIndex in ipairs(self._worldStreamingState:getEvictionList()) do
+        self:_evictRegion(assert(self._worldRegions[regionIndex], "Native world eviction list returned an invalid region"))
     end
-    if cacheCount <= NON_ACTIVE_CACHE_REGION_LIMIT and self._worldCacheBytes <= NON_ACTIVE_CACHE_BYTE_LIMIT then
-        return
-    end
-    RegionOrdering.SortByLastUsed(dormant)
-    RegionOrdering.SortByLastUsed(prepared)
-    local dormantIndex = 1
-    local preparedIndex = 1
-    while cacheCount > NON_ACTIVE_CACHE_REGION_LIMIT or self._worldCacheBytes > NON_ACTIVE_CACHE_BYTE_LIMIT do
-        local region = dormant[dormantIndex]
-        if region ~= nil then
-            dormantIndex = dormantIndex + 1
-        else
-            region = prepared[preparedIndex]
-            preparedIndex = preparedIndex + 1
-        end
-        if region == nil then
-            break
-        end
-        local payloadBytes = region.payloadBytes or 0
-        self:_evictRegion(region)
-        cacheCount = cacheCount - 1
-        self._worldCacheBytes = math.max(0, self._worldCacheBytes - payloadBytes)
-    end
-    self._worldCacheBytesDirty = false
 end
 
 ---@return integer
@@ -579,10 +495,9 @@ function WorldGameMapRegionPublishing:_recordStreamingProfile()
     if not System.isPerformanceProfilerEnabled() then
         return
     end
-    self:_refreshCacheBytes()
     local stats = self:getStreamingStats()
     System.recordWorldStreamingPerformance(
-        stats.queued, stats.Reading, stats.Prepared, stats.Active, stats.Dormant, self._worldCacheBytes,
+        stats.queued, stats.Reading, stats.Prepared, stats.Active, stats.Dormant, stats.cacheBytes,
         self._worldPublishMilliseconds, self:_getVisibleTileChunkCount(), self:_getActiveActorCount()
     )
 end

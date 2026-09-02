@@ -6,7 +6,7 @@ local _METADATA = {
             parameters = {},
             ["return"] = {
                 "context",
-                context = { "Global.Gameplay.GameplayEventData", "GameplayEventData" }
+                context = { "GlobalCore", "GameplayEventData" }
             },
             Pure = true
         },
