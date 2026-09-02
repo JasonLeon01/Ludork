@@ -56,7 +56,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private UiPreviewClient previewClient = null!;
     private UiPreviewSurface previewSurface = null!;
     private readonly DeferredWindowInitializer initializer = null!;
-    private readonly HashSet<string> lockedNodeNames = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, UiControlDescriptor> controlLookup =
         new Dictionary<string, UiControlDescriptor>(StringComparer.Ordinal);
     private string? selectedNodeName;
@@ -278,16 +277,10 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (root is null)
         {
             HierarchyTree.ItemsSource = Array.Empty<UiHierarchyItem>();
-            lockedNodeNames.Clear();
             selectedNodeName = null;
             previewSurface.SetSelectedNode(null);
             return;
         }
-        HashSet<string> nodeNames = UiAssetSchema.EnumerateNodes(document.Data)
-            .Select(node => getString(node, "name"))
-            .Where(name => name.Length != 0)
-            .ToHashSet(StringComparer.Ordinal);
-        lockedNodeNames.IntersectWith(nodeNames);
         UiHierarchyItem rootItem = createHierarchyItem(root);
         HierarchyTree.ItemsSource = new[] { rootItem };
         UiHierarchyItem? selected = findHierarchyItem(rootItem, selectedNodeName);
@@ -323,7 +316,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             controlLabel,
             isNestedAsset,
             getBool((node["properties"] as JsonObject)?["visible"], true),
-            lockedNodeNames.Contains(nodeName),
             children);
     }
 
@@ -520,23 +512,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         args.Handled = true;
     }
 
-    private void onHierarchyLockClicked(object? sender, RoutedEventArgs args)
-    {
-        if (sender is not CheckBox
-            {
-                DataContext: UiHierarchyItem item,
-            } checkBox)
-        {
-            return;
-        }
-        if (checkBox.IsChecked == true)
-            lockedNodeNames.Add(item.NodeName);
-        else
-            lockedNodeNames.Remove(item.NodeName);
-        refreshHierarchy();
-        args.Handled = true;
-    }
-
     private void onDeleteNode(object? sender, RoutedEventArgs args)
     {
         if (selectedNodeName is null)
@@ -678,8 +653,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (!ReferenceEquals(HierarchyTree.SelectedItem, item))
             HierarchyTree.SelectedItem = item;
         JsonObject? parent = document.FindParent(item.NodeName);
-        bool canModify = parent is not null
-            && !lockedNodeNames.Contains(item.NodeName);
+        bool canModify = parent is not null;
         MenuItem delete = new()
         {
             Header = LocaleService.Get("DELETE"),
@@ -888,8 +862,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
         if (string.Equals(selectedNodeName, nodeName, StringComparison.Ordinal))
             selectedNodeName = nextName;
-        if (lockedNodeNames.Remove(nodeName))
-            lockedNodeNames.Add(nextName);
         refreshAll();
     }
 
@@ -1736,8 +1708,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         object? sender,
         UiPreviewTransformEventArgs args)
     {
-        if (lockedNodeNames.Contains(args.NodeName)
-            || !tryGetDesignerCanvasSlot(
+        if (!tryGetDesignerCanvasSlot(
                 args.NodeName,
                 out JsonObject slot))
         {
@@ -2011,7 +1982,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         JsonObject? targetNode = document.FindNode(target.NodeName);
         if (node is null
             || targetNode is null
-            || lockedNodeNames.Contains(nodeName)
             || string.Equals(nodeName, target.NodeName, StringComparison.Ordinal)
             || isDescendant(node, target.NodeName))
         {

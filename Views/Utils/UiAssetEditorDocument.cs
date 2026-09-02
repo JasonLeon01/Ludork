@@ -525,7 +525,6 @@ public sealed class UiHierarchyItem
         string controlLabel,
         bool isNestedAsset,
         bool isVisible,
-        bool isLocked,
         IReadOnlyList<UiHierarchyItem> children)
     {
         NodeName = nodeName;
@@ -534,7 +533,6 @@ public sealed class UiHierarchyItem
         ControlLabel = controlLabel;
         IsNestedAsset = isNestedAsset;
         IsVisible = isVisible;
-        IsLocked = isLocked;
         Children = children;
     }
 
@@ -544,9 +542,7 @@ public sealed class UiHierarchyItem
     public string ControlLabel { get; }
     public bool IsNestedAsset { get; }
     public bool IsVisible { get; }
-    public bool IsLocked { get; }
     public bool CanEditVisibility => !IsNestedAsset;
     public string VisibilityLabel => LocaleService.Get("VISIBILITY");
-    public string LockLabel => LocaleService.Get("LOCK");
     public IReadOnlyList<UiHierarchyItem> Children { get; }
 }

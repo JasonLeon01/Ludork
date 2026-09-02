@@ -114,14 +114,9 @@
                                         DataType="utils:UiHierarchyItem"
                                         ItemsSource="{Binding Children}">
                                         <Grid
-                                            ColumnDefinitions="Auto,*,Auto"
+                                            ColumnDefinitions="*,Auto"
                                             ColumnSpacing="6">
-                                            <CheckBox
-                                                IsChecked="{Binding IsLocked, Mode=OneWay}"
-                                                ToolTip.Tip="{Binding LockLabel}"
-                                                Click="onHierarchyLockClicked" />
                                             <StackPanel
-                                                Grid.Column="1"
                                                 ClipToBounds="True"
                                                 Orientation="Horizontal"
                                                 Spacing="6">
@@ -131,7 +126,7 @@
                                                     Text="{Binding ControlLabel}" />
                                             </StackPanel>
                                             <ToggleButton
-                                                Grid.Column="2"
+                                                Grid.Column="1"
                                                 Classes="hierarchy-visibility"
                                                 IsChecked="{Binding IsVisible, Mode=OneWay}"
                                                 IsEnabled="{Binding CanEditVisibility}"

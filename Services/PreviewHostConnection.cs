@@ -364,17 +364,15 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             ".tools",
             "UiPreviewHost",
             "bin");
-        string debugPath = Path.GetFullPath(Path.Combine(
-            developmentOutput,
-            "Debug",
-            fileName));
-        if (File.Exists(debugPath))
-            return debugPath;
-        string releasePath = Path.GetFullPath(Path.Combine(
-            developmentOutput,
-            "Release",
-            fileName));
-        return File.Exists(releasePath) ? releasePath : null;
+        string[] developmentPaths =
+        [
+            Path.GetFullPath(Path.Combine(developmentOutput, "Debug", fileName)),
+            Path.GetFullPath(Path.Combine(developmentOutput, "Release", fileName)),
+        ];
+        return developmentPaths
+            .Where(File.Exists)
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
     }
 
     private static string getString(JsonObject value, string propertyName, string fallback = "")
