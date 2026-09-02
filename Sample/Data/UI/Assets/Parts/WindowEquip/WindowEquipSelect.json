@@ -1,0 +1,62 @@
+{
+  "type": "uiAsset",
+  "designSize": { "width": 192, "height": 192 },
+  "palette": { "exposed": true, "displayName": "Window Equip Select", "category": "Parts / Window Equip" },
+  "root": {
+    "name": "Root", "controlId": "Engine.Canvas", "properties": { "size": [192, 192] }, "editor": {},
+    "children": [
+      {
+        "name": "WindowFrame", "controlId": "Engine.Window",
+        "properties": { "size": [192, 192], "windowSkin": "", "repeated": false },
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 0 },
+        "editor": {}, "children": []
+      },
+      {
+        "name": "Content", "controlId": "Engine.Canvas", "properties": { "size": [160, 160] },
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 16.0, "top": 16.0, "right": 16.0, "bottom": 16.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 1 },
+        "editor": {},
+        "children": [
+          {
+            "name": "SelectScrollBox", "controlId": "Engine.ScrollBox", "properties": { "size": [160, 160], "windowSkin": "" },
+            "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 0 },
+            "editor": {},
+            "children": [
+              {
+                "name": "SelectList", "controlId": "Engine.ListView",
+                "properties": { "size": [160, 160], "defaultItemHeight": 32, "fixItemHeight": true, "columns": 5 },
+                "slot": {}, "editor": {},
+                "children": [
+                  { "name": "EquipPlaceholder1", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder2", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder3", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder4", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder5", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder6", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder7", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder8", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder9", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder10", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder11", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder12", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder13", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder14", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder15", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder16", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder17", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder18", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder19", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder20", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder21", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder22", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder23", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder24", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "EquipPlaceholder25", "controlId": "Project:Parts/WindowEquip/EquipItemRow", "properties": {}, "slot": {}, "editor": {}, "children": [] }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -26,6 +26,7 @@
 ---@field _pendingRefPosition              sf.Vector2f | nil
 ---@field _name                            string
 ---@field _message                         string
+---@field _panelSize                       sf.Vector2f
 ---@field _ui                              Source.UI.WindowMessage
 ---@field _nameText                        Engine.PlainText
 ---@field _text                            Engine.RichText
@@ -33,6 +34,10 @@ local WindowMessage = {}
 
 ---@brief Construct a message window with default fade and layout settings.
 function WindowMessage:init() end
+
+---@brief Attach the current non-overflowing message or option list directly to the message content.
+---@param listView Engine.ListView | nil
+function WindowMessage:setListView(listView) end
 
 ---@brief Update fade animations, layout, and selection cursor visibility.
 ---
@@ -48,12 +53,6 @@ function WindowMessage:onKeyDown(kwargs) end
 
 ---@brief Cancel the current selection dialogue through the shared return path.
 function WindowMessage:onReturn() end
-
----@brief Advance a plain message dialogue on left mouse click anywhere within the window.
----
---- - @param kwargs Event data with cursor position.
----@param kwargs table
-function WindowMessage:onClick(kwargs) end
 
 ---@brief Check if the window is currently showing a dialogue.
 ---

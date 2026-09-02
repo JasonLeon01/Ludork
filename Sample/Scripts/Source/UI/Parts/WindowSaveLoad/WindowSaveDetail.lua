@@ -4,9 +4,9 @@ local WindowSaveDetailUI = {}
 ---@type function
 local formatTimestamp
 
-function WindowSaveDetailUI:init(model, size)
+function WindowSaveDetailUI:init(model, size, instance)
     self._size = size
-    super(WindowSaveDetailUI, self).init(model, nil)
+    super(WindowSaveDetailUI, self).init(model, instance)
 end
 
 function WindowSaveDetailUI:bind()
@@ -24,8 +24,12 @@ function WindowSaveDetailUI:prepare()
     return super(WindowSaveDetailUI, self).prepare(sf.Vector2u.new(self._size.x, self._size.y))
 end
 
-function WindowSaveDetailUI:attach()
-    self:attachWindowView(self.model)
+function WindowSaveDetailUI:attach(nested)
+    if nested == true then
+        self:attachNestedWindowView(self.model)
+    else
+        self:attachWindowView(self.model)
+    end
 end
 
 function WindowSaveDetailUI:getWindowFrame()

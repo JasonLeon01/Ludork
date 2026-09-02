@@ -2,6 +2,8 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
+local WindowMenuUI = require("Source.UI.WindowMenu")
+local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local WindowCommand = require("Source.Windows.WindowCommand")
 
 local Input = Engine.Input
@@ -69,11 +71,7 @@ end
 function WindowMenuController:bind()
     self._menuControls = {
         configureMenuControl(self.model), configureMenuControl(self.model._windowItem),
-        configureMenuControl(self.model._windowEquipSlot), configureMenuControl(self.model._windowEquipSelect),
-        configureMenuControl(self.model._windowEquipStatus),
-        configureMenuControl(assert(self.model._windowSaveLoad:getTabWindow(), "Menu save tab window is missing")),
-        configureMenuControl(self.model._windowSaveLoad:getSlotWindow()),
-        configureMenuControl(self.model._windowSaveLoad:getDetailWindow()),
+        configureMenuControl(self.model._windowEquip), configureMenuControl(self.model._windowSaveLoad),
         configureMenuControl(self.model._configWindow)
     }
     self._moveRestoreGuard = function ()
@@ -84,7 +82,7 @@ function WindowMenuController:bind()
         self.model:requestKeyboardFocus()
     end
     self.model._windowItem._onCloseCallback = onSubMenuClose
-    self.model._windowEquipSlot._onCloseCallback = onSubMenuClose
+    self.model._windowEquip:setOnCloseCallback(onSubMenuClose)
     self.model._windowItem._onUseCallback = function ()
         self:close()
     end
@@ -189,10 +187,9 @@ end
 function WindowMenuController:_onMenuEquip()
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
-    self.model._windowEquipSelect:open()
-    self.model._windowEquipSlot:open()
+    self.model._windowEquip:open()
     self:_syncReturnButtonSuppression()
-    self.model._windowEquipSlot:requestKeyboardFocusAtCursor()
+    self.model._windowEquip:requestSlotFocus()
 end
 
 function WindowMenuController:_onMenuSave()
@@ -232,8 +229,8 @@ function WindowMenuController:_getCurrentSubMenuFocusTarget()
     if self.model.index == 0 and self.model._windowItem:getVisible() then
         return asSelectableWindow(self.model._windowItem)
     end
-    if self.model.index == 1 and self.model._windowEquipSlot:getVisible() then
-        return asSelectableWindow(self.model._windowEquipSlot)
+    if self.model.index == 1 and self.model._windowEquip:getVisible() then
+        return asSelectableWindow(self.model._windowEquip:getSlotFocusTarget())
     end
     if self.model.index == 2 and self.model._windowSaveLoad:getVisible() then
         return asSelectableWindow(self.model._windowSaveLoad:getSlotWindow())
@@ -257,10 +254,8 @@ function WindowMenuController:_closeSubMenus(exceptName)
         self.model._windowItem:close()
         closed = true
     end
-    if exceptName ~= "equip"
-        and (self.model._windowEquipSlot:getVisible() or self.model._windowEquipSelect:getVisible()
-            or self.model._windowEquipStatus:getVisible()) then
-        self.model._windowEquipSlot:close()
+    if exceptName ~= "equip" and self.model._windowEquip:getVisible() then
+        self.model._windowEquip:close()
         closed = true
     end
     if exceptName ~= "save" and self.model._windowSaveLoad:getVisible() then
@@ -276,21 +271,13 @@ function WindowMenuController:_closeSubMenus(exceptName)
 end
 
 function WindowMenuController:_syncReturnButtonSuppression()
-    local suppressed = self.model._windowItem:getVisible() or self.model._windowEquipSlot:getVisible()
-        or self.model._windowEquipSelect:getVisible() or self.model._windowEquipStatus:getVisible()
+    local suppressed = self.model._windowItem:getVisible() or self.model._windowEquip:getVisible()
         or self.model._windowSaveLoad:getVisible() or self.model._configWindow:isOpen()
     self.model:_setReturnButtonSuppressed(suppressed)
 end
 
 function WindowMenuController:_returnEquipSelectToSlot()
-    if not self.model._windowEquipSelect:getVisible() then
-        return false
-    end
-    if not (self.model._windowEquipSelect:getActive() or self.model._windowEquipSelect:getFocused()) then
-        return false
-    end
-    self.model._windowEquipSelect:returnToSlotWindow()
-    return true
+    return self.model._windowEquip:returnSelectToSlot()
 end
 
 local FinalWindowMenuController = class(WindowMenuController, WindowCommand.Controller)
@@ -303,15 +290,18 @@ WindowMenu.controllerClass = FinalWindowMenuController
 function WindowMenu:init(player, windows)
     self._player = player
     self._windowItem = windows.item
-    self._windowEquipSlot = windows.equipSlot
-    self._windowEquipSelect = windows.equipSelect
-    self._windowEquipStatus = windows.equipStatus
+    self._windowEquip = windows.equip
     self._windowSaveLoad = windows.saveLoad
     self._configWindow = windows.config
     local commands = FinalWindowMenuController.CreateCommands(self)
-    super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 192), commands)
+    super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 192), nil, 160, 32, nil, nil, nil, nil, true)
+    self._ui = WindowMenuUI.new(self)
+    self._ui:attach()
     self:setHasReturnBtn(true)
-    self._menuController = self._commandController
+    self:setScrollBox(self._ui:getScrollBox())
+    self:setListView(self._ui:getListView())
+    self._menuController = self.controllerClass.new(self, self.content:getSize(), 32, 1)
+    self._menuController:attachTo(self._ui:getListView(), commands)
     ---@cast self._menuController Source.Windows.WindowMenu.Controller
     self._menuControls = self._menuController:getMenuControls()
 end
@@ -405,4 +395,4 @@ function WindowMenu:_returnEquipSelectToSlot()
     return self._menuController:_returnEquipSelectToSlot()
 end
 
-return class(WindowMenu, WindowCommand)
+return class(WindowMenu, WindowSelectable)

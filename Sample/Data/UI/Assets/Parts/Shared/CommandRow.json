@@ -1,0 +1,49 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 160,
+    "height": 32
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Command Row",
+    "category": "Parts / Shared"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [160, 32]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "Label",
+        "controlId": "Engine.FunctionalPlainText",
+        "properties": {
+          "characterSize": 22,
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.5, 0.0],
+            "max": [0.5, 0.0]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.5, 0.0],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {
+          "previewText": "#ITEM"
+        },
+        "children": []
+      }
+    ]
+  }
+}

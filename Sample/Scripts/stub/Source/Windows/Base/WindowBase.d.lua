@@ -7,6 +7,7 @@
 ---@field _windowBaseUI              Source.UI.Parts.Shared.WindowBase | nil
 ---@field _window                    Engine.Window
 ---@field content                    Engine.Canvas
+---@field _visualRoot                Engine.ControlBase | nil
 ---@field _hasReturnBtn              boolean
 ---@field _returnButtonSuppressed    boolean
 ---@field _returnButton              Engine.Button
@@ -51,6 +52,9 @@ function WindowBase:setActive(active) end
 
 ---@param visible boolean
 function WindowBase:setVisible(visible) end
+
+---@param position sf.Vector2f
+function WindowBase:setPosition(position) end
 
 ---@param suppressed boolean
 function WindowBase:_setReturnButtonSuppressed(suppressed) end

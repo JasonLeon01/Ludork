@@ -1,4 +1,5 @@
 local WindowCommand = require("Source.Windows.WindowCommand")
+local WindowFloorMapCommandUI = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand")
 
 local WindowCommandController = WindowCommand.Controller
 
@@ -66,9 +67,10 @@ local WindowFloorMapCommand = {}
 
 WindowFloorMapCommand.controllerClass = FinalWindowFloorMapCommandController
 
-function WindowFloorMapCommand:init(rect, owner)
+function WindowFloorMapCommand:init(rect, owner, instance)
     self._owner = owner
-    super(WindowFloorMapCommand, self).init(rect, {}, nil, _LIST_ROW_HEIGHT)
+    self._ui = WindowFloorMapCommandUI.new(self, instance)
+    super(WindowFloorMapCommand, self).init(rect, {}, nil, _LIST_ROW_HEIGHT, nil, nil, nil, { uiController = self._ui })
     self:setHasReturnBtn(true)
     ---@cast self._commandController Source.Windows.WindowFloorMapCommandController
     self._mapController = self._commandController

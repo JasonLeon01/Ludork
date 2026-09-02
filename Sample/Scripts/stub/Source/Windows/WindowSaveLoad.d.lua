@@ -5,7 +5,7 @@
 --- Owner-agnostic coordinator. Hosts pass callbacks for close and load events
 --- instead of being referenced directly, so the same UI can serve the in-game
 --- menu, the title screen, or any other entry point.
----@class Source.Windows.WindowSaveLoad
+---@class Source.Windows.WindowSaveLoad: Engine.Canvas
 ---@field _mode      "load" | "save"
 ---@field _tabWindow Source.Windows.WindowSaveTabs | nil
 ---@field new        fun(tabRect?: sf.IntRect, slotRect?: sf.IntRect, detailRect?: sf.IntRect, loadOnly?: boolean, getSaveSource?: function, onClose?: function, onLoaded?: function): Source.Windows.WindowSaveLoad

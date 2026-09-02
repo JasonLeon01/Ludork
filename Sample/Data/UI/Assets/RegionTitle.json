@@ -22,11 +22,15 @@
     "children": [
       {
         "name": "RegionTitle",
-        "controlId": "Engine.RichText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RegionTitle",
+          "characterSize": 96,
+          "bold": true,
+          "fillColor": [232, 224, 204, 255],
+          "outlineColor": [0, 0, 0, 170],
+          "outlineThickness": 1.0,
           "text": "",
-          "visible": false
+          "visible": true
         },
         "slot": {
           "anchors": {

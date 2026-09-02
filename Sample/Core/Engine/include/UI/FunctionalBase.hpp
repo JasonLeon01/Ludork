@@ -13,6 +13,8 @@
 #include <optional>
 #include <string>
 
+class ScrollBox;
+
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API FunctionalBase : public FocusableMixin {
 public:
@@ -193,6 +195,7 @@ protected:
 
 private:
     friend class ControlBase;
+    friend class ScrollBox;
 
     enum class PointerSource {
         None,
@@ -209,6 +212,7 @@ private:
     void beginMousePress(sf::Mouse::Button button);
     void beginTouchPress();
     void endPointerPress();
+    void releaseTouchCaptureForScroll();
     void clearEventCallbacks() noexcept;
 
     static FunctionalInputProvider* inputProvider_;

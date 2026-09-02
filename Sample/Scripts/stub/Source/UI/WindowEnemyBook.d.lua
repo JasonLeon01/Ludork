@@ -26,13 +26,14 @@
 ---@field hitCount        integer | nil
 ---@field specialDisplays Source.UI.WindowEnemyBook.SpecialDisplay[]
 ---@field specialDetails  Source.UI.WindowEnemyBook.SpecialDetail[]
----@field visual          Global.Utils.Render.ActorVisual
 ---@field texture         sf.Texture
 ---@field texturePath     string
----@field rect            sf.IntRect | nil
+---@field rect            sf.IntRect
 ---@field scale           sf.Vector2f
 ---@field animatable      boolean
 ---@field switchInterval  number
+---@field shaderPath      string
+---@field hue             number
 
 ---@class Source.UI.WindowEnemyBook: Source.UI.UiController
 ---@field model            Source.Windows.WindowEnemyBook
@@ -40,6 +41,7 @@
 ---@field _cellControllers Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell[]
 ---@field _windowFrame     Engine.Window
 ---@field _content         Engine.Canvas
+---@field _scrollBox       Engine.ScrollBox
 ---@field _listView        Engine.ListView
 ---@field new              fun(model: Source.Windows.WindowEnemyBook, size: sf.Vector2i): Source.UI.WindowEnemyBook
 local WindowEnemyBookUI = {}
@@ -71,11 +73,11 @@ function WindowEnemyBookUI:getContent() end
 ---@return Engine.ListView
 function WindowEnemyBookUI:getListView() end
 
+---@return Engine.ScrollBox
+function WindowEnemyBookUI:getScrollBox() end
+
 ---@param gameMap GameMap | nil
 function WindowEnemyBookUI:refreshEnemies(gameMap) end
-
----@param deltaTime number
-function WindowEnemyBookUI:tick(deltaTime) end
 
 function WindowEnemyBookUI:refreshLocale() end
 

@@ -62,6 +62,7 @@ end
 function WindowEnemyBookUI:bind()
     self._windowFrame = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
+    self._scrollBox = self:requireControl("EnemyScrollBox")
     self._listView = self:requireControl("EnemyList")
 end
 
@@ -83,6 +84,10 @@ end
 
 function WindowEnemyBookUI:getListView()
     return self._listView
+end
+
+function WindowEnemyBookUI:getScrollBox()
+    return self._scrollBox
 end
 
 function WindowEnemyBookUI:refreshEnemies(gameMap)
@@ -120,15 +125,7 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
         self._listView:addChild(cell)
     end
     self.model:resetSelection()
-    if self.model._rect:getParent() ~= nil then
-        self._content:removeChild(self.model._rect)
-    end
-end
-
-function WindowEnemyBookUI:tick(deltaTime)
-    for _, cellController in ipairs(self._cellControllers) do
-        cellController:tick(deltaTime)
-    end
+    self.model:_detachSelectionRect()
 end
 
 function WindowEnemyBookUI:refreshLocale()
@@ -148,13 +145,8 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
         :calculate(abilitySystem, GameplayEventData.new({ target = self.model._player }))
     local battleData = battleResult.data
     local special = enemy.attributes.special
-    local sourceRect = enemy:getTextureRect()
-    local textureRect = nil
-    if sourceRect ~= nil then
-        textureRect = copy(sourceRect)
-    end
-    local sourceScale = enemy:getScale()
-    local scale = copy(sourceScale)
+    local textureRect = copy(assert(visual.rect or visual.textureRect))
+    local scale = copy(visual.scale)
     local nameSource = tostring(enemy.attributes.name or enemy.attributes.ID)
     local descSource = enemy.attributes.desc
     return {
@@ -174,13 +166,14 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
             or nil,
         specialDisplays = self:buildSpecialDisplays(special),
         specialDetails = self:buildSpecialDetails(special),
-        visual = visual,
-        texture = enemy:getTexture(),
-        texturePath = enemy.texturePath,
+        texture = visual.texture,
+        texturePath = tostring(visual.texturePath or ""),
         rect = textureRect,
         scale = scale,
-        animatable = enemy:getAnimatable(),
-        switchInterval = enemy.switchInterval
+        animatable = bool(visual.animatable),
+        switchInterval = visual.switchInterval or 0.2,
+        shaderPath = tostring(visual.shaderPath or ""),
+        hue = visual.hue or 0.0
     }
 end
 

@@ -7,7 +7,7 @@
 local WindowMenuController = {}
 
 ---@param owner Source.Windows.WindowMenu
----@return Source.UI.Helpers.CommandRowModel[]
+---@return Source.UI.Parts.Shared.CommandRowModel[]
 function WindowMenuController.CreateCommands(owner) end
 
 function WindowMenuController:bind() end
@@ -43,27 +43,23 @@ function WindowMenuController:onConfigClose() end
 --- Owns the full menu lifecycle: detects the open trigger, defines built-in commands
 --- (Items, Equipment, Save, Config, Return to Title), delegates to WindowItem, and
 --- re-enables player movement on close.
----@class Source.Windows.WindowMenu: Source.Windows.WindowCommand
----@field controllerClass    Class.ClassType<Source.Windows.WindowMenu.Controller>
----@field _player            Source.Player.Player
----@field _windowItem        Source.Windows.WindowItem
----@field _windowEquipSlot   Source.Windows.WindowEquipSlot
----@field _windowEquipSelect Source.Windows.WindowEquipSelect
----@field _windowEquipStatus Source.Windows.WindowEquipStatus
----@field _windowSaveLoad    Source.Windows.WindowSaveLoad
----@field _configWindow      Source.Windows.ConfigWindow
----@field _menuController    Source.Windows.WindowMenu.Controller
----@field _menuControls      Engine.Canvas[]
----@field new                fun(player: Source.Player.Player, windows: Source.Windows.WindowMenuWindows): Source.Windows.WindowMenu
+---@class Source.Windows.WindowMenu: Source.Windows.Base.WindowSelectable
+---@field controllerClass Class.ClassType<Source.Windows.WindowMenu.Controller>
+---@field _player         Source.Player.Player
+---@field _windowItem     Source.Windows.WindowItem
+---@field _windowEquip    Source.Windows.WindowEquip
+---@field _windowSaveLoad Source.Windows.WindowSaveLoad
+---@field _configWindow   Source.Windows.ConfigWindow
+---@field _menuController Source.Windows.WindowMenu.Controller
+---@field _menuControls   Engine.Canvas[]
+---@field new             fun(player: Source.Player.Player, windows: Source.Windows.WindowMenuWindows): Source.Windows.WindowMenu
 local WindowMenu = {}
 
 ---@class Source.Windows.WindowMenuWindows
----@field item        Source.Windows.WindowItem
----@field equipSlot   Source.Windows.WindowEquipSlot
----@field equipSelect Source.Windows.WindowEquipSelect
----@field equipStatus Source.Windows.WindowEquipStatus
----@field saveLoad    Source.Windows.WindowSaveLoad
----@field config      Source.Windows.ConfigWindow
+---@field item     Source.Windows.WindowItem
+---@field equip    Source.Windows.WindowEquip
+---@field saveLoad Source.Windows.WindowSaveLoad
+---@field config   Source.Windows.ConfigWindow
 
 ---@brief Construct the menu window and wire up sub-window callbacks.
 ---
@@ -82,6 +78,8 @@ function WindowMenu:setPlayer(player) end
 --- - @param guard Callable returning True when movement may be restored.
 ---@param guard function
 function WindowMenu:setMoveRestoreGuard(guard) end
+
+function WindowMenu:refreshRows() end
 
 ---@brief Handle cancel key to close the menu.
 ---

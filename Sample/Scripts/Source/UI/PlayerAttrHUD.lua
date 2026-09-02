@@ -214,7 +214,10 @@ end
 
 function PlayerAttrHUDUI:clearStateRows()
     for _, rowUI in ipairs(self._stateUIs) do
-        self._stateHost:removeChild(rowUI:getRoot())
+        rowUI:dispose()
+    end
+    for _, child in ipairs(self._stateHost:getChildren()) do
+        self._stateHost:removeChild(child)
     end
     self._stateUIs = {}
     self._stateWidgets = {}

@@ -5,7 +5,7 @@
     "height": 32
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Item Row",
     "category": "Windows"
   },
@@ -24,7 +24,7 @@
         "name": "Icon",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Icons/classic-items-0-0.png"
         },
         "slot": {
           "anchors": {
@@ -55,9 +55,10 @@
       },
       {
         "name": "Count",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText12",
+          "characterSize": 12,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {
@@ -73,7 +74,7 @@
           },
           "offsets": {
             "left": -1.0,
-            "top": -1.0,
+            "top": -3.0,
             "right": 0.0,
             "bottom": 0.0
           },

@@ -1,11 +1,11 @@
 ---@meta Source.UI.Title
 
 ---@class Source.UI.Title: Source.UI.UiController
----@field model Source.Scenes.SceneTitle
----@field refreshEvents string[]
----@field _commandModels Source.UI.Helpers.CommandRowModel[]
+---@field model          Source.Scenes.SceneTitle
+---@field refreshEvents  string[]
+---@field _commandModels Source.UI.Parts.Shared.CommandRowModel[]
 ---@field _windowCommand Source.Windows.WindowCommand
----@field new fun(model: Source.Scenes.SceneTitle): Source.UI.Title
+---@field new            fun(model: Source.Scenes.SceneTitle): Source.UI.Title
 local SceneTitleUI = {}
 
 function SceneTitleUI:bind() end

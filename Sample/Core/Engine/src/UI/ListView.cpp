@@ -37,6 +37,31 @@ sf::Vector2f ListView::getSize() const {
     return size_;
 }
 
+sf::FloatRect ListView::getContentBounds() const {
+    const_cast<ListView*>(this)->applyPositions();
+    sf::FloatRect bounds{{0.0f, 0.0f}, size_};
+    for (const std::shared_ptr<ControlBase>& child : children_) {
+        if (child == nullptr || !child->getVisible()) {
+            continue;
+        }
+        const sf::FloatRect childBounds =
+            child->getTransform().transformRect(child->getContentBounds());
+        const float minimumX =
+            std::min(bounds.position.x, childBounds.position.x);
+        const float minimumY =
+            std::min(bounds.position.y, childBounds.position.y);
+        const float maximumX =
+            std::max(bounds.position.x + bounds.size.x,
+                     childBounds.position.x + childBounds.size.x);
+        const float maximumY =
+            std::max(bounds.position.y + bounds.size.y,
+                     childBounds.position.y + childBounds.size.y);
+        bounds = {{minimumX, minimumY},
+                  {maximumX - minimumX, maximumY - minimumY}};
+    }
+    return bounds;
+}
+
 void ListView::setSize(const sf::Vector2i& size) {
     setSizeValue({static_cast<float>(size.x), static_cast<float>(size.y)});
 }

@@ -63,7 +63,9 @@
         "name": "Message",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/GameOver",
+          "characterSize": 72,
+          "bold": true,
+          "fillColor": [255, 0, 0, 255],
           "text": ""
         },
         "slot": {

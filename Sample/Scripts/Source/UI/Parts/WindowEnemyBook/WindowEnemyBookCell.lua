@@ -2,7 +2,6 @@ local Locale = require("Source.Locale.Core")
 local NodeUtils = require("Source.NodeFunctions.Utils")
 local TextLayout = require("Source.TextLayout")
 local Ui = require("Source.UI.Ui")
-local ActorPreviewController = require("Source.UI.Parts.Shared.ActorPreviewController")
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
@@ -15,43 +14,47 @@ local _SPECIAL_ICON_SIZE = 16
 local _SPECIAL_GAP = 4
 local _SPECIAL_RIGHT_PAD = 4
 local _SPECIAL_NAME_MAX_WIDTH = 80
-local _NAME_TEXT_CONFIG = "UI/Text16"
-local _SPECIAL_TEXT_CONFIG = "UI/RightText10"
 local _STAT_TEXT_COLOUR = { 255, 255, 255, 255 }
 local _UNDEFEATABLE_TEXT_COLOUR = { 255, 96, 96, 255 }
 local _STAT_FIELDS = {
     {
-        control = "HPText",
+        labelControl = "HPLabel",
+        valueControl = "HPValue",
         locale = "HP",
         field = "MAXHP",
         default = 0
     },
     {
-        control = "ATKText",
+        labelControl = "ATKLabel",
+        valueControl = "ATKValue",
         locale = "ATK",
         field = "ATK",
         default = 0
     },
     {
-        control = "DEFText",
+        labelControl = "DEFLabel",
+        valueControl = "DEFValue",
         locale = "DEF",
         field = "DEF",
         default = 0
     },
     {
-        control = "EXPText",
+        labelControl = "EXPLabel",
+        valueControl = "EXPValue",
         locale = "EXP",
         field = "EXP",
         default = 0
     },
     {
-        control = "GOLDText",
+        labelControl = "GOLDLabel",
+        valueControl = "GOLDValue",
         locale = "GOLD",
         field = "GOLD",
         default = 0
     },
     {
-        control = "DamageText",
+        labelControl = "DamageLabel",
+        valueControl = "DamageValue",
         locale = "DMG",
         field = "damage",
         default = "--"
@@ -72,8 +75,6 @@ end
 
 function WindowEnemyBookCellUI:bind()
     self._icon = self:requireControl("EnemyIcon")
-    self._previewController = ActorPreviewController.new(self._icon)
-    self._previewController:setEntry(self.model.entry)
     self._nameText = self:requireControl("Name")
     self._specialIcons = {
         self:requireControl("SpecialIcon1"), self:requireControl("SpecialIcon2"), self:requireControl("SpecialIcon3")
@@ -81,6 +82,11 @@ function WindowEnemyBookCellUI:bind()
     self._specialTexts = {
         self:requireControl("SpecialText1"), self:requireControl("SpecialText2"), self:requireControl("SpecialText3")
     }
+    ---@cast self._icon Engine.CharacterView
+    self._icon:setCharacter(
+        self.model.entry.texture, self.model.entry.rect, self.model.entry.scale, self.model.entry.animatable,
+        self.model.entry.switchInterval, self.model.entry.shaderPath or "", self.model.entry.hue or 0.0
+    )
     if self.model.callback ~= nil then
         self.root:addConfirmCallback(function (obj, kwargs)
             self.model.callback(obj, kwargs)
@@ -89,15 +95,16 @@ function WindowEnemyBookCellUI:bind()
 end
 
 function WindowEnemyBookCellUI:refresh()
-    local specialAreaWidth = measureSpecialAreaWidth(self._specialDisplays)
+    local specialAreaWidth = measureSpecialAreaWidth(self._specialDisplays, self._specialTexts)
     local nameMaxWidth = math.max(32, math.floor(_CELL_WIDTH - _ICON_AREA_WIDTH - specialAreaWidth))
-    self:setText("Name", TextLayout.FitPlainText(self.model.entry.name or "", nameMaxWidth, _NAME_TEXT_CONFIG))
+    self:setText("Name", TextLayout.FitPlainText(self.model.entry.name or "", nameMaxWidth, self._nameText))
     for _, stat in ipairs(_STAT_FIELDS) do
-        local value = LOC(stat.locale) .. "\t" .. tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
-        self:setText(stat.control, value)
-        self:setProperty(
-            stat.control, "colour", value:sub(-3) == "???" and _UNDEFEATABLE_TEXT_COLOUR or _STAT_TEXT_COLOUR
-        )
+        local value = tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
+        local colour = value == "???" and _UNDEFEATABLE_TEXT_COLOUR or _STAT_TEXT_COLOUR
+        self:setText(stat.labelControl, LOC(stat.locale))
+        self:setText(stat.valueControl, value)
+        self:setProperty(stat.labelControl, "colour", colour)
+        self:setProperty(stat.valueControl, "colour", colour)
     end
     for index = 1, 3 do
         self:setProperty("SpecialIcon" .. tostring(index), "visible", false)
@@ -112,8 +119,9 @@ function WindowEnemyBookCellUI:refresh()
             icon:setTexture(item.texture, true)
             self:setProperty("SpecialIcon" .. tostring(index), "visible", true)
         else
+            local specialText = assert(self._specialTexts[index])
             local displayName = TextLayout.FitPlainText(
-                tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, _SPECIAL_TEXT_CONFIG
+                tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, specialText
             )
             self._specialDisplayTexts[index] = displayName
             self:setText("SpecialText" .. tostring(index), displayName)
@@ -124,7 +132,6 @@ end
 
 function WindowEnemyBookCellUI:prepare(logicalSize)
     local root = super(WindowEnemyBookCellUI, self).prepare(logicalSize)
-    self:_layoutIcon()
     self:_layoutSpecials()
     return root
 end
@@ -136,7 +143,7 @@ function WindowEnemyBookCellUI:refreshLocale()
     self.root:render()
 end
 
-function measureSpecialAreaWidth(specialDisplays)
+function measureSpecialAreaWidth(specialDisplays, specialTexts)
     if not bool(specialDisplays) then
         return 0.0
     end
@@ -149,18 +156,14 @@ function measureSpecialAreaWidth(specialDisplays)
         if item.texture ~= nil then
             width = width + _SPECIAL_ICON_SIZE
         else
+            local specialText = assert(specialTexts[index])
             local displayName = TextLayout.FitPlainText(
-                tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, _SPECIAL_TEXT_CONFIG
+                tostring(item.name or ""), _SPECIAL_NAME_MAX_WIDTH, specialText
             )
-            width = width + TextLayout.MeasurePlainText(_SPECIAL_TEXT_CONFIG, displayName)
+            width = width + TextLayout.MeasurePlainText(specialText, displayName)
         end
     end
     return width
-end
-
-function WindowEnemyBookCellUI:_layoutIcon()
-    local bounds = sf.FloatRect.new(sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(_ICON_AREA_WIDTH, _CELL_HEIGHT))
-    self._previewController:layout(bounds, "center")
 end
 
 function WindowEnemyBookCellUI:_layoutSpecials()
@@ -177,32 +180,27 @@ function WindowEnemyBookCellUI:_layoutSpecials()
             currentX = iconX - _SPECIAL_GAP
         else
             local displayName = assert(self._specialDisplayTexts[index])
-            local textWidth = TextLayout.MeasurePlainText(_SPECIAL_TEXT_CONFIG, displayName)
             local specialText = assert(self._specialTexts[index])
+            local textWidth = TextLayout.MeasurePlainText(specialText, displayName)
             specialText:setPosition(sf.Vector2f.new(currentX, 0.0))
             currentX = currentX - textWidth - _SPECIAL_GAP
         end
     end
 end
 
-function WindowEnemyBookCellUI:tick(deltaTime)
-    self._previewController:tick(deltaTime)
-    self.root:render()
-end
-
 function WindowEnemyBookCellUI:getIcon()
-    if not self._previewController:getState().visible then
+    if not self._icon:getVisible() then
         return nil
     end
     return self._icon
 end
 
 function WindowEnemyBookCellUI:getTextureRect()
-    return self._previewController:getState().rect
+    return self._icon:getFrameRect()
 end
 
 function WindowEnemyBookCellUI:getSwitchTimer()
-    return self._previewController:getState().switchTimer
+    return self._icon:getSwitchTimer()
 end
 
 return Ui.Define("Parts/WindowEnemyBook/WindowEnemyBookCell", WindowEnemyBookCellUI)

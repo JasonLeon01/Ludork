@@ -1,16 +1,18 @@
 local TextLayout = require("Source.TextLayout")
 local Ui = require("Source.UI.Ui")
 
-local _LABEL_TEXT_CONFIG = "UI/LeftText16"
-local _VALUE_TEXT_CONFIG = "UI/RightText16"
 local _LABEL_WIDTH = 96
 local _VALUE_WIDTH = 104
 
 local EnemyEncyclopediaInfoPairUI = {}
 
 function EnemyEncyclopediaInfoPairUI:refresh()
-    self:setText("Label", TextLayout.FitPlainText(self.model.label, _LABEL_WIDTH, _LABEL_TEXT_CONFIG))
-    self:setText("Value", TextLayout.FitPlainText(self.model.value, _VALUE_WIDTH, _VALUE_TEXT_CONFIG))
+    local label = self:requireControl("Label")
+    local value = self:requireControl("Value")
+    ---@cast label Engine.PlainText
+    ---@cast value Engine.PlainText
+    self:setText("Label", TextLayout.FitPlainText(self.model.label, _LABEL_WIDTH, label))
+    self:setText("Value", TextLayout.FitPlainText(self.model.value, _VALUE_WIDTH, value))
 end
 
 function EnemyEncyclopediaInfoPairUI:prepare(logicalSize)

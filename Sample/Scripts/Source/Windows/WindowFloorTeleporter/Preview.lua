@@ -6,16 +6,17 @@ local WindowFloorMapPreview = {}
 
 WindowFloorMapPreview.uiClass = WindowFloorMapPreviewUI
 
-function WindowFloorMapPreview:init(rect, owner, loadPreview, resolvePreviewMapPath)
+function WindowFloorMapPreview:init(rect, owner, loadPreview, resolvePreviewMapPath, instance)
     self._owner = owner
-    self._telepointItemWidth = self.uiClass.GetTelepointItemWidth(rect)
+    self._telepointItemWidth = self.uiClass.GetTelepointItemWidth()
     super
         (WindowFloorMapPreview, self)
         .init(rect, nil, self._telepointItemWidth, _TELEPOINT_LIST_HEIGHT, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
-    self._previewUI = self.uiClass.new(self, rect.size, loadPreview, resolvePreviewMapPath)
-    self._previewUI:attach()
-    self._listView = self._previewUI:getListView()
+    self._previewUI = self.uiClass.new(self, rect.size, loadPreview, resolvePreviewMapPath, instance)
+    self._previewUI:attach(instance ~= nil)
+    self:setScrollBox(self._previewUI:getScrollBox())
+    self:setListView(self._previewUI:getListView())
 end
 
 function WindowFloorMapPreview:clearPreviewCache()

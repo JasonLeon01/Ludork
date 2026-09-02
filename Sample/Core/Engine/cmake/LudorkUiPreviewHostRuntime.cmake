@@ -7,6 +7,7 @@ function(ludork_add_ui_preview_host_runtime target)
     list(APPEND preview_runtime_sources
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Animation.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Curve.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/Actor/VisualRuntime.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/RectBase.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineState.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeValue.cpp"

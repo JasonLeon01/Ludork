@@ -5,7 +5,7 @@
     "height": 32
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Enemy Encyclopedia Info Pair",
     "category": "Rows"
   },
@@ -22,9 +22,10 @@
     "children": [
       {
         "name": "Label",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/LeftText16",
+          "characterSize": 16,
+          "lineAlignment": "left",
           "text": ""
         },
         "slot": {
@@ -49,9 +50,10 @@
       },
       {
         "name": "Value",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText16",
+          "characterSize": 16,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {

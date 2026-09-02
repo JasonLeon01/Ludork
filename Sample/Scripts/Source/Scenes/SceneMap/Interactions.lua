@@ -149,9 +149,7 @@ end
 
 function Scene:_rebindPlayerToUI()
     self._windowItem:setPlayer(self.player)
-    self._windowEquipSlot:setPlayer(self.player)
-    self._windowEquipSelect:setPlayer(self.player)
-    self._windowEquipStatus:setPlayer(self.player)
+    self._windowEquip:setPlayer(self.player)
     self._windowMenu:setPlayer(self.player)
     self._windowShop:setPlayer(self.player)
     self._windowAttrShop:setPlayer(self.player)
@@ -278,10 +276,10 @@ function Scene:_findNearestFloorTelepoint()
     return nearest ~= nil and nearest:getTeleportPosition() or nil
 end
 
----@return sf.IntRect, sf.IntRect
+---@return sf.IntRect, sf.IntRect, sf.IntRect
 function Scene.GetShopRects()
-    local commandRect, itemRect = WindowShop.GetDefaultRects()
-    return commandRect, itemRect
+    local tabRect, itemRect, detailRect = WindowShop.GetDefaultRects()
+    return tabRect, itemRect, detailRect
 end
 
 ---@return sf.IntRect

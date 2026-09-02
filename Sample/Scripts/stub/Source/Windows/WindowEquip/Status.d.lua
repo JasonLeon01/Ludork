@@ -1,7 +1,7 @@
 ---@meta Source.Windows.WindowEquip.Status
 
 ---@class Source.Windows.WindowEquipStatus: Source.Windows.Base.WindowBase
----@field new           fun(rect: sf.IntRect, player: Source.Player.Player): Source.Windows.WindowEquipStatus
+---@field new           fun(rect: sf.IntRect, player: Source.Player.Player, instance?: Engine.AssetInstance): Source.Windows.WindowEquipStatus
 ---@field _player       Source.Player.Player
 ---@field _slotKey      string
 ---@field _changeTexts  Engine.PlainText[]
@@ -16,7 +16,7 @@ local WindowEquipStatus = {}
 --- - @param player The player instance.
 ---@param rect   sf.IntRect
 ---@param player Source.Player.Player
-function WindowEquipStatus:init(rect, player) end
+function WindowEquipStatus:init(rect, player, instance) end
 
 ---@brief Rebind the player instance used for equipment comparisons.
 ---

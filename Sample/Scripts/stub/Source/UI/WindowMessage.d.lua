@@ -1,18 +1,20 @@
 ---@meta Source.UI.WindowMessage
 
 ---@class Source.UI.WindowMessage: Source.UI.UiController
----@field model Source.Windows.WindowMessage
----@field root Engine.Canvas
----@field _messageAdvancer Engine.FunctionalPlainText | nil
----@field _messageListController Source.UI.Helpers.ListView
----@field _selectionListController Source.UI.Helpers.ListView
----@field _messageListView Engine.ListView
+---@field model              Source.Windows.WindowMessage
+---@field root               Engine.Canvas
+---@field _messageAdvancer   Engine.FunctionalPlainText | nil
+---@field _messageAdvancerUI Source.UI.Parts.WindowMessage.MessageOptionRow | nil
+---@field _selectionRowUIs   Source.UI.Parts.WindowMessage.MessageOptionRow[]
+---@field _messageListView   Engine.ListView
 ---@field _selectionListView Engine.ListView
----@field _windowFrame Engine.Window
----@field _content Engine.Canvas
----@field _nameText Engine.PlainText
----@field _messageText Engine.RichText
----@field new fun(model: Source.Windows.WindowMessage): Source.UI.WindowMessage
+---@field _confirmLayer      Engine.FunctionalImage & Engine.FunctionalBase
+---@field _panel             Engine.Canvas
+---@field _windowFrame       Engine.Window
+---@field _content           Engine.Canvas
+---@field _nameText          Engine.PlainText
+---@field _messageText       Engine.RichText
+---@field new                fun(model: Source.Windows.WindowMessage): Source.UI.WindowMessage
 local WindowMessageUI = {}
 
 ---@param model Source.Windows.WindowMessage
@@ -32,6 +34,12 @@ function WindowMessageUI:getWindowFrame() end
 
 ---@return Engine.Canvas
 function WindowMessageUI:getContent() end
+
+---@param active boolean
+function WindowMessageUI:setConfirmLayerActive(active) end
+
+---@param position sf.Vector2f
+function WindowMessageUI:setPanelPosition(position) end
 
 ---@return Engine.PlainText
 function WindowMessageUI:getNameText() end
@@ -66,5 +74,7 @@ function WindowMessageUI:showSelectionList(options, onConfirm, onCancel) end
 ---@param width  integer
 ---@param height integer
 function WindowMessageUI:reflow(width, height) end
+
+function WindowMessageUI:dispose() end
 
 return WindowMessageUI

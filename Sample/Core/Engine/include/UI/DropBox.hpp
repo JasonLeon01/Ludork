@@ -183,6 +183,7 @@ private:
     bool hasCanvasAncestor() const;
     void restoreParentFocus();
 
+    bool _ignoresAncestorInteractionClip() const override;
     bool _hasOverlay() const override;
     void _drawOverlay(sf::RenderTarget& target,
                       sf::RenderStates states) const override;

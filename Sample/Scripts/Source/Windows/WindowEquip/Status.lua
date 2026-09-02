@@ -1,17 +1,25 @@
 local WindowEquipStatusUI = require("Source.UI.Parts.WindowEquip.WindowEquipStatus")
+local WindowEquipStatusPaneUI = require("Source.UI.Parts.WindowEquip.WindowEquipStatusPane")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 ---@class Source.Windows.WindowEquipStatus: Source.Windows.Base.WindowBase
 local WindowEquipStatus = {}
 
 WindowEquipStatus.uiClass = WindowEquipStatusUI
 
-function WindowEquipStatus:init(rect, player)
-    super(WindowEquipStatus, self).init(rect)
+function WindowEquipStatus:init(rect, player, instance)
+    super(WindowEquipStatus, self).init(rect, nil, nil, instance ~= nil)
     self._player = player
     self._slotKey = ""
     self._changeTexts = {}
-    self._statusUI = self.uiClass.new(self)
-    self._statusUI:attach()
+    local statusInstance = nil
+    if instance ~= nil then
+        local paneUI = WindowEquipStatusPaneUI.new(self, instance)
+        self._paneUI = paneUI
+        paneUI:attach()
+        statusInstance = paneUI:getStatusAsset()
+    end
+    self._statusUI = self.uiClass.new(self, statusInstance)
+    self._statusUI:attach(statusInstance ~= nil)
     self:setActive(false)
     self:setVisible(false)
 end

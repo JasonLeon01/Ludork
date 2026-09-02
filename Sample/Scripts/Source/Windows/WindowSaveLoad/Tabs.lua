@@ -3,12 +3,12 @@ local WindowBase = require("Source.Windows.Base.WindowBase")
 
 local WindowSaveTabs = {}
 
-function WindowSaveTabs:init(rect, owner)
+function WindowSaveTabs:init(rect, owner, instance)
     super(WindowSaveTabs, self).init(rect, nil, nil, true)
     self:setCanReceiveFocus(false)
     self._owner = owner
-    self._ui = WindowSaveTabsUI.new(self, rect.size)
-    self._ui:attach()
+    self._ui = WindowSaveTabsUI.new(self, rect.size, instance)
+    self._ui:attach(instance ~= nil)
     self._tabView = self._ui:getTabView()
 end
 

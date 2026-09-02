@@ -2,6 +2,7 @@
 
 ---@brief Command list displaying visited maps in the current region.
 ---@class Source.Windows.WindowFloorMapCommand: Source.Windows.WindowCommand
+---@field new            fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter, instance?: Engine.AssetInstance): Source.Windows.WindowFloorMapCommand
 ---@field _owner         Source.Windows.WindowFloorTeleporter
 ---@field _mapController Source.Windows.WindowFloorMapCommandController
 ---@field _mapKeys       string[]
@@ -14,7 +15,7 @@ local WindowFloorMapCommand = {}
 --- - @param owner The parent floor teleporter coordinator.
 ---@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowFloorTeleporter
-function WindowFloorMapCommand:init(rect, owner) end
+function WindowFloorMapCommand:init(rect, owner, instance) end
 
 ---@brief Rebuild the list from map key/name pairs.
 ---

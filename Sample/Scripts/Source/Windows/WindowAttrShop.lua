@@ -2,7 +2,6 @@ local WindowAttrShopUI = require("Source.UI.WindowAttrShop")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
 local _ITEM_ROW_HEIGHT = 32
-local _ITEM_LIST_Y = 144
 
 ---@class Source.Windows._WindowAttrShopSelectable
 local _WindowAttrShopSelectable = {}
@@ -14,7 +13,8 @@ function _WindowAttrShopSelectable:init(rect, owner)
     self._abilityKeys = {}
     self._cellAvailable = {}
     owner._shopUI:attachSelectable(self, rect.size)
-    self._listView = owner._shopUI:getListView()
+    self:setScrollBox(owner._shopUI:getScrollBox())
+    self:setListView(owner._shopUI:getListView())
 end
 
 function _WindowAttrShopSelectable:refresh(abilities, prices, moneyName, moneyAmount)
@@ -42,15 +42,6 @@ end
 
 function _WindowAttrShopSelectable:onReturn()
     self._owner:closeByCancel()
-end
-
----@param index integer
----@return sf.Vector2f
-function _WindowAttrShopSelectable:_getRectPositionForIndex(index)
-    return super
-        (_WindowAttrShopSelectable, self)
-        ._getRectPositionForIndex(index)
-        + sf.Vector2f.new(0.0, _ITEM_LIST_Y)
 end
 
 ---@type Class.ClassType<Source.Windows._WindowAttrShopSelectable>

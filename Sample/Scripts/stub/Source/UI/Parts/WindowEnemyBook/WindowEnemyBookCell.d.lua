@@ -7,13 +7,12 @@
 ---@class Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell: Source.UI.UiController
 ---@field model                Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell.Model
 ---@field root                 Engine.Canvas
----@field _previewController   Source.UI.Parts.Shared.ActorPreviewController
 ---@field _specialDisplays     Source.UI.WindowEnemyBook.SpecialDisplay[]
 ---@field _specialDisplayTexts string[]
----@field _icon                Engine.FunctionalImage
----@field _nameText            Engine.FunctionalPlainText
+---@field _icon                Engine.CharacterView
+---@field _nameText            Engine.PlainText
 ---@field _specialIcons        Engine.FunctionalImage[]
----@field _specialTexts        Engine.FunctionalPlainText[]
+---@field _specialTexts        Engine.PlainText[]
 ---@field new                  fun(model: Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell.Model): Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell
 local WindowEnemyBookCellUI = {}
 
@@ -30,10 +29,7 @@ function WindowEnemyBookCellUI:prepare(logicalSize) end
 
 function WindowEnemyBookCellUI:refreshLocale() end
 
----@param deltaTime number
-function WindowEnemyBookCellUI:tick(deltaTime) end
-
----@return Engine.FunctionalImage | nil
+---@return Engine.CharacterView | nil
 function WindowEnemyBookCellUI:getIcon() end
 
 ---@return sf.IntRect | nil

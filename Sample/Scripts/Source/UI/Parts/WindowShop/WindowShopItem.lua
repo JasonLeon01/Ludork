@@ -7,15 +7,16 @@ local _SHOP_ITEM_ROW_HEIGHT = 32
 
 local WindowShopItemUI = {}
 
-function WindowShopItemUI:init(model, size)
+function WindowShopItemUI:init(model, size, instance)
     self._size = size
     self._cellControllers = {}
-    super(WindowShopItemUI, self).init(model, nil)
+    super(WindowShopItemUI, self).init(model, instance)
 end
 
 function WindowShopItemUI:bind()
     self._windowFrame = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
+    self._scrollBox = self:requireControl("ItemScrollBox")
     self._listView = self:requireControl("ItemList")
 end
 
@@ -23,8 +24,12 @@ function WindowShopItemUI:prepare()
     return super(WindowShopItemUI, self).prepare(sf.Vector2u.new(self._size.x, self._size.y))
 end
 
-function WindowShopItemUI:attach()
-    self:attachWindowView(self.model)
+function WindowShopItemUI:attach(nested)
+    if nested == true then
+        self:attachNestedWindowView(self.model)
+    else
+        self:attachWindowView(self.model)
+    end
 end
 
 function WindowShopItemUI:getWindowFrame()
@@ -39,7 +44,11 @@ function WindowShopItemUI:getListView()
     return self._listView
 end
 
-function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
+function WindowShopItemUI:getScrollBox()
+    return self._scrollBox
+end
+
+function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap, showValues)
     self._listView:clearChildren()
     self._cellControllers = {}
     self.model._cellAvailable = {}
@@ -55,6 +64,7 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap)
         local cellController = WindowShopCellUI.new({
             iconTexture = IconTexture.LoadItem(member.icon or ""),
             value = valueMap[itemID] or 0,
+            showValue = showValues,
             available = available,
             callback = function (_obj, _kwargs)
                 self.model._owner:confirmItem()

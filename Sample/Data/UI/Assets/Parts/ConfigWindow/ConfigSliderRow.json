@@ -5,7 +5,7 @@
     "height": 32
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Config Slider Row",
     "category": "General"
   },
@@ -24,7 +24,7 @@
         "name": "Label",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text20",
+          "characterSize": 20,
           "text": ""
         },
         "slot": {
@@ -101,7 +101,7 @@
         "name": "ValueText",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text20",
+          "characterSize": 20,
           "text": ""
         },
         "slot": {

@@ -29,29 +29,228 @@
         "slot": {
           "anchors": {
             "min": [
-              0.0,
-              0.0
+              0,
+              0
             ],
             "max": [
-              1.0,
-              1.0
+              1,
+              1
             ]
           },
           "offsets": {
-            "left": 0.0,
-            "top": 0.0,
-            "right": 0.0,
-            "bottom": 0.0
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
           },
           "alignment": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "autoSize": false,
           "zOrder": 0
         },
         "editor": {},
         "children": []
+      },
+      {
+        "name": "CommandPanel",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            256,
+            160
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.5,
+              0.5
+            ],
+            "max": [
+              0.5,
+              0.5
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 256,
+            "bottom": 160
+          },
+          "alignment": [
+            0.5,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "name": "CommandWindowFrame",
+            "controlId": "Engine.Window",
+            "properties": {
+              "size": [
+                256,
+                160
+              ],
+              "windowSkin": "",
+              "repeated": false
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0,
+                  0
+                ],
+                "max": [
+                  1,
+                  1
+                ]
+              },
+              "offsets": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              },
+              "alignment": [
+                0,
+                0
+              ],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          },
+          {
+            "name": "CommandContent",
+            "controlId": "Engine.Canvas",
+            "properties": {
+              "size": [
+                224,
+                128
+              ]
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0,
+                  0
+                ],
+                "max": [
+                  1,
+                  1
+                ]
+              },
+              "offsets": {
+                "left": 16,
+                "top": 16,
+                "right": 16,
+                "bottom": 16
+              },
+              "alignment": [
+                0,
+                0
+              ],
+              "autoSize": false,
+              "zOrder": 1
+            },
+            "editor": {},
+            "children": [
+              {
+                "name": "CommandScrollBox",
+                "controlId": "Engine.ScrollBox",
+                "properties": {
+                  "size": [
+                    224,
+                    128
+                  ],
+                  "windowSkin": ""
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [
+                      0,
+                      0
+                    ],
+                    "max": [
+                      1,
+                      1
+                    ]
+                  },
+                  "offsets": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0
+                  },
+                  "alignment": [
+                    0,
+                    0
+                  ],
+                  "autoSize": false,
+                  "zOrder": 0
+                },
+                "editor": {},
+                "children": [
+                  {
+                    "name": "CommandList",
+                    "controlId": "Engine.ListView",
+                    "properties": {
+                      "size": [
+                        224,
+                        128
+                      ],
+                      "defaultItemHeight": 32,
+                      "fixItemHeight": true,
+                      "columns": 1
+                    },
+                    "slot": {},
+                    "editor": {},
+                    "children": [
+                      {
+                        "name": "TitleCommand1",
+                        "controlId": "Project:Parts/Shared/CommandRow",
+                        "properties": {},
+                        "slot": {},
+                        "editor": {},
+                        "children": []
+                      },
+                      {
+                        "name": "TitleCommand2",
+                        "controlId": "Project:Parts/Shared/CommandRow",
+                        "properties": {},
+                        "slot": {},
+                        "editor": {},
+                        "children": []
+                      },
+                      {
+                        "name": "TitleCommand3",
+                        "controlId": "Project:Parts/Shared/CommandRow",
+                        "properties": {},
+                        "slot": {},
+                        "editor": {},
+                        "children": []
+                      },
+                      {
+                        "name": "TitleCommand4",
+                        "controlId": "Project:Parts/Shared/CommandRow",
+                        "properties": {},
+                        "slot": {},
+                        "editor": {},
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     ]
   }

@@ -1,7 +1,6 @@
 local Engine = require("Engine")
 local Data = require("Source.Data")
 
-local PlainText = Engine.PlainText
 local RichText = Engine.RichText
 
 local TextLayout = {}
@@ -9,28 +8,20 @@ local TextLayout = {}
 ---@field value  string
 ---@field marker boolean
 
----@class Source.TextLayout.PlainMeasurementEntry
----@field config  Engine.PlainTextConfig
----@field control Engine.PlainText
-
 ---@class Source.TextLayout.RichMeasurementEntry
 ---@field config      Engine.RichTextConfig
 ---@field control     Engine.RichText
 ---@field markerFlags table<string, boolean>
 
-local plainMeasurementControls = {}
 local richMeasurementControls = {}
----@cast plainMeasurementControls table<string, Source.TextLayout.PlainMeasurementEntry>
 ---@cast richMeasurementControls table<string, Source.TextLayout.RichMeasurementEntry>
 
-local function getPlainMeasurementControl(textConfigKey)
-    local config = Data.GetPlainTextConfig(textConfigKey)
-    local entry = plainMeasurementControls[textConfigKey]
-    if entry == nil or entry.config ~= config then
-        entry = { config = config, control = PlainText.new(config, "") }
-        plainMeasurementControls[textConfigKey] = entry
-    end
-    return entry.control
+local function measurePlainText(control, text)
+    local previous = control:getString()
+    control:setString(tostring(text or ""))
+    local width = control:getLocalBounds().size.x
+    control:setString(previous)
+    return width
 end
 
 local function getRichMeasurementEntry(textConfigKey)
@@ -215,10 +206,8 @@ local function wrapMeasuredText(text, maxWidth, textConfigKey, measure, tokenize
     return table.concat(result, "\n")
 end
 
-function TextLayout.MeasurePlainText(textConfigKey, text)
-    local control = getPlainMeasurementControl(textConfigKey)
-    control:setString(tostring(text or ""))
-    return control:getLocalBounds().size.x
+function TextLayout.MeasurePlainText(control, text)
+    return measurePlainText(control, text)
 end
 
 function TextLayout.MeasureRichText(textConfigKey, text)
@@ -227,12 +216,12 @@ function TextLayout.MeasureRichText(textConfigKey, text)
     return entry.control:getLocalBounds().size.x
 end
 
-function TextLayout.FitPlainText(text, maxWidth, textConfigKey)
+function TextLayout.FitPlainText(text, maxWidth, control)
     if not bool(text) then
         return ""
     end
     local result = text
-    while bool(result) and TextLayout.MeasurePlainText(textConfigKey, result) > maxWidth do
+    while bool(result) and TextLayout.MeasurePlainText(control, result) > maxWidth do
         local offset = utf8.offset(result, -1)
         result = offset == nil and "" or result:sub(1, offset - 1)
     end
@@ -243,8 +232,8 @@ function TextLayout.FitPlainText(text, maxWidth, textConfigKey)
     return result
 end
 
-function TextLayout.WrapPlainText(text, maxWidth, textConfigKey)
-    return wrapMeasuredText(text, maxWidth, textConfigKey, TextLayout.MeasurePlainText, function (_, paragraph)
+function TextLayout.WrapPlainText(text, maxWidth, control)
+    return wrapMeasuredText(text, maxWidth, control, TextLayout.MeasurePlainText, function (_, paragraph)
         return textUnits(paragraph)
     end)
 end

@@ -3,18 +3,21 @@
 ---@class Source.UI.Parts.WindowEquip.WindowEquipStatus: Source.UI.UiController
 ---@field model                 Source.Windows.WindowEquipStatus
 ---@field _logicalSize          sf.Vector2u | nil
+---@field _changeList           Engine.ListView
 ---@field _changeRowControllers Source.UI.Parts.WindowEquip.EquipStatusRow[]
----@field new                   fun(model: Source.Windows.WindowEquipStatus): Source.UI.Parts.WindowEquip.WindowEquipStatus
+---@field new                   fun(model: Source.Windows.WindowEquipStatus, instance?: Engine.AssetInstance): Source.UI.Parts.WindowEquip.WindowEquipStatus
 local WindowEquipStatusUI = {}
 
----@param model Source.Windows.WindowEquipStatus
-function WindowEquipStatusUI:init(model) end
+---@param model    Source.Windows.WindowEquipStatus
+---@param instance Engine.AssetInstance | nil
+function WindowEquipStatusUI:init(model, instance) end
 
 function WindowEquipStatusUI:bind() end
 
 function WindowEquipStatusUI:refresh() end
 
-function WindowEquipStatusUI:attach() end
+---@param nested boolean | nil
+function WindowEquipStatusUI:attach(nested) end
 
 ---@param player Source.Player.Player
 function WindowEquipStatusUI:setPlayer(player) end

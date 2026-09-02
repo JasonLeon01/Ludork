@@ -1,7 +1,6 @@
 local TextLayout = require("Source.TextLayout")
 local Ui = require("Source.UI.Ui")
 
-local _TEXT_CONFIG = "UI/LeftText16"
 local _NAME_WIDTH = 60
 local _DESCRIPTION_X = 64
 local _ROW_HEIGHT = 32
@@ -9,26 +8,35 @@ local _ROW_HEIGHT = 32
 local EnemyEncyclopediaSpecialRowUI = {}
 
 function EnemyEncyclopediaSpecialRowUI:init(model)
-    local descriptionWidth = math.max(1, model.width - _DESCRIPTION_X)
-    self._displayName = TextLayout.FitPlainText(tostring(model.name or ""), _NAME_WIDTH, _TEXT_CONFIG)
-    local wrappedDescription = TextLayout.WrapPlainText(
-        tostring(model.description or ""), descriptionWidth, _TEXT_CONFIG
-    )
-    self._displayDescription = wrappedDescription:find("\n", 1, true) ~= nil and wrappedDescription
-        or TextLayout.FitPlainText(wrappedDescription, descriptionWidth, _TEXT_CONFIG)
-    local _, newlineCount = self._displayDescription:gsub("\n", "")
-    local lineCount = math.max(1, newlineCount + 1)
-    self._height = math.max(_ROW_HEIGHT, lineCount * _ROW_HEIGHT)
+    self._displayName = ""
+    self._displayDescription = ""
+    self._height = _ROW_HEIGHT
     super(EnemyEncyclopediaSpecialRowUI, self).init(model, nil)
 end
 
 function EnemyEncyclopediaSpecialRowUI:refresh()
+    local descriptionWidth = math.max(1, self.model.width - _DESCRIPTION_X)
+    local nameControl = self:requireControl("Name")
+    local descriptionControl = self:requireControl("Description")
+    ---@cast nameControl Engine.PlainText
+    ---@cast descriptionControl Engine.PlainText
+    self._displayName = TextLayout.FitPlainText(tostring(self.model.name or ""), _NAME_WIDTH, nameControl)
+    local wrappedDescription = TextLayout.WrapPlainText(
+        tostring(self.model.description or ""), descriptionWidth, descriptionControl
+    )
+    self._displayDescription = wrappedDescription:find("\n", 1, true) ~= nil and wrappedDescription
+        or TextLayout.FitPlainText(wrappedDescription, descriptionWidth, descriptionControl)
+    local _, newlineCount = self._displayDescription:gsub("\n", "")
+    local lineCount = math.max(1, newlineCount + 1)
+    self._height = math.max(_ROW_HEIGHT, lineCount * _ROW_HEIGHT)
     self:setText("Name", self._displayName)
     self:setText("Description", self._displayDescription)
 end
 
 function EnemyEncyclopediaSpecialRowUI:prepare()
-    return super(EnemyEncyclopediaSpecialRowUI, self).prepare(sf.Vector2u.new(self.model.width, self._height))
+    local root = super(EnemyEncyclopediaSpecialRowUI, self).prepare(sf.Vector2u.new(self.model.width, self._height))
+    self.view:reflow(sf.Vector2u.new(self.model.width, self._height))
+    return root
 end
 
 function EnemyEncyclopediaSpecialRowUI:getHeight()

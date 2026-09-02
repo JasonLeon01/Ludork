@@ -5,6 +5,29 @@ set -eu
 . "$PROJECT_ROOT/versions.conf"
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 
+PREBUILT_TEMPLATES_DIR=
+USE_CURRENT_UI_PREVIEW_HOST=0
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --templates)
+            if [ "$#" -lt 2 ]; then
+                echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host]" >&2
+                exit 1
+            fi
+            PREBUILT_TEMPLATES_DIR=$2
+            shift 2
+            ;;
+        --use-current-ui-preview-host)
+            USE_CURRENT_UI_PREVIEW_HOST=1
+            shift
+            ;;
+        *)
+            echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host]" >&2
+            exit 1
+            ;;
+    esac
+done
+
 PROJECT_FILE="$PROJECT_ROOT/Ludork.csproj"
 WORK_DIR="$PROJECT_ROOT/obj/editor-package"
 STAGE_DIR="$WORK_DIR/dist"
@@ -893,6 +916,16 @@ fi
 
 require_file "$SCRIPT_TOOLS"
 require_file "$SCRIPT_TOOLS_VERSION_REPORT"
+if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
+    require_directory "$PREBUILT_TEMPLATES_DIR"
+    PREBUILT_TEMPLATES_DIR=$(absolute_path "$PREBUILT_TEMPLATES_DIR")
+    case "$PREBUILT_TEMPLATES_DIR" in
+        "$WORK_DIR" | "$WORK_DIR"/*)
+            echo "The prepared template folder must remain outside $WORK_DIR." >&2
+            exit 1
+            ;;
+    esac
+fi
 require_file "$PROJECT_ROOT/Sample/CMakeLists.txt"
 require_directory "$PROJECT_ROOT/Sample/LuaSF"
 require_directory "$PROJECT_ROOT/Sample/lua-cjson"
@@ -926,8 +959,12 @@ DMG_FILE_NAME="Ludork-$product_version-macos-arm64.dmg"
 DMG_VOLUME_NAME="Ludork $product_version"
 STAGE_DMG="$STAGE_DIR/$DMG_FILE_NAME"
 
-echo "Building native UI preview host..."
-sh "$PROJECT_ROOT/tools/build_ui_preview_host.sh" Release
+if [ "$USE_CURRENT_UI_PREVIEW_HOST" -eq 1 ]; then
+    echo "Using current native UI preview host..."
+else
+    echo "Building native UI preview host..."
+    sh "$PROJECT_ROOT/tools/build_ui_preview_host.sh" Release
+fi
 
 if [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
@@ -965,8 +1002,13 @@ rm -f \
     "$MACOS_DIR/THIRD_PARTY_NOTICES.md" \
     "$MACOS_DIR/THIRD_PARTY_NOTICES_zh_CN.md"
 
-echo "Generating editor project templates..."
-sh "$PROJECT_ROOT/tools/create_templates.sh" Release "$RESOURCES_DIR/Templates"
+if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
+    echo "Copying prepared editor project templates..."
+    copy_directory "$PREBUILT_TEMPLATES_DIR" "$RESOURCES_DIR/Templates"
+else
+    echo "Generating editor project templates..."
+    sh "$PROJECT_ROOT/tools/create_templates.sh" Release "$RESOURCES_DIR/Templates"
+fi
 
 echo "Copying editor resources..."
 rm -rf "$RESOURCES_DIR/docs" "$RESOURCES_DIR/Page" "$RESOURCES_DIR/Licenses"

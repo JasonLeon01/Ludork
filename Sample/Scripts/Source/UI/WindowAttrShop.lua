@@ -1,10 +1,9 @@
 local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
-local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
+local AttrShopRowUI = require("Source.UI.Parts.WindowAttrShop.AttrShopRow")
 local Ui = require("Source.UI.Ui")
-local UiControlFactory = require("Source.UI.UiControlFactory")
 local UiLayout = require("Source.UI.UiLayout")
 
 local ManagerFunctions = GlobalFunctions.Manager
@@ -13,35 +12,7 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local _AVATAR_SIZE = 32
 local _ITEM_ROW_HEIGHT = 32
-local _DISABLED_COLOUR = sf.Color.new(160, 160, 160, 255)
-local _ENABLED_COLOUR = sf.Color.new(255, 255, 255, 255)
 local _ABILITY_ORDER = { "LEVEL", "ATK", "DEF", "MAXHP", "HP", "EXP", "GOLD" }
-
----@class Source.UI.WindowAttrShop.AttrShopRow
-local AttrShopRow = {}
-
-function AttrShopRow:init(model)
-    self.model = model
-    local logicalSize = sf.Vector2u.new(1, 1)
-    ---@cast logicalSize sf.Vector2u
-    self.root, self._label = UiControlFactory.CreateFunctionalTextRow(
-        logicalSize, Data.GetPlainTextConfig("UI/CenterText22")
-    )
-end
-
-function AttrShopRow:refresh()
-    self._label:setString(self.model.text)
-    self._label:setColour(self.model.available and _ENABLED_COLOUR or _DISABLED_COLOUR)
-    UiControlFactory.LayoutCenteredTextRow(self.root, self._label, 8.0)
-end
-
-function AttrShopRow:prepare(logicalSize)
-    self.root:resize(logicalSize)
-    self:refresh()
-    return self.root
-end
-
-local FinalAttrShopRow = class(AttrShopRow)
 
 ---@class Source.UI.WindowAttrShop
 local WindowAttrShopUI = {}
@@ -61,6 +32,7 @@ end
 function WindowAttrShopUI:bind()
     self._windowFrame = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
+    self._scrollBox = self:requireControl("AbilityScrollBox")
     self._listView = self:requireControl("AbilityList")
     self.model._avatarImage = self:requireControl("Avatar")
     self.model._nameText = self:requireControl("ShopName")
@@ -93,6 +65,10 @@ end
 
 function WindowAttrShopUI:getListView()
     return self._listView
+end
+
+function WindowAttrShopUI:getScrollBox()
+    return self._scrollBox
 end
 
 ---@return Source.Windows._WindowAttrShopSelectable
@@ -132,16 +108,14 @@ function WindowAttrShopUI:refreshRows(abilities, prices, moneyName, moneyAmount)
         selectable.index = selectedIndex
     end
     self:_reflow()
-    if selectable._rect:getParent() ~= nil then
-        selectable.content:removeChild(selectable._rect)
-    end
+    selectable:_detachSelectionRect()
 end
 
 ---@param textValue string
 ---@param available boolean
 ---@param width     integer
 function WindowAttrShopUI:_addRow(textValue, available, width)
-    local row = FinalAttrShopRow.new({
+    local row = AttrShopRowUI.new({
         text = textValue,
         available = available
     })

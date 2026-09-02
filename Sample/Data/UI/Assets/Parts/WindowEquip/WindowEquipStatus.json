@@ -5,7 +5,7 @@
     "height": 320
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Window Equip Status",
     "category": "Windows"
   },
@@ -21,10 +21,47 @@
     "editor": {},
     "children": [
       {
+        "name": "ChangeList",
+        "controlId": "Engine.ListView",
+        "properties": {
+          "size": [224, 60],
+          "defaultItemHeight": 20,
+          "fixItemHeight": true,
+          "columns": 1
+        },
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [1.0, 0.0] },
+          "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 60.0 },
+          "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 0
+        },
+        "editor": {},
+        "children": [
+          {
+            "name": "StatusPlaceholder1", "controlId": "Project:Parts/WindowEquip/EquipStatusRow",
+            "properties": {},
+            "slot": {},
+            "editor": {}, "children": []
+          },
+          {
+            "name": "StatusPlaceholder2", "controlId": "Project:Parts/WindowEquip/EquipStatusRow",
+            "properties": {},
+            "slot": {},
+            "editor": {}, "children": []
+          },
+          {
+            "name": "StatusPlaceholder3", "controlId": "Project:Parts/WindowEquip/EquipStatusRow",
+            "properties": {},
+            "slot": {},
+            "editor": {}, "children": []
+          }
+        ]
+      },
+      {
         "name": "ItemName",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/BoldText18",
+          "characterSize": 18,
+          "bold": true,
           "text": ""
         },
         "slot": {
@@ -49,7 +86,7 @@
             0.0
           ],
           "autoSize": true,
-          "zOrder": 0
+          "zOrder": 1
         },
         "editor": {
           "previewText": "Iron Sword"
@@ -60,7 +97,7 @@
         "name": "Description",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text14",
+          "characterSize": 14,
           "text": ""
         },
         "slot": {
@@ -85,7 +122,7 @@
             0.0
           ],
           "autoSize": true,
-          "zOrder": 1
+          "zOrder": 2
         },
         "editor": {
           "previewText": "Equipment description"

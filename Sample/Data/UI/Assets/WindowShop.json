@@ -1,0 +1,64 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 352,
+    "height": 416
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Shop",
+    "category": "Windows"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [352, 416]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "TabsAsset",
+        "controlId": "Project:Parts/WindowShop/WindowShopTabs",
+        "properties": {},
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [1.0, 0.0] },
+          "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 64.0 },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "ItemAsset",
+        "controlId": "Project:Parts/WindowShop/WindowShopItem",
+        "properties": {},
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [1.0, 0.0] },
+          "offsets": { "left": 0.0, "top": 64.0, "right": 0.0, "bottom": 256.0 },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "DetailAsset",
+        "controlId": "Project:Parts/WindowShop/WindowShopDetail",
+        "properties": {},
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [1.0, 0.0] },
+          "offsets": { "left": 0.0, "top": 320.0, "right": 0.0, "bottom": 96.0 },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 2
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

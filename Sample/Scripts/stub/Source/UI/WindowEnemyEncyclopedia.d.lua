@@ -6,13 +6,13 @@
 ---@field _infoPairControllers   Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair[]
 ---@field _specialRowControllers Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow[]
 ---@field _entry                 Source.UI.WindowEnemyBook.Entry | nil
----@field _previewController     Source.UI.Parts.Shared.ActorPreviewController
 ---@field _windowFrame           Engine.Window
 ---@field _content               Engine.Canvas
----@field _portraitControl       Engine.FunctionalImage
+---@field _portraitControl       Engine.CharacterView
 ---@field _nameControl           Engine.FunctionalPlainText
----@field _infoLayer             Engine.Canvas
----@field _descriptionControl    Engine.FunctionalPlainText
+---@field _infoLayer             Engine.ListView
+---@field _descriptionControl    Engine.PlainText
+---@field _specialScrollBox      Engine.ScrollBox
 ---@field _specialList           Engine.ListView
 ---@field new                    fun(model: Source.Windows.WindowEnemyEncyclopedia, size: sf.Vector2i): Source.UI.WindowEnemyEncyclopedia
 local WindowEnemyEncyclopediaUI = {}
@@ -42,21 +42,15 @@ function WindowEnemyEncyclopediaUI:open(entry) end
 function WindowEnemyEncyclopediaUI:refreshLocale() end
 
 ---@param entry Source.UI.WindowEnemyBook.Entry
----@param infoY number
-function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY) end
+function WindowEnemyEncyclopediaUI:buildInfo(entry) end
 
----@param label       string
----@param value       string
----@param columnIndex integer
----@param y           number
-function WindowEnemyEncyclopediaUI:addInfoPair(label, value, columnIndex, y) end
+---@param label string
+---@param value string
+function WindowEnemyEncyclopediaUI:addInfoPair(label, value) end
 
 ---@param entry Source.UI.WindowEnemyBook.Entry
 ---@param y     number
 function WindowEnemyEncyclopediaUI:buildSpecials(entry, y) end
-
----@param deltaTime number
-function WindowEnemyEncyclopediaUI:tick(deltaTime) end
 
 function WindowEnemyEncyclopediaUI:clearEnemyControls() end
 

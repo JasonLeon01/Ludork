@@ -96,6 +96,23 @@ std::string stringProperty(const RuntimeValue::Map& properties,
     return value == nullptr ? fallback : requireString(*value, name);
 }
 
+std::vector<std::string> stringArrayProperty(
+    const RuntimeValue::Map& properties, const std::string& name,
+    const std::vector<std::string>& fallback) {
+    const RuntimeValue* value = findValue(properties, name);
+    if (value == nullptr) {
+        return fallback;
+    }
+    const RuntimeValue::Array& array = requireArray(*value, name);
+    std::vector<std::string> result;
+    result.reserve(array.size());
+    for (std::size_t index = 0; index < array.size(); ++index) {
+        result.push_back(requireString(
+            array[index], name + "[" + std::to_string(index) + "]"));
+    }
+    return result;
+}
+
 int intProperty(const RuntimeValue::Map& properties, const std::string& name,
                 int fallback) {
     const RuntimeValue* value = findValue(properties, name);
@@ -244,22 +261,6 @@ sf::Text::LineAlignment lineAlignment(const std::string& value,
     throw std::invalid_argument(source + " has invalid alignment " + value);
 }
 
-std::uint32_t textStyle(const RuntimeValue& value, const std::string& source) {
-    const RuntimeValue::Map& map = requireMap(value, source);
-    std::uint32_t style = sf::Text::Regular;
-    auto enable = [&](const std::string& name, std::uint32_t flag) {
-        const RuntimeValue* setting = findValue(map, name);
-        if (setting != nullptr && requireBool(*setting, source + "." + name)) {
-            style |= flag;
-        }
-    };
-    enable("bold", sf::Text::Bold);
-    enable("italic", sf::Text::Italic);
-    enable("underlined", sf::Text::Underlined);
-    enable("strikeThrough", sf::Text::StrikeThrough);
-    return style;
-}
-
 void applyGlow(TextGlowConfig& target, const RuntimeValue* value,
                const std::string& source) {
     if (value == nullptr) {
@@ -331,14 +332,6 @@ std::shared_ptr<PlainTextConfig> plainTextConfig(
     const std::string& textConfigKey) {
     std::shared_ptr<PlainTextConfig> result =
         std::make_shared<PlainTextConfig>();
-    if (textConfigKey.empty()) {
-        result->name = "UI Asset Default";
-        result->font = loadFont({}, result->name);
-        result->characterSize =
-            static_cast<unsigned int>(std::max(1, defaultFontSize));
-        return result;
-    }
-
     const RuntimeValue::Map data = loadTextConfigData(textConfigKey);
     const RuntimeValue* type = findValue(data, "type");
     if (type == nullptr ||
@@ -353,7 +346,20 @@ std::shared_ptr<PlainTextConfig> plainTextConfig(
             requireUnsigned(*characterSize, textConfigKey + ".characterSize");
     }
     if (const RuntimeValue* style = findValue(data, "style")) {
-        result->style = textStyle(*style, textConfigKey + ".style");
+        const RuntimeValue::Map& flags =
+            requireMap(*style, textConfigKey + ".style");
+        result->style = sf::Text::Regular;
+        auto enable = [&](const std::string& name, std::uint32_t flag) {
+            const RuntimeValue* setting = findValue(flags, name);
+            if (setting != nullptr &&
+                requireBool(*setting, textConfigKey + ".style." + name)) {
+                result->style |= flag;
+            }
+        };
+        enable("bold", sf::Text::Bold);
+        enable("italic", sf::Text::Italic);
+        enable("underlined", sf::Text::Underlined);
+        enable("strikeThrough", sf::Text::StrikeThrough);
     }
     if (const RuntimeValue* slantAngle = findValue(data, "slantAngle")) {
         result->slantAngle =
@@ -396,17 +402,84 @@ std::shared_ptr<PlainTextConfig> plainTextConfig(
 
 std::shared_ptr<PlainTextConfig> plainTextControlConfig(
     const RuntimeValue::Map& properties) {
-    std::shared_ptr<PlainTextConfig> result =
-        plainTextConfig(stringProperty(properties, "textConfig"));
-    const RuntimeValue* outlineColor = findValue(properties, "outlineColor");
-    if (outlineColor != nullptr && !outlineColor->isNil()) {
-        result->outline.color = requireColor(*outlineColor, "outlineColor");
+    const std::string textConfigKey = stringProperty(properties, "textConfig");
+    if (!textConfigKey.empty()) {
+        return plainTextConfig(textConfigKey);
     }
-    const RuntimeValue* outlineThickness =
-        findValue(properties, "outlineThickness");
-    if (outlineThickness != nullptr && !outlineThickness->isNil()) {
-        result->outline.thickness =
-            requireFloat(*outlineThickness, "outlineThickness");
+    std::shared_ptr<PlainTextConfig> result =
+        std::make_shared<PlainTextConfig>();
+    result->name = "Inline UI Text";
+    result->font = loadFont(stringProperty(properties, "font"), result->name);
+    const int characterSize = intProperty(properties, "characterSize", 22);
+    if (characterSize < 1 || characterSize > 512) {
+        throw std::invalid_argument("characterSize must be between 1 and 512");
+    }
+    result->characterSize = static_cast<unsigned int>(characterSize);
+    result->style = sf::Text::Regular;
+    if (boolProperty(properties, "bold", false)) {
+        result->style |= sf::Text::Bold;
+    }
+    if (boolProperty(properties, "italic", false)) {
+        result->style |= sf::Text::Italic;
+    }
+    if (boolProperty(properties, "underlined", false)) {
+        result->style |= sf::Text::Underlined;
+    }
+    if (boolProperty(properties, "strikeThrough", false)) {
+        result->style |= sf::Text::StrikeThrough;
+    }
+    result->slantAngle = floatProperty(properties, "slantAngle", 0.0f);
+    if (result->slantAngle < -45.0f || result->slantAngle > 45.0f) {
+        throw std::invalid_argument("slantAngle must be between -45 and 45");
+    }
+    result->fillColor =
+        colorProperty(properties, "fillColor", sf::Color::White);
+    result->letterSpacing = floatProperty(properties, "letterSpacing", 1.0f);
+    result->lineSpacing = floatProperty(properties, "lineSpacing", 1.0f);
+    if (result->letterSpacing < 0.1f || result->letterSpacing > 10.0f ||
+        result->lineSpacing < 0.1f || result->lineSpacing > 10.0f) {
+        throw std::invalid_argument(
+            "letterSpacing and lineSpacing must be between 0.1 and 10");
+    }
+    result->lineAlignment =
+        lineAlignment(stringProperty(properties, "lineAlignment", "default"),
+                      "lineAlignment");
+    result->outline.color =
+        colorProperty(properties, "outlineColor", sf::Color::Black);
+    result->outline.thickness =
+        floatProperty(properties, "outlineThickness", 0.0f);
+    if (result->outline.thickness < 0.0f || result->outline.thickness > 32.0f) {
+        throw std::invalid_argument(
+            "outlineThickness must be between 0 and 32");
+    }
+    result->glow.enabled = boolProperty(properties, "glowEnabled", false);
+    result->glow.color =
+        colorProperty(properties, "glowColor", sf::Color::Transparent);
+    result->glow.radius = floatProperty(properties, "glowRadius", 0.0f);
+    result->glow.intensity = floatProperty(properties, "glowIntensity", 0.0f);
+    if (result->glow.radius < 0.0f || result->glow.radius > 64.0f ||
+        result->glow.intensity < 0.0f || result->glow.intensity > 1.0f) {
+        throw std::invalid_argument(
+            "glowRadius must be between 0 and 64 and glowIntensity between 0 "
+            "and 1");
+    }
+    result->gradient.enabled =
+        boolProperty(properties, "gradientEnabled", false);
+    result->gradient.direction =
+        stringProperty(properties, "gradientDirection", "vertical");
+    if (result->gradient.direction != "vertical" &&
+        result->gradient.direction != "horizontal") {
+        throw std::invalid_argument(
+            "gradientDirection must be vertical or horizontal");
+    }
+    if (result->gradient.enabled) {
+        const std::string curveKey =
+            stringProperty(properties, "gradientCurve");
+        if (curveKey.empty()) {
+            throw std::invalid_argument(
+                "gradientCurve is required when gradientEnabled is true");
+        }
+        result->gradient.curve = loadUiVector4CurveResource(curveKey);
     }
     return result;
 }

@@ -5,29 +5,28 @@ local LocaleCore = require("Source.Locale.Core")
 local MapPath = require("Source.MapPath")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local GameSystem = require("Source.System")
+local WindowFloorTeleporterUI = require("Source.UI.WindowFloorTeleporter")
 local TelepointKey = require("Source.UI.Helpers.TelepointKey")
 local UiLayout = require("Source.UI.UiLayout")
 local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
 local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
 
 local ManagerFunctions = GlobalFunctions.Manager
+local Canvas = Engine.Canvas
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
-local _LIST_WIDTH = 208
-local _PREVIEW_WINDOW_WIDTH = 240
+local _LIST_WIDTH = 176
+local _TELEPOINT_PREVIEW_WIDTH = 416
 local _PREVIEW_WINDOW_HEIGHT = 240
 
 local function formatMapName(mapName)
     return LOC(tostring(mapName))
 end
 local function getDefaultRects()
-    local totalWidth = _LIST_WIDTH + _PREVIEW_WINDOW_WIDTH
-    local bounds = UiLayout.GetCenteredRect(totalWidth, _PREVIEW_WINDOW_HEIGHT)
+    local bounds = UiLayout.GetCenteredRect(_TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT)
     return Engine.ToIntRect(bounds.position.x, bounds.position.y, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT),
-        Engine.ToIntRect(
-            bounds.position.x + _LIST_WIDTH, bounds.position.y, _PREVIEW_WINDOW_WIDTH, _PREVIEW_WINDOW_HEIGHT
-        )
+        Engine.ToIntRect(bounds.position.x, bounds.position.y, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT)
 end
 local WindowFloorTeleporterController = {}
 
@@ -54,6 +53,7 @@ function WindowFloorTeleporterController:open(inst)
     self.model._commandWindow:setActive(true)
     self.model._previewWindow:setVisible(true)
     self.model._previewWindow:setActive(false)
+    self.model:setVisible(true)
     self.model._commandWindow:requestKeyboardFocus()
 end
 
@@ -73,7 +73,7 @@ function WindowFloorTeleporterController:closeByCancel()
 end
 
 function WindowFloorTeleporterController:refreshLocale()
-    if not self.model._commandWindow:getVisible() then
+    if not self.model._previewWindow:getVisible() then
         return
     end
     self.model._telepointEntriesCache = dict()
@@ -89,6 +89,7 @@ function WindowFloorTeleporterController:activateTelepointSelector()
     end
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self.model._commandWindow:setActive(false)
+    self.model._commandWindow:setVisible(false)
     self.model._previewWindow:setActive(true)
     self.model._previewWindow:requestKeyboardFocusAtCursor()
 end
@@ -98,6 +99,8 @@ function WindowFloorTeleporterController:activateMapList(playCancelSE)
         ManagerFunctions.playSE(GameSystem.GetCancelSE())
     end
     self.model._previewWindow:setActive(false)
+    self.model:setVisible(false)
+    self.model._commandWindow:setVisible(true)
     self.model._commandWindow:setActive(true)
     self.model._commandWindow:requestKeyboardFocus()
 end
@@ -255,16 +258,28 @@ local WindowFloorTeleporter = {}
 WindowFloorTeleporter.controllerClass = FinalWindowFloorTeleporterController
 
 function WindowFloorTeleporter:init(
-    inst, listRect, previewRect, loadPreview, onConfirm, onClose, getTelepointTag, resolvePreviewMapPath,
+    inst, _listRect, previewRect, loadPreview, onConfirm, onClose, getTelepointTag, resolvePreviewMapPath,
     clearPreviewCache
 )
+    super(WindowFloorTeleporter, self).init(Engine.ToIntRect(
+        previewRect.position.x, previewRect.position.y, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT
+    ))
     self._inst = inst
     self._getTelepointTagCallback = getTelepointTag
     self._onConfirmCallback = onConfirm
     self._onCloseCallback = onClose
     self._clearPreviewCacheCallback = clearPreviewCache
-    self._commandWindow = WindowFloorMapCommand.new(listRect, self)
-    self._previewWindow = WindowFloorMapPreview.new(previewRect, self, loadPreview, resolvePreviewMapPath)
+    self._ui = WindowFloorTeleporterUI.new(self)
+    self._ui:attach()
+    self._commandWindow = WindowFloorMapCommand.new(
+        Engine.ToIntRect(0, 0, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT), self, self._ui:getCommandAsset()
+    )
+    self._previewWindow = WindowFloorMapPreview.new(
+        Engine.ToIntRect(0, 0, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT), self, loadPreview,
+        resolvePreviewMapPath, self._ui:getPreviewAsset()
+    )
+    self:addChild(self._previewWindow)
+    self:addChild(self._commandWindow)
     self._lastMapKey = nil
     self._telepointIndexes = {}
     self._telepointEntriesCache = dict()
@@ -281,7 +296,7 @@ function WindowFloorTeleporter:getPreviewWindow()
 end
 
 function WindowFloorTeleporter:getVisible()
-    return self._commandWindow:getVisible()
+    return self._previewWindow:getVisible()
 end
 
 function WindowFloorTeleporter:open(inst)
@@ -333,4 +348,14 @@ function WindowFloorTeleporter.GetDefaultFloorTeleporterRects()
     return getDefaultRects()
 end
 
-return class(WindowFloorTeleporter)
+function WindowFloorTeleporter:dispose()
+    self:close()
+    self._ui:dispose()
+    self._inst = nil
+    self._getTelepointTagCallback = nil
+    self._onConfirmCallback = nil
+    self._onCloseCallback = nil
+    self._clearPreviewCacheCallback = nil
+end
+
+return class(WindowFloorTeleporter, Canvas)

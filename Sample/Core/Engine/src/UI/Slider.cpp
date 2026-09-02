@@ -171,7 +171,7 @@ bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
     const bool accepted = button == sf::Mouse::Button::Left &&
                           position.has_value() &&
-                          getAbsoluteBounds().contains(*position);
+                          getAbsoluteInteractionBounds().contains(*position);
     suppressClick_ = !accepted;
     if (accepted) {
         mouseDragging_ = true;

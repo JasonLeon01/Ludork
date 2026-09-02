@@ -64,7 +64,7 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
         return std::make_shared<CheckBox>(
             vector2fProperty(properties, "size", {32.0f, 32.0f}),
             loadWindowSkin(stringProperty(properties, "windowSkin")),
-            plainTextConfig(stringProperty(properties, "textConfig")),
+            plainTextControlConfig(properties),
             boolProperty(properties, "checked", false));
     };
     checkBox.setter = [](ControlBase& control, const std::string& propertyId,
@@ -82,8 +82,8 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
             check.setTextConfig(
                 plainTextConfig(requireString(value, "textConfig")));
         } else {
-            throw std::invalid_argument("Unknown CheckBox property " +
-                                        propertyId);
+            throw std::invalid_argument(
+                propertyId + " is a construction-only CheckBox property");
         }
     };
     checkBox.arranger = [](ControlBase& control, const sf::Vector2f& size,
@@ -147,8 +147,7 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
         return std::make_shared<DropBox>(
             vector2fProperty(properties, "size", {200.0f, 32.0f}),
             loadWindowSkin(stringProperty(properties, "windowSkin")),
-            plainTextConfig(stringProperty(properties, "textConfig")),
-            std::move(items), 0, false);
+            plainTextControlConfig(properties), std::move(items), 0, false);
     };
     dropBox.setter = [](ControlBase& control, const std::string& propertyId,
                         const RuntimeValue& value) {
@@ -181,16 +180,15 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
 
     UiControlAdapterRegistry::Adapter tabView;
     tabView.factory = [](const RuntimeValue::Map& properties) {
-        const int tabCount = intProperty(properties, "tabCount", 1);
-        if (tabCount <= 0) {
-            throw std::invalid_argument("TabView tabCount must be positive");
+        std::vector<std::string> items =
+            stringArrayProperty(properties, "items", {"#TAB"});
+        if (items.empty()) {
+            throw std::invalid_argument("TabView items must not be empty");
         }
         return std::make_shared<TabView>(
             vector2fProperty(properties, "size", {100.0f, 32.0f}),
             loadWindowSkin(stringProperty(properties, "windowSkin")),
-            plainTextConfig(
-                stringProperty(properties, "textConfig", "UI/Default")),
-            std::vector<std::string>(static_cast<std::size_t>(tabCount)), 0);
+            plainTextControlConfig(properties), std::move(items), 0);
     };
     tabView.setter = [](ControlBase& control, const std::string& propertyId,
                         const RuntimeValue& value) {
@@ -203,9 +201,9 @@ void UiControlAdapterRegistry::Builder::registerInputAdapters(
         } else if (propertyId == "textConfig") {
             tabs.setTextConfig(
                 plainTextConfig(requireString(value, "textConfig")));
-        } else if (propertyId == "tabCount") {
+        } else if (propertyId == "items") {
             throw std::invalid_argument(
-                "tabCount is a construction-only TabView property");
+                "items is a construction-only TabView property");
         } else {
             throw std::invalid_argument("Unknown TabView property " +
                                         propertyId);

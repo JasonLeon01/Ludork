@@ -22,9 +22,7 @@ local ContentMode = { MESSAGE = 0, SELECTION = 1 }
 local _FADE_IN_CURVE_KEY = "WindowMessageFadeIn"
 local _FADE_OUT_CURVE_KEY = "WindowMessageFadeOut"
 local _FALLBACK_FADE_SPEED = 1000.0
-local _NAME_TEXT_CONFIG = "UI/CenterText24"
 local _MESSAGE_TEXT_CONFIG = "UI/Message"
-local _OPTION_TEXT_CONFIG = "UI/Default"
 
 ---@class Source.Windows.WindowMessage
 local WindowMessage = {}
@@ -39,6 +37,7 @@ WindowMessage._MAX_OPTIONS = 4
 WindowMessage._fadeCurves = {}
 
 function WindowMessage:init()
+    local gameSize = GlobalSystem.getGameSize()
     self._inDialogue = false
     self._contentMode = ContentMode.MESSAGE
     self._selectionListView = nil
@@ -53,10 +52,11 @@ function WindowMessage:init()
     self._pendingRefPosition = nil
     self._name = ""
     self._message = ""
+    self._panelSize = sf.Vector2f.new(544.0, 160.0)
 
     super
         (WindowMessage, self)
-        .init(Engine.ToIntRect(48, 288, 544, 160), nil, 480, self._OPTION_ITEM_HEIGHT, nil, nil, nil, nil, true)
+        .init(Engine.ToIntRect(0, 0, gameSize.x, gameSize.y), nil, 480, self._OPTION_ITEM_HEIGHT, nil, nil, nil, nil, true)
     self._ui = WindowMessageUI.new(self)
     self._ui:attach()
     self._nameText = self._ui:getNameText()
@@ -72,6 +72,17 @@ function WindowMessage:_setupMessageAdvancer()
     self._messageAdvancer, self._messageListView = self._ui:attachMessageAdvancer(function (_itemSelf, _kwargs)
         self:_resolveSelection(0)
     end)
+end
+
+function WindowMessage:setListView(listView)
+    if self._listView ~= nil and self._listView:getParent() == self.content then
+        self.content:removeChild(self._listView)
+    end
+    if listView ~= nil and listView:getParent() ~= self.content then
+        self.content:addChild(listView)
+    end
+    self._listView = listView
+    self._ensureSelectionVisibleRequested = true
 end
 
 function WindowMessage:onTick(deltaTime)
@@ -122,17 +133,6 @@ function WindowMessage:onReturn()
         ---@cast child Engine.ControlBase & Engine.FunctionalBase
         child:onCancel({})
     end
-end
-
-function WindowMessage:onClick(kwargs)
-    if not self:getVisible() then
-        return super(WindowMessage, self).onClick(kwargs)
-    end
-    if not self:isAwaitingMessageConfirm() then
-        return super(WindowMessage, self).onClick(kwargs)
-    end
-    self:confirmMessage()
-    return super(WindowMessage, self).onClick(kwargs)
 end
 
 function WindowMessage:_shouldCaptureTouch(position)
@@ -211,6 +211,7 @@ function WindowMessage:setMessage(refPosition, name, message, onFinished)
     self._text:setVisible(true)
     self._text:setColour(sf.Color.new(255, 255, 255, 0))
     self._ui:setMessage(self._message)
+    self._ui:setConfirmLayerActive(true)
     finishDialogueSetup(self)
 end
 
@@ -220,6 +221,7 @@ function WindowMessage:setSelection(refPosition, name, options, allowCancel, onF
     end
     beginDialogue(self, refPosition, name, allowCancel, onFinished)
     self._contentMode = ContentMode.SELECTION
+    self._ui:setConfirmLayerActive(false)
     self._message = ""
     self._ui:setMessage(self._message)
     self._text:setVisible(false)
@@ -266,6 +268,7 @@ function WindowMessage:_resolveSelection(selectionResult)
         return
     end
     self:hidePauseMark()
+    self._ui:setConfirmLayerActive(false)
     self._selectionResult = selectionResult
     self._fadePhase = FadePhase.OUT
     self._fadeTime = 0.0
@@ -301,13 +304,12 @@ function WindowMessage:_updateWindowPosition(refPosition)
     local gameSize = GlobalSystem.getGameSize()
     local gameWidth = gameSize.x + 0.0
     local gameHeight = gameSize.y + 0.0
-    local windowSize = self:getSize()
-    local windowWidth = windowSize.x + 0.0
-    local windowHeight = windowSize.y + 0.0
+    local windowWidth = self._panelSize.x
+    local windowHeight = self._panelSize.y
     if refPosition == nil then
         local posX = (gameWidth - windowWidth) / 2.0
         local posY = (gameHeight - windowHeight) / 2.0
-        self:setPosition(sf.Vector2f.new(posX, posY))
+        self._ui:setPanelPosition(sf.Vector2f.new(posX, posY))
     else
         local cellSize = Engine.CellSize + 0.0
         local anchorX = refPosition.x + cellSize * 0.5
@@ -323,7 +325,7 @@ function WindowMessage:_updateWindowPosition(refPosition)
         local maxY = math.max(0.0, gameHeight - windowHeight)
         posX = Engine.Clamp(posX, 0.0, maxX)
         posY = Engine.Clamp(posY, 0.0, maxY)
-        self:setPosition(sf.Vector2f.new(posX, posY))
+        self._ui:setPanelPosition(sf.Vector2f.new(posX, posY))
     end
 end
 
@@ -409,7 +411,7 @@ function WindowMessage:_updateLayoutByTextSize()
     local nameWidth = 0
     local nameHeight = 0
     if hasName then
-        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, self._name))
+        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(self._nameText, self._name))
         nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
     local displayMessage = self._message
@@ -437,7 +439,6 @@ function WindowMessage:_updateLayoutByTextSize()
     local totalWidth = contentWidth + self._WINDOW_PADDING * 2
     totalWidth = math.min(totalWidth, self:_getMaxWindowWidth())
     local totalHeight = contentHeight + self._WINDOW_PADDING * 2
-    WindowMessageLayout.ResizeCanvas(self, totalWidth, totalHeight)
     self:_resizeWindow(totalWidth, totalHeight)
     WindowMessageLayout.ResizeCanvas(self.content, contentWidth, contentHeight)
     self.content:setPosition(sf.Vector2f.new(self._WINDOW_PADDING, self._WINDOW_PADDING))
@@ -460,7 +461,7 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local nameWidth = 0
     local nameHeight = 0
     if hasName then
-        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, self._name))
+        nameWidth = self:_getTextRenderWidth(TextLayout.MeasurePlainText(self._nameText, self._name))
         nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
     local maxOptionTextWidth = 1
@@ -469,15 +470,12 @@ function WindowMessage:_updateLayoutBySelectionSize()
         local children = self._selectionListView:getChildren()
         optionCount = #children
         for _, child in ipairs(children) do
-            local optionText = ""
+            local optionWidth = 1.0
             if Class.isInstance(child, PlainText) or Class.isInstance(child, RichText) then
                 ---@cast child Engine.PlainText | Engine.RichText
-                optionText = child:getString()
+                optionWidth = child:getLocalBounds().size.x
             end
-            maxOptionTextWidth = math.max(
-                maxOptionTextWidth,
-                math.max(1, Engine.Round(TextLayout.MeasurePlainText(_OPTION_TEXT_CONFIG, optionText)))
-            )
+            maxOptionTextWidth = math.max(maxOptionTextWidth, math.max(1, Engine.Round(optionWidth)))
         end
     end
     local contentWidth = Engine.ToInteger(
@@ -492,7 +490,6 @@ function WindowMessage:_updateLayoutBySelectionSize()
     local totalWidth = contentWidth + self._WINDOW_PADDING * 2
     totalWidth = math.min(totalWidth, self:_getMaxWindowWidth())
     local totalHeight = contentHeight + self._WINDOW_PADDING * 2
-    WindowMessageLayout.ResizeCanvas(self, totalWidth, totalHeight)
     self:_resizeWindow(totalWidth, totalHeight)
     WindowMessageLayout.ResizeCanvas(self.content, contentWidth, contentHeight)
     self.content:setPosition(sf.Vector2f.new(self._WINDOW_PADDING, self._WINDOW_PADDING))
@@ -546,6 +543,7 @@ end
 ---@param width  integer
 ---@param height integer
 function WindowMessage:_resizeWindow(width, height)
+    self._panelSize = sf.Vector2f.new(width, height)
     self._ui:reflow(width, height)
 end
 

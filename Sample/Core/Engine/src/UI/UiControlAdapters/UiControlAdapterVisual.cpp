@@ -2,6 +2,7 @@
 
 #include "UiControlAdapterSupport.hpp"
 
+#include <UI/CharacterView.hpp>
 #include <UI/FunctionalUI.hpp>
 #include <UI/Image.hpp>
 #include <UI/ProgressBar.hpp>
@@ -125,6 +126,65 @@ void UiControlAdapterRegistry::Builder::registerVisualAdapters(
         arrangeByScale(control, size, renderScale);
     };
     registry.registerAdapter<ImageUiControlAdapterTag>(std::move(image));
+
+    UiControlAdapterRegistry::Adapter characterView;
+    characterView.factory = [](const RuntimeValue::Map& properties) {
+        std::shared_ptr<CharacterView> result = std::make_shared<CharacterView>(
+            loadTexture(stringProperty(properties, "texture")),
+            optionalIntRectProperty(properties, "textureRect"),
+            vector2fProperty(properties, "size", {32.0f, 32.0f}),
+            boolProperty(properties, "animatable", true),
+            floatProperty(properties, "switchInterval", 0.2f),
+            stringProperty(properties, "shader"),
+            floatProperty(properties, "hue", 0.0f));
+        result->setCharacterScale(
+            vector2fProperty(properties, "characterScale", {1.0f, 1.0f}));
+        result->setColour(
+            colorProperty(properties, "colour", sf::Color::White));
+        return result;
+    };
+    characterView.setter = [](ControlBase& control,
+                              const std::string& propertyId,
+                              const RuntimeValue& value) {
+        CharacterView& view =
+            requireControlType<CharacterView>(control, "Engine.CharacterView");
+        if (propertyId == "size") {
+            view.resize(requireVector2f(value, "size"));
+        } else if (propertyId == "texture") {
+            view.setCharacterTexture(
+                loadTexture(requireString(value, "texture")));
+        } else if (propertyId == "textureRect") {
+            if (value.isNil()) {
+                view.resetFrameRectToTexture();
+            } else {
+                view.setFrameRect(requireIntRect(value, "textureRect"));
+            }
+        } else if (propertyId == "characterScale") {
+            view.setCharacterScale(requireVector2f(value, "characterScale"));
+        } else if (propertyId == "animatable") {
+            view.setAnimatable(requireBool(value, "animatable"));
+        } else if (propertyId == "switchInterval") {
+            view.setSwitchInterval(requireFloat(value, "switchInterval"));
+        } else if (propertyId == "shader") {
+            view.setShaderPath(requireString(value, "shader"));
+        } else if (propertyId == "hue") {
+            view.setHue(requireFloat(value, "hue"));
+        } else if (propertyId == "colour") {
+            view.setColour(requireColor(value, "colour"));
+        } else {
+            throw std::invalid_argument("Unknown CharacterView property " +
+                                        propertyId);
+        }
+    };
+    characterView.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                                const sf::Vector2f& renderScale) {
+        CharacterView& view =
+            requireControlType<CharacterView>(control, "Engine.CharacterView");
+        view.resize(size);
+        view.setScale(renderScale);
+    };
+    registry.registerAdapter<CharacterViewUiControlAdapterTag>(
+        std::move(characterView));
 
     UiControlAdapterRegistry::Adapter functionalImage;
     functionalImage.factory = [](const RuntimeValue::Map& properties) {

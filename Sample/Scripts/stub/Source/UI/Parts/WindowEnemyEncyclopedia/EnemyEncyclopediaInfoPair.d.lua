@@ -2,7 +2,7 @@
 
 ---@class Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair: Source.UI.UiController
 ---@field model { label: string, value: string }
----@field new fun(model: { label: string, value: string }): Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair
+---@field new   fun(model: { label: string, value: string }): Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair
 local EnemyEncyclopediaInfoPairUI = {}
 
 function EnemyEncyclopediaInfoPairUI:refresh() end
@@ -11,10 +11,10 @@ function EnemyEncyclopediaInfoPairUI:refresh() end
 ---@return Engine.Canvas
 function EnemyEncyclopediaInfoPairUI:prepare(logicalSize) end
 
----@return Engine.FunctionalPlainText
+---@return Engine.PlainText
 function EnemyEncyclopediaInfoPairUI:getLabel() end
 
----@return Engine.FunctionalPlainText
+---@return Engine.PlainText
 function EnemyEncyclopediaInfoPairUI:getValue() end
 
 return EnemyEncyclopediaInfoPairUI

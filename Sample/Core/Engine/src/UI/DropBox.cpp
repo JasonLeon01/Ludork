@@ -695,6 +695,10 @@ void DropBox::restoreParentFocus() {
     }
 }
 
+bool DropBox::_ignoresAncestorInteractionClip() const {
+    return expanded_;
+}
+
 bool DropBox::_hasOverlay() const {
     if (!expanded_) {
         return false;

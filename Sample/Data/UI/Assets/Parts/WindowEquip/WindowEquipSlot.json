@@ -1,0 +1,41 @@
+{
+  "type": "uiAsset",
+  "designSize": { "width": 192, "height": 160 },
+  "palette": { "exposed": true, "displayName": "Window Equip Slot", "category": "Parts / Window Equip" },
+  "root": {
+    "name": "Root", "controlId": "Engine.Canvas", "properties": { "size": [192, 160] }, "editor": {},
+    "children": [
+      {
+        "name": "WindowFrame", "controlId": "Engine.Window",
+        "properties": { "size": [192, 160], "windowSkin": "", "repeated": false },
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 0 },
+        "editor": {}, "children": []
+      },
+      {
+        "name": "Content", "controlId": "Engine.Canvas", "properties": { "size": [160, 128] },
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 16.0, "top": 16.0, "right": 16.0, "bottom": 16.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 1 },
+        "editor": {},
+        "children": [
+          {
+            "name": "SlotScrollBox", "controlId": "Engine.ScrollBox", "properties": { "size": [160, 128], "windowSkin": "" },
+            "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 0 },
+            "editor": {},
+            "children": [
+              {
+                "name": "SlotList", "controlId": "Engine.ListView",
+                "properties": { "size": [160, 128], "defaultItemHeight": 32, "fixItemHeight": true, "columns": 1 },
+                "slot": {}, "editor": {},
+                "children": [
+                  { "name": "SlotPlaceholder1", "controlId": "Project:Parts/WindowEquip/EquipSlotRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "SlotPlaceholder2", "controlId": "Project:Parts/WindowEquip/EquipSlotRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "SlotPlaceholder3", "controlId": "Project:Parts/WindowEquip/EquipSlotRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },
+                  { "name": "SlotPlaceholder4", "controlId": "Project:Parts/WindowEquip/EquipSlotRow", "properties": {}, "slot": {}, "editor": {}, "children": [] }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

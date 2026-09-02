@@ -5,7 +5,7 @@
     "height": 32
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Window Shop Cell",
     "category": "Windows"
   },
@@ -24,7 +24,8 @@
         "name": "Icon",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Icons/classic-items-0-0.png",
+          "textureRect": [0, 0, 32, 32]
         },
         "slot": {
           "anchors": {
@@ -55,9 +56,10 @@
       },
       {
         "name": "ValueText",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText12",
+          "characterSize": 12,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {

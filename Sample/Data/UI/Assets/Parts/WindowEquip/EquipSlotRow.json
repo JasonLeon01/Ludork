@@ -5,7 +5,7 @@
     "height": 32
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Equip Slot Row",
     "category": "Windows"
   },
@@ -24,7 +24,8 @@
         "name": "Icon",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Icons/classic-items-0-0.png",
+          "textureRect": [0, 0, 32, 32]
         },
         "slot": {
           "anchors": {
@@ -55,9 +56,10 @@
       },
       {
         "name": "Label",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText14",
+          "characterSize": 14,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {

@@ -1,0 +1,24 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 480,
+    "height": 32
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Message Option Row",
+    "category": "Parts / Window Message"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.FunctionalPlainText",
+    "properties": {
+      "characterSize": 22,
+      "text": ""
+    },
+    "editor": {
+      "previewText": "#ITEM"
+    },
+    "children": []
+  }
+}

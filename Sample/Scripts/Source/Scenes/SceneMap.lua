@@ -10,9 +10,7 @@ local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local RegionTitleUI = require("Source.UI.RegionTitle")
 local PlayerAttrHUD = require("Source.Windows.HUDPlayerAttr")
-local WindowEquipSelect = require("Source.Windows.WindowEquip.Select")
-local WindowEquipSlot = require("Source.Windows.WindowEquip.Slot")
-local WindowEquipStatus = require("Source.Windows.WindowEquip.Status")
+local WindowEquip = require("Source.Windows.WindowEquip")
 local WindowAttrShop = require("Source.Windows.WindowAttrShop")
 local WindowEnemyBook = require("Source.Windows.WindowEnemyBook")
 local WindowEnemyEncyclopedia = require("Source.Windows.WindowEnemyEncyclopedia")
@@ -33,10 +31,6 @@ local SceneBase = GlobalCore.SceneBase
 local GlobalSystem = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
 
-local EQUIP_SLOT_WIDTH = 196
-local EQUIP_SLOT_HEIGHT = 160
-local EQUIP_SELECT_HEIGHT = 192
-local EQUIP_STATUS_X = 384
 local WORLD_AMBIENT_TRANSITION_TIME = 0.5
 
 ---@param name    string
@@ -98,22 +92,10 @@ function Scene:onCreate()
     self._messageWindow = WindowMessage.new()
     self._dialogueLocaleSource = nil
     self._windowItem = WindowItem.new(Engine.ToIntRect(192, 0, 256, 256), self.player)
-    self._windowEquipSlot = WindowEquipSlot.new(
-        Engine.ToIntRect(192, 0, EQUIP_SLOT_WIDTH, EQUIP_SLOT_HEIGHT), self.player
-    )
-    self._windowEquipSelect = WindowEquipSelect.new(
-        Engine.ToIntRect(192, EQUIP_SLOT_HEIGHT, EQUIP_SLOT_WIDTH, EQUIP_SELECT_HEIGHT), self.player
-    )
-    self._windowEquipStatus = WindowEquipStatus.new(
-        Engine.ToIntRect(EQUIP_STATUS_X, 0, 640 - EQUIP_STATUS_X, EQUIP_SLOT_HEIGHT + EQUIP_SELECT_HEIGHT), self.player
-    )
-    self._windowEquipSlot:setEquipSelectWindow(self._windowEquipSelect)
-    self._windowEquipSlot:setEquipStatusWindow(self._windowEquipStatus)
-    self._windowEquipSelect:setEquipSlotWindow(self._windowEquipSlot)
-    self._windowEquipSelect:setEquipStatusWindow(self._windowEquipStatus)
-    local shopCommandRect, shopItemRect = Scene.GetShopRects()
+    self._windowEquip = WindowEquip.new(self.player)
+    local shopTabRect, shopItemRect, shopDetailRect = Scene.GetShopRects()
     self._shopMoveEnabledBeforeOpen = true
-    self._windowShop = WindowShop.new(self.player, shopCommandRect, shopItemRect, function ()
+    self._windowShop = WindowShop.new(self.player, shopTabRect, shopItemRect, shopDetailRect, function ()
         self:_onShopClose()
     end)
     self._attrShopMoveEnabledBeforeOpen = true
@@ -173,9 +155,7 @@ function Scene:onCreate()
     end)
     self._windowMenu = WindowMenu.new(self.player, {
         item = self._windowItem,
-        equipSlot = self._windowEquipSlot,
-        equipSelect = self._windowEquipSelect,
-        equipStatus = self._windowEquipStatus,
+        equip = self._windowEquip,
         saveLoad = self._windowSaveLoad,
         config = self._configWindow
     })
@@ -190,14 +170,10 @@ function Scene:onCreate()
     self._regionTitleUI = RegionTitleUI.new(GlobalSystem.getGameSize())
     self._regionTitleUI:prepare()
     self._regionTitleText = self._regionTitleUI:getText()
-    local tabWindow = assert(self._windowSaveLoad:getTabWindow(), "Map save tab window is missing")
     loadUiControls(
-        uiManager, self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquipSlot,
-        self._windowEquipSelect, self._windowEquipStatus, self._windowShop:getCommandWindow(),
-        self._windowShop:getItemWindow(), self._windowAttrShop:getSelectable(), self._windowEnemyBook,
-        self._windowEnemyEncyclopedia, self._windowFloorTeleporter:getCommandWindow(),
-        self._windowFloorTeleporter:getPreviewWindow(), tabWindow, self._windowSaveLoad:getSlotWindow(),
-        self._windowSaveLoad:getDetailWindow(), self._configWindow
+        uiManager, self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquip,
+        self._windowShop, self._windowAttrShop:getSelectable(), self._windowEnemyBook, self._windowEnemyEncyclopedia,
+        self._windowFloorTeleporter, self._windowSaveLoad, self._configWindow
     )
     self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
         local scene = sceneRef[1]
@@ -230,18 +206,15 @@ function Scene:_registerFocusGroups()
     local itemGroup = createSingleControlFocusGroup("item", self._windowItem)
     itemGroup:setNeighbor(Direction.LEFT, menuGroup)
 
-    local equipSlotGroup = createSingleControlFocusGroup("equip-slot", self._windowEquipSlot)
-    local equipSelectGroup = createSingleControlFocusGroup("equip-select", self._windowEquipSelect)
+    local equipSlotControl, equipSelectControl = self._windowEquip:getFocusControls()
+    local equipSlotGroup = createSingleControlFocusGroup("equip-slot", equipSlotControl)
+    local equipSelectGroup = createSingleControlFocusGroup("equip-select", equipSelectControl)
     equipSlotGroup:setNeighbor(Direction.LEFT, menuGroup)
     equipSlotGroup:setNeighbor(Direction.RIGHT, FocusNeighbor.new(equipSelectGroup, FocusTransition.EXPLICIT))
     equipSelectGroup:setNeighbor(Direction.LEFT, FocusNeighbor.new(equipSlotGroup, FocusTransition.EXPLICIT))
 
-    local shopCommandWindow = self._windowShop:getCommandWindow()
     local shopItemWindow = self._windowShop:getItemWindow()
-    local shopCommandGroup = createSingleControlFocusGroup("shop-command", shopCommandWindow)
     local shopItemGroup = createSingleControlFocusGroup("shop-item", shopItemWindow)
-    shopCommandGroup:setNeighbor(Direction.DOWN, FocusNeighbor.new(shopItemGroup, FocusTransition.EXPLICIT))
-    shopItemGroup:setNeighbor(Direction.UP, FocusNeighbor.new(shopCommandGroup, FocusTransition.EXPLICIT))
 
     local floorCommandWindow = self._windowFloorTeleporter:getCommandWindow()
     local floorPreviewWindow = self._windowFloorTeleporter:getPreviewWindow()
@@ -255,8 +228,8 @@ function Scene:_registerFocusGroups()
     saveSlotGroup:setNeighbor(Direction.LEFT, menuGroup)
 
     local groups = {
-        menuGroup, itemGroup, equipSlotGroup, equipSelectGroup, shopCommandGroup, shopItemGroup, floorCommandGroup,
-        floorPreviewGroup, saveSlotGroup
+        menuGroup, itemGroup, equipSlotGroup, equipSelectGroup, shopItemGroup, floorCommandGroup, floorPreviewGroup,
+        saveSlotGroup
     }
     for _, group in ipairs(groups) do
         uiManager:registerFocusGroup(group)
@@ -282,6 +255,8 @@ function Scene:onDestroy()
     self._dialogueLocaleSource = nil
     self._mapAudio:stopMapAudio()
     self._windowSaveLoad:dispose()
+    self._windowShop:dispose()
+    self._windowFloorTeleporter:dispose()
     self._configWindow:dispose()
     self._regionTitleUI:dispose()
 end
@@ -300,8 +275,8 @@ function Scene:_refreshMapUiLocale()
     end
     self._windowMenu:refreshRows()
     self._windowItem:refreshLocale()
-    self._windowEquipSlot:refreshLocale()
-    self._windowShop:getCommandWindow():refreshRows()
+    self._windowEquip:refreshLocale()
+    self._windowShop:refreshLocale()
     self._windowAttrShop:refreshLocale()
     self._windowEnemyBook:refreshLocale()
     self._windowEnemyEncyclopedia:refreshLocale()
@@ -382,9 +357,7 @@ function Scene:onLateTick(deltaTime)
     if self._mapTransferInProgress then
         return super(Scene, self).onLateTick(deltaTime)
     end
-    if self:_tryConfirmMessageByScreenClick() then
-        self._mapClickMoveBlockedUntilLateTick = false
-    elseif self._mapClickMoveBlockedUntilLateTick or self:_isMapClickMoveBlocked() then
+    if self._mapClickMoveBlockedUntilLateTick or self:_isMapClickMoveBlocked() then
         Scene.ConsumeMapClickMoveInput()
         self._mapClickMoveBlockedUntilLateTick = false
     end
@@ -551,12 +524,8 @@ function Scene.CaptureScreenSnapshot()
         GameSystem.SetSavedScreenImage(nil)
         return
     end
-    if sourceSize.x == gameSize.x and sourceSize.y == gameSize.y then
-        GameSystem.SetSavedScreenImage(sourceTexture:copyToImage())
-        return
-    end
     local scaled = sf.RenderTexture.new(gameSize)
-    scaled:clear(sf.Color.Transparent)
+    scaled:clear(sf.Color.Black)
     local sprite = sf.Sprite.new(sourceTexture)
     sprite:setScale(sf.Vector2f.new(gameSize.x / sourceSize.x, gameSize.y / sourceSize.y))
     scaled:draw(sprite)
@@ -591,21 +560,6 @@ function Scene.ConsumeMapClickMoveInput()
     Input.isMouseButtonTriggered(sf.Mouse.Button.Left, true)
     Input.isTouchTap(true)
     Input.isTouchTriggered(true)
-end
-
----@return boolean
-function Scene:_tryConfirmMessageByScreenClick()
-    if not self._messageWindow:isAwaitingMessageConfirm() then
-        return false
-    end
-    local clicked = Input.isMouseButtonTriggered(sf.Mouse.Button.Left, false)
-    local touched = Input.isTouchTap(false)
-    if not clicked and not touched then
-        return false
-    end
-    self._messageWindow:confirmMessage()
-    Scene.ConsumeMapClickMoveInput()
-    return true
 end
 
 ---@param mapKey              string

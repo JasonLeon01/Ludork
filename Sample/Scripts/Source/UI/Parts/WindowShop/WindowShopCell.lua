@@ -27,10 +27,16 @@ function WindowShopCellUI:refresh()
             self.model.available and 255 or _SHOP_DISABLED_ALPHA
         })
     end
-    self:setText("ValueText", tostring(self.model.value or 0))
-    self:setProperty(
-        "ValueText", "colour", self.model.available and { 255, 255, 255, 255 } or _SHOP_DISABLED_TEXT_COLOUR
-    )
+    if self.model.showValue then
+        self:setText("ValueText", tostring(self.model.value or 0))
+        self:setProperty("ValueText", "visible", true)
+        self:setProperty(
+            "ValueText", "colour", self.model.available and { 255, 255, 255, 255 } or _SHOP_DISABLED_TEXT_COLOUR
+        )
+    else
+        self:setText("ValueText", "")
+        self:setProperty("ValueText", "visible", false)
+    end
 end
 
 return Ui.Define("Parts/WindowShop/WindowShopCell", WindowShopCellUI)

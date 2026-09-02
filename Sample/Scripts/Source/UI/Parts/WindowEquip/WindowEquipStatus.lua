@@ -21,8 +21,8 @@ local WindowEquipStatusUI = {}
 ---@type function
 local wrapDescription
 
-function WindowEquipStatusUI:init(model)
-    super(WindowEquipStatusUI, self).init(model)
+function WindowEquipStatusUI:init(model, instance)
+    super(WindowEquipStatusUI, self).init(model, instance)
     self._changeRowControllers = {}
     self._descriptionName = ""
     self._descriptionText = ""
@@ -32,8 +32,14 @@ function WindowEquipStatusUI:init(model)
 end
 
 function WindowEquipStatusUI:bind()
+    local changeList = self:requireControl("ChangeList")
+    ---@cast changeList Engine.ListView
+    changeList:clearChildren()
+    self._changeList = changeList
     self.model._descNameText = self:requireControl("ItemName")
     self.model._descText = self:requireControl("Description")
+    self._descriptionControl = self.model._descText
+    ---@cast self._descriptionControl Engine.PlainText
 end
 
 function WindowEquipStatusUI:refresh()
@@ -41,12 +47,14 @@ function WindowEquipStatusUI:refresh()
     self:setText("Description", self._descriptionText)
 end
 
-function WindowEquipStatusUI:attach()
+function WindowEquipStatusUI:attach(nested)
     self:_refreshLogicalSize()
     local root = self:prepare(self._logicalSize)
     self:_applyDescriptionPosition()
-    ---@cast self.model.content Engine.Canvas
-    self.model.content:addChild(root)
+    if nested ~= true then
+        ---@cast self.model.content Engine.Canvas
+        self.model.content:addChild(root)
+    end
 end
 
 function WindowEquipStatusUI:setPlayer(player)
@@ -104,16 +112,16 @@ function WindowEquipStatusUI:refreshChangeRows(currentAttrs, candidateAttrs)
     end
 end
 
-function WindowEquipStatusUI:addChangeRow(attrKey, delta, rowIndex)
+function WindowEquipStatusUI:addChangeRow(attrKey, delta, _rowIndex)
     local controller = EquipStatusRowUI.new({
         label = LOC(attrKey),
         delta = delta
     })
     ---@cast self._logicalSize sf.Vector2u
     local rowRoot = controller:prepare(sf.Vector2u.new(self._logicalSize.x, _ROW_HEIGHT))
-    rowRoot:setPosition(sf.Vector2f.new(0.0, rowIndex * _ROW_HEIGHT))
-    ---@cast self.root Engine.Canvas
-    self.root:addChild(rowRoot)
+    ---@cast self._changeList Engine.ListView
+    self._changeList:addChild(rowRoot)
+    self._changeList:applyPositions()
     self._changeRowControllers[#self._changeRowControllers + 1] = controller
     self.model._changeTexts[#self.model._changeTexts + 1] = controller:requireControl("Label")
     self.model._changeTexts[#self.model._changeTexts + 1] = controller:requireControl("Delta")
@@ -123,7 +131,9 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
     local descMaxWidth = math.max(1, math.floor(self.model.content:getSize().x))
     if showUnequip then
         self._descriptionName = LOC("EQUIP_UNEQUIP")
-        self._descriptionText = wrapDescription(LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth)
+        self._descriptionText = wrapDescription(
+            LOC("EQUIP_UNEQUIP_DESC"), descMaxWidth, self._descriptionControl
+        )
     elseif not bool(candidateEquipID) then
         self._descriptionName = ""
         self._descriptionText = ""
@@ -131,7 +141,9 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
         ---@cast candidateEquipID string
         local equipInfo = Data.GetGeneralEquipData(candidateEquipID)
         self._descriptionName = LOC(equipInfo.name or "")
-        self._descriptionText = wrapDescription(LOC(equipInfo.desc or ""), descMaxWidth)
+        self._descriptionText = wrapDescription(
+            LOC(equipInfo.desc or ""), descMaxWidth, self._descriptionControl
+        )
     end
     self:refresh()
     self.view:reflow(self._logicalSize)
@@ -139,11 +151,11 @@ function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
 end
 
 function WindowEquipStatusUI:clearChangeTexts()
-    ---@cast self.root Engine.Canvas
+    ---@cast self._changeList Engine.ListView
     for _, controller in ipairs(self._changeRowControllers) do
         local rowRoot = controller:getRoot()
-        if rowRoot:getParent() == self.root then
-            self.root:removeChild(rowRoot)
+        if rowRoot:getParent() == self._changeList then
+            self._changeList:removeChild(rowRoot)
         end
     end
     self._changeRowControllers = {}
@@ -195,8 +207,8 @@ function WindowEquipStatusUI:setRightAligned(text, y)
     text:setPosition(sf.Vector2f.new(contentWidth - bounds.size.x - bounds.position.x, y))
 end
 
-function wrapDescription(text, maxWidth)
-    return TextLayout.WrapPlainText(text, maxWidth, "UI/Text14")
+function wrapDescription(text, maxWidth, control)
+    return TextLayout.WrapPlainText(text, maxWidth, control)
 end
 
 function WindowEquipStatusUI:_refreshLogicalSize()

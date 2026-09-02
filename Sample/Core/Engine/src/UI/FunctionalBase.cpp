@@ -120,11 +120,12 @@ std::optional<sf::FloatRect> FunctionalBase::getAbsoluteTouchHitBounds() const {
         return std::nullopt;
     }
     if (!touchHitBounds_.has_value()) {
-        return control->getAbsoluteBounds();
+        return control->getAbsoluteInteractionBounds();
     }
     const sf::FloatRect scaledBounds(touchHitBounds_->position * Scale,
                                      touchHitBounds_->size * Scale);
-    return control->screenRenderTransform().transformRect(scaledBounds);
+    return control->clipAbsoluteInteractionBounds(
+        control->screenRenderTransform().transformRect(scaledBounds));
 }
 
 void FunctionalBase::addConfirmCallback(EventCallback callback) {
@@ -243,8 +244,9 @@ void FunctionalBase::update(float deltaTime) {
             return;
         }
 
-        bool hovered = control != nullptr &&
-                       control->getAbsoluteBounds().contains(mousePosition);
+        bool hovered =
+            control != nullptr &&
+            control->getAbsoluteInteractionBounds().contains(mousePosition);
         if (!inputProvider_->isMouseInputMode()) {
             hovered = false;
         }
@@ -549,5 +551,16 @@ void FunctionalBase::endPointerPress() {
     pressed_ = false;
     pointerSource_ = PointerSource::None;
     pressedMouseButton_.reset();
+    onInteractionStateChanged();
+}
+
+void FunctionalBase::releaseTouchCaptureForScroll() {
+    if (pointerSource_ != PointerSource::Touch) {
+        return;
+    }
+    pressed_ = false;
+    pointerSource_ = PointerSource::None;
+    pressedMouseButton_.reset();
+    onPointerInteractionReset();
     onInteractionStateChanged();
 }

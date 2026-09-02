@@ -33,6 +33,32 @@ COMMON_PROPERTIES = (
 )
 
 
+def _plain_text_properties(character_size: int) -> tuple[dict[str, object], ...]:
+    return (
+        _property("textConfig", "string", ""),
+        _property("font", "string", ""),
+        _property("characterSize", "int", character_size),
+        _property("bold", "bool", False),
+        _property("italic", "bool", False),
+        _property("underlined", "bool", False),
+        _property("strikeThrough", "bool", False),
+        _property("slantAngle", "float", 0.0),
+        _property("fillColor", "sf.Color", [255, 255, 255, 255]),
+        _property("letterSpacing", "float", 1.0),
+        _property("lineSpacing", "float", 1.0),
+        _property("lineAlignment", "sf.Text.LineAlignment", "default"),
+        _property("outlineColor", "sf.Color", [0, 0, 0, 255]),
+        _property("outlineThickness", "float", 0.0),
+        _property("glowEnabled", "bool", False),
+        _property("glowColor", "sf.Color", [255, 255, 255, 0]),
+        _property("glowRadius", "float", 0.0),
+        _property("glowIntensity", "float", 0.0),
+        _property("gradientEnabled", "bool", False),
+        _property("gradientDirection", "Engine.TextGradientDirection", "vertical"),
+        _property("gradientCurve", "string", ""),
+    )
+
+
 def _system_control(
     control_id: str,
     display_name: str,
@@ -64,6 +90,17 @@ SYSTEM_CONTROLS = (
         "multiple",
         "canvas",
         (_property("size", "sf.Vector2u", [100, 100]),),
+    ),
+    _system_control(
+        "Engine.ScrollBox",
+        "Scroll Box",
+        "Layout",
+        "multiple",
+        "list",
+        (
+            _property("size", "sf.Vector2f", [100.0, 100.0]),
+            _property("windowSkin", "string", ""),
+        ),
     ),
     _system_control(
         "Engine.ListView",
@@ -164,7 +201,7 @@ SYSTEM_CONTROLS = (
             _property("size", "sf.Vector2f", [32.0, 32.0]),
             _property("checked", "bool", False),
             _property("windowSkin", "string", ""),
-            _property("textConfig", "string", "UI/Text20"),
+            *_plain_text_properties(20),
         ),
     ),
     _system_control(
@@ -176,8 +213,8 @@ SYSTEM_CONTROLS = (
         (
             _property("size", "sf.Vector2f", [100.0, 32.0]),
             _property("windowSkin", "string", ""),
-            _property("textConfig", "string", "UI/Default"),
-            _property("tabCount", "int", 1),
+            *_plain_text_properties(22),
+            _property("items", "string[]", ["#TAB"]),
         ),
     ),
     _system_control(
@@ -212,7 +249,7 @@ SYSTEM_CONTROLS = (
         (
             _property("size", "sf.Vector2f", [200.0, 32.0]),
             _property("windowSkin", "string", ""),
-            _property("textConfig", "string", "UI/Text20"),
+            *_plain_text_properties(20),
             _property("previewText", "string", "Option", editor_only=True),
         ),
     ),
@@ -229,18 +266,34 @@ SYSTEM_CONTROLS = (
         ),
     ),
     _system_control(
+        "Engine.CharacterView",
+        "Character View",
+        "Visual",
+        "none",
+        None,
+        (
+            _property("size", "sf.Vector2f", [32.0, 32.0]),
+            _property("texture", "string", ""),
+            _property("textureRect", "sf.IntRect", None),
+            _property("characterScale", "sf.Vector2f", [1.0, 1.0]),
+            _property("animatable", "bool", True),
+            _property("switchInterval", "float", 0.2),
+            _property("shader", "string", ""),
+            _property("hue", "float", 0.0),
+            _property("colour", "sf.Color", [255, 255, 255, 255]),
+        ),
+    ),
+    _system_control(
         "Engine.FunctionalPlainText",
         "Functional Plain Text",
         "Input",
         "none",
         None,
         (
-            _property("textConfig", "string", ""),
+            *_plain_text_properties(22),
             _property("text", "string", ""),
             _property("previewText", "string", "", editor_only=True),
             _property("colour", "sf.Color", [255, 255, 255, 255]),
-            _property("outlineColor", "sf.Color", None),
-            _property("outlineThickness", "float", None),
         ),
     ),
     _system_control(
@@ -263,12 +316,10 @@ SYSTEM_CONTROLS = (
         "none",
         None,
         (
-            _property("textConfig", "string", ""),
+            *_plain_text_properties(22),
             _property("text", "string", ""),
             _property("previewText", "string", "", editor_only=True),
             _property("colour", "sf.Color", [255, 255, 255, 255]),
-            _property("outlineColor", "sf.Color", None),
-            _property("outlineThickness", "float", None),
         ),
     ),
     _system_control(
@@ -287,8 +338,7 @@ SYSTEM_CONTROLS = (
 )
 
 SYSTEM_CONTROL_LOOKUP = {
-    str(control["controlId"]): control
-    for control in SYSTEM_CONTROLS
+    str(control["controlId"]): control for control in SYSTEM_CONTROLS
 }
 PLAIN_TEXT_CONTROL_IDS = {
     "Engine.CheckBox",

@@ -5,7 +5,7 @@
     "height": 32
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Config Check Box Row",
     "category": "General"
   },
@@ -24,7 +24,7 @@
         "name": "Label",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text20",
+          "characterSize": 20,
           "text": ""
         },
         "slot": {
@@ -66,7 +66,7 @@
           ],
           "checked": false,
           "windowSkin": "",
-          "textConfig": "UI/Text20"
+          "characterSize": 20
         },
         "slot": {
           "anchors": {

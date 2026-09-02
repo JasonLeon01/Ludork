@@ -2,12 +2,21 @@
 setlocal EnableExtensions
 cd /d "%~dp0.."
 
+set "VARIANT=all"
+if /I "%~1"=="--variant" (
+    if "%~2"=="" goto usage
+    set "VARIANT=%~2"
+    shift
+    shift
+)
+
 set "CONFIG=%~1"
 if "%CONFIG%"=="" set "CONFIG=Release"
 if not "%~3"=="" goto usage
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" (
     goto usage
 )
+if /I not "%VARIANT%"=="all" if /I not "%VARIANT%"=="plain" if /I not "%VARIANT%"=="ffmpeg" goto usage
 
 set "SOURCE_DIR=%CD%\Sample"
 if "%~2"=="" (
@@ -43,82 +52,78 @@ if defined MISSING_DEPENDENCIES (
     echo Sample dependencies were not found. Run tools\init.bat first.
     exit /b 1
 )
-if not exist "%SOURCE_DIR%\ffmpeg\configure" (
-    echo FFmpeg source was not found. Run tools\init.bat first.
-    exit /b 1
-)
-if not exist "%FFMPEG_SOURCE_ARCHIVE%" (
-    echo The distributable FFmpeg source archive was not found. Run tools\init.bat first.
-    exit /b 1
-)
-if not exist "%CD%\.tools\gnu-make\gnumake.exe" (
-    echo GNU Make was not found. Run tools\init.bat first.
-    exit /b 1
-)
-
-for %%T in (
-    "%CPP_TEMPLATE_DIR%"
-    "%STANDALONE_TEMPLATE_DIR%"
-    "%CPP_FFMPEG_TEMPLATE_DIR%"
-    "%STANDALONE_FFMPEG_TEMPLATE_DIR%"
-) do (
-    if exist "%%~T" rmdir /S /Q "%%~T"
-    mkdir "%%~T"
+if /I not "%VARIANT%"=="plain" (
+    if not exist "%SOURCE_DIR%\ffmpeg\configure" (
+        echo FFmpeg source was not found. Run tools\init.bat first.
+        exit /b 1
+    )
+    if not exist "%FFMPEG_SOURCE_ARCHIVE%" (
+        echo The distributable FFmpeg source archive was not found. Run tools\init.bat first.
+        exit /b 1
+    )
+    if not exist "%CD%\.tools\gnu-make\gnumake.exe" (
+        echo GNU Make was not found. Run tools\init.bat first.
+        exit /b 1
+    )
 )
 
-call :copy_cpp_template "%CPP_TEMPLATE_DIR%" 0
-if errorlevel 1 exit /b %errorlevel%
-call :copy_cpp_template "%CPP_FFMPEG_TEMPLATE_DIR%" 1
-if errorlevel 1 exit /b %errorlevel%
-
-"%SCRIPT_TOOLS%" configure-project-template "%CPP_TEMPLATE_DIR%\Main.proj" true false
-if errorlevel 1 exit /b %errorlevel%
-"%SCRIPT_TOOLS%" configure-project-template "%CPP_FFMPEG_TEMPLATE_DIR%\Main.proj" true true
-if errorlevel 1 exit /b %errorlevel%
-
-call :copy_runtime_legal_files "%CPP_TEMPLATE_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-call :copy_runtime_legal_files "%CPP_FFMPEG_TEMPLATE_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-
-call "%CD%\tools\build_standalone.bat" "%CPP_TEMPLATE_DIR%" "%STANDALONE_TEMPLATE_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-call "%CD%\tools\build_standalone.bat" "%CPP_FFMPEG_TEMPLATE_DIR%" "%STANDALONE_FFMPEG_TEMPLATE_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-
-call :copy_standalone_files "%CPP_TEMPLATE_DIR%" "%STANDALONE_TEMPLATE_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-call :copy_standalone_files "%CPP_FFMPEG_TEMPLATE_DIR%" "%STANDALONE_FFMPEG_TEMPLATE_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-"%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_TEMPLATE_DIR%\Main.proj" false false
-if errorlevel 1 exit /b %errorlevel%
-"%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_FFMPEG_TEMPLATE_DIR%\Main.proj" false true
-if errorlevel 1 exit /b %errorlevel%
-
-for %%T in ("%CPP_TEMPLATE_DIR%" "%CPP_FFMPEG_TEMPLATE_DIR%") do (
-    if exist "%%~T\build" rmdir /S /Q "%%~T\build"
-    if exist "%%~T\bin" rmdir /S /Q "%%~T\bin"
-)
-
-for %%T in (
-    "%CPP_TEMPLATE_DIR%"
-    "%STANDALONE_TEMPLATE_DIR%"
-    "%CPP_FFMPEG_TEMPLATE_DIR%"
-    "%STANDALONE_FFMPEG_TEMPLATE_DIR%"
-) do (
-    call :validate_no_ui_preview_host "%%~T"
+if /I "%VARIANT%"=="plain" (
+    call :create_template_pair "%CPP_TEMPLATE_DIR%" "%STANDALONE_TEMPLATE_DIR%" 0
     if errorlevel 1 exit /b 1
+    exit /b 0
 )
-
-echo C++ source template is ready: %CPP_TEMPLATE_DIR%
-echo Standalone template is ready: %STANDALONE_TEMPLATE_DIR%\Main.exe
-echo C++ FFmpeg source template is ready: %CPP_FFMPEG_TEMPLATE_DIR%
-echo Standalone FFmpeg template is ready: %STANDALONE_FFMPEG_TEMPLATE_DIR%\Main.exe
+if /I "%VARIANT%"=="ffmpeg" (
+    call :create_template_pair "%CPP_FFMPEG_TEMPLATE_DIR%" "%STANDALONE_FFMPEG_TEMPLATE_DIR%" 1
+    if errorlevel 1 exit /b 1
+    exit /b 0
+)
+call :create_template_pair "%CPP_TEMPLATE_DIR%" "%STANDALONE_TEMPLATE_DIR%" 0
+if errorlevel 1 exit /b 1
+call :create_template_pair "%CPP_FFMPEG_TEMPLATE_DIR%" "%STANDALONE_FFMPEG_TEMPLATE_DIR%" 1
+if errorlevel 1 exit /b 1
 exit /b 0
 
 :usage
-echo Usage: tools\create_templates.bat [Debug^|Release] [output-folder]
+echo Usage: tools\create_templates.bat [--variant all^|plain^|ffmpeg] [Debug^|Release] [output-folder]
 exit /b 1
+
+:create_template_pair
+set "CPP_TARGET=%~1"
+set "STANDALONE_TARGET=%~2"
+set "INCLUDE_FFMPEG=%~3"
+set "FFMPEG_ENABLED=false"
+if "%INCLUDE_FFMPEG%"=="1" set "FFMPEG_ENABLED=true"
+for %%T in ("%CPP_TARGET%" "%STANDALONE_TARGET%") do (
+    if exist "%%~T" rmdir /S /Q "%%~T"
+    mkdir "%%~T"
+    if errorlevel 1 exit /b 1
+)
+call :copy_cpp_template "%CPP_TARGET%" "%INCLUDE_FFMPEG%"
+if errorlevel 1 exit /b %errorlevel%
+"%SCRIPT_TOOLS%" configure-project-template "%CPP_TARGET%\Main.proj" true %FFMPEG_ENABLED%
+if errorlevel 1 exit /b %errorlevel%
+call :copy_runtime_legal_files "%CPP_TARGET%"
+if errorlevel 1 exit /b %errorlevel%
+call "%CD%\tools\build_standalone.bat" "%CPP_TARGET%" "%STANDALONE_TARGET%" "%CONFIG%"
+if errorlevel 1 exit /b %errorlevel%
+call :copy_standalone_files "%CPP_TARGET%" "%STANDALONE_TARGET%"
+if errorlevel 1 exit /b %errorlevel%
+"%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_TARGET%\Main.proj" false %FFMPEG_ENABLED%
+if errorlevel 1 exit /b %errorlevel%
+if exist "%CPP_TARGET%\build" rmdir /S /Q "%CPP_TARGET%\build"
+if exist "%CPP_TARGET%\bin" rmdir /S /Q "%CPP_TARGET%\bin"
+call :validate_no_ui_preview_host "%CPP_TARGET%"
+if errorlevel 1 exit /b 1
+call :validate_no_ui_preview_host "%STANDALONE_TARGET%"
+if errorlevel 1 exit /b 1
+if "%INCLUDE_FFMPEG%"=="1" (
+    echo C++ FFmpeg source template is ready: %CPP_TARGET%
+    echo Standalone FFmpeg template is ready: %STANDALONE_TARGET%\Main.exe
+) else (
+    echo C++ source template is ready: %CPP_TARGET%
+    echo Standalone template is ready: %STANDALONE_TARGET%\Main.exe
+)
+exit /b 0
 
 :copy_cpp_template
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__ UiPreviewHost UiPreviewCurveResolver

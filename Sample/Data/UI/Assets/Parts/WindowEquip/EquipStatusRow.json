@@ -5,7 +5,7 @@
     "height": 20
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Equip Status Row",
     "category": "Windows"
   },
@@ -24,7 +24,7 @@
         "name": "Label",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text16",
+          "characterSize": 16,
           "text": ""
         },
         "slot": {
@@ -60,7 +60,7 @@
         "name": "Delta",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text16",
+          "characterSize": 16,
           "text": ""
         },
         "slot": {

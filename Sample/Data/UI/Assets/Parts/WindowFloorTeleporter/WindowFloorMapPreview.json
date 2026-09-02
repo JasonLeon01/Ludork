@@ -1,8 +1,8 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 240,
-    "height": 280
+    "width": 416,
+    "height": 240
   },
   "palette": {
     "exposed": true,
@@ -14,22 +14,23 @@
     "controlId": "Engine.Canvas",
     "properties": {
       "size": [
-        240,
-        280
+        416,
+        240
       ]
     },
     "editor": {},
     "children": [
       {
-        "name": "WindowFrame",
+        "name": "TelepointWindowFrame",
         "controlId": "Engine.Window",
         "properties": {
           "size": [
-            240,
-            280
+            176,
+            240
           ],
           "windowSkin": "",
-          "repeated": false
+          "repeated": false,
+          "visible": false
         },
         "slot": {
           "anchors": {
@@ -38,8 +39,8 @@
               0.0
             ],
             "max": [
-              1.0,
-              1.0
+              0.0,
+              0.0
             ]
           },
           "offsets": {
@@ -52,19 +53,149 @@
             0.0,
             0.0
           ],
-          "autoSize": false,
+          "autoSize": true,
           "zOrder": 0
         },
         "editor": {},
         "children": []
       },
       {
-        "name": "Content",
+        "name": "PreviewWindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            240,
+            240
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 176.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "TelepointContent",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            144,
+            208
+          ],
+          "visible": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 16.0,
+            "top": 16.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "name": "TelepointScrollBox",
+            "controlId": "Engine.ScrollBox",
+            "properties": {
+              "size": [
+                144,
+                208
+              ],
+              "windowSkin": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  1.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": [
+              {
+                "name": "TelepointList",
+                "controlId": "Engine.ListView",
+                "properties": {
+                  "size": [
+                    144.0,
+                    208.0
+                  ],
+                  "defaultItemHeight": 32,
+                  "fixItemHeight": true,
+                  "columns": 1
+                },
+                "slot": {},
+                "editor": {},
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "PreviewContent",
         "controlId": "Engine.Canvas",
         "properties": {
           "size": [
             208,
-            248
+            208
           ]
         },
         "slot": {
@@ -74,21 +205,21 @@
               0.0
             ],
             "max": [
-              1.0,
-              1.0
+              0.0,
+              0.0
             ]
           },
           "offsets": {
-            "left": 16.0,
+            "left": 192.0,
             "top": 16.0,
-            "right": 16.0,
-            "bottom": 16.0
+            "right": 0.0,
+            "bottom": 0.0
           },
           "alignment": [
             0.0,
             0.0
           ],
-          "autoSize": false,
+          "autoSize": true,
           "zOrder": 1
         },
         "editor": {},
@@ -113,45 +244,6 @@
               },
               "offsets": {
                 "left": 0.0,
-                "top": 40.0,
-                "right": 0.0,
-                "bottom": 0.0
-              },
-              "alignment": [
-                0.0,
-                0.0
-              ],
-              "autoSize": true,
-              "zOrder": 0
-            },
-            "editor": {},
-            "children": []
-          },
-          {
-            "name": "TelepointList",
-            "controlId": "Engine.ListView",
-            "properties": {
-              "size": [
-                208,
-                32
-              ],
-              "defaultItemHeight": 32,
-              "fixItemHeight": true,
-              "columns": 2
-            },
-            "slot": {
-              "anchors": {
-                "min": [
-                  0.0,
-                  0.0
-                ],
-                "max": [
-                  0.0,
-                  0.0
-                ]
-              },
-              "offsets": {
-                "left": 0.0,
                 "top": 0.0,
                 "right": 0.0,
                 "bottom": 0.0
@@ -161,7 +253,7 @@
                 0.0
               ],
               "autoSize": true,
-              "zOrder": 1
+              "zOrder": 0
             },
             "editor": {},
             "children": []

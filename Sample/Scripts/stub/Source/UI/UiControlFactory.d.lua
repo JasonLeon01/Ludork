@@ -10,6 +10,11 @@ local UiControlFactory = {}
 ---@return Engine.ListView
 function UiControlFactory.CreateListView(logicalSize, defaultItemHeight, fixItemHeight, columns) end
 
+---@param logicalSize sf.Vector2u
+---@param windowSkin  sf.Image
+---@return Engine.ScrollBox
+function UiControlFactory.CreateScrollBox(logicalSize, windowSkin) end
+
 ---@param textConfig Engine.PlainTextConfig
 ---@return Engine.FunctionalPlainText
 function UiControlFactory.CreateFunctionalPlainText(textConfig) end

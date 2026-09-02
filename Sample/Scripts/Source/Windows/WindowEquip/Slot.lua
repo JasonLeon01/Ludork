@@ -3,6 +3,7 @@ local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 local IconTexture = require("Source.UI.IconTexture")
+local WindowEquipSlotUI = require("Source.UI.Parts.WindowEquip.WindowEquipSlot")
 local EquipSlotRowUI = require("Source.UI.Parts.WindowEquip.EquipSlotRow")
 local ListViewController = require("Source.UI.Helpers.ListView")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
@@ -21,10 +22,14 @@ function WindowEquipSlotController:init(model)
     super(WindowEquipSlotController, self).init(model, sf.Vector2u.new(1, 1), _SLOT_ROW_HEIGHT, true, 1)
 end
 
-function WindowEquipSlotController:attach()
+function WindowEquipSlotController:attach(listView)
     self:_refreshLogicalSize()
-    local listView = self:prepare(self._logicalSize)
-    self.model:setListView(listView)
+    if listView ~= nil then
+        self.root = listView
+        self.root:clearChildren()
+    end
+    local root = self:prepare(self._logicalSize)
+    self.model:setListView(root)
 end
 
 function WindowEquipSlotController:getSlotCellData(slotKey)
@@ -82,9 +87,7 @@ function WindowEquipSlotController:refreshSlots()
         self.model.index = 0
     end
     self.model._lastSlotIndex = self.model.index
-    if self.model._rect:getParent() ~= nil then
-        self.model.content:removeChild(self.model._rect)
-    end
+    self.model:_detachSelectionRect()
     self:redrawIfVisible()
 end
 
@@ -226,8 +229,8 @@ local WindowEquipSlot = {}
 
 WindowEquipSlot.controllerClass = FinalWindowEquipSlotController
 
-function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus, onClose)
-    super(WindowEquipSlot, self).init(rect, nil, nil, _SLOT_ROW_HEIGHT)
+function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus, onClose, instance)
+    super(WindowEquipSlot, self).init(rect, nil, nil, _SLOT_ROW_HEIGHT, nil, nil, nil, nil, instance ~= nil)
     self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
     self._player = player
@@ -235,8 +238,15 @@ function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus
     self._windowEquipStatus = windowEquipStatus
     self._slotKeys = {}
     self._lastSlotIndex = nil
+    if instance ~= nil then
+        local ui = WindowEquipSlotUI.new(self, instance)
+        self._ui = ui
+        ui:attach()
+        self:setScrollBox(ui:getScrollBox())
+        self:setListView(ui:getListView())
+    end
     self._slotController = self.controllerClass.new(self)
-    self._slotController:attach()
+    self._slotController:attach(self:getListView())
     self:refreshSlots()
     self:setActive(false)
     self:setVisible(false)

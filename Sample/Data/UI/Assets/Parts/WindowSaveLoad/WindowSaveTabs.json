@@ -102,8 +102,11 @@
                 32
               ],
               "windowSkin": "",
-              "textConfig": "UI/Default",
-              "tabCount": 2
+              "characterSize": 22,
+              "items": [
+                "#TAB 1",
+                "#TAB 2"
+              ]
             },
             "slot": {
               "anchors": {

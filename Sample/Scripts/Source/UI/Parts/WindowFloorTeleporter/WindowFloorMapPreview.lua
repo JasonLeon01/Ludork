@@ -1,19 +1,20 @@
 local Engine = require("Engine")
 local TelepointKey = require("Source.UI.Helpers.TelepointKey")
-local CommandRowController = require("Source.UI.Helpers.CommandRow")
+local CommandRowUI = require("Source.UI.Parts.Shared.CommandRow")
 local Ui = require("Source.UI.Ui")
 
 local _PREVIEW_CONTENT_SIZE = 208
 local _PREVIEW_SCALE = 0.5
-local _TELEPOINT_LIST_HEIGHT = 32
+local _TELEPOINT_LIST_WIDTH = 144
+local _TELEPOINT_VIEW_HEIGHT = 208
+local _TELEPOINT_ROW_HEIGHT = 32
 
 local WindowFloorMapPreviewUI = {}
 
-function WindowFloorMapPreviewUI:init(model, size, loadPreview, resolvePreviewMapPath)
+function WindowFloorMapPreviewUI:init(model, size, loadPreview, resolvePreviewMapPath, instance)
     self._logicalSize = sf.Vector2u.new(size.x, size.y)
     self._loadPreview = loadPreview
     self._resolvePreviewMapPath = resolvePreviewMapPath
-    self._columns = 1
     self._rowControllers = {}
     model._loadPreview = loadPreview
     model._resolvePreviewMapPath = resolvePreviewMapPath
@@ -22,19 +23,22 @@ function WindowFloorMapPreviewUI:init(model, size, loadPreview, resolvePreviewMa
     model._currentListKey = nil
     model._currentPreviewKey = nil
     model._previewTextureCache = dict()
-    super(WindowFloorMapPreviewUI, self).init(model)
+    super(WindowFloorMapPreviewUI, self).init(model, instance)
 end
 
 function WindowFloorMapPreviewUI:bind()
-    self._windowFrame = self:requireControl("WindowFrame")
-    self._content = self:requireControl("Content")
+    self._windowFrame = self:requireControl("TelepointWindowFrame")
+    self._previewWindowFrame = self:requireControl("PreviewWindowFrame")
+    self._content = self:requireControl("TelepointContent")
+    self._scrollBox = self:requireControl("TelepointScrollBox")
     self._listView = self:requireControl("TelepointList")
+    self._listView:clearChildren()
     self._previewImage = self:requireControl("PreviewImage")
     self.model._previewImage = self._previewImage
 end
 
 function WindowFloorMapPreviewUI:refresh()
-    self:_applyListLayout()
+    self:_applyListLayout(#self.model._telepoints)
     self:setProperty("PreviewImage", "visible", false)
 end
 
@@ -42,8 +46,13 @@ function WindowFloorMapPreviewUI:prepare()
     return super(WindowFloorMapPreviewUI, self).prepare(self._logicalSize)
 end
 
-function WindowFloorMapPreviewUI:attach()
-    self:attachWindowView(self.model)
+function WindowFloorMapPreviewUI:attach(nested)
+    if nested == true then
+        self:attachNestedWindowView(self.model)
+    else
+        self:attachWindowView(self.model)
+    end
+    self._previewWindowFrame:setWindowSkin(self.model._windowSkin, self.model._repeated)
 end
 
 function WindowFloorMapPreviewUI:getWindowFrame()
@@ -58,12 +67,18 @@ function WindowFloorMapPreviewUI:getListView()
     return self._listView
 end
 
+function WindowFloorMapPreviewUI:getScrollBox()
+    return self._scrollBox
+end
+
 function WindowFloorMapPreviewUI:clearPreviewCache()
     self.model._previewTextureCache = dict()
     self:hidePreview()
 end
 
 function WindowFloorMapPreviewUI:onActiveChanged(active, wasActive)
+    self._windowFrame:setVisible(active)
+    self._content:setVisible(active)
     if not active then
         self.model._rect:setVisible(false)
     end
@@ -104,24 +119,23 @@ function WindowFloorMapPreviewUI:afterSelectionUpdate(previousIndex)
 end
 
 function WindowFloorMapPreviewUI:rebuildTelepointList(entries)
-    self._columns = math.max(1, #entries)
     self._rowControllers = {}
     self._listView:clearChildren()
-    self:_applyListLayout()
     for _, entry in ipairs(entries) do
-        local controller = CommandRowController.new({
+        local controller = CommandRowUI.new({
             text = entry[2],
             callback = function ()
                 self.model._owner:confirmSelectedTelepoint()
             end
         })
-        local logicalSize = sf.Vector2u.new(self.model._telepointItemWidth, _TELEPOINT_LIST_HEIGHT)
+        local logicalSize = sf.Vector2u.new(self.model._telepointItemWidth, _TELEPOINT_ROW_HEIGHT)
         ---@cast logicalSize sf.Vector2u
         local child = controller:prepare(logicalSize)
         self._rowControllers[#self._rowControllers + 1] = controller
         self.model:_applyItem(child)
         self._listView:addChild(child)
     end
+    self:_applyListLayout(#entries)
     self.view:reflow(self._logicalSize)
 end
 
@@ -169,16 +183,17 @@ function WindowFloorMapPreviewUI:hidePreview()
     self:setProperty("PreviewImage", "visible", false)
 end
 
-function WindowFloorMapPreviewUI:_applyListLayout()
+---@param itemCount integer
+function WindowFloorMapPreviewUI:_applyListLayout(itemCount)
     self:setProperty("TelepointList", "size", {
-        self.model._telepointItemWidth * self._columns + 32,
-        _TELEPOINT_LIST_HEIGHT
+        _TELEPOINT_LIST_WIDTH,
+        math.max(_TELEPOINT_VIEW_HEIGHT, itemCount * _TELEPOINT_ROW_HEIGHT)
     })
-    self:setProperty("TelepointList", "columns", self._columns)
+    self:setProperty("TelepointList", "columns", 1)
 end
 
-function WindowFloorMapPreviewUI.GetTelepointItemWidth(rect)
-    return math.max(1, math.floor((rect.size.x - 64) / 2))
+function WindowFloorMapPreviewUI.GetTelepointItemWidth()
+    return _TELEPOINT_LIST_WIDTH - 32
 end
 
 return Ui.Define("Parts/WindowFloorTeleporter/WindowFloorMapPreview", WindowFloorMapPreviewUI)

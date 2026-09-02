@@ -13,8 +13,6 @@ local ManagerFunctions = GlobalFunctions.Manager
 local _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER = 0.35
 local _REPEAT_DELAY = 0.4
 local _REPEAT_INTERVAL = 0.1
-local _WHEEL_SCROLL_RESPONSE = 18.0
-local _WHEEL_SCROLL_EPSILON = 0.01
 
 ---@class Source.Windows.Base.WindowSelectable
 local WindowSelectable = {}
@@ -26,12 +24,11 @@ function WindowSelectable:init(
     self._oldIndex = nil
     self.index = 0
     self:setCanReceiveFocus(true)
-    if listView ~= nil then
-        self.content:addChild(listView)
-    end
+    self._scrollBox = nil
+    self._ownsScrollBox = false
     self._listView = listView
     if rectWidth == nil then
-        rectWidth = self:_getRectWidth()
+        rectWidth = deferView == true and 1 or self:_getRectWidth()
     end
     ---@cast rectWidth integer
     self._rectWidth = rectWidth
@@ -49,12 +46,15 @@ function WindowSelectable:init(
     self._selectionViewHeight = nil
     self._mousePositionAtCursorPending = false
     self._mouseSelectionConfirmedThisFrame = false
-    self._wheelScrollTargetOriginY = nil
     self._selectionInputPaused = false
     self._touchCaptured = false
     self._touchDragging = false
     self._touchStartPosition = nil
-    self._touchStartOriginY = 0.0
+    self._touchStartScrollOffset = sf.Vector2f.new(0.0, 0.0)
+    if listView ~= nil then
+        local scrollBox = self:_ensureScrollBox()
+        scrollBox:addChild(listView)
+    end
 end
 
 ---@return Engine.Rect
@@ -70,16 +70,61 @@ function WindowSelectable:_createSelectionRect()
     return rect
 end
 
+function WindowSelectable:_detachSelectionRect()
+    local parent = self._rect:getParent()
+    if parent ~= nil then
+        ---@cast parent Engine.Canvas
+        parent:removeChild(self._rect)
+    end
+end
+
 function WindowSelectable:getListView()
     return self._listView
 end
 
+function WindowSelectable:getScrollBox()
+    return self._scrollBox
+end
+
+---@param scrollBox Engine.ScrollBox
+function WindowSelectable:setScrollBox(scrollBox)
+    if self._scrollBox == scrollBox then
+        return
+    end
+    ---@type Engine.ScrollBox | nil
+    local oldScrollBox = self._scrollBox
+    if self._ownsScrollBox and oldScrollBox ~= nil and oldScrollBox:getParent() == self.content then
+        self.content:removeChild(oldScrollBox)
+    end
+    self._scrollBox = scrollBox
+    self._ownsScrollBox = false
+    scrollBox:setScrollingEnabled(not self._selectionInputPaused)
+end
+
+---@return Engine.ScrollBox
+function WindowSelectable:_ensureScrollBox()
+    if self._scrollBox ~= nil then
+        return self._scrollBox
+    end
+    local contentSize = self.content:getSize()
+    local logicalSize = sf.Vector2u.new(contentSize.x, contentSize.y)
+    ---@cast logicalSize sf.Vector2u
+    self._scrollBox = UiControlFactory.CreateScrollBox(logicalSize, self._windowSkin)
+    self._ownsScrollBox = true
+    self.content:addChild(self._scrollBox)
+    return self._scrollBox
+end
+
 function WindowSelectable:setListView(listView)
-    if self._listView ~= nil then
-        self.content:removeChild(self._listView)
+    if self._ownsScrollBox and self._listView ~= nil and self._scrollBox ~= nil
+        and self._listView:getParent() == self._scrollBox then
+        self._scrollBox:removeChild(self._listView)
     end
     if listView ~= nil then
-        self.content:addChild(listView)
+        local scrollBox = self:_ensureScrollBox()
+        if listView:getParent() ~= scrollBox then
+            scrollBox:addChild(listView)
+        end
     end
     self._listView = listView
     self._ensureSelectionVisibleRequested = true
@@ -88,8 +133,9 @@ end
 function WindowSelectable:resetSelection()
     self.index = self:_itemCount() > 0 and 0 or nil
     self._oldIndex = self.index
-    self._wheelScrollTargetOriginY = nil
-    self:_setScrollOriginY(0.0)
+    if self._scrollBox ~= nil then
+        self._scrollBox:setScrollOffset(sf.Vector2f.new(0.0, 0.0))
+    end
     self._ensureSelectionVisibleRequested = true
 end
 
@@ -130,9 +176,7 @@ function WindowSelectable:onTick(deltaTime)
     if self.index ~= nil then
         if self._rectWidth ~= self:_getRectWidth() then
             self._rectWidth = self:_getRectWidth()
-            if self._rect:getParent() ~= nil then
-                self.content:removeChild(self._rect)
-            end
+            self:_detachSelectionRect()
             self._rect = self:_createSelectionRect()
             self._ensureSelectionVisibleRequested = true
         end
@@ -146,14 +190,13 @@ function WindowSelectable:onTick(deltaTime)
     if self:_shouldEnsureSelectionVisible() then
         self:_ensureSelectionVisible()
         self:_recordSelectionScrollState()
-    else
-        self:_updateWheelScroll(deltaTime)
     end
     self._rect:update(deltaTime)
     self._rect:setOpacityMultiplier(focused and 1.0 or _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER)
     if self._rect:getParent() == nil then
         self._rect:resize(sf.Vector2f.new(self._rectWidth, self._rectHeight))
-        self.content:addChild(self._rect)
+        local target = self._scrollBox or self.content
+        target:addChild(self._rect)
     end
     self:_updatePendingMousePosition()
     if active and not self._selectionInputPaused and self._listView ~= nil then
@@ -178,30 +221,6 @@ function WindowSelectable:onTick(deltaTime)
         ManagerFunctions.playSE(GameSystem.GetCursorSE())
     end
     super(WindowSelectable, self).onTick(deltaTime)
-end
-
-function WindowSelectable:onMouseWheelScrolled(kwargs)
-    if self._selectionInputPaused or not self:canReceiveFocus() then
-        return
-    end
-    if self._listView == nil or not bool(self._listView:getChildren()) then
-        return
-    end
-    local wheel = Input.getMouseScrolledWheel()
-    if wheel ~= nil and wheel ~= sf.Mouse.Wheel.Vertical then
-        return
-    end
-    local delta = kwargs.delta
-    if delta == 0 then
-        return
-    end
-    if Input.isMouseWheelPrecise() then
-        self._wheelScrollTargetOriginY = nil
-        self:_setScrollOriginY(self:_getScrollOriginY() - delta / math.max(Engine.Scale, 0.000001))
-        return
-    end
-    local targetOriginY = self._wheelScrollTargetOriginY or self:_getScrollOriginY()
-    self._wheelScrollTargetOriginY = self:_clampScrollOriginY(targetOriginY - delta * self._rectHeight)
 end
 
 function WindowSelectable:onMouseMoved(kwargs)
@@ -378,7 +397,8 @@ end
 ---@return integer
 function WindowSelectable:_getRectWidth()
     local columns = self:_getColumns()
-    return math.floor((self.content:getSize().x - 32) / columns)
+    local viewportWidth = self._scrollBox ~= nil and self._scrollBox:getSize().x or self.content:getSize().x
+    return math.floor((viewportWidth - 32) / columns)
 end
 
 ---@return integer
@@ -457,28 +477,21 @@ function WindowSelectable:_applyItem(item)
 end
 
 function WindowSelectable:_getScrollOriginY()
-    local view = self.content:getView()
-    return view:getCenter().y - view:getSize().y / 2.0
+    return self._scrollBox ~= nil and self._scrollBox:getScrollOffset().y or 0.0
 end
 
 ---@return number
 function WindowSelectable:_getMaxScrollOriginY()
-    local itemCount = self:_itemCount()
-    if itemCount <= 0 then
-        return 0.0
-    end
-    local position = self:_getRectPositionForIndex(itemCount - 1)
-    local viewHeight = self.content:getView():getSize().y
-    return math.max(0.0, position.y + self._rectHeight - viewHeight)
+    return self._scrollBox ~= nil and self._scrollBox:getMaxScrollOffset().y or 0.0
 end
 
 ---@param originY number
 function WindowSelectable:_setScrollOriginY(originY)
-    local view = self.content:getView()
-    local viewSize = view:getSize()
-    local origin = view:getCenter() - viewSize / 2.0
-    local clampedOriginY = self:_clampScrollOriginY(originY)
-    self.content:setView(sf.View.new(sf.Vector2f.new(origin.x, clampedOriginY) + viewSize / 2.0, viewSize))
+    if self._scrollBox == nil then
+        return
+    end
+    local offset = self._scrollBox:getScrollOffset()
+    self._scrollBox:setScrollOffset(sf.Vector2f.new(offset.x, originY))
 end
 
 ---@param originY number
@@ -487,50 +500,20 @@ function WindowSelectable:_clampScrollOriginY(originY)
     return Engine.Clamp(originY, 0.0, self:_getMaxScrollOriginY())
 end
 
----@param deltaTime number
-function WindowSelectable:_updateWheelScroll(deltaTime)
-    if self._selectionInputPaused or not self:canReceiveFocus() then
-        self._wheelScrollTargetOriginY = nil
-        return
-    end
-    if self._wheelScrollTargetOriginY == nil then
-        return
-    end
-    local targetOriginY = self:_clampScrollOriginY(self._wheelScrollTargetOriginY)
-    self._wheelScrollTargetOriginY = targetOriginY
-    local originY = self:_getScrollOriginY()
-    local distance = targetOriginY - originY
-    if math.abs(distance) <= _WHEEL_SCROLL_EPSILON then
-        self:_setScrollOriginY(targetOriginY)
-        self._wheelScrollTargetOriginY = nil
-        return
-    end
-    local factor = 1.0 - math.exp(-_WHEEL_SCROLL_RESPONSE * math.max(0.0, deltaTime))
-    self:_setScrollOriginY(originY + distance * factor)
-end
-
 function WindowSelectable:_ensureSelectionVisible()
-    self._wheelScrollTargetOriginY = nil
-    local originY = self:_getScrollOriginY()
-    if self.index == nil or self.index < 0 or self.index >= self:_itemCount() then
-        self:_setScrollOriginY(originY)
+    if self._scrollBox == nil or self.index == nil or self.index < 0 or self.index >= self:_itemCount() then
         return
     end
-    local view = self.content:getView()
-    local viewSize = view:getSize()
-    local position = self:_getRectPositionForIndex(self.index)
-    if position.y < originY then
-        originY = position.y
-    elseif position.y + self._rectHeight > originY + viewSize.y then
-        originY = position.y + self._rectHeight - viewSize.y
+    local item = self:_getSelectionScrollItem()
+    if item ~= nil then
+        self._scrollBox:scrollDescendantIntoView(item)
     end
-    self:_setScrollOriginY(originY)
 end
 
 ---@return boolean
 function WindowSelectable:_shouldEnsureSelectionVisible()
     local position = self:_getRectPosition()
-    local viewSize = self.content:getView():getSize()
+    local viewSize = self._scrollBox ~= nil and self._scrollBox:getSize() or self.content:getSize()
     return self._ensureSelectionVisibleRequested or self._selectionScrollIndex ~= self.index
         or self._selectionScrollItemCount ~= self:_itemCount()
         or self._selectionScrollItem ~= self:_getSelectionScrollItem() or self._rect:getParent() == nil
@@ -553,7 +536,7 @@ end
 
 function WindowSelectable:_synchronizeSelectionScrollState()
     local position = self:_getRectPosition()
-    local viewSize = self.content:getView():getSize()
+    local viewSize = self._scrollBox ~= nil and self._scrollBox:getSize() or self.content:getSize()
     self._selectionScrollIndex = self.index
     self._selectionScrollItemCount = self:_itemCount()
     self._selectionScrollItem = self:_getSelectionScrollItem()
@@ -588,12 +571,12 @@ function WindowSelectable:_updateTouchInput()
         if beganPosition ~= nil then
             local position = Engine.ToVector2f(beganPosition)
             if sf.FloatRect.contains(self:_getContentViewportAbsoluteBounds(), position) then
-                self._wheelScrollTargetOriginY = nil
                 if self:_shouldCaptureTouch(position) then
                     self._touchCaptured = true
                     self._touchDragging = false
                     self._touchStartPosition = position
-                    self._touchStartOriginY = self:_getScrollOriginY()
+                    self._touchStartScrollOffset = self._scrollBox ~= nil and self._scrollBox:getScrollOffset()
+                        or sf.Vector2f.new(0.0, 0.0)
                     self:_onCapturedTouchBegan(position)
                     Input.isTouchBegan(true)
                 end
@@ -613,8 +596,10 @@ function WindowSelectable:_updateTouchInput()
         if self._touchDragging then
             if not self:_handleCapturedTouchDrag(position) then
                 ---@cast self._touchStartPosition sf.Vector2f
-                local originDeltaY = (position.y - self._touchStartPosition.y) / scale
-                self:_setScrollOriginY(self._touchStartOriginY - originDeltaY)
+                if self._scrollBox ~= nil then
+                    local delta = (position - self._touchStartPosition) / scale
+                    self._scrollBox:setScrollOffset(self._touchStartScrollOffset - delta)
+                end
             end
         end
     end
@@ -682,11 +667,7 @@ end
 
 ---@return sf.FloatRect
 function WindowSelectable:_getContentViewportAbsoluteBounds()
-    local view = self.content:getView()
-    self.content:setView(self.content:getDefaultView())
-    local bounds = self.content:getAbsoluteBounds()
-    self.content:setView(view)
-    return bounds
+    return self._scrollBox ~= nil and self._scrollBox:getAbsoluteBounds() or self.content:getAbsoluteBounds()
 end
 
 ---@param cancelGesture boolean | nil
@@ -697,7 +678,7 @@ function WindowSelectable:_resetTouchCapture(cancelGesture)
     self._touchCaptured = false
     self._touchDragging = false
     self._touchStartPosition = nil
-    self._touchStartOriginY = 0.0
+    self._touchStartScrollOffset = sf.Vector2f.new(0.0, 0.0)
     self:_onCapturedTouchReset()
 end
 
@@ -707,6 +688,9 @@ function WindowSelectable:_setSelectionInputPaused(paused)
         return
     end
     self._selectionInputPaused = paused
+    if self._scrollBox ~= nil then
+        self._scrollBox:setScrollingEnabled(not paused)
+    end
     if paused then
         self:_resetTransientInputState()
     else
@@ -717,7 +701,6 @@ end
 function WindowSelectable:_resetTransientInputState()
     self._mousePositionAtCursorPending = false
     self._mouseSelectionConfirmedThisFrame = false
-    self._wheelScrollTargetOriginY = nil
     self:_resetTouchCapture(true)
 end
 

@@ -31,6 +31,9 @@ public:
     BIND_METHOD(Pure = true)
     virtual sf::Vector2f getSize() const override;
 
+    BIND_METHOD(Pure = true)
+    virtual sf::FloatRect getContentBounds() const override;
+
     BIND_METHOD()
     void setSize(const sf::Vector2i& size);
 

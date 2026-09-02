@@ -94,16 +94,14 @@
         "editor": {},
         "children": [
           {
-            "name": "AbilityList",
-            "controlId": "Engine.ListView",
+            "name": "AbilityScrollBox",
+            "controlId": "Engine.ScrollBox",
             "properties": {
               "size": [
                 320,
                 176
               ],
-              "defaultItemHeight": 32,
-              "fixItemHeight": true,
-              "columns": 1
+              "windowSkin": ""
             },
             "slot": {
               "anchors": {
@@ -130,7 +128,62 @@
               "zOrder": 0
             },
             "editor": {},
-            "children": []
+            "children": [
+              {
+                "name": "AbilityList",
+                "controlId": "Engine.ListView",
+                "properties": {
+                  "size": [320.0, 176.0],
+                  "defaultItemHeight": 32,
+                  "fixItemHeight": true,
+                  "columns": 1
+                },
+                "slot": {},
+                "editor": {},
+                "children": [
+                  {
+                    "name": "AbilityItem1",
+                    "controlId": "Project:Parts/WindowAttrShop/AttrShopRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AbilityItem2",
+                    "controlId": "Project:Parts/WindowAttrShop/AttrShopRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AbilityItem3",
+                    "controlId": "Project:Parts/WindowAttrShop/AttrShopRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AbilityItem4",
+                    "controlId": "Project:Parts/WindowAttrShop/AttrShopRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AbilityItem5",
+                    "controlId": "Project:Parts/WindowAttrShop/AttrShopRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -138,7 +191,8 @@
         "name": "Avatar",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Characters/npcs/classic-npcs-50F-single.png",
+          "textureRect": [0, 0, 32, 32]
         },
         "slot": {
           "anchors": {
@@ -171,7 +225,7 @@
         "name": "ShopName",
         "controlId": "Engine.FunctionalPlainText",
         "properties": {
-          "textConfig": "UI/Text16",
+          "characterSize": 16,
           "text": ""
         },
         "slot": {
@@ -207,7 +261,7 @@
         "name": "Description",
         "controlId": "Engine.FunctionalPlainText",
         "properties": {
-          "textConfig": "UI/Text14",
+          "characterSize": 14,
           "text": ""
         },
         "slot": {
@@ -243,7 +297,7 @@
         "name": "Price",
         "controlId": "Engine.FunctionalPlainText",
         "properties": {
-          "textConfig": "UI/Text16",
+          "characterSize": 16,
           "text": ""
         },
         "slot": {

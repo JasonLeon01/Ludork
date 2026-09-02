@@ -25,6 +25,29 @@ namespace Ludork.Views;
 public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 {
     private const string DragPrefix = "ludork-ui-node-name:";
+    private static readonly HashSet<string> TextStylePropertyIds = new(StringComparer.Ordinal)
+    {
+        "font",
+        "characterSize",
+        "bold",
+        "italic",
+        "underlined",
+        "strikeThrough",
+        "slantAngle",
+        "fillColor",
+        "letterSpacing",
+        "lineSpacing",
+        "lineAlignment",
+        "outlineColor",
+        "outlineThickness",
+        "glowEnabled",
+        "glowColor",
+        "glowRadius",
+        "glowIntensity",
+        "gradientEnabled",
+        "gradientDirection",
+        "gradientCurve",
+    };
     private readonly UiAssetEditorDocument document = null!;
     private readonly GameDataService gameData = null!;
     private readonly UiControlRegistryService controlRegistry = null!;
@@ -821,13 +844,21 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 descriptor.ControlId,
                 "Engine.Canvas",
                 StringComparison.Ordinal);
+        bool usesTextConfig = !string.IsNullOrEmpty(getString(properties["textConfig"]));
         foreach (UiControlPropertyDescriptor property in descriptor.Properties)
         {
             if (rootCanvas && string.Equals(property.Id, "size", StringComparison.Ordinal))
                 continue;
             JsonObject source = property.EditorOnly ? editor : properties;
             JsonNode? value = source[property.Id] ?? property.Default;
+            int fieldIndex = DetailsPanel.Children.Count;
             addPropertyField(nodeName, descriptor.ControlId, property, value);
+            if (usesTextConfig
+                && TextStylePropertyIds.Contains(property.Id)
+                && DetailsPanel.Children.Count > fieldIndex)
+            {
+                DetailsPanel.Children[fieldIndex].IsEnabled = false;
+            }
         }
     }
 
@@ -877,6 +908,26 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         };
         switch (property.Type)
         {
+            case "sf.Text.LineAlignment":
+                addChoiceField(
+                    property.DisplayName,
+                    getString(value),
+                    ["default", "left", "center", "right"],
+                    next => commit(JsonValue.Create(next)));
+                break;
+            case "Engine.TextGradientDirection":
+                addChoiceField(
+                    property.DisplayName,
+                    getString(value),
+                    ["vertical", "horizontal"],
+                    next => commit(JsonValue.Create(next)));
+                break;
+            case "string" when property.Id == "font":
+                addFontField(
+                    property.DisplayName,
+                    getString(value),
+                    next => commit(JsonValue.Create(next)));
+                break;
             case "string" when property.Id is "texture"
                 or "lineTexture"
                 or "handleTexture":
@@ -939,6 +990,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 break;
             case "sf.Color":
                 addColorField(property.DisplayName, value, commit);
+                break;
+            case "string[]":
+                addStringArrayField(property.DisplayName, value, commit);
                 break;
             default:
                 addTextField(
@@ -1183,9 +1237,92 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         DetailsPanel.Children.Add(createField(label, box));
     }
 
+    private void addChoiceField(
+        string label,
+        string value,
+        IReadOnlyList<string> choices,
+        Action<string> commit)
+    {
+        ComboBox input = new()
+        {
+            ItemsSource = choices,
+            SelectedItem = choices.Contains(value) ? value : choices[0],
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        input.SelectionChanged += (_, _) =>
+        {
+            if (refreshing || input.SelectedItem is not string selected)
+                return;
+            commit(selected);
+        };
+        DetailsPanel.Children.Add(createField(label, input));
+    }
+
+    private void addStringArrayField(
+        string label,
+        JsonNode? value,
+        Action<JsonNode?> commit)
+    {
+        IEnumerable<string> items = value is JsonArray array
+            ? array.Select(getString)
+            : [];
+        TextBox box = EditorInputs.CreateEditableTextBox(string.Join(Environment.NewLine, items));
+        box.AcceptsReturn = true;
+        box.MinHeight = 96;
+        box.TextWrapping = TextWrapping.Wrap;
+        Action commitValue = () =>
+        {
+            JsonArray result = new();
+            foreach (string item in (box.Text ?? string.Empty).Split(
+                         ["\r\n", "\n", "\r"],
+                         StringSplitOptions.None))
+            {
+                result.Add(item);
+            }
+            commit(result);
+        };
+        box.GotFocus += (_, _) => pendingFieldCommit = commitValue;
+        box.LostFocus += (_, _) =>
+        {
+            if (!ReferenceEquals(pendingFieldCommit, commitValue))
+                return;
+            pendingFieldCommit = null;
+            commitValue();
+        };
+        DetailsPanel.Children.Add(createField(label, box));
+    }
+
     private void addTextureField(
         string label,
         string value,
+        Action<string> commit)
+    {
+        addAssetFileField(
+            label,
+            value,
+            Path.Combine(gameData.ProjectPath, "Assets"),
+            FileSelectorDialog.ImageFilesFilter(),
+            commit);
+    }
+
+    private void addFontField(
+        string label,
+        string value,
+        Action<string> commit)
+    {
+        addAssetFileField(
+            label,
+            value,
+            Path.Combine(gameData.ProjectPath, "Assets", "Fonts"),
+            FileSelectorDialog.FilesFilter("*.ttf", "*.otf"),
+            commit);
+    }
+
+    private void addAssetFileField(
+        string label,
+        string value,
+        string selectorRoot,
+        string filter,
         Action<string> commit)
     {
         TextBox pathBox = EditorInputs.CreateReadOnlyTextBox(value);
@@ -1197,13 +1334,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         };
         browse.Click += async (_, _) =>
         {
-            string assetsRoot = Path.Combine(gameData.ProjectPath, "Assets");
-            Directory.CreateDirectory(assetsRoot);
-            string? initialFilePath = getTextureInitialFilePath(pathBox.Text ?? string.Empty);
+            Directory.CreateDirectory(selectorRoot);
+            string? initialFilePath = getAssetInitialFilePath(pathBox.Text ?? string.Empty);
             string? selectedPath = await FileSelectorDialog.ShowAsync(
                 this,
-                assetsRoot,
-                FileSelectorDialog.ImageFilesFilter(),
+                selectorRoot,
+                filter,
                 initialDirectory: Path.GetDirectoryName(initialFilePath),
                 initialFilePath: initialFilePath);
             if (selectedPath is null)
@@ -1241,7 +1377,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         DetailsPanel.Children.Add(createField(label, row));
     }
 
-    private string? getTextureInitialFilePath(string value)
+    private string? getAssetInitialFilePath(string value)
     {
         if (!value.StartsWith("Assets/", StringComparison.Ordinal))
             return null;

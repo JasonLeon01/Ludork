@@ -36,9 +36,7 @@
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
 ---@field _messageWindow                        Source.Windows.WindowMessage
 ---@field _windowItem                           Source.Windows.WindowItem
----@field _windowEquipSlot                      Source.Windows.WindowEquipSlot
----@field _windowEquipSelect                    Source.Windows.WindowEquipSelect
----@field _windowEquipStatus                    Source.Windows.WindowEquipStatus
+---@field _windowEquip                          Source.Windows.WindowEquip
 ---@field _windowShop                           Source.Windows.WindowShop
 ---@field _windowAttrShop                       Source.Windows.WindowAttrShop
 ---@field _windowEnemyBook                      Source.Windows.WindowEnemyBook
@@ -71,7 +69,7 @@
 ---@field _floorTeleporterMoveEnabledBeforeOpen boolean
 local Scene = {}
 
----@return sf.IntRect, sf.IntRect
+---@return sf.IntRect, sf.IntRect, sf.IntRect
 function Scene.GetShopRects() end
 
 ---@return sf.IntRect

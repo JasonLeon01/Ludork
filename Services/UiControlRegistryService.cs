@@ -111,6 +111,16 @@ public sealed class UiControlRegistryService
                     property("columns", "Columns", "int", false, JsonValue.Create(1)),
                 ]),
             descriptor(
+                "Engine.ScrollBox",
+                "Scroll Box",
+                "Layout",
+                "multiple",
+                "list",
+                [
+                    property("size", "Size", "sf.Vector2f", false, jsonArray("[100.0,100.0]")),
+                    property("windowSkin", "Window Skin", "string", false, JsonValue.Create(string.Empty)),
+                ]),
+            descriptor(
                 "Engine.Window",
                 "Window",
                 "Visual",
@@ -190,7 +200,7 @@ public sealed class UiControlRegistryService
                     property("size", "Size", "sf.Vector2f", false, jsonArray("[32.0,32.0]")),
                     property("checked", "Checked", "bool", false, JsonValue.Create(false)),
                     property("windowSkin", "Window Skin", "string", false, JsonValue.Create(string.Empty)),
-                    property("textConfig", "Text Config", "string", false, JsonValue.Create("UI/Text20")),
+                    ..plainTextProperties(20),
                 ]),
             descriptor(
                 "Engine.TabView",
@@ -201,8 +211,8 @@ public sealed class UiControlRegistryService
                 [
                     property("size", "Size", "sf.Vector2f", false, jsonArray("[100.0,32.0]")),
                     property("windowSkin", "Window Skin", "string", false, JsonValue.Create(string.Empty)),
-                    property("textConfig", "Text Config", "string", false, JsonValue.Create("UI/Default")),
-                    property("tabCount", "Tab Count", "int", false, JsonValue.Create(1)),
+                    ..plainTextProperties(22),
+                    property("items", "Items", "string[]", false, jsonArray("[\"#TAB\"]")),
                 ]),
             descriptor(
                 "Engine.Slider",
@@ -227,7 +237,7 @@ public sealed class UiControlRegistryService
                 [
                     property("size", "Size", "sf.Vector2f", false, jsonArray("[200.0,32.0]")),
                     property("windowSkin", "Window Skin", "string", false, JsonValue.Create(string.Empty)),
-                    property("textConfig", "Text Config", "string", false, JsonValue.Create("UI/Text20")),
+                    ..plainTextProperties(20),
                     property("previewText", "Preview Text", "string", false, JsonValue.Create("Option"), true),
                 ]),
             descriptor(
@@ -237,12 +247,10 @@ public sealed class UiControlRegistryService
                 "none",
                 null,
                 [
-                    property("textConfig", "Text Config", "string", false, JsonValue.Create(string.Empty)),
+                    ..plainTextProperties(22),
                     property("text", "Text", "string", false, JsonValue.Create(string.Empty)),
                     property("previewText", "Preview Text", "string", false, JsonValue.Create(string.Empty), true),
                     property("colour", "Colour", "sf.Color", false, new JsonArray(255, 255, 255, 255)),
-                    property("outlineColor", "Outline Color", "sf.Color", false, null),
-                    property("outlineThickness", "Outline Thickness", "float", false, null),
                 ]),
             descriptor(
                 "Engine.RichText",
@@ -268,18 +276,33 @@ public sealed class UiControlRegistryService
                     property("colour", "Colour", "sf.Color", false, new JsonArray(255, 255, 255, 255)),
                 ]),
             descriptor(
+                "Engine.CharacterView",
+                "Character View",
+                "Visual",
+                "none",
+                null,
+                [
+                    property("size", "Size", "sf.Vector2f", false, jsonArray("[32.0,32.0]")),
+                    property("texture", "Texture", "string", false, JsonValue.Create(string.Empty)),
+                    property("textureRect", "Texture Rect", "sf.IntRect", false, null),
+                    property("characterScale", "Character Scale", "sf.Vector2f", false, jsonArray("[1.0,1.0]")),
+                    property("animatable", "Animatable", "bool", false, JsonValue.Create(true)),
+                    property("switchInterval", "Switch Interval", "float", false, JsonValue.Create(0.2)),
+                    property("shader", "Shader", "string", false, JsonValue.Create(string.Empty)),
+                    property("hue", "Hue", "float", false, JsonValue.Create(0.0)),
+                    property("colour", "Colour", "sf.Color", false, new JsonArray(255, 255, 255, 255)),
+                ]),
+            descriptor(
                 "Engine.FunctionalPlainText",
                 "Functional Plain Text",
                 "Input",
                 "none",
                 null,
                 [
-                    property("textConfig", "Text Config", "string", false, JsonValue.Create(string.Empty)),
+                    ..plainTextProperties(22),
                     property("text", "Text", "string", false, JsonValue.Create(string.Empty)),
                     property("previewText", "Preview Text", "string", false, JsonValue.Create(string.Empty), true),
                     property("colour", "Colour", "sf.Color", false, new JsonArray(255, 255, 255, 255)),
-                    property("outlineColor", "Outline Color", "sf.Color", false, null),
-                    property("outlineThickness", "Outline Thickness", "float", false, null),
                 ]),
             descriptor(
                 "Engine.FunctionalRichText",
@@ -293,6 +316,35 @@ public sealed class UiControlRegistryService
                     property("previewText", "Preview Text", "string", false, JsonValue.Create(string.Empty), true),
                     property("colour", "Colour", "sf.Color", false, new JsonArray(255, 255, 255, 255)),
                 ]),
+        ];
+    }
+
+    private static IReadOnlyList<UiControlPropertyDescriptor> plainTextProperties(
+        int characterSize)
+    {
+        return
+        [
+            property("textConfig", "Text Config", "string", false, JsonValue.Create(string.Empty)),
+            property("font", "Font", "string", false, JsonValue.Create(string.Empty)),
+            property("characterSize", "Character Size", "int", false, JsonValue.Create(characterSize)),
+            property("bold", "Bold", "bool", false, JsonValue.Create(false)),
+            property("italic", "Italic", "bool", false, JsonValue.Create(false)),
+            property("underlined", "Underlined", "bool", false, JsonValue.Create(false)),
+            property("strikeThrough", "Strike Through", "bool", false, JsonValue.Create(false)),
+            property("slantAngle", "Slant Angle", "float", false, JsonValue.Create(0.0)),
+            property("fillColor", "Fill Color", "sf.Color", false, new JsonArray(255, 255, 255, 255)),
+            property("letterSpacing", "Letter Spacing", "float", false, JsonValue.Create(1.0)),
+            property("lineSpacing", "Line Spacing", "float", false, JsonValue.Create(1.0)),
+            property("lineAlignment", "Line Alignment", "sf.Text.LineAlignment", false, JsonValue.Create("default")),
+            property("outlineColor", "Outline Color", "sf.Color", false, new JsonArray(0, 0, 0, 255)),
+            property("outlineThickness", "Outline Thickness", "float", false, JsonValue.Create(0.0)),
+            property("glowEnabled", "Glow Enabled", "bool", false, JsonValue.Create(false)),
+            property("glowColor", "Glow Color", "sf.Color", false, new JsonArray(255, 255, 255, 0)),
+            property("glowRadius", "Glow Radius", "float", false, JsonValue.Create(0.0)),
+            property("glowIntensity", "Glow Intensity", "float", false, JsonValue.Create(0.0)),
+            property("gradientEnabled", "Gradient Enabled", "bool", false, JsonValue.Create(false)),
+            property("gradientDirection", "Gradient Direction", "Engine.TextGradientDirection", false, JsonValue.Create("vertical")),
+            property("gradientCurve", "Gradient Curve", "string", false, JsonValue.Create(string.Empty)),
         ];
     }
 

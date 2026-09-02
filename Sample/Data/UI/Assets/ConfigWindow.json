@@ -102,8 +102,12 @@
                 32.0
               ],
               "windowSkin": "",
-              "textConfig": "UI/Default",
-              "tabCount": 3
+              "characterSize": 22,
+              "items": [
+                "#TAB 1",
+                "#TAB 2",
+                "#TAB 3"
+              ]
             },
             "slot": {
               "anchors": {
@@ -207,126 +211,189 @@
         },
         "editor": {},
         "children": [
+          {
+            "name": "SettingsScrollBox",
+            "controlId": "Engine.ScrollBox",
+            "properties": {
+              "size": [448.0, 288.0],
+              "windowSkin": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [0.0, 0.0],
+                "max": [1.0, 1.0]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [0.0, 0.0],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": [
               {
                 "name": "GraphicsList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [
-                    448.0,
-                    288.0
-                  ],
+                  "size": [448.0, 288.0],
                   "defaultItemHeight": 32,
                   "fixItemHeight": false,
                   "columns": 1
                 },
-                "slot": {
-                  "anchors": {
-                    "min": [
-                      0.0,
-                      0.0
-                    ],
-                    "max": [
-                      1.0,
-                      1.0
-                    ]
-                  },
-                  "offsets": {
-                    "left": 0.0,
-                    "top": 0.0,
-                    "right": 0.0,
-                    "bottom": 0.0
-                  },
-                  "alignment": [
-                    0.0,
-                    0.0
-                  ],
-                  "autoSize": false,
-                  "zOrder": 0
-                },
+                "slot": {},
                 "editor": {},
-                "children": []
+                "children": [
+                  {
+                    "name": "GraphicsItem1",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "GraphicsItem2",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSliderRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "GraphicsItem3",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "GraphicsItem4",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "GraphicsItem5",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigCheckBoxRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "GraphicsItem6",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "GraphicsItem7",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  }
+                ]
               },
               {
                 "name": "AudioList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [
-                    448.0,
-                    288.0
-                  ],
+                  "size": [448.0, 288.0],
                   "defaultItemHeight": 32,
                   "fixItemHeight": false,
                   "columns": 1,
                   "visible": false
                 },
-                "slot": {
-                  "anchors": {
-                    "min": [
-                      0.0,
-                      0.0
-                    ],
-                    "max": [
-                      1.0,
-                      1.0
-                    ]
-                  },
-                  "offsets": {
-                    "left": 0.0,
-                    "top": 0.0,
-                    "right": 0.0,
-                    "bottom": 0.0
-                  },
-                  "alignment": [
-                    0.0,
-                    0.0
-                  ],
-                  "autoSize": false,
-                  "zOrder": 1
-                },
+                "slot": {},
                 "editor": {},
-                "children": []
+                "children": [
+                  {
+                    "name": "AudioItem1",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigCheckBoxRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AudioItem2",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSliderRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AudioItem3",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigCheckBoxRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AudioItem4",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSliderRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AudioItem5",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigCheckBoxRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "AudioItem6",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSliderRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  }
+                ]
               },
               {
                 "name": "LanguageList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [
-                    448.0,
-                    288.0
-                  ],
+                  "size": [448.0, 288.0],
                   "defaultItemHeight": 32,
                   "fixItemHeight": false,
                   "columns": 1,
                   "visible": false
                 },
-                "slot": {
-                  "anchors": {
-                    "min": [
-                      0.0,
-                      0.0
-                    ],
-                    "max": [
-                      1.0,
-                      1.0
-                    ]
-                  },
-                  "offsets": {
-                    "left": 0.0,
-                    "top": 0.0,
-                    "right": 0.0,
-                    "bottom": 0.0
-                  },
-                  "alignment": [
-                    0.0,
-                    0.0
-                  ],
-                  "autoSize": false,
-                  "zOrder": 2
-                },
+                "slot": {},
                 "editor": {},
-                "children": []
+                "children": [
+                  {
+                    "name": "LanguageItem1",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  }
+                ]
               }
             ]
+          }
+        ]
           }
     ]
   }

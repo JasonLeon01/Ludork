@@ -63,11 +63,45 @@ struct UiControlAdapterTraits;
         UI_CONTROL_COMMON_PROPERTY("origin", "sf.Vector2f", false,     \
                                    "[0.0,0.0]")
 
+#define UI_CONTROL_PLAIN_TEXT_PROPERTIES(DEFAULT_SIZE)                         \
+    UI_CONTROL_PROPERTY("textConfig", "string", false, "\"\""),                \
+        UI_CONTROL_PROPERTY("font", "string", false, "\"\""),                  \
+        UI_CONTROL_PROPERTY("characterSize", "int", false, DEFAULT_SIZE),      \
+        UI_CONTROL_PROPERTY("bold", "bool", false, "false"),                   \
+        UI_CONTROL_PROPERTY("italic", "bool", false, "false"),                 \
+        UI_CONTROL_PROPERTY("underlined", "bool", false, "false"),             \
+        UI_CONTROL_PROPERTY("strikeThrough", "bool", false, "false"),          \
+        UI_CONTROL_PROPERTY("slantAngle", "float", false, "0.0"),              \
+        UI_CONTROL_PROPERTY("fillColor", "sf.Color", false,                    \
+                            "[255,255,255,255]"),                              \
+        UI_CONTROL_PROPERTY("letterSpacing", "float", false, "1.0"),           \
+        UI_CONTROL_PROPERTY("lineSpacing", "float", false, "1.0"),             \
+        UI_CONTROL_PROPERTY("lineAlignment", "sf.Text.LineAlignment", false,   \
+                            "\"default\""),                                    \
+        UI_CONTROL_PROPERTY("outlineColor", "sf.Color", false, "[0,0,0,255]"), \
+        UI_CONTROL_PROPERTY("outlineThickness", "float", false, "0.0"),        \
+        UI_CONTROL_PROPERTY("glowEnabled", "bool", false, "false"),            \
+        UI_CONTROL_PROPERTY("glowColor", "sf.Color", false,                    \
+                            "[255,255,255,0]"),                                \
+        UI_CONTROL_PROPERTY("glowRadius", "float", false, "0.0"),              \
+        UI_CONTROL_PROPERTY("glowIntensity", "float", false, "0.0"),           \
+        UI_CONTROL_PROPERTY("gradientEnabled", "bool", false, "false"),        \
+        UI_CONTROL_PROPERTY("gradientDirection",                               \
+                            "Engine.TextGradientDirection", false,             \
+                            "\"vertical\""),                                   \
+        UI_CONTROL_PROPERTY("gradientCurve", "string", false, "\"\"")
+
 #define LUDORK_UI_CONTROL_DEFINITIONS                                          \
     BIND_UI_CONTROL(                                                           \
         CanvasUiControlAdapterTag, "Engine.Canvas", "Engine.Canvas", "Canvas", \
         "Layout", UiChildPolicy::Multiple, UiControlSlotType::Canvas,          \
         UI_CONTROL_PROPERTY("size", "sf.Vector2u", false, "[100,100]"))        \
+    BIND_UI_CONTROL(                                                           \
+        ScrollBoxUiControlAdapterTag, "Engine.ScrollBox", "Engine.ScrollBox",  \
+        "Scroll Box", "Layout", UiChildPolicy::Multiple,                       \
+        UiControlSlotType::List,                                               \
+        UI_CONTROL_PROPERTY("size", "sf.Vector2f", false, "[100.0,100.0]"),    \
+        UI_CONTROL_PROPERTY("windowSkin", "string", false, "\"\""))            \
     BIND_UI_CONTROL(                                                           \
         ListViewUiControlAdapterTag, "Engine.ListView", "Engine.ListView",     \
         "List View", "Layout", UiChildPolicy::Multiple,                        \
@@ -128,7 +162,7 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("size", "sf.Vector2f", false, "[32.0,32.0]"),      \
         UI_CONTROL_PROPERTY("checked", "bool", false, "false"),                \
         UI_CONTROL_PROPERTY("windowSkin", "string", false, "\"\""),            \
-        UI_CONTROL_PROPERTY("textConfig", "string", false, "\"UI/Text20\""))   \
+        UI_CONTROL_PLAIN_TEXT_PROPERTIES("20"))                                \
     BIND_UI_CONTROL(                                                           \
         SliderUiControlAdapterTag, "Engine.Slider", "Engine.Slider", "Slider", \
         "Input", UiChildPolicy::None, UiControlSlotType::None,                 \
@@ -145,7 +179,7 @@ struct UiControlAdapterTraits;
         "Drop Box", "Input", UiChildPolicy::None, UiControlSlotType::None,     \
         UI_CONTROL_PROPERTY("size", "sf.Vector2f", false, "[200.0,32.0]"),     \
         UI_CONTROL_PROPERTY("windowSkin", "string", false, "\"\""),            \
-        UI_CONTROL_PROPERTY("textConfig", "string", false, "\"UI/Text20\""),   \
+        UI_CONTROL_PLAIN_TEXT_PROPERTIES("20"),                                \
         UI_CONTROL_EDITOR_PROPERTY("previewText", "string", false,             \
                                    "\"Option\""))                              \
     BIND_UI_CONTROL(                                                           \
@@ -153,8 +187,8 @@ struct UiControlAdapterTraits;
         "Tab View", "Input", UiChildPolicy::None, UiControlSlotType::None,     \
         UI_CONTROL_PROPERTY("size", "sf.Vector2f", false, "[100.0,32.0]"),     \
         UI_CONTROL_PROPERTY("windowSkin", "string", false, "\"\""),            \
-        UI_CONTROL_PROPERTY("textConfig", "string", false, "\"UI/Default\""),  \
-        UI_CONTROL_PROPERTY("tabCount", "int", false, "1"))                    \
+        UI_CONTROL_PLAIN_TEXT_PROPERTIES("22"),                                \
+        UI_CONTROL_PROPERTY("items", "string[]", false, "[\"#TAB\"]"))         \
     BIND_UI_CONTROL(                                                           \
         FunctionalImageUiControlAdapterTag, "Engine.FunctionalImage",          \
         "Engine.FunctionalImage", "Functional Image", "Input",                 \
@@ -163,15 +197,27 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("textureRect", "sf.IntRect", false, "null"),       \
         UI_CONTROL_PROPERTY("colour", "sf.Color", false, "[255,255,255,255]")) \
     BIND_UI_CONTROL(                                                           \
+        CharacterViewUiControlAdapterTag, "Engine.CharacterView",              \
+        "Engine.CharacterView", "Character View", "Visual",                    \
+        UiChildPolicy::None, UiControlSlotType::None,                          \
+        UI_CONTROL_PROPERTY("size", "sf.Vector2f", false, "[32.0,32.0]"),      \
+        UI_CONTROL_PROPERTY("texture", "string", false, "\"\""),               \
+        UI_CONTROL_PROPERTY("textureRect", "sf.IntRect", false, "null"),       \
+        UI_CONTROL_PROPERTY("characterScale", "sf.Vector2f", false,            \
+                            "[1.0,1.0]"),                                      \
+        UI_CONTROL_PROPERTY("animatable", "bool", false, "true"),              \
+        UI_CONTROL_PROPERTY("switchInterval", "float", false, "0.2"),          \
+        UI_CONTROL_PROPERTY("shader", "string", false, "\"\""),                \
+        UI_CONTROL_PROPERTY("hue", "float", false, "0.0"),                     \
+        UI_CONTROL_PROPERTY("colour", "sf.Color", false, "[255,255,255,255]")) \
+    BIND_UI_CONTROL(                                                           \
         FunctionalPlainTextUiControlAdapterTag, "Engine.FunctionalPlainText",  \
         "Engine.FunctionalPlainText", "Functional Plain Text", "Input",        \
         UiChildPolicy::None, UiControlSlotType::None,                          \
-        UI_CONTROL_PROPERTY("textConfig", "string", false, "\"\""),            \
+        UI_CONTROL_PLAIN_TEXT_PROPERTIES("22"),                                \
         UI_CONTROL_PROPERTY("text", "string", false, "\"\""),                  \
         UI_CONTROL_EDITOR_PROPERTY("previewText", "string", false, "\"\""),    \
-        UI_CONTROL_PROPERTY("colour", "sf.Color", false, "[255,255,255,255]"), \
-        UI_CONTROL_PROPERTY("outlineColor", "sf.Color", false, "null"),        \
-        UI_CONTROL_PROPERTY("outlineThickness", "float", false, "null"))       \
+        UI_CONTROL_PROPERTY("colour", "sf.Color", false, "[255,255,255,255]")) \
     BIND_UI_CONTROL(                                                           \
         FunctionalRichTextUiControlAdapterTag, "Engine.FunctionalRichText",    \
         "Engine.FunctionalRichText", "Functional Rich Text", "Input",          \
@@ -183,12 +229,10 @@ struct UiControlAdapterTraits;
     BIND_UI_CONTROL(                                                           \
         PlainTextUiControlAdapterTag, "Engine.PlainText", "Engine.PlainText",  \
         "Plain Text", "Text", UiChildPolicy::None, UiControlSlotType::None,    \
-        UI_CONTROL_PROPERTY("textConfig", "string", false, "\"\""),            \
+        UI_CONTROL_PLAIN_TEXT_PROPERTIES("22"),                                \
         UI_CONTROL_PROPERTY("text", "string", false, "\"\""),                  \
         UI_CONTROL_EDITOR_PROPERTY("previewText", "string", false, "\"\""),    \
-        UI_CONTROL_PROPERTY("colour", "sf.Color", false, "[255,255,255,255]"), \
-        UI_CONTROL_PROPERTY("outlineColor", "sf.Color", false, "null"),        \
-        UI_CONTROL_PROPERTY("outlineThickness", "float", false, "null"))       \
+        UI_CONTROL_PROPERTY("colour", "sf.Color", false, "[255,255,255,255]")) \
     BIND_UI_CONTROL(                                                           \
         RichTextUiControlAdapterTag, "Engine.RichText", "Engine.RichText",     \
         "Rich Text", "Text", UiChildPolicy::None, UiControlSlotType::None,     \
@@ -230,6 +274,7 @@ inline constexpr auto uiControlAdapterDescriptorTable =
 #define BIND_UI_CONTROL(...)
 #undef LUDORK_UI_CONTROL_DEFINITIONS
 #undef UI_CONTROL_COMMON_PROPERTIES
+#undef UI_CONTROL_PLAIN_TEXT_PROPERTIES
 #undef UI_CONTROL_EDITOR_PROPERTY
 #undef UI_CONTROL_PROPERTY
 #undef UI_CONTROL_COMMON_PROPERTY

@@ -15,6 +15,8 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `build_standalone` | Build and copy a flat runtime plus Assets, Data and Scripts |
 | `run_standalone` | Run a flat standalone project |
 | `create_templates` | Recreate Cpp and Standalone template variants |
+| `create_templates_plain` | Recreate only the non-FFmpeg Cpp and Standalone templates |
+| `create_templates_ffmpeg` | Recreate only the FFmpeg-enabled Cpp and Standalone templates |
 | `pack_project` | Produce the platform distribution layout |
 | `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
@@ -43,11 +45,16 @@ tools\pack_project.bat Sample
 tools\pack_editor.bat
 ```
 
-Windows automation may pass `--templates <folder>` to copy an already generated
-set of four editor templates and `--use-current-ui-preview-host` after preparing
-the matching Release preview host under `.tools/UiPreviewHost`. The normal
-command without these options rebuilds both inputs before packaging. The
-prepared template folder must remain outside `obj/editor-package`, which is
+`create_templates` accepts `--variant plain` or `--variant ffmpeg` to build one
+source/Standalone pair; the matching `create_templates_plain` and
+`create_templates_ffmpeg` scripts are thin entry points for automation. Without
+`--variant`, it rebuilds all four templates.
+
+Windows and macOS automation may pass `--templates <folder>` to copy an already
+generated set of four editor templates and `--use-current-ui-preview-host`
+after preparing the matching Release preview host under `.tools/UiPreviewHost`.
+The normal command without these options rebuilds both inputs before packaging.
+The prepared template folder must remain outside `obj/editor-package`, which is
 recreated during packaging.
 
 Both editor packaging scripts use the shared ScriptTools command

@@ -9,6 +9,11 @@ local SceneTitleUI = {}
 SceneTitleUI.refreshEvents = { EventKeys.LocaleChanged }
 
 function SceneTitleUI:bind()
+    self._commandWindowFrame = self:requireControl("CommandWindowFrame")
+    self._commandContent = self:requireControl("CommandContent")
+    self._commandScrollBox = self:requireControl("CommandScrollBox")
+    self._commandList = self:requireControl("CommandList")
+    self._commandList:clearChildren()
     self._commandModels = {
         {
             localeKey = "TITLE_START",
@@ -36,10 +41,20 @@ function SceneTitleUI:bind()
         }
     }
     self._windowCommand = WindowCommand.new(
-        Engine.ToIntRect(0, 0, 256, 160), self._commandModels, nil, nil, nil, nil, 1
+        Engine.ToIntRect(192, 240, 256, 160),
+        self._commandModels,
+        224,
+        32,
+        nil,
+        nil,
+        1,
+        {
+            windowFrame = self._commandWindowFrame,
+            content = self._commandContent,
+            scrollBox = self._commandScrollBox,
+            listView = self._commandList
+        }
     )
-    self._windowCommand:setOrigin(sf.Vector2f.new(128.0, 0))
-    self._windowCommand:setPosition(sf.Vector2f.new(320.0, 240.0))
 end
 
 function SceneTitleUI:refresh()

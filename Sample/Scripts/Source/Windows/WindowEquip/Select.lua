@@ -3,6 +3,7 @@ local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local IconTexture = require("Source.UI.IconTexture")
 local EquipItemRowUI = require("Source.UI.Parts.WindowEquip.EquipItemRow")
+local WindowEquipSelectUI = require("Source.UI.Parts.WindowEquip.WindowEquipSelect")
 local ListViewController = require("Source.UI.Helpers.ListView")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
@@ -20,10 +21,14 @@ function WindowEquipSelectController:init(model)
     super(WindowEquipSelectController, self).init(model, sf.Vector2u.new(1, 1), _EQUIP_CELL_SIZE, true, 1)
 end
 
-function WindowEquipSelectController:attach()
+function WindowEquipSelectController:attach(listView)
     self:_updateLayout()
-    local listView = self:prepare(self._logicalSize)
-    self.model:setListView(listView)
+    if listView ~= nil then
+        self.root = listView
+        self.root:clearChildren()
+    end
+    local root = self:prepare(self._logicalSize)
+    self.model:setListView(root)
 end
 
 ---@diagnostic disable-next-line: unused
@@ -114,7 +119,7 @@ end
 
 ---@diagnostic disable-next-line: unused
 function WindowEquipSelectController:getGridColumns(contentWidth)
-    return math.max(1, math.floor((contentWidth - _EQUIP_CELL_SIZE) / _EQUIP_CELL_SIZE))
+    return math.max(1, math.floor(contentWidth / _EQUIP_CELL_SIZE))
 end
 
 function WindowEquipSelectController:returnToSlotWindow(playSE)
@@ -188,8 +193,10 @@ local WindowEquipSelect = {}
 
 WindowEquipSelect.controllerClass = FinalWindowEquipSelectController
 
-function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip)
-    super(WindowEquipSelect, self).init(rect, nil, _EQUIP_CELL_SIZE, _EQUIP_CELL_SIZE)
+function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip, instance)
+    super
+        (WindowEquipSelect, self)
+        .init(rect, nil, _EQUIP_CELL_SIZE, _EQUIP_CELL_SIZE, nil, nil, nil, nil, instance ~= nil)
     self:setHasReturnBtn(true)
     self._player = player
     self._windowEquipSlot = windowEquipSlot
@@ -199,8 +206,15 @@ function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus
     self._equipList = {}
     self._equipCounts = {}
     self._lastStatusIndex = nil
+    if instance ~= nil then
+        local ui = WindowEquipSelectUI.new(self, instance)
+        self._ui = ui
+        ui:attach()
+        self:setScrollBox(ui:getScrollBox())
+        self:setListView(ui:getListView())
+    end
     self._selectController = self.controllerClass.new(self)
-    self._selectController:attach()
+    self._selectController:attach(self:getListView())
     self:setActive(false)
     self:setVisible(false)
 end

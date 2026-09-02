@@ -19,6 +19,7 @@
 ---@field _settingsWindowFrame      Engine.Window
 ---@field _tabView                  Engine.TabView
 ---@field _settingsContent          Engine.Canvas
+---@field _settingsScrollBox        Engine.ScrollBox
 ---@field _graphicsList             Engine.ListView
 ---@field _audioList                Engine.ListView
 ---@field _languageList             Engine.ListView
@@ -72,6 +73,9 @@ function ConfigWindowUI:getTabView() end
 
 ---@return Engine.Canvas
 function ConfigWindowUI:getSettingsContent() end
+
+---@return Engine.ScrollBox
+function ConfigWindowUI:getSettingsScrollBox() end
 
 ---@return integer
 function ConfigWindowUI:getPageCount() end

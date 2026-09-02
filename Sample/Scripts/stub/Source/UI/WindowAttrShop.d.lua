@@ -1,19 +1,5 @@
 ---@meta Source.UI.WindowAttrShop
 
----@class Source.UI.WindowAttrShop.AttrShopRow
----@field model  { text: string, available: boolean }
----@field root   Engine.Canvas
----@field _label Engine.FunctionalPlainText
-local AttrShopRow = {}
-
-function AttrShopRow:init(model) end
-
-function AttrShopRow:refresh() end
-
----@param logicalSize sf.Vector2u
----@return Engine.Canvas
-function AttrShopRow:prepare(logicalSize) end
-
 ---@class Source.UI.WindowAttrShop: Source.UI.UiController, Class.ClassType<Source.UI.WindowAttrShop>
 ---@field model              Source.Windows.WindowAttrShop
 ---@field _selectable        Source.Windows._WindowAttrShopSelectable | nil
@@ -23,9 +9,10 @@ function AttrShopRow:prepare(logicalSize) end
 ---@field _shopName          string
 ---@field _description       string
 ---@field _priceTextValue    string
----@field _rows              Source.UI.WindowAttrShop.AttrShopRow[]
+---@field _rows              Source.UI.Parts.WindowAttrShop.AttrShopRow[]
 ---@field _windowFrame       Engine.Window
 ---@field _content           Engine.Canvas
+---@field _scrollBox         Engine.ScrollBox
 ---@field _listView          Engine.ListView
 ---@field new                fun(model: Source.Windows.WindowAttrShop): Source.UI.WindowAttrShop
 local WindowAttrShopUI = {}
@@ -52,6 +39,9 @@ function WindowAttrShopUI:getContent() end
 
 ---@return Engine.ListView
 function WindowAttrShopUI:getListView() end
+
+---@return Engine.ScrollBox
+function WindowAttrShopUI:getScrollBox() end
 
 ---@return Source.Windows._WindowAttrShopSelectable
 function WindowAttrShopUI:_getSelectable() end

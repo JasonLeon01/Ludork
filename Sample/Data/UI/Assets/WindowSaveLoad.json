@@ -1,0 +1,64 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 416,
+    "height": 320
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Save Load",
+    "category": "Windows"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [416, 320]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "TabsAsset",
+        "controlId": "Project:Parts/WindowSaveLoad/WindowSaveTabs",
+        "properties": {},
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [1.0, 0.0] },
+          "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 64.0 },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "SlotAsset",
+        "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlot",
+        "properties": {},
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [0.0, 1.0] },
+          "offsets": { "left": 0.0, "top": 64.0, "right": 160.0, "bottom": 0.0 },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "DetailAsset",
+        "controlId": "Project:Parts/WindowSaveLoad/WindowSaveDetail",
+        "properties": {},
+        "slot": {
+          "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] },
+          "offsets": { "left": 160.0, "top": 64.0, "right": 0.0, "bottom": 0.0 },
+          "alignment": [0.0, 0.0],
+          "autoSize": false,
+          "zOrder": 2
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

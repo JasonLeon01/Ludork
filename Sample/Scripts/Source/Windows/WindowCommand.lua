@@ -1,6 +1,6 @@
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local ListViewController = require("Source.UI.Helpers.ListView")
-local CommandRowController = require("Source.UI.Helpers.CommandRow")
+local CommandRowUI = require("Source.UI.Parts.Shared.CommandRow")
 
 ---@class Source.Windows.WindowCommand.Controller
 local WindowCommandController = {}
@@ -40,6 +40,12 @@ function WindowCommandController:attach(commands)
     self.model:setListView(listView)
 end
 
+function WindowCommandController:attachTo(listView, commands)
+    self.root = listView
+    self.root:clearChildren()
+    self:attach(commands)
+end
+
 function WindowCommandController:addRow(item)
     local child = self:createRow(item)
     self.model:_applyItem(child)
@@ -53,7 +59,7 @@ function WindowCommandController:refreshRows()
 end
 
 function WindowCommandController:createRow(item)
-    local controller = CommandRowController.new(item)
+    local controller = CommandRowUI.new(item)
     local logicalSize = sf.Vector2u.new(self._rowWidth, self._rowHeight)
     ---@cast logicalSize sf.Vector2u
     local root = controller:prepare(logicalSize)
@@ -69,13 +75,32 @@ local WindowCommand = {}
 WindowCommand.Controller = FinalWindowCommandController
 WindowCommand.controllerClass = FinalWindowCommandController
 
-function WindowCommand:init(rect, commands, rectWidth, rectHeight, windowSkin, repeated, columns)
+function WindowCommand:init(rect, commands, rectWidth, rectHeight, windowSkin, repeated, columns, externalView)
     commands = commands or {}
     rectHeight = rectHeight or 32
     columns = columns or 1
-    super(WindowCommand, self).init(rect, nil, rectWidth, rectHeight, windowSkin, repeated)
+    if externalView == nil then
+        super(WindowCommand, self).init(rect, nil, rectWidth, rectHeight, windowSkin, repeated)
+    else
+        super(WindowCommand, self).init(rect, nil, rectWidth, rectHeight, windowSkin, repeated, nil, nil, true)
+        if externalView.uiController ~= nil then
+            externalView.uiController:attach()
+            self:setScrollBox(externalView.uiController:getScrollBox())
+            self:setListView(externalView.uiController:getListView())
+        else
+            self._window = externalView.windowFrame
+            self.content = externalView.content
+            self:setScrollBox(externalView.scrollBox)
+            self:setListView(externalView.listView)
+        end
+    end
     self._commandController = self.controllerClass.new(self, self.content:getSize(), rectHeight, columns)
-    self._commandController:attach(commands)
+    if externalView == nil then
+        self._commandController:attach(commands)
+    else
+        local listView = assert(self:getListView(), "External command ListView is unavailable")
+        self._commandController:attachTo(listView, commands)
+    end
 end
 
 function WindowCommand:refreshRows()

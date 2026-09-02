@@ -1,7 +1,7 @@
 ---@meta Source.Windows.WindowFloorTeleporter
 
 ---@brief Integrated floor teleporter window with visited-map list and preview.
----@class Source.Windows.WindowFloorTeleporter
+---@class Source.Windows.WindowFloorTeleporter: Engine.Canvas
 ---@field new fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, getTelepointTag?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
 local WindowFloorTeleporter = {}
 
@@ -42,13 +42,13 @@ function WindowFloorTeleporter:getCommandWindow() end
 ---@return Source.Windows.WindowFloorMapPreview
 function WindowFloorTeleporter:getPreviewWindow() end
 
----@brief Return whether the floor teleporter is visible.
+---@brief Return whether the floor teleporter coordinator is visible.
 ---
---- - @return True when the list window is visible.
+--- - @return True while either selector stage is open.
 ---@return boolean
 function WindowFloorTeleporter:getVisible() end
 
----@brief Open the floor teleporter with its map and telepoint selectors reset to their first entries.
+---@brief Open the floor teleporter with the floor list visible, the overlapping telepoint list hidden, and both selectors reset to their first entries.
 ---
 --- - @param inst Optional current game instance to bind before opening.
 ---@param inst Source.GameInstance.GameInstance | nil
@@ -63,10 +63,10 @@ function WindowFloorTeleporter:closeByCancel() end
 ---@brief Refresh localised map and telepoint labels while preserving both selections and the active child window.
 function WindowFloorTeleporter:refreshLocale() end
 
----@brief Move input focus from the map list to the telepoint selector.
+---@brief Hide the floor list and show the overlapping telepoint selector before moving input focus to it.
 function WindowFloorTeleporter:activateTelepointSelector() end
 
----@brief Move input focus back to the visited-map list.
+---@brief Hide the telepoint selector and restore the overlapping visited-map list before moving input focus back to it.
 ---
 --- - @param playCancelSE Whether to play the cancel sound.
 ---@param playCancelSE boolean | nil
@@ -95,7 +95,7 @@ function WindowFloorTeleporter:notifyMapIndexMaybeChanged(index) end
 
 ---@brief Calculate centred default rectangles for the floor teleporter UI.
 ---
---- - @return A pair containing list and preview window rectangles.
+--- - @return A pair containing the floor-list rectangle and the overlapping telepoint-plus-preview host rectangle.
 ---@return sf.IntRect, sf.IntRect
 function WindowFloorTeleporter.GetDefaultFloorTeleporterRects() end
 

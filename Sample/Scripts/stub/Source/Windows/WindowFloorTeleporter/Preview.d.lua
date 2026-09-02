@@ -2,6 +2,7 @@
 
 ---@brief Right-side preview panel and telepoint selector for the selected map.
 ---@class Source.Windows.WindowFloorMapPreview: Source.Windows.Base.WindowSelectable
+---@field new fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter, loadPreview: function, resolvePreviewMapPath?: function, instance?: Engine.AssetInstance): Source.Windows.WindowFloorMapPreview
 ---@field new fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter, loadPreview: function, resolvePreviewMapPath?: function): Source.Windows.WindowFloorMapPreview
 local WindowFloorMapPreview = {}
 
@@ -15,7 +16,7 @@ local WindowFloorMapPreview = {}
 ---@param owner                 Source.Windows.WindowFloorTeleporter
 ---@param loadPreview           function
 ---@param resolvePreviewMapPath function | nil
-function WindowFloorMapPreview:init(rect, owner, loadPreview, resolvePreviewMapPath) end
+function WindowFloorMapPreview:init(rect, owner, loadPreview, resolvePreviewMapPath, instance) end
 
 function WindowFloorMapPreview:clearPreviewCache() end
 

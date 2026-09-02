@@ -115,6 +115,37 @@ sf::FloatRect ControlBase::getAbsoluteBounds() const {
     return _getScreenRenderTransform().transformRect(scaledBounds);
 }
 
+sf::FloatRect ControlBase::getContentBounds() const {
+    return getLocalBounds();
+}
+
+sf::FloatRect ControlBase::getAbsoluteInteractionBounds() const {
+    return clipAbsoluteInteractionBounds(getAbsoluteBounds());
+}
+
+sf::FloatRect ControlBase::clipAbsoluteInteractionBounds(
+    const sf::FloatRect& bounds) const {
+    if (_ignoresAncestorInteractionClip()) {
+        return bounds;
+    }
+    sf::FloatRect clipped = bounds;
+    std::shared_ptr<ControlBase> parent = getParent();
+    while (parent != nullptr) {
+        const std::optional<sf::FloatRect> clip =
+            parent->_getAbsoluteChildInteractionClipBounds();
+        if (clip.has_value()) {
+            const std::optional<sf::FloatRect> intersection =
+                clipped.findIntersection(*clip);
+            if (!intersection.has_value()) {
+                return {{0.0f, 0.0f}, {0.0f, 0.0f}};
+            }
+            clipped = *intersection;
+        }
+        parent = parent->getParent();
+    }
+    return clipped;
+}
+
 sf::RenderStates ControlBase::getRenderStates() const {
     return canvasRenderStates();
 }
@@ -287,6 +318,15 @@ sf::Transform ControlBase::_getScreenRenderTransform() const {
         transform = parent->_getScreenRenderTransform() * transform;
     }
     return transform;
+}
+
+std::optional<sf::FloatRect>
+ControlBase::_getAbsoluteChildInteractionClipBounds() const {
+    return std::nullopt;
+}
+
+bool ControlBase::_ignoresAncestorInteractionClip() const {
+    return false;
 }
 
 void ControlBase::draw(sf::RenderTarget&, sf::RenderStates) const {}

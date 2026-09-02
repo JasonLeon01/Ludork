@@ -17,9 +17,9 @@ local function setTabItems(tabView, model)
     end)
 end
 
-function WindowSaveTabsUI:init(model, size)
+function WindowSaveTabsUI:init(model, size, instance)
     self._size = size
-    super(WindowSaveTabsUI, self).init(model, nil)
+    super(WindowSaveTabsUI, self).init(model, instance)
 end
 
 function WindowSaveTabsUI:bind()
@@ -46,8 +46,12 @@ function WindowSaveTabsUI:prepare()
     return super(WindowSaveTabsUI, self).prepare(sf.Vector2u.new(self._size.x, self._size.y))
 end
 
-function WindowSaveTabsUI:attach()
-    self:attachWindowView(self.model)
+function WindowSaveTabsUI:attach(nested)
+    if nested == true then
+        self:attachNestedWindowView(self.model)
+    else
+        self:attachWindowView(self.model)
+    end
 end
 
 function WindowSaveTabsUI:getWindowFrame()

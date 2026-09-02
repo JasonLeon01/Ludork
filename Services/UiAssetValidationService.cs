@@ -287,6 +287,16 @@ public sealed class UiAssetValidationService
             if (property.Required && !properties.ContainsKey(property.Id))
                 add(issues, "requiredProperty", path + "." + property.Id, "Required property is missing");
         }
+        if (tryGetBoolean(properties["gradientEnabled"], out bool gradientEnabled)
+            && gradientEnabled
+            && string.IsNullOrEmpty(getString(properties["gradientCurve"])))
+        {
+            add(
+                issues,
+                "requiredProperty",
+                path + ".gradientCurve",
+                "Gradient Curve is required when Gradient Enabled is true");
+        }
     }
 
     private static void validateEditor(
@@ -414,6 +424,10 @@ public sealed class UiAssetValidationService
                 && integer <= int.MaxValue,
             "float" => tryGetFloatNumber(value, out double _),
             "string" => getString(value) is not null,
+            "sf.Text.LineAlignment" => getString(value) is "default" or "left" or "center" or "right",
+            "Engine.TextGradientDirection" => getString(value) is "vertical" or "horizontal",
+            "string[]" => value is JsonArray strings
+                && strings.All(item => getString(item) is not null),
             "sf.Vector2f" => validatePair(value, path, false, null) is not null,
             "sf.Vector2u" => validatePair(value, path, true, null) is not null,
             "sf.IntRect" => value is null || validateIntegerArray(value, 4, false),
@@ -441,13 +455,11 @@ public sealed class UiAssetValidationService
             add(issues, "propertyRange", path, "ListView columns must be positive");
         }
         if (controlId == "Engine.TabView"
-            && propertyId == "tabCount"
-            && tryGetInteger(value, out long tabCount)
-            && tabCount >= int.MinValue
-            && tabCount <= int.MaxValue
-            && tabCount <= 0)
+            && propertyId == "items"
+            && value is JsonArray items
+            && items.Count == 0)
         {
-            add(issues, "propertyRange", path, "TabView tabCount must be positive");
+            add(issues, "propertyRange", path, "TabView items must not be empty");
         }
         if (controlId is "Engine.Canvas" or "Engine.Window"
             && propertyId == "size"
@@ -465,6 +477,27 @@ public sealed class UiAssetValidationService
                 && number < 0.0))
         {
             add(issues, "propertyRange", path, "Scale components cannot be negative");
+        }
+        (double Minimum, double Maximum)? range = propertyId switch
+        {
+            "characterSize" => (1.0, 512.0),
+            "slantAngle" => (-45.0, 45.0),
+            "letterSpacing" => (0.1, 10.0),
+            "lineSpacing" => (0.1, 10.0),
+            "outlineThickness" => (0.0, 32.0),
+            "glowRadius" => (0.0, 64.0),
+            "glowIntensity" => (0.0, 1.0),
+            _ => null,
+        };
+        if (range is (double Minimum, double Maximum) limits
+            && tryGetFloatNumber(value, out double number)
+            && (number < limits.Minimum || number > limits.Maximum))
+        {
+            add(
+                issues,
+                "propertyRange",
+                path,
+                $"Value must be between {limits.Minimum:g} and {limits.Maximum:g}");
         }
     }
 
@@ -486,7 +519,8 @@ public sealed class UiAssetValidationService
         if (propertyId is "texture"
             or "windowSkin"
             or "lineTexture"
-            or "handleTexture")
+            or "handleTexture"
+            or "font")
         {
             if (!text.StartsWith("Assets/", StringComparison.Ordinal))
             {
@@ -510,6 +544,35 @@ public sealed class UiAssetValidationService
             }
             return;
         }
+        if (propertyId == "shader")
+        {
+            if (Path.IsPathRooted(text)
+                || text.StartsWith("Shaders/", StringComparison.Ordinal)
+                || text.StartsWith("Assets/", StringComparison.Ordinal)
+                || text.Split('/').Any(part => part is "." or ".." or ""))
+            {
+                add(issues, "shaderPath", path, "Shader must use a canonical path relative to Assets/Shaders");
+                return;
+            }
+            string fullPath = Path.GetFullPath(Path.Combine(
+                gameData.ProjectPath,
+                "Assets",
+                "Shaders",
+                text.Replace('/', Path.DirectorySeparatorChar)));
+            string shaderRoot = Path.GetFullPath(Path.Combine(gameData.ProjectPath, "Assets", "Shaders"));
+            string relative = Path.GetRelativePath(shaderRoot, fullPath);
+            if (Path.IsPathRooted(relative)
+                || relative == ".."
+                || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                add(issues, "shaderPath", path, "Shader path escapes Assets/Shaders");
+            }
+            else if (!File.Exists(fullPath))
+            {
+                add(issues, "missingResource", path, $"Shader \"{text}\" was not found");
+            }
+            return;
+        }
         if (propertyId == "textConfig")
         {
             if (!tryGetCanonicalDataKey(text, "TextConfigs", out string key))
@@ -520,14 +583,14 @@ public sealed class UiAssetValidationService
                 validateTextConfigType(controlId, textConfig, path, issues);
             return;
         }
-        if (propertyId == "opacityCurve")
+        if (propertyId is "opacityCurve" or "gradientCurve")
         {
             if (!tryGetCanonicalDataKey(text, "Curves", out string key))
                 add(issues, "curveKey", path, "Curve must use a canonical Curves key without an extension");
             else if (!gameData.CurvesData.TryGetValue(key, out JsonObject? curve))
                 add(issues, "missingCurve", path, $"Curve \"{text}\" was not found");
             else if (getString(curve["type"]) != "curve")
-                add(issues, "curveType", path, "Rect opacityCurve must reference a scalar curve");
+                add(issues, "curveType", path, $"{propertyId} must reference a scalar curve");
         }
     }
 

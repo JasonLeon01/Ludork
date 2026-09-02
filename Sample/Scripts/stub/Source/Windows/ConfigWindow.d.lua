@@ -1,8 +1,8 @@
 ---@meta Source.Windows.ConfigWindow
 
 ---@class Source.Windows.ConfigWindow.PageSession
----@field index         integer
----@field scrollOriginY number
+---@field index        integer
+---@field scrollOffset sf.Vector2f
 
 --- Each setting row combines a label and an interactive control.
 ---@class Source.Windows.ConfigWindow: Source.Windows.Base.WindowSelectable
@@ -27,9 +27,6 @@
 ---@field _voiceVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
 ---@field _onClose                       function | nil
 ---@field _open                          boolean
----@field _capturedTouchSlider           Engine.Slider | nil
----@field _capturedTouchSliderIndex      integer | nil
----@field _capturedTouchOwner            "list" | "slider" | nil
 ---@field _tabNavigationHandledThisFrame boolean
 local ConfigWindow = {}
 
@@ -138,6 +135,10 @@ function ConfigWindow:getVoiceOnCheckBox() end
 ---@return Engine.Slider
 function ConfigWindow:getVoiceVolumeSlider() end
 
+---@param position sf.Vector2f
+---@return Engine.Slider | nil, integer | nil
+function ConfigWindow:_getSliderAt(position) end
+
 ---@brief Check whether this window is currently open.
 ---
 --- - @return True if open, False otherwise
@@ -192,14 +193,6 @@ function ConfigWindow:_getMaxScrollOriginY() end
 
 ---@param position sf.Vector2f
 function ConfigWindow:_onCapturedTouchBegan(position) end
-
----@param position sf.Vector2f
----@return boolean
-function ConfigWindow:_handleCapturedTouchDrag(position) end
-
----@param position sf.Vector2f
----@return boolean
-function ConfigWindow:_handleCapturedTouchTap(position) end
 
 function ConfigWindow:_onCapturedTouchReset() end
 

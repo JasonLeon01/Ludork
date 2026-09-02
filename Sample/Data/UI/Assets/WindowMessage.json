@@ -1,8 +1,8 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 544,
-    "height": 160
+    "width": 640,
+    "height": 480
   },
   "palette": {
     "exposed": true,
@@ -13,34 +13,21 @@
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
-      "size": [
-        544,
-        160
-      ]
+      "size": [640, 480]
     },
     "editor": {},
     "children": [
       {
-        "name": "WindowFrame",
-        "controlId": "Engine.Window",
+        "name": "ConfirmLayer",
+        "controlId": "Engine.FunctionalImage",
         "properties": {
-          "size": [
-            544,
-            160
-          ],
-          "windowSkin": "",
-          "repeated": false
+          "texture": "",
+          "colour": [255, 255, 255, 0]
         },
         "slot": {
           "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              1.0,
-              1.0
-            ]
+            "min": [0.0, 0.0],
+            "max": [1.0, 1.0]
           },
           "offsets": {
             "left": 0.0,
@@ -48,10 +35,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [
-            0.0,
-            0.0
-          ],
+          "alignment": [0.0, 0.0],
           "autoSize": false,
           "zOrder": 0
         },
@@ -59,57 +43,40 @@
         "children": []
       },
       {
-        "name": "Content",
+        "name": "Panel",
         "controlId": "Engine.Canvas",
         "properties": {
-          "size": [
-            512,
-            128
-          ]
+          "size": [544, 160]
         },
         "slot": {
           "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              1.0,
-              1.0
-            ]
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
           },
           "offsets": {
-            "left": 16.0,
-            "top": 16.0,
-            "right": 16.0,
-            "bottom": 16.0
+            "left": 48.0,
+            "top": 288.0,
+            "right": 544.0,
+            "bottom": 160.0
           },
-          "alignment": [
-            0.0,
-            0.0
-          ],
+          "alignment": [0.0, 0.0],
           "autoSize": false,
           "zOrder": 1
         },
         "editor": {},
         "children": [
           {
-            "name": "NameText",
-            "controlId": "Engine.PlainText",
+            "name": "WindowFrame",
+            "controlId": "Engine.Window",
             "properties": {
-              "textConfig": "UI/CenterText24",
-              "text": ""
+              "size": [544, 160],
+              "windowSkin": "",
+              "repeated": false
             },
             "slot": {
               "anchors": {
-                "min": [
-                  0.5,
-                  0.0
-                ],
-                "max": [
-                  0.5,
-                  0.0
-                ]
+                "min": [0.0, 0.0],
+                "max": [1.0, 1.0]
               },
               "offsets": {
                 "left": 0.0,
@@ -117,53 +84,180 @@
                 "right": 0.0,
                 "bottom": 0.0
               },
-              "alignment": [
-                0.5,
-                0.0
-              ],
-              "autoSize": true,
+              "alignment": [0.0, 0.0],
+              "autoSize": false,
               "zOrder": 0
             },
-            "editor": {
-              "previewText": "Speaker"
-            },
+            "editor": {},
             "children": []
           },
           {
-            "name": "MessageText",
-            "controlId": "Engine.RichText",
+            "name": "Content",
+            "controlId": "Engine.Canvas",
             "properties": {
-              "textConfig": "UI/Message",
-              "text": ""
+              "size": [512, 128]
             },
             "slot": {
               "anchors": {
-                "min": [
-                  0.0,
-                  0.0
-                ],
-                "max": [
-                  0.0,
-                  0.0
-                ]
+                "min": [0.0, 0.0],
+                "max": [1.0, 1.0]
               },
               "offsets": {
-                "left": 2.0,
-                "top": 40.0,
-                "right": 0.0,
-                "bottom": 0.0
+                "left": 16.0,
+                "top": 16.0,
+                "right": 16.0,
+                "bottom": 16.0
               },
-              "alignment": [
-                0.0,
-                0.0
-              ],
-              "autoSize": true,
+              "alignment": [0.0, 0.0],
+              "autoSize": false,
               "zOrder": 1
             },
-            "editor": {
-              "previewText": "This is a preview message."
-            },
-            "children": []
+            "editor": {},
+            "children": [
+              {
+                "name": "NameText",
+                "controlId": "Engine.PlainText",
+                "properties": {
+                  "characterSize": 24,
+                  "lineAlignment": "center",
+                  "text": ""
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [0.5, 0.0],
+                    "max": [0.5, 0.0]
+                  },
+                  "offsets": {
+                    "left": 0.0,
+                    "top": 0.0,
+                    "right": 0.0,
+                    "bottom": 0.0
+                  },
+                  "alignment": [0.5, 0.0],
+                  "autoSize": true,
+                  "zOrder": 0
+                },
+                "editor": {
+                  "previewText": "Speaker"
+                },
+                "children": []
+              },
+              {
+                "name": "MessageText",
+                "controlId": "Engine.RichText",
+                "properties": {
+                  "textConfig": "UI/Message",
+                  "text": ""
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [0.0, 0.0],
+                    "max": [0.0, 0.0]
+                  },
+                  "offsets": {
+                    "left": 2.0,
+                    "top": 40.0,
+                    "right": 0.0,
+                    "bottom": 0.0
+                  },
+                  "alignment": [0.0, 0.0],
+                  "autoSize": true,
+                  "zOrder": 1
+                },
+                "editor": {
+                  "previewText": "This is a preview message."
+                },
+                "children": []
+              },
+              {
+                "name": "MessageList",
+                "controlId": "Engine.ListView",
+                "properties": {
+                  "size": [512, 128],
+                  "defaultItemHeight": 32,
+                  "fixItemHeight": true,
+                  "columns": 1
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [0.0, 0.0],
+                    "max": [1.0, 1.0]
+                  },
+                  "offsets": {
+                    "left": 0.0,
+                    "top": 0.0,
+                    "right": 0.0,
+                    "bottom": 0.0
+                  },
+                  "alignment": [0.0, 0.0],
+                  "autoSize": false,
+                  "zOrder": 2
+                },
+                "editor": {},
+                "children": []
+              },
+              {
+                "name": "SelectionList",
+                "controlId": "Engine.ListView",
+                "properties": {
+                  "size": [512, 128],
+                  "defaultItemHeight": 32,
+                  "fixItemHeight": true,
+                  "columns": 1,
+                  "visible": false
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [0.0, 0.0],
+                    "max": [1.0, 1.0]
+                  },
+                  "offsets": {
+                    "left": 0.0,
+                    "top": 0.0,
+                    "right": 0.0,
+                    "bottom": 0.0
+                  },
+                  "alignment": [0.0, 0.0],
+                  "autoSize": false,
+                  "zOrder": 3
+                },
+                "editor": {},
+                "children": [
+                  {
+                    "name": "SelectionItem1",
+                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "SelectionItem2",
+                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "SelectionItem3",
+                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "SelectionItem4",
+                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  }
+                ]
+              }
+            ]
           }
         ]
       }

@@ -9,13 +9,14 @@ local WindowSaveSlot = {}
 
 WindowSaveSlot.MAX_SAVE_SLOTS = 100
 
-function WindowSaveSlot:init(rect, owner)
+function WindowSaveSlot:init(rect, owner, instance)
     super(WindowSaveSlot, self).init(rect, nil, rect.size.x - 64, _SLOT_ROW_HEIGHT, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._owner = owner
-    self._ui = WindowSaveSlotUI.new(self, rect.size, WindowSaveSlot.MAX_SAVE_SLOTS)
-    self._ui:attach()
-    self._listView = self._ui:getListView()
+    self._ui = WindowSaveSlotUI.new(self, rect.size, WindowSaveSlot.MAX_SAVE_SLOTS, instance)
+    self._ui:attach(instance ~= nil)
+    self:setScrollBox(self._ui:getScrollBox())
+    self:setListView(self._ui:getListView())
 end
 
 function WindowSaveSlot:onTick(deltaTime)
@@ -42,7 +43,7 @@ end
 function WindowSaveSlot:dispose()
     self._ui:dispose()
     self._ui = nil
-    self._listView = nil
+    self:setListView(nil)
     self._owner = nil
 end
 

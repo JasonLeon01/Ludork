@@ -17,12 +17,10 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    name: Windows x64
+  windows_prepare:
+    name: Prepare Windows x64 environment
     runs-on: windows-2022
-    timeout-minutes: 180
-    env:
-      CMAKE_GENERATOR: Ninja
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository
@@ -36,11 +34,6 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "9.0.x"
 
       - name: Set up MSVC command-line environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -87,9 +80,182 @@ jobs:
           .tools\ScriptTools\ScriptTools.exe ui-assets validate Sample
           if errorlevel 1 exit /b 1
 
+      - name: Archive prepared environment
+        shell: cmd
+        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Sample\LuaSF Sample\lua-cjson Sample\zlib Sample\ffmpeg Sample\ThirdPartySource
+
+      - name: Upload prepared environment
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-native-environment.tar
+          path: windows-native-environment.tar
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+  windows_native:
+    name: Windows x64 native / ${{ matrix.component }}
+    needs: windows_prepare
+    runs-on: windows-2022
+    timeout-minutes: 180
+    strategy:
+      matrix:
+        component:
+          - ui-preview-host
+          - templates-plain
+          - templates-ffmpeg
+    env:
+      CMAKE_GENERATOR: Ninja
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up MSVC command-line environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Download prepared environment
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-native-environment.tar
+          path: obj/native-environment
+
+      - name: Restore prepared environment
+        shell: cmd
+        run: tar.exe -xf obj\native-environment\windows-native-environment.tar -C .
+
+      - name: Build native UI preview host
+        if: matrix.component == 'ui-preview-host'
+        shell: cmd
+        run: tools\build_ui_preview_host.bat Release
+
+      - name: Build templates without FFmpeg
+        if: matrix.component == 'templates-plain'
+        shell: cmd
+        run: tools\create_templates_plain.bat Release obj\export-editor-inputs\Templates
+
+      - name: Build templates with FFmpeg
+        if: matrix.component == 'templates-ffmpeg'
+        shell: cmd
+        run: tools\create_templates_ffmpeg.bat Release obj\export-editor-inputs\Templates
+
+      - name: Archive native UI preview host
+        if: matrix.component == 'ui-preview-host'
+        shell: cmd
+        run: tar.exe -cf windows-ui-preview-host.tar -C .tools\UiPreviewHost\bin\Release .
+
+      - name: Archive templates without FFmpeg
+        if: matrix.component == 'templates-plain'
+        shell: cmd
+        run: tar.exe -cf windows-templates-plain.tar -C obj\export-editor-inputs\Templates Cpp Standalone
+
+      - name: Archive Lua compiler
+        if: matrix.component == 'templates-plain'
+        shell: cmd
+        run: tar.exe -cf windows-luac.tar -C .tools\Lua luac.exe
+
+      - name: Archive templates with FFmpeg
+        if: matrix.component == 'templates-ffmpeg'
+        shell: cmd
+        run: tar.exe -cf windows-templates-ffmpeg.tar -C obj\export-editor-inputs\Templates Cpp-ffmpeg Standalone-ffmpeg
+
+      - name: Upload native component
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.component }}.tar
+          path: windows-${{ matrix.component }}.tar
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload Lua compiler
+        if: matrix.component == 'templates-plain'
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-luac.tar
+          path: windows-luac.tar
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+  windows:
+    name: Windows x64
+    needs: windows_native
+    runs-on: windows-2022
+    timeout-minutes: 180
+    env:
+      CMAKE_GENERATOR: Ninja
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Set up MSVC command-line environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Download prepared environment
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-native-environment.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download native UI preview host
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-ui-preview-host.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates without FFmpeg
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-templates-plain.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates with FFmpeg
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-templates-ffmpeg.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download Lua compiler
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-luac.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Restore editor inputs
+        shell: cmd
+        run: |
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-native-environment.tar" -C .
+          if errorlevel 1 exit /b 1
+          if not exist ".tools\Lua" mkdir ".tools\Lua"
+          if not exist ".tools\UiPreviewHost\bin\Release" mkdir ".tools\UiPreviewHost\bin\Release"
+          if not exist "obj\editor-inputs\Templates" mkdir "obj\editor-inputs\Templates"
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-luac.tar" -C ".tools\Lua"
+          if errorlevel 1 exit /b 1
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-ui-preview-host.tar" -C ".tools\UiPreviewHost\bin\Release"
+          if errorlevel 1 exit /b 1
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-plain.tar" -C "obj\editor-inputs\Templates"
+          if errorlevel 1 exit /b 1
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-ffmpeg.tar" -C "obj\editor-inputs\Templates"
+          if errorlevel 1 exit /b 1
+
       - name: Package editor
         shell: cmd
-        run: tools\pack_editor.bat
+        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --use-current-ui-preview-host
 
       - name: Upload editor package
         uses: actions/upload-artifact@v7
@@ -101,12 +267,10 @@ jobs:
           compression-level: 0
           retention-days: 14
 
-  macos:
-    name: macOS ARM64 unsigned
+  macos_prepare:
+    name: Prepare macOS ARM64 environment
     runs-on: macos-15
-    timeout-minutes: 180
-    env:
-      CMAKE_GENERATOR: Ninja
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository
@@ -120,11 +284,6 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "9.0.x"
 
       - name: Restore FFmpeg source archive
         id: ffmpeg-source-cache
@@ -161,8 +320,158 @@ jobs:
           .tools/ScriptTools/ScriptTools ui-adapter-check "$PWD"
           .tools/ScriptTools/ScriptTools ui-assets validate Sample
 
+      - name: Archive prepared environment
+        run: tar -cf macos-native-environment.tar .tools/ScriptTools Sample/LuaSF Sample/lua-cjson Sample/zlib Sample/ffmpeg Sample/ThirdPartySource
+
+      - name: Upload prepared environment
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-native-environment.tar
+          path: macos-native-environment.tar
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+  macos_native:
+    name: macOS ARM64 native / ${{ matrix.component }}
+    needs: macos_prepare
+    runs-on: macos-15
+    timeout-minutes: 180
+    strategy:
+      matrix:
+        component:
+          - ui-preview-host
+          - templates-plain
+          - templates-ffmpeg
+    env:
+      CMAKE_GENERATOR: Ninja
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download prepared environment
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-native-environment.tar
+          path: obj/native-environment
+
+      - name: Restore prepared environment
+        run: tar -xf obj/native-environment/macos-native-environment.tar -C .
+
+      - name: Build native UI preview host
+        if: matrix.component == 'ui-preview-host'
+        run: sh tools/build_ui_preview_host.sh Release
+
+      - name: Build templates without FFmpeg
+        if: matrix.component == 'templates-plain'
+        run: |
+          mkdir -p obj/export-editor-inputs
+          sh tools/create_templates_plain.sh Release obj/export-editor-inputs/Templates
+
+      - name: Build templates with FFmpeg
+        if: matrix.component == 'templates-ffmpeg'
+        run: |
+          mkdir -p obj/export-editor-inputs
+          sh tools/create_templates_ffmpeg.sh Release obj/export-editor-inputs/Templates
+
+      - name: Archive native UI preview host
+        if: matrix.component == 'ui-preview-host'
+        run: tar -cf macos-ui-preview-host.tar -C .tools/UiPreviewHost/bin/Release .
+
+      - name: Archive templates without FFmpeg
+        if: matrix.component == 'templates-plain'
+        run: tar -cf macos-templates-plain.tar -C obj/export-editor-inputs/Templates Cpp Standalone
+
+      - name: Archive Lua compiler
+        if: matrix.component == 'templates-plain'
+        run: tar -cf macos-luac.tar -C .tools/Lua luac
+
+      - name: Archive templates with FFmpeg
+        if: matrix.component == 'templates-ffmpeg'
+        run: tar -cf macos-templates-ffmpeg.tar -C obj/export-editor-inputs/Templates Cpp-ffmpeg Standalone-ffmpeg
+
+      - name: Upload native component
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-${{ matrix.component }}.tar
+          path: macos-${{ matrix.component }}.tar
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload Lua compiler
+        if: matrix.component == 'templates-plain'
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-luac.tar
+          path: macos-luac.tar
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+  macos:
+    name: macOS ARM64 unsigned
+    needs: macos_native
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      CMAKE_GENERATOR: Ninja
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Download prepared environment
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-native-environment.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download native UI preview host
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-ui-preview-host.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates without FFmpeg
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-templates-plain.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates with FFmpeg
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-templates-ffmpeg.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download Lua compiler
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-luac.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Restore editor inputs
+        run: |
+          tar -xf obj/editor-inputs/artifacts/macos-native-environment.tar -C .
+          mkdir -p .tools/Lua .tools/UiPreviewHost/bin/Release obj/editor-inputs/Templates
+          tar -xf obj/editor-inputs/artifacts/macos-luac.tar -C .tools/Lua
+          tar -xf obj/editor-inputs/artifacts/macos-ui-preview-host.tar -C .tools/UiPreviewHost/bin/Release
+          tar -xf obj/editor-inputs/artifacts/macos-templates-plain.tar -C obj/editor-inputs/Templates
+          tar -xf obj/editor-inputs/artifacts/macos-templates-ffmpeg.tar -C obj/editor-inputs/Templates
+
       - name: Package unsigned editor DMG
-        run: sh tools/pack_editor.sh
+        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" --use-current-ui-preview-host
 
       - name: Upload unsigned editor DMG
         uses: actions/upload-artifact@v7

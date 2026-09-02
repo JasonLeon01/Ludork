@@ -4,6 +4,8 @@
 ---@class Source.Windows.Base.WindowSelectable: Source.Windows.Base.WindowBase
 ---@field _oldIndex                         integer?
 ---@field index                             integer?
+---@field _scrollBox                        Engine.ScrollBox?
+---@field _ownsScrollBox                    boolean
 ---@field _listView                         Engine.ListView?
 ---@field _rectWidth                        integer
 ---@field _rectHeight                       integer
@@ -20,12 +22,11 @@
 ---@field _selectionViewHeight              number?
 ---@field _mousePositionAtCursorPending     boolean
 ---@field _mouseSelectionConfirmedThisFrame boolean
----@field _wheelScrollTargetOriginY         number?
 ---@field _selectionInputPaused             boolean
 ---@field _touchCaptured                    boolean
 ---@field _touchDragging                    boolean
 ---@field _touchStartPosition               sf.Vector2f?
----@field _touchStartOriginY                number
+---@field _touchStartScrollOffset           sf.Vector2f
 local WindowSelectable = {}
 
 ---@brief Construct a selectable window.
@@ -58,6 +59,15 @@ function WindowSelectable:init(
 ---@return Engine.ListView | nil
 function WindowSelectable:getListView() end
 
+---@return Engine.ScrollBox | nil
+function WindowSelectable:getScrollBox() end
+
+---@brief Detach the selection rectangle from its current content or ScrollBox parent.
+function WindowSelectable:_detachSelectionRect() end
+
+---@param scrollBox Engine.ScrollBox
+function WindowSelectable:setScrollBox(scrollBox) end
+
 ---@brief Set the list view for selectable items.
 ---
 --- - @param listView The ListView to use, or nil to clear.
@@ -83,12 +93,6 @@ function WindowSelectable:update(deltaTime) end
 --- - @param deltaTime Elapsed time in seconds.
 ---@param deltaTime number
 function WindowSelectable:onTick(deltaTime) end
-
----@brief Handle mouse wheel scrolling.
----
---- - @param kwargs Event data containing delta.
----@param kwargs table
-function WindowSelectable:onMouseWheelScrolled(kwargs) end
 
 ---@brief Handle mouse movement events.
 ---

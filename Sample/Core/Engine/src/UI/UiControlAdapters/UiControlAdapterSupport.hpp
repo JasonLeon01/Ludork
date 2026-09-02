@@ -14,6 +14,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace ui_control_adapter_detail {
 
@@ -39,6 +40,9 @@ sf::Vector2u vector2uProperty(const RuntimeValue::Map& properties,
 std::string stringProperty(const RuntimeValue::Map& properties,
                            const std::string& name,
                            const std::string& fallback = {});
+std::vector<std::string> stringArrayProperty(
+    const RuntimeValue::Map& properties, const std::string& name,
+    const std::vector<std::string>& fallback = {});
 int intProperty(const RuntimeValue::Map& properties, const std::string& name,
                 int fallback);
 float floatProperty(const RuntimeValue::Map& properties,

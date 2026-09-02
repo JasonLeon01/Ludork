@@ -6,6 +6,7 @@
 --- and displays the file's last-modified timestamp underneath. When the slot
 --- has no save file on disk, both the snapshot and timestamp stay hidden.
 ---@class Source.Windows.WindowSaveDetail: Source.Windows.Base.WindowBase
+---@field new fun(rect: sf.IntRect, instance?: Engine.AssetInstance): Source.Windows.WindowSaveDetail
 ---@field new fun(rect: sf.IntRect): Source.Windows.WindowSaveDetail
 local WindowSaveDetail = {}
 
@@ -13,7 +14,7 @@ local WindowSaveDetail = {}
 ---
 --- - @param rect The window rectangle (expected 256x256).
 ---@param rect sf.IntRect
-function WindowSaveDetail:init(rect) end
+function WindowSaveDetail:init(rect, instance) end
 
 ---@brief Set the slot index to display, or ``nil`` to clear the panel.
 ---

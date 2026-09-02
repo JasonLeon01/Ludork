@@ -4,7 +4,7 @@ local WindowItemUI = require("Source.UI.WindowItem")
 local WindowItem = {}
 
 function WindowItem:init(rect, player, onClose)
-    super(WindowItem, self).init(rect, nil, 32, 32)
+    super(WindowItem, self).init(rect, nil, 32, 32, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
     self._onUseCallback = nil
@@ -22,18 +22,6 @@ function WindowItem:setPlayer(player)
     self._player = player
 end
 
----@param target Engine.Canvas
----@param width  integer
----@param height integer
----@diagnostic disable-next-line: unused
-function WindowItem:_resizeCanvas(target, width, height)
-    local logicalSize = sf.Vector2u.new(width, height)
-    ---@cast logicalSize sf.Vector2u
-    target:resize(logicalSize)
-    target:setView(target:getDefaultView())
-end
-
--- Rebuild the item list from the player's current inventory.
 function WindowItem:_refreshItems()
     self._itemUI:refreshItems()
 end

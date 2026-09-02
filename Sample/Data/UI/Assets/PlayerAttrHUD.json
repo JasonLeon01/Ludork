@@ -24,8 +24,9 @@
         "name": "Avatar",
         "controlId": "Engine.Button",
         "properties": {
-          "texture": "",
-          "visible": false,
+          "texture": "Assets/Characters/actors/classic-cha-braver01.png",
+          "textureRect": [0, 0, 32, 32],
+          "visible": true,
           "hoverColour": [
             238,
             246,
@@ -70,7 +71,7 @@
         "name": "MapName",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Default",
+          "characterSize": 22,
           "text": ""
         },
         "slot": {
@@ -106,7 +107,7 @@
         "name": "Level",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text18",
+          "characterSize": 18,
           "text": ""
         },
         "slot": {
@@ -172,7 +173,30 @@
           "zOrder": 21
         },
         "editor": {},
-        "children": []
+        "children": [
+          {
+            "name": "StateItem1",
+            "controlId": "Project:Parts/PlayerAttrHUD/PlayerStateRow",
+            "properties": {},
+            "slot": {
+              "anchors": {
+                "min": [0.0, 0.0],
+                "max": [0.0, 0.0]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 0.0,
+                "right": 128.0,
+                "bottom": 24.0
+              },
+              "alignment": [0.0, 0.0],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": []
+          }
+        ]
       },
       {
         "name": "HpBack",
@@ -262,7 +286,7 @@
         "name": "HpLabel",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text18",
+          "characterSize": 18,
           "text": ""
         },
         "slot": {
@@ -319,7 +343,7 @@
             "bottom": 0.0
           },
           "alignment": [
-            0.0,
+            1.0,
             0.0
           ],
           "autoSize": true,
@@ -334,7 +358,8 @@
         "name": "HpPoison",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "HUD/Poison",
+          "characterSize": 8,
+          "fillColor": [0, 192, 0, 255],
           "text": ""
         },
         "slot": {
@@ -370,7 +395,7 @@
         "name": "AtkLabel",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text18",
+          "characterSize": 18,
           "text": ""
         },
         "slot": {
@@ -406,7 +431,8 @@
         "name": "AtkValue",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText18",
+          "characterSize": 18,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {
@@ -427,7 +453,7 @@
             "bottom": 0.0
           },
           "alignment": [
-            0.0,
+            1.0,
             0.0
           ],
           "autoSize": true,
@@ -442,7 +468,8 @@
         "name": "AtkDebuff",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "HUD/Debuff",
+          "characterSize": 8,
+          "fillColor": [150, 0, 220, 255],
           "text": ""
         },
         "slot": {
@@ -478,7 +505,7 @@
         "name": "DefLabel",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text18",
+          "characterSize": 18,
           "text": ""
         },
         "slot": {
@@ -514,7 +541,8 @@
         "name": "DefValue",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText18",
+          "characterSize": 18,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {
@@ -535,7 +563,7 @@
             "bottom": 0.0
           },
           "alignment": [
-            0.0,
+            1.0,
             0.0
           ],
           "autoSize": true,
@@ -550,7 +578,8 @@
         "name": "DefDebuff",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "HUD/Debuff",
+          "characterSize": 8,
+          "fillColor": [150, 0, 220, 255],
           "text": ""
         },
         "slot": {
@@ -586,7 +615,7 @@
         "name": "ExpLabel",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text18",
+          "characterSize": 18,
           "text": ""
         },
         "slot": {
@@ -622,7 +651,8 @@
         "name": "ExpValue",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText18",
+          "characterSize": 18,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {
@@ -643,7 +673,7 @@
             "bottom": 0.0
           },
           "alignment": [
-            0.0,
+            1.0,
             0.0
           ],
           "autoSize": true,
@@ -658,7 +688,7 @@
         "name": "GoldLabel",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text18",
+          "characterSize": 18,
           "text": ""
         },
         "slot": {
@@ -694,7 +724,8 @@
         "name": "GoldValue",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText18",
+          "characterSize": 18,
+          "lineAlignment": "right",
           "text": ""
         },
         "slot": {
@@ -715,7 +746,7 @@
             "bottom": 0.0
           },
           "alignment": [
-            0.0,
+            1.0,
             0.0
           ],
           "autoSize": true,
@@ -778,13 +809,13 @@
             ]
           },
           "offsets": {
-            "left": 0.0,
+            "left": 128.0,
             "top": 320.0,
             "right": 0.0,
             "bottom": 0.0
           },
           "alignment": [
-            0.0,
+            1.0,
             0.0
           ],
           "autoSize": true,

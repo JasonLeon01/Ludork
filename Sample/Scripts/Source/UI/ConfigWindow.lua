@@ -175,6 +175,7 @@ function ConfigWindowUI:bind()
     self._settingsWindowFrame = self:requireControl("SettingsWindowFrame")
     self._tabView = self:requireControl("TabView")
     self._settingsContent = self:requireControl("SettingsContent")
+    self._settingsScrollBox = self:requireControl("SettingsScrollBox")
     self._graphicsList = self:requireControl("GraphicsList")
     self._audioList = self:requireControl("AudioList")
     self._languageList = self:requireControl("LanguageList")
@@ -190,6 +191,10 @@ function ConfigWindowUI:bind()
     )
     self:_createRows()
     self:setActivePage(_GRAPHICS_PAGE_INDEX)
+end
+
+function ConfigWindowUI:getSettingsScrollBox()
+    return self._settingsScrollBox
 end
 
 function ConfigWindowUI:refresh()
@@ -254,15 +259,7 @@ function ConfigWindowUI:syncDisplayScaleAvailability()
 end
 
 function ConfigWindowUI:prepare()
-    local settingsView
-    if self._settingsContent ~= nil then
-        settingsView = self._settingsContent:getView()
-    end
-    local root = super(ConfigWindowUI, self).prepare(sf.Vector2u.new(_WINDOW_WIDTH, _WINDOW_HEIGHT))
-    if settingsView ~= nil and self._settingsContent ~= nil then
-        self._settingsContent:setView(settingsView)
-    end
-    return root
+    return super(ConfigWindowUI, self).prepare(sf.Vector2u.new(_WINDOW_WIDTH, _WINDOW_HEIGHT))
 end
 
 function ConfigWindowUI:attach()
@@ -452,6 +449,7 @@ function ConfigWindowUI:_createRows()
     self:_createLanguageRows()
     for pageIndex = 0, self:getPageCount() - 1 do
         local page = self:getPage(pageIndex)
+        page.list:clearChildren()
         addRows(page.list, page.rows)
         for _, rowUI in ipairs(page.dropBoxRows) do
             self:_bindDropBoxRow(rowUI)
@@ -545,36 +543,63 @@ function ConfigWindowUI:_createGraphicsRows()
 end
 
 function ConfigWindowUI:_createAudioRows()
-    self._musicOnRow = ConfigCheckBoxRowUI.new(LOC("musicon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getMusicOn(), function (
-        checked
+    self._musicOnRow = ConfigCheckBoxRowUI.new(
+        LOC("musicon"),
+        _CONTENT_WIDTH,
+        _CHECKBOX_SIZE,
+        self._windowSkin,
+        System.getMusicOn(),
+        function (checked)
+            onMusicOnCheckedChanged(checked)
+        end
     )
-        onMusicOnCheckedChanged(checked)
-    end)
-    self._musicVolumeRow = ConfigSliderRowUI.new(LOC("musicvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
-        System.getMusicVolume()
-    ), function (value)
-        onMusicVolumeChanged(value)
-    end)
-    self._soundOnRow = ConfigCheckBoxRowUI.new(LOC("soundon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getSoundOn(), function (
-        checked
+    self._musicVolumeRow = ConfigSliderRowUI.new(
+        LOC("musicvolume"),
+        _CONTENT_WIDTH,
+        _SLIDER_WIDTH,
+        Engine.Round(System.getMusicVolume()),
+        function (value)
+            onMusicVolumeChanged(value)
+        end
     )
-        onSoundOnCheckedChanged(checked)
-    end)
-    self._soundVolumeRow = ConfigSliderRowUI.new(LOC("soundvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
-        System.getSoundVolume()
-    ), function (value)
-        onSoundVolumeChanged(value)
-    end)
-    self._voiceOnRow = ConfigCheckBoxRowUI.new(LOC("voiceon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getVoiceOn(), function (
-        checked
+    self._soundOnRow = ConfigCheckBoxRowUI.new(
+        LOC("soundon"),
+        _CONTENT_WIDTH,
+        _CHECKBOX_SIZE,
+        self._windowSkin,
+        System.getSoundOn(),
+        function (checked)
+            onSoundOnCheckedChanged(checked)
+        end
     )
-        onVoiceOnCheckedChanged(checked)
-    end)
-    self._voiceVolumeRow = ConfigSliderRowUI.new(LOC("voicevolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, Engine.Round(
-        System.getVoiceVolume()
-    ), function (value)
-        onVoiceVolumeChanged(value)
-    end)
+    self._soundVolumeRow = ConfigSliderRowUI.new(
+        LOC("soundvolume"),
+        _CONTENT_WIDTH,
+        _SLIDER_WIDTH,
+        Engine.Round(System.getSoundVolume()),
+        function (value)
+            onSoundVolumeChanged(value)
+        end
+    )
+    self._voiceOnRow = ConfigCheckBoxRowUI.new(
+        LOC("voiceon"),
+        _CONTENT_WIDTH,
+        _CHECKBOX_SIZE,
+        self._windowSkin,
+        System.getVoiceOn(),
+        function (checked)
+            onVoiceOnCheckedChanged(checked)
+        end
+    )
+    self._voiceVolumeRow = ConfigSliderRowUI.new(
+        LOC("voicevolume"),
+        _CONTENT_WIDTH,
+        _SLIDER_WIDTH,
+        Engine.Round(System.getVoiceVolume()),
+        function (value)
+            onVoiceVolumeChanged(value)
+        end
+    )
     self._pages[_AUDIO_PAGE_INDEX + 1] = {
         list = self._audioList,
         rows = {

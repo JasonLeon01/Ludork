@@ -12,8 +12,6 @@ local ManagerFunctions = GlobalFunctions.Manager
 local _DEFAULT_RECT = Engine.ToIntRect(80, 48, 480, 384)
 local _ROW_HEIGHT = 32
 local _GRAPHICS_PAGE_INDEX = 0
-local _TOUCH_OWNER_LIST = "list"
-local _TOUCH_OWNER_SLIDER = "slider"
 
 ---@param index          integer
 ---@param scaleRowChange integer
@@ -34,7 +32,8 @@ local ConfigWindow = {}
 function ConfigWindow:init(onClose)
     self._activePageIndex = _GRAPHICS_PAGE_INDEX
     self._pageSessions = {
-        { index = 0, scrollOriginY = 0.0 }, { index = 0, scrollOriginY = 0.0 }, { index = 0, scrollOriginY = 0.0 }
+        { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }, { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) },
+        { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }
     }
     local windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
     local contentWidth = _DEFAULT_RECT.size.x - 32
@@ -46,7 +45,8 @@ function ConfigWindow:init(onClose)
     self._settingsContent = self._ui:getSettingsContent()
     self._tabView = self._ui:getTabView()
     self.content = self._settingsContent
-    self._listView = self._ui:getPage(self._activePageIndex).list
+    self:setScrollBox(self._ui:getSettingsScrollBox())
+    self:setListView(self._ui:getPage(self._activePageIndex).list)
     self._languageRow = self._ui:getLanguageRow()
     self._graphicsPresetRow = self._ui:getGraphicsPresetRow()
     self._maximumRenderScaleRow = self._ui:getMaximumRenderScaleRow()
@@ -62,9 +62,6 @@ function ConfigWindow:init(onClose)
     self._voiceVolumeRow = self._ui:getVoiceVolumeRow()
     self._onClose = onClose
     self._open = false
-    self._capturedTouchSlider = nil
-    self._capturedTouchSliderIndex = nil
-    self._capturedTouchOwner = nil
     self._tabNavigationHandledThisFrame = false
     self._ui:setActivePage(self._activePageIndex)
     self:_refreshControlActivity()
@@ -140,13 +137,13 @@ function ConfigWindow:open()
     self:_applyScaleRowChange(self._ui:refreshDisplayScaleOptions())
     for _, session in ipairs(self._pageSessions) do
         session.index = 0
-        session.scrollOriginY = 0.0
+        session.scrollOffset = sf.Vector2f.new(0.0, 0.0)
     end
     self:_setSelectionInputPaused(false)
     self._activePageIndex = _GRAPHICS_PAGE_INDEX
     self._ui:setActivePage(self._activePageIndex)
     self._tabView:setSelectedIndex(self._activePageIndex)
-    self._listView = self:_getActivePage().list
+    self:setListView(self:_getActivePage().list)
     self._open = true
     self:setVisible(true)
     self:setActive(true)
@@ -178,7 +175,7 @@ function ConfigWindow:dispose()
     self._windowContent = nil
     self._settingsContent = nil
     self._tabView = nil
-    self._listView = nil
+    self:setListView(nil)
     self._languageRow = nil
     self._graphicsPresetRow = nil
     self._maximumRenderScaleRow = nil
@@ -194,9 +191,6 @@ function ConfigWindow:dispose()
     self._voiceVolumeRow = nil
     self._pageSessions = nil
     self._onClose = nil
-    self._capturedTouchSlider = nil
-    self._capturedTouchSliderIndex = nil
-    self._capturedTouchOwner = nil
     self._tabNavigationHandledThisFrame = nil
 end
 
@@ -313,10 +307,14 @@ function ConfigWindow:_onTabSelected(tabIndex)
     end
     self._activePageIndex = tabIndex
     self._ui:setActivePage(tabIndex)
-    self._listView = self:_getActivePage().list
+    self:setListView(self:_getActivePage().list)
     local session = self:_getPageSession(tabIndex)
     session.index = Engine.ToInteger(Engine.Clamp(session.index, 0, math.max(0, #self:_getActivePage().rows - 1)))
-    session.scrollOriginY = Engine.Clamp(session.scrollOriginY, 0.0, self:_getMaxScrollOriginY())
+    local scrollBox = assert(self:getScrollBox())
+    local maximum = scrollBox:getMaxScrollOffset()
+    session.scrollOffset = sf.Vector2f.new(
+        Engine.Clamp(session.scrollOffset.x, 0.0, maximum.x), Engine.Clamp(session.scrollOffset.y, 0.0, maximum.y)
+    )
     self.index = session.index
     self._oldIndex = self.index
     self._ensureSelectionVisibleRequested = true
@@ -396,68 +394,28 @@ function ConfigWindow:_handleSelectedSliderKeyDown()
 end
 
 ---@param position sf.Vector2f
-function ConfigWindow:_onCapturedTouchBegan(position)
-    self._capturedTouchSlider = nil
-    self._capturedTouchSliderIndex = nil
-    self._capturedTouchOwner = nil
+---@return Engine.Slider | nil, integer | nil
+function ConfigWindow:_getSliderAt(position)
     local page = self:_getActivePage()
     for luaIndex, row in ipairs(page.rows) do
         if Class.isInstance(row, ConfigSliderRowUI) then
             local slider = row:getSlider()
             if slider:getVisible() and slider:getActive() and slider:getAbsoluteTouchHitBounds():contains(position) then
-                self._capturedTouchSlider = slider
-                self._capturedTouchSliderIndex = luaIndex - 1
-                return
+                return slider, luaIndex - 1
             end
         end
     end
+    return nil, nil
 end
 
 ---@param position sf.Vector2f
----@return boolean
-function ConfigWindow:_handleCapturedTouchDrag(position)
-    if self._capturedTouchSlider == nil then
-        return false
+function ConfigWindow:_shouldCaptureTouch(position)
+    local slider, sliderIndex = self:_getSliderAt(position)
+    if slider == nil or sliderIndex == nil then
+        return super(ConfigWindow, self)._shouldCaptureTouch(position)
     end
-    if self._capturedTouchOwner == nil then
-        ---@cast self._touchStartPosition sf.Vector2f
-        local deltaX = position.x - self._touchStartPosition.x
-        local deltaY = position.y - self._touchStartPosition.y
-        if math.abs(deltaX) > math.abs(deltaY) then
-            self._capturedTouchOwner = _TOUCH_OWNER_SLIDER
-            ---@cast self._capturedTouchSliderIndex integer
-            self:_setPointerIndex(self._capturedTouchSliderIndex)
-        else
-            self._capturedTouchOwner = _TOUCH_OWNER_LIST
-        end
-    end
-    if self._capturedTouchOwner ~= _TOUCH_OWNER_SLIDER then
-        return false
-    end
-    if self._capturedTouchSlider:getVisible() and self._capturedTouchSlider:getActive() then
-        self._capturedTouchSlider:setValueFromBoundsPosition(self._capturedTouchSlider:getAbsoluteBounds(), position)
-    end
-    return true
-end
-
----@param position sf.Vector2f
----@return boolean
-function ConfigWindow:_handleCapturedTouchTap(position)
-    if self._capturedTouchSlider == nil then
-        return false
-    end
-    ---@cast self._capturedTouchSliderIndex integer
-    self:_setPointerIndex(self._capturedTouchSliderIndex)
-    if self._capturedTouchSlider:getVisible() and self._capturedTouchSlider:getActive() then
-        self._capturedTouchSlider:setValueFromBoundsPosition(self._capturedTouchSlider:getAbsoluteBounds(), position)
-    end
-    return true
-end
-
-function ConfigWindow:_onCapturedTouchReset()
-    self._capturedTouchSlider = nil
-    self._capturedTouchSliderIndex = nil
-    self._capturedTouchOwner = nil
+    self:_setPointerIndex(sliderIndex)
+    return false
 end
 
 ---@return Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase | nil
@@ -514,26 +472,6 @@ function ConfigWindow:_getRectPositionForIndex(index)
     return sf.Vector2f.new(0.0, child:getPosition().y)
 end
 
----@return number
-function ConfigWindow:_getMaxScrollOriginY()
-    local page = self:_getActivePage()
-    page.list:applyPositions()
-    local contentBottom = 0.0
-    for _, child in ipairs(page.list:getChildren()) do
-        contentBottom = math.max(contentBottom, child:getPosition().y + child:getSize().y)
-    end
-    return math.max(0.0, contentBottom - self._settingsContent:getView():getSize().y)
-end
-
----@return sf.FloatRect
-function ConfigWindow:_getContentViewportAbsoluteBounds()
-    local view = self._settingsContent:getView()
-    self._settingsContent:setView(self._settingsContent:getDefaultView())
-    local bounds = self._settingsContent:getAbsoluteBounds()
-    self._settingsContent:setView(view)
-    return bounds
-end
-
 ---@return Source.UI.ConfigWindow.Page
 function ConfigWindow:_getActivePage()
     return self._ui:getPage(self._activePageIndex)
@@ -548,25 +486,12 @@ end
 function ConfigWindow:_savePageSession()
     local session = self:_getPageSession(self._activePageIndex)
     session.index = self.index or 0
-    session.scrollOriginY = self:_getScrollOriginY()
+    session.scrollOffset = assert(self:getScrollBox()):getScrollOffset()
 end
 
 function ConfigWindow:_restorePageScroll()
     local session = self:_getPageSession(self._activePageIndex)
-    local view = self._settingsContent:getView()
-    local viewSize = view:getSize()
-    local origin = view:getCenter() - viewSize / 2.0
-    self._settingsContent:setView(
-        sf.View.new(sf.Vector2f.new(origin.x, session.scrollOriginY) + viewSize / 2.0, viewSize)
-    )
-end
-
-function ConfigWindow:_detachSelectionRect()
-    local parent = self._rect:getParent()
-    if parent ~= nil then
-        ---@cast parent Engine.Canvas
-        parent:removeChild(self._rect)
-    end
+    assert(self:getScrollBox()):setScrollOffset(session.scrollOffset)
 end
 
 function ConfigWindow:_refreshControlActivity()

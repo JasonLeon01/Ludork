@@ -1,12 +1,10 @@
 local Engine = require("Engine")
-local Data = require("Source.Data")
 local EnemyText = require("Source.EnemyText")
 local Locale = require("Source.Locale.Core")
 local TextLayout = require("Source.TextLayout")
 local NodeUtils = require("Source.NodeFunctions.Utils")
 local Ui = require("Source.UI.Ui")
 local WindowEnemyBookUI = require("Source.UI.WindowEnemyBook")
-local ActorPreviewController = require("Source.UI.Parts.Shared.ActorPreviewController")
 local EnemyEncyclopediaInfoPairUI = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair")
 local EnemyEncyclopediaSpecialRowUI = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow")
 
@@ -15,11 +13,8 @@ local LOC = Locale.ApplyStringLocaleFormat
 local ToShortNumber = NodeUtils.ToShortNumber
 
 local _PORTRAIT_AREA_HEIGHT = Engine.CellSize
-local _NAME_TEXT_CONFIG = "UI/Text20"
 local _NAME_TOP_MARGIN = 8
-local _INFO_TEXT_CONFIG = "UI/LeftText16"
 local _INFO_TOP_MARGIN = 8
-local _INFO_COLUMN_GAP = 203
 local _INFO_PAIR_WIDTH = 200
 local _INFO_ROW_GAP = 32
 local _INFO_LAYER_HEIGHT = 96
@@ -49,11 +44,14 @@ function WindowEnemyEncyclopediaUI:bind()
     self._windowFrame = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
     self._portraitControl = self:requireControl("Portrait")
-    self._previewController = ActorPreviewController.new(self._portraitControl)
     self._nameControl = self:requireControl("Name")
     self._infoLayer = self:requireControl("InfoLayer")
     self._descriptionControl = self:requireControl("Description")
+    self._specialScrollBox = self:requireControl("SpecialScrollBox")
     self._specialList = self:requireControl("SpecialList")
+    ---@cast self._infoLayer Engine.ListView
+    ---@cast self._specialScrollBox Engine.ScrollBox
+    ---@cast self._specialList Engine.ListView
 end
 
 function WindowEnemyEncyclopediaUI:refresh()
@@ -79,7 +77,11 @@ end
 function WindowEnemyEncyclopediaUI:open(entry)
     self:clearEnemyControls()
     self._entry = entry
-    self._previewController:setEntry(entry)
+    self._portraitControl:setCharacter(
+        entry.texture, entry.rect, entry.scale, entry.animatable, entry.switchInterval, entry.shaderPath or "",
+        entry.hue or 0.0
+    )
+    self:setProperty("Portrait", "visible", true)
     self:_renderEntry(entry)
 end
 
@@ -95,12 +97,12 @@ end
 ---@param entry Source.UI.WindowEnemyBook.Entry
 function WindowEnemyEncyclopediaUI:_renderEntry(entry)
     local contentWidth = math.max(1, math.floor(self._content:getSize().x))
-    local fittedName = TextLayout.FitPlainText(tostring(entry.name or ""), contentWidth, _NAME_TEXT_CONFIG)
+    local fittedName = TextLayout.FitPlainText(tostring(entry.name or ""), contentWidth, self._nameControl)
     self:setText("Name", fittedName)
     self:setProperty("Name", "visible", true)
     local displayDescription = limitLines(
-        TextLayout.WrapPlainText(tostring(entry.desc or ""), contentWidth, _INFO_TEXT_CONFIG), _DESC_MAX_LINES,
-        contentWidth
+        TextLayout.WrapPlainText(tostring(entry.desc or ""), contentWidth, self._descriptionControl), _DESC_MAX_LINES,
+        contentWidth, self._descriptionControl
     )
     self:setText("Description", displayDescription)
     self:setProperty("Description", "visible", true)
@@ -108,38 +110,37 @@ function WindowEnemyEncyclopediaUI:_renderEntry(entry)
 
     local portraitHeight = self:_layoutPortrait()
     local nameY = portraitHeight + _NAME_TOP_MARGIN
-    local nameWidth = TextLayout.MeasurePlainText(_NAME_TEXT_CONFIG, fittedName)
+    local nameWidth = TextLayout.MeasurePlainText(self._nameControl, fittedName)
     self._nameControl:setPosition(sf.Vector2f.new((contentWidth - nameWidth) / 2.0, nameY))
-    local nameBottom = nameY + Data.GetPlainTextConfig(_NAME_TEXT_CONFIG).characterSize
+    local nameBottom = nameY + self._nameControl:getCharacterSize()
     local infoY = nameBottom + _INFO_TOP_MARGIN
     self:_layoutInfoLayer(contentWidth, infoY)
-    self:buildInfo(entry, infoY)
+    self:buildInfo(entry)
     local descY = infoY + 3 * _INFO_ROW_GAP + _DESC_TOP_MARGIN
     self._descriptionControl:setPosition(sf.Vector2f.new(0.0, descY))
     self.model._infoTexts[#self.model._infoTexts + 1] = self._descriptionControl
     local specialY = descY + _DESC_MAX_LINES * _DESC_LINE_GAP + _SPECIAL_TOP_MARGIN
     self:buildSpecials(entry, specialY)
-    self:_syncModelState()
+    self.model._portrait = self._portraitControl
+    self.model._nameText = self._nameControl
 end
 
 ---@return number
 function WindowEnemyEncyclopediaUI:_layoutPortrait()
-    local contentSize = self._content:getSize()
-    local bounds = sf.FloatRect.new(sf.Vector2f.new(0.0, 0.0), sf.Vector2f.new(contentSize.x, _PORTRAIT_AREA_HEIGHT))
-    return self._previewController:layout(bounds, "top").y
+    return math.min(_PORTRAIT_AREA_HEIGHT, self._portraitControl:getSize().y)
 end
 
 ---@param contentWidth integer
 ---@param infoY        number
 function WindowEnemyEncyclopediaUI:_layoutInfoLayer(contentWidth, infoY)
-    local logicalSize = sf.Vector2u.new(contentWidth, _INFO_LAYER_HEIGHT)
-    ---@cast logicalSize sf.Vector2u
-    self._infoLayer:resize(logicalSize)
-    self._infoLayer:setView(self._infoLayer:getDefaultView())
+    ---@cast self._infoLayer Engine.ListView
+    local size = sf.Vector2i.new(contentWidth, _INFO_LAYER_HEIGHT)
+    ---@cast size sf.Vector2i
+    self._infoLayer:setSize(size)
     self._infoLayer:setPosition(sf.Vector2f.new(0.0, infoY))
 end
 
-function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY)
+function WindowEnemyEncyclopediaUI:buildInfo(entry)
     local rows = {
         {
             {
@@ -170,26 +171,22 @@ function WindowEnemyEncyclopediaUI:buildInfo(entry, infoY)
             }
         }
     }
-    for rowIndex, row in ipairs(rows) do
-        for columnIndex, pair in ipairs(row) do
-            self:addInfoPair(
-                pair[1], tostring(ToShortNumber(pair[2])), columnIndex - 1, infoY + (rowIndex - 1) * _INFO_ROW_GAP
-            )
+    for _, row in ipairs(rows) do
+        for _, pair in ipairs(row) do
+            self:addInfoPair(pair[1], tostring(ToShortNumber(pair[2])))
         end
     end
     local criticalText = EnemyText.FormatCritical(entry.critical)
     local hitCount = formatHitCount(entry.hitCount)
-    local criticalColumnIndex = 0
     if bool(hitCount) then
-        self:addInfoPair(LOC("HIT"), hitCount, 0, infoY + 2 * _INFO_ROW_GAP)
-        criticalColumnIndex = 1
+        self:addInfoPair(LOC("HIT"), hitCount)
     end
     if bool(criticalText) then
-        self:addInfoPair(LOC("CRIT"), criticalText, criticalColumnIndex, infoY + 2 * _INFO_ROW_GAP)
+        self:addInfoPair(LOC("CRIT"), criticalText)
     end
 end
 
-function WindowEnemyEncyclopediaUI:addInfoPair(label, value, columnIndex, y)
+function WindowEnemyEncyclopediaUI:addInfoPair(label, value)
     local controller = EnemyEncyclopediaInfoPairUI.new({
         label = label,
         value = value
@@ -197,7 +194,7 @@ function WindowEnemyEncyclopediaUI:addInfoPair(label, value, columnIndex, y)
     local logicalSize = sf.Vector2u.new(_INFO_PAIR_WIDTH, _INFO_ROW_GAP)
     ---@cast logicalSize sf.Vector2u
     local root = controller:prepare(logicalSize)
-    root:setPosition(sf.Vector2f.new(columnIndex * _INFO_COLUMN_GAP, y - self._infoLayer:getPosition().y))
+    ---@cast self._infoLayer Engine.ListView
     self._infoLayer:addChild(root)
     self._infoPairControllers[#self._infoPairControllers + 1] = controller
     self.model._infoTexts[#self.model._infoTexts + 1] = controller:getLabel()
@@ -208,7 +205,9 @@ function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
     local contentSize = self._content:getSize()
     local contentWidth = math.max(1, math.floor(contentSize.x))
     local listHeight = math.max(1, math.floor(contentSize.y - y))
-    self._specialList:setPosition(sf.Vector2f.new(0.0, y))
+    self._specialScrollBox:setPosition(sf.Vector2f.new(0.0, y))
+    self._specialScrollBox:resize(sf.Vector2f.new(contentWidth, listHeight))
+    self._specialList:setPosition(sf.Vector2f.new(0.0, 0.0))
     local listSize = sf.Vector2u.new(contentWidth, listHeight)
     ---@cast listSize sf.Vector2u
     self._specialList:setSize(listSize)
@@ -234,7 +233,7 @@ function formatHitCount(hitCount)
     return tostring(ToShortNumber(math.max(1, hitCount)))
 end
 
-function limitLines(text, maxLines, maxWidth)
+function limitLines(text, maxLines, maxWidth, control)
     if not bool(text) then
         return ""
     end
@@ -250,35 +249,30 @@ function limitLines(text, maxLines, maxWidth)
         limitedLines[index] = lines[index]
     end
     if bool(limitedLines) then
-        limitedLines[#limitedLines] = TextLayout.FitPlainText(
-            limitedLines[#limitedLines] .. ".", maxWidth, _INFO_TEXT_CONFIG
-        )
+        limitedLines[#limitedLines] = TextLayout.FitPlainText(limitedLines[#limitedLines] .. ".", maxWidth, control)
     end
     return table.concat(limitedLines, "\n")
-end
-
-function WindowEnemyEncyclopediaUI:tick(deltaTime)
-    self._previewController:tick(deltaTime)
-    self:_syncModelState()
 end
 
 function WindowEnemyEncyclopediaUI:clearEnemyControls()
     self:_clearTextControls()
     self:setProperty("Portrait", "visible", false)
     self._entry = nil
-    self._previewController:clear()
+    self._portraitControl:resetAnimation()
     self.model._portrait = nil
     self.model._nameText = nil
-    self:_syncModelState()
 end
 
 function WindowEnemyEncyclopediaUI:_clearTextControls()
+    ---@cast self._infoLayer Engine.ListView
+    ---@cast self._specialList Engine.ListView
     for _, controller in ipairs(self._infoPairControllers) do
-        local root = controller:getRoot()
-        if root:getParent() == self._infoLayer then
-            self._infoLayer:removeChild(root)
-        end
+        controller:dispose()
     end
+    for _, controller in ipairs(self._specialRowControllers) do
+        controller:dispose()
+    end
+    self._infoLayer:clearChildren()
     self._specialList:clearChildren()
     self._infoPairControllers = {}
     self._specialRowControllers = {}
@@ -287,17 +281,6 @@ function WindowEnemyEncyclopediaUI:_clearTextControls()
     self:setText("Name", "")
     self:setText("Description", "")
     self.model._infoTexts = {}
-end
-
-function WindowEnemyEncyclopediaUI:_syncModelState()
-    local state = self._previewController:getState()
-    self.model._texture = state.texture
-    self.model._rect = state.rect
-    self.model._animatable = state.animatable
-    self.model._switchInterval = state.switchInterval
-    self.model._switchTimer = state.switchTimer
-    self.model._portrait = self._entry ~= nil and state.visible and self._portraitControl or nil
-    self.model._nameText = self._entry ~= nil and self._nameControl or nil
 end
 
 return Ui.Define("WindowEnemyEncyclopedia", WindowEnemyEncyclopediaUI)

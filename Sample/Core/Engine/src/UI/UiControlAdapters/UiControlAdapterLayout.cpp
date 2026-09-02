@@ -4,6 +4,7 @@
 
 #include <UI/Canvas.hpp>
 #include <UI/ListView.hpp>
+#include <UI/ScrollBox.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -49,6 +50,46 @@ void UiControlAdapterRegistry::Builder::registerLayoutAdapters(
             }
         };
     registry.registerAdapter<CanvasUiControlAdapterTag>(std::move(canvas));
+
+    UiControlAdapterRegistry::Adapter scrollBox;
+    scrollBox.factory = [](const RuntimeValue::Map& properties) {
+        return std::make_shared<ScrollBox>(
+            vector2fProperty(properties, "size", {100.0f, 100.0f}),
+            loadWindowSkin(stringProperty(properties, "windowSkin")));
+    };
+    scrollBox.setter = [](ControlBase& control, const std::string& propertyId,
+                          const RuntimeValue& value) {
+        ScrollBox& scroll =
+            requireControlType<ScrollBox>(control, "Engine.ScrollBox");
+        if (propertyId == "size") {
+            scroll.resize(requireVector2f(value, "size"));
+            return;
+        }
+        if (propertyId == "windowSkin") {
+            scroll.setWindowSkin(
+                loadWindowSkin(requireString(value, "windowSkin")));
+            return;
+        }
+        throw std::invalid_argument("Unknown ScrollBox property " + propertyId);
+    };
+    scrollBox.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                            const sf::Vector2f& renderScale) {
+        ScrollBox& scroll =
+            requireControlType<ScrollBox>(control, "Engine.ScrollBox");
+        scroll.resize({std::max(0.0f, size.x), std::max(0.0f, size.y)});
+        scroll.setScale(renderScale);
+    };
+    scrollBox.childAttacher =
+        [](ControlBase& control,
+           const std::vector<std::shared_ptr<ControlBase>>& children) {
+            ScrollBox& scroll =
+                requireControlType<ScrollBox>(control, "Engine.ScrollBox");
+            for (const std::shared_ptr<ControlBase>& child : children) {
+                scroll.addChild(child);
+            }
+        };
+    registry.registerAdapter<ScrollBoxUiControlAdapterTag>(
+        std::move(scrollBox));
 
     UiControlAdapterRegistry::Adapter listView;
     listView.factory = [](const RuntimeValue::Map& properties) {

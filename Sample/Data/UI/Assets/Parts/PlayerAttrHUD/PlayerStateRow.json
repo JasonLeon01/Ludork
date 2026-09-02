@@ -5,7 +5,7 @@
     "height": 24
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Player State Row",
     "category": "HUD"
   },
@@ -58,7 +58,7 @@
         "name": "StateName",
         "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text16",
+          "characterSize": 16,
           "text": ""
         },
         "slot": {

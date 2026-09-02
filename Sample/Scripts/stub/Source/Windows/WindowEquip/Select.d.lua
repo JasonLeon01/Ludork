@@ -1,7 +1,7 @@
 ---@meta Source.Windows.WindowEquip.Select
 
 ---@class Source.Windows.WindowEquipSelect: Source.Windows.Base.WindowSelectable
----@field new     fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSlot?: Source.Windows.WindowEquipSlot, windowEquipStatus?: Source.Windows.WindowEquipStatus, onEquip?: function): Source.Windows.WindowEquipSelect
+---@field new     fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSlot?: Source.Windows.WindowEquipSlot, windowEquipStatus?: Source.Windows.WindowEquipStatus, onEquip?: function, instance?: Engine.AssetInstance): Source.Windows.WindowEquipSelect
 ---@field _player Source.Player.Player
 local WindowEquipSelect = {}
 
@@ -17,7 +17,7 @@ local WindowEquipSelect = {}
 ---@param windowEquipSlot   Source.Windows.WindowEquipSlot | nil
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@param onEquip           function | nil
-function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip) end
+function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip, instance) end
 
 ---@brief Rebind the player whose available equipment is displayed.
 ---@param player Source.Player.Player

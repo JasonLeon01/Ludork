@@ -3,11 +3,13 @@ local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
+local WindowSaveLoadUI = require("Source.UI.WindowSaveLoad")
 local WindowSaveDetail = require("Source.Windows.WindowSaveLoad.Detail")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 local WindowSaveTabs = require("Source.Windows.WindowSaveLoad.Tabs")
 
 local ManagerFunctions = GlobalFunctions.Manager
+local Canvas = Engine.Canvas
 
 local _DEFAULT_TAB_RECT = Engine.ToIntRect(192, 0, 416, 64)
 local _DEFAULT_SLOT_RECT = Engine.ToIntRect(192, 64, 160, 256)
@@ -21,20 +23,35 @@ local CLOSE_REASON_LOADED = "loaded"
 local WindowSaveLoad = {}
 
 function WindowSaveLoad:init(tabRect, slotRect, detailRect, loadOnly, getSaveSource, onClose, onLoaded)
+    self._loadOnly = loadOnly == true
     tabRect = tabRect or _DEFAULT_TAB_RECT
     slotRect = slotRect or _DEFAULT_SLOT_RECT
     detailRect = detailRect or _DEFAULT_DETAIL_RECT
-    self._loadOnly = loadOnly == true
+    local topLeft = tabRect.position
+    local slotTop = 64
+    if self._loadOnly then
+        topLeft = slotRect.position
+        slotTop = 0
+    end
+    super(WindowSaveLoad, self).init(Engine.ToIntRect(topLeft.x, topLeft.y, 416, 320))
     self._getSaveSource = getSaveSource
     self._onCloseCallback = onClose
     self._onLoadedCallback = onLoaded
     self._mode = "load"
+    self._ui = WindowSaveLoadUI.new(self)
+    self._ui:attach()
     self._tabWindow = nil
     if not self._loadOnly then
-        self._tabWindow = WindowSaveTabs.new(tabRect, self)
+        self._tabWindow = WindowSaveTabs.new(Engine.ToIntRect(0, 0, 416, 64), self, self._ui:getTabsAsset())
+        self:addChild(self._tabWindow)
+    else
+        local tabsRoot = assert(self._ui:getTabsAsset():getRoot(), "Save/load tabs root is unavailable")
+        tabsRoot:setVisible(false)
     end
-    self._slotWindow = WindowSaveSlot.new(slotRect, self)
-    self._detailWindow = WindowSaveDetail.new(detailRect)
+    self._slotWindow = WindowSaveSlot.new(Engine.ToIntRect(0, slotTop, 160, 256), self, self._ui:getSlotAsset())
+    self._detailWindow = WindowSaveDetail.new(Engine.ToIntRect(160, slotTop, 256, 256), self._ui:getDetailAsset())
+    self:addChild(self._slotWindow)
+    self:addChild(self._detailWindow)
     if self._tabWindow ~= nil then
         self._tabWindow:setActive(false)
         self._tabWindow:setVisible(false)
@@ -63,6 +80,7 @@ function WindowSaveLoad:getVisible()
 end
 
 function WindowSaveLoad:setVisible(visible)
+    super(WindowSaveLoad, self).setVisible(visible)
     if self._tabWindow ~= nil then
         self._tabWindow:setVisible(visible)
     end
@@ -204,9 +222,10 @@ function WindowSaveLoad:dispose()
     end
     self._slotWindow:dispose()
     self._detailWindow:dispose()
+    self._ui:dispose()
     self._getSaveSource = nil
     self._onCloseCallback = nil
     self._onLoadedCallback = nil
 end
 
-return class(WindowSaveLoad)
+return class(WindowSaveLoad, Canvas)

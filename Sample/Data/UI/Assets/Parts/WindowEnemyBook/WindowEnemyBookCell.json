@@ -5,7 +5,7 @@
     "height": 64
   },
   "palette": {
-    "exposed": false,
+    "exposed": true,
     "displayName": "Window Enemy Book Cell",
     "category": "Windows"
   },
@@ -22,9 +22,16 @@
     "children": [
       {
         "name": "EnemyIcon",
-        "controlId": "Engine.FunctionalImage",
+        "controlId": "Engine.CharacterView",
         "properties": {
-          "texture": ""
+          "size": [64, 64],
+          "texture": "Assets/Characters/enemies/classic-enemies-01-slime-single.png",
+          "textureRect": [0, 0, 32, 32],
+          "characterScale": [1.0, 1.0],
+          "animatable": true,
+          "switchInterval": 0.2,
+          "shader": "",
+          "hue": 0.0
         },
         "slot": {
           "anchors": {
@@ -46,9 +53,9 @@
       },
       {
         "name": "Name",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text16",
+          "characterSize": 16,
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -77,7 +84,7 @@
         "name": "SpecialIcon1",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Icons/Specials/Poisoning.png"
         },
         "slot": {
           "anchors": {
@@ -99,9 +106,10 @@
       },
       {
         "name": "SpecialText1",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText10",
+          "characterSize": 10,
+          "lineAlignment": "right",
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -130,7 +138,7 @@
         "name": "SpecialIcon2",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Icons/Specials/Hard.png"
         },
         "slot": {
           "anchors": {
@@ -152,9 +160,10 @@
       },
       {
         "name": "SpecialText2",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText10",
+          "characterSize": 10,
+          "lineAlignment": "right",
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -183,7 +192,7 @@
         "name": "SpecialIcon3",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": ""
+          "texture": "Assets/Icons/Specials/Magic.png"
         },
         "slot": {
           "anchors": {
@@ -205,9 +214,10 @@
       },
       {
         "name": "SpecialText3",
-        "controlId": "Engine.FunctionalPlainText",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/RightText10",
+          "characterSize": 10,
+          "lineAlignment": "right",
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -233,10 +243,10 @@
         "children": []
       },
       {
-        "name": "HPText",
-        "controlId": "Engine.FunctionalPlainText",
+        "name": "HPLabel",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text12",
+          "characterSize": 12,
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -257,15 +267,16 @@
           "zOrder": 8
         },
         "editor": {
-          "previewText": "HP\t999"
+          "previewText": "HP"
         },
         "children": []
       },
       {
-        "name": "ATKText",
-        "controlId": "Engine.FunctionalPlainText",
+        "name": "HPValue",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text12",
+          "characterSize": 12,
+          "lineAlignment": "right",
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -276,7 +287,7 @@
             "max": [0.0, 0.0]
           },
           "offsets": {
-            "left": 150.0,
+            "left": 138.0,
             "top": 24.0,
             "right": 0.0,
             "bottom": 0.0
@@ -286,15 +297,15 @@
           "zOrder": 9
         },
         "editor": {
-          "previewText": "ATK\t99"
+          "previewText": "999.9K"
         },
         "children": []
       },
       {
-        "name": "DEFText",
-        "controlId": "Engine.FunctionalPlainText",
+        "name": "ATKLabel",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text12",
+          "characterSize": 12,
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -305,7 +316,7 @@
             "max": [0.0, 0.0]
           },
           "offsets": {
-            "left": 236.0,
+            "left": 144.0,
             "top": 24.0,
             "right": 0.0,
             "bottom": 0.0
@@ -315,15 +326,104 @@
           "zOrder": 10
         },
         "editor": {
-          "previewText": "DEF\t99"
+          "previewText": "ATK"
         },
         "children": []
       },
       {
-        "name": "EXPText",
-        "controlId": "Engine.FunctionalPlainText",
+        "name": "ATKValue",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text12",
+          "characterSize": 12,
+          "lineAlignment": "right",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 218.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 11
+        },
+        "editor": {
+          "previewText": "99.9K"
+        },
+        "children": []
+      },
+      {
+        "name": "DEFLabel",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 224.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 12
+        },
+        "editor": {
+          "previewText": "DEF"
+        },
+        "children": []
+      },
+      {
+        "name": "DEFValue",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
+          "lineAlignment": "right",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 314.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 13
+        },
+        "editor": {
+          "previewText": "99.9K"
+        },
+        "children": []
+      },
+      {
+        "name": "EXPLabel",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -341,18 +441,19 @@
           },
           "alignment": [0.0, 0.0],
           "autoSize": true,
-          "zOrder": 11
+          "zOrder": 14
         },
         "editor": {
-          "previewText": "EXP\t120"
+          "previewText": "EXP"
         },
         "children": []
       },
       {
-        "name": "GOLDText",
-        "controlId": "Engine.FunctionalPlainText",
+        "name": "EXPValue",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text12",
+          "characterSize": 12,
+          "lineAlignment": "right",
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -363,25 +464,25 @@
             "max": [0.0, 0.0]
           },
           "offsets": {
-            "left": 150.0,
+            "left": 138.0,
             "top": 44.0,
             "right": 0.0,
             "bottom": 0.0
           },
           "alignment": [0.0, 0.0],
           "autoSize": true,
-          "zOrder": 12
+          "zOrder": 15
         },
         "editor": {
-          "previewText": "GOLD\t30"
+          "previewText": "120K"
         },
         "children": []
       },
       {
-        "name": "DamageText",
-        "controlId": "Engine.FunctionalPlainText",
+        "name": "GOLDLabel",
+        "controlId": "Engine.PlainText",
         "properties": {
-          "textConfig": "UI/Text12",
+          "characterSize": 12,
           "text": "",
           "outlineColor": [0, 0, 0, 255],
           "outlineThickness": 1.0
@@ -392,17 +493,106 @@
             "max": [0.0, 0.0]
           },
           "offsets": {
-            "left": 236.0,
+            "left": 144.0,
             "top": 44.0,
             "right": 0.0,
             "bottom": 0.0
           },
           "alignment": [0.0, 0.0],
           "autoSize": true,
-          "zOrder": 13
+          "zOrder": 16
         },
         "editor": {
-          "previewText": "DMG\t???"
+          "previewText": "GOLD"
+        },
+        "children": []
+      },
+      {
+        "name": "GOLDValue",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
+          "lineAlignment": "right",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 218.0,
+            "top": 44.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 17
+        },
+        "editor": {
+          "previewText": "30K"
+        },
+        "children": []
+      },
+      {
+        "name": "DamageLabel",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 224.0,
+            "top": 44.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 18
+        },
+        "editor": {
+          "previewText": "Damage"
+        },
+        "children": []
+      },
+      {
+        "name": "DamageValue",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
+          "lineAlignment": "right",
+          "text": "",
+          "outlineColor": [0, 0, 0, 255],
+          "outlineThickness": 1.0
+        },
+        "slot": {
+          "anchors": {
+            "min": [0.0, 0.0],
+            "max": [0.0, 0.0]
+          },
+          "offsets": {
+            "left": 314.0,
+            "top": 44.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [0.0, 0.0],
+          "autoSize": true,
+          "zOrder": 19
+        },
+        "editor": {
+          "previewText": "79.9K"
         },
         "children": []
       }

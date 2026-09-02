@@ -143,9 +143,7 @@ def _reject_unknown_fields(
 ) -> None:
     unknown = sorted(set(value) - allowed)
     if unknown:
-        raise UiAssetError(
-            f"{label} has unknown field {unknown[0]}"
-        )
+        raise UiAssetError(f"{label} has unknown field {unknown[0]}")
 
 
 def _integer(value: object, label: str) -> int:
@@ -166,19 +164,11 @@ def _validate_integer_array(
     for index, item in enumerate(value):
         number = _integer(item, f"{label}[{index}]")
         if colour and (number < 0 or number > 255):
-            raise UiAssetError(
-                f"{label}[{index}] must be between 0 and 255"
-            )
+            raise UiAssetError(f"{label}[{index}] must be between 0 and 255")
         if unsigned and (number < 0 or number > UINT32_MAX):
-            raise UiAssetError(
-                f"{label}[{index}] must be an unsigned 32-bit integer"
-            )
-        if not colour and not unsigned and (
-            number < INT32_MIN or number > INT32_MAX
-        ):
-            raise UiAssetError(
-                f"{label}[{index}] must be a signed 32-bit integer"
-            )
+            raise UiAssetError(f"{label}[{index}] must be an unsigned 32-bit integer")
+        if not colour and not unsigned and (number < INT32_MIN or number > INT32_MAX):
+            raise UiAssetError(f"{label}[{index}] must be a signed 32-bit integer")
 
 
 def _validate_property_type(
@@ -195,14 +185,23 @@ def _validate_property_type(
     elif value_type == "int":
         number = _integer(value, label)
         if number < INT32_MIN or number > INT32_MAX:
-            raise UiAssetError(
-                f"{label} must be a signed 32-bit integer"
-            )
+            raise UiAssetError(f"{label} must be a signed 32-bit integer")
     elif value_type == "float":
         _float_number(value, label)
     elif value_type == "string":
         if not isinstance(value, str):
             raise UiAssetError(f"{label} must be a string")
+    elif value_type == "sf.Text.LineAlignment":
+        if value not in {"default", "left", "center", "right"}:
+            raise UiAssetError(f"{label} must be default, left, center or right")
+    elif value_type == "Engine.TextGradientDirection":
+        if value not in {"vertical", "horizontal"}:
+            raise UiAssetError(f"{label} must be vertical or horizontal")
+    elif value_type == "string[]":
+        if not isinstance(value, list) or any(
+            not isinstance(item, str) for item in value
+        ):
+            raise UiAssetError(f"{label} must be a string array")
     elif value_type == "sf.Vector2f":
         _pair(value, label)
     elif value_type == "sf.Vector2u":
@@ -212,9 +211,7 @@ def _validate_property_type(
     elif value_type == "sf.Color":
         _validate_integer_array(value, 4, label, colour=True)
     else:
-        raise UiAssetError(
-            f"{label} uses unsupported property type {value_type}"
-        )
+        raise UiAssetError(f"{label} uses unsupported property type {value_type}")
 
 
 def _validate_property_semantics(
@@ -231,10 +228,11 @@ def _validate_property_semantics(
         raise UiAssetError(f"{label} must be positive")
     if (
         control_id == "Engine.TabView"
-        and property_id == "tabCount"
-        and _integer(value, label) <= 0
+        and property_id == "items"
+        and isinstance(value, list)
+        and not value
     ):
-        raise UiAssetError(f"{label} must be positive")
+        raise UiAssetError(f"{label} must not be empty")
     if (
         control_id in {"Engine.Canvas", "Engine.Window"}
         and property_id == "size"
@@ -244,9 +242,7 @@ def _validate_property_semantics(
             for index, component in enumerate(value)
         )
     ):
-        raise UiAssetError(
-            f"{label} components must not exceed {INT32_MAX}"
-        )
+        raise UiAssetError(f"{label} components must not exceed {INT32_MAX}")
     if (
         property_id == "scale"
         and isinstance(value, list)
@@ -256,6 +252,20 @@ def _validate_property_semantics(
         )
     ):
         raise UiAssetError(f"{label} components cannot be negative")
+    ranges = {
+        "characterSize": (1.0, 512.0),
+        "slantAngle": (-45.0, 45.0),
+        "letterSpacing": (0.1, 10.0),
+        "lineSpacing": (0.1, 10.0),
+        "outlineThickness": (0.0, 32.0),
+        "glowRadius": (0.0, 64.0),
+        "glowIntensity": (0.0, 1.0),
+    }
+    if property_id in ranges:
+        minimum, maximum = ranges[property_id]
+        number = _finite_number(value, label)
+        if number < minimum or number > maximum:
+            raise UiAssetError(f"{label} must be between {minimum:g} and {maximum:g}")
 
 
 def _safe_project_path(
@@ -270,9 +280,7 @@ def _safe_project_path(
     try:
         path.relative_to(project_root)
     except ValueError as exception:
-        raise UiAssetError(
-            f"{label} escapes the project directory"
-        ) from exception
+        raise UiAssetError(f"{label} escapes the project directory") from exception
     return path
 
 
@@ -287,14 +295,13 @@ def _validate_property_reference(
         return
     text = value.strip()
     if text != value or "\\" in text:
-        raise UiAssetError(
-            f"{label} must use a canonical project-relative path"
-        )
+        raise UiAssetError(f"{label} must use a canonical project-relative path")
     if property_id in {
         "texture",
         "windowSkin",
         "lineTexture",
         "handleTexture",
+        "font",
     }:
         if not text.startswith("Assets/"):
             raise UiAssetError(
@@ -304,7 +311,24 @@ def _validate_property_reference(
         if not path.is_file():
             raise UiAssetError(f"{label} resource was not found: {text}")
         return
-    if property_id in {"textConfig", "opacityCurve"}:
+    if property_id == "shader":
+        key = pathlib.PurePosixPath(text)
+        if (
+            key.is_absolute()
+            or str(key) != text
+            or any(part in {".", ".."} for part in key.parts)
+            or text.startswith("Shaders/")
+            or text.startswith("Assets/")
+        ):
+            raise UiAssetError(
+                f"{label} must use a canonical path relative to Assets/Shaders"
+            )
+        relative = pathlib.PurePosixPath("Assets", "Shaders", key)
+        path = _safe_project_path(project_root, str(relative), label)
+        if not path.is_file():
+            raise UiAssetError(f"{label} shader was not found: {text}")
+        return
+    if property_id in {"textConfig", "opacityCurve", "gradientCurve"}:
         section = "TextConfigs" if property_id == "textConfig" else "Curves"
         key = pathlib.PurePosixPath(text)
         if (
@@ -325,9 +349,7 @@ def _validate_property_reference(
             path.with_suffix(".ldc"),
         )
         if not any(candidate.is_file() for candidate in candidates):
-            raise UiAssetError(
-                f"{label} {section} resource was not found: {text}"
-            )
+            raise UiAssetError(f"{label} {section} resource was not found: {text}")
         json_path = candidates[0]
         if not json_path.is_file():
             return
@@ -341,13 +363,9 @@ def _validate_property_reference(
                 else None
             )
             if expected_type is not None and data.get("type") != expected_type:
-                raise UiAssetError(
-                    f"{label} must reference a {expected_type}"
-                )
+                raise UiAssetError(f"{label} must reference a {expected_type}")
         elif data.get("type") != "curve":
-            raise UiAssetError(
-                f"{label} must reference a scalar curve"
-            )
+            raise UiAssetError(f"{label} must reference a scalar curve")
 
 
 def _validate_canvas_slot(slot: dict[str, object], label: str) -> None:
@@ -376,9 +394,7 @@ def _validate_canvas_slot(slot: dict[str, object], label: str) -> None:
         raise UiAssetError(f"{label}.autoSize must be a boolean")
     z_order = _integer(slot.get("zOrder"), f"{label}.zOrder")
     if z_order < INT32_MIN or z_order > INT32_MAX:
-        raise UiAssetError(
-            f"{label}.zOrder must be a signed 32-bit integer"
-        )
+        raise UiAssetError(f"{label}.zOrder must be a signed 32-bit integer")
 
 
 def _validate_node(
@@ -420,13 +436,9 @@ def _validate_node(
             _validate_canvas_slot(slot, f"{path}.slot")
         elif slot_type == "list":
             if slot:
-                raise UiAssetError(
-                    f"{path}.slot must be empty under ListView"
-                )
+                raise UiAssetError(f"{path}.slot must be empty under ListView")
         else:
-            raise UiAssetError(
-                f"{path} parent does not provide a valid Slot type"
-            )
+            raise UiAssetError(f"{path} parent does not provide a valid Slot type")
 
     descriptor: dict[str, object]
     if control_id.startswith("Project:"):
@@ -452,9 +464,7 @@ def _validate_node(
             raise UiAssetError(f"{path} has unknown controlId {control_id}")
         property_descriptors = descriptor.get("properties")
         if not isinstance(property_descriptors, list):
-            raise UiAssetError(
-                f"{control_id} has invalid property descriptors"
-            )
+            raise UiAssetError(f"{control_id} has invalid property descriptors")
         property_lookup = {
             str(property_data["id"]): property_data
             for property_data in property_descriptors
@@ -467,9 +477,7 @@ def _validate_node(
                     f"{path}.properties has unknown property {property_id}"
                 )
             if property_data.get("editorOnly") is True:
-                raise UiAssetError(
-                    f"{path}.properties.{property_id} is editor-only"
-                )
+                raise UiAssetError(f"{path}.properties.{property_id} is editor-only")
             _validate_property_type(
                 property_value,
                 str(property_data["type"]),
@@ -498,15 +506,19 @@ def _validate_node(
                 raise UiAssetError(
                     f"{path}.properties is missing required property {property_id}"
                 )
+        if properties.get("gradientEnabled") is True and not properties.get(
+            "gradientCurve"
+        ):
+            raise UiAssetError(
+                f"{path}.properties.gradientCurve is required when gradientEnabled is true"
+            )
     editor = node.get("editor")
     if "editor" in node:
         if not isinstance(editor, dict):
             raise UiAssetError(f"{path}.editor must be an object")
         _reject_unknown_fields(editor, EDITOR_FIELDS, f"{path}.editor")
         if descriptor.get("source") == "project" and editor:
-            raise UiAssetError(
-                f"{path} nested asset cannot override editor data"
-            )
+            raise UiAssetError(f"{path} nested asset cannot override editor data")
         has_preview_text = "previewText" in editor
         preview_text = editor.get("previewText")
         if has_preview_text and not isinstance(preview_text, str):
@@ -572,12 +584,7 @@ def _validate_asset(
         design_size.get("height"),
         f"{path}.designSize.height",
     )
-    if (
-        width <= 0.0
-        or height <= 0.0
-        or width > INT32_MAX
-        or height > INT32_MAX
-    ):
+    if width <= 0.0 or height <= 0.0 or width > INT32_MAX or height > INT32_MAX:
         raise UiAssetError(
             f"{path}.designSize must be positive and not exceed {INT32_MAX}"
         )
@@ -588,10 +595,7 @@ def _validate_asset(
     if not isinstance(palette.get("exposed"), bool):
         raise UiAssetError(f"{path}.palette.exposed must be a boolean")
     for key in ("displayName", "category"):
-        if (
-            not isinstance(palette.get(key), str)
-            or not palette[key].strip()
-        ):
+        if not isinstance(palette.get(key), str) or not palette[key].strip():
             raise UiAssetError(f"{path}.palette.{key} must be non-empty")
     references: list[str] = []
     _validate_node(
@@ -626,13 +630,9 @@ def _validate_reference_graph(
         for target in references[asset_key]:
             chain = " -> ".join([*stack, target])
             if target not in references:
-                raise UiAssetError(
-                    f"Missing nested UI asset reference: {chain}"
-                )
+                raise UiAssetError(f"Missing nested UI asset reference: {chain}")
             if target not in exposed_assets:
-                raise UiAssetError(
-                    f"Nested UI asset is not exposed: {chain}"
-                )
+                raise UiAssetError(f"Nested UI asset is not exposed: {chain}")
             visit(target)
         stack.pop()
         states[asset_key] = 2
@@ -651,15 +651,10 @@ def validate_assets(project_root: pathlib.Path) -> None:
             path
             for path in assets_root.rglob("*")
             if path.is_file()
-            and (
-                path.suffix.lower() == ".json"
-                or path.name.lower() == ".json"
-            )
+            and (path.suffix.lower() == ".json" or path.name.lower() == ".json")
         )
         for path in candidates:
-            if (
-                path.suffix.lower() == ".json" and path.suffix != ".json"
-            ) or (
+            if (path.suffix.lower() == ".json" and path.suffix != ".json") or (
                 path.name.lower() == ".json" and path.name != ".json"
             ):
                 raise UiAssetError(

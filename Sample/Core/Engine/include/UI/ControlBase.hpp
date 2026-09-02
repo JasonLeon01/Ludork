@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -90,7 +91,15 @@ public:
     virtual sf::FloatRect getLocalBounds() const;
 
     BIND_METHOD(Pure = true)
-    sf::FloatRect getAbsoluteBounds() const;
+    virtual sf::FloatRect getAbsoluteBounds() const;
+
+    BIND_METHOD(Pure = true)
+    virtual sf::FloatRect getContentBounds() const;
+
+    sf::FloatRect getAbsoluteInteractionBounds() const;
+
+    sf::FloatRect clipAbsoluteInteractionBounds(
+        const sf::FloatRect& bounds) const;
 
     BIND_METHOD(Pure = true)
     virtual sf::RenderStates getRenderStates() const;
@@ -171,6 +180,11 @@ protected:
 
     BIND_METHOD(callback = false, metadata = false)
     virtual sf::Transform _getScreenRenderTransform() const;
+
+    virtual std::optional<sf::FloatRect>
+    _getAbsoluteChildInteractionClipBounds() const;
+
+    virtual bool _ignoresAncestorInteractionClip() const;
 
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,

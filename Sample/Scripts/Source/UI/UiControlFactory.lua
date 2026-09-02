@@ -3,12 +3,17 @@ local Engine = require("Engine")
 local Canvas = Engine.Canvas
 local ListView = Engine.ListView
 local Rect = Engine.Rect
+local ScrollBox = Engine.ScrollBox
 local FPlainText = Engine.FunctionalPlainText
 
 local UiControlFactory = {}
 
 function UiControlFactory.CreateListView(logicalSize, defaultItemHeight, fixItemHeight, columns)
     return ListView.new(Engine.ToIntRect(0, 0, logicalSize.x, logicalSize.y), defaultItemHeight, fixItemHeight, columns)
+end
+
+function UiControlFactory.CreateScrollBox(logicalSize, windowSkin)
+    return ScrollBox.new(sf.Vector2f.new(logicalSize.x, logicalSize.y), windowSkin)
 end
 
 function UiControlFactory.CreateFunctionalPlainText(textConfig)

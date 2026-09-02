@@ -2,7 +2,7 @@
   "type": "uiAsset",
   "designSize": {
     "width": 352,
-    "height": 352
+    "height": 256
   },
   "palette": {
     "exposed": true,
@@ -15,7 +15,7 @@
     "properties": {
       "size": [
         352,
-        352
+        256
       ]
     },
     "editor": {},
@@ -26,7 +26,7 @@
         "properties": {
           "size": [
             352,
-            352
+            256
           ],
           "windowSkin": "",
           "repeated": false
@@ -64,7 +64,7 @@
         "properties": {
           "size": [
             320,
-            320
+            224
           ]
         },
         "slot": {
@@ -94,16 +94,14 @@
         "editor": {},
         "children": [
           {
-            "name": "ItemList",
-            "controlId": "Engine.ListView",
+            "name": "ItemScrollBox",
+            "controlId": "Engine.ScrollBox",
             "properties": {
               "size": [
                 320,
-                320
+                224
               ],
-              "defaultItemHeight": 32,
-              "fixItemHeight": true,
-              "columns": 2
+              "windowSkin": ""
             },
             "slot": {
               "anchors": {
@@ -130,7 +128,92 @@
               "zOrder": 0
             },
             "editor": {},
-            "children": []
+            "children": [
+              {
+                "name": "ItemList",
+                "controlId": "Engine.ListView",
+                "properties": {
+                  "size": [320.0, 224.0],
+                  "defaultItemHeight": 32,
+                  "fixItemHeight": true,
+                  "columns": 2
+                },
+                "slot": {},
+                "editor": {},
+                "children": [
+                  {
+                    "name": "ShopItemPlaceholder1",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder2",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder3",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder4",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder5",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder6",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder7",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder8",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder9",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder10",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder11",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder12",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder13",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  },
+                  {
+                    "name": "ShopItemPlaceholder14",
+                    "controlId": "Project:Parts/WindowShop/WindowShopCell",
+                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                  }
+                ]
+              }
+            ]
           }
         ]
       }

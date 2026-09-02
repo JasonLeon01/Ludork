@@ -21,11 +21,6 @@ function WindowEnemyEncyclopedia:init(rect, onClose)
     self._portrait = nil
     self._nameText = nil
     self._infoTexts = {}
-    self._texture = nil
-    self._rect = nil
-    self._animatable = false
-    self._switchInterval = 0.2
-    self._switchTimer = 0.0
     ---@cast self Source.Windows.WindowEnemyEncyclopedia
     self._ui = self.uiClass.new(self, rect.size)
     self._ui:attach()
@@ -71,16 +66,6 @@ function WindowEnemyEncyclopedia:onMouseButtonDown(_kwargs)
         return true
     end
     return false
-end
-
-function WindowEnemyEncyclopedia:onTick(deltaTime)
-    self:_animatePortrait(deltaTime)
-    super(WindowEnemyEncyclopedia, self).onTick(deltaTime)
-end
-
----@param deltaTime number
-function WindowEnemyEncyclopedia:_animatePortrait(deltaTime)
-    self._ui:tick(deltaTime)
 end
 
 function WindowEnemyEncyclopedia:_clearEnemyControls()

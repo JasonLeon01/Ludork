@@ -2,12 +2,13 @@
 
 ---@brief Non-focusable load/save tab window.
 ---@class Source.Windows.WindowSaveTabs: Source.Windows.Base.WindowBase
+---@field new fun(rect: sf.IntRect, owner: Source.Windows.WindowSaveLoad, instance?: Engine.AssetInstance): Source.Windows.WindowSaveTabs
 ---@field new fun(rect: sf.IntRect, owner: Source.Windows.WindowSaveLoad): Source.Windows.WindowSaveTabs
 local WindowSaveTabs = {}
 
 ---@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowSaveLoad
-function WindowSaveTabs:init(rect, owner) end
+function WindowSaveTabs:init(rect, owner, instance) end
 
 ---@return Engine.TabView
 function WindowSaveTabs:getTabView() end

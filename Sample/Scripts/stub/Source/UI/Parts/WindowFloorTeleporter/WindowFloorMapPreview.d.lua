@@ -1,10 +1,14 @@
 ---@meta Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
 
+---@class Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview: Source.UI.UiController
+---@field new fun(model: table, size: sf.Vector2i, loadPreview: function, resolvePreviewMapPath?: function, instance?: Engine.AssetInstance): Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
+local WindowFloorMapPreviewUI = {}
+
 ---@param model                 Source.Windows.WindowFloorMapPreview
 ---@param size                  sf.Vector2i
 ---@param loadPreview           function
 ---@param resolvePreviewMapPath function | nil
-function WindowFloorMapPreviewUI:init(model, size, loadPreview, resolvePreviewMapPath) end
+function WindowFloorMapPreviewUI:init(model, size, loadPreview, resolvePreviewMapPath, instance) end
 
 function WindowFloorMapPreviewUI:bind() end
 
@@ -13,7 +17,7 @@ function WindowFloorMapPreviewUI:refresh() end
 ---@return Engine.Canvas
 function WindowFloorMapPreviewUI:prepare() end
 
-function WindowFloorMapPreviewUI:attach() end
+function WindowFloorMapPreviewUI:attach(nested) end
 
 ---@return Engine.Window
 function WindowFloorMapPreviewUI:getWindowFrame() end
@@ -23,6 +27,9 @@ function WindowFloorMapPreviewUI:getContent() end
 
 ---@return Engine.ListView
 function WindowFloorMapPreviewUI:getListView() end
+
+---@return Engine.ScrollBox
+function WindowFloorMapPreviewUI:getScrollBox() end
 
 function WindowFloorMapPreviewUI:clearPreviewCache() end
 
@@ -48,8 +55,7 @@ function WindowFloorMapPreviewUI:getSelectedTelepoint() end
 
 function WindowFloorMapPreviewUI:hidePreview() end
 
----@param rect sf.IntRect
 ---@return integer
-function WindowFloorMapPreviewUI.GetTelepointItemWidth(rect) end
+function WindowFloorMapPreviewUI.GetTelepointItemWidth() end
 
 return WindowFloorMapPreviewUI

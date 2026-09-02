@@ -30,6 +30,7 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     self._windowBaseUI = nil
     self._window = nil
     self.content = nil
+    self._visualRoot = nil
     self._returnButton = nil
     self._pauseMark = nil
     self._pauseMarkTexture = nil
@@ -92,7 +93,17 @@ end
 
 function WindowBase:setVisible(visible)
     super(WindowBase, self).setVisible(visible)
+    if self._visualRoot ~= nil then
+        self._visualRoot:setVisible(visible)
+    end
     self:_refreshReturnButtonState()
+end
+
+function WindowBase:setPosition(position)
+    super(WindowBase, self).setPosition(position)
+    if self._visualRoot ~= nil then
+        self._visualRoot:setPosition(position)
+    end
 end
 
 function WindowBase:_setReturnButtonSuppressed(suppressed)

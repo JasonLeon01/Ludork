@@ -2,7 +2,7 @@
 
 ---@class Source.Windows.WindowEquipSlot: Source.Windows.Base.WindowSelectable
 ---@field _onCloseCallback function | nil
----@field new              fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSelect?: Source.Windows.WindowEquipSelect, windowEquipStatus?: Source.Windows.WindowEquipStatus, onClose?: function): Source.Windows.WindowEquipSlot
+---@field new              fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSelect?: Source.Windows.WindowEquipSelect, windowEquipStatus?: Source.Windows.WindowEquipStatus, onClose?: function, instance?: Engine.AssetInstance): Source.Windows.WindowEquipSlot
 ---@field _player          Source.Player.Player
 local WindowEquipSlot = {}
 
@@ -18,7 +18,7 @@ local WindowEquipSlot = {}
 ---@param windowEquipSelect Source.Windows.WindowEquipSelect | nil
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@param onClose           function | nil
-function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus, onClose) end
+function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus, onClose, instance) end
 
 ---@brief Rebind the player whose equipment slots are displayed.
 ---@param player Source.Player.Player

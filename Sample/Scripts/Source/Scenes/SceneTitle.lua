@@ -40,10 +40,7 @@ function Scene:onCreate()
         self:_onConfigClose()
     end)
     ---@type any[]
-    local uiWindows = {
-        self._windowCommand, self._windowSaveLoad:getSlotWindow(), self._windowSaveLoad:getDetailWindow(),
-        self._configWindow
-    }
+    local uiWindows = { self._windowCommand, self._windowSaveLoad, self._configWindow }
     for _, window in ipairs(uiWindows) do
         ---@cast window Engine.ControlBase
         uiManager:loadUI(window)

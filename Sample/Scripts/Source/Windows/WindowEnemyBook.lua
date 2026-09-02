@@ -23,7 +23,8 @@ function WindowEnemyBook:init(rect, player, onClose, onConfirm)
     self._enemies = {}
     self._ui = self.uiClass.new(self, rect.size)
     self._ui:attach()
-    self._listView = self._ui:getListView()
+    self:setScrollBox(self._ui:getScrollBox())
+    self:setListView(self._ui:getListView())
     self:setActive(false)
     self:setVisible(false)
 end
@@ -46,11 +47,6 @@ end
 
 function WindowEnemyBook:refreshLocale()
     self._ui:refreshLocale()
-end
-
-function WindowEnemyBook:onTick(deltaTime)
-    self._ui:tick(deltaTime)
-    super(WindowEnemyBook, self).onTick(deltaTime)
 end
 
 ---@param gameMap GameMap | nil

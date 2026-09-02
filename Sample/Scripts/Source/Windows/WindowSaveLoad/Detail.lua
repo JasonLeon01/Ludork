@@ -7,14 +7,14 @@ local _DETAIL_THUMB_WIDTH = 224
 local _DETAIL_THUMB_HEIGHT = 168
 local WindowSaveDetail = {}
 
-function WindowSaveDetail:init(rect)
+function WindowSaveDetail:init(rect, instance)
     super(WindowSaveDetail, self).init(rect, nil, nil, true)
     self._currentSlot = nil
     self._cachedFilePath = ""
     self._cachedFileMTime = -1.0
     self._thumbTexture = nil
-    self._ui = WindowSaveDetailUI.new(self, rect.size)
-    self._ui:attach()
+    self._ui = WindowSaveDetailUI.new(self, rect.size, instance)
+    self._ui:attach(instance ~= nil)
     self._thumbnail = self._ui:getThumbnail()
     self._timestampText = self._ui:getTimestampText()
     self._thumbnail:setVisible(false)

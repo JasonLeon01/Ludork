@@ -1,0 +1,195 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 192,
+    "height": 192
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Menu",
+    "category": "Windows"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        192,
+        192
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "WindowFrame",
+        "controlId": "Engine.Window",
+        "properties": {
+          "size": [
+            192,
+            192
+          ],
+          "windowSkin": "",
+          "repeated": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              1,
+              1
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "Content",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            160,
+            160
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              1,
+              1
+            ]
+          },
+          "offsets": {
+            "left": 16,
+            "top": 16,
+            "right": 16,
+            "bottom": 16
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": [
+          {
+            "name": "MenuScrollBox",
+            "controlId": "Engine.ScrollBox",
+            "properties": {
+              "size": [
+                160,
+                160
+              ],
+              "windowSkin": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0,
+                  0
+                ],
+                "max": [
+                  1,
+                  1
+                ]
+              },
+              "offsets": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              },
+              "alignment": [
+                0,
+                0
+              ],
+              "autoSize": false,
+              "zOrder": 0
+            },
+            "editor": {},
+            "children": [
+              {
+                "name": "MenuList",
+                "controlId": "Engine.ListView",
+                "properties": {
+                  "size": [
+                    160,
+                    160
+                  ],
+                  "defaultItemHeight": 32,
+                  "fixItemHeight": true,
+                  "columns": 1
+                },
+                "slot": {},
+                "editor": {},
+                "children": [
+                  {
+                    "name": "MenuItem1",
+                    "controlId": "Project:Parts/Shared/CommandRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "MenuItem2",
+                    "controlId": "Project:Parts/Shared/CommandRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "MenuItem3",
+                    "controlId": "Project:Parts/Shared/CommandRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "MenuItem4",
+                    "controlId": "Project:Parts/Shared/CommandRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  },
+                  {
+                    "name": "MenuItem5",
+                    "controlId": "Project:Parts/Shared/CommandRow",
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

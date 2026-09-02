@@ -8,14 +8,14 @@ function WindowShopItemUI.new(...) end
 
 ---@param model Source.Windows.WindowShopItem
 ---@param size  sf.Vector2i
-function WindowShopItemUI:init(model, size) end
+function WindowShopItemUI:init(model, size, instance) end
 
 function WindowShopItemUI:bind() end
 
 ---@return Engine.Canvas
 function WindowShopItemUI:prepare() end
 
-function WindowShopItemUI:attach() end
+function WindowShopItemUI:attach(nested) end
 
 ---@return Engine.Window
 function WindowShopItemUI:getWindowFrame() end
@@ -26,9 +26,13 @@ function WindowShopItemUI:getContent() end
 ---@return Engine.ListView
 function WindowShopItemUI:getListView() end
 
+---@return Engine.ScrollBox
+function WindowShopItemUI:getScrollBox() end
+
 ---@param itemIDs      table
 ---@param availableMap table
 ---@param valueMap     table
-function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap) end
+---@param showValues   boolean
+function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap, showValues) end
 
 return WindowShopItemUI

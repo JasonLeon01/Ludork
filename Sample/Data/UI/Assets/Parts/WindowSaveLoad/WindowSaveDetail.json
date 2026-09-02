@@ -130,7 +130,7 @@
             "name": "TimestampText",
             "controlId": "Engine.FunctionalPlainText",
             "properties": {
-              "textConfig": "UI/Text18",
+              "characterSize": 18,
               "text": ""
             },
             "slot": {

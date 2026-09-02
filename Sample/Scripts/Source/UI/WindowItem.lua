@@ -6,7 +6,6 @@ local TextLayout = require("Source.TextLayout")
 local IconTexture = require("Source.UI.IconTexture")
 local Ui = require("Source.UI.Ui")
 local ItemRowUI = require("Source.UI.Parts.WindowItem.ItemRow")
-local ListViewController = require("Source.UI.Helpers.ListView")
 
 local ManagerFunctions = GlobalFunctions.Manager
 ---@type fun(value: string): string
@@ -26,21 +25,38 @@ local WindowItemUI = {}
 
 function WindowItemUI:init(model)
     super(WindowItemUI, self).init(model)
-    local logicalSize = sf.Vector2u.new(1, 1)
-    ---@cast logicalSize sf.Vector2u
-    self._listViewController = ListViewController.new(model, logicalSize, 32, true, 6)
-    self._listView = self._listViewController:getListView()
     self._logicalSize = nil
     self._rowUIs = {}
 end
 
+function WindowItemUI:bind()
+    self._windowFrame = self:requireControl("WindowFrame")
+    self._content = self:requireControl("Content")
+    self._scrollBox = self:requireControl("ItemScrollBox")
+    self._listView = self:requireControl("ItemList")
+    self._descriptionControl = self:requireControl("Description")
+    ---@cast self._descriptionControl Engine.PlainText
+end
+
 function WindowItemUI:attach()
+    local windowSize = self.model:getSize()
+    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(windowSize.x)), math.max(1, math.floor(windowSize.y)))
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
+    self:attachWindowView(self.model, self._logicalSize)
     self:_updateLayout()
-    local root = self:prepare(self._logicalSize)
-    self.model:addChild(root)
     self.model._descNameText = self:requireControl("ItemName")
     self.model._descText = self:requireControl("Description")
+    self.model:setScrollBox(self._scrollBox)
     self.model:setListView(self._listView)
+end
+
+function WindowItemUI:getWindowFrame()
+    return self._windowFrame
+end
+
+function WindowItemUI:getContent()
+    return self._content
 end
 
 function WindowItemUI:refresh()
@@ -94,7 +110,7 @@ function WindowItemUI:tick()
 end
 
 function WindowItemUI:wrapDescription(text)
-    return TextLayout.WrapPlainText(text, self.model._descMaxWidth, "UI/Text14")
+    return TextLayout.WrapPlainText(text, self.model._descMaxWidth, self._descriptionControl)
 end
 
 function WindowItemUI:updateDescription()
@@ -148,13 +164,8 @@ function WindowItemUI:_updateLayout()
     local contentWidth = math.max(1, math.floor(windowSize.x - 32))
     local contentHeight = math.max(1, math.floor(windowSize.y - 96))
     self.model._descMaxWidth = contentWidth
-    self.model:_resizeCanvas(self.model.content, contentWidth, contentHeight)
-    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(windowSize.x)), math.max(1, math.floor(windowSize.y)))
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
-    local contentSize = sf.Vector2u.new(contentWidth, contentHeight)
-    ---@cast contentSize sf.Vector2u
-    self._listViewController:prepare(contentSize)
+    self._scrollBox:resize(sf.Vector2f.new(contentWidth, contentHeight))
+    self._listView:setSize(sf.Vector2i.new(contentWidth, contentHeight))
 end
 
 function WindowItemUI:_assignDescription()

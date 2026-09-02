@@ -9,22 +9,24 @@ local WindowShopItem = {}
 
 WindowShopItem.uiClass = WindowShopItemUI
 
-function WindowShopItem:init(rect, owner)
+function WindowShopItem:init(rect, owner, instance)
     super(WindowShopItem, self).init(rect, nil, rect.size.x - 64, SHOP_ITEM_ROW_HEIGHT, nil, nil, nil, nil, true)
     self:setHasReturnBtn(true)
     self._owner = owner
     self._itemIDs = {}
     self._cellAvailable = {}
-    self._ui = self.uiClass.new(self, rect.size)
-    self._ui:attach()
-    self._listView = self._ui:getListView()
+    self._lastDetailIndex = nil
+    self._ui = self.uiClass.new(self, rect.size, instance)
+    self._ui:attach(instance ~= nil)
+    self:setScrollBox(self._ui:getScrollBox())
+    self:setListView(self._ui:getListView())
 end
 
-function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap)
+function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap, showValues)
     local previousIndex = self.index ~= nil and self.index or nil
     local previousItemID = self:getCurrentItemID()
     self._itemIDs = copy(itemIDs)
-    self._ui:refreshItems(itemIDs, availableMap, valueMap)
+    self._ui:refreshItems(itemIDs, availableMap, valueMap, showValues)
     if not bool(itemIDs) then
         self.index = nil
     else
@@ -43,7 +45,28 @@ function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap)
             self.index = 0
         end
     end
+    self._lastDetailIndex = self.index
     self._ui:detachControl(self._rect)
+end
+
+function WindowShopItem:onTick(deltaTime)
+    super(WindowShopItem, self).onTick(deltaTime)
+    if self.index ~= self._lastDetailIndex then
+        self._lastDetailIndex = self.index
+        self._owner:notifyItemIndexMaybeChanged()
+    end
+end
+
+function WindowShopItem:onKeyDown(kwargs)
+    if self._owner:handleTabNavigationInput() then
+        return
+    end
+    super(WindowShopItem, self).onKeyDown(kwargs)
+end
+
+function WindowShopItem:resetSelection()
+    super(WindowShopItem, self).resetSelection()
+    self._lastDetailIndex = self.index
 end
 
 function WindowShopItem:getCurrentItemID()
@@ -61,7 +84,14 @@ function WindowShopItem:isCurrentAvailable()
 end
 
 function WindowShopItem:onReturn()
-    self._owner:cancelItemSelection()
+    self._owner:closeByCancel()
+end
+
+function WindowShopItem:dispose()
+    self._ui:dispose()
+    self._ui = nil
+    self:setListView(nil)
+    self._owner = nil
 end
 
 return class(WindowShopItem, WindowSelectable)

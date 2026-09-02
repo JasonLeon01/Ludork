@@ -7,7 +7,7 @@
 ---@field _logicalSize  sf.Vector2u
 ---@field _region       string | nil
 ---@field _elapsed      number
----@field _text         Engine.RichText
+---@field _text         Engine.PlainText
 local RegionTitleUI = {}
 
 ---@param logicalSize sf.Vector2u
@@ -29,7 +29,7 @@ function RegionTitleUI:update(deltaTime) end
 ---@return boolean
 function RegionTitleUI:getVisible() end
 
----@return Engine.RichText
+---@return Engine.PlainText
 function RegionTitleUI:getText() end
 
 function RegionTitleUI:draw() end

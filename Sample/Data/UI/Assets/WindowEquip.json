@@ -1,0 +1,25 @@
+{
+  "type": "uiAsset",
+  "designSize": { "width": 448, "height": 352 },
+  "palette": { "exposed": true, "displayName": "Window Equip", "category": "Windows" },
+  "root": {
+    "name": "Root", "controlId": "Engine.Canvas", "properties": { "size": [448, 352] }, "editor": {},
+    "children": [
+      {
+        "name": "SlotAsset", "controlId": "Project:Parts/WindowEquip/WindowEquipSlot", "properties": {},
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [0.0, 0.0] }, "offsets": { "left": 0.0, "top": 0.0, "right": 192.0, "bottom": 160.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 0 },
+        "editor": {}, "children": []
+      },
+      {
+        "name": "SelectAsset", "controlId": "Project:Parts/WindowEquip/WindowEquipSelect", "properties": {},
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [0.0, 1.0] }, "offsets": { "left": 0.0, "top": 160.0, "right": 192.0, "bottom": 0.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 1 },
+        "editor": {}, "children": []
+      },
+      {
+        "name": "StatusPaneAsset", "controlId": "Project:Parts/WindowEquip/WindowEquipStatusPane", "properties": {},
+        "slot": { "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] }, "offsets": { "left": 192.0, "top": 0.0, "right": 0.0, "bottom": 0.0 }, "alignment": [0.0, 0.0], "autoSize": false, "zOrder": 2 },
+        "editor": {}, "children": []
+      }
+    ]
+  }
+}
