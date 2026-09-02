@@ -22,16 +22,11 @@ InputActionKey keyboardScan(sf::Keyboard::Scancode scan) {
     return result;
 }
 
-InputActionKey joystickButton(JoystickButton button) {
+InputActionKey joystickButton(const InputNamedValue& button) {
     InputActionKey result;
     result.kind = InputActionKind::JoystickButton;
-    result.code = static_cast<int>(button);
-    for (const auto& [name, value] : inputJoystickButtons) {
-        if (value.value == result.code) {
-            result.name = name;
-            break;
-        }
-    }
+    result.name = button.name;
+    result.code = button.value;
     return result;
 }
 
@@ -56,6 +51,21 @@ InputActionKey touchTap() {
     InputActionKey result;
     result.kind = InputActionKind::TouchTap;
     return result;
+}
+
+bool isDefaultDirectionalAxis(const InputActionKey& key) {
+    if (key.kind != InputActionKind::JoystickAxis) {
+        return false;
+    }
+    const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);
+    const float magnitude = std::abs(key.threshold);
+    if (axis == sf::Joystick::Axis::X || axis == sf::Joystick::Axis::Y) {
+        return std::abs(magnitude - 10.0f) < 1e-6f;
+    }
+    if (axis == sf::Joystick::Axis::PovX || axis == sf::Joystick::Axis::PovY) {
+        return std::abs(magnitude - 50.0f) < 1e-6f;
+    }
+    return false;
 }
 
 }  // namespace
@@ -357,8 +367,7 @@ bool InputRuntime::actionTriggered(const InputActionKey& key, bool handled,
         }
         return true;
     }
-    if (joystick_.axisMoved_ && std::abs(key.threshold) != 10.0f &&
-        std::abs(key.threshold) != 50.0f) {
+    if (joystick_.axisMoved_ && !isDefaultDirectionalAxis(key)) {
         for (const auto& [joystickId, axes] : joystick_.axisEvents_) {
             static_cast<void>(joystickId);
             const auto position = axes.find(axis);
@@ -412,6 +421,23 @@ bool InputRuntime::actionHeld(const InputActionKey& key) const {
         return false;
     }
     const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);
+    if (isDefaultDirectionalAxis(key)) {
+        for (const auto& [joystickId, dominant] : joystick_.dominantAxis_) {
+            if (!dominant.has_value() || *dominant != axis) {
+                continue;
+            }
+            const auto status = joystick_.axisStatus_.find(joystickId);
+            if (status == joystick_.axisStatus_.end()) {
+                continue;
+            }
+            const auto position = status->second.find(axis);
+            if (position != status->second.end() &&
+                axisMatches(position->second, key)) {
+                return true;
+            }
+        }
+        return false;
+    }
     for (const auto& [joystickId, axes] : joystick_.axisStatus_) {
         static_cast<void>(joystickId);
         const auto position = axes.find(axis);
@@ -437,7 +463,7 @@ std::vector<InputActionKey> InputRuntime::getConfirmKeys() const {
         keyboardKey(Key::Space),
         keyboardScan(sf::Keyboard::Scancode::Enter),
         keyboardScan(sf::Keyboard::Scancode::Space),
-        joystickButton(JoystickButton::A),
+        joystickButton(JoystickButton::getA()),
         mouseButton(sf::Mouse::Button::Left),
         touchTap(),
     };
@@ -447,7 +473,7 @@ std::vector<InputActionKey> InputRuntime::getCancelKeys() const {
     return {
         keyboardKey(Key::Escape),
         keyboardScan(sf::Keyboard::Scancode::Escape),
-        joystickButton(JoystickButton::B),
+        joystickButton(JoystickButton::getB()),
         mouseButton(sf::Mouse::Button::Right),
     };
 }

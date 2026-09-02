@@ -57,37 +57,20 @@ std::string handleKeyText(const RuntimeValue& value,
         throw std::invalid_argument(source +
                                     " must be an Engine.JoystickButton value");
     }
-    const sol::object engineValue =
-        lua.globals().raw_get<sol::object>("Engine");
-    if (!engineValue.is<sol::table>()) {
+    const sol::table buttonValue = luaValue.as<sol::table>();
+    const sol::object nameValue = buttonValue.raw_get<sol::object>("name");
+    const sol::object codeValue = buttonValue.raw_get<sol::object>("value");
+    if (!nameValue.is<std::string>() || !codeValue.is<int>()) {
         throw std::invalid_argument(source +
                                     " must be an Engine.JoystickButton value");
     }
-    const sol::object inputValue =
-        engineValue.as<sol::table>().raw_get<sol::object>("Input");
-    if (!inputValue.is<sol::table>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const sol::object reverseValue =
-        inputValue.as<sol::table>().raw_get<sol::object>("JoyStickButtonName");
-    if (!reverseValue.is<sol::table>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const sol::object nameValue =
-        reverseValue.as<sol::table>().raw_get<sol::object>(luaValue);
-    if (!nameValue.is<std::string>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const std::string name = nameValue.as<std::string>();
-    const auto iterator = inputJoystickButtons.find(name);
-    if (iterator == inputJoystickButtons.end()) {
+    const InputNamedValue button{nameValue.as<std::string>(),
+                                 codeValue.as<int>()};
+    if (!JoystickButton::isValid(button)) {
         throw std::invalid_argument(
             source + " must match a registered Engine.JoystickButton value");
     }
-    return iterator->second.name;
+    return button.name;
 }
 
 }  // namespace
@@ -99,7 +82,7 @@ KeyHint parseKeyHint(const RuntimeValue::Map& values,
         if (name == "Keyboard") {
             result.keyboard = keyboardKeyText(value, source + ".Keyboard");
         } else if (name == "Joystick") {
-            result.handle = handleKeyText(value, source + ".Handle");
+            result.handle = handleKeyText(value, source + ".Joystick");
         } else {
             throw std::invalid_argument(source + " has unknown key " + name);
         }

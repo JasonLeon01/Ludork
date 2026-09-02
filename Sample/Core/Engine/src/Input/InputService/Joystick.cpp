@@ -1,6 +1,18 @@
 #include "InputRuntime.hpp"
 
+#include <array>
 #include <cmath>
+
+namespace {
+
+constexpr std::array DirectionalAxes = {
+    sf::Joystick::Axis::X,
+    sf::Joystick::Axis::PovX,
+    sf::Joystick::Axis::Y,
+    sf::Joystick::Axis::PovY,
+};
+
+}
 
 std::string InputRuntime::axisId(unsigned int joystickId,
                                  sf::Joystick::Axis axis) {
@@ -12,8 +24,12 @@ void InputRuntime::updateJoystickDominantAxes() {
     for (const auto& [joystickId, axes] : joystick_.axisStatus_) {
         std::optional<sf::Joystick::Axis> dominant;
         float maximum = 0.0f;
-        for (const auto& [axis, position] : axes) {
-            const float magnitude = std::abs(position);
+        for (const sf::Joystick::Axis axis : DirectionalAxes) {
+            const auto position = axes.find(axis);
+            if (position == axes.end()) {
+                continue;
+            }
+            const float magnitude = std::abs(position->second);
             if (magnitude > maximum) {
                 maximum = magnitude;
                 dominant = axis;

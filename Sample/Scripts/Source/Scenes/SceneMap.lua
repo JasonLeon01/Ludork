@@ -536,6 +536,7 @@ end
 ---@return boolean
 function Scene.IsMenuOpenTriggered()
     return Input.isMouseButtonTriggered(sf.Mouse.Button.Right, true)
+        or Input.isAnyJoystickButtonTriggered(Engine.JoystickButton.getMenu(), true)
 end
 
 ---@return boolean

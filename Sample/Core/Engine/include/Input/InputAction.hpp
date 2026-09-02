@@ -5,27 +5,13 @@
 #include <Runtime/RuntimeValue.hpp>
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
 enum class InputType {
     Mouse = 0,
     Gamepad = 1
-};
-
-enum class JoystickButton : unsigned int {
-    A = 0,
-    B = 1,
-    X = 2,
-    Y = 3,
-    LB = 4,
-    RB = 5,
-    View = 6,
-    Menu = 7,
-    LS = 8,
-    RS = 9,
-    XBox = 10,
-    Share = 11
 };
 
 using InputAxisComparison = std::function<bool(float, float)>;
@@ -50,10 +36,50 @@ struct InputNamedValue {
     int value = 0;
 };
 
-BIND_MODULE_PROPERTY(name = "JoystickButton", metadata = false,
-                     reverse = "Input.JoyStickButtonName", cache = true)
-extern LUDORK_ENGINE_API const std::unordered_map<std::string, InputNamedValue>
-    inputJoystickButtons;
+BIND_CLASS(metadata = false)
+class LUDORK_ENGINE_API JoystickButton {
+public:
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getA();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getB();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getX();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getY();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getLB();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getRB();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getView();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getMenu();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getLS();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getRS();
+
+    BIND_METHOD(metadata = false)
+    static InputNamedValue getXBox();
+
+    BIND_METHOD(metadata = false)
+    static std::optional<InputNamedValue> getShare();
+
+    static bool isValid(const InputNamedValue& button);
+
+private:
+    static std::optional<InputNamedValue> get(const std::string& name);
+};
 
 BIND_MODULE_PROPERTY(name = "InputType", metadata = false, cache = true)
 extern LUDORK_ENGINE_API const std::unordered_map<std::string, InputNamedValue>

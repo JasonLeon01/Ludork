@@ -25,11 +25,11 @@ function WindowShopTabsUI:bind()
     self._tabView = self:requireControl("Tabs")
     self._tabView:setKeyHint({
         Keyboard = sf.Keyboard.Key.Q,
-        Joystick = Engine.JoystickButton.LB
+        Joystick = Engine.JoystickButton.getLB()
     },
         {
             Keyboard = sf.Keyboard.Key.E,
-            Joystick = Engine.JoystickButton.RB
+            Joystick = Engine.JoystickButton.getRB()
         })
     self._tabView:setCursorSound(GameSystem.GetCursorSE())
     setTabItems(self._tabView, self.model)

@@ -56,8 +56,8 @@ function Effects.CreateStateEffect(stateID)
     }
     if stateID == "Weak" then
         modifiers = {
-            { attribute = "ATK", operation = "Add", magnitude = -2, minimum = 0 },
-            { attribute = "DEF", operation = "Add", magnitude = -2, minimum = 0 }
+            { attribute = "ATK", operation = "Add", magnitude = -1, minimum = 0 },
+            { attribute = "DEF", operation = "Add", magnitude = -1, minimum = 0 }
         }
     elseif stateID == "Poisoned" then
         grantedAbilities[#grantedAbilities + 1] = SpecialAbilities.CreatePoisonedAbility()

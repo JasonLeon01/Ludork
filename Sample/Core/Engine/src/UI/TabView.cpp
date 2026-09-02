@@ -148,12 +148,14 @@ bool TabView::handleNavigationInput() {
 
     const bool keyboardLeft = input->isKeyTriggered(sf::Keyboard::Key::Q, false,
                                                     false, false, false, false);
+    const InputNamedValue leftButton = JoystickButton::getLB();
     const bool handleLeft = input->isAnyJoystickButtonTriggered(
-        static_cast<unsigned int>(JoystickButton::LB), false);
+        static_cast<unsigned int>(leftButton.value), false);
     const bool keyboardRight = input->isKeyTriggered(
         sf::Keyboard::Key::E, false, false, false, false, false);
+    const InputNamedValue rightButton = JoystickButton::getRB();
     const bool handleRight = input->isAnyJoystickButtonTriggered(
-        static_cast<unsigned int>(JoystickButton::RB), false);
+        static_cast<unsigned int>(rightButton.value), false);
     if (!keyboardLeft && !handleLeft && !keyboardRight && !handleRight) {
         return false;
     }
@@ -164,7 +166,7 @@ bool TabView::handleNavigationInput() {
     }
     if (handleLeft) {
         input->isAnyJoystickButtonTriggered(
-            static_cast<unsigned int>(JoystickButton::LB), true);
+            static_cast<unsigned int>(leftButton.value), true);
     }
     if (keyboardRight) {
         input->isKeyTriggered(sf::Keyboard::Key::E, false, false, false, false,
@@ -172,7 +174,7 @@ bool TabView::handleNavigationInput() {
     }
     if (handleRight) {
         input->isAnyJoystickButtonTriggered(
-            static_cast<unsigned int>(JoystickButton::RB), true);
+            static_cast<unsigned int>(rightButton.value), true);
     }
 
     const bool moveLeft = keyboardLeft || handleLeft;

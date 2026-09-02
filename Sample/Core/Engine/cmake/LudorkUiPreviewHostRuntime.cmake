@@ -34,7 +34,8 @@ function(ludork_add_ui_preview_host_runtime target)
             "${LUDORK_CORE_SOURCE_DIR}/include"
             ${LUDORK_LUASF_CONSUMER_INCLUDES}
         PRIVATE
-            "${LUDORK_LUASF_SOURCE_DIR}/include")
+            "${LUDORK_LUASF_SOURCE_DIR}/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
     target_link_libraries(${target}
         PUBLIC
             Ludork::Standard
