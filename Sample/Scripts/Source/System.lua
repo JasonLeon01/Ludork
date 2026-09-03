@@ -39,7 +39,7 @@ System._savedScreenImage = nil
 ---@param relativePath string
 ---@return string
 local function blueprintRelativePathToClassPath(relativePath)
-    assert(type(relativePath) == "string", "Start player blueprint path must be a string")
+    assert(Class.isInstance(relativePath, "string"), "Start player blueprint path must be a string")
     assert(relativePath:sub(-5) == ".json", "Start player blueprint path must end with .json")
     assert(relativePath:sub(1, 1) ~= "/", "Start player blueprint path must be relative")
     assert(not relativePath:find("\\", 1, true), "Start player blueprint path must use / separators")
@@ -75,7 +75,8 @@ function System.Init()
     System._startPlayerClassPath = blueprintRelativePathToClassPath(systemData.startPlayerBlueprint.value)
     System._startRegion = systemData.startRegion.value
     assert(
-        type(System._startRegion) == "string" and bool(System._startRegion), "Start region must be a non-empty string"
+        Class.isInstance(System._startRegion, "string") and bool(System._startRegion),
+        "Start region must be a non-empty string"
     )
     local startPos = systemData.startPos.value
     System._startPos = sf.Vector2u.new(startPos[1], startPos[2])
@@ -111,7 +112,7 @@ end
 function extractConfigValues(configData)
     local result = {}
     for key, setting in pairs(configData) do
-        if type(key) == "string" and type(setting) == "table" and setting.value ~= nil then
+        if Class.isInstance(key, "string") and Class.isInstance(setting, "table") and setting.value ~= nil then
             result[key] = setting.value
         end
     end
@@ -127,7 +128,7 @@ end
 
 Class.registerService("config.resolve", function (configName, settingName)
     local value = System.GetConfigValue(configName, settingName)
-    return type(value) == "string" and value or tostring(value)
+    return Class.isInstance(value, "string") and value or tostring(value)
 end)
 
 function System.GetTitle()

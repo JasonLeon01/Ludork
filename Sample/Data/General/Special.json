@@ -66,6 +66,21 @@
       "name": "{S_REBORN}",
       "desc": "{S_REBORN_DESC}",
       "icon": "Icons/Specials/Reborn.png"
+    },
+    "Vampire": {
+      "name": "{S_VAMPIRE}",
+      "desc": "{S_VAMPIRE_DESC}",
+      "icon": "Icons/Specials/Vampire.png"
+    },
+    "First": {
+      "name": "{S_FIRST}",
+      "desc": "{S_FIRST_DESC}",
+      "icon": "Icons/Specials/First.png"
+    },
+    "FixDmg": {
+      "name": "{S_FIXDMG}",
+      "desc": "{S_FIXDMG_DESC}",
+      "icon": "Icons/Specials/FixDmg.png"
     }
   }
 }

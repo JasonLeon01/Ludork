@@ -189,8 +189,8 @@ end
 ---@param data Source.SceneComponents.SerializedMapData
 ---@diagnostic disable-next-line: unused
 function MapBuilderWorldTiles:_validateIncrementalMapData(data)
-    assert(type(data.layerOrder) == "table", "Map layerOrder must be an array")
-    assert(type(data.layers) == "table", "Map layers must be an object")
+    assert(Class.isInstance(data.layerOrder, "table"), "Map layerOrder must be an array")
+    assert(Class.isInstance(data.layers, "table"), "Map layers must be an object")
     local seenLayers = {}
     for _, layerName in ipairs(data.layerOrder) do
         assert(data.layers[layerName] ~= nil, "Map layerOrder references a missing layer: " .. layerName)
@@ -240,9 +240,11 @@ function MapBuilderWorldTiles:_writeWorldLayerDataChunk(layerState, chunk)
             local terrainOverride = terrainOverrideRow ~= nil and terrainOverrideRow[x] or nil
             if terrainOverride ~= nil then
                 local tileID = terrainOverride.tileID
-                if type(tileID) == "string" then
+                if Class.isInstance(tileID, "string") then
+                    ---@cast tileID string
                     autoTileRow[blockX] = layerState.autoTileIndexByKey[tileID]
                 elseif tileID ~= nil then
+                    ---@cast tileID integer
                     if tileID < 0 or tileID >= #layerState.layerTileset.materials then
                         error("Tile ID " .. tileID
                                 .. " is out of range for layer '" .. layerState.layerData.layerName
@@ -256,9 +258,12 @@ function MapBuilderWorldTiles:_writeWorldLayerDataChunk(layerState, chunk)
                     tileRow[blockX] = tile
                 end
                 local cell = rawAutoTileRow ~= nil and rawAutoTileRow[x] or nil
-                local cellIndex = type(cell) == "number" and math.tointeger(cell) or nil
-                if type(cell) == "string" and layerState.autoTileIndexByKey[cell] ~= nil then
-                    autoTileRow[blockX] = layerState.autoTileIndexByKey[cell]
+                local cellIndex = Class.isInstance(cell, "number") and math.tointeger(cell) or nil
+                if Class.isInstance(cell, "string") then
+                    ---@cast cell string
+                    if layerState.autoTileIndexByKey[cell] ~= nil then
+                        autoTileRow[blockX] = layerState.autoTileIndexByKey[cell]
+                    end
                 elseif cellIndex ~= nil and cellIndex >= 0 and cellIndex < layerState.autoTilePoolSize then
                     autoTileRow[blockX] = cellIndex
                 end

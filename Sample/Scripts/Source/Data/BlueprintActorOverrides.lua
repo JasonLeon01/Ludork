@@ -7,13 +7,13 @@ local ManagerFunctions = GlobalFunctions.Manager
 local BlueprintActorOverrides = {}
 
 local function resolveValue(actorType, key, value, descriptor)
-    if type(value) == "string" and not bool(value) then
+    if Class.isInstance(value, "string") and not bool(value) then
         local configName, settingName = Engine.resolveConfigVar(actorType, key)
         if configName ~= nil then
             local SourceSystem = require("Source.System")
 
             local resolved = SourceSystem.GetConfigValue(configName, settingName)
-            return type(resolved) == "string" and resolved or tostring(resolved)
+            return Class.isInstance(resolved, "string") and resolved or tostring(resolved)
         end
     end
     local targetType
@@ -24,7 +24,7 @@ local function resolveValue(actorType, key, value, descriptor)
         targetType = descriptor.type
         declaringModule = descriptor.module
     end
-    if type(value) == "string" and Engine.shouldEvalValueType(targetType) then
+    if Class.isInstance(value, "string") and Engine.shouldEvalValueType(targetType) then
         return Engine.evalDataExpression(value)
     end
     if targetType ~= "any" then
@@ -62,7 +62,7 @@ local function normaliseObjects(actor)
 end
 
 local function applyComponentChange(actor, componentName, componentType, value)
-    assert(type(value) == "table", "Blueprint component override " .. componentName .. " must be a table")
+    assert(Class.isInstance(value, "table"), "Blueprint component override " .. componentName .. " must be a table")
     local component = actor[componentName]
     assert(
         Class.isInstance(component, componentType),
@@ -71,7 +71,7 @@ local function applyComponentChange(actor, componentName, componentType, value)
     local fieldDefaults = ComponentsFunctions.getComponentFieldDefaults(componentType)
     for fieldName, fieldValue in pairs(value) do
         assert(
-            type(fieldName) == "string" and fieldDefaults[fieldName] ~= nil,
+            Class.isInstance(fieldName, "string") and fieldDefaults[fieldName] ~= nil,
             "Unknown component member " .. tostring(fieldName) .. " in " .. componentName
         )
         component[fieldName] = ComponentsFunctions._cloneComponentFieldValue(componentType, fieldName, fieldValue)
@@ -97,7 +97,7 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
     local actorType = Class.type(actor)
     local componentTypes = ComponentsFunctions.getComponentTypes(actorType)
     for key, value in pairs(changes) do
-        if type(key) == "string" then
+        if Class.isInstance(key, "string") then
             local descriptor = Engine.resolveAttrMetadata(actorType, key)
             if not isBlueprintOnly(descriptor) then
                 storedChanges[key] = deepcopy(value)

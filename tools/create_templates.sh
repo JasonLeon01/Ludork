@@ -27,6 +27,7 @@ case "$VARIANT" in
 esac
 
 SOURCE_DIR="$PROJECT_ROOT/Sample"
+LICENSES_DIR="$PROJECT_ROOT/Licenses"
 FFMPEG_SOURCE_ARCHIVE="$SOURCE_DIR/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
 if [ "$#" -eq 2 ]; then
     TEMPLATES_DIR=$(absolute_path "$2")
@@ -52,9 +53,29 @@ validate_no_ui_preview_host() {
 
 copy_runtime_legal_files() {
     template_dir=$1
+    include_ffmpeg=$2
+    rm -rf "$template_dir/Licenses"
     mkdir -p "$template_dir/Licenses"
-    rsync -a --delete --exclude '.DS_Store' \
-        "$SOURCE_DIR/Licenses/" "$template_dir/Licenses/"
+    cp "$LICENSES_DIR/README.md" "$template_dir/Licenses/README.md"
+    cp "$LICENSES_DIR/README_zh_CN.md" "$template_dir/Licenses/README_zh_CN.md"
+    for licence_directory in \
+        Lua \
+        LuaSF \
+        SFML \
+        sol2 \
+        lua-cjson \
+        zlib \
+        NativeDependencies; do
+        mkdir -p "$template_dir/Licenses/$licence_directory"
+        rsync -a --delete --exclude '.DS_Store' \
+            "$LICENSES_DIR/$licence_directory/" \
+            "$template_dir/Licenses/$licence_directory/"
+    done
+    if [ "$include_ffmpeg" -eq 1 ]; then
+        mkdir -p "$template_dir/Licenses/FFmpeg"
+        rsync -a --delete --exclude '.DS_Store' \
+            "$LICENSES_DIR/FFmpeg/" "$template_dir/Licenses/FFmpeg/"
+    fi
     cp "$SOURCE_DIR/LICENSE.md" "$template_dir/LICENSE.md"
     cp "$SOURCE_DIR/THIRD_PARTY_NOTICES.md" \
         "$template_dir/THIRD_PARTY_NOTICES.md"
@@ -125,7 +146,7 @@ prepare_template_pair() {
     fi
     "$SCRIPT_TOOLS" configure-project-template \
         "$source_template_dir/Main.proj" true "$ffmpeg_enabled"
-    copy_runtime_legal_files "$source_template_dir"
+    copy_runtime_legal_files "$source_template_dir" "$include_ffmpeg"
 }
 
 build_template_pair() {
@@ -175,7 +196,26 @@ if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ] || [ ! -d "$SOURCE_DIR/LuaSF" ] || [ ! 
     echo "Sample dependencies were not found. Prepare the C++ dependencies before creating templates." >&2
     exit 1
 fi
+for licence_path in \
+    README.md \
+    README_zh_CN.md \
+    Lua \
+    LuaSF \
+    SFML \
+    sol2 \
+    lua-cjson \
+    zlib \
+    NativeDependencies; do
+    if [ ! -e "$LICENSES_DIR/$licence_path" ]; then
+        echo "Required runtime licence source was not found: $LICENSES_DIR/$licence_path" >&2
+        exit 1
+    fi
+done
 if [ "$VARIANT" != "plain" ]; then
+    if [ ! -d "$LICENSES_DIR/FFmpeg" ]; then
+        echo "Required FFmpeg licence source was not found: $LICENSES_DIR/FFmpeg" >&2
+        exit 1
+    fi
     if [ ! -f "$SOURCE_DIR/ffmpeg/configure" ]; then
         echo "FFmpeg source was not found. Run tools/init.sh first." >&2
         exit 1

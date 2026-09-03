@@ -6,6 +6,8 @@
 ---@field name       string
 
 ---@class Source.UI.WindowEnemyBook.SpecialDetail
+---@field specialID  string
+---@field value      any
 ---@field nameSource string
 ---@field descSource string
 ---@field name       string

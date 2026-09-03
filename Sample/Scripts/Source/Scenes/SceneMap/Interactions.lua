@@ -66,7 +66,7 @@ local function formatDialogueText(text, context)
     local resolvedLocaleArgs = {}
     for key, value in pairs(context.localeArgs) do
         local resolvedValue = value
-        if type(value) == "string" then
+        if Class.isInstance(value, "string") then
             resolvedValue = LOC(value)
         end
         resolvedLocaleArgs[key] = resolvedValue
@@ -296,7 +296,7 @@ function Scene.GetDialogueLocalVars(nodeFunction)
     end
     local result = {}
     for key, value in pairs(refLocal) do
-        if type(key) == "string" and key:sub(1, 2) ~= "__" then
+        if Class.isInstance(key, "string") and key:sub(1, 2) ~= "__" then
             result[key] = value
         end
     end

@@ -23,7 +23,7 @@ function SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePat
                 )
                 local assetName = assets[assetIndex + 1]
                 assert(
-                    type(assetName) == "string" and bool(assetName),
+                    Class.isInstance(assetName, "string") and bool(assetName),
                     string.format("Frame asset index %d is unavailable in animation: %s", assetIndex, relativePath)
                 )
                 if not seen[assetName] then

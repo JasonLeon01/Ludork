@@ -12,17 +12,17 @@
     },
     "MAXHP": {
       "type": "int",
-      "comment": "The enemy's maximum HP.",
+      "comment": "The enemy\u0027s maximum HP.",
       "defaultValue": 0
     },
     "ATK": {
       "type": "int",
-      "comment": "The enemy's attack value.",
+      "comment": "The enemy\u0027s attack value.",
       "defaultValue": 0
     },
     "DEF": {
       "type": "int",
-      "comment": "The enemy's defence value.",
+      "comment": "The enemy\u0027s defence value.",
       "defaultValue": 0
     },
     "EXP": {
@@ -71,7 +71,8 @@
       "GOLD": 2,
       "drops": {},
       "special": {
-        "Poisoning": 1
+        "Poisoning": 1,
+        "First": ""
       },
       "ANIMATION_KEY": "attack"
     },
@@ -99,7 +100,7 @@
       "GOLD": 3,
       "drops": {},
       "special": {
-        "Hard": true
+        "Hard": ""
       },
       "ANIMATION_KEY": "attack"
     },
@@ -113,7 +114,7 @@
       "GOLD": 3,
       "drops": {},
       "special": {
-        "Magic": true
+        "Magic": ""
       },
       "ANIMATION_KEY": "waterspread"
     },
@@ -126,7 +127,9 @@
       "EXP": 4,
       "GOLD": 4,
       "drops": {},
-      "special": {},
+      "special": {
+        "Vampire": 0.1
+      },
       "ANIMATION_KEY": "attack"
     },
     "Knight": {
@@ -139,7 +142,7 @@
       "GOLD": 6,
       "drops": {},
       "special": {
-        "Compete": true
+        "Compete": ""
       },
       "ANIMATION_KEY": "attack"
     },
@@ -153,8 +156,9 @@
       "GOLD": 8,
       "drops": {},
       "special": {
-        "Magic": true,
-        "Domain": 2
+        "Magic": "",
+        "Domain": 2,
+        "FixDmg": 100
       },
       "ANIMATION_KEY": "waterspread"
     },
@@ -168,7 +172,8 @@
       "GOLD": 60,
       "drops": {},
       "special": {
-        "Flank": true
+        "Flank": "",
+        "FixDmg": "{mHP}*0.3"
       },
       "ANIMATION_KEY": "watershot"
     },
@@ -182,8 +187,8 @@
       "GOLD": 8,
       "drops": {},
       "special": {
-        "Magic": true,
-        "Blockade": true
+        "Magic": "",
+        "Blockade": ""
       },
       "ANIMATION_KEY": "watershot"
     },
@@ -207,7 +212,7 @@
       },
       "special": {
         "MultiHit": 8,
-        "Hard": true
+        "Hard": ""
       },
       "ANIMATION_KEY": "attack"
     },

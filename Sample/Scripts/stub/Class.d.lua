@@ -5,6 +5,8 @@ Class = Class or {}
 
 ---@class Class.MissingValue
 
+---@alias Class.NativeTypeName "nil" | "boolean" | "number" | "string" | "function" | "userdata" | "thread" | "table"
+
 ---@class Class.ClassType<T>
 ---@field __ludorkClass boolean
 ---@field __bases       table
@@ -22,12 +24,12 @@ Class = Class or {}
 ---@return T & Class.ClassType<T>
 function class(definition, ...) end
 
---- Return whether value is an instance of targetClass (including MRO).
+--- Return whether value has the raw Lua type name or is an instance of the target class (including MRO).
 ---@generic T
----@param value       T
----@param targetClass Class.ClassType<any> | table
+---@param value  T
+---@param target Class.ClassType<any> | table | Class.NativeTypeName
 ---@return boolean
-function Class.isInstance(value, targetClass) end
+function Class.isInstance(value, target) end
 
 --- Return whether value is a subclass of targetClass (including MRO).
 ---@param value       Class.ClassType<any> | table

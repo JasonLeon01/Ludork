@@ -128,9 +128,18 @@ bool isSubclass(sol::this_state state, const sol::table& value,
 }
 
 bool isInstance(sol::this_state state, const sol::object& value,
-                const sol::table& targetClass) {
-    return ludork::standard::class_runtime::isInstanceOf(sol::state_view(state),
-                                                         value, targetClass);
+                const sol::object& target) {
+    sol::state_view lua(state);
+    if (target.is<std::string>()) {
+        return target.as<std::string>() ==
+               sol::type_name(lua.lua_state(), value.get_type());
+    }
+    if (!target.is<sol::table>()) {
+        throw std::invalid_argument(
+            "Class.isInstance target must be a class or Lua type name");
+    }
+    return ludork::standard::class_runtime::isInstanceOf(
+        lua, value, target.as<sol::table>());
 }
 
 sol::object classType(sol::this_state state, const sol::object& value) {

@@ -758,12 +758,29 @@ validate_package() {
         require_package_file "$template_dir/LICENSE.md"
         require_package_file "$template_dir/THIRD_PARTY_NOTICES.md"
         require_package_file "$template_dir/THIRD_PARTY_NOTICES_zh_CN.md"
-        require_package_file "$template_dir/Licenses/README.md"
-        require_package_file "$template_dir/Licenses/README_zh_CN.md"
-        require_package_file "$template_dir/Licenses/Lua/LICENSE.txt"
-        require_package_file "$template_dir/Licenses/LuaSF/LICENSE.txt"
-        require_package_file "$template_dir/Licenses/SFML/LICENSE.txt"
-        require_package_file "$template_dir/Licenses/NativeDependencies/SFML-THIRD-PARTY.md"
+        for template_licence_path in \
+            README.md \
+            README_zh_CN.md \
+            Lua/LICENSE.txt \
+            LuaSF/LICENSE.txt \
+            SFML/LICENSE.txt \
+            sol2/LICENSE.txt \
+            lua-cjson/LICENSE.txt \
+            zlib/LICENSE.txt \
+            NativeDependencies/FLAC-COPYING.Xiph.txt \
+            NativeDependencies/FreeType-FTL.txt \
+            NativeDependencies/FreeType-LICENSE.txt \
+            NativeDependencies/Glad-CC0-1.0.txt \
+            NativeDependencies/HarfBuzz-COPYING.txt \
+            NativeDependencies/libssh2-COPYING.txt \
+            NativeDependencies/MbedTLS-LICENSE.txt \
+            NativeDependencies/Ogg-COPYING.txt \
+            NativeDependencies/SFML-THIRD-PARTY.md \
+            NativeDependencies/SheenBidi-LICENSE.txt \
+            NativeDependencies/Vorbis-COPYING.txt \
+            NativeDependencies/Wine-DInput-LGPLv2.1.txt; do
+            require_package_file "$template_dir/Licenses/$template_licence_path"
+        done
         require_package_file "$template_dir/Assets/Fonts/LICENSE.txt"
         require_package_file "$template_dir/Assets/Musics/LICENSE.md"
         for excluded_licence_directory in \
@@ -794,6 +811,14 @@ validate_package() {
                 exit 1
             fi
         done
+    done
+
+    for template_name in Cpp Standalone; do
+        template_licence_dir="$package_resources/Templates/$template_name/Licenses/FFmpeg"
+        if [ -e "$template_licence_dir" ]; then
+            echo "FFmpeg licence material was found in a non-FFmpeg template: $template_licence_dir" >&2
+            exit 1
+        fi
     done
 
     for template_name in Cpp Cpp-ffmpeg; do

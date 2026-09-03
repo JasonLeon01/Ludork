@@ -3,8 +3,8 @@ local Ui = require("Source.UI.Ui")
 
 local TextLayout = Engine.TextLayout
 
-local _NAME_WIDTH = 60
-local _DESCRIPTION_X = 64
+local _NAME_WIDTH = 80
+local _DESCRIPTION_X = 88
 local _ROW_HEIGHT = 32
 
 local EnemyEncyclopediaSpecialRowUI = {}

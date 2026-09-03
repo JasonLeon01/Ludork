@@ -32,14 +32,14 @@ local function loadModule(moduleName)
     end
     local module = require(moduleName)
 
-    return type(module) == "table" and module or nil
+    return Class.isInstance(module, "table") and module or nil
 end
 
 ---@param moduleName string
 ---@param module     table
 ---@return table | nil
 local function moduleMetadata(moduleName, module)
-    if type(module.__runtimeMetadata) == "table" then
+    if Class.isInstance(module.__runtimeMetadata, "table") then
         return module.__runtimeMetadata
     end
     local metadataName = moduleName .. "_meta"
@@ -48,7 +48,7 @@ local function moduleMetadata(moduleName, module)
     end
     local metadata = require(metadataName)
 
-    return type(metadata) == "table" and metadata or nil
+    return Class.isInstance(metadata, "table") and metadata or nil
 end
 
 ---@param value      any
@@ -69,20 +69,20 @@ end
 ---@param value any
 ---@return boolean
 local function isCallable(value)
-    if type(value) == "function" then
+    if Class.isInstance(value, "function") then
         return true
     end
-    if type(value) ~= "table" and type(value) ~= "userdata" then
+    if not Class.isInstance(value, "table") and not Class.isInstance(value, "userdata") then
         return false
     end
     local valueMeta = getmetatable(value)
-    return valueMeta ~= nil and type(valueMeta.__call) == "function"
+    return valueMeta ~= nil and Class.isInstance(valueMeta.__call, "function")
 end
 
 ---@param value any
 ---@return boolean
 local function isNodeMemberDescriptor(value)
-    if type(value) ~= "table" then
+    if not Class.isInstance(value, "table") then
         return false
     end
     for _, name in ipairs({
@@ -107,18 +107,19 @@ end
 ---@param memberName string
 ---@return table | nil
 local function findMemberMetadata(metadata, typeName, memberName)
-    if type(metadata) ~= "table" then
+    if not Class.isInstance(metadata, "table") then
         return nil
     end
+    ---@cast metadata table
     if isNodeMemberDescriptor(metadata[memberName]) then
         return metadata[memberName]
     end
     local typeMetadata = metadata[typeName]
-    if type(typeMetadata) == "table" and type(typeMetadata[memberName]) == "table" then
+    if Class.isInstance(typeMetadata, "table") and Class.isInstance(typeMetadata[memberName], "table") then
         return typeMetadata[memberName]
     end
     for _, candidate in pairs(metadata) do
-        if type(candidate) == "table" and isNodeMemberDescriptor(candidate[memberName]) then
+        if Class.isInstance(candidate, "table") and isNodeMemberDescriptor(candidate[memberName]) then
             return candidate[memberName]
         end
     end
@@ -136,7 +137,7 @@ local function orderedParameters(values, label)
     end
     ---@cast values - nil
     for index, name in ipairs(values) do
-        if type(name) ~= "string" or values[name] == nil then
+        if not Class.isInstance(name, "string") or values[name] == nil then
             error(label .. " order contains an unknown key")
         end
         if included[name] then
@@ -170,7 +171,7 @@ local function orderedEntries(values, label)
     end
     ---@cast values - nil
     for index, name in ipairs(values) do
-        if type(name) ~= "string" then
+        if not Class.isInstance(name, "string") then
             error(label .. " order contains an unknown key")
         end
         if included[name] then
@@ -180,7 +181,7 @@ local function orderedEntries(values, label)
         local rawValue = values[name]
         local entryValues = {}
         local count = 1
-        if type(rawValue) == "table" then
+        if Class.isInstance(rawValue, "table") then
             count = rawValue.n or #rawValue
             for valueIndex = 1, count do
                 entryValues[valueIndex] = rawValue[valueIndex]
@@ -196,7 +197,7 @@ end
 ---@param metadata table | nil
 ---@return NodeCompiler.MemberMetadata
 local function normaliseMemberMetadata(metadata)
-    if type(metadata) ~= "table" then
+    if not Class.isInstance(metadata, "table") then
         return {
             parameters = {},
             parameterTypes = {},
@@ -212,22 +213,24 @@ local function normaliseMemberMetadata(metadata)
             needsRefLocal = false
         }
     end
+    ---@cast metadata table
     local parameters = orderedParameters(metadata.parameters, "parameters")
     local parameterTypes = {}
     for _, parameter in ipairs(parameters) do
         parameterTypes[parameter.name] = parameter.type
     end
     local defaults = {}
-    if type(metadata.default) == "table" then
+    if Class.isInstance(metadata.default, "table") then
+        ---@cast metadata.default table
         defaults = packedValues(metadata.default, math.max(metadata.default.n or #metadata.default, #parameters))
     end
     local latentStates = metadata.LatentStates
-    if type(latentStates) ~= "table" and type(metadata.Latent) == "table" then
+    if not Class.isInstance(latentStates, "table") and Class.isInstance(metadata.Latent, "table") then
         latentStates = metadata.Latent
     end
     local latent = metadata.Latent ~= nil
     local loop = metadata.Loop == true or metadata.LoopNode ~= nil
-    local kind = type(metadata.type) == "string" and metadata.type or ""
+    local kind = Class.isInstance(metadata.type, "string") and metadata.type or ""
     local pure = metadata.Pure == true
     return {
         parameters = parameters,
@@ -239,11 +242,10 @@ local function normaliseMemberMetadata(metadata)
         latent = latent,
         loop = loop,
         pure = pure,
-        loopNode = type(metadata.LoopNode) == "string" and metadata.LoopNode or "",
+        loopNode = Class.isInstance(metadata.LoopNode, "string") and metadata.LoopNode or "",
         kind = kind,
-        needsRefLocal = type(metadata.ExecSplit) == "table" or latent
-            or loop or pure
-            or kind == "event" or type(metadata["return"]) == "table"
+        needsRefLocal = Class.isInstance(metadata.ExecSplit, "table") or latent or loop or pure or kind == "event"
+            or Class.isInstance(metadata["return"], "table")
     }
 end
 
@@ -377,7 +379,8 @@ function NodeCompiler.Compile(functionName, parentClass, context)
     for _, parameter in ipairs(memberMeta.parameters) do
         paramNames[#paramNames + 1] = parameter.name
     end
-    if not bool(paramNames) and type(callable) == "function" then
+    if not bool(paramNames) and Class.isInstance(callable, "function") then
+        ---@cast callable function
         paramNames = Class.getParameterNames(callable)
     end
     local parts = splitPath(functionName)

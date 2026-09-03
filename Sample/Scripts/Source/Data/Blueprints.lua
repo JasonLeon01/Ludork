@@ -85,7 +85,7 @@ function DataBlueprints:_loadBlueprintClassPaths()
 end
 
 function DataBlueprints:resolveClassPath(className)
-    if type(className) ~= "string" then
+    if not Class.isInstance(className, "string") then
         return ""
     end
     className = className:match("^%s*(.-)%s*$")
@@ -228,7 +228,7 @@ function DataBlueprints:registerServices()
         if self._data._blueprintClassPaths == nil then
             self:_loadBlueprintClassPaths()
         end
-        if type(self._data._blueprintClassData[classPath]) == "string" then
+        if Class.isInstance(self._data._blueprintClassData[classPath], "string") then
             local loadedData = self._loading:normaliseJsonNull(cjson.decode(self._data._blueprintClassData[classPath]))
             ---@cast loadedData table<string, Source.Data.JsonValue>
             self._data._blueprintClassData[classPath] = loadedData
@@ -251,7 +251,7 @@ function DataBlueprints:registerServices()
     end)
 
     Class.registerService("blueprint.invalidateClassData", function (classPath)
-        if type(self._data._blueprintClassData[classPath]) == "table"
+        if Class.isInstance(self._data._blueprintClassData[classPath], "table")
             and self._data._blueprintClassData[classPath].graph ~= nil then
             self._graphTemplates[self._data._blueprintClassData[classPath].graph] = nil
         end

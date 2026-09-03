@@ -159,17 +159,20 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         if rawAutoTiles ~= nil then
             for y = 1, mapHeight do
                 local row = { n = mapWidth }
-                local rawRow = rawAutoTiles[y]
-                for x = 1, mapWidth do
-                    local cell = rawRow ~= nil and rawRow[x] or nil
-                    local cellIndex = type(cell) == "number" and math.tointeger(cell) or nil
-                    if type(cell) == "string" and bool(cell) and Data.HasAutoTile(cell) then
-                        if autoTileIndexByKey[cell] == nil then
-                            autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
-                            autoTileIndexByKey[cell] = #autoTilePool - 1
-                        end
-                        row[x] = autoTileIndexByKey[cell]
-                    elseif cellIndex ~= nil and cellIndex >= 0 and cellIndex < #autoTilePool then
+                    local rawRow = rawAutoTiles[y]
+                    for x = 1, mapWidth do
+                        local cell = rawRow ~= nil and rawRow[x] or nil
+                        local cellIndex = Class.isInstance(cell, "number") and math.tointeger(cell) or nil
+                        if Class.isInstance(cell, "string") then
+                            ---@cast cell string
+                            if bool(cell) and Data.HasAutoTile(cell) then
+                                if autoTileIndexByKey[cell] == nil then
+                                    autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
+                                    autoTileIndexByKey[cell] = #autoTilePool - 1
+                                end
+                                row[x] = autoTileIndexByKey[cell]
+                            end
+                        elseif cellIndex ~= nil and cellIndex >= 0 and cellIndex < #autoTilePool then
                         row[x] = cellIndex
                     end
                 end

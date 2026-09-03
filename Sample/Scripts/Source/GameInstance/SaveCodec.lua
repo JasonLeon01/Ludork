@@ -4,7 +4,7 @@ local Records = require("Source.GameInstance.Records")
 local MapPath = require("Source.MapPath")
 
 local SaveCodec = {}
-local SAVE_VERSION = 2
+local SAVE_VERSION = 1
 
 local function vectorArray(position)
     return { position.x, position.y }
@@ -76,23 +76,23 @@ local function serialiseAddedActors(addedActors)
 end
 
 local function normaliseWorldMovedActors(worldMovedActors)
-    assert(type(worldMovedActors) == "table", "worldMovedActors must be an object")
+    assert(Class.isInstance(worldMovedActors, "table"), "worldMovedActors must be an object")
     local result = {}
     for worldPath, records in pairs(worldMovedActors) do
         local bucket = {}
         local tags = {}
         result[MapPath.Normalise(worldPath)] = bucket
         for _, record in ipairs(records) do
-            assert(type(record.bp) == "string" and bool(record.bp), "Moved world Actor bp must be a non-empty string")
+            assert(Class.isInstance(record.bp, "string") and bool(record.bp), "Moved world Actor bp must be a non-empty string")
             assert(
-                type(record.layer) == "string" and bool(record.layer),
+                Class.isInstance(record.layer, "string") and bool(record.layer),
                 "Moved world Actor layer must be a non-empty string"
             )
             assert(
-                type(record.tag) == "string" and bool(record.tag), "Moved world Actor tag must be a non-empty string"
+                Class.isInstance(record.tag, "string") and bool(record.tag), "Moved world Actor tag must be a non-empty string"
             )
-            assert(type(record.definitionRegion) == "string", "Moved world Actor definitionRegion must be a string")
-            assert(type(record.currentRegion) == "string", "Moved world Actor currentRegion must be a string")
+            assert(Class.isInstance(record.definitionRegion, "string"), "Moved world Actor definitionRegion must be a string")
+            assert(Class.isInstance(record.currentRegion, "string"), "Moved world Actor currentRegion must be a string")
             local definitionRegion = MapPath.Normalise(record.definitionRegion)
             local currentRegion = MapPath.Normalise(record.currentRegion)
             assert(not tags[record.tag], "Duplicate moved world Actor tag: " .. record.tag)
@@ -313,9 +313,9 @@ function SaveCodec.Encode(instance)
 end
 
 function SaveCodec.DecodeInto(instance, data)
-    assert(type(data) == "table", "Save data must be an object")
+    assert(Class.isInstance(data, "table"), "Save data must be an object")
     assert(
-        type(data.version) == "number" and data.version == SAVE_VERSION,
+        Class.isInstance(data.version, "number") and data.version == SAVE_VERSION,
         "Unsupported save version: expected " .. tostring(SAVE_VERSION) .. ", got " .. tostring(data.version)
     )
     local Player = require("Source.Player")
@@ -323,7 +323,7 @@ function SaveCodec.DecodeInto(instance, data)
     instance._currentRegion = data.region
     assert(#data.playerKeys > 0, "playerKeys must contain at least one player key")
     for _, playerKey in ipairs(data.playerKeys) do
-        assert(type(playerKey) == "string" and bool(playerKey), "Player key must be a non-empty string")
+        assert(Class.isInstance(playerKey, "string") and bool(playerKey), "Player key must be a non-empty string")
         ---@diagnostic disable-next-line: unnecessary-assert, save validation must reject a missing keyed player
         local playerData = assert(data.players[playerKey], "Player data is missing for key: " .. playerKey)
         local player = Player.FromDict(playerData)

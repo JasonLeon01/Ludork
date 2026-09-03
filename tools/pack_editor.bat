@@ -612,18 +612,31 @@ for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\THIRD_PARTY_NOTICES_zh_CN.md"
     if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\README.md"
-    if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\README_zh_CN.md"
-    if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\Lua\LICENSE.txt"
-    if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\LuaSF\LICENSE.txt"
-    if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\SFML\LICENSE.txt"
-    if errorlevel 1 exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\NativeDependencies\SFML-THIRD-PARTY.md"
-    if errorlevel 1 exit /b 1
+    for %%F in (
+        "README.md"
+        "README_zh_CN.md"
+        "Lua\LICENSE.txt"
+        "LuaSF\LICENSE.txt"
+        "SFML\LICENSE.txt"
+        "sol2\LICENSE.txt"
+        "lua-cjson\LICENSE.txt"
+        "zlib\LICENSE.txt"
+        "NativeDependencies\FLAC-COPYING.Xiph.txt"
+        "NativeDependencies\FreeType-FTL.txt"
+        "NativeDependencies\FreeType-LICENSE.txt"
+        "NativeDependencies\Glad-CC0-1.0.txt"
+        "NativeDependencies\HarfBuzz-COPYING.txt"
+        "NativeDependencies\libssh2-COPYING.txt"
+        "NativeDependencies\MbedTLS-LICENSE.txt"
+        "NativeDependencies\Ogg-COPYING.txt"
+        "NativeDependencies\SFML-THIRD-PARTY.md"
+        "NativeDependencies\SheenBidi-LICENSE.txt"
+        "NativeDependencies\Vorbis-COPYING.txt"
+        "NativeDependencies\Wine-DInput-LGPLv2.1.txt"
+    ) do (
+        call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\%%~F"
+        if errorlevel 1 exit /b 1
+    )
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Assets\Fonts\LICENSE.txt"
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Assets\Musics\LICENSE.md"
@@ -634,6 +647,10 @@ for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
     )
     call :validate_no_ui_preview_host "%PACKAGE_DIR%\Templates\%%T"
     if errorlevel 1 exit /b 1
+)
+for %%T in (Cpp Standalone) do if exist "%PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg" (
+    echo FFmpeg licence material was found in a non-FFmpeg template: %PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg
+    exit /b 1
 )
 for %%T in (Cpp-ffmpeg Standalone-ffmpeg) do for %%F in (
     COPYING.GPLv2.txt

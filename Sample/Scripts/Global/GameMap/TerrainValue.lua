@@ -5,11 +5,11 @@ local TerrainValue = {}
 function TerrainValue.Normalise(tileID)
     if tileID == nil then
         return nil
-    elseif type(tileID) == "string" then
+    elseif Class.isInstance(tileID, "string") then
         return bool(tileID) and tileID or nil
     end
     assert(
-        type(tileID) == "number" and math.type(tileID) == "integer",
+        Class.isInstance(tileID, "number") and math.type(tileID) == "integer",
         "terrain tile ID must be an integer, string, or nil"
     )
     return tileID

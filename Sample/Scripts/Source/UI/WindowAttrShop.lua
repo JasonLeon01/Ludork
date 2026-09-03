@@ -187,7 +187,7 @@ end
 
 function WindowAttrShopUI:refreshPriceText()
     local priceValue = self:getPriceValue()
-    if type(priceValue) == "table" then
+    if Class.isInstance(priceValue, "table") then
         self._priceTextValue = ""
     else
         self._priceTextValue = Engine.ApplyStringMappingFormat(LOC("SHOP_ATTR_PRICE"), {
@@ -307,7 +307,7 @@ end
 
 function WindowAttrShopUI:formatPurchaseText(abilityKey, delta, price, moneyDisplayName)
     local priceValue = self:getPriceValue()
-    if type(priceValue) ~= "table" then
+    if not Class.isInstance(priceValue, "table") then
         return tostring(delta) .. " " .. self:getAttributeDisplayName(abilityKey)
     end
     moneyDisplayName = moneyDisplayName or self:getAttributeDisplayName(self.model._moneyName)
@@ -332,7 +332,8 @@ end
 
 function WindowAttrShopUI:getPrices()
     local priceValue = self:getPriceValue()
-    if type(priceValue) == "table" then
+    if Class.isInstance(priceValue, "table") then
+        ---@cast priceValue integer[]
         if #priceValue ~= #self.model._abilityKeys then
             error("Attribute shop price list length must match abilities")
         end
@@ -351,7 +352,8 @@ end
 
 function WindowAttrShopUI:increasePrice(abilityIndex)
     local priceValue = self:getPriceValue()
-    if type(priceValue) == "table" then
+    if Class.isInstance(priceValue, "table") then
+        ---@cast priceValue integer[]
         local prices = {}
         for index, price in ipairs(priceValue) do
             prices[index] = Engine.ToInteger(tonumber(price) or 0)

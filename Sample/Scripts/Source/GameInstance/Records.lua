@@ -5,14 +5,14 @@ local Data = require("Source.Data")
 local Records = {}
 
 local function normaliseRecordValue(value)
-    if type(value) == "table" then
+    if Class.isInstance(value, "table") then
         local result = {}
         for key, item in pairs(value) do
             result[key] = normaliseRecordValue(item)
         end
         return result
     end
-    if type(value) ~= "userdata" then
+    if not Class.isInstance(value, "userdata") then
         return value
     end
     if Class.isInstance(value, sf.IntRect) or Class.isInstance(value, sf.FloatRect) then

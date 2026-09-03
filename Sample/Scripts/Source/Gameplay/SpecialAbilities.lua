@@ -1,3 +1,4 @@
+local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -10,6 +11,20 @@ local Special = GeneralEnum.Special
 local SpecialAbilities = {}
 
 SpecialAbilities.MOVEMENT_HAZARD_TAG = "Gameplay.Movement.Hazard"
+SpecialAbilities.BATTLE_RULES_EVENT = "Event.Combat.ResolveBattleRules"
+
+local function isFiniteNumber(value)
+    return Class.isInstance(value, "number") and value == value and value ~= math.huge and value ~= -math.huge
+end
+
+local function replaceNumericAttributes(expression, prefix, abilitySystem)
+    for _, attribute in ipairs(table.orderedStringKeys(abilitySystem:getNumericAttributeBases())) do
+        expression = string.replace(
+            expression, "{" .. prefix .. attribute .. "}", tostring(abilitySystem:getNumericAttribute(attribute))
+        )
+    end
+    return expression
+end
 
 ---@class Source.Gameplay.SpecialAbilities.CompeteAbility: GlobalCore.GameplayAbility
 local CompeteAbility = {}
@@ -119,14 +134,12 @@ function MovementSpecialAbility:activate(_abilitySystem, eventData)
     elseif self._specialID == Special.Flank then
         active = true
     end
-    return assert(
-        GameplayAbilityResult.Success("MovementHazard", {
+    return assert(GameplayAbilityResult.Success("MovementHazard", {
             active = active,
             special = self._specialID,
             magnitude = self._magnitude,
             damage = active and eventData.payload.damagePerRound or 0
-        })
-    )
+        }))
 end
 
 ---@class Source.Gameplay.SpecialAbilities.PassiveTagAbility: GlobalCore.GameplayAbility
@@ -138,6 +151,64 @@ function PassiveTagAbility:init(specialID)
     self.id = "Special." .. specialID
 end
 
+---@class Source.Gameplay.SpecialAbilities.VampireAbility: GlobalCore.GameplayAbility
+---@field _magnitude number
+local VampireAbility = {}
+
+---@param magnitude number
+function VampireAbility:init(magnitude)
+    GameplayAbility.init(self, {})
+    self.id = "Special." .. Special.Vampire
+    self.triggerTags = { SpecialAbilities.BATTLE_RULES_EVENT }
+    self._magnitude = magnitude
+end
+
+function VampireAbility:activate(_abilitySystem, eventData)
+    eventData.payload.vampireHealing = math.floor(eventData.payload.counterDamage * self._magnitude)
+    return assert(GameplayAbilityResult.Success("BattleRulesResolved", eventData.payload))
+end
+
+---@class Source.Gameplay.SpecialAbilities.FirstAbility: GlobalCore.GameplayAbility
+local FirstAbility = {}
+
+function FirstAbility:init()
+    GameplayAbility.init(self, {})
+    self.id = "Special." .. Special.First
+    self.triggerTags = { SpecialAbilities.BATTLE_RULES_EVENT }
+end
+
+---@diagnostic disable-next-line: unused, Gameplay Ability override intentionally ignores its receiver
+function FirstAbility:activate(_abilitySystem, eventData)
+    eventData.payload.firstStrike = true
+    return assert(GameplayAbilityResult.Success("BattleRulesResolved", eventData.payload))
+end
+
+---@class Source.Gameplay.SpecialAbilities.FixDmgAbility: GlobalCore.GameplayAbility
+---@field _value number | string
+local FixDmgAbility = {}
+
+---@param value number | string
+function FixDmgAbility:init(value)
+    GameplayAbility.init(self, {})
+    self.id = "Special." .. Special.FixDmg
+    self.triggerTags = { SpecialAbilities.BATTLE_RULES_EVENT }
+    self._value = value
+end
+
+function FixDmgAbility:activate(_abilitySystem, eventData)
+    local damage = self._value
+    if Class.isInstance(damage, "string") then
+        damage = replaceNumericAttributes(damage, "m", eventData.payload.playerAbilitySystem)
+        damage = replaceNumericAttributes(damage, "e", eventData.payload.enemyAbilitySystem)
+        damage = Engine.Eval(damage, {})
+    end
+    assert(isFiniteNumber(damage), "FixDmg special value must resolve to a finite number")
+    damage = math.floor(damage)
+    assert(damage >= 0, "FixDmg special value must resolve to a non-negative number")
+    eventData.payload.fixedDamage = damage
+    return assert(GameplayAbilityResult.Success("BattleRulesResolved", eventData.payload))
+end
+
 ---@type Class.ClassType<Source.Gameplay.SpecialAbilities.CompeteAbility>
 local FinalCompeteAbility = class(CompeteAbility, GameplayAbility)
 ---@type Class.ClassType<Source.Gameplay.SpecialAbilities.HardAbility>
@@ -146,6 +217,12 @@ local FinalHardAbility = class(HardAbility, GameplayAbility)
 local FinalMagicAbility = class(MagicAbility, GameplayAbility)
 ---@type Class.ClassType<Source.Gameplay.SpecialAbilities.MultiHitAbility>
 local FinalMultiHitAbility = class(MultiHitAbility, GameplayAbility)
+---@type Class.ClassType<Source.Gameplay.SpecialAbilities.VampireAbility>
+local FinalVampireAbility = class(VampireAbility, GameplayAbility)
+---@type Class.ClassType<Source.Gameplay.SpecialAbilities.FirstAbility>
+local FinalFirstAbility = class(FirstAbility, GameplayAbility)
+---@type Class.ClassType<Source.Gameplay.SpecialAbilities.FixDmgAbility>
+local FinalFixDmgAbility = class(FixDmgAbility, GameplayAbility)
 ---@type Class.ClassType<Source.Gameplay.SpecialAbilities.PoisonedAbility>
 local FinalPoisonedAbility = class(PoisonedAbility, GameplayAbility)
 ---@type Class.ClassType<Source.Gameplay.SpecialAbilities.MovementSpecialAbility>
@@ -166,6 +243,20 @@ local abilityTypes = {
     [Special.MultiHit] = function (magnitude)
         assert(math.type(magnitude) == "integer", "MultiHit special magnitude must be an integer")
         return FinalMultiHitAbility.new(magnitude)
+    end,
+    [Special.Vampire] = function (magnitude)
+        assert(isFiniteNumber(magnitude) and magnitude >= 0, "Vampire special magnitude must be a non-negative number")
+        return FinalVampireAbility.new(magnitude)
+    end,
+    [Special.First] = function ()
+        return FinalFirstAbility.new()
+    end,
+    [Special.FixDmg] = function (magnitude)
+        assert(
+            isFiniteNumber(magnitude) and magnitude >= 0 or Class.isInstance(magnitude, "string") and bool(magnitude),
+            "FixDmg special magnitude must be a finite non-negative number or a non-empty string"
+        )
+        return FinalFixDmgAbility.new(magnitude)
     end,
     [Special.Domain] = function (magnitude)
         return FinalMovementSpecialAbility.new(Special.Domain, magnitude)

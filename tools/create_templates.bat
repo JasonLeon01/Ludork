@@ -19,6 +19,7 @@ if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" (
 if /I not "%VARIANT%"=="all" if /I not "%VARIANT%"=="plain" if /I not "%VARIANT%"=="ffmpeg" goto usage
 
 set "SOURCE_DIR=%CD%\Sample"
+set "LICENSES_DIR=%CD%\Licenses"
 if "%~2"=="" (
     set "TEMPLATES_DIR=%CD%\Templates"
 ) else (
@@ -102,7 +103,7 @@ call :copy_cpp_template "%CPP_TARGET%" "%INCLUDE_FFMPEG%"
 if errorlevel 1 exit /b %errorlevel%
 "%SCRIPT_TOOLS%" configure-project-template "%CPP_TARGET%\Main.proj" true %FFMPEG_ENABLED%
 if errorlevel 1 exit /b %errorlevel%
-call :copy_runtime_legal_files "%CPP_TARGET%"
+call :copy_runtime_legal_files "%CPP_TARGET%" "%INCLUDE_FFMPEG%"
 if errorlevel 1 exit /b %errorlevel%
 call "%CD%\tools\build_standalone.bat" "%CPP_TARGET%" "%STANDALONE_TARGET%" "%CONFIG%"
 if errorlevel 1 exit /b %errorlevel%
@@ -150,8 +151,22 @@ exit /b %errorlevel%
 
 :copy_runtime_legal_files
 set "LEGAL_TARGET=%~1"
-robocopy "%SOURCE_DIR%\Licenses" "%LEGAL_TARGET%\Licenses" /E /NFL /NDL /NJH /NJS /NP
-if errorlevel 8 exit /b %errorlevel%
+set "COPY_FFMPEG_LICENSES=%~2"
+if exist "%LEGAL_TARGET%\Licenses" rmdir /S /Q "%LEGAL_TARGET%\Licenses"
+mkdir "%LEGAL_TARGET%\Licenses"
+if errorlevel 1 exit /b 1
+for %%F in (README.md README_zh_CN.md) do (
+    copy /Y "%LICENSES_DIR%\%%F" "%LEGAL_TARGET%\Licenses\%%F" >nul
+    if errorlevel 1 exit /b 1
+)
+for %%D in (Lua LuaSF SFML sol2 lua-cjson zlib NativeDependencies) do (
+    robocopy "%LICENSES_DIR%\%%D" "%LEGAL_TARGET%\Licenses\%%D" /E /NFL /NDL /NJH /NJS /NP
+    if errorlevel 8 exit /b 1
+)
+if "%COPY_FFMPEG_LICENSES%"=="1" (
+    robocopy "%LICENSES_DIR%\FFmpeg" "%LEGAL_TARGET%\Licenses\FFmpeg" /E /NFL /NDL /NJH /NJS /NP
+    if errorlevel 8 exit /b 1
+)
 copy /Y "%SOURCE_DIR%\LICENSE.md" "%LEGAL_TARGET%\LICENSE.md" >nul
 if errorlevel 1 exit /b %errorlevel%
 copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES.md" >nul

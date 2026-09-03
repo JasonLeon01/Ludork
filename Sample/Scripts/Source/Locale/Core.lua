@@ -46,7 +46,7 @@ function Core.GetLocaleDict()
 end
 
 function Core.ApplyStringLocaleFormat(value)
-    if type(value) ~= "string" then
+    if not Class.isInstance(value, "string") then
         return value
     end
     local data = Core.GetLocaleDict()

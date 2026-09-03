@@ -11,7 +11,7 @@ local Math = {}
 ---@param operation fun(left: any, right: any): any
 local function updateInPlace(fn, a, b, operation)
     local refLocal = Node.getRefLocal(fn)
-    if type(a) == "string" and refLocal ~= nil and refLocal[a] ~= nil then
+    if Class.isInstance(a, "string") and refLocal ~= nil and refLocal[a] ~= nil then
         refLocal[a] = operation(refLocal[a], b)
         return
     end

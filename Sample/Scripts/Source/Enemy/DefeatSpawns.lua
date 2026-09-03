@@ -56,7 +56,9 @@ end
 ---@return Engine.Actor
 local function prepareActor(context, blueprintPath, kind, tagSuffix)
     assert(
-        type(blueprintPath) == "string" and bool(blueprintPath), "Enemy " .. kind .. " requires a Blueprint class path"
+        Class.isInstance(blueprintPath, "string") and bool(blueprintPath),
+        "Enemy " .. kind
+            .. " requires a Blueprint class path"
     )
     local actor = assert(
         Data.GenActorFromClassPath(blueprintPath), "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath
@@ -79,7 +81,9 @@ end
 ---@param offset        sf.Vector2i
 ---@return Source.Item | nil
 local function prepareDrop(context, blueprintPath, offset)
-    assert(type(blueprintPath) == "string" and bool(blueprintPath), "Enemy drop requires a Blueprint class path")
+    assert(
+        Class.isInstance(blueprintPath, "string") and bool(blueprintPath), "Enemy drop requires a Blueprint class path"
+    )
     local resolvedPath = Data.ResolveClassPath(blueprintPath)
     local itemClass = assert(Data.GetClass(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath)
     assert(Class.isSubclass(itemClass, Item), "Enemy drop Blueprint must derive from Source.Item: " .. resolvedPath)

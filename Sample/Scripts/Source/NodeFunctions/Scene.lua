@@ -320,7 +320,7 @@ function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, 
     local priceRef
     if Utils.IsNodeReference(price) then
         priceRef = price
-    elseif type(price) == "string" and bool(price) then
+    elseif Class.isInstance(price, "string") and bool(price) then
         priceRef = Utils.CreateLocalRef(instance:getVariables(), price, 0)
     else
         local priceValue = not bool(price) and 0 or price

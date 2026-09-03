@@ -41,9 +41,11 @@ local function getAutoTileID(layer, position)
     local autoTileIndex = row[position.x + 1]
     if autoTileIndex == nil then
         return nil
-    elseif type(autoTileIndex) == "string" then
+    elseif Class.isInstance(autoTileIndex, "string") then
+        ---@cast autoTileIndex string
         return bool(autoTileIndex) and autoTileIndex or nil
     end
+    ---@cast autoTileIndex integer
     local autoTileKey = layer:getAutoTileKey(autoTileIndex)
     if autoTileKey ~= nil then
         return autoTileKey
@@ -141,12 +143,14 @@ local function writeTile(layer, layerData, autoTileTextures, autoTileFrameCounts
     if tileID == nil then
         tilesRow[x] = nil
         autoTilesRow[x] = nil
-    elseif type(tileID) == "string" then
+    elseif Class.isInstance(tileID, "string") then
+        ---@cast tileID string
         tilesRow[x] = nil
         autoTilesRow[x] = resolveAutoTileIndex(
             layerData, autoTileTextures, autoTileFrameCounts, autoTileResolver, tileID
         )
     else
+        ---@cast tileID integer
         if tileID < 0 or tileID >= #layerData.layerTileset.materials then
             error("Tile ID " .. tileID .. " is out of range for layer '" .. layer:getName() .. "'", 2)
         end

@@ -205,7 +205,7 @@ function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
     if fog == cjson.null then
         fog = nil
     end
-    assert(fog == nil or type(fog) == "string", "mapData.fog must be a string")
+    assert(fog == nil or Class.isInstance(fog, "string"), "mapData.fog must be a string")
     local fogPower = payload.mapData.fogPower
     if fogPower == nil or fogPower == cjson.null then
         fogPower = 0

@@ -10,7 +10,6 @@ local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local ManagerFunctions = GlobalFunctions.Manager
 
 local _EQUIP_CELL_SIZE = 32
-local _EQUIP_ORDER = { "Sword_A", "Shield_A" }
 local WindowEquipSelectController = {}
 
 WindowEquipSelectController.UNEQUIP = {}
@@ -52,7 +51,7 @@ function WindowEquipSelectController:refreshForSlot(slotKey)
         orderedEquips[#orderedEquips + 1] = self.UNEQUIP
     end
     self.model._equipCounts = {}
-    for _, equipID in ipairs(table.orderedStringKeys(equipData, _EQUIP_ORDER)) do
+    for _, equipID in ipairs(table.orderedStringKeys(equipData)) do
         local equip = equipData[equipID] or {}
         if playerEquips[equipID] ~= nil and equip.slot == slotKey then
             orderedEquips[#orderedEquips + 1] = equipID

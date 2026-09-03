@@ -17,10 +17,19 @@ local Special = GeneralEnum.Special
 
 local _CELL_WIDTH = 320
 local _CELL_HEIGHT = 64
-local _SPECIAL_ORDER = { "Poisoning", "Weaken", "Hard", "Magic", "MultiHit", "Compete", "Domain", "Flank", "Blockade" }
 local _specialIconCache = {}
 
 local WindowEnemyBookUI = {}
+
+local function formatSpecialDescription(descSource, specialID, value)
+    local valueText = tostring(value)
+    if specialID == Special.FixDmg then
+        valueText = string.replace(valueText, "{m", "{m}{")
+        valueText = string.replace(valueText, "{e", "{e}{")
+        valueText = LOC(valueText)
+    end
+    return string.pformat(WindowEnemyBookUI.FormatLocaleText(descSource), { value = valueText })
+end
 
 ---@param text string | nil
 ---@return string
@@ -37,7 +46,7 @@ function WindowEnemyBookUI.RefreshEntryLocale(entry)
     end
     for _, detail in ipairs(entry.specialDetails) do
         detail.name = WindowEnemyBookUI.FormatLocaleText(detail.nameSource)
-        detail.desc = WindowEnemyBookUI.FormatLocaleText(detail.descSource)
+        detail.desc = formatSpecialDescription(detail.descSource, detail.specialID, detail.value)
     end
 end
 
@@ -182,7 +191,7 @@ function WindowEnemyBookUI:buildSpecialDisplays(special)
     if not bool(special) then
         return {}
     end
-    local specialKeys = table.orderedStringKeys(special, _SPECIAL_ORDER)
+    local specialKeys = table.orderedStringKeys(special)
     if #specialKeys > 3 then
         return {
             {
@@ -211,15 +220,18 @@ function WindowEnemyBookUI:buildSpecialDetails(special)
         return {}
     end
     local details = {}
-    for _, specialKey in ipairs(table.orderedStringKeys(special, _SPECIAL_ORDER)) do
+    for _, specialKey in ipairs(table.orderedStringKeys(special)) do
         local specialData = Data.GetGeneralSpecialData(tostring(specialKey))
         local nameSource = tostring(specialData.name or specialKey)
         local descSource = tostring(specialData.desc or "")
+        local value = special[specialKey]
         details[#details + 1] = {
+            specialID = tostring(specialKey),
+            value = deepcopy(value),
             nameSource = nameSource,
             descSource = descSource,
             name = self:formatText(nameSource),
-            desc = self:formatText(descSource)
+            desc = formatSpecialDescription(descSource, tostring(specialKey), value)
         }
     end
     return details

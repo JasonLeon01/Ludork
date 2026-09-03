@@ -25,7 +25,7 @@ MapDataParser.EXTENSION = ".json"
 MapDataParser.WORLD_MANIFEST_FILE = "_world.json"
 
 local function requireInteger(value, path, minimum)
-    assert(type(value) == "number" and math.type(value) == "integer", path .. " must be an integer")
+    assert(Class.isInstance(value, "number") and math.type(value) == "integer", path .. " must be an integer")
     local integerValue = math.tointeger(value)
     ---@cast integerValue integer
     assert(integerValue >= minimum, path .. " must be at least " .. minimum)
@@ -34,7 +34,7 @@ end
 
 local function requireFiniteNumber(value, path)
     assert(
-        type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge,
+        Class.isInstance(value, "number") and value == value and value ~= math.huge and value ~= -math.huge,
         path .. " must be a finite number"
     )
     return value
@@ -42,19 +42,19 @@ end
 
 local function rejectUnknownFields(value, allowed, path)
     for key in pairs(value) do
-        assert(type(key) == "string" and allowed[key], path .. " contains an unknown field: " .. tostring(key))
+        assert(Class.isInstance(key, "string") and allowed[key], path .. " contains an unknown field: " .. tostring(key))
     end
 end
 
 local function requireArray(value, path)
-    assert(type(value) == "table", path .. " must be an array")
+    assert(Class.isInstance(value, "table"), path .. " must be an array")
     local length = #value
     for index = 1, length do
         assert(value[index] ~= nil, path .. " must be an array")
     end
     for key in pairs(value) do
         assert(
-            type(key) == "number" and math.type(key) == "integer" and key >= 1 and key <= length,
+            Class.isInstance(key, "number") and math.type(key) == "integer" and key >= 1 and key <= length,
             path .. " must be an array"
         )
     end
@@ -105,10 +105,10 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
             and data.ambientLight == nil,
         "World manifest must not define BGM, BGS, audio filters, or ambientLight: " .. manifestPath)
     rejectUnknownFields(data, WORLD_MANIFEST_FIELDS, "worldMap")
-    assert(type(data.worldName) == "string" and bool(data.worldName), "worldMap.worldName must be a non-empty string")
+    assert(Class.isInstance(data.worldName, "string") and bool(data.worldName), "worldMap.worldName must be a non-empty string")
     data.width = requireInteger(data.width, "worldMap.width", 1)
     data.height = requireInteger(data.height, "worldMap.height", 1)
-    assert(type(data.fog) == "string", "worldMap.fog must be a string")
+    assert(Class.isInstance(data.fog, "string"), "worldMap.fog must be a string")
     data.fogPower = requireInteger(data.fogPower, "worldMap.fogPower", 0)
     data.fogOx = requireFiniteNumber(data.fogOx, "worldMap.fogOx")
     data.fogOy = requireFiniteNumber(data.fogOy, "worldMap.fogOy")
@@ -117,7 +117,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
     local seenLayers = {}
     for index, layerName in ipairs(data.layerOrder) do
         assert(
-            type(layerName) == "string" and bool(layerName),
+            Class.isInstance(layerName, "string") and bool(layerName),
             "worldMap.layerOrder[" .. index .. "] must be a non-empty string"
         )
         assert(not seenLayers[layerName], "worldMap.layerOrder contains a duplicate layer: " .. layerName)
@@ -131,11 +131,11 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
     local regions = {}
     local seenMaps = {}
     for index, placement in ipairs(data.placements) do
-        assert(type(placement) == "table", "worldMap.placements[" .. index .. "] must be an object")
+        assert(Class.isInstance(placement, "table"), "worldMap.placements[" .. index .. "] must be an object")
         rejectUnknownFields(placement, WORLD_PLACEMENT_FIELDS, "worldMap.placements[" .. index .. "]")
         local map = placement.map
         assert(
-            type(map) == "string" and bool(map), "worldMap.placements[" .. index .. "].map must be a non-empty string"
+            Class.isInstance(map, "string") and bool(map), "worldMap.placements[" .. index .. "].map must be a non-empty string"
         )
         map = MapPath.Normalise(map)
         assert(os.path.dirname(map) == "", "World child map must be a direct file: " .. map)

@@ -3,6 +3,11 @@ local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 local GameplayEventData = GlobalCore.GameplayEventData
 local Effects = require("Source.Gameplay.Effects")
+---@type { Special: Source.Configs.GeneralEnum.Special }
+local GeneralEnum = require("Source.Configs.GeneralEnum")
+local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
+
+local Special = GeneralEnum.Special
 
 ---@class Source.Gameplay.MotaBattleAbility: GlobalCore.GameplayAbility
 local MotaBattleAbility = {}
@@ -49,19 +54,44 @@ function MotaBattleAbility:init()
     self.id = MotaBattleAbility.id
 end
 
+local function resolveBattleRules(enemy, player, counterDamage)
+    local payload = {
+        counterDamage = counterDamage,
+        vampireHealing = 0,
+        firstStrike = false,
+        fixedDamage = 0,
+        playerAbilitySystem = player:getAbilitySystemComponent(),
+        enemyAbilitySystem = enemy:getAbilitySystemComponent()
+    }
+    enemy:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new(
+        enemy, player, SpecialAbilities.BATTLE_RULES_EVENT, payload
+    ))
+    return payload
+end
+
+local function calculateCounterRounds(enemyMAXHP, attackDamage, vampireHealing)
+    if attackDamage >= enemyMAXHP then
+        return 0
+    end
+    if attackDamage <= 0 or attackDamage <= vampireHealing then
+        return nil
+    end
+    return math.max(0, math.ceil((enemyMAXHP - attackDamage) / (attackDamage - vampireHealing)))
+end
+
 function MotaBattleAbility.CalculateDamagePerRound(attacker, defender)
     local attackerATK = resolveAttack(attacker, defender)
     local defenderDEF = resolveDefense(defender, attacker, attackerATK)
     local payload = { attackerATK = attackerATK, defenderDEF = defenderDEF }
-    attacker:getAbilitySystemComponent():handleGameplayEvent(
-        GameplayEventData.new(attacker, defender, "Event.Combat.ResolveDamage", payload)
-    )
+    attacker:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new(
+        attacker, defender, "Event.Combat.ResolveDamage", payload
+    ))
     local hitCount = resolveHitCount(attacker, defender)
     local damage = math.max(0, payload.attackerATK - payload.defenderDEF) * hitCount
     local incomingPayload = { value = damage }
-    defender:getAbilitySystemComponent():handleGameplayEvent(
-        GameplayEventData.new(attacker, defender, "Event.Combat.ResolveIncomingDamage", incomingPayload)
-    )
+    defender:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new(
+        attacker, defender, "Event.Combat.ResolveIncomingDamage", incomingPayload
+    ))
     return incomingPayload.value, {
             attackerATK = payload.attackerATK,
             defenderDEF = payload.defenderDEF,
@@ -75,10 +105,14 @@ function MotaBattleAbility:calculate(abilitySystem, eventData)
     local player = assert(eventData.target, "Mota Battle requires a target")
     local attackDamage, playerAttack = MotaBattleAbility.CalculateDamagePerRound(player, enemy)
     local counterDamage, enemyAttack = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
-    local counterRounds = attackDamage > 0 and math.max(0, math.ceil(enemy.attributes.MAXHP / attackDamage) - 1) or 0
-    local damage = attackDamage > 0 and math.max(0, counterRounds * counterDamage) or 0
+    local battleRules = resolveBattleRules(enemy, player, counterDamage)
+    local counterRounds = calculateCounterRounds(enemy.attributes.MAXHP, attackDamage, battleRules.vampireHealing)
+    local firstStrikeDamage = battleRules.firstStrike and counterDamage or 0
+    local damage = counterRounds ~= nil
+        and math.max(0, counterRounds * counterDamage + firstStrikeDamage + battleRules.fixedDamage)
+        or 0
     local code = MotaBattleAbility.BattleResult.WIN
-    if attackDamage <= 0 then
+    if counterRounds == nil then
         code = MotaBattleAbility.BattleResult.CANNOT_DAMAGE
     elseif damage >= player.attributes.HP then
         code = MotaBattleAbility.BattleResult.LETHAL_COUNTER_DAMAGE
@@ -88,6 +122,9 @@ function MotaBattleAbility:calculate(abilitySystem, eventData)
         attackDamage = attackDamage,
         counterDamage = counterDamage,
         counterRounds = counterRounds,
+        vampireHealing = battleRules.vampireHealing,
+        firstStrikeDamage = firstStrikeDamage,
+        fixedDamage = battleRules.fixedDamage,
         playerAttack = playerAttack,
         enemyAttack = enemyAttack,
         enemy = enemy,
@@ -128,24 +165,29 @@ function MotaBattleAbility.CommitResult(result)
 end
 
 function MotaBattleAbility.CalculateCriticalValue(enemy, player)
-    local playerATK = resolveAttack(player, enemy)
-    local enemyDEF = resolveDefense(enemy, player, playerATK)
-    if playerATK <= enemyDEF then
-        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, { value = enemyDEF + 1 }))
-    end
-    if playerATK >= enemy.attributes.MAXHP + enemyDEF then
+    local attackDamage, playerAttack = MotaBattleAbility.CalculateDamagePerRound(player, enemy)
+    local counterDamage = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
+    local battleRules = resolveBattleRules(enemy, player, counterDamage)
+    if attackDamage >= enemy.attributes.MAXHP then
         return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.NOT_NEEDED))
     end
-    if enemy:getAbilitySystemComponent():hasMatchingGameplayTag("Special.Hard") then
+    if enemy:getAbilitySystemComponent():hasMatchingGameplayTag("Special." .. Special.Hard) then
         return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.UNKNOWN))
     end
-    local damage = playerATK - enemyDEF
-    local turns = math.max(math.ceil(enemy.attributes.MAXHP / damage) - 1, 0)
-    return assert(
-        GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
-            value = math.ceil(enemy.attributes.MAXHP / turns) + enemyDEF
-        })
+    local hitCount = math.max(1, playerAttack.hitCount)
+    local counterRounds = calculateCounterRounds(enemy.attributes.MAXHP, attackDamage, battleRules.vampireHealing)
+    if counterRounds == nil then
+        local requiredDamage = battleRules.vampireHealing + 1
+        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
+                value = math.ceil(requiredDamage / hitCount) + playerAttack.defenderDEF
+            }))
+    end
+    local requiredDamage = math.ceil(
+        (enemy.attributes.MAXHP + (counterRounds - 1) * battleRules.vampireHealing) / counterRounds
     )
+    return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
+            value = math.ceil(requiredDamage / hitCount) + playerAttack.defenderDEF
+        }))
 end
 
 return class(MotaBattleAbility, GameplayAbility)

@@ -60,12 +60,15 @@ local Special = {
     Blockade = "Blockade",
     Compete = "Compete",
     Domain = "Domain",
+    First = "First",
+    FixDmg = "FixDmg",
     Flank = "Flank",
     Hard = "Hard",
     Magic = "Magic",
     MultiHit = "MultiHit",
     Poisoning = "Poisoning",
     Reborn = "Reborn",
+    Vampire = "Vampire",
     Weaken = "Weaken",
 }
 

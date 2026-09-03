@@ -165,10 +165,12 @@ local function createWorldRegionBuildCoroutine(
                         local rawRow = rawAutoTiles[y]
                         for x = chunk.x + 1, chunk.x + chunk.width do
                             local cell = rawRow ~= nil and rawRow[x] or nil
-                            if type(cell) == "string" and bool(cell)
-                                and Data.HasAutoTile(cell) and autoTileIndexByKey[cell] == nil then
-                                autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
-                                autoTileIndexByKey[cell] = #autoTilePool - 1
+                            if Class.isInstance(cell, "string") then
+                                ---@cast cell string
+                                if bool(cell) and Data.HasAutoTile(cell) and autoTileIndexByKey[cell] == nil then
+                                    autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
+                                    autoTileIndexByKey[cell] = #autoTilePool - 1
+                                end
                             end
                         end
                     end
@@ -178,9 +180,12 @@ local function createWorldRegionBuildCoroutine(
             for _, row in pairs(layerTerrainOverrides) do
                 for _, terrainOverride in pairs(row) do
                     local tileID = terrainOverride.tileID
-                    if type(tileID) == "string" and autoTileIndexByKey[tileID] == nil then
-                        autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(tileID)
-                        autoTileIndexByKey[tileID] = #autoTilePool - 1
+                    if Class.isInstance(tileID, "string") then
+                        ---@cast tileID string
+                        if autoTileIndexByKey[tileID] == nil then
+                            autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(tileID)
+                            autoTileIndexByKey[tileID] = #autoTilePool - 1
+                        end
                     end
                 end
                 coroutine.yield("indexTerrainAutotiles")

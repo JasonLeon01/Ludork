@@ -27,13 +27,13 @@ local function generalDataError(relativePath, context, message)
 end
 
 local function isArray(value)
-    if type(value) ~= "table" then
+    if not Class.isInstance(value, "table") then
         return false
     end
     local count = 0
     local maximum = 0
     for key in pairs(value) do
-        if type(key) ~= "number" or math.type(key) ~= "integer" or key < 1 then
+        if not Class.isInstance(key, "number") or math.type(key) ~= "integer" or key < 1 then
             return false
         end
         ---@cast key integer
@@ -44,11 +44,11 @@ local function isArray(value)
 end
 
 local function isDictionary(value)
-    if type(value) ~= "table" then
+    if not Class.isInstance(value, "table") then
         return false
     end
     for key in pairs(value) do
-        if type(key) ~= "string" then
+        if not Class.isInstance(key, "string") then
             return false
         end
     end
@@ -60,25 +60,25 @@ local function canonicaliseScalar(value, typeName, relativePath, context)
         return value
     end
     if typeName == "string" or typeName == "file" then
-        if type(value) ~= "string" then
+        if not Class.isInstance(value, "string") then
             generalDataError(relativePath, context, "expected " .. typeName)
         end
         return value
     end
     if typeName == "bool" then
-        if type(value) ~= "boolean" then
+        if not Class.isInstance(value, "boolean") then
             generalDataError(relativePath, context, "expected bool")
         end
         return value
     end
     if typeName == "int" then
-        if type(value) ~= "number" or math.type(value) ~= "integer" then
+        if not Class.isInstance(value, "number") or math.type(value) ~= "integer" then
             generalDataError(relativePath, context, "expected int")
         end
         return value
     end
     if typeName == "float" then
-        if type(value) ~= "number" then
+        if not Class.isInstance(value, "number") then
             generalDataError(relativePath, context, "expected float")
         end
         return value + 0.0
@@ -104,7 +104,7 @@ end
 local function canonicaliseValue(value, typeName, param, relativePath, context)
     if typeName == "list" then
         local itemType = param.itemType
-        if type(itemType) ~= "string" or not bool(itemType) then
+        if not Class.isInstance(itemType, "string") or not bool(itemType) then
             generalDataError(relativePath, context, "list requires itemType")
         end
         if rawget(scalarTypes, itemType) ~= true then
@@ -121,7 +121,7 @@ local function canonicaliseValue(value, typeName, param, relativePath, context)
     end
     if typeName == "dict" then
         local valueType = param.valueType
-        if type(valueType) ~= "string" or not bool(valueType) then
+        if not Class.isInstance(valueType, "string") or not bool(valueType) then
             generalDataError(relativePath, context, "dict requires valueType")
         end
         if rawget(scalarTypes, valueType) ~= true then
@@ -202,7 +202,7 @@ function GeneralDataSchema.Canonicalise(payload, relativePath)
             generalDataError(relativePath, "schema", "events must not be empty")
         end
         for index, eventName in ipairs(payload.events) do
-            if type(eventName) ~= "string" or not bool(eventName) then
+            if not Class.isInstance(eventName, "string") or not bool(eventName) then
                 generalDataError(relativePath, "schema", "events[" .. tostring(index) .. "] must be a non-empty string")
             end
             if declaredEvents[eventName] then
@@ -212,11 +212,11 @@ function GeneralDataSchema.Canonicalise(payload, relativePath)
         end
     end
     for fieldName, param in pairs(params) do
-        if type(param) ~= "table" then
+        if not Class.isInstance(param, "table") then
             generalDataError(relativePath, "parameter " .. fieldName, "definition must be a JSON object")
         end
         local typeName = param.type
-        if type(typeName) ~= "string" or not valueTypes[typeName] then
+        if not Class.isInstance(typeName, "string") or not valueTypes[typeName] then
             generalDataError(relativePath, "parameter " .. fieldName, "unsupported type " .. tostring(typeName))
         end
         if rawget(param, "defaultValue") == nil then

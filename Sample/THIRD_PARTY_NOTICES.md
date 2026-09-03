@@ -2,7 +2,7 @@
 
 Ludork itself is licensed under the Zlib License in [`LICENSE.md`](LICENSE.md). That licence applies to Ludork software; it does not replace the licences of the components and assets listed below.
 
-This notice covers the Sample project, the project templates shipped with Ludork 1.0.0, and the unchanged Ludork game-runtime and bundled-asset materials that those templates carry into a generated game package. Project-specific code and assets require their own notices. Complete game-runtime licence texts are listed in the [`game-runtime licence index`](Licenses/README.md), while bundled-asset texts remain beside their assets. C++ Source templates also retain notices embedded in their third-party source trees. Editor, managed-runtime, preview-host, and build-tool dependencies are outside this notice and remain documented with the Ludork editor distribution.
+This notice covers the Sample and the unchanged runtime/assets in Ludork 1.0.0 templates; projects must notice their own additions. Canonical runtime texts live in the repository's top-level `Licenses` and are copied to the same distribution paths; asset texts stay beside assets, and C++ templates retain source-tree notices. Editor, managed-runtime, preview-host and build-tool dependencies remain covered by the editor distribution.
 
 ## Native game runtime
 

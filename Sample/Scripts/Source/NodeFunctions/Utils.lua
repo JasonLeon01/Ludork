@@ -334,14 +334,18 @@ end
 ---@param value number | string
 ---@return number | nil
 local function getShortNumberValue(value)
-    if type(value) == "number" then
+    if Class.isInstance(value, "number") then
+        ---@cast value number
         if value ~= value or value == math.huge or value == -math.huge then
             return nil
         end
         return value
     end
-    if type(value) == "string" and value:match("^%d+$") ~= nil then
-        return tonumber(value)
+    if Class.isInstance(value, "string") then
+        ---@cast value string
+        if value:match("^%d+$") ~= nil then
+            return tonumber(value)
+        end
     end
     return nil
 end

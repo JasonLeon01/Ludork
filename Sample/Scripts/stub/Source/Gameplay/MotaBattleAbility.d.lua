@@ -10,7 +10,10 @@ local CriticalResult = {}
 ---@field damage              integer
 ---@field attackDamage        integer
 ---@field counterDamage       integer
----@field counterRounds       integer
+---@field counterRounds       integer | nil
+---@field vampireHealing      integer
+---@field firstStrikeDamage   integer
+---@field fixedDamage         integer
 ---@field playerAttack        table<string, integer>
 ---@field enemyAttack         table<string, integer>
 ---@field enemy               Source.Enemy

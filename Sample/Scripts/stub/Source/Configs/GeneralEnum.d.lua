@@ -75,12 +75,15 @@ local Player = {}
 ---@field Blockade string
 ---@field Compete string
 ---@field Domain string
+---@field First string
+---@field FixDmg string
 ---@field Flank string
 ---@field Hard string
 ---@field Magic string
 ---@field MultiHit string
 ---@field Poisoning string
 ---@field Reborn string
+---@field Vampire string
 ---@field Weaken string
 ---@type Source.Configs.GeneralEnum.Special
 local Special = {}

@@ -42,9 +42,10 @@ function DataLoading:normaliseJsonNull(value, seen)
     if value == cjson.null then
         return nil
     end
-    if type(value) ~= "table" then
+    if not Class.isInstance(value, "table") then
         return value
     end
+    ---@cast value table
     seen = seen or {}
     if seen[value] ~= nil then
         return seen[value]
@@ -53,7 +54,7 @@ function DataLoading:normaliseJsonNull(value, seen)
     seen[value] = result
     local arrayValue = true
     for key in pairs(value) do
-        if type(key) ~= "number" or key < 1 or key % 1 ~= 0 then
+        if not Class.isInstance(key, "number") or key < 1 or key % 1 ~= 0 then
             arrayValue = false
             break
         end
