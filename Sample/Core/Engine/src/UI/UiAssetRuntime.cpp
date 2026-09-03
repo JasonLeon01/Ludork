@@ -1,6 +1,7 @@
 #include <UI/UiAssetRuntime.hpp>
 
 #include "UiAssetRuntime/AssetBuilder.hpp"
+#include "UiAssetRuntime/AnimationRuntime.hpp"
 #include "UiAssetRuntime/PathResolver.hpp"
 #include "UiAssetRuntime/NodeViewCollector.hpp"
 #include "UiAssetRuntime/RuntimeModel.hpp"
@@ -386,7 +387,8 @@ std::shared_ptr<UiAssetInstanceState> buildAsset(
     try {
         const RuntimeValue::Map& asset =
             requireMap(value, "UI asset " + expectedAssetKey);
-        requireOnlyKeys(asset, {"type", "designSize", "palette", "root"},
+        requireOnlyKeys(asset,
+                        {"type", "designSize", "palette", "root", "animations"},
                         "UI asset " + expectedAssetKey);
         const RuntimeValue* type = findValue(asset, "type");
         const RuntimeValue* paletteValue = findValue(asset, "palette");
@@ -424,6 +426,14 @@ std::shared_ptr<UiAssetInstanceState> buildAsset(
         std::unordered_set<std::string> localNames;
         state->root = buildNode(*rootValue, expectedAssetKey + ".root", *state,
                                 context, localNames, true);
+
+        ludork::engine::ui_asset_runtime_impl::parseAnimations(
+            asset, *state, "UI asset " + expectedAssetKey);
+        for (const auto& [nodeName, nestedState] : state->nestedStates) {
+            nestedState->parentState = state;
+            nestedState->parentNodeName = nodeName;
+        }
+        ludork::engine::ui_asset_runtime_impl::installAnimationUpdater(state);
 
         UiLayoutEngine::reflow(*state, state->logicalSize);
         context.assetStack.pop_back();
@@ -480,7 +490,9 @@ UiAssetInstance::UiAssetInstance(std::shared_ptr<UiAssetInstanceState> state)
     }
 }
 
-UiAssetInstance::~UiAssetInstance() = default;
+UiAssetInstance::~UiAssetInstance() {
+    ludork::engine::ui_asset_runtime_impl::stopAllAnimations(state_);
+}
 
 std::shared_ptr<ControlBase> UiAssetInstance::getRoot() const {
     return state_->root->control;
@@ -592,6 +604,31 @@ void UiAssetInstance::reflow(std::optional<sf::Vector2u> logicalSize) {
                                static_cast<float>(logicalSize->y)};
     }
     UiLayoutEngine::reflow(*state_, state_->logicalSize);
+}
+
+bool UiAssetInstance::hasAnimation(const std::string& name,
+                                   std::optional<std::string> target) const {
+    return ludork::engine::ui_asset_runtime_impl::hasAnimation(state_, name,
+                                                               target);
+}
+
+bool UiAssetInstance::playAnimation(const std::string& name,
+                                    std::optional<std::string> target,
+                                    std::function<void()> onFinished) {
+    return ludork::engine::ui_asset_runtime_impl::playAnimation(
+        state_, name, target, std::move(onFinished));
+}
+
+void UiAssetInstance::stopAnimation(const std::string& name,
+                                    std::optional<std::string> target) {
+    ludork::engine::ui_asset_runtime_impl::stopAnimation(state_, name, target);
+}
+
+bool UiAssetInstance::sampleAnimation(const std::string& name,
+                                      std::optional<std::string> target,
+                                      float time) {
+    return ludork::engine::ui_asset_runtime_impl::sampleAnimation(state_, name,
+                                                                  target, time);
 }
 
 std::vector<UiAssetNodeView> UiAssetInstance::getNodeViews() const {

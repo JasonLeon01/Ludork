@@ -7,9 +7,6 @@ local GlobalSystem = GlobalCore.System
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 
-local _HOLD_TIME = 1.0
-local _FADE_TIME = 1.0
-
 ---@class Source.UI.RegionTitle: Source.UI.UiController
 local RegionTitleUI = {}
 
@@ -18,7 +15,7 @@ RegionTitleUI.refreshEvents = { EventKeys.LocaleChanged }
 function RegionTitleUI:init(logicalSize)
     self._logicalSize = logicalSize
     self._region = nil
-    self._elapsed = _HOLD_TIME + _FADE_TIME
+    self._showing = false
     super(RegionTitleUI, self).init(nil, nil)
 end
 
@@ -27,23 +24,14 @@ function RegionTitleUI:bind()
 end
 
 function RegionTitleUI:refresh()
-    local visible = self._region ~= nil and self._elapsed < _HOLD_TIME + _FADE_TIME
-    ---@cast self._region string
-    self:setText("RegionTitle", visible and LOC(self._region) or "")
-    self:setProperty("RegionTitle", "visible", visible)
-    if not visible then
+    if self._region == nil then
+        self:setText("RegionTitle", "")
+        self:setProperty("RegionTitle", "visible", false)
         return
     end
-    local alpha = 255
-    if self._elapsed > _HOLD_TIME then
-        alpha = math.floor(255 * (1.0 - (self._elapsed - _HOLD_TIME) / _FADE_TIME))
-    end
-    self:setProperty("RegionTitle", "colour", {
-        255,
-        255,
-        255,
-        alpha
-    })
+    ---@cast self._region string
+    self:setText("RegionTitle", LOC(self._region))
+    self:setProperty("RegionTitle", "visible", self._showing)
 end
 
 function RegionTitleUI:prepare(logicalSize)
@@ -58,29 +46,20 @@ function RegionTitleUI:onViewUpdate(payload)
         return
     end
     self._region = payload.region
-    self._elapsed = 0.0
+    self._showing = true
+    self:playAnimation("Display", "RegionTitle", function ()
+        self._showing = false
+        self:setProperty("RegionTitle", "visible", false)
+        self:stopAnimation("Display", "RegionTitle")
+    end)
 end
 
 function RegionTitleUI:update(deltaTime)
     if not self._text:getVisible() or GlobalSystem.isTransitionPending() or GlobalSystem.isInTransition() then
         return
     end
-    self._elapsed = self._elapsed + deltaTime
-    if self._elapsed <= _HOLD_TIME then
-        return
-    end
-    local fadeElapsed = self._elapsed - _HOLD_TIME
-    if fadeElapsed >= _FADE_TIME then
-        self:setProperty("RegionTitle", "visible", false)
-        return
-    end
-    local alpha = math.floor(255 * (1.0 - fadeElapsed / _FADE_TIME))
-    self:setProperty("RegionTitle", "colour", {
-        255,
-        255,
-        255,
-        alpha
-    })
+    ---@cast self.root Engine.Canvas
+    self.root:update(deltaTime)
 end
 
 function RegionTitleUI:getVisible()

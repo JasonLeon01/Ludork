@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local WindowTransition = require("Source.UI.WindowTransition")
 
 ---@type fun(event: string, handler: function, priority?: integer): integer
 local subscribe = Engine.subscribe
@@ -21,6 +22,8 @@ function UiController:init(model, instance)
     self.root = instance:getRoot()
     self._uiManager = nil
     self._eventSubscriptions = {}
+    self._animationBindings = {}
+    self._animationGenerations = {}
     self._viewLogicalSize = nil
     self._viewUpdateUnregister = nil
     self._bound = false
@@ -116,8 +119,8 @@ function UiController:attachTo(parent, logicalSize)
     return root
 end
 
-function UiController:attachWindowView(host, logicalSize)
-    return self:_attachWindowRoot(host, self:prepare(logicalSize))
+function UiController:attachWindowView(host, logicalSize, transitionTarget)
+    return self:_attachWindowRoot(host, self:prepare(logicalSize), transitionTarget)
 end
 
 function UiController:attachNestedWindowView(host, logicalSize)
@@ -143,13 +146,14 @@ function UiController:attachNestedWindowView(host, logicalSize)
     host._visualRoot = root
     content:addChild(pauseMark)
     root:addChild(returnButton)
+    host:_setUiController(self)
     return root
 end
 
 ---@param host Source.Windows.Base.WindowBase
 ---@param root Engine.ControlBase
 ---@return Engine.ControlBase
-function UiController:_attachWindowRoot(host, root)
+function UiController:_attachWindowRoot(host, root, transitionTarget)
     assert(host._window == nil and host.content == nil, "Declarative window host must defer its base view")
     local pauseMark = host._pauseMark
     local returnButton = host._returnButton
@@ -168,8 +172,45 @@ function UiController:_attachWindowRoot(host, root)
     host._window = windowFrame
     host.content = content
     content:addChild(pauseMark)
-    host:addChild(returnButton)
+    local chromeRoot = transitionTarget ~= nil and self:requireControl(transitionTarget) or root
+    ---@cast chromeRoot Engine.Canvas
+    chromeRoot:addChild(returnButton)
+    host:_setUiController(self, transitionTarget)
     return root
+end
+
+function UiController:createTransition(host, target)
+    return WindowTransition.new(host, self, target)
+end
+
+function UiController:hasAnimation(name, target)
+    return self.view:hasAnimation(name, target)
+end
+
+function UiController:playAnimation(name, target, onFinished)
+    local key = target or ""
+    local generation = (self._animationGenerations[key] or 0) + 1
+    self._animationGenerations[key] = generation
+    self._animationBindings[key] = { name = name, target = target }
+    local started = self.view:playAnimation(name, target, function ()
+        if self._disposed == true or self._animationGenerations[key] ~= generation then
+            return
+        end
+        if onFinished ~= nil then
+            onFinished()
+        end
+    end)
+    if not started and self._animationGenerations[key] == generation then
+        self._animationBindings[key] = nil
+    end
+    return started
+end
+
+function UiController:stopAnimation(name, target)
+    local key = target or ""
+    self._animationGenerations[key] = (self._animationGenerations[key] or 0) + 1
+    self._animationBindings[key] = nil
+    self.view:stopAnimation(name, target)
 end
 
 ---@diagnostic disable-next-line: unused
@@ -237,6 +278,11 @@ function UiController:dispose()
     end
     self:unmount()
     self._disposed = true
+    for key, binding in pairs(self._animationBindings) do
+        self._animationGenerations[key] = (self._animationGenerations[key] or 0) + 1
+        self.view:stopAnimation(binding.name, binding.target)
+    end
+    self._animationBindings = {}
     if self._viewUpdateUnregister ~= nil then
         self._viewUpdateUnregister(self)
         self._viewUpdateUnregister = nil

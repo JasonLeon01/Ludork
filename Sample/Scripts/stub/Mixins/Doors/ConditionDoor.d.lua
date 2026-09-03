@@ -7,8 +7,6 @@ local ConditionDoor = {}
 
 function ConditionDoor:onCreate() end
 
-function ConditionDoor:onDestroy() end
-
 ---@param deltaTime number
 function ConditionDoor:onTick(deltaTime) end
 

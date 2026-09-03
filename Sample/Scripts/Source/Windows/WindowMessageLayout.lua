@@ -1,5 +1,4 @@
 local Engine = require("Engine")
-local Data = require("Source.Data")
 
 local TextLayout = Engine.TextLayout
 
@@ -7,16 +6,6 @@ local WindowMessageLayout = {}
 
 function WindowMessageLayout.NormaliseText(text)
     return (text:gsub("\\n", "\n"))
-end
-
-function WindowMessageLayout.GetFadeCurve(cache, key)
-    local cached = cache[key]
-    if cached ~= nil then
-        return cached
-    end
-    local curve = Data.GetCurve(key)
-    cache[key] = curve
-    return curve
 end
 
 function WindowMessageLayout.GetTextLineHeight(bounds)

@@ -128,6 +128,7 @@ void ListView::update(float deltaTime) {
             functional->update(deltaTime);
         }
     }
+    FunctionalBase::update(deltaTime);
 }
 
 void ListView::lateUpdate(float deltaTime) {

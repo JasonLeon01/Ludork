@@ -95,6 +95,8 @@ public:
     void releaseRuntimeCallbacks() noexcept override;
 
 protected:
+    void _refreshPresentationColour() override;
+
     bool acceptsTouchCapture() const override;
     void onTouchCaptureBegan(const sf::Vector2f& position) override;
     BIND_METHOD(metadata = false)

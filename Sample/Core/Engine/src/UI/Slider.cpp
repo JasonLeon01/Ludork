@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -228,6 +229,12 @@ void Slider::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
     target.draw(*line_, states);
     target.draw(*handle_, states);
+}
+
+void Slider::_refreshPresentationColour() {
+    const sf::Color colour = modulatePresentationColour(sf::Color::White);
+    line_->setColor(colour);
+    handle_->setColor(colour);
 }
 
 sf::Vector2f Slider::normalizedSize(const sf::Vector2f& size) {

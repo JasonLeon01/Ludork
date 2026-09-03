@@ -182,12 +182,15 @@ void FunctionalBase::clearEventCallbacks() noexcept {
 }
 
 void FunctionalBase::update(float deltaTime) {
+    ControlBase* control = dynamic_cast<ControlBase*>(this);
+    if (control != nullptr) {
+        control->updatePresentationAnimations(deltaTime);
+    }
     onTick(deltaTime);
     if (inputProvider_ == nullptr) {
         resetPointerInteraction();
         return;
     }
-    ControlBase* control = dynamic_cast<ControlBase*>(this);
     const sf::Vector2f mousePosition(inputProvider_->getMousePosition());
     if (!isInteractionEnabled()) {
         resetPointerInteraction();

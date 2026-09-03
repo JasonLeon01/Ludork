@@ -9,6 +9,40 @@
     "displayName": "Window Item",
     "category": "Windows"
   },
+  "animations": [
+    {
+      "name": "FadeIn_Menu",
+      "target": null,
+      "duration": 0.2,
+      "pivot": [0.5, 0.5],
+      "tracks": {
+        "translation": [
+          { "time": 0.0, "value": [-256.0, 0.0] },
+          { "time": 0.2, "value": [0.0, 0.0] }
+        ],
+        "colour": [
+          { "time": 0.0, "value": [255, 255, 255, 0] },
+          { "time": 0.2, "value": [255, 255, 255, 255] }
+        ]
+      }
+    },
+    {
+      "name": "FadeOut_Menu",
+      "target": null,
+      "duration": 0.2,
+      "pivot": [0.5, 0.5],
+      "tracks": {
+        "translation": [
+          { "time": 0.0, "value": [0.0, 0.0] },
+          { "time": 0.2, "value": [-256.0, 0.0] }
+        ],
+        "colour": [
+          { "time": 0.0, "value": [255, 255, 255, 255] },
+          { "time": 0.2, "value": [255, 255, 255, 0] }
+        ]
+      }
+    }
+  ],
   "root": {
     "name": "Root",
     "controlId": "Engine.Canvas",

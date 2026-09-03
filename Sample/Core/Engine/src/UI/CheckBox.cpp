@@ -143,6 +143,10 @@ void CheckBox::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     target.draw(*mark_, states);
 }
 
+void CheckBox::_refreshPresentationColour() {
+    applyPresentationColour();
+}
+
 sf::Vector2f CheckBox::normalizedSize(const sf::Vector2f& size) {
     return {
         std::isfinite(size.x) ? std::round(std::max(0.0f, size.x)) : 0.0f,
@@ -162,6 +166,7 @@ void CheckBox::rebuildMark(std::shared_ptr<PlainTextConfig> textConfig) {
                                         checked_ ? "\xE2\x88\x9A" : "");
     mark_->setColour(checked_ ? sf::Color(0, 255, 0) : sf::Color::White);
     updateMark();
+    applyPresentationColour();
 }
 
 void CheckBox::updateMark() {
@@ -173,6 +178,11 @@ void CheckBox::updateMark() {
         (size_.x - bounds.size.x) / 2.0f - bounds.position.x,
         (size_.y - bounds.size.y) / 2.0f,
     });
+}
+
+void CheckBox::applyPresentationColour() {
+    frame_->setPresentationColour(this, presentationColour());
+    mark_->setPresentationColour(this, presentationColour());
 }
 
 void CheckBox::refreshDisplayScale() {

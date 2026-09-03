@@ -90,6 +90,12 @@ void registerSystemServices(sol::state_view lua) {
     os.set_function("getcwd", []() {
         return pathToUtf8(currentWorkingDirectory());
     });
+    os.set_function("createDirectories", [](const std::string& value) {
+        createDirectories(pathFromUtf8(value));
+    });
+    os.set_function("removeFile", [](const std::string& value) {
+        removeFile(pathFromUtf8(value));
+    });
     os.set_function("listdir", [](const std::string& value) {
         const std::vector<std::filesystem::path> entries =
             listDirectory(pathFromUtf8(value));

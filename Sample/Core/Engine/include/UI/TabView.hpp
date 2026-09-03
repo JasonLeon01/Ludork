@@ -105,6 +105,8 @@ public:
     void releaseRuntimeCallbacks() noexcept override;
 
 protected:
+    void _refreshPresentationColour() override;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -137,6 +139,7 @@ private:
     void layoutHint(PlainText& text, SolidRect& background, bool left) const;
     void updateSelectionVisual();
     void updateHintVisibility();
+    void applyPresentationColour();
     const std::optional<std::string>& visibleHint(const KeyHint& hint) const;
 
     sf::Vector2f size_;

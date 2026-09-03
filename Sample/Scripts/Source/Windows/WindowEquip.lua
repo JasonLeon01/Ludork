@@ -13,6 +13,8 @@ function WindowEquip:init(player)
     super(WindowEquip, self).init(Engine.ToIntRect(192, 0, 448, 352))
     self._ui = WindowEquipUI.new(self)
     self._ui:attach()
+    self._transition = self._ui:createTransition(self)
+    self._onCloseCallback = nil
     self._slotWindow = WindowEquipSlot.new(
         Engine.ToIntRect(0, 0, 192, 160), player, nil, nil, nil, self._ui:getSlotAsset()
     )
@@ -28,7 +30,11 @@ function WindowEquip:init(player)
     self:addChild(self._slotWindow)
     self:addChild(self._selectWindow)
     self:addChild(self._statusWindow)
-    self:close()
+    self._slotWindow._onCloseCallback = function ()
+        self:close(self._onCloseCallback)
+    end
+    self._slotWindow:close()
+    self._transition:hideImmediate()
 end
 
 function WindowEquip:setPlayer(player)
@@ -38,18 +44,33 @@ function WindowEquip:setPlayer(player)
 end
 
 function WindowEquip:setOnCloseCallback(callback)
-    self._slotWindow._onCloseCallback = callback
+    self._onCloseCallback = callback
 end
 
 function WindowEquip:open()
-    self:setVisible(true)
     self._selectWindow:open()
     self._slotWindow:open()
+    self._transition:show("FadeIn_Menu", function ()
+        self:setActive(true)
+        self._slotWindow:requestKeyboardFocusAtCursor()
+    end)
 end
 
-function WindowEquip:close()
+function WindowEquip:close(onHidden)
+    self:setActive(false)
+    self._slotWindow:setActive(false)
+    self._selectWindow:setActive(false)
+    self._transition:hide("FadeOut_Menu", function ()
+        self._slotWindow:close()
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
+end
+
+function WindowEquip:hideImmediate()
+    self._transition:hideImmediate()
     self._slotWindow:close()
-    self:setVisible(false)
 end
 
 function WindowEquip:refreshLocale()
@@ -57,7 +78,7 @@ function WindowEquip:refreshLocale()
 end
 
 function WindowEquip:getVisible()
-    return self._slotWindow:getVisible() or self._selectWindow:getVisible() or self._statusWindow:getVisible()
+    return self._transition:isBlocking()
 end
 
 function WindowEquip:requestSlotFocus()

@@ -50,13 +50,18 @@ protected:
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
 
+    void _refreshPresentationColour() override;
+
 private:
     static sf::Vector2f normalizedSize(const sf::Vector2f& size);
     static float normalizedProgress(float progress);
     void updateGeometry();
+    void applyColours();
 
     sf::Vector2f size_;
     float progress_ = 0.0f;
     sf::RectangleShape background_;
     sf::RectangleShape fill_;
+    sf::Color backgroundColor_;
+    sf::Color fillColor_;
 };

@@ -4,6 +4,43 @@
 #include <UI/FunctionalBase.hpp>
 #include <Utils/Render.hpp>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <utility>
+
+namespace {
+
+std::uint8_t normalizedColourComponent(float value) {
+    return static_cast<std::uint8_t>(
+        std::clamp(std::lround(value * 255.0f), 0L, 255L));
+}
+
+sf::Color combinePresentationColours(
+    const std::unordered_map<const void*, sf::Color>& colours) {
+    std::array<float, 4> combined{1.0f, 1.0f, 1.0f, 1.0f};
+    for (const auto& [source, colour] : colours) {
+        static_cast<void>(source);
+        combined[0] *= static_cast<float>(colour.r) / 255.0f;
+        combined[1] *= static_cast<float>(colour.g) / 255.0f;
+        combined[2] *= static_cast<float>(colour.b) / 255.0f;
+        combined[3] *= static_cast<float>(colour.a) / 255.0f;
+    }
+    return {normalizedColourComponent(combined[0]),
+            normalizedColourComponent(combined[1]),
+            normalizedColourComponent(combined[2]),
+            normalizedColourComponent(combined[3])};
+}
+
+std::uint8_t modulateColourComponent(std::uint8_t authored,
+                                     std::uint8_t presentation) {
+    return static_cast<std::uint8_t>(
+        (static_cast<unsigned int>(authored) * presentation + 127U) / 255U);
+}
+
+}  // namespace
+
 std::weak_ptr<RuntimeCallbackRegistry>
     ControlBase::activeRuntimeCallbackRegistry_;
 
@@ -66,6 +103,9 @@ void ControlBase::setVisible(bool visible) {
     visible_ = visible;
     if (!visible_) {
         resetFunctionalInteractions(*this);
+        if (presentationRelease_) {
+            presentationRelease_();
+        }
     }
 }
 
@@ -218,6 +258,61 @@ sf::Transform ControlBase::screenRenderTransform() const {
     return _getScreenRenderTransform();
 }
 
+void ControlBase::setPresentationTransform(const sf::Vector2f& translation,
+                                           float rotation,
+                                           const sf::Vector2f& scale,
+                                           const sf::Vector2f& pivot) {
+    presentationTranslation_ = translation;
+    presentationRotation_ = rotation;
+    presentationScale_ = scale;
+    presentationPivot_ = pivot;
+}
+
+void ControlBase::resetPresentationTransform() {
+    presentationTranslation_ = {0.0f, 0.0f};
+    presentationRotation_ = 0.0f;
+    presentationScale_ = {1.0f, 1.0f};
+    presentationPivot_ = {0.5f, 0.5f};
+}
+
+void ControlBase::setPresentationColour(const void* source,
+                                        const sf::Color& colour) {
+    if (source == nullptr) {
+        return;
+    }
+    presentationColours_.insert_or_assign(source, colour);
+    const sf::Color combined = combinePresentationColours(presentationColours_);
+    if (presentationColour_ != combined) {
+        presentationColour_ = combined;
+        _refreshPresentationColour();
+    }
+}
+
+void ControlBase::clearPresentationColour(const void* source) {
+    if (source == nullptr || presentationColours_.erase(source) == 0) {
+        return;
+    }
+    const sf::Color combined = combinePresentationColours(presentationColours_);
+    if (presentationColour_ != combined) {
+        presentationColour_ = combined;
+        _refreshPresentationColour();
+    }
+}
+
+void ControlBase::setPresentationUpdater(std::function<void(float)> updater) {
+    presentationUpdater_ = std::move(updater);
+}
+
+void ControlBase::setPresentationRelease(std::function<void()> release) {
+    presentationRelease_ = std::move(release);
+}
+
+void ControlBase::updatePresentationAnimations(float deltaTime) {
+    if (presentationUpdater_) {
+        presentationUpdater_(deltaTime);
+    }
+}
+
 void ControlBase::refreshDisplayScale() {
     for (const std::shared_ptr<ControlBase>& child : getChildren()) {
         if (child != nullptr) {
@@ -227,6 +322,9 @@ void ControlBase::refreshDisplayScale() {
 }
 
 void ControlBase::releaseRuntimeCallbacks() noexcept {
+    if (presentationRelease_) {
+        presentationRelease_();
+    }
     if (FunctionalBase* functional = dynamic_cast<FunctionalBase*>(this)) {
         functional->clearEventCallbacks();
     }
@@ -292,6 +390,7 @@ void ControlBase::_drawOverlay(sf::RenderTarget&, sf::RenderStates) const {}
 
 sf::Transform ControlBase::_getScreenTransform() const {
     sf::Transform transform = getTransform();
+    transform.combine(presentationTransform());
     const std::shared_ptr<ControlBase> parent = getParent();
     if (parent != nullptr) {
         transform = parent->_getScreenTransform() * transform;
@@ -302,12 +401,14 @@ sf::Transform ControlBase::_getScreenTransform() const {
 void ControlBase::_applyRenderStates(sf::RenderStates& states) const {
     states.transform.translate(getPosition() * (Scale - 1.0f));
     states.transform.combine(getTransform());
+    states.transform.combine(presentationTransform());
 }
 
 sf::Transform ControlBase::_getRenderTransform() const {
     sf::Transform transform;
     transform.translate(getPosition() * (Scale - 1.0f));
     transform.combine(getTransform());
+    transform.combine(presentationTransform());
     return transform;
 }
 
@@ -327,6 +428,35 @@ ControlBase::_getAbsoluteChildInteractionClipBounds() const {
 
 bool ControlBase::_ignoresAncestorInteractionClip() const {
     return false;
+}
+
+void ControlBase::_refreshPresentationColour() {}
+
+const sf::Color& ControlBase::presentationColour() const {
+    return presentationColour_;
+}
+
+sf::Color ControlBase::modulatePresentationColour(
+    const sf::Color& colour) const {
+    return {modulateColourComponent(colour.r, presentationColour_.r),
+            modulateColourComponent(colour.g, presentationColour_.g),
+            modulateColourComponent(colour.b, presentationColour_.b),
+            modulateColourComponent(colour.a, presentationColour_.a)};
+}
+
+sf::Transform ControlBase::presentationTransform() const {
+    sf::Transform result;
+    result.translate(presentationTranslation_ * Scale);
+    const sf::FloatRect bounds = getLocalBounds();
+    const sf::Vector2f pivot =
+        (bounds.position + sf::Vector2f(bounds.size.x * presentationPivot_.x,
+                                        bounds.size.y * presentationPivot_.y)) *
+        Scale;
+    result.translate(pivot);
+    result.rotate(sf::degrees(presentationRotation_));
+    result.scale(presentationScale_);
+    result.translate({-pivot.x, -pivot.y});
+    return result;
 }
 
 void ControlBase::draw(sf::RenderTarget&, sf::RenderStates) const {}

@@ -9,6 +9,7 @@
 #include <SFML/System/Vector2.hpp>
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -61,6 +62,22 @@ public:
 
     BIND_METHOD(defaults = {nil})
     void reflow(std::optional<sf::Vector2u> logicalSize = std::nullopt);
+
+    BIND_METHOD(Pure = true, defaults = {nil})
+    bool hasAnimation(const std::string& name,
+                      std::optional<std::string> target = std::nullopt) const;
+
+    BIND_METHOD(defaults = {nil, nil})
+    bool playAnimation(const std::string& name,
+                       std::optional<std::string> target = std::nullopt,
+                       std::function<void()> onFinished = {});
+
+    BIND_METHOD(defaults = {nil})
+    void stopAnimation(const std::string& name,
+                       std::optional<std::string> target = std::nullopt);
+
+    bool sampleAnimation(const std::string& name,
+                         std::optional<std::string> target, float time);
 
     std::vector<UiAssetNodeView> getNodeViews() const;
 

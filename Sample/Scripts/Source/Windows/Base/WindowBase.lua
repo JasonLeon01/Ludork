@@ -34,6 +34,8 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     self._returnButton = nil
     self._pauseMark = nil
     self._pauseMarkTexture = nil
+    self._uiController = nil
+    self._transition = nil
     if deferView == true then
         self:_createDeclarativeChrome()
     else
@@ -93,17 +95,40 @@ end
 
 function WindowBase:setVisible(visible)
     super(WindowBase, self).setVisible(visible)
-    if self._visualRoot ~= nil then
-        self._visualRoot:setVisible(visible)
-    end
     self:_refreshReturnButtonState()
 end
 
-function WindowBase:setPosition(position)
-    super(WindowBase, self).setPosition(position)
-    if self._visualRoot ~= nil then
-        self._visualRoot:setPosition(position)
+function WindowBase:_setUiController(controller, target)
+    self._uiController = controller
+    self._visualRoot = controller:getRoot()
+    self._transition = controller:createTransition(self, target)
+end
+
+function WindowBase:showWithAnimation(animationName, onReady)
+    assert(self._transition ~= nil, "Window transition is unavailable")
+    self._transition:show(animationName or "FadeIn", onReady)
+end
+
+function WindowBase:hideWithAnimation(animationName, onHidden)
+    assert(self._transition ~= nil, "Window transition is unavailable")
+    self._transition:hide(animationName or "FadeOut", onHidden)
+end
+
+function WindowBase:hideImmediate()
+    if self._transition ~= nil then
+        self._transition:hideImmediate()
+        return
     end
+    self:setActive(false)
+    self:setVisible(false)
+end
+
+function WindowBase:isTransitionBlocking()
+    return self._transition ~= nil and self._transition:isBlocking()
+end
+
+function WindowBase:isTransitionOpen()
+    return self._transition ~= nil and self._transition:isOpen()
 end
 
 function WindowBase:_setReturnButtonSuppressed(suppressed)

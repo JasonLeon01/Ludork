@@ -4,13 +4,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 ProgressBar::ProgressBar(const sf::Vector2f& size, float progress,
                          const sf::Color& backgroundColor,
                          const sf::Color& fillColor)
     : size_(normalizedSize(size)), progress_(normalizedProgress(progress)) {
-    background_.setFillColor(backgroundColor);
-    fill_.setFillColor(fillColor);
+    backgroundColor_ = backgroundColor;
+    fillColor_ = fillColor;
+    applyColours();
     updateGeometry();
 }
 
@@ -41,19 +43,21 @@ void ProgressBar::setProgress(float progress) {
 }
 
 sf::Color ProgressBar::getBackgroundColor() const {
-    return background_.getFillColor();
+    return backgroundColor_;
 }
 
 void ProgressBar::setBackgroundColor(const sf::Color& color) {
-    background_.setFillColor(color);
+    backgroundColor_ = color;
+    applyColours();
 }
 
 sf::Color ProgressBar::getFillColor() const {
-    return fill_.getFillColor();
+    return fillColor_;
 }
 
 void ProgressBar::setFillColor(const sf::Color& color) {
-    fill_.setFillColor(color);
+    fillColor_ = color;
+    applyColours();
 }
 
 sf::FloatRect ProgressBar::getLocalBounds() const {
@@ -89,4 +93,13 @@ void ProgressBar::updateGeometry() {
 void ProgressBar::refreshDisplayScale() {
     updateGeometry();
     ControlBase::refreshDisplayScale();
+}
+
+void ProgressBar::_refreshPresentationColour() {
+    applyColours();
+}
+
+void ProgressBar::applyColours() {
+    background_.setFillColor(modulatePresentationColour(backgroundColor_));
+    fill_.setFillColor(modulatePresentationColour(fillColor_));
 }

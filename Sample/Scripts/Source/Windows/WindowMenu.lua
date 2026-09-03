@@ -3,6 +3,7 @@ local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local WindowMenuUI = require("Source.UI.WindowMenu")
+local WindowTransition = require("Source.UI.WindowTransition")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local WindowCommand = require("Source.Windows.WindowCommand")
 
@@ -28,8 +29,6 @@ local function asSelectableWindow(control)
     return control
 end
 
----@type function
-local onMenuExit
 ---@class Source.Windows.WindowMenu.Controller
 local WindowMenuController = {}
 
@@ -62,7 +61,7 @@ function WindowMenuController.CreateCommands(owner)
         {
             localeKey = "MENU_EXIT",
             callback = function ()
-                onMenuExit()
+                owner:_onMenuExit()
             end
         }
     }
@@ -79,7 +78,9 @@ function WindowMenuController:bind()
     end
     local onSubMenuClose = function ()
         self:_syncReturnButtonSuppression()
-        self.model:requestKeyboardFocus()
+        if self.model:isTransitionOpen() then
+            self.model:requestKeyboardFocus()
+        end
     end
     self.model._windowItem._onCloseCallback = onSubMenuClose
     self.model._windowEquip:setOnCloseCallback(onSubMenuClose)
@@ -130,20 +131,25 @@ function WindowMenuController:open()
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self.model._player:setMoveEnabled(false)
     self.model:resetSelection()
-    self.model:setVisible(true)
-    self.model:setActive(true)
     self:_syncReturnButtonSuppression()
-    self.model:requestKeyboardFocus()
+    self.model:showWithAnimation("FadeIn", function ()
+        self.model:setActive(true)
+        self.model:requestKeyboardFocus()
+    end)
 end
 
-function WindowMenuController:close()
+function WindowMenuController:close(onHidden)
     self:_closeSubMenus()
-    self.model:setVisible(false)
     self.model:setActive(false)
     self:_syncReturnButtonSuppression()
-    if self._moveRestoreGuard() then
-        self.model._player:setMoveEnabled(true)
-    end
+    self.model:hideWithAnimation("FadeOut", function ()
+        if self._moveRestoreGuard() then
+            self.model._player:setMoveEnabled(true)
+        end
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
 end
 
 function WindowMenuController:isBlocking()
@@ -170,7 +176,6 @@ function WindowMenuController:_handleCancel()
     end
     if self:_closeSubMenus() then
         ManagerFunctions.playSE(GameSystem.GetCancelSE())
-        self.model:requestKeyboardFocus()
         return
     end
     self:_closeByCancel()
@@ -181,7 +186,6 @@ function WindowMenuController:_onMenuItem()
     self:_closeSubMenus("item")
     self.model._windowItem:open()
     self:_syncReturnButtonSuppression()
-    self.model._windowItem:requestKeyboardFocusAtCursor()
 end
 
 function WindowMenuController:_onMenuEquip()
@@ -189,13 +193,12 @@ function WindowMenuController:_onMenuEquip()
     self:_closeSubMenus("equip")
     self.model._windowEquip:open()
     self:_syncReturnButtonSuppression()
-    self.model._windowEquip:requestSlotFocus()
 end
 
 function WindowMenuController:_onMenuSave()
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
-    self.model._windowSaveLoad:open()
+    self.model._windowSaveLoad:open(WindowTransition.MENU)
     self:_syncReturnButtonSuppression()
 end
 
@@ -208,20 +211,28 @@ function WindowMenuController:_onMenuConfig()
 end
 
 function WindowMenuController:onSaveLoadClose()
+    if not self.model:isTransitionOpen() then
+        return
+    end
     self:_syncReturnButtonSuppression()
     self.model:requestKeyboardFocus()
 end
 
 function WindowMenuController:onConfigClose()
+    if not self.model:isTransitionOpen() then
+        return
+    end
     self.model:setActive(true)
     self:_syncReturnButtonSuppression()
     self.model:requestKeyboardFocus()
 end
 
-function onMenuExit()
+function WindowMenuController:onMenuExit()
     local Title = require("Source.Scenes.SceneTitle")
 
-    GlobalSystem.setScene(Title.new())
+    self:close(function ()
+        GlobalSystem.setScene(Title.new())
+    end)
 end
 
 ---@return Source.Windows.Base.WindowSelectable | nil
@@ -304,6 +315,7 @@ function WindowMenu:init(player, windows)
     self._menuController:attachTo(self._ui:getListView(), commands)
     ---@cast self._menuController Source.Windows.WindowMenu.Controller
     self._menuControls = self._menuController:getMenuControls()
+    self:hideImmediate()
 end
 
 function WindowMenu:setPlayer(player)
@@ -337,8 +349,8 @@ function WindowMenu:open()
     self._menuController:open()
 end
 
-function WindowMenu:close()
-    self._menuController:close()
+function WindowMenu:close(onHidden)
+    self._menuController:close(onHidden)
 end
 
 function WindowMenu:isBlocking()
@@ -363,6 +375,10 @@ end
 
 function WindowMenu:_onMenuConfig()
     self._menuController:_onMenuConfig()
+end
+
+function WindowMenu:_onMenuExit()
+    self._menuController:onMenuExit()
 end
 
 function WindowMenu:onSaveLoadClose()

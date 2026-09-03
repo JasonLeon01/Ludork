@@ -6,11 +6,6 @@ local WindowMessageLayout = {}
 ---@return string
 function WindowMessageLayout.NormaliseText(text) end
 
----@param cache table<string, Engine.Curve>
----@param key   string
----@return Engine.Curve
-function WindowMessageLayout.GetFadeCurve(cache, key) end
-
 ---@param bounds sf.FloatRect
 ---@return integer
 function WindowMessageLayout.GetTextLineHeight(bounds) end

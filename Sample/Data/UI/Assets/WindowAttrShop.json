@@ -9,6 +9,36 @@
     "displayName": "Window Attribute Shop",
     "category": "Windows"
   },
+  "animations": [
+    {
+      "name": "FadeIn",
+      "target": null,
+      "duration": 0.2,
+      "pivot": [0.5, 0.5],
+      "tracks": {
+        "scale": [
+          { "time": 0.0, "value": [0.5, 0.5] },
+          { "time": 0.2, "value": [1.0, 1.0] }
+        ],
+        "colour": [
+          { "time": 0.0, "value": [255, 255, 255, 0] },
+          { "time": 0.2, "value": [255, 255, 255, 255] }
+        ]
+      }
+    },
+    {
+      "name": "FadeOut",
+      "target": null,
+      "duration": 0.2,
+      "pivot": [0.5, 0.5],
+      "tracks": {
+        "colour": [
+          { "time": 0.0, "value": [255, 255, 255, 255] },
+          { "time": 0.2, "value": [255, 255, 255, 0] }
+        ]
+      }
+    }
+  ],
   "root": {
     "name": "Root",
     "controlId": "Engine.Canvas",

@@ -56,7 +56,7 @@ function WindowMessageUI:prepare()
 end
 
 function WindowMessageUI:attach()
-    self:attachWindowView(self.model)
+    self:attachWindowView(self.model, nil, "Panel")
 end
 
 function WindowMessageUI:getWindowFrame()

@@ -52,6 +52,10 @@ public:
 protected:
     void setPremultipliedTexture(bool premultiplied);
 
+    sf::Color presentedColour() const;
+
+    void _refreshPresentationColour() override;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -63,6 +67,8 @@ protected:
     virtual sf::Transform _getRenderTransform() const override;
 
 private:
+    void applyColour();
+
     std::shared_ptr<sf::Texture> texture_;
     std::unique_ptr<sf::Sprite> sprite_;
     sf::RenderStates renderStates_;

@@ -53,8 +53,14 @@ protected:
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
 
+    void _refreshPresentationColour() override;
+
 private:
+    void applyColours();
+
     sf::Vector2f size_;
     sf::RectangleShape shape_;
     float outlineThickness_ = 0.0f;
+    sf::Color fillColor_ = sf::Color::White;
+    sf::Color outlineColor_ = sf::Color::Transparent;
 };

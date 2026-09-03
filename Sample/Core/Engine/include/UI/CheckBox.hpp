@@ -75,6 +75,8 @@ public:
     void releaseRuntimeCallbacks() noexcept override;
 
 protected:
+    void _refreshPresentationColour() override;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -84,6 +86,7 @@ private:
     static sf::Vector2u integerSize(const sf::Vector2f& size);
     void rebuildMark(std::shared_ptr<PlainTextConfig> textConfig);
     void updateMark();
+    void applyPresentationColour();
 
     sf::Vector2f size_;
     std::unique_ptr<Rect> frame_;

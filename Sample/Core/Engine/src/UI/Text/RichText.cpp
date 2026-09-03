@@ -152,7 +152,7 @@ void RichText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
     ensureEffects();
     if (ludork::engine::text_effects::draw(effects_->data, target, states,
-                                           colour_, config_->glow,
+                                           presentedColour(), config_->glow,
                                            config_->gradient)) {
         return;
     }
@@ -238,6 +238,10 @@ sf::Color RichText::modulateColour(const sf::Color& baseColour,
                                    const sf::Color& factorColour) {
     return ludork::engine::text_detail::modulateColour(baseColour,
                                                        factorColour);
+}
+
+sf::Color RichText::presentedColour() const {
+    return modulatePresentationColour(colour_);
 }
 
 void RichText::renderText(const std::string& text) {
@@ -457,8 +461,14 @@ void RichText::applySegmentColour(sf::Text& text,
                                   const TextStyle& style) const {
     const sf::Color fill = style.fillColor.value_or(sf::Color::White);
     const sf::Color outline = style.outlineColor.value_or(sf::Color::Black);
-    text.setFillColor(modulateColour(fill, colour_));
-    text.setOutlineColor(modulateColour(outline, colour_));
+    const sf::Color colour = presentedColour();
+    text.setFillColor(modulateColour(fill, colour));
+    text.setOutlineColor(modulateColour(outline, colour));
+}
+
+void RichText::_refreshPresentationColour() {
+    refreshSegmentColours();
+    invalidateEffects();
 }
 
 void RichText::invalidateEffects() {

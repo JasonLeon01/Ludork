@@ -163,6 +163,7 @@ void CharacterView::resize(const sf::Vector2f& size) {
 }
 
 void CharacterView::update(float deltaTime) {
+    FunctionalBase::update(deltaTime);
     if (deltaTime <= 0.0f) {
         return;
     }
@@ -186,8 +187,9 @@ void CharacterView::draw(sf::RenderTarget& target,
                          sf::RenderStates states) const {
     _applyRenderStates(states);
     states.blendMode = getRenderStates().blendMode;
-    const sf::Color colour =
-        shaderError_ ? sf::Color(255, 0, 255, 255) : getColour();
+    const sf::Color colour = shaderError_
+                                 ? sf::Color(255, 0, 255, presentedColour().a)
+                                 : presentedColour();
     if (shaderError_) {
         target.draw(finalSprite(*characterTexture_, frameRect_, colour),
                     states);

@@ -4,6 +4,7 @@
 #include <EngineRuntimeApi.hpp>
 
 #include <SFML/Graphics/Drawable.hpp>
+#include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
@@ -12,10 +13,12 @@
 #include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector2.hpp>
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -153,6 +156,22 @@ public:
 
     sf::Transform screenRenderTransform() const;
 
+    void setPresentationTransform(const sf::Vector2f& translation,
+                                  float rotation, const sf::Vector2f& scale,
+                                  const sf::Vector2f& pivot);
+
+    void resetPresentationTransform();
+
+    void setPresentationColour(const void* source, const sf::Color& colour);
+
+    void clearPresentationColour(const void* source);
+
+    void setPresentationUpdater(std::function<void(float)> updater);
+
+    void setPresentationRelease(std::function<void()> release);
+
+    void updatePresentationAnimations(float deltaTime);
+
     virtual void refreshDisplayScale();
 
     void releaseRuntimeCallbacks() noexcept override;
@@ -186,6 +205,12 @@ protected:
 
     virtual bool _ignoresAncestorInteractionClip() const;
 
+    virtual void _refreshPresentationColour();
+
+    const sf::Color& presentationColour() const;
+
+    sf::Color modulatePresentationColour(const sf::Color& colour) const;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -204,7 +229,17 @@ private:
     std::string name_;
     std::weak_ptr<ControlBase> parent_;
     std::weak_ptr<RuntimeCallbackRegistry> runtimeCallbackRegistry_;
+    sf::Vector2f presentationTranslation_{0.0f, 0.0f};
+    float presentationRotation_ = 0.0f;
+    sf::Vector2f presentationScale_{1.0f, 1.0f};
+    sf::Vector2f presentationPivot_{0.5f, 0.5f};
+    std::unordered_map<const void*, sf::Color> presentationColours_;
+    sf::Color presentationColour_ = sf::Color::White;
+    std::function<void(float)> presentationUpdater_;
+    std::function<void()> presentationRelease_;
 
     static std::weak_ptr<RuntimeCallbackRegistry>
         activeRuntimeCallbackRegistry_;
+
+    sf::Transform presentationTransform() const;
 };

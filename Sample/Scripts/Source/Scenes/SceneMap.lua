@@ -182,7 +182,7 @@ function Scene:onCreate()
         end
     end)
 
-    self._windowMenu:close()
+    self._windowMenu:hideImmediate()
     self._gameMap = nil
     self._cachedMapFile = nil
     self._currentRegion = nil
@@ -254,6 +254,13 @@ function Scene:onDestroy()
     end
     self._dialogueLocaleSource = nil
     self._mapAudio:stopMapAudio()
+    self._messageWindow:hideImmediate()
+    self._windowMenu:hideImmediate()
+    self._windowItem:hideImmediate()
+    self._windowEquip:hideImmediate()
+    self._windowAttrShop:getSelectable():hideImmediate()
+    self._windowEnemyBook:hideImmediate()
+    self._windowEnemyEncyclopedia:hideImmediate()
     self._windowSaveLoad:dispose()
     self._windowShop:dispose()
     self._windowFloorTeleporter:dispose()

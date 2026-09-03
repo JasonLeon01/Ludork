@@ -65,8 +65,7 @@ function ConfigWindow:init(onClose)
     self._tabNavigationHandledThisFrame = false
     self._ui:setActivePage(self._activePageIndex)
     self:_refreshControlActivity()
-    self:setVisible(false)
-    self:setActive(false)
+    self:hideImmediate()
 end
 
 function ConfigWindow:getLanguageDropBox()
@@ -145,12 +144,14 @@ function ConfigWindow:open()
     self._tabView:setSelectedIndex(self._activePageIndex)
     self:setListView(self:_getActivePage().list)
     self._open = true
-    self:setVisible(true)
-    self:setActive(true)
     self:_restorePageScroll()
     self:resetSelection()
     self:_refreshControlActivity()
-    self:requestKeyboardFocusAtCursor()
+    self:showWithAnimation("FadeIn", function ()
+        self:setActive(true)
+        self:_refreshControlActivity()
+        self:requestKeyboardFocusAtCursor()
+    end)
 end
 
 function ConfigWindow:close()
@@ -159,13 +160,15 @@ function ConfigWindow:close()
     self:_setSelectionInputPaused(false)
     self:setActive(false)
     self:_refreshControlActivity()
-    self:setVisible(false)
-    if self._onClose ~= nil then
-        self._onClose()
-    end
+    self:hideWithAnimation("FadeOut", function ()
+        if self._onClose ~= nil then
+            self._onClose()
+        end
+    end)
 end
 
 function ConfigWindow:dispose()
+    self:hideImmediate()
     self:_detachSelectionRect()
     self.content = self._windowContent
     if self._ui ~= nil then

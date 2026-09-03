@@ -14,8 +14,7 @@ function WindowItem:init(rect, player, onClose)
     self._itemUI = WindowItemUI.new(self)
     self._itemUI:attach()
     self:_refreshItems()
-    self:setActive(false)
-    self:setVisible(false)
+    self:hideImmediate()
 end
 
 function WindowItem:setPlayer(player)
@@ -49,8 +48,8 @@ function WindowItem:refreshLocale()
     self:_updateDescription()
 end
 
-function WindowItem:close()
-    self._itemUI:close()
+function WindowItem:close(onHidden)
+    self._itemUI:close(onHidden)
 end
 
 function WindowItem:onReturn()

@@ -170,9 +170,10 @@ function WindowAttrShopUI:open(
     self:refreshLocale()
     selectable:resetSelection()
     self.model._closed = false
-    selectable:setVisible(true)
-    selectable:setActive(true)
-    selectable:requestKeyboardFocus()
+    selectable:showWithAnimation("FadeIn", function ()
+        selectable:setActive(true)
+        selectable:requestKeyboardFocus()
+    end)
 end
 
 function WindowAttrShopUI:refreshLocale()
@@ -205,11 +206,15 @@ function WindowAttrShopUI:refreshItems()
     )
 end
 
-function WindowAttrShopUI:close()
+function WindowAttrShopUI:close(onHidden)
     local selectable = self:_getSelectable()
-    selectable:setVisible(false)
     selectable:setActive(false)
-    self.model._closed = true
+    selectable:hideWithAnimation("FadeOut", function ()
+        self.model._closed = true
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
 end
 
 function WindowAttrShopUI:closeByCancel()
@@ -366,10 +371,11 @@ function WindowAttrShopUI:increasePrice(abilityIndex)
 end
 
 function WindowAttrShopUI:closeAndNotify()
-    self:close()
-    if self.model._onCloseCallback ~= nil then
-        self.model._onCloseCallback()
-    end
+    self:close(function ()
+        if self.model._onCloseCallback ~= nil then
+            self.model._onCloseCallback()
+        end
+    end)
 end
 
 function WindowAttrShopUI.GetDefaultRect(size)

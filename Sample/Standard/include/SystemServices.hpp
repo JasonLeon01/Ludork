@@ -14,6 +14,8 @@ LUDORK_STANDARD_API double performanceCounter();
 LUDORK_STANDARD_API void setDefaultLocale(const std::string& language);
 LUDORK_STANDARD_API std::tuple<std::string, std::string> defaultLocale();
 LUDORK_STANDARD_API std::filesystem::path currentWorkingDirectory();
+LUDORK_STANDARD_API void createDirectories(const std::filesystem::path& value);
+LUDORK_STANDARD_API void removeFile(const std::filesystem::path& value);
 LUDORK_STANDARD_API std::vector<std::filesystem::path> listDirectory(
     const std::filesystem::path& value);
 LUDORK_STANDARD_API std::filesystem::path joinPath(

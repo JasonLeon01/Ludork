@@ -55,7 +55,8 @@ function WindowFloorTeleporter:getVisible() end
 function WindowFloorTeleporter:open(inst) end
 
 ---@brief Close and deactivate both child windows.
-function WindowFloorTeleporter:close() end
+---@param onHidden function | nil
+function WindowFloorTeleporter:close(onHidden) end
 
 ---@brief Close the window via cancel input.
 function WindowFloorTeleporter:closeByCancel() end

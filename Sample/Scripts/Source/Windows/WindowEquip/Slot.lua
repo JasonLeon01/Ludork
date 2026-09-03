@@ -212,9 +212,10 @@ end
 
 function WindowEquipSlotController:closeByCancel()
     ManagerFunctions.playSE(GameSystem.GetCancelSE())
-    self:close()
     if self.model._onCloseCallback ~= nil then
         self.model._onCloseCallback()
+    else
+        self:close()
     end
 end
 

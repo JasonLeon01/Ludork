@@ -25,23 +25,24 @@ function WindowEnemyEncyclopedia:init(rect, onClose)
     self._ui = self.uiClass.new(self, rect.size)
     self._ui:attach()
     self:setCanReceiveFocus(true)
-    self:setActive(false)
-    self:setVisible(false)
+    self:hideImmediate()
 end
 
 function WindowEnemyEncyclopedia:open(entry)
     self._ui:open(entry)
-    self:setVisible(true)
-    self:setActive(true)
-    self:requestKeyboardFocus()
+    self:showWithAnimation("FadeIn", function ()
+        self:setActive(true)
+        self:requestKeyboardFocus()
+    end)
 end
 
 function WindowEnemyEncyclopedia:close()
-    self:setVisible(false)
     self:setActive(false)
-    if self._onCloseCallback ~= nil then
-        self._onCloseCallback()
-    end
+    self:hideWithAnimation("FadeOut", function ()
+        if self._onCloseCallback ~= nil then
+            self._onCloseCallback()
+        end
+    end)
 end
 
 function WindowEnemyEncyclopedia:refreshLocale()

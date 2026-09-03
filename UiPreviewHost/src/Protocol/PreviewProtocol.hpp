@@ -10,7 +10,7 @@
 
 namespace ludork::preview_host {
 
-inline constexpr std::int64_t protocolVersion = 5;
+inline constexpr std::int64_t protocolVersion = 6;
 
 RuntimeValue::Map object(
     std::initializer_list<std::pair<const std::string, RuntimeValue>> values);

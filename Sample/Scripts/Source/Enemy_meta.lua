@@ -3,7 +3,6 @@ local _METADATA = {
         attrs = {
             "ID",
             "childActorComp",
-            "tickable",
             "collisionEnabled",
             "animatable",
             "animateWithoutMoving",
@@ -30,10 +29,6 @@ local _METADATA = {
                 className = "Source.EnemyDamageText.EnemyDamageText",
                 relativePosition = { 0.0, 0.0 }
             }
-        },
-        tickable = {
-            type = "bool",
-            default = true
         },
         collisionEnabled = {
             type = "bool",

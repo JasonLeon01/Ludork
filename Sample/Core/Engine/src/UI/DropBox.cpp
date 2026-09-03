@@ -395,6 +395,10 @@ void DropBox::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
 }
 
+void DropBox::_refreshPresentationColour() {
+    applyPresentationColour();
+}
+
 void DropBox::onTouchCaptureBegan(const sf::Vector2f& position) {
     touchStartPosition_ = position;
     touchStartScrollOffset_ = scrollOffset_;
@@ -778,6 +782,7 @@ void DropBox::rebuildVisuals() const {
     popupWindowSize_ = {};
     popupContentTextureSize_ = {};
     visualsDirty_ = false;
+    applyPresentationColour();
 }
 
 void DropBox::ensurePopupVisuals() const {
@@ -790,6 +795,7 @@ void DropBox::ensurePopupVisuals() const {
         expandedWindow_ = std::make_unique<Window>(
             sf::IntRect({0, 0}, popupSize), windowSkin_, repeated_);
         popupWindowSize_ = windowSize;
+        expandedWindow_->setPresentationColour(this, presentationColour());
     }
 
     const sf::Vector2u contentTextureSize =
@@ -845,6 +851,24 @@ void DropBox::updateSelectionVisual() const {
     selectionRect_->setVisible(expanded_ && !items_.empty());
     selectionRect_->setPosition(
         {ItemHorizontalInset, RowHeight * static_cast<float>(cursorIndex_)});
+}
+
+void DropBox::applyPresentationColour() const {
+    if (collapsedFrame_ != nullptr) {
+        collapsedFrame_->setPresentationColour(this, presentationColour());
+    }
+    if (collapsedText_ != nullptr) {
+        collapsedText_->setPresentationColour(this, presentationColour());
+    }
+    if (expandedWindow_ != nullptr) {
+        expandedWindow_->setPresentationColour(this, presentationColour());
+    }
+    if (selectionRect_ != nullptr) {
+        selectionRect_->setPresentationColour(this, presentationColour());
+    }
+    for (const std::unique_ptr<PlainText>& text : itemTexts_) {
+        text->setPresentationColour(this, presentationColour());
+    }
 }
 
 void DropBox::positionCollapsedText() const {

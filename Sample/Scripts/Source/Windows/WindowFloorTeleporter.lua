@@ -50,26 +50,44 @@ function WindowFloorTeleporterController:open(inst)
     self.model._commandWindow:resetSelection()
     self.model._previewWindow:resetSelection()
     self.model._commandWindow:setVisible(true)
-    self.model._commandWindow:setActive(true)
+    self.model._commandWindow:setActive(false)
     self.model._previewWindow:setVisible(true)
     self.model._previewWindow:setActive(false)
-    self.model:setVisible(true)
-    self.model._commandWindow:requestKeyboardFocus()
+    self.model._transition:show("FadeIn", function ()
+        self.model:setActive(true)
+        self.model._commandWindow:setActive(true)
+        self.model._commandWindow:requestKeyboardFocus()
+    end)
 end
 
-function WindowFloorTeleporterController:close()
+function WindowFloorTeleporterController:close(onHidden)
+    self.model._commandWindow:setActive(false)
+    self.model._previewWindow:setActive(false)
+    self.model:setActive(false)
+    self.model._transition:hide("FadeOut", function ()
+        self.model._commandWindow:setVisible(false)
+        self.model._previewWindow:setVisible(false)
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
+end
+
+function WindowFloorTeleporterController:hideImmediate()
     self.model._commandWindow:setVisible(false)
     self.model._commandWindow:setActive(false)
     self.model._previewWindow:setVisible(false)
     self.model._previewWindow:setActive(false)
+    self.model._transition:hideImmediate()
 end
 
 function WindowFloorTeleporterController:closeByCancel()
     ManagerFunctions.playSE(GameSystem.GetCancelSE())
-    self:close()
-    if self.model._onCloseCallback ~= nil then
-        self.model._onCloseCallback()
-    end
+    self:close(function ()
+        if self.model._onCloseCallback ~= nil then
+            self.model._onCloseCallback()
+        end
+    end)
 end
 
 function WindowFloorTeleporterController:refreshLocale()
@@ -113,9 +131,11 @@ function WindowFloorTeleporterController:confirmSelectedTelepoint()
         return
     end
     ManagerFunctions.playSE(GameSystem.GetDecisionSE())
-    if self.model._onConfirmCallback ~= nil then
-        self.model._onConfirmCallback(mapKey, telepoint)
-    end
+    self:close(function ()
+        if self.model._onConfirmCallback ~= nil then
+            self.model._onConfirmCallback(mapKey, telepoint)
+        end
+    end)
 end
 
 function WindowFloorTeleporterController:notifyTelepointIndexMaybeChanged(index)
@@ -271,6 +291,7 @@ function WindowFloorTeleporter:init(
     self._clearPreviewCacheCallback = clearPreviewCache
     self._ui = WindowFloorTeleporterUI.new(self)
     self._ui:attach()
+    self._transition = self._ui:createTransition(self)
     self._commandWindow = WindowFloorMapCommand.new(
         Engine.ToIntRect(0, 0, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT), self, self._ui:getCommandAsset()
     )
@@ -284,7 +305,7 @@ function WindowFloorTeleporter:init(
     self._telepointIndexes = {}
     self._telepointEntriesCache = dict()
     self._teleporterController = self.controllerClass.new(self)
-    self._teleporterController:close()
+    self._teleporterController:hideImmediate()
 end
 
 function WindowFloorTeleporter:getCommandWindow()
@@ -296,15 +317,15 @@ function WindowFloorTeleporter:getPreviewWindow()
 end
 
 function WindowFloorTeleporter:getVisible()
-    return self._previewWindow:getVisible()
+    return self._transition:isBlocking()
 end
 
 function WindowFloorTeleporter:open(inst)
     self._teleporterController:open(inst)
 end
 
-function WindowFloorTeleporter:close()
-    self._teleporterController:close()
+function WindowFloorTeleporter:close(onHidden)
+    self._teleporterController:close(onHidden)
 end
 
 function WindowFloorTeleporter:closeByCancel()
@@ -349,7 +370,7 @@ function WindowFloorTeleporter.GetDefaultFloorTeleporterRects()
 end
 
 function WindowFloorTeleporter:dispose()
-    self:close()
+    self._teleporterController:hideImmediate()
     self._ui:dispose()
     self._inst = nil
     self._getTelepointTagCallback = nil

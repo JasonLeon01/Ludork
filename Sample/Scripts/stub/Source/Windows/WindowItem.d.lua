@@ -36,7 +36,8 @@ function WindowItem:open() end
 function WindowItem:refreshLocale() end
 
 ---@brief Close the item window.
-function WindowItem:close() end
+---@param onHidden function | nil
+function WindowItem:close(onHidden) end
 
 ---@brief Close the item window through its cancel path.
 function WindowItem:onReturn() end

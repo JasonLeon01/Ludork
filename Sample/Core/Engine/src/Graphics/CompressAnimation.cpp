@@ -1,6 +1,7 @@
 #include <Graphics/CompressAnimation.hpp>
 
 #include <Base64.hpp>
+#include <Compression.hpp>
 #include <Utf8Path.hpp>
 
 #include <SFML/Graphics/Color.hpp>
@@ -9,8 +10,6 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/System/Angle.hpp>
-#include <zlib.h>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -19,6 +18,7 @@
 #include <memory>
 #include <numbers>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -88,15 +88,12 @@ sf::Texture* getTexture(
 
 std::vector<std::uint8_t> compressFrame(const std::uint8_t* data,
                                         std::size_t size) {
-    uLongf compressedSize = compressBound(static_cast<uLong>(size));
-    std::vector<std::uint8_t> compressed(compressedSize);
-    const int result = compress2(compressed.data(), &compressedSize, data,
-                                 static_cast<uLong>(size), Z_BEST_COMPRESSION);
-    if (result != Z_OK) {
+    try {
+        return ludork::standard::compressZlib(
+            std::span<const std::uint8_t>(data, size), 9);
+    } catch (const std::exception&) {
         throw std::runtime_error("Failed to compress animation frame");
     }
-    compressed.resize(compressedSize);
-    return compressed;
 }
 
 void updateCanvasExtent(

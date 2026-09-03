@@ -146,7 +146,7 @@
             </Border>
             <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
-            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+            <Grid Grid.Column="2" RowDefinitions="Auto,*,5,Auto">
                 <Border
                     Padding="10,6"
                     Background="#252525"
@@ -166,6 +166,45 @@
                     </Grid>
                 </Border>
                 <ContentControl x:Name="PreviewContainer" Grid.Row="1" />
+                <GridSplitter
+                    Grid.Row="2"
+                    ResizeDirection="Rows" />
+                <Expander
+                    x:Name="TimelineExpander"
+                    Grid.Row="3"
+                    Classes="timeline-expander"
+                    HorizontalContentAlignment="Stretch"
+                    IsExpanded="True">
+                    <Expander.Styles>
+                        <Style Selector="Expander.timeline-expander /template/ Control#PART_ExpandIcon">
+                            <Setter Property="IsVisible" Value="False" />
+                        </Style>
+                        <Style Selector="Expander.timeline-expander:expanded PathIcon.timeline-arrow">
+                            <Setter Property="RenderTransform" Value="rotate(180deg)" />
+                        </Style>
+                    </Expander.Styles>
+                    <Expander.Header>
+                        <Grid Margin="8,4" ColumnDefinitions="*,Auto">
+                            <TextBlock
+                                x:Name="TimelineTitle"
+                                VerticalAlignment="Center"
+                                FontWeight="SemiBold" />
+                            <PathIcon
+                                Grid.Column="1"
+                                Width="16"
+                                Height="16"
+                                Classes="timeline-arrow"
+                                Data="M 1,11 L 8,4 L 15,11 L 13,13 L 8,8 L 3,13 Z"
+                                RenderTransformOrigin="50%,50%" />
+                        </Grid>
+                    </Expander.Header>
+                    <Border
+                        Height="230"
+                        BorderBrush="#404040"
+                        BorderThickness="0,1,0,0">
+                        <ContentControl x:Name="TimelineContainer" />
+                    </Border>
+                </Expander>
             </Grid>
             <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
 

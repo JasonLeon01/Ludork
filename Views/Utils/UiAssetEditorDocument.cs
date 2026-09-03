@@ -141,15 +141,21 @@ public sealed class UiAssetEditorDocument
     public bool DeleteNode(string nodeName)
     {
         JsonObject? root = getRoot();
+        JsonObject? target = FindNode(nodeName);
         if (root is null
+            || target is null
             || string.Equals(getString(root, "name"), nodeName, StringComparison.Ordinal))
         {
             return false;
         }
         JsonObject before = (JsonObject)data.DeepClone();
+        HashSet<string> removedNames = enumerateNodes(target)
+            .Select(node => getString(node, "name"))
+            .ToHashSet(StringComparer.Ordinal);
         bool removed = removeNode(root, nodeName, out _);
         if (!removed)
             return false;
+        removeAnimationsForTargets(removedNames);
         completeMutation(before);
         return true;
     }
@@ -172,9 +178,11 @@ public sealed class UiAssetEditorDocument
             .Select(node => getString(node, "name"))
             .Where(name => name.Length != 0)
             .ToHashSet(StringComparer.Ordinal);
-        replaceCloneNames(copy, names);
+        Dictionary<string, string> replacements = new Dictionary<string, string>(StringComparer.Ordinal);
+        replaceCloneNames(copy, names, replacements);
         JsonObject before = (JsonObject)data.DeepClone();
         children.Insert(sourceIndex + 1, copy);
+        duplicateAnimationsForTargets(replacements);
         completeMutation(before);
         return getString(copy, "name");
     }
@@ -219,7 +227,11 @@ public sealed class UiAssetEditorDocument
         {
             return false;
         }
-        return setNodeValue(node, "name", JsonValue.Create(value));
+        JsonObject before = (JsonObject)data.DeepClone();
+        node["name"] = value;
+        renameAnimationTarget(nodeName, value);
+        completeMutation(before);
+        return true;
     }
 
     public bool SetNodeProperty(string nodeName, string propertyId, JsonNode? value)
@@ -294,6 +306,11 @@ public sealed class UiAssetEditorDocument
             ["category"] = category.Trim(),
         };
         return setNodeValue(data, "palette", palette);
+    }
+
+    public bool SetAnimations(JsonArray animations)
+    {
+        return setNodeValue(data, "animations", animations);
     }
 
     public static JsonObject CreateDefaultCanvasSlot()
@@ -401,15 +418,62 @@ public sealed class UiAssetEditorDocument
 
     private static void replaceCloneNames(
         JsonObject node,
-        ISet<string> names)
+        ISet<string> names,
+        IDictionary<string, string> replacements)
     {
-        string name = createUniqueName(getString(node, "name"), names);
+        string previous = getString(node, "name");
+        string name = createUniqueName(previous, names);
         node["name"] = name;
         names.Add(name);
+        replacements[previous] = name;
         if (node["children"] is not JsonArray children)
             return;
         foreach (JsonObject child in children.OfType<JsonObject>())
-            replaceCloneNames(child, names);
+            replaceCloneNames(child, names, replacements);
+    }
+
+    private JsonArray animations()
+    {
+        return ensureArray(data, "animations");
+    }
+
+    private void renameAnimationTarget(string previous, string next)
+    {
+        foreach (JsonObject animation in animations().OfType<JsonObject>())
+        {
+            if (string.Equals(getString(animation, "target"), previous, StringComparison.Ordinal))
+                animation["target"] = next;
+        }
+    }
+
+    private void removeAnimationsForTargets(ISet<string> targets)
+    {
+        JsonArray values = animations();
+        for (int index = values.Count - 1; index >= 0; index--)
+        {
+            if (values[index] is JsonObject animation
+                && targets.Contains(getString(animation, "target")))
+            {
+                values.RemoveAt(index);
+            }
+        }
+    }
+
+    private void duplicateAnimationsForTargets(IReadOnlyDictionary<string, string> replacements)
+    {
+        JsonArray values = animations();
+        JsonArray copies = new JsonArray();
+        foreach (JsonObject animation in values.OfType<JsonObject>())
+        {
+            string target = getString(animation, "target");
+            if (!replacements.TryGetValue(target, out string? replacement))
+                continue;
+            JsonObject copy = (JsonObject)animation.DeepClone();
+            copy["target"] = replacement;
+            copies.Add(copy);
+        }
+        foreach (JsonNode? copy in copies)
+            values.Add(copy?.DeepClone());
     }
 
     private static JsonObject? findNode(JsonObject? node, string nodeName)

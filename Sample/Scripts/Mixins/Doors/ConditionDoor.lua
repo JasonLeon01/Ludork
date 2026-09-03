@@ -1,9 +1,6 @@
-local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 
 local System = GlobalCore.System
-
-local EVENT_KEY = "ConditionalDoorAutoOpen"
 
 ---@class (partial) Mixins.Doors.ConditionDoor
 local ConditionDoor = {}
@@ -33,10 +30,7 @@ function ConditionDoor:onCreate()
         value = 0
     end
     inst:setVariable(self.openConditionName, value)
-end
-
-function ConditionDoor:onDestroy()
-    Engine.unsubscribeObjectHandler(EVENT_KEY, self)
+    self:setTickable(true, false)
 end
 
 function ConditionDoor:onTick(deltaTime)

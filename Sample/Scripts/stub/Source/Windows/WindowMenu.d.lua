@@ -24,7 +24,8 @@ function WindowMenuController:handleDirectionalKey(direction) end
 
 function WindowMenuController:open() end
 
-function WindowMenuController:close() end
+---@param onHidden function | nil
+function WindowMenuController:close(onHidden) end
 
 ---@return boolean
 function WindowMenuController:isBlocking() end
@@ -37,6 +38,8 @@ function WindowMenuController:getMenuControls() end
 function WindowMenuController:onSaveLoadClose() end
 
 function WindowMenuController:onConfigClose() end
+
+function WindowMenuController:onMenuExit() end
 
 ---@brief In-game menu window that manages commands, open/close triggers, and sub-windows.
 ---
@@ -107,7 +110,8 @@ function WindowMenu:onDirectionalKey(direction) end
 function WindowMenu:open() end
 
 ---@brief Close the menu window and restore player movement.
-function WindowMenu:close() end
+---@param onHidden function | nil
+function WindowMenu:close(onHidden) end
 
 ---@brief Return True when the menu or its sub-windows are blocking map input.
 ---@return boolean
@@ -120,6 +124,8 @@ function WindowMenu:_onMenuEquip() end
 function WindowMenu:_onMenuSave() end
 
 function WindowMenu:_onMenuConfig() end
+
+function WindowMenu:_onMenuExit() end
 
 ---@return Source.Windows.Base.WindowSelectable | nil
 function WindowMenu:_getCurrentSubMenuFocusTarget() end

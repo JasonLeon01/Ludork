@@ -63,7 +63,8 @@ function WindowShop:isClosed() end
 ---@param canSell    boolean
 function WindowShop:open(buyItemIDs, canSell) end
 
-function WindowShop:close() end
+---@param onHidden function | nil
+function WindowShop:close(onHidden) end
 
 function WindowShop:closeByCancel() end
 

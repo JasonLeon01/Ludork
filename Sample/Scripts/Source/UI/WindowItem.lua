@@ -121,13 +121,15 @@ end
 
 function WindowItemUI:open()
     self:refreshItems()
-    self.model:setVisible(true)
-    self.model:setActive(true)
+    self.model:showWithAnimation("FadeIn_Menu", function ()
+        self.model:setActive(true)
+        self.model:requestKeyboardFocusAtCursor()
+    end)
 end
 
-function WindowItemUI:close()
-    self.model:setVisible(false)
+function WindowItemUI:close(onHidden)
     self.model:setActive(false)
+    self.model:hideWithAnimation("FadeOut_Menu", onHidden)
 end
 
 function WindowItemUI:_onUseItem()
@@ -154,10 +156,11 @@ end
 
 function WindowItemUI:_closeByCancel()
     ManagerFunctions.playSE(GameSystem.GetCancelSE())
-    self:close()
-    if self.model._onCloseCallback ~= nil then
-        self.model._onCloseCallback()
-    end
+    self:close(function ()
+        if self.model._onCloseCallback ~= nil then
+            self.model._onCloseCallback()
+        end
+    end)
 end
 
 function WindowItemUI:_updateLayout()

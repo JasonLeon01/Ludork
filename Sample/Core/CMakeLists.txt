@@ -4,6 +4,22 @@ project(LudorkCore LANGUAGES CXX)
 
 set(LUDORK_CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(LUDORK_CORE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+file(REMOVE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../Scripts/CoreSystem_meta.lua"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../Scripts/stub/CoreSystem.d.lua")
+set(LUDORK_OBSOLETE_CORE_SYSTEM_CONFIGS
+    Debug Release RelWithDebInfo MinSizeRel
+    ${CMAKE_CONFIGURATION_TYPES}
+    ${CMAKE_BUILD_TYPE})
+list(REMOVE_DUPLICATES LUDORK_OBSOLETE_CORE_SYSTEM_CONFIGS)
+foreach(obsolete_config IN LISTS LUDORK_OBSOLETE_CORE_SYSTEM_CONFIGS)
+    if(obsolete_config STREQUAL "")
+        continue()
+    endif()
+    file(REMOVE
+        "${LUDORK_RUNTIME_OUTPUT_DIRECTORY}/${obsolete_config}/${CMAKE_SHARED_MODULE_PREFIX}CoreSystem${CMAKE_SHARED_MODULE_SUFFIX}"
+        "${LUDORK_RUNTIME_OUTPUT_DIRECTORY}/${obsolete_config}/CoreSystem.pdb")
+endforeach()
 set(LUDORK_CORE_RELEASE_LTO ON)
 set(LUDORK_CORE_DEBUG_LTO ${LUDORK_OPTIMIZE_DEBUG})
 if(MINGW)
@@ -42,7 +58,6 @@ endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBindings.cmake")
 ludork_discover_lua_binding_layouts(
     Engine "${CMAKE_CURRENT_SOURCE_DIR}/Engine/include"
-    CoreSystem "${CMAKE_CURRENT_SOURCE_DIR}/System/include"
     GlobalCore "${CMAKE_CURRENT_SOURCE_DIR}/Global/include"
     GlobalFunctions "${CMAKE_CURRENT_SOURCE_DIR}/GlobalFunctions/include")
 
@@ -107,13 +122,12 @@ function(ludork_configure_core_library
 endfunction()
 
 add_subdirectory(Engine)
-add_subdirectory(System)
 add_subdirectory(Global)
 add_subdirectory(GlobalFunctions)
 
 add_custom_target(LudorkCoreModules)
 add_dependencies(LudorkCoreModules
-    Engine CoreSystem GlobalCore GlobalFunctions)
+    Engine GlobalCore GlobalFunctions)
 
 function(ludork_copy_core_runtime target)
     add_dependencies(${target} LudorkCoreModules)

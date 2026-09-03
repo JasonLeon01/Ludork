@@ -18,6 +18,8 @@
 ---@field _pauseMarkFrameTimer       number
 ---@field _pauseMark                 Engine.Image
 ---@field _pauseMarkTexture          sf.Texture
+---@field _uiController              Source.UI.UiController | nil
+---@field _transition                Source.UI.WindowTransition | nil
 local WindowBase = {}
 
 ---@brief Construct a window with a skin and content area.
@@ -53,8 +55,25 @@ function WindowBase:setActive(active) end
 ---@param visible boolean
 function WindowBase:setVisible(visible) end
 
----@param position sf.Vector2f
-function WindowBase:setPosition(position) end
+---@param controller Source.UI.UiController
+---@param target     string | nil
+function WindowBase:_setUiController(controller, target) end
+
+---@param animationName string | nil
+---@param onReady       function | nil
+function WindowBase:showWithAnimation(animationName, onReady) end
+
+---@param animationName string | nil
+---@param onHidden      function | nil
+function WindowBase:hideWithAnimation(animationName, onHidden) end
+
+function WindowBase:hideImmediate() end
+
+---@return boolean
+function WindowBase:isTransitionBlocking() end
+
+---@return boolean
+function WindowBase:isTransitionOpen() end
 
 ---@param suppressed boolean
 function WindowBase:_setReturnButtonSuppressed(suppressed) end

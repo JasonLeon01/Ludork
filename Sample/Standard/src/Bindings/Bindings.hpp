@@ -9,6 +9,7 @@ namespace ludork::standard::binding {
 void registerClass(sol::state_view lua);
 void registerContainers(sol::state_view lua);
 void registerConfigParser(sol::state_view lua);
+void registerCodecs(sol::state_view lua);
 void registerSystemServices(sol::state_view lua);
 void registerAsyncio(sol::state_view lua);
 void registerFileBatch(sol::state_view lua);

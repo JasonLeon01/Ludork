@@ -43,6 +43,11 @@ public sealed record UiPreviewFrame(
     IReadOnlyList<UiPreviewNodeGeometry> Nodes,
     long Generation);
 
+public sealed record UiPreviewAnimationSample(
+    string Name,
+    string? Target,
+    double Time);
+
 public sealed class UiPreviewClient : IAsyncDisposable
 {
     public const int ProtocolVersion = PreviewHostConnection.ProtocolVersion;
@@ -81,6 +86,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
         JsonObject asset,
         IReadOnlyDictionary<string, JsonObject> dependencies,
         double renderScale,
+        UiPreviewAnimationSample? animation = null,
         CancellationToken cancellationToken = default)
     {
         if (!double.IsFinite(renderScale) || renderScale <= 0)
@@ -115,6 +121,18 @@ public sealed class UiPreviewClient : IAsyncDisposable
             ["dependencies"] = dependencyData,
             ["renderScale"] = renderScale,
         };
+        if (animation is not null)
+        {
+            if (string.IsNullOrWhiteSpace(animation.Name)
+                || !double.IsFinite(animation.Time)
+                || animation.Time < 0.0)
+            {
+                throw new ArgumentException("UI preview animation sample is invalid.", nameof(animation));
+            }
+            request["animationName"] = animation.Name;
+            request["animationTarget"] = animation.Target;
+            request["animationTime"] = animation.Time;
+        }
         setRendering(true);
         string? protocolError = null;
         try

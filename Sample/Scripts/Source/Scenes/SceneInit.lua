@@ -1,5 +1,4 @@
 local cjson = require("cjson")
-local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local FileBatch = require("Global.Utils.FileBatch")
@@ -204,7 +203,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
                 )
             )
         end
-        CoreSystem.createDirectories(os.path.dirname(cachePath))
+        os.createDirectories(os.path.dirname(cachePath))
         Logging.debug("Compressing animation: %s", relativePath)
         local compressed = Engine.compressAnimation(payload, assetsRoot, "png")
         Engine.writeJSON(cachePath, compressed)
@@ -213,7 +212,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
         cacheRoot, sourceKey .. (encryptedSource and ANIMATION_CACHE_SUFFIX or ENCRYPTED_ANIMATION_CACHE_SUFFIX)
     )
     if os.path.isfile(alternateCachePath) then
-        CoreSystem.removeFile(alternateCachePath)
+        os.removeFile(alternateCachePath)
         Logging.debug("Removed alternate animation cache: %s", alternateCachePath)
     end
 end
@@ -272,7 +271,7 @@ function Scene:_removeOrphanedAnimation(item)
     local cacheRelativePath = item.encryptedData == true and sourceKey .. ENCRYPTED_ANIMATION_CACHE_SUFFIX
         or relativePath
     local cachePath = os.path.join(Engine.getAnimationCacheRoot(), cacheRelativePath)
-    CoreSystem.removeFile(cachePath)
+    os.removeFile(cachePath)
     Logging.debug("Removed orphaned animation cache: %s", cachePath)
     return true
 end

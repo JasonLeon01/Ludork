@@ -2,92 +2,87 @@ local _METADATA = {
     DoorBase = {
         attrs = {
             "collisionEnabled",
-            "tickable",
             "openInterval",
             "gateSE",
             "opening",
-            "closing",
+            "closing"
         },
         bases = {
-            { "Engine", "Actor" },
+            { "Engine", "Actor" }
         },
         collisionEnabled = {
             type = "bool",
-            default = true,
-        },
-        tickable = {
-            type = "bool",
-            default = true,
+            default = true
         },
         openInterval = {
             type = "float",
-            default = 0.05,
+            default = 0.05
         },
         gateSE = {
             type = "string",
             default = "",
             Meta = {
                 PathVars = "Sounds",
-                ConfigVars = { "Audio", "gateSE" },
-            },
+                ConfigVars = { "Audio", "gateSE" }
+            }
         },
         opening = {
             type = "bool",
-            default = false,
+            default = false
         },
         closing = {
             type = "bool",
-            default = false,
+            default = false
         },
         openDoor = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Started",
                 "Finished",
                 Started = { 0 },
-                Finished = { 1 },
-            },
+                Finished = { 1 }
+            }
         },
         closeDoor = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Started",
                 "Finished",
                 Started = { 0 },
-                Finished = { 1 },
-            },
+                Finished = { 1 }
+            }
         },
         onTick = {
             type = "event",
             parameters = {
                 "deltaTime",
-                deltaTime = "float",
+                deltaTime = "float"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         Meta = {
             PathVars = {
-                { "gateSE", "Sounds" },
+                { "gateSE", "Sounds" }
             },
             ConfigVars = {
-                { "gateSE", "Audio", "gateSE" },
-            },
-        },
-    },
+                { "gateSE", "Audio", "gateSE" }
+            }
+        }
+    }
 }
 
 return _METADATA

@@ -2,11 +2,15 @@
 
 #include <Runtime/EngineState.hpp>
 
+#include <algorithm>
+#include <cstdint>
+
 SolidRect::SolidRect(const sf::Vector2f& size, const sf::Color& fillColor,
                      const sf::Color& outlineColor, float outlineThickness)
     : size_(size), shape_(size * Scale), outlineThickness_(outlineThickness) {
-    shape_.setFillColor(fillColor);
-    shape_.setOutlineColor(outlineColor);
+    fillColor_ = fillColor;
+    outlineColor_ = outlineColor;
+    applyColours();
     shape_.setOutlineThickness(outlineThickness * Scale);
 }
 
@@ -20,19 +24,21 @@ void SolidRect::setSize(const sf::Vector2f& size) {
 }
 
 sf::Color SolidRect::getFillColor() const {
-    return shape_.getFillColor();
+    return fillColor_;
 }
 
 void SolidRect::setFillColor(const sf::Color& color) {
-    shape_.setFillColor(color);
+    fillColor_ = color;
+    applyColours();
 }
 
 sf::Color SolidRect::getOutlineColor() const {
-    return shape_.getOutlineColor();
+    return outlineColor_;
 }
 
 void SolidRect::setOutlineColor(const sf::Color& color) {
-    shape_.setOutlineColor(color);
+    outlineColor_ = color;
+    applyColours();
 }
 
 float SolidRect::getOutlineThickness() const {
@@ -65,4 +71,13 @@ void SolidRect::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     if (getVisible()) {
         target.draw(shape_, states);
     }
+}
+
+void SolidRect::_refreshPresentationColour() {
+    applyColours();
+}
+
+void SolidRect::applyColours() {
+    shape_.setFillColor(modulatePresentationColour(fillColor_));
+    shape_.setOutlineColor(modulatePresentationColour(outlineColor_));
 }

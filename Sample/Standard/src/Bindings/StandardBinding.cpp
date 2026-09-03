@@ -62,6 +62,7 @@ void initialize(lua_State* state, int cjsonIndex) {
 #endif
     binding::registerClass(lua);
     binding::registerConfigParser(lua);
+    binding::registerCodecs(lua);
     binding::registerSystemServices(lua);
     binding::registerAsyncio(lua);
     binding::registerFileBatch(lua);

@@ -70,7 +70,8 @@ function WindowAttrShop:init(player, onClose)
     self._avatarSwitchTimer = 0.0
     self._shopUI = self.uiClass.new(self)
     self._selectable = Final_WindowAttrShopSelectable.new(WindowAttrShop.GetDefaultRect(), self)
-    self:close()
+    self._selectable:hideImmediate()
+    self._closed = true
 end
 
 function WindowAttrShop:getSelectable()

@@ -180,6 +180,7 @@ public sealed class UiPreviewSurface : UserControl
         0.25,
         zoom * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
     public Func<long, double, double, Task<string?>>? HitTestResolver { get; set; }
+    public bool TransformEnabled { get; set; } = true;
 
     public void SetFrame(UiPreviewFrame frame)
     {
@@ -277,7 +278,7 @@ public sealed class UiPreviewSurface : UserControl
                 StringComparison.Ordinal))
             .OrderByDescending(node => node.DrawOrder)
             .FirstOrDefault();
-        if (selected is not null && isResizeHandleHit(designPoint))
+        if (TransformEnabled && selected is not null && isResizeHandleHit(designPoint))
         {
             beginTransform(args, point, selected.NodeName, designPoint);
             return;
@@ -293,6 +294,8 @@ public sealed class UiPreviewSurface : UserControl
             return;
         if (string.Equals(hitNodeName, selectedNodeName, StringComparison.Ordinal))
         {
+            if (!TransformEnabled)
+                return;
             PointerPoint currentPoint = args.GetCurrentPoint(viewport);
             if (currentPoint.Properties.IsLeftButtonPressed)
             {
@@ -455,7 +458,7 @@ public sealed class UiPreviewSurface : UserControl
             return;
         }
         selectionBorder.IsVisible = true;
-        resizeHandle.IsVisible = true;
+        resizeHandle.IsVisible = TransformEnabled;
         selectionBorder.Width = Math.Max(0, geometry.Width);
         selectionBorder.Height = Math.Max(0, geometry.Height);
         Canvas.SetLeft(selectionBorder, geometry.X);

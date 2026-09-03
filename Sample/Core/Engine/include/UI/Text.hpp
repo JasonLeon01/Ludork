@@ -229,7 +229,9 @@ private:
     static std::shared_ptr<PlainTextConfig> snapshotConfig(
         const PlainTextConfig& config);
     void applyConfig();
+    sf::Color presentedColour() const;
     void refreshDirectColours();
+    void _refreshPresentationColour() override;
     void invalidateEffects();
     void syncDisplayScale() const;
     sf::FloatRect getPixelBounds() const;
@@ -309,6 +311,7 @@ private:
         const std::string& marker);
     static sf::Color modulateColour(const sf::Color& baseColour,
                                     const sf::Color& factorColour);
+    sf::Color presentedColour() const;
 
     void renderText(const std::string& text);
     TextStyle createDefaultStyle() const;
@@ -320,6 +323,7 @@ private:
     static float measureAdvance(const sf::Text& text);
     float getLineAdvance(const TextStyle& style) const;
     void refreshSegmentColours();
+    void _refreshPresentationColour() override;
     void applySegmentColour(sf::Text& text, const TextStyle& style) const;
     void invalidateEffects();
     void syncDisplayScale() const;

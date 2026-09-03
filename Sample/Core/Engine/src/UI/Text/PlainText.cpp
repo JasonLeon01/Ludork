@@ -132,7 +132,7 @@ void PlainText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
     ensureEffects();
     if (!ludork::engine::text_effects::draw(effects_->data, target, states,
-                                            colour_, config_->glow,
+                                            presentedColour(), config_->glow,
                                             config_->gradient)) {
         target.draw(text_, textStates);
     }
@@ -184,11 +184,21 @@ void PlainText::applyConfig() {
     invalidateEffects();
 }
 
+sf::Color PlainText::presentedColour() const {
+    return modulatePresentationColour(colour_);
+}
+
 void PlainText::refreshDirectColours() {
+    const sf::Color colour = presentedColour();
     text_.setFillColor(ludork::engine::text_detail::modulateColour(
-        config_->fillColor, colour_));
+        config_->fillColor, colour));
     text_.setOutlineColor(ludork::engine::text_detail::modulateColour(
-        config_->outline.color, colour_));
+        config_->outline.color, colour));
+}
+
+void PlainText::_refreshPresentationColour() {
+    refreshDirectColours();
+    invalidateEffects();
 }
 
 void PlainText::invalidateEffects() {

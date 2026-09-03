@@ -16,6 +16,7 @@ function WindowItemUI:updateDescription() end
 
 function WindowItemUI:open() end
 
-function WindowItemUI:close() end
+---@param onHidden function | nil
+function WindowItemUI:close(onHidden) end
 
 return WindowItemUI

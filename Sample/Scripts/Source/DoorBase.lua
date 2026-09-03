@@ -44,7 +44,6 @@ end
 local DoorBase = {}
 
 DoorBase.collisionEnabled = true
-DoorBase.tickable = true
 DoorBase.openInterval = 0.05
 DoorBase.gateSE = ""
 DoorBase.opening = false
@@ -86,6 +85,7 @@ function DoorBase:openDoor()
     self._animTimer = 0.0
     self._openFinished = false
     self._closeFinished = false
+    self:setTickable(true, false)
     self:_advanceToFrame(0)
     return newDoorAnimationCondition(self, "_openFinished")
 end
@@ -96,7 +96,8 @@ function DoorBase:closeDoor()
         condition._finished = true
         return condition
     end
-    if self.opening then
+    local wasOpening = self.opening
+    if wasOpening then
         self.opening = false
         self._openFinished = false
     end
@@ -107,6 +108,9 @@ function DoorBase:closeDoor()
     end
     ---@cast currentIndex integer
     if currentIndex <= 0 then
+        if wasOpening then
+            self:setTickable(false, false)
+        end
         local condition = newDoorAnimationCondition(self, "_closeFinished")
         condition._finished = true
         return condition
@@ -118,6 +122,7 @@ function DoorBase:closeDoor()
     self._animTimer = 0.0
     self._closeFinished = false
     self._openFinished = false
+    self:setTickable(true, false)
     return newDoorAnimationCondition(self, "_closeFinished")
 end
 
@@ -127,6 +132,11 @@ function DoorBase:onTick(deltaTime)
     elseif self.closing then
         self:_tickClose(deltaTime)
     end
+end
+
+function DoorBase:onDestroy()
+    self:setTickable(false, false)
+    super(DoorBase, self).onDestroy()
 end
 
 ---@param deltaTime number
@@ -235,6 +245,7 @@ end
 function DoorBase:_finishOpening()
     self._openFinished = true
     self.opening = false
+    self:setTickable(false, false)
     self:destroy()
     local gameMap = self:getMap()
     ---@cast gameMap GameMap
@@ -247,6 +258,7 @@ function DoorBase:_finishClosing()
     self._closeFinished = true
     self.closing = false
     self._frameIndex = 0
+    self:setTickable(false, false)
 end
 
 ---@param index integer

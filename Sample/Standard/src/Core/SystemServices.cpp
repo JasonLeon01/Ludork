@@ -1,5 +1,7 @@
 #include "SystemServices.hpp"
 
+#include <Utf8Path.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -97,6 +99,16 @@ std::tuple<std::string, std::string> defaultLocale() {
 
 std::filesystem::path currentWorkingDirectory() {
     return std::filesystem::current_path();
+}
+
+void createDirectories(const std::filesystem::path& value) {
+    std::filesystem::create_directories(value);
+}
+
+void removeFile(const std::filesystem::path& value) {
+    if (!std::filesystem::remove(value)) {
+        throw std::runtime_error("Failed to remove file: " + pathToUtf8(value));
+    }
 }
 
 std::vector<std::filesystem::path> listDirectory(

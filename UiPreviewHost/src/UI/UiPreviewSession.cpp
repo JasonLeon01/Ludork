@@ -7,6 +7,7 @@
 
 #include <Runtime/EngineState.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
+#include <UI/UiAssetRuntime.hpp>
 #include <Utf8Path.hpp>
 
 #include <filesystem>
@@ -59,6 +60,29 @@ RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
         renderTargetSpec(design, requestedScale);
     std::shared_ptr<UiAssetInstance> instance = instantiateUiPreview(
         assetKey, asset, dependencies, design, targetSpec.renderScale);
+    if (const RuntimeValue* animationName =
+            ludork::engine::runtime_value_reader::findValue(request,
+                                                            "animationName")) {
+        const std::string& name =
+            ludork::engine::runtime_value_reader::requireString(
+                *animationName, "Render request.animationName");
+        const RuntimeValue& targetValue =
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "animationTarget", "Render request");
+        std::optional<std::string> target;
+        if (!targetValue.isNil()) {
+            target = ludork::engine::runtime_value_reader::requireString(
+                targetValue, "Render request.animationTarget");
+        }
+        const float time = ludork::engine::runtime_value_reader::requireFloat(
+            ludork::engine::runtime_value_reader::requireValue(
+                request, "animationTime", "Render request"),
+            "Render request.animationTime");
+        if (!instance->sampleAnimation(name, target, time)) {
+            throw std::invalid_argument("UI preview animation was not found: " +
+                                        name);
+        }
+    }
     const std::vector<std::uint8_t> pixels =
         renderFrame(instance, targetSpec.size);
     const std::filesystem::path& framePath = frameFiles.write(pixels);

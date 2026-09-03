@@ -15,13 +15,8 @@ local FunctionalBase = Engine.FunctionalBase
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
 
-local FadePhase = { NOTHING = 0, IN = 1, OUT = 2 }
-
 local ContentMode = { MESSAGE = 0, SELECTION = 1 }
 
-local _FADE_IN_CURVE_KEY = "WindowMessageFadeIn"
-local _FADE_OUT_CURVE_KEY = "WindowMessageFadeOut"
-local _FALLBACK_FADE_SPEED = 1000.0
 local _MESSAGE_TEXT_CONFIG = "UI/Message"
 
 ---@class Source.Windows.WindowMessage
@@ -34,8 +29,6 @@ WindowMessage._OPTION_ITEM_HEIGHT = 32
 WindowMessage._SELECTION_LIST_HORIZONTAL_INSET = 32
 WindowMessage._TEXT_RENDER_GUTTER = 2
 WindowMessage._MAX_OPTIONS = 4
-WindowMessage._fadeCurves = {}
-
 function WindowMessage:init()
     local gameSize = GlobalSystem.getGameSize()
     self._inDialogue = false
@@ -46,9 +39,8 @@ function WindowMessage:init()
     self._selectionResult = nil
     self._allowCancel = true
     self._onFinished = nil
-    self._fadePhase = FadePhase.NOTHING
-    self._fadeTime = 0.0
     self._pendingLayout = false
+    self._pendingFadeIn = false
     self._pendingRefPosition = nil
     self._name = ""
     self._message = ""
@@ -61,11 +53,10 @@ function WindowMessage:init()
     self._ui:attach()
     self._nameText = self._ui:getNameText()
     self._text = self._ui:getMessageText()
-    self:setColour(sf.Color.new(255, 255, 255, 0))
     self._window:setColour(sf.Color.new(255, 255, 255, 192))
     self._nameText:setVisible(false)
     self:_setupMessageAdvancer()
-    self:setVisible(false)
+    self:hideImmediate()
 end
 
 function WindowMessage:_setupMessageAdvancer()
@@ -86,12 +77,6 @@ function WindowMessage:setListView(listView)
 end
 
 function WindowMessage:onTick(deltaTime)
-    if self._fadePhase == FadePhase.IN then
-        self:_fadeIn(deltaTime)
-    end
-    if self._fadePhase == FadePhase.OUT then
-        self:_fadeOut(deltaTime)
-    end
     if self._pendingLayout then
         self._pendingLayout = false
         if self._contentMode == ContentMode.SELECTION then
@@ -100,6 +85,14 @@ function WindowMessage:onTick(deltaTime)
             self:_updateLayoutByTextSize()
         end
         self:_updateWindowPosition(self._pendingRefPosition)
+    end
+    if self._pendingFadeIn then
+        self._pendingFadeIn = false
+        self:showWithAnimation("FadeIn", function ()
+            self:setActive(true)
+            self:requestKeyboardFocus()
+            self:_onFadeInComplete()
+        end)
     end
     if self._contentMode ~= ContentMode.SELECTION then
         self._rect:setVisible(false)
@@ -147,8 +140,7 @@ function WindowMessage:isInDialogue()
 end
 
 function WindowMessage:isAwaitingMessageConfirm()
-    return self._inDialogue and self._contentMode == ContentMode.MESSAGE
-        and self._fadePhase ~= FadePhase.OUT and self._selectionResult == nil
+    return self._inDialogue and self._contentMode == ContentMode.MESSAGE and self._selectionResult == nil
 end
 
 function WindowMessage:confirmMessage()
@@ -172,17 +164,15 @@ end
 ---@param onFinished  fun() | nil
 local function beginDialogue(window, refPosition, name, allowCancel, onFinished)
     window:hidePauseMark()
-    window:setColour(sf.Color.new(255, 255, 255, 0))
+    window:setColour(sf.Color.White)
     window._inDialogue = true
     window._selectionResult = nil
     window._allowCancel = allowCancel
     window._onFinished = onFinished
-    window._fadePhase = FadePhase.IN
-    window._fadeTime = 0.0
     window._name = WindowMessageLayout.NormaliseText(name)
     window._ui:setName(window._name)
     window._nameText:setVisible(window._name:match("%S") ~= nil)
-    window._nameText:setColour(sf.Color.new(255, 255, 255, 0))
+    window._nameText:setColour(sf.Color.White)
     window._pendingRefPosition = refPosition
 end
 
@@ -190,7 +180,8 @@ end
 local function finishDialogueSetup(window)
     window._pendingLayout = true
     window:setVisible(true)
-    window:requestKeyboardFocus()
+    window:setActive(false)
+    window._pendingFadeIn = true
 end
 
 ---@param window Source.Windows.WindowMessage
@@ -209,7 +200,7 @@ function WindowMessage:setMessage(refPosition, name, message, onFinished)
     self._ui:showMessageList()
     self.index = 0
     self._text:setVisible(true)
-    self._text:setColour(sf.Color.new(255, 255, 255, 0))
+    self._text:setColour(sf.Color.White)
     self._ui:setMessage(self._message)
     self._ui:setConfirmLayerActive(true)
     finishDialogueSetup(self)
@@ -233,7 +224,7 @@ function WindowMessage:setSelection(refPosition, name, options, allowCancel, onF
     if self._selectionListView ~= nil then
         for _, child in ipairs(self._selectionListView:getChildren()) do
             ---@cast child Engine.PlainText
-            child:setColour(sf.Color.new(255, 255, 255, 0))
+            child:setColour(sf.Color.White)
         end
     end
     finishDialogueSetup(self)
@@ -270,13 +261,15 @@ function WindowMessage:_resolveSelection(selectionResult)
     self:hidePauseMark()
     self._ui:setConfirmLayerActive(false)
     self._selectionResult = selectionResult
-    self._fadePhase = FadePhase.OUT
-    self._fadeTime = 0.0
-    if self._onFinished ~= nil then
-        local callbacks = { self._onFinished }
-        self._onFinished = nil
-        callbacks[1]()
-    end
+    self:setActive(false)
+    self:hideWithAnimation("FadeOut", function ()
+        self._inDialogue = false
+        if self._onFinished ~= nil then
+            local callbacks = { self._onFinished }
+            self._onFinished = nil
+            callbacks[1]()
+        end
+    end)
 end
 
 ---@param options string[]
@@ -329,61 +322,10 @@ function WindowMessage:_updateWindowPosition(refPosition)
     end
 end
 
----@param deltaTime number
-function WindowMessage:_fadeIn(deltaTime)
-    self._fadeTime = self._fadeTime + deltaTime
-    local curve = WindowMessageLayout.GetFadeCurve(WindowMessage._fadeCurves, _FADE_IN_CURVE_KEY)
-    local alpha = nil
-    local duration = nil
-    if not curve:isEmpty() then
-        alpha = math.floor(Engine.Clamp(curve:evaluate(self._fadeTime), 0.0, 255.0))
-        duration = curve:getDuration()
-    else
-        alpha = math.floor(Engine.Clamp(self._fadeTime * _FALLBACK_FADE_SPEED, 0.0, 255.0))
-        duration = 255.0 / _FALLBACK_FADE_SPEED
-    end
-    local colour = sf.Color.new(255, 255, 255, alpha)
-    self:setColour(colour)
-    self._nameText:setColour(colour)
-    if self._contentMode == ContentMode.MESSAGE then
-        self._text:setColour(colour)
-    elseif self._contentMode == ContentMode.SELECTION and self._selectionListView ~= nil then
-        for _, child in ipairs(self._selectionListView:getChildren()) do
-            ---@cast child Engine.PlainText
-            child:setColour(colour)
-        end
-    end
-    if self._fadeTime >= duration then
-        self._fadePhase = FadePhase.NOTHING
-        self:_onFadeInComplete()
-    end
-end
-
 function WindowMessage:_onFadeInComplete()
     if self._contentMode == ContentMode.MESSAGE then
         self:refreshPauseMarkLayout()
         self:showPauseMark()
-    end
-end
-
----@param deltaTime number
-function WindowMessage:_fadeOut(deltaTime)
-    self._fadeTime = self._fadeTime + deltaTime
-    local curve = WindowMessageLayout.GetFadeCurve(WindowMessage._fadeCurves, _FADE_OUT_CURVE_KEY)
-    local alpha = nil
-    local duration = nil
-    if not curve:isEmpty() then
-        alpha = math.floor(Engine.Clamp(curve:evaluate(self._fadeTime), 0.0, 255.0))
-        duration = curve:getDuration()
-    else
-        alpha = math.floor(Engine.Clamp(255.0 - self._fadeTime * _FALLBACK_FADE_SPEED, 0.0, 255.0))
-        duration = 255.0 / _FALLBACK_FADE_SPEED
-    end
-    self:setColour(sf.Color.new(255, 255, 255, alpha))
-    if self._fadeTime >= duration or alpha == 0 then
-        self._fadePhase = FadePhase.NOTHING
-        self._inDialogue = false
-        self:setVisible(false)
     end
 end
 
@@ -547,7 +489,6 @@ function WindowMessage:_resizeWindow(width, height)
     self._ui:reflow(width, height)
 end
 
-WindowMessage.FadePhase = FadePhase
 WindowMessage.ContentMode = ContentMode
 
 return class(WindowMessage, WindowSelectable)

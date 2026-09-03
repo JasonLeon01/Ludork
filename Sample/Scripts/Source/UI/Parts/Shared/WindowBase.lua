@@ -28,12 +28,8 @@ end
 
 function WindowBaseUI:attachTo(parent, logicalSize)
     self:prepare(logicalSize)
-    self.root:removeChild(self._window)
-    self.root:removeChild(self._content)
-    self.root:removeChild(self._returnButton)
-    parent:addChild(self._window)
-    parent:addChild(self._content)
-    parent:addChild(self._returnButton)
+    parent:addChild(self.root)
+    parent:_setUiController(self)
 end
 
 function WindowBaseUI:getWindow()

@@ -1,4 +1,3 @@
-local CoreSystem = require("CoreSystem")
 local Engine = require("Engine")
 local Logging = require("Global.Utils.Logging")
 
@@ -16,7 +15,7 @@ end
 function Save.SaveGame(filePath, instance)
     assertConfiguredSavePath(filePath)
     local directory = os.path.dirname(os.path.abspath(filePath))
-    CoreSystem.createDirectories(directory)
+    os.createDirectories(directory)
     Engine.writeJSON(filePath, instance:asDict())
     Logging.info("Saved game to %s", filePath)
 end

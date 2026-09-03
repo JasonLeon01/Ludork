@@ -45,17 +45,29 @@ std::vector<std::uint8_t> decodeBase64(std::string_view value) {
     result.reserve(value.size() * 3 / 4);
     std::uint32_t buffer = 0;
     int bits = 0;
+    std::size_t dataSize = 0;
+    std::size_t paddingSize = 0;
+    bool padding = false;
     for (const unsigned char character : value) {
         if (character == '=') {
-            break;
+            padding = true;
+            ++paddingSize;
+            if (paddingSize > 2) {
+                throw std::invalid_argument("Invalid base64 data");
+            }
+            continue;
         }
         if (std::isspace(character) != 0) {
             continue;
+        }
+        if (padding) {
+            throw std::invalid_argument("Invalid base64 data");
         }
         const int decoded = Lookup[character];
         if (decoded < 0) {
             throw std::invalid_argument("Invalid base64 data");
         }
+        ++dataSize;
         buffer = (buffer << 6U) | static_cast<std::uint32_t>(decoded);
         bits += 6;
         if (bits >= 8) {
@@ -63,6 +75,13 @@ std::vector<std::uint8_t> decodeBase64(std::string_view value) {
             result.push_back(
                 static_cast<std::uint8_t>((buffer >> bits) & 0xFFU));
         }
+    }
+    if (dataSize % 4 == 1 ||
+        (paddingSize != 0 && ((dataSize + paddingSize) % 4 != 0 ||
+                              paddingSize != 4 - dataSize % 4)) ||
+        (bits != 0 &&
+         (buffer & ((static_cast<std::uint32_t>(1) << bits) - 1U)) != 0)) {
+        throw std::invalid_argument("Invalid base64 data");
     }
     return result;
 }

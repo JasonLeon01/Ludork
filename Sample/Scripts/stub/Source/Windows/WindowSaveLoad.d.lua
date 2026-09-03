@@ -62,10 +62,12 @@ function WindowSaveLoad:setVisible(visible) end
 ---@brief Open the save/load UI in Load mode with the slot list focused.
 ---
 --- Selects the latest existing save, or the first slot when none exists.
-function WindowSaveLoad:open() end
+---@param transitionProfile string | nil
+function WindowSaveLoad:open(transitionProfile) end
 
 ---@brief Close the save/load UI and deactivate all child windows.
-function WindowSaveLoad:close() end
+---@param onHidden function | nil
+function WindowSaveLoad:close(onHidden) end
 
 ---@brief Close the save/load UI via cancel and notify the host.
 function WindowSaveLoad:closeByCancel() end

@@ -95,6 +95,7 @@ void TabView::setTextConfig(std::shared_ptr<PlainTextConfig> textConfig) {
     rebuildLabels();
     rebuildHintVisuals();
     layoutVisuals();
+    applyPresentationColour();
 }
 
 std::vector<std::string> TabView::getItems() const {
@@ -284,6 +285,10 @@ void TabView::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     target.draw(*rightHintText_, states);
 }
 
+void TabView::_refreshPresentationColour() {
+    applyPresentationColour();
+}
+
 bool TabView::acceptsTouchCapture() const {
     return true;
 }
@@ -372,6 +377,7 @@ void TabView::rebuildVisuals() {
     rebuildLabels();
     rebuildHintVisuals();
     layoutVisuals();
+    applyPresentationColour();
 }
 
 void TabView::rebuildLabels() {
@@ -450,6 +456,17 @@ void TabView::updateHintVisibility() {
         rightHintText_->setString(*right);
         layoutHint(*rightHintText_, *rightHintBackground_, false);
     }
+}
+
+void TabView::applyPresentationColour() {
+    selectionRect_->setPresentationColour(this, presentationColour());
+    for (const std::unique_ptr<PlainText>& label : labels_) {
+        label->setPresentationColour(this, presentationColour());
+    }
+    leftHintBackground_->setPresentationColour(this, presentationColour());
+    rightHintBackground_->setPresentationColour(this, presentationColour());
+    leftHintText_->setPresentationColour(this, presentationColour());
+    rightHintText_->setPresentationColour(this, presentationColour());
 }
 
 const std::optional<std::string>& TabView::visibleHint(

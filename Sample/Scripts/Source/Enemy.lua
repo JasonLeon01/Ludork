@@ -53,7 +53,6 @@ Enemy.childActorComp = ChildActorComponent.new({
     className = "Source.EnemyDamageText.EnemyDamageText",
     relativePosition = sf.Vector2f.new(0.0, 0.0)
 })
-Enemy.tickable = true
 Enemy.collisionEnabled = true
 Enemy.animatable = true
 Enemy.animateWithoutMoving = true

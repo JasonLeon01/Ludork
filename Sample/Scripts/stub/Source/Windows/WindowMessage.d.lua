@@ -1,6 +1,6 @@
 ---@meta Source.Windows.WindowMessage
 ---
---- Supports fade-in/out, speaker name display, multi-option selection,
+--- Supports Timeline fade-in/out, speaker name display, multi-option selection,
 --- and automatic positioning relative to reference actors.
 ---@class Source.Windows.WindowMessage: Source.Windows.Base.WindowSelectable
 ---@field new                              fun(): Source.Windows.WindowMessage
@@ -11,7 +11,6 @@
 ---@field _SELECTION_LIST_HORIZONTAL_INSET integer
 ---@field _TEXT_RENDER_GUTTER              integer
 ---@field _MAX_OPTIONS                     integer
----@field _fadeCurves                      table<string, Engine.Curve>
 ---@field _inDialogue                      boolean
 ---@field _contentMode                     integer
 ---@field _selectionListView               Engine.ListView | nil
@@ -20,9 +19,8 @@
 ---@field _selectionResult                 integer | nil
 ---@field _allowCancel                     boolean
 ---@field _onFinished                      fun() | nil
----@field _fadePhase                       integer
----@field _fadeTime                        number
 ---@field _pendingLayout                   boolean
+---@field _pendingFadeIn                   boolean
 ---@field _pendingRefPosition              sf.Vector2f | nil
 ---@field _name                            string
 ---@field _message                         string

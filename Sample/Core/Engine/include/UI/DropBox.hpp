@@ -145,6 +145,8 @@ public:
     void releaseRuntimeCallbacks() noexcept override;
 
 protected:
+    void _refreshPresentationColour() override;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -193,6 +195,7 @@ private:
     void ensurePopupVisuals() const;
     void renderPopupContent() const;
     void updateSelectionVisual() const;
+    void applyPresentationColour() const;
     void positionCollapsedText() const;
     void positionItemText(PlainText& text, int index) const;
 

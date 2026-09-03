@@ -2831,6 +2831,54 @@
     "zh_CN": "UI 资产编辑器",
     "en_GB": "UI Asset Editor"
   },
+  "UI_TIMELINE": {
+    "zh_CN": "动画时间轴",
+    "en_GB": "Animation Timeline"
+  },
+  "UI_ADD_ANIMATION": {
+    "zh_CN": "新增动画",
+    "en_GB": "Add Animation"
+  },
+  "UI_OVERRIDE_ANIMATION": {
+    "zh_CN": "覆盖动画",
+    "en_GB": "Override Animation"
+  },
+  "UI_PAUSE_ANIMATION": {
+    "zh_CN": "暂停",
+    "en_GB": "Pause"
+  },
+  "UI_ADD_KEY": {
+    "zh_CN": "新增关键帧",
+    "en_GB": "Add Key"
+  },
+  "UI_DELETE_KEY": {
+    "zh_CN": "删除关键帧",
+    "en_GB": "Delete Key"
+  },
+  "UI_ANIMATION_TARGET": {
+    "zh_CN": "目标",
+    "en_GB": "Target"
+  },
+  "UI_ANIMATION_DURATION": {
+    "zh_CN": "时长",
+    "en_GB": "Duration"
+  },
+  "UI_ANIMATION_GLOBAL": {
+    "zh_CN": "全局",
+    "en_GB": "Global"
+  },
+  "UI_ANIMATION_COLOUR": {
+    "zh_CN": "颜色",
+    "en_GB": "Colour"
+  },
+  "UI_KEY_TIME": {
+    "zh_CN": "时间",
+    "en_GB": "Time"
+  },
+  "UI_KEY_VALUE": {
+    "zh_CN": "数值",
+    "en_GB": "Value"
+  },
   "UI_PALETTE": {
     "zh_CN": "控件面板",
     "en_GB": "Palette"

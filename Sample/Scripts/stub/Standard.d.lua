@@ -358,10 +358,36 @@ locale = {}
 ---@return string, string
 function locale.getdefaultlocale() end
 
+base64 = {}
+
+---@param value string
+---@return string
+function base64.encode(value) end
+
+---@param value string
+---@return string
+function base64.decode(value) end
+
+zlib = {}
+
+---@param value string
+---@return string
+function zlib.compress(value) end
+
+---@param value string
+---@return string
+function zlib.decompress(value) end
+
 os.path = {}
 
 ---@return string
 function os.getcwd() end
+
+---@param path string
+function os.createDirectories(path) end
+
+---@param path string
+function os.removeFile(path) end
 
 ---@param path string
 ---@return string[]

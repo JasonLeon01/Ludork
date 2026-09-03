@@ -18,7 +18,10 @@ function WindowEquip:setOnCloseCallback(callback) end
 
 function WindowEquip:open() end
 
-function WindowEquip:close() end
+---@param onHidden function | nil
+function WindowEquip:close(onHidden) end
+
+function WindowEquip:hideImmediate() end
 
 function WindowEquip:refreshLocale() end
 

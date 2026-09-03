@@ -25,7 +25,7 @@ public enum PreviewHostConnectionState
 
 public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 {
-    public const int ProtocolVersion = 5;
+    public const int ProtocolVersion = 6;
 
     private readonly string projectPath;
     private readonly SemaphoreSlim protocolLock = new(1, 1);

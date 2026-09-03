@@ -57,8 +57,7 @@ target_link_libraries(Engine
         SFML::Audio
         SFML::Network
     PRIVATE
-        Ludork::Standard
-        zlibstatic)
+        Ludork::Standard)
 if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     target_link_libraries(Engine PRIVATE deviceinfo_ndk.z)
 endif()

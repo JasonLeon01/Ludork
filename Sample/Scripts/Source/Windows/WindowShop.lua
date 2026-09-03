@@ -46,6 +46,7 @@ function WindowShop:init(player, tabRect, itemRect, detailRect, onClose)
     self._onCloseCallback = onClose
     self._ui = WindowShopUI.new(self)
     self._ui:attach()
+    self._transition = self._ui:createTransition(self)
     self._tabWindow = WindowShopTabs.new(
         Engine.ToIntRect(0, 0, _SHOP_WIDTH, _SHOP_TAB_HEIGHT), self, self._ui:getTabsAsset()
     )
@@ -67,7 +68,13 @@ function WindowShop:init(player, tabRect, itemRect, detailRect, onClose)
     self._canSell = true
     self._mode = self.SHOP_MODE_BUY
     self._closed = true
-    self:close()
+    self._tabWindow:setVisible(false)
+    self._tabWindow:setActive(false)
+    self._itemWindow:setVisible(false)
+    self._itemWindow:setActive(false)
+    self._detailWindow:setVisible(false)
+    self._detailWindow:setActive(false)
+    self._transition:hideImmediate()
 end
 
 function WindowShop:getTabWindow()
@@ -87,7 +94,7 @@ function WindowShop:setPlayer(player)
 end
 
 function WindowShop:getVisible()
-    return self._itemWindow:getVisible()
+    return self._transition:isBlocking()
 end
 
 function WindowShop:isClosed()
@@ -103,7 +110,6 @@ function WindowShop:open(buyItemIDs, canSell)
     self:_refreshItems()
     self._itemWindow:resetSelection()
     self:_refreshDetail()
-    self:setVisible(true)
     if self._canSell then
         self:setPosition(self._topLeft)
         self._tabWindow:setPosition(self._tabTopLeft)
@@ -120,21 +126,33 @@ function WindowShop:open(buyItemIDs, canSell)
         self._tabWindow:setActive(false)
     end
     self._itemWindow:setVisible(true)
-    self._itemWindow:setActive(true)
+    self._itemWindow:setActive(false)
     self._detailWindow:setVisible(true)
     self._detailWindow:setActive(false)
-    self._itemWindow:requestKeyboardFocusAtCursor()
+    self._transition:show("FadeIn", function ()
+        self:setActive(true)
+        if self._canSell then
+            self._tabWindow:setActive(true)
+        end
+        self._itemWindow:setActive(true)
+        self._itemWindow:requestKeyboardFocusAtCursor()
+    end)
 end
 
-function WindowShop:close()
-    self._tabWindow:setVisible(false)
+function WindowShop:close(onHidden)
     self._tabWindow:setActive(false)
-    self._itemWindow:setVisible(false)
     self._itemWindow:setActive(false)
-    self._detailWindow:setVisible(false)
     self._detailWindow:setActive(false)
-    self:setVisible(false)
-    self._closed = true
+    self:setActive(false)
+    self._transition:hide("FadeOut", function ()
+        self._tabWindow:setVisible(false)
+        self._itemWindow:setVisible(false)
+        self._detailWindow:setVisible(false)
+        self._closed = true
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
 end
 
 function WindowShop:closeByCancel()
@@ -303,14 +321,18 @@ function WindowShop:_sellItem(itemID)
 end
 
 function WindowShop:_closeAndNotify()
-    self:close()
-    if self._onCloseCallback ~= nil then
-        self._onCloseCallback()
-    end
+    self:close(function ()
+        if self._onCloseCallback ~= nil then
+            self._onCloseCallback()
+        end
+    end)
 end
 
 function WindowShop:dispose()
-    self:close()
+    self._transition:hideImmediate()
+    self._tabWindow:setVisible(false)
+    self._itemWindow:setVisible(false)
+    self._detailWindow:setVisible(false)
     self._tabWindow:dispose()
     self._itemWindow:dispose()
     self._detailWindow:dispose()

@@ -3,6 +3,8 @@
 #include <Runtime/EngineState.hpp>
 #include <Utils/Render.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <stdexcept>
 
@@ -58,8 +60,7 @@ sf::IntRect SpriteBase::getTextureRect() const {
 
 void SpriteBase::setColour(const sf::Color& colour) {
     colour_ = colour;
-    sprite_->setColor(premultipliedTexture_ ? premultipliedColour(colour)
-                                            : colour);
+    applyColour();
 }
 
 sf::Color SpriteBase::getColour() const {
@@ -94,17 +95,27 @@ void SpriteBase::setPremultipliedTexture(bool premultiplied) {
     premultipliedTexture_ = premultiplied;
     renderStates_ =
         premultiplied ? premultipliedRenderStates() : canvasRenderStates();
-    setColour(colour_);
+    applyColour();
+}
+
+sf::Color SpriteBase::presentedColour() const {
+    return modulatePresentationColour(colour_);
+}
+
+void SpriteBase::_refreshPresentationColour() {
+    applyColour();
+}
+
+void SpriteBase::applyColour() {
+    const sf::Color colour = presentedColour();
+    sprite_->setColor(premultipliedTexture_ ? premultipliedColour(colour)
+                                            : colour);
 }
 
 void SpriteBase::_applyRenderStates(sf::RenderStates& states) const {
-    states.transform.translate(getPosition() * (Scale - 1.0f));
-    states.transform.combine(getTransform());
+    ControlBase::_applyRenderStates(states);
 }
 
 sf::Transform SpriteBase::_getRenderTransform() const {
-    sf::Transform transform;
-    transform.translate(getPosition() * (Scale - 1.0f));
-    transform.combine(getTransform());
-    return transform;
+    return ControlBase::_getRenderTransform();
 }

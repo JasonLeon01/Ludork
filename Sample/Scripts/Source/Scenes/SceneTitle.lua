@@ -45,6 +45,12 @@ function Scene:onCreate()
         ---@cast window Engine.ControlBase
         uiManager:loadUI(window)
     end
+    self._windowCommand:setActive(false)
+    self._ui:playAnimation("FadeIn", "CommandPanel", function ()
+        self._ui:stopAnimation("FadeIn", "CommandPanel")
+        self._windowCommand:setActive(true)
+        self._windowCommand:requestKeyboardFocus()
+    end)
     self._titleBGM = nil
     local titleBGMFile = SourceSystem.GetTitleBGM()
     if bool(titleBGMFile) then

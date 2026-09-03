@@ -3,6 +3,7 @@ local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
 local WindowSaveLoadUI = require("Source.UI.WindowSaveLoad")
+local WindowTransition = require("Source.UI.WindowTransition")
 local WindowSaveDetail = require("Source.Windows.WindowSaveLoad.Detail")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 local WindowSaveTabs = require("Source.Windows.WindowSaveLoad.Tabs")
@@ -39,6 +40,8 @@ function WindowSaveLoad:init(tabRect, slotRect, detailRect, loadOnly, getSaveSou
     self._mode = "load"
     self._ui = WindowSaveLoadUI.new(self)
     self._ui:attach()
+    self._transition = self._ui:createTransition(self)
+    self._transitionProfile = WindowTransition.DEFAULT
     self._tabWindow = nil
     if not self._loadOnly then
         self._tabWindow = WindowSaveTabs.new(Engine.ToIntRect(0, 0, 416, 64), self, self._ui:getTabsAsset())
@@ -60,6 +63,7 @@ function WindowSaveLoad:init(tabRect, slotRect, detailRect, loadOnly, getSaveSou
     self._detailWindow:setActive(false)
     self._detailWindow:setVisible(false)
     self._lastSlotIndex = nil
+    self._transition:hideImmediate()
 end
 
 function WindowSaveLoad:getTabWindow()
@@ -75,7 +79,7 @@ function WindowSaveLoad:getDetailWindow()
 end
 
 function WindowSaveLoad:getVisible()
-    return self._slotWindow:getVisible()
+    return self._transition:isBlocking()
 end
 
 function WindowSaveLoad:setVisible(visible)
@@ -87,7 +91,8 @@ function WindowSaveLoad:setVisible(visible)
     self._detailWindow:setVisible(visible)
 end
 
-function WindowSaveLoad:open()
+function WindowSaveLoad:open(transitionProfile)
+    self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
     self._mode = "load"
     if self._tabWindow ~= nil then
         self._tabWindow:getTabView():setSelectedIndex(0)
@@ -100,23 +105,32 @@ function WindowSaveLoad:open()
         self._slotWindow.index = latestSlotIndex
         self._slotWindow._oldIndex = latestSlotIndex
     end
-    self:setVisible(true)
     self._lastSlotIndex = nil
-    if self._tabWindow ~= nil then
-        self._tabWindow:setActive(true)
-    end
-    self._slotWindow:setActive(true)
-    self._slotWindow:requestKeyboardFocusAtCursor()
-    self:notifySlotIndexMaybeChanged(self._slotWindow.index)
-end
-
-function WindowSaveLoad:close()
-    self:setVisible(false)
     if self._tabWindow ~= nil then
         self._tabWindow:setActive(false)
     end
     self._slotWindow:setActive(false)
     self._detailWindow:setActive(false)
+    local fadeIn = WindowTransition.GetAnimationNames(self._transitionProfile)
+    self._transition:show(fadeIn, function ()
+        self:setActive(true)
+        if self._tabWindow ~= nil then
+            self._tabWindow:setActive(true)
+        end
+        self._slotWindow:setActive(true)
+        self._slotWindow:requestKeyboardFocusAtCursor()
+    end)
+    self:notifySlotIndexMaybeChanged(self._slotWindow.index)
+end
+
+function WindowSaveLoad:close(onHidden)
+    if self._tabWindow ~= nil then
+        self._tabWindow:setActive(false)
+    end
+    self._slotWindow:setActive(false)
+    self._detailWindow:setActive(false)
+    local _, fadeOut = WindowTransition.GetAnimationNames(self._transitionProfile)
+    self._transition:hide(fadeOut, onHidden)
 end
 
 function WindowSaveLoad:closeByCancel()
@@ -200,22 +214,28 @@ function WindowSaveLoad:_handleLoad(slotNumber)
         return
     end
     ManagerFunctions.playSE(GameSystem.GetLoadSE())
-    self:_closeWithReason(CLOSE_REASON_LOADED)
-    if self._onLoadedCallback ~= nil then
-        self._onLoadedCallback(instance)
-    end
+    self:_closeWithReason(CLOSE_REASON_LOADED, function ()
+        if self._onLoadedCallback ~= nil then
+            self._onLoadedCallback(instance)
+        end
+    end)
 end
 
----@param reason string
-function WindowSaveLoad:_closeWithReason(reason)
-    self:close()
-    if self._onCloseCallback ~= nil then
-        self._onCloseCallback(reason)
-    end
+---@param reason   string
+---@param onHidden function | nil
+function WindowSaveLoad:_closeWithReason(reason, onHidden)
+    self:close(function ()
+        if self._onCloseCallback ~= nil then
+            self._onCloseCallback(reason)
+        end
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
 end
 
 function WindowSaveLoad:dispose()
-    self:close()
+    self._transition:hideImmediate()
     if self._tabWindow ~= nil then
         self._tabWindow:dispose()
     end

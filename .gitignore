@@ -29,7 +29,6 @@ Sample/Save/
 Sample/Core/**/GeneratedBindings.cpp
 Sample/Core/**/_generated_bindings.cpp
 Sample/Core/stub/
-Sample/Scripts/CoreSystem_meta.lua
 Sample/Scripts/Engine_meta.lua
 Sample/Scripts/GlobalCore_meta.lua
 Sample/Scripts/GlobalFunctions_meta.lua

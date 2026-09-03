@@ -26,6 +26,7 @@ ASSET_FIELDS = {
     "designSize",
     "palette",
     "root",
+    "animations",
 }
 DESIGN_SIZE_FIELDS = {"width", "height"}
 PALETTE_FIELDS = {"exposed", "displayName", "category"}
@@ -47,6 +48,9 @@ CANVAS_SLOT_FIELDS = {
 }
 ANCHOR_FIELDS = {"min", "max"}
 OFFSET_FIELDS = {"left", "top", "right", "bottom"}
+ANIMATION_FIELDS = {"name", "target", "duration", "pivot", "tracks"}
+ANIMATION_TRACK_FIELDS = {"translation", "rotation", "scale", "colour"}
+ANIMATION_KEY_FIELDS = {"time", "value"}
 
 
 def _reject_json_constant(value: str) -> None:
@@ -563,6 +567,99 @@ def _validate_node(
         )
 
 
+def _validate_animation_track(
+    value: object,
+    label: str,
+    duration: float,
+    vector: bool,
+    track: str,
+) -> None:
+    if not isinstance(value, list) or not value:
+        raise UiAssetError(f"{label} must contain at least one key")
+    previous = -1.0
+    for index, key_value in enumerate(value):
+        key_label = f"{label}[{index}]"
+        if not isinstance(key_value, dict):
+            raise UiAssetError(f"{key_label} must be an object")
+        _reject_unknown_fields(key_value, ANIMATION_KEY_FIELDS, key_label)
+        time = _float_number(key_value.get("time"), f"{key_label}.time")
+        if time < 0.0 or time > duration or time <= previous:
+            raise UiAssetError(
+                f"{key_label}.time must be strictly ordered within duration"
+            )
+        previous = time
+        if track == "colour":
+            _validate_integer_array(
+                key_value.get("value"), 4, f"{key_label}.value", colour=True
+            )
+        elif vector:
+            components = _pair(key_value.get("value"), f"{key_label}.value")
+            if track == "scale" and any(component < 0.0 for component in components):
+                raise UiAssetError(f"{key_label}.value cannot be negative")
+        else:
+            _float_number(key_value.get("value"), f"{key_label}.value")
+
+
+def _validate_animations(
+    value: object,
+    label: str,
+    node_names: set[str],
+) -> None:
+    if value is None:
+        return
+    if not isinstance(value, list):
+        raise UiAssetError(f"{label} must be an array")
+    bindings: set[tuple[str | None, str]] = set()
+    for index, animation_value in enumerate(value):
+        animation_label = f"{label}[{index}]"
+        if not isinstance(animation_value, dict):
+            raise UiAssetError(f"{animation_label} must be an object")
+        _reject_unknown_fields(animation_value, ANIMATION_FIELDS, animation_label)
+        name = animation_value.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise UiAssetError(f"{animation_label}.name must be non-empty")
+        if "target" not in animation_value:
+            raise UiAssetError(f"{animation_label}.target is required")
+        target = animation_value.get("target")
+        if target is not None and (
+            not isinstance(target, str) or not target or target not in node_names
+        ):
+            raise UiAssetError(
+                f"{animation_label}.target must name a local UI node or be null"
+            )
+        binding = (target, name)
+        if binding in bindings:
+            raise UiAssetError(
+                f"{animation_label} duplicates an animation name and target"
+            )
+        bindings.add(binding)
+        duration = _float_number(
+            animation_value.get("duration"), f"{animation_label}.duration"
+        )
+        if duration <= 0.0:
+            raise UiAssetError(f"{animation_label}.duration must be positive")
+        if "pivot" in animation_value:
+            pivot = _pair(animation_value["pivot"], f"{animation_label}.pivot")
+            if any(component < 0.0 or component > 1.0 for component in pivot):
+                raise UiAssetError(
+                    f"{animation_label}.pivot must stay within 0..1"
+                )
+        tracks = animation_value.get("tracks")
+        if not isinstance(tracks, dict):
+            raise UiAssetError(f"{animation_label}.tracks must be an object")
+        _reject_unknown_fields(
+            tracks, ANIMATION_TRACK_FIELDS, f"{animation_label}.tracks"
+        )
+        for track, keys in tracks.items():
+            _validate_animation_track(
+                keys,
+                f"{animation_label}.tracks.{track}",
+                duration,
+                track in {"translation", "scale"},
+                track,
+            )
+
+
 def _validate_asset(
     path: pathlib.Path,
     value: dict[str, object],
@@ -598,15 +695,17 @@ def _validate_asset(
         if not isinstance(palette.get(key), str) or not palette[key].strip():
             raise UiAssetError(f"{path}.palette.{key} must be non-empty")
     references: list[str] = []
+    node_names: set[str] = set()
     _validate_node(
         value.get("root"),
         f"{path}.root",
         True,
         None,
         project_root,
-        set(),
+        node_names,
         references,
     )
+    _validate_animations(value.get("animations"), f"{path}.animations", node_names)
     return references
 
 

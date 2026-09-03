@@ -79,7 +79,8 @@ function WindowAttrShopUI:refreshPriceText() end
 
 function WindowAttrShopUI:refreshItems() end
 
-function WindowAttrShopUI:close() end
+---@param onHidden function | nil
+function WindowAttrShopUI:close(onHidden) end
 
 function WindowAttrShopUI:closeByCancel() end
 

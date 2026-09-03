@@ -273,7 +273,6 @@ target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
     lua_cjson)
 if(LUDORK_STATIC_LUA_MODULES)
     target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
-        CoreSystem
         GlobalFunctions)
 endif()
 if(ANDROID)
@@ -425,7 +424,6 @@ foreach(runtime_target IN ITEMS
     Engine
     GlobalCore
     GlobalFunctions
-    CoreSystem
     LuaSF
     LuaSF_lua_shared
     sfml-system

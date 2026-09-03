@@ -153,6 +153,7 @@ public static class UiAssetSchema
                 ["displayName"] = displayName,
                 ["category"] = "Project",
             },
+            ["animations"] = new JsonArray(),
             ["root"] = new JsonObject
             {
                 ["name"] = "Root",

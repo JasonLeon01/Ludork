@@ -10,7 +10,7 @@ namespace Ludork.Services;
 public sealed class UiAssetValidationService
 {
     private static readonly HashSet<string> AssetFields = new HashSet<string>(
-        ["type", "designSize", "palette", "root"],
+        ["type", "designSize", "palette", "root", "animations"],
         StringComparer.Ordinal);
     private static readonly HashSet<string> DesignSizeFields = new HashSet<string>(
         ["width", "height"],
@@ -32,6 +32,15 @@ public sealed class UiAssetValidationService
         StringComparer.Ordinal);
     private static readonly HashSet<string> EditorFields = new HashSet<string>(
         ["previewText"],
+        StringComparer.Ordinal);
+    private static readonly HashSet<string> AnimationFields = new HashSet<string>(
+        ["name", "target", "duration", "pivot", "tracks"],
+        StringComparer.Ordinal);
+    private static readonly HashSet<string> AnimationTrackFields = new HashSet<string>(
+        ["translation", "rotation", "scale", "colour"],
+        StringComparer.Ordinal);
+    private static readonly HashSet<string> AnimationKeyFields = new HashSet<string>(
+        ["time", "value"],
         StringComparer.Ordinal);
 
     private readonly GameDataService gameData;
@@ -126,6 +135,7 @@ public sealed class UiAssetValidationService
         }
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
         validateNode(assetKey, root, "root", true, null, controls, names, issues);
+        validateAnimations(data["animations"], names, issues);
     }
 
     private void validateNode(
@@ -738,6 +748,141 @@ public sealed class UiAssetValidationService
             add(issues, "paletteDisplayName", "palette.displayName", "Palette display name must be non-empty");
         if (string.IsNullOrWhiteSpace(getString(palette["category"])))
             add(issues, "paletteCategory", "palette.category", "Palette category must be non-empty");
+    }
+
+    private static void validateAnimations(
+        JsonNode? value,
+        ISet<string> nodeNames,
+        ICollection<UiValidationIssue> issues)
+    {
+        if (value is null)
+            return;
+        if (value is not JsonArray animations)
+        {
+            add(issues, "animations", "animations", "animations must be an array");
+            return;
+        }
+        HashSet<string> bindings = new HashSet<string>(StringComparer.Ordinal);
+        for (int index = 0; index < animations.Count; index++)
+        {
+            string path = $"animations[{index}]";
+            if (animations[index] is not JsonObject animation)
+            {
+                add(issues, "animation", path, "Animation must be an object");
+                continue;
+            }
+            rejectUnknownFields(animation, AnimationFields, path, issues);
+            string? name = getString(animation["name"]);
+            if (string.IsNullOrWhiteSpace(name))
+                add(issues, "animationName", path + ".name", "Animation name must be non-empty");
+
+            string targetKey = string.Empty;
+            if (!animation.ContainsKey("target"))
+            {
+                add(issues, "animationTarget", path + ".target", "Animation target is required");
+            }
+            else if (animation["target"] is not null)
+            {
+                string? target = getString(animation["target"]);
+                if (string.IsNullOrWhiteSpace(target) || !nodeNames.Contains(target))
+                    add(issues, "animationTarget", path + ".target", "Animation target must name a local UI node or be null");
+                else
+                    targetKey = target;
+            }
+            if (!string.IsNullOrWhiteSpace(name)
+                && !bindings.Add(targetKey + "\u001f" + name))
+            {
+                add(issues, "duplicateAnimation", path + ".name", "Animation name must be unique for its target");
+            }
+
+            bool validDuration = tryGetFloatNumber(animation["duration"], out double duration)
+                && duration > 0.0;
+            if (!validDuration)
+                add(issues, "animationDuration", path + ".duration", "Animation duration must be positive");
+            if (animation.ContainsKey("pivot"))
+            {
+                double[]? pivot = validatePair(animation["pivot"], path + ".pivot", false, issues);
+                if (pivot is not null
+                    && (pivot[0] < 0.0 || pivot[0] > 1.0 || pivot[1] < 0.0 || pivot[1] > 1.0))
+                {
+                    add(issues, "animationPivot", path + ".pivot", "Animation pivot components must stay within 0..1");
+                }
+            }
+            if (animation["tracks"] is not JsonObject tracks)
+            {
+                add(issues, "animationTracks", path + ".tracks", "Animation tracks must be an object");
+                continue;
+            }
+            rejectUnknownFields(tracks, AnimationTrackFields, path + ".tracks", issues);
+            foreach (KeyValuePair<string, JsonNode?> pair in tracks)
+            {
+                validateAnimationTrack(
+                    pair.Value,
+                    path + ".tracks." + pair.Key,
+                    pair.Key is "translation" or "scale",
+                    pair.Key,
+                    validDuration ? duration : 0.0,
+                    issues);
+            }
+        }
+    }
+
+    private static void validateAnimationTrack(
+        JsonNode? value,
+        string path,
+        bool vector,
+        string track,
+        double duration,
+        ICollection<UiValidationIssue> issues)
+    {
+        if (value is not JsonArray keys || keys.Count == 0)
+        {
+            add(issues, "animationTrack", path, "Animation track must contain at least one key");
+            return;
+        }
+        double previous = -1.0;
+        for (int index = 0; index < keys.Count; index++)
+        {
+            string keyPath = $"{path}[{index}]";
+            if (keys[index] is not JsonObject key)
+            {
+                add(issues, "animationKey", keyPath, "Animation key must be an object");
+                continue;
+            }
+            rejectUnknownFields(key, AnimationKeyFields, keyPath, issues);
+            if (!tryGetFloatNumber(key["time"], out double time)
+                || time < 0.0
+                || time > duration
+                || time <= previous)
+            {
+                add(issues, "animationKeyTime", keyPath + ".time", "Animation key time must be strictly ordered within duration");
+            }
+            else
+            {
+                previous = time;
+            }
+            if (track == "colour")
+            {
+                if (!validateIntegerArray(key["value"], 4, true))
+                {
+                    add(issues, "animationColour", keyPath + ".value", "Animation colour must contain four integer RGBA components within 0..255");
+                }
+            }
+            else if (vector)
+            {
+                double[]? components = validatePair(key["value"], keyPath + ".value", false, issues);
+                if (track == "scale"
+                    && components is not null
+                    && (components[0] < 0.0 || components[1] < 0.0))
+                {
+                    add(issues, "animationScale", keyPath + ".value", "Animation scale cannot be negative");
+                }
+            }
+            else if (!tryGetFloatNumber(key["value"], out double scalar))
+            {
+                add(issues, "animationValue", keyPath + ".value", "Animation key value must be a finite number");
+            }
+        }
     }
 
     private static double[]? validatePair(

@@ -10,23 +10,23 @@
 --- frame width. The door is NOT `animatable` — animations are driven manually
 --- in `onTick()`.
 ---
---- `tickable` defaults to `True` so that `onTick` fires each frame.
+--- `tickable` keeps the Actor default `False`; valid open/close playback
+--- enables it only until the animation completes or the Actor is destroyed.
 --- Calling `openDoor()` or `closeDoor()` while the same animation is already
 --- running is a safe no-op.
 ---@class Source.DoorBase.DoorBase: Engine.Actor
----@field opening boolean
----@field closing boolean
+---@field opening          boolean
+---@field closing          boolean
 ---@field collisionEnabled boolean
----@field tickable boolean
----@field openInterval number
----@field gateSE string
----@field _frameIndex integer
----@field _animTimer number
----@field _openFinished boolean
----@field _closeFinished boolean
----@field _frameWidth integer
----@field _startX integer
----@field _startY integer
+---@field openInterval     number
+---@field gateSE           string
+---@field _frameIndex      integer
+---@field _animTimer       number
+---@field _openFinished    boolean
+---@field _closeFinished   boolean
+---@field _frameWidth      integer
+---@field _startX          integer
+---@field _startY          integer
 local DoorBase = {}
 
 --- Construct a Door actor.
@@ -70,10 +70,13 @@ function DoorBase:closeDoor() end
 
 --- Blueprint event: drive open/close animations when active.
 ---
---- Called every frame while `tickable` is `True`.
+--- Called every frame while an open/close animation is active.
 ---
 --- - @param deltaTime  Seconds since the last frame
 ---@param deltaTime number
 function DoorBase:onTick(deltaTime) end
+
+--- Disable animation ticking before the Actor is destroyed.
+function DoorBase:onDestroy() end
 
 return DoorBase

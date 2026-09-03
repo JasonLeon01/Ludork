@@ -55,17 +55,22 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private readonly ProjectSaveService projectSave = null!;
     private UiPreviewClient previewClient = null!;
     private UiPreviewSurface previewSurface = null!;
+    private UiAnimationTimelineEditor timelineEditor = null!;
     private readonly DeferredWindowInitializer initializer = null!;
     private IReadOnlyDictionary<string, UiControlDescriptor> controlLookup =
         new Dictionary<string, UiControlDescriptor>(StringComparer.Ordinal);
     private string? selectedNodeName;
     private Action? pendingFieldCommit;
-    private CancellationTokenSource? previewCancellation;
+    private readonly CancellationTokenSource previewLifetime = new();
     private PointerPressedEventArgs? hierarchyDragPress;
     private Point? hierarchyDragStart;
     private string? hierarchyDragNodeName;
     private JsonObject? transformStartSlot;
     private bool startingHierarchyDrag;
+    private bool previewWorkerRunning;
+    private bool previewScheduled;
+    private bool previewImmediate;
+    private long previewScheduleVersion;
     private bool refreshing;
     private bool contentInitialized;
 
@@ -106,6 +111,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                     previewClient.HitTestAsync(generation, x, y),
             };
             PreviewContainer.Content = previewSurface;
+            timelineEditor = new UiAnimationTimelineEditor(document, gameData);
+            TimelineContainer.Content = timelineEditor;
             EditorInputs.ApplyEditable(PaletteSearch);
             configureHierarchyDragDrop();
             applyLocale();
@@ -119,6 +126,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             {
                 updateZoomText();
                 schedulePreview();
+            };
+            timelineEditor.PreviewChanged += (_, _) =>
+            {
+                previewSurface.TransformEnabled = timelineEditor.CurrentSample is null;
+                updateAnchorGuides();
+                schedulePreview(true);
             };
             ScalingChanged += (_, _) => schedulePreview();
             refreshAll();
@@ -167,7 +180,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         projectSave.UnregisterParticipant(this);
         if (!initializer.IsInitialized)
             return;
-        previewCancellation?.Cancel();
+        previewLifetime.Cancel();
+        timelineEditor.StopPlayback();
         await previewClient.DisposeAsync();
     }
 
@@ -177,10 +191,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         ToolTip.SetTip(PaletteSearch, LocaleService.Get("SEARCH"));
         HierarchyTitle.Text = LocaleService.Get("UI_HIERARCHY");
         DesignerTitle.Text = LocaleService.Get("UI_DESIGNER");
+        TimelineTitle.Text = LocaleService.Get("UI_TIMELINE");
         DetailsTitle.Text = LocaleService.Get("DETAILS");
         ResetViewButton.Content = LocaleService.Get("RESET_VIEW");
         ValidateButton.Content = LocaleService.Get("VALIDATE");
         RefreshPreviewButton.Content = LocaleService.Get("REFRESH_PREVIEW");
+        timelineEditor.ApplyLocale();
         updateTitle();
         updatePreviewState();
     }
@@ -197,6 +213,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         if (refreshing || !initializer.IsInitialized)
             return;
+        if (timelineEditor.IsCommitting)
+        {
+            schedulePreview();
+            return;
+        }
         refreshAll();
     }
 
@@ -211,6 +232,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             refreshDetails();
             updateAnchorGuides();
             updateZoomText();
+            timelineEditor.Refresh();
         }
         finally
         {
@@ -1602,24 +1624,43 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         await refreshPreviewAsync();
     }
 
-    private void schedulePreview()
+    private void schedulePreview(bool immediate = false)
     {
-        CancellationTokenSource next = new();
-        CancellationTokenSource? previous = previewCancellation;
-        previewCancellation = next;
-        previous?.Cancel();
-        _ = schedulePreviewAsync(next.Token);
+        previewScheduleVersion++;
+        previewScheduled = true;
+        previewImmediate |= immediate;
+        if (!previewWorkerRunning)
+            _ = runPreviewWorkerAsync();
     }
 
-    private async Task schedulePreviewAsync(CancellationToken cancellationToken)
+    private async Task runPreviewWorkerAsync()
     {
+        previewWorkerRunning = true;
         try
         {
-            await Task.Delay(140, cancellationToken);
-            await refreshPreviewAsync(cancellationToken);
+            while (previewScheduled && !previewLifetime.IsCancellationRequested)
+            {
+                long version = previewScheduleVersion;
+                bool immediate = previewImmediate;
+                previewScheduled = false;
+                previewImmediate = false;
+                if (!immediate)
+                {
+                    await Task.Delay(140, previewLifetime.Token);
+                    if (version != previewScheduleVersion)
+                        continue;
+                }
+                await refreshPreviewAsync(previewLifetime.Token);
+            }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (previewLifetime.IsCancellationRequested)
         {
+        }
+        finally
+        {
+            previewWorkerRunning = false;
+            if (previewScheduled && !previewLifetime.IsCancellationRequested)
+                _ = runPreviewWorkerAsync();
         }
     }
 
@@ -1631,6 +1672,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             document.Data,
             dependencies,
             previewSurface.RenderScale,
+            timelineEditor.CurrentSample,
             cancellationToken);
         if (frame is null || cancellationToken.IsCancellationRequested)
         {
@@ -1814,7 +1856,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void updateAnchorGuides()
     {
-        if (selectedNodeName is null
+        if (timelineEditor.CurrentSample is not null
+            || selectedNodeName is null
             || !tryGetDesignerCanvasSlot(
                 selectedNodeName,
                 out JsonObject slot)

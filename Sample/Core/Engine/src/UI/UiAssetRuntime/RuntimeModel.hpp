@@ -2,9 +2,12 @@
 
 #include <UI/ControlBase.hpp>
 
+#include <SFML/Graphics/Color.hpp>
 #include <SFML/System/Vector2.hpp>
 
 #include <memory>
+#include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -25,6 +28,40 @@ struct CanvasSlotData {
 
 struct AssetState;
 
+struct AnimationScalarKey {
+    float time = 0.0f;
+    float value = 0.0f;
+};
+
+struct AnimationVectorKey {
+    float time = 0.0f;
+    sf::Vector2f value;
+};
+
+struct AnimationColourKey {
+    float time = 0.0f;
+    sf::Color value = sf::Color::White;
+};
+
+struct AnimationDefinition {
+    std::string name;
+    std::optional<std::string> target;
+    float duration = 0.0f;
+    sf::Vector2f pivot{0.5f, 0.5f};
+    std::vector<AnimationVectorKey> translation;
+    std::vector<AnimationScalarKey> rotation;
+    std::vector<AnimationVectorKey> scale;
+    std::vector<AnimationColourKey> colour;
+};
+
+struct ActiveAnimation {
+    std::shared_ptr<const AnimationDefinition> definition;
+    std::shared_ptr<ControlBase> target;
+    float elapsed = 0.0f;
+    bool playing = true;
+    std::function<void()> onFinished;
+};
+
 struct RuntimeNode {
     std::string name;
     std::string controlId;
@@ -42,6 +79,12 @@ struct AssetState {
     std::shared_ptr<RuntimeNode> root;
     std::unordered_map<std::string, std::shared_ptr<RuntimeNode>> controls;
     std::unordered_map<std::string, std::shared_ptr<AssetState>> nestedStates;
+    std::unordered_map<std::string, std::shared_ptr<AnimationDefinition>>
+        animations;
+    std::unordered_map<std::string, std::shared_ptr<ActiveAnimation>>
+        activeAnimations;
+    std::weak_ptr<AssetState> parentState;
+    std::string parentNodeName;
     bool layoutDirty = true;
 };
 

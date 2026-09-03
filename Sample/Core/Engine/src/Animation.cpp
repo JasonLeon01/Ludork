@@ -1,16 +1,15 @@
 #include <Animation.hpp>
 
 #include <Base64.hpp>
+#include <Compression.hpp>
 
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/Texture.hpp>
-#include <zlib.h>
-
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdint>
+#include <span>
 #include <stdexcept>
 #include <utility>
 
@@ -39,28 +38,12 @@ std::vector<std::uint8_t> decodeBase64(const std::string& data) {
 
 std::vector<std::uint8_t> decompressFrame(const std::uint8_t* data,
                                           std::size_t size) {
-    z_stream stream{};
-    stream.next_in = const_cast<Bytef*>(data);
-    stream.avail_in = static_cast<uInt>(size);
-    if (inflateInit(&stream) != Z_OK) {
-        throw std::runtime_error(
-            "Failed to initialise animation decompression");
-    }
-    std::vector<std::uint8_t> output;
-    std::array<std::uint8_t, 16384> chunk{};
-    int status = Z_OK;
-    while (status == Z_OK) {
-        stream.next_out = chunk.data();
-        stream.avail_out = static_cast<uInt>(chunk.size());
-        status = inflate(&stream, Z_NO_FLUSH);
-        const std::size_t produced = chunk.size() - stream.avail_out;
-        output.insert(output.end(), chunk.begin(), chunk.begin() + produced);
-    }
-    inflateEnd(&stream);
-    if (status != Z_STREAM_END) {
+    try {
+        return ludork::standard::decompressZlib(
+            std::span<const std::uint8_t>(data, size), 15);
+    } catch (const std::exception&) {
         throw std::runtime_error("Failed to decompress animation frame");
     }
-    return output;
 }
 
 void resolveSoundStopAtEndFrame(AnimationSoundEntry& entry, int frameRate) {

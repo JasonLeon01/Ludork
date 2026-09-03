@@ -25,8 +25,7 @@ function WindowEnemyBook:init(rect, player, onClose, onConfirm)
     self._ui:attach()
     self:setScrollBox(self._ui:getScrollBox())
     self:setListView(self._ui:getListView())
-    self:setActive(false)
-    self:setVisible(false)
+    self:hideImmediate()
 end
 
 function WindowEnemyBook:setPlayer(player)
@@ -35,14 +34,15 @@ end
 
 function WindowEnemyBook:open(gameMap)
     self:_refreshEnemies(gameMap)
-    self:setVisible(true)
-    self:setActive(true)
-    self:requestKeyboardFocus()
+    self:showWithAnimation("FadeIn", function ()
+        self:setActive(true)
+        self:requestKeyboardFocus()
+    end)
 end
 
-function WindowEnemyBook:close()
-    self:setVisible(false)
+function WindowEnemyBook:close(onHidden)
     self:setActive(false)
+    self:hideWithAnimation("FadeOut", onHidden)
 end
 
 function WindowEnemyBook:refreshLocale()
@@ -99,10 +99,11 @@ end
 
 function WindowEnemyBook:onReturn()
     ManagerFunctions.playSE(GameSystem.GetCancelSE())
-    self:close()
-    if self._onCloseCallback ~= nil then
-        self._onCloseCallback()
-    end
+    self:close(function ()
+        if self._onCloseCallback ~= nil then
+            self._onCloseCallback()
+        end
+    end)
 end
 
 ---@param entry table

@@ -6,7 +6,7 @@
 ---@field refreshEvents string[]
 ---@field _logicalSize  sf.Vector2u
 ---@field _region       string | nil
----@field _elapsed      number
+---@field _showing      boolean
 ---@field _text         Engine.PlainText
 local RegionTitleUI = {}
 
