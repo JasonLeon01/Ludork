@@ -27,13 +27,11 @@ namespace Ludork.Views;
 
 public partial class MainWindow : Window
 {
-    private const int MaximumConsoleLineCount = 5000;
     private readonly EditorSettings? editorSettings;
     private readonly ProjectRunnerService? projectRunner;
     private readonly ConsoleLogSession consoleLogSession = new();
     private readonly object consoleOutputSync = new();
-    private readonly Queue<string> pendingConsoleLines = new();
-    private readonly Queue<string> visibleConsoleLines = new();
+    private readonly LogTextViewController consoleLogView;
     private MainViewModel? viewModel;
     private LayerTabViewModel? draggedLayer;
     private Point dragStart;
@@ -62,11 +60,6 @@ public partial class MainWindow : Window
     private string consoleDraft = string.Empty;
     private bool settingConsoleHistoryText;
     private bool consoleSendPending;
-    private bool consoleFlushScheduled;
-    private bool consoleFollowsLatest = true;
-    private bool consoleViewportUpdatePending;
-    private int consoleViewportGeneration;
-    private ScrollViewer? consoleScrollViewer;
     private bool updatingActorOutlinerSelection;
     private ActorPreviewService? actorPreviewService;
     private bool actorPreviewFallbackNotified;
@@ -97,6 +90,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        consoleLogView = new LogTextViewController(ConsoleOutput);
         installPluginMenus();
         toast = new Toast(this);
         initializeInteraction();
@@ -110,6 +104,7 @@ public partial class MainWindow : Window
         ProjectPath = Path.GetFullPath(projectPath);
         projectRunner = new ProjectRunnerService(ProjectPath);
         InitializeComponent();
+        consoleLogView = new LogTextViewController(ConsoleOutput);
         installPluginMenus();
         toast = new Toast(this);
         initializeInteraction();

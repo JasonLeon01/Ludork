@@ -1,5 +1,7 @@
 #include "SystemServices.hpp"
 
+#include <DataFile.hpp>
+#include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
 
 #include <algorithm>
@@ -187,6 +189,23 @@ bool isRegularFile(const std::filesystem::path& value) {
 }
 
 double modificationTime(const std::filesystem::path& value) {
+    ReadOnlyFileStatus virtualStatus = readOnlyFileStatus(value);
+    if (virtualStatus.handled &&
+        virtualStatus.type == ReadOnlyFileType::Missing) {
+        const std::filesystem::path resolved = resolveJsonDataPath(value);
+        if (resolved != value) {
+            virtualStatus = readOnlyFileStatus(resolved);
+        }
+    }
+    if (virtualStatus.handled) {
+        if (virtualStatus.type == ReadOnlyFileType::Missing) {
+            throw std::runtime_error(
+                "cannot get modification time: " +
+                std::make_error_code(std::errc::no_such_file_or_directory)
+                    .message());
+        }
+        return virtualStatus.modificationTime;
+    }
     std::error_code error;
     const std::filesystem::file_time_type writeTime =
         std::filesystem::last_write_time(value, error);

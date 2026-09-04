@@ -6,6 +6,8 @@
 
 #include <GlobalRuntimeApi.hpp>
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/DataStore.hpp>
+#include <Runtime/ScriptStore.hpp>
 #include <SystemServices.hpp>
 
 #include <cstdlib>
@@ -60,7 +62,25 @@ int run(int argc, char** argv) {
         return 1;
     }
     try {
-        ludork::runtime::assetStore().configure(runtimeRoot);
+        ludork::runtime::scriptStore().configure(runtimeRoot);
+        const bool scriptsPacked = ludork::runtime::scriptStore().mode() ==
+                                   ludork::runtime::ScriptStoreMode::Packed;
+        ludork::runtime::assetStore().configure(
+            runtimeRoot, scriptsPacked
+                             ? ludork::runtime::AssetStoreMode::Packed
+                             : ludork::runtime::AssetStoreMode::Loose);
+        ludork::runtime::dataStore().configure(
+            runtimeRoot, scriptsPacked ? ludork::runtime::DataStoreMode::Packed
+                                       : ludork::runtime::DataStoreMode::Loose);
+        const bool assetsPacked = ludork::runtime::assetStore().mode() ==
+                                  ludork::runtime::AssetStoreMode::Packed;
+        const bool dataPacked = ludork::runtime::dataStore().mode() ==
+                                ludork::runtime::DataStoreMode::Packed;
+        if (assetsPacked != dataPacked || assetsPacked != scriptsPacked) {
+            throw std::runtime_error(
+                "Assets, Data, and Scripts must all use the same loose or "
+                "packed layout");
+        }
     } catch (const std::exception& error) {
         detail::reportStartupError(error.what());
         return 1;

@@ -5,6 +5,7 @@
 
 #include <ConfigParser.hpp>
 #include <LuaError.hpp>
+#include <Runtime/ScriptStore.hpp>
 #include <RuntimeSession.hpp>
 
 extern "C" {
@@ -35,9 +36,16 @@ void configureLuaSearchPaths(lua_State* state,
     const char* cpackagePath = lua_tostring(state, -1);
     const std::string executableDirectory =
         executablePath.parent_path().generic_string();
+    const std::string binaryDirectory = executableDirectory + "/Binaries";
+    const std::string frameworkDirectory =
+        executablePath.parent_path().parent_path().generic_string() +
+        "/Frameworks";
     const std::string nativeModulePath =
         executableDirectory + "/?.dll;" + executableDirectory + "/?.so;" +
-        executableDirectory + "/?.dylib;?.dll;?.so;?.dylib;";
+        executableDirectory + "/?.dylib;" + binaryDirectory + "/?.dll;" +
+        binaryDirectory + "/?.so;" + binaryDirectory + "/?.dylib;" +
+        frameworkDirectory + "/?.dll;" + frameworkDirectory + "/?.so;" +
+        frameworkDirectory + "/?.dylib;?.dll;?.so;?.dylib;";
     lua_pushlstring(state, nativeModulePath.c_str(), nativeModulePath.size());
     lua_pushstring(state, cpackagePath == nullptr ? "" : cpackagePath);
     lua_concat(state, 2);
@@ -69,12 +77,24 @@ int runEntryScript(lua_State* state, const std::filesystem::path& scriptPath) {
     if (!scriptExecution.active()) {
         return 1;
     }
-    const std::filesystem::path resolvedPath =
-        ludork::application::detail::resolveLuaScriptPath(scriptPath);
-    const std::string resolvedPathText = resolvedPath.generic_string();
-    if (luaL_loadfile(state, resolvedPathText.c_str()) != LUA_OK) {
+    const std::filesystem::path normalizedScriptPath =
+        scriptPath.lexically_normal();
+    std::string loadedPathText = normalizedScriptPath.generic_string();
+    int loadStatus = LUA_ERRFILE;
+    if (!normalizedScriptPath.is_absolute() &&
+        loadedPathText.starts_with("Scripts/")) {
+        loadStatus =
+            ludork::runtime::scriptStore().loadFile(state, loadedPathText);
+    } else {
+        const std::filesystem::path resolvedPath =
+            ludork::application::detail::resolveLuaScriptPath(
+                normalizedScriptPath);
+        loadedPathText = resolvedPath.generic_string();
+        loadStatus = luaL_loadfile(state, loadedPathText.c_str());
+    }
+    if (loadStatus != LUA_OK) {
         ludork::application::detail::reportStartupError(
-            "Lua error while loading " + resolvedPathText + ": " +
+            "Lua error while loading " + loadedPathText + ": " +
             ludork::application::detail::luaErrorMessage(state));
         return 1;
     }
@@ -82,7 +102,7 @@ int runEntryScript(lua_State* state, const std::filesystem::path& scriptPath) {
         return 0;
     }
     ludork::application::detail::reportStartupError(
-        "Lua error while loading " + resolvedPathText + ": " +
+        "Lua error while loading " + loadedPathText + ": " +
         ludork::application::detail::luaErrorMessage(state));
     return 1;
 }
@@ -94,6 +114,7 @@ namespace ludork::application::detail {
 void configureApplicationScriptEnvironment(
     lua_State* state, const std::filesystem::path& executablePath) {
     configureLuaSearchPaths(state, executablePath);
+    ludork::runtime::scriptStore().registerPreloadedModules(state);
 }
 
 int runApplicationScript(lua_State* state, int argc, char** argv) {

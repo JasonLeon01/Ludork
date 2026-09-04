@@ -14,6 +14,10 @@ option(
     LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME
     "Build the editor-owned native UI preview runtime"
     OFF)
+option(
+    LUDORK_SAVE_AS_LDC
+    "Encrypt standard save slots as LDC files"
+    OFF)
 mark_as_advanced(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBuild.cmake")
@@ -367,10 +371,58 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
             "${resource_directory}"
             EXCLUDES "*.anim.json")
     endforeach()
-    ludork_add_ios_bundle_directory_sync(
-        Main
-        "${LUDORK_SCRIPTS_SOURCE_DIR}"
-        Scripts)
+    set(
+        LUDORK_SCRIPTS_PACKAGE_FILE
+        ""
+        CACHE FILEPATH
+        "Packaged Scripts.ldpak resource used by the iOS application")
+    set(ludork_has_loose_scripts OFF)
+    if(IS_DIRECTORY "${LUDORK_SCRIPTS_SOURCE_DIR}")
+        set(ludork_has_loose_scripts ON)
+    endif()
+    set(ludork_has_packed_scripts OFF)
+    if(NOT LUDORK_SCRIPTS_PACKAGE_FILE STREQUAL "")
+        if(NOT EXISTS "${LUDORK_SCRIPTS_PACKAGE_FILE}")
+            message(FATAL_ERROR
+                "The iOS script package was not found: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
+        endif()
+        if(IS_DIRECTORY "${LUDORK_SCRIPTS_PACKAGE_FILE}")
+            message(FATAL_ERROR
+                "The iOS script package is not a file: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
+        endif()
+        get_filename_component(
+            ludork_scripts_package_name
+            "${LUDORK_SCRIPTS_PACKAGE_FILE}"
+            NAME)
+        if(NOT ludork_scripts_package_name STREQUAL "Scripts.ldpak")
+            message(FATAL_ERROR
+                "The iOS script package must be named Scripts.ldpak: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
+        endif()
+        set(ludork_has_packed_scripts ON)
+    endif()
+    if((ludork_has_loose_scripts AND ludork_has_packed_scripts)
+       OR (NOT ludork_has_loose_scripts AND NOT ludork_has_packed_scripts))
+        message(FATAL_ERROR
+            "The iOS application requires exactly one loose Scripts directory or Scripts.ldpak file.")
+    endif()
+    if(ludork_has_loose_scripts)
+        add_custom_command(TARGET Main POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E rm -f
+                "$<TARGET_BUNDLE_DIR:Main>/Scripts.ldpak"
+            VERBATIM)
+        ludork_add_ios_bundle_directory_sync(
+            Main
+            "${LUDORK_SCRIPTS_SOURCE_DIR}"
+            Scripts)
+    else()
+        add_custom_command(TARGET Main POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E rm -rf
+                "$<TARGET_BUNDLE_DIR:Main>/Scripts"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${LUDORK_SCRIPTS_PACKAGE_FILE}"
+                "$<TARGET_BUNDLE_DIR:Main>/Scripts.ldpak"
+            VERBATIM)
+    endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Licenses")
         ludork_add_ios_bundle_directory_sync(
             Main
@@ -397,6 +449,28 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         VERBATIM)
 endif()
 if(WIN32)
+    add_executable(LudorkLauncher WIN32 EXCLUDE_FROM_ALL
+        src/Platform/Windows/Launcher.cpp
+        Main.rc)
+    target_compile_features(LudorkLauncher PRIVATE cxx_std_20)
+    target_link_libraries(LudorkLauncher PRIVATE User32)
+    set_target_properties(LudorkLauncher PROPERTIES
+        OUTPUT_NAME Main
+        RUNTIME_OUTPUT_DIRECTORY
+            "${CMAKE_CURRENT_BINARY_DIR}/launcher/$<CONFIG>"
+        PDB_OUTPUT_DIRECTORY
+            "${CMAKE_CURRENT_BINARY_DIR}/launcher/$<CONFIG>")
+    if(MSVC)
+        set_property(TARGET LudorkLauncher PROPERTY
+            MSVC_RUNTIME_LIBRARY
+                "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    elseif(MINGW)
+        target_link_options(LudorkLauncher PRIVATE
+            -municode
+            -static
+            -static-libgcc
+            -static-libstdc++)
+    endif()
     target_sources(Main PRIVATE Main.rc)
     set_property(TARGET Main PROPERTY
         WIN32_EXECUTABLE "$<CONFIG:Release>")

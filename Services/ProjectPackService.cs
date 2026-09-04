@@ -34,6 +34,7 @@ public enum ProjectPackFailure
     AndroidToolchainUnavailable,
     AndroidSigningUnavailable,
     AndroidProjectUnsupported,
+    SaveEncryptionProjectUnsupported,
     PackFailed,
 }
 
@@ -73,7 +74,8 @@ public sealed record ProjectPackOptions(
     bool UseLuac,
     bool EncryptShaders,
     bool EncryptData,
-    bool PackAssets)
+    bool EncryptSaves,
+    bool UseLdPak)
 {
     public bool ExportToIPhone { get; init; }
     public bool ExportToHarmonyDevice { get; init; }
@@ -185,7 +187,7 @@ public sealed class ProjectPackService
         ProjectPackaging packaging = new(
             projectPath,
             options.UseLuac,
-            options.PackAssets);
+            options.UseLdPak);
         if (requiresPreflight)
         {
             ScriptExecutionResult preflight = await executeScriptAsync(
@@ -194,7 +196,8 @@ public sealed class ProjectPackService
                 options.UseLuac,
                 options.EncryptShaders,
                 options.EncryptData,
-                options.PackAssets,
+                options.EncryptSaves,
+                options.UseLdPak,
                 exportToIPhone,
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
@@ -239,7 +242,8 @@ public sealed class ProjectPackService
                 options.UseLuac,
                 options.EncryptShaders,
                 options.EncryptData,
-                options.PackAssets,
+                options.EncryptSaves,
+                options.UseLdPak,
                 exportToIPhone,
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
@@ -260,7 +264,8 @@ public sealed class ProjectPackService
             options.UseLuac,
             options.EncryptShaders,
             options.EncryptData,
-            options.PackAssets,
+            options.EncryptSaves,
+            options.UseLdPak,
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
@@ -287,6 +292,12 @@ public sealed class ProjectPackService
             return projectFailure;
         if (!isStandalone)
             return null;
+        if (options.EncryptSaves)
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.SaveEncryptionProjectUnsupported,
+                projectFilePath);
+        }
         if (options.Platform == ProjectPackPlatform.IOS)
         {
             return ProjectPackResult.Failed(
@@ -379,7 +390,8 @@ public sealed class ProjectPackService
         bool useLuac,
         bool encryptShaders,
         bool encryptData,
-        bool packAssets,
+        bool encryptSaves,
+        bool useLdPak,
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
@@ -394,7 +406,8 @@ public sealed class ProjectPackService
             useLuac,
             encryptShaders,
             encryptData,
-            packAssets,
+            encryptSaves,
+            useLdPak,
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
@@ -407,7 +420,8 @@ public sealed class ProjectPackService
         string optionText = (useLuac ? " --compile-lua" : string.Empty)
             + (encryptShaders ? " --encrypt-shaders" : string.Empty)
             + (encryptData ? " --encrypt-data" : string.Empty)
-            + (packAssets ? " --pack-assets" : string.Empty)
+            + (encryptSaves ? " --encrypt-saves" : string.Empty)
+            + (useLdPak ? " --use-ldpak" : string.Empty)
             + (exportToIPhone ? " --export-to-iphone" : string.Empty)
             + (exportToHarmonyDevice ? " --export-to-device" : string.Empty)
             + (harmonyDeviceForm is null
@@ -557,7 +571,8 @@ public sealed class ProjectPackService
         bool useLuac,
         bool encryptShaders,
         bool encryptData,
-        bool packAssets,
+        bool encryptSaves,
+        bool useLdPak,
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
@@ -610,8 +625,10 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("--encrypt-shaders");
         if (encryptData)
             startInfo.ArgumentList.Add("--encrypt-data");
-        if (packAssets)
-            startInfo.ArgumentList.Add("--pack-assets");
+        if (encryptSaves)
+            startInfo.ArgumentList.Add("--encrypt-saves");
+        if (useLdPak)
+            startInfo.ArgumentList.Add("--use-ldpak");
         if (exportToIPhone)
             startInfo.ArgumentList.Add("--export-to-iphone");
         if (exportToHarmonyDevice)
@@ -722,11 +739,11 @@ public sealed class ProjectPackService
         public ProjectPackaging(
             string projectPath,
             bool useLuac,
-            bool packAssets)
+            bool useLdPak)
         {
             this.projectPath = projectPath;
             UseLuac = useLuac;
-            PackAssets = packAssets;
+            UseLdPak = useLdPak;
             StringComparer comparer = OperatingSystem.IsWindows()
                 ? StringComparer.OrdinalIgnoreCase
                 : StringComparer.Ordinal;
@@ -736,7 +753,7 @@ public sealed class ProjectPackService
 
         public bool UseLuac { get; }
 
-        public bool PackAssets { get; }
+        public bool UseLdPak { get; }
 
         public IReadOnlyList<string> CompileLuaDirectories =>
             compileLuaDirectories.Order(StringComparer.Ordinal).ToArray();

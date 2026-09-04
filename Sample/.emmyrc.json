@@ -5,6 +5,7 @@
     },
     "workspace": {
         "ignoreDir": [
+            "Binaries",
             "bin",
             "build",
             "dist",

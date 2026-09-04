@@ -5,7 +5,8 @@ set -eu
 USE_LUAC=0
 ENCRYPT_SHADERS=0
 ENCRYPT_DATA=0
-PACK_ASSETS=0
+ENCRYPT_SAVES=0
+USE_LDPAK=0
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --compile-lua)
@@ -20,8 +21,12 @@ while [ "$#" -gt 0 ]; do
             ENCRYPT_DATA=1
             shift
             ;;
-        --pack-assets)
-            PACK_ASSETS=1
+        --encrypt-saves)
+            ENCRYPT_SAVES=1
+            shift
+            ;;
+        --use-ldpak)
+            USE_LDPAK=1
             shift
             ;;
         --*)
@@ -34,7 +39,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-    echo "Usage: tools/pack_project.sh [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--pack-assets] <project-folder> [dist-folder]" >&2
+    echo "Usage: tools/pack_project.sh [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] <project-folder> [dist-folder]" >&2
     exit 1
 fi
 
@@ -58,8 +63,8 @@ if grep -Eq "$DEFAULT_APP_NAME_PATTERN" "$ENTRY_FILE"; then
     echo "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging." >&2
     exit 24
 fi
-if [ "$PACK_ASSETS" -eq 1 ]; then
-    "$SCRIPT_TOOLS" validate-asset-pack-source "$PROJECT_DIR/Assets"
+if [ "$USE_LDPAK" -eq 1 ]; then
+    "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi
 
 PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
@@ -91,39 +96,44 @@ validate_no_ui_preview_host() {
 trap cleanup_temporary EXIT HUP INT TERM
 
 if [ "$PROJECT_MODE" = "standalone" ]; then
+    if [ "$ENCRYPT_SAVES" -eq 1 ]; then
+        echo "--encrypt-saves requires a C++ Source project because the setting is compiled into the runtime." >&2
+        exit 1
+    fi
     RUNTIME_DIR="$PROJECT_DIR"
 else
     if [ ! -f "$PROJECT_DIR/CMakeLists.txt" ]; then
         echo "CMakeLists.txt was not found: $PROJECT_DIR/CMakeLists.txt" >&2
         exit 1
     fi
-    sh "$TOOLS_DIR/build_standalone.sh" "$PROJECT_DIR" "$TEMPORARY_DIR/runtime" Release
+    LUDORK_SAVE_AS_LDC="$ENCRYPT_SAVES" \
+        sh "$TOOLS_DIR/build_standalone.sh" "$PROJECT_DIR" "$TEMPORARY_DIR/runtime" Release
     RUNTIME_DIR="$TEMPORARY_DIR/runtime"
 fi
 
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
-if [ "$PACK_ASSETS" -eq 1 ]; then
-    "$SCRIPT_TOOLS" validate-asset-pack-source "$PROJECT_DIR/Assets"
+if [ "$USE_LDPAK" -eq 1 ]; then
+    "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi
 "$SCRIPT_TOOLS" macos-bundle \
     "$PROJECT_DIR" "$RUNTIME_DIR" "$DIST_DIR/Main.app"
 remove_ui_preview_host_entries "$DIST_DIR/Main.app"
 set --
+if [ "$USE_LUAC" -eq 1 ]; then
+    set -- "$@" --compile-lua
+fi
 if [ "$ENCRYPT_SHADERS" -eq 1 ]; then
     set -- "$@" --encrypt-shaders
 fi
 if [ "$ENCRYPT_DATA" -eq 1 ]; then
     set -- "$@" --encrypt-data
 fi
-if [ "$PACK_ASSETS" -eq 1 ]; then
-    set -- "$@" --pack-assets
+if [ "$USE_LDPAK" -eq 1 ]; then
+    set -- "$@" --use-ldpak
 fi
 "$SCRIPT_TOOLS" finalize-package "$@" \
     "$DIST_DIR/Main.app/Contents/Resources"
-if [ "$USE_LUAC" -eq 1 ]; then
-    "$SCRIPT_TOOLS" compile-lua "$DIST_DIR/Main.app/Contents/Resources/Scripts"
-fi
 validate_no_ui_preview_host "$DIST_DIR/Main.app"
 plutil -lint "$DIST_DIR/Main.app/Contents/Info.plist"
 echo "Pack complete: $DIST_DIR/Main.app"

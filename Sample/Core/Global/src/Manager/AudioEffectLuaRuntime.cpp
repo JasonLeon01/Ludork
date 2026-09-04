@@ -6,6 +6,7 @@
 #include <LuaCallbackCodec.hpp>
 #include <LuaStateLifecycle.hpp>
 #include <LuaSF.hpp>
+#include <Runtime/ScriptStore.hpp>
 #include <luasf_sol.hpp>
 
 extern "C" {
@@ -93,6 +94,7 @@ public:
             sol::table engine = lua.create_table();
             engine.set_function("Clamp", &clampNumber);
             loaded["Engine"] = engine;
+            ludork::runtime::scriptStore().registerPreloadedModules(state_);
 
             lua.new_usertype<AudioEffectControl>(
                 "LudorkAudioEffectControl", sol::no_constructor, "isCancelled",

@@ -20,6 +20,8 @@ ALIGNMENT = 8
 HEADER = struct.Struct("<4sHHIIQQII")
 ENTRY = struct.Struct("<IIQQII")
 BUFFER_SIZE = 1024 * 1024
+SCRIPT_GROUP = "Scripts"
+SCRIPT_ENTRY_PATHS = ("Entry.lua", "Entry.luac")
 
 
 class LdPakError(RuntimeError):
@@ -53,6 +55,13 @@ def _is_link(path: pathlib.Path) -> bool:
         return True
     is_junction = getattr(path, "is_junction", None)
     return bool(is_junction is not None and is_junction())
+
+
+def _discard_tree(path: pathlib.Path) -> None:
+    try:
+        shutil.rmtree(path)
+    except OSError:
+        pass
 
 
 def _encode_utf8(value: str, kind: str) -> bytes:
@@ -114,6 +123,12 @@ def _scan_group(group_root: pathlib.Path) -> list[_SourceEntry]:
             ) from exception
         for child in children:
             source_path = pathlib.Path(child.path)
+            if child.is_symlink() or _is_link(source_path):
+                raise LdPakError(
+                    f"Asset packages must not contain symbolic links: {source_path}"
+                )
+            if child.is_file(follow_symlinks=False) and child.name == ".DS_Store":
+                continue
             relative_parts = (*parent_parts, child.name)
             relative_path = "/".join(relative_parts)
             _validate_relative_path(relative_path)
@@ -121,10 +136,6 @@ def _scan_group(group_root: pathlib.Path) -> list[_SourceEntry]:
             if len(path_bytes) > 0xFFFFFFFF:
                 raise LdPakError(
                     f"Asset package entry path is too long: {relative_path!r}"
-                )
-            if child.is_symlink() or _is_link(source_path):
-                raise LdPakError(
-                    f"Asset packages must not contain symbolic links: {source_path}"
                 )
             if child.is_dir(follow_symlinks=False):
                 entries.append(
@@ -286,11 +297,11 @@ def _require_zero_bytes(
         remaining -= len(chunk)
 
 
-def validate_ldpak(
+def _validate_ldpak_entries(
     package_path: pathlib.Path,
     expected_group: str | None = None,
     require_matching_filename: bool = True,
-) -> int:
+) -> tuple[_ArchiveEntry, ...]:
     package_path = pathlib.Path(package_path)
     if _is_link(package_path) or not package_path.is_file():
         raise LdPakError(f"Asset package was not found: {package_path}")
@@ -489,30 +500,51 @@ def validate_ldpak(
             index_offset - expected_offset,
             "final data padding",
         )
-    return entry_count
+    return tuple(archive_entries)
 
 
-def validate_asset_pack_source(
-    assets_root: pathlib.Path,
+def validate_ldpak(
+    package_path: pathlib.Path,
+    expected_group: str | None = None,
+    require_matching_filename: bool = True,
+) -> int:
+    return len(
+        _validate_ldpak_entries(
+            package_path,
+            expected_group,
+            require_matching_filename,
+        )
+    )
+
+
+def _validate_group_directories(
+    group_root: pathlib.Path,
 ) -> tuple[pathlib.Path, ...]:
-    assets_root = pathlib.Path(assets_root)
-    if _is_link(assets_root):
-        raise LdPakError(f"Assets root must not be a symbolic link: {assets_root}")
-    if not assets_root.is_dir():
-        raise LdPakError(f"Assets directory was not found: {assets_root}")
+    group_root = pathlib.Path(group_root)
+    root_name = group_root.name
+    if _is_link(group_root):
+        raise LdPakError(
+            f"{root_name} root must not be a symbolic link: {group_root}"
+        )
+    if not group_root.is_dir():
+        raise LdPakError(f"{root_name} directory was not found: {group_root}")
 
     try:
-        root_entries = list(os.scandir(assets_root))
+        root_entries = list(os.scandir(group_root))
     except OSError as exception:
         raise LdPakError(
-            f"Unable to enumerate Assets directory: {assets_root}"
+            f"Unable to enumerate {root_name} directory: {group_root}"
         ) from exception
     groups: list[pathlib.Path] = []
     root_files: list[pathlib.Path] = []
     for entry in root_entries:
         path = pathlib.Path(entry.path)
         if entry.is_symlink() or _is_link(path):
-            raise LdPakError(f"Assets must not contain symbolic links: {path}")
+            raise LdPakError(
+                f"{root_name} must not contain symbolic links: {path}"
+            )
+        if entry.is_file(follow_symlinks=False) and entry.name == ".DS_Store":
+            continue
         if entry.is_dir(follow_symlinks=False):
             _validate_group_name(entry.name)
             groups.append(path)
@@ -520,18 +552,18 @@ def validate_asset_pack_source(
             root_files.append(path)
         else:
             raise LdPakError(
-                f"Assets supports only first-level directories when packing: {path}"
+                f"{root_name} supports only first-level directories when packing: {path}"
             )
     if root_files:
         relative_paths = ", ".join(
-            path.relative_to(assets_root).as_posix()
+            path.relative_to(group_root).as_posix()
             for path in sorted(
                 root_files,
                 key=lambda path: _encode_utf8(path.name, "Asset root filename"),
             )
         )
         raise LdPakError(
-            f"Assets root files cannot be packed into directory groups: {relative_paths}"
+            f"{root_name} root files cannot be packed into directory groups: {relative_paths}"
         )
 
     groups.sort(key=lambda path: _encode_utf8(path.name, "Asset group name"))
@@ -544,7 +576,7 @@ def validate_asset_pack_source(
                 f"Asset group names differ only by case: {previous!r} and {group.name!r}"
             )
         folded_groups[folded] = group.name
-        output = assets_root / (group.name + ".ldpak")
+        output = group_root / (group.name + ".ldpak")
         if os.path.lexists(output):
             raise LdPakError(f"Asset package output already exists: {output}")
     for group in groups:
@@ -552,60 +584,226 @@ def validate_asset_pack_source(
     return tuple(groups)
 
 
-def pack_assets(assets_root: pathlib.Path) -> int:
-    assets_root = pathlib.Path(assets_root)
-    groups = validate_asset_pack_source(assets_root)
+def _script_file_paths(entries: tuple[_ArchiveEntry, ...] | list[_SourceEntry]) -> set[str]:
+    paths: set[str] = set()
+    for entry in entries:
+        is_directory = (
+            entry.is_directory
+            if isinstance(entry, _SourceEntry)
+            else bool(entry.flags & DIRECTORY_FLAG)
+        )
+        if not is_directory:
+            paths.add(entry.relative_path)
+    return paths
+
+
+def _validate_script_entries(
+    entries: tuple[_ArchiveEntry, ...] | list[_SourceEntry],
+    description: pathlib.Path,
+    expected_entry: str | None = None,
+    reject_declarations: bool = False,
+) -> None:
+    files = _script_file_paths(entries)
+    paths = {entry.relative_path for entry in entries}
+    entries_found = set(SCRIPT_ENTRY_PATHS) & files
+    if not entries_found:
+        raise LdPakError(
+            f"Scripts source is missing Entry.lua or Entry.luac: {description}"
+        )
+    if expected_entry is not None and expected_entry not in files:
+        raise LdPakError(
+            f"Scripts source is missing the expected {expected_entry}: {description}"
+        )
+    if reject_declarations:
+        forbidden = sorted(
+            path
+            for path in paths
+            if path.casefold().endswith(".d.lua")
+            or path == "stub"
+            or path.startswith("stub/")
+        )
+        if forbidden:
+            raise LdPakError(
+                "Scripts runtime contains declaration files or the stub tree: "
+                + ", ".join(forbidden)
+            )
+
+
+def validate_ldpak_source(
+    runtime_root: pathlib.Path,
+) -> tuple[pathlib.Path, ...]:
+    runtime_root = pathlib.Path(runtime_root)
+    if _is_link(runtime_root):
+        raise LdPakError(
+            f"Runtime root must not be a symbolic link: {runtime_root}"
+        )
+    if not runtime_root.is_dir():
+        raise LdPakError(f"Runtime root was not found: {runtime_root}")
+    scripts_root = runtime_root / SCRIPT_GROUP
+    scripts_package = runtime_root / f"{SCRIPT_GROUP}.ldpak"
+    if os.path.lexists(scripts_package):
+        raise LdPakError(f"Script package output already exists: {scripts_package}")
+    groups = (
+        *_validate_group_directories(runtime_root / "Assets"),
+        *_validate_group_directories(runtime_root / "Data"),
+    )
+    entries = _scan_group(scripts_root)
+    _validate_script_entries(entries, scripts_root)
+    return groups
+
+
+def validate_runtime_scripts(
+    runtime_root: pathlib.Path,
+    expected_entry: str | None = None,
+) -> bool:
+    runtime_root = pathlib.Path(runtime_root)
+    scripts_root = runtime_root / SCRIPT_GROUP
+    scripts_package = runtime_root / f"{SCRIPT_GROUP}.ldpak"
+    has_loose_scripts = os.path.lexists(scripts_root)
+    has_packed_scripts = os.path.lexists(scripts_package)
+    if has_loose_scripts == has_packed_scripts:
+        raise LdPakError(
+            "Runtime must contain exactly one of Scripts or Scripts.ldpak: "
+            f"{runtime_root}"
+        )
+    if has_packed_scripts:
+        entries: tuple[_ArchiveEntry, ...] | list[_SourceEntry] = (
+            _validate_ldpak_entries(
+                scripts_package,
+                expected_group=SCRIPT_GROUP,
+            )
+        )
+        description = scripts_package
+    else:
+        entries = _scan_group(scripts_root)
+        description = scripts_root
+    _validate_script_entries(
+        entries,
+        description,
+        expected_entry,
+        reject_declarations=True,
+    )
+    return has_packed_scripts
+
+
+def _validate_packed_group_root(group_root: pathlib.Path) -> None:
+    if _is_link(group_root) or not group_root.is_dir():
+        raise LdPakError(f"Packed runtime directory was not found: {group_root}")
+    try:
+        entries = list(os.scandir(group_root))
+    except OSError as exception:
+        raise LdPakError(
+            f"Unable to enumerate packed runtime directory: {group_root}"
+        ) from exception
+    names: dict[str, str] = {}
+    for entry in entries:
+        path = pathlib.Path(entry.path)
+        if entry.is_symlink() or _is_link(path):
+            raise LdPakError(
+                f"Packed runtime directories must not contain symbolic links: {path}"
+            )
+        if entry.is_file(follow_symlinks=False) and entry.name == ".DS_Store":
+            continue
+        if (
+            not entry.is_file(follow_symlinks=False)
+            or not entry.name.casefold().endswith(".ldpak")
+        ):
+            raise LdPakError(
+                f"Packed runtime directories may contain only .ldpak files: {path}"
+            )
+        group_name = entry.name[: -len(".ldpak")]
+        folded = group_name.casefold()
+        previous = names.get(folded)
+        if previous is not None:
+            raise LdPakError(
+                f"Packed group names differ only by case: {previous!r} and {group_name!r}"
+            )
+        names[folded] = group_name
+        validate_ldpak(path, expected_group=group_name)
+
+
+def validate_runtime_ldpak_layout(
+    runtime_root: pathlib.Path,
+    expected_use_ldpak: bool | None = None,
+    expected_entry: str | None = None,
+) -> bool:
+    runtime_root = pathlib.Path(runtime_root)
+    use_ldpak = validate_runtime_scripts(runtime_root, expected_entry)
+    if expected_use_ldpak is not None and use_ldpak != expected_use_ldpak:
+        raise LdPakError(
+            f"Runtime has the wrong loose/packed resource layout: {runtime_root}"
+        )
+    for name in ("Assets", "Data"):
+        group_root = runtime_root / name
+        if use_ldpak:
+            _validate_packed_group_root(group_root)
+        else:
+            _validate_group_directories(group_root)
+    return use_ldpak
+
+
+def pack_ldpak(runtime_root: pathlib.Path) -> int:
+    runtime_root = pathlib.Path(runtime_root)
+    groups = validate_ldpak_source(runtime_root)
+    sources = (*groups, runtime_root / SCRIPT_GROUP)
+    outputs = (
+        *(group.parent / f"{group.name}.ldpak" for group in groups),
+        runtime_root / f"{SCRIPT_GROUP}.ldpak",
+    )
+    stage_root = pathlib.Path(
+        tempfile.mkdtemp(
+            prefix=f".{runtime_root.name}-ldpak-stage-",
+            dir=runtime_root.parent,
+        )
+    )
     temporary_packages: list[tuple[pathlib.Path, pathlib.Path, pathlib.Path]] = []
     installed_packages: list[pathlib.Path] = []
+    moved_sources: list[tuple[pathlib.Path, pathlib.Path]] = []
     try:
-        for group in groups:
-            descriptor, temporary_name = tempfile.mkstemp(
-                prefix=".ldpak-",
-                suffix=".tmp",
-                dir=assets_root,
+        for index, (source, output) in enumerate(zip(sources, outputs, strict=True)):
+            temporary = stage_root / f"{index}.ldpak"
+            write_ldpak(source, temporary)
+            validate_ldpak(
+                temporary,
+                expected_group=source.name,
+                require_matching_filename=False,
             )
-            os.close(descriptor)
-            temporary = pathlib.Path(temporary_name)
-            temporary.unlink()
-            output = assets_root / (group.name + ".ldpak")
-            write_ldpak(group, temporary)
-            try:
-                validate_ldpak(
-                    temporary,
-                    expected_group=group.name,
-                    require_matching_filename=False,
-                )
-            except BaseException:
-                if os.path.lexists(temporary):
-                    temporary.unlink()
-                raise
-            temporary_packages.append((group, temporary, output))
+            temporary_packages.append((source, temporary, output))
 
         for _, temporary, output in temporary_packages:
             temporary.replace(output)
             installed_packages.append(output)
-        for group, _, _ in temporary_packages:
-            shutil.rmtree(group)
+        backup_root = stage_root / "source"
+        for source, _, _ in temporary_packages:
+            backup = backup_root / source.relative_to(runtime_root)
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            source.replace(backup)
+            moved_sources.append((source, backup))
     except BaseException:
-        for _, temporary, _ in temporary_packages:
-            if os.path.lexists(temporary):
-                temporary.unlink()
-        if len(installed_packages) != len(temporary_packages):
-            for output in installed_packages:
-                if os.path.lexists(output):
-                    output.unlink()
+        for output in installed_packages:
+            if os.path.lexists(output):
+                output.unlink()
+        for source, backup in reversed(moved_sources):
+            if os.path.lexists(backup):
+                source.parent.mkdir(parents=True, exist_ok=True)
+                backup.replace(source)
+        if stage_root.exists():
+            _discard_tree(stage_root)
         raise
-    return len(temporary_packages)
+    _discard_tree(stage_root)
+    return len(groups)
 
 
 def main(arguments: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ScriptTools validate-asset-pack-source")
-    parser.add_argument("assets_root", type=pathlib.Path)
+    parser = argparse.ArgumentParser(prog="ScriptTools validate-ldpak-source")
+    parser.add_argument("runtime_root", type=pathlib.Path)
     parsed = parser.parse_args(arguments)
     try:
-        groups = validate_asset_pack_source(parsed.assets_root)
+        groups = validate_ldpak_source(parsed.runtime_root)
     except LdPakError as exception:
         print(str(exception), file=sys.stderr)
         return 1
-    print(f"Validated {len(groups)} asset package source directories")
+    print(
+        f"Validated {len(groups)} Assets/Data package source directories and Scripts"
+    )
     return 0

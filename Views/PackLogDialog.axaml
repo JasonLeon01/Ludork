@@ -1,5 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        xmlns:fluent="clr-namespace:Avalonia.Themes.Fluent;assembly=Avalonia.Themes.Fluent"
         x:Class="Ludork.Views.PackLogDialog"
         Width="800"
         Height="600"
@@ -10,18 +12,24 @@
         FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
         Icon="/Assets/icon.ico">
     <Grid Margin="16" RowDefinitions="*,Auto">
-        <TextBox x:Name="LogArea"
-                 Grid.Row="0"
-                 IsReadOnly="True"
-                 AcceptsReturn="True"
-                 TextWrapping="NoWrap"
-                 Background="#101010"
-                 BorderBrush="#3a3a3a"
-                 BorderThickness="1"
-                 Padding="12"
-                 FontFamily="Cascadia Mono,Menlo,Monaco,Consolas"
-                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto" />
+        <Border Grid.Row="0"
+                Background="#101010"
+                BorderBrush="#3a3a3a"
+                BorderThickness="1">
+            <Border.Styles>
+                <fluent:FluentTheme />
+                <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+            </Border.Styles>
+            <avaloniaEdit:TextEditor x:Name="LogArea"
+                                     IsReadOnly="True"
+                                     WordWrap="False"
+                                     ShowLineNumbers="False"
+                                     Background="#101010"
+                                     Foreground="#e6e6e6"
+                                     FontFamily="Cascadia Mono,Menlo,Monaco,Consolas"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalScrollBarVisibility="Auto" />
+        </Border>
         <Button x:Name="CloseButton"
                 Grid.Row="1"
                 Margin="0,12,0,0"

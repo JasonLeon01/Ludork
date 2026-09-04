@@ -375,144 +375,19 @@ public partial class MainWindow
 
     private void appendConsoleLine(string line)
     {
-        bool scheduleFlush = false;
         lock (consoleOutputSync)
         {
-            enqueuePendingConsoleText(line);
+            consoleLogView.AppendLine(line);
             string? logError = consoleLogSession.WriteLine(line);
             if (logError is not null)
-                enqueuePendingConsoleText("[Console] Failed to write the log file: " + logError);
-            if (!consoleFlushScheduled)
-            {
-                consoleFlushScheduled = true;
-                scheduleFlush = true;
-            }
+                consoleLogView.AppendLine("[Console] Failed to write the log file: " + logError);
         }
-        if (scheduleFlush)
-        {
-            Dispatcher.UIThread.Post(
-                flushConsoleLines,
-                DispatcherPriority.Background);
-        }
-    }
-
-    private void enqueuePendingConsoleText(string text)
-    {
-        string normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-        string[] lines = normalized.Split('\n');
-        foreach (string line in lines)
-            pendingConsoleLines.Enqueue(line);
-    }
-
-    private void flushConsoleLines()
-    {
-        List<string> batch = new();
-        lock (consoleOutputSync)
-        {
-            while (pendingConsoleLines.Count > 0)
-                batch.Add(pendingConsoleLines.Dequeue());
-            consoleFlushScheduled = false;
-        }
-        if (batch.Count == 0)
-            return;
-
-        ScrollViewer? scrollViewer = findConsoleScrollViewer();
-        Vector previousOffset = scrollViewer?.Offset ?? default;
-        bool followBottom = consoleFollowsLatest;
-        TextDocument document = ConsoleOutput.Document;
-        StringBuilder appendedText = new();
-        if (visibleConsoleLines.Count > 0)
-            appendedText.Append(Environment.NewLine);
-        appendedText.AppendJoin(Environment.NewLine, batch);
-        foreach (string line in batch)
-            visibleConsoleLines.Enqueue(line);
-
-        int removeCount = Math.Max(0, visibleConsoleLines.Count - MaximumConsoleLineCount);
-        int removedCharacterCount = 0;
-        for (int index = 0; index < removeCount; index++)
-        {
-            string removed = visibleConsoleLines.Dequeue();
-            removedCharacterCount += removed.Length + Environment.NewLine.Length;
-        }
-
-        consoleViewportUpdatePending = true;
-        using (document.RunUpdate())
-        {
-            document.Insert(document.TextLength, appendedText.ToString());
-            if (removedCharacterCount > 0)
-                document.Remove(0, removedCharacterCount);
-        }
-
-        int generation = ++consoleViewportGeneration;
-        Dispatcher.UIThread.Post(
-            () => restoreConsoleViewport(
-                generation,
-                previousOffset,
-                followBottom),
-            DispatcherPriority.Background);
-    }
-
-    private ScrollViewer? findConsoleScrollViewer()
-    {
-        if (consoleScrollViewer is not null)
-            return consoleScrollViewer;
-        consoleScrollViewer = ConsoleOutput.GetVisualDescendants()
-            .OfType<ScrollViewer>()
-            .FirstOrDefault(viewer => viewer.Name == "PART_ScrollViewer")
-            ?? ConsoleOutput.GetVisualDescendants()
-                .OfType<ScrollViewer>()
-                .FirstOrDefault();
-        if (consoleScrollViewer is not null)
-            consoleScrollViewer.ScrollChanged += onConsoleScrollChanged;
-        return consoleScrollViewer;
-    }
-
-    private void onConsoleScrollChanged(object? sender, ScrollChangedEventArgs args)
-    {
-        if (consoleViewportUpdatePending || sender is not ScrollViewer scrollViewer)
-            return;
-        double maximumY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-        if (scrollViewer.Offset.Y >= maximumY - 2)
-            consoleFollowsLatest = true;
-        else if (args.OffsetDelta.Y < 0)
-            consoleFollowsLatest = false;
-    }
-
-    private void restoreConsoleViewport(int generation, Vector previousOffset, bool followBottom)
-    {
-        if (generation != consoleViewportGeneration)
-            return;
-        ScrollViewer? scrollViewer = findConsoleScrollViewer();
-        if (scrollViewer is null)
-        {
-            consoleViewportUpdatePending = false;
-            return;
-        }
-        double maximumX = Math.Max(0, scrollViewer.Extent.Width - scrollViewer.Viewport.Width);
-        double maximumY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-        double targetX = Math.Clamp(previousOffset.X, 0, maximumX);
-        double targetY = followBottom
-            ? maximumY
-            : Math.Clamp(previousOffset.Y, 0, maximumY);
-        scrollViewer.Offset = new Vector(targetX, targetY);
-        consoleViewportUpdatePending = false;
     }
 
     private void resetConsoleOutput()
     {
         lock (consoleOutputSync)
-        {
-            pendingConsoleLines.Clear();
-            visibleConsoleLines.Clear();
-        }
-        consoleViewportGeneration++;
-        consoleViewportUpdatePending = true;
-        ConsoleOutput.Clear();
-        ScrollViewer? scrollViewer = findConsoleScrollViewer();
-        if (scrollViewer is not null)
-            scrollViewer.Offset = default;
-        consoleViewportUpdatePending = false;
-        consoleFollowsLatest = true;
+            consoleLogView.Clear();
     }
 
     private void setProjectRunState(ProjectRunState state)

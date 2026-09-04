@@ -111,7 +111,12 @@ public final class LudorkActivity extends NativeActivity {
         String previousPath = "";
         boolean hasAssets = false;
         boolean hasData = false;
-        boolean hasScripts = false;
+        boolean assetsOnlyContainPackages = true;
+        boolean dataOnlyContainsPackages = true;
+        boolean hasAssetPackages = false;
+        boolean hasDataPackages = false;
+        boolean hasLooseScripts = false;
+        boolean hasPackedScripts = false;
         boolean hasEntry = false;
         for (int index = 0; index < values.length(); ++index) {
             JSONObject value = values.getJSONObject(index);
@@ -123,14 +128,31 @@ public final class LudorkActivity extends NativeActivity {
             if (size < 0 || (!previousPath.isEmpty() && path.compareTo(previousPath) <= 0)) {
                 throw new IOException("Invalid or unsorted runtime manifest entry: " + path);
             }
-            hasAssets |= path.startsWith("Assets/");
-            hasData |= path.startsWith("Data/");
-            hasScripts |= path.startsWith("Scripts/");
+            if (path.startsWith("Assets/")) {
+                hasAssets = true;
+                boolean isPackage = isGroupPackagePath(path, "Assets/");
+                assetsOnlyContainPackages &= isPackage;
+                hasAssetPackages |= isPackage;
+            }
+            if (path.startsWith("Data/")) {
+                hasData = true;
+                boolean isPackage = isGroupPackagePath(path, "Data/");
+                dataOnlyContainsPackages &= isPackage;
+                hasDataPackages |= isPackage;
+            }
+            hasLooseScripts |= path.startsWith("Scripts/");
+            hasPackedScripts |= path.equals("Scripts.ldpak");
             hasEntry |= path.equals("Scripts/Entry.lua") || path.equals("Scripts/Entry.luac");
             files.add(new RuntimeFile(path, size, sha256));
             previousPath = path;
         }
-        if (!hasAssets || !hasData || !hasScripts || !hasEntry) {
+        if (!hasAssets
+                || !hasData
+                || hasLooseScripts == hasPackedScripts
+                || (hasLooseScripts && !hasEntry)
+                || (hasPackedScripts
+                        && (!assetsOnlyContainPackages || !dataOnlyContainsPackages))
+                || (hasLooseScripts && (hasAssetPackages || hasDataPackages))) {
             throw new IOException("The Ludork runtime manifest is incomplete");
         }
         if (!runtimeHash.equals(runtimeManifestDigest(files))) {
@@ -254,6 +276,13 @@ public final class LudorkActivity extends NativeActivity {
                 throw new IOException("Invalid runtime asset path: " + path);
             }
         }
+    }
+
+    private static boolean isGroupPackagePath(String path, String prefix) {
+        String relative = path.substring(prefix.length());
+        return relative.length() > ".ldpak".length()
+                && relative.indexOf('/') < 0
+                && relative.endsWith(".ldpak");
     }
 
     private static void requireSha256(String value, String description) throws IOException {

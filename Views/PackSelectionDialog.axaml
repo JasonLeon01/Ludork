@@ -27,6 +27,7 @@
                 <TextBlock x:Name="IosStatusText"
                            Margin="28,0,0,0"
                            Foreground="#888888"
+                           IsVisible="False"
                            TextWrapping="Wrap" />
                 <CheckBox x:Name="ExportToIPhoneOption"
                           Margin="28,0,0,0"
@@ -73,13 +74,21 @@
                           IsChecked="False"
                           IsVisible="False" />
             </StackPanel>
-            <CheckBox x:Name="LuacOption"
+            <CheckBox x:Name="EncryptGameDataOption"
+                      IsThreeState="True"
                       IsChecked="False" />
-            <CheckBox x:Name="EncryptShadersOption"
-                      IsChecked="False" />
-            <CheckBox x:Name="EncryptDataOption"
-                      IsChecked="False" />
-            <CheckBox x:Name="PackAssetsOption"
+            <StackPanel Margin="28,0,0,0"
+                        Spacing="4">
+                <CheckBox x:Name="LuacOption"
+                          IsChecked="False" />
+                <CheckBox x:Name="EncryptShadersOption"
+                          IsChecked="False" />
+                <CheckBox x:Name="EncryptDataOption"
+                          IsChecked="False" />
+                <CheckBox x:Name="EncryptSavesOption"
+                          IsChecked="False" />
+            </StackPanel>
+            <CheckBox x:Name="UseLdPakOption"
                       IsChecked="False" />
         </StackPanel>
         <StackPanel Grid.Row="1"

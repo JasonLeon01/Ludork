@@ -1,5 +1,6 @@
 #include <DataFile.hpp>
 #include <EncryptedPayload.hpp>
+#include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
 
 #include <algorithm>
@@ -35,6 +36,10 @@ std::string lowerString(std::string value) {
 }
 
 bool isRegularFile(const std::filesystem::path& path) {
+    const ReadOnlyFileStatus virtualStatus = readOnlyFileStatus(path);
+    if (virtualStatus.handled) {
+        return virtualStatus.type == ReadOnlyFileType::Regular;
+    }
     std::error_code error;
     const bool regular = std::filesystem::is_regular_file(path, error);
     return regular && !error;
@@ -68,6 +73,14 @@ std::vector<std::uint8_t> encodeData(const std::filesystem::path& path,
 }
 
 std::vector<std::uint8_t> readFile(const std::filesystem::path& path) {
+    const ReadOnlyFileStatus virtualStatus = readOnlyFileStatus(path);
+    if (virtualStatus.handled) {
+        if (virtualStatus.type != ReadOnlyFileType::Regular) {
+            throw std::runtime_error("Failed to open JSON file: " +
+                                     pathToUtf8(path));
+        }
+        return readOnlyFileBytes(path);
+    }
     std::ifstream input(path, std::ios::binary);
     if (!input) {
         throw std::runtime_error("Failed to open JSON file: " +

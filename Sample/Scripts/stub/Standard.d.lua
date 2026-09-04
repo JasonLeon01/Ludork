@@ -9,6 +9,10 @@ LUDORK_MOBILE = LUDORK_MOBILE or false
 ---@type boolean
 LUDORK_DESKTOP = LUDORK_DESKTOP or false
 
+--- Whether standard save slots use encrypted LDC files instead of plain JSON.
+---@type boolean
+SAVE_AS_LDC = SAVE_AS_LDC or false
+
 ---@generic T
 ---@param value? T
 ---@return boolean
@@ -380,8 +384,10 @@ function zlib.decompress(value) end
 
 os.path = {}
 
---- The `os` and `os.path` functions below always address the real filesystem.
---- They do not resolve `/Game/Assets/...`; `io.open` has the same native-path boundary.
+--- `os.listdir`, `os.path.isdir`, `os.path.isfile`, and `io.open` address only
+--- the real filesystem and do not resolve `/Game/Assets/...` or packed Data.
+--- `os.path.getmtime` also accepts a packed `Data/...` logical path and returns
+--- its containing archive's modification time.
 ---@return string
 function os.getcwd() end
 

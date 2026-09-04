@@ -406,6 +406,40 @@ sol::object resolveRuntimePath(sol::state_view lua, const sol::object& root,
     return current.valid() ? current : nilObject(lua);
 }
 
+bool runtimeModuleExists(sol::state_view lua, const sol::table& package,
+                         const std::string& moduleName) {
+    for (const char* field : {"loaded", "preload"}) {
+        const sol::object rawModules = package.raw_get<sol::object>(field);
+        if (!rawModules.is<sol::table>()) {
+            continue;
+        }
+        const sol::object module =
+            rawModules.as<sol::table>().raw_get<sol::object>(moduleName);
+        if (module.valid() && module.get_type() != sol::type::lua_nil) {
+            return true;
+        }
+    }
+    const sol::object rawSearch = package.raw_get<sol::object>("searchpath");
+    if (!rawSearch.is<sol::protected_function>()) {
+        return false;
+    }
+    sol::protected_function search = rawSearch.as<sol::protected_function>();
+    for (const char* field : {"path", "cpath"}) {
+        const sol::object rawPath = package.raw_get<sol::object>(field);
+        if (!rawPath.is<std::string>()) {
+            continue;
+        }
+        sol::protected_function_result result = search(moduleName, rawPath);
+        if (result.valid() && result.return_count() > 0) {
+            const sol::object found = result.get<sol::object>();
+            if (found.is<std::string>()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 std::optional<std::string> directRuntimeMetadataTypeName(
     sol::state_view lua, const std::string& modulePath) {
     const std::string metadataModule = modulePath + "_meta";
@@ -415,19 +449,7 @@ std::optional<std::string> directRuntimeMetadataTypeName(
         return std::nullopt;
     }
     const sol::table package = rawPackage.as<sol::table>();
-    const sol::object rawSearchPath =
-        package.raw_get<sol::object>("searchpath");
-    const sol::object rawPath = package.raw_get<sol::object>("path");
-    if (!rawSearchPath.is<sol::protected_function>() ||
-        !rawPath.is<std::string>()) {
-        return std::nullopt;
-    }
-    sol::protected_function searchPath =
-        rawSearchPath.as<sol::protected_function>();
-    sol::protected_function_result searched =
-        searchPath(metadataModule, rawPath);
-    const sol::object found = checkedResult(lua, searched);
-    if (!found.is<std::string>()) {
+    if (!runtimeModuleExists(lua, package, metadataModule)) {
         return std::nullopt;
     }
 
@@ -603,20 +625,8 @@ sol::object runtimeTypeMetadata(sol::state_view lua,
     if (!rawPackage.is<sol::table>()) {
         return nilObject(lua);
     }
-    const sol::object rawSearchPath =
-        rawPackage.as<sol::table>().raw_get<sol::object>("searchpath");
-    const sol::object rawPath =
-        rawPackage.as<sol::table>().raw_get<sol::object>("path");
-    if (!rawSearchPath.is<sol::protected_function>() ||
-        !rawPath.is<std::string>()) {
-        return nilObject(lua);
-    }
-    sol::protected_function searchPath =
-        rawSearchPath.as<sol::protected_function>();
-    sol::protected_function_result searched =
-        searchPath(metadataModule, rawPath);
-    const sol::object found = checkedResult(lua, searched);
-    if (!found.is<std::string>()) {
+    const sol::table package = rawPackage.as<sol::table>();
+    if (!runtimeModuleExists(lua, package, metadataModule)) {
         return nilObject(lua);
     }
     const sol::table metadata = requireLuaTable(lua, metadataModule.c_str());

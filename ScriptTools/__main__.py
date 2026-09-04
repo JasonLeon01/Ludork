@@ -45,7 +45,7 @@ COMMANDS: dict[str, Command] = {
     "prune-editor-windows-publish": prune_editor_windows_publish.main,
     "ui-adapter-check": ui_adapter_check.main,
     "ui-assets": ui_assets.main,
-    "validate-asset-pack-source": ldpak.main,
+    "validate-ldpak-source": ldpak.main,
 }
 
 

@@ -7,10 +7,15 @@ import os
 import pathlib
 import shutil
 import struct
+import tempfile
 import zlib
 
 from .compile_lua import compile_scripts, lua_source_paths, resolve_luac
-from .ldpak import pack_assets
+from .ldpak import (
+    pack_ldpak,
+    validate_ldpak_source,
+    validate_runtime_ldpak_layout,
+)
 from .ui_assets import validate_assets
 
 
@@ -423,13 +428,49 @@ def reject_declaration_files(resource_root: pathlib.Path) -> None:
         )
 
 
+def _finalize_package_in_place(
+    root: pathlib.Path,
+    encrypt_shaders_enabled: bool,
+    encrypt_data_enabled: bool,
+    compile_lua_directories: tuple[pathlib.PurePosixPath, ...],
+    excluded_files: tuple[pathlib.PurePosixPath, ...],
+    compile_lua_enabled: bool = False,
+    use_ldpak: bool = False,
+) -> tuple[int, int, int, int, int]:
+    validate_assets(root)
+    if use_ldpak:
+        validate_ldpak_source(root)
+    removed = prune_package(root, excluded_files)
+    lua_directories = list(compile_lua_directories)
+    scripts_directory = pathlib.PurePosixPath("Scripts")
+    if compile_lua_enabled and scripts_directory not in lua_directories:
+        lua_directories.append(scripts_directory)
+    scripts_compiled = scripts_directory in lua_directories
+    compiled_lua = compile_package_lua(root, tuple(lua_directories))
+    encrypted_shaders = (
+        encrypt_shaders(root / "Assets" / "Shaders")
+        if encrypt_shaders_enabled
+        else 0
+    )
+    removed += strip_ui_editor_data(root / "Data")
+    encrypted_data = (
+        encrypt_data(root / "Data") if encrypt_data_enabled else 0
+    )
+    reject_declaration_files(root)
+    packed_groups = pack_ldpak(root) if use_ldpak else 0
+    expected_entry = "Entry.luac" if scripts_compiled else "Entry.lua"
+    validate_runtime_ldpak_layout(root, use_ldpak, expected_entry)
+    return removed, encrypted_shaders, encrypted_data, compiled_lua, packed_groups
+
+
 def finalize_package(
     resource_root: pathlib.Path,
     encrypt_shaders_enabled: bool,
     encrypt_data_enabled: bool,
     compile_lua_directories: tuple[pathlib.PurePosixPath, ...] | None = None,
     excluded_files: tuple[pathlib.PurePosixPath, ...] | None = None,
-    pack_assets_enabled: bool = False,
+    compile_lua_enabled: bool = False,
+    use_ldpak: bool = False,
 ) -> tuple[int, int, int, int, int]:
     root = resource_root.expanduser().resolve()
     if not root.is_dir():
@@ -440,28 +481,52 @@ def finalize_package(
         )
     if excluded_files is None:
         excluded_files = _environment_relative_paths(EXCLUDED_FILES_ENVIRONMENT)
-    validate_assets(root)
-    removed = prune_package(root, excluded_files)
-    removed += strip_ui_editor_data(root / "Data")
-    compiled_lua = compile_package_lua(root, compile_lua_directories)
-    encrypted_shaders = (
-        encrypt_shaders(root / "Assets" / "Shaders")
-        if encrypt_shaders_enabled
-        else 0
+
+    transaction_root = pathlib.Path(
+        tempfile.mkdtemp(
+            prefix=f".{root.name}-finalize-",
+            dir=root.parent,
+        )
     )
-    encrypted_data = (
-        encrypt_data(root / "Data") if encrypt_data_enabled else 0
-    )
-    reject_declaration_files(root)
-    packed_assets = pack_assets(root / "Assets") if pack_assets_enabled else 0
-    return removed, encrypted_shaders, encrypted_data, compiled_lua, packed_assets
+    working_root = transaction_root / "working"
+    original_backup = transaction_root / "original"
+    preserve_transaction = False
+    try:
+        shutil.copytree(root, working_root, symlinks=True)
+        result = _finalize_package_in_place(
+            working_root,
+            encrypt_shaders_enabled,
+            encrypt_data_enabled,
+            compile_lua_directories,
+            excluded_files,
+            compile_lua_enabled,
+            use_ldpak,
+        )
+        root.replace(original_backup)
+        try:
+            working_root.replace(root)
+        except BaseException:
+            try:
+                original_backup.replace(root)
+            except BaseException as rollback_exception:
+                preserve_transaction = True
+                raise RuntimeError(
+                    "Unable to restore the package resource root after commit failure; "
+                    f"the original remains at {original_backup}"
+                ) from rollback_exception
+            raise
+        return result
+    finally:
+        if not preserve_transaction and transaction_root.exists():
+            shutil.rmtree(transaction_root, ignore_errors=True)
 
 
 def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ScriptTools finalize-package")
+    parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
-    parser.add_argument("--pack-assets", action="store_true")
+    parser.add_argument("--use-ldpak", action="store_true")
     parser.add_argument("resource_root", type=pathlib.Path)
     parsed = parser.parse_args(arguments)
     (
@@ -469,20 +534,23 @@ def main(arguments: list[str] | None = None) -> int:
         encrypted_shaders,
         encrypted_data,
         compiled_lua,
-        packed_assets,
+        packed_groups,
     ) = finalize_package(
         parsed.resource_root,
         parsed.encrypt_shaders,
         parsed.encrypt_data,
-        pack_assets_enabled=parsed.pack_assets,
+        compile_lua_enabled=parsed.compile_lua,
+        use_ldpak=parsed.use_ldpak,
     )
     print(f"Removed {removed} development-only package entries")
     if compiled_lua:
-        print(f"Compiled and renamed {compiled_lua} plug-in package Lua files")
+        print(f"Compiled and renamed {compiled_lua} package Lua files")
     if parsed.encrypt_shaders:
         print(f"Encrypted {encrypted_shaders} shader files")
     if parsed.encrypt_data:
         print(f"Encrypted {encrypted_data} JSON data files")
-    if parsed.pack_assets:
-        print(f"Packed {packed_assets} asset directories into .ldpak archives")
+    if parsed.use_ldpak:
+        print(
+            f"Packed {packed_groups} Assets/Data directories and Scripts into .ldpak archives"
+        )
     return 0

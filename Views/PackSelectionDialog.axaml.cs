@@ -11,6 +11,7 @@ public partial class PackSelectionDialog : Window
     private const string AndroidStudioPath = "/Applications/Android Studio.app";
     private const string DevEcoStudioPath = "/Applications/DevEco-Studio.app";
     private const string DevEcoStudioEnvironment = "LUDORK_DEVECO_STUDIO";
+    private bool? encryptionOptionsState;
 
     public PackSelectionDialog() : this(true)
     {
@@ -19,7 +20,7 @@ public partial class PackSelectionDialog : Window
     public PackSelectionDialog(bool isStandalone)
     {
         InitializeComponent();
-        Title = LocaleService.Get("PACK_MODE_TITLE");
+        Title = LocaleService.Get("PACK_PROJECT");
         DescriptionText.Text = LocaleService.Get("PACK_MODE_DESC");
         Win32Option.Content = LocaleService.Get("PACK_PLATFORM_WIN32");
         MacOSOption.Content = LocaleService.Get("PACK_PLATFORM_MACOS");
@@ -35,18 +36,33 @@ public partial class PackSelectionDialog : Window
         AndroidOption.Content = LocaleService.Get("PACK_PLATFORM_ANDROID");
         AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
         ExportToIPhoneOption.Content = LocaleService.Get("PACK_EXPORT_TO_IPHONE");
+        EncryptGameDataOption.Content = LocaleService.Get("PACK_ENCRYPT_GAME_DATA");
         LuacOption.Content = LocaleService.Get("PACK_USE_LUAC");
         EncryptShadersOption.Content = LocaleService.Get("PACK_ENCRYPT_SHADERS");
         EncryptDataOption.Content = LocaleService.Get("PACK_ENCRYPT_DATA");
-        PackAssetsOption.Content = LocaleService.Get("PACK_ASSETS");
+        EncryptSavesOption.Content = LocaleService.Get("PACK_ENCRYPT_SAVES");
+        UseLdPakOption.Content = LocaleService.Get("PACK_USE_LDPAK");
         ConfirmButton.Content = LocaleService.Get("CONFIRM");
         CancelButton.Content = LocaleService.Get("CANCEL");
-        MacOSOption.IsCheckedChanged += (_, _) => updateExportToIPhoneVisibility();
-        IosOption.IsCheckedChanged += (_, _) => updateExportToIPhoneVisibility();
+        EncryptSavesOption.IsEnabled = !isStandalone;
+        if (isStandalone)
+        {
+            ToolTip.SetTip(
+                EncryptSavesOption,
+                LocaleService.Get("PACK_ENCRYPT_SAVES_CPP_REQUIRED"));
+        }
+        MacOSOption.IsCheckedChanged += (_, _) => updateIosDetailsVisibility();
+        IosOption.IsCheckedChanged += (_, _) => updateIosDetailsVisibility();
         HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyMobileOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         AndroidOption.IsCheckedChanged += (_, _) => updateAndroidSigningVisibility();
+        EncryptGameDataOption.Click += (_, _) => toggleEncryptionOptions();
+        LuacOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
+        EncryptShadersOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
+        EncryptDataOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
+        EncryptSavesOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
+        updateEncryptionOptionsState();
         Win32Option.IsVisible = OperatingSystem.IsWindows();
         MacOSOption.IsVisible = OperatingSystem.IsMacOS();
         bool sourceProjectOnMacOS = OperatingSystem.IsMacOS() && !isStandalone;
@@ -115,21 +131,24 @@ public partial class PackSelectionDialog : Window
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
-                PackAssetsOption.IsChecked == true));
+                EncryptSavesOption.IsChecked == true,
+                UseLdPakOption.IsChecked == true));
         else if (MacOSOption.IsChecked == true)
             Close(new ProjectPackOptions(
                 ProjectPackPlatform.MacOS,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
-                PackAssetsOption.IsChecked == true));
+                EncryptSavesOption.IsChecked == true,
+                UseLdPakOption.IsChecked == true));
         else if (IosOption.IsChecked == true)
             Close(new ProjectPackOptions(
                 ProjectPackPlatform.IOS,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
-                PackAssetsOption.IsChecked == true)
+                EncryptSavesOption.IsChecked == true,
+                UseLdPakOption.IsChecked == true)
             {
                 ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
             });
@@ -148,7 +167,8 @@ public partial class PackSelectionDialog : Window
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
-                PackAssetsOption.IsChecked == true)
+                EncryptSavesOption.IsChecked == true,
+                UseLdPakOption.IsChecked == true)
             {
                 HarmonyDeviceForm = deviceForm,
                 HarmonyGraphicsApi = graphicsApi,
@@ -170,11 +190,47 @@ public partial class PackSelectionDialog : Window
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
-                PackAssetsOption.IsChecked == true)
+                EncryptSavesOption.IsChecked == true,
+                UseLdPakOption.IsChecked == true)
             {
                 AndroidSigning = signing,
             });
         }
+    }
+
+    private void toggleEncryptionOptions()
+    {
+        bool isChecked = encryptionOptionsState != true;
+        LuacOption.IsChecked = isChecked;
+        EncryptShadersOption.IsChecked = isChecked;
+        EncryptDataOption.IsChecked = isChecked;
+        if (EncryptSavesOption.IsEnabled)
+            EncryptSavesOption.IsChecked = isChecked;
+        updateEncryptionOptionsState();
+    }
+
+    private void updateEncryptionOptionsState()
+    {
+        bool useLuac = LuacOption.IsChecked == true;
+        bool encryptShaders = EncryptShadersOption.IsChecked == true;
+        bool encryptData = EncryptDataOption.IsChecked == true;
+        bool encryptSaves = EncryptSavesOption.IsChecked == true;
+        bool includeEncryptSaves = EncryptSavesOption.IsEnabled;
+        bool allChecked = useLuac
+            && encryptShaders
+            && encryptData
+            && (!includeEncryptSaves || encryptSaves);
+        bool anyChecked = useLuac
+            || encryptShaders
+            || encryptData
+            || (includeEncryptSaves && encryptSaves);
+        if (allChecked)
+            encryptionOptionsState = true;
+        else if (anyChecked)
+            encryptionOptionsState = null;
+        else
+            encryptionOptionsState = false;
+        EncryptGameDataOption.IsChecked = encryptionOptionsState;
     }
 
     private void updateAndroidSigningVisibility()
@@ -192,10 +248,12 @@ public partial class PackSelectionDialog : Window
         ExportToHarmonyDeviceOption.IsVisible = HarmonyDevicePanel.IsVisible;
     }
 
-    private void updateExportToIPhoneVisibility()
+    private void updateIosDetailsVisibility()
     {
-        ExportToIPhoneOption.IsVisible = OperatingSystem.IsMacOS()
+        bool isIosSelected = IosOption.IsVisible
             && IosOption.IsChecked == true;
+        IosStatusText.IsVisible = isIosSelected;
+        ExportToIPhoneOption.IsVisible = isIosSelected;
     }
 
     private void onCancel(object? sender, RoutedEventArgs args)

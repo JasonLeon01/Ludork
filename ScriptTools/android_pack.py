@@ -18,9 +18,13 @@ import zipfile
 from dataclasses import dataclass
 from typing import BinaryIO, TextIO
 
-from ScriptTools.compile_lua import compile_scripts, resolve_luac
+from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.finalize_package import finalize_package
-from ScriptTools.ldpak import LdPakError, validate_asset_pack_source
+from ScriptTools.ldpak import (
+    LdPakError,
+    validate_ldpak_source,
+    validate_runtime_ldpak_layout,
+)
 
 
 EXIT_TOOLCHAIN = 20
@@ -157,7 +161,8 @@ class PackContext:
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
-    pack_assets: bool
+    encrypt_saves: bool
+    use_ldpak: bool
 
     @property
     def environment(self) -> dict[str, str]:
@@ -641,8 +646,13 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             EXIT_TOOLCHAIN,
         )
     project_dir = resolve_project(arguments.project_folder)
-    if arguments.pack_assets:
-        validate_asset_pack_source(project_dir / "Assets")
+    if arguments.use_ldpak:
+        validate_ldpak_source(project_dir)
+    if arguments.compile_lua:
+        try:
+            resolve_luac()
+        except RuntimeError as exception:
+            raise PackError(str(exception), EXIT_TOOLCHAIN) from exception
     dist_dir = (
         arguments.dist_folder.expanduser().resolve()
         if arguments.dist_folder is not None
@@ -726,13 +736,14 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
-        pack_assets=arguments.pack_assets,
+        encrypt_saves=arguments.encrypt_saves,
+        use_ldpak=arguments.use_ldpak,
     )
 
 
 def copy_runtime_resources(context: PackContext) -> None:
-    if context.pack_assets:
-        validate_asset_pack_source(context.project_dir / "Assets")
+    if context.use_ldpak:
+        validate_ldpak_source(context.project_dir)
     if context.runtime_dir.exists():
         shutil.rmtree(context.runtime_dir)
     context.runtime_dir.mkdir(parents=True)
@@ -757,10 +768,9 @@ def copy_runtime_resources(context: PackContext) -> None:
         context.runtime_dir,
         context.encrypt_shaders,
         context.encrypt_data,
-        pack_assets_enabled=context.pack_assets,
+        compile_lua_enabled=context.use_luac,
+        use_ldpak=context.use_ldpak,
     )
-    if context.use_luac:
-        compile_scripts(context.runtime_dir / "Scripts", resolve_luac())
 
 
 def _stream_size_and_sha256(stream: BinaryIO) -> tuple[int, str]:
@@ -772,7 +782,16 @@ def _stream_size_and_sha256(stream: BinaryIO) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
-def create_runtime_manifest(runtime_dir: pathlib.Path) -> RuntimeManifest:
+def create_runtime_manifest(
+    runtime_dir: pathlib.Path,
+    expected_use_ldpak: bool | None = None,
+    expected_entry: str | None = None,
+) -> RuntimeManifest:
+    validate_runtime_ldpak_layout(
+        runtime_dir,
+        expected_use_ldpak,
+        expected_entry,
+    )
     entries: list[dict[str, object]] = []
     for path in sorted(
         (candidate for candidate in runtime_dir.rglob("*") if candidate.is_file()),
@@ -788,13 +807,10 @@ def create_runtime_manifest(runtime_dir: pathlib.Path) -> RuntimeManifest:
                 "sha256": sha256,
             }
         )
-    required_prefixes = ("Assets/", "Data/", "Scripts/")
+    required_prefixes = ("Assets/", "Data/")
     for prefix in required_prefixes:
         if not any(str(entry["path"]).startswith(prefix) for entry in entries):
             raise PackError(f"Android runtime contains no files under {prefix.rstrip('/')}.", EXIT_PROJECT)
-    entry_names = {str(entry["path"]) for entry in entries}
-    if not ({"Scripts/Entry.lua", "Scripts/Entry.luac"} & entry_names):
-        raise PackError("Android runtime is missing Scripts/Entry.lua or Scripts/Entry.luac.", EXIT_PROJECT)
     digest = runtime_manifest_digest(entries)
     return RuntimeManifest(digest, tuple(entries))
 
@@ -990,6 +1006,7 @@ def native_configure_command(
         f"-DLUDORK_RUNTIME_OUTPUT_DIRECTORY={context.native_output_dir}",
         f"-DLUDORK_ANDROID_RUNTIME_HASH={runtime_hash}",
         f"-DLUDORK_SCRIPT_TOOLS_EXECUTABLE={context.script_tools}",
+        f"-DLUDORK_SAVE_AS_LDC={'ON' if context.encrypt_saves else 'OFF'}",
     ]
     command.extend(cached_dependency_arguments(context.project_dir))
     return command
@@ -1211,11 +1228,40 @@ def validate_apk_archive(
                 if unbundled:
                     detail.append("Missing APK assets:\n" + "\n".join(unbundled))
                 raise PackError("\n".join(detail))
-            for prefix in ("Assets/", "Data/", "Scripts/"):
+            for prefix in ("Assets/", "Data/"):
                 if not any(name.startswith(prefix) for name in runtime_names):
                     raise PackError(f"The APK runtime manifest contains no {prefix.rstrip('/')} files.")
-            if not ({"Scripts/Entry.lua", "Scripts/Entry.luac"} & runtime_names):
+            has_loose_scripts = any(
+                name.startswith("Scripts/") for name in runtime_names
+            )
+            has_packed_scripts = "Scripts.ldpak" in runtime_names
+            if has_loose_scripts == has_packed_scripts:
+                raise PackError(
+                    "The APK runtime manifest must contain exactly one of Scripts or Scripts.ldpak."
+                )
+            if has_loose_scripts and not (
+                {"Scripts/Entry.lua", "Scripts/Entry.luac"} & runtime_names
+            ):
                 raise PackError("The APK runtime manifest has no Lua entry script.")
+            for prefix in ("Assets/", "Data/"):
+                resource_names = {
+                    name for name in runtime_names if name.startswith(prefix)
+                }
+                package_names = {
+                    name
+                    for name in resource_names
+                    if "/" not in name[len(prefix) :]
+                    and name.casefold().endswith(".ldpak")
+                    and len(name) > len(prefix) + len(".ldpak")
+                }
+                if has_packed_scripts and package_names != resource_names:
+                    raise PackError(
+                        f"The APK packed runtime contains loose {prefix.rstrip('/')} files."
+                    )
+                if not has_packed_scripts and package_names:
+                    raise PackError(
+                        f"The APK loose runtime contains packed {prefix.rstrip('/')} groups."
+                    )
             for entry in manifest_files:
                 relative = str(entry["path"])
                 archive_path = "assets/" + relative
@@ -1891,7 +1937,8 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
-    parser.add_argument("--pack-assets", action="store_true")
+    parser.add_argument("--encrypt-saves", action="store_true")
+    parser.add_argument("--use-ldpak", action="store_true")
     parser.add_argument("--sign", action="store_true")
     parser.add_argument("--keystore", type=pathlib.Path)
     parser.add_argument("--key-alias")
@@ -1923,7 +1970,10 @@ def main(arguments: list[str] | None = None) -> int:
             print(f"Android {packaging_kind} APK packaging check passed.")
             return 0
         copy_runtime_resources(context)
-        manifest = create_runtime_manifest(context.runtime_dir)
+        manifest = create_runtime_manifest(
+            context.runtime_dir,
+            context.use_ldpak,
+        )
         prepare_gradle_stage(context, manifest)
         print(f"Runtime SHA-256: {manifest.digest}")
         build_native_library(context, manifest.digest)

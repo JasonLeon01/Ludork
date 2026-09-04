@@ -3,7 +3,6 @@ local Logging = require("Global.Utils.Logging")
 local EventKeys = require("Source.Configs.EventKeys")
 
 local Core = {}
-local LOCALE_DIRECTORY = "./Scripts/Source/Locale"
 local LOCALE_MODULE_PREFIX = "Source.Locale."
 local dataDict = {}
 
@@ -15,11 +14,18 @@ end
 
 function Core.Init()
     dataDict = {}
-    for _, file in ipairs(os.listdir(LOCALE_DIRECTORY)) do
-        local language, extension = os.path.splitext(file)
-        if language ~= "Core" and (extension == ".lua" or extension == ".luac") and dataDict[language] == nil then
-            dataDict[language] = require(LOCALE_MODULE_PREFIX .. language)
+    local languages = {}
+    for moduleName in pairs(package.preload) do
+        if Class.isInstance(moduleName, "string") then
+            local language = moduleName:match("^Source%.Locale%.([^.]+)$")
+            if language ~= nil and language ~= "Core" then
+                languages[#languages + 1] = language
+            end
         end
+    end
+    table.sort(languages)
+    for _, language in ipairs(languages) do
+        dataDict[language] = require(LOCALE_MODULE_PREFIX .. language)
     end
 end
 

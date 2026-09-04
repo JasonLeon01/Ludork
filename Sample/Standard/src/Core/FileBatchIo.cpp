@@ -1,6 +1,7 @@
 #include "FileBatchInternal.hpp"
 
 #include <DataFile.hpp>
+#include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
 
 #include <array>
@@ -83,6 +84,36 @@ ReadResult readFile(const std::shared_ptr<FileBatchJob>& job,
         } catch (const std::exception& exception) {
             result.error = readError(entry, exception.what());
         }
+        return result;
+    }
+
+    try {
+        const ReadOnlyFileStatus status = readOnlyFileStatus(entry.path);
+        if (status.handled) {
+            if (status.type != ReadOnlyFileType::Regular) {
+                result.error = readError(entry, "File was not found");
+                return result;
+            }
+            const std::vector<std::uint8_t> bytes =
+                readOnlyFileBytes(entry.path);
+            if (job->cancellationRequested.load(std::memory_order_relaxed)) {
+                result.cancelled = true;
+                return result;
+            }
+            if (bytes.size() != entry.fileSize) {
+                result.error =
+                    readError(entry, "File size changed while reading");
+                return result;
+            }
+            result.item = FileBatchItem{
+                entry.index,         entry.category,
+                entry.relativePath,  std::string(bytes.begin(), bytes.end()),
+                entry.encryptedData,
+            };
+            return result;
+        }
+    } catch (const std::exception& exception) {
+        result.error = readError(entry, exception.what());
         return result;
     }
 

@@ -3,7 +3,9 @@
 
 #include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
+#include <LuaError.hpp>
 #include <Runtime/RuntimeValue.hpp>
+#include <Runtime/ScriptStore.hpp>
 #include <RuntimeSession.hpp>
 #include <Utils/DataValue.hpp>
 
@@ -50,38 +52,6 @@ std::string normalizeScriptMixinPath(const std::string& value) {
     return path;
 }
 
-std::string scriptMixinModuleName(const std::string& scriptPath) {
-    std::string module =
-        "Mixins." + scriptPath.substr(0, scriptPath.size() - 4);
-    std::replace(module.begin(), module.end(), '/', '.');
-    return module;
-}
-
-std::string findLuaModuleFile(sol::state_view lua,
-                              const std::string& moduleName) {
-    const sol::object rawPackage =
-        lua.globals().raw_get<sol::object>("package");
-    if (!rawPackage.is<sol::table>()) {
-        throw std::runtime_error("Lua package table is unavailable");
-    }
-    const sol::table package = rawPackage.as<sol::table>();
-    const sol::object rawSearch = package.raw_get<sol::object>("searchpath");
-    const sol::object rawPath = package.raw_get<sol::object>("path");
-    if (!rawSearch.is<sol::protected_function>() ||
-        !rawPath.is<std::string>()) {
-        throw std::runtime_error("Lua package.searchpath is unavailable");
-    }
-    sol::protected_function search = rawSearch.as<sol::protected_function>();
-    sol::protected_function_result result = search(moduleName, rawPath);
-    if (result.valid() && result.return_count() > 0) {
-        const sol::object found = result.get<sol::object>();
-        if (found.is<std::string>()) {
-            return found.as<std::string>();
-        }
-    }
-    throw std::runtime_error("Mixin script was not found: " + moduleName);
-}
-
 bool tableHasMetatable(sol::state_view lua, const sol::table& table) {
     lua_State* state = lua.lua_state();
     table.push();
@@ -99,23 +69,23 @@ bool isScriptMixinReservedName(const std::string& name) {
 
 sol::table loadScriptMixin(sol::state_view lua, const std::string& classPath,
                            const std::string& scriptPath) {
-    const std::string moduleName = scriptMixinModuleName(scriptPath);
-    const std::string filePath = findLuaModuleFile(lua, moduleName);
-    sol::load_result loaded = lua.load_file(filePath);
-    if (!loaded.valid()) {
-        const sol::error error = loaded;
+    lua_State* state = lua.lua_state();
+    const int stackBase = lua_gettop(state);
+    if (ludork::runtime::scriptStore().loadFile(
+            state, "Scripts/Mixins/" + scriptPath) != LUA_OK) {
+        const std::string error = ludork::standard::luaErrorMessage(state, -1);
+        lua_settop(state, stackBase);
         throw std::runtime_error("Failed to load Mixin " + scriptPath +
-                                 " for " + classPath + ": " + error.what());
+                                 " for " + classPath + ": " + error);
     }
-    sol::protected_function chunk = loaded;
-    sol::protected_function_result result = chunk();
-    sol::object value;
-    try {
-        value = checkedResult(lua, result);
-    } catch (const std::runtime_error& error) {
+    if (ludork::standard::protectedLuaCall(state, 0, 1) != LUA_OK) {
+        const std::string error = ludork::standard::luaErrorMessage(state, -1);
+        lua_settop(state, stackBase);
         throw std::runtime_error("Failed to execute Mixin " + scriptPath +
-                                 " for " + classPath + ": " + error.what());
+                                 " for " + classPath + ": " + error);
     }
+    sol::object value = sol::stack::get<sol::object>(state, -1);
+    lua_settop(state, stackBase);
     if (!value.is<sol::table>()) {
         throw std::runtime_error("Mixin " + scriptPath + " for " + classPath +
                                  " must return a table");

@@ -1,9 +1,5 @@
 ---@meta Source.Save
 
---- Use encrypted LDC files for standard save slots instead of plain JSON files.
----@type boolean
-SAVE_AS_LDC = SAVE_AS_LDC or false
-
 --- Save/Load system for persisting and restoring game state.
 ---
 --- Save data is serialized as JSON and stored in plain `.json` or encrypted

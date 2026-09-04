@@ -38,7 +38,8 @@ set -- \
     -B "$CPP_DIR/build" \
     -DCMAKE_BUILD_TYPE="$CONFIG" \
     -DLUDORK_SCRIPT_TOOLS_EXECUTABLE="$SCRIPT_TOOLS" \
-    -DLUDORK_LUAC_CACHE_FILE="$LUAC_CACHE"
+    -DLUDORK_LUAC_CACHE_FILE="$LUAC_CACHE" \
+    -DLUDORK_SAVE_AS_LDC="${LUDORK_SAVE_AS_LDC:-0}"
 
 DEPENDENCY_NAMES="flac freetype harfbuzz libssh2 mbedtls ogg sheenbidi vorbis"
 dependency_cache_is_ready() {

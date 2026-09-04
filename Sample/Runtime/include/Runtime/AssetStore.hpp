@@ -59,7 +59,8 @@ public:
     AssetStore(const AssetStore&) = delete;
     AssetStore& operator=(const AssetStore&) = delete;
 
-    void configure(const std::filesystem::path& runtimeRoot);
+    void configure(const std::filesystem::path& runtimeRoot,
+                   AssetStoreMode mode = AssetStoreMode::Loose);
     void reset() noexcept;
 
     [[nodiscard]] bool isConfigured() const noexcept;

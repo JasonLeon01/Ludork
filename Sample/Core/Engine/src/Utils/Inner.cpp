@@ -2,6 +2,7 @@
 
 #include <LudorkPlatform.hpp>
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/DataStore.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <Utf8Path.hpp>
 
@@ -184,8 +185,16 @@ std::string getAnimationSourceRoot() {
 std::string getAnimationCacheRoot(
     const std::optional<std::string>& appNameOverride) {
 #if defined(_WIN32)
-    static_cast<void>(appNameOverride);
-    return getAnimationSourceRoot();
+    if (!ludork::runtime::dataStore().isConfigured() ||
+        ludork::runtime::dataStore().mode() ==
+            ludork::runtime::DataStoreMode::Loose) {
+        static_cast<void>(appNameOverride);
+        return getAnimationSourceRoot();
+    }
+    const std::filesystem::path path =
+        userDataPath(appNameOverride) / "Cache" / "Animations";
+    std::filesystem::create_directories(path);
+    return ludork::standard::pathToUtf8(path);
 #else
     const std::filesystem::path path =
         userDataPath(appNameOverride) / "Data" / "Animations";

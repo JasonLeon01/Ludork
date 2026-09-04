@@ -1,5 +1,7 @@
 #include "PathResolver.hpp"
 
+#include <DataFile.hpp>
+#include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
 
 #include <optional>
@@ -107,8 +109,28 @@ std::filesystem::path validateLogicalAssetKey(const std::string& assetKey) {
 
 std::filesystem::path assetPath(const std::string& assetKey) {
     const std::filesystem::path relative = validateLogicalAssetKey(assetKey);
-    const std::filesystem::path root = std::filesystem::weakly_canonical(
-        std::filesystem::current_path() / "Data" / "UI" / "Assets");
+    const std::filesystem::path logicalRoot =
+        std::filesystem::current_path() / "Data" / "UI" / "Assets";
+    const ludork::standard::ReadOnlyFileStatus readOnlyStatus =
+        ludork::standard::readOnlyFileStatus(logicalRoot);
+    if (readOnlyStatus.handled) {
+        if (readOnlyStatus.type !=
+            ludork::standard::ReadOnlyFileType::Directory) {
+            throw std::invalid_argument(
+                "UI asset directory was not found: Data/UI/Assets");
+        }
+        std::filesystem::path logicalPath = logicalRoot / relative;
+        logicalPath += ".json";
+        if (!ludork::standard::jsonDataExists(logicalPath)) {
+            throw std::out_of_range(
+                "UI asset key was not found or does not match filesystem "
+                "case: " +
+                assetKey);
+        }
+        return logicalPath;
+    }
+    const std::filesystem::path root =
+        std::filesystem::weakly_canonical(logicalRoot);
     if (!std::filesystem::is_directory(root)) {
         throw std::invalid_argument(
             "UI asset directory was not found: Data/UI/Assets");

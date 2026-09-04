@@ -491,6 +491,53 @@ validate_dmg() {
     DMG_MOUNT_DIR_OWNED=0
 }
 
+validate_standalone_runtime_layout() {
+    template_dir=$1
+    require_package_executable "$template_dir/Main"
+    require_package_directory "$template_dir/Binaries"
+    if [ -e "$template_dir/Binaries/Main" ] \
+        || [ -L "$template_dir/Binaries/Main" ]; then
+        echo "Standalone Main must remain at the template root: $template_dir/Binaries/Main" >&2
+        exit 1
+    fi
+    unexpected_runtime=$(find "$template_dir" \
+        -maxdepth 1 \
+        \( -type f -o -type l \) \
+        \( -name '*.dll' -o -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) \
+        -print \
+        -quit)
+    if [ -n "$unexpected_runtime" ]; then
+        echo "Standalone runtime library exists outside Binaries: $unexpected_runtime" >&2
+        exit 1
+    fi
+    runtime_library=$(find "$template_dir/Binaries" \
+        -maxdepth 1 \
+        \( -type f -o -type l \) \
+        \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) \
+        -print \
+        -quit)
+    if [ -z "$runtime_library" ]; then
+        echo "Standalone template contains no runtime libraries in Binaries: $template_dir" >&2
+        exit 1
+    fi
+    if ! otool -l "$template_dir/Main" \
+        | grep -Fq 'path @loader_path/Binaries '; then
+        echo "Standalone Main is missing the Binaries runtime search path: $template_dir/Main" >&2
+        exit 1
+    fi
+    if otool -l "$template_dir/Main" \
+        | grep -Fq 'path @loader_path/../Frameworks '; then
+        echo "Raw Standalone Main contains the app-only Frameworks runtime search path: $template_dir/Main" >&2
+        exit 1
+    fi
+    if otool -l "$template_dir/Main" \
+        | grep -Fq 'path @loader_path '; then
+        echo "Raw Standalone Main contains the development runtime search path: $template_dir/Main" >&2
+        exit 1
+    fi
+    codesign --verify --strict "$template_dir/Main"
+}
+
 validate_package() {
     package_app=$1
     package_macos="$package_app/Contents/MacOS"
@@ -505,8 +552,14 @@ validate_package() {
     require_package_file "$package_resources/Locale/zh_CN"
     require_package_file "$package_resources/Templates/Cpp/Main.proj"
     require_package_file "$package_resources/Templates/Cpp-ffmpeg/Main.proj"
-    require_package_executable "$package_resources/Templates/Standalone/Main"
-    require_package_executable "$package_resources/Templates/Standalone-ffmpeg/Main"
+    validate_standalone_runtime_layout \
+        "$package_resources/Templates/Standalone"
+    validate_standalone_runtime_layout \
+        "$package_resources/Templates/Standalone-ffmpeg"
+    for template_name in Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg; do
+        "$SCRIPT_TOOLS" validate-ldpak-source \
+            "$package_resources/Templates/$template_name"
+    done
     require_package_executable "$package_resources/tools/build_cpp.sh"
     require_package_executable "$package_resources/tools/build_standalone.sh"
     require_package_executable "$package_resources/tools/pack_project.sh"

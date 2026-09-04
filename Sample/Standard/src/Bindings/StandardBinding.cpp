@@ -53,6 +53,7 @@ void initialize(lua_State* state, int cjsonIndex) {
     }
     sol::state_view lua(state);
     lua["PLATFORM"] = LUDORK_PLATFORM;
+    lua["SAVE_AS_LDC"] = LUDORK_SAVE_AS_LDC != 0;
 #if defined(LUDORK_MOBILE)
     lua["LUDORK_MOBILE"] = true;
     lua["LUDORK_DESKTOP"] = false;

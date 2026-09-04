@@ -28,9 +28,10 @@ bool isRuntimeRoot(const std::filesystem::path& path) {
         return false;
     }
     error.clear();
-    const std::filesystem::path entryPath = path / "Scripts" / "Entry.lua";
-    return isRegularFile(entryPath) ||
-           isRegularFile(entryPath.parent_path() / "Entry.luac");
+    const bool scriptsDirectory =
+        std::filesystem::is_directory(path / "Scripts", error) && !error;
+    error.clear();
+    return scriptsDirectory || isRegularFile(path / "Scripts.ldpak");
 }
 
 std::filesystem::path tryRuntimeRoot(
@@ -137,8 +138,7 @@ bool useRuntimeRoot(const std::filesystem::path& executablePath,
     if (runtimeRoot.empty()) {
         std::string message =
             "Unable to locate the runtime resource root. Expected Assets, "
-            "Data, "
-            "and Scripts/Entry.lua or Scripts/Entry.luac in one of:";
+            "Data, and Scripts or Scripts.ldpak in one of:";
         for (const std::filesystem::path& searched : searchedRoots) {
             message += "\n  " + searched.generic_string();
         }
@@ -166,8 +166,8 @@ void configureRuntimePaths(const std::filesystem::path& runtimeRoot,
         detail::normalizedAbsolutePath(runtimeRoot);
     if (!isRuntimeRoot(normalizedRuntimeRoot)) {
         throw std::invalid_argument(
-            "Runtime root must contain Assets, Data, and "
-            "Scripts/Entry.lua or Scripts/Entry.luac: " +
+            "Runtime root must contain Assets, Data, and Scripts or "
+            "Scripts.ldpak: " +
             normalizedRuntimeRoot.generic_string());
     }
 

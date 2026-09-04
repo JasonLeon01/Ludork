@@ -5,12 +5,20 @@ using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Text;
+using System.Threading;
 
 namespace Ludork.Views;
 
 public partial class AndroidSigningDialog : Window
 {
+    private readonly AndroidSigningCredentialStore credentialStore = new();
+    private AndroidSigningOptions? loadedSigning;
+    private bool credentialOperationPending;
+    private int keystoreSelectionGeneration;
+
     public AndroidSigningDialog()
     {
         InitializeComponent();
@@ -21,6 +29,7 @@ public partial class AndroidSigningDialog : Window
         KeystorePasswordLabel.Text = LocaleService.Get("PACK_ANDROID_KEYSTORE_PASSWORD");
         SameKeyPasswordOption.Content = LocaleService.Get("PACK_ANDROID_KEY_PASSWORD_SAME");
         KeyPasswordLabel.Text = LocaleService.Get("PACK_ANDROID_KEY_PASSWORD");
+        SaveSigningOption.Content = LocaleService.Get("PACK_ANDROID_SAVE_SIGNING");
         BrowseButton.Content = LocaleService.Get("BROWSE");
         ConfirmButton.Content = LocaleService.Get("CONFIRM");
         CancelButton.Content = LocaleService.Get("CANCEL");
@@ -60,7 +69,10 @@ public partial class AndroidSigningDialog : Window
             });
         if (files.Count == 0)
             return;
-        KeystorePathBox.Text = files[0].Path.LocalPath;
+        string keystorePath = Path.GetFullPath(files[0].Path.LocalPath)
+            .Normalize(NormalizationForm.FormC);
+        KeystorePathBox.Text = keystorePath;
+        await loadSavedSigningAsync(keystorePath);
     }
 
     private async System.Threading.Tasks.Task<IStorageFolder?> getStartLocationAsync()
@@ -81,6 +93,12 @@ public partial class AndroidSigningDialog : Window
 
     private void updateValidation()
     {
+        if (credentialOperationPending)
+        {
+            ValidationText.Text = string.Empty;
+            ConfirmButton.IsEnabled = false;
+            return;
+        }
         string? validationMessage = getValidationMessage();
         ValidationText.Text = validationMessage ?? string.Empty;
         ConfirmButton.IsEnabled = validationMessage is null;
@@ -145,7 +163,7 @@ public partial class AndroidSigningDialog : Window
         return value.IndexOfAny(['\r', '\n']) >= 0;
     }
 
-    private void onConfirm(object? sender, RoutedEventArgs args)
+    private async void onConfirm(object? sender, RoutedEventArgs args)
     {
         if (getValidationMessage() is not null)
         {
@@ -157,11 +175,105 @@ public partial class AndroidSigningDialog : Window
         string keyPassword = SameKeyPasswordOption.IsChecked == true
             ? keystorePassword
             : KeyPasswordBox.Text ?? string.Empty;
-        Close(new AndroidSigningOptions(
+        AndroidSigningOptions signing = new(
             Path.GetFullPath(KeystorePathBox.Text!),
             KeyAliasBox.Text!.Trim(),
             keystorePassword,
-            keyPassword));
+            keyPassword);
+        bool updateStoredSigning = loadedSigning is not null
+            && signing != loadedSigning;
+        if (SaveSigningOption.IsChecked == true || updateStoredSigning)
+        {
+            credentialOperationPending = true;
+            CredentialStatusText.Text = string.Empty;
+            updateValidation();
+            try
+            {
+                await credentialStore.SaveAsync(signing, CancellationToken.None);
+            }
+            catch (Exception exception) when (
+                exception is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or System.Text.Json.JsonException
+                or InvalidOperationException
+                or Win32Exception
+                or ArgumentException
+                or NotSupportedException)
+            {
+                loadedSigning = null;
+                SaveSigningOption.IsChecked = false;
+                SaveSigningOption.IsVisible = true;
+                CredentialStatusText.Text = string.Format(
+                    LocaleService.Get("PACK_ANDROID_SIGNING_SAVE_FAILED"),
+                    exception.Message);
+                credentialOperationPending = false;
+                updateValidation();
+                return;
+            }
+        }
+        Close(signing);
+    }
+
+    private async System.Threading.Tasks.Task loadSavedSigningAsync(string keystorePath)
+    {
+        int generation = ++keystoreSelectionGeneration;
+        loadedSigning = null;
+        KeyAliasBox.Text = string.Empty;
+        KeystorePasswordBox.Text = string.Empty;
+        KeyPasswordBox.Text = string.Empty;
+        SameKeyPasswordOption.IsChecked = true;
+        SaveSigningOption.IsChecked = false;
+        SaveSigningOption.IsVisible = false;
+        CredentialStatusText.Text = string.Empty;
+        credentialOperationPending = true;
+        updateValidation();
+        AndroidSigningOptions? signing;
+        try
+        {
+            signing = await credentialStore.FindAsync(
+                keystorePath,
+                CancellationToken.None);
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or InvalidDataException
+            or System.Text.Json.JsonException
+            or InvalidOperationException
+            or Win32Exception
+            or ArgumentException
+            or NotSupportedException)
+        {
+            if (generation != keystoreSelectionGeneration)
+                return;
+            CredentialStatusText.Text = string.Format(
+                LocaleService.Get("PACK_ANDROID_SIGNING_LOAD_FAILED"),
+                exception.Message);
+            signing = null;
+        }
+        if (generation != keystoreSelectionGeneration)
+            return;
+        loadedSigning = signing;
+        if (signing is null)
+        {
+            SaveSigningOption.IsVisible = true;
+        }
+        else
+        {
+            KeyAliasBox.Text = signing.KeyAlias;
+            KeystorePasswordBox.Text = signing.KeystorePassword;
+            bool samePassword = string.Equals(
+                signing.KeystorePassword,
+                signing.KeyPassword,
+                StringComparison.Ordinal);
+            SameKeyPasswordOption.IsChecked = samePassword;
+            KeyPasswordBox.Text = samePassword
+                ? string.Empty
+                : signing.KeyPassword;
+        }
+        credentialOperationPending = false;
+        updateKeyPasswordVisibility();
     }
 
     private void onCancel(object? sender, RoutedEventArgs args)

@@ -451,6 +451,7 @@ public partial class MainWindow
     protected override void OnClosed(EventArgs args)
     {
         saveEditorLayout();
+        consoleLogView.Dispose();
         consoleLogSession.Dispose();
         if (actorPreviewService is not null)
         {
@@ -470,4 +471,3 @@ public partial class MainWindow
         base.OnClosed(args);
     }
 }
-

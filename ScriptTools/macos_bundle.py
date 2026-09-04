@@ -8,16 +8,137 @@ import sys
 import tempfile
 
 
-def copy_runtime(runtime_dir: pathlib.Path, macos_dir: pathlib.Path) -> None:
-    for source in runtime_dir.iterdir():
-        if not source.is_file() and not source.is_symlink():
-            continue
-        if source.name == "Main" or source.suffix in {".dylib", ".so"} or ".so." in source.name:
-            shutil.copy2(source.resolve(), macos_dir / source.name)
-    executable = macos_dir / "Main"
-    if not executable.exists():
+def is_runtime_library(path: pathlib.Path) -> bool:
+    return path.suffix in {".dylib", ".so"} or ".so." in path.name
+
+
+def runtime_symlink_target(
+    source: pathlib.Path, binaries_dir: pathlib.Path
+) -> pathlib.Path:
+    target = source.readlink()
+    if target.is_absolute():
+        raise RuntimeError(f"Absolute Binaries symlink is unsupported: {source}")
+    if target.parent != pathlib.Path("."):
+        raise RuntimeError(f"Binaries symlink leaves its directory: {source}")
+    target_source = binaries_dir / target
+    if target_source.is_symlink():
+        raise RuntimeError(f"Binaries symlink chain is unsupported: {source}")
+    if target_source.is_dir():
+        raise RuntimeError(f"Binaries symlink targets a directory: {source}")
+    if not target_source.is_file():
+        raise RuntimeError(f"Binaries symlink target is missing: {source}")
+    if not is_runtime_library(target_source):
+        raise RuntimeError(f"Binaries symlink target is not a library: {source}")
+    return target
+
+
+def copy_runtime(
+    runtime_dir: pathlib.Path,
+    macos_dir: pathlib.Path,
+    frameworks_dir: pathlib.Path,
+) -> None:
+    executable_source = runtime_dir / "Main"
+    if not executable_source.is_file():
         raise RuntimeError(f"Runtime is missing Main: {runtime_dir}")
+    unexpected = next(
+        (
+            path
+            for path in runtime_dir.iterdir()
+            if (path.is_file() or path.is_symlink()) and is_runtime_library(path)
+        ),
+        None,
+    )
+    if unexpected is not None:
+        raise RuntimeError(f"Runtime library exists outside Binaries: {unexpected}")
+
+    binaries_dir = runtime_dir / "Binaries"
+    if not binaries_dir.is_dir():
+        raise RuntimeError(f"Runtime is missing Binaries: {runtime_dir}")
+    runtime_files: list[pathlib.Path] = []
+    runtime_symlinks: list[tuple[pathlib.Path, pathlib.Path]] = []
+    for source in sorted(binaries_dir.iterdir(), key=lambda path: path.name):
+        if source.is_symlink():
+            if not is_runtime_library(source):
+                raise RuntimeError(f"Unsupported Binaries symlink: {source}")
+            runtime_symlinks.append(
+                (source, runtime_symlink_target(source, binaries_dir))
+            )
+            continue
+        if not source.is_file():
+            raise RuntimeError(f"Unsupported Binaries entry: {source}")
+        if not is_runtime_library(source):
+            raise RuntimeError(f"Unsupported Binaries file: {source}")
+        runtime_files.append(source)
+    if not runtime_files:
+        raise RuntimeError(f"Runtime contains no libraries in Binaries: {runtime_dir}")
+    for source in runtime_files:
+        shutil.copy2(source, frameworks_dir / source.name)
+    for source, target in runtime_symlinks:
+        destination = frameworks_dir / source.name
+        destination.symlink_to(target)
+        if destination.readlink() != target or not destination.is_file():
+            raise RuntimeError(f"Frameworks symlink is invalid: {destination}")
+
+    executable = macos_dir / "Main"
+    shutil.copy2(executable_source.resolve(), executable)
     executable.chmod(executable.stat().st_mode | 0o111)
+    rewrite_executable_rpath(executable)
+
+
+def executable_rpaths(executable: pathlib.Path) -> set[str]:
+    result = subprocess.run(
+        ["otool", "-l", str(executable)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rpaths: set[str] = set()
+    lines = iter(result.stdout.splitlines())
+    for line in lines:
+        if line.strip() != "cmd LC_RPATH":
+            continue
+        next(lines, None)
+        path_line = next(lines, "").strip()
+        match = re.match(r"path (.+) \(offset \d+\)$", path_line)
+        if match is not None:
+            rpaths.add(match.group(1))
+    return rpaths
+
+
+def rewrite_executable_rpath(executable: pathlib.Path) -> None:
+    install_name_tool = shutil.which("install_name_tool")
+    if install_name_tool is None:
+        raise RuntimeError("install_name_tool was not found")
+    rpaths = executable_rpaths(executable)
+    if "@loader_path/Binaries" not in rpaths:
+        raise RuntimeError(
+            f"Runtime Main is missing @loader_path/Binaries: {executable}"
+        )
+    command = [install_name_tool, "-delete_rpath", "@loader_path/Binaries"]
+    if "@loader_path" in rpaths:
+        command.extend(["-delete_rpath", "@loader_path"])
+    if "@loader_path/../Frameworks" not in rpaths:
+        command.extend(["-add_rpath", "@loader_path/../Frameworks"])
+    command.append(str(executable))
+    subprocess.run(command, check=True)
+    rewritten_rpaths = executable_rpaths(executable)
+    if "@loader_path/Binaries" in rewritten_rpaths:
+        raise RuntimeError(f"Bundle Main retains the Binaries rpath: {executable}")
+    if "@loader_path" in rewritten_rpaths:
+        raise RuntimeError(f"Bundle Main retains the root runtime search path: {executable}")
+    if "@loader_path/../Frameworks" not in rewritten_rpaths:
+        raise RuntimeError(f"Bundle Main is missing the Frameworks rpath: {executable}")
+    codesign = shutil.which("codesign")
+    if codesign is None:
+        raise RuntimeError("codesign was not found")
+    subprocess.run(
+        [codesign, "--force", "--sign", "-", str(executable)],
+        check=True,
+    )
+    subprocess.run(
+        [codesign, "--verify", "--strict", str(executable)],
+        check=True,
+    )
 
 
 def copy_resources(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> None:
@@ -134,10 +255,12 @@ def main(arguments: list[str] | None = None) -> int:
     if app_path.exists():
         shutil.rmtree(app_path)
     macos_dir = app_path / "Contents" / "MacOS"
+    frameworks_dir = app_path / "Contents" / "Frameworks"
     resources_dir = app_path / "Contents" / "Resources"
     macos_dir.mkdir(parents=True)
+    frameworks_dir.mkdir(parents=True)
     resources_dir.mkdir(parents=True)
-    copy_runtime(runtime_dir, macos_dir)
+    copy_runtime(runtime_dir, macos_dir, frameworks_dir)
     copy_resources(project_dir, resources_dir)
     validate_resources(resources_dir)
     create_icon(project_dir, resources_dir)

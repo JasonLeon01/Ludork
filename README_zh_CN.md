@@ -65,7 +65,7 @@ Visual Studio 的运行和调试会复用编辑器 Play 的同一个 Debug C++ �
 
 从编辑器执行打包会运行已注册的插件准备 hook。Standalone 工程无需编译 C++ 即可编辑和打包；C++ Source 工程会执行所需的原生构建。
 
-Android 打包不勾选**签名 APK**时生成 `dist/<游戏名>-android-arm64-v8a-unsigned.apk`。勾选后会打开二级窗口，要求选择已有 JKS 或 PKCS12 keystore，并填写 key alias、keystore password 和 key password；key password 默认与 keystore password 相同。这些凭据只用于本次打包，不会保存。签名成功后只发布 `dist/<游戏名>-android-arm64-v8a-signed.apk`。同一已安装应用的后续版本必须复用相同签名密钥。两种 Android 模式都不会安装或启动 APK。
+Android 打包不勾选**签名 APK**时生成 `dist/<游戏名>-android-arm64-v8a-unsigned.apk`；勾选后会打开已有 JKS 或 PKCS12 keystore 的签名窗口，并可在本机保存签名信息供以后使用。密码保存在操作系统凭据库中，不会写入项目。签名成功后只发布 `dist/<游戏名>-android-arm64-v8a-signed.apk`。同一已安装应用的后续版本必须复用相同签名密钥。两种模式都不会安装或启动 APK。
 
 HarmonyOS 打包可选择使用 OpenGL ES 的 **Mobile** 手机/平板宿主，或选择 **2in1** 后再选择 OpenGL/OpenGL ES；2in1 默认使用 OpenGL。未签名产物分别写入 `dist/<游戏名>-harmony-mobile-unsigned.hap`、`dist/<游戏名>-harmony-2in1-opengl-unsigned.hap` 或 `dist/<游戏名>-harmony-2in1-opengl-es-unsigned.hap`。勾选**导出到匹配的 HarmonyOS 设备**后，会签名对应 HAP，将其安装到唯一一台形态匹配的已连接设备并启动应用。
 

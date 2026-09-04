@@ -41,6 +41,12 @@
                 <TextBox x:Name="KeyPasswordBox"
                          PasswordChar="●" />
             </StackPanel>
+            <CheckBox x:Name="SaveSigningOption"
+                      IsChecked="False"
+                      IsVisible="False" />
+            <TextBlock x:Name="CredentialStatusText"
+                       Foreground="#ffb74d"
+                       TextWrapping="Wrap" />
             <TextBlock x:Name="ValidationText"
                        MinHeight="18"
                        Foreground="#ff6e6e"

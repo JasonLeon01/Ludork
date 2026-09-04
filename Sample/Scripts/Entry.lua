@@ -9,7 +9,6 @@ local NodeGraphFunctions = GlobalFunctions.NodeGraph
 local GlobalSystem = GlobalCore.System
 
 local APP_NAME = "LudorkSample"
-SAVE_AS_LDC = false
 
 -- Entry point.
 local function entry()

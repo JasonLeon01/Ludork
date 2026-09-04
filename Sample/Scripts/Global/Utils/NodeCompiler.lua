@@ -18,6 +18,9 @@ local function moduleExists(moduleName)
     if package.loaded[moduleName] ~= nil then
         return true
     end
+    if package.preload[moduleName] ~= nil then
+        return true
+    end
     if package.searchpath(moduleName, package.path) ~= nil then
         return true
     end

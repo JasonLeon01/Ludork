@@ -110,9 +110,9 @@ int runRuntime(const std::filesystem::path& executablePath, int argc,
     }
     RuntimeOwner runtime(state);
 
-    configureApplicationScriptEnvironment(state, executablePath);
     registerRuntimeModules(state);
     initializeRuntime(state);
+    configureApplicationScriptEnvironment(state, executablePath);
     return runApplicationScript(state, argc, argv);
 }
 

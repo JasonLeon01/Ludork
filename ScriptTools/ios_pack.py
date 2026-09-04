@@ -12,9 +12,13 @@ import sys
 import unicodedata
 import zipfile
 
-from .compile_lua import compile_scripts, resolve_luac
+from .compile_lua import resolve_luac
 from .finalize_package import finalize_package
-from .ldpak import LdPakError, validate_asset_pack_source
+from .ldpak import (
+    LdPakError,
+    validate_ldpak_source,
+    validate_runtime_ldpak_layout,
+)
 from .ios_device import device_identifier
 from .ios_device import install_and_launch as install_and_launch_on_device
 from .ios_device import require_device_tools
@@ -55,7 +59,8 @@ class PackContext:
         use_luac: bool,
         encrypt_shaders: bool,
         encrypt_data: bool,
-        pack_assets: bool,
+        encrypt_saves: bool,
+        use_ldpak: bool,
     ) -> None:
         self.project_dir = project_dir
         self.dist_dir = dist_dir
@@ -68,7 +73,8 @@ class PackContext:
         self.use_luac = use_luac
         self.encrypt_shaders = encrypt_shaders
         self.encrypt_data = encrypt_data
-        self.pack_assets = pack_assets
+        self.encrypt_saves = encrypt_saves
+        self.use_ldpak = use_ldpak
 
     @property
     def environment(self) -> dict[str, str]:
@@ -80,13 +86,14 @@ class PackContext:
 def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pack_ios",
-        usage="pack_ios [--check] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--pack-assets] [--export-to-iphone] <project-folder> [dist-folder]",
+        usage="pack_ios [--check] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] [--export-to-iphone] <project-folder> [dist-folder]",
     )
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
-    parser.add_argument("--pack-assets", action="store_true")
+    parser.add_argument("--encrypt-saves", action="store_true")
+    parser.add_argument("--use-ldpak", action="store_true")
     parser.add_argument("--export-to-iphone", action="store_true")
     parser.add_argument("project_folder")
     parser.add_argument("dist_folder", nargs="?")
@@ -211,8 +218,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     if sys.platform != "darwin":
         raise PackError("iOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
     project_dir = resolve_project(arguments.project_folder)
-    if arguments.pack_assets:
-        validate_asset_pack_source(project_dir / "Assets")
+    if arguments.use_ldpak:
+        validate_ldpak_source(project_dir)
     dist_dir = (
         pathlib.Path(arguments.dist_folder).expanduser().resolve()
         if arguments.dist_folder
@@ -224,11 +231,14 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     game_name = read_game_name(project_dir)
     tools = require_xcode_tools(developer_dir)
     team_id = select_team_id()
+    if arguments.compile_lua:
+        try:
+            luac = resolve_luac()
+        except RuntimeError as exception:
+            raise PackError(str(exception), EXIT_TOOLCHAIN) from exception
+        print(f"luac: {luac}")
     name = artifact_name(game_name)
     identifier = bundle_identifier(team_id, game_name)
-    if arguments.compile_lua:
-        luac = resolve_luac()
-        print(f"luac: {luac}")
     print(f"Xcode: {tools['xcodebuild'].splitlines()[0]}")
     print(f"CMake: {cmake_version}")
     print(f"Developer directory: {developer_dir}")
@@ -247,7 +257,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         arguments.compile_lua,
         arguments.encrypt_shaders,
         arguments.encrypt_data,
-        arguments.pack_assets,
+        arguments.encrypt_saves,
+        arguments.use_ldpak,
     )
 
 
@@ -379,8 +390,8 @@ def copy_runtime_resources(
     context: PackContext,
     resources_dir: pathlib.Path,
 ) -> None:
-    if context.pack_assets:
-        validate_asset_pack_source(context.project_dir / "Assets")
+    if context.use_ldpak:
+        validate_ldpak_source(context.project_dir)
     if resources_dir.exists():
         shutil.rmtree(resources_dir)
     for directory_name in ("Assets", "Data", "Scripts"):
@@ -415,10 +426,9 @@ def configure_and_build(
         resources_dir,
         context.encrypt_shaders,
         context.encrypt_data,
-        pack_assets_enabled=context.pack_assets,
+        compile_lua_enabled=context.use_luac,
+        use_ldpak=context.use_ldpak,
     )
-    if context.use_luac:
-        compile_scripts(scripts_dir, resolve_luac())
     script_tools = pathlib.Path(
         os.environ.get("LUDORK_SCRIPT_TOOLS_EXECUTABLE", sys.argv[0])
     ).expanduser().resolve()
@@ -444,8 +454,12 @@ def configure_and_build(
         f"-DLUDORK_ASSETS_SOURCE_DIR={resources_dir / 'Assets'}",
         f"-DLUDORK_DATA_SOURCE_DIR={resources_dir / 'Data'}",
         f"-DLUDORK_SCRIPTS_SOURCE_DIR={scripts_dir}",
+        "-DLUDORK_SCRIPTS_PACKAGE_FILE=" + (
+            str(resources_dir / "Scripts.ldpak") if context.use_ldpak else ""
+        ),
         "-DLUASF_BUILD_SHARED_SFML=OFF",
         "-DLUASF_GENERATE_LUA_STUB=OFF",
+        f"-DLUDORK_SAVE_AS_LDC={'ON' if context.encrypt_saves else 'OFF'}",
         f"-DLUDORK_IOS_APP_NAME={context.artifact_name}",
         f"-DLUDORK_IOS_BUNDLE_IDENTIFIER={context.bundle_identifier}",
         f"-DLUDORK_IOS_DEVELOPMENT_TEAM={context.team_id}",
@@ -502,11 +516,18 @@ def verify_app(context: PackContext, app_path: pathlib.Path) -> None:
         raise PackError("The built app does not contain the configured game name.")
     if info.get("CFBundleIdentifier") != context.bundle_identifier:
         raise PackError("The built app does not contain the configured bundle identifier.")
-    entry_name = "Entry.luac" if context.use_luac else "Entry.lua"
+    try:
+        is_packed = validate_runtime_ldpak_layout(
+            app_path,
+            context.use_ldpak,
+        )
+    except LdPakError as exception:
+        raise PackError(str(exception), EXIT_PROJECT) from exception
+    if is_packed != context.use_ldpak:
+        raise PackError("The built app contains the wrong Scripts runtime layout.")
     for relative in (
         pathlib.Path("Assets"),
         pathlib.Path("Data"),
-        pathlib.Path("Scripts") / entry_name,
     ):
         if not (app_path / relative).exists():
             raise PackError(f"The built app is missing runtime resource: {relative}")

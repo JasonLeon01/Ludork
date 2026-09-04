@@ -1,38 +1,30 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Ludork.Services;
+using Ludork.Views.Utils;
 using System;
-using System.Linq;
 
 namespace Ludork.Views;
 
 public partial class PackLogDialog : Window
 {
     private bool closeEnabled;
-    private ScrollViewer? logScrollViewer;
+    private readonly LogTextViewController logView;
 
     public PackLogDialog()
     {
         InitializeComponent();
+        logView = new LogTextViewController(LogArea);
         Title = LocaleService.Get("PACK_TITLE");
         CloseButton.Content = LocaleService.Get("CLOSE");
         Closing += onClosing;
-        Opened += (_, _) =>
-            logScrollViewer = LogArea.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        Closed += (_, _) => logView.Dispose();
     }
 
     public void AppendLog(string text)
     {
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.InvokeAsync(() => AppendLog(text)).GetAwaiter().GetResult();
-            return;
-        }
-        LogArea.Text += text;
-        LogArea.CaretIndex = LogArea.Text?.Length ?? 0;
-        Dispatcher.UIThread.Post(() => logScrollViewer?.ScrollToEnd(), DispatcherPriority.Background);
+        logView.Append(text);
     }
 
     public void Finish(ProjectPackResult result)
@@ -72,6 +64,7 @@ public partial class PackLogDialog : Window
                 ProjectPackFailure.AndroidToolchainUnavailable => LocaleService.Get("PACK_ANDROID_TOOLCHAIN_UNAVAILABLE"),
                 ProjectPackFailure.AndroidSigningUnavailable => LocaleService.Get("PACK_ANDROID_SIGNING_UNAVAILABLE"),
                 ProjectPackFailure.AndroidProjectUnsupported => LocaleService.Get("PACK_ANDROID_PROJECT_UNSUPPORTED"),
+                ProjectPackFailure.SaveEncryptionProjectUnsupported => LocaleService.Get("PACK_ENCRYPT_SAVES_PROJECT_UNSUPPORTED"),
                 ProjectPackFailure.PackFailed => string.Format(LocaleService.Get("PACK_EXIT_CODE"), result.Detail),
                 _ => result.Detail,
             };

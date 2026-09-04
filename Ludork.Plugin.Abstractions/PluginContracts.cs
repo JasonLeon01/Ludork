@@ -37,7 +37,7 @@ public interface IProjectOperationHook
 public interface IProjectPackaging
 {
     bool UseLuac { get; }
-    bool PackAssets { get; }
+    bool UseLdPak { get; }
     void CompileLuaDirectory(string relativePath);
     void ExcludeFile(string relativePath);
 }

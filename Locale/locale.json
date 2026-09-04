@@ -467,29 +467,25 @@
     "zh_CN": "打包项目",
     "en_GB": "Pack Project"
   },
-  "PACK_MODE_TITLE": {
-    "zh_CN": "选择编译平台",
-    "en_GB": "Select Compilation Platform"
-  },
   "PACK_PLATFORM_WIN32": {
-    "zh_CN": "打包（Win32）",
-    "en_GB": "Package (Win32)"
+    "zh_CN": "Windows (Win32)",
+    "en_GB": "Windows (Win32)"
   },
   "PACK_PLATFORM_MACOS": {
-    "zh_CN": "打包（macOS Apple Silicon）",
-    "en_GB": "Package (macOS Apple Silicon)"
+    "zh_CN": "macOS (Apple Silicon)",
+    "en_GB": "macOS (Apple Silicon)"
   },
   "PACK_PLATFORM_IOS": {
-    "zh_CN": "打包（iOS）",
-    "en_GB": "Package (iOS)"
+    "zh_CN": "iOS",
+    "en_GB": "iOS"
   },
   "PACK_PLATFORM_HARMONYOS": {
-    "zh_CN": "打包（HarmonyOS）",
-    "en_GB": "Package (HarmonyOS)"
+    "zh_CN": "HarmonyOS",
+    "en_GB": "HarmonyOS"
   },
   "PACK_PLATFORM_ANDROID": {
-    "zh_CN": "打包（Android）",
-    "en_GB": "Package (Android)"
+    "zh_CN": "Android",
+    "en_GB": "Android"
   },
   "PACK_ANDROID_SIGN_APK": {
     "zh_CN": "签名 APK",
@@ -500,8 +496,8 @@
     "en_GB": "Android APK Signing"
   },
   "PACK_ANDROID_SIGNING_DESCRIPTION": {
-    "zh_CN": "请输入本次打包使用的签名信息。这些信息不会被保存。",
-    "en_GB": "Enter the signing information for this packaging run. These details will not be saved."
+    "zh_CN": "选择 Keystore 并输入本次打包使用的签名信息。已保存的信息会在选择对应文件后自动填写。",
+    "en_GB": "Select a keystore and enter the signing information for this packaging run. Saved details are filled after selecting the matching file."
   },
   "PACK_ANDROID_KEYSTORE": {
     "zh_CN": "Keystore 文件",
@@ -522,6 +518,18 @@
   "PACK_ANDROID_KEY_PASSWORD": {
     "zh_CN": "Key 密码",
     "en_GB": "Key Password"
+  },
+  "PACK_ANDROID_SAVE_SIGNING": {
+    "zh_CN": "在此设备上保存签名信息",
+    "en_GB": "Save signing information on this device"
+  },
+  "PACK_ANDROID_SIGNING_LOAD_FAILED": {
+    "zh_CN": "无法读取已保存的签名信息：{0}",
+    "en_GB": "Could not read the saved signing information: {0}"
+  },
+  "PACK_ANDROID_SIGNING_SAVE_FAILED": {
+    "zh_CN": "无法保存签名信息：{0}",
+    "en_GB": "Could not save the signing information: {0}"
   },
   "PACK_ANDROID_SELECT_KEYSTORE": {
     "zh_CN": "选择 Keystore 文件",
@@ -568,8 +576,8 @@
     "en_GB": "2in1"
   },
   "PACK_HARMONY_GRAPHICS_API": {
-    "zh_CN": "图形 API 后端",
-    "en_GB": "Graphics API backend"
+    "zh_CN": "图形 API",
+    "en_GB": "Graphics API"
   },
   "PACK_HARMONY_GRAPHICS_OPENGL": {
     "zh_CN": "OpenGL",
@@ -592,12 +600,16 @@
     "en_GB": "iOS packaging requires full Xcode and development signing. Exporting to iPhone also requires one unlocked iPhone that trusts this Mac and has Developer Mode enabled"
   },
   "PACK_EXPORT_TO_IPHONE": {
-    "zh_CN": "是否导出到iPhone",
+    "zh_CN": "导出到 iPhone",
     "en_GB": "Export to iPhone"
   },
   "PACK_USE_LUAC": {
     "zh_CN": "使用 luac 编译脚本",
     "en_GB": "Compile scripts with luac"
+  },
+  "PACK_ENCRYPT_GAME_DATA": {
+    "zh_CN": "加密游戏数据",
+    "en_GB": "Encrypt game data"
   },
   "PACK_ENCRYPT_SHADERS": {
     "zh_CN": "加密着色器代码",
@@ -607,9 +619,21 @@
     "zh_CN": "加密 JSON 数据",
     "en_GB": "Encrypt JSON data"
   },
-  "PACK_ASSETS": {
-    "zh_CN": "打包资源（.ldpak）",
-    "en_GB": "Pack assets (.ldpak)"
+  "PACK_ENCRYPT_SAVES": {
+    "zh_CN": "加密存档内容",
+    "en_GB": "Encrypt save contents"
+  },
+  "PACK_ENCRYPT_SAVES_CPP_REQUIRED": {
+    "zh_CN": "加密存档内容需要 C++ Source 项目，以便将设置编译进运行时",
+    "en_GB": "Encrypting save contents requires a C++ Source project so the setting can be compiled into the runtime"
+  },
+  "PACK_ENCRYPT_SAVES_PROJECT_UNSUPPORTED": {
+    "zh_CN": "加密存档内容只支持 C++ Source 项目，因为该设置需要编译进运行时",
+    "en_GB": "Encrypting save contents requires a C++ Source project because the setting is compiled into the runtime"
+  },
+  "PACK_USE_LDPAK": {
+    "zh_CN": "使用 .ldpak 打包 Assets、Data 和 Scripts",
+    "en_GB": "Pack Assets, Data and Scripts with .ldpak"
   },
   "PACK_MODE_DESC": {
     "zh_CN": "选择目标平台和打包选项。",

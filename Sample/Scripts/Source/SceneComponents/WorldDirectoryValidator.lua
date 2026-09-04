@@ -1,3 +1,5 @@
+local Engine = require("Engine")
+
 local WorldDirectoryValidator = {}
 
 local WORLD_MANIFEST_FILE = "_world.json"
@@ -17,7 +19,11 @@ function WorldDirectoryValidator.Validate(mapsRoot, manifestPath)
         "World must be one direct directory under Data/Maps: " .. manifestPath
     )
     local directoryPath = os.path.join(mapsRoot, directoryName)
-    assert(os.path.isdir(directoryPath), "World directory does not exist: " .. worldDirectory)
+    if not os.path.isdir(directoryPath) then
+        local packedManifestPath = os.path.join(directoryPath, WORLD_MANIFEST_FILE)
+        assert(Engine.jsonExists(packedManifestPath), "World directory does not exist: " .. worldDirectory)
+        return
+    end
     local manifestCount = 0
     for _, entry in ipairs(os.listdir(directoryPath)) do
         local entryPath = os.path.join(directoryPath, entry)

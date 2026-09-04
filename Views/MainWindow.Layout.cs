@@ -55,8 +55,6 @@ public partial class MainWindow
 
     private void initializeInteraction()
     {
-        ConsoleOutput.Document.UndoStack.SizeLimit = 0;
-        ConsoleOutput.TextArea.TextView.Margin = new Thickness(12, 8, 12, 16);
         EditorInputs.ApplyEditable(ConsoleInput);
         ConsoleInput.PlaceholderText = LocaleService.Get("SEND_HINT");
         ConsoleSendButton.Content = LocaleService.Get("SEND");
@@ -210,7 +208,6 @@ public partial class MainWindow
     {
         applyEditorLayout();
         clampHorizontalPanelWidths();
-        consoleScrollViewer = findConsoleScrollViewer();
         layoutReady = true;
         saveEditorLayout();
         DispatcherTimer.RunOnce(

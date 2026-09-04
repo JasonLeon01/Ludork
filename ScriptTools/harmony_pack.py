@@ -15,9 +15,14 @@ import unicodedata
 import zipfile
 from dataclasses import dataclass
 
-from ScriptTools.compile_lua import compile_scripts, resolve_luac
+from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.finalize_package import finalize_package
-from ScriptTools.ldpak import LdPakError, validate_asset_pack_source
+from ScriptTools.ldpak import (
+    LdPakError,
+    validate_ldpak_source,
+    validate_ldpak,
+    validate_runtime_ldpak_layout,
+)
 
 
 EXIT_TOOLCHAIN = 20
@@ -142,7 +147,8 @@ class PackContext:
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
-    pack_assets: bool
+    encrypt_saves: bool
+    use_ldpak: bool
 
 
 def resolve_deveco_tools() -> DevEcoTools:
@@ -348,8 +354,13 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             EXIT_PROJECT,
         )
     project_dir = resolve_project(arguments.project_folder)
-    if arguments.pack_assets:
-        validate_asset_pack_source(project_dir / "Assets")
+    if arguments.use_ldpak:
+        validate_ldpak_source(project_dir)
+    if arguments.compile_lua:
+        try:
+            resolve_luac()
+        except RuntimeError as exception:
+            raise PackError(str(exception), EXIT_TOOLCHAIN) from exception
     game_name = read_game_name(project_dir)
     dist_dir = (
         arguments.dist_folder.expanduser().resolve()
@@ -381,7 +392,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
-        pack_assets=arguments.pack_assets,
+        encrypt_saves=arguments.encrypt_saves,
+        use_ldpak=arguments.use_ldpak,
     )
 
 
@@ -540,8 +552,8 @@ def ensure_harmony_device_connected(context: PackContext, device: HarmonyDevice)
 
 
 def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> None:
-    if context.pack_assets:
-        validate_asset_pack_source(context.project_dir / "Assets")
+    if context.use_ldpak:
+        validate_ldpak_source(context.project_dir)
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
@@ -566,10 +578,10 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
         destination,
         context.encrypt_shaders,
         context.encrypt_data,
-        pack_assets_enabled=context.pack_assets,
+        compile_lua_enabled=context.use_luac,
+        use_ldpak=context.use_ldpak,
     )
-    if context.use_luac:
-        compile_scripts(destination / "Scripts", resolve_luac())
+    validate_runtime_ldpak_layout(destination, context.use_ldpak)
 
 
 def write_deterministic_zip(source: pathlib.Path, destination: pathlib.Path) -> str:
@@ -617,6 +629,132 @@ def write_deterministic_zip(source: pathlib.Path, destination: pathlib.Path) -> 
     return digest
 
 
+def _valid_runtime_archive_path(path: str) -> bool:
+    if not path or path.startswith("/") or "\\" in path:
+        return False
+    parts = path.rstrip("/").split("/")
+    return bool(parts) and all(part not in {"", ".", ".."} for part in parts)
+
+
+def validate_runtime_zip(
+    archive_path: pathlib.Path,
+    expected_use_ldpak: bool,
+) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        infos = archive.infolist()
+        names = [info.filename for info in infos]
+        if len(names) != len(set(names)):
+            raise PackError("The HarmonyOS runtime ZIP contains duplicate entries.", 1)
+        invalid = [name for name in names if not _valid_runtime_archive_path(name)]
+        if invalid:
+            raise PackError(
+                "The HarmonyOS runtime ZIP contains unsafe paths:\n"
+                + "\n".join(invalid),
+                1,
+            )
+        file_infos = [info for info in infos if not info.is_dir()]
+        file_names = {info.filename for info in file_infos}
+        forbidden = sorted(
+            name
+            for name in file_names
+            if pathlib.PurePosixPath(name).name == ".DS_Store"
+            or name.casefold().endswith(".d.lua")
+            or name.endswith(".anim.json")
+            or "/Scripts/stub/" in "/" + name
+        )
+        if forbidden:
+            raise PackError(
+                "The HarmonyOS runtime ZIP contains development-only files:\n"
+                + "\n".join(forbidden),
+                1,
+            )
+        has_loose_scripts = any(name.startswith("Scripts/") for name in names)
+        has_packed_scripts = "Scripts.ldpak" in file_names
+        if has_loose_scripts == has_packed_scripts:
+            raise PackError(
+                "The HarmonyOS runtime ZIP must contain exactly one of Scripts or Scripts.ldpak.",
+                1,
+            )
+        if has_packed_scripts != expected_use_ldpak:
+            raise PackError("The HarmonyOS runtime ZIP has the wrong Scripts layout.", 1)
+        if has_loose_scripts and not (
+            {"Scripts/Entry.lua", "Scripts/Entry.luac"} & file_names
+        ):
+            raise PackError(
+                "The HarmonyOS runtime ZIP is missing a Lua entry script.",
+                1,
+            )
+        for prefix in ("Assets/", "Data/"):
+            resource_entries = {
+                name
+                for name in names
+                if name.startswith(prefix) and name != prefix
+            }
+            resource_files = {
+                name for name in file_names if name.startswith(prefix)
+            }
+            if not resource_files:
+                raise PackError(
+                    f"The HarmonyOS runtime ZIP contains no {prefix.rstrip('/')} files.",
+                    1,
+                )
+            package_files = {
+                name
+                for name in resource_files
+                if "/" not in name[len(prefix) :]
+                and name.casefold().endswith(".ldpak")
+                and len(name) > len(prefix) + len(".ldpak")
+            }
+            if expected_use_ldpak and (
+                package_files != resource_files
+                or resource_entries != resource_files
+            ):
+                raise PackError(
+                    f"The HarmonyOS packed runtime ZIP contains loose {prefix.rstrip('/')} entries.",
+                    1,
+                )
+            if not expected_use_ldpak and package_files:
+                raise PackError(
+                    f"The HarmonyOS loose runtime ZIP contains packed {prefix.rstrip('/')} groups.",
+                    1,
+                )
+        compressed_ldpak = sorted(
+            info.filename
+            for info in file_infos
+            if info.filename.casefold().endswith(".ldpak")
+            and info.compress_type != zipfile.ZIP_STORED
+        )
+        if compressed_ldpak:
+            raise PackError(
+                "The HarmonyOS runtime ZIP compresses .ldpak files:\n"
+                + "\n".join(compressed_ldpak),
+                1,
+            )
+        with tempfile.TemporaryDirectory(prefix="ludork-harmony-runtime-") as temporary:
+            temporary_root = pathlib.Path(temporary)
+            for info in file_infos:
+                is_group_package = (
+                    info.filename == "Scripts.ldpak"
+                    or any(
+                        info.filename.startswith(prefix)
+                        and "/" not in info.filename[len(prefix) :]
+                        and info.filename.endswith(".ldpak")
+                        for prefix in ("Assets/", "Data/")
+                    )
+                )
+                if not is_group_package:
+                    with archive.open(info) as stream:
+                        while stream.read(FILE_BUFFER_SIZE):
+                            pass
+                    continue
+                extracted = temporary_root / info.filename
+                extracted.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(info) as source, extracted.open("wb") as destination:
+                    shutil.copyfileobj(source, destination, FILE_BUFFER_SIZE)
+                group = extracted.name[: -len(".ldpak")]
+                validate_ldpak(extracted, expected_group=group)
+
+
 def json5_argument_text(values: list[str]) -> str:
     return json.dumps(" ".join(values), ensure_ascii=False)[1:-1]
 
@@ -650,6 +788,8 @@ def cmake_configuration(context: PackContext) -> str:
         f"set(LUDORK_PROJECT_DIR {cmake_bracket_literal(str(context.project_dir))})",
         "set(LUDORK_SCRIPT_TOOLS_EXECUTABLE "
         f"{cmake_bracket_literal(str(context.script_tools))} CACHE FILEPATH \"\" FORCE)",
+        "set(LUDORK_SAVE_AS_LDC "
+        f"{'ON' if context.encrypt_saves else 'OFF'} CACHE BOOL \"\" FORCE)",
     ]
     for name, source in cached_dependency_sources(context.project_dir).items():
         lines.append(
@@ -758,7 +898,9 @@ def prepare_stage(context: PackContext, stage_dir: pathlib.Path | None = None) -
     resources = context.project_dir / "build" / "harmony" / "runtime"
     copy_runtime_resources(context, resources)
     rawfile = destination / "entry" / "src" / "main" / "resources" / "rawfile"
-    runtime_hash = write_deterministic_zip(resources, rawfile / RUNTIME_ARCHIVE_NAME)
+    runtime_archive = rawfile / RUNTIME_ARCHIVE_NAME
+    runtime_hash = write_deterministic_zip(resources, runtime_archive)
+    validate_runtime_zip(runtime_archive, context.use_ldpak)
     (rawfile / "ludork-runtime.sha256").write_text(runtime_hash + "\n", encoding="ascii")
     create_app_icon(context, destination)
     replace_template_tokens(context, destination, runtime_hash)
@@ -2288,7 +2430,8 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
-    parser.add_argument("--pack-assets", action="store_true")
+    parser.add_argument("--encrypt-saves", action="store_true")
+    parser.add_argument("--use-ldpak", action="store_true")
     parser.add_argument("--device-form", choices=("mobile", "2in1"), default="mobile")
     parser.add_argument("--graphics-api", choices=("opengl", "opengl-es"))
     parser.add_argument("project_folder", type=pathlib.Path)

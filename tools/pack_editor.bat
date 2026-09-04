@@ -370,10 +370,14 @@ call :require_file "%PACKAGE_DIR%\Templates\Cpp\Main.proj"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\Templates\Cpp-ffmpeg\Main.proj"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\Templates\Standalone\Main.exe"
+call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\Templates\Standalone-ffmpeg\Main.exe"
+call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone-ffmpeg"
 if errorlevel 1 exit /b 1
+for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
+    "%SCRIPT_TOOLS%" validate-ldpak-source "%PACKAGE_DIR%\Templates\%%T"
+    if errorlevel 1 exit /b 1
+)
 call :require_file "%PACKAGE_DIR%\tools\build_cpp.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\build_standalone.bat"
@@ -703,6 +707,27 @@ for %%T in (Standalone Standalone-ffmpeg) do for %%F in (
     generate_clion.sh
 ) do if exist "%PACKAGE_DIR%\Templates\%%T\%%F" (
     echo Source-only IDE tool was found in a Standalone template: %PACKAGE_DIR%\Templates\%%T\%%F
+    exit /b 1
+)
+exit /b 0
+
+:validate_standalone_runtime_layout
+call :require_file "%~1\Main.exe"
+if errorlevel 1 exit /b 1
+call :require_file "%~1\Binaries\Main.exe"
+if errorlevel 1 exit /b 1
+set "STANDALONE_RUNTIME_LIBRARY_FOUND=0"
+for %%E in (dll so dylib) do for /f "delims=" %%F in ('dir /B /A-D "%~1\*.%%E" 2^>nul') do (
+    echo Standalone runtime library exists outside Binaries: %~1\%%F
+    exit /b 1
+)
+for /f "delims=" %%F in ('dir /B /A-D "%~1\*.so.*" 2^>nul') do (
+    echo Standalone runtime library exists outside Binaries: %~1\%%F
+    exit /b 1
+)
+for /f "delims=" %%F in ('dir /B /A-D "%~1\Binaries\*.dll" 2^>nul') do set "STANDALONE_RUNTIME_LIBRARY_FOUND=1"
+if "%STANDALONE_RUNTIME_LIBRARY_FOUND%"=="0" (
+    echo Standalone template contains no runtime libraries in Binaries: %~1
     exit /b 1
 )
 exit /b 0
