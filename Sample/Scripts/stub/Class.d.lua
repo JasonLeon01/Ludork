@@ -85,13 +85,6 @@ function Class.monitor(target, name, callback, params, notifyEqualWrites) end
 ---@param name   string
 function Class.unmonitor(target, name) end
 
----@param name     string
----@param callback function
-function Class.registerService(name, callback) end
-
----@param name string
-function Class.unregisterService(name) end
-
 ---@type Class.MissingValue
 Class.MISSING = {}
 

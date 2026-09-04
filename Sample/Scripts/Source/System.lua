@@ -6,6 +6,7 @@ local MainConfig = require("Source.Configs.Main")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
+local RuntimeProviders = Engine.RuntimeProviders
 
 ---@type function
 local extractConfigValues
@@ -126,7 +127,7 @@ function System.GetConfigValue(configName, settingName)
     return ""
 end
 
-Class.registerService("config.resolve", function (configName, settingName)
+RuntimeProviders.installConfig(function (configName, settingName)
     local value = System.GetConfigValue(configName, settingName)
     return Class.isInstance(value, "string") and value or tostring(value)
 end)

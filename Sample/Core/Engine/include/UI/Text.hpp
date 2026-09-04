@@ -1,6 +1,8 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <EngineRuntimeApi.hpp>
+
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Curve.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <UI/ControlBase.hpp>

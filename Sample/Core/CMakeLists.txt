@@ -4,6 +4,8 @@ project(LudorkCore LANGUAGES CXX)
 
 set(LUDORK_CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(LUDORK_CORE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+get_filename_component(LUDORK_RUNTIME_SOURCE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/../Runtime" ABSOLUTE)
 file(REMOVE
     "${CMAKE_CURRENT_SOURCE_DIR}/../Scripts/CoreSystem_meta.lua"
     "${CMAKE_CURRENT_SOURCE_DIR}/../Scripts/stub/CoreSystem.d.lua")
@@ -55,42 +57,22 @@ if(NOT EXISTS "${LUASF_CALLBACK_CODECS_API_FILE}")
         "LuaSF callback codec validation requires sfml_api.json next to the manifest.")
 endif()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBindings.cmake")
+set(LUDORK_BINDING_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+set(LUDORK_BINDING_SCRIPTS_DIRECTORY
+    "${CMAKE_CURRENT_SOURCE_DIR}/../Scripts")
+set(LUDORK_BINDING_ANNOTATIONS_HEADER
+    "${LUDORK_RUNTIME_SOURCE_DIR}/include/LudorkRuntimeBinding/Annotations.hpp")
+include("${LUDORK_RUNTIME_SOURCE_DIR}/cmake/LudorkBindings.cmake")
 ludork_discover_lua_binding_layouts(
     Engine "${CMAKE_CURRENT_SOURCE_DIR}/Engine/include"
+    Engine "${LUDORK_RUNTIME_SOURCE_DIR}/include/Runtime"
     GlobalCore "${CMAKE_CURRENT_SOURCE_DIR}/Global/include"
     GlobalFunctions "${CMAKE_CURRENT_SOURCE_DIR}/GlobalFunctions/include")
-
-add_library(LudorkCoreBinding INTERFACE)
-add_library(Ludork::CoreBinding ALIAS LudorkCoreBinding)
-target_compile_features(LudorkCoreBinding INTERFACE cxx_std_20)
-target_compile_definitions(LudorkCoreBinding INTERFACE
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
-    SOL_SAFE_NUMERICS=1
-    SOL_USE_INTEROP=1
-    SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
-    SOL_USERTYPE_TYPE_BINDING_INFO=0)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
-   CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
-    target_compile_definitions(LudorkCoreBinding INTERFACE
-        _ALLOW_COMPILER_AND_STL_VERSION_MISMATCH)
-endif()
-target_include_directories(LudorkCoreBinding INTERFACE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    ${LUDORK_LUASF_CONSUMER_INCLUDES})
-target_link_libraries(LudorkCoreBinding INTERFACE
-    Ludork::Standard
-    LuaSF::LuaSF
-    LuaSF::Lua
-    SFML::Graphics
-    SFML::Audio
-    SFML::Network)
 
 function(ludork_configure_core_library
          target generated_bindings generated_traits)
     add_dependencies(${target} ${target}Stub)
     target_compile_features(${target} PRIVATE cxx_std_20)
-    target_link_libraries(${target} PRIVATE Ludork::CoreBinding)
     set_target_properties(${target} PROPERTIES
         PREFIX ""
         CXX_VISIBILITY_PRESET hidden

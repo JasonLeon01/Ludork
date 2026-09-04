@@ -1,8 +1,13 @@
 #include <UI/Rect.hpp>
 
-#include <Runtime/EngineState.hpp>
-#include <Runtime/RuntimeValueServices.hpp>
+#include <EngineState.hpp>
+#if defined(LUDORK_UI_PREVIEW_HOST_RUNTIME)
+#include <UI/UiVector4CurveResource.hpp>
+#else
+#include <Runtime/RuntimeProviders.hpp>
+#endif
 #include <Utils/Render.hpp>
+#include <Utils/RuntimeProvider.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -112,15 +117,14 @@ std::shared_ptr<Curve> Rect::resolveOpacityCurve(const std::string& key) {
     if (cached != opacityCurves_.end()) {
         return cached->second;
     }
-    const RuntimeValue resolved = ludork::engine::runtime_services::invokeFirst(
-        "curve", {RuntimeValue(key)});
-    const RuntimeValue::Object* object = resolved.getIf<RuntimeValue::Object>();
     const std::shared_ptr<Curve> curve =
-        object == nullptr ? nullptr : std::dynamic_pointer_cast<Curve>(*object);
-    if (curve == nullptr) {
-        throw std::runtime_error(
-            "Runtime service 'curve' must return a non-nil Curve");
-    }
+#if defined(LUDORK_UI_PREVIEW_HOST_RUNTIME)
+        loadUiCurveResource(key);
+#else
+        ludork::engine::requireRuntimeProviderObject<Curve>(
+            runtimeProviders().curve(key),
+            "Runtime curve provider must return a non-nil Curve");
+#endif
     opacityCurves_.emplace(key, curve);
     return curve;
 }

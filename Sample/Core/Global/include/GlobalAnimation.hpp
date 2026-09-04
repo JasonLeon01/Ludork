@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Animation.hpp>
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 
 #include <SFML/Audio/Sound.hpp>
 

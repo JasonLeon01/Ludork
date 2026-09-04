@@ -8,13 +8,13 @@ from .model import CallbackCodec
 
 
 BINDING_FEATURE_HEADERS = {
-    "value": "LudorkCoreBinding/ValueCodec.hpp",
-    "native": "LudorkCoreBinding/NativeObjectCodec.hpp",
-    "dynamic": "LudorkCoreBinding/DynamicValueCodec.hpp",
-    "function": "LudorkCoreBinding/FunctionAdapter.hpp",
-    "variadic": "LudorkCoreBinding/VariadicFunctionAdapter.hpp",
-    "callback": "LudorkCoreBinding/CallbackCodec.hpp",
-    "lua_helper": "LudorkCoreBinding/LuaHelper.hpp",
+    "value": "LudorkRuntimeBinding/ValueCodec.hpp",
+    "native": "LudorkRuntimeBinding/NativeObjectCodec.hpp",
+    "dynamic": "LudorkRuntimeBinding/DynamicValueCodec.hpp",
+    "function": "LudorkRuntimeBinding/FunctionAdapter.hpp",
+    "variadic": "LudorkRuntimeBinding/VariadicFunctionAdapter.hpp",
+    "callback": "LudorkRuntimeBinding/CallbackCodec.hpp",
+    "lua_helper": "LudorkRuntimeBinding/LuaHelper.hpp",
 }
 
 

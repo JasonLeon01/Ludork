@@ -48,7 +48,7 @@ def reverse_table_binding_lines(
             f'"reverse-map source for {path} is not a table");'
         ),
         (
-            f"sol::table {target} = ludork_core::reverseLuaTable("
+            f"sol::table {target} = ludork::runtime::binding::reverseLuaTable("
             f"lua, {source}.as<sol::table>());"
         ),
     ]
@@ -78,7 +78,7 @@ def lua_helper_binding_lines(
     factory = LUA_HELPER_FACTORIES[kind]
     value = f"bindingLuaHelperValue{index}"
     lines = [
-        f"const sol::object {value} = ludork_core::{factory}(lua);",
+        f"const sol::object {value} = ludork::runtime::binding::{factory}(lua);",
     ]
     assignment_lines, next_index = binding_path_assignment_lines(
         root_name,
@@ -109,9 +109,7 @@ def injection_lines(
     require_binding_type_features(context, value_type)
     raw_variadic = member.options.get("variadic", "false").lower()
     if raw_variadic not in {"true", "false"}:
-        raise ValueError(
-            f"BIND_INJECT {member.name} variadic must be true or false"
-        )
+        raise ValueError(f"BIND_INJECT {member.name} variadic must be true or false")
     variadic = raw_variadic == "true"
     if variadic:
         context.require_binding_feature("variadic")
@@ -125,7 +123,7 @@ def injection_lines(
         if variadic:
             validate_variadic_injection_signature(member, signature)
         lines.append(
-            f"auto {value_name} = ludork_core::"
+            f"auto {value_name} = ludork::runtime::binding::"
             f"{'variadicFunctionFromLua' if variadic else 'functionFromLua'}"
             f"<{signature}>({source_name});"
         )
@@ -135,7 +133,7 @@ def injection_lines(
                 f"BIND_INJECT {member.name} variadic requires std::function"
             )
         lines.append(
-            f"auto {value_name} = ludork_core::readLuaValue<{value_type}>({source_name});"
+            f"auto {value_name} = ludork::runtime::binding::readLuaValue<{value_type}>({source_name});"
         )
     call = (
         f"{type_name}::{member.name}({value_name});"
@@ -391,7 +389,7 @@ def table_value_trait_lines(
     if not table_types:
         return []
     type_map = {info.name: info for info in types}
-    lines = ["namespace ludork_core {"]
+    lines = ["namespace ludork::runtime::binding {"]
     lines.extend(table_value_trait_declaration_lines(table_types))
     lines.append("")
     for info in table_types:
@@ -555,7 +553,7 @@ def table_value_trait_lines(
                 "",
             ]
         )
-    lines.extend(["} // namespace ludork_core", ""])
+    lines.extend(["} // namespace ludork::runtime::binding", ""])
     return lines
 
 
@@ -565,8 +563,8 @@ def table_initializer_factory(info: TypeInfo, owning_bases: list[str]) -> str:
     return (
         "[lua](sol::table values) -> sol::object { "
         f"auto result = std::make_shared<{info.name}>(); "
-        f"ludork_core::TableValueTraits<{info.name}>::readInto(*result, values); "
-        "return ludork_core::writeOwningLuaObject"
+        f"ludork::runtime::binding::TableValueTraits<{info.name}>::readInto(*result, values); "
+        "return ludork::runtime::binding::writeOwningLuaObject"
         f"{base_arguments}(lua, result); }}"
     )
 
@@ -576,6 +574,6 @@ def table_default_factory(info: TypeInfo, owning_bases: list[str]) -> str:
     base_arguments = f"<{', '.join(owner_types)}>"
     return (
         "[lua]() -> sol::object { "
-        "return ludork_core::writeOwningLuaObject"
+        "return ludork::runtime::binding::writeOwningLuaObject"
         f"{base_arguments}(lua, std::make_shared<{info.name}>()); }}"
     )

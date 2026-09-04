@@ -3,8 +3,8 @@
 #include <Input/InputService.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <NodeGraph/Node.hpp>
-#include <Runtime/NodeGraphRuntime.hpp>
-#include <Runtime/RuntimeValueServices.hpp>
+#include <NodeGraph/NodeGraphRuntime.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 
 #include <algorithm>
 #include <iostream>
@@ -43,8 +43,7 @@ ConditionResult pollCondition(const RuntimeIdentityPtr& condition) {
 }
 
 bool runtimeEqual(const RuntimeValue& left, const RuntimeValue& right) {
-    return ludork::engine::runtime_services::invokeBool("reflect.equal",
-                                                        {left, right});
+    return runtimeReflection().equal(left, right);
 }
 
 RuntimeValue normaliseMatchValue(const RuntimeValue& value) {

@@ -1,6 +1,6 @@
-# Ludork native runtime modules
+# Ludork Core modules
 
-`Sample/Core` contains the C++20 implementation and binding declarations for the Sample runtime.
+`Sample/Core` contains the C++20 Engine, GlobalCore and GlobalFunctions modules. Shared runtime values, Lua-session services and binding infrastructure live in the sibling `Sample/Runtime` library.
 
 Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 15.0 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
 
@@ -8,7 +8,7 @@ Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newe
 
 | Module | Owns | Native dependency direction |
 |---|---|---|
-| `Engine` | engine types, services and state | Core binding/Standard and SFML |
+| `Engine` | engine types, services and state | LudorkRuntime and SFML |
 | `GlobalCore` | global gameplay classes and services | Engine, Standard and SFML; optional platform/FFmpeg libraries |
 | `GlobalFunctions` | Components, UI, NodeGraph and Manager free functions | GlobalCore and SFML |
 
@@ -29,11 +29,11 @@ local Manager = GlobalFunctions.Manager
 
 This load order is a runtime contract. Standard globals are installed before the entry script, and there is no `CoreSystem` module. No lower module links back to `GlobalFunctions`.
 
-Headers declare public binding intent with the macros in `include/BindAnnotations.hpp`. CMake invokes the standalone `ScriptTools` executable with the `core-bindgen` command, whose implementation lives under the repository's `ScriptTools/core_bindgen` directory. It produces one stable `<Module>.<NativeClass>.auto.cpp` registration unit per native class and exactly one `<Module>.stub.auto.cpp`, which is both the module aggregate and generated-stub writer; there is no separate `<Module>.auto.cpp`. It also produces `<Module>.traits.auto.hpp`, the module-level `Scripts/stub/<Module>.d.lua` and root `*_meta.lua` files. The traits header aggregates compile-time dynamic-value and opaque-identity selection from `BIND_CLASS`; CMake privately force-includes it in the corresponding complete Core module. Every generated declaration starts with `---@meta <Module>` so EmmyLua resolves it from the dedicated stub module root. Generated files must not be edited manually.
+Headers declare public binding intent with `LudorkRuntimeBinding/Annotations.hpp`. Engine binding generation scans both `Runtime/include/Runtime` and `Core/Engine/include`, so Runtime-owned native values continue to register on the Engine Lua module rather than creating another Lua root. CMake invokes the standalone `ScriptTools` executable with the `core-bindgen` command, whose implementation lives under the repository's `ScriptTools/core_bindgen` directory. It produces one stable `<Module>.<NativeClass>.auto.cpp` registration unit per native class and exactly one `<Module>.stub.auto.cpp`, which is both the module aggregate and generated-stub writer; there is no separate `<Module>.auto.cpp`. It also produces `<Module>.traits.auto.hpp`, the module-level `Scripts/stub/<Module>.d.lua` and root `*_meta.lua` files. The traits header aggregates compile-time dynamic-value and opaque-identity selection from `BIND_CLASS`; CMake privately force-includes it in the corresponding complete Core module. Every generated declaration starts with `---@meta <Module>` so EmmyLua resolves it from the dedicated stub module root. Generated files must not be edited manually.
 
 Bindgen writes outputs only when their content changes, so adding or removing a class creates or deletes only its stable class unit and leaves unrelated class objects reusable. Classes declared together in one public header still share that ordinary C++ dependency and may recompile together when the header changes.
 
-A file-level `BIND_FUNCTION_GROUP(name = "...")` puts every `BIND_FUNCTION` in that header only into the named table. Ungrouped functions remain at the module root. Cross-module signatures include the complete declaration they require; generic conversions belong in the self-contained feature headers under `include/LudorkCoreBinding/`, and bindgen includes only the features required by each generated module.
+A file-level `BIND_FUNCTION_GROUP(name = "...")` puts every `BIND_FUNCTION` in that header only into the named table. Ungrouped functions remain at the module root. Cross-module signatures include the complete declaration they require; generic conversions belong in the self-contained feature headers under `Runtime/include/LudorkRuntimeBinding/`, and bindgen includes only the features required by each generated module.
 
 `BIND_ENUM` exposes an `enum class` once at the owning module root, emits its LuaLS type and uses integer values at the Lua and Blueprint boundaries. Do not mirror the same enumerators through module properties.
 

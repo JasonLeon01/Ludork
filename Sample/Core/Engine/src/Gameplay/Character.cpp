@@ -1,5 +1,7 @@
 #include <Gameplay/Character.hpp>
 
+#include <Runtime/RuntimeReflection.hpp>
+
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -67,14 +69,14 @@ RuntimeValue Character::GenActor(const RuntimeIdentityPtr& actorModel,
                                  const RuntimeValue& textureRect,
                                  const std::optional<std::string>& tag) {
     static_cast<void>(textureRect);
-    std::vector<RuntimeValue> result = resolveRuntime(
-        "class.construct", {RuntimeValue(actorModel), RuntimeValue(texture),
-                            optionalStringValue(tag)});
-    if (result.empty() || result.front().isNil()) {
+    RuntimeValue result = runtimeReflection().construct(
+        RuntimeValue(actorModel),
+        {RuntimeValue(texture), optionalStringValue(tag)});
+    if (result.isNil()) {
         throw std::runtime_error(
             "Character runtime construction returned no instance");
     }
-    return std::move(result.front());
+    return result;
 }
 
 void Character::_animate(float deltaTime) {

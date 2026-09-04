@@ -1,6 +1,7 @@
 #include <Utils/Inner.hpp>
 
 #include <LudorkPlatform.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 #include <Utf8Path.hpp>
 
 #include <algorithm>
@@ -129,14 +130,7 @@ std::string runtimeValueString(const RuntimeValue& value) {
     if (value.isNil()) {
         return "nil";
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("reflect.tostring", {value});
-    if (!resolved.empty()) {
-        if (const std::string* text = resolved.front().getIf<std::string>()) {
-            return *text;
-        }
-    }
-    return value.typeName();
+    return runtimeReflection().toString(value);
 }
 
 }  // namespace
@@ -203,9 +197,8 @@ RuntimeValue::Map filterDataClassParams(const RuntimeValue::Map& params,
                                         const RuntimeValue& type) {
     RuntimeValue::Map result;
     for (const auto& [key, value] : params) {
-        const std::vector<RuntimeValue> member =
-            resolveRuntime("reflect.get", {type, RuntimeValue(key)});
-        if (!member.empty() && !member.front().isNil()) {
+        const RuntimeValue member = runtimeReflection().get(type, key);
+        if (!member.isNil()) {
             result.emplace(key, value);
         }
     }

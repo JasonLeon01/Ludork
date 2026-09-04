@@ -95,6 +95,9 @@ end
 
 function WindowBase:setVisible(visible)
     super(WindowBase, self).setVisible(visible)
+    if self._visualRoot ~= nil then
+        self._visualRoot:setVisible(visible)
+    end
     self:_refreshReturnButtonState()
 end
 

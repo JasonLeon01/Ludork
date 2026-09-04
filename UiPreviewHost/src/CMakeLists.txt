@@ -7,7 +7,6 @@ target_sources(UiPreviewHost PRIVATE
     UI/UiPreviewDrawing.cpp
     UI/UiPreviewInstantiation.cpp
     UI/UiPreviewSession.cpp
-    UiPreviewCurveResolver.cpp
     UiPreviewHost.cpp)
 
 target_include_directories(UiPreviewHost PRIVATE

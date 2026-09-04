@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <Runtime/RuntimeValue.hpp>
 
@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-class LUDORK_ENGINE_API DataValueService {
+class LUDORK_ENGINE_API TypedDataService {
 public:
     bool isContainerValueType(const RuntimeValue& valueType) const;
     bool isStandardValueType(const RuntimeValue& valueType) const;
@@ -46,9 +46,6 @@ public:
         const std::string& declaringModule = std::string()) const;
 
 private:
-    std::vector<RuntimeValue> resolveDynamic(
-        const std::string& operation,
-        std::vector<RuntimeValue> arguments) const;
     RuntimeValue unwrapOptional(const RuntimeValue& valueType) const;
     RuntimeValue coerceUnionValue(const RuntimeValue& value,
                                   const RuntimeValue::Array& arguments) const;
@@ -60,7 +57,7 @@ private:
     RuntimeValue coerceContainer(const RuntimeValue& value) const;
 };
 
-LUDORK_ENGINE_API DataValueService& dataValueService();
+LUDORK_ENGINE_API TypedDataService& typedDataService();
 
 BIND_FUNCTION(name = "getClassModulePath")
 RuntimeValue dataValueGetClassModulePath(const RuntimeValue& classReference);

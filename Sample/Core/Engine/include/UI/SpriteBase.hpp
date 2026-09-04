@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <UI/ControlBase.hpp>
 
 #include <SFML/Graphics/Color.hpp>

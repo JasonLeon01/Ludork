@@ -1,6 +1,8 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <EngineRuntimeApi.hpp>
+
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <UI/Canvas.hpp>
 
 #include <SFML/Graphics/Image.hpp>

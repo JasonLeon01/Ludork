@@ -1,9 +1,11 @@
 #include <CustomParticles/CommonTipController.hpp>
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
+#include <Runtime/RuntimeProviders.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <System.hpp>
 #include <UI/Text.hpp>
+#include <Utils/RuntimeProvider.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -235,16 +237,10 @@ std::shared_ptr<Curve> CommonTipController::getCurve(const std::string& key) {
     if (iterator != curves_.end()) {
         return iterator->second;
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("curve", {RuntimeValue(key)});
-    std::shared_ptr<Curve> curve;
-    if (!resolved.empty()) {
-        const RuntimeValue::Object* object =
-            resolved.front().getIf<RuntimeValue::Object>();
-        if (object != nullptr) {
-            curve = std::dynamic_pointer_cast<Curve>(*object);
-        }
-    }
+    std::shared_ptr<Curve> curve =
+        ludork::engine::requireRuntimeProviderObject<Curve>(
+            runtimeProviders().curve(key),
+            "Runtime curve provider must return a non-nil Curve");
     curves_.emplace(key, curve);
     return curve;
 }
@@ -253,19 +249,9 @@ std::shared_ptr<PlainTextConfig> CommonTipController::getTextConfig() {
     if (textConfig_ != nullptr) {
         return textConfig_;
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("plainTextConfig", {RuntimeValue(TextConfigKey)});
-    if (!resolved.empty()) {
-        const RuntimeValue::Object* object =
-            resolved.front().getIf<RuntimeValue::Object>();
-        if (object != nullptr) {
-            textConfig_ = std::dynamic_pointer_cast<PlainTextConfig>(*object);
-        }
-    }
-    if (textConfig_ == nullptr) {
-        throw std::runtime_error(
-            "Plain text config service did not resolve Global/CommonTip");
-    }
+    textConfig_ = ludork::engine::requireRuntimeProviderObject<PlainTextConfig>(
+        runtimeProviders().plainTextConfig(TextConfigKey),
+        "Plain text config provider did not resolve Global/CommonTip");
     return textConfig_;
 }
 

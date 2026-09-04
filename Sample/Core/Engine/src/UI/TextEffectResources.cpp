@@ -1,6 +1,6 @@
 #include <UI/TextEffectResources.hpp>
 
-#include <ConcurrentResourceCache.hpp>
+#include <Runtime/ConcurrentResourceCache.hpp>
 #include <Utils/ShaderLoader.hpp>
 
 #include <SFML/Graphics/Shader.hpp>
@@ -23,7 +23,7 @@ public:
 };
 
 struct TextEffectResourceState {
-    ludork::core::ConcurrentResourceCache<sf::Shader> shaders;
+    ludork::runtime::ConcurrentResourceCache<sf::Shader> shaders;
     std::mutex mutex;
     std::unordered_set<std::string> failedShaders;
     std::unordered_set<std::string> warnings;

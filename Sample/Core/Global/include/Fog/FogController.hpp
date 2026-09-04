@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Runtime/RuntimeValue.hpp>
 
 #include <SFML/Graphics.hpp>

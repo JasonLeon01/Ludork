@@ -8,7 +8,7 @@
 #include "Graph/RelationRuntime.hpp"
 
 #include <NodeGraph/LatentManager.hpp>
-#include <Runtime/NodeGraphRuntime.hpp>
+#include <NodeGraph/NodeGraphRuntime.hpp>
 
 #include <algorithm>
 #include <set>

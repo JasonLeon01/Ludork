@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <string>
 #include <unordered_map>

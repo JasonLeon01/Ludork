@@ -1,6 +1,8 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <EngineRuntimeApi.hpp>
+
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <General/Material.hpp>
 #include <General/TileLayerData.hpp>
 #include <Graphics/TilemapGraphics.hpp>

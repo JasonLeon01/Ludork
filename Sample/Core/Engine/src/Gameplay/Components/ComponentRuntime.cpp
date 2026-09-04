@@ -1,6 +1,7 @@
 #include <Gameplay/Components/ComponentRuntime.hpp>
 
-#include <Runtime/RuntimeValueServices.hpp>
+#include <Gameplay/Components/ComponentRuntimeCache.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 #include <Utils/DataValue.hpp>
 
 #include <cstdint>
@@ -28,30 +29,25 @@ std::string runtimeKind(const RuntimeValue& value) {
         value.getIf<RuntimeValue::Map>() != nullptr) {
         return "table";
     }
-    return ludork::engine::runtime_services::invokeString("reflect.kind",
-                                                          {value});
+    return runtimeReflection().kind(value);
 }
 
 RuntimeValue runtimeType(const RuntimeValue& value) {
-    return ludork::engine::runtime_services::invokeFirst("reflect.type",
-                                                         {value});
+    return runtimeReflection().typeOf(value);
 }
 
 bool runtimeIsSubclass(const RuntimeValue& value, const RuntimeValue& base) {
-    return ludork::engine::runtime_services::invokeBool("reflect.isSubclass",
-                                                        {value, base});
+    return runtimeReflection().isSubclass(value, base);
 }
 
 bool runtimeIsInstance(const RuntimeValue& value, const RuntimeValue& type) {
-    return ludork::engine::runtime_services::invokeBool("reflect.isInstance",
-                                                        {value, type});
+    return runtimeReflection().isInstance(value, type);
 }
 
 RuntimeValue::Array runtimeMro(const RuntimeValue& type) {
-    RuntimeValue value =
-        ludork::engine::runtime_services::invokeFirst("reflect.mro", {type});
-    if (const RuntimeValue::Array* mro = value.getIf<RuntimeValue::Array>()) {
-        return *mro;
+    RuntimeValue::Array value = runtimeReflection().mro(type);
+    if (!value.empty()) {
+        return value;
     }
     return runtimeKind(type) == "table" ? RuntimeValue::Array{type}
                                         : RuntimeValue::Array{};
@@ -69,20 +65,8 @@ std::vector<std::string> runtimeKeys(const RuntimeValue& value, bool raw) {
         }
         return result;
     }
-    RuntimeValue keys = ludork::engine::runtime_services::invokeFirst(
-        raw ? "reflect.rawKeys" : "reflect.keys", {value});
-    const RuntimeValue::Array* array = keys.getIf<RuntimeValue::Array>();
-    if (array == nullptr) {
-        return {};
-    }
-    std::vector<std::string> result;
-    result.reserve(array->size());
-    for (const RuntimeValue& key : *array) {
-        if (const std::string* name = key.getIf<std::string>()) {
-            result.push_back(*name);
-        }
-    }
-    return result;
+    return runtimeReflection().keys(
+        value, raw ? RuntimeLookupMode::Own : RuntimeLookupMode::Visible);
 }
 
 RuntimeValue runtimeGet(const RuntimeValue& value, const std::string& name,
@@ -91,14 +75,13 @@ RuntimeValue runtimeGet(const RuntimeValue& value, const std::string& name,
         const auto iterator = map->find(name);
         return iterator == map->end() ? RuntimeValue() : iterator->second;
     }
-    return ludork::engine::runtime_services::invokeFirst(
-        raw ? "reflect.rawGet" : "reflect.get", {value, RuntimeValue(name)});
+    return runtimeReflection().get(
+        value, name, raw ? RuntimeLookupMode::Own : RuntimeLookupMode::Visible);
 }
 
 void runtimeSet(const RuntimeValue& value, const std::string& name,
                 const RuntimeValue& member) {
-    ludork::engine::runtime_services::invokeVoid(
-        "reflect.set", {value, RuntimeValue(name), member});
+    runtimeReflection().set(value, name, member);
 }
 
 RuntimeValue cloneComponentRuntimeValue(const RuntimeValue& value) {
@@ -120,8 +103,7 @@ RuntimeValue cloneComponentRuntimeValue(const RuntimeValue& value) {
     }
     if (value.getIf<RuntimeValue::Object>() != nullptr ||
         value.getIf<RuntimeIdentityPtr>() != nullptr) {
-        RuntimeValue cloned = ludork::engine::runtime_services::invokeFirst(
-            "reflect.clone", {value});
+        RuntimeValue cloned = runtimeReflection().clone(value);
         return cloned.isNil() && !value.isNil() ? value : cloned;
     }
     return value;
@@ -141,7 +123,7 @@ RuntimeValue resolveRuntimeType(const std::string& name) {
         RuntimeValue(std::string("Engine")),
         RuntimeValue(name),
     };
-    return dataValueService().resolveMetadataType(
+    return typedDataService().resolveMetadataType(
         RuntimeValue(std::move(typeReference)));
 }
 
@@ -171,9 +153,8 @@ std::unordered_map<std::string, std::string> componentFieldMapFromValue(
 }
 
 RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
-    const RuntimeValue cached = ludork::engine::runtime_services::invokeFirst(
-        "components.cacheGet",
-        {RuntimeValue(std::string("inheritedDefaults")), classValue});
+    const RuntimeValue cached = componentRuntimeCache().get(
+        ComponentRuntimeCacheKind::InheritedDefaults, classValue);
     if (const RuntimeValue::Map* defaults = cached.getIf<RuntimeValue::Map>()) {
         return *defaults;
     }
@@ -210,9 +191,8 @@ RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
                            RuntimeValue(std::move(componentDefaults)));
         }
     }
-    ludork::engine::runtime_services::invokeVoid(
-        "components.cacheSet", {RuntimeValue(std::string("inheritedDefaults")),
-                                classValue, RuntimeValue(result)});
+    componentRuntimeCache().set(ComponentRuntimeCacheKind::InheritedDefaults,
+                                classValue, RuntimeValue(result));
     return result;
 }
 
@@ -257,7 +237,7 @@ RuntimeValue cloneComponentValue(const RuntimeValue& value,
                                  const RuntimeValue& valueType,
                                  const RuntimeValue& declaringModule) {
     RuntimeValue resolved = value;
-    DataValueService& dataValues = dataValueService();
+    TypedDataService& dataValues = typedDataService();
     if (value.getIf<std::string>() != nullptr &&
         dataValues.shouldEvalValueType(valueType)) {
         resolved = dataValues.evalDataExpression(value);
@@ -278,7 +258,7 @@ RuntimeValue cloneComponentFieldValue(const RuntimeValue& componentType,
                                       const std::string& fieldName,
                                       const RuntimeValue& value) {
     const RuntimeValue metadata =
-        dataValueService().resolveAttrMetadata(componentType, fieldName);
+        typedDataService().resolveAttrMetadata(componentType, fieldName);
     if (metadata.isNil()) {
         return cloneComponentRuntimeValue(value);
     }
@@ -298,9 +278,8 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
     if (runtimeKind(classValue) != "table") {
         return {};
     }
-    const RuntimeValue cached = ludork::engine::runtime_services::invokeFirst(
-        "components.cacheGet",
-        {RuntimeValue(std::string("types")), classValue});
+    const RuntimeValue cached = componentRuntimeCache().get(
+        ComponentRuntimeCacheKind::Types, classValue);
     if (const RuntimeValue::Map* types = cached.getIf<RuntimeValue::Map>()) {
         return *types;
     }
@@ -316,7 +295,7 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
         }
     }
     const RuntimeValue metadata =
-        dataValueService().getAttrMetadata(classValue);
+        typedDataService().getAttrMetadata(classValue);
     for (const std::string& name : runtimeKeys(metadata, false)) {
         const RuntimeValue descriptor = runtimeGet(metadata, name);
         const RuntimeValue componentValue = runtimeGet(descriptor, "component");
@@ -327,22 +306,20 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
         const RuntimeValue typeReference = runtimeGet(descriptor, "type");
         const RuntimeValue moduleValue = runtimeGet(descriptor, "module");
         const std::string* module = moduleValue.getIf<std::string>();
-        RuntimeValue componentType = dataValueService().resolveMetadataType(
+        RuntimeValue componentType = typedDataService().resolveMetadataType(
             typeReference, module == nullptr ? std::string() : *module);
         if (isComponentType(componentType)) {
             result[name] = std::move(componentType);
         }
     }
-    ludork::engine::runtime_services::invokeVoid(
-        "components.cacheSet",
-        {RuntimeValue(std::string("types")), classValue, RuntimeValue(result)});
+    componentRuntimeCache().set(ComponentRuntimeCacheKind::Types, classValue,
+                                RuntimeValue(result));
     return result;
 }
 
 RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
-    const RuntimeValue cached = ludork::engine::runtime_services::invokeFirst(
-        "components.cacheGet",
-        {RuntimeValue(std::string("fieldDefaults")), componentType});
+    const RuntimeValue cached = componentRuntimeCache().get(
+        ComponentRuntimeCacheKind::FieldDefaults, componentType);
     if (const RuntimeValue::Map* defaults = cached.getIf<RuntimeValue::Map>()) {
         return cloneRuntimeMap(*defaults);
     }
@@ -358,7 +335,7 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
         }
     }
     const RuntimeValue metadata =
-        dataValueService().getAttrMetadata(componentType);
+        typedDataService().getAttrMetadata(componentType);
     for (const std::string& name : runtimeKeys(metadata, false)) {
         const RuntimeValue descriptor = runtimeGet(metadata, name);
         const RuntimeValue member = runtimeGet(descriptor, "metadata");
@@ -370,17 +347,15 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
     for (auto& [name, value] : defaults) {
         value = cloneComponentFieldValue(componentType, name, value);
     }
-    ludork::engine::runtime_services::invokeVoid(
-        "components.cacheSet", {RuntimeValue(std::string("fieldDefaults")),
-                                componentType, RuntimeValue(defaults)});
+    componentRuntimeCache().set(ComponentRuntimeCacheKind::FieldDefaults,
+                                componentType, RuntimeValue(defaults));
     return cloneRuntimeMap(defaults);
 }
 
 std::unordered_map<std::string, std::string> getComponentFieldMap(
     const RuntimeValue& classValue) {
-    const RuntimeValue cached = ludork::engine::runtime_services::invokeFirst(
-        "components.cacheGet",
-        {RuntimeValue(std::string("fieldMap")), classValue});
+    const RuntimeValue cached = componentRuntimeCache().get(
+        ComponentRuntimeCacheKind::FieldMap, classValue);
     if (cached.getIf<RuntimeValue::Map>() != nullptr) {
         return componentFieldMapFromValue(cached);
     }
@@ -397,10 +372,8 @@ std::unordered_map<std::string, std::string> getComponentFieldMap(
     for (const auto& [fieldName, componentName] : result) {
         cachedMap.emplace(fieldName, RuntimeValue(componentName));
     }
-    ludork::engine::runtime_services::invokeVoid(
-        "components.cacheSet",
-        {RuntimeValue(std::string("fieldMap")), classValue,
-         RuntimeValue(std::move(cachedMap))});
+    componentRuntimeCache().set(ComponentRuntimeCacheKind::FieldMap, classValue,
+                                RuntimeValue(std::move(cachedMap)));
     return result;
 }
 
@@ -419,8 +392,8 @@ RuntimeValue componentFromData(const RuntimeValue& componentType,
             }
         }
     }
-    return ludork::engine::runtime_services::invokeFirst(
-        "reflect.construct", {componentType, RuntimeValue(std::move(values))});
+    return runtimeReflection().construct(componentType,
+                                         {RuntimeValue(std::move(values))});
 }
 
 RuntimeValue::Map componentToData(const RuntimeValue& value) {
@@ -559,9 +532,8 @@ RuntimeValue::Array attachInstanceComponents(const RuntimeValue& object) {
         if (!runtimeIsInstance(component, componentBase)) {
             continue;
         }
-        const std::vector<RuntimeValue> results = resolveRuntime(
-            "reflect.call", {component, RuntimeValue(std::string("onAttach")),
-                             RuntimeValue(RuntimeValue::Array{object})});
+        const RuntimeValue::Array results =
+            runtimeReflection().call(component, "onAttach", {object});
         if (results.empty()) {
             continue;
         }

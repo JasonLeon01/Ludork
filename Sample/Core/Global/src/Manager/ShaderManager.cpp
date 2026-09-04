@@ -1,13 +1,13 @@
 #include <Manager/ShaderManager.hpp>
 
-#include <ConcurrentResourceCache.hpp>
+#include <Runtime/ConcurrentResourceCache.hpp>
 #include <Utils/ShaderLoader.hpp>
 
 #include <stdexcept>
 
 namespace {
 
-using ShaderCache = ludork::core::ConcurrentResourceCache<sf::Shader>;
+using ShaderCache = ludork::runtime::ConcurrentResourceCache<sf::Shader>;
 
 struct ShaderCaches {
     ShaderCache shaders;

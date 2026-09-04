@@ -74,14 +74,4 @@ LUDORK_STANDARD_API sol::object requireModule(sol::state_view lua,
 LUDORK_STANDARD_API int invoke(lua_State* state, const sol::object& callable,
                                int argumentCount);
 
-LUDORK_STANDARD_API void registerService(
-    sol::state_view lua, const std::string& name,
-    const sol::protected_function& callback);
-
-LUDORK_STANDARD_API void unregisterService(sol::state_view lua,
-                                           const std::string& name);
-
-LUDORK_STANDARD_API int callService(lua_State* state, const std::string& name,
-                                    int argumentCount);
-
 }  // namespace ludork::standard::class_runtime

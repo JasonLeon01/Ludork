@@ -8,7 +8,8 @@
 #include "Actor/VisualRuntime.hpp"
 
 #include <Gameplay/BPBase.hpp>
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 #include <Runtime/RuntimeValue.hpp>
 
 #include <algorithm>
@@ -122,17 +123,12 @@ void Actor::ensureMapTag() {
     bool generatedClass = false;
     const std::shared_ptr<RuntimeObject> self = weak_from_this().lock();
     if (self != nullptr) {
-        const std::vector<RuntimeValue> types =
-            resolveRuntime("reflect.type", {RuntimeValue(self)});
-        if (!types.empty()) {
-            const std::vector<RuntimeValue> values = resolveRuntime(
-                "reflect.get",
-                {types.front(), RuntimeValue(std::string("_GENERATED_CLASS"))});
-            if (!values.empty()) {
-                const bool* flag = values.front().getIf<bool>();
-                generatedClass = flag != nullptr && *flag;
-            }
-        }
+        const RuntimeValue type =
+            runtimeReflection().typeOf(RuntimeValue(self));
+        const RuntimeValue value =
+            runtimeReflection().get(type, "_GENERATED_CLASS");
+        const bool* flag = value.getIf<bool>();
+        generatedClass = flag != nullptr && *flag;
     }
     if (mapTag_.empty() && !generatedClass) {
         mapTag_ = tag;
@@ -215,7 +211,7 @@ void Actor::setTickable(bool tickable, bool applyToChildren) {
 void Actor::BlueprintEvent(const RuntimeIdentityPtr& object,
                            const RuntimeIdentityPtr& objectType,
                            const std::string& eventName,
-                           const RuntimeValue& keywordArguments,
+                           const RuntimeIdentityPtr& keywordArguments,
                            const RuntimeIdentityPtr& onComplete) {
     BPBase::BlueprintEvent(object, objectType, eventName, keywordArguments,
                            onComplete);
@@ -235,14 +231,14 @@ RuntimeValue Actor::GenActor(const RuntimeIdentityPtr& actorModel,
                              const RuntimeIdentityPtr& texture,
                              const RuntimeValue& textureRect,
                              const std::optional<std::string>& tag) {
-    std::vector<RuntimeValue> result = resolveRuntime(
-        "class.construct", {RuntimeValue(actorModel), RuntimeValue(texture),
-                            textureRect, optionalStringValue(tag)});
-    if (result.empty() || result.front().isNil()) {
+    RuntimeValue result = runtimeReflection().construct(
+        RuntimeValue(actorModel),
+        {RuntimeValue(texture), textureRect, optionalStringValue(tag)});
+    if (result.isNil()) {
         throw std::runtime_error(
             "Actor runtime construction returned no instance");
     }
-    return std::move(result.front());
+    return result;
 }
 
 std::shared_ptr<AutoSoundParams> Actor::getAutoSoundParams() const {
@@ -794,7 +790,7 @@ std::shared_ptr<ActorMapService> Actor::getMap() const {
 }
 
 void Actor::setMap(const std::shared_ptr<ActorMapService>& inMap) {
-    map_ = ludork::engine::runtime_detail::canonicalRuntimeOwner(inMap);
+    map_ = ludork::runtime::detail::canonicalRuntimeOwner(inMap);
 }
 
 std::shared_ptr<Actor> Actor::getParent() const {
@@ -802,7 +798,7 @@ std::shared_ptr<Actor> Actor::getParent() const {
 }
 
 void Actor::setParent(const std::shared_ptr<Actor>& parent) {
-    parent_ = ludork::engine::runtime_detail::canonicalRuntimeOwner(parent);
+    parent_ = ludork::runtime::detail::canonicalRuntimeOwner(parent);
 }
 
 const std::vector<std::shared_ptr<Actor>>& Actor::getChildren() const {

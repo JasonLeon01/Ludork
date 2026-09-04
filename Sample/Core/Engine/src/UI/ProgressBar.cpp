@@ -1,6 +1,6 @@
 #include <UI/ProgressBar.hpp>
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 
 #include <algorithm>
 #include <cmath>

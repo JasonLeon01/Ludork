@@ -1,6 +1,6 @@
 #include <UI/TextEffects.hpp>
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 #include <UI/Text.hpp>
 #include <UI/TextEffectResources.hpp>
 

@@ -20,11 +20,11 @@
 
 namespace ui_control_adapter_detail {
 
-using ludork::engine::runtime_value_reader::findValue;
-using ludork::engine::runtime_value_reader::requireArray;
-using ludork::engine::runtime_value_reader::requireInteger;
-using ludork::engine::runtime_value_reader::requireMap;
-using ludork::engine::runtime_value_reader::requireUnsigned;
+using ludork::runtime::value_reader::findValue;
+using ludork::runtime::value_reader::requireArray;
+using ludork::runtime::value_reader::requireInteger;
+using ludork::runtime::value_reader::requireMap;
+using ludork::runtime::value_reader::requireUnsigned;
 
 sf::Vector2f requireVector2f(const RuntimeValue& value,
                              const std::string& source) {

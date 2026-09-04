@@ -182,11 +182,7 @@ sol::table createModule(sol::state_view lua) {
     root.set_function("super", superFunction);
     root.set_function("monitor", &registerMonitor);
     root.set_function("unmonitor", &unregisterMonitor);
-    root.set_function("registerService", &detail::registerRuntimeService);
-    root.set_function("unregisterService", &detail::unregisterRuntimeService);
     root.raw_set("MISSING", lua.create_table());
-    lua_pushcfunction(lua.lua_state(), &detail::runtimeClassResolver);
-    lua_setglobal(lua.lua_state(), "_LUDORK_RUNTIME_RESOLVER");
     lua.globals().set_function("class", &classFunction);
     lua.globals().set_function("copy", &copyFunction);
     lua.globals().set_function("deepcopy", &deepCopyFunction);
@@ -222,7 +218,6 @@ void shutdown(lua_State* state) noexcept {
         SUPER_PROXY_CACHE_KEY,
         SUPER_PROXY_METATABLE_KEY,
         MONITOR_STATES_KEY,
-        detail::RUNTIME_SERVICES_KEY,
         LIFECYCLE_STATES_KEY,
         DISPOSED_METATABLE_KEY,
         "LuaSF.JsonNullSentinel",
@@ -238,13 +233,8 @@ void shutdown(lua_State* state) noexcept {
     lua_pushnil(state);
     lua_rawset(state, LUA_REGISTRYINDEX);
     constexpr const char* globalKeys[] = {
-        "Class",
-        "class",
-        "copy",
-        "deepcopy",
-        "super",
-        "_LUDORK_RUNTIME_RESOLVER",
-        "_LUDORK_STANDARD_UPDATE",
+        "Class",    "class", "copy",
+        "deepcopy", "super", "_LUDORK_STANDARD_UPDATE",
     };
     for (const char* key : globalKeys) {
         lua_pushnil(state);

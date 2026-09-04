@@ -1,7 +1,7 @@
 #pragma once
 
 #include <GlobalAnimation.hpp>
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <CustomParticles/CommonTipController.hpp>
 #include <Manager/TimeManager.hpp>
 #include <Particles/ParticleSystem.hpp>

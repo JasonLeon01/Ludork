@@ -21,7 +21,7 @@ using ludork::global::system_runtime::SceneOperationType;
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
 #include <Manager/TimeManager.hpp>
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 #include <System/NativeDisplayHost.hpp>
 #include <SystemConfigBase.hpp>
 #include <Utils/Inner.hpp>

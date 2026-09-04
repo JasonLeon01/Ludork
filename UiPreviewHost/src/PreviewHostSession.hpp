@@ -3,7 +3,6 @@
 #include "Actor/ActorBatchRenderer.hpp"
 #include "Protocol/FrameFiles.hpp"
 #include "UI/UiPreviewSession.hpp"
-#include "UiPreviewCurveResolver.hpp"
 
 #include <Runtime/RuntimeValue.hpp>
 
@@ -28,7 +27,6 @@ private:
     RuntimeValue handshake(const RuntimeValue::Map& request);
 
     std::string adapterFingerprint_;
-    UiPreviewCurveResolver curveResolver_;
     FrameFiles frameFiles_;
     ActorBatchRenderer actorRenderer_;
     UiPreviewSession uiSession_;

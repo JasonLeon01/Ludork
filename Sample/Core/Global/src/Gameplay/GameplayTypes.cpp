@@ -1,6 +1,6 @@
 #include <Gameplay/GameplayAbilitySystem.hpp>
 
-#include <Runtime/RuntimeValueServices.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 
 #include <cmath>
 #include <stdexcept>
@@ -11,9 +11,7 @@ namespace {
 RuntimeIdentityPtr runtimeMap(RuntimeValue::Map values = {}) {
     RuntimeIdentityPtr result = createRuntimeMapIdentity();
     for (auto& [name, value] : values) {
-        ludork::engine::runtime_services::invokeVoid(
-            "reflect.set",
-            {RuntimeValue(result), RuntimeValue(name), std::move(value)});
+        runtimeReflection().set(RuntimeValue(result), name, value);
     }
     return result;
 }
@@ -32,8 +30,7 @@ bool resultCodeTruthy(const RuntimeValue& code) {
 }
 
 RuntimeValue cloneRuntimeValue(const RuntimeValue& value) {
-    return ludork::engine::runtime_services::invokeFirst("reflect.clone",
-                                                         {value});
+    return runtimeReflection().clone(value);
 }
 
 }  // namespace
@@ -168,13 +165,10 @@ RuntimeValue AttributeSet::selfValue() const {
 
 void AttributeSet::initialize(const RuntimeValue::Map& values) {
     const RuntimeValue self = selfValue();
-    const RuntimeValue type =
-        ludork::engine::runtime_services::invokeFirst("reflect.type", {self});
-    const RuntimeValue rawNames = ludork::engine::runtime_services::invokeFirst(
-        "reflect.get", {type, RuntimeValue("ATTRIBUTE_NAMES")});
-    const RuntimeValue rawSchema =
-        ludork::engine::runtime_services::invokeFirst(
-            "reflect.get", {type, RuntimeValue("SCHEMA")});
+    const RuntimeValue type = runtimeReflection().typeOf(self);
+    const RuntimeValue rawNames =
+        runtimeReflection().get(type, "ATTRIBUTE_NAMES");
+    const RuntimeValue rawSchema = runtimeReflection().get(type, "SCHEMA");
     const RuntimeValue::Array* names = rawNames.getIf<RuntimeValue::Array>();
     const RuntimeValue::Map* schema = rawSchema.getIf<RuntimeValue::Map>();
     if (names == nullptr || schema == nullptr) {
@@ -215,21 +209,18 @@ void AttributeSet::initialize(const RuntimeValue::Map& values) {
         }
         const RuntimeValue value =
             selected == nullptr ? RuntimeValue() : cloneRuntimeValue(*selected);
-        ludork::engine::runtime_services::invokeVoid(
-            "reflect.set", {self, RuntimeValue(*name), value});
+        runtimeReflection().set(self, *name, value);
         attributeNames_.push_back(*name);
     }
 
     const auto idIt = values.find("ID");
     RuntimeValue id = idIt == values.end() || idIt->second.isNil()
-                          ? ludork::engine::runtime_services::invokeFirst(
-                                "reflect.get", {type, RuntimeValue("ID")})
+                          ? runtimeReflection().get(type, "ID")
                           : idIt->second;
     if (id.isNil()) {
         id = RuntimeValue("");
     }
-    ludork::engine::runtime_services::invokeVoid(
-        "reflect.set", {self, RuntimeValue("ID"), cloneRuntimeValue(id)});
+    runtimeReflection().set(self, "ID", cloneRuntimeValue(id));
 }
 
 std::vector<std::string> AttributeSet::getAttributeNames() const {
@@ -242,14 +233,12 @@ RuntimeValue AttributeSet::getAttributeSchema(const std::string& name) const {
 }
 
 RuntimeValue AttributeSet::getAttributeValue(const std::string& name) const {
-    return ludork::engine::runtime_services::invokeFirst(
-        "reflect.get", {selfValue(), RuntimeValue(name)});
+    return runtimeReflection().get(selfValue(), name);
 }
 
 void AttributeSet::setAttributeValue(const std::string& name,
                                      const RuntimeValue& value) {
-    ludork::engine::runtime_services::invokeVoid(
-        "reflect.set", {selfValue(), RuntimeValue(name), value});
+    runtimeReflection().set(selfValue(), name, value);
 }
 
 std::string AttributeSet::getAttributeType(const std::string& name) const {

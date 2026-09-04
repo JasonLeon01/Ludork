@@ -9,6 +9,7 @@ local Path = require("Global.Utils.Path")
 local BlueprintActorOverrides = require("Source.Data.BlueprintActorOverrides")
 
 local ManagerFunctions = GlobalFunctions.Manager
+local RuntimeProviders = Engine.RuntimeProviders
 
 local nilGraphParentClass = {}
 local nodeCompilerContext = {
@@ -217,14 +218,8 @@ function DataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
     return actor
 end
 
-function DataBlueprints:registerServices()
-    Class.registerService("blueprint.classGraphData", function (className)
-        local classPath = self:resolveClassPath(className)
-        local classData = self._data.GetClassData(classPath)
-        return classData ~= nil and classData.graph or nil
-    end)
-
-    Class.registerService("blueprint.classDataByPath", function (classPath)
+function DataBlueprints:installRuntimeProviders()
+    RuntimeProviders.installBlueprint(function (classPath)
         if self._data._blueprintClassPaths == nil then
             self:_loadBlueprintClassPaths()
         end
@@ -248,27 +243,18 @@ function DataBlueprints:registerServices()
         ---@cast loadedData table<string, Source.Data.JsonValue>
         self._data._blueprintClassData[classPath] = loadedData
         return loadedData
-    end)
-
-    Class.registerService("blueprint.invalidateClassData", function (classPath)
-        if Class.isInstance(self._data._blueprintClassData[classPath], "table")
-            and self._data._blueprintClassData[classPath].graph ~= nil then
-            self._graphTemplates[self._data._blueprintClassData[classPath].graph] = nil
-        end
-        self._data._blueprintClassData[classPath] = nil
-    end)
-
-    Class.registerService("blueprint.compileGraph", function (graphData, parentClass)
-        return self:compileGraphTemplate(graphData, parentClass)
-    end)
-
-    Class.registerService("blueprint.instantiateGraphTemplate", function (template, parent)
-        return template:instantiate(parent)
-    end)
-
-    Class.registerService("blueprint.createGraph", function (graphData, parent, parentClass)
-        return self:genGraphFromData(graphData, parent, parentClass)
-    end)
+    end,
+        function (classPath)
+            if Class.isInstance(self._data._blueprintClassData[classPath], "table")
+                and self._data._blueprintClassData[classPath].graph ~= nil then
+                self._graphTemplates[self._data._blueprintClassData[classPath].graph] = nil
+            end
+            self._data._blueprintClassData[classPath] = nil
+        end, function (graphData, parentClass)
+            return self:compileGraphTemplate(graphData, parentClass)
+        end, function (template, parent)
+            return template:instantiate(parent)
+        end)
 end
 
 return class(DataBlueprints)

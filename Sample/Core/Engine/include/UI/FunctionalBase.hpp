@@ -1,6 +1,8 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <EngineRuntimeApi.hpp>
+
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Input/InputProvider.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <UI/FocusableMixin.hpp>

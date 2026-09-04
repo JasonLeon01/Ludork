@@ -1,6 +1,6 @@
 #include <Manager/TextureManager.hpp>
 
-#include <ConcurrentResourceCache.hpp>
+#include <Runtime/ConcurrentResourceCache.hpp>
 #include <Utf8Path.hpp>
 
 #include <sstream>
@@ -15,9 +15,9 @@ namespace {
 
 constexpr bool PinTextures = std::string_view(LUDORK_PLATFORM) == "ios";
 
-ludork::core::ConcurrentResourceCache<sf::Texture, PinTextures>&
+ludork::runtime::ConcurrentResourceCache<sf::Texture, PinTextures>&
 textureCache() {
-    static ludork::core::ConcurrentResourceCache<sf::Texture, PinTextures>
+    static ludork::runtime::ConcurrentResourceCache<sf::Texture, PinTextures>
         cache;
     return cache;
 }

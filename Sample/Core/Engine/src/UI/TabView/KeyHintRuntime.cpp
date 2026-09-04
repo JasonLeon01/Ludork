@@ -1,7 +1,7 @@
 #include "KeyHintRuntime.hpp"
 
 #include <Input/InputService.hpp>
-#include <LudorkCoreBinding/RegistryReference.hpp>
+#include <LudorkRuntimeBinding/RegistryReference.hpp>
 #include <LudorkPlatform.hpp>
 
 #include <SFML/Window/Joystick.hpp>
@@ -43,16 +43,16 @@ std::string handleKeyText(const RuntimeValue& value,
     const auto* opaque =
         identity == nullptr || *identity == nullptr
             ? nullptr
-            : dynamic_cast<
-                  const ludork_core::LuaOpaqueIdentity<RuntimeIdentity>*>(
-                  identity->get());
+            : dynamic_cast<const ludork::runtime::binding::LuaOpaqueIdentity<
+                  RuntimeIdentity>*>(identity->get());
     if (opaque == nullptr) {
         throw std::invalid_argument(source +
                                     " must be an Engine.JoystickButton value");
     }
     sol::state_view lua(opaque->value().state());
     const sol::object luaValue =
-        ludork_core::readLuaRegistryReference(lua, opaque->value());
+        ludork::runtime::binding::readLuaRegistryReference(lua,
+                                                           opaque->value());
     if (!luaValue.is<sol::table>()) {
         throw std::invalid_argument(source +
                                     " must be an Engine.JoystickButton value");

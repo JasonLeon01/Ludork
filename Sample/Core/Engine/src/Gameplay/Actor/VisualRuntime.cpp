@@ -1,6 +1,6 @@
 #include "VisualRuntime.hpp"
 
-#include <ConcurrentResourceCache.hpp>
+#include <Runtime/ConcurrentResourceCache.hpp>
 #include <Utils/ShaderLoader.hpp>
 
 #include <iostream>
@@ -15,8 +15,8 @@ std::unique_ptr<sf::Texture>& blankTextureStorage() {
     return texture;
 }
 
-ludork::core::ConcurrentResourceCache<sf::Shader, true>& shaderCache() {
-    static ludork::core::ConcurrentResourceCache<sf::Shader, true> cache;
+ludork::runtime::ConcurrentResourceCache<sf::Shader, true>& shaderCache() {
+    static ludork::runtime::ConcurrentResourceCache<sf::Shader, true> cache;
     return cache;
 }
 

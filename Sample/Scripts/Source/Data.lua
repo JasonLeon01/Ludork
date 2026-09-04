@@ -9,6 +9,7 @@ local Validation = require("Source.Data.Validation")
 
 local GeneralDataKey = GeneralEnum.GeneralDataKey
 local requireNamedValue = Validation.RequireNamedValue
+local RuntimeProviders = Engine.RuntimeProviders
 
 ---@class (partial) Source.Data
 local Data = {
@@ -233,30 +234,13 @@ function Data.GenActorFromData(actorData, layerName, classVarChanges)
     return dataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
 end
 
-Class.registerService("curve", function (name)
+RuntimeProviders.installData(function (name)
     return Data.GetCurve(name)
-end)
+end,
+    function (name)
+        return Data.GetPlainTextConfig(name)
+    end)
 
-Class.registerService("vector2Curve", function (name)
-    return Data.GetVector2Curve(name)
-end)
-
-Class.registerService("vector3Curve", function (name)
-    return Data.GetVector3Curve(name)
-end)
-
-Class.registerService("vector4Curve", function (name)
-    return Data.GetVector4Curve(name)
-end)
-
-Class.registerService("plainTextConfig", function (name)
-    return Data.GetPlainTextConfig(name)
-end)
-
-Class.registerService("richTextConfig", function (name)
-    return Data.GetRichTextConfig(name)
-end)
-
-dataBlueprints:registerServices()
+dataBlueprints:installRuntimeProviders()
 
 return Data

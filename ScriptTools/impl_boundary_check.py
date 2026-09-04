@@ -43,9 +43,20 @@ def _diagnostic(path: pathlib.Path, text: str, position: int, message: str) -> s
 
 
 def _cpp_files(directory: pathlib.Path) -> list[pathlib.Path]:
-    return sorted(
-        path for path in directory.rglob("*") if path.suffix in CPP_SUFFIXES
-    )
+    return sorted(path for path in directory.rglob("*") if path.suffix in CPP_SUFFIXES)
+
+
+def _cpp_source_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
+    roots = [project_root / "Core", project_root / "Runtime"]
+    return [root for root in roots if root.is_dir()]
+
+
+def _cpp_include_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
+    roots = sorted((project_root / "Core").glob("*/include"))
+    runtime_include = project_root / "Runtime" / "include"
+    if runtime_include.is_dir():
+        roots.append(runtime_include)
+    return roots
 
 
 def _without_cpp_comments_and_literals(text: str) -> str:
@@ -77,10 +88,13 @@ def _member_definitions(text: str) -> list[tuple[str, int]]:
         if terminator is None or terminator.group(0) != "{":
             continue
         tail = text[position : position + terminator.start()]
-        if re.fullmatch(
-            r"\s*(?:(?:const|noexcept|override|final)\s*|&{1,2}\s*)*",
-            tail,
-        ) is None:
+        if (
+            re.fullmatch(
+                r"\s*(?:(?:const|noexcept|override|final)\s*|&{1,2}\s*)*",
+                tail,
+            )
+            is None
+        ):
             continue
         definitions.append((match.group(1), match.start()))
     return definitions
@@ -92,7 +106,7 @@ def _find_host_header(
 ) -> pathlib.Path:
     text = host_source.read_text(encoding="utf-8")
     includes = re.findall(r"#\s*include\s*[<\"]([^>\"]+)[>\"]", text)
-    include_roots = sorted((project_root / "Core").glob("*/include"))
+    include_roots = _cpp_include_roots(project_root)
     candidates: list[pathlib.Path] = []
     for include in includes:
         include_path = pathlib.PurePosixPath(include)
@@ -112,11 +126,13 @@ def _find_host_header(
 
 
 def _discover_cpp_boundaries(project_root: pathlib.Path) -> list[CppBoundary]:
-    core_root = project_root / "Core"
-    if not core_root.is_dir():
-        raise ImplBoundaryError(f"C++ source root was not found: {core_root}")
+    source_roots = _cpp_source_roots(project_root)
+    if not source_roots:
+        raise ImplBoundaryError(f"C++ source roots were not found: {project_root}")
     boundaries: list[CppBoundary] = []
-    for host_source in _cpp_files(core_root):
+    for host_source in [
+        path for source_root in source_roots for path in _cpp_files(source_root)
+    ]:
         if host_source.suffix not in {".cc", ".cpp", ".cxx"}:
             continue
         impl_directory = host_source.with_suffix("")
@@ -131,7 +147,7 @@ def _discover_cpp_boundaries(project_root: pathlib.Path) -> list[CppBoundary]:
         )
         include_root = next(
             root
-            for root in sorted((project_root / "Core").glob("*/include"))
+            for root in _cpp_include_roots(project_root)
             if root == host_header.parent or root in host_header.parents
         )
         bound_types: set[str] = set()
@@ -160,7 +176,8 @@ def _discover_cpp_boundaries(project_root: pathlib.Path) -> list[CppBoundary]:
         )
     if not boundaries:
         raise ImplBoundaryError(
-            f"No C++ host/same-name implementation directories were found under {core_root}"
+            "No C++ host/same-name implementation directories were found under "
+            f"{', '.join(str(root) for root in source_roots)}"
         )
     return boundaries
 
@@ -196,8 +213,11 @@ def _check_cpp(
                     )
                 )
 
-    source_root = project_root / "Core"
-    for path in _cpp_files(source_root):
+    for path in [
+        path
+        for source_root in _cpp_source_roots(project_root)
+        for path in _cpp_files(source_root)
+    ]:
         if path == boundary.host_source or boundary.impl_directory in path.parents:
             continue
         text = path.read_text(encoding="utf-8")
@@ -271,8 +291,8 @@ def _discover_lua_boundaries(project_root: pathlib.Path) -> list[LuaBoundary]:
 
 
 def _module_path(project_root: pathlib.Path, module: str) -> pathlib.Path:
-    return project_root / "Scripts" / pathlib.Path(*module.split(".")).with_suffix(
-        ".lua"
+    return (
+        project_root / "Scripts" / pathlib.Path(*module.split(".")).with_suffix(".lua")
     )
 
 

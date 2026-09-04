@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/System/Vector2.hpp>

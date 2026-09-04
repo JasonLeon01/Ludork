@@ -1,6 +1,6 @@
 #include <Camera.hpp>
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 #include <System.hpp>
 #include <Utils/Math.hpp>
 #include <Utils/Render.hpp>
@@ -136,11 +136,11 @@ std::shared_ptr<Actor> Camera::getParent() const {
 }
 
 void Camera::setParent(std::shared_ptr<Actor> actor) {
-    parent_ = ludork::engine::runtime_detail::canonicalRuntimeOwner(actor);
+    parent_ = ludork::runtime::detail::canonicalRuntimeOwner(actor);
 }
 
 void Camera::setMap(std::shared_ptr<GameMapBase> map) {
-    map_ = ludork::engine::runtime_detail::canonicalRuntimeOwner(map);
+    map_ = ludork::runtime::detail::canonicalRuntimeOwner(map);
 }
 
 std::shared_ptr<GameMapBase> Camera::getMap() const {

@@ -292,12 +292,12 @@ def callback_codec_policy(
 
     def native_policy(item: ParsedType) -> str:
         if not contains_codec(item):
-            return "ludork_core::LuaNativeCodecPolicy"
+            return "ludork::runtime::binding::LuaNativeCodecPolicy"
         direct = context.callback_codecs.get(item.name)
         if direct is not None:
             allow_nil = "true" if direct.allow_nil else "false"
             return (
-                "ludork_core::LuaSfCallbackCodecPolicy<"
+                "ludork::runtime::binding::LuaSfCallbackCodecPolicy<"
                 f"{direct.cpp_name}, {direct.codec}, {allow_nil}>"
             )
         if item.name in SEQUENCE_TYPES:
@@ -309,7 +309,7 @@ def callback_codec_policy(
                     "is unsupported"
                 )
             return (
-                "ludork_core::LuaSequenceCodecPolicy<"
+                "ludork::runtime::binding::LuaSequenceCodecPolicy<"
                 f"{native_policy(item.arguments[0])}>"
             )
         if item.name in MAP_TYPES:
@@ -320,7 +320,7 @@ def callback_codec_policy(
                     f"callback codec in map policy type of {value} is unsupported"
                 )
             return (
-                "ludork_core::LuaMapCodecPolicy<"
+                "ludork::runtime::binding::LuaMapCodecPolicy<"
                 f"{native_policy(item.arguments[0])}, "
                 f"{native_policy(item.arguments[1])}>"
             )
@@ -328,12 +328,12 @@ def callback_codec_policy(
             if len(item.arguments) != 1:
                 raise ValueError(f"callback codec optional {value} is malformed")
             return (
-                "ludork_core::LuaOptionalCodecPolicy<"
+                "ludork::runtime::binding::LuaOptionalCodecPolicy<"
                 f"{native_policy(item.arguments[0])}>"
             )
         if item.name in VARIANT_TYPES:
             return (
-                "ludork_core::LuaVariantCodecPolicy<"
+                "ludork::runtime::binding::LuaVariantCodecPolicy<"
                 + ", ".join(native_policy(argument) for argument in item.arguments)
                 + ">"
             )
@@ -341,13 +341,13 @@ def callback_codec_policy(
             if len(item.arguments) != 2:
                 raise ValueError(f"callback codec pair {value} is malformed")
             return (
-                "ludork_core::LuaPairCodecPolicy<"
+                "ludork::runtime::binding::LuaPairCodecPolicy<"
                 f"{native_policy(item.arguments[0])}, "
                 f"{native_policy(item.arguments[1])}>"
             )
         if item.name in TUPLE_TYPES:
             return (
-                "ludork_core::LuaTupleCodecPolicy<"
+                "ludork::runtime::binding::LuaTupleCodecPolicy<"
                 + ", ".join(native_policy(argument) for argument in item.arguments)
                 + ">"
             )

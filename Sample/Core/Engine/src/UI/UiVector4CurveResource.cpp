@@ -1,6 +1,6 @@
 #include <UI/UiVector4CurveResource.hpp>
 
-#include <ConcurrentResourceCache.hpp>
+#include <Runtime/ConcurrentResourceCache.hpp>
 #include <Curve.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <Utils/File.hpp>
@@ -14,16 +14,22 @@
 
 namespace {
 
-ludork::core::ConcurrentResourceCache<Vector4Curve, true>& curveCache() {
-    static ludork::core::ConcurrentResourceCache<Vector4Curve, true> cache;
+ludork::runtime::ConcurrentResourceCache<Curve, true>& scalarCurveCache() {
+    static ludork::runtime::ConcurrentResourceCache<Curve, true> cache;
     return cache;
 }
 
-using ludork::engine::runtime_value_reader::findValue;
-using ludork::engine::runtime_value_reader::requireArray;
-using ludork::engine::runtime_value_reader::requireFloat;
-using ludork::engine::runtime_value_reader::requireMap;
-using ludork::engine::runtime_value_reader::requireString;
+ludork::runtime::ConcurrentResourceCache<Vector4Curve, true>&
+vector4CurveCache() {
+    static ludork::runtime::ConcurrentResourceCache<Vector4Curve, true> cache;
+    return cache;
+}
+
+using ludork::runtime::value_reader::findValue;
+using ludork::runtime::value_reader::requireArray;
+using ludork::runtime::value_reader::requireFloat;
+using ludork::runtime::value_reader::requireMap;
+using ludork::runtime::value_reader::requireString;
 
 std::array<float, 4> requireVector4(const RuntimeValue& value,
                                     const std::string& source) {
@@ -37,6 +43,13 @@ std::array<float, 4> requireVector4(const RuntimeValue& value,
         requireFloat(array[2], source + "[2]"),
         requireFloat(array[3], source + "[3]"),
     };
+}
+
+float floatValue(const RuntimeValue::Map& values, const std::string& name,
+                 float fallback, const std::string& source) {
+    const RuntimeValue* value = findValue(values, name);
+    return value == nullptr ? fallback
+                            : requireFloat(*value, source + "." + name);
 }
 
 std::string stringValue(const RuntimeValue::Map& values,
@@ -56,7 +69,49 @@ std::array<float, 4> vector4Value(const RuntimeValue::Map& values,
                             : requireVector4(*value, source + "." + name);
 }
 
-Vector4CurveKey curveKey(const RuntimeValue& value, const std::string& source) {
+CurveKey scalarCurveKey(const RuntimeValue& value, const std::string& source) {
+    const RuntimeValue::Map& values = requireMap(value, source);
+    CurveKey result;
+    result.time = floatValue(values, "time", result.time, source);
+    result.value = floatValue(values, "value", result.value, source);
+    result.interpolation =
+        stringValue(values, "interpolation", result.interpolation, source);
+    result.arriveTangent =
+        floatValue(values, "arriveTangent", result.arriveTangent, source);
+    result.leaveTangent =
+        floatValue(values, "leaveTangent", result.leaveTangent, source);
+    return result;
+}
+
+CurveData scalarCurveData(const RuntimeValue& value,
+                          const std::string& source) {
+    const RuntimeValue::Map& values = requireMap(value, source);
+    const RuntimeValue* type = findValue(values, "type");
+    if (type == nullptr || requireString(*type, source + ".type") != "curve") {
+        throw std::invalid_argument("UI curve must have type curve: " + source);
+    }
+    CurveData result;
+    result.name = stringValue(values, "name", result.name, source);
+    result.defaultValue =
+        floatValue(values, "defaultValue", result.defaultValue, source);
+    result.preInfinity =
+        stringValue(values, "preInfinity", result.preInfinity, source);
+    result.postInfinity =
+        stringValue(values, "postInfinity", result.postInfinity, source);
+    if (const RuntimeValue* keys = findValue(values, "keys")) {
+        const RuntimeValue::Array& array =
+            requireArray(*keys, source + ".keys");
+        result.keys.reserve(array.size());
+        for (std::size_t index = 0; index < array.size(); ++index) {
+            result.keys.push_back(scalarCurveKey(
+                array[index], source + ".keys[" + std::to_string(index) + "]"));
+        }
+    }
+    return result;
+}
+
+Vector4CurveKey vector4CurveKey(const RuntimeValue& value,
+                                const std::string& source) {
     const RuntimeValue::Map& values = requireMap(value, source);
     Vector4CurveKey result;
     if (const RuntimeValue* time = findValue(values, "time")) {
@@ -72,8 +127,8 @@ Vector4CurveKey curveKey(const RuntimeValue& value, const std::string& source) {
     return result;
 }
 
-Vector4CurveData curveData(const RuntimeValue& value,
-                           const std::string& source) {
+Vector4CurveData vector4CurveData(const RuntimeValue& value,
+                                  const std::string& source) {
     const RuntimeValue::Map& values = requireMap(value, source);
     const RuntimeValue* type = findValue(values, "type");
     if (type == nullptr ||
@@ -94,7 +149,7 @@ Vector4CurveData curveData(const RuntimeValue& value,
             requireArray(*keys, source + ".keys");
         result.keys.reserve(array.size());
         for (std::size_t index = 0; index < array.size(); ++index) {
-            result.keys.push_back(curveKey(
+            result.keys.push_back(vector4CurveKey(
                 array[index], source + ".keys[" + std::to_string(index) + "]"));
         }
     }
@@ -166,6 +221,23 @@ std::filesystem::path curvePath(const std::filesystem::path& projectRoot,
 
 }  // namespace
 
+std::shared_ptr<Curve> loadUiCurveResource(const std::string& assetKey) {
+    return loadUiCurveResource(std::filesystem::current_path(), assetKey);
+}
+
+std::shared_ptr<Curve> loadUiCurveResource(
+    const std::filesystem::path& projectRoot, const std::string& assetKey) {
+    if (!std::filesystem::is_directory(projectRoot)) {
+        throw std::invalid_argument("UI curve project root is not a directory");
+    }
+    const std::filesystem::path path =
+        curvePath(std::filesystem::weakly_canonical(projectRoot), assetKey);
+    const std::string cacheKey = ludork::standard::pathToUtf8(path);
+    return scalarCurveCache().getOrLoad(cacheKey, [&]() {
+        return Curve::fromData(scalarCurveData(getJSONData(path), cacheKey));
+    });
+}
+
 std::shared_ptr<Vector4Curve> loadUiVector4CurveResource(
     const std::string& assetKey) {
     return loadUiVector4CurveResource(std::filesystem::current_path(),
@@ -180,11 +252,13 @@ std::shared_ptr<Vector4Curve> loadUiVector4CurveResource(
     const std::filesystem::path path =
         curvePath(std::filesystem::weakly_canonical(projectRoot), assetKey);
     const std::string cacheKey = ludork::standard::pathToUtf8(path);
-    return curveCache().getOrLoad(cacheKey, [&]() {
-        return Vector4Curve::fromData(curveData(getJSONData(path), cacheKey));
+    return vector4CurveCache().getOrLoad(cacheKey, [&]() {
+        return Vector4Curve::fromData(
+            vector4CurveData(getJSONData(path), cacheKey));
     });
 }
 
 void clearUiVector4CurveResourceCache() noexcept {
-    curveCache().clear();
+    scalarCurveCache().clear();
+    vector4CurveCache().clear();
 }

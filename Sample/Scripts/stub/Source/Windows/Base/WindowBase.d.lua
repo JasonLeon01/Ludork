@@ -52,6 +52,10 @@ function WindowBase:onReturn() end
 ---@param active boolean
 function WindowBase:setActive(active) end
 
+---@brief Show or hide this window and its declarative visual root.
+---
+--- Nested panes bound with `attachNestedWindowView` keep their visual root in the parent asset. `setVisible` applies to that root as well as the input host.
+--- - @param visible Whether the window and its visual root are shown.
 ---@param visible boolean
 function WindowBase:setVisible(visible) end
 

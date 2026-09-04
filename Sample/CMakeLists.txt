@@ -165,6 +165,8 @@ add_subdirectory(zlib EXCLUDE_FROM_ALL)
 
 add_subdirectory(Standard)
 
+add_subdirectory(Runtime)
+
 add_subdirectory(Core)
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
@@ -421,6 +423,7 @@ foreach(runtime_target IN ITEMS
     Main
     lua_cjson
     LudorkStandard
+    LudorkRuntime
     Engine
     GlobalCore
     GlobalFunctions

@@ -9,10 +9,10 @@ namespace {
 
 constexpr const char* ProjectControlPrefix = "Project:";
 
-using ludork::engine::runtime_value_reader::findValue;
-using ludork::engine::runtime_value_reader::requireFloat;
-using ludork::engine::runtime_value_reader::requireMap;
-using ludork::engine::runtime_value_reader::requireString;
+using ludork::runtime::value_reader::findValue;
+using ludork::runtime::value_reader::requireFloat;
+using ludork::runtime::value_reader::requireMap;
+using ludork::runtime::value_reader::requireString;
 
 }  // namespace
 

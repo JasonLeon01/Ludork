@@ -24,9 +24,7 @@ def stub_binding_source_name(module: str) -> str:
     return f"{module}.stub.auto.cpp"
 
 
-def binding_source_layout(
-    module: str, types: list[TypeInfo]
-) -> dict[str, object]:
+def binding_source_layout(module: str, types: list[TypeInfo]) -> dict[str, object]:
     if IDENTIFIER_PATTERN.fullmatch(module) is None:
         raise ValueError(f"invalid binding module name: {module}")
     class_sources: list[str] = []
@@ -51,13 +49,15 @@ def binding_source_layout(
     }
 
 
-def parse_module(include_directory: Path) -> list[TypeInfo]:
-    if not include_directory.is_dir():
-        raise ValueError(
-            f"binding include directory does not exist: {include_directory}"
-        )
+def parse_module(include_directories: list[Path]) -> list[TypeInfo]:
     context = GeneratorContext()
-    header_paths = sorted(include_directory.glob("**/*.hpp"))
+    header_paths: list[Path] = []
+    for include_directory in include_directories:
+        if not include_directory.is_dir():
+            raise ValueError(
+                f"binding include directory does not exist: {include_directory}"
+            )
+        header_paths.extend(sorted(include_directory.glob("**/*.hpp")))
     for path in header_paths:
         context.type_aliases.update(parse_aliases(path.read_text(encoding="utf-8")))
     types: list[TypeInfo] = []
@@ -79,13 +79,13 @@ def main(arguments: list[str] | None = None) -> int:
         metavar=("NAME", "INCLUDE_DIRECTORY"),
     )
     parsed_arguments = parser.parse_args(arguments)
-    modules: dict[str, dict[str, object]] = {}
+    module_directories: dict[str, list[Path]] = {}
     for module, include_directory_value in parsed_arguments.module:
-        if module in modules:
-            raise ValueError(f"duplicate binding layout module: {module}")
-        include_directory = Path(include_directory_value)
+        module_directories.setdefault(module, []).append(Path(include_directory_value))
+    modules: dict[str, dict[str, object]] = {}
+    for module, include_directories in module_directories.items():
         modules[module] = binding_source_layout(
-            module, parse_module(include_directory)
+            module, parse_module(include_directories)
         )
     print(
         json.dumps(

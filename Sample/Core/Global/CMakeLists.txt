@@ -15,8 +15,10 @@ ludork_generate_lua_bindings(
     GlobalCore
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     LUDORK_GLOBAL_BINDINGS
+    INCLUDE_DIRECTORIES "${LUDORK_RUNTIME_SOURCE_DIR}/include"
     TYPE_REGISTRIES
-        "Engine=${LUDORK_CORE_SOURCE_DIR}/Engine/include")
+        "Engine=${LUDORK_CORE_SOURCE_DIR}/Engine/include"
+        "Engine=${LUDORK_RUNTIME_SOURCE_DIR}/include/Runtime")
 
 add_library(GlobalCore ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_GLOBAL_SOURCES}

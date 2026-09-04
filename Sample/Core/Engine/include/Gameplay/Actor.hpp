@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <Filters/SoundFilter.hpp>
 #include <Gameplay/ActorApiTypes.hpp>
@@ -460,11 +460,11 @@ public:
     std::optional<sf::Vector2f> getVelocity() const;
 
     BIND_METHOD(defaults = {nil, nil})
-    static void BlueprintEvent(const RuntimeIdentityPtr& object,
-                               const RuntimeIdentityPtr& objectType,
-                               const std::string& eventName,
-                               const RuntimeValue& keywordArguments = {},
-                               const RuntimeIdentityPtr& onComplete = nullptr);
+    static void BlueprintEvent(
+        const RuntimeIdentityPtr& object, const RuntimeIdentityPtr& objectType,
+        const std::string& eventName,
+        const RuntimeIdentityPtr& keywordArguments = nullptr,
+        const RuntimeIdentityPtr& onComplete = nullptr);
 
     BIND_METHOD()
     static bool HasBlueprintEvent(const RuntimeIdentityPtr& object,

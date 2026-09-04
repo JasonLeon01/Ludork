@@ -1,8 +1,9 @@
 #include <NodeGraph/ClassDict.hpp>
 
+#include <Gameplay/EngineClassRuntime.hpp>
+
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 ClassDict::ClassDict() {
     classes_.emplace("", emptyMap());
@@ -19,23 +20,19 @@ RuntimeValue ClassDict::get(const std::optional<std::string>& classPath,
         return cached->second;
     }
 
-    std::vector<RuntimeValue> arguments;
-    arguments.emplace_back(*classPath);
-    arguments.emplace_back(root.has_value() ? RuntimeValue(*root)
-                                            : RuntimeValue());
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.resolveClass", arguments);
-    if (resolved.empty() || resolved.front().isNil()) {
+    EngineResolvedClass resolved =
+        engineClassRuntime().resolve(*classPath, root);
+    if (resolved.classType.isNil()) {
         throw std::runtime_error("Class " + *classPath + " not found");
     }
 
-    classes_.emplace(*classPath, resolved.front());
-    const bool dataBacked = resolved.size() > 1 && !resolved[1].isNil();
+    classes_.emplace(*classPath, resolved.classType);
+    const bool dataBacked = !resolved.classData.isNil();
     if (dataBacked) {
-        classData_[*classPath] = resolved[1];
+        classData_[*classPath] = resolved.classData;
     }
     indexClassPath(*classPath, dataBacked);
-    return resolved.front();
+    return resolved.classType;
 }
 
 RuntimeValue ClassDict::getData(const std::string& classPath) {
@@ -44,13 +41,12 @@ RuntimeValue ClassDict::getData(const std::string& classPath) {
         return cached->second;
     }
 
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.classData", {RuntimeValue(classPath)});
-    if (resolved.empty() || resolved.front().isNil()) {
+    RuntimeValue resolved = engineClassRuntime().classData(classPath);
+    if (resolved.isNil()) {
         return emptyMap();
     }
-    classData_[classPath] = resolved.front();
-    return resolved.front();
+    classData_[classPath] = resolved;
+    return resolved;
 }
 
 RuntimeValue ClassDict::instantiateGraph(const std::string& classPath,
@@ -58,17 +54,14 @@ RuntimeValue ClassDict::instantiateGraph(const std::string& classPath,
     if (classes_.find(classPath) == classes_.end()) {
         get(classPath);
     }
-    const std::vector<RuntimeValue> resolved =
-        resolveRuntime("nodegraph.instantiateClassGraph",
-                       {RuntimeValue(classPath), std::move(parent)});
-    return resolved.empty() ? RuntimeValue() : resolved.front();
+    return engineClassRuntime().instantiateGraph(classPath, parent);
 }
 
 void ClassDict::invalidate(const std::string& classPath) {
     unindexClassPath(classPath);
     classes_.erase(classPath);
     classData_.erase(classPath);
-    resolveRuntime("nodegraph.invalidateClass", {RuntimeValue(classPath)});
+    engineClassRuntime().invalidate(classPath);
 }
 
 bool ClassDict::containsCached(const std::string& classPath) const {

@@ -7,7 +7,7 @@
 #include <Manager/AssetPath.hpp>
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <System.hpp>
 #include <Utils/Render.hpp>
@@ -20,9 +20,9 @@
 #include <utility>
 
 namespace {
-using ludork::engine::runtime_value_reader::findValue;
-using ludork::engine::runtime_value_reader::requireFloat;
-using ludork::engine::runtime_value_reader::requireString;
+using ludork::runtime::value_reader::findValue;
+using ludork::runtime::value_reader::requireFloat;
+using ludork::runtime::value_reader::requireString;
 
 std::string trim(std::string value) {
     const std::size_t first = value.find_first_not_of(" \t\r\n");

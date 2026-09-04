@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <Input/InputAction.hpp>
 #include <Input/InputEvent.hpp>

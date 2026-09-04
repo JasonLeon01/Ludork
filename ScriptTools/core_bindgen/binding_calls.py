@@ -157,11 +157,11 @@ def indexer_registration(
         f"{info.name}Type[sol::meta_function::index] = "
         f"[lua, {type_table}]({self_type}, sol::object key) -> sol::object {{ "
         f"const sol::object memberValue = {type_table}.get<sol::object>(key); "
-        "if (!ludork_core::isNil(memberValue)) return memberValue; "
-        f"if (!ludork_core::canReadLuaValue<{key_type}>(key)) "
+        "if (!ludork::runtime::binding::isNil(memberValue)) return memberValue; "
+        f"if (!ludork::runtime::binding::canReadLuaValue<{key_type}>(key)) "
         "return sol::make_object(lua, lua_sf::LUASF_SOL_NIL); "
-        f"return ludork_core::writeLuaValue(lua, self.{member.name}("
-        f"ludork_core::readLuaValue<{key_type}>(key))); }};"
+        f"return ludork::runtime::binding::writeLuaValue(lua, self.{member.name}("
+        f"ludork::runtime::binding::readLuaValue<{key_type}>(key))); }};"
     )
 
 
@@ -206,7 +206,7 @@ def parameter_plan(
         label = codecs[0].lua_type
         value_type = cpp_value_type(context, type_name)
         conversion = (
-            f"ludork_core::readLuaCodecValue<{value_type}, {codec_policy}>"
+            f"ludork::runtime::binding::readLuaCodecValue<{value_type}, {codec_policy}>"
             f'({name}, "{label}")'
         )
         prelude = [
@@ -218,7 +218,7 @@ def parameter_plan(
         ]
         if codec is not None and not allow_nil:
             prelude.append(
-                f"if (ludork_core::isNil({name})) throw std::invalid_argument("
+                f"if (ludork::runtime::binding::isNil({name})) throw std::invalid_argument("
                 f'"{codec.lua_type} does not allow nil here");'
             )
         prelude.append(f"auto {name}Value = {conversion};")
@@ -231,18 +231,18 @@ def parameter_plan(
     if default_expression is not None:
         default_value = cpp_parameter_default(context, type_name, default_expression)
         return ParameterPlan(
-            f"ludork_core::LuaArgument<{value_type}, true> {name}",
+            f"ludork::runtime::binding::LuaArgument<{value_type}, true> {name}",
             f"{name}Value",
             [
-                f"auto {name}Value = ludork_core::isNil({name}.object()) "
+                f"auto {name}Value = ludork::runtime::binding::isNil({name}.object()) "
                 f"? {default_value} "
                 f": {name}.value();"
             ],
         )
     lua_argument = (
-        f"ludork_core::LuaArgument<{value_type}, true>"
+        f"ludork::runtime::binding::LuaArgument<{value_type}, true>"
         if allow_nil
-        else f"ludork_core::LuaArgument<{value_type}>"
+        else f"ludork::runtime::binding::LuaArgument<{value_type}>"
     )
     if is_integer_type(context, value_type):
         return ParameterPlan(
@@ -370,7 +370,7 @@ def callable_lambda(
     )
     capture = "[lua]" if converted_return else "[]"
     trailing_return = (
-        f"ludork_core::LuaReturnTuple<{return_type}>"
+        f"ludork::runtime::binding::LuaReturnTuple<{return_type}>"
         if multiple_return
         else ("sol::object" if converted_return else return_type)
     )
@@ -379,7 +379,7 @@ def callable_lambda(
         owner_types = [type_name, *(owning_bases or [])]
         base_arguments = f"<{', '.join(owner_types)}>"
         body.append(
-            f"return ludork_core::writeOwningLuaObject{base_arguments}(lua, {call});"
+            f"return ludork::runtime::binding::writeOwningLuaObject{base_arguments}(lua, {call});"
         )
     elif return_codec_policy is not None:
         unsupported = [
@@ -398,14 +398,14 @@ def callable_lambda(
         )
         writer = "writeLuaCodecReturns" if multiple_return else "writeLuaCodecValue"
         body.append(
-            f"return ludork_core::{writer}<{return_type}, "
+            f"return ludork::runtime::binding::{writer}<{return_type}, "
             f"{return_codec_policy}>"
             f'(lua, {call}, "{return_codecs[0].lua_type}");'
         )
     elif multiple_return:
-        body.append(f"return ludork_core::writeLuaReturns(lua, {call});")
+        body.append(f"return ludork::runtime::binding::writeLuaReturns(lua, {call});")
     elif converted_return:
-        body.append(f"return ludork_core::writeLuaValue(lua, {call});")
+        body.append(f"return ludork::runtime::binding::writeLuaValue(lua, {call});")
     elif return_type == "void":
         body.append(f"{call};")
     else:
@@ -433,7 +433,9 @@ def callable_candidates(
             ]
             generic_parameters = sum(
                 plan.declaration.startswith("sol::object ")
-                or plan.declaration.startswith("ludork_core::LuaArgument<sol::object")
+                or plan.declaration.startswith(
+                    "ludork::runtime::binding::LuaArgument<sol::object"
+                )
                 for plan in plans
             )
             groups.setdefault(parameter_count, []).append(
@@ -573,7 +575,7 @@ def property_registration(
         )
         getter = (
             f"[lua]({self_type}) -> sol::object {{ "
-            f"return ludork_core::writeLuaValue(lua, "
+            f"return ludork::runtime::binding::writeLuaValue(lua, "
             f"self.{computed_getter}()); }}"
         )
         computed_setter = member.options.get("setter")
@@ -582,7 +584,7 @@ def property_registration(
         setter = (
             f"[]({type_info.name} &self, sol::object value) {{ "
             f"self.{computed_setter}("
-            f"ludork_core::readLuaValue<{value_type}>(value)); }}"
+            f"ludork::runtime::binding::readLuaValue<{value_type}>(value)); }}"
         )
         return f'{target}.set("{member.name}", sol::property({getter}, {setter}));'
     if (
@@ -596,11 +598,11 @@ def property_registration(
         )
     getter = (
         f"[lua](const {type_info.name} &self) -> sol::object {{ "
-        f"return ludork_core::writeLuaValue(lua, self.{member.name}); }}"
+        f"return ludork::runtime::binding::writeLuaValue(lua, self.{member.name}); }}"
     )
     setter = (
         f"[]({type_info.name} &self, sol::object value) {{ "
-        f"self.{member.name} = ludork_core::readLuaValue<{value_type}>(value); }}"
+        f"self.{member.name} = ludork::runtime::binding::readLuaValue<{value_type}>(value); }}"
     )
     return f'{target}.set("{member.name}", sol::property({getter}, {setter}));'
 
@@ -621,7 +623,7 @@ def class_property_registration(
             f"{exposed_name}"
         )
     getter = (
-        f"[lua]() -> sol::object {{ return ludork_core::writeLuaValue("
+        f"[lua]() -> sol::object {{ return ludork::runtime::binding::writeLuaValue("
         f"lua, {type_info.name}::{member.name}); }}"
     )
     return f'{target}.set("{exposed_name}", sol::readonly_property({getter}));'
@@ -666,7 +668,7 @@ def class_property_new_index_lines(
             lines.append(
                 f'        if (name == "{exposed_name}") {{ '
                 f"{type_info.name}::{member.name} = "
-                f"ludork_core::readLuaValue<{value_type}>(value); return; }}"
+                f"ludork::runtime::binding::readLuaValue<{value_type}>(value); return; }}"
             )
     lines.extend(
         [

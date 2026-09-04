@@ -7,12 +7,9 @@ function(ludork_add_ui_preview_host_runtime target)
     list(APPEND preview_runtime_sources
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Animation.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Curve.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/EngineState.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/Actor/VisualRuntime.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/RectBase.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineState.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeValue.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeValueInvocation.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeValueReader.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/File.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/Math.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/Render.cpp"
@@ -27,17 +24,18 @@ function(ludork_add_ui_preview_host_runtime target)
     target_compile_features(${target} PRIVATE cxx_std_20)
     target_compile_definitions(${target} PRIVATE
         LUDORK_ENGINE_EXPORTS=1
+        LUDORK_UI_PREVIEW_HOST_RUNTIME=1
         LUDORK_PLATFORM="${LUDORK_PLATFORM}")
     target_include_directories(${target}
         PUBLIC
             "${CMAKE_CURRENT_SOURCE_DIR}/include"
-            "${LUDORK_CORE_SOURCE_DIR}/include"
             ${LUDORK_LUASF_CONSUMER_INCLUDES}
         PRIVATE
             "${LUDORK_LUASF_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
     target_link_libraries(${target}
         PUBLIC
+            Ludork::Runtime
             Ludork::Standard
             SFML::Graphics
         PRIVATE

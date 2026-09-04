@@ -6,7 +6,14 @@
 #include <memory>
 #include <string>
 
+class Curve;
 class Vector4Curve;
+
+LUDORK_ENGINE_API std::shared_ptr<Curve> loadUiCurveResource(
+    const std::string& assetKey);
+
+LUDORK_ENGINE_API std::shared_ptr<Curve> loadUiCurveResource(
+    const std::filesystem::path& projectRoot, const std::string& assetKey);
 
 LUDORK_ENGINE_API std::shared_ptr<Vector4Curve> loadUiVector4CurveResource(
     const std::string& assetKey);

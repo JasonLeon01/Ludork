@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <General/AutoTile.hpp>
 #include <General/Tileset.hpp>
 #include <optional>

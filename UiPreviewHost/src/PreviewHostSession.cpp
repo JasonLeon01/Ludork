@@ -2,10 +2,11 @@
 
 #include "Protocol/PreviewProtocol.hpp"
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiResources.hpp>
+#include <UI/UiVector4CurveResource.hpp>
 #include <Utf8Path.hpp>
 
 #include <filesystem>
@@ -20,20 +21,19 @@ PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint)
 
 PreviewHostSession::~PreviewHostSession() noexcept {
     uiSession_.reset();
-    curveResolver_.clear();
+    clearUiVector4CurveResourceCache();
     clearUiControlAdapterResourceCache();
     uiResources().reset();
 }
 
 RuntimeValue PreviewHostSession::handle(const RuntimeValue& requestValue) {
     const RuntimeValue::Map& request =
-        ludork::engine::runtime_value_reader::requireMap(requestValue,
-                                                         "Preview request");
-    const std::string& type =
-        ludork::engine::runtime_value_reader::requireString(
-            ludork::engine::runtime_value_reader::requireValue(
-                request, "type", "Preview request"),
-            "Preview request.type");
+        ludork::runtime::value_reader::requireMap(requestValue,
+                                                  "Preview request");
+    const std::string& type = ludork::runtime::value_reader::requireString(
+        ludork::runtime::value_reader::requireValue(request, "type",
+                                                    "Preview request"),
+        "Preview request.type");
     if (type == "handshake") {
         return handshake(request);
     }
@@ -55,17 +55,17 @@ RuntimeValue PreviewHostSession::handle(const RuntimeValue& requestValue) {
 }
 
 RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
-    curveResolver_.clear();
+    clearUiVector4CurveResourceCache();
     accepted_ = false;
     uiSession_.reset();
     const std::int64_t requestedProtocol =
-        ludork::engine::runtime_value_reader::requireInteger(
-            ludork::engine::runtime_value_reader::requireValue(
+        ludork::runtime::value_reader::requireInteger(
+            ludork::runtime::value_reader::requireValue(
                 request, "protocolVersion", "Handshake"),
             "Handshake.protocolVersion");
     const std::string& requestedFingerprint =
-        ludork::engine::runtime_value_reader::requireString(
-            ludork::engine::runtime_value_reader::requireValue(
+        ludork::runtime::value_reader::requireString(
+            ludork::runtime::value_reader::requireValue(
                 request, "adapterFingerprint", "Handshake"),
             "Handshake.adapterFingerprint");
     const bool accepted = requestedProtocol == protocolVersion &&
@@ -76,8 +76,8 @@ RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
             "UiPreviewHost protocol or adapter fingerprint is incompatible.";
     } else {
         const std::string& projectPath =
-            ludork::engine::runtime_value_reader::requireString(
-                ludork::engine::runtime_value_reader::requireValue(
+            ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(
                     request, "projectPath", "Handshake"),
                 "Handshake.projectPath");
         const std::filesystem::path project = std::filesystem::weakly_canonical(
@@ -88,7 +88,6 @@ RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
         }
         std::filesystem::current_path(project);
         engineState().setScale(1.0f);
-        curveResolver_.install(project);
         actorRenderer_.reset(project);
         accepted_ = true;
     }

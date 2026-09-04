@@ -1,6 +1,6 @@
 #include <Utils/DataValue.hpp>
 
-#include <Runtime/RuntimeValueServices.hpp>
+#include <Runtime/MetadataRuntime.hpp>
 
 #include <algorithm>
 #include <charconv>
@@ -89,71 +89,9 @@ bool parseFloat(const std::string& text, double& result) {
     return end == text.c_str() + text.size() && std::isfinite(result);
 }
 
-void addConfigVarReference(RuntimeValue::Map& result, const std::string& name,
-                           const RuntimeValue& reference) {
-    if (name.empty()) {
-        return;
-    }
-    if (const std::string* text = reference.getIf<std::string>()) {
-        if (text->empty()) {
-            return;
-        }
-        const std::size_t separator = text->find('.');
-        if (separator == std::string::npos) {
-            result[name] = RuntimeValue(
-                RuntimeValue::Array{RuntimeValue(*text), RuntimeValue(name)});
-            return;
-        }
-        const std::string configName = text->substr(0, separator);
-        const std::string settingName = text->substr(separator + 1);
-        if (!configName.empty() && !settingName.empty()) {
-            result[name] = RuntimeValue(RuntimeValue::Array{
-                RuntimeValue(configName), RuntimeValue(settingName)});
-        }
-        return;
-    }
-    const RuntimeValue::Array* values = reference.getIf<RuntimeValue::Array>();
-    if (values == nullptr || values->size() < 2) {
-        return;
-    }
-    const std::string* configName = (*values)[0].getIf<std::string>();
-    const std::string* settingName = (*values)[1].getIf<std::string>();
-    if (configName == nullptr || configName->empty() ||
-        settingName == nullptr || settingName->empty()) {
-        return;
-    }
-    result[name] = RuntimeValue(RuntimeValue::Array{
-        RuntimeValue(*configName), RuntimeValue(*settingName)});
-}
-
-void addConfigVarItem(RuntimeValue::Map& result, const RuntimeValue& item) {
-    if (const std::string* name = item.getIf<std::string>()) {
-        if (!name->empty()) {
-            result[*name] = RuntimeValue(RuntimeValue::Array{
-                RuntimeValue(std::string("System")), RuntimeValue(*name)});
-        }
-        return;
-    }
-    const RuntimeValue::Array* values = item.getIf<RuntimeValue::Array>();
-    if (values == nullptr || values->size() < 2) {
-        return;
-    }
-    const std::string* name = (*values)[0].getIf<std::string>();
-    if (name == nullptr || name->empty()) {
-        return;
-    }
-    if (values->size() >= 3) {
-        addConfigVarReference(
-            result, *name,
-            RuntimeValue(RuntimeValue::Array{(*values)[1], (*values)[2]}));
-        return;
-    }
-    addConfigVarReference(result, *name, (*values)[1]);
-}
-
 }  // namespace
 
-bool DataValueService::isContainerValueType(
+bool TypedDataService::isContainerValueType(
     const RuntimeValue& valueType) const {
     if (const std::string* text = valueType.getIf<std::string>()) {
         return *text == "table" || *text == "list" || *text == "dict" ||
@@ -170,7 +108,7 @@ bool DataValueService::isContainerValueType(
     return false;
 }
 
-bool DataValueService::isStandardValueType(
+bool TypedDataService::isStandardValueType(
     const RuntimeValue& valueType) const {
     if (valueType.isNil()) {
         return true;
@@ -202,63 +140,50 @@ bool DataValueService::isStandardValueType(
            type == "string";
 }
 
-bool DataValueService::shouldEvalValueType(
+bool TypedDataService::shouldEvalValueType(
     const RuntimeValue& valueType) const {
     const std::string* text = valueType.getIf<std::string>();
     return (text != nullptr && *text == "any") ||
            !isStandardValueType(valueType);
 }
 
-RuntimeValue DataValueService::getClassModulePath(
+RuntimeValue TypedDataService::getClassModulePath(
     const RuntimeValue& classReference) const {
-    return ludork::engine::runtime_services::firstResult(
-        resolveDynamic("getClassModulePath", {classReference}));
+    return metadataRuntime().classModulePath(classReference);
 }
 
-std::pair<RuntimeValue, RuntimeValue> DataValueService::getClassTypeMetadata(
+std::pair<RuntimeValue, RuntimeValue> TypedDataService::getClassTypeMetadata(
     const RuntimeValue& classReference) const {
-    const std::vector<RuntimeValue> values =
-        resolveDynamic("getClassTypeMetadata", {classReference});
-    return {values.empty() ? RuntimeValue() : values[0],
-            values.size() < 2 ? RuntimeValue() : values[1]};
+    return metadataRuntime().classTypeMetadata(classReference);
 }
 
-RuntimeValue DataValueService::getAttrMetadata(
+RuntimeValue TypedDataService::getAttrMetadata(
     const RuntimeValue& owner) const {
-    RuntimeValue value = ludork::engine::runtime_services::firstResult(
-        resolveDynamic("getAttrMetadata", {owner}));
+    RuntimeValue value = metadataRuntime().attrMetadata(owner);
     return value.isNil() ? RuntimeValue(RuntimeValue::Map{}) : value;
 }
 
-RuntimeValue DataValueService::resolveAttrMetadata(
+RuntimeValue TypedDataService::resolveAttrMetadata(
     const RuntimeValue& owner, const std::string& key) const {
-    return ludork::engine::runtime_services::firstResult(
-        resolveDynamic("resolveAttrMetadata", {owner, RuntimeValue(key)}));
+    return metadataRuntime().resolveAttrMetadata(owner, key);
 }
 
-RuntimeValue DataValueService::resolveAttrValueType(
+RuntimeValue TypedDataService::resolveAttrValueType(
     const RuntimeValue& owner, const std::string& key) const {
-    return ludork::engine::runtime_services::firstResult(
-        resolveDynamic("resolveAttrValueType", {owner, RuntimeValue(key)}));
+    return metadataRuntime().resolveAttrValueType(owner, key);
 }
 
-std::pair<RuntimeValue, RuntimeValue> DataValueService::resolveConfigVar(
+std::pair<RuntimeValue, RuntimeValue> TypedDataService::resolveConfigVar(
     const RuntimeValue& owner, const std::string& key) const {
-    const std::vector<RuntimeValue> values =
-        resolveDynamic("resolveConfigVar", {owner, RuntimeValue(key)});
-    return {values.empty() ? RuntimeValue() : values[0],
-            values.size() < 2 ? RuntimeValue() : values[1]};
+    return metadataRuntime().resolveConfigVar(owner, key);
 }
 
-std::pair<RuntimeValue, RuntimeValue> DataValueService::resolveMemberMetadata(
+std::pair<RuntimeValue, RuntimeValue> TypedDataService::resolveMemberMetadata(
     const RuntimeValue& owner, const std::string& key) const {
-    const std::vector<RuntimeValue> values =
-        resolveDynamic("resolveMemberMetadata", {owner, RuntimeValue(key)});
-    return {values.empty() ? RuntimeValue() : values[0],
-            values.size() < 2 ? RuntimeValue() : values[1]};
+    return metadataRuntime().resolveMemberMetadata(owner, key);
 }
 
-RuntimeValue DataValueService::evalDataExpression(
+RuntimeValue TypedDataService::evalDataExpression(
     const RuntimeValue& value, const RuntimeValue::Map& environment) const {
     const std::string* expression = value.getIf<std::string>();
     if (expression == nullptr) {
@@ -268,24 +193,11 @@ RuntimeValue DataValueService::evalDataExpression(
     if (text.empty()) {
         return RuntimeValue();
     }
-    const std::vector<RuntimeValue> values =
-        resolveDynamic("evalDataExpression",
-                       {RuntimeValue(*expression), RuntimeValue(environment)});
-    if (!values.empty()) {
-        return values.front();
-    }
-    std::int64_t integer = 0;
-    if (parseInteger(text, integer)) {
-        return RuntimeValue(integer);
-    }
-    double number = 0.0;
-    if (parseFloat(text, number)) {
-        return RuntimeValue(number);
-    }
-    return value;
+    return metadataRuntime().evaluateExpression(RuntimeValue(*expression),
+                                                environment);
 }
 
-RuntimeValue DataValueService::coerceStandardValue(
+RuntimeValue TypedDataService::coerceStandardValue(
     const RuntimeValue& value, const RuntimeValue& valueType) const {
     if (value.isNil()) {
         return value;
@@ -322,14 +234,13 @@ RuntimeValue DataValueService::coerceStandardValue(
                                                  : evalDataExpression(value);
 }
 
-RuntimeValue DataValueService::resolveMetadataType(
+RuntimeValue TypedDataService::resolveMetadataType(
     const RuntimeValue& typeReference,
     const std::string& declaringModule) const {
-    return ludork::engine::runtime_services::firstResult(resolveDynamic(
-        "resolveMetadataType", {typeReference, RuntimeValue(declaringModule)}));
+    return metadataRuntime().resolveType(typeReference, declaringModule);
 }
 
-std::string DataValueService::metadataTypeName(
+std::string TypedDataService::metadataTypeName(
     const RuntimeValue& typeReference) const {
     if (const RuntimeValue::Array* reference =
             typeReference.getIf<RuntimeValue::Array>()) {
@@ -341,16 +252,14 @@ std::string DataValueService::metadataTypeName(
     return scalarString(typeReference);
 }
 
-RuntimeValue DataValueService::constructTypedValue(
+RuntimeValue TypedDataService::constructTypedValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule) const {
-    const std::vector<RuntimeValue> values =
-        resolveDynamic("constructTypedValue",
-                       {value, valueType, RuntimeValue(declaringModule)});
-    return values.empty() ? value : values.front();
+    return metadataRuntime().constructTypedValue(value, valueType,
+                                                 declaringModule);
 }
 
-RuntimeValue DataValueService::resolveTypedDataValue(
+RuntimeValue TypedDataService::resolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const RuntimeValue::Map& environment,
     const std::string& declaringModule) const {
@@ -367,18 +276,13 @@ RuntimeValue DataValueService::resolveTypedDataValue(
     return constructTypedValue(resolved, unwrapped, declaringModule);
 }
 
-std::vector<RuntimeValue> DataValueService::resolveDynamic(
-    const std::string& operation, std::vector<RuntimeValue> arguments) const {
-    return resolveRuntime(operation, arguments);
-}
-
-RuntimeValue DataValueService::unwrapOptional(
+RuntimeValue TypedDataService::unwrapOptional(
     const RuntimeValue& valueType) const {
     const RuntimeValue* optional = mapValue(valueType, "optional");
     return optional == nullptr ? valueType : *optional;
 }
 
-RuntimeValue DataValueService::coerceUnionValue(
+RuntimeValue TypedDataService::coerceUnionValue(
     const RuntimeValue& value, const RuntimeValue::Array& arguments) const {
     RuntimeValue last = value;
     for (const RuntimeValue& argument : arguments) {
@@ -395,7 +299,7 @@ RuntimeValue DataValueService::coerceUnionValue(
     return last;
 }
 
-bool DataValueService::matchesType(const RuntimeValue& value,
+bool TypedDataService::matchesType(const RuntimeValue& value,
                                    const RuntimeValue& valueType) const {
     const std::string* name = valueType.getIf<std::string>();
     if (name == nullptr) {
@@ -431,11 +335,11 @@ bool DataValueService::matchesType(const RuntimeValue& value,
     return false;
 }
 
-RuntimeValue DataValueService::coerceBool(const RuntimeValue& value) const {
+RuntimeValue TypedDataService::coerceBool(const RuntimeValue& value) const {
     return value;
 }
 
-RuntimeValue DataValueService::coerceInteger(const RuntimeValue& value) const {
+RuntimeValue TypedDataService::coerceInteger(const RuntimeValue& value) const {
     if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
         return RuntimeValue(*integer);
     }
@@ -460,7 +364,7 @@ RuntimeValue DataValueService::coerceInteger(const RuntimeValue& value) const {
     return value;
 }
 
-RuntimeValue DataValueService::coerceFloat(const RuntimeValue& value) const {
+RuntimeValue TypedDataService::coerceFloat(const RuntimeValue& value) const {
     if (const double* number = value.getIf<double>()) {
         return RuntimeValue(*number);
     }
@@ -485,113 +389,96 @@ RuntimeValue DataValueService::coerceFloat(const RuntimeValue& value) const {
     return value;
 }
 
-RuntimeValue DataValueService::coerceContainer(
+RuntimeValue TypedDataService::coerceContainer(
     const RuntimeValue& value) const {
     return value.getIf<std::string>() == nullptr ? value
                                                  : evalDataExpression(value);
 }
 
-DataValueService& dataValueService() {
-    static DataValueService service;
+TypedDataService& typedDataService() {
+    static TypedDataService service;
     return service;
 }
 
 RuntimeValue dataValueGetClassModulePath(const RuntimeValue& classReference) {
-    return dataValueService().getClassModulePath(classReference);
+    return typedDataService().getClassModulePath(classReference);
 }
 
 std::pair<RuntimeValue, RuntimeValue> dataValueGetClassTypeMetadata(
     const RuntimeValue& classReference) {
-    return dataValueService().getClassTypeMetadata(classReference);
+    return typedDataService().getClassTypeMetadata(classReference);
 }
 
 RuntimeValue dataValueGetAttrMetadata(const RuntimeValue& owner) {
-    return dataValueService().getAttrMetadata(owner);
+    return typedDataService().getAttrMetadata(owner);
 }
 
 RuntimeValue dataValueResolveAttrMetadata(const RuntimeValue& owner,
                                           const std::string& key) {
-    return dataValueService().resolveAttrMetadata(owner, key);
+    return typedDataService().resolveAttrMetadata(owner, key);
 }
 
 RuntimeValue dataValueResolveAttrValueType(const RuntimeValue& owner,
                                            const std::string& key) {
-    return dataValueService().resolveAttrValueType(owner, key);
+    return typedDataService().resolveAttrValueType(owner, key);
 }
 
 std::pair<RuntimeValue, RuntimeValue> dataValueResolveConfigVar(
     const RuntimeValue& owner, const std::string& key) {
-    return dataValueService().resolveConfigVar(owner, key);
+    return typedDataService().resolveConfigVar(owner, key);
 }
 
 std::pair<RuntimeValue, RuntimeValue> dataValueResolveMemberMetadata(
     const RuntimeValue& owner, const std::string& key) {
-    return dataValueService().resolveMemberMetadata(owner, key);
+    return typedDataService().resolveMemberMetadata(owner, key);
 }
 
 bool dataValueIsContainerValueType(const RuntimeValue& valueType) {
-    return dataValueService().isContainerValueType(valueType);
+    return typedDataService().isContainerValueType(valueType);
 }
 
 bool dataValueIsStandardValueType(const RuntimeValue& valueType) {
-    return dataValueService().isStandardValueType(valueType);
+    return typedDataService().isStandardValueType(valueType);
 }
 
 bool dataValueShouldEvalValueType(const RuntimeValue& valueType) {
-    return dataValueService().shouldEvalValueType(valueType);
+    return typedDataService().shouldEvalValueType(valueType);
 }
 
 RuntimeValue dataValueEvalDataExpression(const RuntimeValue& value,
                                          const RuntimeValue::Map& environment) {
-    return dataValueService().evalDataExpression(value, environment);
+    return typedDataService().evalDataExpression(value, environment);
 }
 
 RuntimeValue dataValueCoerceStandardValue(const RuntimeValue& value,
                                           const RuntimeValue& valueType) {
-    return dataValueService().coerceStandardValue(value, valueType);
+    return typedDataService().coerceStandardValue(value, valueType);
 }
 
 RuntimeValue dataValueResolveMetadataType(const RuntimeValue& typeReference,
                                           const std::string& declaringModule) {
-    return dataValueService().resolveMetadataType(typeReference,
+    return typedDataService().resolveMetadataType(typeReference,
                                                   declaringModule);
 }
 
 std::string dataValueMetadataTypeName(const RuntimeValue& typeReference) {
-    return dataValueService().metadataTypeName(typeReference);
+    return typedDataService().metadataTypeName(typeReference);
 }
 
 RuntimeValue dataValueConstructTypedValue(const RuntimeValue& value,
                                           const RuntimeValue& valueType,
                                           const std::string& declaringModule) {
-    return dataValueService().constructTypedValue(value, valueType,
+    return typedDataService().constructTypedValue(value, valueType,
                                                   declaringModule);
 }
 
 RuntimeValue dataValueResolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const RuntimeValue::Map& environment, const std::string& declaringModule) {
-    return dataValueService().resolveTypedDataValue(
+    return typedDataService().resolveTypedDataValue(
         value, valueType, environment, declaringModule);
 }
 
 RuntimeValue::Map getConfigVars(const RuntimeValue& meta) {
-    RuntimeValue::Map result;
-    const RuntimeValue* rawVars = mapValue(meta, "ConfigVars");
-    if (rawVars == nullptr) {
-        return result;
-    }
-    if (const RuntimeValue::Map* values = rawVars->getIf<RuntimeValue::Map>()) {
-        for (const auto& [name, reference] : *values) {
-            addConfigVarReference(result, name, reference);
-        }
-        return result;
-    }
-    if (const RuntimeValue::Array* values =
-            rawVars->getIf<RuntimeValue::Array>()) {
-        for (const RuntimeValue& item : *values) {
-            addConfigVarItem(result, item);
-        }
-    }
-    return result;
+    return metadataRuntime().configVars(meta);
 }

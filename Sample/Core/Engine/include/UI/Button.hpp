@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/Image.hpp>
 

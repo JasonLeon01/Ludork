@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <NodeGraph/Types.hpp>
 #include <Runtime/RuntimeValue.hpp>
 

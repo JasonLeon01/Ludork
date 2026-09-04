@@ -1,5 +1,5 @@
 #pragma once
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Gameplay/Actor.hpp>
 #include <Gameplay/TileMap.hpp>
 #include <General/Material.hpp>

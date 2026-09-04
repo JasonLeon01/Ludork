@@ -1,15 +1,16 @@
 #include <Gameplay/BPBase.hpp>
-#include <Runtime/BlueprintRuntime.hpp>
+#include <Gameplay/BlueprintRuntime.hpp>
 
 #include <utility>
 
 void BPBase::BlueprintEvent(const RuntimeIdentityPtr& object,
                             const RuntimeIdentityPtr& objectType,
                             const std::string& eventName,
-                            const RuntimeValue& keywordArguments,
+                            const RuntimeIdentityPtr& keywordArguments,
                             const RuntimeIdentityPtr& onComplete) {
     blueprintRuntime().dispatchEvent(RuntimeValue(object), objectType,
-                                     eventName, keywordArguments, onComplete);
+                                     eventName, RuntimeValue(keywordArguments),
+                                     onComplete);
 }
 
 bool BPBase::HasBlueprintEvent(const RuntimeIdentityPtr& object,
@@ -40,33 +41,45 @@ bool BPBase::_graphDataHasExecutableEvent(const RuntimeValue& graphData,
 bool BPBase::ExecuteParentEvent(const RuntimeIdentityPtr& object,
                                 const RuntimeIdentityPtr& classType,
                                 const std::string& eventName,
-                                const RuntimeValue& arguments,
-                                const RuntimeValue& keywordArguments,
+                                const RuntimeIdentityPtr& arguments,
+                                const RuntimeIdentityPtr& keywordArguments,
                                 const RuntimeIdentityPtr& localGraph,
                                 const RuntimeIdentityPtr& onComplete) {
     return blueprintRuntime().executeParentEvent(
-        RuntimeValue(object), classType, eventName, arguments, keywordArguments,
-        localGraph, onComplete);
+        RuntimeValue(object), classType, eventName, RuntimeValue(arguments),
+        RuntimeValue(keywordArguments), localGraph, onComplete);
 }
 
 bool BPBase::ExecuteGraph(const RuntimeIdentityPtr& graph,
                           const std::string& eventName,
-                          const RuntimeValue& keywordArguments,
+                          const RuntimeIdentityPtr& keywordArguments,
                           const RuntimeIdentityPtr& localGraph,
                           const RuntimeIdentityPtr& onComplete) {
-    return blueprintRuntime().executeGraph(graph, eventName, keywordArguments,
+    return blueprintRuntime().executeGraph(graph, eventName,
+                                           RuntimeValue(keywordArguments),
                                            localGraph, onComplete);
 }
 
 void BPBase::BlueprintEventNative(RuntimeObject& object,
-                                  const std::string& eventName,
-                                  const RuntimeValue::Map& keywordArguments) {
+                                  const std::string& eventName) {
     const RuntimeValue runtimeObject = objectValue(object);
     if (runtimeObject.isNil()) {
         return;
     }
     blueprintRuntime().dispatchEvent(runtimeObject, nullptr, eventName,
-                                     RuntimeValue(keywordArguments), nullptr);
+                                     RuntimeValue(), nullptr);
+}
+
+void BPBase::BlueprintEventNative(RuntimeObject& object,
+                                  const std::string& eventName,
+                                  RuntimeValue::Map keywordArguments) {
+    const RuntimeValue runtimeObject = objectValue(object);
+    if (runtimeObject.isNil()) {
+        return;
+    }
+    blueprintRuntime().dispatchEvent(runtimeObject, nullptr, eventName,
+                                     RuntimeValue(std::move(keywordArguments)),
+                                     nullptr);
 }
 
 bool BPBase::HasBlueprintEventNative(const RuntimeObject& object,

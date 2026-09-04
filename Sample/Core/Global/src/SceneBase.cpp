@@ -7,6 +7,7 @@
 
 #include <Input/InputService.hpp>
 #include <Manager/AudioManager.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 #include <RuntimeSession.hpp>
 #include <System.hpp>
 #include <Utils/EventBus.hpp>
@@ -400,8 +401,8 @@ void SceneBase::logicHandle(float deltaTime) {
     }
     for (const std::shared_ptr<TimerEntry>& entry : readyTimers) {
         if (!entry->isCancelled() && entry->task != nullptr) {
-            resolveRuntime("reflect.invoke", {RuntimeValue(entry->task),
-                                              RuntimeValue(entry->params)});
+            runtimeReflection().invoke(RuntimeValue(entry->task),
+                                       entry->params);
         }
     }
     std::vector<std::shared_ptr<Animation>> finishedAnimations;

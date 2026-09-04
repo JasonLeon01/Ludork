@@ -17,7 +17,9 @@ endif()
 ludork_generate_lua_bindings(
     Engine
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    LUDORK_ENGINE_BINDINGS)
+    LUDORK_ENGINE_BINDINGS
+    HEADER_DIRECTORIES "${LUDORK_RUNTIME_SOURCE_DIR}/include/Runtime"
+    INCLUDE_DIRECTORIES "${LUDORK_RUNTIME_SOURCE_DIR}/include")
 
 add_library(Engine ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_ENGINE_SOURCES}
@@ -27,32 +29,29 @@ ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/ClassDict.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Graph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Node.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeCache.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeDescriptors.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeEvents.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeExecution.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/BlueprintRuntimeServices.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineClassRuntime.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineClassRuntimeInstance.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineClassRuntimeMixin.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineClassRuntimeResolver.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/EngineRuntimeServices.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/MetadataRuntimeServices.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/NodeGraphRuntimeInternals.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/NodeGraphRuntimeServices.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeServiceCommon.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeServiceInternals.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Runtime/RuntimeValueServices.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/BlueprintRuntime/BlueprintRuntimeDescriptors.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/BlueprintRuntime/BlueprintRuntimeEvents.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/BlueprintRuntime/BlueprintRuntimeExecution.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/BlueprintRuntime/BlueprintRuntimeServices.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/Components/ComponentRuntimeCache.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/EngineClassRuntime/EngineClassRuntime.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/EngineClassRuntime/EngineClassRuntimeInstance.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/EngineClassRuntime/EngineClassRuntimeMixin.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/EngineClassRuntime/EngineClassRuntimeResolver.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Runtime/NodeGraphRuntimeInternals.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Runtime/NodeGraphRuntimeServices.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/DataValue.cpp")
 target_compile_definitions(Engine PRIVATE
     LUDORK_ENGINE_EXPORTS=1
     LUDORK_PLATFORM="${LUDORK_PLATFORM}")
 target_include_directories(Engine
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
 target_link_libraries(Engine
     PUBLIC
-        Ludork::CoreBinding
+        Ludork::Runtime
         SFML::Graphics
         SFML::Audio
         SFML::Network

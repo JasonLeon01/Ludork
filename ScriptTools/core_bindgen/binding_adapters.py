@@ -185,16 +185,16 @@ def singleton_callable_lambda(
     )
     body = list(preludes)
     if multiple_return:
-        body.append(f"return ludork_core::writeLuaReturns(lua, {call});")
+        body.append(f"return ludork::runtime::binding::writeLuaReturns(lua, {call});")
     elif converted_return:
-        body.append(f"return ludork_core::writeLuaValue(lua, {call});")
+        body.append(f"return ludork::runtime::binding::writeLuaValue(lua, {call});")
     elif return_type == "void":
         body.append(f"{call};")
     else:
         body.append(f"return {call};")
     capture = "[lua]" if converted_return else "[]"
     trailing_return = (
-        f"ludork_core::LuaReturnTuple<{return_type}>"
+        f"ludork::runtime::binding::LuaReturnTuple<{return_type}>"
         if multiple_return
         else ("sol::object" if converted_return else return_type)
     )
@@ -288,9 +288,9 @@ def callback_result_lines(
     )
     if return_type == "void":
         invocation = (
-            f"ludork_core::callPushedLuaFunction<void>(bindingCallbackState, {callback_arguments});"
+            f"ludork::runtime::binding::callPushedLuaFunction<void>(bindingCallbackState, {callback_arguments});"
             if callback_arguments
-            else "ludork_core::callPushedLuaFunction<void>(bindingCallbackState);"
+            else "ludork::runtime::binding::callPushedLuaFunction<void>(bindingCallbackState);"
         )
         lines.append(invocation)
         return lines
@@ -298,35 +298,30 @@ def callback_result_lines(
     if lua_return_type is not None:
         require_binding_type_features(context, lua_return_type)
         invocation = (
-            f"ludork_core::callPushedLuaFunction<{lua_return_type}>(bindingCallbackState, {callback_arguments})"
+            f"ludork::runtime::binding::callPushedLuaFunction<{lua_return_type}>(bindingCallbackState, {callback_arguments})"
             if callback_arguments
-            else f"ludork_core::callPushedLuaFunction<{lua_return_type}>(bindingCallbackState)"
+            else f"ludork::runtime::binding::callPushedLuaFunction<{lua_return_type}>(bindingCallbackState)"
         )
-        lines.append(
-            f"return {remove_type_qualifiers(return_type)}({invocation});"
-        )
+        lines.append(f"return {remove_type_qualifiers(return_type)}({invocation});")
     elif "&" in return_type:
         value_type = remove_type_qualifiers(return_type)
         cache_name = member.name + "ReturnCache_"
         invocation = (
-            f"ludork_core::callPushedLuaFunction<{value_type}>(bindingCallbackState, {callback_arguments})"
+            f"ludork::runtime::binding::callPushedLuaFunction<{value_type}>(bindingCallbackState, {callback_arguments})"
             if callback_arguments
-            else f"ludork_core::callPushedLuaFunction<{value_type}>(bindingCallbackState)"
+            else f"ludork::runtime::binding::callPushedLuaFunction<{value_type}>(bindingCallbackState)"
         )
         lines.extend(
             [
-                (
-                    f"{cache_name} = std::make_shared<{value_type}>("
-                    f"{invocation});"
-                ),
+                (f"{cache_name} = std::make_shared<{value_type}>({invocation});"),
                 f"return *{cache_name};",
             ]
         )
     else:
         invocation = (
-            f"ludork_core::callPushedLuaFunction<{return_type}>(bindingCallbackState, {callback_arguments})"
+            f"ludork::runtime::binding::callPushedLuaFunction<{return_type}>(bindingCallbackState, {callback_arguments})"
             if callback_arguments
-            else f"ludork_core::callPushedLuaFunction<{return_type}>(bindingCallbackState)"
+            else f"ludork::runtime::binding::callPushedLuaFunction<{return_type}>(bindingCallbackState)"
         )
         lines.append(f"return {invocation};")
     return lines
@@ -356,7 +351,7 @@ def adapter_class_lines(
         initializers = [f"{info.name}({', '.join(names)})"]
         for member in callbacks:
             initializers.append(
-                f'{member.name}Callback_(ludork_core::makeLuaCallbackReference(callbacks, "{member.name}"))'
+                f'{member.name}Callback_(ludork::runtime::binding::makeLuaCallbackReference(callbacks, "{member.name}"))'
             )
         output.append(f"    explicit {adapter}({parameters})")
         output.append("        : " + ", ".join(initializers) + " {}")
@@ -453,7 +448,7 @@ def adapter_factory_lambda(
         + "));"
     )
     body.append(
-        f"return ludork_core::writeOwningLuaObject{base_arguments}(lua, result);"
+        f"return ludork::runtime::binding::writeOwningLuaObject{base_arguments}(lua, result);"
     )
     return f"[lua]({', '.join(parameters)}) -> sol::object {{ {' '.join(body)} }}"
 
@@ -512,16 +507,16 @@ def base_method_lambda(
     )
     body = list(preludes)
     if multiple_return:
-        body.append(f"return ludork_core::writeLuaReturns(lua, {call});")
+        body.append(f"return ludork::runtime::binding::writeLuaReturns(lua, {call});")
     elif converted_return:
-        body.append(f"return ludork_core::writeLuaValue(lua, {call});")
+        body.append(f"return ludork::runtime::binding::writeLuaValue(lua, {call});")
     elif return_type == "void":
         body.append(f"{call};")
     else:
         body.append(f"return {call};")
     capture = "[lua]" if converted_return else "[]"
     trailing_return = (
-        f"ludork_core::LuaReturnTuple<{return_type}>"
+        f"ludork::runtime::binding::LuaReturnTuple<{return_type}>"
         if multiple_return
         else ("sol::object" if converted_return else return_type)
     )
@@ -630,9 +625,7 @@ def module_property_bindings(
         member.name: member for member in properties.values()
     }
     for index, member in enumerate(unique_members.values()):
-        require_binding_type_features(
-            context, module_property_type(context, member)
-        )
+        require_binding_type_features(context, module_property_type(context, member))
         cache = member.options.get("cache", "false").lower() == "true"
         cache = cache or bool(option_list(member.options, "reverse", "reverses"))
         if not cache:
@@ -641,7 +634,7 @@ def module_property_bindings(
             raise ValueError(f"cached module property {member.name} must be read-only")
         variable = f"bindingModulePropertyValue{index}"
         lines.append(
-            f"sol::object {variable} = ludork_core::writeLuaValue(lua, {member.name});"
+            f"sol::object {variable} = ludork::runtime::binding::writeLuaValue(lua, {member.name});"
         )
         cached_values[member.name] = variable
     entries = sorted(properties.items(), key=lambda item: item[0])
@@ -665,7 +658,7 @@ def module_property_bindings(
     for name, member in entries:
         value_expression = cached_values.get(
             member.name,
-            f"ludork_core::writeLuaValue(lua, {member.name})",
+            f"ludork::runtime::binding::writeLuaValue(lua, {member.name})",
         )
         lines.append(f'    if (name == "{name}") return {value_expression};')
     lines.append("    return sol::make_object(lua, sol::lua_nil);")
@@ -684,7 +677,7 @@ def module_property_bindings(
         else:
             value_type = module_property_type(context, member)
             lines.append(
-                f'        if (name == "{name}") {{ {member.name} = ludork_core::readLuaValue<{value_type}>(value); return; }}'
+                f'        if (name == "{name}") {{ {member.name} = ludork::runtime::binding::readLuaValue<{value_type}>(value); return; }}'
             )
     lines.append("    }")
     lines.append("    self.raw_set(key, value);")

@@ -2,7 +2,7 @@
 
 #include "Platform/PlatformInputBridge.hpp"
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 
 #include <SFML/Window/Mouse.hpp>
 

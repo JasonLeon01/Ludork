@@ -17,12 +17,12 @@
 namespace ludork::engine::ui_asset_runtime_impl {
 namespace {
 
-using ludork::engine::runtime_value_reader::findValue;
-using ludork::engine::runtime_value_reader::requireArray;
-using ludork::engine::runtime_value_reader::requireFloat;
-using ludork::engine::runtime_value_reader::requireInt;
-using ludork::engine::runtime_value_reader::requireMap;
-using ludork::engine::runtime_value_reader::requireString;
+using ludork::runtime::value_reader::findValue;
+using ludork::runtime::value_reader::requireArray;
+using ludork::runtime::value_reader::requireFloat;
+using ludork::runtime::value_reader::requireInt;
+using ludork::runtime::value_reader::requireMap;
+using ludork::runtime::value_reader::requireString;
 
 struct ResolvedAnimation {
     std::shared_ptr<AssetState> owner;

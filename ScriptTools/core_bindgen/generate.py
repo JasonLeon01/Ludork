@@ -71,8 +71,7 @@ def read_previous_binding_outputs(
             ) from error
         is_binding_source = resolved.suffix == ".cpp"
         is_traits_header = (
-            re.fullmatch(r"[A-Za-z_]\w*\.traits\.auto\.hpp", resolved.name)
-            is not None
+            re.fullmatch(r"[A-Za-z_]\w*\.traits\.auto\.hpp", resolved.name) is not None
         )
         if not is_binding_source and not is_traits_header:
             raise ValueError(
@@ -98,7 +97,10 @@ def main(arguments: list[str] | None = None) -> int:
         description="Generate Ludork Core sol2 bindings and LuaLS stub"
     )
     parser.add_argument("--source-root", type=Path, required=True)
-    parser.add_argument("--include-directory", type=Path, required=True)
+    parser.add_argument("--header-directory", action="append", type=Path, required=True)
+    parser.add_argument(
+        "--include-directory", action="append", type=Path, required=True
+    )
     parser.add_argument("--module", required=True)
     parser.add_argument("--bindings-directory", type=Path, required=True)
     parser.add_argument("--bindings-manifest", type=Path, required=True)
@@ -123,7 +125,11 @@ def main(arguments: list[str] | None = None) -> int:
         if not directory.is_dir():
             raise ValueError(f"type registry directory does not exist: {directory}")
         registry_entries.append((module_name, directory))
-    header_paths = sorted(arguments.include_directory.glob("**/*.hpp"))
+    header_paths = [
+        path
+        for directory in arguments.header_directory
+        for path in sorted(directory.glob("**/*.hpp"))
+    ]
     registry_header_paths = [
         path
         for _, directory in registry_entries
@@ -160,9 +166,7 @@ def main(arguments: list[str] | None = None) -> int:
     context.exposed_type_names = {
         info.name: exposed_type_name(info) for info in all_exposed_types
     }
-    local_exposed_names = [
-        exposed_type_name(info) for info in [*types, *enums]
-    ]
+    local_exposed_names = [exposed_type_name(info) for info in [*types, *enums]]
     if len(set(local_exposed_names)) != len(local_exposed_names):
         raise ValueError("duplicate exposed type names in module")
     context.enum_types = {info.name for info in all_enums}
@@ -204,9 +208,7 @@ def main(arguments: list[str] | None = None) -> int:
             "table_init: " + ", ".join(sorted(identity_overlap))
         )
     type_modules = dict(external_type_modules)
-    type_modules.update(
-        {info.name: arguments.module for info in [*types, *enums]}
-    )
+    type_modules.update({info.name: arguments.module for info in [*types, *enums]})
     context.type_modules = type_modules
     metadata_path = (
         arguments.scripts_directory.resolve() / f"{arguments.module}_meta.lua"
@@ -247,9 +249,7 @@ def main(arguments: list[str] | None = None) -> int:
     }
     current_binding_outputs.add(traits_header)
     for name, contents in binding_sources.items():
-        write_generated_binding(
-            binding_output_path(bindings_directory, name), contents
-        )
+        write_generated_binding(binding_output_path(bindings_directory, name), contents)
     write_generated_binding(
         traits_header,
         generate_binding_traits_header(all_types),

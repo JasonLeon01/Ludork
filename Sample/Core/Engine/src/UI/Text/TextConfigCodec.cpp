@@ -21,13 +21,13 @@ namespace ludork::engine::text_config {
 
 namespace {
 
-using ludork::engine::runtime_value_reader::findValue;
-using ludork::engine::runtime_value_reader::requireArray;
-using ludork::engine::runtime_value_reader::requireBool;
-using ludork::engine::runtime_value_reader::requireMap;
-using ludork::engine::runtime_value_reader::requireNumber;
-using ludork::engine::runtime_value_reader::requireString;
-using ludork::engine::runtime_value_reader::requireValue;
+using ludork::runtime::value_reader::findValue;
+using ludork::runtime::value_reader::requireArray;
+using ludork::runtime::value_reader::requireBool;
+using ludork::runtime::value_reader::requireMap;
+using ludork::runtime::value_reader::requireNumber;
+using ludork::runtime::value_reader::requireString;
+using ludork::runtime::value_reader::requireValue;
 
 [[noreturn]] void configError(const std::string& source,
                               const std::string& message) {

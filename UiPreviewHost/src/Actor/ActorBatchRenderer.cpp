@@ -177,17 +177,17 @@ struct ActorBatchRenderer::Impl {
     RuntimeValue render(const RuntimeValue::Map& request,
                         FrameFiles& frameFiles) {
         const std::int64_t generation =
-            ludork::engine::runtime_value_reader::requireInteger(
-                ludork::engine::runtime_value_reader::requireValue(
+            ludork::runtime::value_reader::requireInteger(
+                ludork::runtime::value_reader::requireValue(
                     request, "generation", "Actor render request"),
                 "Actor render request.generation");
-        const float time = ludork::engine::runtime_value_reader::requireFloat(
-            ludork::engine::runtime_value_reader::requireValue(
-                request, "time", "Actor render request"),
+        const float time = ludork::runtime::value_reader::requireFloat(
+            ludork::runtime::value_reader::requireValue(request, "time",
+                                                        "Actor render request"),
             "Actor render request.time");
         const RuntimeValue::Array& itemValues =
-            ludork::engine::runtime_value_reader::requireArray(
-                ludork::engine::runtime_value_reader::requireValue(
+            ludork::runtime::value_reader::requireArray(
+                ludork::runtime::value_reader::requireValue(
                     request, "items", "Actor render request"),
                 "Actor render request.items");
         std::vector<PackedActorVisual> visuals;
@@ -292,18 +292,18 @@ private:
         const std::string source =
             "Actor render request.items[" + std::to_string(index) + "]";
         const RuntimeValue::Map& item =
-            ludork::engine::runtime_value_reader::requireMap(value, source);
+            ludork::runtime::value_reader::requireMap(value, source);
         const RuntimeValue::Map& rect =
-            ludork::engine::runtime_value_reader::requireMap(
-                ludork::engine::runtime_value_reader::requireValue(
-                    item, "textureRect", source),
+            ludork::runtime::value_reader::requireMap(
+                ludork::runtime::value_reader::requireValue(item, "textureRect",
+                                                            source),
                 source + ".textureRect");
-        const int width = ludork::engine::runtime_value_reader::requireInt(
-            ludork::engine::runtime_value_reader::requireValue(
+        const int width = ludork::runtime::value_reader::requireInt(
+            ludork::runtime::value_reader::requireValue(
                 rect, "width", source + ".textureRect"),
             source + ".textureRect.width");
-        const int height = ludork::engine::runtime_value_reader::requireInt(
-            ludork::engine::runtime_value_reader::requireValue(
+        const int height = ludork::runtime::value_reader::requireInt(
+            ludork::runtime::value_reader::requireValue(
                 rect, "height", source + ".textureRect"),
             source + ".textureRect.height");
         if (width <= 0 || height <= 0) {
@@ -311,35 +311,32 @@ private:
                                         ".textureRect must have positive size");
         }
         const std::string& shaderText =
-            ludork::engine::runtime_value_reader::requireString(
-                ludork::engine::runtime_value_reader::requireValue(
-                    item, "shaderPath", source),
+            ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(item, "shaderPath",
+                                                            source),
                 source + ".shaderPath");
-        float hue = ludork::engine::runtime_value_reader::requireFloat(
-            ludork::engine::runtime_value_reader::requireValue(item, "hue",
-                                                               source),
+        float hue = ludork::runtime::value_reader::requireFloat(
+            ludork::runtime::value_reader::requireValue(item, "hue", source),
             source + ".hue");
         hue = std::fmod(hue, 360.0f);
         if (hue < 0.0f) {
             hue += 360.0f;
         }
         ActorVisualRequest visual{
-            ludork::engine::runtime_value_reader::requireString(
-                ludork::engine::runtime_value_reader::requireValue(item, "id",
-                                                                   source),
+            ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(item, "id", source),
                 source + ".id"),
-            actorTexturePath(
-                projectPath_,
-                ludork::engine::runtime_value_reader::requireString(
-                    ludork::engine::runtime_value_reader::requireValue(
-                        item, "texturePath", source),
-                    source + ".texturePath")),
-            sf::IntRect({ludork::engine::runtime_value_reader::requireInt(
-                             ludork::engine::runtime_value_reader::requireValue(
+            actorTexturePath(projectPath_,
+                             ludork::runtime::value_reader::requireString(
+                                 ludork::runtime::value_reader::requireValue(
+                                     item, "texturePath", source),
+                                 source + ".texturePath")),
+            sf::IntRect({ludork::runtime::value_reader::requireInt(
+                             ludork::runtime::value_reader::requireValue(
                                  rect, "x", source + ".textureRect"),
                              source + ".textureRect.x"),
-                         ludork::engine::runtime_value_reader::requireInt(
-                             ludork::engine::runtime_value_reader::requireValue(
+                         ludork::runtime::value_reader::requireInt(
+                             ludork::runtime::value_reader::requireValue(
                                  rect, "y", source + ".textureRect"),
                              source + ".textureRect.y")},
                         {width, height}),

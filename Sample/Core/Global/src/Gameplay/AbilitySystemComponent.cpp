@@ -1,6 +1,6 @@
 #include <Gameplay/GameplayAbilitySystem.hpp>
 
-#include <Runtime/RuntimeValueServices.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -44,9 +44,7 @@ RuntimeValue runtimeObject(const std::shared_ptr<T>& value) {
 RuntimeIdentityPtr runtimeMap(RuntimeValue::Map values = {}) {
     RuntimeIdentityPtr result = createRuntimeMapIdentity();
     for (auto& [name, value] : values) {
-        ludork::engine::runtime_services::invokeVoid(
-            "reflect.set",
-            {RuntimeValue(result), RuntimeValue(name), std::move(value)});
+        runtimeReflection().set(RuntimeValue(result), name, value);
     }
     return result;
 }
@@ -68,8 +66,7 @@ bool runtimeEqual(const RuntimeValue& left, const RuntimeValue& right) {
                                       : static_cast<double>(*rightInteger);
         return leftValue == rightValue;
     }
-    return ludork::engine::runtime_services::invokeBool("reflect.equal",
-                                                        {left, right});
+    return runtimeReflection().equal(left, right);
 }
 
 bool tagMatches(const std::string& tag, const std::string& query) {
@@ -159,8 +156,7 @@ NumericValue scaleMagnitude(const NumericValue& magnitude,
 
 std::vector<RuntimeValue> invokeCallable(const RuntimeValue& callable,
                                          std::vector<RuntimeValue> arguments) {
-    return resolveRuntime("reflect.invoke",
-                          {callable, RuntimeValue(std::move(arguments))});
+    return runtimeReflection().invoke(callable, arguments);
 }
 
 NumericValue resolveMagnitude(const GameplayModifier& modifier,

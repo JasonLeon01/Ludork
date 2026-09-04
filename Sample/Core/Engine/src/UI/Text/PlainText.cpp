@@ -1,6 +1,6 @@
 #include "TextCommon.hpp"
 
-#include <Runtime/EngineState.hpp>
+#include <EngineState.hpp>
 #include <UI/TextEffects.hpp>
 
 #include <SFML/Graphics/Transform.hpp>

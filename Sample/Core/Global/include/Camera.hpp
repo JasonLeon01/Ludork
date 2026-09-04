@@ -1,6 +1,6 @@
 #pragma once
 
-#include <BindAnnotations.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <GameMapBase.hpp>
 #include <Gameplay/Actor.hpp>
 

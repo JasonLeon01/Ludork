@@ -1,7 +1,7 @@
 #include <NodeGraph/Node.hpp>
 
 #include <NodeGraph/Graph.hpp>
-#include <Runtime/NodeGraphRuntime.hpp>
+#include <NodeGraph/NodeGraphRuntime.hpp>
 #include <Utils/DataValue.hpp>
 
 #include <algorithm>
@@ -447,7 +447,7 @@ RuntimeValue::Array Node::resolveStoredParams(
                 parameterType = type->second;
             }
         }
-        result.push_back(dataValueService().resolveTypedDataValue(
+        result.push_back(typedDataService().resolveTypedDataValue(
             value, parameterType, {}, declaringModule_));
     }
     return result;

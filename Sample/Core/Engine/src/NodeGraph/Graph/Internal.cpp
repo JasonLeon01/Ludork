@@ -1,7 +1,7 @@
 #include "Internal.hpp"
 
-#include <Runtime/NodeGraphRuntime.hpp>
-#include <Runtime/RuntimeValueServices.hpp>
+#include <NodeGraph/NodeGraphRuntime.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -47,8 +47,7 @@ std::optional<NodeIndex> nodeIndexValue(const RuntimeValue& value) {
 }
 
 RuntimeValue runtimeMember(const RuntimeValue& value, const std::string& name) {
-    return ludork::engine::runtime_services::invokeFirst(
-        "reflect.get", {value, RuntimeValue(name)});
+    return runtimeReflection().get(value, name);
 }
 
 RuntimeIdentityPtr callableWithin(const RuntimeValue& value,

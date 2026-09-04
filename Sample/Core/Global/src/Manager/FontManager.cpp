@@ -1,6 +1,6 @@
 #include <Manager/FontManager.hpp>
 
-#include <ConcurrentResourceCache.hpp>
+#include <Runtime/ConcurrentResourceCache.hpp>
 #include <Utf8Path.hpp>
 
 #include <cstdint>
@@ -13,7 +13,7 @@
 namespace {
 
 struct FontManagerState {
-    ludork::core::ConcurrentResourceCache<sf::Font> resources;
+    ludork::runtime::ConcurrentResourceCache<sf::Font> resources;
     std::shared_mutex mutex;
     std::unordered_map<std::string, std::shared_ptr<sf::Font>> fonts;
     std::unordered_map<std::string, std::string> filenames;
