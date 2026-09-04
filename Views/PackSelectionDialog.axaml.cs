@@ -38,6 +38,7 @@ public partial class PackSelectionDialog : Window
         LuacOption.Content = LocaleService.Get("PACK_USE_LUAC");
         EncryptShadersOption.Content = LocaleService.Get("PACK_ENCRYPT_SHADERS");
         EncryptDataOption.Content = LocaleService.Get("PACK_ENCRYPT_DATA");
+        PackAssetsOption.Content = LocaleService.Get("PACK_ASSETS");
         ConfirmButton.Content = LocaleService.Get("CONFIRM");
         CancelButton.Content = LocaleService.Get("CANCEL");
         MacOSOption.IsCheckedChanged += (_, _) => updateExportToIPhoneVisibility();
@@ -113,19 +114,22 @@ public partial class PackSelectionDialog : Window
                 ProjectPackPlatform.Win32,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true));
+                EncryptDataOption.IsChecked == true,
+                PackAssetsOption.IsChecked == true));
         else if (MacOSOption.IsChecked == true)
             Close(new ProjectPackOptions(
                 ProjectPackPlatform.MacOS,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true));
+                EncryptDataOption.IsChecked == true,
+                PackAssetsOption.IsChecked == true));
         else if (IosOption.IsChecked == true)
             Close(new ProjectPackOptions(
                 ProjectPackPlatform.IOS,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true)
+                EncryptDataOption.IsChecked == true,
+                PackAssetsOption.IsChecked == true)
             {
                 ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
             });
@@ -143,7 +147,8 @@ public partial class PackSelectionDialog : Window
                 ProjectPackPlatform.HarmonyOS,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true)
+                EncryptDataOption.IsChecked == true,
+                PackAssetsOption.IsChecked == true)
             {
                 HarmonyDeviceForm = deviceForm,
                 HarmonyGraphicsApi = graphicsApi,
@@ -164,7 +169,8 @@ public partial class PackSelectionDialog : Window
                 ProjectPackPlatform.Android,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true)
+                EncryptDataOption.IsChecked == true,
+                PackAssetsOption.IsChecked == true)
             {
                 AndroidSigning = signing,
             });

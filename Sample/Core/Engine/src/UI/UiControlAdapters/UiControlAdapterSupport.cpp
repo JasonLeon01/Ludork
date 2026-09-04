@@ -8,13 +8,12 @@
 #include <UI/UiVector4CurveResource.hpp>
 #include <Utils/File.hpp>
 
-#include <Utf8Path.hpp>
+#include <Runtime/AssetStore.hpp>
 
 #include <SFML/Graphics/Font.hpp>
 
 #include <algorithm>
 #include <cstdint>
-#include <filesystem>
 #include <mutex>
 #include <utility>
 
@@ -148,31 +147,6 @@ std::optional<sf::IntRect> optionalIntRectProperty(
     return requireIntRect(*value, name);
 }
 
-std::filesystem::path safeAssetPath(const std::string& value,
-                                    const std::string& defaultFolder) {
-    std::filesystem::path relative =
-        ludork::standard::pathFromUtf8(value).lexically_normal();
-    if (relative.is_absolute()) {
-        throw std::invalid_argument("UI resource path must be relative: " +
-                                    value);
-    }
-    for (const std::filesystem::path& part : relative) {
-        if (part == "..") {
-            throw std::invalid_argument(
-                "UI resource path cannot traverse parent directories: " +
-                value);
-        }
-    }
-    const std::filesystem::path assetsRoot = "Assets";
-    if (!relative.empty() && *relative.begin() == assetsRoot) {
-        return std::filesystem::path(".") / relative;
-    }
-    if (relative.parent_path().empty() && !defaultFolder.empty()) {
-        relative = ludork::standard::pathFromUtf8(defaultFolder) / relative;
-    }
-    return std::filesystem::path(".") / assetsRoot / relative;
-}
-
 struct PlaceholderTextureCache {
     std::mutex mutex;
     std::shared_ptr<sf::Texture> texture;
@@ -202,11 +176,11 @@ std::shared_ptr<sf::Texture> loadTexture(const std::string& assetKey) {
     if (assetKey.empty()) {
         return placeholderTexture();
     }
-    const std::filesystem::path path = safeAssetPath(assetKey, {});
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+        ludork::runtime::assetStore().open(assetKey);
     std::shared_ptr<sf::Texture> texture = std::make_shared<sf::Texture>();
-    if (!texture->loadFromFile(path)) {
-        throw std::runtime_error("Failed to load UI texture: " +
-                                 ludork::standard::pathToUtf8(path));
+    if (!texture->loadFromStream(*stream)) {
+        throw std::runtime_error("Failed to load UI texture: " + assetKey);
     }
     return texture;
 }
@@ -219,11 +193,11 @@ sf::Image loadWindowSkin(const std::string& requestedKey) {
     if (assetKey.empty()) {
         return sf::Image({192u, 128u}, sf::Color::Transparent);
     }
-    const std::filesystem::path path = safeAssetPath(assetKey, "System");
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+        ludork::runtime::assetStore().open(assetKey);
     sf::Image image;
-    if (!image.loadFromFile(path)) {
-        throw std::runtime_error("Failed to load UI window skin: " +
-                                 ludork::standard::pathToUtf8(path));
+    if (!image.loadFromStream(*stream)) {
+        throw std::runtime_error("Failed to load UI window skin: " + assetKey);
     }
     return image;
 }

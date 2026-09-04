@@ -532,23 +532,12 @@ public sealed class UiAssetValidationService
             or "handleTexture"
             or "font")
         {
-            if (!text.StartsWith("Assets/", StringComparison.Ordinal))
+            if (!GameAssetPath.IsCanonical(text))
             {
-                add(issues, "assetPath", path, "UI asset resources must use a canonical project-relative Assets/ path");
+                add(issues, "assetPath", path, "UI asset resources must use a canonical /Game/Assets/ path");
                 return;
             }
-            string fullPath = Path.GetFullPath(Path.Combine(
-                gameData.ProjectPath,
-                text.Replace('/', Path.DirectorySeparatorChar)));
-            string assetsRoot = Path.GetFullPath(Path.Combine(gameData.ProjectPath, "Assets"));
-            string relative = Path.GetRelativePath(assetsRoot, fullPath);
-            if (Path.IsPathRooted(relative)
-                || relative == ".."
-                || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            {
-                add(issues, "assetPath", path, "UI asset resource path escapes the Assets directory");
-            }
-            else if (!File.Exists(fullPath))
+            if (!GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, text, out _))
             {
                 add(issues, "missingResource", path, $"Resource \"{text}\" was not found");
             }
@@ -556,28 +545,13 @@ public sealed class UiAssetValidationService
         }
         if (propertyId == "shader")
         {
-            if (Path.IsPathRooted(text)
-                || text.StartsWith("Shaders/", StringComparison.Ordinal)
-                || text.StartsWith("Assets/", StringComparison.Ordinal)
-                || text.Split('/').Any(part => part is "." or ".." or ""))
+            if (!GameAssetPath.TryGetRelativePath(text, out string relative)
+                || !relative.StartsWith("Shaders/", StringComparison.Ordinal))
             {
-                add(issues, "shaderPath", path, "Shader must use a canonical path relative to Assets/Shaders");
+                add(issues, "shaderPath", path, "Shader must use a canonical /Game/Assets/Shaders/ path");
                 return;
             }
-            string fullPath = Path.GetFullPath(Path.Combine(
-                gameData.ProjectPath,
-                "Assets",
-                "Shaders",
-                text.Replace('/', Path.DirectorySeparatorChar)));
-            string shaderRoot = Path.GetFullPath(Path.Combine(gameData.ProjectPath, "Assets", "Shaders"));
-            string relative = Path.GetRelativePath(shaderRoot, fullPath);
-            if (Path.IsPathRooted(relative)
-                || relative == ".."
-                || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            {
-                add(issues, "shaderPath", path, "Shader path escapes Assets/Shaders");
-            }
-            else if (!File.Exists(fullPath))
+            if (!GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, text, out _))
             {
                 add(issues, "missingResource", path, $"Shader \"{text}\" was not found");
             }

@@ -10,7 +10,7 @@
       "opacity": 1.0,
       "speedRate": 1.0
     },
-    "texturePath": "blocks/classic-doors-001-single.png",
+    "texturePath": "/Game/Assets/Characters/blocks/classic-doors-001-single.png",
     "defaultRect": [
       [
         0,

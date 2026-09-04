@@ -521,4 +521,3 @@ public sealed partial class MapPanel
     }
 
 }
-

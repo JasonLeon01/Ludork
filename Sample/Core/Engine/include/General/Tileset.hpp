@@ -23,8 +23,9 @@ struct Tileset {
     BIND_PROPERTY()
     std::string name = "";  ///< Tileset name
 
-    BIND_PROPERTY()
-    std::string fileName = "";  ///< Texture image file name
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Tilesets"))
+    std::string fileName =
+        "";  ///< Canonical texture path under /Game/Assets/Tilesets
 
     BIND_PROPERTY()
     std::vector<bool> passable;  ///< Per-tile passability
@@ -40,7 +41,7 @@ struct Tileset {
     /// \brief Construct a tileset object
     ///
     /// - \param name Tileset name
-    /// - \param fileName Texture image file name
+    /// - \param fileName Canonical texture path under /Game/Assets/Tilesets
     /// - \param passable Per-tile passability values
     /// - \param materials Per-tile material values
     /// - \param dir4 Per-tile 4-direction passability values

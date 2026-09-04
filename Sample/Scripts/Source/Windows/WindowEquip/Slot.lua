@@ -1,4 +1,4 @@
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
@@ -8,7 +8,7 @@ local EquipSlotRowUI = require("Source.UI.Parts.WindowEquip.EquipSlotRow")
 local ListViewController = require("Source.UI.Helpers.ListView")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
@@ -40,7 +40,7 @@ function WindowEquipSlotController:getSlotCellData(slotKey)
     local equipInfo = Data.GetGeneralEquipData(equipID)
     local name = equipInfo.name or ""
     local label = bool(name) and LOC(name) or equipID
-    return IconTexture.Load(equipInfo.icon or "", "Characters/items"), label
+    return IconTexture.Load(equipInfo.icon or ""), label
 end
 
 function WindowEquipSlotController:refreshSlots()
@@ -159,7 +159,7 @@ function WindowEquipSlotController:focusSelectWindow()
     if self.model._windowEquipSelect == nil then
         return
     end
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     local slotKey = self:getCurrentSlotKey()
     if slotKey ~= nil then
         self.model._windowEquipSelect:refreshForSlot(slotKey)
@@ -211,7 +211,7 @@ function WindowEquipSlotController:close()
 end
 
 function WindowEquipSlotController:closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     if self.model._onCloseCallback ~= nil then
         self.model._onCloseCallback()
     else

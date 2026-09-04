@@ -1,8 +1,8 @@
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
 local TerrainValue = require("Global.GameMap.TerrainValue")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local TextureManager = GlobalCore.TextureManager
 
 local TerrainOperations = {}
 
@@ -13,7 +13,7 @@ local function ensureAutoTileRuntimeData(layerData, autoTileTextures, autoTileFr
     while #autoTileTextures < #layerData.autoTilePool do
         local autoTile = layerData.autoTilePool[#autoTileTextures + 1]
         ---@cast autoTile Engine.AutoTile
-        autoTileTextures[#autoTileTextures + 1] = ManagerFunctions.loadAutotile(autoTile.fileName)
+        autoTileTextures[#autoTileTextures + 1] = TextureManager.load(autoTile.fileName)
     end
     while #autoTileFrameCounts < #autoTileTextures do
         local texture = autoTileTextures[#autoTileFrameCounts + 1]

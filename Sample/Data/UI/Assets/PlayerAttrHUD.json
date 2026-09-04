@@ -24,7 +24,7 @@
         "name": "Avatar",
         "controlId": "Engine.Button",
         "properties": {
-          "texture": "Assets/Characters/actors/classic-cha-braver01.png",
+          "texture": "/Game/Assets/Characters/actors/classic-cha-braver01.png",
           "textureRect": [0, 0, 32, 32],
           "visible": true,
           "hoverColour": [
@@ -761,7 +761,7 @@
         "name": "KeyIcon",
         "controlId": "Engine.Image",
         "properties": {
-          "texture": "Assets/System/Keys.png"
+          "texture": "/Game/Assets/System/Keys.png"
         },
         "slot": {
           "anchors": {

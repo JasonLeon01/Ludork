@@ -8,7 +8,7 @@
       "opacity": 1.0,
       "speedRate": 1.5
     },
-    "texturePath": "enemies/classic-enemies-06-knight-single.png",
+    "texturePath": "/Game/Assets/Characters/enemies/classic-enemies-06-knight-single.png",
     "ID": "Knight",
     "defaultRect": [
       [

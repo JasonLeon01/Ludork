@@ -1,8 +1,9 @@
 local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 
 local ComponentsFunctions = GlobalFunctions.Components
-local ManagerFunctions = GlobalFunctions.Manager
+local TextureManager = GlobalCore.TextureManager
 
 local BlueprintActorOverrides = {}
 
@@ -44,7 +45,7 @@ local function applyTexture(actor, applyRect)
     if texturePath == nil then
         texturePath = ""
     end
-    local texture = bool(texturePath) and ManagerFunctions.loadCharacter(texturePath) or nil
+    local texture = bool(texturePath) and TextureManager.load(texturePath) or nil
     if texture ~= nil then
         actor:setTexture(texture, true)
     end

@@ -380,6 +380,8 @@ function zlib.decompress(value) end
 
 os.path = {}
 
+--- The `os` and `os.path` functions below always address the real filesystem.
+--- They do not resolve `/Game/Assets/...`; `io.open` has the same native-path boundary.
 ---@return string
 function os.getcwd() end
 

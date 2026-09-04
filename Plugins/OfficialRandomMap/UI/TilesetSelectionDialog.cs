@@ -18,6 +18,7 @@ internal sealed class TilesetSelectionDialog : Window
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private TilesetSelectionDialog(
+        IMapEditorHost host,
         PluginTilesetSnapshot tileset,
         int? selectedTile,
         PluginLocalizer localizer)
@@ -30,7 +31,7 @@ internal sealed class TilesetSelectionDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = new SolidColorBrush(Color.Parse("#161718"));
 
-        grid = new TilesetGridControl(tileset, selectedTile);
+        grid = new TilesetGridControl(host, tileset, selectedTile);
         grid.SelectionChanged += (_, _) =>
             confirmButton.IsEnabled = grid.SelectedTile is not null;
         ScrollViewer scroll = new()
@@ -95,11 +96,13 @@ internal sealed class TilesetSelectionDialog : Window
 
     public static async Task<int?> ShowAsync(
         Window owner,
+        IMapEditorHost host,
         PluginTilesetSnapshot tileset,
         int? selectedTile,
         PluginLocalizer localizer)
     {
         TilesetSelectionDialog dialog = new(
+            host,
             tileset,
             selectedTile,
             localizer);

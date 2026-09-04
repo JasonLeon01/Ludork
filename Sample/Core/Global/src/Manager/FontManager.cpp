@@ -1,7 +1,7 @@
 #include <Manager/FontManager.hpp>
 
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/ConcurrentResourceCache.hpp>
-#include <Utf8Path.hpp>
 
 #include <cstdint>
 #include <iostream>
@@ -11,6 +11,11 @@
 #include <unordered_map>
 
 namespace {
+
+struct FontResource {
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream;
+    sf::Font font;
+};
 
 struct FontManagerState {
     ludork::runtime::ConcurrentResourceCache<sf::Font> resources;
@@ -41,13 +46,14 @@ std::shared_ptr<sf::Font> FontManager::load(const std::string& filePath) {
     }
     const std::shared_ptr<sf::Font> font =
         state.resources.getOrLoad(filePath, [&]() {
-            auto loaded = std::make_shared<sf::Font>();
-            if (!loaded->openFromFile(
-                    ludork::standard::pathFromUtf8(filePath))) {
+            std::shared_ptr<FontResource> owner =
+                std::make_shared<FontResource>();
+            owner->stream = ludork::runtime::assetStore().open(filePath);
+            if (!owner->font.openFromStream(*owner->stream)) {
                 throw std::runtime_error("Failed to load font from file: " +
                                          filePath);
             }
-            return loaded;
+            return std::shared_ptr<sf::Font>(owner, &owner->font);
         });
     const std::string family = font->getInfo().family;
     std::unique_lock lock(state.mutex);

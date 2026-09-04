@@ -443,6 +443,10 @@
     "zh_CN": "游戏程序异常退出。",
     "en_GB": "The game exited with an error."
   },
+  "RUN_FAILED_TITLE": {
+    "zh_CN": "运行失败",
+    "en_GB": "Run Failed"
+  },
   "RUN_EMBED_HANDLE_UNAVAILABLE": {
     "zh_CN": "无法取得游戏投射面板的原生窗口句柄。",
     "en_GB": "The native window handle for the game panel is unavailable."
@@ -602,6 +606,10 @@
   "PACK_ENCRYPT_DATA": {
     "zh_CN": "加密 JSON 数据",
     "en_GB": "Encrypt JSON data"
+  },
+  "PACK_ASSETS": {
+    "zh_CN": "打包资源（.ldpak）",
+    "en_GB": "Pack assets (.ldpak)"
   },
   "PACK_MODE_DESC": {
     "zh_CN": "选择目标平台和打包选项。",
@@ -1038,10 +1046,6 @@
   "DELETE_FAILED_MESSAGE": {
     "zh_CN": "部分文件或文件夹删除失败",
     "en_GB": "Some files or folders failed to delete"
-  },
-  "PLAY_ERROR": {
-    "zh_CN": "播放错误",
-    "en_GB": "Play Error"
   },
   "OPEN_FROM_SYSTEM": {
     "zh_CN": "从系统打开",
@@ -2379,6 +2383,10 @@
     "zh_CN": "默认值",
     "en_GB": "Default Value"
   },
+  "ASSET_SELECTION_ROOT": {
+    "zh_CN": "资源选择根目录",
+    "en_GB": "Asset Selection Root"
+  },
   "GENERAL_DATA_PARAM_NAME_TIP": {
     "zh_CN": "字段名：保存到 GeneralData 成员里的键名，通常应与代码读取的属性名一致，例如 icon 或 price。",
     "en_GB": "Field name: The key saved on each GeneralData member. It should usually match the attribute name read by code, such as icon or price."
@@ -2400,8 +2408,8 @@
     "en_GB": "bool: A true/false field edited with a checkbox."
   },
   "GENERAL_DATA_TYPE_TIP_FILE": {
-    "zh_CN": "file：素材文件字段，编辑时从 Assets 下选择文件，并保存相对 Assets 的路径。",
-    "en_GB": "file: An asset file field. It selects a file under Assets and saves the path relative to Assets."
+    "zh_CN": "file：资源文件字段，编辑时从物理 Assets 目录选择文件，并保存完整的 /Game/Assets/... 逻辑路径。",
+    "en_GB": "file: An asset file field. It selects a physical file under Assets and stores its complete /Game/Assets/... logical path."
   },
   "GENERAL_DATA_TYPE_TIP_LIST": {
     "zh_CN": "list：列表字段；每一项由元素类型决定，并使用对应的 typed editor。",
@@ -2432,8 +2440,8 @@
     "en_GB": "bool: Enter true for checked; any other value is unchecked."
   },
   "GENERAL_DATA_DEFAULT_TIP_FILE": {
-    "zh_CN": "file：填写 Assets 下的默认选择目录，例如 Icons；成员值会保存为相对 Assets 的文件路径。",
-    "en_GB": "file: Enter the default selection folder under Assets, such as Icons; member values are saved as paths relative to Assets."
+    "zh_CN": "file：填写选择器在 Assets 下的起始目录，例如 Icons；新成员的真实字段默认值始终为空字符串。",
+    "en_GB": "file: Enter the selector's starting directory under Assets, such as Icons; the real field default for new members is always an empty string."
   },
   "GENERAL_DATA_DEFAULT_TIP_LIST": {
     "zh_CN": "list：新成员默认使用空列表；新增项使用所选元素类型的默认值。",

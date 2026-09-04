@@ -11,7 +11,6 @@ namespace Ludork.Services;
 public sealed partial class ReferenceIndexService : IDisposable
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private static readonly string[] AudioExtensions = [".wav", ".ogg", ".mp3", ".flac", ".aac", ".m4a"];
     private static readonly IReadOnlyDictionary<string, string> DataRoots =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -114,7 +113,14 @@ public sealed partial class ReferenceIndexService : IDisposable
         }
         if (lower.StartsWith("assets/", StringComparison.Ordinal))
         {
-            string assetNodeId = nodeId("asset", normalizeExplicitAssetPath(normalized));
+            if (!GameAssetPath.TryFromProjectFile(
+                    gameData.ProjectPath,
+                    absolutePath,
+                    out string logicalPath))
+            {
+                return null;
+            }
+            string assetNodeId = nodeId("asset", logicalPath);
             ensureBuilt();
             ensureNode(assetNodeId);
             return assetNodeId;
@@ -161,7 +167,11 @@ public sealed partial class ReferenceIndexService : IDisposable
         if (node is null)
             return string.Empty;
         if (node.Type == "asset")
-            return Path.Combine(gameData.ProjectPath, node.Key.Replace('/', Path.DirectorySeparatorChar));
+        {
+            return GameAssetPath.TryToProjectFile(gameData.ProjectPath, node.Key, out string path)
+                ? path
+                : string.Empty;
+        }
         if (node.Type == "blueprint")
         {
             string key = node.Key.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
@@ -355,9 +365,9 @@ public sealed partial class ReferenceIndexService : IDisposable
         foreach (KeyValuePair<string, JsonObject> pair in gameData.SystemConfigData)
             scanConfigReferences(nodeId("config", pair.Key), pair.Key, pair.Value);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.TilesetData)
-            addAssetReference(nodeId("tileset", pair.Key), pair.Value["fileName"], "Tilesets", "asset", "fileName");
+            addAssetReference(nodeId("tileset", pair.Key), pair.Value["fileName"], "asset", "fileName");
         foreach (KeyValuePair<string, JsonObject> pair in gameData.AutoTileData)
-            addAssetReference(nodeId("autoTile", pair.Key), pair.Value["fileName"], "Autotiles", "asset", "fileName");
+            addAssetReference(nodeId("autoTile", pair.Key), pair.Value["fileName"], "asset", "fileName");
         foreach (MapCatalogEntry entry in gameData.MapCatalog
                      .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap))
         {
@@ -403,11 +413,10 @@ public sealed partial class ReferenceIndexService : IDisposable
     private void addAssetReference(
         string sourceId,
         JsonNode? value,
-        string baseDirectory,
         string kind,
         string path)
     {
-        string assetPath = normalizeAssetPath(value, baseDirectory);
+        string assetPath = normalizeAssetPath(value);
         if (assetPath.Length != 0)
             addReference(sourceId, nodeId("asset", assetPath), kind, path);
     }
@@ -567,12 +576,12 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private static void collectPathVariables(
         JsonNode? value,
-        IDictionary<string, string> target)
+        ISet<string> target)
     {
         if (value is JsonObject objectValue)
         {
             foreach (KeyValuePair<string, JsonNode?> pair in objectValue)
-                target[pair.Key] = getString(pair.Value) ?? "Characters";
+                target.Add(pair.Key);
             return;
         }
         if (value is not JsonArray array)
@@ -581,44 +590,27 @@ public sealed partial class ReferenceIndexService : IDisposable
         {
             if (getString(item) is string name)
             {
-                target[name] = "Characters";
+                target.Add(name);
                 continue;
             }
             if (item is JsonArray tuple
                 && tuple.Count != 0
                 && getString(tuple[0]) is string tupleName)
             {
-                target[tupleName] = tuple.Count > 1
-                    ? getString(tuple[1]) ?? string.Empty
-                    : string.Empty;
+                target.Add(tupleName);
             }
         }
     }
 
-    private static string normalizeAssetPath(JsonNode? value, string baseDirectory)
+    private static string normalizeAssetPath(JsonNode? value)
     {
-        string? text = normalizeReferenceParam(value);
-        if (string.IsNullOrWhiteSpace(text))
-            return string.Empty;
-        text = text.Replace('\\', '/').TrimStart('/');
-        if (text.StartsWith("./", StringComparison.Ordinal))
-            text = text[2..];
-        if (text.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-            return "Assets/" + text[7..].Trim('/');
-        string normalizedBase = baseDirectory.Replace('\\', '/').Trim('/');
-        return normalizedBase.Length == 0
-            ? "Assets/" + text.Trim('/')
-            : $"Assets/{normalizedBase}/{text.Trim('/')}";
+        string? text = getString(value);
+        return GameAssetPath.IsCanonical(text) ? text! : string.Empty;
     }
 
     private static string normalizeExplicitAssetPath(string value)
     {
-        string text = value.Replace('\\', '/').Trim();
-        if (text.StartsWith("./", StringComparison.Ordinal))
-            text = text[2..];
-        return text.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase)
-            ? "Assets/" + text[7..].Trim('/')
-            : string.Empty;
+        return GameAssetPath.IsCanonical(value) ? value : string.Empty;
     }
 
     private static string? normalizeReferenceParam(JsonNode? value)
@@ -652,12 +644,6 @@ public sealed partial class ReferenceIndexService : IDisposable
     private static string? getString(JsonNode? value)
     {
         return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
-    }
-
-    private static bool isAudioAsset(string? value)
-    {
-        return !string.IsNullOrWhiteSpace(value)
-            && AudioExtensions.Contains(Path.GetExtension(value), StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed record MapReferenceRewrite(string MapKey, JsonObject Original, bool WasLoaded);

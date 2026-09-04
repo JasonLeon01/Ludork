@@ -123,7 +123,8 @@ public:
     BIND_PROPERTY()
     bool visible = true;
 
-    BIND_PROPERTY()
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Shaders",
+                       PathFilter = "*.frag"))
     std::string shaderPath;
 
     BIND_PROPERTY(metadata = false)

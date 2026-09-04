@@ -761,7 +761,9 @@ public sealed class TextConfigEditorWindow : Window
         {
             if (syncing)
                 return;
-            target[field] = normalizeReference(input.Text);
+            target[field] = kind == TextConfigReferenceKind.Font
+                ? input.Text ?? string.Empty
+                : normalizeReference(input.Text);
             applyChanges();
         };
         Button select = new() { Content = "…", Width = 38 };
@@ -849,16 +851,22 @@ public sealed class TextConfigEditorWindow : Window
         string root = Path.Combine(gameData.ProjectPath, "Assets", "Fonts");
         Directory.CreateDirectory(root);
         string filter = FileSelectorDialog.FilesFilter("*.ttf", "*.otf");
-        string? initialFilePath = string.IsNullOrWhiteSpace(current)
-            ? null
-            : Path.Combine(root, current);
+        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+            gameData.ProjectPath,
+            current,
+            out string resolvedCurrent)
+            ? resolvedCurrent
+            : null;
         string? path = await FileSelectorDialog.ShowAsync(
             this,
             root,
             filter,
             LocaleService.Get("TEXT_CONFIG_FONT"),
             initialFilePath: initialFilePath);
-        return path is null ? null : Path.GetRelativePath(root, path).Replace('\\', '/');
+        return path is not null
+            && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath)
+                ? assetPath
+                : null;
     }
 
     private void applyChanges()
@@ -1167,27 +1175,19 @@ internal static class TextConfigFontLoader
         out string path)
     {
         path = string.Empty;
-        if (reference.Length == 0
-            || Path.IsPathRooted(reference)
-            || reference.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-        {
-            return false;
-        }
         string extension = Path.GetExtension(reference);
         if (!string.Equals(extension, ".ttf", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(extension, ".otf", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
-        string root = Path.GetFullPath(Path.Combine(projectPath, "Assets", "Fonts"));
-        path = Path.GetFullPath(Path.Combine(
-            root,
-            reference.Replace('/', Path.DirectorySeparatorChar)));
-        string relative = Path.GetRelativePath(root, path);
+        if (!GameAssetPath.TryResolveExistingFile(projectPath, reference, out path))
+            return false;
+        string fontsRoot = Path.GetFullPath(Path.Combine(projectPath, "Assets", "Fonts"));
+        string relative = Path.GetRelativePath(fontsRoot, path);
         return !Path.IsPathRooted(relative)
             && relative != ".."
-            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            && File.Exists(path);
+            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
     private sealed record FontCacheEntry(DateTime Stamp, FontFamily Family);

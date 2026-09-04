@@ -9,7 +9,6 @@ using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -44,7 +43,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
 
     private readonly IMapEditorHost host;
     private readonly Dictionary<string, Bitmap> bitmapCache =
-        new(StringComparer.OrdinalIgnoreCase);
+        new(StringComparer.Ordinal);
     private readonly Dictionary<ActorHueBitmapCacheKey, Bitmap> actorHueBitmapCache =
         [];
     private readonly Dictionary<string, PluginTilesetSnapshot> tilesetCache =
@@ -52,7 +51,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private readonly HashSet<string> missingTilesets =
         new(StringComparer.Ordinal);
     private readonly HashSet<string> unavailableImages =
-        new(StringComparer.OrdinalIgnoreCase);
+        new(StringComparer.Ordinal);
     private readonly HashSet<(int X, int Y)> markers = [];
     private readonly EditorZoomInput zoomInput = new();
     private ScrollViewer? hostScrollViewer;
@@ -404,7 +403,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     {
         foreach (PluginMapActorSnapshot actor in actors)
         {
-            Bitmap? sourceBitmap = getBitmap(actor.ImagePath);
+            Bitmap? sourceBitmap = getBitmap(actor.AssetPath);
             PluginMapActorRectSnapshot sourceRect =
                 getActorSourceRect(actor, sourceBitmap);
             Rect destination = new(
@@ -423,7 +422,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
                     if (isValidSourceRect(sourceBitmap, sourceRect))
                     {
                         Bitmap drawBitmap = getHueBitmap(
-                            actor.ImagePath,
+                            actor.AssetPath,
                             sourceBitmap!,
                             actor.Hue);
                         context.DrawImage(
@@ -658,47 +657,52 @@ internal sealed class RandomMapCanvas : Control, IDisposable
 
     private Bitmap? getBitmap(PluginTilesetSnapshot? tileset)
     {
-        return tileset is null ? null : getBitmap(tileset.ImagePath);
+        return tileset is null ? null : getBitmap(tileset.AssetPath);
     }
 
-    private Bitmap? getBitmap(string imagePath)
+    private Bitmap? getBitmap(string assetPath)
     {
-        if (string.IsNullOrWhiteSpace(imagePath)
-            || !File.Exists(imagePath))
+        if (string.IsNullOrWhiteSpace(assetPath))
         {
             return null;
         }
-        if (unavailableImages.Contains(imagePath))
+        if (unavailableImages.Contains(assetPath))
             return null;
         if (bitmapCache.TryGetValue(
-                imagePath,
+                assetPath,
                 out Bitmap? cached))
         {
             return cached;
         }
+        string filePath = host.ResolveAssetFile(assetPath);
+        if (filePath.Length == 0)
+        {
+            unavailableImages.Add(assetPath);
+            return null;
+        }
         Bitmap bitmap;
         try
         {
-            bitmap = new Bitmap(imagePath);
+            bitmap = new Bitmap(filePath);
         }
         catch (Exception)
         {
-            unavailableImages.Add(imagePath);
+            unavailableImages.Add(assetPath);
             return null;
         }
-        bitmapCache[imagePath] = bitmap;
+        bitmapCache[assetPath] = bitmap;
         return bitmap;
     }
 
     private Bitmap getHueBitmap(
-        string imagePath,
+        string assetPath,
         Bitmap source,
         double hue)
     {
         double normalizedHue = normalizeHue(hue);
         if (normalizedHue <= 0.0001)
             return source;
-        ActorHueBitmapCacheKey key = new(imagePath, normalizedHue);
+        ActorHueBitmapCacheKey key = new(assetPath, normalizedHue);
         if (actorHueBitmapCache.TryGetValue(key, out Bitmap? cached))
             return cached;
         Bitmap tinted = applyHue(source, normalizedHue);
@@ -917,7 +921,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     }
 
     private readonly record struct ActorHueBitmapCacheKey(
-        string ImagePath,
+        string AssetPath,
         double Hue);
 
     private readonly record struct MapZoomAnchor(

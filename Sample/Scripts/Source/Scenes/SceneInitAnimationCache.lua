@@ -1,3 +1,4 @@
+local Engine = require("Engine")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 
@@ -9,7 +10,7 @@ function SceneInitAnimationCache.SourceKey(value, suffix)
     return normalized:sub(1, #normalized - #suffix)
 end
 
-function SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePath)
+function SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
     local result = {}
     local seen = {}
     local assets = payload.assets or {}
@@ -28,7 +29,7 @@ function SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePat
                 )
                 if not seen[assetName] then
                     seen[assetName] = true
-                    result[#result + 1] = { name = assetName, path = os.path.join(assetsRoot, assetName) }
+                    result[#result + 1] = { name = assetName, path = assetName }
                 end
             end
         end
@@ -45,10 +46,10 @@ function SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAs
         return true
     end
     for _, asset in ipairs(frameAssets) do
-        if not os.path.isfile(asset.path) then
+        if not Engine.assetExists(asset.path) then
             return true
         end
-        if cacheTime < os.path.getmtime(asset.path) then
+        if cacheTime < Engine.assetModificationTime(asset.path) then
             return true
         end
     end

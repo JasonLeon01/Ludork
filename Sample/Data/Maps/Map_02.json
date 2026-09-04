@@ -13,7 +13,7 @@
     255,
     255
   ],
-  "fog": "fog.png",
+  "fog": "/Game/Assets/Fogs/fog.png",
   "fogPower": 50,
   "fogOx": 15.0,
   "fogOy": 15.0,
@@ -1430,7 +1430,7 @@
         16.0,
         16.0
       ],
-      "shaderPath": "Ghost.frag"
+      "shaderPath": "/Game/Assets/Shaders/Ghost.frag"
     },
     "Data.Blueprints.Enemies.BP_Enemy_Slime_default_8_7": {
       "afterBattleVarChanges": {
@@ -1452,7 +1452,7 @@
         16.0,
         16.0
       ],
-      "shaderPath": "Frozen.frag"
+      "shaderPath": "/Game/Assets/Shaders/Frozen.frag"
     },
     "Data.Blueprints.Doors.ConditionDoors.BP_Door_Condition_default_5_7": {
       "openConditionName": "MTExample",
@@ -1467,7 +1467,7 @@
       "openConditionVal": 2
     },
     "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_5": {
-      "shaderPath": "Poison.frag"
+      "shaderPath": "/Game/Assets/Shaders/Poison.frag"
     },
     "Data.Blueprints.Enemies.BP_Enemy_GreatIron_default_6_10": {
       "defaultTranslation": [
@@ -1482,16 +1482,16 @@
         3.0,
         3.0
       ],
-      "shaderPath": "Hologram.frag"
+      "shaderPath": "/Game/Assets/Shaders/Hologram.frag"
     },
     "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_0_6": {
-      "shaderPath": "Burning.frag"
+      "shaderPath": "/Game/Assets/Shaders/Burning.frag"
     },
     "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_12_6": {
-      "shaderPath": "Crystallize.frag"
+      "shaderPath": "/Game/Assets/Shaders/Crystallize.frag"
     },
     "Data.Blueprints.Actors.BP_Actor_TestPath_default_6_1": {
-      "shaderPath": "Petrify.frag"
+      "shaderPath": "/Game/Assets/Shaders/Petrify.frag"
     }
   },
   "type": "map"

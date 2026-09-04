@@ -1,7 +1,7 @@
 #include <Manager/TextureManager.hpp>
 
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/ConcurrentResourceCache.hpp>
-#include <Utf8Path.hpp>
 
 #include <sstream>
 #include <stdexcept>
@@ -30,11 +30,11 @@ std::shared_ptr<sf::Texture> TextureManager::load(
     const std::string key = makeKey(filePath, sRGB, area, smooth);
     return textureCache().getOrLoad(key, [&]() {
         auto texture = std::make_shared<sf::Texture>();
-        const std::filesystem::path path =
-            ludork::standard::pathFromUtf8(filePath);
+        std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+            ludork::runtime::assetStore().open(filePath);
         const bool loaded = area.has_value()
-                                ? texture->loadFromFile(path, sRGB, *area)
-                                : texture->loadFromFile(path, sRGB);
+                                ? texture->loadFromStream(*stream, sRGB, *area)
+                                : texture->loadFromStream(*stream, sRGB);
         if (!loaded) {
             throw std::runtime_error("Failed to load texture from file: " +
                                      filePath);

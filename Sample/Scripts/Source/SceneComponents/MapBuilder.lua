@@ -1,7 +1,6 @@
 local cjson = require("cjson")
 local Engine = require("Engine")
-require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameMap = require("Global.GameMap")
 local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
 local WorldGeometry = require("Global.WorldGeometry")
@@ -19,7 +18,7 @@ local MapBuilderWorldActors = require("Source.SceneComponents.MapBuilder.WorldAc
 local MapBuilderWorldRegion = require("Source.SceneComponents.MapBuilder.WorldRegion")
 local MapBuilderWorldTiles = require("Source.SceneComponents.MapBuilder.WorldTiles")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local TextureManager = GlobalCore.TextureManager
 
 local DAMAGE_TEXT_CONFIG = "Global/DamageText"
 local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
@@ -159,20 +158,20 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         if rawAutoTiles ~= nil then
             for y = 1, mapHeight do
                 local row = { n = mapWidth }
-                    local rawRow = rawAutoTiles[y]
-                    for x = 1, mapWidth do
-                        local cell = rawRow ~= nil and rawRow[x] or nil
-                        local cellIndex = Class.isInstance(cell, "number") and math.tointeger(cell) or nil
-                        if Class.isInstance(cell, "string") then
-                            ---@cast cell string
-                            if bool(cell) and Data.HasAutoTile(cell) then
-                                if autoTileIndexByKey[cell] == nil then
-                                    autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
-                                    autoTileIndexByKey[cell] = #autoTilePool - 1
-                                end
-                                row[x] = autoTileIndexByKey[cell]
+                local rawRow = rawAutoTiles[y]
+                for x = 1, mapWidth do
+                    local cell = rawRow ~= nil and rawRow[x] or nil
+                    local cellIndex = Class.isInstance(cell, "number") and math.tointeger(cell) or nil
+                    if Class.isInstance(cell, "string") then
+                        ---@cast cell string
+                        if bool(cell) and Data.HasAutoTile(cell) then
+                            if autoTileIndexByKey[cell] == nil then
+                                autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
+                                autoTileIndexByKey[cell] = #autoTilePool - 1
                             end
-                        elseif cellIndex ~= nil and cellIndex >= 0 and cellIndex < #autoTilePool then
+                            row[x] = autoTileIndexByKey[cell]
+                        end
+                    elseif cellIndex ~= nil and cellIndex >= 0 and cellIndex < #autoTilePool then
                         row[x] = cellIndex
                     end
                 end
@@ -195,12 +194,12 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         local autoTileTextures = {}
         local autoTileFrameCounts = {}
         for index, entry in ipairs(autoTilePool) do
-            local texture = ManagerFunctions.loadAutotile(entry.fileName)
+            local texture = TextureManager.load(entry.fileName)
             autoTileTextures[index] = texture
             autoTileFrameCounts[index] = AutoTileRuntime.GetFrameCount(texture)
         end
         mapLayers[#mapLayers + 1] = Engine.TileLayer.new(
-            tileLayerData, ManagerFunctions.loadTileset(tileLayerData.layerTileset.fileName), autoTileTextures,
+            tileLayerData, TextureManager.load(tileLayerData.layerTileset.fileName), autoTileTextures,
             autoTileFrameCounts
         )
     end

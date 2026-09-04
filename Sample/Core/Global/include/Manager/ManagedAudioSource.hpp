@@ -24,6 +24,10 @@ class EffectRuntime;
 class EffectStateToken;
 }  // namespace ludork::global::managed_audio_source_impl
 
+namespace ludork::runtime {
+class AssetInputStream;
+}
+
 namespace ludork::global::audio {
 class ManagedMusic;
 class ManagedSound;
@@ -85,6 +89,15 @@ protected:
     std::shared_ptr<const sf::SoundBuffer> buffer_;
 };
 
+class ManagedAssetStreamOwner {
+public:
+    ManagedAssetStreamOwner();
+    ~ManagedAssetStreamOwner();
+
+protected:
+    std::unique_ptr<ludork::runtime::AssetInputStream> assetStream_;
+};
+
 class LUDORK_GLOBAL_API ManagedSound final : private ManagedSoundBufferOwner,
                                              public sf::Sound {
 public:
@@ -109,7 +122,8 @@ private:
     std::mutex mutationMutex_;
 };
 
-class LUDORK_GLOBAL_API ManagedMusic final : public sf::Music {
+class LUDORK_GLOBAL_API ManagedMusic final : private ManagedAssetStreamOwner,
+                                             public sf::Music {
 public:
     ManagedMusic();
     ~ManagedMusic() override;
@@ -118,6 +132,7 @@ public:
     void pause() override;
     void stop() override;
     void setEffectProcessor(EffectProcessor effectProcessor) override;
+    [[nodiscard]] bool openFromAsset(const std::string& assetPath);
 
     void beginEffectAttachment(
         const std::shared_ptr<::AudioEffectControl>& control);

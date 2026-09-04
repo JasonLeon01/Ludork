@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
 local WindowSaveLoadUI = require("Source.UI.WindowSaveLoad")
@@ -8,7 +8,7 @@ local WindowSaveDetail = require("Source.Windows.WindowSaveLoad.Detail")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 local WindowSaveTabs = require("Source.Windows.WindowSaveLoad.Tabs")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local Canvas = Engine.Canvas
 
 local _DEFAULT_TAB_RECT = Engine.ToIntRect(192, 0, 416, 64)
@@ -134,7 +134,7 @@ function WindowSaveLoad:close(onHidden)
 end
 
 function WindowSaveLoad:closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:_closeWithReason(CLOSE_REASON_CANCEL)
 end
 
@@ -178,12 +178,12 @@ end
 ---@param slotNumber integer
 function WindowSaveLoad:_handleSave(slotNumber)
     if self._getSaveSource == nil then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
     local instance = self._getSaveSource()
     if instance == nil then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
     local filePath = Save.GetSavePath(slotNumber)
@@ -196,7 +196,7 @@ function WindowSaveLoad:_handleSave(slotNumber)
         instance:setScreenshot(nil)
     end
     Save.SaveGame(filePath, instance)
-    ManagerFunctions.playSE(GameSystem.GetSaveSE())
+    AudioManager.playSound(GameSystem.GetSaveSE())
     self._detailWindow:refresh()
     self:_closeWithReason(CLOSE_REASON_SAVED)
 end
@@ -205,15 +205,15 @@ end
 function WindowSaveLoad:_handleLoad(slotNumber)
     local filePath = Save.GetSavePath(slotNumber)
     if not os.path.isfile(filePath) then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
     local instance = Save.LoadGame(filePath)
     if instance == nil then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
-    ManagerFunctions.playSE(GameSystem.GetLoadSE())
+    AudioManager.playSound(GameSystem.GetLoadSE())
     self:_closeWithReason(CLOSE_REASON_LOADED, function ()
         if self._onLoadedCallback ~= nil then
             self._onLoadedCallback(instance)

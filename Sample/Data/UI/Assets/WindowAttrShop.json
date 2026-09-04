@@ -221,7 +221,7 @@
         "name": "Avatar",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": "Assets/Characters/npcs/classic-npcs-50F-single.png",
+          "texture": "/Game/Assets/Characters/npcs/classic-npcs-50F-single.png",
           "textureRect": [0, 0, 32, 32]
         },
         "slot": {

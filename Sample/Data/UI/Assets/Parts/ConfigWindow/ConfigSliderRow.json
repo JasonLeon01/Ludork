@@ -67,8 +67,8 @@
           "minValue": 0,
           "maxValue": 100,
           "value": 0,
-          "lineTexture": "Assets/System/SliderLine.png",
-          "handleTexture": "Assets/System/SliderHandle.png"
+          "lineTexture": "/Game/Assets/System/SliderLine.png",
+          "handleTexture": "/Game/Assets/System/SliderHandle.png"
         },
         "slot": {
           "anchors": {

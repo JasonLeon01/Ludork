@@ -923,9 +923,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                     next => commit(JsonValue.Create(next)));
                 break;
             case "string" when property.Id is "texture"
+                or "windowSkin"
                 or "lineTexture"
                 or "handleTexture":
                 addTextureField(
+                    property.DisplayName,
+                    getString(value),
+                    next => commit(JsonValue.Create(next)));
+                break;
+            case "string" when property.Id == "shader":
+                addShaderField(
                     property.DisplayName,
                     getString(value),
                     next => commit(JsonValue.Create(next)));
@@ -1312,6 +1319,19 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             commit);
     }
 
+    private void addShaderField(
+        string label,
+        string value,
+        Action<string> commit)
+    {
+        addAssetFileField(
+            label,
+            value,
+            Path.Combine(gameData.ProjectPath, "Assets", "Shaders"),
+            FileSelectorDialog.FilesFilter("*.vert", "*.frag", "*.geom"),
+            commit);
+    }
+
     private void addAssetFileField(
         string label,
         string value,
@@ -1338,12 +1358,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 initialFilePath: initialFilePath);
             if (selectedPath is null)
                 return;
-            string relativePath = Path.GetRelativePath(
+            if (!GameAssetPath.TryFromProjectFile(
                     gameData.ProjectPath,
-                    selectedPath)
-                .Replace('\\', '/');
-            pathBox.Text = relativePath;
-            commit(relativePath);
+                    selectedPath,
+                    out string assetPath))
+            {
+                return;
+            }
+            pathBox.Text = assetPath;
+            commit(assetPath);
         };
         ToolTip.SetTip(browse, LocaleService.Get("BROWSE"));
         Button clear = new()
@@ -1373,11 +1396,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private string? getAssetInitialFilePath(string value)
     {
-        if (!value.StartsWith("Assets/", StringComparison.Ordinal))
-            return null;
-        return Path.Combine(
-            gameData.ProjectPath,
-            value.Replace('/', Path.DirectorySeparatorChar));
+        return GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, value, out string path)
+            ? path
+            : null;
     }
 
     private void addNumericField(

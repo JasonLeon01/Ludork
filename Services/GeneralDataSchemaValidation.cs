@@ -20,13 +20,16 @@ internal static class GeneralDataSchemaValidation
         string path = "General/" + typeName;
         if (typeData.ContainsKey("linkedType"))
             errors.Add(path + ": linkedType is not supported");
-        if (typeData["params"] is not JsonObject)
+        JsonObject? parameters = typeData["params"] as JsonObject;
+        if (parameters is null)
             errors.Add(path + ": params must be an object");
         if (typeData["members"] is not JsonObject members)
         {
             errors.Add(path + ": members must be an object");
             return;
         }
+        if (parameters is not null)
+            validateAssetParameterDefinitions(path, parameters, errors);
 
         HashSet<string> eventNames = new(StringComparer.Ordinal);
         if (typeData.TryGetPropertyValue("events", out JsonNode? rawEvents))
@@ -58,8 +61,74 @@ internal static class GeneralDataSchemaValidation
                 errors.Add(path + "/" + memberEntry.Key + ": member must be an object");
                 continue;
             }
+            if (parameters is not null)
+                validateAssetPaths(path + "/" + memberEntry.Key, parameters, member, errors);
             validateMemberGraph(path + "/" + memberEntry.Key, member["_graph"], eventNames, errors);
         }
+    }
+
+    private static void validateAssetParameterDefinitions(
+        string path,
+        JsonObject parameters,
+        ICollection<string> errors)
+    {
+        foreach (KeyValuePair<string, JsonNode?> entry in parameters)
+        {
+            if (entry.Value is not JsonObject definition
+                || getString(definition["type"]) != "file")
+            {
+                continue;
+            }
+            if (getString(definition["defaultValue"]) is not "")
+                errors.Add(path + $": file parameter '{entry.Key}' defaultValue must be empty");
+            string? baseHint = getString(definition["base"]);
+            if (!GameAssetPath.IsValidBaseHint(baseHint))
+                errors.Add(path + $": file parameter '{entry.Key}' base is invalid");
+        }
+    }
+
+    private static void validateAssetPaths(
+        string path,
+        JsonObject parameters,
+        JsonObject member,
+        ICollection<string> errors)
+    {
+        foreach (KeyValuePair<string, JsonNode?> entry in parameters)
+        {
+            if (entry.Value is not JsonObject definition)
+                continue;
+            string? type = getString(definition["type"]);
+            if (type == "file")
+            {
+                validateAssetPath(path + "." + entry.Key, member[entry.Key], errors);
+                continue;
+            }
+            if (type == "list"
+                && getString(definition["itemType"]) == "file"
+                && member[entry.Key] is JsonArray items)
+            {
+                for (int index = 0; index < items.Count; index++)
+                    validateAssetPath(path + $".{entry.Key}[{index}]", items[index], errors);
+                continue;
+            }
+            if (type == "dict"
+                && getString(definition["valueType"]) == "file"
+                && member[entry.Key] is JsonObject values)
+            {
+                foreach (KeyValuePair<string, JsonNode?> item in values)
+                    validateAssetPath(path + $".{entry.Key}.{item.Key}", item.Value, errors);
+            }
+        }
+    }
+
+    private static void validateAssetPath(
+        string path,
+        JsonNode? value,
+        ICollection<string> errors)
+    {
+        string? text = getString(value);
+        if (!string.IsNullOrEmpty(text) && !GameAssetPath.IsCanonical(text))
+            errors.Add(path + ": file value must use a canonical /Game/Assets/ path");
     }
 
     private static void validateMemberGraph(

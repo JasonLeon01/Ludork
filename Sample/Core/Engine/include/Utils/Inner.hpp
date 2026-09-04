@@ -37,6 +37,12 @@ BIND_FUNCTION(name = "getAnimationCacheRoot")
 std::string getAnimationCacheRoot(
     const std::optional<std::string>& appNameOverride = std::nullopt);
 
+BIND_FUNCTION(name = "assetExists", metadata = false)
+bool assetExists(const std::string& assetPath);
+
+BIND_FUNCTION(name = "assetModificationTime", metadata = false)
+double assetModificationTime(const std::string& assetPath);
+
 BIND_FUNCTION(name = "filterDataClassParams")
 RuntimeValue::Map filterDataClassParams(const RuntimeValue::Map& params,
                                         const RuntimeValue& type);

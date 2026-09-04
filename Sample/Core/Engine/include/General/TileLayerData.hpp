@@ -44,8 +44,9 @@ struct TileLayerData {
     BIND_PROPERTY()
     std::string layerTilesetKey = "";  ///< Editor-side tileset data key
 
-    BIND_PROPERTY()
-    std::string shaderPath = "";  ///< Shader path relative to Assets/Shaders
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Shaders",
+                       PathFilter = "*.frag"))
+    std::string shaderPath = "";  ///< Canonical path under /Game/Assets/Shaders
 
     ////////////////////////////////////////////////////////////
     /// \brief Construct layer data
@@ -56,7 +57,7 @@ struct TileLayerData {
     /// - \param autoTiles Autotile assignment grid
     /// - \param autoTilePool Autotile lookup pool
     /// - \param autoTileKeys Autotile data keys matching the pool
-    /// - \param shaderPath Shader path relative to Assets/Shaders
+    /// - \param shaderPath Canonical path under /Game/Assets/Shaders
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     TileLayerData(
@@ -75,7 +76,7 @@ struct TileLayerData {
     /// - \param height Grid height in cells
     /// - \param autoTilePool Autotile lookup pool
     /// - \param autoTileKeys Autotile data keys matching the pool
-    /// - \param shaderPath Shader path relative to Assets/Shaders
+    /// - \param shaderPath Canonical path under /Game/Assets/Shaders
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     TileLayerData(

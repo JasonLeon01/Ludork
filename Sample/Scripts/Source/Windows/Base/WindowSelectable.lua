@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local UiControlFactory = require("Source.UI.UiControlFactory")
 local WindowBase = require("Source.Windows.Base.WindowBase")
@@ -8,7 +8,7 @@ local Input = Engine.Input
 local ControlBase = Engine.ControlBase
 local FunctionalBase = Engine.FunctionalBase
 local Direction = Engine.FocusDirection
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local _INACTIVE_SELECTION_RECT_OPACITY_MULTIPLIER = 0.35
 local _REPEAT_DELAY = 0.4
@@ -218,7 +218,7 @@ function WindowSelectable:onTick(deltaTime)
     end
     if self.index ~= self._oldIndex then
         self._oldIndex = self.index
-        ManagerFunctions.playSE(GameSystem.GetCursorSE())
+        AudioManager.playSound(GameSystem.GetCursorSE())
     end
     super(WindowSelectable, self).onTick(deltaTime)
 end

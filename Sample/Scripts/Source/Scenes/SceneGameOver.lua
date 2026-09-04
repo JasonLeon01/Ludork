@@ -1,11 +1,10 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local GameOverUI = require("Source.UI.GameOver")
 
 local Input = Engine.Input
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local SceneBase = GlobalCore.SceneBase
 local GlobalSystem = GlobalCore.System
 
@@ -46,7 +45,7 @@ function Scene:_backToTitle()
     local SceneTitle = require("Source.Scenes.SceneTitle")
 
     self._phase = "exiting"
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self._ui:playAnimation("FadeOut", nil, function ()
         self._ui:stopAnimation("FadeOut")
         GlobalSystem.setScene(SceneTitle.new())

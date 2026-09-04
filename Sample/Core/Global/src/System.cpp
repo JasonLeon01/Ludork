@@ -16,10 +16,10 @@ using ludork::global::system_runtime::SceneOperationType;
 #include <GlobalRuntimeApi.hpp>
 #include <Input/InputService.hpp>
 #include <LudorkPlatform.hpp>
-#include <Manager/AssetPath.hpp>
 #include <Manager/AudioManager.hpp>
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
+#include <Runtime/AssetStore.hpp>
 #include <Manager/TimeManager.hpp>
 #include <EngineState.hpp>
 #include <System/NativeDisplayHost.hpp>
@@ -626,8 +626,9 @@ void System::initializeDisplay(const std::string& title,
 #endif
     initWindow(window);
     if (shadersAvailable()) {
-        framePipeline.transitionShader_ = ShaderManager::load(
-            "Global/Transition.frag", sf::Shader::Type::Fragment);
+        framePipeline.transitionShader_ =
+            ShaderManager::load("/Game/Assets/Shaders/Global/Transition.frag",
+                                sf::Shader::Type::Fragment);
     } else {
         framePipeline.transitionShader_.reset();
         warnOnce("System.transitionShader",
@@ -722,18 +723,29 @@ void System::applyWindowPresentationSettings() {
     display.window_->clear(isEmbeddedDisplay() ? sf::Color::Transparent
                                                : sf::Color::Black);
     if (!isMobileDisplay() && !display.windowIconPath_.empty()) {
-        display.window_->setIcon(sf::Image(display.windowIconPath_));
+        std::unique_ptr<ludork::runtime::AssetInputStream> iconStream =
+            ludork::runtime::assetStore().open(display.windowIconPath_);
+        sf::Image icon;
+        if (!icon.loadFromStream(*iconStream)) {
+            throw std::runtime_error("Failed to load window icon: " +
+                                     display.windowIconPath_);
+        }
+        display.window_->setIcon(icon);
     }
     display.cursor_.reset();
     if (isMobileDisplay() || display.windowCursorPath_.empty()) {
         return;
     }
-    std::error_code error;
-    if (!std::filesystem::is_regular_file(display.windowCursorPath_, error)) {
+    if (!ludork::runtime::assetStore().exists(display.windowCursorPath_)) {
         return;
     }
     try {
-        const sf::Image cursorImage(display.windowCursorPath_);
+        std::unique_ptr<ludork::runtime::AssetInputStream> cursorStream =
+            ludork::runtime::assetStore().open(display.windowCursorPath_);
+        sf::Image cursorImage;
+        if (!cursorImage.loadFromStream(*cursorStream)) {
+            throw std::runtime_error("Failed to load cursor image");
+        }
         display.cursor_ = std::make_unique<sf::Cursor>(
             cursorImage.getPixelsPtr(), cursorImage.getSize(), sf::Vector2u{});
         display.window_->setMouseCursor(*display.cursor_);
@@ -1454,7 +1466,7 @@ void System::flashScreen(std::optional<sf::Color> color, float duration) {
     if (framePipeline.flashShader_ == nullptr) {
         try {
             framePipeline.flashShader_ =
-                ShaderManager::load("Global/Flash.frag");
+                ShaderManager::load("/Game/Assets/Shaders/Global/Flash.frag");
         } catch (const std::exception&) {
             framePipeline.flashShader_.reset();
             std::cerr << "FLASH_SHADER_LOAD_FAILED\n";
@@ -1710,9 +1722,7 @@ void System::applyPendingTransition() {
     }
     std::shared_ptr<sf::Texture> resource;
     if (pending->name.has_value() && !pending->name->empty()) {
-        resource =
-            TextureManager::load(ludork::global::manager::textureAssetFile(
-                "Transitions", *pending->name));
+        resource = TextureManager::load(*pending->name);
     }
     setTransition(resource, pending->time);
 }
@@ -1802,7 +1812,8 @@ bool System::ensureToneShader() {
         return true;
     }
     try {
-        framePipeline.toneShader_ = ShaderManager::load("Global/Tone.frag");
+        framePipeline.toneShader_ =
+            ShaderManager::load("/Game/Assets/Shaders/Global/Tone.frag");
     } catch (const std::exception&) {
         framePipeline.toneShader_.reset();
         std::cerr << "TONE_SHADER_LOAD_FAILED\n";

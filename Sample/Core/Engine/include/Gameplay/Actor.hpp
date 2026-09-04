@@ -63,7 +63,8 @@ public:
     BIND_PROPERTY(default = {})
     Material material;
 
-    BIND_PROPERTY(meta(PathVars = "Shaders", PathFilter = "*.frag"))
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Shaders",
+                       PathFilter = "*.frag"))
     std::string shaderPath = "";
 
     BIND_PROPERTY(meta(ProgressVars = {0.0, 360.0, 1.0}))
@@ -330,7 +331,7 @@ public:
     BIND_PROPERTY()
     float speed = 64.0f;
 
-    BIND_PROPERTY(meta(PathVars = "Sounds"))
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Sounds"))
     std::string autoSound = "";
 
     BIND_PROPERTY(meta(Rely = {source = "autoSound", op = "!=", value = ""}))
@@ -345,7 +346,7 @@ public:
 
     void setAutoSoundParams(const AutoSoundParams& params);
 
-    BIND_PROPERTY(meta(PathVars = "Characters"))
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Characters"))
     std::string texturePath = "";
 
     BIND_PROPERTY(default = {{0, 0, 32, 32}},

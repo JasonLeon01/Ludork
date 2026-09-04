@@ -2,15 +2,18 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Ludork.Services;
 using System;
-using System.IO;
 
 namespace Ludork.Controls;
 
 public sealed class AutoTilePreview : Control
 {
-    public static readonly StyledProperty<string?> ImagePathProperty =
-        AvaloniaProperty.Register<AutoTilePreview, string?>(nameof(ImagePath));
+    public static readonly StyledProperty<string?> ProjectPathProperty =
+        AvaloniaProperty.Register<AutoTilePreview, string?>(nameof(ProjectPath));
+
+    public static readonly StyledProperty<string?> AssetPathProperty =
+        AvaloniaProperty.Register<AutoTilePreview, string?>(nameof(AssetPath));
 
     public static readonly StyledProperty<int> CellSizeProperty =
         AvaloniaProperty.Register<AutoTilePreview, int>(nameof(CellSize), 32);
@@ -18,10 +21,16 @@ public sealed class AutoTilePreview : Control
     private static readonly IBrush EmptyBrush = new SolidColorBrush(Color.FromRgb(60, 60, 60));
     private Bitmap? bitmap;
 
-    public string? ImagePath
+    public string? ProjectPath
     {
-        get => GetValue(ImagePathProperty);
-        set => SetValue(ImagePathProperty, value);
+        get => GetValue(ProjectPathProperty);
+        set => SetValue(ProjectPathProperty, value);
+    }
+
+    public string? AssetPath
+    {
+        get => GetValue(AssetPathProperty);
+        set => SetValue(AssetPathProperty, value);
     }
 
     public int CellSize
@@ -63,7 +72,8 @@ public sealed class AutoTilePreview : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == ImagePathProperty)
+        if (change.Property == ProjectPathProperty
+            || change.Property == AssetPathProperty)
             loadBitmap();
         else if (change.Property == CellSizeProperty)
         {
@@ -76,9 +86,12 @@ public sealed class AutoTilePreview : Control
     {
         bitmap?.Dispose();
         bitmap = null;
-        if (!string.IsNullOrWhiteSpace(ImagePath) && File.Exists(ImagePath))
+        if (GameAssetPath.TryResolveExistingFile(
+                ProjectPath ?? string.Empty,
+                AssetPath,
+                out string filePath))
         {
-            bitmap = new Bitmap(ImagePath);
+            bitmap = new Bitmap(filePath);
         }
         InvalidateVisual();
     }

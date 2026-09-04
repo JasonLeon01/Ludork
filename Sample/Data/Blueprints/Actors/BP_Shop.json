@@ -11,7 +11,7 @@
     },
     "collisionEnabled": true,
     "tickable": false,
-    "texturePath": "npcs/classic-npcs-50F-single.png",
+    "texturePath": "/Game/Assets/Characters/npcs/classic-npcs-50F-single.png",
     "defaultRect": [
       [
         0,

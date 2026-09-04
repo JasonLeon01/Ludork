@@ -29,11 +29,15 @@ internal sealed class TilesetGridControl : Control, IDisposable
     private TilesetZoomAnchor? pendingZoomAnchor;
 
     public TilesetGridControl(
+        IMapEditorHost host,
         PluginTilesetSnapshot tileset,
         int? selectedTile)
     {
         this.tileset = tileset;
-        bitmap = new Bitmap(tileset.ImagePath);
+        string filePath = host.ResolveAssetFile(tileset.AssetPath);
+        if (filePath.Length == 0)
+            throw new InvalidOperationException("Tileset asset is unavailable.");
+        bitmap = new Bitmap(filePath);
         SelectedTile = selectedTile;
         Focusable = true;
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;

@@ -3,33 +3,33 @@ local _METADATA = {
         attrs = {
             "ATTR_key",
             "plus",
-            "getSE",
+            "getSE"
         },
         ATTR_key = {
             type = "string",
-            default = "",
+            default = ""
         },
         plus = {
             type = "int",
-            default = 0,
+            default = 0
         },
         getSE = {
             type = "string",
             default = "",
             Meta = {
-                PathVars = "Sounds",
-                ConfigVars = { "Audio", "getSE" },
-            },
+                PathVars = "/Game/Assets/Sounds",
+                ConfigVars = { "Audio", "getSE" }
+            }
         },
         Meta = {
             PathVars = {
-                { "getSE", "Sounds" },
+                { "getSE", "/Game/Assets/Sounds" }
             },
             ConfigVars = {
-                { "getSE", "Audio", "getSE" },
-            },
-        },
-    },
+                { "getSE", "Audio", "getSE" }
+            }
+        }
+    }
 }
 
 return _METADATA

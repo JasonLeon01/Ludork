@@ -225,8 +225,8 @@ public sealed class UiControlRegistryService
                     property("minValue", "Min Value", "int", false, JsonValue.Create(0)),
                     property("maxValue", "Max Value", "int", false, JsonValue.Create(100)),
                     property("value", "Value", "int", false, JsonValue.Create(0)),
-                    property("lineTexture", "Line Texture", "string", false, JsonValue.Create("Assets/System/SliderLine.png")),
-                    property("handleTexture", "Handle Texture", "string", false, JsonValue.Create("Assets/System/SliderHandle.png")),
+                    property("lineTexture", "Line Texture", "string", false, JsonValue.Create("/Game/Assets/System/SliderLine.png")),
+                    property("handleTexture", "Handle Texture", "string", false, JsonValue.Create("/Game/Assets/System/SliderHandle.png")),
                 ]),
             descriptor(
                 "Engine.DropBox",

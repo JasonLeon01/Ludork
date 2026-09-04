@@ -11,7 +11,7 @@
       "speedRate": 1.0
     },
     "collisionEnabled": true,
-    "texturePath": "items/classic-gems.png",
+    "texturePath": "/Game/Assets/Characters/items/classic-gems.png",
     "ATTR_key": "ATK",
     "plus": 1,
     "lightComp": {

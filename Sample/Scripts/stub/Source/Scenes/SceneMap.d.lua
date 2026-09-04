@@ -284,7 +284,7 @@ function Scene:_updateWorldEnvironment(deltaTime, force) end
 
 ---@brief Replace the current map BGM.
 ---
---- - @param bgm Music filename under Assets/Musics.
+--- - @param bgm Canonical music asset path under /Game/Assets/Musics.
 --- - @param bgmFilter Optional music filter to apply.
 ---@param bgm       string
 ---@param bgmFilter Engine.MusicFilter | nil

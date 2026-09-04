@@ -10,7 +10,7 @@
       "speedRate": 1.0
     },
     "collisionEnabled": true,
-    "texturePath": "equips/classic-equips.png",
+    "texturePath": "/Game/Assets/Characters/equips/classic-equips.png",
     "defaultRect": [
       [
         0,

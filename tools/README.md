@@ -141,5 +141,7 @@ Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. S
 `pack_project` refuses a project whose `Scripts/Entry.lua` still uses the Sample `APP_NAME = "LudorkSample"`; set a unique application name first.
 With `--compile-lua`, every packaged `Scripts/**/*.lua` file is compiled with
 `luac -s`, renamed to `.luac`, and written to `dist`.
+With `--pack-assets`, each first-level `Assets/<Group>` directory in the staging
+copy becomes `Assets/<Group>.ldpak`; the source project remains loose and unchanged.
 
 `Templates/Cpp` is the reusable source template; `Templates/Standalone` is the flat packaged-runtime target. `Sample` carries the Ludork licence and a game-runtime legal set containing native runtime, optional FFmpeg and bundled-asset materials. Template generation refreshes that set in both C++ templates and carries it into the derived Standalone templates; editor, managed-runtime, preview-host and build-tool notices remain only in the editor distribution. The standard `init` command without a custom C++ project builds the editor-owned Release `UiPreviewHost` into `.tools/UiPreviewHost`; `build_ui_preview_host` remains available for explicit Debug builds or refreshes, and Debug is preferred by the development editor when both configurations exist. The Host is distributed once under the editor's `tools/UiPreviewHost`; it is not part of any project template or game package. macOS packaging does not sign or notarise the result.

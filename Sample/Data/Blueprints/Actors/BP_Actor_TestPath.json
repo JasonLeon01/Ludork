@@ -11,7 +11,7 @@
     },
     "collisionEnabled": true,
     "tickable": false,
-    "texturePath": "enemies/classic-enemies-01-slime-single.png",
+    "texturePath": "/Game/Assets/Characters/enemies/classic-enemies-01-slime-single.png",
     "defaultRect": [
       [
         0,
@@ -20,7 +20,7 @@
         32
       ]
     ],
-    "shaderPath": "Rainbow.frag",
+    "shaderPath": "/Game/Assets/Shaders/Rainbow.frag",
     "tag": ""
   },
   "graph": {

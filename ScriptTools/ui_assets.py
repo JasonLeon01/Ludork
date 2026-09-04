@@ -21,6 +21,13 @@ class UiAssetError(RuntimeError):
     pass
 
 
+def _is_link(path: pathlib.Path) -> bool:
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    return bool(is_junction is not None and is_junction())
+
+
 ASSET_FIELDS = {
     "type",
     "designSize",
@@ -288,6 +295,57 @@ def _safe_project_path(
     return path
 
 
+def _game_asset_path(
+    project_root: pathlib.Path,
+    value: str,
+    label: str,
+) -> tuple[pathlib.Path, pathlib.PurePosixPath]:
+    prefix = "/Game/Assets/"
+    if value != value.strip() or "\\" in value or not value.startswith(prefix):
+        raise UiAssetError(f"{label} must use a canonical /Game/Assets/ path")
+    relative_text = value[len(prefix) :]
+    relative = pathlib.PurePosixPath(relative_text)
+    if (
+        relative.is_absolute()
+        or str(relative) != relative_text
+        or not relative.suffix
+        or not relative.parts
+        or relative.parts[0].casefold().endswith(".ldpak")
+        or any(
+            part in {"", ".", ".."}
+            or "\0" in part
+            for part in relative.parts
+        )
+    ):
+        raise UiAssetError(f"{label} must use a canonical /Game/Assets/ path")
+    path = _safe_project_path(
+        project_root,
+        str(pathlib.PurePosixPath("Assets", relative)),
+        label,
+    )
+    return path, relative
+
+
+def _is_exact_case_asset_file(
+    project_root: pathlib.Path,
+    relative: pathlib.PurePosixPath,
+) -> bool:
+    current = project_root / "Assets"
+    if not project_root.is_dir() or not any(
+        child.name == "Assets" and not _is_link(child) and child.is_dir()
+        for child in project_root.iterdir()
+    ):
+        return False
+    for part in relative.parts:
+        if not current.is_dir():
+            return False
+        match = next((child for child in current.iterdir() if child.name == part), None)
+        if match is None or _is_link(match):
+            return False
+        current = match
+    return current.is_file()
+
+
 def _validate_property_reference(
     project_root: pathlib.Path,
     control_id: str,
@@ -297,9 +355,7 @@ def _validate_property_reference(
 ) -> None:
     if not isinstance(value, str) or value == "":
         return
-    text = value.strip()
-    if text != value or "\\" in text:
-        raise UiAssetError(f"{label} must use a canonical project-relative path")
+    text = value
     if property_id in {
         "texture",
         "windowSkin",
@@ -307,29 +363,17 @@ def _validate_property_reference(
         "handleTexture",
         "font",
     }:
-        if not text.startswith("Assets/"):
-            raise UiAssetError(
-                f"{label} must use a canonical project-relative Assets/ path"
-            )
-        path = _safe_project_path(project_root, text, label)
-        if not path.is_file():
+        path, relative = _game_asset_path(project_root, text, label)
+        if not path.is_file() or not _is_exact_case_asset_file(project_root, relative):
             raise UiAssetError(f"{label} resource was not found: {text}")
         return
     if property_id == "shader":
-        key = pathlib.PurePosixPath(text)
-        if (
-            key.is_absolute()
-            or str(key) != text
-            or any(part in {".", ".."} for part in key.parts)
-            or text.startswith("Shaders/")
-            or text.startswith("Assets/")
-        ):
+        path, key = _game_asset_path(project_root, text, label)
+        if not key.parts or key.parts[0] != "Shaders":
             raise UiAssetError(
-                f"{label} must use a canonical path relative to Assets/Shaders"
+                f"{label} must use a canonical /Game/Assets/Shaders/ path"
             )
-        relative = pathlib.PurePosixPath("Assets", "Shaders", key)
-        path = _safe_project_path(project_root, str(relative), label)
-        if not path.is_file():
+        if not path.is_file() or not _is_exact_case_asset_file(project_root, key):
             raise UiAssetError(f"{label} shader was not found: {text}")
         return
     if property_id in {"textConfig", "opacityCurve", "gradientCurve"}:

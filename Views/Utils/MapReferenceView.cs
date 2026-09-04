@@ -334,9 +334,13 @@ public class MapReferenceView : Control, IDisposable
             return null;
         }
         string? fileName = getString(tilesetData["fileName"]);
-        if (string.IsNullOrWhiteSpace(fileName))
+        if (!GameAssetPath.TryResolveExistingFile(
+                gameData.ProjectPath,
+                fileName,
+                out string path))
+        {
             return null;
-        string path = Path.Combine(gameData.ProjectPath, "Assets", "Tilesets", fileName);
+        }
         if (tilesetCache.TryGetValue(path, out Bitmap? cached))
             return cached;
         if (!File.Exists(path))

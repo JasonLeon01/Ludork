@@ -4,6 +4,8 @@
 #include "ManagedAudioSource/AudioCallbackRuntime.hpp"
 #include "ManagedAudioSource/EffectRuntime.hpp"
 
+#include <Runtime/AssetStore.hpp>
+
 #include <mutex>
 #include <stdexcept>
 #include <utility>
@@ -82,6 +84,9 @@ ManagedSoundBufferOwner::ManagedSoundBufferOwner(
     : buffer_(buffer) {
     static_cast<void>(requireSoundBuffer(buffer));
 }
+
+ManagedAssetStreamOwner::ManagedAssetStreamOwner() = default;
+ManagedAssetStreamOwner::~ManagedAssetStreamOwner() = default;
 
 ManagedSound::ManagedSound(const std::shared_ptr<const sf::SoundBuffer>& buffer)
     : ManagedSoundBufferOwner(buffer),
@@ -234,6 +239,16 @@ void ManagedMusic::setEffectProcessor(EffectProcessor effectProcessor) {
         effectState_->waitForCallbacks();
         reclaimed = effectState_->takeAllRetired();
     }
+}
+
+bool ManagedMusic::openFromAsset(const std::string& assetPath) {
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+        ludork::runtime::assetStore().open(assetPath);
+    if (!sf::Music::openFromStream(*stream)) {
+        return false;
+    }
+    assetStream_ = std::move(stream);
+    return true;
 }
 
 void ManagedMusic::beginEffectAttachment(

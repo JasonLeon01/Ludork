@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using Ludork.Services;
@@ -155,21 +154,20 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
         foreach (KeyValuePair<string, JsonObject> pair in GameData.TilesetData)
         {
             string name = pair.Value["name"]?.GetValue<string>() ?? pair.Key;
-            string fileName = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
-            string imagePath = Path.Combine(GameData.ProjectPath, "Assets", "Tilesets", fileName);
+            string assetPath = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
             int currentIndex = findTilesetIndex(pair.Key, index);
             if (currentIndex < 0)
             {
-                Tilesets.Insert(index, new TilesetTabViewModel(pair.Key, name, imagePath));
+                Tilesets.Insert(index, new TilesetTabViewModel(pair.Key, name, assetPath));
                 index += 1;
                 continue;
             }
             if (currentIndex != index)
                 Tilesets.Move(currentIndex, index);
             if (!string.Equals(Tilesets[index].Name, name, StringComparison.Ordinal)
-                || !string.Equals(Tilesets[index].ImagePath, imagePath, StringComparison.Ordinal))
+                || !string.Equals(Tilesets[index].AssetPath, assetPath, StringComparison.Ordinal))
             {
-                Tilesets[index] = new TilesetTabViewModel(pair.Key, name, imagePath);
+                Tilesets[index] = new TilesetTabViewModel(pair.Key, name, assetPath);
             }
             index += 1;
         }
@@ -192,19 +190,26 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
         int index = 0;
         foreach (KeyValuePair<string, JsonObject> pair in GameData.AutoTileData)
         {
-            string fileName = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
-            string imagePath = Path.Combine(GameData.ProjectPath, "Assets", "Autotiles", fileName);
+            string assetPath = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
             int currentIndex = findAutoTileIndex(pair.Key, index);
             if (currentIndex < 0)
             {
-                AutoTiles.Insert(index, new AutoTileItemViewModel(pair.Key, imagePath));
+                AutoTiles.Insert(index, new AutoTileItemViewModel(
+                    pair.Key,
+                    GameData.ProjectPath,
+                    assetPath));
                 index += 1;
                 continue;
             }
             if (currentIndex != index)
                 AutoTiles.Move(currentIndex, index);
-            if (!string.Equals(AutoTiles[index].ImagePath, imagePath, StringComparison.Ordinal))
-                AutoTiles[index] = new AutoTileItemViewModel(pair.Key, imagePath);
+            if (!string.Equals(AutoTiles[index].AssetPath, assetPath, StringComparison.Ordinal))
+            {
+                AutoTiles[index] = new AutoTileItemViewModel(
+                    pair.Key,
+                    GameData.ProjectPath,
+                    assetPath);
+            }
             index += 1;
         }
         while (AutoTiles.Count > index)
@@ -222,18 +227,23 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
     }
 }
 
-public sealed record TilesetTabViewModel(string Key, string Name, string ImagePath);
+public sealed record TilesetTabViewModel(string Key, string Name, string AssetPath);
 
 public sealed class AutoTileItemViewModel
 {
-    public AutoTileItemViewModel(string key, string imagePath)
+    public AutoTileItemViewModel(
+        string key,
+        string projectPath,
+        string assetPath)
     {
         Key = key;
-        ImagePath = imagePath;
+        ProjectPath = projectPath;
+        AssetPath = assetPath;
     }
 
     public string Key { get; }
-    public string ImagePath { get; }
+    public string ProjectPath { get; }
+    public string AssetPath { get; }
 }
 
 public sealed record TileSelection(int OriginTileNumber, int Width, int Height);

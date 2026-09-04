@@ -1,11 +1,11 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local WindowEnemyEncyclopediaUI = require("Source.UI.WindowEnemyEncyclopedia")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 
 local Input = Engine.Input
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local _WINDOW_WIDTH = 640
 local _WINDOW_HEIGHT = 480
@@ -74,7 +74,7 @@ function WindowEnemyEncyclopedia:_clearEnemyControls()
 end
 
 function WindowEnemyEncyclopedia:onReturn()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:close()
 end
 

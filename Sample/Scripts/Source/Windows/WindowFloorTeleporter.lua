@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local RegionDict = require("Source.Configs.RegionDict")
 local LocaleCore = require("Source.Locale.Core")
 local MapPath = require("Source.MapPath")
@@ -11,7 +11,7 @@ local UiLayout = require("Source.UI.UiLayout")
 local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
 local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local Canvas = Engine.Canvas
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
@@ -82,7 +82,7 @@ function WindowFloorTeleporterController:hideImmediate()
 end
 
 function WindowFloorTeleporterController:closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:close(function ()
         if self.model._onCloseCallback ~= nil then
             self.model._onCloseCallback()
@@ -102,10 +102,10 @@ end
 function WindowFloorTeleporterController:activateTelepointSelector()
     local mapKey = self.model._commandWindow:getCurrentMapKey()
     if not bool(mapKey) or not bool(self:getTelepointsForMap(mapKey)) then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self.model._commandWindow:setActive(false)
     self.model._commandWindow:setVisible(false)
     self.model._previewWindow:setActive(true)
@@ -114,7 +114,7 @@ end
 
 function WindowFloorTeleporterController:activateMapList(playCancelSE)
     if bool(playCancelSE) then
-        ManagerFunctions.playSE(GameSystem.GetCancelSE())
+        AudioManager.playSound(GameSystem.GetCancelSE())
     end
     self.model._previewWindow:setActive(false)
     self.model:setVisible(true)
@@ -127,10 +127,10 @@ function WindowFloorTeleporterController:confirmSelectedTelepoint()
     local mapKey = self.model._commandWindow:getCurrentMapKey()
     local telepoint = self:getCurrentTelepoint()
     if mapKey == nil or telepoint == nil then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self:close(function ()
         if self.model._onConfirmCallback ~= nil then
             self.model._onConfirmCallback(mapKey, telepoint)

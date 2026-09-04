@@ -55,8 +55,10 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     local actorPixelShatterShader = nil
     if sf.Shader.isAvailable() and not previewOnly then
         actorPixelShatterShader = assert(
-            ShaderManager.loadFull("Global/ActorPixelShatter.vert", "Global/ActorPixelShatter.frag"),
-            "Actor pixel shatter shader must not be nil"
+            ShaderManager.loadFull(
+                "/Game/Assets/Shaders/Global/ActorPixelShatter.vert",
+                "/Game/Assets/Shaders/Global/ActorPixelShatter.frag"
+            ), "Actor pixel shatter shader must not be nil"
         )
     end
     GameMapBase.init(self)

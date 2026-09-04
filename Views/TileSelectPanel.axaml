@@ -79,7 +79,8 @@
                     <controls:AutoTilePreview Width="32"
                                               Height="32"
                                               CellSize="32"
-                                              ImagePath="{Binding ImagePath}"
+                                              ProjectPath="{Binding ProjectPath}"
+                                              AssetPath="{Binding AssetPath}"
                                               ToolTip.Tip="{Binding Key}" />
                 </DataTemplate>
             </ListBox.ItemTemplate>

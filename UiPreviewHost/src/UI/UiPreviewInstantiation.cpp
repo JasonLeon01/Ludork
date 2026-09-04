@@ -3,10 +3,10 @@
 #include "Protocol/PreviewProtocol.hpp"
 
 #include <EngineState.hpp>
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiAssetRuntime.hpp>
 #include <UI/UIState.hpp>
-#include <Utf8Path.hpp>
 #include <Utils/File.hpp>
 
 #include <SFML/Graphics/Font.hpp>
@@ -21,22 +21,10 @@
 namespace ludork::preview_host {
 namespace {
 
-std::filesystem::path safeProjectPath(const std::string& value,
-                                      const std::string& source) {
-    const std::filesystem::path relative =
-        ludork::standard::pathFromUtf8(value).lexically_normal();
-    if (relative.empty() || relative.is_absolute()) {
-        throw std::invalid_argument(source +
-                                    " must be a relative project path");
-    }
-    for (const std::filesystem::path& part : relative) {
-        if (part == "..") {
-            throw std::invalid_argument(source +
-                                        " cannot traverse parent folders");
-        }
-    }
-    return std::filesystem::current_path() / relative;
-}
+struct FontResource {
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream;
+    sf::Font font;
+};
 
 std::string settingString(const RuntimeValue::Map& config,
                           const std::string& name) {
@@ -84,25 +72,17 @@ void configureUiResources() {
     }
     const std::string& fontName = ludork::runtime::value_reader::requireString(
         fontNames.front(), "System config.fonts.value[0]");
-    const RuntimeValue* baseValue =
-        ludork::runtime::value_reader::findValue(fonts, "base");
-    const std::string base = baseValue == nullptr
-                                 ? "Fonts"
-                                 : ludork::runtime::value_reader::requireString(
-                                       *baseValue, "System config.fonts.base");
-    const std::filesystem::path fontPath = safeProjectPath(
-        "Assets/" + base + "/" + fontName, "System config font");
-    std::shared_ptr<sf::Font> font = std::make_shared<sf::Font>();
-    if (!font->openFromFile(fontPath)) {
-        throw std::runtime_error("Failed to load preview font: " +
-                                 ludork::standard::pathToUtf8(fontPath));
+    std::shared_ptr<FontResource> owner = std::make_shared<FontResource>();
+    owner->stream = ludork::runtime::assetStore().open(fontName);
+    if (!owner->font.openFromStream(*owner->stream)) {
+        throw std::runtime_error("Failed to load preview font: " + fontName);
     }
     const std::int64_t size = settingInteger(config, "fontSize");
     if (size <= 0 || size > std::numeric_limits<int>::max()) {
         throw std::invalid_argument(
             "System config fontSize must be a positive integer");
     }
-    defaultFont = std::move(font);
+    defaultFont = std::shared_ptr<sf::Font>(owner, &owner->font);
     defaultFontSize = static_cast<int>(size);
     defaultWindowskinName = settingString(config, "windowskinName");
 }

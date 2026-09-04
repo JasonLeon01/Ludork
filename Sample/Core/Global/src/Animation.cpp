@@ -1,7 +1,6 @@
 #include <GlobalAnimation.hpp>
 
 #include <Filters/SoundFilter.hpp>
-#include <Manager/AssetPath.hpp>
 #include <Manager/AudioManager.hpp>
 
 #include <SFML/Graphics/Texture.hpp>
@@ -48,12 +47,9 @@ void Animation::playSoundsUpToFrame(int frameIndex) {
                 filter.spatial = true;
                 filter.position = sf::Vector3f{position.x, position.y, 0.0f};
                 filter.relativeToListener = false;
-                sound = AudioManager::playSound(
-                    ludork::global::manager::assetFile("Sounds", entry.asset),
-                    &filter);
+                sound = AudioManager::playSound(entry.asset, &filter);
             } else {
-                sound = AudioManager::playSound(
-                    ludork::global::manager::assetFile("Sounds", entry.asset));
+                sound = AudioManager::playSound(entry.asset);
             }
             if (sound != nullptr && entry.endFrame >= 0 &&
                 entry.stopAtEndFrame.value_or(false)) {

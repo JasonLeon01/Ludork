@@ -1,12 +1,10 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local AudioEffects = require("Source.AudioEffects")
 local LocaleCore = require("Source.Locale.Core")
 local Context = require("Source.NodeFunctions.Context")
 
 local AudioManager = GlobalCore.AudioManager
-local ManagerFunctions = GlobalFunctions.Manager
 local GlobalSystem = GlobalCore.System
 local WeatherType = GlobalCore.WeatherType
 ---@type fun(value: string): string
@@ -81,9 +79,9 @@ end
 function System.PlaySound(soundFileName, applyFilter)
     applyFilter = applyFilter == nil and false or applyFilter
     if applyFilter then
-        ManagerFunctions.playSE(soundFileName, System.SoundFilter)
+        AudioManager.playSound(soundFileName, System.SoundFilter)
     else
-        ManagerFunctions.playSE(soundFileName)
+        AudioManager.playSound(soundFileName)
     end
 end
 
@@ -96,7 +94,7 @@ function System.PlayMusic(musicFileName, applyFilter)
         scene:playBgm(musicFileName, musicFilter)
         return
     end
-    local music = ManagerFunctions.playMusic("BGM", musicFileName, musicFilter)
+    local music = AudioManager.playMusic("BGM", musicFileName, musicFilter)
     if music ~= nil then
         music:setLooping(true)
     end
@@ -105,8 +103,7 @@ end
 function System.PlayVideo(videoFileName, mute, skipable)
     mute = mute == nil and false or mute
     skipable = skipable == nil and true or skipable
-    local videoPath = os.path.join(os.getcwd(), "Assets", "Videos", videoFileName)
-    _G.playVideo(videoPath, mute, skipable)
+    _G.playVideo(videoFileName, mute, skipable)
 end
 
 function System.FreezeTransitionBackground()

@@ -12,7 +12,8 @@
 
 #include "AudioEffectLuaRuntime.hpp"
 
-#include <Utf8Path.hpp>
+#include <Runtime/AssetPath.hpp>
+#include <Runtime/AssetStore.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -184,7 +185,9 @@ std::shared_ptr<sf::SoundBuffer> AudioManager::loadSound(
         return iterator->second;
     }
     auto buffer = std::make_shared<sf::SoundBuffer>();
-    if (!buffer->loadFromFile(ludork::standard::pathFromUtf8(filePath))) {
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+        ludork::runtime::assetStore().open(filePath);
+    if (!buffer->loadFromStream(*stream)) {
         throw std::runtime_error("Failed to load sound buffer from file: " +
                                  filePath);
     }
@@ -195,6 +198,7 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     const std::string& filePath, const SoundFilter* filter,
     const std::shared_ptr<sf::Transformable>& parent) {
     requireLogicThreadAudioLifecycle();
+    static_cast<void>(ludork::runtime::AssetPath::parse(filePath));
     if (!SystemConfigBase::getSoundOn()) {
         return nullptr;
     }
@@ -275,6 +279,7 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     const std::string& filePath, const SoundFilter* filter,
     const std::shared_ptr<sf::Transformable>& refActor, float minDistance) {
     requireLogicThreadAudioLifecycle();
+    static_cast<void>(ludork::runtime::AssetPath::parse(filePath));
     stopVoice();
     if (!SystemConfigBase::getVoiceOn()) {
         return nullptr;
@@ -359,6 +364,7 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
                                                    const std::string& filePath,
                                                    const MusicFilter* filter) {
     requireLogicThreadAudioLifecycle();
+    static_cast<void>(ludork::runtime::AssetPath::parse(filePath));
     stopMusic(musicType);
     const std::string alias = caseAlias(musicType);
     if (alias != musicType) {
@@ -379,7 +385,7 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
     }
     const std::shared_ptr<ManagedMusic> managedMusic =
         std::make_shared<ManagedMusic>();
-    if (!managedMusic->openFromFile(ludork::standard::pathFromUtf8(filePath))) {
+    if (!managedMusic->openFromAsset(filePath)) {
         throw std::runtime_error("Failed to load music from file: " + filePath);
     }
     std::shared_ptr<AudioEffectControl> effectControl =

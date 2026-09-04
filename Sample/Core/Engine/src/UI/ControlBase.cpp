@@ -430,6 +430,10 @@ bool ControlBase::_ignoresAncestorInteractionClip() const {
     return false;
 }
 
+sf::FloatRect ControlBase::getPresentationBounds() const {
+    return getLocalBounds();
+}
+
 void ControlBase::_refreshPresentationColour() {}
 
 const sf::Color& ControlBase::presentationColour() const {
@@ -447,7 +451,7 @@ sf::Color ControlBase::modulatePresentationColour(
 sf::Transform ControlBase::presentationTransform() const {
     sf::Transform result;
     result.translate(presentationTranslation_ * Scale);
-    const sf::FloatRect bounds = getLocalBounds();
+    const sf::FloatRect bounds = getPresentationBounds();
     const sf::Vector2f pivot =
         (bounds.position + sf::Vector2f(bounds.size.x * presentationPivot_.x,
                                         bounds.size.y * presentationPivot_.y)) *

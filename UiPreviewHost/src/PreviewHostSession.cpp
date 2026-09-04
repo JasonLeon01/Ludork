@@ -3,6 +3,7 @@
 #include "Protocol/PreviewProtocol.hpp"
 
 #include <EngineState.hpp>
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiResources.hpp>
@@ -87,6 +88,7 @@ RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
                 "Handshake projectPath is not a directory");
         }
         std::filesystem::current_path(project);
+        ludork::runtime::assetStore().configure(project);
         engineState().setScale(1.0f);
         actorRenderer_.reset(project);
         accepted_ = true;

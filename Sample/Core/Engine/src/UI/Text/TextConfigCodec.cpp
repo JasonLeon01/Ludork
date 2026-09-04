@@ -1,5 +1,6 @@
 #include "TextConfigCodec.hpp"
 
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UIState.hpp>
 #include <UI/UiVector4CurveResource.hpp>
@@ -28,6 +29,11 @@ using ludork::runtime::value_reader::requireMap;
 using ludork::runtime::value_reader::requireNumber;
 using ludork::runtime::value_reader::requireString;
 using ludork::runtime::value_reader::requireValue;
+
+struct FontResource {
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream;
+    sf::Font font;
+};
 
 [[noreturn]] void configError(const std::string& source,
                               const std::string& message) {
@@ -315,20 +321,12 @@ std::shared_ptr<sf::Font> loadFont(const std::string& fontKey,
         }
         return defaultFont;
     }
-    std::filesystem::path relative = safeRelativePath(fontKey);
-    if (relative.parent_path().empty()) {
-        relative = std::filesystem::path("Fonts") / relative;
+    std::shared_ptr<FontResource> owner = std::make_shared<FontResource>();
+    owner->stream = ludork::runtime::assetStore().open(fontKey);
+    if (!owner->font.openFromStream(*owner->stream)) {
+        throw std::runtime_error("Failed to load UI font: " + fontKey);
     }
-    if (relative.empty() || *relative.begin() != "Assets") {
-        relative = std::filesystem::path("Assets") / relative;
-    }
-    const std::filesystem::path path = std::filesystem::path(".") / relative;
-    std::shared_ptr<sf::Font> font = std::make_shared<sf::Font>();
-    if (!font->openFromFile(path)) {
-        throw std::runtime_error("Failed to load UI font: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-    return font;
+    return std::shared_ptr<sf::Font>(owner, &owner->font);
 }
 
 sf::Text::LineAlignment parseLineAlignment(const std::string& value,

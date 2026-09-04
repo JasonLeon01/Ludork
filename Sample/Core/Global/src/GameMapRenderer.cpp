@@ -87,7 +87,7 @@ GameMapRendererImpl::GameMapRendererImpl(
     if (!sf::Shader::isAvailable()) {
         return;
     }
-    actorHueShader = loadFragmentShader("Global/Hue.frag");
+    actorHueShader = loadFragmentShader("/Game/Assets/Shaders/Global/Hue.frag");
     if (previewOnly) {
         return;
     }
@@ -96,12 +96,16 @@ GameMapRendererImpl::GameMapRendererImpl(
             "GameMapRenderer live camera must not be nil");
     }
 
-    materialShader = loadFragmentShader("Global/Material.frag");
-    tileMaskShader = loadFragmentShader("Global/TilemapLightMask.frag");
-    actorMaskShader = loadFragmentShader("Global/LightMask.frag");
-    lightPassShader = loadFragmentShader("Global/LightPass.frag");
-    unobstructedLightShader =
-        loadFragmentShader("Global/UnoccludedLightPass.frag");
+    materialShader =
+        loadFragmentShader("/Game/Assets/Shaders/Global/Material.frag");
+    tileMaskShader =
+        loadFragmentShader("/Game/Assets/Shaders/Global/TilemapLightMask.frag");
+    actorMaskShader =
+        loadFragmentShader("/Game/Assets/Shaders/Global/LightMask.frag");
+    lightPassShader =
+        loadFragmentShader("/Game/Assets/Shaders/Global/LightPass.frag");
+    unobstructedLightShader = loadFragmentShader(
+        "/Game/Assets/Shaders/Global/UnoccludedLightPass.frag");
 
     const sf::Vector2u mapSize = this->tilemap->getSize();
     const unsigned int cellSize =

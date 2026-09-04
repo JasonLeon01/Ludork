@@ -356,7 +356,6 @@ public sealed partial class ReferenceIndexService
                 addAssetReference(
                     sourceId,
                     layer["shaderPath"],
-                    "Shaders",
                     "asset",
                     $"Maps/{key}.layers.{pair.Key}.shaderPath");
                 scanAutoTileReferences(
@@ -386,9 +385,9 @@ public sealed partial class ReferenceIndexService
             scanMapActorReferences(sourceId, data["actors"], $"Maps/{key}.actors");
             scanKnownMapNodeReferences(sourceId, data["actors"], $"Maps/{key}.actors");
         }
-        addAssetReference(sourceId, data["bgm"], "Musics", "asset", $"Maps/{key}.bgm");
-        addAssetReference(sourceId, data["bgs"], "Musics", "asset", $"Maps/{key}.bgs");
-        addAssetReference(sourceId, data["fog"], "Fogs", "asset", $"Maps/{key}.fog");
+        addAssetReference(sourceId, data["bgm"], "asset", $"Maps/{key}.bgm");
+        addAssetReference(sourceId, data["bgs"], "asset", $"Maps/{key}.bgs");
+        addAssetReference(sourceId, data["fog"], "asset", $"Maps/{key}.fog");
         scanGenericReferences(sourceId, data["BPClassVarChanged"], $"Maps/{key}.BPClassVarChanged");
         scanKnownMapNodeReferences(
             sourceId,
@@ -425,7 +424,7 @@ public sealed partial class ReferenceIndexService
 
     private void scanWorldMapReferences(string sourceId, string key, JsonObject data)
     {
-        addAssetReference(sourceId, data["fog"], "Fogs", "asset", $"Maps/{key}/_world.fog");
+        addAssetReference(sourceId, data["fog"], "asset", $"Maps/{key}/_world.fog");
         if (data["placements"] is not JsonArray placements)
             return;
         for (int index = 0; index < placements.Count; index += 1)
@@ -466,4 +465,3 @@ public sealed partial class ReferenceIndexService
         addReference(sourceId, nodeId("map", key), kind, path);
     }
 }
-

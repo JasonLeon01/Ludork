@@ -4,7 +4,6 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Ludork.Plugin.Abstractions;
 using System;
-using System.IO;
 
 namespace Ludork.Plugins.OfficialRandomMap.UI;
 
@@ -15,34 +14,37 @@ internal sealed class TilePreviewControl : Control, IDisposable
     private static readonly Pen BorderPen =
         new(new SolidColorBrush(Color.Parse("#5f6368")), 1);
 
+    private readonly IMapEditorHost host;
     private Bitmap? bitmap;
     private PluginTilesetSnapshot? tileset;
     private int? tileNumber;
 
-    public TilePreviewControl()
+    public TilePreviewControl(IMapEditorHost host)
     {
+        this.host = host;
         Width = 64;
         Height = 64;
     }
 
     public void SetTile(PluginTilesetSnapshot? nextTileset, int? nextTileNumber)
     {
-        string? currentPath = tileset?.ImagePath;
+        string? currentPath = tileset?.AssetPath;
         tileset = nextTileset;
         tileNumber = nextTileNumber;
         if (!string.Equals(
                 currentPath,
-                nextTileset?.ImagePath,
-                StringComparison.OrdinalIgnoreCase))
+                nextTileset?.AssetPath,
+                StringComparison.Ordinal))
         {
             bitmap?.Dispose();
             bitmap = null;
-            if (nextTileset is not null
-                && File.Exists(nextTileset.ImagePath))
+            if (nextTileset is not null)
             {
+                string filePath = host.ResolveAssetFile(nextTileset.AssetPath);
                 try
                 {
-                    bitmap = new Bitmap(nextTileset.ImagePath);
+                    if (filePath.Length != 0)
+                        bitmap = new Bitmap(filePath);
                 }
                 catch (Exception)
                 {

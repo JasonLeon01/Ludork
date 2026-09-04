@@ -186,6 +186,7 @@ private:
     void restoreParentFocus();
 
     bool _ignoresAncestorInteractionClip() const override;
+    sf::FloatRect getPresentationBounds() const override;
     bool _hasOverlay() const override;
     void _drawOverlay(sf::RenderTarget& target,
                       sf::RenderStates states) const override;

@@ -5,6 +5,7 @@ set -eu
 USE_LUAC=0
 ENCRYPT_SHADERS=0
 ENCRYPT_DATA=0
+PACK_ASSETS=0
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --compile-lua)
@@ -19,6 +20,10 @@ while [ "$#" -gt 0 ]; do
             ENCRYPT_DATA=1
             shift
             ;;
+        --pack-assets)
+            PACK_ASSETS=1
+            shift
+            ;;
         --*)
             echo "Unknown option: $1" >&2
             exit 1
@@ -29,7 +34,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-    echo "Usage: tools/pack_project.sh [--compile-lua] [--encrypt-shaders] [--encrypt-data] <project-folder> [dist-folder]" >&2
+    echo "Usage: tools/pack_project.sh [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--pack-assets] <project-folder> [dist-folder]" >&2
     exit 1
 fi
 
@@ -52,6 +57,9 @@ DEFAULT_APP_NAME_PATTERN="^[[:space:]]*local[[:space:]]+APP_NAME[[:space:]]*=[[:
 if grep -Eq "$DEFAULT_APP_NAME_PATTERN" "$ENTRY_FILE"; then
     echo "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging." >&2
     exit 24
+fi
+if [ "$PACK_ASSETS" -eq 1 ]; then
+    "$SCRIPT_TOOLS" validate-asset-pack-source "$PROJECT_DIR/Assets"
 fi
 
 PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
@@ -95,6 +103,9 @@ fi
 
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
+if [ "$PACK_ASSETS" -eq 1 ]; then
+    "$SCRIPT_TOOLS" validate-asset-pack-source "$PROJECT_DIR/Assets"
+fi
 "$SCRIPT_TOOLS" macos-bundle \
     "$PROJECT_DIR" "$RUNTIME_DIR" "$DIST_DIR/Main.app"
 remove_ui_preview_host_entries "$DIST_DIR/Main.app"
@@ -104,6 +115,9 @@ if [ "$ENCRYPT_SHADERS" -eq 1 ]; then
 fi
 if [ "$ENCRYPT_DATA" -eq 1 ]; then
     set -- "$@" --encrypt-data
+fi
+if [ "$PACK_ASSETS" -eq 1 ]; then
+    set -- "$@" --pack-assets
 fi
 "$SCRIPT_TOOLS" finalize-package "$@" \
     "$DIST_DIR/Main.app/Contents/Resources"

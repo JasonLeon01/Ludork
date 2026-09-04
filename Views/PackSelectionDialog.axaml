@@ -79,6 +79,8 @@
                       IsChecked="False" />
             <CheckBox x:Name="EncryptDataOption"
                       IsChecked="False" />
+            <CheckBox x:Name="PackAssetsOption"
+                      IsChecked="False" />
         </StackPanel>
         <StackPanel Grid.Row="1"
                     Orientation="Horizontal"

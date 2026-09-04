@@ -52,8 +52,8 @@ public sealed partial class MapPanel : Control
     private readonly Stopwatch animationClock = Stopwatch.StartNew();
     private readonly DispatcherTimer animationTimer;
     private readonly DispatcherTimer tileBrushRenderTimer;
-    private readonly Dictionary<string, CachedBitmap> bitmapCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Bitmap> hueCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedBitmap> bitmapCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Bitmap> hueCache = new(StringComparer.Ordinal);
     private readonly List<Bitmap> retiredBitmaps = [];
     private readonly Dictionary<string, LayerRenderCache> layerRenderCaches = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<ActorRenderState>> actorRenderStates = new(StringComparer.Ordinal);

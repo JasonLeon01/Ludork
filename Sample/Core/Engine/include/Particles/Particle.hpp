@@ -68,10 +68,10 @@ public:
     virtual void destroy();
 
     ////////////////////////////////////////////////////////////
-    /// \brief Texture resource path used by this particle
+    /// \brief Canonical texture path under /Game/Assets used by this particle
     ///
     ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets"))
     std::string resourcePath;
 
     ////////////////////////////////////////////////////////////

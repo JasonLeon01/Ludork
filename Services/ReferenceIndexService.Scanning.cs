@@ -15,7 +15,6 @@ public sealed partial class ReferenceIndexService
         addAssetReference(
             sourceId,
             data["font"],
-            "Fonts",
             "font",
             $"TextConfigs/{key}.font");
         if (data["gradient"] is JsonObject gradient
@@ -61,18 +60,22 @@ public sealed partial class ReferenceIndexService
         }
         if (node["properties"] is JsonObject properties)
         {
-            addAssetReference(
-                sourceId,
-                properties["texture"],
-                string.Empty,
-                "uiResource",
-                $"UI/{key}.{path}.properties.texture");
-            addAssetReference(
-                sourceId,
-                properties["windowSkin"],
-                string.Empty,
-                "uiResource",
-                $"UI/{key}.{path}.properties.windowSkin");
+            foreach (string propertyName in new[]
+                     {
+                         "texture",
+                         "windowSkin",
+                         "lineTexture",
+                         "handleTexture",
+                         "font",
+                         "shader",
+                     })
+            {
+                addAssetReference(
+                    sourceId,
+                    properties[propertyName],
+                    "uiResource",
+                    $"UI/{key}.{path}.properties.{propertyName}");
+            }
             if (normalizeReferenceParam(properties["textConfig"]) is string textConfig
                 && textConfig.Length != 0)
             {
@@ -129,9 +132,10 @@ public sealed partial class ReferenceIndexService
                 {
                     addMapReference(sourceId, values[index], "configFile", path);
                 }
-                else
+                else if (string.IsNullOrWhiteSpace(root)
+                    || root.Equals("Assets", StringComparison.Ordinal))
                 {
-                    addAssetReference(sourceId, values[index], baseDirectory, "configFile", path);
+                    addAssetReference(sourceId, values[index], "configFile", path);
                 }
             }
         }
@@ -175,10 +179,10 @@ public sealed partial class ReferenceIndexService
 
         if (data["attrs"] is JsonObject attrs)
         {
-            Dictionary<string, string> pathVariables = new(StringComparer.Ordinal)
+            HashSet<string> pathVariables = new(StringComparer.Ordinal)
             {
-                ["texturePath"] = "Characters",
-                ["shaderPath"] = "Shaders",
+                "texturePath",
+                "shaderPath",
             };
             ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
             collectPathVariables(resolved.Meta["PathVars"], pathVariables);
@@ -188,20 +192,18 @@ public sealed partial class ReferenceIndexService
                     continue;
                 if (getMetaReference(field.Metadata.Meta["PathRoot"], field.Name) == "Project")
                     continue;
-                string? baseDirectory = getMetaReference(field.Metadata.Meta["PathVars"], field.Name);
-                if (baseDirectory is not null)
-                    pathVariables[field.Name] = baseDirectory;
+                if (getMetaReference(field.Metadata.Meta["PathVars"], field.Name) is not null)
+                    pathVariables.Add(field.Name);
             }
-            foreach (KeyValuePair<string, string> pair in pathVariables)
+            foreach (string name in pathVariables)
             {
-                if (attrs.ContainsKey(pair.Key))
+                if (attrs.ContainsKey(name))
                 {
                     addAssetReference(
                         sourceId,
-                        attrs[pair.Key],
-                        pair.Value,
+                        attrs[name],
                         "asset",
-                        $"Blueprints/{key}.attrs.{pair.Key}");
+                        $"Blueprints/{key}.attrs.{name}");
                 }
             }
             scanGenericReferences(sourceId, attrs, $"Blueprints/{key}.attrs");
@@ -223,9 +225,7 @@ public sealed partial class ReferenceIndexService
         {
             for (int index = 0; index < assets.Count; index++)
             {
-                string? assetName = getString(assets[index]);
-                string baseDirectory = isAudioAsset(assetName) ? "Sounds" : "Animations";
-                addAssetReference(sourceId, assets[index], baseDirectory, "animationAsset", $"assets[{index}]");
+                addAssetReference(sourceId, assets[index], "animationAsset", $"assets[{index}]");
             }
         }
         scanGenericReferences(sourceId, data, $"Animations/{key}");
@@ -246,7 +246,6 @@ public sealed partial class ReferenceIndexService
             addReference(sourceId, memberId, "member", $"General/{key}.members.{pair.Key}");
             if (pair.Value is not JsonObject member)
                 continue;
-            addAssetReference(memberId, member["icon"], string.Empty, "asset", "icon");
             scanGeneralParameterReferences(memberId, key, pair.Key, member, parameterSchema);
             if (member["_graph"] is JsonObject graph)
             {
@@ -272,19 +271,49 @@ public sealed partial class ReferenceIndexService
             if (pair.Value is not JsonObject definition)
                 continue;
             string type = getString(definition["type"]) ?? "string";
+            if (type == "file")
+            {
+                addAssetReference(
+                    sourceId,
+                    member[pair.Key],
+                    "asset",
+                    $"General/{dataKey}/{memberKey}.{pair.Key}");
+                continue;
+            }
             if (type is not "string" and not "list" and not "dict")
                 continue;
             JsonNode? value = member[pair.Key];
             if (type == "list" && value is JsonArray list)
             {
                 for (int index = 0; index < list.Count; index++)
+                {
+                    if (getString(definition["itemType"]) == "file")
+                    {
+                        addAssetReference(
+                            sourceId,
+                            list[index],
+                            "asset",
+                            $"General/{dataKey}/{memberKey}.{pair.Key}[{index}]");
+                    }
                     addGeneralParameterReference(sourceId, definition, list[index], $"General/{dataKey}/{memberKey}.{pair.Key}[{index}]");
+                }
                 continue;
             }
             if (type == "dict" && value is JsonObject dictionary)
             {
-                foreach (string itemKey in dictionary.Select(entry => entry.Key))
+                foreach (KeyValuePair<string, JsonNode?> item in dictionary)
+                {
+                    if (getString(definition["valueType"]) == "file")
+                    {
+                        addAssetReference(
+                            sourceId,
+                            item.Value,
+                            "asset",
+                            $"General/{dataKey}/{memberKey}.{pair.Key}.{item.Key}");
+                    }
+                    string itemKey = item.Key;
                     addGeneralParameterReference(sourceId, definition, JsonValue.Create(itemKey), $"General/{dataKey}/{memberKey}.{pair.Key}.{itemKey}");
+                }
                 continue;
             }
             addGeneralParameterReference(sourceId, definition, value, $"General/{dataKey}/{memberKey}.{pair.Key}");
@@ -358,9 +387,10 @@ public sealed partial class ReferenceIndexService
             }
             JsonNode? value = parameters[parameterIndex];
             string referencePath = $"{path}.params[{parameterIndex}]";
-            if (getMetaReference(port.Meta["PathVars"], port.Name) is string baseDirectory)
+            if (getMetaReference(port.Meta["PathVars"], port.Name) is not null
+                && getMetaReference(port.Meta["PathRoot"], port.Name) != "Project")
             {
-                addAssetReference(sourceId, value, baseDirectory, "nodeParam", referencePath);
+                addAssetReference(sourceId, value, "nodeParam", referencePath);
             }
             if (hasMetaReference(port.Meta["BlueprintClassVars"], port.Name))
             {
@@ -427,7 +457,7 @@ public sealed partial class ReferenceIndexService
             }
             else if (type == "asset")
             {
-                addAssetReference(sourceId, value, baseValue, "nodeParam", referencePath);
+                addAssetReference(sourceId, value, "nodeParam", referencePath);
             }
             else if (type == "generalMember")
             {
@@ -468,4 +498,3 @@ public sealed partial class ReferenceIndexService
     }
 
 }
-

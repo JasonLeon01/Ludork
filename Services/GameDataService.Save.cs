@@ -59,6 +59,9 @@ public sealed partial class GameDataService
         IReadOnlyList<string> generalDataErrors = GeneralDataSchemaValidation.Validate(sections["General"].Data);
         if (generalDataErrors.Count != 0)
             return new SaveResult(false, string.Join(Environment.NewLine, generalDataErrors));
+        IReadOnlyList<string> assetPathErrors = validateGameAssetPaths();
+        if (assetPathErrors.Count != 0)
+            return new SaveResult(false, string.Join(Environment.NewLine, assetPathErrors));
         WorldMapMutationResult worldValidation = ValidateAllWorldMaps();
         if (!worldValidation.Success)
             return new SaveResult(false, worldValidation.Details);
@@ -262,6 +265,93 @@ public sealed partial class GameDataService
         refreshModifiedState();
         DataSaved?.Invoke(this, EventArgs.Empty);
         return new SaveResult(failed.Count == 0, formatSaveDetails(added, updated, deleted, failed));
+    }
+
+    private IReadOnlyList<string> validateGameAssetPaths()
+    {
+        List<string> errors = [];
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Tilesets"].Data)
+            validateAssetPath(entry.Value["fileName"], $"Tilesets/{entry.Key}.fileName", errors);
+        foreach (KeyValuePair<string, JsonObject> entry in sections["AutoTiles"].Data)
+            validateAssetPath(entry.Value["fileName"], $"AutoTiles/{entry.Key}.fileName", errors);
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Animations"].Data)
+        {
+            if (entry.Value["assets"] is not JsonArray assets)
+                continue;
+            for (int index = 0; index < assets.Count; index++)
+                validateAssetPath(assets[index], $"Animations/{entry.Key}.assets[{index}]", errors);
+        }
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Configs"].Data)
+            validateConfigAssetPaths(entry.Key, entry.Value, errors);
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Maps"].Data)
+            validateMapAssetPaths(entry.Key, entry.Value, errors);
+        foreach (KeyValuePair<string, JsonObject> entry in sections["WorldMaps"].Data)
+            validateAssetPath(entry.Value["fog"], $"Maps/{entry.Key}/_world.fog", errors);
+        foreach (KeyValuePair<string, JsonObject> entry in sections["TextConfigs"].Data)
+            validateAssetPath(entry.Value["font"], $"TextConfigs/{entry.Key}.font", errors);
+        return errors;
+    }
+
+    private static void validateConfigAssetPaths(
+        string key,
+        JsonObject config,
+        ICollection<string> errors)
+    {
+        foreach (KeyValuePair<string, JsonNode?> entry in config)
+        {
+            if (entry.Value is not JsonObject setting
+                || getString(setting["type"])?.StartsWith("file", StringComparison.Ordinal) != true)
+            {
+                continue;
+            }
+            string? root = getString(setting["root"]);
+            if (!string.IsNullOrWhiteSpace(root)
+                && !string.Equals(root, "Assets", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            if (setting["value"] is JsonArray values)
+            {
+                for (int index = 0; index < values.Count; index++)
+                    validateAssetPath(values[index], $"Configs/{key}.{entry.Key}[{index}]", errors);
+            }
+            else
+            {
+                validateAssetPath(setting["value"], $"Configs/{key}.{entry.Key}", errors);
+            }
+        }
+    }
+
+    private static void validateMapAssetPaths(
+        string key,
+        JsonObject map,
+        ICollection<string> errors)
+    {
+        validateAssetPath(map["bgm"], $"Maps/{key}.bgm", errors);
+        validateAssetPath(map["bgs"], $"Maps/{key}.bgs", errors);
+        validateAssetPath(map["fog"], $"Maps/{key}.fog", errors);
+        if (map["layers"] is not JsonObject layers)
+            return;
+        foreach (KeyValuePair<string, JsonNode?> entry in layers)
+        {
+            if (entry.Value is JsonObject layer)
+            {
+                validateAssetPath(
+                    layer["shaderPath"],
+                    $"Maps/{key}.layers.{entry.Key}.shaderPath",
+                    errors);
+            }
+        }
+    }
+
+    private static void validateAssetPath(
+        JsonNode? value,
+        string path,
+        ICollection<string> errors)
+    {
+        string? text = getString(value);
+        if (!string.IsNullOrEmpty(text) && !GameAssetPath.IsCanonical(text))
+            errors.Add(path + " must use a canonical /Game/Assets/ path");
     }
 
     public SaveResult ReplaceMapLayerAndSave(

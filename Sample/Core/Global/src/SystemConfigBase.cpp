@@ -14,16 +14,22 @@
 #include <stdexcept>
 #include <utility>
 
+namespace {
+constexpr float DefaultMaximumRenderScale = 1.0f;
+constexpr float DefaultLightingRenderScale = 0.75f;
+constexpr int DefaultFrameRate = 60;
+constexpr int DefaultAntiAliasingLevel = 2;
+}  // namespace
+
 std::shared_ptr<ludork::standard::ConfigParser> SystemConfigBase::data_;
 std::filesystem::path SystemConfigBase::dataFilePath_;
 std::string SystemConfigBase::script_ = "Scripts/Entry.lua";
 std::string SystemConfigBase::language_ = "en_GB";
 float SystemConfigBase::scale_ = 1.0f;
-float SystemConfigBase::maximumRenderScale_ = 2.0f;
-float SystemConfigBase::lightingRenderScale_ = 1.0f;
-int SystemConfigBase::frameRate_ = 30;
-int SystemConfigBase::antiAliasingLevel_ =
-    static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
+float SystemConfigBase::maximumRenderScale_ = DefaultMaximumRenderScale;
+float SystemConfigBase::lightingRenderScale_ = DefaultLightingRenderScale;
+int SystemConfigBase::frameRate_ = DefaultFrameRate;
+int SystemConfigBase::antiAliasingLevel_ = DefaultAntiAliasingLevel;
 bool SystemConfigBase::verticalSync_ = true;
 bool SystemConfigBase::musicOn_ = true;
 bool SystemConfigBase::soundOn_ = true;
@@ -64,8 +70,9 @@ void SystemConfigBase::init(
     maximumRenderScale_ = normalizeMaximumRenderScale(
         static_cast<float>(data_->getFloat("Main", "maxrenderscale")
                                .value_or(maximumRenderScale_)));
-    lightingRenderScale_ = normalizeLightingRenderScale(static_cast<float>(
-        data_->getFloat("Main", "lightingrenderscale").value_or(1.0)));
+    lightingRenderScale_ = normalizeLightingRenderScale(
+        static_cast<float>(data_->getFloat("Main", "lightingrenderscale")
+                               .value_or(lightingRenderScale_)));
     frameRate_ = static_cast<int>(
         data_->getInt("Main", "frameRate").value_or(frameRate_));
     antiAliasingLevel_ =
@@ -280,11 +287,10 @@ void SystemConfigBase::shutdown() noexcept {
     script_ = "Scripts/Entry.lua";
     language_ = "en_GB";
     scale_ = 1.0f;
-    maximumRenderScale_ = 2.0f;
-    lightingRenderScale_ = 1.0f;
-    frameRate_ = 30;
-    antiAliasingLevel_ =
-        static_cast<int>(sf::ContextSettings{}.antiAliasingLevel);
+    maximumRenderScale_ = DefaultMaximumRenderScale;
+    lightingRenderScale_ = DefaultLightingRenderScale;
+    frameRate_ = DefaultFrameRate;
+    antiAliasingLevel_ = DefaultAntiAliasingLevel;
     verticalSync_ = true;
     musicOn_ = true;
     soundOn_ = true;

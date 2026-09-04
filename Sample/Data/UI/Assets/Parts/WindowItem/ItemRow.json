@@ -24,7 +24,7 @@
         "name": "Icon",
         "controlId": "Engine.FunctionalImage",
         "properties": {
-          "texture": "Assets/Icons/classic-items-0-0.png"
+          "texture": "/Game/Assets/Icons/classic-items-0-0.png"
         },
         "slot": {
           "anchors": {

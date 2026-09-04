@@ -13,7 +13,7 @@
     ],
     "needKeyID": "KEY_B",
     "needKeyCount": 3,
-    "texturePath": "blocks/classic-doors-003-single.png",
+    "texturePath": "/Game/Assets/Characters/blocks/classic-doors-003-single.png",
     "tag": ""
   },
   "type": "blueprint"

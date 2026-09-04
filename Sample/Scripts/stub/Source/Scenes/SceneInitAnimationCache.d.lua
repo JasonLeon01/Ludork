@@ -8,10 +8,9 @@ local SceneInitAnimationCache = {}
 function SceneInitAnimationCache.SourceKey(value, suffix) end
 
 ---@param payload      Engine.AnimationSourceData
----@param assetsRoot   string
 ---@param relativePath string
 ---@return Source.Scenes.SceneInit.FrameAsset[]
-function SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePath) end
+function SceneInitAnimationCache.GetFrameAssets(payload, relativePath) end
 
 ---@param sourcePath  string
 ---@param cachePath   string

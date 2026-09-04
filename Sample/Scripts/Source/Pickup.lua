@@ -1,8 +1,8 @@
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local PlayerFunctions = require("Source.NodeFunctions.Player")
 local System = require("Source.System")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local Pickup = {}
 
@@ -11,7 +11,7 @@ local function playPickupSound(actor)
     if not bool(getSE) then
         getSE = System.GetGetSE()
     end
-    ManagerFunctions.playSE(getSE)
+    AudioManager.playSound(getSE)
 end
 
 local function showNewItemMessage(actor, inst, scene)

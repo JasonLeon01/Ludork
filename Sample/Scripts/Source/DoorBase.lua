@@ -1,9 +1,9 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 
 local Actor = Engine.Actor
 local SoundFilter = Engine.SoundFilter
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local LATENT_STARTED = 0
 local LATENT_FINISHED = 1
@@ -175,7 +175,7 @@ end
 
 function DoorBase:_playGateSE()
     local position = self:getPosition()
-    ManagerFunctions.playSE(
+    AudioManager.playSound(
         self.gateSE,
         SoundFilter.new({
             spatial = true,

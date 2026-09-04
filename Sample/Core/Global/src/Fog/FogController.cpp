@@ -4,7 +4,6 @@
 #include "FogController/WorldFogRuntime.hpp"
 
 #include <Camera.hpp>
-#include <Manager/AssetPath.hpp>
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
 #include <EngineState.hpp>
@@ -82,9 +81,8 @@ std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
     layer.distort = std::clamp(std::floor(distort), 0.0f, 100.0f);
     layer.cellRect = cellRect;
     try {
-        layer.texture = TextureManager::load(
-            ludork::global::manager::textureAssetFile("Fogs", graphic), false,
-            std::nullopt, true);
+        layer.texture =
+            TextureManager::load(graphic, false, std::nullopt, true);
         if (layer.texture == nullptr) {
             return std::nullopt;
         }
@@ -340,9 +338,7 @@ void FogController::drawWorldOverlay(Camera& camera) {
 
 bool FogController::loadFogTexture() {
     try {
-        fogTexture_ = TextureManager::load(
-            ludork::global::manager::textureAssetFile("Fogs", graphic_), false,
-            std::nullopt, true);
+        fogTexture_ = TextureManager::load(graphic_, false, std::nullopt, true);
         if (fogTexture_ == nullptr) {
             return false;
         }
@@ -359,7 +355,7 @@ void FogController::ensureShader() {
     if (fogShader_ != nullptr) {
         return;
     }
-    fogShader_ = ShaderManager::load("Global/Fog.frag");
+    fogShader_ = ShaderManager::load("/Game/Assets/Shaders/Global/Fog.frag");
 }
 
 void FogController::drawShaderOverlay(sf::RenderTexture& canvas) {

@@ -6,6 +6,7 @@ local GameInstance = require("Source.GameInstance")
 local SceneTitleUI = require("Source.UI.Title")
 
 local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local GlobalSystem = GlobalCore.System
 local SceneBase = GlobalCore.SceneBase
 
@@ -54,7 +55,7 @@ function Scene:onCreate()
     self._titleBGM = nil
     local titleBGMFile = SourceSystem.GetTitleBGM()
     if bool(titleBGMFile) then
-        self._titleBGM = ManagerFunctions.playMusic("BGM", titleBGMFile)
+        self._titleBGM = AudioManager.playMusic("BGM", titleBGMFile)
         if self._titleBGM ~= nil then
             self._titleBGM:setLooping(true)
         end
@@ -78,7 +79,7 @@ end
 function Scene:_startGame()
     local SceneMap = require("Source.Scenes.SceneMap")
 
-    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
+    AudioManager.playSound(SourceSystem.GetDecisionSE())
     ManagerFunctions.stopMusic("BGM")
     local nextScene = SceneMap.new()
     nextScene:setInst(GameInstance.new())
@@ -86,7 +87,7 @@ function Scene:_startGame()
 end
 
 function Scene:_onLoadCommand()
-    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
+    AudioManager.playSound(SourceSystem.GetDecisionSE())
     self._windowCommand:setActive(false)
     self._windowSaveLoad:open()
 end
@@ -112,7 +113,7 @@ function Scene:_onSaveLoadLoaded(inst)
 end
 
 function Scene:_onConfigCommand()
-    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
+    AudioManager.playSound(SourceSystem.GetDecisionSE())
     if self._configWindow:isOpen() then
         self._configWindow:close()
     else
@@ -128,7 +129,7 @@ end
 
 ---@diagnostic disable-next-line: unused
 function Scene:_exitGame()
-    ManagerFunctions.playSE(SourceSystem.GetDecisionSE())
+    AudioManager.playSound(SourceSystem.GetDecisionSE())
     GlobalSystem.exit()
 end
 

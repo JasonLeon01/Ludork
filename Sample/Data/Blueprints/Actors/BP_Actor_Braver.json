@@ -9,7 +9,7 @@
       "speedRate": 1.0
     },
     "speed": 160,
-    "texturePath": "actors/classic-cha-braver01.png",
+    "texturePath": "/Game/Assets/Characters/actors/classic-cha-braver01.png",
     "ID": "Bravor",
     "lightComp": {
       "lightColour": [

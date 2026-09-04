@@ -10,6 +10,7 @@ import struct
 import zlib
 
 from .compile_lua import compile_scripts, lua_source_paths, resolve_luac
+from .ldpak import pack_assets
 from .ui_assets import validate_assets
 
 
@@ -428,7 +429,8 @@ def finalize_package(
     encrypt_data_enabled: bool,
     compile_lua_directories: tuple[pathlib.PurePosixPath, ...] | None = None,
     excluded_files: tuple[pathlib.PurePosixPath, ...] | None = None,
-) -> tuple[int, int, int, int]:
+    pack_assets_enabled: bool = False,
+) -> tuple[int, int, int, int, int]:
     root = resource_root.expanduser().resolve()
     if not root.is_dir():
         raise RuntimeError(f"Package resource root was not found: {root}")
@@ -451,19 +453,28 @@ def finalize_package(
         encrypt_data(root / "Data") if encrypt_data_enabled else 0
     )
     reject_declaration_files(root)
-    return removed, encrypted_shaders, encrypted_data, compiled_lua
+    packed_assets = pack_assets(root / "Assets") if pack_assets_enabled else 0
+    return removed, encrypted_shaders, encrypted_data, compiled_lua, packed_assets
 
 
 def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ScriptTools finalize-package")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
+    parser.add_argument("--pack-assets", action="store_true")
     parser.add_argument("resource_root", type=pathlib.Path)
     parsed = parser.parse_args(arguments)
-    removed, encrypted_shaders, encrypted_data, compiled_lua = finalize_package(
+    (
+        removed,
+        encrypted_shaders,
+        encrypted_data,
+        compiled_lua,
+        packed_assets,
+    ) = finalize_package(
         parsed.resource_root,
         parsed.encrypt_shaders,
         parsed.encrypt_data,
+        pack_assets_enabled=parsed.pack_assets,
     )
     print(f"Removed {removed} development-only package entries")
     if compiled_lua:
@@ -472,4 +483,6 @@ def main(arguments: list[str] | None = None) -> int:
         print(f"Encrypted {encrypted_shaders} shader files")
     if parsed.encrypt_data:
         print(f"Encrypted {encrypted_data} JSON data files")
+    if parsed.pack_assets:
+        print(f"Packed {packed_assets} asset directories into .ldpak archives")
     return 0

@@ -1,9 +1,9 @@
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local WindowEnemyBookUI = require("Source.UI.WindowEnemyBook")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local _WINDOW_SIZE = 352
 local _CELL_WIDTH = 320
@@ -98,7 +98,7 @@ function WindowEnemyBook:_getRectWidth()
 end
 
 function WindowEnemyBook:onReturn()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:close(function ()
         if self._onCloseCallback ~= nil then
             self._onCloseCallback()
@@ -108,7 +108,7 @@ end
 
 ---@param entry table
 function WindowEnemyBook:_confirmEnemy(entry)
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self:close()
     if self._onConfirmCallback ~= nil then
         self._onConfirmCallback(entry)

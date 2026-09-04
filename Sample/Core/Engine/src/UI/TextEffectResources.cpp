@@ -15,7 +15,8 @@ namespace ludork::engine::text_effects {
 
 namespace {
 
-constexpr const char* DefaultTextEffectsShader = "Global/TextEffects.frag";
+constexpr const char* DefaultTextEffectsShader =
+    "/Game/Assets/Shaders/Global/TextEffects.frag";
 
 class TextShaderLoadError final : public std::runtime_error {
 public:

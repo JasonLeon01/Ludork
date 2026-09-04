@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
@@ -7,7 +7,7 @@ local IconTexture = require("Source.UI.IconTexture")
 local Ui = require("Source.UI.Ui")
 local ItemRowUI = require("Source.UI.Parts.WindowItem.ItemRow")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local TextLayout = Engine.TextLayout
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
@@ -85,7 +85,7 @@ function WindowItemUI:refreshItems()
             cost = true
         end
         local rowUI = ItemRowUI.new({
-            iconTexture = IconTexture.LoadItem(member.icon or ""),
+            iconTexture = IconTexture.Load(member.icon or ""),
             usable = usable,
             cost = cost,
             count = count
@@ -144,7 +144,7 @@ function WindowItemUI:_onUseItem()
     if not usable then
         return
     end
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     local itemID = self.model._itemList[self.model.index + 1][1]
     local result = self.model._player:activateItem(itemID)
     assert(result.ok, "Item Ability failed: " .. tostring(result.code))
@@ -155,7 +155,7 @@ function WindowItemUI:_onUseItem()
 end
 
 function WindowItemUI:_closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:close(function ()
         if self.model._onCloseCallback ~= nil then
             self.model._onCloseCallback()

@@ -507,13 +507,20 @@ internal sealed class TilesetDetailPanel : Grid
         populating = true;
         nameBox.Text = data?["name"]?.GetValue<string>() ?? string.Empty;
         string fileName = data?["fileName"]?.GetValue<string>() ?? string.Empty;
-        string path = string.IsNullOrWhiteSpace(fileName) ? string.Empty : Path.Combine(gameData.ProjectPath, "Assets", isAutoTile ? "Autotiles" : "Tilesets", fileName);
-        bool missingFile = fileName.Length != 0 && !File.Exists(path);
+        bool resolved = GameAssetPath.TryResolveExistingFile(
+            gameData.ProjectPath,
+            fileName,
+            out _);
+        bool missingFile = fileName.Length != 0 && !resolved;
         fileBox.Text = fileName;
         fileBox.BorderBrush = new SolidColorBrush(
             missingFile ? Color.Parse("#b94a48") : EditorInputs.ReadOnlyBorderColor);
-        ToolTip.SetTip(fileBox, missingFile ? path : null);
-        imageEditor.setData(data, path, isAutoTile);
+        ToolTip.SetTip(fileBox, missingFile ? fileName : null);
+        imageEditor.setData(
+            data,
+            gameData.ProjectPath,
+            fileName,
+            isAutoTile);
         populating = false;
     }
 
@@ -552,9 +559,12 @@ internal sealed class TilesetDetailPanel : Grid
         string root = Path.Combine(gameData.ProjectPath, "Assets", isAutoTile ? "Autotiles" : "Tilesets");
         Directory.CreateDirectory(root);
         string current = data["fileName"]?.GetValue<string>() ?? string.Empty;
-        string? initialFilePath = string.IsNullOrWhiteSpace(current)
-            ? null
-            : Path.Combine(root, current);
+        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+            gameData.ProjectPath,
+            current,
+            out string resolvedCurrent)
+            ? resolvedCurrent
+            : null;
         string? path = await FileSelectorDialog.ShowAsync(
             owner,
             root,
@@ -569,7 +579,7 @@ internal sealed class TilesetDetailPanel : Grid
             return;
         }
         gameData.RecordSnapshot();
-        data["fileName"] = Path.GetFileName(path);
+        data["fileName"] = GameAssetPath.FromProjectFile(gameData.ProjectPath, path);
         if (isAutoTile)
             data["material"] ??= createDefaultMaterial();
         else

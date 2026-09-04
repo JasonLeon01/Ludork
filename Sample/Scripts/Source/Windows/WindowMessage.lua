@@ -1,6 +1,5 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local System = require("Source.System")
 local WindowMessageUI = require("Source.UI.WindowMessage")
 local WindowBase = require("Source.Windows.Base.WindowBase")
@@ -12,7 +11,7 @@ local PlainText = Engine.PlainText
 local TextLayout = Engine.TextLayout
 local RichText = Engine.RichText
 local FunctionalBase = Engine.FunctionalBase
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local GlobalSystem = GlobalCore.System
 
 local ContentMode = { MESSAGE = 0, SELECTION = 1 }
@@ -281,11 +280,11 @@ function WindowMessage:_setupSelectionList(options)
     self._selectionListView = self._ui:showSelectionList(
         limitedOptions,
         function (optionIndex)
-            ManagerFunctions.playSE(System.GetDecisionSE())
+            AudioManager.playSound(System.GetDecisionSE())
             self:_resolveSelection(optionIndex)
         end,
         function ()
-            ManagerFunctions.playSE(System.GetCancelSE())
+            AudioManager.playSound(System.GetCancelSE())
             self:_resolveSelection(-1)
         end
     )

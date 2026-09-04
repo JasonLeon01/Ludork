@@ -1,6 +1,6 @@
 {
     "name": "grass",
-    "fileName": "autotile.jpg",
+    "fileName": "/Game/Assets/Autotiles/autotile.jpg",
     "passable": true,
     "material": {
         "lightBlock": 0.0,

@@ -1,4 +1,4 @@
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local IconTexture = require("Source.UI.IconTexture")
@@ -7,7 +7,7 @@ local WindowEquipSelectUI = require("Source.UI.Parts.WindowEquip.WindowEquipSele
 local ListViewController = require("Source.UI.Helpers.ListView")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local _EQUIP_CELL_SIZE = 32
 local WindowEquipSelectController = {}
@@ -64,7 +64,7 @@ function WindowEquipSelectController:refreshForSlot(slotKey)
         local count = 0
         if entry ~= self.UNEQUIP then
             local member = equipData[entry] or {}
-            iconTexture = IconTexture.Load(member.icon or "", "Characters/items")
+            iconTexture = IconTexture.Load(member.icon or "")
             count = self.model._equipCounts[entry] or 1
         end
         local rowUI = EquipItemRowUI.new({
@@ -126,7 +126,7 @@ function WindowEquipSelectController:returnToSlotWindow(playSE)
         playSE = true
     end
     if playSE then
-        ManagerFunctions.playSE(GameSystem.GetCancelSE())
+        AudioManager.playSound(GameSystem.GetCancelSE())
     end
     self.model:setActive(false)
     self.model:setVisible(true)
@@ -158,7 +158,7 @@ function WindowEquipSelectController:onConfirmAction()
         return
     end
     local currentEquipped = self.model._player:getEquipInfo(self.model._slotKey)
-    ManagerFunctions.playSE(GameSystem.GetEquipSE())
+    AudioManager.playSound(GameSystem.GetEquipSE())
     if self.model._equipList[self.model.index + 1] == self.UNEQUIP
         or self.model._equipList[self.model.index + 1] == currentEquipped then
         if bool(currentEquipped) then

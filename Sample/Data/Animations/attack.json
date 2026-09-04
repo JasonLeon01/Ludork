@@ -2,11 +2,11 @@
   "name": "attack",
   "frameRate": 30,
   "assets": [
-    "Explosion_01.png",
-    "Explosion_02.png",
-    "Explosion_03.png",
-    "Explosion_04.png",
-    "mting-27.wav"
+    "/Game/Assets/Animations/Explosion_01.png",
+    "/Game/Assets/Animations/Explosion_02.png",
+    "/Game/Assets/Animations/Explosion_03.png",
+    "/Game/Assets/Animations/Explosion_04.png",
+    "/Game/Assets/Sounds/mting-27.wav"
   ],
   "timeLines": [
     {

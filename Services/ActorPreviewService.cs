@@ -346,11 +346,12 @@ public sealed partial class ActorPreviewService : IDisposable
     private const int MaximumSourceTextures = 128;
     private const long MaximumSourceTextureBytes = 128L * 1024L * 1024L;
     private readonly PreviewHostConnection connection;
+    private readonly string projectPath;
     private readonly DispatcherTimer timer;
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly CancellationTokenSource lifetime = new();
     private readonly HashSet<ActorPreviewLease> leases = [];
-    private readonly Dictionary<string, CachedSourceTexture> sourceTextures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CachedSourceTexture> sourceTextures = new(StringComparer.Ordinal);
     private readonly HashSet<WriteableBitmap> retiredAtlasPages = [];
     private List<WriteableBitmap> atlasPages = [];
     private long generation;
@@ -364,7 +365,8 @@ public sealed partial class ActorPreviewService : IDisposable
 
     public ActorPreviewService(string projectPath)
     {
-        connection = new PreviewHostConnection(projectPath);
+        this.projectPath = Path.GetFullPath(projectPath);
+        connection = new PreviewHostConnection(this.projectPath);
         connection.StateChanged += onConnectionStateChanged;
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 30.0) };
         timer.Tick += onTimerTick;

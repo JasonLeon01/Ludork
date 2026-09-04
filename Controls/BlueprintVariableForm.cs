@@ -874,9 +874,18 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 getMetadataString(field, "PathRoot"),
                 "Project",
                 StringComparison.OrdinalIgnoreCase);
-            string baseDirectory = projectRoot
-                ? getSafeDirectory(ProjectDirectory, assetSubdirectory)
-                : getSafeAssetDirectory(assetSubdirectory);
+            string baseDirectory;
+            if (projectRoot)
+            {
+                baseDirectory = getSafeDirectory(ProjectDirectory, assetSubdirectory);
+            }
+            else if (!GameAssetPath.TryResolveSelectionDirectory(
+                         getProjectDirectory(),
+                         assetSubdirectory,
+                         out baseDirectory))
+            {
+                return;
+            }
             if (!Directory.Exists(baseDirectory))
             {
                 string fallback = projectRoot ? ProjectDirectory : AssetsDirectory;
@@ -884,9 +893,22 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             }
             string? pathFilter = getMetadataString(field, "PathFilter");
             string current = box.Text ?? string.Empty;
-            string? initialFilePath = string.IsNullOrWhiteSpace(current)
-                ? null
-                : Path.Combine(baseDirectory, current);
+            string? initialFilePath;
+            if (projectRoot)
+            {
+                initialFilePath = string.IsNullOrWhiteSpace(current)
+                    ? null
+                    : Path.Combine(baseDirectory, current);
+            }
+            else
+            {
+                initialFilePath = GameAssetPath.TryResolveExistingFile(
+                    getProjectDirectory(),
+                    current,
+                    out string resolvedCurrent)
+                    ? resolvedCurrent
+                    : null;
+            }
             string? selected = await FileSelectorDialog.ShowAsync(
                 owner,
                 baseDirectory,
@@ -896,18 +918,27 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 initialFilePath: initialFilePath);
             if (string.IsNullOrWhiteSpace(selected))
                 return;
-            string relative;
-            try
+            string storedPath;
+            if (projectRoot)
             {
-                relative = Path.GetRelativePath(baseDirectory, selected);
+                try
+                {
+                    storedPath = Path.GetRelativePath(baseDirectory, selected).Replace('\\', '/');
+                }
+                catch (ArgumentException)
+                {
+                    return;
+                }
             }
-            catch (ArgumentException)
+            else if (!GameAssetPath.TryFromProjectFile(
+                         getProjectDirectory(),
+                         selected,
+                         out storedPath))
             {
-                relative = selected;
+                return;
             }
-            relative = relative.Replace('\\', '/');
-            box.Text = relative;
-            changed(JsonValue.Create(relative), false);
+            box.Text = storedPath;
+            changed(JsonValue.Create(storedPath), false);
         };
         Grid grid = new()
         {
@@ -946,11 +977,13 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             string relativePath = getText(sourceValue);
             if (string.IsNullOrWhiteSpace(relativePath))
                 return;
-            string baseDirectory = getSafeAssetDirectory(getAssetSubdirectory(sourceField) ?? string.Empty);
-            string imagePath = Path.GetFullPath(Path.Combine(baseDirectory, relativePath));
-            string imageRelative = Path.GetRelativePath(baseDirectory, imagePath);
-            if (imageRelative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(imageRelative))
+            if (!GameAssetPath.TryResolveExistingFile(
+                    getProjectDirectory(),
+                    relativePath,
+                    out string imagePath))
+            {
                 return;
+            }
             Window? owner = TopLevel.GetTopLevel(this) as Window;
             if (owner is null)
                 return;
@@ -1840,9 +1873,11 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         return key;
     }
 
-    private string getSafeAssetDirectory(string subdirectory)
+    private string getProjectDirectory()
     {
-        return getSafeDirectory(AssetsDirectory, subdirectory);
+        return string.IsNullOrWhiteSpace(ProjectDirectory)
+            ? Path.GetDirectoryName(AssetsDirectory) ?? string.Empty
+            : ProjectDirectory;
     }
 
     private static string getSafeDirectory(string rootDirectory, string subdirectory)
@@ -1900,7 +1935,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private static string normalizeAssetSubdirectory(string value)
     {
-        return value.Replace('\\', '/').Trim('/');
+        return value;
     }
 
     private static string? getRectSourceField(BlueprintVariableField field)

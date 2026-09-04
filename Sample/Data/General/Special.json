@@ -12,75 +12,76 @@
     },
     "icon": {
       "type": "file",
-      "comment": "The icon asset path relative to Assets.",
-      "defaultValue": "Icons"
+      "comment": "The icon asset logical path.",
+      "base": "Icons",
+      "defaultValue": ""
     }
   },
   "members": {
     "Poisoning": {
       "name": "{S_POISONING}",
       "desc": "{S_POISONING_DESC}",
-      "icon": "Icons/Specials/Poisoning.png"
+      "icon": "/Game/Assets/Icons/Specials/Poisoning.png"
     },
     "Weaken": {
       "name": "{S_WEAKEN}",
       "desc": "{S_WEAKEN_DESC}",
-      "icon": "Icons/Specials/Weaken.png"
+      "icon": "/Game/Assets/Icons/Specials/Weaken.png"
     },
     "Hard": {
       "name": "{S_HARD}",
       "desc": "{S_HARD_DESC}",
-      "icon": "Icons/Specials/Hard.png"
+      "icon": "/Game/Assets/Icons/Specials/Hard.png"
     },
     "Magic": {
       "name": "{S_MAGIC}",
       "desc": "{S_MAGIC_DESC}",
-      "icon": "Icons/Specials/Magic.png"
+      "icon": "/Game/Assets/Icons/Specials/Magic.png"
     },
     "MultiHit": {
       "name": "{S_MULTIHIT}",
       "desc": "{S_MULTIHIT_DESC}",
-      "icon": "Icons/Specials/MultiHit.png"
+      "icon": "/Game/Assets/Icons/Specials/MultiHit.png"
     },
     "Compete": {
       "name": "{S_COMPETE}",
       "desc": "{S_COMPETE_DESC}",
-      "icon": "Icons/Specials/Compete.png"
+      "icon": "/Game/Assets/Icons/Specials/Compete.png"
     },
     "Domain": {
       "name": "{S_DOMAIN}",
       "desc": "{S_DOMAIN_DESC}",
-      "icon": "Icons/Specials/Domain.png"
+      "icon": "/Game/Assets/Icons/Specials/Domain.png"
     },
     "Flank": {
       "name": "{S_FLANK}",
       "desc": "{S_FLANK_DESC}",
-      "icon": "Icons/Specials/Flank.png"
+      "icon": "/Game/Assets/Icons/Specials/Flank.png"
     },
     "Blockade": {
       "name": "{S_BLOCKADE}",
       "desc": "{S_BLOCKADE_DESC}",
-      "icon": "Icons/Specials/Blockade.png"
+      "icon": "/Game/Assets/Icons/Specials/Blockade.png"
     },
     "Reborn": {
       "name": "{S_REBORN}",
       "desc": "{S_REBORN_DESC}",
-      "icon": "Icons/Specials/Reborn.png"
+      "icon": "/Game/Assets/Icons/Specials/Reborn.png"
     },
     "Vampire": {
       "name": "{S_VAMPIRE}",
       "desc": "{S_VAMPIRE_DESC}",
-      "icon": "Icons/Specials/Vampire.png"
+      "icon": "/Game/Assets/Icons/Specials/Vampire.png"
     },
     "First": {
       "name": "{S_FIRST}",
       "desc": "{S_FIRST_DESC}",
-      "icon": "Icons/Specials/First.png"
+      "icon": "/Game/Assets/Icons/Specials/First.png"
     },
     "FixDmg": {
       "name": "{S_FIXDMG}",
       "desc": "{S_FIXDMG_DESC}",
-      "icon": "Icons/Specials/FixDmg.png"
+      "icon": "/Game/Assets/Icons/Specials/FixDmg.png"
     }
   }
 }

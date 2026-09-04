@@ -17,13 +17,16 @@ local _METADATA = {
             type = "string",
             default = "",
             Meta = {
-                PathVars = "Sounds",
+                PathVars = "/Game/Assets/Sounds",
                 ConfigVars = { "Audio", "stairSE" }
             }
         },
         transitionName = {
             type = "string",
-            default = ""
+            default = "",
+            Meta = {
+                PathVars = "/Game/Assets/Transitions"
+            }
         },
         transitionTime = {
             type = "float",
@@ -49,7 +52,8 @@ local _METADATA = {
         },
         Meta = {
             PathVars = {
-                { "stairSE", "Sounds" }
+                { "stairSE", "/Game/Assets/Sounds" },
+                { "transitionName", "/Game/Assets/Transitions" }
             },
             ConfigVars = {
                 { "stairSE", "Audio", "stairSE" }

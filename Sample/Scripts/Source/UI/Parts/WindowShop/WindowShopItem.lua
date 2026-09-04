@@ -62,7 +62,7 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap, showValu
         end
         self.model._cellAvailable[#self.model._cellAvailable + 1] = available
         local cellController = WindowShopCellUI.new({
-            iconTexture = IconTexture.LoadItem(member.icon or ""),
+            iconTexture = IconTexture.Load(member.icon or ""),
             value = valueMap[itemID] or 0,
             showValue = showValues,
             available = available,

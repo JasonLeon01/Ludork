@@ -207,7 +207,7 @@ function PlayerAttrHUDUI:loadStateIcon(iconPath)
     if self._stateIconCache[iconPath] ~= nil then
         return self._stateIconCache[iconPath]
     end
-    local texture = IconTexture.Load(iconPath, "Icons/States")
+    local texture = IconTexture.Load(iconPath)
     self._stateIconCache[iconPath] = texture
     return texture
 end

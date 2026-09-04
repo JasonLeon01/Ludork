@@ -2,7 +2,7 @@
 
 #include <Base64.hpp>
 #include <Compression.hpp>
-#include <Utf8Path.hpp>
+#include <Runtime/AssetStore.hpp>
 
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Image.hpp>
@@ -14,7 +14,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <filesystem>
 #include <memory>
 #include <numbers>
 #include <optional>
@@ -68,8 +67,7 @@ std::pair<float, float> getRotatedSize(float width, float height,
 
 sf::Texture* getTexture(
     std::unordered_map<int, std::unique_ptr<sf::Texture>>& cache,
-    const std::vector<std::string>& assets, const std::filesystem::path& root,
-    int index) {
+    const std::vector<std::string>& assets, int index) {
     const auto existing = cache.find(index);
     if (existing != cache.end()) {
         return existing->second.get();
@@ -77,10 +75,13 @@ sf::Texture* getTexture(
     if (index < 0 || index >= static_cast<int>(assets.size())) {
         return nullptr;
     }
-    const std::filesystem::path path =
-        root /
-        ludork::standard::pathFromUtf8(assets[static_cast<std::size_t>(index)]);
-    std::unique_ptr<sf::Texture> texture = std::make_unique<sf::Texture>(path);
+    const std::string& asset = assets[static_cast<std::size_t>(index)];
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+        ludork::runtime::assetStore().open(asset);
+    std::unique_ptr<sf::Texture> texture = std::make_unique<sf::Texture>();
+    if (!texture->loadFromStream(*stream)) {
+        throw std::runtime_error("Failed to load animation asset: " + asset);
+    }
     sf::Texture* result = texture.get();
     cache.emplace(index, std::move(texture));
     return result;
@@ -98,7 +99,7 @@ std::vector<std::uint8_t> compressFrame(const std::uint8_t* data,
 
 void updateCanvasExtent(
     const std::vector<AnimationTimeline>& timeLines, float frameTime,
-    const std::vector<std::string>& assets, const std::filesystem::path& root,
+    const std::vector<std::string>& assets,
     std::unordered_map<int, std::unique_ptr<sf::Texture>>& cache, float& maxX,
     float& maxY) {
     for (const AnimationTimeline& timeline : timeLines) {
@@ -106,8 +107,7 @@ void updateCanvasExtent(
             if (segment.type != "frame") {
                 continue;
             }
-            sf::Texture* texture =
-                getTexture(cache, assets, root, segment.asset);
+            sf::Texture* texture = getTexture(cache, assets, segment.asset);
             const std::optional<SegmentTransform> transform =
                 getSegmentTransform(segment, frameTime);
             if (texture == nullptr || !transform.has_value()) {
@@ -146,8 +146,7 @@ std::vector<AnimationTimeTag> sortedTimeTags(
 CompressedAnimationFrames compressAnimationFrames(
     int frameCount, float frameStep, int frameRate,
     const std::vector<AnimationTimeline>& timeLines,
-    const std::vector<std::string>& assets,
-    const std::filesystem::path& assetsRoot, const std::string& imageFormat) {
+    const std::vector<std::string>& assets, const std::string& imageFormat) {
     CompressedAnimationFrames result;
     result.duration = frameRate > 0 ? static_cast<float>(frameCount) /
                                           static_cast<float>(frameRate)
@@ -157,8 +156,8 @@ CompressedAnimationFrames compressAnimationFrames(
     float maxX = 0.0f;
     float maxY = 0.0f;
     for (int frame = 0; frame < frameCount; ++frame) {
-        updateCanvasExtent(timeLines, frame * frameStep, assets, assetsRoot,
-                           cache, maxX, maxY);
+        updateCanvasExtent(timeLines, frame * frameStep, assets, cache, maxX,
+                           maxY);
     }
     const unsigned int width =
         std::max(1u, static_cast<unsigned int>(std::ceil(maxX * 2.0f)));
@@ -180,8 +179,7 @@ CompressedAnimationFrames compressAnimationFrames(
                 if (segment.type != "frame") {
                     continue;
                 }
-                sf::Texture* texture =
-                    getTexture(cache, assets, assetsRoot, segment.asset);
+                sf::Texture* texture = getTexture(cache, assets, segment.asset);
                 const std::optional<SegmentTransform> transform =
                     getSegmentTransform(segment, frameTime);
                 if (texture == nullptr || !transform.has_value()) {
@@ -249,18 +247,15 @@ C_CompressAnimation(const sol::object& zlibModule, int frameCount,
                     float frameStep, int frameRate,
                     const std::vector<AnimationTimeline>& timeLines,
                     const std::vector<std::string>& assets,
-                    const std::string& assetsRoot,
                     const std::string& imageFormat) {
     (void)zlibModule;
     CompressedAnimationFrames result = compressAnimationFrames(
-        frameCount, frameStep, frameRate, timeLines, assets,
-        ludork::standard::pathFromUtf8(assetsRoot), imageFormat);
+        frameCount, frameStep, frameRate, timeLines, assets, imageFormat);
     return {result.duration, std::move(result.frames),
             std::move(result.sounds)};
 }
 
 AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
-                                const std::string& assetsRoot,
                                 const std::string& imageFormat) {
     if (!sourceValue.has_value() ||
         (sourceValue->type.empty() && sourceValue->name.empty() &&
@@ -310,9 +305,9 @@ AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
         static_cast<float>(visualFrameCount) / result.frameRate;
 
     const float frameStep = 1.0f / result.frameRate;
-    CompressedAnimationFrames compressed = compressAnimationFrames(
-        result.frameCount, frameStep, result.frameRate, source.timeLines,
-        source.assets, ludork::standard::pathFromUtf8(assetsRoot), imageFormat);
+    CompressedAnimationFrames compressed =
+        compressAnimationFrames(result.frameCount, frameStep, result.frameRate,
+                                source.timeLines, source.assets, imageFormat);
     result.duration = compressed.duration;
     result.frames.reserve(compressed.frames.size());
     for (const std::string& frame : compressed.frames) {

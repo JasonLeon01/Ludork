@@ -98,7 +98,7 @@ local _METADATA = {
                 PathVars = {
                     {
                         "soundFileName",
-                        "Sounds",
+                        "/Game/Assets/Sounds",
                     },
                 },
             },
@@ -123,7 +123,7 @@ local _METADATA = {
                 PathVars = {
                     {
                         "musicFileName",
-                        "Musics",
+                        "/Game/Assets/Musics",
                     },
                 },
             },
@@ -151,7 +151,7 @@ local _METADATA = {
                 PathVars = {
                     {
                         "videoFileName",
-                        "Videos",
+                        "/Game/Assets/Videos",
                     },
                 },
             },
@@ -197,7 +197,7 @@ local _METADATA = {
                 PathVars = {
                     {
                         "transitionName",
-                        "Transitions",
+                        "/Game/Assets/Transitions",
                     },
                 },
             },

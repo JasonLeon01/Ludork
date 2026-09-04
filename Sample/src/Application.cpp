@@ -5,6 +5,7 @@
 #include "ApplicationRuntime.hpp"
 
 #include <GlobalRuntimeApi.hpp>
+#include <Runtime/AssetStore.hpp>
 #include <SystemServices.hpp>
 
 #include <cstdlib>
@@ -56,6 +57,12 @@ int run(int argc, char** argv) {
         argc > 0 && argv[0] != nullptr ? argv[0] : "");
     std::filesystem::path runtimeRoot;
     if (!detail::useRuntimeRoot(executablePath, runtimeRoot)) {
+        return 1;
+    }
+    try {
+        ludork::runtime::assetStore().configure(runtimeRoot);
+    } catch (const std::exception& error) {
+        detail::reportStartupError(error.what());
         return 1;
     }
 

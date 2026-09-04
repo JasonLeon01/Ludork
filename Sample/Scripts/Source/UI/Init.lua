@@ -16,7 +16,7 @@ function SceneInitUI:bind()
 end
 
 function SceneInitUI:refresh()
-    self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.GetTitleBackgroundFile())
+    self:setProperty("Background", "texture", SourceSystem.GetTitleBackgroundFile())
     self._progressBar:setProgress(self._progress)
 end
 

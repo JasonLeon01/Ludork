@@ -113,9 +113,12 @@ public sealed class FileSelectorDialog : Window
     {
         string root = Path.Combine(projectPath, "Assets", "Shaders");
         Directory.CreateDirectory(root);
-        string? initialFilePath = string.IsNullOrWhiteSpace(currentPath)
-            ? null
-            : Path.Combine(root, currentPath);
+        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+            projectPath,
+            currentPath,
+            out string resolvedCurrent)
+            ? resolvedCurrent
+            : null;
         string? path = await ShowAsync(
             owner,
             root,
@@ -124,7 +127,9 @@ public sealed class FileSelectorDialog : Window
             initialFilePath: initialFilePath);
         if (path is null)
             return null;
-        return Path.GetRelativePath(root, path).Replace('\\', '/');
+        return GameAssetPath.TryFromProjectFile(projectPath, path, out string assetPath)
+            ? assetPath
+            : null;
     }
 
     public FileSelectorDialog(

@@ -7,6 +7,8 @@
 #include <Manager/TimeManager.hpp>
 #include <System.hpp>
 
+#include <Runtime/AssetPath.hpp>
+
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
@@ -55,7 +57,7 @@ public:
 namespace {
 
 using ludork::video::CodecContextPtr;
-using ludork::video::FormatContextPtr;
+using ludork::video::FormatInput;
 using ludork::video::FramePtr;
 using ludork::video::openCodec;
 using ludork::video::openFormat;
@@ -130,7 +132,7 @@ void drainAudioDecoder(AVCodecContext* decoder, SwrContext* resampler,
 }
 
 AudioData extractAudio(const std::string& path) {
-    FormatContextPtr format = openFormat(path);
+    FormatInput format = openFormat(path);
     const int streamIndex = av_find_best_stream(
         format.get(), AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
     if (streamIndex == AVERROR_STREAM_NOT_FOUND) {
@@ -372,6 +374,7 @@ std::thread::id videoPlaybackThread;
 bool videoPlaybackShuttingDown = false;
 
 void playVideo(const std::string& path, bool mute, bool skipable) {
+    static_cast<void>(ludork::runtime::AssetPath::parse(path));
     std::unique_lock<std::mutex> lock(videoPlaybackMutex);
     if (videoPlaybackShuttingDown) {
         throw std::runtime_error("Video playback is shutting down");

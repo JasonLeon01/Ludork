@@ -1,8 +1,7 @@
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local Context = require("Source.NodeFunctions.Context")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local System = GlobalCore.System
 
 local Scene = {}
@@ -95,7 +94,7 @@ end
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = Context.RequireSceneMap()
-    local voice = ManagerFunctions.playVoice(voiceFileName)
+    local voice = AudioManager.playVoice(voiceFileName)
     local dialogueFinished = scene:showMessage(name, message, getActorByTag(scene, refActorTag))
     return stopVoiceAfterDialogue(dialogueFinished, voice)
 end
@@ -103,7 +102,7 @@ end
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
     local scene = Context.RequireSceneMap()
-    local voice = ManagerFunctions.playVoice(voiceFileName, nil, refActor, minDistance)
+    local voice = AudioManager.playVoice(voiceFileName, nil, refActor, minDistance)
     local dialogueFinished = scene:showMessage(name, message, refActor)
     return stopVoiceAfterDialogue(dialogueFinished, voice)
 end

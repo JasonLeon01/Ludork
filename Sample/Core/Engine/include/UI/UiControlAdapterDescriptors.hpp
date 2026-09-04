@@ -171,9 +171,9 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("maxValue", "int", false, "100"),                  \
         UI_CONTROL_PROPERTY("value", "int", false, "0"),                       \
         UI_CONTROL_PROPERTY("lineTexture", "string", false,                    \
-                            "\"Assets/System/SliderLine.png\""),               \
+                            "\"/Game/Assets/System/SliderLine.png\""),         \
         UI_CONTROL_PROPERTY("handleTexture", "string", false,                  \
-                            "\"Assets/System/SliderHandle.png\""))             \
+                            "\"/Game/Assets/System/SliderHandle.png\""))       \
     BIND_UI_CONTROL(                                                           \
         DropBoxUiControlAdapterTag, "Engine.DropBox", "Engine.DropBox",        \
         "Drop Box", "Input", UiChildPolicy::None, UiControlSlotType::None,     \

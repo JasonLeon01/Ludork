@@ -1,31 +1,31 @@
 {
-    "params": {
-        "name": {
-            "type": "string",
-            "comment": "The display name of this class.",
-            "defaultValue": ""
-        },
-        "desc": {
-            "type": "string",
-            "comment": "The display description of this class.",
-            "defaultValue": ""
-        },
-        "slot": {
-            "type": "dict",
-            "comment": "Equipment slot names mapped to the equipment initially equipped in each slot; use an empty value for an unequipped slot.",
-            "defaultValue": {},
-            "valueType": "string"
-        }
+  "params": {
+    "name": {
+      "type": "string",
+      "comment": "The display name of this class.",
+      "defaultValue": ""
     },
-    "members": {
-        "Warrior": {
-            "name": "{WARRIOR}",
-            "desc": "{WARRIOR_DESC}",
-            "slot": {
-                "weapon": "",
-                "shield": "",
-                "accessory": ""
-            }
-        }
+    "desc": {
+      "type": "string",
+      "comment": "The display description of this class.",
+      "defaultValue": ""
+    },
+    "slot": {
+      "type": "dict",
+      "comment": "Equipment slot names mapped to the equipment initially equipped in each slot; use an empty value for an unequipped slot.",
+      "defaultValue": {},
+      "valueType": "string"
     }
+  },
+  "members": {
+    "Warrior": {
+      "name": "{WARRIOR}",
+      "desc": "{WARRIOR_DESC}",
+      "slot": {
+        "weapon": "",
+        "shield": "",
+        "accessory": ""
+      }
+    }
+  }
 }

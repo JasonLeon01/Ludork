@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local WindowShopUI = require("Source.UI.WindowShop")
@@ -8,7 +8,7 @@ local WindowShopDetail = require("Source.Windows.WindowShopDetail")
 local WindowShopItem = require("Source.Windows.WindowShopItem")
 local WindowShopTabs = require("Source.Windows.WindowShopTabs")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local Canvas = Engine.Canvas
 
 local _SHOP_TAB_HEIGHT = 64
@@ -156,7 +156,7 @@ function WindowShop:close(onHidden)
 end
 
 function WindowShop:closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:_closeAndNotify()
 end
 
@@ -201,7 +201,7 @@ end
 function WindowShop:confirmItem()
     local itemID = self._itemWindow:getCurrentItemID()
     if itemID == nil then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
     if self._mode == self.SHOP_MODE_BUY then
@@ -295,14 +295,14 @@ end
 function WindowShop:_buyItem(itemID)
     local price = WindowShop.GetItemPrice(itemID)
     if not self._itemWindow:isCurrentAvailable() or self._player.attributes.GOLD < price then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         self:_refreshItems()
         return
     end
     local abilitySystem = self._player:getAbilitySystemComponent()
     abilitySystem:setNumericAttributeBase("GOLD", abilitySystem:getNumericAttributeBase("GOLD") - price)
     self._player:addItem(itemID, 1)
-    ManagerFunctions.playSE(GameSystem.GetShopSE())
+    AudioManager.playSound(GameSystem.GetShopSE())
     self:_refreshItems()
 end
 
@@ -310,13 +310,13 @@ end
 function WindowShop:_sellItem(itemID)
     local price = WindowShop.GetSellPrice(itemID)
     if price <= 0 or not self._player:removeItem(itemID, 1) then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         self:_refreshItems()
         return
     end
     local abilitySystem = self._player:getAbilitySystemComponent()
     abilitySystem:setNumericAttributeBase("GOLD", abilitySystem:getNumericAttributeBase("GOLD") + price)
-    ManagerFunctions.playSE(GameSystem.GetShopSE())
+    AudioManager.playSound(GameSystem.GetShopSE())
     self:_refreshItems()
 end
 

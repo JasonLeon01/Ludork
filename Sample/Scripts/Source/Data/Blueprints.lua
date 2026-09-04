@@ -2,14 +2,13 @@ local cjson = require("cjson")
 local Engine = require("Engine")
 local NodeCompiler = require("Global.Utils.NodeCompiler")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 local BlueprintActorOverrides = require("Source.Data.BlueprintActorOverrides")
 
-local ManagerFunctions = GlobalFunctions.Manager
 local RuntimeProviders = Engine.RuntimeProviders
+local TextureManager = GlobalCore.TextureManager
 
 local nilGraphParentClass = {}
 local nodeCompilerContext = {
@@ -180,7 +179,7 @@ function DataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
     end
     local texturePath = classModel.texturePath or ""
     local defaultRect = classModel.defaultRect
-    local texture = bool(texturePath) and ManagerFunctions.loadCharacter(texturePath) or nil
+    local texture = bool(texturePath) and TextureManager.load(texturePath) or nil
     local actor = classModel.GenActor(classModel, texture, defaultRect, tag)
     actor:setMapTag(tag == nil and "" or tostring(tag))
     actor.texturePath = texturePath

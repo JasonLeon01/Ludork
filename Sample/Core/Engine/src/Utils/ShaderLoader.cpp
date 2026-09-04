@@ -1,14 +1,12 @@
 #include <Utils/ShaderLoader.hpp>
 
 #include <EncryptedPayload.hpp>
-#include <Utf8Path.hpp>
+#include <Runtime/AssetPath.hpp>
+#include <Runtime/AssetStore.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
-#include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -31,26 +29,38 @@ std::string lowerString(std::string value) {
     return value;
 }
 
-std::string pathText(const std::filesystem::path& path) {
-    return ludork::standard::pathToUtf8(path);
-}
-
-std::string normalizedShaderPath(std::string value) {
-    std::replace(value.begin(), value.end(), '\\', '/');
-    while (value.starts_with("./")) {
-        value.erase(0, 2);
-    }
-    return value;
-}
-
 bool isEncryptedExtension(const std::string& extension) {
     return extension == ".fragc" || extension == ".vertc" ||
            extension == ".geomc";
 }
 
+std::string pathExtension(const std::string& path) {
+    const std::size_t separator = path.rfind('/');
+    const std::size_t dot = path.rfind('.');
+    return dot == std::string::npos ||
+                   (separator != std::string::npos && dot < separator)
+               ? std::string{}
+               : lowerString(path.substr(dot));
+}
+
+void validateRequestedShaderPath(const std::string& path) {
+    static_cast<void>(ludork::runtime::AssetPath::parse(path));
+    const std::string extension = pathExtension(path);
+    if (isEncryptedExtension(extension)) {
+        throw std::invalid_argument(
+            "Shader asset path must use .frag, .vert, or .geom rather than "
+            "an encrypted extension: " +
+            path);
+    }
+    if (extension != ".frag" && extension != ".vert" && extension != ".geom") {
+        throw std::invalid_argument(
+            "Shader asset path must use .frag, .vert, or .geom: " + path);
+    }
+}
+
 std::optional<sf::Shader::Type> shaderTypeFromExtension(
-    const std::filesystem::path& path) {
-    const std::string extension = lowerString(pathText(path.extension()));
+    const std::string& path) {
+    const std::string extension = pathExtension(path);
     if (extension == ".vert" || extension == ".vertc") {
         return sf::Shader::Type::Vertex;
     }
@@ -63,58 +73,26 @@ std::optional<sf::Shader::Type> shaderTypeFromExtension(
     return std::nullopt;
 }
 
-std::filesystem::path shaderAssetPath(const std::string& value) {
-    const std::string normalized = normalizedShaderPath(value);
-    const std::filesystem::path path =
-        ludork::standard::pathFromUtf8(normalized);
-    if (path.is_absolute()) {
-        return path;
+std::string resolveShaderPath(const std::string& value) {
+    validateRequestedShaderPath(value);
+    if (ludork::runtime::assetStore().exists(value)) {
+        return value;
     }
-    const std::string lowerPath = lowerString(normalized);
-    if (lowerPath.starts_with("assets/shaders/")) {
-        return std::filesystem::current_path() / path;
-    }
-    return std::filesystem::current_path() / "Assets" / "Shaders" / path;
-}
-
-bool isRegularFile(const std::filesystem::path& path) {
-    std::error_code error;
-    const bool regular = std::filesystem::is_regular_file(path, error);
-    return regular && !error;
-}
-
-std::filesystem::path resolveShaderPath(const std::string& value) {
-    const std::filesystem::path requested = shaderAssetPath(value);
-    if (isRegularFile(requested)) {
-        return requested;
-    }
-    const std::string extension = lowerString(pathText(requested.extension()));
+    const std::string extension = pathExtension(value);
     if (extension == ".frag" || extension == ".vert" || extension == ".geom") {
-        std::filesystem::path encrypted = requested;
-        encrypted.replace_extension(extension + "c");
-        if (isRegularFile(encrypted)) {
+        const std::string encrypted = value + 'c';
+        if (ludork::runtime::assetStore().exists(encrypted)) {
             return encrypted;
         }
     }
-    return requested;
+    return value;
 }
 
-bool readFile(const std::filesystem::path& path,
-              std::vector<std::uint8_t>& contents) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) {
-        return false;
-    }
-    contents.assign(std::istreambuf_iterator<char>(stream),
-                    std::istreambuf_iterator<char>());
-    return stream.good() || stream.eof();
-}
-
-ShaderSourceResult decodeShader(const std::filesystem::path& path,
+ShaderSourceResult decodeShader(const std::string& path,
                                 const std::vector<std::uint8_t>& encoded) {
     try {
         return {ludork::standard::decodeEncryptedPayload(encoded, ShaderFormat,
-                                                         pathText(path)),
+                                                         path),
                 path,
                 {}};
     } catch (const std::runtime_error& error) {
@@ -123,15 +101,22 @@ ShaderSourceResult decodeShader(const std::filesystem::path& path,
 }
 
 ShaderSourceResult readShaderSource(const std::string& value) {
-    const std::filesystem::path path = resolveShaderPath(value);
-    if (!isRegularFile(path)) {
-        return {{}, path, "Shader file not found: " + pathText(path)};
+    const std::string path = resolveShaderPath(value);
+    const std::optional<ludork::runtime::AssetStat> stat =
+        ludork::runtime::assetStore().stat(path);
+    if (!stat.has_value() || stat->directory) {
+        return {{}, path, "Shader file not found: " + path};
     }
     std::vector<std::uint8_t> contents;
-    if (!readFile(path, contents)) {
-        return {{}, path, "Shader file could not be read: " + pathText(path)};
+    try {
+        contents = ludork::runtime::assetStore().readAll(path);
+    } catch (const std::exception& error) {
+        return {{},
+                path,
+                "Shader file could not be read: " + path + " (" + error.what() +
+                    ")"};
     }
-    const std::string extension = lowerString(pathText(path.extension()));
+    const std::string extension = pathExtension(path);
     if (isEncryptedExtension(extension)) {
         return decodeShader(path, contents);
     }
@@ -150,7 +135,8 @@ ShaderSourceResult ShaderLoader::readSource(const std::string& shaderPath) {
 
 std::optional<sf::Shader::Type> ShaderLoader::inferType(
     const std::string& shaderPath) {
-    return shaderTypeFromExtension(ludork::standard::pathFromUtf8(shaderPath));
+    validateRequestedShaderPath(shaderPath);
+    return shaderTypeFromExtension(shaderPath);
 }
 
 ShaderLoadResult ShaderLoader::load(
@@ -165,7 +151,7 @@ ShaderLoadResult ShaderLoader::load(
     std::shared_ptr<sf::Shader> shader = std::make_shared<sf::Shader>();
     if (!shader->loadFromMemory(source.source, type)) {
         return {nullptr, std::move(source.source), source.resolvedPath,
-                "Shader load failed: " + pathText(source.resolvedPath)};
+                "Shader load failed: " + source.resolvedPath};
     }
     return {
         std::move(shader), std::move(source.source), source.resolvedPath, {}};
@@ -186,8 +172,8 @@ ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
         return {nullptr,
                 {},
                 vertex.resolvedPath,
-                "Full shader load failed: " + pathText(vertex.resolvedPath) +
-                    " and " + pathText(fragment.resolvedPath)};
+                "Full shader load failed: " + vertex.resolvedPath + " and " +
+                    fragment.resolvedPath};
     }
     return {std::move(shader), {}, vertex.resolvedPath, {}};
 }
@@ -213,10 +199,9 @@ ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
         return {nullptr,
                 {},
                 vertex.resolvedPath,
-                "Shader load with geometry failed: " +
-                    pathText(vertex.resolvedPath) + ", " +
-                    pathText(geometry.resolvedPath) + ", and " +
-                    pathText(fragment.resolvedPath)};
+                "Shader load with geometry failed: " + vertex.resolvedPath +
+                    ", " + geometry.resolvedPath + ", and " +
+                    fragment.resolvedPath};
     }
     return {std::move(shader), {}, vertex.resolvedPath, {}};
 }

@@ -3,10 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Ludork.Services;
 using Ludork.ViewModels;
 using System;
 using System.ComponentModel;
-using System.IO;
 
 namespace Ludork.Controls;
 
@@ -121,10 +121,14 @@ public sealed class TileGridView : Control
     {
         bitmap?.Dispose();
         bitmap = null;
-        string? path = viewModel?.SelectedTileset?.ImagePath;
-        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        string? assetPath = viewModel?.SelectedTileset?.AssetPath;
+        if (viewModel is not null
+            && GameAssetPath.TryResolveExistingFile(
+                viewModel.GameData.ProjectPath,
+                assetPath,
+                out string filePath))
         {
-            bitmap = new Bitmap(path);
+            bitmap = new Bitmap(filePath);
         }
         InvalidateMeasure();
         InvalidateVisual();

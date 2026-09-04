@@ -1,28 +1,24 @@
 #pragma once
 
-#include <Utf8Path.hpp>
+#include <Runtime/AssetPath.hpp>
 
-#include <filesystem>
 #include <string>
 
 namespace ludork::global::manager {
 
 inline std::string assetFile(const std::string& folder,
                              const std::string& filename) {
-    return ludork::standard::pathToUtf8(
-        std::filesystem::path("Assets") /
-        ludork::standard::pathFromUtf8(folder) /
-        ludork::standard::pathFromUtf8(filename));
+    return ludork::runtime::makeAssetPath(folder, filename);
 }
 
 inline std::string textureAssetFile(const std::string& folder,
                                     std::string filename) {
-    const std::filesystem::path path = ludork::standard::pathFromUtf8(filename);
-    const std::string extension =
-        ludork::standard::pathToUtf8(path.extension());
-    if (extension.empty()) {
+    const std::size_t separator = filename.rfind('/');
+    const std::size_t extension = filename.rfind('.');
+    if (extension == std::string::npos ||
+        (separator != std::string::npos && extension < separator)) {
         filename += ".png";
-    } else if (extension == ".") {
+    } else if (extension + 1 == filename.size()) {
         filename += "png";
     }
     return assetFile(folder, filename);

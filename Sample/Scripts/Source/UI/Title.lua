@@ -40,25 +40,16 @@ function SceneTitleUI:bind()
             end
         }
     }
-    self._windowCommand = WindowCommand.new(
-        Engine.ToIntRect(192, 240, 256, 160),
-        self._commandModels,
-        224,
-        32,
-        nil,
-        nil,
-        1,
-        {
-            windowFrame = self._commandWindowFrame,
-            content = self._commandContent,
-            scrollBox = self._commandScrollBox,
-            listView = self._commandList
-        }
-    )
+    self._windowCommand = WindowCommand.new(Engine.ToIntRect(192, 240, 256, 160), self._commandModels, 224, 32, nil, nil, 1, {
+        windowFrame = self._commandWindowFrame,
+        content = self._commandContent,
+        scrollBox = self._commandScrollBox,
+        listView = self._commandList
+    })
 end
 
 function SceneTitleUI:refresh()
-    self:setProperty("Background", "texture", "Assets/System/" .. SourceSystem.GetTitleBackgroundFile())
+    self:setProperty("Background", "texture", SourceSystem.GetTitleBackgroundFile())
     self._windowCommand:refreshRows()
 end
 

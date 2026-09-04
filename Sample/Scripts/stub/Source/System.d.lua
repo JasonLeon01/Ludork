@@ -7,13 +7,19 @@
 ---@field GetTitle                fun(): string
 ---@field GetFonts                fun(): sf.Font[]
 ---@field GetFontSize             fun(): integer
----@field GetDecisionSE           fun(): sf.SoundBuffer
----@field GetCancelSE             fun(): sf.SoundBuffer
----@field GetBuzzerSE             fun(): sf.SoundBuffer
----@field GetCursorSE             fun(): sf.SoundBuffer
----@field GetSaveSE               fun(): sf.SoundBuffer
----@field GetLoadSE               fun(): sf.SoundBuffer
----@field GetGetSE                fun(): sf.SoundBuffer
+---@field GetWindowskinName       fun(): string
+---@field SetWindowskinName       fun(name: string)
+---@field GetDecisionSE           fun(): string
+---@field GetCancelSE             fun(): string
+---@field GetBuzzerSE             fun(): string
+---@field GetCursorSE             fun(): string
+---@field GetShopSE               fun(): string
+---@field GetSaveSE               fun(): string
+---@field GetLoadSE               fun(): string
+---@field GetGateSE               fun(): string
+---@field GetStairSE              fun(): string
+---@field GetGetSE                fun(): string
+---@field GetEquipSE              fun(): string
 ---@field GetTitleBGM             fun(): string
 ---@field GetTitleBackgroundFile  fun(): string
 ---@field GetStartMap             fun(): string
@@ -57,21 +63,21 @@ function System.GetFonts() end
 ---@return integer
 function System.GetFontSize() end
 
----@brief Get the window skin texture name.
+---@brief Get the window skin texture resource path.
 ---
---- - @return The windowskin name.
+--- - @return The canonical windowskin path under `/Game/Assets/System`.
 ---@return string
 function System.GetWindowskinName() end
 
----@brief Get the title screen background texture name.
+---@brief Get the title screen background texture resource path.
 ---
---- - @return The title background file name.
+--- - @return The canonical title background path under `/Game/Assets/System`.
 ---@return string
 function System.GetTitleBackgroundFile() end
 
----@brief Set the window skin texture name.
+---@brief Set the window skin texture resource path.
 ---
---- - @param name The new windowskin name.
+--- - @param name The new canonical windowskin path.
 ---@param name string
 function System.SetWindowskinName(name) end
 
@@ -99,75 +105,75 @@ function System.GetStartRegion() end
 ---@return sf.Vector2u
 function System.GetStartPos() end
 
----@brief Get the cursor sound effect filename.
+---@brief Get the cursor sound effect resource path.
 ---
---- - @return The cursor SE filename.
+--- - @return The canonical cursor SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetCursorSE() end
 
----@brief Get the decision sound effect filename.
+---@brief Get the decision sound effect resource path.
 ---
---- - @return The decision SE filename.
+--- - @return The canonical decision SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetDecisionSE() end
 
----@brief Get the cancel sound effect filename.
+---@brief Get the cancel sound effect resource path.
 ---
---- - @return The cancel SE filename.
+--- - @return The canonical cancel SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetCancelSE() end
 
----@brief Get the buzzer sound effect filename.
+---@brief Get the buzzer sound effect resource path.
 ---
---- - @return The buzzer SE filename.
+--- - @return The canonical buzzer SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetBuzzerSE() end
 
----@brief Get the shop sound effect filename.
+---@brief Get the shop sound effect resource path.
 ---
---- - @return The shop SE filename.
+--- - @return The canonical shop SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetShopSE() end
 
----@brief Get the save sound effect filename.
+---@brief Get the save sound effect resource path.
 ---
---- - @return The save SE filename.
+--- - @return The canonical save SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetSaveSE() end
 
----@brief Get the load sound effect filename.
+---@brief Get the load sound effect resource path.
 ---
---- - @return The load SE filename.
+--- - @return The canonical load SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetLoadSE() end
 
----@brief Get the gate sound effect filename.
+---@brief Get the gate sound effect resource path.
 ---
---- - @return The gate SE filename.
+--- - @return The canonical gate SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetGateSE() end
 
----@brief Get the stair sound effect filename.
+---@brief Get the stair sound effect resource path.
 ---
---- - @return The stair SE filename.
+--- - @return The canonical stair SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetStairSE() end
 
----@brief Get the item get sound effect filename.
+---@brief Get the item get sound effect resource path.
 ---
---- - @return The get SE filename.
+--- - @return The canonical get SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetGetSE() end
 
----@brief Get the equip sound effect filename.
+---@brief Get the equip sound effect resource path.
 ---
---- - @return The equip SE filename.
+--- - @return The canonical equip SE path under `/Game/Assets/Sounds`.
 ---@return string
 function System.GetEquipSE() end
 
----@brief Get the title screen BGM filename.
+---@brief Get the title screen BGM resource path.
 ---
---- - @return The title BGM filename.
+--- - @return The canonical title BGM path under `/Game/Assets/Musics`.
 ---@return string
 function System.GetTitleBGM() end
 

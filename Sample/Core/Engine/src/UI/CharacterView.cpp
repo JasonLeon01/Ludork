@@ -292,8 +292,9 @@ void CharacterView::applyShaderPath() {
     }
     hueShader_.reset();
     if (!neutralHue(hue_) && sf::Shader::isAvailable()) {
-        hueShader_ =
-            ludork::engine::actor_impl::loadShader("Global/Hue.frag").shader;
+        hueShader_ = ludork::engine::actor_impl::loadShader(
+                         "/Game/Assets/Shaders/Global/Hue.frag")
+                         .shader;
     }
 }
 

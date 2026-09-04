@@ -1,8 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 
-local ManagerFunctions = GlobalFunctions.Manager
 local AudioManager = GlobalCore.AudioManager
 local MUSIC_FILTER_FIELDS = { "loop", "pitch", "pan", "volume" }
 
@@ -16,7 +14,7 @@ local function startMusic(state, file, filter, fadeIn)
     if not bool(file) then
         return
     end
-    local music = ManagerFunctions.playMusic(state.kind, file, filter)
+    local music = AudioManager.playMusic(state.kind, file, filter)
     if music == nil then
         return
     end
@@ -74,7 +72,7 @@ end
 
 function MapAudioState.Stop(state)
     if state.music ~= nil then
-        ManagerFunctions.stopMusic(state.kind)
+        AudioManager.stopMusic(state.kind)
     end
     state.music = nil
     state.file = ""

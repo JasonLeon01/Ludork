@@ -158,11 +158,8 @@ C_CompressAnimation(const sol::object& zlibModule, int frameCount,
                     float frameStep, int frameRate,
                     const std::vector<AnimationTimeline>& timeLines,
                     const std::vector<std::string>& assets,
-                    const std::string& assetsRoot,
                     const std::string& imageFormat);
 
 BIND_FUNCTION(name = "compressAnimation")
-AnimationData compressAnimation(
-    std::optional<AnimationSourceData> source,
-    const std::string& assetsRoot = "Assets/Animations",
-    const std::string& imageFormat = "png");
+AnimationData compressAnimation(std::optional<AnimationSourceData> source,
+                                const std::string& imageFormat = "png");

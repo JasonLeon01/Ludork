@@ -40,7 +40,7 @@ EquipAttributeSet.ATTRIBUTE_NAMES = { "name", "desc", "icon", "slot", "attrPlus"
 EquipAttributeSet.SCHEMA = {
     name = { type = "string", default = "" },
     desc = { type = "string", default = "" },
-    icon = { type = "file", default = "Icons" },
+    icon = { type = "file", default = "" },
     slot = { type = "string", default = "" },
     attrPlus = { type = "dict", default = {} }
 }
@@ -54,7 +54,7 @@ ItemAttributeSet.SCHEMA = {
     desc = { type = "string", default = "" },
     usable = { type = "bool", default = false },
     price = { type = "int", default = 0 },
-    icon = { type = "file", default = "Icons" },
+    icon = { type = "file", default = "" },
     cost = { type = "bool", default = true }
 }
 ItemAttributeSet.init = initAttributeSet
@@ -85,7 +85,7 @@ SpecialAttributeSet.ATTRIBUTE_NAMES = { "name", "desc", "icon" }
 SpecialAttributeSet.SCHEMA = {
     name = { type = "string", default = "" },
     desc = { type = "string", default = "" },
-    icon = { type = "file", default = "Icons" }
+    icon = { type = "file", default = "" }
 }
 SpecialAttributeSet.init = initAttributeSet
 SpecialAttributeSet = class(SpecialAttributeSet, AttributeSet)
@@ -95,7 +95,7 @@ StateAttributeSet.ATTRIBUTE_NAMES = { "name", "desc", "icon", "stackable" }
 StateAttributeSet.SCHEMA = {
     name = { type = "string", default = "" },
     desc = { type = "string", default = "" },
-    icon = { type = "file", default = "Icons" },
+    icon = { type = "file", default = "" },
     stackable = { type = "bool", default = false }
 }
 StateAttributeSet.init = initAttributeSet

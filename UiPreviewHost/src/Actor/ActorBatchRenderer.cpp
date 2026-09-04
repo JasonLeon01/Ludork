@@ -4,6 +4,8 @@
 #include "Protocol/PreviewProtocol.hpp"
 #include "Rendering/PixelConversion.hpp"
 
+#include <Runtime/AssetPath.hpp>
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/ShaderLoader.hpp>
@@ -22,7 +24,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -35,104 +36,57 @@ constexpr unsigned int maximumAtlasSize = 2048;
 constexpr unsigned int atlasGutter = 1;
 constexpr float neutralHueEpsilon = 0.0001f;
 
-std::string pathText(const std::filesystem::path& path) {
-    return ludork::standard::pathToUtf8(path);
-}
-
 struct FileStamp {
     bool exists = false;
-    std::uintmax_t size = 0;
-    std::filesystem::file_time_type modified{};
+    std::uint64_t size = 0;
+    double modified = 0.0;
 
     bool operator==(const FileStamp&) const = default;
 };
 
-FileStamp fileStamp(const std::filesystem::path& path) {
-    std::error_code error;
-    const bool exists = std::filesystem::is_regular_file(path, error);
-    if (!exists || error) {
+FileStamp fileStamp(const std::string& path) {
+    const std::optional<ludork::runtime::AssetStat> stat =
+        ludork::runtime::assetStore().stat(path);
+    if (!stat.has_value() || stat->directory) {
         return {};
     }
-    const std::uintmax_t size = std::filesystem::file_size(path, error);
-    if (error) {
-        return {};
-    }
-    const std::filesystem::file_time_type modified =
-        std::filesystem::last_write_time(path, error);
-    if (error) {
-        return {};
-    }
-    return {true, size, modified};
+    return {true, stat->size, stat->modificationTime};
 }
 
-bool pathInside(const std::filesystem::path& root,
-                const std::filesystem::path& path) {
-    const std::filesystem::path relative = path.lexically_relative(root);
-    if (relative.empty() || relative.is_absolute()) {
-        return false;
-    }
-    for (const std::filesystem::path& part : relative) {
-        if (part == "..") {
-            return false;
-        }
-    }
-    return true;
-}
-
-std::filesystem::path projectAssetPath(
-    const std::filesystem::path& projectPath, const std::string& value,
-    const std::filesystem::path& defaultFolder, const std::string& source) {
+std::string projectAssetPath(const std::string& value,
+                             const std::string& source) {
     if (value.empty()) {
         throw std::invalid_argument(source + " cannot be empty");
     }
-    const std::filesystem::path requested =
-        ludork::standard::pathFromUtf8(value).lexically_normal();
-    std::filesystem::path candidate;
-    if (requested.is_absolute()) {
-        candidate = requested;
-    } else {
-        const std::string generic =
-            ludork::standard::pathToGenericUtf8(requested);
-        candidate = generic.starts_with("Assets/")
-                        ? projectPath / requested
-                        : projectPath / defaultFolder / requested;
-    }
-    candidate = std::filesystem::weakly_canonical(candidate);
-    if (!pathInside(projectPath, candidate)) {
-        throw std::invalid_argument(source + " is outside the project");
-    }
-    return candidate;
+    static_cast<void>(ludork::runtime::AssetPath::parse(value));
+    return value;
 }
 
-std::filesystem::path actorTexturePath(const std::filesystem::path& projectPath,
-                                       const std::string& value) {
-    return projectAssetPath(projectPath, value, "Assets/Characters",
-                            "Actor texturePath");
+std::string actorTexturePath(const std::string& value) {
+    return projectAssetPath(value, "Actor texturePath");
 }
 
-std::filesystem::path actorShaderPath(const std::filesystem::path& projectPath,
-                                      const std::string& value) {
-    std::filesystem::path path = projectAssetPath(
-        projectPath, value, "Assets/Shaders", "Actor shaderPath");
-    if (fileStamp(path).exists) {
-        return path;
+std::string actorShaderPath(const std::string& value) {
+    return projectAssetPath(value, "Actor shaderPath");
+}
+
+FileStamp shaderStamp(const std::string& path) {
+    const FileStamp requested = fileStamp(path);
+    if (requested.exists) {
+        return requested;
     }
-    const std::string extension = pathText(path.extension());
-    if (extension == ".frag" || extension == ".vert" || extension == ".geom") {
-        std::filesystem::path encrypted = path;
-        encrypted.replace_extension(extension + "c");
-        if (fileStamp(encrypted).exists) {
-            return encrypted;
-        }
+    if (path.ends_with(".frag") || path.ends_with(".vert") ||
+        path.ends_with(".geom")) {
+        return fileStamp(path + 'c');
     }
-    return path;
+    return requested;
 }
 
 struct ActorVisualRequest {
     std::string id;
-    std::filesystem::path texturePath;
+    std::string texturePath;
     sf::IntRect textureRect;
-    std::filesystem::path shaderPath;
+    std::string shaderPath;
     float hue = 0.0f;
 };
 
@@ -165,7 +119,7 @@ struct ShaderCacheEntry {
 
 struct ActorBatchRenderer::Impl {
     void reset(const std::filesystem::path& projectPath) {
-        projectPath_ = projectPath;
+        static_cast<void>(projectPath);
         textures_.clear();
         shaders_.clear();
         pageBuffers_.clear();
@@ -257,7 +211,8 @@ struct ActorBatchRenderer::Impl {
                 *pageValue.getMutableIf<RuntimeValue::Map>();
             RuntimeValue::Map& sharedMemory =
                 *page["sharedMemory"].getMutableIf<RuntimeValue::Map>();
-            sharedMemory["filePath"] = RuntimeValue(pathText(framePath));
+            sharedMemory["filePath"] =
+                RuntimeValue(ludork::standard::pathToUtf8(framePath));
         }
         RuntimeValue::Array items;
         items.reserve(visuals.size());
@@ -326,11 +281,10 @@ private:
             ludork::runtime::value_reader::requireString(
                 ludork::runtime::value_reader::requireValue(item, "id", source),
                 source + ".id"),
-            actorTexturePath(projectPath_,
-                             ludork::runtime::value_reader::requireString(
-                                 ludork::runtime::value_reader::requireValue(
-                                     item, "texturePath", source),
-                                 source + ".texturePath")),
+            actorTexturePath(ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(item, "texturePath",
+                                                            source),
+                source + ".texturePath")),
             sf::IntRect({ludork::runtime::value_reader::requireInt(
                              ludork::runtime::value_reader::requireValue(
                                  rect, "x", source + ".textureRect"),
@@ -340,8 +294,7 @@ private:
                                  rect, "y", source + ".textureRect"),
                              source + ".textureRect.y")},
                         {width, height}),
-            shaderText.empty() ? std::filesystem::path()
-                               : actorShaderPath(projectPath_, shaderText),
+            shaderText.empty() ? std::string{} : actorShaderPath(shaderText),
             hue};
         return {std::move(visual)};
     }
@@ -481,9 +434,9 @@ private:
         target.draw(source, states);
     }
 
-    const TextureCacheEntry& loadTexture(const std::filesystem::path& path) {
-        const std::string key = pathText(path);
-        const FileStamp stamp = fileStamp(path);
+    const TextureCacheEntry& loadTexture(const std::string& path) {
+        const std::string& key = path;
+        const FileStamp stamp = fileStamp(key);
         const auto iterator = textures_.find(key);
         if (iterator != textures_.end() && iterator->second.stamp == stamp) {
             return iterator->second;
@@ -493,8 +446,10 @@ private:
         if (!stamp.exists) {
             entry.error = "Texture file not found: " + key;
         } else {
+            std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+                ludork::runtime::assetStore().open(key);
             entry.texture = std::make_shared<sf::Texture>();
-            if (!entry.texture->loadFromFile(path, false)) {
+            if (!entry.texture->loadFromStream(*stream, false)) {
                 entry.texture.reset();
                 entry.error = "Texture load failed: " + key;
             } else {
@@ -504,9 +459,9 @@ private:
         return textures_.insert_or_assign(key, std::move(entry)).first->second;
     }
 
-    const ShaderCacheEntry& loadShader(const std::filesystem::path& path) {
-        const std::string key = pathText(path);
-        const FileStamp stamp = fileStamp(path);
+    const ShaderCacheEntry& loadShader(const std::string& path) {
+        const std::string& key = path;
+        const FileStamp stamp = shaderStamp(path);
         const auto iterator = shaders_.find(key);
         if (iterator != shaders_.end() && iterator->second.stamp == stamp) {
             return iterator->second;
@@ -554,8 +509,8 @@ private:
     }
 
     sf::Shader& requireHueShader() {
-        const std::filesystem::path path =
-            actorShaderPath(projectPath_, "Global/Hue.frag");
+        const std::string path =
+            actorShaderPath("/Game/Assets/Shaders/Global/Hue.frag");
         const ShaderCacheEntry& entry = loadShader(path);
         if (entry.shader == nullptr) {
             throw std::runtime_error(entry.error);
@@ -623,7 +578,6 @@ void main()
         shader.setUniform("hue", hue);
     }
 
-    std::filesystem::path projectPath_;
     std::unordered_map<std::string, TextureCacheEntry> textures_;
     std::unordered_map<std::string, ShaderCacheEntry> shaders_;
     std::vector<std::unique_ptr<sf::RenderTexture>> pageBuffers_;

@@ -12,13 +12,13 @@ local _METADATA = {
             type = "string",
             default = "",
             Meta = {
-                PathVars = "Sounds",
+                PathVars = "/Game/Assets/Sounds",
                 ConfigVars = { "Audio", "getSE" },
             },
         },
         Meta = {
             PathVars = {
-                { "getSE", "Sounds" },
+                { "getSE", "/Game/Assets/Sounds" },
             },
             ConfigVars = {
                 { "getSE", "Audio", "getSE" },

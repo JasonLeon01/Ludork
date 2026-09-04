@@ -9,35 +9,34 @@ local _METADATA = {
                 "position",
                 mapPath = "string",
                 blockTransition = "bool",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
             default = {
                 [1] = "",
-                [2] = false,
+                [2] = false
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 Transfer = {
                     {
                         "position",
-                        "mapPath",
-                    },
-                },
-            },
+                        "mapPath"
+                    }
+                }
+            }
         },
         GameOver = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         AddTimer = {
             type = "function",
@@ -45,21 +44,21 @@ local _METADATA = {
                 "interval",
                 "blocking",
                 interval = "float",
-                blocking = "bool",
+                blocking = "bool"
             },
             default = {
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "TimeUp",
                 TimeUp = {
-                    true,
-                },
-            },
+                    true
+                }
+            }
         },
         ShowMessageByTag = {
             type = "function",
@@ -69,21 +68,21 @@ local _METADATA = {
                 "refActorTag",
                 name = "string",
                 message = "string",
-                refActorTag = "string",
+                refActorTag = "string"
             },
             default = {
-                [3] = "",
+                [3] = ""
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "FinishedDialogue",
                 FinishedDialogue = {
-                    true,
-                },
-            },
+                    true
+                }
+            }
         },
         ShowMessage = {
             type = "function",
@@ -95,19 +94,19 @@ local _METADATA = {
                 message = "string",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "FinishedDialogue",
                 FinishedDialogue = {
-                    true,
-                },
-            },
+                    true
+                }
+            }
         },
         ShowVoiceMessageByTag = {
             type = "function",
@@ -119,29 +118,29 @@ local _METADATA = {
                 name = "string",
                 message = "string",
                 voiceFileName = "string",
-                refActorTag = "string",
+                refActorTag = "string"
             },
             default = {
-                [4] = "",
+                [4] = ""
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "FinishedDialogue",
                 FinishedDialogue = {
-                    true,
-                },
+                    true
+                }
             },
             Meta = {
                 PathVars = {
                     {
                         "voiceFileName",
-                        "Voices",
-                    },
-                },
-            },
+                        "/Game/Assets/Voices"
+                    }
+                }
+            }
         },
         ShowVoiceMessage = {
             type = "function",
@@ -156,31 +155,31 @@ local _METADATA = {
                 voiceFileName = "string",
                 refActor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                minDistance = "float",
+                minDistance = "float"
             },
             default = {
-                [5] = 64.0,
+                [5] = 64.0
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "FinishedDialogue",
                 FinishedDialogue = {
-                    true,
-                },
+                    true
+                }
             },
             Meta = {
                 PathVars = {
                     {
                         "voiceFileName",
-                        "Voices",
-                    },
-                },
-            },
+                        "/Game/Assets/Voices"
+                    }
+                }
+            }
         },
         ShowSelection = {
             type = "function",
@@ -192,17 +191,17 @@ local _METADATA = {
                 name = "string",
                 options = "string[]",
                 refActorTag = "string",
-                allowCancel = "bool",
+                allowCancel = "bool"
             },
             default = {
                 [1] = "",
                 [2] = {},
                 [3] = "",
-                [4] = true,
+                [4] = true
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Selected0",
@@ -211,21 +210,21 @@ local _METADATA = {
                 "Selected3",
                 "Cancelled",
                 Selected0 = {
-                    0,
+                    0
                 },
                 Selected1 = {
-                    1,
+                    1
                 },
                 Selected2 = {
-                    2,
+                    2
                 },
                 Selected3 = {
-                    3,
+                    3
                 },
                 Cancelled = {
-                    -1,
-                },
-            },
+                    -1
+                }
+            }
         },
         ShowRefSelection = {
             type = "function",
@@ -238,18 +237,18 @@ local _METADATA = {
                 options = "string[]",
                 refActor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                allowCancel = "bool",
+                allowCancel = "bool"
             },
             default = {
                 [1] = "",
                 [2] = {},
-                [4] = true,
+                [4] = true
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Selected0",
@@ -258,41 +257,39 @@ local _METADATA = {
                 "Selected3",
                 "Cancelled",
                 Selected0 = {
-                    0,
+                    0
                 },
                 Selected1 = {
-                    1,
+                    1
                 },
                 Selected2 = {
-                    2,
+                    2
                 },
                 Selected3 = {
-                    3,
+                    3
                 },
                 Cancelled = {
-                    -1,
-                },
-            },
+                    -1
+                }
+            }
         },
         LockCamera = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         UnlockCamera = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         AttachCamera = {
             type = "function",
@@ -300,26 +297,26 @@ local _METADATA = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         MoveCamera = {
             type = "function",
             parameters = {
                 "delta",
-                delta = "sf.Vector2f",
+                delta = "sf.Vector2f"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         RecordTelepoint = {
             type = "function",
@@ -329,18 +326,18 @@ local _METADATA = {
                 "y",
                 mapPath = "string",
                 x = "int",
-                y = "int",
+                y = "int"
             },
             default = {
                 [1] = "",
                 [2] = 0,
-                [3] = 0,
+                [3] = 0
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         CreateActorFromBPPath = {
             type = "function",
@@ -354,30 +351,30 @@ local _METADATA = {
                 layerName = "string",
                 position = "sf.Vector2i",
                 tag = "string",
-                emitCreateEvent = "bool",
+                emitCreateEvent = "bool"
             },
             default = {
                 [1] = "",
                 [2] = "default",
                 [4] = "",
-                [5] = true,
+                [5] = true
             },
             ["return"] = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 BlueprintClassVars = {
-                    "bpPath",
-                },
-            },
+                    "bpPath"
+                }
+            }
         },
         CreateActorFromBPPathWithDefaults = {
             type = "function",
@@ -393,31 +390,31 @@ local _METADATA = {
                 layerName = "string",
                 position = "sf.Vector2i",
                 tag = "string",
-                emitCreateEvent = "bool",
+                emitCreateEvent = "bool"
             },
             default = {
                 [1] = "",
                 [2] = {},
                 [3] = "default",
                 [5] = "",
-                [6] = true,
+                [6] = true
             },
             ["return"] = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 BlueprintClassVars = {
-                    "bpPath",
-                },
-            },
+                    "bpPath"
+                }
+            }
         },
         DestroyTerrain = {
             type = "function",
@@ -427,13 +424,13 @@ local _METADATA = {
                 "tileID",
                 layerName = "string",
                 position = "sf.Vector2i",
-                tileID = "any",
+                tileID = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         DestroyTerrainList = {
             type = "function",
@@ -443,16 +440,16 @@ local _METADATA = {
                 "tileID",
                 layerName = "string",
                 positions = "sf.Vector2i[]",
-                tileID = "any",
+                tileID = "any"
             },
             default = {
-                [2] = {},
+                [2] = {}
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         GetTerrainTile = {
             type = "function",
@@ -460,13 +457,13 @@ local _METADATA = {
                 "layerName",
                 "position",
                 layerName = "string",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
             ["return"] = {
                 "tileID",
-                tileID = "any",
+                tileID = "any"
             },
-            Pure = true,
+            Pure = true
         },
         GetTerrainTilePositions = {
             type = "function",
@@ -474,13 +471,13 @@ local _METADATA = {
                 "layerName",
                 "tileID",
                 layerName = "string",
-                tileID = "any",
+                tileID = "any"
             },
             ["return"] = {
                 "positions",
-                positions = "sf.Vector2i[]",
+                positions = "sf.Vector2i[]"
             },
-            Pure = true,
+            Pure = true
         },
         RecordAddedActor = {
             type = "function",
@@ -488,24 +485,23 @@ local _METADATA = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SelfRecordAdded = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         RecordActorPosition = {
             type = "function",
@@ -513,24 +509,23 @@ local _METADATA = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SelfRecordActorPosition = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         RecordDestroyedActor = {
             type = "function",
@@ -538,24 +533,23 @@ local _METADATA = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SelfRecordDestroyed = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         RecordAndDestroyActor = {
             type = "function",
@@ -563,24 +557,23 @@ local _METADATA = {
                 "actor",
                 actor = {
                     "Engine",
-                    "Actor",
-                },
+                    "Actor"
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SelfRecordAndDestroy = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         OpenShop = {
             type = "function",
@@ -588,22 +581,22 @@ local _METADATA = {
                 "items",
                 "canSell",
                 items = "string[]",
-                canSell = "bool",
+                canSell = "bool"
             },
             default = {
                 [1] = {},
-                [2] = true,
+                [2] = true
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Closed",
                 Closed = {
-                    true,
-                },
-            },
+                    true
+                }
+            }
         },
         OpenAttrShop = {
             type = "function",
@@ -617,14 +610,14 @@ local _METADATA = {
                 "moneyName",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
                 shopName = "string",
                 shopDescription = "string",
                 abilities = "any",
                 price = "any",
                 priceIncrement = "int",
-                moneyName = "string",
+                moneyName = "string"
             },
             default = {
                 [2] = "",
@@ -632,18 +625,18 @@ local _METADATA = {
                 [4] = {},
                 [5] = 0,
                 [6] = 1,
-                [7] = "GOLD",
+                [7] = "GOLD"
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Closed",
                 Closed = {
-                    true,
-                },
-            },
+                    true
+                }
+            }
         },
         OpenAttrShopByTag = {
             type = "function",
@@ -661,7 +654,7 @@ local _METADATA = {
                 abilities = "any",
                 price = "any",
                 priceIncrement = "int",
-                moneyName = "string",
+                moneyName = "string"
             },
             default = {
                 [1] = "",
@@ -670,20 +663,20 @@ local _METADATA = {
                 [4] = {},
                 [5] = 0,
                 [6] = 1,
-                [7] = "GOLD",
+                [7] = "GOLD"
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Closed",
                 Closed = {
-                    true,
-                },
-            },
-        },
-    },
+                    true
+                }
+            }
+        }
+    }
 }
 
 return _METADATA

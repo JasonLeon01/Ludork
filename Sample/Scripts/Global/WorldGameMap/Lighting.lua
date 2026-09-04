@@ -16,12 +16,18 @@ function GameMapLighting:_initialiseWorldRendering()
     local unobstructedLightPassShader = nil
     local actorHueShader = nil
     if sf.Shader.isAvailable() then
-        tilemapLightMaskShader = ShaderManager.load("Global/TilemapLightMask.frag", sf.Shader.Type.Fragment)
-        lightMaskShader = ShaderManager.load("Global/LightMask.frag", sf.Shader.Type.Fragment)
-        materialShader = ShaderManager.load("Global/WorldMaterial.frag", sf.Shader.Type.Fragment)
-        lightPassShader = ShaderManager.load("Global/LightPass.frag", sf.Shader.Type.Fragment)
-        unobstructedLightPassShader = ShaderManager.load("Global/UnoccludedLightPass.frag", sf.Shader.Type.Fragment)
-        actorHueShader = ShaderManager.load("Global/Hue.frag", sf.Shader.Type.Fragment)
+        tilemapLightMaskShader = ShaderManager.load(
+            "/Game/Assets/Shaders/Global/TilemapLightMask.frag",
+            sf.Shader.Type.Fragment
+        )
+        lightMaskShader = ShaderManager.load("/Game/Assets/Shaders/Global/LightMask.frag", sf.Shader.Type.Fragment)
+        materialShader = ShaderManager.load("/Game/Assets/Shaders/Global/WorldMaterial.frag", sf.Shader.Type.Fragment)
+        lightPassShader = ShaderManager.load("/Game/Assets/Shaders/Global/LightPass.frag", sf.Shader.Type.Fragment)
+        unobstructedLightPassShader = ShaderManager.load(
+            "/Game/Assets/Shaders/Global/UnoccludedLightPass.frag",
+            sf.Shader.Type.Fragment
+        )
+        actorHueShader = ShaderManager.load("/Game/Assets/Shaders/Global/Hue.frag", sf.Shader.Type.Fragment)
     end
     self._tilemapLightMaskShader = tilemapLightMaskShader
     self._lightMaskShader = lightMaskShader

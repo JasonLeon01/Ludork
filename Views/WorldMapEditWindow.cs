@@ -136,16 +136,22 @@ public sealed class WorldMapEditWindow : Window
         string root = Path.Combine(gameData.ProjectPath, "Assets", "Fogs");
         Directory.CreateDirectory(root);
         string current = fogBox.Text ?? string.Empty;
-        string? initialFilePath = string.IsNullOrWhiteSpace(current)
-            ? null
-            : Path.Combine(root, current);
+        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+            gameData.ProjectPath,
+            current,
+            out string resolvedCurrent)
+            ? resolvedCurrent
+            : null;
         string? path = await FileSelectorDialog.ShowAsync(
             this,
             root,
             FileSelectorDialog.ImageFilesFilter(),
             initialFilePath: initialFilePath);
-        if (path is not null)
-            fogBox.Text = Path.GetFileName(path);
+        if (path is not null
+            && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath))
+        {
+            fogBox.Text = assetPath;
+        }
     }
 
     private void onConfirm(object? sender, RoutedEventArgs args)
@@ -171,13 +177,19 @@ public sealed class WorldMapEditWindow : Window
             errorText.Text = LocaleService.Get("WORLD_NAME_EMPTY");
             return;
         }
+        string fog = fogBox.Text?.Trim() ?? string.Empty;
+        if (fog.Length != 0 && !GameAssetPath.IsCanonical(fog))
+        {
+            errorText.Text = $"Invalid game asset path: {fog}";
+            return;
+        }
         Close(new WorldMapInfo
         {
             DirectoryName = directoryName,
             WorldName = worldName,
             Width = decimal.ToInt32(widthBox.Value ?? 0),
             Height = decimal.ToInt32(heightBox.Value ?? 0),
-            Fog = fogBox.Text?.Trim() ?? string.Empty,
+            Fog = fog,
             FogPower = decimal.ToInt32(fogPowerBox.Value ?? 0),
             FogOx = (double)(fogOxBox.Value ?? 0),
             FogOy = (double)(fogOyBox.Value ?? 0),

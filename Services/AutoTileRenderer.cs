@@ -84,11 +84,13 @@ public sealed class AutoTileRenderer : IDisposable
         if (!gameData.AutoTileData.TryGetValue(key, out JsonObject? data))
             return null;
         string? fileName = data["fileName"]?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(fileName))
+        if (!GameAssetPath.TryResolveExistingFile(
+                gameData.ProjectPath,
+                fileName,
+                out string path))
+        {
             return null;
-        string path = Path.Combine(gameData.ProjectPath, "Assets", "Autotiles", fileName);
-        if (!File.Exists(path))
-            return null;
+        }
         Bitmap source = new Bitmap(path);
         sourceImages[key] = source;
         return source;

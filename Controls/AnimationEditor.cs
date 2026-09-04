@@ -289,7 +289,15 @@ public sealed class AnimationEditor : UserControl
             return;
         JsonArray assets = getAssets();
         foreach (string path in paths)
-            assets.Add(Path.GetFileName(path));
+        {
+            if (GameAssetPath.TryFromProjectFile(
+                    gameData.ProjectPath,
+                    path,
+                    out string assetPath))
+            {
+                assets.Add(assetPath);
+            }
+        }
         refreshAssets();
         commit();
     }
@@ -789,9 +797,13 @@ public sealed class AnimationEditor : UserControl
                 int assetIndex = (int)number(segment["asset"], -1);
                 if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue asset || !asset.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
                     continue;
-                string path = Path.Combine(gameData.ProjectPath, "Assets", "Sounds", assetName);
-                if (!File.Exists(path))
+                if (!GameAssetPath.TryResolveExistingFile(
+                        gameData.ProjectPath,
+                        assetName,
+                        out string path))
+                {
                     continue;
+                }
                 IAnimationAudioPlayback? player = AnimationAudioPlayback.Create(path, time - start);
                 if (player is not null)
                     soundPlayers[playerKey] = player;
@@ -1032,8 +1044,10 @@ public sealed class AnimationEditor : UserControl
         string extension = Path.GetExtension(assetName);
         if (!isAudioAsset(assetName) && new[] { ".png", ".jpg", ".bmp" }.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
-            string path = Path.Combine(gameData.ProjectPath, "Assets", "Animations", assetName);
-            if (File.Exists(path))
+            if (GameAssetPath.TryResolveExistingFile(
+                    gameData.ProjectPath,
+                    assetName,
+                    out string path))
             {
                 item.Child = new Image { Source = new Bitmap(path), Stretch = Stretch.Uniform };
             }
@@ -1042,8 +1056,10 @@ public sealed class AnimationEditor : UserControl
         }
         else if (isAudioAsset(assetName))
         {
-            string path = Path.Combine(gameData.ProjectPath, "Assets", "Sounds", assetName);
-            if (File.Exists(path))
+            if (GameAssetPath.TryResolveExistingFile(
+                    gameData.ProjectPath,
+                    assetName,
+                    out string path))
             {
                 item.Background = new SolidColorBrush(Color.Parse("#442222"));
                 item.Child = createAssetText("Audio");
@@ -2110,13 +2126,17 @@ public sealed class AnimationTimeline : Control
     {
         if (!AnimationEditor.isAudioAsset(asset))
             return 0.05;
-        double duration = AnimationAudioPlayback.GetDuration(Path.Combine(projectPath, "Assets", "Sounds", asset)) ?? 0.1;
+        double duration = GameAssetPath.TryResolveExistingFile(projectPath, asset, out string path)
+            ? AnimationAudioPlayback.GetDuration(path) ?? 0.1
+            : 0.1;
         return duration > 0 ? duration : 0.1;
     }
 
     private bool tryGetExactAudioDuration(string asset, out double duration)
     {
-        duration = AnimationAudioPlayback.GetDuration(Path.Combine(projectPath, "Assets", "Sounds", asset)) ?? 0;
+        duration = GameAssetPath.TryResolveExistingFile(projectPath, asset, out string path)
+            ? AnimationAudioPlayback.GetDuration(path) ?? 0
+            : 0;
         return duration > 0;
     }
 
@@ -2351,7 +2371,7 @@ public sealed class AnimationPreview : Control
 {
     private readonly string projectPath;
     private readonly Func<JsonObject> getData;
-    private readonly Dictionary<string, Bitmap> cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Bitmap> cache = new(StringComparer.Ordinal);
     private Point dragStart;
     private double dragStartX;
     private double dragStartY;
@@ -2518,8 +2538,7 @@ public sealed class AnimationPreview : Control
     {
         if (cache.TryGetValue(asset, out Bitmap? bitmap))
             return bitmap;
-        string path = Path.Combine(projectPath, "Assets", "Animations", asset);
-        if (!File.Exists(path))
+        if (!GameAssetPath.TryResolveExistingFile(projectPath, asset, out string path))
             return null;
         bitmap = new Bitmap(path);
         cache[asset] = bitmap;

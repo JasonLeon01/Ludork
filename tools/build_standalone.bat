@@ -3,6 +3,8 @@ setlocal EnableExtensions
 for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
 cd /d "%ROOT_DIR%"
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 
 if "%~1"=="" goto :usage
 if "%~2"=="" goto :usage
@@ -28,6 +30,14 @@ if not exist "%CPP_DIR%\Data" (
 if not exist "%CPP_DIR%\Scripts" (
     echo Scripts folder was not found: %CPP_DIR%\Scripts
     exit /b 1
+)
+if "%LUDORK_VALIDATE_PACK_ASSETS%"=="1" (
+    if not exist "%SCRIPT_TOOLS%" (
+        echo ScriptTools was not found. Run tools\init.bat first.
+        exit /b 1
+    )
+    "%SCRIPT_TOOLS%" validate-asset-pack-source "%CPP_DIR%\Assets"
+    if errorlevel 1 exit /b %errorlevel%
 )
 
 if not exist "%STANDALONE_DIR%" mkdir "%STANDALONE_DIR%"

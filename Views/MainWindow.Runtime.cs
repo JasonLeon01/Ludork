@@ -150,7 +150,7 @@ public partial class MainWindow
             setProjectRunState(ProjectRunState.Idle);
             await AlertDialog.ShowAsync(
                 this,
-                LocaleService.Get("PLAY_ERROR"),
+                LocaleService.Get("RUN_FAILED_TITLE"),
                 LocaleService.Get("RUN_EMBED_HANDLE_UNAVAILABLE")
             );
             return;
@@ -180,7 +180,7 @@ public partial class MainWindow
             return;
         await AlertDialog.ShowAsync(
             this,
-            LocaleService.Get("PLAY_ERROR"),
+            LocaleService.Get("RUN_FAILED_TITLE"),
             getProjectRunFailureMessage(result)
         );
     }
@@ -666,4 +666,3 @@ public partial class MainWindow
     }
 
 }
-

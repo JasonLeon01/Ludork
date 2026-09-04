@@ -55,6 +55,7 @@ public sealed class BlueprintValidationService
         validateParent(key, data, parent.Trim(), errors);
         validateBlueprintModeChain(key, data, errors);
         ResolvedBlueprintClass resolved = validateScriptMixin(key, data, errors);
+        validateAssetAttributes(data, resolved, errors);
 
         bool hasGraph = data.TryGetPropertyValue("graph", out JsonNode? graphNode);
         if (!hasGraph)
@@ -448,6 +449,12 @@ public sealed class BlueprintValidationService
                     continue;
                 }
                 nodeDefinitions[index] = definition;
+                validateAssetParameters(
+                    pair.Key,
+                    index,
+                    node["params"] as JsonArray,
+                    definition,
+                    errors);
             }
 
             for (int linkIndex = 0; linkIndex < links.Count; linkIndex++)
@@ -487,6 +494,101 @@ public sealed class BlueprintValidationService
                 }
             }
         }
+    }
+
+    private static void validateAssetAttributes(
+        JsonObject data,
+        ResolvedBlueprintClass resolved,
+        ICollection<string> errors)
+    {
+        if (data["attrs"] is not JsonObject attributes)
+            return;
+        foreach (ResolvedBlueprintField field in resolved.Fields)
+        {
+            if (!attributes.TryGetPropertyValue(field.Name, out JsonNode? value))
+                continue;
+            bool projectPath = hasMetaReference(field.Metadata?.Meta["PathRoot"], field.Name, "Project");
+            bool assetPath = hasMetaReference(field.Metadata?.Meta["PathVars"], field.Name)
+                || hasMetaReference(resolved.Meta["PathVars"], field.Name);
+            if (!projectPath && assetPath)
+                validateAssetPath(value, $"attrs.{field.Name}", errors);
+        }
+    }
+
+    private static void validateAssetParameters(
+        string eventName,
+        int nodeIndex,
+        JsonArray? values,
+        BlueprintGraphNodeDefinition definition,
+        ICollection<string> errors)
+    {
+        if (values is null)
+            return;
+        foreach (BlueprintGraphPortDefinition port in definition.Ports)
+        {
+            if (port.Direction != BlueprintGraphPortDirection.Input
+                || port.Kind != BlueprintGraphPortKind.Params
+                || port.ParameterIndex is not int parameterIndex
+                || parameterIndex < 0
+                || parameterIndex >= values.Count
+                || !hasMetaReference(port.Meta["PathVars"], port.Name)
+                || hasMetaReference(port.Meta["PathRoot"], port.Name, "Project"))
+            {
+                continue;
+            }
+            validateAssetPath(
+                values[parameterIndex],
+                $"graph.nodeGraph[\"{eventName}\"].nodes[{nodeIndex}].params[{parameterIndex}]",
+                errors);
+        }
+    }
+
+    private static void validateAssetPath(
+        JsonNode? value,
+        string path,
+        ICollection<string> errors)
+    {
+        string? text = getString(value);
+        if (!string.IsNullOrEmpty(text) && !GameAssetPath.IsCanonical(text))
+            errors.Add(path + " must use a canonical /Game/Assets/ path");
+    }
+
+    private static bool hasMetaReference(
+        JsonNode? value,
+        string name,
+        string? expected = null)
+    {
+        if (value is JsonValue scalar)
+        {
+            if (scalar.TryGetValue(out bool enabled))
+                return enabled && expected is null;
+            if (!scalar.TryGetValue(out string? text))
+                return false;
+            return expected is null || string.Equals(text, expected, StringComparison.Ordinal);
+        }
+        if (value is JsonObject map)
+        {
+            return map.TryGetPropertyValue(name, out JsonNode? item)
+                && (expected is null
+                    || string.Equals(getString(item), expected, StringComparison.Ordinal));
+        }
+        if (value is not JsonArray array)
+            return false;
+        foreach (JsonNode? item in array)
+        {
+            if (string.Equals(getString(item), name, StringComparison.Ordinal))
+                return expected is null;
+            if (item is JsonArray tuple
+                && tuple.Count > 0
+                && string.Equals(getString(tuple[0]), name, StringComparison.Ordinal)
+                && (expected is null
+                    || tuple.Count > 1
+                    && string.Equals(getString(tuple[1]), expected, StringComparison.Ordinal)))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void validateSourcePin(

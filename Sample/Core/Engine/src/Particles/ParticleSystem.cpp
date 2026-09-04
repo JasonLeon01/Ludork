@@ -1,10 +1,13 @@
 #include "Particles/ParticleSystem.hpp"
 
+#include <Runtime/AssetStore.hpp>
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <iterator>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 ParticleSystem::ParticleSystem() = default;
@@ -24,8 +27,13 @@ void ParticleSystem::addParticle(const std::shared_ptr<Particle>& particle) {
 
     auto it = resourceDict_.find(particle->resourcePath);
     if (it == resourceDict_.end()) {
-        std::unique_ptr<sf::Texture> texture =
-            std::make_unique<sf::Texture>(particle->resourcePath);
+        std::unique_ptr<ludork::runtime::AssetInputStream> stream =
+            ludork::runtime::assetStore().open(particle->resourcePath);
+        std::unique_ptr<sf::Texture> texture = std::make_unique<sf::Texture>();
+        if (!texture->loadFromStream(*stream)) {
+            throw std::runtime_error("Failed to load particle texture: " +
+                                     particle->resourcePath);
+        }
         const sf::Vector2u textureSize = texture->getSize();
         resourceDict_.emplace(particle->resourcePath, std::move(texture));
         particles_[particle->resourcePath] =

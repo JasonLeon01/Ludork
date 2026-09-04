@@ -27,25 +27,30 @@ public sealed partial class MapPanel
         if (gameData is null || string.IsNullOrWhiteSpace(key) || !gameData.TilesetData.TryGetValue(key, out JsonObject? data))
             return null;
         string? fileName = data["fileName"]?.GetValue<string>();
-        return loadBitmap(Path.Combine(gameData.ProjectPath, "Assets", "Tilesets", fileName ?? string.Empty));
+        return loadBitmap(fileName);
     }
 
-    private Bitmap? getActorBitmap(string? texturePath)
+    private Bitmap? getActorBitmap(string? assetPath)
     {
-        if (gameData is null || string.IsNullOrWhiteSpace(texturePath))
+        if (gameData is null || string.IsNullOrWhiteSpace(assetPath))
             return null;
-        string path = Path.IsPathRooted(texturePath)
-            ? texturePath
-            : texturePath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) || texturePath.StartsWith("Assets\\", StringComparison.OrdinalIgnoreCase)
-                ? Path.Combine(gameData.ProjectPath, texturePath)
-                : Path.Combine(gameData.ProjectPath, "Assets", "Characters", texturePath);
-        return loadBitmap(path);
+        return loadBitmap(assetPath);
     }
 
-    private Bitmap? loadBitmap(string path)
+    private Bitmap? loadBitmap(string? assetPath)
     {
-        FileInfo file = new(path);
-        if (bitmapCache.TryGetValue(path, out CachedBitmap cached))
+        if (gameData is null
+            || string.IsNullOrWhiteSpace(assetPath)
+            || !GameAssetPath.TryResolveExistingFile(
+                gameData.ProjectPath,
+                assetPath,
+                out string filePath))
+        {
+            return null;
+        }
+        string cacheKey = assetPath;
+        FileInfo file = new(filePath);
+        if (bitmapCache.TryGetValue(cacheKey, out CachedBitmap cached))
         {
             if (file.Exists
                 && cached.ModifiedAt == file.LastWriteTimeUtc
@@ -54,19 +59,22 @@ public sealed partial class MapPanel
                 return cached.Image;
             }
             retiredBitmaps.Add(cached.Image);
-            retireHueImages(path);
-            bitmapCache.Remove(path);
+            retireHueImages(cacheKey);
+            bitmapCache.Remove(cacheKey);
         }
         if (!file.Exists)
             return null;
-        Bitmap image = new(path);
-        bitmapCache[path] = new CachedBitmap(file.LastWriteTimeUtc, file.Length, image);
+        Bitmap image = new(filePath);
+        bitmapCache[cacheKey] = new CachedBitmap(
+            file.LastWriteTimeUtc,
+            file.Length,
+            image);
         return image;
     }
 
-    private Bitmap getHueImage(string path, Bitmap source, double hue)
+    private Bitmap getHueImage(string assetPath, Bitmap source, double hue)
     {
-        string cacheKey = path + "|" + (hue % 360).ToString("F3", CultureInfo.InvariantCulture);
+        string cacheKey = assetPath + "|" + (hue % 360).ToString("F3", CultureInfo.InvariantCulture);
         if (hueCache.TryGetValue(cacheKey, out Bitmap? cached))
             return cached;
         int width = source.PixelSize.Width;
@@ -93,11 +101,11 @@ public sealed partial class MapPanel
         return result;
     }
 
-    private void retireHueImages(string path)
+    private void retireHueImages(string assetPath)
     {
-        string prefix = path + "|";
+        string prefix = assetPath + "|";
         foreach (string key in hueCache.Keys
-            .Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
             .ToArray())
         {
             retiredBitmaps.Add(hueCache[key]);
@@ -688,4 +696,3 @@ public sealed partial class MapPanel
     private readonly record struct CacheGeometry(int MapWidth, int MapHeight, int TileSize, double RenderScale, Rect Viewport);
     private readonly record struct MapZoomAnchor(double MapX, double MapY, Point ViewportPoint);
 }
-

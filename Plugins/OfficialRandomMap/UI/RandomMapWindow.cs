@@ -8,7 +8,6 @@ using Ludork.Plugins.OfficialRandomMap.Generation;
 using Ludork.Plugins.OfficialRandomMap.Localization;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -24,7 +23,7 @@ internal sealed class RandomMapWindow : Window
     private readonly ListBox mapList = new();
     private readonly ComboBox layerSelector = new();
     private readonly Button tileButton = new();
-    private readonly TilePreviewControl tilePreview = new();
+    private readonly TilePreviewControl tilePreview;
     private readonly TextBlock tileButtonLabel = new()
     {
         VerticalAlignment = VerticalAlignment.Center,
@@ -98,6 +97,7 @@ internal sealed class RandomMapWindow : Window
     {
         this.host = host;
         this.localizer = localizer;
+        tilePreview = new TilePreviewControl(host);
         cancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken);
         mapCanvas = new RandomMapCanvas(host);
@@ -370,8 +370,8 @@ internal sealed class RandomMapWindow : Window
     {
         if (currentTileset is null
             || currentTileset.TileCount <= 0
-            || string.IsNullOrWhiteSpace(currentTileset.ImagePath)
-            || !File.Exists(currentTileset.ImagePath))
+            || string.IsNullOrWhiteSpace(currentTileset.AssetPath)
+            || host.ResolveAssetFile(currentTileset.AssetPath).Length == 0)
         {
             statusText.Text = localizer.Text("missingTileset");
             return;
@@ -381,6 +381,7 @@ internal sealed class RandomMapWindow : Window
         {
             result = await TilesetSelectionDialog.ShowAsync(
                 this,
+                host,
                 currentTileset,
                 selectedTile,
                 localizer);

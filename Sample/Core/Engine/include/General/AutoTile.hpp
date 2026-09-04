@@ -26,9 +26,9 @@ struct AutoTile {
     BIND_PROPERTY()
     std::string name = "";  ///< AutoTile name
 
-    BIND_PROPERTY()
+    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Autotiles"))
     std::string fileName =
-        "";  ///< Texture image file name (relative to Assets/Autotiles)
+        "";  ///< Canonical texture path under /Game/Assets/Autotiles
 
     BIND_PROPERTY()
     bool passable = true;  ///< Whether the auto-tile can be walked on
@@ -41,8 +41,8 @@ struct AutoTile {
     /// \brief Construct an auto-tile object
     ///
     /// - \param inName AutoTile name
-    /// - \param inFileName Texture image file name (relative to
-    /// Assets/Autotiles)
+    /// - \param inFileName Canonical texture path under
+    /// /Game/Assets/Autotiles
     /// - \param inPassable Whether the auto-tile can be walked on
     /// - \param inMaterial Material applied to the whole auto-tile
     ////////////////////////////////////////////////////////////

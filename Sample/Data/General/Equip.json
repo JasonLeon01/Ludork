@@ -12,8 +12,9 @@
         },
         "icon": {
             "type": "file",
-            "comment": "The icon asset path relative to Assets.",
-            "defaultValue": "Icons"
+            "comment": "The icon asset logical path.",
+            "base": "Icons",
+            "defaultValue": ""
         },
         "slot": {
             "type": "string",
@@ -31,7 +32,7 @@
         "Sword_A": {
             "name": "{SWORD_A}",
             "desc": "{SWORD_A_DESC}",
-            "icon": "Icons/classic-equips-2-0.png",
+            "icon": "/Game/Assets/Icons/classic-equips-2-0.png",
             "slot": "weapon",
             "attrPlus": {
                 "ATK": 10
@@ -56,7 +57,7 @@
         "Shield_A": {
             "name": "{SHIELD_A}",
             "desc": "{SHIELD_A_DESC}",
-            "icon": "Icons/classic-equips-3-0.png",
+            "icon": "/Game/Assets/Icons/classic-equips-3-0.png",
             "slot": "shield",
             "attrPlus": {
                 "DEF": 10

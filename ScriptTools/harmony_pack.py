@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from ScriptTools.compile_lua import compile_scripts, resolve_luac
 from ScriptTools.finalize_package import finalize_package
+from ScriptTools.ldpak import LdPakError, validate_asset_pack_source
 
 
 EXIT_TOOLCHAIN = 20
@@ -30,6 +31,7 @@ DEFAULT_APP_NAME_PATTERN = re.compile(
 )
 DEVECO_APP = pathlib.Path("/Applications/DevEco-Studio.app")
 RUNTIME_ARCHIVE_NAME = "ludork-runtime.zip"
+FILE_BUFFER_SIZE = 1024 * 1024
 HARMONY_SDK_VERSION = "6.0.2(22)"
 HARMONY_COMPATIBLE_API = 22
 HARMONY_COMPILER_TARGET = "aarch64-linux-ohos22.0.0"
@@ -140,6 +142,7 @@ class PackContext:
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
+    pack_assets: bool
 
 
 def resolve_deveco_tools() -> DevEcoTools:
@@ -345,6 +348,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             EXIT_PROJECT,
         )
     project_dir = resolve_project(arguments.project_folder)
+    if arguments.pack_assets:
+        validate_asset_pack_source(project_dir / "Assets")
     game_name = read_game_name(project_dir)
     dist_dir = (
         arguments.dist_folder.expanduser().resolve()
@@ -376,6 +381,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
+        pack_assets=arguments.pack_assets,
     )
 
 
@@ -534,6 +540,8 @@ def ensure_harmony_device_connected(context: PackContext, device: HarmonyDevice)
 
 
 def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> None:
+    if context.pack_assets:
+        validate_asset_pack_source(context.project_dir / "Assets")
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
@@ -558,6 +566,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
         destination,
         context.encrypt_shaders,
         context.encrypt_data,
+        pack_assets_enabled=context.pack_assets,
     )
     if context.use_luac:
         compile_scripts(destination / "Scripts", resolve_luac())
@@ -586,11 +595,24 @@ def write_deterministic_zip(source: pathlib.Path, destination: pathlib.Path) -> 
                 continue
             info = zipfile.ZipInfo(relative, (1980, 1, 1, 0, 0, 0))
             info.create_system = 3
-            info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
-            with path.open("rb") as stream:
-                archive.writestr(info, stream.read(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
-    digest = hashlib.sha256(temporary.read_bytes()).hexdigest()
+            compression = (
+                zipfile.ZIP_STORED
+                if path.suffix.casefold() == ".ldpak"
+                else zipfile.ZIP_DEFLATED
+            )
+            info.compress_type = compression
+            info._compresslevel = 9
+            info.file_size = path.stat().st_size
+            with path.open("rb") as source_stream:
+                with archive.open(info, "w") as archive_stream:
+                    shutil.copyfileobj(
+                        source_stream,
+                        archive_stream,
+                        length=FILE_BUFFER_SIZE,
+                    )
+    with temporary.open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256").hexdigest()
     temporary.replace(destination)
     return digest
 
@@ -2266,6 +2288,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
+    parser.add_argument("--pack-assets", action="store_true")
     parser.add_argument("--device-form", choices=("mobile", "2in1"), default="mobile")
     parser.add_argument("--graphics-api", choices=("opengl", "opengl-es"))
     parser.add_argument("project_folder", type=pathlib.Path)
@@ -2325,6 +2348,9 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(str(exception), file=sys.stderr)
         return exception.exit_code
+    except LdPakError as exception:
+        print(str(exception), file=sys.stderr)
+        return EXIT_PROJECT
     except (OSError, RuntimeError, zipfile.BadZipFile) as exception:
         print(str(exception), file=sys.stderr)
         return 1

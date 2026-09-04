@@ -116,7 +116,7 @@ public sealed class BlueprintPreviewService : IDisposable
         if (string.IsNullOrWhiteSpace(texturePath))
             return null;
 
-        string filePath = resolveTexturePath(texturePath);
+        string filePath = resolveTextureFilePath(texturePath);
         if (!File.Exists(filePath))
             return null;
 
@@ -185,7 +185,7 @@ public sealed class BlueprintPreviewService : IDisposable
         string texturePath = getResolvedValue(resolved, "texturePath")?.ToString() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(texturePath))
             return null;
-        string filePath = resolveTexturePath(texturePath);
+        string filePath = resolveTextureFilePath(texturePath);
         if (!File.Exists(filePath))
             return null;
         PixelSize? sourceSize = getSourceImageSize(filePath);
@@ -226,7 +226,7 @@ public sealed class BlueprintPreviewService : IDisposable
         int frameCount = Math.Max(1, textureSize.Width / rect.Width);
         return new ActorVisualDescriptor(
             blueprintReference,
-            filePath,
+            texturePath,
             textureSize,
             rect,
             getResolvedValue(resolved, "shaderPath")?.ToString() ?? string.Empty,
@@ -550,17 +550,11 @@ public sealed class BlueprintPreviewService : IDisposable
         throw new NotSupportedException($"Unsupported blueprint preview pixel format: {format}");
     }
 
-    internal string resolveTexturePath(string texturePath)
+    private string resolveTextureFilePath(string texturePath)
     {
-        string path;
-        if (Path.IsPathRooted(texturePath))
-            path = texturePath;
-        else if (texturePath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase)
-            || texturePath.StartsWith("Assets\\", StringComparison.OrdinalIgnoreCase))
-            path = Path.Combine(projectPath, texturePath);
-        else
-            path = Path.Combine(projectPath, "Assets", "Characters", texturePath);
-        return Path.GetFullPath(path);
+        return GameAssetPath.TryResolveExistingFile(projectPath, texturePath, out string path)
+            ? path
+            : string.Empty;
     }
 
     private readonly record struct PixelChannels(int Red, int Green, int Blue, int Alpha);

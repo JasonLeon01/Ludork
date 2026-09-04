@@ -1571,17 +1571,22 @@ internal sealed class GeneralDataPage : Grid
             Button browseBtn = new() { Content = "...", MinWidth = 36, Height = 34 };
             browseBtn.Click += async (_, _) =>
             {
-                string defaultSub = paramDef["defaultValue"]?.GetValue<string>() ?? string.Empty;
-                string assetsRoot = Path.Combine(gameData.ProjectPath, "Assets");
-                string startDir = !string.IsNullOrWhiteSpace(defaultSub)
-                    ? Path.Combine(assetsRoot, defaultSub)
-                    : assetsRoot;
-                if (!Directory.Exists(startDir))
-                    startDir = assetsRoot;
+                string baseHint = paramDef["base"]?.GetValue<string>() ?? string.Empty;
+                if (!GameAssetPath.TryResolveBaseHint(
+                        gameData.ProjectPath,
+                        baseHint,
+                        out string startDir))
+                {
+                    return;
+                }
+                Directory.CreateDirectory(startDir);
                 string currentPath = pathBox.Text ?? string.Empty;
-                string? initialFilePath = string.IsNullOrWhiteSpace(currentPath)
-                    ? null
-                    : Path.Combine(assetsRoot, currentPath);
+                string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+                    gameData.ProjectPath,
+                    currentPath,
+                    out string resolvedCurrent)
+                    ? resolvedCurrent
+                    : null;
                 string? path = await FileSelectorDialog.ShowAsync(
                     owner,
                     startDir,
@@ -1589,14 +1594,22 @@ internal sealed class GeneralDataPage : Grid
                     initialFilePath: initialFilePath);
                 if (path is null)
                     return;
-                string rel = Path.GetRelativePath(assetsRoot, path).Replace('\\', '/');
-                if (string.Equals(rawValue?.GetValue<string>() ?? string.Empty, rel, StringComparison.Ordinal))
+                if (!GameAssetPath.TryFromProjectFile(
+                        gameData.ProjectPath,
+                        path,
+                        out string assetPath)
+                    || string.Equals(
+                        rawValue?.GetValue<string>() ?? string.Empty,
+                        assetPath,
+                        StringComparison.Ordinal))
+                {
                     return;
+                }
                 gameData.RecordSnapshot();
-                member[paramName] = rel;
+                member[paramName] = assetPath;
                 rawValue = member[paramName];
                 gameData.refreshModifiedState();
-                pathBox.Text = rel;
+                pathBox.Text = assetPath;
             };
             Grid fileRow = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 4 };
             fileRow.Children.Add(pathBox);
@@ -1738,7 +1751,7 @@ internal sealed class GeneralDataPage : Grid
         {
             JsonObject itemMeta = [];
             if (getContainerItemType(paramDef, "itemType") == "file")
-                itemMeta["PathVars"] = string.Empty;
+                itemMeta["PathVars"] = GameAssetPath.Root;
             if (referenceOptions is not null)
                 itemMeta["GeneralDataReference"] = buildReferenceOptions(referenceOptions);
             if (itemMeta.Count > 0)
@@ -1747,7 +1760,7 @@ internal sealed class GeneralDataPage : Grid
         else if (type == "dict")
         {
             if (getContainerItemType(paramDef, "valueType") == "file")
-                meta["ItemMeta"] = new JsonObject { ["PathVars"] = string.Empty };
+                meta["ItemMeta"] = new JsonObject { ["PathVars"] = GameAssetPath.Root };
             if (referenceOptions is not null)
             {
                 meta["DictKeyMeta"] = new JsonObject
@@ -1836,6 +1849,7 @@ internal sealed class GeneralDataPage : Grid
             "bool" => defaultDef?.GetValue<bool?>() ?? false,
             "list" => defaultDef is JsonArray arr ? (JsonArray)arr.DeepClone() : new JsonArray(),
             "dict" => defaultDef is JsonObject obj ? (JsonObject)obj.DeepClone() : new JsonObject(),
+            "file" => JsonValue.Create(string.Empty),
             _ when isSfType(type) => createTypedDefault(type),
             _ => JsonValue.Create(defaultDef?.GetValue<string>() ?? string.Empty),
         };
@@ -1853,8 +1867,12 @@ internal sealed class GeneralDataPage : Grid
         JsonObject definition = new()
         {
             ["type"] = value.Type,
-            ["defaultValue"] = parseDefaultValue(value.Type, value.DefaultText),
+            ["defaultValue"] = value.Type == "file"
+                ? JsonValue.Create(string.Empty)
+                : parseDefaultValue(value.Type, value.DefaultText),
         };
+        if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
+            definition["base"] = value.DefaultText.Trim();
         if (value.Comment.Length > 0)
             definition["comment"] = value.Comment;
         if (value.ItemType is not null)
@@ -1870,7 +1888,13 @@ internal sealed class GeneralDataPage : Grid
     {
         JsonObject definition = (JsonObject)currentDefinition.DeepClone();
         definition["type"] = value.Type;
-        definition["defaultValue"] = parseDefaultValue(value.Type, value.DefaultText);
+        definition["defaultValue"] = value.Type == "file"
+            ? JsonValue.Create(string.Empty)
+            : parseDefaultValue(value.Type, value.DefaultText);
+        if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
+            definition["base"] = value.DefaultText.Trim();
+        else
+            definition.Remove("base");
         if (value.Comment.Length == 0)
             definition.Remove("comment");
         else
@@ -1898,7 +1922,9 @@ internal sealed class GeneralDataPage : Grid
             type,
             type == "list" ? getContainerItemType(definition, "itemType") : null,
             type == "dict" ? getContainerItemType(definition, "valueType") : null,
-            formatDefaultValue(type, definition["defaultValue"]),
+            type == "file"
+                ? definition["base"]?.GetValue<string>() ?? string.Empty
+                : formatDefaultValue(type, definition["defaultValue"]),
             definition["comment"]?.GetValue<string>() ?? string.Empty);
     }
 
@@ -1955,6 +1981,7 @@ internal sealed class GeneralDataPage : Grid
             "bool" => text.Equals("true", StringComparison.OrdinalIgnoreCase) ? true : false,
             "list" => new JsonArray(),
             "dict" => new JsonObject(),
+            "file" => JsonValue.Create(string.Empty)!,
             _ when isSfType(type) => createTypedDefault(type),
             _ => JsonValue.Create(text) ?? JsonValue.Create(string.Empty)!,
         };

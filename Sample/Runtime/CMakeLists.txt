@@ -42,7 +42,9 @@ target_link_libraries(LudorkRuntime
         LuaSF::Lua
         SFML::Graphics
         SFML::Audio
-        SFML::Network)
+        SFML::Network
+    PRIVATE
+        zlibstatic)
 
 set_target_properties(LudorkRuntime PROPERTIES
     CXX_VISIBILITY_PRESET hidden

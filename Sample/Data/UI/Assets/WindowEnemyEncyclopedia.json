@@ -110,7 +110,7 @@
             "controlId": "Engine.CharacterView",
             "properties": {
               "size": [608, 32],
-              "texture": "Assets/Characters/enemies/classic-enemies-10-king-single.png",
+              "texture": "/Game/Assets/Characters/enemies/classic-enemies-10-king-single.png",
               "textureRect": [0, 0, 32, 32],
               "characterScale": [1.0, 1.0],
               "animatable": true,

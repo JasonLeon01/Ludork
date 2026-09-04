@@ -1,9 +1,11 @@
 local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local WindowBaseUI = require("Source.UI.Parts.Shared.WindowBase")
 
 local Canvas = Engine.Canvas
 local ManagerFunctions = GlobalFunctions.Manager
+local TextureManager = GlobalCore.TextureManager
 
 ---@class Source.Windows.Base.WindowBase
 local WindowBase = {}
@@ -21,7 +23,9 @@ WindowBase._PAUSE_MARK_FRAME_RECTS = {
 function WindowBase:init(rect, windowSkin, repeated, deferView)
     super(WindowBase, self).init(rect)
     if windowSkin == nil then
-        windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
+        windowSkin = assert(TextureManager.load(
+            assert(Engine.DefaultWindowskinName, "Default windowskin path is unavailable"), false, nil, true
+        ), "Default windowskin texture is unavailable"):copyToImage()
     end
     self._windowSkin = windowSkin
     self._repeated = repeated == true

@@ -1,10 +1,9 @@
 local Engine = require("Engine")
 local GameMap = require("Global.GameMap")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local MainConfig = require("Source.Configs.Main")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local FontManager = GlobalCore.FontManager
 local GlobalSystem = GlobalCore.System
 local RuntimeProviders = Engine.RuntimeProviders
 
@@ -16,7 +15,7 @@ System._title = ""
 System._fonts = {}
 System._fontSize = 32
 System._windowskinName = ""
-System._titleBackgroundFile = "GrassBackground.png"
+System._titleBackgroundFile = "/Game/Assets/System/GrassBackground.png"
 System._coverOpaqueAlpha = 0
 System._startMap = ""
 System._startPlayerClassPath = ""
@@ -62,11 +61,11 @@ function System.Init()
     ---@cast gameSize sf.Vector2u
     System._fonts = {}
     for _, font in ipairs(systemData.fonts.value) do
-        System._fonts[#System._fonts + 1] = ManagerFunctions.loadFont(font)
+        System._fonts[#System._fonts + 1] = FontManager.load(font)
     end
     System._fontSize = systemData.fontSize.value
-    local iconPath = os.path.join("Assets", systemData.icon.base, systemData.icon.value)
-    local cursorPath = os.path.join("Assets", systemData.cursor.base, systemData.cursor.value)
+    local iconPath = systemData.icon.value
+    local cursorPath = systemData.cursor.value
     System._windowskinName = systemData.windowskinName.value
     System._titleBackgroundFile = systemData.titleBackgroundFile.value
     Engine.CellSize = systemData.cellSize.value

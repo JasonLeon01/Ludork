@@ -10,7 +10,7 @@
     },
     "collisionEnabled": true,
     "tickable": false,
-    "texturePath": "items/classic-keys.png",
+    "texturePath": "/Game/Assets/Characters/items/classic-keys.png",
     "ID": "KEY_Y",
     "tag": ""
   },

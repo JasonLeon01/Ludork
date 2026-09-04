@@ -231,12 +231,12 @@ SYSTEM_CONTROLS = (
             _property(
                 "lineTexture",
                 "string",
-                "Assets/System/SliderLine.png",
+                "/Game/Assets/System/SliderLine.png",
             ),
             _property(
                 "handleTexture",
                 "string",
-                "Assets/System/SliderHandle.png",
+                "/Game/Assets/System/SliderHandle.png",
             ),
         ),
     ),

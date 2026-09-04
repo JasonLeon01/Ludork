@@ -703,6 +703,10 @@ bool DropBox::_ignoresAncestorInteractionClip() const {
     return expanded_;
 }
 
+sf::FloatRect DropBox::getPresentationBounds() const {
+    return {{0.0f, 0.0f}, collapsedSize_};
+}
+
 bool DropBox::_hasOverlay() const {
     if (!expanded_) {
         return false;

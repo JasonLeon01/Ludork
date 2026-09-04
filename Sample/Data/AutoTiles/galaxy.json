@@ -1,6 +1,6 @@
 {
     "name": "galaxy",
-    "fileName": "102-CF_Lava02.png",
+    "fileName": "/Game/Assets/Autotiles/102-CF_Lava02.png",
     "passable": false,
     "material": {
         "lightBlock": 1.0,

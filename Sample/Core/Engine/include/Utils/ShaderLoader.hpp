@@ -4,14 +4,13 @@
 
 #include <SFML/Graphics/Shader.hpp>
 
-#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
 
 struct LUDORK_ENGINE_API ShaderSourceResult {
     std::string source;
-    std::filesystem::path resolvedPath;
+    std::string resolvedPath;
     std::string error;
 
     explicit operator bool() const noexcept {
@@ -22,7 +21,7 @@ struct LUDORK_ENGINE_API ShaderSourceResult {
 struct LUDORK_ENGINE_API ShaderLoadResult {
     std::shared_ptr<sf::Shader> shader;
     std::string source;
-    std::filesystem::path resolvedPath;
+    std::string resolvedPath;
     std::string error;
 
     explicit operator bool() const noexcept {

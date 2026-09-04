@@ -1,6 +1,6 @@
 {
     "name": "lava",
-    "fileName": "101-CF_Lava01.png",
+    "fileName": "/Game/Assets/Autotiles/101-CF_Lava01.png",
     "passable": false,
     "material": {
         "lightBlock": 0.4,

@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local ConfigWindowUI = require("Source.UI.ConfigWindow")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
@@ -7,7 +7,8 @@ local ConfigSliderRowUI = require("Source.UI.Parts.ConfigWindow.ConfigSliderRow"
 
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
+local TextureManager = GlobalCore.TextureManager
 
 local _DEFAULT_RECT = Engine.ToIntRect(80, 48, 480, 384)
 local _ROW_HEIGHT = 32
@@ -35,7 +36,9 @@ function ConfigWindow:init(onClose)
         { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }, { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) },
         { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }
     }
-    local windowSkin = ManagerFunctions.loadSystem(Engine.DefaultWindowskinName, false, nil, true):copyToImage()
+    local windowSkin = assert(TextureManager.load(
+        assert(Engine.DefaultWindowskinName, "Default windowskin path is unavailable"), false, nil, true
+    ), "Default windowskin texture is unavailable"):copyToImage()
     local contentWidth = _DEFAULT_RECT.size.x - 32
     super(ConfigWindow, self).init(_DEFAULT_RECT, nil, contentWidth, _ROW_HEIGHT, windowSkin, nil, nil, nil, true)
     self:setHasReturnBtn(true)
@@ -198,7 +201,7 @@ function ConfigWindow:dispose()
 end
 
 function ConfigWindow:_closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:close()
 end
 

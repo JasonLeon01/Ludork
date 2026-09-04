@@ -1,12 +1,12 @@
 local Engine = require("Engine")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 local AttrShopRowUI = require("Source.UI.Parts.WindowAttrShop.AttrShopRow")
 local Ui = require("Source.UI.Ui")
 local UiLayout = require("Source.UI.UiLayout")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
@@ -221,7 +221,7 @@ function WindowAttrShopUI:closeByCancel()
     if self.model._closed then
         return
     end
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:closeAndNotify()
 end
 
@@ -240,7 +240,7 @@ function WindowAttrShopUI:confirmItem()
     local player = self.model:getPlayer()
     if not selectable:isCurrentAvailable() or player.attributes[self.model._moneyName] == nil
         or player.attributes[self.model._moneyName] < price or player.attributes[abilityKey] == nil then
-        ManagerFunctions.playSE(GameSystem.GetBuzzerSE())
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
         self:refreshItems()
         return
     end
@@ -252,7 +252,7 @@ function WindowAttrShopUI:confirmItem()
         + self.model._abilities[abilityKey]
     abilitySystem:setNumericAttributeBases(changedAttributes)
     self:increasePrice(abilityIndex)
-    ManagerFunctions.playSE(GameSystem.GetShopSE())
+    AudioManager.playSound(GameSystem.GetShopSE())
     self:refreshPriceText()
     self:refreshItems()
 end

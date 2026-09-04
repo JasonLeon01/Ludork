@@ -31,15 +31,16 @@ public sealed record GameConfigSaveResult(bool Success, string Detail)
 
 public sealed class GameConfigService
 {
+    private const int DefaultAntiAliasingLevel = 2;
     private const int SfmlDefaultAntiAliasingLevel = 0;
     private static readonly GameConfigData defaults = new(
         "Scripts/Entry.lua",
         "en_GB",
         1.0,
-        2.0,
         1.0,
-        30,
-        SfmlDefaultAntiAliasingLevel,
+        0.75,
+        60,
+        DefaultAntiAliasingLevel,
         true,
         true,
         true,

@@ -5,7 +5,6 @@ using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -53,6 +52,16 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
     public PluginTilesetSnapshot ReadTileset(string tilesetKey)
     {
         return runOnUiThread(() => readTileset(tilesetKey));
+    }
+
+    public string ResolveAssetFile(string assetPath)
+    {
+        return GameAssetPath.TryResolveExistingFile(
+            gameData.ProjectPath,
+            assetPath,
+            out string filePath)
+            ? filePath
+            : string.Empty;
     }
 
     public async Task<PluginMapWriteResult> ReplaceLayerAndSaveAsync(
@@ -129,9 +138,9 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             string blueprintReference = readString(actor["bp"]);
             string texturePath = readString(
                 getActorAttribute(map, actor, blueprintReference, "texturePath"));
-            string imagePath = texturePath.Length == 0
-                ? string.Empty
-                : previewService.resolveTexturePath(texturePath);
+            string assetPath = GameAssetPath.IsCanonical(texturePath)
+                ? texturePath
+                : string.Empty;
             PluginMapActorRectSnapshot? sourceRect = readActorRect(
                 getActorAttribute(map, actor, blueprintReference, "defaultRect"));
             bool isCharacter = previewService.isCharacterBlueprint(blueprintReference);
@@ -162,7 +171,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             snapshots.Add(new PluginMapActorSnapshot(
                 x,
                 y,
-                imagePath,
+                assetPath,
                 sourceRect,
                 isCharacter,
                 direction,
@@ -250,12 +259,12 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
     {
         if (!gameData.TilesetData.TryGetValue(tilesetKey, out JsonObject? tileset))
             throw new KeyNotFoundException($"Tileset '{tilesetKey}' does not exist.");
-        string imagePath = getTilesetImagePath(tileset);
+        string assetPath = getTilesetAssetPath(tileset);
         JsonArray? sourcePassable = tileset["passable"] as JsonArray;
         List<bool> passable = [];
         int tileSize = Math.Max(1, gameData.getCellSize());
         int tileCount = getTileCount(
-            imagePath,
+            assetPath,
             tileSize,
             sourcePassable?.Count ?? 0);
         for (int index = 0; index < tileCount; index += 1)
@@ -269,7 +278,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         }
         return new PluginTilesetSnapshot(
             tilesetKey,
-            imagePath,
+            assetPath,
             tileSize,
             tileSize,
             tileCount,
@@ -303,9 +312,9 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         }
         if (!gameData.TilesetData.TryGetValue(tilesetKey, out JsonObject? tileset))
             return PluginMapWriteResult.Failed("The layer tileset no longer exists.", currentRevision);
-        string imagePath = getTilesetImagePath(tileset);
+        string assetPath = getTilesetAssetPath(tileset);
         int tileCount = getTileCount(
-            imagePath,
+            assetPath,
             Math.Max(1, gameData.getCellSize()),
             (tileset["passable"] as JsonArray)?.Count ?? 0);
         string? tilesError = validateTiles(request.Tiles, width, height, tileCount);
@@ -496,28 +505,25 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
                 : string.Empty;
     }
 
-    private string getTilesetImagePath(JsonObject tileset)
+    private static string getTilesetAssetPath(JsonObject tileset)
     {
-        string fileName = readString(tileset["fileName"]);
-        return fileName.Length == 0
-            ? string.Empty
-            : Path.GetFullPath(Path.Combine(
-                gameData.ProjectPath,
-                "Assets",
-                "Tilesets",
-                fileName));
+        string assetPath = readString(tileset["fileName"]);
+        return GameAssetPath.IsCanonical(assetPath)
+            ? assetPath
+            : string.Empty;
     }
 
-    private static int getTileCount(
-        string imagePath,
+    private int getTileCount(
+        string assetPath,
         int tileSize,
         int fallback)
     {
-        if (imagePath.Length == 0 || !File.Exists(imagePath))
+        string filePath = ResolveAssetFile(assetPath);
+        if (filePath.Length == 0)
             return fallback;
         try
         {
-            using Bitmap image = new Bitmap(imagePath);
+            using Bitmap image = new Bitmap(filePath);
             return image.PixelSize.Width / tileSize
                 * (image.PixelSize.Height / tileSize);
         }

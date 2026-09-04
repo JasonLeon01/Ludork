@@ -201,34 +201,45 @@ internal sealed class WorldMapActorPreviewRenderer : IDisposable
             cached.LastUsed = accessOrder;
             return cached.Stamp;
         }
-        FileStamp texture = getFileStamp(frame.TexturePath);
+        FileStamp texture = getAssetFileStamp(frame.TexturePath);
         FileStamp shader = default;
         if (frame.ShaderPath.Length != 0)
         {
-            string shaderPath;
-            if (Path.IsPathRooted(frame.ShaderPath))
-                shaderPath = frame.ShaderPath;
-            else if (frame.ShaderPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase)
-                || frame.ShaderPath.StartsWith("Assets\\", StringComparison.OrdinalIgnoreCase))
+            if (GameAssetPath.TryResolveExistingFile(
+                    projectPath,
+                    frame.ShaderPath,
+                    out string shaderPath))
             {
-                shaderPath = Path.Combine(projectPath, frame.ShaderPath);
+                shader = getFileStamp(shaderPath);
             }
-            else
-                shaderPath = Path.Combine(projectPath, "Assets", "Shaders", frame.ShaderPath);
-            shader = getFileStamp(shaderPath);
-            if (!shader.Exists)
-                shader = getFileStamp(shaderPath + "c");
+            else if (GameAssetPath.TryResolveExistingFile(
+                         projectPath,
+                         frame.ShaderPath + "c",
+                         out string encryptedShaderPath))
+            {
+                shader = getFileStamp(encryptedShaderPath);
+            }
         }
         ActorResourceStamp stamp = new(texture, shader);
         resourceStamps[frame] = new CachedResourceStamp(stamp, now.AddSeconds(1), accessOrder);
         return stamp;
     }
 
-    private static FileStamp getFileStamp(string path)
+    private static FileStamp getFileStamp(string filePath)
     {
-        FileInfo file = new(path);
+        FileInfo file = new(filePath);
         return file.Exists
             ? new FileStamp(true, file.Length, file.LastWriteTimeUtc.Ticks)
+            : default;
+    }
+
+    private FileStamp getAssetFileStamp(string assetPath)
+    {
+        return GameAssetPath.TryResolveExistingFile(
+            projectPath,
+            assetPath,
+            out string filePath)
+            ? getFileStamp(filePath)
             : default;
     }
 

@@ -37,6 +37,7 @@ public interface IProjectOperationHook
 public interface IProjectPackaging
 {
     bool UseLuac { get; }
+    bool PackAssets { get; }
     void CompileLuaDirectory(string relativePath);
     void ExcludeFile(string relativePath);
 }
@@ -75,6 +76,7 @@ public interface IMapEditorHost
     IReadOnlyList<PluginMapSummary> ListMaps();
     PluginMapSnapshot ReadMap(string mapKey);
     PluginTilesetSnapshot ReadTileset(string tilesetKey);
+    string ResolveAssetFile(string assetPath);
 
     Task<PluginMapWriteResult> ReplaceLayerAndSaveAsync(
         PluginMapLayerWriteRequest request,
@@ -350,7 +352,7 @@ public sealed record PluginMapActorRectSnapshot(
 public sealed record PluginMapActorSnapshot(
     int X,
     int Y,
-    string ImagePath,
+    string AssetPath,
     PluginMapActorRectSnapshot? SourceRect,
     bool IsCharacter,
     int Direction,
@@ -365,7 +367,7 @@ public sealed record PluginMapActorSnapshot(
 
 public sealed record PluginTilesetSnapshot(
     string Key,
-    string ImagePath,
+    string AssetPath,
     int TileWidth,
     int TileHeight,
     int TileCount,

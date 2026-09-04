@@ -18,7 +18,7 @@
       ".otf"
     ],
     "value": [
-      "HarmonyOS_SansSC_Medium.ttf"
+      "/Game/Assets/Fonts/HarmonyOS_SansSC_Medium.ttf"
     ]
   },
   "fontSize": {
@@ -29,25 +29,25 @@
     "type": "file",
     "base": "System",
     "ext": ".png",
-    "value": "icon.png"
+    "value": "/Game/Assets/System/icon.png"
   },
   "cursor": {
     "type": "file",
     "base": "System",
     "ext": ".png",
-    "value": "cursor.png"
+    "value": "/Game/Assets/System/cursor.png"
   },
   "titleBackgroundFile": {
     "type": "file",
     "base": "System",
     "ext": ".png",
-    "value": "GrassBackground.png"
+    "value": "/Game/Assets/System/GrassBackground.png"
   },
   "windowskinName": {
     "type": "file",
     "base": "System",
     "ext": ".png",
-    "value": "WS-prefix100-original2.png"
+    "value": "/Game/Assets/System/WS-prefix100-original2.png"
   },
   "cellSize": {
     "type": "int",

@@ -1473,7 +1473,7 @@
           null
         ]
       ],
-      "shaderPath": "WaterWind.vert",
+      "shaderPath": "/Game/Assets/Shaders/WaterWind.vert",
       "actors": []
     }
   },
@@ -1863,7 +1863,7 @@
       ]
     },
     "Data.Blueprints.Doors.BP_Door_General_default_6_1": {
-      "texturePath": "blocks/classic-doors-002-single.png",
+      "texturePath": "/Game/Assets/Characters/blocks/classic-doors-002-single.png",
       "defaultRect": [
         [
           0,
@@ -1872,7 +1872,7 @@
           32
         ]
       ],
-      "gateSE": "pickaxe.mp3"
+      "gateSE": "/Game/Assets/Sounds/pickaxe.mp3"
     }
   },
   "type": "map"

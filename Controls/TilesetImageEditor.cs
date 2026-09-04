@@ -3,8 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Ludork.Services;
 using System;
-using System.IO;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
@@ -43,14 +43,23 @@ public sealed class TilesetImageEditor : Control, IDisposable
     public Action? DataChanged { get; set; }
     public Action<JsonObject, Action<JsonObject>>? MaterialEditRequested { get; set; }
 
-    public void setData(JsonObject? nextData, string? imagePath, bool nextIsAutoTile)
+    public void setData(
+        JsonObject? nextData,
+        string projectPath,
+        string? assetPath,
+        bool nextIsAutoTile)
     {
         data = nextData;
         isAutoTile = nextIsAutoTile;
         image?.Dispose();
         image = null;
-        if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath))
-            image = new Bitmap(imagePath);
+        if (GameAssetPath.TryResolveExistingFile(
+                projectPath,
+                assetPath,
+                out string filePath))
+        {
+            image = new Bitmap(filePath);
+        }
         if (image is null)
         {
             Width = 0;

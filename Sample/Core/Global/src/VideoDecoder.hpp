@@ -21,7 +21,7 @@ public:
     int height() const noexcept;
 
 private:
-    FormatContextPtr format_;
+    FormatInput format_;
     CodecContextPtr decoder_;
     PacketPtr packet_;
     FramePtr frame_;

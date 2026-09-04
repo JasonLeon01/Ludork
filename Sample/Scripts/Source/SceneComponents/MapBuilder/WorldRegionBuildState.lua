@@ -1,13 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
 local RegionTerrain = require("Global.GameMap.RegionTerrain")
 local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local Data = require("Source.Data")
 
-local ManagerFunctions = GlobalFunctions.Manager
+local TextureManager = GlobalCore.TextureManager
 local WORLD_REGION_FIXED_CACHE_BYTES = WorldMapConstants.REGION_FIXED_CACHE_BYTES
 local WORLD_REGION_LAYER_CELL_CACHE_BYTES = WorldMapConstants.REGION_LAYER_CELL_CACHE_BYTES
 local WORLD_REGION_ACTOR_CACHE_BYTES = 16 * 1024
@@ -202,12 +201,12 @@ local function createWorldRegionBuildCoroutine(
             local autoTileTextures = {}
             local autoTileFrameCounts = {}
             for index, entry in ipairs(autoTilePool) do
-                local texture = ManagerFunctions.loadAutotile(entry.fileName)
+                local texture = TextureManager.load(entry.fileName)
                 autoTileTextures[index] = texture
                 autoTileFrameCounts[index] = AutoTileRuntime.GetFrameCount(texture)
                 coroutine.yield("loadAutotileTexture")
             end
-            local tilesetTexture = ManagerFunctions.loadTileset(tileLayerData.layerTileset.fileName)
+            local tilesetTexture = TextureManager.load(tileLayerData.layerTileset.fileName)
             coroutine.yield("loadTilesetTexture")
             local tileLayer = Engine.TileLayer.new(
                 tileLayerData, tilesetTexture, autoTileTextures, autoTileFrameCounts, true, true

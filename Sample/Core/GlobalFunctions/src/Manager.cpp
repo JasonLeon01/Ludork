@@ -112,12 +112,16 @@ std::shared_ptr<sf::Texture> loadTransition(const std::string& filename,
 
 std::shared_ptr<sf::Shader> loadShader(
     const std::string& shaderPath, std::optional<sf::Shader::Type> shaderType) {
-    return ShaderManager::load(shaderPath, shaderType);
+    return ShaderManager::load(
+        ludork::global::manager::assetFile("Shaders", shaderPath), shaderType);
 }
 std::shared_ptr<sf::Shader> loadFullShaderWithGeo(const std::string& vertPath,
                                                   const std::string& geoPath,
                                                   const std::string& fragPath) {
-    return ShaderManager::loadFullShaderWithGeo(vertPath, geoPath, fragPath);
+    return ShaderManager::loadFullShaderWithGeo(
+        ludork::global::manager::assetFile("Shaders", vertPath),
+        ludork::global::manager::assetFile("Shaders", geoPath),
+        ludork::global::manager::assetFile("Shaders", fragPath));
 }
 std::shared_ptr<sf::Shader> loadGeoShader(const std::string& vertPath,
                                           const std::string& geoPath,

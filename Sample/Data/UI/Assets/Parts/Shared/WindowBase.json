@@ -169,7 +169,7 @@
         "name": "ReturnButton",
         "controlId": "Engine.Button",
         "properties": {
-          "texture": "Assets/System/ReturnButton.png",
+          "texture": "/Game/Assets/System/ReturnButton.png",
           "visible": false,
           "hoverColour": [
             238,

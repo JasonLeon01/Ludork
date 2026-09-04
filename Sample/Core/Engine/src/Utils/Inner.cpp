@@ -1,6 +1,7 @@
 #include <Utils/Inner.hpp>
 
 #include <LudorkPlatform.hpp>
+#include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <Utf8Path.hpp>
 
@@ -191,6 +192,19 @@ std::string getAnimationCacheRoot(
     std::filesystem::create_directories(path);
     return ludork::standard::pathToUtf8(path);
 #endif
+}
+
+bool assetExists(const std::string& assetPath) {
+    return ludork::runtime::assetStore().exists(assetPath);
+}
+
+double assetModificationTime(const std::string& assetPath) {
+    const std::optional<ludork::runtime::AssetStat> stat =
+        ludork::runtime::assetStore().stat(assetPath);
+    if (!stat.has_value()) {
+        throw std::runtime_error("Asset not found: " + assetPath);
+    }
+    return stat->modificationTime;
 }
 
 RuntimeValue::Map filterDataClassParams(const RuntimeValue::Map& params,

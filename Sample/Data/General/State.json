@@ -12,8 +12,9 @@
         },
         "icon": {
             "type": "file",
-            "comment": "The icon asset path relative to Assets.",
-            "defaultValue": "Icons"
+            "comment": "The icon asset logical path.",
+            "base": "Icons",
+            "defaultValue": ""
         },
         "stackable": {
             "type": "bool",
@@ -41,13 +42,13 @@
                     "onHookTriggered": null
                 }
             },
-            "icon": "Icons/States/Poisoned.png",
+            "icon": "/Game/Assets/Icons/States/Poisoned.png",
             "stackable": true
         },
         "Weak": {
             "name": "{WEAK}",
             "desc": "{WEAK_DESC}",
-            "icon": "Icons/States/Weak.png",
+            "icon": "/Game/Assets/Icons/States/Weak.png",
             "_graph": {
                 "nodeGraph": {
                     "onWalk": {

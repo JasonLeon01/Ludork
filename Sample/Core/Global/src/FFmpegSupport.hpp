@@ -5,6 +5,8 @@
 #endif
 
 #if LUDORK_HAS_FFMPEG
+#include <Runtime/AssetStore.hpp>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -45,16 +47,35 @@ struct SwsContextDeleter {
     void operator()(SwsContext* context) const noexcept;
 };
 
+struct AvioContextDeleter {
+    void operator()(AVIOContext* context) const noexcept;
+};
+
 using FormatContextPtr = std::unique_ptr<AVFormatContext, FormatContextDeleter>;
 using CodecContextPtr = std::unique_ptr<AVCodecContext, CodecContextDeleter>;
 using FramePtr = std::unique_ptr<AVFrame, FrameDeleter>;
 using PacketPtr = std::unique_ptr<AVPacket, PacketDeleter>;
 using SwrContextPtr = std::unique_ptr<SwrContext, SwrContextDeleter>;
 using SwsContextPtr = std::unique_ptr<SwsContext, SwsContextDeleter>;
+using AvioContextPtr = std::unique_ptr<AVIOContext, AvioContextDeleter>;
+
+struct FormatInput {
+    std::unique_ptr<ludork::runtime::AssetInputStream> stream;
+    AvioContextPtr io;
+    FormatContextPtr context;
+
+    [[nodiscard]] AVFormatContext* get() const noexcept {
+        return context.get();
+    }
+
+    [[nodiscard]] AVFormatContext* operator->() const noexcept {
+        return context.get();
+    }
+};
 
 std::string ffmpegError(int code);
 void requireFfmpeg(int result, const std::string& operation);
-FormatContextPtr openFormat(const std::string& path);
+FormatInput openFormat(const std::string& path);
 CodecContextPtr openCodec(AVStream* stream, AVCodecID requiredCodec,
                           const std::string& streamName);
 

@@ -575,7 +575,9 @@ public sealed partial class GameDataService
         JsonObject? layer = getMap(mapKey)?["layers"]?[layerName] as JsonObject;
         if (layer is null)
             return false;
-        string normalizedPath = (shaderPath ?? string.Empty).Replace('\\', '/').Trim('/');
+        string normalizedPath = shaderPath ?? string.Empty;
+        if (normalizedPath.Length != 0 && !GameAssetPath.IsCanonical(normalizedPath))
+            return false;
         if (string.Equals(layer["shaderPath"]?.GetValue<string>() ?? string.Empty, normalizedPath, StringComparison.Ordinal))
             return false;
         RecordMapSnapshot(mapKey);

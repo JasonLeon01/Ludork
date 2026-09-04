@@ -175,8 +175,7 @@ end
 ---@param item       FileBatchItem
 ---@param sourceRoot string
 ---@param cacheRoot  string
----@param assetsRoot string
-function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
+function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
     local relativePath = item.relativePath
     local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_SOURCE_SUFFIX)
     local encryptedSource = item.encryptedData == true
@@ -193,11 +192,11 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
     local cacheRelativePath = sourceKey
         .. (encryptedSource and ENCRYPTED_ANIMATION_CACHE_SUFFIX or ANIMATION_CACHE_SUFFIX)
     local cachePath = os.path.join(cacheRoot, cacheRelativePath)
-    local frameAssets = SceneInitAnimationCache.GetFrameAssets(payload, assetsRoot, relativePath)
+    local frameAssets = SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
     if SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
         for _, asset in ipairs(frameAssets) do
             assert(
-                os.path.isfile(asset.path),
+                Engine.assetExists(asset.path),
                 string.format(
                     "Cannot compress animation %s: referenced frame asset is missing: %s", relativePath, asset.name
                 )
@@ -205,7 +204,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
         end
         os.createDirectories(os.path.dirname(cachePath))
         Logging.debug("Compressing animation: %s", relativePath)
-        local compressed = Engine.compressAnimation(payload, assetsRoot, "png")
+        local compressed = Engine.compressAnimation(payload, "png")
         Engine.writeJSON(cachePath, compressed)
     end
     local alternateCachePath = os.path.join(
@@ -220,7 +219,6 @@ end
 function Scene:compressAnimations()
     local sourceRoot = Engine.getAnimationSourceRoot()
     local cacheRoot = Engine.getAnimationCacheRoot()
-    local assetsRoot = os.path.join(".", "Assets", "Animations")
     self.progressTotal = 0
     self.processedCount = 0
     self._activeBatch = asyncio.start_file_batch({
@@ -244,7 +242,7 @@ function Scene:compressAnimations()
         end
         local item = snapshot.items ~= nil and snapshot.items[1] or nil
         if item ~= nil then
-            self:_processAnimationSource(item, sourceRoot, cacheRoot, assetsRoot)
+            self:_processAnimationSource(item, sourceRoot, cacheRoot)
             self.processedCount = self.processedCount + 1
             self:_setPhaseProgress(0.0, ANIMATION_PROGRESS_WEIGHT)
         end

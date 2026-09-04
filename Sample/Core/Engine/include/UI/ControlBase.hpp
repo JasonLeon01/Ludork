@@ -205,6 +205,8 @@ protected:
 
     virtual bool _ignoresAncestorInteractionClip() const;
 
+    virtual sf::FloatRect getPresentationBounds() const;
+
     virtual void _refreshPresentationColour();
 
     const sf::Color& presentationColour() const;

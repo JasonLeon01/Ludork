@@ -1,6 +1,5 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
 local GameSystem = require("Source.System")
 local WindowMenuUI = require("Source.UI.WindowMenu")
 local WindowTransition = require("Source.UI.WindowTransition")
@@ -9,7 +8,7 @@ local WindowCommand = require("Source.Windows.WindowCommand")
 
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 local GlobalSystem = GlobalCore.System
 
 local _MENU_Z_ORDER = 1
@@ -128,7 +127,7 @@ function WindowMenuController:handleDirectionalKey(direction)
 end
 
 function WindowMenuController:open()
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self.model._player:setMoveEnabled(false)
     self.model:resetSelection()
     self:_syncReturnButtonSuppression()
@@ -166,7 +165,7 @@ function WindowMenuController:getMenuControls()
 end
 
 function WindowMenuController:_closeByCancel()
-    ManagerFunctions.playSE(GameSystem.GetCancelSE())
+    AudioManager.playSound(GameSystem.GetCancelSE())
     self:close()
 end
 
@@ -175,35 +174,35 @@ function WindowMenuController:_handleCancel()
         return
     end
     if self:_closeSubMenus() then
-        ManagerFunctions.playSE(GameSystem.GetCancelSE())
+        AudioManager.playSound(GameSystem.GetCancelSE())
         return
     end
     self:_closeByCancel()
 end
 
 function WindowMenuController:_onMenuItem()
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("item")
     self.model._windowItem:open()
     self:_syncReturnButtonSuppression()
 end
 
 function WindowMenuController:_onMenuEquip()
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
     self.model._windowEquip:open()
     self:_syncReturnButtonSuppression()
 end
 
 function WindowMenuController:_onMenuSave()
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
     self.model._windowSaveLoad:open(WindowTransition.MENU)
     self:_syncReturnButtonSuppression()
 end
 
 function WindowMenuController:_onMenuConfig()
-    ManagerFunctions.playSE(GameSystem.GetDecisionSE())
+    AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("config")
     self.model:setActive(false)
     self.model._configWindow:open()

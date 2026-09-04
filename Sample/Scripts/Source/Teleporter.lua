@@ -1,11 +1,10 @@
 local Engine = require("Engine")
-require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
+local GlobalCore = require("GlobalCore")
 local RegionDict = require("Source.Configs.RegionDict")
 local MapPath = require("Source.MapPath")
 
 local Actor = Engine.Actor
-local ManagerFunctions = GlobalFunctions.Manager
+local AudioManager = GlobalCore.AudioManager
 
 local Teleporter = {}
 
@@ -77,7 +76,7 @@ function Teleporter:_goFloor(step)
     local moveEnabled = player:getMoveEnabled()
     player:setMoveEnabled(false)
     if scene:requestFloorTransfer(targetMap, anchorPosition, moveEnabled) then
-        ManagerFunctions.playSE(self.stairSE)
+        AudioManager.playSound(self.stairSE)
         self._floorTransferPending = true
         return
     end

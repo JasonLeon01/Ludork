@@ -10,13 +10,19 @@ namespace Ludork.Services;
 
 public sealed partial class ActorPreviewService
 {
-    private SourceTexture? getSourceTexture(string path)
+    private SourceTexture? getSourceTexture(string assetPath)
     {
-        if (disposed || !File.Exists(path))
+        if (disposed
+            || !GameAssetPath.TryResolveExistingFile(
+                projectPath,
+                assetPath,
+                out string filePath))
+        {
             return null;
-        FileInfo info = new(path);
+        }
+        FileInfo info = new(filePath);
         sourceTextureAccessOrder += 1;
-        if (sourceTextures.TryGetValue(path, out CachedSourceTexture? cached)
+        if (sourceTextures.TryGetValue(assetPath, out CachedSourceTexture? cached)
             && cached.Texture.LastWriteTimeUtc == info.LastWriteTimeUtc
             && cached.Texture.Length == info.Length)
         {
@@ -25,14 +31,19 @@ public sealed partial class ActorPreviewService
         }
         if (cached is not null)
         {
-            sourceTextures.Remove(path);
+            sourceTextures.Remove(assetPath);
             sourceTextureBytes -= cached.Texture.Bytes;
             cached.Texture.Dispose();
         }
-        SourceTexture loaded = SourceTexture.Load(path, info.LastWriteTimeUtc, info.Length);
-        sourceTextures[path] = new CachedSourceTexture(loaded, sourceTextureAccessOrder);
+        SourceTexture loaded = SourceTexture.Load(
+            filePath,
+            info.LastWriteTimeUtc,
+            info.Length);
+        sourceTextures[assetPath] = new CachedSourceTexture(
+            loaded,
+            sourceTextureAccessOrder);
         sourceTextureBytes += loaded.Bytes;
-        trimSourceTextures(path);
+        trimSourceTextures(assetPath);
         return loaded;
     }
 
@@ -44,7 +55,7 @@ public sealed partial class ActorPreviewService
             return;
         }
         foreach (string path in sourceTextures
-                     .Where(entry => !string.Equals(entry.Key, retainedPath, StringComparison.OrdinalIgnoreCase))
+                     .Where(entry => !string.Equals(entry.Key, retainedPath, StringComparison.Ordinal))
                      .OrderBy(entry => entry.Value.LastUsed)
                      .Select(entry => entry.Key)
                      .ToArray())
@@ -96,9 +107,9 @@ public sealed partial class ActorPreviewService
         public DateTime LastWriteTimeUtc { get; }
         public long Length { get; }
 
-        public static SourceTexture Load(string path, DateTime lastWriteTimeUtc, long length)
+        public static SourceTexture Load(string filePath, DateTime lastWriteTimeUtc, long length)
         {
-            using Bitmap bitmap = new(path);
+            using Bitmap bitmap = new(filePath);
             using WriteableBitmap buffer = new(
                 bitmap.PixelSize,
                 bitmap.Dpi,

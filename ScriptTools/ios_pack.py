@@ -14,6 +14,7 @@ import zipfile
 
 from .compile_lua import compile_scripts, resolve_luac
 from .finalize_package import finalize_package
+from .ldpak import LdPakError, validate_asset_pack_source
 from .ios_device import device_identifier
 from .ios_device import install_and_launch as install_and_launch_on_device
 from .ios_device import require_device_tools
@@ -54,6 +55,7 @@ class PackContext:
         use_luac: bool,
         encrypt_shaders: bool,
         encrypt_data: bool,
+        pack_assets: bool,
     ) -> None:
         self.project_dir = project_dir
         self.dist_dir = dist_dir
@@ -66,6 +68,7 @@ class PackContext:
         self.use_luac = use_luac
         self.encrypt_shaders = encrypt_shaders
         self.encrypt_data = encrypt_data
+        self.pack_assets = pack_assets
 
     @property
     def environment(self) -> dict[str, str]:
@@ -77,12 +80,13 @@ class PackContext:
 def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pack_ios",
-        usage="pack_ios [--check] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--export-to-iphone] <project-folder> [dist-folder]",
+        usage="pack_ios [--check] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--pack-assets] [--export-to-iphone] <project-folder> [dist-folder]",
     )
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
+    parser.add_argument("--pack-assets", action="store_true")
     parser.add_argument("--export-to-iphone", action="store_true")
     parser.add_argument("project_folder")
     parser.add_argument("dist_folder", nargs="?")
@@ -207,6 +211,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     if sys.platform != "darwin":
         raise PackError("iOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
     project_dir = resolve_project(arguments.project_folder)
+    if arguments.pack_assets:
+        validate_asset_pack_source(project_dir / "Assets")
     dist_dir = (
         pathlib.Path(arguments.dist_folder).expanduser().resolve()
         if arguments.dist_folder
@@ -241,6 +247,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         arguments.compile_lua,
         arguments.encrypt_shaders,
         arguments.encrypt_data,
+        arguments.pack_assets,
     )
 
 
@@ -368,6 +375,22 @@ def xcode_build_command(
     return command
 
 
+def copy_runtime_resources(
+    context: PackContext,
+    resources_dir: pathlib.Path,
+) -> None:
+    if context.pack_assets:
+        validate_asset_pack_source(context.project_dir / "Assets")
+    if resources_dir.exists():
+        shutil.rmtree(resources_dir)
+    for directory_name in ("Assets", "Data", "Scripts"):
+        shutil.copytree(
+            context.project_dir / directory_name,
+            resources_dir / directory_name,
+            ignore=shutil.ignore_patterns(".DS_Store", "*.anim.json"),
+        )
+
+
 def configure_and_build(
     context: PackContext,
     device: dict[str, object] | None,
@@ -387,18 +410,12 @@ def configure_and_build(
             f"LuaSF dependency was not found: {luasf_cmake}. Run tools/init.sh first.",
             EXIT_PROJECT,
         )
-    if resources_dir.exists():
-        shutil.rmtree(resources_dir)
-    for directory_name in ("Assets", "Data", "Scripts"):
-        shutil.copytree(
-            context.project_dir / directory_name,
-            resources_dir / directory_name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*.anim.json"),
-        )
+    copy_runtime_resources(context, resources_dir)
     finalize_package(
         resources_dir,
         context.encrypt_shaders,
         context.encrypt_data,
+        pack_assets_enabled=context.pack_assets,
     )
     if context.use_luac:
         compile_scripts(scripts_dir, resolve_luac())
@@ -576,6 +593,9 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return exception.exit_code
+    except LdPakError as exception:
+        print(f"Error: {exception}", file=sys.stderr, flush=True)
+        return EXIT_PROJECT
     except KeyboardInterrupt:
         print("iOS packaging cancelled.", file=sys.stderr, flush=True)
         return 130

@@ -8,9 +8,9 @@
       "opacity": 1.0,
       "speedRate": 1.5
     },
-    "texturePath": "enemies/classic-enemies-04-magician-single.png",
+    "texturePath": "/Game/Assets/Characters/enemies/classic-enemies-04-magician-single.png",
     "ID": "Mage",
-    "autoSound": "chuckle.wav",
+    "autoSound": "/Game/Assets/Sounds/chuckle.wav",
     "autoSoundInterval": 5.0,
     "autoSoundParams": {
       "volume": 100.0,

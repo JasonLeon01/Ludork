@@ -16,10 +16,11 @@ import unicodedata
 import xml.etree.ElementTree as ElementTree
 import zipfile
 from dataclasses import dataclass
-from typing import TextIO
+from typing import BinaryIO, TextIO
 
 from ScriptTools.compile_lua import compile_scripts, resolve_luac
 from ScriptTools.finalize_package import finalize_package
+from ScriptTools.ldpak import LdPakError, validate_asset_pack_source
 
 
 EXIT_TOOLCHAIN = 20
@@ -33,6 +34,7 @@ ANDROID_BUILD_TOOLS = "36.0.0"
 ANDROID_ABI = "arm64-v8a"
 ANDROID_STL = "c++_static"
 ANDROID_ACTIVITY_NAME = "com.ludork.android.LudorkActivity"
+FILE_BUFFER_SIZE = 1024 * 1024
 ANDROID_APP_CATEGORY = "game"
 ANDROID_APP_CATEGORY_VALUE = 0
 ANDROID_SCREEN_ORIENTATION = "sensorLandscape"
@@ -155,6 +157,7 @@ class PackContext:
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
+    pack_assets: bool
 
     @property
     def environment(self) -> dict[str, str]:
@@ -638,6 +641,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             EXIT_TOOLCHAIN,
         )
     project_dir = resolve_project(arguments.project_folder)
+    if arguments.pack_assets:
+        validate_asset_pack_source(project_dir / "Assets")
     dist_dir = (
         arguments.dist_folder.expanduser().resolve()
         if arguments.dist_folder is not None
@@ -721,10 +726,13 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
+        pack_assets=arguments.pack_assets,
     )
 
 
 def copy_runtime_resources(context: PackContext) -> None:
+    if context.pack_assets:
+        validate_asset_pack_source(context.project_dir / "Assets")
     if context.runtime_dir.exists():
         shutil.rmtree(context.runtime_dir)
     context.runtime_dir.mkdir(parents=True)
@@ -749,9 +757,19 @@ def copy_runtime_resources(context: PackContext) -> None:
         context.runtime_dir,
         context.encrypt_shaders,
         context.encrypt_data,
+        pack_assets_enabled=context.pack_assets,
     )
     if context.use_luac:
         compile_scripts(context.runtime_dir / "Scripts", resolve_luac())
+
+
+def _stream_size_and_sha256(stream: BinaryIO) -> tuple[int, str]:
+    size = 0
+    digest = hashlib.sha256()
+    while chunk := stream.read(FILE_BUFFER_SIZE):
+        size += len(chunk)
+        digest.update(chunk)
+    return size, digest.hexdigest()
 
 
 def create_runtime_manifest(runtime_dir: pathlib.Path) -> RuntimeManifest:
@@ -761,12 +779,13 @@ def create_runtime_manifest(runtime_dir: pathlib.Path) -> RuntimeManifest:
         key=lambda candidate: candidate.relative_to(runtime_dir).as_posix(),
     ):
         relative = path.relative_to(runtime_dir).as_posix()
-        data = path.read_bytes()
+        with path.open("rb") as stream:
+            size, sha256 = _stream_size_and_sha256(stream)
         entries.append(
             {
                 "path": relative,
-                "size": len(data),
-                "sha256": hashlib.sha256(data).hexdigest(),
+                "size": size,
+                "sha256": sha256,
             }
         )
     required_prefixes = ("Assets/", "Data/", "Scripts/")
@@ -1202,10 +1221,19 @@ def validate_apk_archive(
                 archive_path = "assets/" + relative
                 if archive_path not in name_set:
                     raise PackError(f"The APK is missing a manifested runtime asset: {relative}")
-                data = archive.read(archive_path)
-                if len(data) != entry["size"]:
+                archive_info = archive.getinfo(archive_path)
+                if (
+                    relative.casefold().endswith(".ldpak")
+                    and archive_info.compress_type != zipfile.ZIP_STORED
+                ):
+                    raise PackError(
+                        f"The APK compresses an .ldpak runtime asset: {relative}"
+                    )
+                with archive.open(archive_info, "r") as stream:
+                    size, sha256 = _stream_size_and_sha256(stream)
+                if size != entry["size"]:
                     raise PackError(f"The APK runtime asset size is invalid: {relative}")
-                if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                if sha256 != entry["sha256"]:
                     raise PackError(f"The APK runtime asset hash is invalid: {relative}")
     except (OSError, zipfile.BadZipFile, UnicodeDecodeError, json.JSONDecodeError) as exception:
         raise PackError(f"Unable to validate the APK archive: {exception}") from exception
@@ -1843,6 +1871,7 @@ def validate_template_source(context: PackContext) -> None:
         (app_build, f"minSdk = {ANDROID_MIN_SDK}"),
         (app_build, f"targetSdk = {ANDROID_TARGET_SDK}"),
         (app_build, f'buildToolsVersion = "{ANDROID_BUILD_TOOLS}"'),
+        (app_build, 'noCompress += "ldpak"'),
     )
     if any(fragment not in text for text, fragment in expected_fragments):
         raise PackError("Android Gradle template versions do not match the packaging contract.", EXIT_PROJECT)
@@ -1862,6 +1891,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
+    parser.add_argument("--pack-assets", action="store_true")
     parser.add_argument("--sign", action="store_true")
     parser.add_argument("--keystore", type=pathlib.Path)
     parser.add_argument("--key-alias")
@@ -1912,6 +1942,9 @@ def main(arguments: list[str] | None = None) -> int:
             message = redact_signing_diagnostic(message, signing)
         print(message, file=sys.stderr)
         return exception.exit_code
+    except LdPakError as exception:
+        print(str(exception), file=sys.stderr)
+        return EXIT_PROJECT
     except (OSError, RuntimeError, zipfile.BadZipFile) as exception:
         message = str(exception)
         if signing is not None:

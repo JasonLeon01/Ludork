@@ -13,6 +13,7 @@ from ScriptTools import harmony_pack
 from ScriptTools import ide_config
 from ScriptTools import impl_boundary_check
 from ScriptTools import ios_pack
+from ScriptTools import ldpak
 from ScriptTools import macos_bundle
 from ScriptTools import project_runtime_mode
 from ScriptTools import prune_editor_macos_publish
@@ -44,6 +45,7 @@ COMMANDS: dict[str, Command] = {
     "prune-editor-windows-publish": prune_editor_windows_publish.main,
     "ui-adapter-check": ui_adapter_check.main,
     "ui-assets": ui_assets.main,
+    "validate-asset-pack-source": ldpak.main,
 }
 
 

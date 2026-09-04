@@ -54,6 +54,7 @@ public sealed class AddParamDialog : Window
     private readonly ComboBox typeCombo;
     private readonly TextBlock containerItemTypeLabel;
     private readonly ComboBox containerItemTypeCombo;
+    private readonly TextBlock defaultLabel;
     private readonly TextBox defaultBox;
     private readonly TextBlock typeTipBlock;
     private readonly TextBlock defaultTipBlock;
@@ -91,6 +92,10 @@ public sealed class AddParamDialog : Window
         containerItemTypeCombo.SelectedIndex = 0;
 
         defaultBox = EditorInputs.CreateEditableTextBox();
+        defaultLabel = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         typeTipBlock = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
@@ -132,7 +137,7 @@ public sealed class AddParamDialog : Window
         addRow(form, 1, LocaleService.Get("PARAM_COMMENT"), commentBox);
         addRow(form, 2, LocaleService.Get("PARAM_TYPE"), typeCombo);
         addRow(form, 3, containerItemTypeLabel, containerItemTypeCombo);
-        addRow(form, 4, LocaleService.Get("DEFAULT_VALUE"), defaultBox);
+        addRow(form, 4, defaultLabel, defaultBox);
         updateTypeState();
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
@@ -199,6 +204,7 @@ public sealed class AddParamDialog : Window
         containerItemTypeCombo.IsVisible = list || dict;
         bool sfType = t.StartsWith("sf.", System.StringComparison.Ordinal);
         defaultBox.IsEnabled = !list && !dict && !sfType;
+        defaultLabel.Text = LocaleService.Get(t == "file" ? "ASSET_SELECTION_ROOT" : "DEFAULT_VALUE");
         string tipType = sfType ? "SF" : t.ToUpperInvariant();
         typeTipBlock.Text = LocaleService.Get("GENERAL_DATA_TYPE_TIP_" + tipType);
         defaultTipBlock.Text = LocaleService.Get("GENERAL_DATA_DEFAULT_TIP_" + tipType);

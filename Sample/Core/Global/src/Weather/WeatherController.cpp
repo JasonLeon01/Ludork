@@ -123,7 +123,8 @@ void WeatherController::ensureShader() {
     if (weatherShader_ != nullptr) {
         return;
     }
-    weatherShader_ = ShaderManager::load("Global/Weather.frag");
+    weatherShader_ =
+        ShaderManager::load("/Game/Assets/Shaders/Global/Weather.frag");
 }
 
 sf::RenderTexture& WeatherController::ensureBuffer(const sf::Vector2u& size) {

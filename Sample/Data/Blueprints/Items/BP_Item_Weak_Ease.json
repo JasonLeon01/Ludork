@@ -10,7 +10,7 @@
     },
     "collisionEnabled": true,
     "tickable": false,
-    "texturePath": "items/classic-potions.png",
+    "texturePath": "/Game/Assets/Characters/items/classic-potions.png",
     "defaultRect": [
       [
         32,

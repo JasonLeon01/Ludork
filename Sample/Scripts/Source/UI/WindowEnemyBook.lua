@@ -58,7 +58,7 @@ local function loadSpecialIcon(iconPath)
     if cached ~= nil then
         return cached
     end
-    local texture = IconTexture.Load(iconPath, "Icons/Specials", ".png")
+    local texture = IconTexture.Load(iconPath)
     _specialIconCache[iconPath] = texture
     return texture
 end

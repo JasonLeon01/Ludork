@@ -312,9 +312,17 @@ public sealed class ConfigDictPanel : Border
         string filterStr = extensions.Count == 0
             ? FileSelectorDialog.AllFilesFilter(star: true)
             : FileSelectorDialog.FilesFilter(extensions.Select(e => "*" + e).ToArray());
-        string? initialFilePath = string.IsNullOrWhiteSpace(current)
-            ? null
-            : Path.Combine(root, current);
+        bool gameAsset = isGameAssetFile(value);
+        string? initialFilePath = gameAsset
+            ? GameAssetPath.TryResolveExistingFile(
+                gameData.ProjectPath,
+                current,
+                out string resolvedCurrent)
+                ? resolvedCurrent
+                : null
+            : string.IsNullOrWhiteSpace(current)
+                ? null
+                : Path.Combine(root, current);
         string? path = await FileSelectorDialog.ShowAsync(
             owner,
             root,
@@ -325,16 +333,42 @@ public sealed class ConfigDictPanel : Border
         if (extensions.Count != 0
             && !extensions.Any(e => fileName.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
             return null;
+        if (gameAsset)
+        {
+            return GameAssetPath.TryFromProjectFile(
+                gameData.ProjectPath,
+                path,
+                out string assetPath)
+                ? assetPath
+                : null;
+        }
         return Path.GetRelativePath(root, path).Replace('\\', '/');
     }
 
     private string getFileRoot(JsonObject value)
     {
+        if (isGameAssetFile(value))
+        {
+            string? assetBase = value["base"]?.GetValue<string>();
+            return GameAssetPath.TryResolveBaseHint(
+                gameData.ProjectPath,
+                assetBase,
+                out string directory)
+                ? directory
+                : Path.Combine(gameData.ProjectPath, "Assets");
+        }
         string root = value["root"]?.GetValue<string>() is { Length: > 0 } rootKey
             ? Path.Combine(gameData.ProjectPath, rootKey.Trim())
             : Path.Combine(gameData.ProjectPath, "Assets");
         string? basePath = value["base"]?.GetValue<string>();
         return string.IsNullOrWhiteSpace(basePath) ? root : Path.Combine(root, basePath.Trim());
+    }
+
+    private static bool isGameAssetFile(JsonObject value)
+    {
+        string? root = value["root"]?.GetValue<string>();
+        return string.IsNullOrWhiteSpace(root)
+            || string.Equals(root, "Assets", StringComparison.Ordinal);
     }
 
     private void updateScalar(string type, decimal? number, JsonObject value)

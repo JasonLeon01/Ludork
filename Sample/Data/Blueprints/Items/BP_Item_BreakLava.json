@@ -10,7 +10,7 @@
     },
     "collisionEnabled": true,
     "tickable": false,
-    "texturePath": "items/classic-items.png",
+    "texturePath": "/Game/Assets/Characters/items/classic-items.png",
     "ID": "BreakLava",
     "defaultRect": [
       [

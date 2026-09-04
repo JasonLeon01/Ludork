@@ -9,7 +9,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "cursor.ogg"
+        "value": "/Game/Assets/Sounds/cursor.ogg"
     },
     "decisionSE": {
         "type": "file",
@@ -21,7 +21,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "decision1.ogg"
+        "value": "/Game/Assets/Sounds/decision1.ogg"
     },
     "cancelSE": {
         "type": "file",
@@ -33,7 +33,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "cancel.ogg"
+        "value": "/Game/Assets/Sounds/cancel.ogg"
     },
     "buzzerSE": {
         "type": "file",
@@ -45,7 +45,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "buzzer1.ogg"
+        "value": "/Game/Assets/Sounds/buzzer1.ogg"
     },
     "shopSE": {
         "type": "file",
@@ -57,7 +57,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "shop.ogg"
+        "value": "/Game/Assets/Sounds/shop.ogg"
     },
     "saveSE": {
         "type": "file",
@@ -69,7 +69,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "save.ogg"
+        "value": "/Game/Assets/Sounds/save.ogg"
     },
     "loadSE": {
         "type": "file",
@@ -81,7 +81,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "load.ogg"
+        "value": "/Game/Assets/Sounds/load.ogg"
     },
     "gateSE": {
         "type": "file",
@@ -93,7 +93,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "open1.ogg"
+        "value": "/Game/Assets/Sounds/open1.ogg"
     },
     "stairSE": {
         "type": "file",
@@ -105,7 +105,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "move.ogg"
+        "value": "/Game/Assets/Sounds/move.ogg"
     },
     "getSE": {
         "type": "file",
@@ -117,7 +117,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "item1.ogg"
+        "value": "/Game/Assets/Sounds/item1.ogg"
     },
     "equipSE": {
         "type": "file",
@@ -129,7 +129,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "equip.ogg"
+        "value": "/Game/Assets/Sounds/equip.ogg"
     },
     "titleBGM": {
         "type": "file",
@@ -141,7 +141,7 @@
             ".aac",
             ".flac"
         ],
-        "value": "To Walk the Unseen Path.mp3"
+        "value": "/Game/Assets/Musics/To Walk the Unseen Path.mp3"
     },
     "type": "system"
 }

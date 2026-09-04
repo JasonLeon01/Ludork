@@ -11,7 +11,7 @@
       "speedRate": 1.0
     },
     "collisionEnabled": true,
-    "texturePath": "items/classic-potions.png",
+    "texturePath": "/Game/Assets/Characters/items/classic-potions.png",
     "defaultRect": [
       [
         32,

@@ -26,7 +26,7 @@
       "loop": false,
       "maxDistance": 0
     },
-    "texturePath": "npcs/classic-npcs-50F-single.png",
+    "texturePath": "/Game/Assets/Characters/npcs/classic-npcs-50F-single.png",
     "defaultRect": [
       [
         0,
@@ -60,7 +60,7 @@
             "params": [
               "{TV_NAME}",
               "{TV_1}",
-              "SEVoice.wav",
+              "/Game/Assets/Voices/SEVoice.wav",
               null,
               64
             ],
@@ -82,7 +82,7 @@
             "params": [
               "{TV_NAME}",
               "{TV_2}",
-              "SEVoice.wav",
+              "/Game/Assets/Voices/SEVoice.wav",
               null,
               64
             ],
@@ -118,7 +118,7 @@
             "params": [
               "{TV_NAME}",
               "{TV_3}",
-              "SEVoice.wav",
+              "/Game/Assets/Voices/SEVoice.wav",
               null,
               64
             ],
@@ -143,7 +143,7 @@
             "params": [
               "{TV_NAME}",
               "{TV_4}",
-              "SEVoice.wav",
+              "/Game/Assets/Voices/SEVoice.wav",
               null,
               64
             ],

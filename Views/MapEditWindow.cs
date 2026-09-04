@@ -152,16 +152,22 @@ public sealed class MapEditWindow : Window
         string root = Path.Combine(gameData.ProjectPath, "Assets", rootName);
         Directory.CreateDirectory(root);
         string current = target.Text ?? string.Empty;
-        string? initialFilePath = string.IsNullOrWhiteSpace(current)
-            ? null
-            : Path.Combine(root, current);
+        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+            gameData.ProjectPath,
+            current,
+            out string resolvedCurrent)
+            ? resolvedCurrent
+            : null;
         string? path = await FileSelectorDialog.ShowAsync(
             this,
             root,
             filterStr,
             initialFilePath: initialFilePath);
-        if (path is not null)
-            target.Text = Path.GetFileName(path);
+        if (path is not null
+            && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath))
+        {
+            target.Text = assetPath;
+        }
     }
 
     private async Task editFilterAsync(bool isBgm)
@@ -204,6 +210,19 @@ public sealed class MapEditWindow : Window
         {
             errorText.Text = LocaleService.Get("MAP_FILE_NAME_EXISTS");
             return;
+        }
+        foreach (string assetPath in new[]
+                 {
+                     bgmBox.Text ?? string.Empty,
+                     bgsBox.Text ?? string.Empty,
+                     fogBox.Text ?? string.Empty,
+                 })
+        {
+            if (assetPath.Length != 0 && !GameAssetPath.IsCanonical(assetPath))
+            {
+                errorText.Text = $"Invalid game asset path: {assetPath}";
+                return;
+            }
         }
         Close(new MapInfo
         {
