@@ -27,8 +27,8 @@ void UiPreviewSession::reset() noexcept {
     renderScale_ = 1.0f;
 }
 
-RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
-                                      FrameFiles& frameFiles) {
+RuntimeData UiPreviewSession::render(const RuntimeData::Map& request,
+                                     FrameFiles& frameFiles) {
     const std::int64_t generation =
         ludork::runtime::value_reader::requireInteger(
             ludork::runtime::value_reader::requireValue(request, "generation",
@@ -38,12 +38,12 @@ RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
         ludork::runtime::value_reader::requireValue(request, "assetKey",
                                                     "Render request"),
         "Render request.assetKey");
-    const RuntimeValue& asset = ludork::runtime::value_reader::requireValue(
+    const RuntimeData& asset = ludork::runtime::value_reader::requireValue(
         request, "asset", "Render request");
-    const RuntimeValue::Map& assetMap =
+    const RuntimeData::Map& assetMap =
         ludork::runtime::value_reader::requireMap(asset,
                                                   "Render request.asset");
-    const RuntimeValue::Map& dependencies =
+    const RuntimeData::Map& dependencies =
         ludork::runtime::value_reader::requireMap(
             ludork::runtime::value_reader::requireValue(request, "dependencies",
                                                         "Render request"),
@@ -57,12 +57,12 @@ RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
         renderTargetSpec(design, requestedScale);
     std::shared_ptr<UiAssetInstance> instance = instantiateUiPreview(
         assetKey, asset, dependencies, design, targetSpec.renderScale);
-    if (const RuntimeValue* animationName =
+    if (const RuntimeData* animationName =
             ludork::runtime::value_reader::findValue(request,
                                                      "animationName")) {
         const std::string& name = ludork::runtime::value_reader::requireString(
             *animationName, "Render request.animationName");
-        const RuntimeValue& targetValue =
+        const RuntimeData& targetValue =
             ludork::runtime::value_reader::requireValue(
                 request, "animationTarget", "Render request");
         std::optional<std::string> target;
@@ -87,27 +87,26 @@ RuntimeValue UiPreviewSession::render(const RuntimeValue::Map& request,
     designSize_ = design;
     renderSize_ = targetSpec.size;
     renderScale_ = targetSpec.renderScale;
-    return RuntimeValue(object({
-        {"type", RuntimeValue("frame")},
-        {"generation", RuntimeValue(generation)},
-        {"designWidth", RuntimeValue(static_cast<std::int64_t>(design.x))},
-        {"designHeight", RuntimeValue(static_cast<std::int64_t>(design.y))},
-        {"width", RuntimeValue(static_cast<std::int64_t>(renderSize_.x))},
-        {"height", RuntimeValue(static_cast<std::int64_t>(renderSize_.y))},
-        {"stride", RuntimeValue(static_cast<std::int64_t>(renderSize_.x) * 4)},
+    return RuntimeData(object({
+        {"type", RuntimeData("frame")},
+        {"generation", RuntimeData(generation)},
+        {"designWidth", RuntimeData(static_cast<std::int64_t>(design.x))},
+        {"designHeight", RuntimeData(static_cast<std::int64_t>(design.y))},
+        {"width", RuntimeData(static_cast<std::int64_t>(renderSize_.x))},
+        {"height", RuntimeData(static_cast<std::int64_t>(renderSize_.y))},
+        {"stride", RuntimeData(static_cast<std::int64_t>(renderSize_.x) * 4)},
         {"renderScale", number(renderScale_)},
         {"sharedMemory",
-         RuntimeValue(object({
-             {"filePath",
-              RuntimeValue(ludork::standard::pathToUtf8(framePath))},
-             {"offset", RuntimeValue(std::int64_t{0})},
+         RuntimeData(object({
+             {"filePath", RuntimeData(ludork::standard::pathToUtf8(framePath))},
+             {"offset", RuntimeData(std::int64_t{0})},
          }))},
         {"nodes",
-         RuntimeValue(nodeGeometry(instance_, renderSize_, renderScale_))},
+         RuntimeData(nodeGeometry(instance_, renderSize_, renderScale_))},
     }));
 }
 
-RuntimeValue UiPreviewSession::hitTest(const RuntimeValue::Map& request) const {
+RuntimeData UiPreviewSession::hitTest(const RuntimeData::Map& request) const {
     const std::int64_t generation =
         ludork::runtime::value_reader::requireInteger(
             ludork::runtime::value_reader::requireValue(request, "generation",
@@ -122,18 +121,18 @@ RuntimeValue UiPreviewSession::hitTest(const RuntimeValue::Map& request) const {
             ludork::runtime::value_reader::requireValue(request, "y",
                                                         "Hit test request"),
             "Hit test request.y")};
-    RuntimeValue nodeName;
+    RuntimeData nodeName;
     if (instance_ != nullptr && generation == generation_) {
         engineState().setScale(renderScale_);
         const std::optional<std::string> hit = hitTestUiPreview(
             instance_, renderSize_, renderScale_, logicalPoint);
         if (hit.has_value()) {
-            nodeName = RuntimeValue(*hit);
+            nodeName = RuntimeData(*hit);
         }
     }
-    return RuntimeValue(object({
-        {"type", RuntimeValue("hitTest")},
-        {"generation", RuntimeValue(generation)},
+    return RuntimeData(object({
+        {"type", RuntimeData("hitTest")},
+        {"generation", RuntimeData(generation)},
         {"nodeName", std::move(nodeName)},
     }));
 }

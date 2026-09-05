@@ -562,21 +562,22 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         )
     required_directories = (
         "Assets",
-        "Core",
+        "Engine/Source",
+        "Engine/Runtime",
         "Data",
         "include",
-        "LuaSF",
-        "lua-cjson",
+        "Engine/ThirdParty/LuaSF",
+        "Engine/ThirdParty/lua-cjson",
         "Scripts",
-        "Standard",
+        "Engine/Standard",
         "src",
-        "zlib",
+        "Engine/ThirdParty/zlib",
     )
     for name in required_directories:
         directory = project_dir / name
         if not directory.is_dir():
             raise PackError(f"Required Android project folder was not found: {directory}", EXIT_PROJECT)
-    for relative in ("CMakeLists.txt", "PlatformHosts/Android/build.gradle.kts"):
+    for relative in ("CMakeLists.txt", "Engine/PlatformHosts/Android/build.gradle.kts"):
         required = project_dir / relative
         if not required.is_file():
             raise PackError(f"Required Android project file was not found: {required}", EXIT_PROJECT)
@@ -597,8 +598,8 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         raise PackError(f"Project icon was not found in {system_assets}.", EXIT_PROJECT)
     if project_data.get("ffmpeg") is True:
         for required in (
-            project_dir / "ffmpeg" / "configure",
-            project_dir / "cmake" / "FFmpeg" / "build_android.sh",
+            project_dir / "Engine" / "ThirdParty" / "ffmpeg" / "configure",
+            project_dir / "Engine" / "cmake" / "FFmpeg" / "build_android.sh",
         ):
             if not required.is_file():
                 raise PackError(
@@ -723,7 +724,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         native_dir=build_dir / "native" / ANDROID_ABI,
         native_output_dir=build_dir / "native-output" / ANDROID_ABI,
         stage_dir=build_dir / "gradle",
-        template_dir=project_dir / "PlatformHosts" / "Android",
+        template_dir=project_dir / "Engine" / "PlatformHosts" / "Android",
         script_tools=script_tools,
         studio=studio,
         sdk=sdk,
@@ -916,6 +917,8 @@ def prepare_gradle_stage(
     shutil.copytree(context.template_dir, context.stage_dir)
     wrapper_source = (
         context.project_dir
+        / "Engine"
+        / "ThirdParty"
         / "LuaSF"
         / "third_party"
         / "SFML"
@@ -1884,6 +1887,8 @@ def validate_template_source(context: PackContext) -> None:
     )
     wrapper_root = (
         context.project_dir
+        / "Engine"
+        / "ThirdParty"
         / "LuaSF"
         / "third_party"
         / "SFML"

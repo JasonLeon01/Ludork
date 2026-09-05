@@ -43,7 +43,9 @@ dependency_ready() {
         [ -f "$dependency_dir/$required_file" ]
 }
 
-LUASF_DIR="$CPP_DIR/LuaSF"
+mkdir -p "$CPP_DIR/Engine/ThirdParty"
+
+LUASF_DIR="$CPP_DIR/Engine/ThirdParty/LuaSF"
 if dependency_ready "$LUASF_DIR" "$LUASF_VERSION" "CMakeLists.txt"; then
     echo "Using existing LuaSF $LUASF_VERSION."
 else
@@ -95,7 +97,7 @@ else
     apply_luasf_patch "$VALUE_COPY_PATCH"
 fi
 
-LUA_CJSON_DIR="$CPP_DIR/lua-cjson"
+LUA_CJSON_DIR="$CPP_DIR/Engine/ThirdParty/lua-cjson"
 if dependency_ready "$LUA_CJSON_DIR" "$LUA_CJSON_VERSION" "lua_cjson.c"; then
     echo "Using existing lua-cjson $LUA_CJSON_VERSION."
 else
@@ -115,7 +117,7 @@ else
     printf '%s\n' "$LUA_CJSON_VERSION" > "$LUA_CJSON_DIR/.ludork-version"
 fi
 
-ZLIB_DIR="$CPP_DIR/zlib"
+ZLIB_DIR="$CPP_DIR/Engine/ThirdParty/zlib"
 if dependency_ready "$ZLIB_DIR" "$ZLIB_VERSION" "CMakeLists.txt"; then
     echo "Using existing zlib $ZLIB_VERSION."
 else

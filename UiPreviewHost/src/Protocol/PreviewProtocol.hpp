@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <cstdint>
 #include <initializer_list>
@@ -12,13 +12,13 @@ namespace ludork::preview_host {
 
 inline constexpr std::int64_t protocolVersion = 7;
 
-RuntimeValue::Map object(
-    std::initializer_list<std::pair<const std::string, RuntimeValue>> values);
-RuntimeValue number(float value);
-RuntimeValue errorResponse(const std::string& message);
+RuntimeData::Map object(
+    std::initializer_list<std::pair<const std::string, RuntimeData>> values);
+RuntimeData number(float value);
+RuntimeData errorResponse(const std::string& message);
 
 void configureProtocolStreams();
 std::optional<std::string> readMessage();
-void writeMessage(const RuntimeValue& value);
+void writeMessage(const RuntimeData& value);
 
 }  // namespace ludork::preview_host

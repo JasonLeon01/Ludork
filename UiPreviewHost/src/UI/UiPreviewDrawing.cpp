@@ -153,16 +153,16 @@ std::vector<std::uint8_t> renderFrame(
     return bgraFromPremultipliedRgba(image, size);
 }
 
-RuntimeValue::Array nodeGeometry(
+RuntimeData::Array nodeGeometry(
     const std::shared_ptr<UiAssetInstance>& instance, const sf::Vector2u& size,
     float renderScale) {
     const sf::FloatRect rootClip(
         {0.0f, 0.0f}, {static_cast<float>(size.x), static_cast<float>(size.y)});
-    RuntimeValue::Array result;
+    RuntimeData::Array result;
     for (const UiAssetNodeView& node : instance->getNodeViews()) {
         const sf::FloatRect clip = effectiveClip(node.control, rootClip);
         result.emplace_back(object({
-            {"nodeName", RuntimeValue(node.nodeName)},
+            {"nodeName", RuntimeData(node.nodeName)},
             {"x", number(node.bounds.position.x / renderScale)},
             {"y", number(node.bounds.position.y / renderScale)},
             {"width", number(node.bounds.size.x / renderScale)},
@@ -172,8 +172,8 @@ RuntimeValue::Array nodeGeometry(
             {"clipWidth", number(clip.size.x / renderScale)},
             {"clipHeight", number(clip.size.y / renderScale)},
             {"drawOrder",
-             RuntimeValue(static_cast<std::int64_t>(node.drawOrder))},
-            {"visible", RuntimeValue(effectiveVisible(node.control))},
+             RuntimeData(static_cast<std::int64_t>(node.drawOrder))},
+            {"visible", RuntimeData(effectiveVisible(node.control))},
         }));
     }
     return result;

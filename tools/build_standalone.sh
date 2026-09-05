@@ -36,7 +36,7 @@ case "$CPP_DIR" in
         exit 1
         ;;
 esac
-for protected_name in Assets Data Scripts bin build Licenses ThirdPartySource cmake; do
+for protected_name in Assets Data Scripts bin build Licenses ThirdPartySource Engine Intermediate; do
     protected_source="$CPP_DIR/$protected_name"
     case "$STANDALONE_DIR" in
         "$protected_source" | "$protected_source"/*)
@@ -117,8 +117,8 @@ if [ -d "$CPP_DIR/Licenses" ]; then
 fi
 if [ -d "$CPP_DIR/ThirdPartySource" ]; then
     rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/ThirdPartySource/" "$STANDALONE_DIR/ThirdPartySource/"
-    if [ -d "$CPP_DIR/cmake/FFmpeg" ]; then
-        rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/cmake/FFmpeg/" "$STANDALONE_DIR/ThirdPartySource/FFmpeg-Build/"
+    if [ -d "$CPP_DIR/Engine/cmake/FFmpeg" ]; then
+        rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/Engine/cmake/FFmpeg/" "$STANDALONE_DIR/ThirdPartySource/FFmpeg-Build/"
     fi
 fi
 for legal_name in LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md; do

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <filesystem>
 #include <memory>
@@ -20,8 +20,7 @@ public:
     ActorBatchRenderer& operator=(ActorBatchRenderer&&) = delete;
 
     void reset(const std::filesystem::path& projectPath);
-    RuntimeValue render(const RuntimeValue::Map& request,
-                        FrameFiles& frameFiles);
+    RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
 
 private:
     struct Impl;

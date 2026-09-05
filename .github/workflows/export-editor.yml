@@ -82,7 +82,7 @@ jobs:
 
       - name: Archive prepared environment
         shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Sample\LuaSF Sample\lua-cjson Sample\zlib Sample\ffmpeg Sample\ThirdPartySource
+        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Sample\Engine\ThirdParty\LuaSF Sample\Engine\ThirdParty\lua-cjson Sample\Engine\ThirdParty\zlib Sample\Engine\ThirdParty\ffmpeg Sample\ThirdPartySource
 
       - name: Upload prepared environment
         uses: actions/upload-artifact@v7
@@ -321,7 +321,7 @@ jobs:
           .tools/ScriptTools/ScriptTools ui-assets validate Sample
 
       - name: Archive prepared environment
-        run: tar -cf macos-native-environment.tar .tools/ScriptTools Sample/LuaSF Sample/lua-cjson Sample/zlib Sample/ffmpeg Sample/ThirdPartySource
+        run: tar -cf macos-native-environment.tar .tools/ScriptTools Sample/Engine/ThirdParty/LuaSF Sample/Engine/ThirdParty/lua-cjson Sample/Engine/ThirdParty/zlib Sample/Engine/ThirdParty/ffmpeg Sample/ThirdPartySource
 
       - name: Upload prepared environment
         uses: actions/upload-artifact@v7

@@ -31,7 +31,7 @@ set(LUDORK_RUNTIME_OUTPUT_DIRECTORY
     "Directory for UiPreviewHost runtime binaries"
     FORCE)
 
-include("${LUDORK_SAMPLE_SOURCE_DIR}/cmake/LudorkBuild.cmake")
+include("${LUDORK_SAMPLE_SOURCE_DIR}/Engine/cmake/LudorkBuild.cmake")
 
 add_subdirectory(
     "${LUDORK_SAMPLE_SOURCE_DIR}"

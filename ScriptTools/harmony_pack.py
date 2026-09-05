@@ -240,15 +240,16 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         )
     required_directories = (
         "Assets",
-        "Core",
+        "Engine/Source",
+        "Engine/Runtime",
         "Data",
         "include",
-        "LuaSF",
-        "lua-cjson",
+        "Engine/ThirdParty/LuaSF",
+        "Engine/ThirdParty/lua-cjson",
         "Scripts",
-        "Standard",
+        "Engine/Standard",
         "src",
-        "zlib",
+        "Engine/ThirdParty/zlib",
     )
     for name in required_directories:
         directory = project_dir / name
@@ -257,7 +258,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
                 f"Required HarmonyOS project folder was not found: {directory}",
                 EXIT_PROJECT,
             )
-    for path_name in ("CMakeLists.txt", "PlatformHosts/Harmony/build-profile.json5"):
+    for path_name in ("CMakeLists.txt", "Engine/PlatformHosts/Harmony/build-profile.json5"):
         path = project_dir / path_name
         if not path.is_file():
             raise PackError(f"Required HarmonyOS project file was not found: {path}", EXIT_PROJECT)
@@ -275,8 +276,8 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         )
     if project_data.get("ffmpeg") is True:
         for path in (
-            project_dir / "ffmpeg" / "configure",
-            project_dir / "cmake" / "FFmpeg" / "build_ohos.sh",
+            project_dir / "Engine" / "ThirdParty" / "ffmpeg" / "configure",
+            project_dir / "Engine" / "cmake" / "FFmpeg" / "build_ohos.sh",
         ):
             if not path.is_file():
                 raise PackError(
@@ -381,7 +382,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             / bundle_name
             / arguments.device_form
         ),
-        template_dir=project_dir / "PlatformHosts" / "Harmony",
+        template_dir=project_dir / "Engine" / "PlatformHosts" / "Harmony",
         script_tools=resolve_script_tools(),
         tools=resolve_deveco_tools(),
         game_name=game_name,

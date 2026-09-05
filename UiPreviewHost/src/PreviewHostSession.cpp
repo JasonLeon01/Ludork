@@ -27,10 +27,9 @@ PreviewHostSession::~PreviewHostSession() noexcept {
     uiResources().reset();
 }
 
-RuntimeValue PreviewHostSession::handle(const RuntimeValue& requestValue) {
-    const RuntimeValue::Map& request =
-        ludork::runtime::value_reader::requireMap(requestValue,
-                                                  "Preview request");
+RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
+    const RuntimeData::Map& request = ludork::runtime::value_reader::requireMap(
+        requestValue, "Preview request");
     const std::string& type = ludork::runtime::value_reader::requireString(
         ludork::runtime::value_reader::requireValue(request, "type",
                                                     "Preview request"),
@@ -55,7 +54,7 @@ RuntimeValue PreviewHostSession::handle(const RuntimeValue& requestValue) {
     throw std::invalid_argument("Unknown preview request type: " + type);
 }
 
-RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
+RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     clearUiVector4CurveResourceCache();
     accepted_ = false;
     uiSession_.reset();
@@ -93,16 +92,16 @@ RuntimeValue PreviewHostSession::handshake(const RuntimeValue::Map& request) {
         actorRenderer_.reset(project);
         accepted_ = true;
     }
-    RuntimeValue::Array capabilities;
-    capabilities.emplace_back(RuntimeValue("ui"));
-    capabilities.emplace_back(RuntimeValue("actor"));
-    return RuntimeValue(object({
-        {"type", RuntimeValue("handshake")},
-        {"accepted", RuntimeValue(accepted)},
-        {"protocolVersion", RuntimeValue(protocolVersion)},
-        {"adapterFingerprint", RuntimeValue(adapterFingerprint_)},
-        {"capabilities", RuntimeValue(std::move(capabilities))},
-        {"message", RuntimeValue(std::move(message))},
+    RuntimeData::Array capabilities;
+    capabilities.emplace_back(RuntimeData("ui"));
+    capabilities.emplace_back(RuntimeData("actor"));
+    return RuntimeData(object({
+        {"type", RuntimeData("handshake")},
+        {"accepted", RuntimeData(accepted)},
+        {"protocolVersion", RuntimeData(protocolVersion)},
+        {"adapterFingerprint", RuntimeData(adapterFingerprint_)},
+        {"capabilities", RuntimeData(std::move(capabilities))},
+        {"message", RuntimeData(std::move(message))},
     }));
 }
 

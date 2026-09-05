@@ -124,15 +124,16 @@ def resolve_project(project_folder: str) -> pathlib.Path:
         raise PackError(f"CMakeLists.txt was not found: {cmake_file}", EXIT_PROJECT)
     for directory_name in (
         "Assets",
-        "Core",
+        "Engine/Source",
+        "Engine/Runtime",
         "Data",
         "include",
-        "LuaSF",
-        "lua-cjson",
+        "Engine/ThirdParty/LuaSF",
+        "Engine/ThirdParty/lua-cjson",
         "Scripts",
         "src",
-        "Standard",
-        "zlib",
+        "Engine/Standard",
+        "Engine/ThirdParty/zlib",
     ):
         directory = project_dir / directory_name
         if not directory.is_dir():
@@ -165,8 +166,8 @@ def resolve_project(project_folder: str) -> pathlib.Path:
             EXIT_PROJECT,
         )
     if project_data.get("ffmpeg") is True:
-        ffmpeg_configure = project_dir / "ffmpeg" / "configure"
-        ffmpeg_cmake = project_dir / "cmake" / "FFmpeg" / "CMakeLists.txt"
+        ffmpeg_configure = project_dir / "Engine" / "ThirdParty" / "ffmpeg" / "configure"
+        ffmpeg_cmake = project_dir / "Engine" / "cmake" / "FFmpeg" / "CMakeLists.txt"
         if not ffmpeg_configure.is_file() or not ffmpeg_cmake.is_file():
             raise PackError(
                 "The project enables FFmpeg but its iOS build sources are incomplete.",
@@ -415,7 +416,7 @@ def configure_and_build(
     write_info_plist(context, info_plist)
     create_app_icon(context, app_icon)
 
-    luasf_cmake = context.project_dir / "LuaSF" / "CMakeLists.txt"
+    luasf_cmake = context.project_dir / "Engine" / "ThirdParty" / "LuaSF" / "CMakeLists.txt"
     if not luasf_cmake.is_file():
         raise PackError(
             f"LuaSF dependency was not found: {luasf_cmake}. Run tools/init.sh first.",

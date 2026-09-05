@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <SFML/System/Vector2.hpp>
 
@@ -11,10 +11,10 @@ class UiAssetInstance;
 
 namespace ludork::preview_host {
 
-sf::Vector2u designSize(const RuntimeValue::Map& asset);
+sf::Vector2u designSize(const RuntimeData::Map& asset);
 std::shared_ptr<UiAssetInstance> instantiateUiPreview(
-    const std::string& assetKey, const RuntimeValue& asset,
-    const RuntimeValue::Map& dependencies, const sf::Vector2u& design,
+    const std::string& assetKey, const RuntimeData& asset,
+    const RuntimeData::Map& dependencies, const sf::Vector2u& design,
     float renderScale);
 
 }  // namespace ludork::preview_host

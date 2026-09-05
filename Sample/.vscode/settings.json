@@ -2,29 +2,26 @@
     "C_Cpp.default.cppStandard": "c++20",
     "C_Cpp.default.includePath": [
         "${workspaceFolder}/include",
-        "${workspaceFolder}/Core/include",
-        "${workspaceFolder}/Core/Engine/include",
-        "${workspaceFolder}/Core/Global/include",
-        "${workspaceFolder}/Core/GlobalFunctions/include",
-        "${workspaceFolder}/Core/System/include",
-        "${workspaceFolder}/Standard/include",
-        "${workspaceFolder}/Standard/src",
+        "${workspaceFolder}/Engine/Runtime/include",
+        "${workspaceFolder}/Engine/Source/Core/include",
+        "${workspaceFolder}/Engine/Source/Global/include",
+        "${workspaceFolder}/Engine/Source/GlobalFunctions/include",
+        "${workspaceFolder}/Engine/Standard/include",
+        "${workspaceFolder}/Engine/Standard/src",
         "${workspaceFolder}/build/LuaSF/generated_include",
-        "${workspaceFolder}/LuaSF/include",
-        "${workspaceFolder}/LuaSF/third_party/sol2/include",
-        "${workspaceFolder}/LuaSF/third_party/Lua/src",
-        "${workspaceFolder}/LuaSF/third_party/SFML/include",
-        "${workspaceFolder}/LuaSF/third_party/SFML/src",
-        "${workspaceFolder}/zlib",
+        "${workspaceFolder}/Engine/ThirdParty/LuaSF/include",
+        "${workspaceFolder}/Engine/ThirdParty/LuaSF/third_party/sol2/include",
+        "${workspaceFolder}/Engine/ThirdParty/LuaSF/third_party/Lua/src",
+        "${workspaceFolder}/Engine/ThirdParty/LuaSF/third_party/SFML/include",
+        "${workspaceFolder}/Engine/ThirdParty/LuaSF/third_party/SFML/src",
+        "${workspaceFolder}/Engine/ThirdParty/zlib",
         "${workspaceFolder}/build/zlib",
-        "${workspaceFolder}/build/cmake/FFmpeg/external/install/include"
+        "${workspaceFolder}/build/Engine/cmake/FFmpeg/external/install/include"
     ],
     "C_Cpp.codeAnalysis.exclude": {
-        "**/ffmpeg/**": true,
-        "**/LuaSF/**": true,
-        "**/lua-cjson/**": true,
-        "**/ThirdPartySource/**": true,
-        "**/zlib/**": true
+        "**/Engine/ThirdParty/**": true,
+        "**/Intermediate/**": true,
+        "**/ThirdPartySource/**": true
     },
     "Lua.workspace.library": [
         "${workspaceFolder}/Scripts/stub"

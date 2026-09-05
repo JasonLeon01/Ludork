@@ -47,13 +47,13 @@ def _cpp_files(directory: pathlib.Path) -> list[pathlib.Path]:
 
 
 def _cpp_source_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
-    roots = [project_root / "Core", project_root / "Runtime"]
+    roots = [project_root / "Engine" / "Source", project_root / "Engine" / "Runtime"]
     return [root for root in roots if root.is_dir()]
 
 
 def _cpp_include_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
-    roots = sorted((project_root / "Core").glob("*/include"))
-    runtime_include = project_root / "Runtime" / "include"
+    roots = sorted((project_root / "Engine" / "Source").glob("*/include"))
+    runtime_include = project_root / "Engine" / "Runtime" / "include"
     if runtime_include.is_dir():
         roots.append(runtime_include)
     return roots
@@ -379,13 +379,14 @@ def _check_lua(boundary: LuaBoundary, project_root: pathlib.Path) -> list[str]:
 
 
 def _check_core_sol(project_root: pathlib.Path) -> list[str]:
-    core = project_root / "Core"
+    core = project_root / "Engine" / "Source"
     if not core.is_dir():
         return []
     include_roots = _cpp_include_roots(project_root)
     include_roots.extend(sorted(core.glob("*/src")))
     include_roots.extend(
-        project_root / module / "include" for module in ("Standard", "LuaSF")
+        project_root / "Engine" / module / "include"
+        for module in ("Standard", "ThirdParty/LuaSF")
     )
     include_pattern = re.compile(
         r'^[ \t]*#[ \t]*include[ \t]*[<"]([^>"]+)[>"]', re.MULTILINE

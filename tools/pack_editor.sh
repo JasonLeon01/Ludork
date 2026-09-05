@@ -1005,10 +1005,10 @@ if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
     esac
 fi
 require_file "$PROJECT_ROOT/Sample/CMakeLists.txt"
-require_directory "$PROJECT_ROOT/Sample/LuaSF"
-require_directory "$PROJECT_ROOT/Sample/lua-cjson"
-require_directory "$PROJECT_ROOT/Sample/zlib"
-require_file "$PROJECT_ROOT/Sample/ffmpeg/configure"
+require_directory "$PROJECT_ROOT/Sample/Engine/ThirdParty/LuaSF"
+require_directory "$PROJECT_ROOT/Sample/Engine/ThirdParty/lua-cjson"
+require_directory "$PROJECT_ROOT/Sample/Engine/ThirdParty/zlib"
+require_file "$PROJECT_ROOT/Sample/Engine/ThirdParty/ffmpeg/configure"
 require_file "$FFMPEG_SOURCE_ARCHIVE"
 require_file "$PROJECT_ROOT/Locale/locale.json"
 require_file "$PROJECT_ROOT/LICENSE.md"

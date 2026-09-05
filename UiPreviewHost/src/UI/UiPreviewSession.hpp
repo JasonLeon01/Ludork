@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <SFML/System/Vector2.hpp>
 
@@ -16,9 +16,8 @@ class FrameFiles;
 class UiPreviewSession {
 public:
     void reset() noexcept;
-    RuntimeValue render(const RuntimeValue::Map& request,
-                        FrameFiles& frameFiles);
-    RuntimeValue hitTest(const RuntimeValue::Map& request) const;
+    RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
+    RuntimeData hitTest(const RuntimeData::Map& request) const;
 
 private:
     std::shared_ptr<UiAssetInstance> instance_;

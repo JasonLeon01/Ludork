@@ -42,7 +42,7 @@
     <Compile Remove="Ludork.Plugin.Abstractions\**\*.cs" />
     <Compile Remove="Ludork.Plugin.Avalonia\**\*.cs" />
     <Compile Remove="Plugins\**\*.cs" />
-    <Compile Remove="Sample\zlib\**\*.cs" />
+    <Compile Remove="Sample\Engine\ThirdParty\zlib\**\*.cs" />
     <Compile Remove="Templates\**\*.cs" />
     <None Include="Plugins\**\*.cs" />
     <AvaloniaResource Include="Assets\**" />

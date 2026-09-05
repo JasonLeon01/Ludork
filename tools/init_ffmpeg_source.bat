@@ -28,13 +28,14 @@ if not exist "%TAR%" (
     exit /b 1
 )
 
-set "SOURCE_DIR=%CPP_DIR%\ffmpeg"
-set "EXTRACTED_DIR=%CPP_DIR%\FFmpeg-%FFMPEG_COMMIT%"
+set "SOURCE_DIR=%CPP_DIR%\Engine\ThirdParty\ffmpeg"
+set "EXTRACTED_DIR=%CPP_DIR%\Engine\ThirdParty\FFmpeg-%FFMPEG_COMMIT%"
 set "SOURCE_ARCHIVE_DIR=%CPP_DIR%\ThirdPartySource"
 set "SOURCE_ARCHIVE=%SOURCE_ARCHIVE_DIR%\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 set "SOURCE_PARTIAL=%SOURCE_ARCHIVE%.part"
 
 if not exist "%SOURCE_ARCHIVE_DIR%" mkdir "%SOURCE_ARCHIVE_DIR%"
+if not exist "%CPP_DIR%\Engine\ThirdParty" mkdir "%CPP_DIR%\Engine\ThirdParty"
 if exist "%SOURCE_ARCHIVE%" (
     echo Using existing FFmpeg %FFMPEG_VERSION% source archive.
 )
@@ -73,7 +74,7 @@ if not exist "%SOURCE_ARCHIVE%" (
 
 if exist "%SOURCE_DIR%" rmdir /S /Q "%SOURCE_DIR%"
 if exist "%EXTRACTED_DIR%" rmdir /S /Q "%EXTRACTED_DIR%"
-"%TAR%" -xf "%SOURCE_ARCHIVE%" -C "%CPP_DIR%"
+"%TAR%" -xf "%SOURCE_ARCHIVE%" -C "%CPP_DIR%\Engine\ThirdParty"
 if errorlevel 1 exit /b %errorlevel%
 if not exist "%EXTRACTED_DIR%\configure" (
     echo FFmpeg source folder was not found after extraction.

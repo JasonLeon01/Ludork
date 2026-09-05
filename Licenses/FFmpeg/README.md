@@ -23,7 +23,7 @@ directory and remain present in the distributed source tree.
 
 Only the file protocol, MOV/MP4 demuxer, H.264 and AAC decoders and parsers,
 libswscale, and libswresample are enabled. The exact configure and build
-scripts are included in `cmake/FFmpeg` for C++ source projects and in
+scripts are included in `Engine/cmake/FFmpeg` for C++ source projects and in
 `ThirdPartySource/FFmpeg-Build` for Standalone projects.
 
 The FFmpeg-enabled project template includes the complete corresponding

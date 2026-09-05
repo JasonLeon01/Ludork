@@ -40,7 +40,6 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         StringComparer.OrdinalIgnoreCase)
     {
         "C_Extensions",
-        "Core",
         "docs",
         "Engine",
         "Global",
@@ -50,7 +49,6 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         "Scripts",
         "Source",
         "src",
-        "Standard",
     };
     private static readonly HashSet<string> AllowedExtensions = new(
         StringComparer.OrdinalIgnoreCase)
@@ -85,6 +83,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         "obj",
         "Plugins",
         "Temp",
+        "ThirdParty",
         "ThirdPartySource",
     };
 

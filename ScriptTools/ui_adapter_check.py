@@ -159,8 +159,9 @@ def _cpp_property(value: str, source: str) -> dict[str, object]:
 def _cpp_controls(project_root: pathlib.Path) -> list[dict[str, object]]:
     path = (
         project_root
-        / "Core"
         / "Engine"
+        / "Source"
+        / "Core"
         / "include"
         / "UI"
         / "UiControlAdapterDescriptors.hpp"
@@ -493,15 +494,16 @@ def _resolve_roots(
     repository_project = root / "Sample"
     if (
         repository_project
-        / "Core"
         / "Engine"
+        / "Source"
+        / "Core"
         / "include"
         / "UI"
         / "UiControlAdapterDescriptors.hpp"
     ).is_file():
         return repository_project, root
     if (
-        root / "Core" / "Engine" / "include" / "UI" / "UiControlAdapterDescriptors.hpp"
+        root / "Engine" / "Source" / "Core" / "include" / "UI" / "UiControlAdapterDescriptors.hpp"
     ).is_file():
         return root, None
     raise UiAdapterConsistencyError(

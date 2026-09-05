@@ -16,15 +16,17 @@ Before changing Lua runtime behaviour, Standard or other native globals, Core bi
 - `docs/en_GB/03.Lua and Blueprint Scripting/01.Lua Runtime and Modules.md` — module load order, native-module boundaries and Lua/stub/metadata ownership
 - Plus the relevant subsection under Mixin, Blueprint, declarative UI, Sample, or API reference as needed
 
-Standard is a native layer (implementation under `Sample/Standard/`, LuaLS surface in `Scripts/stub/Standard.d.lua`). Its class, container, `toTable` and truthiness rules live in Ludork Lua Advanced; follow that page rather than assuming ordinary Lua tables alone.
+Standard is a native layer (implementation under `Sample/Engine/Standard/`, LuaLS surface in `Scripts/stub/Standard.d.lua`). Its class, container, `toTable` and truthiness rules live in Ludork Lua Advanced; follow that page rather than assuming ordinary Lua tables alone.
 
 When a change alters behaviour, APIs, paths, or conventions described in docs, update every locale tree under `docs/` in the same task (at least `docs/en_GB/` and `docs/zh_CN/`) so all languages stay in sync. For Sample code under `Sample/` (especially `Sample/Scripts/`), also check `docs/en_GB/03.Lua and Blueprint Scripting/06.Sample Gameplay/` and the matching pages in other locales, plus any API pages that describe the affected behaviour. Do not leave any locale describing the old protocol.
+
+At the end of a task that changed docs, re-read every modified page and cut what does not belong: repeated explanations already stated on another page or in this file, content docs do not need (implementation walkthroughs, change history, agent-only constraints), and over-specified prose. Docs state settled behaviour, APIs, paths, and conventions once; keep every locale equally lean.
 
 Re-examine the necessity of every design element through the lens of the "Keep Things Simple" software engineering philosophy.
 
 Delete test scaffolding once testing is finished.
 
-Do not patch or edit git-ignored third-party or temporary files. That includes vendored trees such as `Sample/LuaSF/`, `Sample/lua-cjson/`, `Sample/zlib/`, `Sample/ffmpeg/`, and `Sample/ThirdPartySource/`, plus generated outputs and build or session artefacts (`bin/`, `obj/`, `Temp/`, `build/`, logs, and similar). Change first-party tracked sources, CMake or build wiring, or wrappers instead. Do not add `.patch` / `.diff` files or in-tree overlays for ignored third-party code. Unless the current task explicitly requires otherwise, do not force-add ignored paths.
+Do not patch or edit git-ignored third-party or temporary files. That includes vendored trees such as `Sample/Engine/ThirdParty/LuaSF/`, `Sample/Engine/ThirdParty/lua-cjson/`, `Sample/Engine/ThirdParty/zlib/`, `Sample/Engine/ThirdParty/ffmpeg/`, and `Sample/ThirdPartySource/`, plus generated outputs and build or session artefacts (`bin/`, `obj/`, `Temp/`, `build/`, logs, and similar). Change first-party tracked sources, CMake or build wiring, or wrappers instead. Do not add `.patch` / `.diff` files or in-tree overlays for ignored third-party code. Unless the current task explicitly requires otherwise, do not force-add ignored paths.
 
 ## Form input styles (Map Edit is the standard)
 

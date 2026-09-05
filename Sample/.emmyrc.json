@@ -9,14 +9,12 @@
             "bin",
             "build",
             "dist",
-            "ffmpeg",
             "Log",
-            "LuaSF",
-            "lua-cjson",
             "obj",
             "Temp",
             "ThirdPartySource",
-            "zlib"
+            "Engine/ThirdParty",
+            "Intermediate"
         ],
         "workspaceRoots": [
             "./Scripts/stub"

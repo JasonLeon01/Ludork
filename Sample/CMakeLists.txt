@@ -6,6 +6,13 @@ endif()
 
 project(Main LANGUAGES C CXX)
 
+set(LUDORK_PROJECT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+get_filename_component(LUDORK_BUILD_DIRECTORY_NAME "${CMAKE_CURRENT_BINARY_DIR}" NAME)
+string(SHA256 LUDORK_BUILD_DIRECTORY_HASH "${CMAKE_CURRENT_BINARY_DIR}")
+string(SUBSTRING "${LUDORK_BUILD_DIRECTORY_HASH}" 0 8 LUDORK_BUILD_DIRECTORY_HASH)
+set(LUDORK_INTERMEDIATE_DIRECTORY
+    "${LUDORK_PROJECT_SOURCE_DIR}/Intermediate/${LUDORK_BUILD_DIRECTORY_NAME}-${LUDORK_BUILD_DIRECTORY_HASH}")
+
 option(
     LUDORK_BUILD_SAMPLE_APPLICATION
     "Build the Sample application and its project-specific runtime"
@@ -20,7 +27,7 @@ option(
     OFF)
 mark_as_advanced(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkBuild.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkBuild.cmake")
 
 if(ANDROID)
     if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
@@ -46,7 +53,7 @@ set(LUASF_LUA_STUB_OUTPUT
     "${CMAKE_CURRENT_SOURCE_DIR}/Scripts/stub/LuaSF.d.lua")
 set(
     LUDORK_LUASF_SOURCE_DIR
-    "${CMAKE_CURRENT_SOURCE_DIR}/LuaSF"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThirdParty/LuaSF"
     CACHE PATH
     "LuaSF generated source project used by Ludork")
 get_filename_component(
@@ -160,18 +167,18 @@ if(LUDORK_BUILD_SAMPLE_APPLICATION)
     endif()
 
     if(LUDORK_ENABLE_FFMPEG)
-        add_subdirectory(cmake/FFmpeg)
+        add_subdirectory(Engine/cmake/FFmpeg)
     endif()
 endif()
 
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(zlib EXCLUDE_FROM_ALL)
+add_subdirectory(Engine/ThirdParty/zlib zlib EXCLUDE_FROM_ALL)
 
-add_subdirectory(Standard)
+add_subdirectory(Engine/Standard)
 
-add_subdirectory(Runtime)
+add_subdirectory(Engine/Runtime)
 
-add_subdirectory(Core)
+add_subdirectory(Engine/Source)
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
 ludork_add_impl_boundary_validation_target(
@@ -184,7 +191,7 @@ ludork_add_ui_validation_target(
     VALIDATE_ASSETS)
 add_dependencies(Engine UiAssetValidate)
 
-set(LUA_CJSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lua-cjson")
+set(LUA_CJSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThirdParty/lua-cjson")
 if(NOT EXISTS "${LUA_CJSON_SOURCE_DIR}/lua_cjson.c")
     message(FATAL_ERROR "lua-cjson source was not found. Run the platform init tool first.")
 endif()

@@ -91,6 +91,8 @@ copy_cpp_template() {
         --exclude '.DS_Store' \
         --exclude '.venv/' \
         --exclude 'build/' \
+        --exclude 'Intermediate/' \
+        --exclude 'Temp/' \
         --exclude 'bin/' \
         --exclude 'Log/' \
         --exclude 'Save/' \
@@ -176,7 +178,8 @@ finalize_template_pair() {
     source_template_dir=$1
     standalone_template_dir=$2
     include_ffmpeg=$3
-    rm -rf "$source_template_dir/build" "$source_template_dir/bin"
+    rm -rf "$source_template_dir/build" "$source_template_dir/bin" \
+        "$source_template_dir/Intermediate"
     validate_no_ui_preview_host "$source_template_dir"
     validate_no_ui_preview_host "$standalone_template_dir"
     if [ "$include_ffmpeg" -eq 1 ]; then
@@ -192,7 +195,7 @@ if [ ! -x "$SCRIPT_TOOLS" ]; then
     echo "ScriptTools was not found. Run tools/init.sh first." >&2
     exit 1
 fi
-if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ] || [ ! -d "$SOURCE_DIR/LuaSF" ] || [ ! -d "$SOURCE_DIR/lua-cjson" ] || [ ! -d "$SOURCE_DIR/zlib" ]; then
+if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/LuaSF" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/lua-cjson" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/zlib" ]; then
     echo "Sample dependencies were not found. Prepare the C++ dependencies before creating templates." >&2
     exit 1
 fi
@@ -216,7 +219,7 @@ if [ "$VARIANT" != "plain" ]; then
         echo "Required FFmpeg licence source was not found: $LICENSES_DIR/FFmpeg" >&2
         exit 1
     fi
-    if [ ! -f "$SOURCE_DIR/ffmpeg/configure" ]; then
+    if [ ! -f "$SOURCE_DIR/Engine/ThirdParty/ffmpeg/configure" ]; then
         echo "FFmpeg source was not found. Run tools/init.sh first." >&2
         exit 1
     fi

@@ -17,7 +17,7 @@ set "CONFIG=%~3"
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto :usage
 set "LUDORK_STANDALONE_SOURCE_PATH=%CPP_DIR%"
 set "LUDORK_STANDALONE_TARGET_PATH=%STANDALONE_DIR%"
-powershell -NoProfile -Command "function Test-ReparseAncestor([string] $value) { $current = $value; while (-not [string]::IsNullOrEmpty($current)) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; while ($null -ne $item) { if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }; $item = $item.Parent }; return $false }; $parent = [IO.Path]::GetDirectoryName($current); if ($parent -eq $current) { return $false }; $current = $parent }; return $false }; $source = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_SOURCE_PATH).TrimEnd('\') + '\'; $target = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_TARGET_PATH).TrimEnd('\') + '\'; if ((Test-ReparseAncestor $source) -or (Test-ReparseAncestor $target) -or $source.StartsWith($target, [StringComparison]::OrdinalIgnoreCase)) { exit 1 }; foreach ($name in @('Assets', 'Data', 'Scripts', 'bin', 'build', 'Licenses', 'ThirdPartySource', 'cmake')) { $protected = [IO.Path]::Combine($source, $name).TrimEnd('\') + '\'; if ($target.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase)) { exit 1 } }"
+powershell -NoProfile -Command "function Test-ReparseAncestor([string] $value) { $current = $value; while (-not [string]::IsNullOrEmpty($current)) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; while ($null -ne $item) { if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }; $item = $item.Parent }; return $false }; $parent = [IO.Path]::GetDirectoryName($current); if ($parent -eq $current) { return $false }; $current = $parent }; return $false }; $source = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_SOURCE_PATH).TrimEnd('\') + '\'; $target = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_TARGET_PATH).TrimEnd('\') + '\'; if ((Test-ReparseAncestor $source) -or (Test-ReparseAncestor $target) -or $source.StartsWith($target, [StringComparison]::OrdinalIgnoreCase)) { exit 1 }; foreach ($name in @('Assets', 'Data', 'Scripts', 'bin', 'build', 'Licenses', 'ThirdPartySource', 'Engine', 'Intermediate')) { $protected = [IO.Path]::Combine($source, $name).TrimEnd('\') + '\'; if ($target.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase)) { exit 1 } }"
 set "LUDORK_STANDALONE_SOURCE_PATH="
 set "LUDORK_STANDALONE_TARGET_PATH="
 if errorlevel 1 (
@@ -89,8 +89,8 @@ if exist "%CPP_DIR%\Licenses" (
 if exist "%CPP_DIR%\ThirdPartySource" (
     robocopy "%CPP_DIR%\ThirdPartySource" "%STANDALONE_DIR%\ThirdPartySource" /E /NFL /NDL /NJH /NJS /NP
     if errorlevel 8 exit /b %errorlevel%
-    if exist "%CPP_DIR%\cmake\FFmpeg" (
-        robocopy "%CPP_DIR%\cmake\FFmpeg" "%STANDALONE_DIR%\ThirdPartySource\FFmpeg-Build" /E /NFL /NDL /NJH /NJS /NP
+    if exist "%CPP_DIR%\Engine\cmake\FFmpeg" (
+        robocopy "%CPP_DIR%\Engine\cmake\FFmpeg" "%STANDALONE_DIR%\ThirdPartySource\FFmpeg-Build" /E /NFL /NDL /NJH /NJS /NP
         if errorlevel 8 exit /b %errorlevel%
     )
 )

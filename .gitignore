@@ -18,17 +18,11 @@ Ludork.ini
 Templates/
 Sample/.idea/
 Sample/Main.ini
-Sample/LuaSF/
-Sample/lua-cjson/
-Sample/zlib/
-Sample/ffmpeg/
+Sample/Engine/ThirdParty/
 Sample/ThirdPartySource/
 Sample/build/
 Sample/bin/
 Sample/Save/
-Sample/Core/**/GeneratedBindings.cpp
-Sample/Core/**/_generated_bindings.cpp
-Sample/Core/stub/
 Sample/Scripts/Engine_meta.lua
 Sample/Scripts/GlobalCore_meta.lua
 Sample/Scripts/GlobalFunctions_meta.lua
@@ -51,3 +45,5 @@ Sample/Scripts/Source/Locale/*
 **/dist/
 **/dist-luac/
 .DS_Store
+Sample/Intermediate/
+Sample/cmake-build-*/

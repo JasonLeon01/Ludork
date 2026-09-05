@@ -86,15 +86,15 @@ for %%F in (
     if errorlevel 1 exit /b 1
 )
 for %%D in (
-    "%ROOT_DIR%\Sample\LuaSF"
-    "%ROOT_DIR%\Sample\lua-cjson"
-    "%ROOT_DIR%\Sample\zlib"
+    "%ROOT_DIR%\Sample\Engine\ThirdParty\LuaSF"
+    "%ROOT_DIR%\Sample\Engine\ThirdParty\lua-cjson"
+    "%ROOT_DIR%\Sample\Engine\ThirdParty\zlib"
 ) do (
     call :require_directory "%%~D"
     if errorlevel 1 exit /b 1
 )
 for %%F in (
-    "%ROOT_DIR%\Sample\ffmpeg\configure"
+    "%ROOT_DIR%\Sample\Engine\ThirdParty\ffmpeg\configure"
     "%FFMPEG_SOURCE_ARCHIVE%"
     "%GNU_MAKE_EXE%"
     "%GNU_MAKE_SOURCE%"

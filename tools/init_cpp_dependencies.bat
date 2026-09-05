@@ -27,12 +27,14 @@ for /f "delims=" %%V in ("!LUASF_VERSION!") do set "LUASF_VERSION=%%V"
 for /f "delims=" %%V in ("!LUA_CJSON_VERSION!") do set "LUA_CJSON_VERSION=%%V"
 for /f "delims=" %%V in ("!ZLIB_VERSION!") do set "ZLIB_VERSION=%%V"
 
-set "LUASF_DIR=%CPP_DIR%\LuaSF"
+if not exist "%CPP_DIR%\Engine\ThirdParty" mkdir "%CPP_DIR%\Engine\ThirdParty"
+
+set "LUASF_DIR=%CPP_DIR%\Engine\ThirdParty\LuaSF"
 set "LUASF_ZIP=%CPP_DIR%\LuaSF-source.zip"
-set "LUASF_EXTRACTED_DIR=%CPP_DIR%\LuaSF-source"
-set "LUA_CJSON_DIR=%CPP_DIR%\lua-cjson"
+set "LUASF_EXTRACTED_DIR=%CPP_DIR%\Engine\ThirdParty\LuaSF-source"
+set "LUA_CJSON_DIR=%CPP_DIR%\Engine\ThirdParty\lua-cjson"
 set "LUA_CJSON_ZIP=%CPP_DIR%\lua-cjson.zip"
-set "ZLIB_DIR=%CPP_DIR%\zlib"
+set "ZLIB_DIR=%CPP_DIR%\Engine\ThirdParty\zlib"
 set "ZLIB_ZIP=%CPP_DIR%\zlib.zip"
 
 if exist "%LUA_CJSON_DIR%" rmdir /S /Q "%LUA_CJSON_DIR%"
@@ -50,7 +52,7 @@ if exist "%LUASF_EXTRACTED_DIR%" rmdir /S /Q "%LUASF_EXTRACTED_DIR%"
 echo Downloading LuaSF %LUASF_VERSION%...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/%LUASF_VERSION%/LuaSF-source.zip' -OutFile '%LUASF_ZIP%'"
 if errorlevel 1 exit /b %errorlevel%
-powershell -Command "Expand-Archive -Path '%LUASF_ZIP%' -DestinationPath '%CPP_DIR%' -Force"
+powershell -Command "Expand-Archive -Path '%LUASF_ZIP%' -DestinationPath '%CPP_DIR%\Engine\ThirdParty' -Force"
 if errorlevel 1 exit /b %errorlevel%
 del "%LUASF_ZIP%"
 if not exist "%LUASF_EXTRACTED_DIR%\CMakeLists.txt" (
@@ -89,26 +91,26 @@ if errorlevel 1 (
 echo Downloading lua-cjson %LUA_CJSON_VERSION%...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/openresty/lua-cjson/archive/refs/tags/%LUA_CJSON_VERSION%.zip' -OutFile '%LUA_CJSON_ZIP%'"
 if errorlevel 1 exit /b %errorlevel%
-powershell -Command "Expand-Archive -Path '%LUA_CJSON_ZIP%' -DestinationPath '%CPP_DIR%' -Force"
+powershell -Command "Expand-Archive -Path '%LUA_CJSON_ZIP%' -DestinationPath '%CPP_DIR%\Engine\ThirdParty' -Force"
 if errorlevel 1 exit /b %errorlevel%
 del "%LUA_CJSON_ZIP%"
-if not exist "%CPP_DIR%\lua-cjson-%LUA_CJSON_VERSION%" (
+if not exist "%CPP_DIR%\Engine\ThirdParty\lua-cjson-%LUA_CJSON_VERSION%" (
     echo lua-cjson source folder was not found after extraction.
     exit /b 1
 )
-ren "%CPP_DIR%\lua-cjson-%LUA_CJSON_VERSION%" "lua-cjson"
+ren "%CPP_DIR%\Engine\ThirdParty\lua-cjson-%LUA_CJSON_VERSION%" "lua-cjson"
 
 echo Downloading zlib %ZLIB_VERSION%...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/madler/zlib/archive/refs/tags/v%ZLIB_VERSION%.zip' -OutFile '%ZLIB_ZIP%'"
 if errorlevel 1 exit /b %errorlevel%
-powershell -Command "Expand-Archive -Path '%ZLIB_ZIP%' -DestinationPath '%CPP_DIR%' -Force"
+powershell -Command "Expand-Archive -Path '%ZLIB_ZIP%' -DestinationPath '%CPP_DIR%\Engine\ThirdParty' -Force"
 if errorlevel 1 exit /b %errorlevel%
 del "%ZLIB_ZIP%"
-if not exist "%CPP_DIR%\zlib-%ZLIB_VERSION%" (
+if not exist "%CPP_DIR%\Engine\ThirdParty\zlib-%ZLIB_VERSION%" (
     echo zlib source folder was not found after extraction.
     exit /b 1
 )
-ren "%CPP_DIR%\zlib-%ZLIB_VERSION%" "zlib"
+ren "%CPP_DIR%\Engine\ThirdParty\zlib-%ZLIB_VERSION%" "zlib"
 
 call "%CD%\tools\init_ffmpeg_source.bat" "%CPP_DIR%"
 if errorlevel 1 exit /b %errorlevel%

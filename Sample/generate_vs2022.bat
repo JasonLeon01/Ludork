@@ -42,7 +42,7 @@ if not exist "%BUILD_DIR%\Main.sln" (
     exit /b 1
 )
 
-"%CMAKE_EXE%" "-DLUDORK_VS_SOURCE_SOLUTION=%BUILD_DIR%\Main.sln" "-DLUDORK_VS_OUTPUT_SOLUTION=%SOLUTION_FILE%" "-DLUDORK_VS_BINARY_DIR=%BUILD_DIR%" -P "%PROJECT_DIR%\cmake\ExportVisualStudioSolution.cmake"
+"%CMAKE_EXE%" "-DLUDORK_VS_SOURCE_SOLUTION=%BUILD_DIR%\Main.sln" "-DLUDORK_VS_OUTPUT_SOLUTION=%SOLUTION_FILE%" "-DLUDORK_VS_BINARY_DIR=%BUILD_DIR%" -P "%PROJECT_DIR%\Engine\cmake\ExportVisualStudioSolution.cmake"
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist "%SOLUTION_FILE%" (

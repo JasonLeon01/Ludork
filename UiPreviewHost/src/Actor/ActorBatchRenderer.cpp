@@ -128,8 +128,8 @@ struct ActorBatchRenderer::Impl {
         errorShader_.reset();
     }
 
-    RuntimeValue render(const RuntimeValue::Map& request,
-                        FrameFiles& frameFiles) {
+    RuntimeData render(const RuntimeData::Map& request,
+                       FrameFiles& frameFiles) {
         const std::int64_t generation =
             ludork::runtime::value_reader::requireInteger(
                 ludork::runtime::value_reader::requireValue(
@@ -139,7 +139,7 @@ struct ActorBatchRenderer::Impl {
             ludork::runtime::value_reader::requireValue(request, "time",
                                                         "Actor render request"),
             "Actor render request.time");
-        const RuntimeValue::Array& itemValues =
+        const RuntimeData::Array& itemValues =
             ludork::runtime::value_reader::requireArray(
                 ludork::runtime::value_reader::requireValue(
                     request, "items", "Actor render request"),
@@ -183,7 +183,7 @@ struct ActorBatchRenderer::Impl {
         }
         pruneEffectBuffers(activeEffectBufferKeys_);
         std::vector<std::uint8_t> sharedPixels;
-        RuntimeValue::Array pages;
+        RuntimeData::Array pages;
         for (std::size_t pageIndex = 0; pageIndex < layouts.size();
              ++pageIndex) {
             const AtlasLayout& layout = layouts[pageIndex];
@@ -194,61 +194,61 @@ struct ActorBatchRenderer::Impl {
                                 pixels.end());
             pages.emplace_back(object({
                 {"width",
-                 RuntimeValue(static_cast<std::int64_t>(layout.size.x))},
+                 RuntimeData(static_cast<std::int64_t>(layout.size.x))},
                 {"height",
-                 RuntimeValue(static_cast<std::int64_t>(layout.size.y))},
+                 RuntimeData(static_cast<std::int64_t>(layout.size.y))},
                 {"stride",
-                 RuntimeValue(static_cast<std::int64_t>(layout.size.x) * 4)},
-                {"sharedMemory", RuntimeValue(object({
-                                     {"filePath", RuntimeValue(std::string())},
-                                     {"offset", RuntimeValue(offset)},
+                 RuntimeData(static_cast<std::int64_t>(layout.size.x) * 4)},
+                {"sharedMemory", RuntimeData(object({
+                                     {"filePath", RuntimeData(std::string())},
+                                     {"offset", RuntimeData(offset)},
                                  }))},
             }));
         }
         const std::filesystem::path& framePath = frameFiles.write(sharedPixels);
-        for (RuntimeValue& pageValue : pages) {
-            RuntimeValue::Map& page =
-                *pageValue.getMutableIf<RuntimeValue::Map>();
-            RuntimeValue::Map& sharedMemory =
-                *page["sharedMemory"].getMutableIf<RuntimeValue::Map>();
+        for (RuntimeData& pageValue : pages) {
+            RuntimeData::Map& page =
+                *pageValue.getMutableIf<RuntimeData::Map>();
+            RuntimeData::Map& sharedMemory =
+                *page["sharedMemory"].getMutableIf<RuntimeData::Map>();
             sharedMemory["filePath"] =
-                RuntimeValue(ludork::standard::pathToUtf8(framePath));
+                RuntimeData(ludork::standard::pathToUtf8(framePath));
         }
-        RuntimeValue::Array items;
+        RuntimeData::Array items;
         items.reserve(visuals.size());
         for (const PackedActorVisual& visual : visuals) {
             items.emplace_back(object({
-                {"id", RuntimeValue(visual.visual.id)},
-                {"page", RuntimeValue(static_cast<std::int64_t>(visual.page))},
+                {"id", RuntimeData(visual.visual.id)},
+                {"page", RuntimeData(static_cast<std::int64_t>(visual.page))},
                 {"x",
-                 RuntimeValue(static_cast<std::int64_t>(visual.position.x))},
+                 RuntimeData(static_cast<std::int64_t>(visual.position.x))},
                 {"y",
-                 RuntimeValue(static_cast<std::int64_t>(visual.position.y))},
-                {"width", RuntimeValue(static_cast<std::int64_t>(
+                 RuntimeData(static_cast<std::int64_t>(visual.position.y))},
+                {"width", RuntimeData(static_cast<std::int64_t>(
                               visual.visual.textureRect.size.x))},
-                {"height", RuntimeValue(static_cast<std::int64_t>(
+                {"height", RuntimeData(static_cast<std::int64_t>(
                                visual.visual.textureRect.size.y))},
-                {"shaderError", RuntimeValue(visual.shaderError)},
-                {"error", RuntimeValue(visual.error)},
+                {"shaderError", RuntimeData(visual.shaderError)},
+                {"error", RuntimeData(visual.error)},
             }));
         }
-        return RuntimeValue(object({
-            {"type", RuntimeValue("actorFrame")},
-            {"generation", RuntimeValue(generation)},
-            {"pixelFormat", RuntimeValue("Bgra8888Premultiplied")},
-            {"pages", RuntimeValue(std::move(pages))},
-            {"items", RuntimeValue(std::move(items))},
+        return RuntimeData(object({
+            {"type", RuntimeData("actorFrame")},
+            {"generation", RuntimeData(generation)},
+            {"pixelFormat", RuntimeData("Bgra8888Premultiplied")},
+            {"pages", RuntimeData(std::move(pages))},
+            {"items", RuntimeData(std::move(items))},
         }));
     }
 
 private:
-    PackedActorVisual parseVisual(const RuntimeValue& value,
+    PackedActorVisual parseVisual(const RuntimeData& value,
                                   std::size_t index) const {
         const std::string source =
             "Actor render request.items[" + std::to_string(index) + "]";
-        const RuntimeValue::Map& item =
+        const RuntimeData::Map& item =
             ludork::runtime::value_reader::requireMap(value, source);
-        const RuntimeValue::Map& rect =
+        const RuntimeData::Map& rect =
             ludork::runtime::value_reader::requireMap(
                 ludork::runtime::value_reader::requireValue(item, "textureRect",
                                                             source),
@@ -595,8 +595,8 @@ void ActorBatchRenderer::reset(const std::filesystem::path& projectPath) {
     impl_->reset(projectPath);
 }
 
-RuntimeValue ActorBatchRenderer::render(const RuntimeValue::Map& request,
-                                        FrameFiles& frameFiles) {
+RuntimeData ActorBatchRenderer::render(const RuntimeData::Map& request,
+                                       FrameFiles& frameFiles) {
     return impl_->render(request, frameFiles);
 }
 

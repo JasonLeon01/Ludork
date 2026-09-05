@@ -46,15 +46,15 @@ if not exist "%SCRIPT_TOOLS%" (
     echo ScriptTools was not found. Run tools\init.bat first.
     exit /b 1
 )
-if not exist "%SOURCE_DIR%\LuaSF" set "MISSING_DEPENDENCIES=1"
-if not exist "%SOURCE_DIR%\lua-cjson" set "MISSING_DEPENDENCIES=1"
-if not exist "%SOURCE_DIR%\zlib" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\LuaSF" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\lua-cjson" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\zlib" set "MISSING_DEPENDENCIES=1"
 if defined MISSING_DEPENDENCIES (
     echo Sample dependencies were not found. Run tools\init.bat first.
     exit /b 1
 )
 if /I not "%VARIANT%"=="plain" (
-    if not exist "%SOURCE_DIR%\ffmpeg\configure" (
+    if not exist "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg\configure" (
         echo FFmpeg source was not found. Run tools\init.bat first.
         exit /b 1
     )
@@ -113,6 +113,7 @@ if errorlevel 1 exit /b %errorlevel%
 if errorlevel 1 exit /b %errorlevel%
 if exist "%CPP_TARGET%\build" rmdir /S /Q "%CPP_TARGET%\build"
 if exist "%CPP_TARGET%\bin" rmdir /S /Q "%CPP_TARGET%\bin"
+if exist "%CPP_TARGET%\Intermediate" rmdir /S /Q "%CPP_TARGET%\Intermediate"
 call :validate_no_ui_preview_host "%CPP_TARGET%"
 if errorlevel 1 exit /b 1
 call :validate_no_ui_preview_host "%STANDALONE_TARGET%"
@@ -127,8 +128,8 @@ if "%INCLUDE_FFMPEG%"=="1" (
 exit /b 0
 
 :copy_cpp_template
-set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__ UiPreviewHost UiPreviewCurveResolver
-if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\ffmpeg"
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\Temp" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__ UiPreviewHost UiPreviewCurveResolver
+if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
 robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 if "%~2"=="1" (

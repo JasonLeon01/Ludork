@@ -7,7 +7,7 @@
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/UiAssetRuntime.hpp>
 #include <UI/UIState.hpp>
-#include <Utils/File.hpp>
+#include <Runtime/Json.hpp>
 
 #include <SFML/Graphics/Font.hpp>
 
@@ -26,26 +26,24 @@ struct FontResource {
     sf::Font font;
 };
 
-std::string settingString(const RuntimeValue::Map& config,
+std::string settingString(const RuntimeData::Map& config,
                           const std::string& name) {
-    const RuntimeValue::Map& setting =
-        ludork::runtime::value_reader::requireMap(
-            ludork::runtime::value_reader::requireValue(config, name,
-                                                        "System config"),
-            "System config." + name);
+    const RuntimeData::Map& setting = ludork::runtime::value_reader::requireMap(
+        ludork::runtime::value_reader::requireValue(config, name,
+                                                    "System config"),
+        "System config." + name);
     return ludork::runtime::value_reader::requireString(
         ludork::runtime::value_reader::requireValue(setting, "value",
                                                     "System config." + name),
         "System config." + name + ".value");
 }
 
-std::int64_t settingInteger(const RuntimeValue::Map& config,
+std::int64_t settingInteger(const RuntimeData::Map& config,
                             const std::string& name) {
-    const RuntimeValue::Map& setting =
-        ludork::runtime::value_reader::requireMap(
-            ludork::runtime::value_reader::requireValue(config, name,
-                                                        "System config"),
-            "System config." + name);
+    const RuntimeData::Map& setting = ludork::runtime::value_reader::requireMap(
+        ludork::runtime::value_reader::requireValue(config, name,
+                                                    "System config"),
+        "System config." + name);
     return ludork::runtime::value_reader::requireInteger(
         ludork::runtime::value_reader::requireValue(setting, "value",
                                                     "System config." + name),
@@ -53,15 +51,15 @@ std::int64_t settingInteger(const RuntimeValue::Map& config,
 }
 
 void configureUiResources() {
-    const RuntimeValue configValue = getJSONData(
+    const RuntimeData configValue = getJSONData(
         std::filesystem::path(".") / "Data" / "Configs" / "System.json");
-    const RuntimeValue::Map& config = ludork::runtime::value_reader::requireMap(
+    const RuntimeData::Map& config = ludork::runtime::value_reader::requireMap(
         configValue, "Data/Configs/System.json");
-    const RuntimeValue::Map& fonts = ludork::runtime::value_reader::requireMap(
+    const RuntimeData::Map& fonts = ludork::runtime::value_reader::requireMap(
         ludork::runtime::value_reader::requireValue(config, "fonts",
                                                     "System config"),
         "System config.fonts");
-    const RuntimeValue::Array& fontNames =
+    const RuntimeData::Array& fontNames =
         ludork::runtime::value_reader::requireArray(
             ludork::runtime::value_reader::requireValue(fonts, "value",
                                                         "System config.fonts"),
@@ -89,8 +87,8 @@ void configureUiResources() {
 
 }  // namespace
 
-sf::Vector2u designSize(const RuntimeValue::Map& asset) {
-    const RuntimeValue::Map& size = ludork::runtime::value_reader::requireMap(
+sf::Vector2u designSize(const RuntimeData::Map& asset) {
+    const RuntimeData::Map& size = ludork::runtime::value_reader::requireMap(
         ludork::runtime::value_reader::requireValue(asset, "designSize",
                                                     "UI asset"),
         "UI asset.designSize");
@@ -121,13 +119,15 @@ sf::Vector2u designSize(const RuntimeValue::Map& asset) {
 }
 
 std::shared_ptr<UiAssetInstance> instantiateUiPreview(
-    const std::string& assetKey, const RuntimeValue& asset,
-    const RuntimeValue::Map& dependencies, const sf::Vector2u& design,
+    const std::string& assetKey, const RuntimeData& asset,
+    const RuntimeData::Map& dependencies, const sf::Vector2u& design,
     float renderScale) {
     engineState().setScale(renderScale);
     configureUiResources();
+    const RuntimeValue dependencyValues{RuntimeData(dependencies)};
     return UiAssetRuntime::instance().instantiateSnapshot(
-        assetKey, asset, dependencies, design, true);
+        assetKey, RuntimeValue(asset),
+        *dependencyValues.getIf<RuntimeValue::Map>(), design, true);
 }
 
 }  // namespace ludork::preview_host

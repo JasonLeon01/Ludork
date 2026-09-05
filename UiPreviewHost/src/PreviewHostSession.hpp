@@ -4,7 +4,7 @@
 #include "Protocol/FrameFiles.hpp"
 #include "UI/UiPreviewSession.hpp"
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <string>
 #include <string_view>
@@ -21,10 +21,10 @@ public:
     PreviewHostSession(PreviewHostSession&&) = delete;
     PreviewHostSession& operator=(PreviewHostSession&&) = delete;
 
-    RuntimeValue handle(const RuntimeValue& requestValue);
+    RuntimeData handle(const RuntimeData& requestValue);
 
 private:
-    RuntimeValue handshake(const RuntimeValue::Map& request);
+    RuntimeData handshake(const RuntimeData::Map& request);
 
     std::string adapterFingerprint_;
     FrameFiles frameFiles_;

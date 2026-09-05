@@ -1,6 +1,6 @@
 #include "Protocol/PreviewProtocol.hpp"
 
-#include <Utils/File.hpp>
+#include <Runtime/Json.hpp>
 
 #include <array>
 #include <cstdio>
@@ -28,23 +28,23 @@ std::array<std::uint8_t, 4> littleEndian(std::uint32_t value) {
 
 }  // namespace
 
-RuntimeValue::Map object(
-    std::initializer_list<std::pair<const std::string, RuntimeValue>> values) {
-    RuntimeValue::Map result;
+RuntimeData::Map object(
+    std::initializer_list<std::pair<const std::string, RuntimeData>> values) {
+    RuntimeData::Map result;
     for (const auto& [name, value] : values) {
         result.emplace(name, value);
     }
     return result;
 }
 
-RuntimeValue number(float value) {
-    return RuntimeValue(static_cast<double>(value));
+RuntimeData number(float value) {
+    return RuntimeData(static_cast<double>(value));
 }
 
-RuntimeValue errorResponse(const std::string& message) {
-    return RuntimeValue(object({
-        {"type", RuntimeValue("error")},
-        {"message", RuntimeValue(message)},
+RuntimeData errorResponse(const std::string& message) {
+    return RuntimeData(object({
+        {"type", RuntimeData("error")},
+        {"message", RuntimeData(message)},
     }));
 }
 
@@ -87,7 +87,7 @@ std::optional<std::string> readMessage() {
     return message;
 }
 
-void writeMessage(const RuntimeValue& value) {
+void writeMessage(const RuntimeData& value) {
     const std::string message = stringifyJSON(value);
     if (message.empty() || message.size() > maximumMessageSize) {
         throw std::runtime_error(
