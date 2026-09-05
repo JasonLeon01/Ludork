@@ -127,53 +127,6 @@ sol::object resolveNativeClassDefault(sol::state_view lua,
     return resolved;
 }
 
-}  // namespace
-
-bool nativeClassProperty(sol::state_view lua, const sol::table& nativeType,
-                         const sol::object& key, sol::object& value) {
-    const sol::table mro = getMro(lua, nativeType);
-    sol::object rawOverride = nilObject(lua);
-    for (std::size_t index = 1; index <= mro.size(); ++index) {
-        const sol::object rawType = mro.raw_get<sol::object>(index);
-        if (!rawType.is<sol::table>()) {
-            continue;
-        }
-        const sol::table current = rawType.as<sol::table>();
-        if (rawOverride.get_type() == sol::type::lua_nil) {
-            const sol::object rawValue = current.raw_get<sol::object>(key);
-            if (rawValue.valid() && rawValue.get_type() != sol::type::lua_nil) {
-                rawOverride = rawValue;
-            }
-        }
-        if (!nativeTypeDeclaresProperty(current, key)) {
-            continue;
-        }
-        if (rawOverride.get_type() != sol::type::lua_nil) {
-            value = rawOverride;
-            return true;
-        }
-        const sol::object rawDefaults =
-            current.raw_get<sol::object>("__classDefaults");
-        if (rawDefaults.is<sol::table>()) {
-            sol::table defaults = rawDefaults.as<sol::table>();
-            value = defaults.raw_get<sol::object>(key);
-            if (value.valid() && value.get_type() != sol::type::lua_nil) {
-                value = resolveNativeClassDefault(lua, current, key, defaults,
-                                                  value);
-            }
-        } else {
-            value = nilObject(lua);
-        }
-        if (!value.valid()) {
-            value = nilObject(lua);
-        }
-        return true;
-    }
-    return false;
-}
-
-namespace {
-
 sol::object nativeClassIndex(sol::table nativeType, sol::object key,
                              sol::this_state state) {
     sol::state_view lua(state);
@@ -231,6 +184,49 @@ void nativeClassNewIndex(sol::table nativeType, sol::object key,
 }
 
 }  // namespace
+
+bool nativeClassProperty(sol::state_view lua, const sol::table& nativeType,
+                         const sol::object& key, sol::object& value) {
+    const sol::table mro = getMro(lua, nativeType);
+    sol::object rawOverride = nilObject(lua);
+    for (std::size_t index = 1; index <= mro.size(); ++index) {
+        const sol::object rawType = mro.raw_get<sol::object>(index);
+        if (!rawType.is<sol::table>()) {
+            continue;
+        }
+        const sol::table current = rawType.as<sol::table>();
+        if (rawOverride.get_type() == sol::type::lua_nil) {
+            const sol::object rawValue = current.raw_get<sol::object>(key);
+            if (rawValue.valid() && rawValue.get_type() != sol::type::lua_nil) {
+                rawOverride = rawValue;
+            }
+        }
+        if (!nativeTypeDeclaresProperty(current, key)) {
+            continue;
+        }
+        if (rawOverride.get_type() != sol::type::lua_nil) {
+            value = rawOverride;
+            return true;
+        }
+        const sol::object rawDefaults =
+            current.raw_get<sol::object>("__classDefaults");
+        if (rawDefaults.is<sol::table>()) {
+            sol::table defaults = rawDefaults.as<sol::table>();
+            value = defaults.raw_get<sol::object>(key);
+            if (value.valid() && value.get_type() != sol::type::lua_nil) {
+                value = resolveNativeClassDefault(lua, current, key, defaults,
+                                                  value);
+            }
+        } else {
+            value = nilObject(lua);
+        }
+        if (!value.valid()) {
+            value = nilObject(lua);
+        }
+        return true;
+    }
+    return false;
+}
 
 bool nativeFallbackMemberEligible(const sol::object& key) {
     if (!key.is<std::string>()) {

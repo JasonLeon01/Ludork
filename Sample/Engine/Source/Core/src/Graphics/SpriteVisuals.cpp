@@ -1,4 +1,4 @@
-#include "VisualRuntime.hpp"
+#include "SpriteVisuals.hpp"
 
 #include <Runtime/ConcurrentResourceCache.hpp>
 #include <Utils/ShaderLoader.hpp>
@@ -6,7 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 
-namespace ludork::engine::actor_impl {
+namespace ludork::engine::sprite_visuals {
 
 namespace {
 
@@ -71,4 +71,4 @@ void shutdownVisualResources() noexcept {
     blankTextureStorage().reset();
 }
 
-}  // namespace ludork::engine::actor_impl
+}  // namespace ludork::engine::sprite_visuals

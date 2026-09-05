@@ -57,13 +57,13 @@ void unregisterEditorCommands(lua_State* state) noexcept {
 }  // namespace
 
 void initializeGlobalLifecycle(lua_State* state) {
+    ludork::standard::registerRuntimeCleanup(state, ludork::global::shutdown);
     PerformanceProfiler::setEnabled(false);
     System::initializeRuntimeSession();
     AudioManager::initialize(state);
     initializeActorAudioBridge();
     initializeUiAudioBridge();
     registerVideoPlayback(state);
-    ludork::standard::registerRuntimeCleanup(state, ludork::global::shutdown);
     registerEditorCommands(state);
 }
 
@@ -78,9 +78,12 @@ const RuntimeLaunchOptions& runtimeLaunchOptions() noexcept {
 }
 
 void shutdown(lua_State* state) noexcept {
-    if (state != nullptr) {
-        unregisterEditorCommands(state);
+    ludork::standard::LuaExecutionScope execution(state);
+    if (!execution.active()) {
+        return;
     }
+    unregisterEditorCommands(execution.state());
+    ludork::standard::LuaExecutionPause pause;
     shutdownVideoPlayback();
     System::shutdownRuntime();
     PerformanceProfiler::shutdown();

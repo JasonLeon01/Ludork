@@ -114,20 +114,30 @@ void shutdown(lua_State* state) noexcept {
     if (state == nullptr) {
         return;
     }
+    beginRuntimeShutdown(state);
+    {
+        LuaExecutionScope execution(state);
+        if (!execution.active()) {
+            return;
+        }
+        state = execution.state();
+    }
     runRuntimeCleanups(state);
     LuaSF_quiesce_state(state);
-    LuaExecutionScope execution(state);
-    if (!execution.active()) {
-        return;
+    {
+        LuaExecutionScope execution(state);
+        if (execution.active()) {
+            state = execution.state();
+            sol::state_view lua(state);
+            runtime::shutdownEditorConsole(state);
+            binding::shutdownFileBatch(lua);
+            binding::shutdownAsyncio(lua);
+            binding::shutdownContainers(state);
+            class_runtime::shutdown(state);
+            clearRuntimeRegistryReferences(state);
+            LuaSF_shutdown_state(state);
+        }
     }
-    sol::state_view lua(state);
-    runtime::shutdownEditorConsole(state);
-    binding::shutdownFileBatch(lua);
-    binding::shutdownAsyncio(lua);
-    binding::shutdownContainers(state);
-    class_runtime::shutdown(state);
-    clearRuntimeRegistryReferences(state);
-    LuaSF_shutdown_state(state);
     releaseRuntimeSession(state);
 }
 

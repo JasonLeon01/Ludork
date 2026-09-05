@@ -16,13 +16,6 @@
 #include <stdexcept>
 #include <utility>
 
-namespace {
-
-using ludork::engine::ui_interaction::pointerMouseButton;
-using ludork::engine::ui_interaction::pointerPosition;
-
-}  // namespace
-
 Slider::Slider(const sf::Vector2f& size,
                std::shared_ptr<sf::Texture> lineTexture,
                std::shared_ptr<sf::Texture> handleTexture, int minValue,
@@ -157,7 +150,8 @@ void Slider::update(float deltaTime) {
 }
 
 void Slider::onClick(const RuntimeValue::Map& arguments) {
-    const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+    const std::optional<sf::Vector2f> position =
+        ludork::engine::ui_interaction::pointerPosition(arguments);
     if (!suppressClick_ && position.has_value()) {
         setValueFromBoundsPosition(getAbsoluteBounds(), *position);
     }
@@ -168,8 +162,9 @@ void Slider::onClick(const RuntimeValue::Map& arguments) {
 bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     const bool callbackHandled = FunctionalBase::onMouseButtonDown(arguments);
     const std::optional<sf::Mouse::Button> button =
-        pointerMouseButton(arguments);
-    const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+        ludork::engine::ui_interaction::pointerMouseButton(arguments);
+    const std::optional<sf::Vector2f> position =
+        ludork::engine::ui_interaction::pointerPosition(arguments);
     const bool accepted = button == sf::Mouse::Button::Left &&
                           position.has_value() &&
                           getAbsoluteInteractionBounds().contains(*position);
@@ -183,7 +178,8 @@ bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
 }
 
 void Slider::onMouseMoved(const RuntimeValue::Map& arguments) {
-    const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+    const std::optional<sf::Vector2f> position =
+        ludork::engine::ui_interaction::pointerPosition(arguments);
     if ((mouseDragging_ || hasTouchCapture()) && position.has_value()) {
         setValueFromBoundsPosition(getAbsoluteBounds(), *position);
     }

@@ -22,19 +22,15 @@ target_compile_definitions(LudorkStandard
     PRIVATE
         LUDORK_STANDARD_EXPORTS=1
         LUDORK_PLATFORM="${LUDORK_PLATFORM}"
-        LUDORK_SAVE_AS_LDC=$<BOOL:${LUDORK_SAVE_AS_LDC}>
-    PUBLIC
-        $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
-        SOL_SAFE_NUMERICS=1
-        SOL_USE_INTEROP=1
-        SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
-        SOL_USERTYPE_TYPE_BINDING_INFO=0)
+        LUDORK_SAVE_AS_LDC=$<BOOL:${LUDORK_SAVE_AS_LDC}>)
 target_include_directories(LudorkStandard
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         ${LUDORK_LUASF_CONSUMER_INCLUDES}
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(LudorkStandard
+    PUBLIC
+        Ludork::SolConfig
     PRIVATE
         LuaSF::LuaSF
         LuaSF::Lua

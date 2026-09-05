@@ -1,4 +1,5 @@
 #include <EngineRuntimeServices.hpp>
+#include <EngineLifecycle.hpp>
 
 #include <Input/InputService.hpp>
 #include <Runtime/Blueprint/BlueprintRuntime.hpp>
@@ -33,7 +34,14 @@ void initializeEngineRuntimeServices(lua_State* state) {
     if (state == nullptr) {
         return;
     }
+    ludork::standard::LuaExecutionScope execution(state);
+    if (!execution.active()) {
+        throw std::runtime_error(
+            "Lua runtime session is unavailable or stopping");
+    }
+    state = execution.state();
     ludork::runtime::initialize(state);
+    ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
     blueprintRuntime().setObjectGraphResolver(actorGraph);
     EventBus::setBlueprintEventValidator(
         [state](const RuntimeIdentityPtr& object,
@@ -71,11 +79,11 @@ void initializeLatent() {
 }
 
 void shutdownEngineRuntimeServices(lua_State* state) noexcept {
+    ludork::standard::LuaExecutionScope execution(state);
+    if (!execution.active()) {
+        return;
+    }
     EventBus::setBlueprintEventValidator({});
     EventBus::setBlueprintEventInvoker({});
     inputService().setFrameCompletionCallback({});
-    if (state == nullptr) {
-        return;
-    }
-    ludork::runtime::shutdown(state);
 }

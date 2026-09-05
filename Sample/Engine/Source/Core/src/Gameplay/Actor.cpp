@@ -5,7 +5,7 @@
 #include "Actor/AudioService.hpp"
 #include "Actor/MovementRuntime.hpp"
 #include "Actor/SpatialRuntime.hpp"
-#include "Actor/VisualRuntime.hpp"
+#include "Graphics/SpriteVisuals.hpp"
 
 #include <Runtime/Blueprint/BPBase.hpp>
 #include <EngineState.hpp>
@@ -951,7 +951,7 @@ std::vector<sf::Vector2i> Actor::computeOccupiedCells(
 
 const sf::Texture& Actor::textureOrBlank(
     const std::shared_ptr<sf::Texture>& texture) {
-    return ludork::engine::actor_impl::textureOrBlank(texture);
+    return ludork::engine::sprite_visuals::textureOrBlank(texture);
 }
 
 void Actor::ensureShaderLoaded() const {
@@ -964,8 +964,8 @@ void Actor::ensureShaderLoaded() const {
     if (shaderPath.empty()) {
         return;
     }
-    const ludork::engine::actor_impl::ShaderResult result =
-        ludork::engine::actor_impl::loadShader(shaderPath);
+    const ludork::engine::sprite_visuals::ShaderResult result =
+        ludork::engine::sprite_visuals::loadShader(shaderPath);
     shader_ = result.shader;
     shaderError_ = result.failed;
 }
@@ -1109,15 +1109,16 @@ void Actor::_animate(float deltaTime) {
     }
     switchTimer_ = 0.0f;
     const sf::IntRect currentRect = getTextureRect();
-    const sf::IntRect nextRect = ludork::engine::actor_impl::nextAnimationRect(
-        currentRect, texture_->getSize().x);
+    const sf::IntRect nextRect =
+        ludork::engine::sprite_visuals::nextAnimationRect(
+            currentRect, texture_->getSize().x);
     if (nextRect != currentRect) {
         setTextureRect(nextRect);
     }
 }
 
 void shutdownActorResources() noexcept {
-    ludork::engine::actor_impl::shutdownVisualResources();
+    ludork::engine::sprite_visuals::shutdownVisualResources();
 }
 
 sf::Color Actor::getLightColour() const {

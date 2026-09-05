@@ -8,6 +8,7 @@
 #include <EngineRuntimeServices.hpp>
 #include <EngineState.hpp>
 #include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeSession.hpp>
 #include <RuntimeSession.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/Rect.hpp>
@@ -53,12 +54,13 @@ void unregisterEditorCommands(lua_State* state) noexcept {
 }  // namespace
 
 void initializeEngineLifecycle(lua_State* state) {
+    ludork::standard::registerRuntimeCleanup(state, ludork::runtime::shutdown);
+    ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
     ludork::standard::configureFileBatchJson(
         state, ludork::engine::parseFileBatchJsonDocument,
         ludork::engine::beginFileBatchJsonConversion,
         ludork::engine::stepFileBatchJsonConversion,
         ludork::engine::clearFileBatchJsonConversion);
-    ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
     registerEditorCommands(state);
 }
 

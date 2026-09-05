@@ -1,5 +1,6 @@
 #include <Runtime/ScriptStore.hpp>
 
+#include "ScriptStoreInternal.hpp"
 #include "LdPakArchive.hpp"
 #include <Utf8Path.hpp>
 
@@ -26,7 +27,10 @@ extern "C" {
 #include <windows.h>
 #endif
 
+namespace ludork::runtime {
 namespace {
+
+using script_store_impl::ScriptEntry;
 
 std::string asciiFold(std::string value) {
     for (char& character : value) {
@@ -152,17 +156,6 @@ std::vector<std::uint8_t> readPhysicalFile(const std::filesystem::path& path) {
     return result;
 }
 
-}  // namespace
-
-namespace ludork::runtime {
-
-namespace {
-
-struct ScriptEntry {
-    std::filesystem::path source;
-    std::string archivePath;
-};
-
 void addScriptEntry(std::unordered_map<std::string, ScriptEntry>& entries,
                     std::unordered_map<std::string, std::string>& foldedPaths,
                     const std::string& relative, ScriptEntry entry) {
@@ -238,17 +231,6 @@ int preloadScript(lua_State* state) {
 }
 
 }  // namespace
-
-struct ScriptStore::Impl {
-    mutable std::shared_mutex mutex;
-    std::filesystem::path runtimeRoot;
-    ScriptStoreMode mode = ScriptStoreMode::Loose;
-    bool configured = false;
-    std::shared_ptr<detail::LdPakArchive> archive;
-    std::unordered_map<std::string, ScriptEntry> entries;
-    std::unordered_map<std::string, std::string> modules;
-    std::vector<std::string> orderedModules;
-};
 
 ScriptStore::ScriptStore() : impl_(std::make_unique<Impl>()) {}
 ScriptStore::~ScriptStore() = default;

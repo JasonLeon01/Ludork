@@ -1,6 +1,6 @@
 #include <UI/CharacterView.hpp>
 
-#include "../Gameplay/Actor/VisualRuntime.hpp"
+#include "Graphics/SpriteVisuals.hpp"
 
 #include <SFML/Graphics/Glsl.hpp>
 #include <SFML/Graphics/Sprite.hpp>
@@ -177,7 +177,7 @@ void CharacterView::update(float deltaTime) {
     switchTimer_ += deltaTime;
     while (switchTimer_ >= switchInterval_) {
         switchTimer_ -= switchInterval_;
-        frameRect_ = ludork::engine::actor_impl::nextAnimationRect(
+        frameRect_ = ludork::engine::sprite_visuals::nextAnimationRect(
             frameRect_, textureWidth);
     }
     SpriteBase::setTextureRect(frameRect_);
@@ -285,14 +285,14 @@ void CharacterView::applyShaderPath() {
     shader_.reset();
     shaderError_ = false;
     if (!shaderPath_.empty()) {
-        const ludork::engine::actor_impl::ShaderResult result =
-            ludork::engine::actor_impl::loadShader(shaderPath_);
+        const ludork::engine::sprite_visuals::ShaderResult result =
+            ludork::engine::sprite_visuals::loadShader(shaderPath_);
         shader_ = result.shader;
         shaderError_ = result.failed;
     }
     hueShader_.reset();
     if (!neutralHue(hue_) && sf::Shader::isAvailable()) {
-        hueShader_ = ludork::engine::actor_impl::loadShader(
+        hueShader_ = ludork::engine::sprite_visuals::loadShader(
                          "/Game/Assets/Shaders/Global/Hue.frag")
                          .shader;
     }

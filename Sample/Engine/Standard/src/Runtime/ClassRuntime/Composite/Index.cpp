@@ -173,6 +173,31 @@ int returnTopValue(lua_State* state) {
     return 1;
 }
 
+sol::table createCompositeMetatable(sol::state_view lua, const char* key,
+                                    bool finalized) {
+    sol::table registry = lua.registry();
+    const sol::object rawMetatable = registry.raw_get<sol::object>(key);
+    if (rawMetatable.is<sol::table>()) {
+        return rawMetatable.as<sol::table>();
+    }
+    sol::table metatable = lua.create_table();
+    metatable.raw_set(protocol::COMPOSITE_MARKER_FIELD, true);
+    metatable.push();
+    lua_pushcfunction(lua.lua_state(), compositeIndex);
+    lua_setfield(lua.lua_state(), -2, "__index");
+    lua_pushcfunction(lua.lua_state(), compositeNewIndex);
+    lua_setfield(lua.lua_state(), -2, "__newindex");
+    lua_pop(lua.lua_state(), 1);
+    if (finalized) {
+        metatable.push();
+        lua_pushcfunction(lua.lua_state(), classInstanceGc);
+        lua_setfield(lua.lua_state(), -2, "__gc");
+        lua_pop(lua.lua_state(), 1);
+    }
+    registry.raw_set(key, metatable);
+    return metatable;
+}
+
 }  // namespace
 
 void invalidateFastIndexEntry(lua_State* state, int cacheIndex) {
@@ -301,35 +326,6 @@ int compositeIndex(lua_State* state) {
 
 // ── Composite metatable creation
 // ──────────────────────────────────────────────
-
-namespace {
-
-sol::table createCompositeMetatable(sol::state_view lua, const char* key,
-                                    bool finalized) {
-    sol::table registry = lua.registry();
-    const sol::object rawMetatable = registry.raw_get<sol::object>(key);
-    if (rawMetatable.is<sol::table>()) {
-        return rawMetatable.as<sol::table>();
-    }
-    sol::table metatable = lua.create_table();
-    metatable.raw_set(protocol::COMPOSITE_MARKER_FIELD, true);
-    metatable.push();
-    lua_pushcfunction(lua.lua_state(), compositeIndex);
-    lua_setfield(lua.lua_state(), -2, "__index");
-    lua_pushcfunction(lua.lua_state(), compositeNewIndex);
-    lua_setfield(lua.lua_state(), -2, "__newindex");
-    lua_pop(lua.lua_state(), 1);
-    if (finalized) {
-        metatable.push();
-        lua_pushcfunction(lua.lua_state(), classInstanceGc);
-        lua_setfield(lua.lua_state(), -2, "__gc");
-        lua_pop(lua.lua_state(), 1);
-    }
-    registry.raw_set(key, metatable);
-    return metatable;
-}
-
-}  // namespace
 
 sol::table compositeMetatable(sol::state_view lua) {
     return createCompositeMetatable(lua, COMPOSITE_METATABLE_KEY, true);

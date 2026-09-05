@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-namespace ludork::engine::actor_impl {
+namespace ludork::engine::sprite_visuals {
 
 struct ShaderResult {
     std::shared_ptr<sf::Shader> shader;
@@ -20,4 +20,4 @@ sf::IntRect nextAnimationRect(const sf::IntRect& current,
                               unsigned int textureWidth);
 void shutdownVisualResources() noexcept;
 
-}  // namespace ludork::engine::actor_impl
+}  // namespace ludork::engine::sprite_visuals

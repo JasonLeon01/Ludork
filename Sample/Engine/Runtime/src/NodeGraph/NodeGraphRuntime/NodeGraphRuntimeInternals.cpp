@@ -367,9 +367,8 @@ void writeNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache,
             key);
     }
 }
-void clearNodeGraphRuntimeCaches() {
-    RuntimeScope scope;
-    sol::state_view lua(scope.state());
+void clearNodeGraphRuntimeCaches(lua_State* state) noexcept {
+    sol::state_view lua(state);
     lua.registry().raw_set(NODEGRAPH_REF_LOCALS_KEY, sol::lua_nil);
     lua.registry().raw_set(NODEGRAPH_CONTEXTS_KEY, sol::lua_nil);
 }

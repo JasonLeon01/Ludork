@@ -6,6 +6,7 @@
 #include <GlobalRuntimeApi.hpp>
 #include <LuaError.hpp>
 #include <LuaSF.hpp>
+#include <Runtime/RuntimeSession.hpp>
 #include <RuntimeSession.hpp>
 #include <Standard.hpp>
 
@@ -36,8 +37,6 @@ public:
         if (state_ == nullptr) {
             return;
         }
-        ludork::standard::beginRuntimeShutdown(state_);
-        ludork::standard::runRuntimeCleanups(state_);
         ludork::standard::shutdown(state_);
         lua_close(state_);
     }
@@ -84,6 +83,7 @@ void initializeRuntime(lua_State* state) {
         throw;
     }
     lua_settop(state, stackBase);
+    ludork::standard::registerRuntimeCleanup(state, ludork::runtime::shutdown);
     ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
     ludork::standard::registerRuntimeCleanup(state, ludork::global::shutdown);
 }

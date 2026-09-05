@@ -38,7 +38,7 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
                            const RuntimeValue& rawKeywordArguments,
                            const RuntimeValue& graphClass,
                            const std::function<void()>& onComplete);
-void clearBlueprintRuntimeCaches();
+void clearBlueprintRuntimeCaches(lua_State* state) noexcept;
 
 inline constexpr const char* BLUEPRINT_IMPLEMENTATION_CACHE_KEY =
     "Ludork.Runtime.blueprintImplementationCache";

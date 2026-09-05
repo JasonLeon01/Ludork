@@ -3,8 +3,6 @@
 #include <RuntimeApi.hpp>
 #include <RuntimeSession.hpp>
 
-#include <optional>
-
 struct lua_State;
 
 namespace ludork::runtime {
@@ -19,8 +17,7 @@ public:
     lua_State* state() const noexcept;
 
 private:
-    lua_State* state_ = nullptr;
-    std::optional<ludork::standard::LuaExecutionScope> execution_;
+    ludork::standard::LuaExecutionScope execution_;
 };
 
 }  // namespace ludork::runtime

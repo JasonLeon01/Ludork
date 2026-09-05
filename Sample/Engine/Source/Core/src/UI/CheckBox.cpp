@@ -12,13 +12,6 @@
 #include <optional>
 #include <utility>
 
-namespace {
-
-using ludork::engine::ui_interaction::pointerMouseButton;
-using ludork::engine::ui_interaction::pointerPosition;
-
-}  // namespace
-
 CheckBox::CheckBox(const sf::Vector2f& size, const sf::Image& windowSkin,
                    std::shared_ptr<PlainTextConfig> textConfig, bool checked)
     : size_(normalizedSize(size)),
@@ -113,8 +106,9 @@ void CheckBox::onClick(const RuntimeValue::Map& arguments) {
 bool CheckBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     const bool callbackHandled = FunctionalBase::onMouseButtonDown(arguments);
     const std::optional<sf::Mouse::Button> button =
-        pointerMouseButton(arguments);
-    const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+        ludork::engine::ui_interaction::pointerMouseButton(arguments);
+    const std::optional<sf::Vector2f> position =
+        ludork::engine::ui_interaction::pointerPosition(arguments);
     const bool accepted = button == sf::Mouse::Button::Left &&
                           position.has_value() &&
                           getAbsoluteInteractionBounds().contains(*position);

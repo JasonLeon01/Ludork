@@ -6,6 +6,10 @@
 
 #include <RuntimeSession.hpp>
 
+extern "C" {
+#include <lua.h>
+}
+
 #include <utility>
 
 using namespace ludork::runtime::class_runtime_detail;
@@ -38,7 +42,8 @@ void ludork::runtime::class_runtime_detail::shutdownClassRuntime(
         return;
     }
     clearNativeDefaultResolver(state);
-    rawSet(registry(), CLASS_RESOLVER_STATE_KEY, RuntimeValue());
+    lua_pushnil(state);
+    lua_setfield(state, LUA_REGISTRYINDEX, CLASS_RESOLVER_STATE_KEY);
 }
 
 ResolvedClass ClassRuntimeFacade::resolve(

@@ -5,14 +5,11 @@ project(LudorkEngine LANGUAGES CXX)
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_language(OBJCXX)
 endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkEnginePlatform.cmake")
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
 file(GLOB_RECURSE LUDORK_ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    list(APPEND LUDORK_ENGINE_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/InputService/Platform/PlatformInputBridgeMac.mm")
-endif()
 
 ludork_generate_lua_bindings(
     Engine
@@ -42,16 +39,7 @@ target_link_libraries(Engine
         SFML::Network
     PRIVATE
         Ludork::Standard)
-if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
-    target_link_libraries(Engine PRIVATE deviceinfo_ndk.z)
-endif()
-if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
-    find_library(COREGRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
-    target_link_libraries(Engine PRIVATE
-        "${APPKIT_FRAMEWORK}"
-        "${COREGRAPHICS_FRAMEWORK}")
-endif()
+ludork_link_engine_platform(Engine)
 ludork_configure_core_library(
     Engine
     "${LUDORK_ENGINE_BINDINGS}"

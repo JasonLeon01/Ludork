@@ -1,0 +1,161 @@
+include_guard(GLOBAL)
+
+function(ludork_add_ios_bundle_directory_sync
+    target source_directory bundle_subdirectory)
+    set(multi_value_args EXCLUDES)
+    cmake_parse_arguments(BUNDLE_SYNC
+        ""
+        ""
+        "${multi_value_args}"
+        ${ARGN})
+
+    set(exclude_arguments --exclude=.DS_Store)
+    foreach(exclude_pattern IN LISTS BUNDLE_SYNC_EXCLUDES)
+        list(APPEND exclude_arguments "--exclude=${exclude_pattern}")
+    endforeach()
+
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_BUNDLE_DIR:${target}>/${bundle_subdirectory}"
+        COMMAND "${LUDORK_RSYNC_EXECUTABLE}"
+            -a
+            --delete
+            ${exclude_arguments}
+            "${source_directory}/"
+            "$<TARGET_BUNDLE_DIR:${target}>/${bundle_subdirectory}/"
+        VERBATIM)
+endfunction()
+
+function(ludork_configure_ios_application target)
+    foreach(required_variable IN ITEMS
+        LUDORK_IOS_APP_NAME
+        LUDORK_IOS_BUNDLE_IDENTIFIER
+        LUDORK_IOS_DEVELOPMENT_TEAM
+        LUDORK_IOS_INFO_PLIST
+        LUDORK_IOS_ICON)
+        if(NOT DEFINED ${required_variable} OR "${${required_variable}}" STREQUAL "")
+            message(FATAL_ERROR "${required_variable} is required for an iOS build.")
+        endif()
+    endforeach()
+    if(NOT EXISTS "${LUDORK_IOS_INFO_PLIST}")
+        message(FATAL_ERROR "iOS Info.plist was not found: ${LUDORK_IOS_INFO_PLIST}")
+    endif()
+    if(NOT EXISTS "${LUDORK_IOS_ICON}")
+        message(FATAL_ERROR "iOS app icon was not found: ${LUDORK_IOS_ICON}")
+    endif()
+    target_sources(${target} PRIVATE "${LUDORK_IOS_ICON}")
+    set_source_files_properties(
+        "${LUDORK_IOS_ICON}"
+        PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_target_properties(${target} PROPERTIES
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${LUDORK_IOS_BUNDLE_IDENTIFIER}"
+        MACOSX_BUNDLE_BUNDLE_NAME "${LUDORK_IOS_APP_NAME}"
+        MACOSX_BUNDLE_INFO_PLIST "${LUDORK_IOS_INFO_PLIST}"
+        OUTPUT_NAME "${LUDORK_IOS_APP_NAME}"
+        XCODE_GENERATE_SCHEME ON
+        XCODE_ATTRIBUTE_CODE_SIGN_STYLE Automatic
+        XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${LUDORK_IOS_DEVELOPMENT_TEAM}"
+        XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "15.0"
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${LUDORK_IOS_BUNDLE_IDENTIFIER}"
+        XCODE_ATTRIBUTE_SUPPORTED_PLATFORMS iphoneos
+        XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1")
+    target_link_libraries(${target} PRIVATE
+        SFML::Main)
+    find_program(LUDORK_RSYNC_EXECUTABLE rsync REQUIRED)
+    foreach(resource_directory IN ITEMS Assets Data Scripts)
+        string(TOUPPER "${resource_directory}" resource_directory_upper)
+        set(resource_source_variable
+            "LUDORK_${resource_directory_upper}_SOURCE_DIR")
+        if(NOT DEFINED ${resource_source_variable})
+            set(${resource_source_variable}
+                "${CMAKE_CURRENT_SOURCE_DIR}/${resource_directory}")
+        endif()
+    endforeach()
+    foreach(resource_directory IN ITEMS Assets Data)
+        string(TOUPPER "${resource_directory}" resource_directory_upper)
+        set(resource_source_variable
+            "LUDORK_${resource_directory_upper}_SOURCE_DIR")
+        ludork_add_ios_bundle_directory_sync(
+            ${target}
+            "${${resource_source_variable}}"
+            "${resource_directory}"
+            EXCLUDES "*.anim.json")
+    endforeach()
+    set(
+        LUDORK_SCRIPTS_PACKAGE_FILE
+        ""
+        CACHE FILEPATH
+        "Packaged Scripts.ldpak resource used by the iOS application")
+    set(ludork_has_loose_scripts OFF)
+    if(IS_DIRECTORY "${LUDORK_SCRIPTS_SOURCE_DIR}")
+        set(ludork_has_loose_scripts ON)
+    endif()
+    set(ludork_has_packed_scripts OFF)
+    if(NOT LUDORK_SCRIPTS_PACKAGE_FILE STREQUAL "")
+        if(NOT EXISTS "${LUDORK_SCRIPTS_PACKAGE_FILE}")
+            message(FATAL_ERROR
+                "The iOS script package was not found: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
+        endif()
+        if(IS_DIRECTORY "${LUDORK_SCRIPTS_PACKAGE_FILE}")
+            message(FATAL_ERROR
+                "The iOS script package is not a file: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
+        endif()
+        get_filename_component(
+            ludork_scripts_package_name
+            "${LUDORK_SCRIPTS_PACKAGE_FILE}"
+            NAME)
+        if(NOT ludork_scripts_package_name STREQUAL "Scripts.ldpak")
+            message(FATAL_ERROR
+                "The iOS script package must be named Scripts.ldpak: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
+        endif()
+        set(ludork_has_packed_scripts ON)
+    endif()
+    if((ludork_has_loose_scripts AND ludork_has_packed_scripts)
+       OR (NOT ludork_has_loose_scripts AND NOT ludork_has_packed_scripts))
+        message(FATAL_ERROR
+            "The iOS application requires exactly one loose Scripts directory or Scripts.ldpak file.")
+    endif()
+    if(ludork_has_loose_scripts)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E rm -f
+                "$<TARGET_BUNDLE_DIR:${target}>/Scripts.ldpak"
+            VERBATIM)
+        ludork_add_ios_bundle_directory_sync(
+            ${target}
+            "${LUDORK_SCRIPTS_SOURCE_DIR}"
+            Scripts)
+    else()
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E rm -rf
+                "$<TARGET_BUNDLE_DIR:${target}>/Scripts"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${LUDORK_SCRIPTS_PACKAGE_FILE}"
+                "$<TARGET_BUNDLE_DIR:${target}>/Scripts.ldpak"
+            VERBATIM)
+    endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Licenses")
+        ludork_add_ios_bundle_directory_sync(
+            ${target}
+            "${CMAKE_CURRENT_SOURCE_DIR}/Licenses"
+            Licenses)
+    endif()
+    foreach(legal_file IN ITEMS
+        LICENSE.md
+        THIRD_PARTY_NOTICES.md
+        THIRD_PARTY_NOTICES_zh_CN.md)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${legal_file}")
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${CMAKE_CURRENT_SOURCE_DIR}/${legal_file}"
+                    "$<TARGET_BUNDLE_DIR:${target}>/${legal_file}"
+                VERBATIM)
+        endif()
+    endforeach()
+    find_program(LUDORK_XATTR_EXECUTABLE xattr REQUIRED)
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${LUDORK_XATTR_EXECUTABLE}"
+            -cr
+            "$<TARGET_BUNDLE_DIR:${target}>"
+        VERBATIM)
+endfunction()

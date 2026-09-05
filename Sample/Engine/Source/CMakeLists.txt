@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.21)
 project(LudorkCore LANGUAGES CXX)
 
 set(LUDORK_CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(LUDORK_CORE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 get_filename_component(LUDORK_RUNTIME_SOURCE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../Runtime" ABSOLUTE)
 file(REMOVE
@@ -28,9 +27,18 @@ if(MINGW)
     set(LUDORK_CORE_RELEASE_LTO OFF)
     set(LUDORK_CORE_DEBUG_LTO OFF)
 endif()
-if(NOT DEFINED LUDORK_DEBUG_SOL_SAFETIES)
-    set(LUDORK_DEBUG_SOL_SAFETIES ON)
-endif()
+
+function(ludork_configure_core_target target)
+    target_compile_features(${target} PRIVATE cxx_std_20)
+    set_target_properties(${target} PROPERTIES
+        PREFIX ""
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+        INTERPROCEDURAL_OPTIMIZATION_DEBUG ${LUDORK_CORE_DEBUG_LTO}
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${LUDORK_CORE_RELEASE_LTO}
+        WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+    ludork_set_runtime_output(${target})
+endfunction()
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
 set(LUDORK_SCRIPT_TOOLS_EXECUTABLE
@@ -71,15 +79,8 @@ ludork_discover_lua_binding_layouts(
 
 function(ludork_configure_core_library
          target generated_bindings generated_traits)
+    ludork_configure_core_target(${target})
     add_dependencies(${target} ${target}Stub)
-    target_compile_features(${target} PRIVATE cxx_std_20)
-    set_target_properties(${target} PROPERTIES
-        PREFIX ""
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN ON
-        INTERPROCEDURAL_OPTIMIZATION_DEBUG ${LUDORK_CORE_DEBUG_LTO}
-        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${LUDORK_CORE_RELEASE_LTO}
-        WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     if(NOT LUDORK_STATIC_LUA_MODULES)
         set_target_properties(${target} PROPERTIES
             SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}")
@@ -100,7 +101,6 @@ function(ludork_configure_core_library
                 COMPILE_OPTIONS /bigobj)
         endforeach()
     endif()
-    ludork_set_runtime_output(${target})
 endfunction()
 
 add_subdirectory(Core)

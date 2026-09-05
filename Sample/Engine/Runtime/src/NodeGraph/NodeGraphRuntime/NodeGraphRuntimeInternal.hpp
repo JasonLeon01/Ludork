@@ -48,6 +48,6 @@ NodeGraphConditionResult evaluateNodeGraphCondition(
 NodeCache readNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache);
 void writeNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache,
                          const NodeCache& values);
-void clearNodeGraphRuntimeCaches();
+void clearNodeGraphRuntimeCaches(lua_State* state) noexcept;
 
 }  // namespace ludork::runtime::node_graph_detail

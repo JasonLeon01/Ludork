@@ -19,6 +19,16 @@ constexpr float DefaultMaximumRenderScale = 1.0f;
 constexpr float DefaultLightingRenderScale = 0.75f;
 constexpr int DefaultFrameRate = 60;
 constexpr int DefaultAntiAliasingLevel = 2;
+
+std::string numberText(float value) {
+    std::ostringstream stream;
+    stream << std::setprecision(8) << value;
+    return stream.str();
+}
+
+std::string boolText(bool value) {
+    return value ? "true" : "false";
+}
 }  // namespace
 
 std::shared_ptr<ludork::standard::ConfigParser> SystemConfigBase::data_;
@@ -38,18 +48,6 @@ float SystemConfigBase::musicVolume_ = 100.0f;
 float SystemConfigBase::soundVolume_ = 100.0f;
 float SystemConfigBase::voiceVolume_ = 100.0f;
 std::function<void(const std::string&)> SystemConfigBase::changeHandler_;
-
-namespace {
-std::string numberText(float value) {
-    std::ostringstream stream;
-    stream << std::setprecision(8) << value;
-    return stream.str();
-}
-
-std::string boolText(bool value) {
-    return value ? "true" : "false";
-}
-}  // namespace
 
 void SystemConfigBase::init(
     const std::shared_ptr<ludork::standard::ConfigParser>& data,

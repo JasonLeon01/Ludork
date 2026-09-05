@@ -9,12 +9,46 @@
 #include <Runtime/NodeGraph/LatentManager.hpp>
 #include <Runtime/RuntimeProviders.hpp>
 
-#include <atomic>
 #include <stdexcept>
 
 namespace {
 
-std::atomic<lua_State*> runtimeState{nullptr};
+constexpr const char* RUNTIME_MODULE_STATE_KEY = "Ludork.Runtime.moduleState";
+
+enum class RuntimeModuleState {
+    unattached,
+    attached,
+    detached,
+};
+
+RuntimeModuleState moduleState(lua_State* state) noexcept {
+    lua_getfield(state, LUA_REGISTRYINDEX, RUNTIME_MODULE_STATE_KEY);
+    const RuntimeModuleState result =
+        static_cast<RuntimeModuleState>(lua_tointeger(state, -1));
+    lua_pop(state, 1);
+    return result;
+}
+
+void setModuleState(lua_State* state, RuntimeModuleState value) noexcept {
+    if (value == RuntimeModuleState::unattached) {
+        lua_pushnil(state);
+    } else {
+        lua_pushinteger(state, static_cast<lua_Integer>(value));
+    }
+    lua_setfield(state, LUA_REGISTRYINDEX, RUNTIME_MODULE_STATE_KEY);
+}
+
+void clearRuntimeState(lua_State* state) noexcept {
+    using namespace ludork::runtime;
+    latentManager().clear();
+    latentManager().setInitialised(false);
+    class_runtime_detail::shutdownClassRuntime(state);
+    blueprint_detail::clearBlueprintRuntimeCaches(state);
+    node_graph_detail::clearNodeGraphRuntimeCaches(state);
+    componentRuntimeCache().clear(state);
+    detail::clearRuntimeProviders();
+    detail::clearRuntimeCaches(sol::state_view(state));
+}
 
 }  // namespace
 
@@ -24,54 +58,63 @@ void initialize(lua_State* state) {
     if (state == nullptr) {
         throw std::invalid_argument("Runtime state must not be null");
     }
-    lua_State* expected = nullptr;
-    if (!runtimeState.compare_exchange_strong(expected, state,
-                                              std::memory_order_acq_rel,
-                                              std::memory_order_acquire) &&
-        expected != state) {
-        throw std::runtime_error("Runtime is already initialized");
+    ludork::standard::LuaExecutionScope execution(state);
+    if (!execution.active() ||
+        ludork::standard::isRuntimeStopping(execution.state())) {
+        throw std::runtime_error("Runtime requires a running Lua session");
     }
-    sol::state_view lua(state);
-    detail::clearRuntimeCaches(lua);
-    detail::clearRuntimeProviders();
-    blueprint_detail::clearBlueprintRuntimeCaches();
-    node_graph_detail::clearNodeGraphRuntimeCaches();
-    componentRuntimeCache().clear();
-    class_runtime_detail::initializeClassRuntime(state);
+    state = execution.state();
+    switch (moduleState(state)) {
+        case RuntimeModuleState::attached:
+            return;
+        case RuntimeModuleState::detached:
+            throw std::runtime_error(
+                "Runtime was shut down; create a new Lua session to restart");
+        case RuntimeModuleState::unattached:
+            break;
+    }
+    ludork::standard::registerRuntimeCleanup(state, shutdown);
+    setModuleState(state, RuntimeModuleState::attached);
+    try {
+        detail::clearRuntimeCaches(sol::state_view(state));
+        detail::clearRuntimeProviders();
+        blueprint_detail::clearBlueprintRuntimeCaches(state);
+        node_graph_detail::clearNodeGraphRuntimeCaches(state);
+        componentRuntimeCache().clear(state);
+        class_runtime_detail::initializeClassRuntime(state);
+    } catch (...) {
+        clearRuntimeState(state);
+        setModuleState(state, RuntimeModuleState::unattached);
+        throw;
+    }
 }
 
 void shutdown(lua_State* state) noexcept {
     if (state == nullptr) {
         return;
     }
-    sol::state_view lua(state);
-    latentManager().clear();
-    latentManager().setInitialised(false);
-    class_runtime_detail::shutdownClassRuntime(state);
-    blueprint_detail::clearBlueprintRuntimeCaches();
-    node_graph_detail::clearNodeGraphRuntimeCaches();
-    componentRuntimeCache().clear();
-    detail::clearRuntimeProviders();
-    detail::clearRuntimeCaches(lua);
-    lua_State* expected = state;
-    runtimeState.compare_exchange_strong(expected, nullptr,
-                                         std::memory_order_release,
-                                         std::memory_order_relaxed);
+    ludork::standard::LuaExecutionScope execution(state);
+    if (!execution.active() ||
+        moduleState(execution.state()) != RuntimeModuleState::attached) {
+        return;
+    }
+    state = execution.state();
+    clearRuntimeState(state);
+    setModuleState(state, RuntimeModuleState::detached);
 }
 
-RuntimeScope::RuntimeScope()
-    : state_(runtimeState.load(std::memory_order_acquire)) {
-    if (state_ == nullptr) {
-        throw std::runtime_error("Runtime is not initialized");
+RuntimeScope::RuntimeScope() {
+    if (!execution_.active()) {
+        throw std::runtime_error(
+            "Lua runtime session is unavailable or stopping");
     }
-    execution_.emplace(state_);
-    if (!execution_->active()) {
-        throw std::runtime_error("Lua runtime session is stopping");
+    if (moduleState(execution_.state()) != RuntimeModuleState::attached) {
+        throw std::runtime_error("Runtime is not initialized");
     }
 }
 
 lua_State* RuntimeScope::state() const noexcept {
-    return state_;
+    return execution_.state();
 }
 
 }  // namespace ludork::runtime

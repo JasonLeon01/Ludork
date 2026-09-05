@@ -1,6 +1,10 @@
 #include <Components/ComponentRuntimeCache.hpp>
 #include <Runtime/RuntimeReference.hpp>
 
+extern "C" {
+#include <lua.h>
+}
+
 namespace {
 using namespace ludork::runtime::reference;
 constexpr const char* COMPONENT_CACHES_KEY = "Ludork.Runtime.componentCaches";
@@ -17,9 +21,9 @@ RuntimeValue cacheFor(ComponentRuntimeCacheKind kind) {
 }
 }  // namespace
 
-void ComponentRuntimeCache::clear() const {
-    ludork::runtime::reference::rawSet(ludork::runtime::reference::registry(),
-                                       COMPONENT_CACHES_KEY, RuntimeValue());
+void ComponentRuntimeCache::clear(lua_State* state) const noexcept {
+    lua_pushnil(state);
+    lua_setfield(state, LUA_REGISTRYINDEX, COMPONENT_CACHES_KEY);
 }
 
 RuntimeValue ComponentRuntimeCache::get(ComponentRuntimeCacheKind kind,

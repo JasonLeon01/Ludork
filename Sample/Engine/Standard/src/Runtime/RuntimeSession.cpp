@@ -50,12 +50,13 @@ bool sessionAllowsCurrentThread(const RuntimeSessionState& session) noexcept {
             session.shutdownThread == std::this_thread::get_id());
 }
 
+std::shared_ptr<RuntimeSessionState> currentSession() {
+    std::scoped_lock lock(sessionMutex);
+    return activeSession;
+}
+
 std::shared_ptr<RuntimeSessionState> findSession(lua_State* state) {
-    std::shared_ptr<RuntimeSessionState> session;
-    {
-        std::scoped_lock lock(sessionMutex);
-        session = activeSession;
-    }
+    const std::shared_ptr<RuntimeSessionState> session = currentSession();
     if (session == nullptr) {
         return {};
     }
@@ -89,12 +90,13 @@ std::shared_ptr<RuntimeSessionState> tryFindSession(lua_State* state) {
     return session;
 }
 
-int enterSession(lua_State* state, bool blocking) noexcept {
+int enterSession(lua_State* state, bool blocking,
+                 bool current = false) noexcept {
     try {
         if (enteredSession.depth != 0) {
             if (enteredSession.session == nullptr ||
                 enteredSession.session->state != enteredSession.state ||
-                (enteredSession.state != state &&
+                (!current && enteredSession.state != state &&
                  enteredSession.state != mainThreadFromRegistry(state)) ||
                 !sessionAllowsCurrentThread(*enteredSession.session)) {
                 return 0;
@@ -103,7 +105,8 @@ int enterSession(lua_State* state, bool blocking) noexcept {
             return 1;
         }
         const std::shared_ptr<RuntimeSessionState> session =
-            blocking ? findSession(state) : tryFindSession(state);
+            current ? currentSession()
+                    : (blocking ? findSession(state) : tryFindSession(state));
         if (session == nullptr) {
             return 0;
         }
@@ -155,8 +158,15 @@ struct RuntimeRegistryReferenceState {
     int reference;
 };
 
+LuaExecutionScope::LuaExecutionScope()
+    : active_(enterSession(nullptr, true, true) != 0) {
+    state_ = active_ ? enteredSession.state : nullptr;
+}
+
 LuaExecutionScope::LuaExecutionScope(lua_State* state)
-    : state_(state), active_(enterRuntimeSession(state) != 0) {}
+    : active_(enterRuntimeSession(state) != 0) {
+    state_ = active_ ? enteredSession.state : nullptr;
+}
 
 LuaExecutionScope::~LuaExecutionScope() {
     if (active_) {
@@ -166,6 +176,10 @@ LuaExecutionScope::~LuaExecutionScope() {
 
 bool LuaExecutionScope::active() const noexcept {
     return active_;
+}
+
+lua_State* LuaExecutionScope::state() const noexcept {
+    return state_;
 }
 
 LuaExecutionPause::LuaExecutionPause() noexcept {
@@ -424,8 +438,12 @@ void beginRuntimeShutdown(lua_State* state) noexcept {
     if (session == nullptr) {
         return;
     }
-    session->phase.store(RuntimeSessionPhase::stopping,
-                         std::memory_order_release);
+    RuntimeSessionPhase expected = RuntimeSessionPhase::running;
+    if (!session->phase.compare_exchange_strong(
+            expected, RuntimeSessionPhase::stopping, std::memory_order_acq_rel,
+            std::memory_order_acquire)) {
+        return;
+    }
     std::scoped_lock luaLock(session->luaMutex);
     session->shutdownThread = std::this_thread::get_id();
 }

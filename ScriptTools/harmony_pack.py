@@ -855,7 +855,6 @@ def replace_template_tokens(
             ensure_ascii=False,
         )[1:-1],
         "__LUDORK_CMAKE_ARGUMENTS__": json5_argument_text(arguments),
-        "__LUDORK_COMPILER_TARGET__": HARMONY_COMPILER_TARGET,
         "__LUDORK_APP_ENVIRONMENTS__": app_environments,
         "__LUDORK_DEVICE_TYPES__": json.dumps(device_types),
         "__LUDORK_ABILITY_FORM_OPTIONS__": ability_form_options,

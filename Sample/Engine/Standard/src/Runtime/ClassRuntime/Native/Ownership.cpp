@@ -66,6 +66,31 @@ void* nativePointer(lua_State* state, int index) {
     return *static_cast<void**>(rawData);
 }
 
+int boundMethodCall(lua_State* state) {
+    const int argumentCount = lua_gettop(state);
+    lua_pushvalue(state, lua_upvalueindex(1));
+    lua_insert(state, 1);
+    lua_pushvalue(state, lua_upvalueindex(2));
+    lua_insert(state, 2);
+    lua_call(state, argumentCount + 1, LUA_MULTRET);
+    restoreNativeOwners(state);
+    return lua_gettop(state);
+}
+
+int nativeMethodCall(lua_State* state) {
+    const int argumentCount = lua_gettop(state);
+    if (argumentCount == 0) {
+        return luaL_error(state, "Native instance method requires a receiver");
+    }
+    lua_pushvalue(state, lua_upvalueindex(1));
+    lua_insert(state, 1);
+    lua_pushvalue(state, lua_upvalueindex(2));
+    lua_replace(state, 2);
+    lua_call(state, argumentCount, LUA_MULTRET);
+    restoreNativeOwners(state);
+    return lua_gettop(state);
+}
+
 }  // namespace
 
 void registerNativePointerOwner(sol::state_view lua,
@@ -167,35 +192,6 @@ void restoreNativeOwners(lua_State* state) {
         }
     }
 }
-
-namespace {
-
-int boundMethodCall(lua_State* state) {
-    const int argumentCount = lua_gettop(state);
-    lua_pushvalue(state, lua_upvalueindex(1));
-    lua_insert(state, 1);
-    lua_pushvalue(state, lua_upvalueindex(2));
-    lua_insert(state, 2);
-    lua_call(state, argumentCount + 1, LUA_MULTRET);
-    restoreNativeOwners(state);
-    return lua_gettop(state);
-}
-
-int nativeMethodCall(lua_State* state) {
-    const int argumentCount = lua_gettop(state);
-    if (argumentCount == 0) {
-        return luaL_error(state, "Native instance method requires a receiver");
-    }
-    lua_pushvalue(state, lua_upvalueindex(1));
-    lua_insert(state, 1);
-    lua_pushvalue(state, lua_upvalueindex(2));
-    lua_replace(state, 2);
-    lua_call(state, argumentCount, LUA_MULTRET);
-    restoreNativeOwners(state);
-    return lua_gettop(state);
-}
-
-}  // namespace
 
 sol::object bindMethod(sol::state_view lua, const sol::object& method,
                        const sol::object& self) {

@@ -8,6 +8,7 @@ file(GLOB_RECURSE LUDORK_RUNTIME_SOURCES CONFIGURE_DEPENDS
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/MetadataRuntime.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviders.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviderInternals.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeReflection.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeServiceCommon.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeServiceInternals.cpp"
@@ -33,13 +34,7 @@ add_library(Ludork::Runtime ALIAS LudorkRuntime)
 
 target_compile_features(LudorkRuntime PUBLIC cxx_std_20)
 target_compile_definitions(LudorkRuntime
-    PRIVATE LUDORK_RUNTIME_EXPORTS=1
-    PUBLIC
-        $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
-        SOL_SAFE_NUMERICS=1
-        SOL_USE_INTEROP=1
-        SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
-        SOL_USERTYPE_TYPE_BINDING_INFO=0)
+    PRIVATE LUDORK_RUNTIME_EXPORTS=1)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
     target_compile_definitions(LudorkRuntime PUBLIC
@@ -52,6 +47,7 @@ target_include_directories(LudorkRuntime
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(LudorkRuntime
     PUBLIC
+        Ludork::SolConfig
         Ludork::Standard
         LuaSF::LuaSF
         LuaSF::Lua

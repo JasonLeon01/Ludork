@@ -122,24 +122,6 @@ int classMetatableNewIndex(lua_State* state) {
     }
 }
 
-}  // namespace
-
-void setClassClosure(lua_State* state, const sol::table& target,
-                     const char* name, const sol::table& classTable,
-                     lua_CFunction function) {
-    target.push();
-    lua_pushstring(state, name);
-    classTable.push();
-    lua_pushcclosure(state, function, 1);
-    lua_rawset(state, -3);
-    lua_pop(state, 1);
-}
-
-// ── Class finalization
-// ────────────────────────────────────────────────────────
-
-namespace {
-
 bool isFinalizedClass(const sol::table& value) {
     return isClass(value) && tableHasMetatable(value) &&
            value.raw_get<sol::object>("__bases").is<sol::table>() &&
@@ -232,6 +214,20 @@ sol::table normalizeClassBases(sol::state_view lua, const sol::table& bases) {
 }
 
 }  // namespace
+
+void setClassClosure(lua_State* state, const sol::table& target,
+                     const char* name, const sol::table& classTable,
+                     lua_CFunction function) {
+    target.push();
+    lua_pushstring(state, name);
+    classTable.push();
+    lua_pushcclosure(state, function, 1);
+    lua_rawset(state, -3);
+    lua_pop(state, 1);
+}
+
+// ── Class finalization
+// ────────────────────────────────────────────────────────
 
 sol::table finalizeClassImpl(sol::table definition, const sol::table& bases) {
     sol::state_view lua(definition.lua_state());

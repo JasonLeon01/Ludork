@@ -1,6 +1,10 @@
 #include <Runtime/RuntimeReference.hpp>
 #include "BlueprintRuntimeInternal.hpp"
 
+extern "C" {
+#include <lua.h>
+}
+
 namespace ludork::runtime::blueprint_detail {
 
 using namespace ludork::runtime::reference;
@@ -15,11 +19,16 @@ RuntimeValue objectGraph(const RuntimeValue& object) {
     return resolver ? resolver(object) : RuntimeValue();
 }
 
-void clearBlueprintRuntimeCaches() {
+void clearBlueprintRuntimeCaches(lua_State* state) noexcept {
     objectGraphResolver() = {};
-    rawSet(registry(), BLUEPRINT_IMPLEMENTATION_CACHE_KEY, RuntimeValue());
-    rawSet(registry(), BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY, RuntimeValue());
-    rawSet(registry(), BLUEPRINT_CALLABLE_PARAMETER_CACHE_KEY, RuntimeValue());
+    lua_pushnil(state);
+    lua_setfield(state, LUA_REGISTRYINDEX, BLUEPRINT_IMPLEMENTATION_CACHE_KEY);
+    lua_pushnil(state);
+    lua_setfield(state, LUA_REGISTRYINDEX,
+                 BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY);
+    lua_pushnil(state);
+    lua_setfield(state, LUA_REGISTRYINDEX,
+                 BLUEPRINT_CALLABLE_PARAMETER_CACHE_KEY);
 }
 
 }  // namespace ludork::runtime::blueprint_detail

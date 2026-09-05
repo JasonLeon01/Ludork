@@ -39,6 +39,7 @@ struct RuntimeSessionState {
 
 class LUDORK_STANDARD_API LuaExecutionScope {
 public:
+    LuaExecutionScope();
     explicit LuaExecutionScope(lua_State* state);
     ~LuaExecutionScope();
 
@@ -46,6 +47,7 @@ public:
     LuaExecutionScope& operator=(const LuaExecutionScope&) = delete;
 
     bool active() const noexcept;
+    lua_State* state() const noexcept;
 
 private:
     lua_State* state_ = nullptr;

@@ -1,4 +1,5 @@
 #include "Instance/InstanceRuntime.hpp"
+#include "Instance/LifecycleInternal.hpp"
 
 #include "Composite/CompositeRuntime.hpp"
 #include "Detail/ClassNativeInterop.hpp"
@@ -30,6 +31,11 @@ namespace ludork::standard::class_runtime::detail {
 
 namespace {
 
+void reportDisposeError(const char* phase, const std::string& message) {
+    std::fprintf(stderr, "Class dispose %s failed: %s\n", phase,
+                 message.c_str());
+}
+
 bool tableMatchesInstanceClass(sol::state_view lua, const sol::table& instance,
                                const sol::table& classTable) {
     if (objectsRawEqual(instance, classTable)) {
@@ -50,41 +56,6 @@ bool tableMatchesInstanceClass(sol::state_view lua, const sol::table& instance,
     return originalMetatable.is<sol::table>() &&
            objectsRawEqual(originalMetatable.as<sol::table>(), classTable);
 }
-
-}  // namespace
-
-std::optional<sol::table> tryManagedInstanceFields(
-    sol::state_view lua, const sol::object& instance) {
-    if (isCompositeInstance(lua, instance)) {
-        const sol::table fields =
-            class_native::getUserFields(lua, instance, false);
-        const sol::object rawClass = fields.raw_get<sol::object>("__class");
-        if (rawClass.is<sol::table>() && isClass(rawClass.as<sol::table>())) {
-            return fields;
-        }
-    } else if (instance.is<sol::table>()) {
-        const sol::table fields = instance.as<sol::table>();
-        const sol::object rawClass = fields.raw_get<sol::object>("__class");
-        if (rawClass.is<sol::table>() && isClass(rawClass.as<sol::table>()) &&
-            tableMatchesInstanceClass(lua, fields, rawClass.as<sol::table>())) {
-            return fields;
-        }
-    }
-    return std::nullopt;
-}
-
-sol::table managedInstanceFields(sol::state_view lua,
-                                 const sol::object& instance) {
-    const std::optional<sol::table> fields =
-        tryManagedInstanceFields(lua, instance);
-    if (fields.has_value()) {
-        return *fields;
-    }
-    throw std::invalid_argument(
-        "Class lifecycle requires a Ludork class instance");
-}
-
-namespace {
 
 LifecycleState lifecycleState(sol::state_view lua,
                               const sol::object& instance) {
@@ -137,15 +108,6 @@ void protectDisposedInstance(sol::state_view lua, const sol::object& instance) {
     lua_setmetatable(lua.lua_state(), -2);
     lua_pop(lua.lua_state(), 1);
 }
-
-}  // namespace
-
-void reportDisposeError(const char* phase, const std::string& message) {
-    std::fprintf(stderr, "Class dispose %s failed: %s\n", phase,
-                 message.c_str());
-}
-
-namespace {
 
 int classInstanceDispose(lua_State* state) {
     try {
@@ -206,19 +168,6 @@ void clearInstanceMonitor(sol::state_view lua, const sol::object& instance) {
     lua_pop(lua.lua_state(), 1);
     states.raw_set(instance, sol::lua_nil);
 }
-
-struct NativeDisposeTarget {
-    sol::table root;
-    sol::object nativeObject;
-    bool requiresHook{};
-};
-
-struct DisposeSnapshot {
-    sol::table fields;
-    sol::table classTable;
-    std::optional<std::size_t> instanceId;
-    std::vector<NativeDisposeTarget> nativeTargets;
-};
 
 DisposeSnapshot createDisposeSnapshot(sol::state_view lua,
                                       const sol::object& instance) {
@@ -295,6 +244,37 @@ void clearInstanceFields(sol::table fields) {
 }
 
 }  // namespace
+
+std::optional<sol::table> tryManagedInstanceFields(
+    sol::state_view lua, const sol::object& instance) {
+    if (isCompositeInstance(lua, instance)) {
+        const sol::table fields =
+            class_native::getUserFields(lua, instance, false);
+        const sol::object rawClass = fields.raw_get<sol::object>("__class");
+        if (rawClass.is<sol::table>() && isClass(rawClass.as<sol::table>())) {
+            return fields;
+        }
+    } else if (instance.is<sol::table>()) {
+        const sol::table fields = instance.as<sol::table>();
+        const sol::object rawClass = fields.raw_get<sol::object>("__class");
+        if (rawClass.is<sol::table>() && isClass(rawClass.as<sol::table>()) &&
+            tableMatchesInstanceClass(lua, fields, rawClass.as<sol::table>())) {
+            return fields;
+        }
+    }
+    return std::nullopt;
+}
+
+sol::table managedInstanceFields(sol::state_view lua,
+                                 const sol::object& instance) {
+    const std::optional<sol::table> fields =
+        tryManagedInstanceFields(lua, instance);
+    if (fields.has_value()) {
+        return *fields;
+    }
+    throw std::invalid_argument(
+        "Class lifecycle requires a Ludork class instance");
+}
 
 sol::object instanceDisposeMethod(sol::state_view lua,
                                   const sol::table& classTable,

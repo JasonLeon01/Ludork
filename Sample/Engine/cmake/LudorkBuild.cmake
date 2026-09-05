@@ -9,6 +9,47 @@ option(
     "Enable full sol2 safety checks in Debug builds"
     OFF)
 
+add_library(LudorkSolConfig INTERFACE)
+add_library(Ludork::SolConfig ALIAS LudorkSolConfig)
+target_compile_definitions(LudorkSolConfig INTERFACE
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
+    SOL_SAFE_NUMERICS=1
+    SOL_USE_INTEROP=1
+    SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
+    SOL_USERTYPE_TYPE_BINDING_INFO=0)
+
+function(ludork_require_android_package_contract)
+    if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+        message(FATAL_ERROR
+            "The Android package supports only the arm64-v8a ABI.")
+    endif()
+    if(NOT ANDROID_PLATFORM_LEVEL STREQUAL "24")
+        message(FATAL_ERROR
+            "The Android package requires API level 24.")
+    endif()
+    if(DEFINED CMAKE_ANDROID_STL_TYPE
+       AND NOT CMAKE_ANDROID_STL_TYPE STREQUAL "c++_static")
+        message(FATAL_ERROR
+            "The Android package requires the c++_static runtime.")
+    endif()
+    if(DEFINED ANDROID_STL AND NOT ANDROID_STL STREQUAL "c++_static")
+        message(FATAL_ERROR
+            "The Android package requires ANDROID_STL=c++_static.")
+    endif()
+endfunction()
+
+function(ludork_require_ohos_package_contract)
+    if(NOT OHOS_COMPATIBLE_SDK_VERSION STREQUAL "22.0.0")
+        message(FATAL_ERROR
+            "The HarmonyOS package requires OHOS_COMPATIBLE_SDK_VERSION=22.")
+    endif()
+    if(NOT CMAKE_C_COMPILER_TARGET STREQUAL "aarch64-linux-ohos22.0.0"
+       OR NOT CMAKE_CXX_COMPILER_TARGET STREQUAL "aarch64-linux-ohos22.0.0")
+        message(FATAL_ERROR
+            "The HarmonyOS package requires the API 22 native compiler target.")
+    endif()
+endfunction()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 
@@ -182,32 +223,6 @@ function(ludork_add_impl_boundary_validation_target target project_root)
             impl-boundary-check
             "${project_root}"
         WORKING_DIRECTORY "${project_root}"
-        VERBATIM)
-endfunction()
-
-function(ludork_add_ios_bundle_directory_sync
-    target source_directory bundle_subdirectory)
-    set(multi_value_args EXCLUDES)
-    cmake_parse_arguments(BUNDLE_SYNC
-        ""
-        ""
-        "${multi_value_args}"
-        ${ARGN})
-
-    set(exclude_arguments --exclude=.DS_Store)
-    foreach(exclude_pattern IN LISTS BUNDLE_SYNC_EXCLUDES)
-        list(APPEND exclude_arguments "--exclude=${exclude_pattern}")
-    endforeach()
-
-    add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory
-            "$<TARGET_BUNDLE_DIR:${target}>/${bundle_subdirectory}"
-        COMMAND "${LUDORK_RSYNC_EXECUTABLE}"
-            -a
-            --delete
-            ${exclude_arguments}
-            "${source_directory}/"
-            "$<TARGET_BUNDLE_DIR:${target}>/${bundle_subdirectory}/"
         VERBATIM)
 endfunction()
 

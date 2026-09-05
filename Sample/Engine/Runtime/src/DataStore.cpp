@@ -1,5 +1,6 @@
 #include <Runtime/DataStore.hpp>
 
+#include "DataStoreInternal.hpp"
 #include "LdPakArchive.hpp"
 #include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
@@ -23,7 +24,10 @@
 #include <windows.h>
 #endif
 
+namespace ludork::runtime {
 namespace {
+
+using data_store_impl::StoreEntry;
 
 std::string asciiFold(std::string value) {
     for (char& character : value) {
@@ -118,19 +122,6 @@ std::vector<std::uint8_t> readPhysicalFile(const std::filesystem::path& path) {
     }
     return result;
 }
-
-}  // namespace
-
-namespace ludork::runtime {
-
-namespace {
-
-struct StoreEntry {
-    std::filesystem::path source;
-    std::shared_ptr<detail::LdPakArchive> archive;
-    std::string archivePath;
-    DataStat stat;
-};
 
 void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
               std::unordered_map<std::string, std::string>& foldedPaths,
@@ -277,16 +268,6 @@ std::optional<std::string> normalizeDataPath(
 }
 
 }  // namespace
-
-struct DataStore::Impl {
-    mutable std::shared_mutex mutex;
-    std::filesystem::path runtimeRoot;
-    DataStoreMode mode = DataStoreMode::Loose;
-    bool configured = false;
-    std::unordered_map<std::string, StoreEntry> entries;
-    std::unordered_map<std::string, std::vector<std::filesystem::path>>
-        directoryEntries;
-};
 
 DataStore::DataStore() : impl_(std::make_unique<Impl>()) {}
 DataStore::~DataStore() = default;

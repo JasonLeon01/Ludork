@@ -96,6 +96,8 @@ struct ReadResult {
     bool cancelled = false;
 };
 
+ScanResult scanManifest(const std::shared_ptr<FileBatchJob>& job);
+
 ReadResult readFile(const std::shared_ptr<FileBatchJob>& job,
                     const ManifestEntry& entry);
 

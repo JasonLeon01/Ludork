@@ -47,16 +47,6 @@ if(SFML_HARMONY_DEVICE_FORM STREQUAL "MOBILE" AND NOT SFML_OPENGL_ES)
         "The HarmonyOS mobile host requires SFML_OPENGL_ES=ON.")
 endif()
 
-if(NOT OHOS_COMPATIBLE_SDK_VERSION STREQUAL "22.0.0")
-    message(FATAL_ERROR
-        "The Ludork HarmonyOS host requires OHOS_COMPATIBLE_SDK_VERSION=22.")
-endif()
-if(NOT CMAKE_C_COMPILER_TARGET STREQUAL "__LUDORK_COMPILER_TARGET__"
-   OR NOT CMAKE_CXX_COMPILER_TARGET STREQUAL "__LUDORK_COMPILER_TARGET__")
-    message(FATAL_ERROR
-        "The Ludork HarmonyOS host requires the API 22 native compiler target.")
-endif()
-
 add_subdirectory("${LUDORK_PROJECT_DIR}" ludork)
 
 if(NOT TARGET entry)
