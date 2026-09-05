@@ -50,8 +50,8 @@ bool blueprintIsInstance(const RuntimeValue& value, const RuntimeValue& type) {
 RuntimeValue callRuntimeMethodFirst(
     const RuntimeValue& object, const char* name,
     const std::vector<RuntimeValue>& arguments) {
-    const RuntimeValue method = get(ludork::runtime::reference::intern(object),
-                                    retain(makeValue(name)));
+    const RuntimeValue method =
+        get(ludork::runtime::reference::intern(object), name);
     if (!isFunction(method)) {
         return RuntimeValue();
     }
@@ -129,12 +129,11 @@ bool generatedBlueprintGraphHasExecutableEvent(const RuntimeValue& classType,
 
 RuntimeValue generatedBlueprintGraph(const RuntimeValue& object,
                                      const RuntimeValue& classType) {
-    RuntimeValue rawCache = get(ludork::runtime::reference::intern(object),
-                                retain(makeValue("_parentGraphs")));
+    RuntimeValue rawCache =
+        get(ludork::runtime::reference::intern(object), "_parentGraphs");
     RuntimeValue cache = isTable(rawCache) ? rawCache : table();
     if (!isTable(rawCache)) {
-        set(ludork::runtime::reference::intern(object),
-            retain(makeValue("_parentGraphs")), retain(makeValue(cache)));
+        set(ludork::runtime::reference::intern(object), "_parentGraphs", cache);
     }
     RuntimeValue graph =
         rawGet(ludork::runtime::reference::intern(cache), classType);
@@ -165,8 +164,11 @@ RuntimeValue blueprintEventKeywordArguments(
                    entry.second);
         }
     }
-    if (!isTable(rawArguments) ||
-        length(ludork::runtime::reference::intern(rawArguments)) == 0) {
+    if (!isTable(rawArguments)) {
+        return result;
+    }
+    const RuntimeHandle arguments = intern(rawArguments);
+    if (length(arguments) == 0) {
         return result;
     }
     const RuntimeValue method =
@@ -176,9 +178,7 @@ RuntimeValue blueprintEventKeywordArguments(
     }
     const RuntimeHandle names = runtimeDescriptorParameters(
         runtimeEventDescriptor(method, classType, eventName));
-    const RuntimeValue arguments = rawArguments;
-    const std::size_t count = std::min(
-        length(ludork::runtime::reference::intern(arguments)), length(names));
+    const std::size_t count = std::min(length(arguments), length(names));
     for (std::size_t index = 1; index <= count; ++index) {
         const RuntimeValue rawName = rawGet(names, index);
         if (!is<std::string>(rawName)) {
@@ -188,7 +188,7 @@ RuntimeValue blueprintEventKeywordArguments(
         if (kind(get(ludork::runtime::reference::intern(result), name)) ==
             "nil") {
             set(ludork::runtime::reference::intern(result), name,
-                get(ludork::runtime::reference::intern(arguments), index));
+                get(arguments, index));
         }
     }
     return result;
@@ -271,7 +271,8 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
         return false;
     }
     RuntimeIdentityPtr oldLocalGraph;
-    RuntimeValue context;
+    RuntimeScope scope;
+    RuntimeHandle context;
     RuntimeValue oldContextGraph;
     std::vector<std::pair<std::string, RuntimeValue>> oldEventParameters;
     bool oldLocalGraphCaptured = false;
@@ -281,7 +282,7 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
     try {
         oldLocalGraph = nativeGraph->getLocalGraph();
         oldLocalGraphCaptured = true;
-        context = RuntimeValue();
+        context = RuntimeHandle();
         oldContextGraph = RuntimeValue();
         if (onComplete) {
             nativeGraph->addExecutionCompleteCallback(eventName, onComplete);
@@ -292,20 +293,18 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
         RuntimeIdentityPtr activeLocalGraph = nativeGraph->getLocalGraph();
         if (activeLocalGraph == nullptr) {
             const NodeGraphContextObjects created = createNodeGraphContext(
-                retain(makeValue(nativeGraph->parentClass)),
-                retain(makeValue(nativeGraph->getParent())));
-            activeLocalGraph = identity(created.localGraph);
+                scope, nativeGraph->parentClass, nativeGraph->getParent());
+            activeLocalGraph = created.localGraph.identity();
             nativeGraph->setLocalGraph(activeLocalGraph);
         }
         if (activeLocalGraph == nullptr) {
             throw std::runtime_error("Blueprint graph has no local context");
         }
 
-        context = retain(makeValue(activeLocalGraph));
-        oldContextGraph = getNodeGraphContextValue(context, "__graph__");
-        setNodeGraphContextValue(
-            context, "__graph__",
-            retain(makeValue(nativeGraph->getGraphContext())));
+        context = RuntimeHandle(activeLocalGraph);
+        oldContextGraph = getNodeGraphContextValue(scope, context, "__graph__");
+        setNodeGraphContextValue(scope, context, "__graph__",
+                                 nativeGraph->getGraphContext());
         contextGraphSet = true;
         if (isTable(rawKeywordArguments)) {
             for (const auto& entry : entries(
@@ -316,8 +315,8 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
                 const std::string name =
                     "__" + as<std::string>(entry.first) + "__";
                 oldEventParameters.emplace_back(
-                    name, getNodeGraphContextValue(context, name));
-                setNodeGraphContextValue(context, name, entry.second);
+                    name, getNodeGraphContextValue(scope, context, name));
+                setNodeGraphContextValue(scope, context, name, entry.second);
             }
         }
         nativeGraph->execute(eventName);
@@ -327,7 +326,7 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
 
     for (const auto& [name, value] : oldEventParameters) {
         try {
-            setNodeGraphContextValue(context, name, value);
+            setNodeGraphContextValue(scope, context, name, value);
         } catch (...) {
             const std::exception_ptr restoreFailure = std::current_exception();
             logBlueprintCleanupFailure(eventName, name, restoreFailure);
@@ -338,7 +337,8 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
     }
     if (contextGraphSet) {
         try {
-            setNodeGraphContextValue(context, "__graph__", oldContextGraph);
+            setNodeGraphContextValue(scope, context, "__graph__",
+                                     oldContextGraph);
         } catch (...) {
             const std::exception_ptr restoreFailure = std::current_exception();
             logBlueprintCleanupFailure(eventName, "__graph__", restoreFailure);

@@ -16,7 +16,6 @@ public:
     BIND_METHOD(metadata = false)
     static void installBlueprint(
         const RuntimeIdentityPtr& classDataByPath,
-        const RuntimeIdentityPtr& invalidateClassData,
         const RuntimeIdentityPtr& compileGraph,
         const RuntimeIdentityPtr& instantiateGraphTemplate);
 
@@ -29,7 +28,6 @@ public:
     RuntimeIdentityPtr curve(const std::string& name) const;
     RuntimeIdentityPtr plainTextConfig(const std::string& name) const;
     RuntimeIdentityPtr blueprintClassData(const std::string& classPath) const;
-    void invalidateBlueprintClassData(const std::string& classPath) const;
     RuntimeIdentityPtr compileBlueprintGraph(
         const RuntimeIdentityPtr& graphData,
         const RuntimeIdentityPtr& classType) const;

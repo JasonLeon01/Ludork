@@ -8,21 +8,21 @@ namespace ludork::runtime::graph_detail {
 
 std::unordered_map<std::string, int> parseStartNodes(
     const RuntimeValue& startNodeValues) {
-    const RuntimeValue::Map* startNodeMap =
-        startNodeValues.isNil() ? nullptr
-                                : startNodeValues.getIf<RuntimeValue::Map>();
-    if (!startNodeValues.isNil() && startNodeMap == nullptr) {
+    std::optional<RuntimeMapView> startNodeMap =
+        startNodeValues.isNil() ? std::nullopt
+                                : RuntimeValueView(startNodeValues).map();
+    if (!startNodeValues.isNil() && !startNodeMap) {
         throw std::invalid_argument("Graph startNodes must be a map");
     }
     std::unordered_map<std::string, int> result;
-    if (startNodeMap == nullptr) {
+    if (!startNodeMap) {
         return result;
     }
     for (const auto& [key, value] : *startNodeMap) {
         if (value.isNil()) {
             continue;
         }
-        const std::optional<int> index = integerValue(value);
+        const std::optional<int> index = integerValue(value.toValue());
         if (!index.has_value()) {
             throw std::runtime_error("Start node for key '" + key +
                                      "' must be an integer");

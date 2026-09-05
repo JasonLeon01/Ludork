@@ -25,8 +25,8 @@ std::string runtimeKind(const RuntimeValue& value) {
     if (value.getIf<std::string>() != nullptr) {
         return "string";
     }
-    if (value.getIf<RuntimeValue::Array>() != nullptr ||
-        value.getIf<RuntimeValue::Map>() != nullptr) {
+    if (RuntimeValueView(value).array().has_value() ||
+        RuntimeValueView(value).map().has_value()) {
         return "table";
     }
     return runtimeReflection().kind(value);
@@ -58,7 +58,7 @@ std::vector<std::string> runtimeKeys(const RuntimeValue& value, bool raw) {
     if (value.isNil()) {
         return {};
     }
-    if (const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>()) {
+    if (std::optional<RuntimeMapView> map = RuntimeValueView(value).map()) {
         std::vector<std::string> result;
         result.reserve(map->size());
         for (const auto& [name, _] : *map) {
@@ -73,9 +73,9 @@ std::vector<std::string> runtimeKeys(const RuntimeValue& value, bool raw) {
 
 RuntimeValue runtimeGet(const RuntimeValue& value, const std::string& name,
                         bool raw = false) {
-    if (const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>()) {
+    if (std::optional<RuntimeMapView> map = RuntimeValueView(value).map()) {
         const auto iterator = map->find(name);
-        return iterator == map->end() ? RuntimeValue() : iterator->second;
+        return !iterator ? RuntimeValue() : iterator->toValue();
     }
     return runtimeReflection().get(
         ludork::runtime::reference::intern(value), name,
@@ -88,16 +88,17 @@ void runtimeSet(const RuntimeValue& value, const std::string& name,
                             member);
 }
 
-RuntimeValue cloneComponentRuntimeValue(const RuntimeValue& value) {
-    if (const RuntimeValue::Array* array = value.getIf<RuntimeValue::Array>()) {
+RuntimeValue cloneComponentRuntimeValue(RuntimeValueView value) {
+    if (std::optional<RuntimeArrayView> array =
+            RuntimeValueView(value).array()) {
         RuntimeValue::Array result;
         result.reserve(array->size());
-        for (const RuntimeValue& item : *array) {
+        for (RuntimeValueView item : *array) {
             result.push_back(cloneComponentRuntimeValue(item));
         }
         return RuntimeValue(std::move(result));
     }
-    if (const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>()) {
+    if (std::optional<RuntimeMapView> map = RuntimeValueView(value).map()) {
         RuntimeValue::Map result;
         result.reserve(map->size());
         for (const auto& [key, item] : *map) {
@@ -107,13 +108,13 @@ RuntimeValue cloneComponentRuntimeValue(const RuntimeValue& value) {
     }
     if (value.getIf<RuntimeValue::Object>() != nullptr ||
         value.getIf<RuntimeHandle>() != nullptr) {
-        RuntimeValue cloned = runtimeReflection().clone(value);
-        return cloned.isNil() && !value.isNil() ? value : cloned;
+        RuntimeValue cloned = runtimeReflection().clone(value.toValue());
+        return cloned.isNil() && !value.isNil() ? value.toValue() : cloned;
     }
-    return value;
+    return value.toValue();
 }
 
-RuntimeValue::Map cloneRuntimeMap(const RuntimeValue::Map& values) {
+RuntimeValue::Map cloneRuntimeMap(RuntimeMapView values) {
     RuntimeValue::Map result;
     result.reserve(values.size());
     for (const auto& [name, value] : values) {
@@ -132,8 +133,8 @@ RuntimeValue resolveRuntimeType(const std::string& name) {
 }
 
 RuntimeValue::Map runtimeStringMap(const RuntimeValue& value) {
-    if (const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>()) {
-        return *map;
+    if (std::optional<RuntimeMapView> map = RuntimeValueView(value).map()) {
+        return map->toMap();
     }
     RuntimeValue::Map result;
     for (const std::string& name : runtimeKeys(value, false)) {
@@ -159,8 +160,9 @@ std::unordered_map<std::string, std::string> componentFieldMapFromValue(
 RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
     const RuntimeValue cached = componentRuntimeCache().get(
         ComponentRuntimeCacheKind::InheritedDefaults, classValue);
-    if (const RuntimeValue::Map* defaults = cached.getIf<RuntimeValue::Map>()) {
-        return *defaults;
+    if (std::optional<RuntimeMapView> defaults =
+            RuntimeValueView(cached).map()) {
+        return defaults->toMap();
     }
     RuntimeValue::Map result;
     const RuntimeValue::Array mro = runtimeMro(classValue);
@@ -284,8 +286,8 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
     }
     const RuntimeValue cached = componentRuntimeCache().get(
         ComponentRuntimeCacheKind::Types, classValue);
-    if (const RuntimeValue::Map* types = cached.getIf<RuntimeValue::Map>()) {
-        return *types;
+    if (std::optional<RuntimeMapView> types = RuntimeValueView(cached).map()) {
+        return types->toMap();
     }
     RuntimeValue::Map result;
     RuntimeValue::Array mro = runtimeMro(classValue);
@@ -324,7 +326,8 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
 RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
     const RuntimeValue cached = componentRuntimeCache().get(
         ComponentRuntimeCacheKind::FieldDefaults, componentType);
-    if (const RuntimeValue::Map* defaults = cached.getIf<RuntimeValue::Map>()) {
+    if (std::optional<RuntimeMapView> defaults =
+            RuntimeValueView(cached).map()) {
         return cloneRuntimeMap(*defaults);
     }
     RuntimeValue::Map defaults;
@@ -360,7 +363,7 @@ std::unordered_map<std::string, std::string> getComponentFieldMap(
     const RuntimeValue& classValue) {
     const RuntimeValue cached = componentRuntimeCache().get(
         ComponentRuntimeCacheKind::FieldMap, classValue);
-    if (cached.getIf<RuntimeValue::Map>() != nullptr) {
+    if (RuntimeValueView(cached).map().has_value()) {
         return componentFieldMapFromValue(cached);
     }
     std::unordered_map<std::string, std::string> result;
@@ -421,7 +424,8 @@ RuntimeValue::Map componentToData(const RuntimeValue& value) {
     RuntimeValue::Map result;
     for (const std::string& key : keys) {
         if (!key.empty() && key.front() != '_') {
-            result[key] = cloneComponentRuntimeValue(runtimeGet(value, key));
+            const RuntimeValue member = runtimeGet(value, key);
+            result[key] = cloneComponentRuntimeValue(member);
         }
     }
     return result;
@@ -471,10 +475,11 @@ bool isBlankComponentValue(const RuntimeValue& value) {
     if (const std::string* text = value.getIf<std::string>()) {
         return text->empty();
     }
-    if (const RuntimeValue::Array* array = value.getIf<RuntimeValue::Array>()) {
+    if (std::optional<RuntimeArrayView> array =
+            RuntimeValueView(value).array()) {
         return array->empty();
     }
-    if (const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>()) {
+    if (std::optional<RuntimeMapView> map = RuntimeValueView(value).map()) {
         return map->empty();
     }
     return runtimeKind(value) == "table" && runtimeKeys(value, false).empty();
@@ -498,17 +503,17 @@ void mergeComponentDefaults(const RuntimeValue& object) {
         if (inheritedIterator == inheritedDefaults.end()) {
             continue;
         }
-        const RuntimeValue::Map* componentDefaults =
-            inheritedIterator->second.getIf<RuntimeValue::Map>();
-        if (componentDefaults == nullptr) {
+        std::optional<RuntimeMapView> componentDefaults =
+            RuntimeValueView(inheritedIterator->second).map();
+        if (!componentDefaults) {
             continue;
         }
         for (const auto& [fieldName, parent] : *componentDefaults) {
             const RuntimeValue current = runtimeGet(value, fieldName);
             if (isBlankComponentValue(current)) {
-                runtimeSet(
-                    value, fieldName,
-                    cloneComponentFieldValue(componentType, fieldName, parent));
+                runtimeSet(value, fieldName,
+                           cloneComponentFieldValue(componentType, fieldName,
+                                                    parent.toValue()));
             }
         }
     }
@@ -543,9 +548,11 @@ RuntimeValue::Array attachInstanceComponents(const RuntimeValue& object) {
         if (results.empty()) {
             continue;
         }
-        if (const RuntimeValue::Array* actors =
-                results.front().getIf<RuntimeValue::Array>()) {
-            spawned.insert(spawned.end(), actors->begin(), actors->end());
+        if (std::optional<RuntimeArrayView> actors =
+                RuntimeValueView(results.front()).array()) {
+            for (RuntimeValueView actor : *actors) {
+                spawned.push_back(actor.toValue());
+            }
         }
     }
     return spawned;

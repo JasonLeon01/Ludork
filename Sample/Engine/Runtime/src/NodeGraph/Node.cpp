@@ -1,7 +1,7 @@
 #include <Runtime/NodeGraph/Node.hpp>
 
 #include <Runtime/NodeGraph/Graph.hpp>
-#include <Runtime/NodeGraph/NodeGraphRuntime.hpp>
+#include "NodeGraphRuntime/NodeGraphRuntimeInternal.hpp"
 #include <Runtime/TypedDataService.hpp>
 
 #include <algorithm>
@@ -11,66 +11,71 @@
 
 namespace {
 
-const RuntimeValue* mapValue(const RuntimeValue::Map& map,
-                             const std::string& name) {
-    const auto iterator = map.find(name);
-    return iterator == map.end() ? nullptr : &iterator->second;
+std::optional<RuntimeValueView> mapValue(RuntimeMapView map,
+                                         const std::string& name) {
+    return map.find(name);
 }
 
-const RuntimeValue::Map* asMap(const RuntimeValue* value) {
-    return value == nullptr ? nullptr : value->getIf<RuntimeValue::Map>();
+std::optional<RuntimeMapView> asMap(
+    const std::optional<RuntimeValueView>& value) {
+    return !value ? std::nullopt : RuntimeValueView(*value).map();
 }
 
-const RuntimeValue::Array* asArray(const RuntimeValue* value) {
-    return value == nullptr ? nullptr : value->getIf<RuntimeValue::Array>();
+std::optional<RuntimeArrayView> asArray(
+    const std::optional<RuntimeValueView>& value) {
+    return !value ? std::nullopt : RuntimeValueView(*value).array();
 }
 
-std::string stringValue(const RuntimeValue* value,
+std::string stringValue(const std::optional<RuntimeValueView>& value,
                         const std::string& fallback = std::string()) {
-    if (value == nullptr) {
+    if (!value) {
         return fallback;
     }
     const std::string* text = value->getIf<std::string>();
     return text == nullptr ? fallback : *text;
 }
 
-bool boolValue(const RuntimeValue* value, bool fallback = false) {
-    if (value == nullptr) {
+bool boolValue(const std::optional<RuntimeValueView>& value,
+               bool fallback = false) {
+    if (!value) {
         return fallback;
     }
     const bool* flag = value->getIf<bool>();
     return flag == nullptr ? fallback : *flag;
 }
 
-RuntimeIdentityPtr identityValue(const RuntimeValue* value) {
-    if (value == nullptr) {
+RuntimeIdentityPtr identityValue(const std::optional<RuntimeValueView>& value) {
+    if (!value) {
         return nullptr;
     }
     const RuntimeHandle* identity = value->getIf<RuntimeHandle>();
     return identity == nullptr ? nullptr : identity->identity();
 }
 
-RuntimeValue::Array singleOrArray(const RuntimeValue* value) {
-    if (value == nullptr) {
+RuntimeValue::Array singleOrArray(
+    const std::optional<RuntimeValueView>& value) {
+    if (!value) {
         return {};
     }
-    if (const RuntimeValue::Array* array =
-            value->getIf<RuntimeValue::Array>()) {
-        return *array;
+    if (std::optional<RuntimeArrayView> array =
+            RuntimeValueView(*value).array()) {
+        return array->toArray();
     }
-    return {*value};
+    return {value->toValue()};
 }
 
-std::vector<NodeNamedValues> parseNamedValues(const RuntimeValue* value) {
+std::vector<NodeNamedValues> parseNamedValues(
+    const std::optional<RuntimeValueView>& value) {
     std::vector<NodeNamedValues> result;
-    const RuntimeValue::Array* entries = asArray(value);
-    if (entries == nullptr) {
+    std::optional<RuntimeArrayView> entries = asArray(value);
+    if (!entries) {
         return result;
     }
     result.reserve(entries->size());
-    for (const RuntimeValue& entryValue : *entries) {
-        const RuntimeValue::Map* entry = entryValue.getIf<RuntimeValue::Map>();
-        if (entry == nullptr) {
+    for (RuntimeValueView entryValue : *entries) {
+        std::optional<RuntimeMapView> entry =
+            RuntimeValueView(entryValue).map();
+        if (!entry) {
             continue;
         }
         const std::string name = stringValue(mapValue(*entry, "name"));
@@ -91,13 +96,14 @@ DataNode::DataNode(std::string function, RuntimeValue values,
       resolvedDefinition_(std::move(resolvedDefinition)) {
     RuntimeValue::Array resolvedParams;
     if (!values.isNil()) {
-        const RuntimeValue::Array* array = values.getIf<RuntimeValue::Array>();
-        const RuntimeValue::Map* map = values.getIf<RuntimeValue::Map>();
-        if (array == nullptr && (map == nullptr || !map->empty())) {
+        std::optional<RuntimeArrayView> array =
+            RuntimeValueView(values).array();
+        std::optional<RuntimeMapView> map = RuntimeValueView(values).map();
+        if (!array && (!map || !map->empty())) {
             throw std::invalid_argument("DataNode params must be an array");
         }
-        if (array != nullptr) {
-            resolvedParams = *array;
+        if (array.has_value()) {
+            resolvedParams = array->toArray();
         }
     }
     params = RuntimeValue(std::move(resolvedParams));
@@ -107,12 +113,12 @@ RuntimeValue::Array DataNode::getParams() const {
     if (params.isNil()) {
         return {};
     }
-    const RuntimeValue::Array* values = params.getIf<RuntimeValue::Array>();
-    const RuntimeValue::Map* map = params.getIf<RuntimeValue::Map>();
-    if (values == nullptr && (map == nullptr || !map->empty())) {
+    std::optional<RuntimeArrayView> values = RuntimeValueView(params).array();
+    std::optional<RuntimeMapView> map = RuntimeValueView(params).map();
+    if (!values && (!map || !map->empty())) {
         throw std::invalid_argument("DataNode params must be an array");
     }
-    return values == nullptr ? RuntimeValue::Array{} : *values;
+    return !values ? RuntimeValue::Array{} : values->toArray();
 }
 
 const RuntimeValue& DataNode::getResolvedDefinition() const {
@@ -156,11 +162,12 @@ void Node::initialise(RuntimeValue values, RuntimeValue resolvedDefinition) {
     analyseFunction(resolvedDefinition);
     RuntimeValue::Array rawParams;
     if (!values.isNil()) {
-        const RuntimeValue::Array* array = values.getIf<RuntimeValue::Array>();
-        if (array == nullptr) {
+        std::optional<RuntimeArrayView> array =
+            RuntimeValueView(values).array();
+        if (!array) {
             throw std::invalid_argument("Node params must be an array");
         }
-        rawParams = *array;
+        rawParams = array->toArray();
     }
     paramCount_ = rawParams.size();
     params = RuntimeValue(resolveStoredParams(rawParams));
@@ -187,11 +194,12 @@ RuntimeValue::Array Node::execute(const InputPinMap& inputPinReplace) {
 }
 
 NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
+    ludork::runtime::RuntimeScope scope;
     const Node& definition = compiledDefinition();
     const RuntimeValue parent = getParent();
-    const RuntimeValue::Array* storedParams =
-        params.getIf<RuntimeValue::Array>();
-    if (storedParams == nullptr) {
+    std::optional<RuntimeArrayView> storedParams =
+        RuntimeValueView(params).array();
+    if (!storedParams) {
         throw std::invalid_argument("Node params must be an array");
     }
     RuntimeValue::Array actualParams(definition.paramCount_);
@@ -204,7 +212,7 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
         }
 
         const RuntimeValue stored = index < storedParams->size()
-                                        ? (*storedParams)[index]
+                                        ? (*storedParams)[index].toValue()
                                         : RuntimeValue();
         if (const std::string* text = stored.getIf<std::string>();
             text != nullptr && *text == "self") {
@@ -225,11 +233,14 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
     const RuntimeIdentityPtr context =
         parentGraph == nullptr ? nullptr : parentGraph->getLocalGraph();
     if (context != nullptr) {
-        nodeGraphRuntime().setContextValue(
-            context, "__key__", RuntimeValue(parentGraph->getDoingPartKey()));
+        ludork::runtime::node_graph_detail::setNodeGraphContextValue(
+            scope, RuntimeHandle(context), "__key__",
+            RuntimeValue(parentGraph->getDoingPartKey()));
     }
-    NodeResult result = nodeGraphRuntime().invoke(
-        definition.nodeFunction_, selfValue, actualParams, context);
+    NodeResult result =
+        ludork::runtime::node_graph_detail::invokeNodeGraphCallable(
+            scope, RuntimeHandle(definition.nodeFunction_), selfValue,
+            actualParams, RuntimeHandle(context));
     if (result.count == 0) {
         result.values = {RuntimeValue()};
         result.count = 1;
@@ -271,7 +282,10 @@ RuntimeIdentityPtr Node::getRefLocal(const RuntimeIdentityPtr& nodeFunction) {
     if (nodeFunction == nullptr) {
         return nullptr;
     }
-    return nodeGraphRuntime().refLocal(nodeFunction);
+    ludork::runtime::RuntimeScope scope;
+    return ludork::runtime::node_graph_detail::nodeGraphRefLocal(
+               scope, RuntimeHandle(nodeFunction))
+        .identity();
 }
 
 const NodeMemberMetadata& Node::getMemberMetadata() const {
@@ -289,45 +303,44 @@ std::shared_ptr<Graph> Node::getParentGraph() const {
 Node::ResolvedCallable Node::resolvedCallable(
     const RuntimeValue& resolvedDefinition) {
     ResolvedCallable result;
-    const RuntimeValue::Map* descriptor =
-        resolvedDefinition.getIf<RuntimeValue::Map>();
-    if (descriptor == nullptr) {
+    std::optional<RuntimeMapView> descriptor =
+        RuntimeValueView(resolvedDefinition).map();
+    if (!descriptor) {
         throw std::runtime_error("Node resolved definition must be a map");
     }
-    result.descriptor = *descriptor;
+    result.descriptor = descriptor->toMap();
     result.callable = identityValue(mapValue(*descriptor, "callable"));
     result.selfFunction = boolValue(mapValue(*descriptor, "isSelf"));
     result.declaringModule =
         stringValue(mapValue(*descriptor, "declaringModule"));
     result.displayName = stringValue(mapValue(*descriptor, "displayName"));
-    if (const RuntimeValue::Array* names =
+    if (std::optional<RuntimeArrayView> names =
             asArray(mapValue(*descriptor, "paramNames"))) {
-        for (const RuntimeValue& value : *names) {
+        for (RuntimeValueView value : *names) {
             if (const std::string* parameterName = value.getIf<std::string>()) {
                 result.parameterNames.push_back(*parameterName);
             }
         }
     }
-    const RuntimeValue* metadata = mapValue(*descriptor, "memberMeta");
+    const auto metadata = mapValue(*descriptor, "memberMeta");
     result.metadata =
-        parseMemberMetadata(metadata == nullptr ? RuntimeValue() : *metadata);
+        parseMemberMetadata(metadata.value_or(RuntimeValueView()));
     return result;
 }
 
-NodeMemberMetadata Node::parseMemberMetadata(
-    const RuntimeValue& metadataValue) {
+NodeMemberMetadata Node::parseMemberMetadata(RuntimeValueView metadataValue) {
     NodeMemberMetadata metadata;
-    const RuntimeValue::Map* value = metadataValue.getIf<RuntimeValue::Map>();
-    if (value == nullptr) {
+    std::optional<RuntimeMapView> value = RuntimeValueView(metadataValue).map();
+    if (!value) {
         return metadata;
     }
 
-    const RuntimeValue::Map* parameterTypes =
+    std::optional<RuntimeMapView> parameterTypes =
         asMap(mapValue(*value, "parameterTypes"));
-    const RuntimeValue::Array* parameters =
+    std::optional<RuntimeArrayView> parameters =
         asArray(mapValue(*value, "parameters"));
-    if (parameters != nullptr) {
-        for (const RuntimeValue& parameterValue : *parameters) {
+    if (parameters.has_value()) {
+        for (RuntimeValueView parameterValue : *parameters) {
             if (const std::string* name = parameterValue.getIf<std::string>()) {
                 if (std::find(metadata.parameterOrder.begin(),
                               metadata.parameterOrder.end(),
@@ -338,19 +351,19 @@ NodeMemberMetadata Node::parseMemberMetadata(
                 }
                 metadata.parameterOrder.push_back(*name);
                 RuntimeValue parameterType(std::string("any"));
-                if (parameterTypes != nullptr) {
+                if (parameterTypes.has_value()) {
                     const auto type = parameterTypes->find(*name);
-                    if (type != parameterTypes->end()) {
-                        parameterType = type->second;
+                    if (type.has_value()) {
+                        parameterType = type->toValue();
                     }
                 }
                 metadata.parameterTypes.emplace(*name,
                                                 std::move(parameterType));
                 continue;
             }
-            const RuntimeValue::Map* entry =
-                parameterValue.getIf<RuntimeValue::Map>();
-            if (entry == nullptr) {
+            std::optional<RuntimeMapView> entry =
+                RuntimeValueView(parameterValue).map();
+            if (!entry) {
                 continue;
             }
             const std::string name = stringValue(mapValue(*entry, "name"));
@@ -364,24 +377,26 @@ NodeMemberMetadata Node::parseMemberMetadata(
                     "parameters order contains duplicate key '" + name + "'");
             }
             metadata.parameterOrder.push_back(name);
-            const RuntimeValue* type = mapValue(*entry, "type");
+            const auto type = mapValue(*entry, "type");
             metadata.parameterTypes.emplace(
                 name,
-                type == nullptr ? RuntimeValue(std::string("any")) : *type);
+                !type ? RuntimeValue(std::string("any")) : type->toValue());
         }
     }
 
-    const RuntimeValue::Array* defaults = asArray(mapValue(*value, "defaults"));
-    if (defaults == nullptr) {
+    std::optional<RuntimeArrayView> defaults =
+        asArray(mapValue(*value, "defaults"));
+    if (!defaults) {
         defaults = asArray(mapValue(*value, "default"));
     }
-    if (defaults != nullptr) {
+    if (defaults.has_value()) {
         const std::size_t count =
             std::min(defaults->size(), metadata.parameterOrder.size());
         for (std::size_t index = 0; index < count; ++index) {
             if (!(*defaults)[index].isNil()) {
                 metadata.parameterDefaults.emplace(
-                    metadata.parameterOrder[index], (*defaults)[index]);
+                    metadata.parameterOrder[index],
+                    (*defaults)[index].toValue());
             }
         }
     }

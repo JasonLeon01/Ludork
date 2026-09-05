@@ -36,6 +36,8 @@ Ludork 1.0.0 不提供 Linux 或 Intel Mac 编辑器安装包。
 
 正式安装包为自包含发布，无需另外安装 .NET 运行时。macOS 可能会要求确认是否信任从互联网下载的应用。
 
+Windows 请运行安装根目录中的 `Ludork.exe`。该启动器会打开 `Binaries` 中的实际编辑器；DLL 与 .NET 运行时文件也保存在 `Binaries` 中。`Locale`、`Templates`、`tools`、`Plugins`、`plugins.json`、文档及许可证仍位于安装根目录。编辑器设置保存到根目录的 `Ludork.ini`，插件数据保存在 `Plugins/.data` 下。移动便携安装时，请保留完整的软件包目录。
+
 ## 选择工程模板
 
 | 模板 | 适用场景 | 开发环境要求 |

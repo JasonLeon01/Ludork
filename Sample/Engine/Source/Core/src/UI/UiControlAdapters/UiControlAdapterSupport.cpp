@@ -25,9 +25,9 @@ using ludork::runtime::value_reader::requireInteger;
 using ludork::runtime::value_reader::requireMap;
 using ludork::runtime::value_reader::requireUnsigned;
 
-sf::Vector2f requireVector2f(const RuntimeValue& value,
+sf::Vector2f requireVector2f(RuntimeValueView value,
                              const std::string& source) {
-    const RuntimeValue::Array& array = requireArray(value, source);
+    const RuntimeArrayView array = requireArray(value, source);
     if (array.size() != 2) {
         throw std::invalid_argument(source + " must contain two numbers");
     }
@@ -35,9 +35,9 @@ sf::Vector2f requireVector2f(const RuntimeValue& value,
             requireFloat(array[1], source + "[1]")};
 }
 
-sf::Vector2u requireVector2u(const RuntimeValue& value,
+sf::Vector2u requireVector2u(RuntimeValueView value,
                              const std::string& source) {
-    const RuntimeValue::Array& array = requireArray(value, source);
+    const RuntimeArrayView array = requireArray(value, source);
     if (array.size() != 2) {
         throw std::invalid_argument(source + " must contain two integers");
     }
@@ -45,9 +45,8 @@ sf::Vector2u requireVector2u(const RuntimeValue& value,
             requireUnsigned(array[1], source + "[1]")};
 }
 
-sf::IntRect requireIntRect(const RuntimeValue& value,
-                           const std::string& source) {
-    const RuntimeValue::Array& array = requireArray(value, source);
+sf::IntRect requireIntRect(RuntimeValueView value, const std::string& source) {
+    const RuntimeArrayView array = requireArray(value, source);
     if (array.size() != 4) {
         throw std::invalid_argument(source + " must contain four integers");
     }
@@ -57,8 +56,8 @@ sf::IntRect requireIntRect(const RuntimeValue& value,
              requireInt(array[3], source + "[3]")}};
 }
 
-sf::Color requireColor(const RuntimeValue& value, const std::string& source) {
-    const RuntimeValue::Array& array = requireArray(value, source);
+sf::Color requireColor(RuntimeValueView value, const std::string& source) {
+    const RuntimeArrayView array = requireArray(value, source);
     if (array.size() != 3 && array.size() != 4) {
         throw std::invalid_argument(
             source + " must contain three or four integer channels");
@@ -104,7 +103,7 @@ std::vector<std::string> stringArrayProperty(
     if (value == nullptr) {
         return fallback;
     }
-    const RuntimeValue::Array& array = requireArray(*value, name);
+    const RuntimeArrayView array = requireArray(*value, name);
     std::vector<std::string> result;
     result.reserve(array.size());
     for (std::size_t index = 0; index < array.size(); ++index) {

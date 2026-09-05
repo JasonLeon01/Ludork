@@ -26,6 +26,8 @@ goto usage
 set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-package"
 set "STAGE_DIR=%WORK_DIR%\dist"
+set "BINARIES_DIR=%STAGE_DIR%\Binaries"
+set "LAUNCHER_BUILD_DIR=%WORK_DIR%\launcher"
 set "FINAL_DIR=%ROOT_DIR%\dist"
 set "BACKUP_DIR=%WORK_DIR%\previous-dist"
 set "DIST_BACKED_UP=0"
@@ -47,6 +49,15 @@ if errorlevel 1 (
 where cmake.exe >nul 2>nul
 if errorlevel 1 (
     echo CMake was not found.
+    exit /b 1
+)
+
+set "PRODUCT_VERSION="
+for /f "usebackq delims=" %%V in (`dotnet msbuild "%PROJECT_FILE%" -nologo -getProperty:Version`) do (
+    if not defined PRODUCT_VERSION set "PRODUCT_VERSION=%%V"
+)
+if not defined PRODUCT_VERSION (
+    echo The Ludork product version could not be read.
     exit /b 1
 )
 
@@ -78,6 +89,8 @@ for %%F in (
     "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
     "%ROOT_DIR%\tools\build_standalone.bat"
     "%ROOT_DIR%\tools\pack_project.bat"
+    "%ROOT_DIR%\tools\validate_editor_windows_layout.bat"
+    "%ROOT_DIR%\tools\editor_launcher\CMakeLists.txt"
     "%SCRIPT_TOOLS%"
     "%SCRIPT_TOOLS_VERSION_REPORT%"
     "%ROOT_DIR%\Sample\CMakeLists.txt"
@@ -134,11 +147,37 @@ if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 mkdir "%STAGE_DIR%"
 if errorlevel 1 goto failed
 
-echo Publishing Windows x64 editor...
-dotnet publish "%PROJECT_FILE%" -c Release -r win-x64 --self-contained true -o "%STAGE_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
+echo Building Windows x64 editor launcher...
+cmake -S "%ROOT_DIR%\tools\editor_launcher" -B "%LAUNCHER_BUILD_DIR%" -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=%PRODUCT_VERSION%"
+if errorlevel 1 goto failed
+cmake --build "%LAUNCHER_BUILD_DIR%" --config Release --target LudorkEditorLauncher
+if errorlevel 1 goto failed
+copy /Y "%LAUNCHER_BUILD_DIR%\bin\Release\Ludork.exe" "%STAGE_DIR%\Ludork.exe" >nul
 if errorlevel 1 goto failed
 
-"%SCRIPT_TOOLS%" prune-editor-windows-publish "%STAGE_DIR%"
+echo Publishing Windows x64 editor...
+dotnet publish "%PROJECT_FILE%" -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
+if errorlevel 1 goto failed
+
+"%SCRIPT_TOOLS%" prune-editor-windows-publish "%BINARIES_DIR%"
+if errorlevel 1 goto failed
+
+echo Moving editor content to the package root...
+for %%D in (Locale docs Licenses) do (
+    move "%BINARIES_DIR%\%%D" "%STAGE_DIR%\%%D" >nul
+    if errorlevel 1 goto failed
+)
+for %%F in (LICENSE.md README.md README_zh_CN.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md) do (
+    move "%BINARIES_DIR%\%%F" "%STAGE_DIR%\" >nul
+    if errorlevel 1 goto failed
+)
+for %%F in ("%BINARIES_DIR%\About_*.md") do (
+    move "%%~fF" "%STAGE_DIR%\" >nul
+    if errorlevel 1 goto failed
+)
+if exist "%BINARIES_DIR%\Page" rmdir /S /Q "%BINARIES_DIR%\Page"
+
+call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%STAGE_DIR%"
 if errorlevel 1 goto failed
 
 echo Compiling packaged locale data...
@@ -156,32 +195,6 @@ if defined PREBUILT_TEMPLATES_DIR (
 ) else (
     echo Generating editor project templates...
     call "%ROOT_DIR%\tools\create_templates.bat" Release "%STAGE_DIR%\Templates"
-    if errorlevel 1 goto failed
-)
-
-echo Copying editor resources...
-if exist "%STAGE_DIR%\docs" rmdir /S /Q "%STAGE_DIR%\docs"
-if exist "%STAGE_DIR%\Page" rmdir /S /Q "%STAGE_DIR%\Page"
-call :copy_directory "%ROOT_DIR%\docs\_images" "%STAGE_DIR%\docs\_images"
-if errorlevel 1 goto failed
-call :copy_directory "%ROOT_DIR%\docs\en_GB" "%STAGE_DIR%\docs\en_GB"
-if errorlevel 1 goto failed
-call :copy_directory "%ROOT_DIR%\docs\zh_CN" "%STAGE_DIR%\docs\zh_CN"
-if errorlevel 1 goto failed
-call :copy_directory "%ROOT_DIR%\Licenses" "%STAGE_DIR%\Licenses"
-if errorlevel 1 goto failed
-for %%F in (
-    LICENSE.md
-    README.md
-    README_zh_CN.md
-    THIRD_PARTY_NOTICES.md
-    THIRD_PARTY_NOTICES_zh_CN.md
-) do (
-    copy /Y "%ROOT_DIR%\%%F" "%STAGE_DIR%\%%F" >nul
-    if errorlevel 1 goto failed
-)
-for %%F in ("%ROOT_DIR%\About_*.md") do (
-    copy /Y "%%~fF" "%STAGE_DIR%\%%~nxF" >nul
     if errorlevel 1 goto failed
 )
 
@@ -360,7 +373,7 @@ exit /b 0
 
 :validate_package
 set "PACKAGE_DIR=%~1"
-call :require_file "%PACKAGE_DIR%\Ludork.exe"
+call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%PACKAGE_DIR%"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\Locale\en_GB"
 if errorlevel 1 exit /b 1
@@ -523,16 +536,16 @@ for %%F in (
     Avalonia.X11.dll
     Tmds.DBus.Protocol.dll
 ) do (
-    if exist "%PACKAGE_DIR%\%%F" (
-        echo Foreign platform assembly was found: %PACKAGE_DIR%\%%F
+    if exist "%PACKAGE_DIR%\Binaries\%%F" (
+        echo Foreign platform assembly was found: %PACKAGE_DIR%\Binaries\%%F
         exit /b 1
     )
 )
-call :require_file "%PACKAGE_DIR%\Avalonia.Metal.dll"
+call :require_file "%PACKAGE_DIR%\Binaries\Avalonia.Metal.dll"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\Ludork.deps.json"
+call :require_file "%PACKAGE_DIR%\Binaries\Ludork.deps.json"
 if errorlevel 1 exit /b 1
-findstr /I /C:"Avalonia.Metal" "%PACKAGE_DIR%\Ludork.deps.json" >nul
+findstr /I /C:"Avalonia.Metal" "%PACKAGE_DIR%\Binaries\Ludork.deps.json" >nul
 if errorlevel 1 (
     echo Required Avalonia.Metal dependency was not found in Ludork.deps.json.
     exit /b 1
@@ -544,7 +557,7 @@ for %%P in (
     Avalonia.X11
     Tmds.DBus.Protocol
 ) do (
-    findstr /I /C:"%%P" "%PACKAGE_DIR%\Ludork.deps.json" >nul
+    findstr /I /C:"%%P" "%PACKAGE_DIR%\Binaries\Ludork.deps.json" >nul
     if not errorlevel 1 (
         echo Foreign platform dependency was found in Ludork.deps.json: %%P
         exit /b 1
@@ -569,6 +582,8 @@ for %%P in (
     "%PACKAGE_DIR%\Locale\locale.json"
     "%PACKAGE_DIR%\tools\pack_editor.bat"
     "%PACKAGE_DIR%\tools\pack_editor_msi.bat"
+    "%PACKAGE_DIR%\tools\validate_editor_windows_layout.bat"
+    "%PACKAGE_DIR%\tools\editor_launcher"
     "%PACKAGE_DIR%\tools\installer"
     "%PACKAGE_DIR%\tools\create_templates.bat"
     "%PACKAGE_DIR%\tools\run_editor.bat"

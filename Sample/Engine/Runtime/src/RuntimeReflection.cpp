@@ -97,6 +97,22 @@ std::string valueKind(const sol::object& value) {
 
 std::string RuntimeReflectionFacade::kind(const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
+    if (value.isNil()) {
+        return "nil";
+    }
+    if (value.getIf<bool>() != nullptr) {
+        return "boolean";
+    }
+    if (value.getIf<std::int64_t>() != nullptr ||
+        value.getIf<double>() != nullptr) {
+        return "number";
+    }
+    if (value.getIf<std::string>() != nullptr) {
+        return "string";
+    }
+    if (value.view().array() || value.view().map()) {
+        return "table";
+    }
     return valueKind(writeValue(sol::state_view(runtime.state()), value));
 }
 

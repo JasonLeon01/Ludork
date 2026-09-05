@@ -1,5 +1,8 @@
 #include <Runtime/RuntimeReference.hpp>
 #include "ClassRuntimeInternal.hpp"
+#include "RuntimeServiceInternals.hpp"
+#include "RuntimeBindingTraits.hpp"
+#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
 #include <Runtime/Components/ComponentRuntime.hpp>
 #include <Runtime/RuntimeValue.hpp>
@@ -41,10 +44,10 @@ RuntimeHandle resolverState() {
     }
     RuntimeHandle state = table();
     RuntimeHandle classes = table();
-    rawSet(classes, "", table());
     rawSet(state, "classes", classes);
     rawSet(state, "classData", table());
     rawSet(state, "records", table());
+    rawSet(state, "classNames", table());
     RuntimeHandle configReferenceCache = table();
     RuntimeHandle configReferenceCacheMetatable = table();
     rawSet(configReferenceCacheMetatable, "__mode", "k");
@@ -54,8 +57,21 @@ RuntimeHandle resolverState() {
     return state;
 }
 
-std::tuple<RuntimeValue, RuntimeValue> resolveClass(
-    const RuntimeValue& rawPath, const RuntimeValue& rawRoot);
+namespace {
+
+void indexClassPath(const RuntimeHandle& state, const std::string& classPath,
+                    bool dataBacked) {
+    std::string className;
+    if (dataBacked) {
+        className = classPath;
+        std::replace(className.begin(), className.end(), '.', '_');
+    } else {
+        className = classPath.substr(classPath.find_last_of('.') + 1);
+    }
+    rawSet(requireTable(rawGet(state, "classNames")), className, classPath);
+}
+
+}  // namespace
 
 std::optional<std::string> directModuleMetadataType(
     const std::string& moduleName) {
@@ -136,7 +152,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     RuntimeValue rawData = RuntimeValue();
     if (!is<std::string>(rawRoot) || as<std::string>(rawRoot).empty()) {
         rawData =
-            retain(makeValue(runtimeProviders().blueprintClassData(classPath)));
+            RuntimeValue(runtimeProviders().blueprintClassData(classPath));
     }
     RuntimeValue targetClass = RuntimeValue();
     if (!isTable(rawData)) {
@@ -150,6 +166,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         }
         if (!targetClass.isNil()) {
             rawSet(classes, classPath, targetClass);
+            indexClassPath(state, classPath, false);
             return {targetClass, RuntimeValue()};
         }
 
@@ -162,7 +179,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         if (!jsonExists(filePath)) {
             throw std::runtime_error("Class " + classPath + " not found");
         }
-        rawData = retain(getJSONData(filePath));
+        rawData = intern(getJSONData(filePath));
     }
     if (!isTable(rawData)) {
         throw std::runtime_error("Class data must be a table: " + classPath);
@@ -187,7 +204,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     const RuntimeValue rawAttrs =
         rawGet(ludork::runtime::reference::intern(definitionData), "attrs");
     RuntimeValue copiedAttrs =
-        isTable(rawAttrs) ? deepCopy(rawAttrs) : retain(makeValue(table()));
+        isTable(rawAttrs) ? deepCopy(rawAttrs) : RuntimeValue(table());
     RuntimeValue classAttrs = copiedAttrs;
     rawSet(ludork::runtime::reference::intern(definitionData), "attrs",
            classAttrs);
@@ -229,9 +246,12 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     }
 
     applyConfigValues(parentClass, classAttrs, configReferences(parentClass));
-    TypedDataService& dataValues = typedDataService();
-    const RuntimeValue rawMetadata =
-        retain(dataValues.getAttrMetadata(snapshot(parentClass)));
+    RuntimeScope scope;
+    sol::state_view lua(scope.state());
+    const sol::object metadataOwner = binding::writeLuaValue(lua, parentClass);
+    const RuntimeValue rawMetadata = detail::readRuntimeReference(
+        sol::make_object(lua, detail::collectRuntimeAttrMetadata(
+                                  lua, metadataOwner.as<sol::table>())));
     const RuntimeValue attrMetadata =
         isTable(rawMetadata) ? rawMetadata : table();
     RuntimeHandle attrTypes = table();
@@ -245,7 +265,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         RuntimeValue mixin = loadScriptMixin(classPath, normalizedScriptPath);
         mergeScriptMixin(parentClassTable, mixin, definition, instanceAttrs,
                          classPath, normalizedScriptPath);
-        rawMixin = retain(makeValue(mixin));
+        rawMixin = mixin;
     }
     for (const auto& entry :
          entries(ludork::runtime::reference::intern(classAttrs))) {
@@ -260,8 +280,9 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         RuntimeValue targetType = RuntimeValue();
         if (!isTable(rawFieldMetadata)) {
             if (is<std::string>(entry.first)) {
-                targetType = retain(dataValues.resolveAttrValueType(
-                    snapshot(parentClass), as<std::string>(entry.first)));
+                targetType = detail::readRuntimeReference(
+                    detail::resolveRuntimeAttrValueType(
+                        lua, metadataOwner, as<std::string>(entry.first)));
             }
             if (!targetType.isNil()) {
                 rawSet(attrTypes, entry.first, targetType);
@@ -293,12 +314,11 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     RuntimeHandle bases = table();
     rawSet(bases, 1, parentClass);
     RuntimeValue generatedClass = finalizeClass(definition, bases);
-    targetClass = retain(makeValue(generatedClass));
+    targetClass = generatedClass;
 
     RuntimeHandle record = table();
     const RuntimeValue parentRecord =
         rawGet(requireTable(rawGet(state, "records")), parentPath);
-    rawSet(record, "class", generatedClass);
     rawSet(record, "attrs", instanceAttrs);
     rawSet(record, "parent", parentClass);
     rawSet(record, "parentRecord", parentRecord);
@@ -323,9 +343,9 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
             rawSet(record, "graphTemplate", graphTemplate);
         }
     }
-    rawSet(record, "graphCompiled", true);
     rawSet(requireTable(rawGet(state, "records")), classPath, record);
     rawSet(classes, classPath, generatedClass);
+    indexClassPath(state, classPath, true);
     return {generatedClass, definitionData};
 }
 

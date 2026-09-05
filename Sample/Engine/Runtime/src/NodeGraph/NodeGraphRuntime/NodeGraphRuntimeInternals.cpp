@@ -1,332 +1,376 @@
-#include <NodeGraph/NodeGraphRuntime/NodeGraphRuntimeInternal.hpp>
+#include "NodeGraphRuntimeInternal.hpp"
+#include "RuntimeBindingTraits.hpp"
+#include "RuntimeServiceInternals.hpp"
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Runtime/NodeGraph/Node.hpp>
-#include <Runtime/RuntimeReference.hpp>
+#include <Runtime/Detail/RuntimeServices.hpp>
+#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
 #include <climits>
 #include <exception>
 #include <limits>
 #include <stdexcept>
-#include <utility>
 
 namespace ludork::runtime::node_graph_detail {
-using namespace ludork::runtime::reference;
 namespace {
-
 constexpr const char* NODEGRAPH_REF_LOCALS_KEY =
     "Ludork.Runtime.NodeGraph.refLocals";
 constexpr const char* NODEGRAPH_CONTEXTS_KEY =
     "Ludork.Runtime.NodeGraph.contexts";
 
-std::size_t packedCount(const RuntimeValue& values) {
-    const RuntimeValue count =
-        rawGet(ludork::runtime::reference::intern(values), "n");
-    return is<std::size_t>(count)
-               ? as<std::size_t>(count)
-               : length(ludork::runtime::reference::intern(values));
-}
+struct StackRestore {
+    lua_State* state;
+    int top;
+    ~StackRestore() {
+        lua_settop(state, top);
+    }
+};
 
-RuntimeValue::Array callArguments(const RuntimeValue& self,
-                                  const RuntimeValue& arguments) {
-    const std::size_t count = isTable(arguments) ? packedCount(arguments) : 0;
-    const std::size_t selfCount = self.isNil() ? 0 : 1;
-    if (count > static_cast<std::size_t>(INT_MAX) - selfCount) {
-        throw std::length_error("Node graph argument count overflow");
-    }
-    RuntimeValue::Array result;
-    result.reserve(count + selfCount);
-    if (selfCount != 0) {
-        result.push_back(self);
-    }
-    for (std::size_t index = 1; index <= count; ++index) {
-        result.push_back(
-            rawGet(ludork::runtime::reference::intern(arguments), index));
-    }
-    return result;
+sol::object write(sol::state_view lua, const RuntimeValue& value) {
+    return binding::writeLuaValue(lua, value);
 }
-
-NodeResult nodeResult(const RuntimeValue::Array& values) {
+RuntimeValue snapshot(const sol::object& value) {
+    return binding::readLuaValue<RuntimeValue>(value);
+}
+RuntimeHandle capture(const sol::object& value) {
+    return RuntimeHandle(
+        binding::readOpaqueIdentity<RuntimeIdentityPtr>(value));
+}
+sol::table requireTable(const sol::object& value) {
+    if (!value.is<sol::table>()) {
+        throw std::invalid_argument("Runtime value must be a table");
+    }
+    return value.as<sol::table>();
+}
+bool isCallable(sol::state_view lua, const sol::object& value) {
+    if (value.get_type() == sol::type::function) {
+        return true;
+    }
+    if (value.get_type() != sol::type::table &&
+        value.get_type() != sol::type::userdata) {
+        return false;
+    }
+    return detail::objectMetatable(lua, value)
+               .raw_get<sol::object>("__call")
+               .get_type() == sol::type::function;
+}
+std::size_t packedCount(const sol::table& values) {
+    std::int64_t count = 0;
+    return binding::luaIntegerValue(values.raw_get<sol::object>("n"), count) &&
+                   count >= 0
+               ? static_cast<std::size_t>(count)
+               : values.size();
+}
+NodeResult collect(lua_State* state, int base, int count) {
     NodeResult result;
-    result.count = values.size();
-    result.values.reserve(values.size());
-    for (const RuntimeValue& value : values) {
-        result.values.push_back(snapshot(value));
+    result.count = static_cast<std::size_t>(count);
+    result.values.reserve(result.count);
+    for (int index = 1; index <= count; ++index) {
+        result.values.push_back(
+            snapshot(sol::stack::get<sol::object>(state, base + index)));
     }
     return result;
 }
-
-RuntimeValue contextTarget(const RuntimeValue& value) {
-    requireTable(value);
-    const RuntimeValue graph =
-        rawGet(ludork::runtime::reference::intern(value), "__graph__");
-    return isTable(graph) ? graph : value;
-}
-
-NodeIndex cacheKey(const RuntimeValue& value) {
-    if (is<std::string>(value)) {
-        return as<std::string>(value);
+NodeResult readPacked(const sol::object& value) {
+    NodeResult result;
+    if (!value.is<sol::table>()) {
+        return {{snapshot(value)}, 1};
     }
-    if (!is<std::int64_t>(value)) {
+    const sol::table table = value.as<sol::table>();
+    result.count = packedCount(table);
+    if (result.count > static_cast<std::size_t>(INT_MAX)) {
+        throw std::length_error("Node graph cache value count overflow");
+    }
+    result.values.reserve(result.count);
+    for (std::size_t index = 1; index <= result.count; ++index) {
+        result.values.push_back(snapshot(table.raw_get<sol::object>(index)));
+    }
+    return result;
+}
+sol::table contextTarget(const sol::object& value) {
+    const sol::table table = requireTable(value);
+    const sol::object graph = table.raw_get<sol::object>("__graph__");
+    return graph.is<sol::table>() ? graph.as<sol::table>() : table;
+}
+NodeIndex cacheKey(const sol::object& value) {
+    if (value.get_type() == sol::type::string) {
+        return value.as<std::string>();
+    }
+    std::int64_t index = 0;
+    if (!binding::luaIntegerValue(value, index)) {
         throw std::invalid_argument(
             "Node graph cache keys must be strings or integers");
     }
-    if (!is<int>(value)) {
+    if (index < INT_MIN || index > INT_MAX) {
         throw std::out_of_range("Node graph cache integer key is out of range");
     }
-    return as<int>(value);
+    return static_cast<int>(index);
 }
-
-RuntimeValue cacheKeyValue(const NodeIndex& key) {
-    if (const int* index = std::get_if<int>(&key)) {
-        return makeValue(*index);
-    }
-    return makeValue(std::get<std::string>(key));
-}
-
 }  // namespace
 
 NodeGraphContextObjects createNodeGraphContext(
-    const RuntimeValue& parentClass, const RuntimeValue& parentValue) {
-    RuntimeHandle context = table();
-    setMetatable(ludork::runtime::reference::intern(context), table());
-    RuntimeHandle graph = table();
-    rawSet(ludork::runtime::reference::intern(graph), "parentClass",
-           parentClass);
-    rawSet(ludork::runtime::reference::intern(graph), "localGraph", context);
-    RuntimeHandle parent = table(WeakMode::Values);
-    rawSet(ludork::runtime::reference::intern(parent), 1, parentValue);
-    RuntimeHandle graphMetatable = table();
-    rawSet(
-        graphMetatable, "__index",
-        callback([parent](const RuntimeValue::Array& arguments)
-                     -> RuntimeValue::Array {
-            if (arguments.size() != 2) {
-                throw std::invalid_argument(
-                    "Graph context index expects two arguments");
-            }
-            return {is<std::string>(arguments[1]) &&
-                            as<std::string>(arguments[1]) == "parent"
-                        ? rawGet(ludork::runtime::reference::intern(parent), 1)
-                        : RuntimeValue()};
-        }));
-    rawSet(graphMetatable, "__newindex",
-           callback([parent](const RuntimeValue::Array& arguments)
-                        -> RuntimeValue::Array {
-               if (arguments.size() != 3) {
-                   throw std::invalid_argument(
-                       "Graph context assignment expects three arguments");
-               }
-               if (is<std::string>(arguments[1]) &&
-                   as<std::string>(arguments[1]) == "parent") {
-                   rawSet(ludork::runtime::reference::intern(parent), 1,
-                          arguments[2]);
-               } else {
-                   rawSet(ludork::runtime::reference::intern(arguments[0]),
-                          arguments[1], arguments[2]);
-               }
-               return {};
-           }));
-    setMetatable(ludork::runtime::reference::intern(graph), graphMetatable);
-    rawSet(ludork::runtime::reference::intern(context), "__graph__", graph);
-    rawSet(registryTable(NODEGRAPH_CONTEXTS_KEY, WeakMode::Keys), graph,
-           context);
-    return {context, graph};
+    RuntimeScope& scope, const RuntimeValue& parentClass,
+    const RuntimeValue& parentValue) {
+    sol::state_view lua(scope.state());
+    sol::table context = lua.create_table();
+    context[sol::metatable_key] = lua.create_table();
+    sol::table graph = lua.create_table();
+    graph.raw_set("parentClass", write(lua, parentClass));
+    graph.raw_set("localGraph", context);
+    sol::table parent = detail::createWeakTable(lua, "v");
+    parent.raw_set(1, write(lua, parentValue));
+    sol::table meta = lua.create_table();
+    meta.set_function(
+        "__index",
+        [parent](const sol::object&, const sol::object& key) -> sol::object {
+            return key.get_type() == sol::type::string &&
+                           key.as<std::string>() == "parent"
+                       ? parent.raw_get<sol::object>(1)
+                       : detail::nilObject(sol::state_view(key.lua_state()));
+        });
+    meta.set_function("__newindex",
+                      [parent](sol::table target, const sol::object& key,
+                               const sol::object& value) mutable {
+                          if (key.get_type() == sol::type::string &&
+                              key.as<std::string>() == "parent") {
+                              parent.raw_set(1, value);
+                          } else {
+                              target.raw_set(key, value);
+                          }
+                      });
+    graph[sol::metatable_key] = meta;
+    context.raw_set("__graph__", graph);
+    detail::registryTable(lua, NODEGRAPH_CONTEXTS_KEY, "k")
+        .raw_set(graph, context);
+    return {capture(sol::make_object(lua, context)),
+            capture(sol::make_object(lua, graph))};
 }
-
-RuntimeValue getNodeGraphContextValue(const RuntimeValue& context,
-                                      const std::string& key) {
-    return rawGet(requireTable(context), key);
+RuntimeValue getNodeGraphContextValue(RuntimeScope& scope,
+                                      const RuntimeHandle& context,
+                                      const std::string& key,
+                                      NodeGraphValueRead mode) {
+    const sol::object value =
+        requireTable(write(sol::state_view(scope.state()), context))
+            .raw_get<sol::object>(key);
+    return mode == NodeGraphValueRead::Snapshot
+               ? snapshot(value)
+               : detail::readRuntimeReference(value);
 }
-void setNodeGraphContextValue(const RuntimeValue& context,
+void setNodeGraphContextValue(RuntimeScope& scope, const RuntimeHandle& context,
                               const std::string& key,
                               const RuntimeValue& value) {
-    rawSet(requireTable(context), key, value);
+    sol::state_view lua(scope.state());
+    requireTable(write(lua, context)).raw_set(key, write(lua, value));
 }
-RuntimeValue getNodeGraphContextParent(const RuntimeValue& graph) {
-    return get(ludork::runtime::reference::intern(contextTarget(graph)),
-               "parent");
+RuntimeValue getNodeGraphContextParent(RuntimeScope& scope,
+                                       const RuntimeValue& graph) {
+    sol::state_view lua(scope.state());
+    return snapshot(detail::runtimeIndex(
+        lua, sol::make_object(lua, contextTarget(write(lua, graph))),
+        sol::make_object(lua, "parent"), false));
 }
-void setNodeGraphContextParent(const RuntimeValue& graph,
+void setNodeGraphContextParent(RuntimeScope& scope, const RuntimeValue& graph,
                                const RuntimeValue& parent) {
-    set(ludork::runtime::reference::intern(contextTarget(graph)), "parent",
-        parent);
+    sol::state_view lua(scope.state());
+    detail::runtimeAssign(
+        lua, sol::make_object(lua, contextTarget(write(lua, graph))),
+        sol::make_object(lua, "parent"), write(lua, parent), false);
 }
-
-std::shared_ptr<Node> createNodeGraphNode(const RuntimeValue& nodeModel,
-                                          const RuntimeValue& graph,
-                                          const RuntimeValue& parent,
-                                          const std::string& nodeFunction,
-                                          const RuntimeValue& fallback,
-                                          const RuntimeValue& parameters) {
+std::shared_ptr<Node> createNodeGraphNode(
+    RuntimeScope& scope, const RuntimeValue& nodeModel,
+    const std::shared_ptr<Graph>& graph, const RuntimeValue& parent,
+    const std::string& nodeFunction, const RuntimeHandle& fallback,
+    const RuntimeValue::Array& parameters) {
     if (nodeModel.isNil()) {
         return nullptr;
     }
-    const RuntimeValue constructor =
-        get(ludork::runtime::reference::intern(nodeModel), "new");
-    if (!isFunction(constructor)) {
+    sol::state_view lua(scope.state());
+    const sol::object constructor = detail::runtimeIndex(
+        lua, write(lua, nodeModel), sol::make_object(lua, "new"), false);
+    if (constructor.get_type() != sol::type::function) {
         return nullptr;
     }
-    const RuntimeValue result = first(
-        invoke(ludork::runtime::reference::intern(constructor),
-               {graph, parent, makeValue(nodeFunction), fallback, parameters}));
-    if (result.isNil()) {
+    const int base = lua_gettop(scope.state());
+    StackRestore restore{scope.state(), base};
+    const int count = detail::invokeRuntimeFunction(
+        scope.state(), constructor,
+        {write(lua, RuntimeValue(graph)), write(lua, parent),
+         sol::make_object(lua, nodeFunction), write(lua, fallback),
+         binding::writeLuaValue(lua, parameters)},
+        "node constructor arguments");
+    if (count == 0 || lua_isnil(scope.state(), base + 1)) {
         return nullptr;
     }
-    const std::shared_ptr<Node> node =
-        std::dynamic_pointer_cast<Node>(object(result));
+    std::shared_ptr<RuntimeObject> object;
+    binding::tryReadSharedPointer(
+        sol::stack::get<sol::object>(scope.state(), base + 1), object);
+    const auto node = std::dynamic_pointer_cast<Node>(object);
     if (node == nullptr) {
         throw std::runtime_error(
             "Node model constructor must return an Engine.Node or nil");
     }
     return node;
 }
-
-NodeResult invokeNodeGraphCallable(const RuntimeValue& callable,
+NodeResult invokeNodeGraphCallable(RuntimeScope& scope,
+                                   const RuntimeHandle& callable,
                                    const RuntimeValue& self,
-                                   const RuntimeValue& arguments,
-                                   const RuntimeValue& context) {
-    if (!isCallable(callable)) {
+                                   std::span<const RuntimeValue> arguments,
+                                   const RuntimeHandle& context) {
+    sol::state_view lua(scope.state());
+    const sol::object function = write(lua, callable);
+    const sol::object receiver = write(lua, self);
+    const sol::object local = write(lua, context);
+    if (!isCallable(lua, function)) {
         throw std::runtime_error("Node graph value is not callable");
     }
-    const RuntimeValue::Array values = callArguments(self, arguments);
-    const RuntimeHandle refLocals =
-        registryTable(NODEGRAPH_REF_LOCALS_KEY, WeakMode::Keys);
-    const RuntimeValue oldRef = rawGet(refLocals, callable);
-    RuntimeValue oldActive;
-    const bool hasContext = isTable(context);
-    if (hasContext) {
-        oldActive = rawGet(ludork::runtime::reference::intern(context),
-                           "__activeNodeFunction__");
-        rawSet(ludork::runtime::reference::intern(context),
-               "__activeNodeFunction__", callable);
-        rawSet(refLocals, callable, context);
+    const std::size_t selfCount = binding::isNil(receiver) ? 0 : 1;
+    if (arguments.size() > static_cast<std::size_t>(INT_MAX) - selfCount) {
+        throw std::length_error("Node graph argument count overflow");
     }
-    RuntimeValue::Array results;
+    std::vector<sol::object> values;
+    values.reserve(arguments.size() + selfCount);
+    if (selfCount) {
+        values.push_back(receiver);
+    }
+    for (const RuntimeValue& value : arguments) {
+        values.push_back(write(lua, value));
+    }
+    sol::table refLocals =
+        detail::registryTable(lua, NODEGRAPH_REF_LOCALS_KEY, "k");
+    const sol::object oldRef = refLocals.raw_get<sol::object>(function);
+    sol::object oldActive = detail::nilObject(lua);
+    const bool hasContext = local.is<sol::table>();
+    if (hasContext) {
+        sol::table table = local.as<sol::table>();
+        oldActive = table.raw_get<sol::object>("__activeNodeFunction__");
+        table.raw_set("__activeNodeFunction__", function);
+        refLocals.raw_set(function, local);
+    }
+    const int base = lua_gettop(scope.state());
+    StackRestore restore{scope.state(), base};
+    int count = 0;
     std::exception_ptr failure;
     try {
-        results = invoke(ludork::runtime::reference::intern(callable), values);
+        count = detail::invokeRuntimeFunction(scope.state(), function, values,
+                                              "node graph arguments");
     } catch (...) {
         failure = std::current_exception();
     }
     if (hasContext) {
-        rawSet(ludork::runtime::reference::intern(context),
-               "__activeNodeFunction__", oldActive);
-        rawSet(refLocals, callable, oldRef);
+        local.as<sol::table>().raw_set("__activeNodeFunction__", oldActive);
+        refLocals.raw_set(function, oldRef);
     }
-    if (failure != nullptr) {
+    if (failure) {
         std::rethrow_exception(failure);
     }
-    return nodeResult(results);
+    return collect(scope.state(), base, count);
 }
-
-RuntimeValue nodeGraphRefLocal(const RuntimeValue& callable) {
-    return rawGet(registryTable(NODEGRAPH_REF_LOCALS_KEY, WeakMode::Keys),
-                  callable);
+RuntimeHandle nodeGraphRefLocal(RuntimeScope& scope,
+                                const RuntimeHandle& callable) {
+    sol::state_view lua(scope.state());
+    return capture(detail::registryTable(lua, NODEGRAPH_REF_LOCALS_KEY, "k")
+                       .raw_get<sol::object>(write(lua, callable)));
 }
-
 NodeGraphConditionResult evaluateNodeGraphCondition(
-    const RuntimeValue& condition) {
-    const RuntimeValue firstResult =
-        first(invoke(ludork::runtime::reference::intern(condition)));
+    RuntimeScope& scope, const RuntimeHandle& condition) {
+    sol::state_view lua(scope.state());
+    const sol::object callable = write(lua, condition);
+    if (!isCallable(lua, callable)) {
+        throw std::invalid_argument("Runtime value is not callable");
+    }
+    const int base = lua_gettop(scope.state());
+    StackRestore restore{scope.state(), base};
+    const int count = detail::invokeRuntimeFunction(scope.state(), callable, {},
+                                                    "node graph condition");
     NodeGraphConditionResult result;
-    if (!firstResult.isNil()) {
-        RuntimeValue::Array values;
-        if (isTable(firstResult)) {
-            const RuntimeValue count =
-                rawGet(ludork::runtime::reference::intern(firstResult), "n");
-            if (is<std::size_t>(count) ||
-                length(ludork::runtime::reference::intern(firstResult)) > 0) {
-                const std::size_t size =
-                    is<std::size_t>(count)
-                        ? as<std::size_t>(count)
-                        : length(
-                              ludork::runtime::reference::intern(firstResult));
-                values.reserve(size);
-                for (std::size_t index = 1; index <= size; ++index) {
-                    values.push_back(
-                        rawGet(ludork::runtime::reference::intern(firstResult),
-                               index));
-                }
+    if (count != 0 && !lua_isnil(scope.state(), base + 1)) {
+        const sol::object first =
+            sol::stack::get<sol::object>(scope.state(), base + 1);
+        if (first.is<sol::table>()) {
+            const sol::table table = first.as<sol::table>();
+            std::int64_t length = 0;
+            if ((binding::luaIntegerValue(table.raw_get<sol::object>("n"),
+                                          length) &&
+                 length >= 0) ||
+                table.size() > 0) {
+                result.result = readPacked(first);
             } else {
-                for (const auto& entry :
-                     entries(ludork::runtime::reference::intern(firstResult))) {
-                    values.push_back(entry.second);
+                for (const auto& entry : table) {
+                    result.result.values.push_back(snapshot(entry.second));
                 }
+                result.result.count = result.result.values.size();
             }
         } else {
-            values.push_back(firstResult);
+            result.result = {{snapshot(first)}, 1};
         }
-        result.result = nodeResult(values);
     }
-    if (isTable(condition)) {
-        const RuntimeValue finishedFunction =
-            get(ludork::runtime::reference::intern(condition), "isFinished");
-        if (isCallable(finishedFunction)) {
-            const RuntimeValue::Array finished =
-                invoke(ludork::runtime::reference::intern(finishedFunction),
-                       {condition});
-            if (finished.size() != 1 || !is<bool>(finished.front())) {
+    lua_settop(scope.state(), base);
+    if (callable.is<sol::table>()) {
+        const sol::object finished = detail::runtimeIndex(
+            lua, callable, sol::make_object(lua, "isFinished"), false);
+        if (isCallable(lua, finished)) {
+            const int finishedCount = detail::invokeRuntimeFunction(
+                scope.state(), finished, {callable},
+                "node graph condition isFinished");
+            if (finishedCount != 1 ||
+                lua_type(scope.state(), base + 1) != LUA_TBOOLEAN) {
                 throw std::runtime_error(
                     "Node graph condition isFinished must return exactly one "
                     "boolean");
             }
-            result.finished = boolean(finished.front());
+            result.finished = lua_toboolean(scope.state(), base + 1) != 0;
         }
     }
     return result;
 }
-
-NodeCache readNodeGraphCache(const RuntimeValue& cache) {
+NodeCache readNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache) {
+    sol::state_view lua(scope.state());
+    const sol::object table = write(lua, cache);
     NodeCache result;
-    if (!isTable(cache)) {
+    if (!table.is<sol::table>()) {
         return result;
     }
-    for (const auto& entry :
-         entries(ludork::runtime::reference::intern(cache))) {
-        RuntimeValue::Array values;
-        if (isTable(entry.second)) {
-            const std::size_t count = packedCount(entry.second);
-            values.reserve(count);
-            for (std::size_t index = 1; index <= count; ++index) {
-                values.push_back(rawGet(
-                    ludork::runtime::reference::intern(entry.second), index));
-            }
-        } else {
-            values.push_back(entry.second);
-        }
-        result.emplace(cacheKey(entry.first), nodeResult(values));
+    for (const auto& entry : table.as<sol::table>()) {
+        result.emplace(cacheKey(entry.first), readPacked(entry.second));
     }
     return result;
 }
-
-void writeNodeGraphCache(const RuntimeValue& cache, const NodeCache& values) {
-    if (!isTable(cache)) {
+void writeNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache,
+                         const NodeCache& values) {
+    sol::state_view lua(scope.state());
+    const sol::object value = write(lua, cache);
+    if (!value.is<sol::table>()) {
         return;
     }
-    for (const auto& entry :
-         entries(ludork::runtime::reference::intern(cache))) {
-        rawSet(ludork::runtime::reference::intern(cache), entry.first,
-               RuntimeValue());
+    sol::table table = value.as<sol::table>();
+    std::vector<sol::object> keys;
+    for (const auto& entry : table) {
+        keys.push_back(entry.first);
+    }
+    for (const sol::object& key : keys) {
+        table.raw_set(key, sol::lua_nil);
     }
     for (const auto& [key, result] : values) {
         if (result.count > static_cast<std::size_t>(INT_MAX)) {
             throw std::length_error("Node graph cache value count overflow");
         }
-        RuntimeHandle packed = table();
-        rawSet(packed, "n", result.count);
-        for (std::size_t index = 0; index < result.count; ++index) {
-            if (index < result.values.size() && !result.values[index].isNil()) {
-                rawSet(packed, index + 1, result.values[index]);
-            }
+        sol::table packed = lua.create_table(static_cast<int>(result.count), 1);
+        packed.raw_set("n", result.count);
+        for (std::size_t index = 0;
+             index < result.count && index < result.values.size(); ++index) {
+            packed.raw_set(index + 1, write(lua, result.values[index]));
         }
-        rawSet(ludork::runtime::reference::intern(cache), cacheKeyValue(key),
-               packed);
+        std::visit(
+            [&](const auto& index) {
+                table.raw_set(index, packed);
+            },
+            key);
     }
 }
-
 void clearNodeGraphRuntimeCaches() {
-    rawSet(registry(), NODEGRAPH_REF_LOCALS_KEY, RuntimeValue());
-    rawSet(registry(), NODEGRAPH_CONTEXTS_KEY, RuntimeValue());
+    RuntimeScope scope;
+    sol::state_view lua(scope.state());
+    lua.registry().raw_set(NODEGRAPH_REF_LOCALS_KEY, sol::lua_nil);
+    lua.registry().raw_set(NODEGRAPH_CONTEXTS_KEY, sol::lua_nil);
 }
-
 }  // namespace ludork::runtime::node_graph_detail

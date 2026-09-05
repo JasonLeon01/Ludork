@@ -11,7 +11,7 @@
 
 namespace ludork::engine::ui_asset_runtime_impl {
 
-void parseAnimations(const RuntimeValue::Map& asset, AssetState& state,
+void parseAnimations(RuntimeMapView asset, AssetState& state,
                      const std::string& source);
 
 void installAnimationUpdater(const std::shared_ptr<AssetState>& state);

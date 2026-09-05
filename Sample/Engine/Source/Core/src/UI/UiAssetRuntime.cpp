@@ -27,9 +27,9 @@ using ludork::runtime::value_reader::requireInt;
 using ludork::runtime::value_reader::requireMap;
 using ludork::runtime::value_reader::requireString;
 
-sf::Vector2f requireVector2f(const RuntimeValue& value,
+sf::Vector2f requireVector2f(RuntimeValueView value,
                              const std::string& source) {
-    const RuntimeValue::Array& array = requireArray(value, source);
+    RuntimeArrayView array = requireArray(value, source);
     if (array.size() != 2) {
         throw std::invalid_argument(source + " must contain two numbers");
     }
@@ -45,13 +45,12 @@ std::string nestedAssetKey(const std::string& controlId) {
     return ludork::engine::ui_asset_runtime_impl::nestedAssetKey(controlId);
 }
 
-sf::Vector2f parseDesignSize(const RuntimeValue::Map& asset,
-                             const std::string& source) {
+sf::Vector2f parseDesignSize(RuntimeMapView asset, const std::string& source) {
     return ludork::engine::ui_asset_runtime_impl::parseDesignSize(asset,
                                                                   source);
 }
 
-void requireOnlyKeys(const RuntimeValue::Map& values,
+void requireOnlyKeys(RuntimeMapView values,
                      const std::unordered_set<std::string>& allowed,
                      const std::string& source) {
     for (const auto& [name, value] : values) {
@@ -62,53 +61,51 @@ void requireOnlyKeys(const RuntimeValue::Map& values,
     }
 }
 
-UiCanvasSlotData parseCanvasSlot(const RuntimeValue& value,
+UiCanvasSlotData parseCanvasSlot(RuntimeValueView value,
                                  const std::string& source) {
-    const RuntimeValue::Map& slot = requireMap(value, source);
+    RuntimeMapView slot = requireMap(value, source);
     requireOnlyKeys(slot,
                     {"anchors", "offsets", "alignment", "autoSize", "zOrder"},
                     source);
     UiCanvasSlotData result;
-    if (const RuntimeValue* anchors = findValue(slot, "anchors")) {
-        const RuntimeValue::Map& map =
-            requireMap(*anchors, source + ".anchors");
+    if (const auto anchors = findValue(slot, "anchors")) {
+        RuntimeMapView map = requireMap(*anchors, source + ".anchors");
         requireOnlyKeys(map, {"min", "max"}, source + ".anchors");
-        if (const RuntimeValue* minimum = findValue(map, "min")) {
+        if (const auto minimum = findValue(map, "min")) {
             result.anchorMinimum =
                 requireVector2f(*minimum, source + ".anchors.min");
         }
-        if (const RuntimeValue* maximum = findValue(map, "max")) {
+        if (const auto maximum = findValue(map, "max")) {
             result.anchorMaximum =
                 requireVector2f(*maximum, source + ".anchors.max");
         }
     }
-    if (const RuntimeValue* offsets = findValue(slot, "offsets")) {
-        const RuntimeValue::Map& map =
-            requireMap(*offsets, source + ".offsets");
+    if (const auto offsets = findValue(slot, "offsets")) {
+        RuntimeMapView map = requireMap(*offsets, source + ".offsets");
         requireOnlyKeys(map, {"left", "top", "right", "bottom"},
                         source + ".offsets");
-        if (const RuntimeValue* left = findValue(map, "left")) {
+        if (const auto left = findValue(map, "left")) {
             result.offsetLeft = requireFloat(*left, source + ".offsets.left");
         }
-        if (const RuntimeValue* top = findValue(map, "top")) {
+        if (const auto top = findValue(map, "top")) {
             result.offsetTop = requireFloat(*top, source + ".offsets.top");
         }
-        if (const RuntimeValue* right = findValue(map, "right")) {
+        if (const auto right = findValue(map, "right")) {
             result.offsetRight =
                 requireFloat(*right, source + ".offsets.right");
         }
-        if (const RuntimeValue* bottom = findValue(map, "bottom")) {
+        if (const auto bottom = findValue(map, "bottom")) {
             result.offsetBottom =
                 requireFloat(*bottom, source + ".offsets.bottom");
         }
     }
-    if (const RuntimeValue* alignment = findValue(slot, "alignment")) {
+    if (const auto alignment = findValue(slot, "alignment")) {
         result.alignment = requireVector2f(*alignment, source + ".alignment");
     }
-    if (const RuntimeValue* autoSize = findValue(slot, "autoSize")) {
+    if (const auto autoSize = findValue(slot, "autoSize")) {
         result.autoSize = requireBool(*autoSize, source + ".autoSize");
     }
-    if (const RuntimeValue* zOrder = findValue(slot, "zOrder")) {
+    if (const auto zOrder = findValue(slot, "zOrder")) {
         result.zOrder = requireInt(*zOrder, source + ".zOrder");
     }
 
@@ -162,12 +159,12 @@ std::string assetReferenceChain(
 }
 
 std::shared_ptr<UiAssetInstanceState> buildAsset(
-    const RuntimeValue& value, const std::string& expectedAssetKey,
+    RuntimeValueView value, const std::string& expectedAssetKey,
     BuildContext& context,
     std::optional<sf::Vector2f> logicalSize = std::nullopt);
 
 std::shared_ptr<UiRuntimeNode> buildNode(
-    const RuntimeValue& value, const std::string& source,
+    RuntimeValueView value, const std::string& source,
     UiAssetInstanceState& state, BuildContext& context,
     std::unordered_set<std::string>& localNames, bool root);
 
@@ -211,30 +208,29 @@ void attachChildren(const std::shared_ptr<UiRuntimeNode>& node,
     registry.attachChildren(node->controlId, *node->control, controls);
 }
 
-void applyCommonProperties(UiRuntimeNode& node,
-                           const RuntimeValue::Map& properties,
+void applyCommonProperties(UiRuntimeNode& node, RuntimeMapView properties,
                            const std::string& source) {
-    if (const RuntimeValue* visible = findValue(properties, "visible")) {
+    if (const auto visible = findValue(properties, "visible")) {
         node.control->setVisible(requireBool(*visible, source + ".visible"));
     }
-    if (const RuntimeValue* rotation = findValue(properties, "rotation")) {
+    if (const auto rotation = findValue(properties, "rotation")) {
         node.control->setRotationDegrees(
             requireFloat(*rotation, source + ".rotation"));
     }
-    if (const RuntimeValue* scale = findValue(properties, "scale")) {
+    if (const auto scale = findValue(properties, "scale")) {
         node.renderScale = requireVector2f(*scale, source + ".scale");
         if (node.renderScale.x < 0.0f || node.renderScale.y < 0.0f) {
             throw std::invalid_argument(source + ".scale cannot be negative");
         }
         node.control->setScale(node.renderScale);
     }
-    if (const RuntimeValue* origin = findValue(properties, "origin")) {
+    if (const auto origin = findValue(properties, "origin")) {
         node.control->setOrigin(requireVector2f(*origin, source + ".origin"));
     }
 }
 
-RuntimeValue::Map effectiveProperties(const RuntimeValue::Map& node,
-                                      const RuntimeValue::Map& properties,
+RuntimeValue::Map effectiveProperties(RuntimeMapView node,
+                                      RuntimeMapView properties,
                                       const std::string& controlId,
                                       bool designMode,
                                       const std::string& source) {
@@ -243,19 +239,18 @@ RuntimeValue::Map effectiveProperties(const RuntimeValue::Map& node,
 }
 
 std::shared_ptr<UiRuntimeNode> buildNode(
-    const RuntimeValue& value, const std::string& source,
+    RuntimeValueView value, const std::string& source,
     UiAssetInstanceState& state, BuildContext& context,
     std::unordered_set<std::string>& localNames, bool root) {
-    const RuntimeValue::Map& data = requireMap(value, source);
+    RuntimeMapView data = requireMap(value, source);
     requireOnlyKeys(
         data, {"name", "controlId", "properties", "slot", "editor", "children"},
         source);
-    const RuntimeValue* nameValue = findValue(data, "name");
-    const RuntimeValue* controlIdValue = findValue(data, "controlId");
-    const RuntimeValue* propertiesValue = findValue(data, "properties");
-    const RuntimeValue* childrenValue = findValue(data, "children");
-    if (nameValue == nullptr || controlIdValue == nullptr ||
-        propertiesValue == nullptr || childrenValue == nullptr) {
+    const auto nameValue = findValue(data, "name");
+    const auto controlIdValue = findValue(data, "controlId");
+    const auto propertiesValue = findValue(data, "properties");
+    const auto childrenValue = findValue(data, "children");
+    if (!nameValue || !controlIdValue || !propertiesValue || !childrenValue) {
         throw std::invalid_argument(
             source + " requires name, controlId, properties, and children");
     }
@@ -272,18 +267,18 @@ std::shared_ptr<UiRuntimeNode> buildNode(
                                     " in " + state.assetKey);
     }
 
-    const RuntimeValue::Map& storedProperties =
+    RuntimeMapView storedProperties =
         requireMap(*propertiesValue, source + ".properties");
-    const RuntimeValue::Array& children =
+    RuntimeArrayView children =
         requireArray(*childrenValue, source + ".children");
 
-    const RuntimeValue* slotValue = findValue(data, "slot");
+    const auto slotValue = findValue(data, "slot");
     if (root) {
-        if (slotValue != nullptr) {
+        if (slotValue.has_value()) {
             throw std::invalid_argument(source +
                                         " root node cannot have a slot");
         }
-    } else if (slotValue == nullptr) {
+    } else if (!slotValue) {
         throw std::invalid_argument(source + " is missing its parent slot");
     }
 
@@ -329,7 +324,8 @@ std::shared_ptr<UiRuntimeNode> buildNode(
             }
         }
         result->control = registry.create(result->controlId, properties);
-        applyCommonProperties(*result, properties, source + ".properties");
+        applyCommonProperties(*result, RuntimeMapView(properties),
+                              source + ".properties");
         state.controls.emplace(result->name, result);
     }
     result->control->setName(result->name);
@@ -340,10 +336,9 @@ std::shared_ptr<UiRuntimeNode> buildNode(
             source + ".children[" + std::to_string(index) + "]";
         std::shared_ptr<UiRuntimeNode> child = buildNode(
             children[index], childSource, state, context, localNames, false);
-        const RuntimeValue::Map& childData =
-            requireMap(children[index], childSource);
-        const RuntimeValue* childSlot = findValue(childData, "slot");
-        if (childSlot == nullptr) {
+        RuntimeMapView childData = requireMap(children[index], childSource);
+        const auto childSlot = findValue(childData, "slot");
+        if (!childSlot) {
             throw std::invalid_argument(childSource +
                                         " is missing its parent slot");
         }
@@ -354,7 +349,7 @@ std::shared_ptr<UiRuntimeNode> buildNode(
                     parseCanvasSlot(*childSlot, childSource + ".slot");
                 break;
             case UiControlSlotType::List: {
-                const RuntimeValue::Map& listSlot =
+                RuntimeMapView listSlot =
                     requireMap(*childSlot, childSource + ".slot");
                 if (!listSlot.empty()) {
                     throw std::invalid_argument(
@@ -373,7 +368,7 @@ std::shared_ptr<UiRuntimeNode> buildNode(
 }
 
 std::shared_ptr<UiAssetInstanceState> buildAsset(
-    const RuntimeValue& value, const std::string& expectedAssetKey,
+    RuntimeValueView value, const std::string& expectedAssetKey,
     BuildContext& context, std::optional<sf::Vector2f> logicalSize) {
     static_cast<void>(validateLogicalAssetKey(expectedAssetKey));
     const bool nested = !context.assetStack.empty();
@@ -385,35 +380,35 @@ std::shared_ptr<UiAssetInstanceState> buildAsset(
     }
     context.assetStack.push_back(expectedAssetKey);
     try {
-        const RuntimeValue::Map& asset =
+        RuntimeMapView asset =
             requireMap(value, "UI asset " + expectedAssetKey);
         requireOnlyKeys(asset,
                         {"type", "designSize", "palette", "root", "animations"},
                         "UI asset " + expectedAssetKey);
-        const RuntimeValue* type = findValue(asset, "type");
-        const RuntimeValue* paletteValue = findValue(asset, "palette");
-        const RuntimeValue* rootValue = findValue(asset, "root");
-        if (type == nullptr ||
+        const auto type = findValue(asset, "type");
+        const auto paletteValue = findValue(asset, "palette");
+        const auto rootValue = findValue(asset, "root");
+        if (!type ||
             requireString(*type, expectedAssetKey + ".type") != "uiAsset") {
             throw std::invalid_argument(expectedAssetKey +
                                         " must be a uiAsset");
         }
-        if (paletteValue == nullptr) {
+        if (!paletteValue) {
             throw std::invalid_argument(expectedAssetKey +
                                         " is missing palette");
         }
-        const RuntimeValue::Map& palette =
+        RuntimeMapView palette =
             requireMap(*paletteValue, expectedAssetKey + ".palette");
         if (nested) {
-            const RuntimeValue* exposed = findValue(palette, "exposed");
-            if (exposed == nullptr ||
+            const auto exposed = findValue(palette, "exposed");
+            if (!exposed ||
                 !requireBool(*exposed, expectedAssetKey + ".palette.exposed")) {
                 throw std::invalid_argument(
                     "Nested UI asset must be exposed: " +
                     assetReferenceChain(context));
             }
         }
-        if (rootValue == nullptr) {
+        if (!rootValue) {
             throw std::invalid_argument(expectedAssetKey + " is missing root");
         }
 
@@ -472,8 +467,9 @@ std::shared_ptr<UiAssetInstance> instantiateLoadedAsset(
         size = sf::Vector2f{static_cast<float>(logicalSize->x),
                             static_cast<float>(logicalSize->y)};
     }
-    return std::shared_ptr<UiAssetInstance>(new UiAssetInstance(
-        buildAsset(loader(assetKey), assetKey, context, size)));
+    const RuntimeValue asset = loader(assetKey);
+    return std::shared_ptr<UiAssetInstance>(
+        new UiAssetInstance(buildAsset(asset, assetKey, context, size)));
 }
 
 }  // namespace

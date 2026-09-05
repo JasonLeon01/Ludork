@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <limits>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
@@ -194,22 +195,60 @@ DynamicValue readDynamicValue(const sol::object& value) {
 template <typename DynamicValue>
 sol::object writeDynamicValue(sol::state_view lua, const DynamicValue& value) {
     using Object = typename DynamicValue::Object;
-    return value.visit([lua](const auto& item) -> sol::object {
-        using Item = LuaValueType<decltype(item)>;
-        if constexpr (std::is_same_v<Item, std::monostate>) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
-        } else if constexpr (std::is_same_v<Item, Object>) {
-            const ludork::standard::LuaRegistryReference reference =
-                ludork::standard::findRuntimeOpaqueValue(lua.lua_state(),
-                                                         item.get());
-            if (reference) {
-                return readLuaRegistryReference(lua, reference);
+    const auto write = [lua](auto&& recurse,
+                             typename DynamicValue::View view) -> sol::object {
+        return view.visit([&](const auto& item) -> sol::object {
+            using Item = LuaValueType<decltype(item)>;
+            if constexpr (std::is_same_v<Item,
+                                         typename DynamicValue::ArrayView>) {
+                if (item.size() >
+                    static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+                    throw std::length_error("Runtime array size overflow");
+                }
+                sol::table table =
+                    sol::state_view(lua.lua_state())
+                        .create_table(static_cast<int>(item.size()), 1);
+                table.raw_set("n", item.size());
+                std::size_t index = 1;
+                for (const auto value : item) {
+                    table.raw_set(index++, recurse(recurse, value));
+                }
+                return sol::make_object(lua, table);
+            } else if constexpr (std::is_same_v<
+                                     Item, typename DynamicValue::MapView>) {
+                if (item.size() >
+                    static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+                    throw std::length_error("Runtime map size overflow");
+                }
+                sol::table table =
+                    sol::state_view(lua.lua_state())
+                        .create_table(0, static_cast<int>(item.size()));
+                for (const auto& [key, value] : item) {
+                    table.raw_set(key, recurse(recurse, value));
+                }
+                return sol::make_object(lua, table);
+            } else if constexpr (std::is_same_v<Item, std::monostate>) {
+                return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            } else if constexpr (std::is_same_v<Item, Object>) {
+                if (const auto* reference =
+                        dynamic_cast<const LuaRegistryReferenceOwner*>(
+                            item.get())) {
+                    return readLuaRegistryReference(
+                        lua, reference->registryReference());
+                }
+                const ludork::standard::LuaRegistryReference reference =
+                    ludork::standard::findRuntimeOpaqueValue(lua.lua_state(),
+                                                             item.get());
+                if (reference) {
+                    return readLuaRegistryReference(lua, reference);
+                }
+                return writeLuaValue(lua, item);
+            } else {
+                return writeLuaValue(lua, item);
             }
-            return writeLuaValue(lua, item);
-        } else {
-            return writeLuaValue(lua, item);
-        }
-    });
+        });
+    };
+    return write(write, value.view());
 }
 
 }  // namespace ludork::runtime::binding

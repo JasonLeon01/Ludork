@@ -9,7 +9,7 @@
 
 namespace ludork::engine::ui_interaction {
 
-std::optional<double> numericValue(const RuntimeValue& value);
+std::optional<double> numericValue(RuntimeValueView value);
 std::optional<sf::Vector2f> pointerPosition(const RuntimeValue::Map& arguments);
 std::optional<sf::Mouse::Button> pointerMouseButton(
     const RuntimeValue::Map& arguments);

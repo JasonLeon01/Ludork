@@ -330,17 +330,20 @@ function Data.GetGeneralStateData(key) end
 ---@brief Get a class by its blueprint path.
 ---
 --- - @param classPath The class path.
---- - @return The class type, or nil when the path is not registered.
+--- - @return The resolved class type. Unknown paths raise.
 ---@param classPath string
 ---@return Class.ClassType<any> | nil
 function Data.GetClass(classPath) end
 
----@brief Get class data by its blueprint path.
+---@brief Resolve a class and return its session definition table.
 ---
+--- The same VM and path share one table, not a snapshot. Changes do not
+--- invalidate generated classes, instance defaults or graph templates.
+--- Use copy/deepcopy when an independent table is needed. Unknown paths raise.
 --- - @param classPath The class path.
---- - @return Class data dictionary.
+--- - @return The shared JSON definition, or nil for a module class without one.
 ---@param classPath string
----@return table<string, Source.Data.JsonValue>
+---@return table<string, Source.Data.JsonValue> | nil
 function Data.GetClassData(classPath) end
 
 ---@brief Resolve a class path from a path, class name, or generated blueprint class name.

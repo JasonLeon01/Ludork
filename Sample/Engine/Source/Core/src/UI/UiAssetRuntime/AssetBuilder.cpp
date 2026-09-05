@@ -30,16 +30,15 @@ std::string nestedAssetKey(const std::string& controlId) {
     return controlId.substr(prefixLength);
 }
 
-sf::Vector2f parseDesignSize(const RuntimeValue::Map& asset,
-                             const std::string& source) {
-    const RuntimeValue* value = findValue(asset, "designSize");
-    if (value == nullptr) {
+sf::Vector2f parseDesignSize(RuntimeMapView asset, const std::string& source) {
+    const auto value = findValue(asset, "designSize");
+    if (!value) {
         throw std::invalid_argument(source + " is missing designSize");
     }
-    const RuntimeValue::Map& size = requireMap(*value, source + ".designSize");
-    const RuntimeValue* width = findValue(size, "width");
-    const RuntimeValue* height = findValue(size, "height");
-    if (width == nullptr || height == nullptr) {
+    RuntimeMapView size = requireMap(*value, source + ".designSize");
+    const auto width = findValue(size, "width");
+    const auto height = findValue(size, "height");
+    if (!width || !height) {
         throw std::invalid_argument(source +
                                     ".designSize requires width and height");
     }
@@ -52,23 +51,22 @@ sf::Vector2f parseDesignSize(const RuntimeValue::Map& asset,
     return result;
 }
 
-RuntimeValue::Map effectiveProperties(const RuntimeValue::Map& node,
-                                      const RuntimeValue::Map& properties,
+RuntimeValue::Map effectiveProperties(RuntimeMapView node,
+                                      RuntimeMapView properties,
                                       const std::string& controlId,
                                       bool designMode,
                                       const std::string& source) {
-    RuntimeValue::Map result = properties;
+    RuntimeValue::Map result = properties.toMap();
     if (!designMode) {
         return result;
     }
-    const RuntimeValue* editorValue = findValue(node, "editor");
-    if (editorValue == nullptr) {
+    const auto editorValue = findValue(node, "editor");
+    if (!editorValue) {
         return result;
     }
-    const RuntimeValue::Map& editor =
-        requireMap(*editorValue, source + ".editor");
-    const RuntimeValue* previewText = findValue(editor, "previewText");
-    if (previewText == nullptr) {
+    RuntimeMapView editor = requireMap(*editorValue, source + ".editor");
+    const auto previewText = findValue(editor, "previewText");
+    if (!previewText) {
         return result;
     }
     if (controlId == "Engine.DropBox") {

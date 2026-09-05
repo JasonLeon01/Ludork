@@ -23,13 +23,10 @@ using ludork::runtime::value_reader::requireFloat;
 using ludork::runtime::value_reader::requireInt;
 using ludork::runtime::value_reader::requireString;
 
-sf::Vector2f requireVector2f(const RuntimeValue& value,
-                             const std::string& source);
-sf::Vector2u requireVector2u(const RuntimeValue& value,
-                             const std::string& source);
-sf::IntRect requireIntRect(const RuntimeValue& value,
-                           const std::string& source);
-sf::Color requireColor(const RuntimeValue& value, const std::string& source);
+sf::Vector2f requireVector2f(RuntimeValueView value, const std::string& source);
+sf::Vector2u requireVector2u(RuntimeValueView value, const std::string& source);
+sf::IntRect requireIntRect(RuntimeValueView value, const std::string& source);
+sf::Color requireColor(RuntimeValueView value, const std::string& source);
 
 sf::Vector2f vector2fProperty(const RuntimeValue::Map& properties,
                               const std::string& name,

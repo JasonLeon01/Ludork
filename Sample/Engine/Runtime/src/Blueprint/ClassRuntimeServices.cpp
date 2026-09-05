@@ -4,32 +4,11 @@
 #include "ClassRuntime/ClassRuntimeInternal.hpp"
 #include <Runtime/RuntimeSession.hpp>
 
-#include <Runtime/RuntimeProviders.hpp>
 #include <RuntimeSession.hpp>
 
 #include <utility>
 
 using namespace ludork::runtime::class_runtime_detail;
-
-namespace {
-
-void invalidateClass(const std::string& path) {
-    runtimeProviders().invalidateBlueprintClassData(path);
-    RuntimeHandle resolver = resolverState();
-    const RuntimeValue rawRecord =
-        rawGet(requireTable(rawGet(resolver, "records")), path);
-    if (isTable(rawRecord)) {
-        rawSet(ludork::runtime::reference::intern(rawRecord), "graphTemplate",
-               RuntimeValue());
-        rawSet(ludork::runtime::reference::intern(rawRecord), "graphCompiled",
-               false);
-    }
-    rawSet(requireTable(rawGet(resolver, "classes")), path, RuntimeValue());
-    rawSet(requireTable(rawGet(resolver, "classData")), path, RuntimeValue());
-    rawSet(requireTable(rawGet(resolver, "records")), path, RuntimeValue());
-}
-
-}  // namespace
 
 void ludork::runtime::class_runtime_detail::initializeClassRuntime(
     lua_State* state) {
@@ -66,26 +45,21 @@ ResolvedClass ClassRuntimeFacade::resolve(
     const std::string& classPath,
     const std::optional<std::string>& root) const {
     ludork::runtime::RuntimeScope runtime;
-    const auto [classType, classDataValue] = resolveClass(
-        retain(makeValue(classPath)),
-        root.has_value() ? retain(makeValue(*root)) : RuntimeValue());
-    return {intern(classType), snapshot(classDataValue)};
+    const auto [classType, classDataValue] =
+        resolveClass(RuntimeValue(classPath),
+                     root.has_value() ? RuntimeValue(*root) : RuntimeValue());
+    return {intern(classType), classDataValue};
 }
 
 RuntimeValue ClassRuntimeFacade::classData(const std::string& classPath) const {
     ludork::runtime::RuntimeScope runtime;
-    const RuntimeValue value = rawGet(
-        requireTable(rawGet(ludork::runtime::reference::intern(resolverState()),
-                            "classData")),
-        classPath);
-    return snapshot(!value.isNil() ? value : RuntimeValue());
+    return std::get<1>(resolveClass(RuntimeValue(classPath), RuntimeValue()));
 }
 
 RuntimeValue ClassRuntimeFacade::instantiateGraph(
     const std::string& classPath, const RuntimeValue& parent) const {
     ludork::runtime::RuntimeScope runtime;
-    return snapshot(
-        instantiateClassGraph(classPath, retain(makeValue(parent))));
+    return instantiateClassGraph(classPath, parent);
 }
 
 bool ClassRuntimeFacade::graphHasExecutableEvent(
@@ -94,9 +68,19 @@ bool ClassRuntimeFacade::graphHasExecutableEvent(
     return classGraphHasExecutableEvent(classPath, eventName);
 }
 
-void ClassRuntimeFacade::invalidate(const std::string& classPath) const {
+bool ClassRuntimeFacade::containsCached(const std::string& classPath) const {
     ludork::runtime::RuntimeScope runtime;
-    invalidateClass(classPath);
+    return !rawGet(requireTable(rawGet(resolverState(), "classes")), classPath)
+                .isNil();
+}
+
+std::optional<std::string> ClassRuntimeFacade::findCachedPathByName(
+    const std::string& className) const {
+    ludork::runtime::RuntimeScope runtime;
+    const RuntimeValue path =
+        rawGet(requireTable(rawGet(resolverState(), "classNames")), className);
+    return path.isNil() ? std::nullopt
+                        : std::optional<std::string>(as<std::string>(path));
 }
 
 ClassRuntimeFacade& classRuntime() {

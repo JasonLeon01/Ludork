@@ -64,11 +64,43 @@ official plug-ins and generate their registry. The matching
 directory set, manifests, generated index and excluded build or user-state
 artifacts.
 
-`pack_editor.bat` places `OfficialBlueprintAI`, `OfficialLocaleTools`, and
-`OfficialRandomMap` below the packaged editor's `Plugins` directory and
-generates `plugins.json` beside that directory from their manifests. A
-published Windows editor uses its program directory as the plug-in root, so
-plug-in writable data is stored below `Plugins/.data` there as well.
+`pack_editor.bat` builds a native Windows launcher with a static CRT and publishes
+the self-contained editor under `Binaries`. Its output has this layout:
+
+```text
+dist/
+├── Ludork.exe                 # Native launcher
+├── Binaries/
+│   ├── Ludork.exe             # Actual editor
+│   ├── Ludork.dll
+│   ├── Ludork.deps.json
+│   ├── Ludork.runtimeconfig.json
+│   └── …                      # DLLs and .NET runtime files
+├── Locale/
+├── Templates/
+├── tools/
+├── Plugins/
+├── plugins.json
+├── docs/
+├── Licenses/
+└── …                          # Readme and licence files
+```
+
+The installation root is the directory containing the launcher. It starts
+`Binaries\Ludork.exe` with that root as the working directory and forwards
+arguments, standard streams and the editor's exit code. Packaging invokes
+`--compile-locale` through the launcher, validates the complete layout before
+replacing `dist`, and restores the previous package if replacement fails. MSI
+shortcuts and `.proj` associations also target the root launcher.
+
+`OfficialBlueprintAI`, `OfficialLocaleTools`, and `OfficialRandomMap` are placed
+below the root `Plugins` directory, with `plugins.json` generated beside it from
+their manifests. The published editor resolves its resources, plug-ins and
+configuration against the installation root even when started directly from
+`Binaries`. Runtime settings use root `Ludork.ini`; writable plug-in data uses
+`Plugins/.data`. Repository development builds keep their existing layout and
+development-marker behaviour. Desktop game Standalone packages retain their
+own packaging layout.
 
 `pack_editor.sh` requires macOS on Apple Silicon with a logged-in Finder session,
 the .NET 9 SDK, CMake, ScriptTools built by `init.sh`, and initialized Sample

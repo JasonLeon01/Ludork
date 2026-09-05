@@ -243,13 +243,7 @@ function DataBlueprints:installRuntimeProviders()
         self._data._blueprintClassData[classPath] = loadedData
         return loadedData
     end,
-        function (classPath)
-            if Class.isInstance(self._data._blueprintClassData[classPath], "table")
-                and self._data._blueprintClassData[classPath].graph ~= nil then
-                self._graphTemplates[self._data._blueprintClassData[classPath].graph] = nil
-            end
-            self._data._blueprintClassData[classPath] = nil
-        end, function (graphData, parentClass)
+        function (graphData, parentClass)
             return self:compileGraphTemplate(graphData, parentClass)
         end, function (template, parent)
             return template:instantiate(parent)

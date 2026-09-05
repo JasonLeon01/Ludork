@@ -31,18 +31,14 @@ RuntimeValue readValue(const sol::object& value) {
     return ludork::runtime::binding::readLuaValue<RuntimeValue>(value);
 }
 
-const RuntimeValue* mapValue(const RuntimeValue& value,
-                             const std::string& key) {
-    const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>();
-    if (map == nullptr) {
-        return nullptr;
-    }
-    const auto iterator = map->find(key);
-    return iterator == map->end() ? nullptr : &iterator->second;
+std::optional<RuntimeValueView> mapValue(RuntimeValueView value,
+                                         const std::string& key) {
+    const auto map = value.map();
+    return map ? map->find(key) : std::nullopt;
 }
 
 void addConfigVarReference(RuntimeValue::Map& result, const std::string& name,
-                           const RuntimeValue& reference) {
+                           RuntimeValueView reference) {
     if (name.empty()) {
         return;
     }
@@ -64,8 +60,9 @@ void addConfigVarReference(RuntimeValue::Map& result, const std::string& name,
         }
         return;
     }
-    const RuntimeValue::Array* values = reference.getIf<RuntimeValue::Array>();
-    if (values == nullptr || values->size() < 2) {
+    std::optional<RuntimeArrayView> values =
+        RuntimeValueView(reference).array();
+    if (!values || values->size() < 2) {
         return;
     }
     const std::string* configName = (*values)[0].getIf<std::string>();
@@ -78,7 +75,7 @@ void addConfigVarReference(RuntimeValue::Map& result, const std::string& name,
         RuntimeValue(*configName), RuntimeValue(*settingName)});
 }
 
-void addConfigVarItem(RuntimeValue::Map& result, const RuntimeValue& item) {
+void addConfigVarItem(RuntimeValue::Map& result, RuntimeValueView item) {
     if (const std::string* name = item.getIf<std::string>()) {
         if (!name->empty()) {
             result[*name] = RuntimeValue(RuntimeValue::Array{
@@ -86,8 +83,8 @@ void addConfigVarItem(RuntimeValue::Map& result, const RuntimeValue& item) {
         }
         return;
     }
-    const RuntimeValue::Array* values = item.getIf<RuntimeValue::Array>();
-    if (values == nullptr || values->size() < 2) {
+    std::optional<RuntimeArrayView> values = RuntimeValueView(item).array();
+    if (!values || values->size() < 2) {
         return;
     }
     const std::string* name = (*values)[0].getIf<std::string>();
@@ -95,9 +92,9 @@ void addConfigVarItem(RuntimeValue::Map& result, const RuntimeValue& item) {
         return;
     }
     if (values->size() >= 3) {
-        addConfigVarReference(
-            result, *name,
-            RuntimeValue(RuntimeValue::Array{(*values)[1], (*values)[2]}));
+        const RuntimeValue reference(RuntimeValue::Array{
+            (*values)[1].toValue(), (*values)[2].toValue()});
+        addConfigVarReference(result, *name, reference);
         return;
     }
     addConfigVarReference(result, *name, (*values)[1]);
@@ -108,19 +105,20 @@ void addConfigVarItem(RuntimeValue::Map& result, const RuntimeValue& item) {
 RuntimeValue::Map MetadataRuntimeFacade::configVars(
     const RuntimeValue& metadata) const {
     RuntimeValue::Map result;
-    const RuntimeValue* rawVars = mapValue(metadata, "ConfigVars");
-    if (rawVars == nullptr) {
+    const auto rawVars = mapValue(metadata, "ConfigVars");
+    if (!rawVars) {
         return result;
     }
-    if (const RuntimeValue::Map* values = rawVars->getIf<RuntimeValue::Map>()) {
+    if (std::optional<RuntimeMapView> values =
+            RuntimeValueView(*rawVars).map()) {
         for (const auto& [name, reference] : *values) {
             addConfigVarReference(result, name, reference);
         }
         return result;
     }
-    if (const RuntimeValue::Array* values =
-            rawVars->getIf<RuntimeValue::Array>()) {
-        for (const RuntimeValue& item : *values) {
+    if (std::optional<RuntimeArrayView> values =
+            RuntimeValueView(*rawVars).array()) {
+        for (RuntimeValueView item : *values) {
             addConfigVarItem(result, item);
         }
     }
@@ -213,59 +211,9 @@ RuntimeValue MetadataRuntimeFacade::resolveAttrMetadata(
 RuntimeValue MetadataRuntimeFacade::resolveAttrValueType(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawOwner = writeValue(lua, owner);
-    sol::object valueType = ludork::runtime::detail::nilObject(lua);
-    if (rawOwner.is<sol::table>()) {
-        const sol::table metadata =
-            ludork::runtime::detail::collectRuntimeAttrMetadata(
-                lua, rawOwner.as<sol::table>());
-        const sol::object descriptor = metadata.raw_get<sol::object>(key);
-        if (descriptor.is<sol::table>()) {
-            valueType =
-                descriptor.as<sol::table>().raw_get<sol::object>("type");
-        }
-        if (!valueType.valid() || valueType.get_type() == sol::type::lua_nil) {
-            const sol::object value =
-                rawOwner.as<sol::table>().get<sol::object>(key);
-            switch (value.get_type()) {
-                case sol::type::boolean:
-                    valueType = sol::make_object(lua, "bool");
-                    break;
-                case sol::type::number: {
-                    value.push();
-                    const bool integer =
-                        lua_isinteger(lua.lua_state(), -1) != 0;
-                    lua_pop(lua.lua_state(), 1);
-                    valueType =
-                        sol::make_object(lua, integer ? "int" : "float");
-                    break;
-                }
-                case sol::type::string:
-                    valueType = sol::make_object(lua, "string");
-                    break;
-                case sol::type::table:
-                    valueType = sol::make_object(lua, "table");
-                    break;
-                case sol::type::userdata: {
-                    const sol::table metatable =
-                        ludork::runtime::detail::objectMetatable(lua, value);
-                    const sol::object declared =
-                        metatable.raw_get<sol::object>("__metadataType");
-                    if (declared.is<std::string>()) {
-                        valueType = declared;
-                    }
-                    break;
-                }
-                default:
-                    break;
-            }
-        }
-    }
-    if (!valueType.valid() || valueType.get_type() == sol::type::lua_nil) {
-        valueType = sol::make_object(lua, "any");
-    }
-    return readValue(valueType);
+    sol::state_view lua(runtime.state());
+    return readValue(ludork::runtime::detail::resolveRuntimeAttrValueType(
+        lua, writeValue(lua, owner), key));
 }
 
 std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::resolveConfigVar(

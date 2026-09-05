@@ -7,9 +7,18 @@ namespace Ludork.Services;
 
 public static class EditorRuntimePaths
 {
+    internal static bool IsWindowsPackage => OperatingSystem.IsWindows()
+        && string.Equals(
+            Path.GetFileName(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)),
+            "Binaries",
+            StringComparison.OrdinalIgnoreCase)
+        && !File.Exists(Path.Combine(AppContext.BaseDirectory, ".ludork-development"));
+
     internal static string ContentRoot => OperatingSystem.IsMacOS()
         ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Resources"))
-        : AppContext.BaseDirectory;
+        : IsWindowsPackage
+            ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."))
+            : AppContext.BaseDirectory;
 
     internal static string DevelopmentRoot => Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory,
@@ -53,7 +62,7 @@ public static class EditorRuntimePaths
             ]
             :
             [
-                AppContext.BaseDirectory,
+                ContentRoot,
                 DevelopmentRoot,
                 Environment.CurrentDirectory,
             ];

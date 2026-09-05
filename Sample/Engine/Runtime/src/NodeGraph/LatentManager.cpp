@@ -2,7 +2,7 @@
 
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Runtime/NodeGraph/Node.hpp>
-#include <Runtime/NodeGraph/NodeGraphRuntime.hpp>
+#include "NodeGraphRuntime/NodeGraphRuntimeInternal.hpp"
 #include <Runtime/RuntimeReflection.hpp>
 
 #include <algorithm>
@@ -35,8 +35,10 @@ private:
 };
 
 ConditionResult pollCondition(const RuntimeIdentityPtr& condition) {
+    ludork::runtime::RuntimeScope scope;
     NodeGraphConditionResult result =
-        nodeGraphRuntime().evaluateCondition(condition);
+        ludork::runtime::node_graph_detail::evaluateNodeGraphCondition(
+            scope, RuntimeHandle(condition));
     return {std::move(result.result.values), result.result.count,
             result.finished};
 }
@@ -95,10 +97,13 @@ public:
             return;
         }
         try {
+            ludork::runtime::RuntimeScope scope;
             previousContextGraph_ =
-                nodeGraphRuntime().getContextValue(context_, "__graph__");
-            nodeGraphRuntime().setContextValue(context_, "__graph__",
-                                               graph_.getGraphContext());
+                ludork::runtime::node_graph_detail::getNodeGraphContextValue(
+                    scope, RuntimeHandle(context_), "__graph__");
+            ludork::runtime::node_graph_detail::setNodeGraphContextValue(
+                scope, RuntimeHandle(context_), "__graph__",
+                graph_.getGraphContext());
             contextGraphSet_ = true;
         } catch (...) {
             graph_.setLocalGraph(std::move(previous_));
@@ -109,8 +114,10 @@ public:
     ~LocalGraphScope() noexcept {
         if (contextGraphSet_) {
             try {
-                nodeGraphRuntime().setContextValue(context_, "__graph__",
-                                                   previousContextGraph_);
+                ludork::runtime::RuntimeScope scope;
+                ludork::runtime::node_graph_detail::setNodeGraphContextValue(
+                    scope, RuntimeHandle(context_), "__graph__",
+                    previousContextGraph_);
             } catch (const std::exception& error) {
                 std::cerr << "WARNING:Latent event '" << eventKey_
                           << "' failed to restore context key '__graph__': "

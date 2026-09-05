@@ -62,7 +62,7 @@ RuntimeHandle callableRuntimeParameterDescriptor(const RuntimeValue& method) {
 RuntimeHandle classRuntimeEventCache(const RuntimeValue& classType) {
     RuntimeHandle cache =
         registryTable(BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY, WeakMode::Keys);
-    const RuntimeValue classObject = retain(makeValue(classType));
+    const RuntimeHandle classObject = intern(classType);
     const RuntimeValue cached = rawGet(cache, classObject);
     if (isTable(cached)) {
         return intern(cached);
@@ -135,7 +135,7 @@ RuntimeHandle runtimeEventDescriptor(const RuntimeValue& method,
         RuntimeHandle descriptor =
             buildRuntimeEventDescriptor(classType, eventName);
         rawSet(members, eventName, descriptor);
-        rawDescriptor = retain(makeValue(descriptor));
+        rawDescriptor = descriptor;
     }
 
     const RuntimeHandle descriptor = intern(rawDescriptor);
@@ -171,16 +171,14 @@ void invokeNamedRuntimeMethod(const RuntimeValue& object,
     if (!isFunction(method)) {
         return;
     }
-    const RuntimeValue keywordArguments =
-        isTable(rawKeywordArguments) ? rawKeywordArguments : table();
+    const RuntimeHandle keywordArguments =
+        isTable(rawKeywordArguments) ? intern(rawKeywordArguments) : table();
     const RuntimeHandle descriptor =
         runtimeEventDescriptor(method, classType, eventName);
     const RuntimeHandle names = runtimeDescriptorParameters(descriptor);
     const RuntimeHandle accepted = runtimeDescriptorAccepted(descriptor);
     for (const RuntimeValue& key :
-         keys(ludork::runtime::reference::intern(
-                  retain(makeValue(keywordArguments))),
-              RuntimeLookupMode::Visible)) {
+         keys(keywordArguments, RuntimeLookupMode::Visible)) {
         if (!is<std::string>(key)) {
             continue;
         }
@@ -197,8 +195,7 @@ void invokeNamedRuntimeMethod(const RuntimeValue& object,
     for (std::size_t index = 1; index <= length(names); ++index) {
         const RuntimeValue rawName = rawGet(names, index);
         if (is<std::string>(rawName)) {
-            arguments.push_back(get(
-                ludork::runtime::reference::intern(keywordArguments), rawName));
+            arguments.push_back(get(keywordArguments, rawName));
         }
     }
     static_cast<void>(

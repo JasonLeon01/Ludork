@@ -12,7 +12,9 @@ public static class EditorPaths
         get
         {
             if (OperatingSystem.IsWindows())
-                return Environment.CurrentDirectory;
+                return EditorRuntimePaths.IsWindowsPackage
+                    ? EditorRuntimePaths.ContentRoot
+                    : Environment.CurrentDirectory;
 
             string path = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

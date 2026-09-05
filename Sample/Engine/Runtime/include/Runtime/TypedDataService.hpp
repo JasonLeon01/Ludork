@@ -6,9 +6,9 @@
 
 class LUDORK_RUNTIME_API TypedDataService {
 public:
-    bool isContainerValueType(const RuntimeValue& valueType) const;
-    bool isStandardValueType(const RuntimeValue& valueType) const;
-    bool shouldEvalValueType(const RuntimeValue& valueType) const;
+    bool isContainerValueType(RuntimeValueView valueType) const;
+    bool isStandardValueType(RuntimeValueView valueType) const;
+    bool shouldEvalValueType(RuntimeValueView valueType) const;
 
     std::optional<std::string> getClassModulePath(
         const RuntimeValue& classReference) const;
@@ -28,11 +28,11 @@ public:
         const RuntimeValue& value,
         const RuntimeValue::Map& environment = RuntimeValue::Map{}) const;
     RuntimeValue coerceStandardValue(const RuntimeValue& value,
-                                     const RuntimeValue& valueType) const;
+                                     RuntimeValueView valueType) const;
     RuntimeValue resolveMetadataType(
         const RuntimeValue& typeReference,
         const std::string& declaringModule = std::string()) const;
-    std::string metadataTypeName(const RuntimeValue& typeReference) const;
+    std::string metadataTypeName(RuntimeValueView typeReference) const;
     RuntimeValue constructTypedValue(
         const RuntimeValue& value, const RuntimeValue& valueType,
         const std::string& declaringModule = std::string()) const;
@@ -42,11 +42,10 @@ public:
         const std::string& declaringModule = std::string()) const;
 
 private:
-    RuntimeValue unwrapOptional(const RuntimeValue& valueType) const;
+    RuntimeValueView unwrapOptional(RuntimeValueView valueType) const;
     RuntimeValue coerceUnionValue(const RuntimeValue& value,
-                                  const RuntimeValue::Array& arguments) const;
-    bool matchesType(const RuntimeValue& value,
-                     const RuntimeValue& valueType) const;
+                                  RuntimeArrayView arguments) const;
+    bool matchesType(RuntimeValueView value, RuntimeValueView valueType) const;
     RuntimeValue coerceBool(const RuntimeValue& value) const;
     RuntimeValue coerceInteger(const RuntimeValue& value) const;
     RuntimeValue coerceFloat(const RuntimeValue& value) const;

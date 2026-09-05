@@ -39,17 +39,13 @@ bool endsWithArray(const std::string& value) {
     return value.size() >= 2 && value.ends_with("[]");
 }
 
-const RuntimeValue* mapValue(const RuntimeValue& value,
-                             const std::string& key) {
-    const RuntimeValue::Map* map = value.getIf<RuntimeValue::Map>();
-    if (map == nullptr) {
-        return nullptr;
-    }
-    const auto iterator = map->find(key);
-    return iterator == map->end() ? nullptr : &iterator->second;
+std::optional<RuntimeValueView> mapValue(RuntimeValueView value,
+                                         const std::string& key) {
+    const auto map = value.map();
+    return map ? map->find(key) : std::nullopt;
 }
 
-std::string scalarString(const RuntimeValue& value) {
+std::string scalarString(RuntimeValueView value) {
     if (const std::string* text = value.getIf<std::string>()) {
         return *text;
     }
@@ -91,42 +87,40 @@ bool parseFloat(const std::string& text, double& result) {
 
 }  // namespace
 
-bool TypedDataService::isContainerValueType(
-    const RuntimeValue& valueType) const {
+bool TypedDataService::isContainerValueType(RuntimeValueView valueType) const {
     if (const std::string* text = valueType.getIf<std::string>()) {
         return *text == "table" || *text == "list" || *text == "dict" ||
                *text == "Pair" || *text == "pair" || endsWithArray(*text) ||
                text->starts_with("List[") || text->starts_with("Dict[") ||
                text->starts_with("Set[") || text->starts_with("Tuple[");
     }
-    const RuntimeValue::Array* reference =
-        valueType.getIf<RuntimeValue::Array>();
-    if (reference != nullptr && reference->size() >= 2) {
+    std::optional<RuntimeArrayView> reference =
+        RuntimeValueView(valueType).array();
+    if (reference.has_value() && reference->size() >= 2) {
         const std::string* name = (*reference)[1].getIf<std::string>();
         return name != nullptr && endsWithArray(*name);
     }
     return false;
 }
 
-bool TypedDataService::isStandardValueType(
-    const RuntimeValue& valueType) const {
+bool TypedDataService::isStandardValueType(RuntimeValueView valueType) const {
     if (valueType.isNil()) {
         return true;
     }
     if (isContainerValueType(valueType)) {
         return true;
     }
-    if (mapValue(valueType, "optional") != nullptr) {
+    if (mapValue(valueType, "optional").has_value()) {
         return isStandardValueType(unwrapOptional(valueType));
     }
-    if (const RuntimeValue* unionValue = mapValue(valueType, "union")) {
-        const RuntimeValue::Array* arguments =
-            unionValue->getIf<RuntimeValue::Array>();
-        if (arguments == nullptr || arguments->empty()) {
+    if (const auto unionValue = mapValue(valueType, "union")) {
+        std::optional<RuntimeArrayView> arguments =
+            RuntimeValueView(*unionValue).array();
+        if (!arguments || arguments->empty()) {
             return false;
         }
         return std::all_of(arguments->begin(), arguments->end(),
-                           [this](const RuntimeValue& argument) {
+                           [this](RuntimeValueView argument) {
                                return isStandardValueType(argument);
                            });
     }
@@ -140,8 +134,7 @@ bool TypedDataService::isStandardValueType(
            type == "string";
 }
 
-bool TypedDataService::shouldEvalValueType(
-    const RuntimeValue& valueType) const {
+bool TypedDataService::shouldEvalValueType(RuntimeValueView valueType) const {
     const std::string* text = valueType.getIf<std::string>();
     return (text != nullptr && *text == "any") ||
            !isStandardValueType(valueType);
@@ -198,14 +191,14 @@ RuntimeValue TypedDataService::evalDataExpression(
 }
 
 RuntimeValue TypedDataService::coerceStandardValue(
-    const RuntimeValue& value, const RuntimeValue& valueType) const {
+    const RuntimeValue& value, RuntimeValueView valueType) const {
     if (value.isNil()) {
         return value;
     }
-    const RuntimeValue unwrapped = unwrapOptional(valueType);
-    if (const RuntimeValue* unionValue = mapValue(unwrapped, "union")) {
-        if (const RuntimeValue::Array* arguments =
-                unionValue->getIf<RuntimeValue::Array>()) {
+    const RuntimeValueView unwrapped = unwrapOptional(valueType);
+    if (const auto unionValue = mapValue(unwrapped, "union")) {
+        if (std::optional<RuntimeArrayView> arguments =
+                RuntimeValueView(*unionValue).array()) {
             return coerceUnionValue(value, *arguments);
         }
     }
@@ -241,9 +234,9 @@ RuntimeValue TypedDataService::resolveMetadataType(
 }
 
 std::string TypedDataService::metadataTypeName(
-    const RuntimeValue& typeReference) const {
-    if (const RuntimeValue::Array* reference =
-            typeReference.getIf<RuntimeValue::Array>()) {
+    RuntimeValueView typeReference) const {
+    if (std::optional<RuntimeArrayView> reference =
+            RuntimeValueView(typeReference).array()) {
         if (reference->size() >= 2) {
             return scalarString((*reference)[0]) + "." +
                    scalarString((*reference)[1]);
@@ -268,24 +261,24 @@ RuntimeValue TypedDataService::resolveTypedDataValue(
         value.getIf<std::string>() != nullptr) {
         resolved = evalDataExpression(value, environment);
     }
-    const RuntimeValue unwrapped = unwrapOptional(valueType);
+    const RuntimeValueView unwrapped = unwrapOptional(valueType);
     if (isStandardValueType(unwrapped) ||
-        mapValue(unwrapped, "union") != nullptr) {
+        mapValue(unwrapped, "union").has_value()) {
         return coerceStandardValue(resolved, unwrapped);
     }
-    return constructTypedValue(resolved, unwrapped, declaringModule);
+    return constructTypedValue(resolved, unwrapped.toValue(), declaringModule);
 }
 
-RuntimeValue TypedDataService::unwrapOptional(
-    const RuntimeValue& valueType) const {
-    const RuntimeValue* optional = mapValue(valueType, "optional");
-    return optional == nullptr ? valueType : *optional;
+RuntimeValueView TypedDataService::unwrapOptional(
+    RuntimeValueView valueType) const {
+    const auto optional = mapValue(valueType, "optional");
+    return !optional ? valueType : *optional;
 }
 
 RuntimeValue TypedDataService::coerceUnionValue(
-    const RuntimeValue& value, const RuntimeValue::Array& arguments) const {
+    const RuntimeValue& value, RuntimeArrayView arguments) const {
     RuntimeValue last = value;
-    for (const RuntimeValue& argument : arguments) {
+    for (RuntimeValueView argument : arguments) {
         const std::string* name = argument.getIf<std::string>();
         if (name != nullptr && *name == "nil") {
             continue;
@@ -299,8 +292,8 @@ RuntimeValue TypedDataService::coerceUnionValue(
     return last;
 }
 
-bool TypedDataService::matchesType(const RuntimeValue& value,
-                                   const RuntimeValue& valueType) const {
+bool TypedDataService::matchesType(RuntimeValueView value,
+                                   RuntimeValueView valueType) const {
     const std::string* name = valueType.getIf<std::string>();
     if (name == nullptr) {
         return false;
@@ -326,11 +319,11 @@ bool TypedDataService::matchesType(const RuntimeValue& value,
         return value.getIf<std::string>() != nullptr;
     }
     if (type == "list" || type == "table" || type == "pair") {
-        return value.getIf<RuntimeValue::Array>() != nullptr ||
-               value.getIf<RuntimeValue::Map>() != nullptr;
+        return RuntimeValueView(value).array().has_value() ||
+               RuntimeValueView(value).map().has_value();
     }
     if (type == "dict") {
-        return value.getIf<RuntimeValue::Map>() != nullptr;
+        return RuntimeValueView(value).map().has_value();
     }
     return false;
 }

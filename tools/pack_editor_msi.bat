@@ -34,6 +34,8 @@ if not exist "%DIST_DIR%\Ludork.exe" (
     echo Packaged editor was not found. Run tools\pack_editor.bat first.
     exit /b 1
 )
+call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%DIST_DIR%"
+if errorlevel 1 exit /b 1
 if /I not "%PROCESSOR_ARCHITECTURE%"=="AMD64" if /I not "%PROCESSOR_ARCHITEW6432%"=="AMD64" (
     echo Windows x64 is required to package the editor MSI.
     exit /b 1

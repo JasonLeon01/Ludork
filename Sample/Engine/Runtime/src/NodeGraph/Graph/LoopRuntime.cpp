@@ -31,24 +31,24 @@ std::vector<NodeResult> loopResults(const NodeMemberMetadata& metadata,
         if (controlResult.count == 0 || controlResult.values.empty()) {
             return result;
         }
-        if (const RuntimeValue::Array* items =
-                controlResult.values.front().getIf<RuntimeValue::Array>()) {
+        if (std::optional<RuntimeArrayView> items =
+                RuntimeValueView(controlResult.values.front()).array()) {
             result.reserve(items->size());
             for (std::size_t index = 0; index < items->size(); ++index) {
                 result.push_back(
-                    NodeResult{{(*items)[index],
+                    NodeResult{{(*items)[index].toValue(),
                                 RuntimeValue(static_cast<std::int64_t>(index))},
                                2});
             }
-        } else if (const RuntimeValue::Map* items =
-                       controlResult.values.front()
-                           .getIf<RuntimeValue::Map>()) {
+        } else if (std::optional<RuntimeMapView> items =
+                       controlResult.values.front().view().map()) {
             result.reserve(items->size());
             std::size_t index = 0;
             for (const auto& [_, value] : *items) {
-                result.push_back(NodeResult{
-                    {value, RuntimeValue(static_cast<std::int64_t>(index))},
-                    2});
+                result.push_back(
+                    NodeResult{{value.toValue(),
+                                RuntimeValue(static_cast<std::int64_t>(index))},
+                               2});
                 ++index;
             }
         }

@@ -172,17 +172,17 @@ void AttributeSet::initialize(const RuntimeValue::Map& values) {
         ludork::runtime::reference::intern(type), "ATTRIBUTE_NAMES");
     const RuntimeValue rawSchema = runtimeReflection().get(
         ludork::runtime::reference::intern(type), "SCHEMA");
-    const RuntimeValue::Array* names = rawNames.getIf<RuntimeValue::Array>();
-    const RuntimeValue::Map* schema = rawSchema.getIf<RuntimeValue::Map>();
-    if (names == nullptr || schema == nullptr) {
+    std::optional<RuntimeArrayView> names = RuntimeValueView(rawNames).array();
+    std::optional<RuntimeMapView> schema = RuntimeValueView(rawSchema).map();
+    if (!names || !schema) {
         throw std::invalid_argument(
             "Attribute Set type must declare ATTRIBUTE_NAMES and SCHEMA");
     }
 
     attributeNames_.clear();
     attributeNames_.reserve(names->size());
-    schema_ = *schema;
-    for (const RuntimeValue& rawName : *names) {
+    schema_ = schema->toMap();
+    for (RuntimeValueView rawName : *names) {
         const std::string* name = rawName.getIf<std::string>();
         if (name == nullptr || name->empty()) {
             throw std::invalid_argument(
@@ -193,25 +193,22 @@ void AttributeSet::initialize(const RuntimeValue::Map& values) {
             throw std::invalid_argument("Attribute schema is missing for " +
                                         *name);
         }
-        const RuntimeValue::Map* entry =
-            schemaIt->second.getIf<RuntimeValue::Map>();
-        if (entry == nullptr) {
+        std::optional<RuntimeMapView> entry =
+            RuntimeValueView(schemaIt->second).map();
+        if (!entry) {
             throw std::invalid_argument("Attribute schema must be a table: " +
                                         *name);
         }
         const auto valueIt = values.find(*name);
-        const RuntimeValue* selected =
-            valueIt == values.end() || valueIt->second.isNil()
-                ? nullptr
-                : &valueIt->second;
-        if (selected == nullptr) {
-            const auto defaultIt = entry->find("default");
-            if (defaultIt != entry->end()) {
-                selected = &defaultIt->second;
-            }
+        std::optional<RuntimeValueView> selected;
+        if (valueIt != values.end() && !valueIt->second.isNil()) {
+            selected = RuntimeValueView(valueIt->second);
+        }
+        if (!selected) {
+            selected = entry->find("default");
         }
         const RuntimeValue value =
-            selected == nullptr ? RuntimeValue() : cloneRuntimeValue(*selected);
+            !selected ? RuntimeValue() : cloneRuntimeValue(selected->toValue());
         runtimeReflection().set(ludork::runtime::reference::intern(self), *name,
                                 value);
         attributeNames_.push_back(*name);
@@ -254,15 +251,14 @@ std::string AttributeSet::getAttributeType(const std::string& name) const {
     if (iterator == schema_.end()) {
         throw std::invalid_argument("Unknown attribute schema: " + name);
     }
-    const RuntimeValue::Map* schema =
-        iterator->second.getIf<RuntimeValue::Map>();
-    if (schema == nullptr) {
+    std::optional<RuntimeMapView> schema =
+        RuntimeValueView(iterator->second).map();
+    if (!schema) {
         throw std::invalid_argument("Attribute schema must be a table: " +
                                     name);
     }
     const auto type = schema->find("type");
-    const std::string* result =
-        type == schema->end() ? nullptr : type->second.getIf<std::string>();
+    const std::string* result = !type ? nullptr : type->getIf<std::string>();
     if (result == nullptr) {
         throw std::invalid_argument("Attribute schema type is missing: " +
                                     name);

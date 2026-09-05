@@ -36,6 +36,8 @@ Linux and Intel-based macOS editor packages are not provided in Ludork 1.0.0.
 
 Release packages are self-contained; installing a separate .NET runtime is not required. macOS may ask you to confirm that you trust an application downloaded from the internet.
 
+On Windows, start `Ludork.exe` in the installation root. This launcher opens the actual editor under `Binaries`, which also contains its DLLs and .NET runtime files. `Locale`, `Templates`, `tools`, `Plugins`, `plugins.json`, documentation and licences remain in the installation root. Editor settings are saved to `Ludork.ini` there; plug-in data is stored under `Plugins/.data`. Keep the complete package together when moving a portable installation.
+
 ## Choose a project template
 
 | Template | Choose it when | Development requirements |

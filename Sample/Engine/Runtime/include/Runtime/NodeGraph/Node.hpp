@@ -115,7 +115,7 @@ private:
     static ResolvedCallable resolvedCallable(
         const RuntimeValue& resolvedDefinition);
     static NodeMemberMetadata parseMemberMetadata(
-        const RuntimeValue& metadataValue);
+        RuntimeValueView metadataValue);
 
     Node(Graph& parentGraph, RuntimeValue parent, std::string functionName,
          RuntimeValue resolvedDefinition, RuntimeValue params);

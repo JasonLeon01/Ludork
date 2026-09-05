@@ -16,10 +16,10 @@ std::shared_ptr<sf::Font> loadFont(const std::string& fontKey,
 sf::Text::LineAlignment parseLineAlignment(const std::string& value,
                                            const std::string& source);
 
-std::shared_ptr<PlainTextConfig> buildPlain(const RuntimeValue::Map& data,
+std::shared_ptr<PlainTextConfig> buildPlain(RuntimeMapView data,
                                             const std::string& sourceName);
 
-std::shared_ptr<RichTextConfig> buildRich(const RuntimeValue::Map& data,
+std::shared_ptr<RichTextConfig> buildRich(RuntimeMapView data,
                                           const std::string& sourceName);
 
 std::shared_ptr<PlainTextConfig> loadPlain(const std::string& textConfigKey);

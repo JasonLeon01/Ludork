@@ -326,29 +326,31 @@ std::pair<sol::object, sol::object> resolveRuntimeConfigVar(
         }
         const RuntimeValue metadataValue =
             ludork::runtime::binding::readLuaValue<RuntimeValue>(metadata);
-        const RuntimeValue::Map* metadataFields =
-            metadataValue.getIf<RuntimeValue::Map>();
-        if (metadataFields == nullptr) {
+        std::optional<RuntimeMapView> metadataFields =
+            RuntimeValueView(metadataValue).map();
+        if (!metadataFields) {
             continue;
         }
         const auto metaIterator = metadataFields->find("Meta");
-        if (metaIterator == metadataFields->end()) {
+        if (!metaIterator) {
             continue;
         }
         const RuntimeValue::Map references =
-            metadataRuntime().configVars(metaIterator->second);
+            metadataRuntime().configVars(metaIterator->toValue());
         const auto iterator = references.find(name);
         if (iterator == references.end()) {
             continue;
         }
-        const RuntimeValue::Array* reference =
-            iterator->second.getIf<RuntimeValue::Array>();
-        if (reference == nullptr || reference->size() < 2) {
+        std::optional<RuntimeArrayView> reference =
+            RuntimeValueView(iterator->second).array();
+        if (!reference || reference->size() < 2) {
             continue;
         }
         return {
-            ludork::runtime::binding::writeLuaValue(lua, (*reference)[0]),
-            ludork::runtime::binding::writeLuaValue(lua, (*reference)[1]),
+            ludork::runtime::binding::writeLuaValue(lua,
+                                                    (*reference)[0].toValue()),
+            ludork::runtime::binding::writeLuaValue(lua,
+                                                    (*reference)[1].toValue()),
         };
     }
     return {nilObject(lua), nilObject(lua)};
@@ -663,6 +665,62 @@ void clearRuntimeCaches(sol::state_view lua) {
     lua.registry().raw_set(CLASS_TYPE_METADATA_CACHE_KEY, sol::lua_nil);
     lua.registry().raw_set(ATTR_METADATA_CACHE_KEY, sol::lua_nil);
     clearRuntimeCommonCaches(lua);
+}
+
+sol::object resolveRuntimeAttrValueType(sol::state_view lua,
+                                        const sol::object& rawOwner,
+                                        const std::string& key) {
+    sol::object valueType = ludork::runtime::detail::nilObject(lua);
+    if (rawOwner.is<sol::table>()) {
+        const sol::table metadata =
+            ludork::runtime::detail::collectRuntimeAttrMetadata(
+                lua, rawOwner.as<sol::table>());
+        const sol::object descriptor = metadata.raw_get<sol::object>(key);
+        if (descriptor.is<sol::table>()) {
+            valueType =
+                descriptor.as<sol::table>().raw_get<sol::object>("type");
+        }
+        if (!valueType.valid() || valueType.get_type() == sol::type::lua_nil) {
+            const sol::object value =
+                rawOwner.as<sol::table>().get<sol::object>(key);
+            switch (value.get_type()) {
+                case sol::type::boolean:
+                    valueType = sol::make_object(lua, "bool");
+                    break;
+                case sol::type::number: {
+                    value.push();
+                    const bool integer =
+                        lua_isinteger(lua.lua_state(), -1) != 0;
+                    lua_pop(lua.lua_state(), 1);
+                    valueType =
+                        sol::make_object(lua, integer ? "int" : "float");
+                    break;
+                }
+                case sol::type::string:
+                    valueType = sol::make_object(lua, "string");
+                    break;
+                case sol::type::table:
+                    valueType = sol::make_object(lua, "table");
+                    break;
+                case sol::type::userdata: {
+                    const sol::table metatable =
+                        ludork::runtime::detail::objectMetatable(lua, value);
+                    const sol::object declared =
+                        metatable.raw_get<sol::object>("__metadataType");
+                    if (declared.is<std::string>()) {
+                        valueType = declared;
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    if (!valueType.valid() || valueType.get_type() == sol::type::lua_nil) {
+        valueType = sol::make_object(lua, "any");
+    }
+    return valueType;
 }
 
 }  // namespace ludork::runtime::detail

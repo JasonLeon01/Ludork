@@ -1,6 +1,6 @@
 #include "Internal.hpp"
 
-#include <Runtime/NodeGraph/NodeGraphRuntime.hpp>
+#include <NodeGraph/NodeGraphRuntime/NodeGraphRuntimeInternal.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 
 #include <cmath>
@@ -74,15 +74,20 @@ RuntimeIdentityPtr callableWithin(const RuntimeValue& value,
 }
 
 NodeCache decodeNodeCache(const RuntimeIdentityPtr& cacheIdentity) {
-    return cacheIdentity == nullptr
-               ? NodeCache{}
-               : nodeGraphRuntime().readCache(cacheIdentity);
+    if (cacheIdentity == nullptr) {
+        return {};
+    }
+    RuntimeScope scope;
+    return node_graph_detail::readNodeGraphCache(scope,
+                                                 RuntimeHandle(cacheIdentity));
 }
 
 void syncNodeCache(const RuntimeIdentityPtr& cacheIdentity,
                    const NodeCache& cache) {
     if (cacheIdentity != nullptr) {
-        nodeGraphRuntime().writeCache(cacheIdentity, cache);
+        RuntimeScope scope;
+        node_graph_detail::writeNodeGraphCache(
+            scope, RuntimeHandle(cacheIdentity), cache);
     }
 }
 

@@ -19,7 +19,9 @@ public:
                                   const RuntimeValue& parent) const;
     bool graphHasExecutableEvent(const std::string& classPath,
                                  const std::string& eventName) const;
-    void invalidate(const std::string& classPath) const;
+    bool containsCached(const std::string& classPath) const;
+    std::optional<std::string> findCachedPathByName(
+        const std::string& className) const;
 };
 
 LUDORK_RUNTIME_API ClassRuntimeFacade& classRuntime();

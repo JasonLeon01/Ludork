@@ -65,8 +65,7 @@ void validateBlueprintEvent(const RuntimeValue& object,
 
 void invokeBlueprintEvent(const RuntimeValue& object,
                           const std::string& eventName) {
-    dispatchBlueprintEvent(object, classType(object), eventName,
-                           retain(makeValue(table())), {});
+    dispatchBlueprintEvent(object, classType(object), eventName, table(), {});
 }
 
 bool classHasBlueprintEvent(const RuntimeValue& rawClass,
@@ -133,8 +132,8 @@ bool hasBlueprintEvent(const RuntimeValue& object,
         return true;
     }
     RuntimeValue instanceMethod = RuntimeValue();
-    instanceMethod = rawGet(ludork::runtime::reference::intern(object),
-                            retain(makeValue(eventName)));
+    instanceMethod =
+        rawGet(ludork::runtime::reference::intern(object), eventName);
     if (runtimeMethodHasImplementation(instanceMethod)) {
         return true;
     }
@@ -165,44 +164,41 @@ bool executeParentBlueprintEvent(const RuntimeValue& object,
         if (generatedBlueprintGraphHasExecutableEvent(parent, eventName)) {
             const RuntimeValue graph = generatedBlueprintGraph(object, parent);
             if (!graph.isNil()) {
-                if (!executeBlueprintGraph(graph, eventName,
-                                           retain(makeValue(eventArguments)),
+                if (!executeBlueprintGraph(graph, eventName, eventArguments,
                                            localGraph, onComplete)) {
                     invokeCompletion(onComplete);
                 }
                 return true;
             }
         }
-        return executeParentBlueprintEvent(
-            object, rawParent, eventName, RuntimeValue(),
-            retain(makeValue(eventArguments)), localGraph, onComplete);
+        return executeParentBlueprintEvent(object, rawParent, eventName,
+                                           RuntimeValue(), eventArguments,
+                                           localGraph, onComplete);
     }
 
     const RuntimeValue graph =
         get(ludork::runtime::reference::intern(parent), "_graph");
     if (!graph.isNil() && requireBlueprintGraph(graph)->hasKey(eventName)) {
         if (requireBlueprintGraph(graph)->startNodes.contains(eventName)) {
-            if (!executeBlueprintGraph(graph, eventName,
-                                       retain(makeValue(eventArguments)),
+            if (!executeBlueprintGraph(graph, eventName, eventArguments,
                                        localGraph, onComplete)) {
                 invokeCompletion(onComplete);
             }
             return true;
         }
-        return executeParentBlueprintEvent(
-            object, rawParent, eventName, RuntimeValue(),
-            retain(makeValue(eventArguments)), localGraph, onComplete);
+        return executeParentBlueprintEvent(object, rawParent, eventName,
+                                           RuntimeValue(), eventArguments,
+                                           localGraph, onComplete);
     }
 
     const RuntimeValue method =
         get(ludork::runtime::reference::intern(parent), eventName);
     if (!isFunction(method)) {
-        return executeParentBlueprintEvent(
-            object, rawParent, eventName, RuntimeValue(),
-            retain(makeValue(eventArguments)), localGraph, onComplete);
+        return executeParentBlueprintEvent(object, rawParent, eventName,
+                                           RuntimeValue(), eventArguments,
+                                           localGraph, onComplete);
     }
-    invokeNamedRuntimeMethod(object, method, parent, eventName,
-                             retain(makeValue(eventArguments)));
+    invokeNamedRuntimeMethod(object, method, parent, eventName, eventArguments);
     invokeCompletion(onComplete);
     return true;
 }
@@ -213,8 +209,7 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
                             const RuntimeValue& rawKeywordArguments,
                             const std::function<void()>& onComplete) {
     const RuntimeValue isDestroyed =
-        get(ludork::runtime::reference::intern(object),
-            retain(makeValue("isDestroyed")));
+        get(ludork::runtime::reference::intern(object), "isDestroyed");
     if (isFunction(isDestroyed) &&
         boolean(callRuntimeMethodFirst(object, "isDestroyed"))) {
         invokeCompletion(onComplete);
@@ -227,7 +222,7 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
         return;
     }
     const RuntimeValue keywordArguments =
-        isTable(rawKeywordArguments) ? rawKeywordArguments : table();
+        isTable(rawKeywordArguments) ? intern(rawKeywordArguments) : table();
     const RuntimeValue rawClass = classType(object);
     const bool scriptMixin =
         isTable(rawClass) &&
@@ -237,10 +232,9 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
             get(ludork::runtime::reference::intern(rawClass), "scriptMixin"));
     if (scriptMixin) {
         const RuntimeValue method =
-            get(ludork::runtime::reference::intern(object),
-                retain(makeValue(eventName)));
+            get(ludork::runtime::reference::intern(object), eventName);
         invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                                 retain(makeValue(keywordArguments)));
+                                 keywordArguments);
         invokeCompletion(onComplete);
         return;
     }
@@ -252,8 +246,7 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
     if (generated && !graph.isNil()) {
         if (requireBlueprintGraph(graph)->hasKey(eventName)) {
             if (requireBlueprintGraph(graph)->startNodes.contains(eventName)) {
-                if (!executeBlueprintGraph(graph, eventName,
-                                           retain(makeValue(keywordArguments)),
+                if (!executeBlueprintGraph(graph, eventName, keywordArguments,
                                            RuntimeValue(), onComplete)) {
                     invokeCompletion(onComplete);
                 }
@@ -261,23 +254,21 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
             }
         }
         if (executeParentBlueprintEvent(object, rawClass, eventName,
-                                        RuntimeValue(),
-                                        retain(makeValue(keywordArguments)),
+                                        RuntimeValue(), keywordArguments,
                                         RuntimeValue(), onComplete)) {
             return;
         }
         const RuntimeValue method =
-            get(ludork::runtime::reference::intern(object),
-                retain(makeValue(eventName)));
+            get(ludork::runtime::reference::intern(object), eventName);
         invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                                 retain(makeValue(keywordArguments)));
+                                 keywordArguments);
         invokeCompletion(onComplete);
         return;
     }
-    const RuntimeValue method = get(ludork::runtime::reference::intern(object),
-                                    retain(makeValue(eventName)));
+    const RuntimeValue method =
+        get(ludork::runtime::reference::intern(object), eventName);
     invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                             retain(makeValue(keywordArguments)));
+                             keywordArguments);
     invokeCompletion(onComplete);
 }
 

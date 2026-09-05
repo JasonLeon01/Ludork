@@ -11,7 +11,6 @@ enum class RuntimeProviderSlot {
     Curve,
     PlainTextConfig,
     BlueprintClassDataByPath,
-    BlueprintInvalidateClassData,
     BlueprintCompileGraph,
     BlueprintInstantiateGraphTemplate,
     Config,
@@ -20,7 +19,5 @@ enum class RuntimeProviderSlot {
 sol::object invokeRuntimeProviderOne(
     sol::state_view lua, RuntimeProviderSlot slot,
     const std::vector<sol::object>& arguments = {});
-void invokeRuntimeProviderVoid(sol::state_view lua, RuntimeProviderSlot slot,
-                               const std::vector<sol::object>& arguments = {});
 
 }  // namespace ludork::runtime::detail

@@ -1,12 +1,20 @@
 #pragma once
 
 #include <RuntimeSession.hpp>
+#include <RuntimeApi.hpp>
 #include <utils.hpp>
 
 #include <stdexcept>
 #include <utility>
 
 namespace ludork::runtime::binding {
+
+class LUDORK_RUNTIME_API LuaRegistryReferenceOwner {
+public:
+    virtual ~LuaRegistryReferenceOwner();
+    virtual const ludork::standard::LuaRegistryReference& registryReference()
+        const noexcept = 0;
+};
 
 inline ludork::standard::LuaRegistryReference makeLuaRegistryReference(
     const sol::object& value) {
@@ -46,7 +54,7 @@ inline sol::object readLuaRegistryReference(
 }
 
 template <typename Base>
-class LuaOpaqueObject final : public Base {
+class LuaOpaqueObject final : public Base, public LuaRegistryReferenceOwner {
 public:
     explicit LuaOpaqueObject(const sol::object& value)
         : value_(makeLuaRegistryReference(value)) {
@@ -57,7 +65,8 @@ public:
         ludork::standard::unregisterRuntimeOpaqueValue(value_.state(), this);
     }
 
-    [[nodiscard]] const ludork::standard::LuaRegistryReference& value() const {
+    const ludork::standard::LuaRegistryReference& registryReference()
+        const noexcept override {
         return value_;
     }
 
@@ -66,7 +75,7 @@ private:
 };
 
 template <typename Base>
-class LuaOpaqueIdentity final : public Base {
+class LuaOpaqueIdentity final : public Base, public LuaRegistryReferenceOwner {
 public:
     explicit LuaOpaqueIdentity(const sol::object& value)
         : value_(makeLuaRegistryReference(value)) {
@@ -83,7 +92,8 @@ public:
         return reference && value_.equals(reference);
     }
 
-    [[nodiscard]] const ludork::standard::LuaRegistryReference& value() const {
+    const ludork::standard::LuaRegistryReference& registryReference()
+        const noexcept override {
         return value_;
     }
 

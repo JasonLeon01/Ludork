@@ -4,7 +4,7 @@
 
 namespace ludork::engine::ui_interaction {
 
-std::optional<double> numericValue(const RuntimeValue& value) {
+std::optional<double> numericValue(RuntimeValueView value) {
     if (const double* number = value.getIf<double>()) {
         return *number;
     }
@@ -20,18 +20,18 @@ std::optional<sf::Vector2f> pointerPosition(
     if (positionIterator == arguments.end()) {
         return std::nullopt;
     }
-    const RuntimeValue::Map* position =
-        positionIterator->second.getIf<RuntimeValue::Map>();
-    if (position == nullptr) {
+    std::optional<RuntimeMapView> position =
+        RuntimeValueView(positionIterator->second).map();
+    if (!position) {
         return std::nullopt;
     }
     const auto xIterator = position->find("x");
     const auto yIterator = position->find("y");
-    if (xIterator == position->end() || yIterator == position->end()) {
+    if (!xIterator || !yIterator) {
         return std::nullopt;
     }
-    const std::optional<double> x = numericValue(xIterator->second);
-    const std::optional<double> y = numericValue(yIterator->second);
+    const std::optional<double> x = numericValue(*xIterator);
+    const std::optional<double> y = numericValue(*yIterator);
     if (!x.has_value() || !y.has_value()) {
         return std::nullopt;
     }

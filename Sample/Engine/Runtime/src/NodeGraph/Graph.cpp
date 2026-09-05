@@ -8,7 +8,7 @@
 #include "Graph/RelationRuntime.hpp"
 
 #include <Runtime/NodeGraph/LatentManager.hpp>
-#include <Runtime/NodeGraph/NodeGraphRuntime.hpp>
+#include "NodeGraphRuntime/NodeGraphRuntimeInternal.hpp"
 
 #include <algorithm>
 #include <set>
@@ -90,10 +90,12 @@ Graph::Graph(const Graph& definition, RuntimeValue parentValue, InstanceTag)
 }
 
 void Graph::initializeContext(RuntimeValue parentValue) {
-    NodeGraphRuntimeContext context =
-        nodeGraphRuntime().createContext(parentClass, parentValue);
-    localGraph = std::move(context.localGraph);
-    graphContext_ = std::move(context.graph);
+    ludork::runtime::RuntimeScope scope;
+    const auto context =
+        ludork::runtime::node_graph_detail::createNodeGraphContext(
+            scope, parentClass, parentValue);
+    localGraph = context.localGraph.identity();
+    graphContext_ = RuntimeValue(context.graph);
 }
 
 std::shared_ptr<Graph> Graph::instantiate(RuntimeValue parentValue) {
@@ -174,14 +176,18 @@ void Graph::ensureEventInitialised(const std::string& key) {
         node->attachParentGraph(self);
     }
     if (!nodeModel_.isNil()) {
+        ludork::runtime::RuntimeScope scope;
         const std::vector<std::shared_ptr<DataNode>>& dataNodes =
             dataNodes_.at(key);
         for (std::size_t index = 0; index < dataNodes.size(); ++index) {
             const std::shared_ptr<DataNode>& dataNode = dataNodes[index];
             const std::shared_ptr<Node>& fallback = eventNodes[index];
-            std::shared_ptr<Node> node = nodeGraphRuntime().createNode(
-                nodeModel_, self, getParent(), dataNode->nodeFunction,
-                fallback->getCallable(), dataNode->getParams());
+            std::shared_ptr<Node> node =
+                ludork::runtime::node_graph_detail::createNodeGraphNode(
+                    scope, nodeModel_, self, getParent(),
+                    dataNode->nodeFunction,
+                    RuntimeHandle(fallback->getCallable()),
+                    dataNode->getParams());
             if (node == nullptr) {
                 continue;
             }
@@ -371,7 +377,9 @@ RuntimeValue Graph::getParent() const {
     if (graphContext_.isNil()) {
         return RuntimeValue();
     }
-    return nodeGraphRuntime().getContextParent(graphContext_);
+    ludork::runtime::RuntimeScope scope;
+    return ludork::runtime::node_graph_detail::getNodeGraphContextParent(
+        scope, graphContext_);
 }
 
 void Graph::setParent(RuntimeValue value) {
@@ -379,7 +387,9 @@ void Graph::setParent(RuntimeValue value) {
         initializeContext(std::move(value));
         return;
     }
-    nodeGraphRuntime().setContextParent(graphContext_, value);
+    ludork::runtime::RuntimeScope scope;
+    ludork::runtime::node_graph_detail::setNodeGraphContextParent(
+        scope, graphContext_, value);
 }
 
 void Graph::setLocalGraph(RuntimeIdentityPtr context) {
@@ -418,7 +428,10 @@ RuntimeValue Graph::contextValue(const std::string& name) const {
     if (localGraph == nullptr) {
         return RuntimeValue();
     }
-    return nodeGraphRuntime().getContextValue(localGraph, name);
+    ludork::runtime::RuntimeScope scope;
+    return ludork::runtime::node_graph_detail::getNodeGraphContextValue(
+        scope, RuntimeHandle(localGraph), name,
+        ludork::runtime::node_graph_detail::NodeGraphValueRead::Snapshot);
 }
 
 RuntimeValue::Array Graph::execute(const std::string& key,

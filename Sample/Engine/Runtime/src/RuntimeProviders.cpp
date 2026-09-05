@@ -16,7 +16,7 @@
 namespace ludork::runtime::detail {
 namespace {
 
-constexpr std::size_t PROVIDER_COUNT = 7;
+constexpr std::size_t PROVIDER_COUNT = 6;
 
 struct RuntimeProviderState {
     std::mutex mutex;
@@ -40,8 +40,6 @@ const char* providerName(RuntimeProviderSlot slot) {
             return "plain text config resolver";
         case RuntimeProviderSlot::BlueprintClassDataByPath:
             return "Blueprint class data resolver";
-        case RuntimeProviderSlot::BlueprintInvalidateClassData:
-            return "Blueprint class data invalidator";
         case RuntimeProviderSlot::BlueprintCompileGraph:
             return "Blueprint graph compiler";
         case RuntimeProviderSlot::BlueprintInstantiateGraphTemplate:
@@ -150,24 +148,6 @@ sol::object invokeRuntimeProviderOne(
     }
 }
 
-void invokeRuntimeProviderVoid(sol::state_view lua, RuntimeProviderSlot slot,
-                               const std::vector<sol::object>& arguments) {
-    lua_State* state = lua.lua_state();
-    const int stackBase = lua_gettop(state);
-    try {
-        const int resultCount = invokeProvider(lua, slot, arguments);
-        if (resultCount != 0) {
-            throw std::runtime_error(
-                std::string("Runtime ") + providerName(slot) +
-                " must return no values, got " + std::to_string(resultCount));
-        }
-        lua_settop(state, stackBase);
-    } catch (...) {
-        lua_settop(state, stackBase);
-        throw;
-    }
-}
-
 void clearRuntimeProviders() noexcept {
     std::lock_guard<std::mutex> lock(providerState().mutex);
     providerState().providers = {};
@@ -185,15 +165,12 @@ void installDataRuntimeProviders(
 
 void installBlueprintRuntimeProviders(
     const RuntimeIdentityPtr& classDataByPath,
-    const RuntimeIdentityPtr& invalidateClassData,
     const RuntimeIdentityPtr& compileGraph,
     const RuntimeIdentityPtr& instantiateGraphTemplate) {
     RuntimeScope runtime;
     installProviderGroup(
         sol::state_view(runtime.state()),
         {{RuntimeProviderSlot::BlueprintClassDataByPath, classDataByPath},
-         {RuntimeProviderSlot::BlueprintInvalidateClassData,
-          invalidateClassData},
          {RuntimeProviderSlot::BlueprintCompileGraph, compileGraph},
          {RuntimeProviderSlot::BlueprintInstantiateGraphTemplate,
           instantiateGraphTemplate}});
@@ -216,12 +193,10 @@ void RuntimeProviders::installData(
 
 void RuntimeProviders::installBlueprint(
     const RuntimeIdentityPtr& classDataByPath,
-    const RuntimeIdentityPtr& invalidateClassData,
     const RuntimeIdentityPtr& compileGraph,
     const RuntimeIdentityPtr& instantiateGraphTemplate) {
     ludork::runtime::detail::installBlueprintRuntimeProviders(
-        classDataByPath, invalidateClassData, compileGraph,
-        instantiateGraphTemplate);
+        classDataByPath, compileGraph, instantiateGraphTemplate);
 }
 
 void RuntimeProviders::installConfig(const RuntimeIdentityPtr& configResolver) {
@@ -269,17 +244,6 @@ RuntimeIdentityPtr RuntimeProviderFacade::blueprintClassData(
     return invokeIdentityProvider(
         ludork::runtime::detail::RuntimeProviderSlot::BlueprintClassDataByPath,
         {}, {classPath});
-}
-
-void RuntimeProviderFacade::invalidateBlueprintClassData(
-    const std::string& classPath) const {
-    ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    ludork::runtime::detail::invokeRuntimeProviderVoid(
-        lua,
-        ludork::runtime::detail::RuntimeProviderSlot::
-            BlueprintInvalidateClassData,
-        {sol::make_object(lua, classPath)});
 }
 
 RuntimeIdentityPtr RuntimeProviderFacade::compileBlueprintGraph(

@@ -28,6 +28,7 @@ const Value& requireValue(const std::unordered_map<std::string, Value>& values,
 }
 
 template <typename Value>
+    requires std::is_same_v<Value, RuntimeData>
 const typename Value::Map& requireMap(const Value& value,
                                       const std::string& source) {
     const typename Value::Map* map =
@@ -39,11 +40,42 @@ const typename Value::Map& requireMap(const Value& value,
 }
 
 template <typename Value>
+    requires std::is_same_v<Value, RuntimeData>
 const typename Value::Array& requireArray(const Value& value,
                                           const std::string& source) {
     const typename Value::Array* array =
         value.template getIf<typename Value::Array>();
     if (array == nullptr) {
+        throw std::invalid_argument(source + " must be an array");
+    }
+    return *array;
+}
+
+inline std::optional<RuntimeValueView> findValue(RuntimeMapView values,
+                                                 const std::string& name) {
+    return values.find(name);
+}
+inline RuntimeValueView requireValue(RuntimeMapView values,
+                                     const std::string& name,
+                                     const std::string& source) {
+    const auto value = values.find(name);
+    if (!value) {
+        throw std::invalid_argument(source + " is missing " + name);
+    }
+    return *value;
+}
+inline RuntimeMapView requireMap(RuntimeValueView value,
+                                 const std::string& source) {
+    const auto map = value.map();
+    if (!map) {
+        throw std::invalid_argument(source + " must be an object");
+    }
+    return *map;
+}
+inline RuntimeArrayView requireArray(RuntimeValueView value,
+                                     const std::string& source) {
+    const auto array = value.array();
+    if (!array) {
         throw std::invalid_argument(source + " must be an array");
     }
     return *array;

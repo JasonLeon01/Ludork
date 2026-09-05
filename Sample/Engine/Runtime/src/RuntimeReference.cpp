@@ -1,6 +1,7 @@
 #include <Runtime/RuntimeReference.hpp>
 
 #include "RuntimeBindingTraits.hpp"
+#include "RuntimeServiceInternals.hpp"
 #include <Runtime/Detail/RuntimeServices.hpp>
 #include <Runtime/RuntimeSession.hpp>
 #include <Runtime/ScriptStore.hpp>
@@ -14,14 +15,11 @@ extern "C" {
 
 #include <sol2/sol.hpp>
 
-namespace ludork::runtime::reference {
-namespace {
+ludork::runtime::binding::LuaRegistryReferenceOwner::
+    ~LuaRegistryReferenceOwner() = default;
 
-sol::object write(sol::state_view lua, const RuntimeValue& value) {
-    return binding::writeLuaValue(lua, value);
-}
-
-RuntimeValue read(const sol::object& value) {
+RuntimeValue ludork::runtime::detail::readRuntimeReference(
+    const sol::object& value) {
     switch (value.get_type()) {
         case sol::type::none:
         case sol::type::lua_nil:
@@ -34,6 +32,13 @@ RuntimeValue read(const sol::object& value) {
             return RuntimeValue(
                 binding::readOpaqueIdentity<RuntimeIdentityPtr>(value));
     }
+}
+
+namespace ludork::runtime::reference {
+namespace {
+
+sol::object write(sol::state_view lua, const RuntimeValue& value) {
+    return binding::writeLuaValue(lua, value);
 }
 
 RuntimeHandle capture(const sol::object& value) {
@@ -59,8 +64,8 @@ RuntimeValue::Array collect(lua_State* state, int base, int count) {
     RuntimeValue::Array values;
     values.reserve(static_cast<std::size_t>(count));
     for (int index = 1; index <= count; ++index) {
-        values.push_back(
-            read(sol::stack::get<sol::object>(state, base + index)));
+        values.push_back(detail::readRuntimeReference(
+            sol::stack::get<sol::object>(state, base + index)));
     }
     return values;
 }
@@ -85,11 +90,30 @@ RuntimeData data(const RuntimeValue& value) {
 
 RuntimeValue retain(const RuntimeValue& value) {
     RuntimeScope scope;
-    return read(write(sol::state_view(scope.state()), value));
+    if (const RuntimeData* data = value.getIf<RuntimeData>();
+        data != nullptr && data->getIf<RuntimeData::Array>() == nullptr &&
+        data->getIf<RuntimeData::Map>() == nullptr) {
+        return value;
+    }
+    const sol::object raw = write(sol::state_view(scope.state()), value);
+    if (value.getIf<RuntimeHandle>() != nullptr &&
+        raw.get_type() != sol::type::none &&
+        raw.get_type() != sol::type::lua_nil &&
+        raw.get_type() != sol::type::boolean &&
+        raw.get_type() != sol::type::number &&
+        raw.get_type() != sol::type::string) {
+        return value;
+    }
+    return detail::readRuntimeReference(raw);
 }
 
 RuntimeValue snapshot(const RuntimeValue& value) {
     RuntimeScope scope;
+    if (const RuntimeData* data = value.getIf<RuntimeData>();
+        data != nullptr && data->getIf<RuntimeData::Array>() == nullptr &&
+        data->getIf<RuntimeData::Map>() == nullptr) {
+        return value;
+    }
     return binding::readLuaValue<RuntimeValue>(
         write(sol::state_view(scope.state()), value));
 }
@@ -144,14 +168,14 @@ RuntimeHandle registryTable(const std::string& key, WeakMode mode) {
 RuntimeValue get(const RuntimeHandle& target, const RuntimeValue& key) {
     RuntimeScope scope;
     sol::state_view lua(scope.state());
-    return read(
+    return detail::readRuntimeReference(
         detail::runtimeIndex(lua, write(lua, target), write(lua, key), false));
 }
 
 RuntimeValue rawGet(const RuntimeHandle& target, const RuntimeValue& key) {
     RuntimeScope scope;
     sol::state_view lua(scope.state());
-    return read(
+    return detail::readRuntimeReference(
         detail::runtimeIndex(lua, write(lua, target), write(lua, key), true));
 }
 
@@ -180,7 +204,8 @@ Entries entries(const RuntimeHandle& target) {
     }
     Entries result;
     for (const auto& entry : raw.as<sol::table>()) {
-        result.emplace_back(read(entry.first), read(entry.second));
+        result.emplace_back(detail::readRuntimeReference(entry.first),
+                            detail::readRuntimeReference(entry.second));
     }
     return result;
 }
@@ -191,7 +216,7 @@ RuntimeValue::Array keys(const RuntimeHandle& target, RuntimeLookupMode mode) {
     RuntimeValue::Array result;
     for (const sol::object& key : detail::runtimeKeys(
              lua, write(lua, target), mode == RuntimeLookupMode::Own)) {
-        result.push_back(read(key));
+        result.push_back(detail::readRuntimeReference(key));
     }
     return result;
 }
@@ -289,7 +314,8 @@ RuntimeHandle callback(Callback function) {
         RuntimeValue::Array values;
         values.reserve(arguments.size());
         for (const auto& argument : arguments) {
-            values.push_back(read(argument.get<sol::object>()));
+            values.push_back(
+                detail::readRuntimeReference(argument.get<sol::object>()));
         }
         const RuntimeValue::Array results = function(values);
         sol::variadic_results output;
@@ -393,12 +419,13 @@ std::optional<FunctionSource> functionSource(const RuntimeValue& callable) {
 RuntimeValue deepCopy(const RuntimeValue& value) {
     RuntimeScope scope;
     sol::state_view lua(scope.state());
-    return read(standard::class_runtime::deepCopy(lua, write(lua, value)));
+    return detail::readRuntimeReference(
+        standard::class_runtime::deepCopy(lua, write(lua, value)));
 }
 
 RuntimeValue requireModule(const std::string& module) {
     RuntimeScope scope;
-    return read(standard::class_runtime::requireModule(
+    return detail::readRuntimeReference(standard::class_runtime::requireModule(
         sol::state_view(scope.state()), module));
 }
 
@@ -470,7 +497,8 @@ RuntimeHandle finalizeClass(const RuntimeHandle& definition,
 RuntimeValue classType(const RuntimeValue& value) {
     RuntimeScope scope;
     sol::state_view lua(scope.state());
-    return read(standard::class_runtime::typeOf(lua, write(lua, value)));
+    return detail::readRuntimeReference(
+        standard::class_runtime::typeOf(lua, write(lua, value)));
 }
 
 RuntimeValue::Array classMro(const RuntimeHandle& value) {
@@ -480,7 +508,8 @@ RuntimeValue::Array classMro(const RuntimeHandle& value) {
         standard::class_runtime::getMroCopy(lua, write(lua, value));
     RuntimeValue::Array result;
     for (std::size_t index = 1; index <= mro.size(); ++index) {
-        result.push_back(read(mro.raw_get<sol::object>(index)));
+        result.push_back(
+            detail::readRuntimeReference(mro.raw_get<sol::object>(index)));
     }
     return result;
 }
@@ -488,7 +517,7 @@ RuntimeValue::Array classMro(const RuntimeHandle& value) {
 RuntimeValue typeMetadata(const RuntimeHandle& value) {
     RuntimeScope scope;
     sol::state_view lua(scope.state());
-    return read(
+    return detail::readRuntimeReference(
         detail::runtimeTypeMetadata(lua, write(lua, value).as<sol::table>()));
 }
 

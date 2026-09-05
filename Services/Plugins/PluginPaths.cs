@@ -23,7 +23,7 @@ public static class PluginPaths
             return createEnvironment(developmentRoot);
 
         if (OperatingSystem.IsWindows())
-            return createEnvironment(baseDirectory);
+            return createEnvironment(EditorRuntimePaths.ContentRoot);
 
         string userRoot = Path.Combine(userProfile, "Ludork");
         return createEnvironment(userRoot);

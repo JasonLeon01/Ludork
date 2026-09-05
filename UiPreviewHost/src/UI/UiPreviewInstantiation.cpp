@@ -126,8 +126,8 @@ std::shared_ptr<UiAssetInstance> instantiateUiPreview(
     configureUiResources();
     const RuntimeValue dependencyValues{RuntimeData(dependencies)};
     return UiAssetRuntime::instance().instantiateSnapshot(
-        assetKey, RuntimeValue(asset),
-        *dependencyValues.getIf<RuntimeValue::Map>(), design, true);
+        assetKey, RuntimeValue(asset), dependencyValues.view().map()->toMap(),
+        design, true);
 }
 
 }  // namespace ludork::preview_host
