@@ -1,20 +1,10 @@
 #pragma once
-#include <LudorkRuntimeBinding/Annotations.hpp>
+
+#include <CoreMinimal.hpp>
 #include <Gameplay/Actor.hpp>
 #include <Gameplay/TileMap.hpp>
 #include <General/Material.hpp>
 #include <Light.hpp>
-
-#include <SFML/Graphics.hpp>
-#include <SFML/System.hpp>
-#include <array>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
 
 using ActorPtr = std::shared_ptr<Actor>;
 using ActorDict = std::unordered_map<std::string, std::vector<ActorPtr>>;

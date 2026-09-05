@@ -1,9 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <string>
+#include <CoreMinimal.hpp>
 
 BIND_FUNCTION_GROUP(name = "UI")
 

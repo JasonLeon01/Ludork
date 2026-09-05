@@ -1,21 +1,17 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <GlobalAnimation.hpp>
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <CustomParticles/CommonTipController.hpp>
 #include <Manager/TimeManager.hpp>
 #include <Particles/ParticleSystem.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <System/SceneRuntime.hpp>
 #include <UIManager.hpp>
 
 #include <exception>
-#include <functional>
-#include <memory>
 #include <mutex>
-#include <string>
 #include <thread>
-#include <vector>
 
 namespace ludork::global::scene_base_impl {
 class LifecycleRuntime;

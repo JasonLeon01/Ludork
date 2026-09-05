@@ -1,12 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <General/AutoTile.hpp>
 #include <General/Tileset.hpp>
-#include <optional>
-#include <string>
-#include <variant>
-#include <vector>
 
 using TileGrid = std::vector<std::vector<std::optional<int>>>;
 using AutoTileCell = std::optional<std::variant<int, std::string>>;

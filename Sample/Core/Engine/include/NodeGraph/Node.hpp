@@ -1,13 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <NodeGraph/Types.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <CoreMinimal.hpp>
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <NodeGraph/Types.hpp>
 
 class Graph;
 

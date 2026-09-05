@@ -1,9 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/NativeObjectCodec.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeReference.hpp>
 
-#include <sol2/sol.hpp>
+#include <Runtime/RuntimeValue.hpp>
 
 #include <optional>
 #include <string>
@@ -12,59 +11,41 @@
 
 namespace ludork::engine::class_runtime_detail {
 
+using namespace ludork::runtime::reference;
+
 inline constexpr const char* CLASS_RESOLVER_STATE_KEY =
     "Ludork.Engine.classResolverState";
 
-inline RuntimeIdentityPtr retainRuntimeIdentity(const sol::object& value) {
-    return ludork::runtime::binding::readOpaqueIdentity<RuntimeIdentityPtr>(
-        value);
-}
-
-inline sol::object runtimeIdentityValue(sol::state_view lua,
-                                        const RuntimeIdentityPtr& value) {
-    return ludork::runtime::binding::writeOpaqueIdentity(lua, value);
-}
-
-sol::object nilObject(sol::state_view lua);
-sol::object checkedResult(sol::state_view lua,
-                          sol::protected_function_result& result,
-                          int index = 0);
-sol::table requireTable(sol::state_view lua, const std::string& moduleName);
-sol::table resolverState(sol::state_view lua);
-sol::object compileGraphTemplate(sol::state_view lua, const sol::table& data,
-                                 const sol::object& classType);
-bool classGraphHasExecutableEvent(sol::state_view lua,
-                                  const std::string& classPath,
+RuntimeValue requireModuleTable(const std::string& moduleName);
+RuntimeValue resolverState();
+RuntimeValue compileGraphTemplate(const RuntimeValue& data,
+                                  const RuntimeValue& classType);
+bool classGraphHasExecutableEvent(const std::string& classPath,
                                   const std::string& eventName);
-sol::object instantiateClassGraph(sol::state_view lua,
-                                  const std::string& classPath,
-                                  const sol::object& parent);
-RuntimeValue runtimeValue(const sol::object& value);
-sol::object luaValue(sol::state_view lua, const RuntimeValue& value);
-std::string declaringModule(const sol::object& value);
-sol::object cloneMetadataValue(sol::state_view lua, const sol::object& value,
-                               const sol::table& fieldMetadata,
-                               const std::string& fallbackModule = {});
-sol::object cloneAttrValue(sol::state_view lua, const sol::table& parentClass,
-                           const sol::object& key, const sol::object& value,
-                           const sol::object& rawMetadata,
-                           const sol::object& rawTargetType);
-sol::table configReferences(sol::state_view lua, const sol::table& owner);
-bool moduleExists(sol::state_view lua, const std::string& moduleName);
+RuntimeValue instantiateClassGraph(const std::string& classPath,
+                                   const RuntimeValue& parent);
+std::string declaringModule(const RuntimeValue& value);
+RuntimeValue cloneMetadataValue(const RuntimeValue& value,
+                                const RuntimeValue& fieldMetadata,
+                                const std::string& fallbackModule = {});
+RuntimeValue cloneAttrValue(const RuntimeValue& parentClass,
+                            const RuntimeValue& key, const RuntimeValue& value,
+                            const RuntimeValue& rawMetadata,
+                            const RuntimeValue& rawTargetType);
+RuntimeValue configReferences(const RuntimeValue& owner);
 std::string normalizeScriptMixinPath(const std::string& value);
-sol::table loadScriptMixin(sol::state_view lua, const std::string& classPath,
-                           const std::string& scriptPath);
-void mergeScriptMixin(sol::state_view lua, const sol::table& parentClass,
-                      const sol::table& mixin, sol::table definition,
-                      sol::table instanceAttrs, const std::string& classPath,
+RuntimeValue loadScriptMixin(const std::string& classPath,
+                             const std::string& scriptPath);
+void mergeScriptMixin(const RuntimeValue& parentClass,
+                      const RuntimeValue& mixin, RuntimeValue definition,
+                      RuntimeValue instanceAttrs, const std::string& classPath,
                       const std::string& scriptPath);
-void applyConfigValues(sol::state_view lua, const sol::table& parentClass,
-                       sol::table classAttrs, const sol::table& references);
+void applyConfigValues(const RuntimeValue& parentClass, RuntimeValue classAttrs,
+                       const RuntimeValue& references);
 void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
-                                 const sol::object& self,
-                                 const sol::variadic_args& arguments);
-std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
-                                                  const sol::object& rawPath,
-                                                  const sol::object& rawRoot);
+                                 const RuntimeValue& self,
+                                 const RuntimeValue::Array& arguments);
+std::tuple<RuntimeValue, RuntimeValue> resolveClass(
+    const RuntimeValue& rawPath, const RuntimeValue& rawRoot);
 
 }  // namespace ludork::engine::class_runtime_detail

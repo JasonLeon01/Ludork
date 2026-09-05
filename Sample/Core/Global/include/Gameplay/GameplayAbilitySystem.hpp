@@ -1,15 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <GlobalRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <CoreMinimal.hpp>
 
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <GlobalRuntimeApi.hpp>
 
 class AbilitySystemComponent;
 class GameplayAbility;

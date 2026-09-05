@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Font.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
 
 BIND_MODULE_PROPERTY(name = "DefaultFontSize")
 extern LUDORK_ENGINE_API int defaultFontSize;

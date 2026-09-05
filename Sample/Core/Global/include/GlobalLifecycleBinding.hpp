@@ -1,6 +1,7 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GlobalRuntimeApi.hpp>
 
 BIND_MODULE_INIT()

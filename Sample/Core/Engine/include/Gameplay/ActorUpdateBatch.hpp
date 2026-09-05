@@ -1,11 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
+#include <CoreMinimal.hpp>
 
-#include <memory>
-#include <unordered_map>
-#include <vector>
+#include <EngineRuntimeApi.hpp>
 
 class Actor;
 

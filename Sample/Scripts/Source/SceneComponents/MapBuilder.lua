@@ -344,6 +344,10 @@ function SceneMapBuilder:buildFloorMapPreview(
         or telepointCentre.y < centre.y - halfView.y or telepointCentre.y > centre.y + halfView.y then
         centre = telepointCentre
     end
+    centre.x = mapPixelSize.x >= viewSize.x and Engine.Clamp(centre.x, halfView.x, mapPixelSize.x - halfView.x)
+        or mapPixelSize.x / 2.0
+    centre.y = mapPixelSize.y >= viewSize.y and Engine.Clamp(centre.y, halfView.y, mapPixelSize.y - halfView.y)
+        or mapPixelSize.y / 2.0
     target:setView(sf.View.new(centre, viewSize))
     local states = Engine.CanvasRenderStates()
     local preview = self._floorMapPreviewGameMaps[mapPath]
@@ -436,43 +440,6 @@ function SceneMapBuilder:buildFloorMapPreview(
     local result = sf.Texture.new(target:getTexture():copyToImage())
     result:setSmooth(false)
     return result
-end
-
-function SceneMapBuilder:getFloorTelepointTag(currentMap, mapKey, telepoint)
-    local mapPath, mapData = self:loadMapData(mapKey, currentMap)
-    if mapData.type == "worldMap" then
-        local matchedRegion = nil
-        local signedTelepoint = sf.Vector2i.new(telepoint.x, telepoint.y)
-        ---@cast matchedRegion Source.SceneComponents.WorldRegionData | nil
-        ---@cast signedTelepoint sf.Vector2i
-        for _, region in ipairs(mapData.regions) do
-            if WorldGeometry.RectContainsPosition(region, signedTelepoint) then
-                matchedRegion = region
-                break
-            end
-        end
-        if matchedRegion == nil then
-            return nil
-        end
-        local _, childData = self:loadMapData(matchedRegion.path, mapPath)
-        assert(childData.type ~= "worldMap", "World telepoint child cannot be a world manifest: " .. matchedRegion.path)
-        mapData = childData
-        telepoint = sf.Vector2u.new(telepoint.x - matchedRegion.x, telepoint.y - matchedRegion.y)
-    end
-    ---@cast mapData Source.SceneComponents.MapData
-    local teleporterPrefix = "Data.Blueprints.Teleportations"
-    local actors = mapData.actors
-    for _, layerName in ipairs(mapData.layerOrder) do
-        local actorDatas = actors[layerName] or {}
-        for _, actorData in ipairs(actorDatas) do
-            local position = actorData.position
-            if position.x == telepoint.x and position.y == telepoint.y
-                and string.startsWith(tostring(actorData.bp or ""), teleporterPrefix) then
-                return tostring(actorData.tag or "")
-            end
-        end
-    end
-    return nil
 end
 
 function SceneMapBuilder:resolveRegionMapPath(mapKey, currentMap)

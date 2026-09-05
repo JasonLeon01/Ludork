@@ -243,7 +243,7 @@ CompressedAnimationFrames compressAnimationFrames(
 }  // namespace
 
 std::tuple<float, std::vector<std::string>, std::vector<AnimationSoundEntry>>
-C_CompressAnimation(const sol::object& zlibModule, int frameCount,
+C_CompressAnimation(const RuntimeValue& zlibModule, int frameCount,
                     float frameStep, int frameRate,
                     const std::vector<AnimationTimeline>& timeLines,
                     const std::vector<std::string>& assets,

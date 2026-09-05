@@ -1,12 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <Camera.hpp>
 
-#include <SFML/Graphics.hpp>
-
-#include <memory>
-#include <optional>
 #include <random>
 
 BIND_ENUM()

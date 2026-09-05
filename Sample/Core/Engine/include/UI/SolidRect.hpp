@@ -1,10 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <UI/ControlBase.hpp>
+#include <CoreMinimal.hpp>
 
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
+#include <UI/ControlBase.hpp>
 
 BIND_CLASS(callbacks = true)
 class SolidRect : public ControlBase {

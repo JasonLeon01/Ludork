@@ -1,15 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GlobalRuntimeApi.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <vector>
 
 BIND_ENUM()
 enum class WorldRegionState {

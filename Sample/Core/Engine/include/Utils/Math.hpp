@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/System/Vector3.hpp>
-
-#include <cstdint>
 
 BIND_FUNCTION(name = "Round")
 LUDORK_ENGINE_API std::int64_t roundNumber(double value);

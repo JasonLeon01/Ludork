@@ -164,11 +164,11 @@ function GameInstance:getTerrainDestructions(mapPath)
     return self._cachedTerrainDestructions[mapPath] or {}
 end
 
-function GameInstance:recordTelepoint(mapPath, telepoint)
+function GameInstance:recordTelepoint(mapPath, position, tag)
     mapPath = MapPath.Normalise(mapPath)
     local points = self._cachedTelepoints[mapPath] or {}
     self._cachedTelepoints[mapPath] = points
-    GameInstanceRecords.AppendUniquePosition(points, copy(telepoint))
+    GameInstanceRecords.AppendUniqueTelepoint(points, position, tag)
 end
 
 function GameInstance:getTelepoints(mapPath)

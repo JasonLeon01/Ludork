@@ -1,11 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Graphics/Texture.hpp>
-#include <cstdint>
-#include <string>
-#include <vector>
+#include <CoreMinimal.hpp>
 
 ////////////////////////////////////////////////////////////
 /// \brief Update an `sf::Texture` using a flat byte buffer

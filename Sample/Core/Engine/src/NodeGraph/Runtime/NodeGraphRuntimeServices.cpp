@@ -1,73 +1,50 @@
+#include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeSession.hpp>
 
-#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <NodeGraph/Node.hpp>
-#include <NodeGraph/NodeGraphRuntime.hpp>
+#include <NodeGraph/Runtime/NodeGraphRuntimeInternal.hpp>
 
 #include <utility>
 
-namespace {
-
-sol::object writeRuntimeValue(sol::state_view lua, const RuntimeValue& value) {
-    return ludork::runtime::binding::writeLuaValue(lua, value);
-}
-
-sol::object writeRuntimeIdentity(sol::state_view lua,
-                                 const RuntimeIdentityPtr& value) {
-    return ludork::runtime::binding::writeLuaValue(lua, value);
-}
-
-}  // namespace
+using namespace ludork::runtime::reference;
 
 NodeGraphRuntimeContext NodeGraphRuntimeFacade::createContext(
     const RuntimeValue& parentClass, const RuntimeValue& parent) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     const ludork::engine::runtime_detail::NodeGraphContextObjects context =
         ludork::engine::runtime_detail::createNodeGraphContext(
-            lua, writeRuntimeValue(lua, parentClass),
-            writeRuntimeValue(lua, parent));
-    return {
-        ludork::runtime::binding::readLuaValue<RuntimeIdentityPtr>(
-            context.localGraph),
-        ludork::runtime::binding::readLuaValue<RuntimeValue>(context.graph)};
+            retain(parentClass), retain(parent));
+    return {identity(context.localGraph), data(context.graph)};
 }
 
 RuntimeValue NodeGraphRuntimeFacade::getContextValue(
     const RuntimeIdentityPtr& context, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    return ludork::runtime::binding::readLuaValue<RuntimeValue>(
-        ludork::engine::runtime_detail::getNodeGraphContextValue(
-            lua, writeRuntimeIdentity(lua, context), key));
+    return data(ludork::engine::runtime_detail::getNodeGraphContextValue(
+        retain(makeValue(context)), key));
 }
 
 void NodeGraphRuntimeFacade::setContextValue(const RuntimeIdentityPtr& context,
                                              const std::string& key,
                                              const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     ludork::engine::runtime_detail::setNodeGraphContextValue(
-        lua, writeRuntimeIdentity(lua, context), key,
-        writeRuntimeValue(lua, value));
+        retain(makeValue(context)), key, retain(value));
 }
 
 RuntimeValue NodeGraphRuntimeFacade::getContextParent(
     const RuntimeValue& graph) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    return ludork::runtime::binding::readLuaValue<RuntimeValue>(
-        ludork::engine::runtime_detail::getNodeGraphContextParent(
-            lua, writeRuntimeValue(lua, graph)));
+    return data(ludork::engine::runtime_detail::getNodeGraphContextParent(
+        retain(graph)));
 }
 
 void NodeGraphRuntimeFacade::setContextParent(
     const RuntimeValue& graph, const RuntimeValue& parent) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    ludork::engine::runtime_detail::setNodeGraphContextParent(
-        lua, writeRuntimeValue(lua, graph), writeRuntimeValue(lua, parent));
+    ludork::engine::runtime_detail::setNodeGraphContextParent(retain(graph),
+                                                              retain(parent));
 }
 
 std::shared_ptr<Node> NodeGraphRuntimeFacade::createNode(
@@ -76,13 +53,10 @@ std::shared_ptr<Node> NodeGraphRuntimeFacade::createNode(
     const RuntimeIdentityPtr& fallback,
     const RuntimeValue::Array& parameters) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     return ludork::engine::runtime_detail::createNodeGraphNode(
-        lua, writeRuntimeValue(lua, nodeModel),
-        ludork::runtime::binding::writeLuaValue(lua, graph),
-        writeRuntimeValue(lua, parent), nodeFunction,
-        writeRuntimeIdentity(lua, fallback),
-        ludork::runtime::binding::writeLuaValue(lua, parameters));
+        retain(nodeModel), retain(makeValue(graph)), retain(parent),
+        nodeFunction, retain(makeValue(fallback)),
+        retain(makeValue(parameters)));
 }
 
 NodeResult NodeGraphRuntimeFacade::invoke(
@@ -90,44 +64,37 @@ NodeResult NodeGraphRuntimeFacade::invoke(
     const RuntimeValue::Array& arguments,
     const RuntimeIdentityPtr& context) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     return ludork::engine::runtime_detail::invokeNodeGraphCallable(
-        lua, writeRuntimeIdentity(lua, callable), writeRuntimeValue(lua, self),
-        ludork::runtime::binding::writeLuaValue(lua, arguments),
-        writeRuntimeIdentity(lua, context));
+        retain(makeValue(callable)), retain(self), retain(makeValue(arguments)),
+        retain(makeValue(context)));
 }
 
 RuntimeIdentityPtr NodeGraphRuntimeFacade::refLocal(
     const RuntimeIdentityPtr& callable) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    return ludork::runtime::binding::readLuaValue<RuntimeIdentityPtr>(
-        ludork::engine::runtime_detail::nodeGraphRefLocal(
-            lua, writeRuntimeIdentity(lua, callable)));
+    return identity(ludork::engine::runtime_detail::nodeGraphRefLocal(
+        retain(makeValue(callable))));
 }
 
 NodeGraphConditionResult NodeGraphRuntimeFacade::evaluateCondition(
     const RuntimeIdentityPtr& condition) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     return ludork::engine::runtime_detail::evaluateNodeGraphCondition(
-        lua, writeRuntimeIdentity(lua, condition));
+        retain(makeValue(condition)));
 }
 
 NodeCache NodeGraphRuntimeFacade::readCache(
     const RuntimeIdentityPtr& cache) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     return ludork::engine::runtime_detail::readNodeGraphCache(
-        lua, writeRuntimeIdentity(lua, cache));
+        retain(makeValue(cache)));
 }
 
 void NodeGraphRuntimeFacade::writeCache(const RuntimeIdentityPtr& cache,
                                         const NodeCache& values) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     ludork::engine::runtime_detail::writeNodeGraphCache(
-        lua, writeRuntimeIdentity(lua, cache), values);
+        retain(makeValue(cache)), values);
 }
 
 NodeGraphRuntimeFacade& nodeGraphRuntime() {

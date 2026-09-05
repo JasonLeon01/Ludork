@@ -1,14 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
-#include <SFML/Graphics/RenderTexture.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <vector>
+#include <CoreMinimal.hpp>
 
 ////////////////////////////////////////////////////////////
 /// \brief Utility for rendering nine-patch style rectangles

@@ -1,12 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <CoreMinimal.hpp>
 
-#include <memory>
-#include <string>
-#include <unordered_map>
+#include <EngineRuntimeApi.hpp>
 
 BIND_MODULE_PROPERTY(name = "FocusDirection", readonly = true)
 extern LUDORK_ENGINE_API const std::unordered_map<std::string, std::string>

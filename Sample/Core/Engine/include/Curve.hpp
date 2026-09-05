@@ -1,14 +1,8 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <array>
-#include <memory>
-#include <string>
-#include <vector>
 
 BIND_CLASS(copyable = true, table_init = true)
 struct CurveKey {

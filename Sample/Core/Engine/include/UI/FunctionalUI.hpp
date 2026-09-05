@@ -1,13 +1,10 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <UI/FunctionalBase.hpp>
 #include <UI/Image.hpp>
 #include <UI/Text.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
 
 BIND_CLASS()
 class FunctionalImage : public Image, public FunctionalBase {

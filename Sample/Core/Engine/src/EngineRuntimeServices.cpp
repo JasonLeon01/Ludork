@@ -2,13 +2,11 @@
 
 #include <Gameplay/EngineClassRuntime.hpp>
 #include <Gameplay/BlueprintRuntime/BlueprintRuntimeInternal.hpp>
-#include <LudorkRuntimeBinding/NativeObjectCodec.hpp>
-#include <NodeGraph/NodeGraphRuntime.hpp>
+#include <NodeGraph/Runtime/NodeGraphRuntimeInternal.hpp>
+#include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeSession.hpp>
 #include <RuntimeSession.hpp>
 #include <Utils/EventBus.hpp>
-
-#include <sol2/sol.hpp>
 
 #include <stdexcept>
 
@@ -17,10 +15,8 @@ void initializeEngineRuntimeServices(lua_State* state) {
         return;
     }
     ludork::runtime::initialize(state);
-    sol::state_view lua(state);
-    ludork::engine::runtime_detail::clearBlueprintRuntimeCaches(lua);
-    ludork::engine::runtime_detail::clearNodeGraphRuntimeCaches(lua);
-
+    ludork::engine::runtime_detail::clearBlueprintRuntimeCaches();
+    ludork::engine::runtime_detail::clearNodeGraphRuntimeCaches();
     EventBus::setBlueprintEventValidator(
         [state](const RuntimeIdentityPtr& object,
                 const std::string& eventName) {
@@ -29,10 +25,7 @@ void initializeEngineRuntimeServices(lua_State* state) {
                 throw std::runtime_error("Lua runtime session is stopping");
             }
             ludork::engine::runtime_detail::validateBlueprintEvent(
-                sol::this_state(state),
-                ludork::runtime::binding::writeLuaValue(sol::state_view(state),
-                                                        object),
-                eventName);
+                RuntimeValue(object), eventName);
         });
     EventBus::setBlueprintEventInvoker([state](const RuntimeIdentityPtr& object,
                                                const std::string& eventName) {
@@ -40,13 +33,10 @@ void initializeEngineRuntimeServices(lua_State* state) {
         if (!execution.active()) {
             throw std::runtime_error("Lua runtime session is stopping");
         }
-        sol::state_view lua(state);
-        const sol::object target =
-            ludork::runtime::binding::writeLuaValue(lua, object);
+        const RuntimeValue target(object);
         ludork::engine::runtime_detail::dispatchBlueprintEvent(
-            sol::this_state(state), target,
-            ludork::runtime::detail::classType(sol::this_state(state), target),
-            eventName, sol::make_object(lua, lua.create_table()), {});
+            target, ludork::runtime::reference::classType(target), eventName,
+            ludork::runtime::reference::table(), {});
     });
 }
 
@@ -56,9 +46,8 @@ void shutdownEngineRuntimeServices(lua_State* state) noexcept {
     if (state == nullptr) {
         return;
     }
-    sol::state_view lua(state);
     shutdownEngineClassRuntime(state);
-    ludork::engine::runtime_detail::clearBlueprintRuntimeCaches(lua);
-    ludork::engine::runtime_detail::clearNodeGraphRuntimeCaches(lua);
+    ludork::engine::runtime_detail::clearBlueprintRuntimeCaches();
+    ludork::engine::runtime_detail::clearNodeGraphRuntimeCaches();
     ludork::runtime::shutdown(state);
 }

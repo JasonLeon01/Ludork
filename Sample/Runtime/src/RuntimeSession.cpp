@@ -55,10 +55,6 @@ RuntimeScope::RuntimeScope()
     }
 }
 
-sol::state_view RuntimeScope::lua() const {
-    return sol::state_view(state_);
-}
-
 lua_State* RuntimeScope::state() const noexcept {
     return state_;
 }

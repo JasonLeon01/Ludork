@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <UI/ControlBase.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-
-#include <memory>
-#include <optional>
 
 BIND_CLASS(callbacks = true)
 class SpriteBase : public ControlBase {

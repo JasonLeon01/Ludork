@@ -1,18 +1,13 @@
+#include <Runtime/RuntimeReference.hpp>
 #include "BlueprintRuntimeInternal.hpp"
 #include <EngineRuntimeServices.hpp>
 
-#include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
-#include <LudorkRuntimeBinding/FunctionAdapter.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Gameplay/EngineClassRuntime.hpp>
 #include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/DataValue.hpp>
-
-extern "C" {
-#include <lua.h>
-}
 
 #include <algorithm>
 #include <climits>
@@ -29,12 +24,18 @@ extern "C" {
 
 namespace ludork::engine::runtime_detail {
 
-std::function<void()> completionCallback(const sol::object& value) {
-    if (!value.valid() || value.get_type() == sol::type::none ||
-        value.get_type() == sol::type::lua_nil) {
+using namespace ludork::runtime::reference;
+
+std::function<void()> completionCallback(const RuntimeValue& value) {
+    if (value.isNil()) {
         return {};
     }
-    return ludork::runtime::binding::readLuaValue<std::function<void()>>(value);
+    if (!isFunction(value)) {
+        throw std::invalid_argument("Blueprint completion must be a function");
+    }
+    return [value] {
+        static_cast<void>(invoke(value));
+    };
 }
 
 void invokeCompletion(const std::function<void()>& callback) {
@@ -43,262 +44,218 @@ void invokeCompletion(const std::function<void()>& callback) {
     }
 }
 
-bool hasBlueprintEvent(sol::this_state state, const sol::object& object,
+bool hasBlueprintEvent(const RuntimeValue& object,
                        const std::string& eventName);
 
-void dispatchBlueprintEvent(sol::this_state state, const sol::object& object,
-                            const sol::object& rawObjectType,
+void dispatchBlueprintEvent(const RuntimeValue& object,
+                            const RuntimeValue& rawObjectType,
                             const std::string& eventName,
-                            const sol::object& rawKeywordArguments,
+                            const RuntimeValue& rawKeywordArguments,
                             const std::function<void()>& onComplete);
 
-void validateBlueprintEvent(sol::this_state state, const sol::object& object,
+void validateBlueprintEvent(const RuntimeValue& object,
                             const std::string& eventName) {
-    sol::state_view lua(state);
-    if (!object.valid() || object.get_type() == sol::type::lua_nil) {
+    if (object.isNil()) {
         throw std::invalid_argument("Blueprint event target object is nil");
     }
-    if (!hasBlueprintEvent(state, object, eventName)) {
+    if (!hasBlueprintEvent(object, eventName)) {
         throw std::invalid_argument("Object has no blueprint event '" +
                                     eventName + "'");
     }
 }
 
-void invokeBlueprintEvent(sol::this_state state, const sol::object& object,
+void invokeBlueprintEvent(const RuntimeValue& object,
                           const std::string& eventName) {
-    sol::state_view lua(state);
-    dispatchBlueprintEvent(state, object, classType(state, object), eventName,
-                           sol::make_object(lua, lua.create_table()), {});
+    dispatchBlueprintEvent(object, classType(object), eventName,
+                           retain(makeValue(table())), {});
 }
 
-bool classHasBlueprintEvent(sol::this_state state, const sol::object& rawClass,
+bool classHasBlueprintEvent(const RuntimeValue& rawClass,
                             const std::string& eventName) {
-    sol::state_view lua(state);
-    if (!rawClass.is<sol::table>()) {
+    if (!isTable(rawClass)) {
         return false;
     }
-    const sol::table classType = rawClass.as<sol::table>();
-    if (!isClass(classType) && !isNativeType(lua, classType)) {
+    const RuntimeValue classType = rawClass;
+    if (!isClass(classType) && !isNativeType(classType)) {
         return false;
     }
-    const sol::object generated =
-        classType.raw_get<sol::object>("_GENERATED_CLASS");
-    if (luaBoolean(generated)) {
-        const sol::object rawScriptMixin =
-            classType.get<sol::object>("scriptMixin");
-        if (rawScriptMixin.is<bool>() && rawScriptMixin.as<bool>()) {
-            const sol::object method =
-                classType.raw_get<sol::object>(eventName);
-            if (runtimeMethodHasImplementation(lua, method)) {
+    const RuntimeValue generated = rawGet(classType, "_GENERATED_CLASS");
+    if (boolean(generated)) {
+        const RuntimeValue rawScriptMixin = get(classType, "scriptMixin");
+        if (is<bool>(rawScriptMixin) && as<bool>(rawScriptMixin)) {
+            const RuntimeValue method = rawGet(classType, eventName);
+            if (runtimeMethodHasImplementation(method)) {
                 return true;
             }
-            return classHasBlueprintEvent(
-                state, classType.raw_get<sol::object>("__base"), eventName);
+            return classHasBlueprintEvent(rawGet(classType, "__base"),
+                                          eventName);
         }
-        if (generatedBlueprintGraphHasExecutableEvent(lua, classType,
-                                                      eventName)) {
+        if (generatedBlueprintGraphHasExecutableEvent(classType, eventName)) {
             return true;
         }
-        return classHasBlueprintEvent(
-            state, classType.raw_get<sol::object>("__base"), eventName);
+        return classHasBlueprintEvent(rawGet(classType, "__base"), eventName);
     }
-    const sol::object graph = classType.raw_get<sol::object>("_graph");
-    if (blueprintGraphHasExecutableEvent(lua, graph, eventName)) {
+    const RuntimeValue graph = rawGet(classType, "_graph");
+    if (blueprintGraphHasExecutableEvent(graph, eventName)) {
         return true;
     }
-    const sol::object method = classType.raw_get<sol::object>(eventName);
-    if (isClass(classType) && runtimeMethodHasImplementation(lua, method)) {
+    const RuntimeValue method = rawGet(classType, eventName);
+    if (isClass(classType) && runtimeMethodHasImplementation(method)) {
         return true;
     }
-    return classHasBlueprintEvent(
-        state, classType.raw_get<sol::object>("__base"), eventName);
+    return classHasBlueprintEvent(rawGet(classType, "__base"), eventName);
 }
 
-bool hasBlueprintEvent(sol::this_state state, const sol::object& object,
+bool hasBlueprintEvent(const RuntimeValue& object,
                        const std::string& eventName) {
-    sol::state_view lua(state);
-    if (!object.valid() || object.get_type() == sol::type::lua_nil ||
-        eventName.empty()) {
+    if (object.isNil() || eventName.empty()) {
         return false;
     }
-    const sol::object rawClass = classType(state, object);
-    const bool scriptMixin =
-        rawClass.is<sol::table>() &&
-        rawClass.as<sol::table>().get<sol::object>("scriptMixin").is<bool>() &&
-        rawClass.as<sol::table>().get<sol::object>("scriptMixin").as<bool>();
-    const sol::object actorType = blueprintEngineType(lua, "Actor");
-    const sol::object actorGraph =
-        !scriptMixin && blueprintIsInstance(state, object, actorType)
-            ? callRuntimeMethodFirst(lua, object, "getGraph")
-            : nilObject(lua);
-    if (blueprintGraphHasExecutableEvent(lua, actorGraph, eventName)) {
+    const RuntimeValue rawClass = classType(object);
+    const bool scriptMixin = isTable(rawClass) &&
+                             is<bool>(get(rawClass, "scriptMixin")) &&
+                             as<bool>(get(rawClass, "scriptMixin"));
+    const RuntimeValue actorType = blueprintEngineType("Actor");
+    const RuntimeValue actorGraph =
+        !scriptMixin && blueprintIsInstance(object, actorType)
+            ? callRuntimeMethodFirst(object, "getGraph")
+            : RuntimeValue();
+    if (blueprintGraphHasExecutableEvent(actorGraph, eventName)) {
         return true;
     }
-    sol::object instanceMethod = nilObject(lua);
-    instanceMethod = ludork::standard::class_runtime::rawGetOwnField(
-        lua, object, sol::make_object(lua, eventName));
-    if (runtimeMethodHasImplementation(lua, instanceMethod)) {
+    RuntimeValue instanceMethod = RuntimeValue();
+    instanceMethod = rawGet(object, retain(makeValue(eventName)));
+    if (runtimeMethodHasImplementation(instanceMethod)) {
         return true;
     }
-    return classHasBlueprintEvent(state, rawClass, eventName);
+    return classHasBlueprintEvent(rawClass, eventName);
 }
 
-bool executeParentBlueprintEvent(
-    sol::this_state state, const sol::object& object,
-    const sol::object& rawClass, const std::string& eventName,
-    const sol::object& arguments, const sol::object& keywordArguments,
-    const sol::object& localGraph, const std::function<void()>& onComplete) {
-    sol::state_view lua(state);
-    if (!rawClass.is<sol::table>()) {
+bool executeParentBlueprintEvent(const RuntimeValue& object,
+                                 const RuntimeValue& rawClass,
+                                 const std::string& eventName,
+                                 const RuntimeValue& arguments,
+                                 const RuntimeValue& keywordArguments,
+                                 const RuntimeValue& localGraph,
+                                 const std::function<void()>& onComplete) {
+    if (!isTable(rawClass)) {
         return false;
     }
-    const sol::object rawParent =
-        rawClass.as<sol::table>().raw_get<sol::object>("__base");
-    if (!rawParent.is<sol::table>()) {
+    const RuntimeValue rawParent = rawGet(rawClass, "__base");
+    if (!isTable(rawParent)) {
         return false;
     }
-    const sol::table parent = rawParent.as<sol::table>();
-    sol::table eventArguments = blueprintEventKeywordArguments(
-        lua, parent, eventName, arguments, keywordArguments);
-    mergeBlueprintLocalArguments(lua, parent, eventName, eventArguments,
-                                 localGraph);
-    if (luaBoolean(parent.raw_get<sol::object>("_GENERATED_CLASS"))) {
-        if (generatedBlueprintGraphHasExecutableEvent(lua, parent, eventName)) {
-            const sol::object graph =
-                generatedBlueprintGraph(lua, object, parent);
-            if (graph.valid() && graph.get_type() != sol::type::lua_nil) {
-                if (!executeBlueprintGraph(
-                        lua, graph, eventName,
-                        sol::make_object(lua, eventArguments), localGraph,
-                        onComplete)) {
+    const RuntimeValue parent = rawParent;
+    RuntimeValue eventArguments = blueprintEventKeywordArguments(
+        parent, eventName, arguments, keywordArguments);
+    mergeBlueprintLocalArguments(parent, eventName, eventArguments, localGraph);
+    if (boolean(rawGet(parent, "_GENERATED_CLASS"))) {
+        if (generatedBlueprintGraphHasExecutableEvent(parent, eventName)) {
+            const RuntimeValue graph = generatedBlueprintGraph(object, parent);
+            if (!graph.isNil()) {
+                if (!executeBlueprintGraph(graph, eventName,
+                                           retain(makeValue(eventArguments)),
+                                           localGraph, onComplete)) {
                     invokeCompletion(onComplete);
                 }
                 return true;
             }
         }
         return executeParentBlueprintEvent(
-            state, object, rawParent, eventName, nilObject(lua),
-            sol::make_object(lua, eventArguments), localGraph, onComplete);
+            object, rawParent, eventName, RuntimeValue(),
+            retain(makeValue(eventArguments)), localGraph, onComplete);
     }
 
-    const sol::object graph = parent.get<sol::object>("_graph");
-    if (graph.valid() && graph.get_type() != sol::type::lua_nil &&
-        luaBoolean(callRuntimeMethodFirst(
-            lua, graph, "hasKey", {sol::make_object(lua, eventName)}))) {
-        const sol::object startNodes = runtimeIndex(
-            lua, graph, sol::make_object(lua, "startNodes"), false);
-        if (startNodes.is<sol::table>() &&
-            startNodes.as<sol::table>()
-                    .get<sol::object>(eventName)
-                    .get_type() != sol::type::lua_nil) {
-            if (!executeBlueprintGraph(lua, graph, eventName,
-                                       sol::make_object(lua, eventArguments),
+    const RuntimeValue graph = get(parent, "_graph");
+    if (!graph.isNil() && requireBlueprintGraph(graph)->hasKey(eventName)) {
+        if (requireBlueprintGraph(graph)->startNodes.contains(eventName)) {
+            if (!executeBlueprintGraph(graph, eventName,
+                                       retain(makeValue(eventArguments)),
                                        localGraph, onComplete)) {
                 invokeCompletion(onComplete);
             }
             return true;
         }
         return executeParentBlueprintEvent(
-            state, object, rawParent, eventName, nilObject(lua),
-            sol::make_object(lua, eventArguments), localGraph, onComplete);
+            object, rawParent, eventName, RuntimeValue(),
+            retain(makeValue(eventArguments)), localGraph, onComplete);
     }
 
-    const sol::object method = parent.get<sol::object>(eventName);
-    if (!method.is<sol::protected_function>()) {
+    const RuntimeValue method = get(parent, eventName);
+    if (!isFunction(method)) {
         return executeParentBlueprintEvent(
-            state, object, rawParent, eventName, nilObject(lua),
-            sol::make_object(lua, eventArguments), localGraph, onComplete);
+            object, rawParent, eventName, RuntimeValue(),
+            retain(makeValue(eventArguments)), localGraph, onComplete);
     }
-    invokeNamedRuntimeMethod(lua, object, method, parent, eventName,
-                             sol::make_object(lua, eventArguments));
+    invokeNamedRuntimeMethod(object, method, parent, eventName,
+                             retain(makeValue(eventArguments)));
     invokeCompletion(onComplete);
     return true;
 }
 
-void dispatchBlueprintEvent(sol::this_state state, const sol::object& object,
-                            const sol::object& rawObjectType,
+void dispatchBlueprintEvent(const RuntimeValue& object,
+                            const RuntimeValue& rawObjectType,
                             const std::string& eventName,
-                            const sol::object& rawKeywordArguments,
+                            const RuntimeValue& rawKeywordArguments,
                             const std::function<void()>& onComplete) {
-    sol::state_view lua(state);
-    const sol::object isDestroyed =
-        runtimeIndex(lua, object, sol::make_object(lua, "isDestroyed"), false);
-    if (isDestroyed.is<sol::protected_function>() &&
-        luaBoolean(callRuntimeMethodFirst(lua, object, "isDestroyed"))) {
+    const RuntimeValue isDestroyed =
+        get(object, retain(makeValue("isDestroyed")));
+    if (isFunction(isDestroyed) &&
+        boolean(callRuntimeMethodFirst(object, "isDestroyed"))) {
         invokeCompletion(onComplete);
         return;
     }
-    const sol::object objectType = rawObjectType.is<sol::table>()
-                                       ? rawObjectType
-                                       : classType(state, object);
-    if (!blueprintIsInstance(state, object, objectType)) {
+    const RuntimeValue objectType =
+        isTable(rawObjectType) ? rawObjectType : classType(object);
+    if (!blueprintIsInstance(object, objectType)) {
         invokeCompletion(onComplete);
         return;
     }
-    const sol::table keywordArguments =
-        rawKeywordArguments.is<sol::table>()
-            ? rawKeywordArguments.as<sol::table>()
-            : lua.create_table();
-    const sol::object rawClass = classType(state, object);
-    const bool scriptMixin =
-        rawClass.is<sol::table>() &&
-        rawClass.as<sol::table>().get<sol::object>("scriptMixin").is<bool>() &&
-        rawClass.as<sol::table>().get<sol::object>("scriptMixin").as<bool>();
+    const RuntimeValue keywordArguments =
+        isTable(rawKeywordArguments) ? rawKeywordArguments : table();
+    const RuntimeValue rawClass = classType(object);
+    const bool scriptMixin = isTable(rawClass) &&
+                             is<bool>(get(rawClass, "scriptMixin")) &&
+                             as<bool>(get(rawClass, "scriptMixin"));
     if (scriptMixin) {
-        const sol::object method =
-            runtimeIndex(lua, object, sol::make_object(lua, eventName), false);
-        invokeNamedRuntimeMethod(lua, object, method, rawClass.as<sol::table>(),
-                                 eventName,
-                                 sol::make_object(lua, keywordArguments));
+        const RuntimeValue method = get(object, retain(makeValue(eventName)));
+        invokeNamedRuntimeMethod(object, method, rawClass, eventName,
+                                 retain(makeValue(keywordArguments)));
         invokeCompletion(onComplete);
         return;
     }
-    const sol::object actorType = blueprintEngineType(lua, "Actor");
-    const sol::object graph =
-        blueprintIsInstance(state, object, actorType)
-            ? callRuntimeMethodFirst(lua, object, "getGraph")
-            : nilObject(lua);
+    const RuntimeValue actorType = blueprintEngineType("Actor");
+    const RuntimeValue graph = blueprintIsInstance(object, actorType)
+                                   ? callRuntimeMethodFirst(object, "getGraph")
+                                   : RuntimeValue();
     const bool generated =
-        rawClass.is<sol::table>() &&
-        luaBoolean(
-            rawClass.as<sol::table>().raw_get<sol::object>("_GENERATED_CLASS"));
-    if (generated && graph.valid() && graph.get_type() != sol::type::lua_nil) {
-        if (luaBoolean(callRuntimeMethodFirst(
-                lua, graph, "hasKey", {sol::make_object(lua, eventName)}))) {
-            const sol::object startNodes = runtimeIndex(
-                lua, graph, sol::make_object(lua, "startNodes"), false);
-            if (startNodes.is<sol::table>() &&
-                startNodes.as<sol::table>()
-                        .get<sol::object>(eventName)
-                        .get_type() != sol::type::lua_nil) {
-                if (!executeBlueprintGraph(
-                        lua, graph, eventName,
-                        sol::make_object(lua, keywordArguments), nilObject(lua),
-                        onComplete)) {
+        isTable(rawClass) && boolean(rawGet(rawClass, "_GENERATED_CLASS"));
+    if (generated && !graph.isNil()) {
+        if (requireBlueprintGraph(graph)->hasKey(eventName)) {
+            if (requireBlueprintGraph(graph)->startNodes.contains(eventName)) {
+                if (!executeBlueprintGraph(graph, eventName,
+                                           retain(makeValue(keywordArguments)),
+                                           RuntimeValue(), onComplete)) {
                     invokeCompletion(onComplete);
                 }
                 return;
             }
         }
-        if (executeParentBlueprintEvent(state, object, rawClass, eventName,
-                                        nilObject(lua),
-                                        sol::make_object(lua, keywordArguments),
-                                        nilObject(lua), onComplete)) {
+        if (executeParentBlueprintEvent(object, rawClass, eventName,
+                                        RuntimeValue(),
+                                        retain(makeValue(keywordArguments)),
+                                        RuntimeValue(), onComplete)) {
             return;
         }
-        const sol::object method =
-            runtimeIndex(lua, object, sol::make_object(lua, eventName), false);
-        invokeNamedRuntimeMethod(lua, object, method, rawClass.as<sol::table>(),
-                                 eventName,
-                                 sol::make_object(lua, keywordArguments));
+        const RuntimeValue method = get(object, retain(makeValue(eventName)));
+        invokeNamedRuntimeMethod(object, method, rawClass, eventName,
+                                 retain(makeValue(keywordArguments)));
         invokeCompletion(onComplete);
         return;
     }
-    const sol::object method =
-        runtimeIndex(lua, object, sol::make_object(lua, eventName), false);
-    invokeNamedRuntimeMethod(lua, object, method, rawClass.as<sol::table>(),
-                             eventName,
-                             sol::make_object(lua, keywordArguments));
+    const RuntimeValue method = get(object, retain(makeValue(eventName)));
+    invokeNamedRuntimeMethod(object, method, rawClass, eventName,
+                             retain(makeValue(keywordArguments)));
     invokeCompletion(onComplete);
 }
 

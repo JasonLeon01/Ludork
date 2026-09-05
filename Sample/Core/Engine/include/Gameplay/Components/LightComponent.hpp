@@ -1,10 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Gameplay/Components/Component.hpp>
+#include <CoreMinimal.hpp>
 
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/System/Vector2.hpp>
+#include <Gameplay/Components/Component.hpp>
 
 BIND_CLASS(table_init = true)
 class LightComponent : public Component {

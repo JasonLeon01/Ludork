@@ -1224,7 +1224,7 @@
   "actors": {
     "default": [
       {
-        "tag": "Data.Blueprints.Teleportations.Downstair_default_5_0",
+        "tag": "Downstair 1",
         "bp": "Data.Blueprints.Teleportations.Downstair",
         "position": [
           5,
@@ -1232,7 +1232,7 @@
         ]
       },
       {
-        "tag": "Data.Blueprints.Teleportations.Downstair_default_7_0",
+        "tag": "Downstair 2",
         "bp": "Data.Blueprints.Teleportations.Downstair",
         "position": [
           7,
@@ -1400,7 +1400,7 @@
         ]
       },
       {
-        "tag": "Teleportations_Upstair_default_6_12",
+        "tag": "Upstair",
         "bp": "Data.Blueprints.Teleportations.Upstair",
         "position": [
           6,

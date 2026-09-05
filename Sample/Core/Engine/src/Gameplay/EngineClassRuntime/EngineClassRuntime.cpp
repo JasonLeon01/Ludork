@@ -1,14 +1,11 @@
+#include <Runtime/RuntimeReference.hpp>
 #include <Gameplay/EngineClassRuntime.hpp>
 
 #include "EngineClassRuntimeInternal.hpp"
 #include <Runtime/RuntimeSession.hpp>
 
-#include <ClassServices.hpp>
-#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 #include <Runtime/RuntimeProviders.hpp>
 #include <RuntimeSession.hpp>
-
-#include <sol2/sol.hpp>
 
 #include <utility>
 
@@ -16,18 +13,18 @@ using namespace ludork::engine::class_runtime_detail;
 
 namespace {
 
-void invalidateClass(sol::state_view lua, const std::string& path) {
+void invalidateClass(const std::string& path) {
     runtimeProviders().invalidateBlueprintClassData(path);
-    sol::table resolver = resolverState(lua);
-    const sol::object rawRecord =
-        resolver.raw_get<sol::table>("records").raw_get<sol::object>(path);
-    if (rawRecord.is<sol::table>()) {
-        rawRecord.as<sol::table>().raw_set("graphTemplate", sol::lua_nil);
-        rawRecord.as<sol::table>().raw_set("graphCompiled", false);
+    RuntimeValue resolver = resolverState();
+    const RuntimeValue rawRecord =
+        rawGet(requireTable(rawGet(resolver, "records")), path);
+    if (isTable(rawRecord)) {
+        rawSet(rawRecord, "graphTemplate", RuntimeValue());
+        rawSet(rawRecord, "graphCompiled", false);
     }
-    resolver.raw_get<sol::table>("classes").raw_set(path, sol::lua_nil);
-    resolver.raw_get<sol::table>("classData").raw_set(path, sol::lua_nil);
-    resolver.raw_get<sol::table>("records").raw_set(path, sol::lua_nil);
+    rawSet(requireTable(rawGet(resolver, "classes")), path, RuntimeValue());
+    rawSet(requireTable(rawGet(resolver, "classData")), path, RuntimeValue());
+    rawSet(requireTable(rawGet(resolver, "records")), path, RuntimeValue());
 }
 
 }  // namespace
@@ -36,72 +33,64 @@ void initializeEngineClassRuntime(lua_State* state) {
     if (state == nullptr) {
         return;
     }
-    sol::state_view lua(state);
-    lua.registry().raw_set(CLASS_RESOLVER_STATE_KEY, sol::lua_nil);
-    resolverState(lua);
-    const sol::object rawDefaultResolver = sol::make_object(
-        lua,
-        sol::as_function([state](sol::object value, sol::table fieldMetadata,
-                                 sol::object rawModule) {
+    rawSet(registry(), CLASS_RESOLVER_STATE_KEY, RuntimeValue());
+    resolverState();
+    setNativeDefaultResolver(
+        [state](const RuntimeValue::Array& arguments) -> RuntimeValue::Array {
             ludork::standard::LuaExecutionScope execution(state);
-            sol::state_view callbackLua(state);
             if (!execution.active()) {
-                return nilObject(callbackLua);
+                return {RuntimeValue()};
             }
-            return cloneMetadataValue(callbackLua, value, fieldMetadata,
-                                      declaringModule(rawModule));
-        }));
-    ludork::standard::class_runtime::registerNativeClassDefaultResolver(
-        lua, rawDefaultResolver.as<sol::protected_function>());
+            if (arguments.size() != 3) {
+                throw std::invalid_argument(
+                    "Native default resolver expects three arguments");
+            }
+            return {cloneMetadataValue(arguments[0], requireTable(arguments[1]),
+                                       declaringModule(arguments[2]))};
+        });
 }
 
 void shutdownEngineClassRuntime(lua_State* state) noexcept {
     if (state == nullptr) {
         return;
     }
-    sol::state_view lua(state);
-    ludork::standard::class_runtime::unregisterNativeClassDefaultResolver(lua);
-    lua.registry().raw_set(CLASS_RESOLVER_STATE_KEY, sol::lua_nil);
+    clearNativeDefaultResolver(state);
+    rawSet(registry(), CLASS_RESOLVER_STATE_KEY, RuntimeValue());
 }
 
 EngineResolvedClass EngineClassRuntimeFacade::resolve(
     const std::string& classPath,
     const std::optional<std::string>& root) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
     const auto [classType, classDataValue] = resolveClass(
-        lua, sol::make_object(lua, classPath),
-        root.has_value() ? sol::make_object(lua, *root) : nilObject(lua));
-    return {runtimeValue(classType), runtimeValue(classDataValue)};
+        retain(makeValue(classPath)),
+        root.has_value() ? retain(makeValue(*root)) : RuntimeValue());
+    return {data(classType), data(classDataValue)};
 }
 
 RuntimeValue EngineClassRuntimeFacade::classData(
     const std::string& classPath) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    const sol::object value = resolverState(lua)
-                                  .raw_get<sol::table>("classData")
-                                  .raw_get<sol::object>(classPath);
-    return runtimeValue(value.valid() ? value : nilObject(lua));
+    const RuntimeValue value =
+        rawGet(requireTable(rawGet(resolverState(), "classData")), classPath);
+    return data(!value.isNil() ? value : RuntimeValue());
 }
 
 RuntimeValue EngineClassRuntimeFacade::instantiateGraph(
     const std::string& classPath, const RuntimeValue& parent) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
-    return runtimeValue(instantiateClassGraph(
-        lua, classPath, ludork::runtime::binding::writeLuaValue(lua, parent)));
+    return data(instantiateClassGraph(classPath, retain(makeValue(parent))));
 }
 
 bool EngineClassRuntimeFacade::graphHasExecutableEvent(
     const std::string& classPath, const std::string& eventName) const {
     ludork::runtime::RuntimeScope runtime;
-    return classGraphHasExecutableEvent(runtime.lua(), classPath, eventName);
+    return classGraphHasExecutableEvent(classPath, eventName);
 }
 
 void EngineClassRuntimeFacade::invalidate(const std::string& classPath) const {
     ludork::runtime::RuntimeScope runtime;
-    invalidateClass(runtime.lua(), classPath);
+    invalidateClass(classPath);
 }
 
 EngineClassRuntimeFacade& engineClassRuntime() {

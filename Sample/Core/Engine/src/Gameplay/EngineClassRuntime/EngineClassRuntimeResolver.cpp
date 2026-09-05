@@ -1,14 +1,12 @@
+#include <Runtime/RuntimeReference.hpp>
 #include "EngineClassRuntimeInternal.hpp"
 
-#include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <Runtime/RuntimeProviders.hpp>
-#include <RuntimeSession.hpp>
+#include <Runtime/RuntimeSession.hpp>
 #include <Utils/DataValue.hpp>
 #include <Utils/File.hpp>
-
-#include <sol2/sol.hpp>
 
 #include <algorithm>
 #include <array>
@@ -24,107 +22,51 @@
 
 namespace ludork::engine::class_runtime_detail {
 
-sol::object nilObject(sol::state_view lua) {
-    return sol::make_object(lua, sol::lua_nil);
-}
+using namespace ludork::runtime::reference;
 
-sol::object checkedResult(sol::state_view lua,
-                          sol::protected_function_result& result, int index) {
-    if (!result.valid()) {
-        const sol::error error = result;
-        throw std::runtime_error(error.what());
-    }
-    if (result.return_count() <= index) {
-        return nilObject(lua);
-    }
-    return result.get<sol::object>(index);
-}
-
-sol::table requireTable(sol::state_view lua, const std::string& moduleName) {
-    const sol::object module =
-        ludork::standard::class_runtime::requireModule(lua, moduleName);
-    if (!module.is<sol::table>()) {
+RuntimeValue requireModuleTable(const std::string& moduleName) {
+    const RuntimeValue module = requireModule(moduleName);
+    if (!isTable(module)) {
         throw std::runtime_error("Lua module did not return a table: " +
                                  moduleName);
     }
-    return module.as<sol::table>();
+    return module;
 }
 
-sol::table resolverState(sol::state_view lua) {
-    sol::table registry = lua.registry();
-    const sol::object existing =
-        registry.raw_get<sol::object>(CLASS_RESOLVER_STATE_KEY);
-    if (existing.is<sol::table>()) {
-        return existing.as<sol::table>();
+RuntimeValue resolverState() {
+    RuntimeValue registry = ludork::runtime::reference::registry();
+    const RuntimeValue existing = rawGet(registry, CLASS_RESOLVER_STATE_KEY);
+    if (isTable(existing)) {
+        return existing;
     }
-    sol::table state = lua.create_table();
-    sol::table classes = lua.create_table();
-    classes.raw_set("", lua.create_table());
-    state.raw_set("classes", classes);
-    state.raw_set("classData", lua.create_table());
-    state.raw_set("records", lua.create_table());
-    sol::table configReferenceCache = lua.create_table();
-    sol::table configReferenceCacheMetatable = lua.create_table();
-    configReferenceCacheMetatable.raw_set("__mode", "k");
-    configReferenceCache[sol::metatable_key] = configReferenceCacheMetatable;
-    state.raw_set("configReferences", configReferenceCache);
-    registry.raw_set(CLASS_RESOLVER_STATE_KEY, state);
+    RuntimeValue state = table();
+    RuntimeValue classes = table();
+    rawSet(classes, "", table());
+    rawSet(state, "classes", classes);
+    rawSet(state, "classData", table());
+    rawSet(state, "records", table());
+    RuntimeValue configReferenceCache = table();
+    RuntimeValue configReferenceCacheMetatable = table();
+    rawSet(configReferenceCacheMetatable, "__mode", "k");
+    setMetatable(configReferenceCache, configReferenceCacheMetatable);
+    rawSet(state, "configReferences", configReferenceCache);
+    rawSet(registry, CLASS_RESOLVER_STATE_KEY, state);
     return state;
 }
 
-std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
-                                                  const sol::object& rawPath,
-                                                  const sol::object& rawRoot);
-
-bool moduleExists(sol::state_view lua, const std::string& moduleName) {
-    const sol::object rawPackage =
-        lua.globals().raw_get<sol::object>("package");
-    if (!rawPackage.is<sol::table>()) {
-        return false;
-    }
-    const sol::table package = rawPackage.as<sol::table>();
-    for (const char* field : {"loaded", "preload"}) {
-        const sol::object rawModules = package.raw_get<sol::object>(field);
-        if (!rawModules.is<sol::table>()) {
-            continue;
-        }
-        const sol::object module =
-            rawModules.as<sol::table>().raw_get<sol::object>(moduleName);
-        if (module.valid() && module.get_type() != sol::type::lua_nil) {
-            return true;
-        }
-    }
-    const sol::object rawSearch = package.raw_get<sol::object>("searchpath");
-    if (!rawSearch.is<sol::protected_function>()) {
-        return false;
-    }
-    sol::protected_function search = rawSearch.as<sol::protected_function>();
-    for (const char* field : {"path", "cpath"}) {
-        const sol::object rawPath = package.raw_get<sol::object>(field);
-        if (!rawPath.is<std::string>()) {
-            continue;
-        }
-        sol::protected_function_result result = search(moduleName, rawPath);
-        if (result.valid() && result.return_count() > 0) {
-            const sol::object found = result.get<sol::object>();
-            if (found.is<std::string>()) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
+std::tuple<RuntimeValue, RuntimeValue> resolveClass(
+    const RuntimeValue& rawPath, const RuntimeValue& rawRoot);
 
 std::optional<std::string> directModuleMetadataType(
-    sol::state_view lua, const std::string& moduleName) {
+    const std::string& moduleName) {
     const std::string metadataModule = moduleName + "_meta";
-    if (!moduleExists(lua, metadataModule)) {
+    if (!moduleExists(metadataModule)) {
         return std::nullopt;
     }
-    const sol::table metadata = requireTable(lua, metadataModule);
+    const RuntimeValue metadata = requireModuleTable(metadataModule);
     std::optional<std::string> result;
-    for (const auto& entry : metadata) {
-        if (!entry.first.is<std::string>() || !entry.second.is<sol::table>()) {
+    for (const auto& entry : entries(metadata)) {
+        if (!is<std::string>(entry.first) || !isTable(entry.second)) {
             continue;
         }
         if (result.has_value()) {
@@ -133,7 +75,7 @@ std::optional<std::string> directModuleMetadataType(
                 "type: " +
                 metadataModule);
         }
-        result = entry.first.as<std::string>();
+        result = as<std::string>(entry.first);
     }
     if (!result.has_value()) {
         throw std::runtime_error(
@@ -143,16 +85,15 @@ std::optional<std::string> directModuleMetadataType(
     return result;
 }
 
-sol::object moduleClass(sol::state_view lua, const sol::object& rawModule,
-                        const std::string& moduleName,
-                        const std::string& className) {
-    if (!rawModule.is<sol::table>()) {
-        return nilObject(lua);
+RuntimeValue moduleClass(const RuntimeValue& rawModule,
+                         const std::string& moduleName,
+                         const std::string& className) {
+    if (!isTable(rawModule)) {
+        return RuntimeValue();
     }
-    const sol::table module = rawModule.as<sol::table>();
-    const sol::object classMarker =
-        module.raw_get<sol::object>("__ludorkClass");
-    if (classMarker.is<bool>() && classMarker.as<bool>()) {
+    const RuntimeValue module = rawModule;
+    const RuntimeValue classMarker = rawGet(module, "__ludorkClass");
+    if (is<bool>(classMarker) && as<bool>(classMarker)) {
         const std::size_t separator = moduleName.find_last_of('.');
         const std::string moduleType = separator == std::string::npos
                                            ? moduleName
@@ -161,28 +102,27 @@ sol::object moduleClass(sol::state_view lua, const sol::object& rawModule,
             return rawModule;
         }
         const std::optional<std::string> metadataType =
-            directModuleMetadataType(lua, moduleName);
+            directModuleMetadataType(moduleName);
         return metadataType.has_value() && *metadataType == className
                    ? rawModule
-                   : nilObject(lua);
+                   : RuntimeValue();
     }
-    const sol::object member = module.raw_get<sol::object>(className);
-    return member.valid() ? member : nilObject(lua);
+    const RuntimeValue member = rawGet(module, className);
+    return !member.isNil() ? member : RuntimeValue();
 }
 
-std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
-                                                  const sol::object& rawPath,
-                                                  const sol::object& rawRoot) {
-    if (!rawPath.is<std::string>()) {
-        return {nilObject(lua), nilObject(lua)};
+std::tuple<RuntimeValue, RuntimeValue> resolveClass(
+    const RuntimeValue& rawPath, const RuntimeValue& rawRoot) {
+    if (!is<std::string>(rawPath)) {
+        return {RuntimeValue(), RuntimeValue()};
     }
-    const std::string classPath = rawPath.as<std::string>();
-    sol::table state = resolverState(lua);
-    sol::table classes = state.raw_get<sol::table>("classes");
-    sol::table classData = state.raw_get<sol::table>("classData");
-    const sol::object cached = classes.raw_get<sol::object>(classPath);
-    if (cached.valid() && cached.get_type() != sol::type::lua_nil) {
-        return {cached, classData.raw_get<sol::object>(classPath)};
+    const std::string classPath = as<std::string>(rawPath);
+    RuntimeValue state = resolverState();
+    RuntimeValue classes = requireTable(rawGet(state, "classes"));
+    RuntimeValue classData = requireTable(rawGet(state, "classData"));
+    const RuntimeValue cached = rawGet(classes, classPath);
+    if (!cached.isNil()) {
+        return {cached, rawGet(classData, classPath)};
     }
 
     const std::size_t separator = classPath.find_last_of('.');
@@ -191,81 +131,73 @@ std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
     }
     const std::string modulePath = classPath.substr(0, separator);
     const std::string className = classPath.substr(separator + 1);
-    sol::object rawData = nilObject(lua);
-    if (!rawRoot.is<std::string>() || rawRoot.as<std::string>().empty()) {
-        rawData = runtimeIdentityValue(
-            lua, runtimeProviders().blueprintClassData(classPath));
+    RuntimeValue rawData = RuntimeValue();
+    if (!is<std::string>(rawRoot) || as<std::string>(rawRoot).empty()) {
+        rawData =
+            retain(makeValue(runtimeProviders().blueprintClassData(classPath)));
     }
-    sol::object targetClass = nilObject(lua);
-    if (!rawData.is<sol::table>()) {
-        if (moduleExists(lua, classPath)) {
-            targetClass = moduleClass(lua, requireTable(lua, classPath),
-                                      classPath, className);
+    RuntimeValue targetClass = RuntimeValue();
+    if (!isTable(rawData)) {
+        if (moduleExists(classPath)) {
+            targetClass = moduleClass(requireModuleTable(classPath), classPath,
+                                      className);
         }
-        if (targetClass.get_type() == sol::type::lua_nil &&
-            moduleExists(lua, modulePath)) {
-            targetClass = moduleClass(lua, requireTable(lua, modulePath),
+        if (targetClass.isNil() && moduleExists(modulePath)) {
+            targetClass = moduleClass(requireModuleTable(modulePath),
                                       modulePath, className);
         }
-        if (targetClass.valid() &&
-            targetClass.get_type() != sol::type::lua_nil) {
-            classes.raw_set(classPath, targetClass);
-            return {targetClass, nilObject(lua)};
+        if (!targetClass.isNil()) {
+            rawSet(classes, classPath, targetClass);
+            return {targetClass, RuntimeValue()};
         }
 
         std::string filePath = classPath;
         std::replace(filePath.begin(), filePath.end(), '.', '/');
-        if (rawRoot.is<std::string>() && !rawRoot.as<std::string>().empty()) {
-            filePath = rawRoot.as<std::string>() + "/" + filePath;
+        if (is<std::string>(rawRoot) && !as<std::string>(rawRoot).empty()) {
+            filePath = as<std::string>(rawRoot) + "/" + filePath;
         }
         filePath += ".json";
         if (!jsonExists(filePath)) {
             throw std::runtime_error("Class " + classPath + " not found");
         }
-        rawData = luaValue(lua, getJSONData(filePath));
+        rawData = retain(getJSONData(filePath));
     }
-    if (!rawData.is<sol::table>()) {
+    if (!isTable(rawData)) {
         throw std::runtime_error("Class data must be a table: " + classPath);
     }
-    sol::table data = rawData.as<sol::table>();
-    classData.raw_set(classPath, data);
-    const sol::object rawParentPath = data.raw_get<sol::object>("parent");
-    if (!rawParentPath.is<std::string>()) {
+    RuntimeValue definitionData = rawData;
+    rawSet(classData, classPath, definitionData);
+    const RuntimeValue rawParentPath = rawGet(definitionData, "parent");
+    if (!is<std::string>(rawParentPath)) {
         throw std::runtime_error("Class parent is missing: " + classPath);
     }
-    const std::string parentPath = rawParentPath.as<std::string>();
-    sol::object parentClass = classes.raw_get<sol::object>(parentPath);
-    if (!parentClass.is<sol::table>()) {
-        parentClass = std::get<0>(resolveClass(lua, rawParentPath, rawRoot));
+    const std::string parentPath = as<std::string>(rawParentPath);
+    RuntimeValue parentClass = rawGet(classes, parentPath);
+    if (!isTable(parentClass)) {
+        parentClass = std::get<0>(resolveClass(rawParentPath, rawRoot));
     }
-    if (!parentClass.is<sol::table>()) {
+    if (!isTable(parentClass)) {
         throw std::runtime_error("Class parent was not resolved: " +
                                  parentPath);
     }
 
-    const sol::object rawAttrs = data.raw_get<sol::object>("attrs");
-    sol::object copiedAttrs =
-        rawAttrs.is<sol::table>()
-            ? ludork::standard::class_runtime::deepCopy(lua, rawAttrs)
-            : sol::make_object(lua, lua.create_table());
-    sol::table classAttrs = copiedAttrs.as<sol::table>();
-    data.raw_set("attrs", classAttrs);
-    const sol::table parentClassTable = parentClass.as<sol::table>();
-    const sol::object rawParentScriptMixin =
-        parentClassTable.get<sol::object>("scriptMixin");
+    const RuntimeValue rawAttrs = rawGet(definitionData, "attrs");
+    RuntimeValue copiedAttrs =
+        isTable(rawAttrs) ? deepCopy(rawAttrs) : retain(makeValue(table()));
+    RuntimeValue classAttrs = copiedAttrs;
+    rawSet(definitionData, "attrs", classAttrs);
+    const RuntimeValue parentClassTable = parentClass;
+    const RuntimeValue rawParentScriptMixin =
+        get(parentClassTable, "scriptMixin");
     const bool parentScriptMixin =
-        rawParentScriptMixin.is<bool>() && rawParentScriptMixin.as<bool>();
-    const sol::object rawLocalScriptMixin =
-        classAttrs.raw_get<sol::object>("scriptMixin");
-    const bool hasLocalScriptMixin =
-        rawLocalScriptMixin.valid() &&
-        rawLocalScriptMixin.get_type() != sol::type::lua_nil;
-    if (hasLocalScriptMixin && !rawLocalScriptMixin.is<bool>()) {
+        is<bool>(rawParentScriptMixin) && as<bool>(rawParentScriptMixin);
+    const RuntimeValue rawLocalScriptMixin = rawGet(classAttrs, "scriptMixin");
+    const bool hasLocalScriptMixin = !rawLocalScriptMixin.isNil();
+    if (hasLocalScriptMixin && !is<bool>(rawLocalScriptMixin)) {
         throw std::runtime_error("scriptMixin must be a boolean: " + classPath);
     }
-    const bool scriptMixin = hasLocalScriptMixin
-                                 ? rawLocalScriptMixin.as<bool>()
-                                 : parentScriptMixin;
+    const bool scriptMixin =
+        hasLocalScriptMixin ? as<bool>(rawLocalScriptMixin) : parentScriptMixin;
     const bool parentIsBlueprint = parentPath.starts_with("Data.Blueprints.");
     if (parentIsBlueprint && hasLocalScriptMixin &&
         scriptMixin != parentScriptMixin) {
@@ -273,16 +205,13 @@ std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
             "Blueprint inheritance cannot mix ScriptMixin and graph modes: " +
             classPath + " -> " + parentPath);
     }
-    const sol::object rawLocalScriptPath =
-        classAttrs.raw_get<sol::object>("scriptPath");
-    const bool hasLocalScriptPath =
-        rawLocalScriptPath.valid() &&
-        rawLocalScriptPath.get_type() != sol::type::lua_nil;
-    if (hasLocalScriptPath && !rawLocalScriptPath.is<std::string>()) {
+    const RuntimeValue rawLocalScriptPath = rawGet(classAttrs, "scriptPath");
+    const bool hasLocalScriptPath = !rawLocalScriptPath.isNil();
+    if (hasLocalScriptPath && !is<std::string>(rawLocalScriptPath)) {
         throw std::runtime_error("scriptPath must be a string: " + classPath);
     }
     const std::string localScriptPath =
-        hasLocalScriptPath ? rawLocalScriptPath.as<std::string>() : "";
+        hasLocalScriptPath ? as<std::string>(rawLocalScriptPath) : "";
     if (scriptMixin && !parentIsBlueprint && localScriptPath.empty()) {
         throw std::runtime_error(
             "Root ScriptMixin blueprint must declare scriptPath: " + classPath);
@@ -292,106 +221,101 @@ std::tuple<sol::object, sol::object> resolveClass(sol::state_view lua,
                                  classPath);
     }
 
-    applyConfigValues(lua, parentClass.as<sol::table>(), classAttrs,
-                      configReferences(lua, parentClass.as<sol::table>()));
+    applyConfigValues(parentClass, classAttrs, configReferences(parentClass));
     TypedDataService& dataValues = typedDataService();
-    const sol::object rawMetadata =
-        luaValue(lua, dataValues.getAttrMetadata(runtimeValue(parentClass)));
-    const sol::table attrMetadata = rawMetadata.is<sol::table>()
-                                        ? rawMetadata.as<sol::table>()
-                                        : lua.create_table();
-    sol::table attrTypes = lua.create_table();
+    const RuntimeValue rawMetadata =
+        retain(dataValues.getAttrMetadata(data(parentClass)));
+    const RuntimeValue attrMetadata =
+        isTable(rawMetadata) ? rawMetadata : table();
+    RuntimeValue attrTypes = table();
 
-    sol::table definition = lua.create_table();
-    sol::table instanceAttrs = lua.create_table();
-    sol::object rawMixin = nilObject(lua);
+    RuntimeValue definition = table();
+    RuntimeValue instanceAttrs = table();
+    RuntimeValue rawMixin = RuntimeValue();
     std::string normalizedScriptPath;
     if (scriptMixin && !localScriptPath.empty()) {
         normalizedScriptPath = normalizeScriptMixinPath(localScriptPath);
-        sol::table mixin =
-            loadScriptMixin(lua, classPath, normalizedScriptPath);
-        mergeScriptMixin(lua, parentClassTable, mixin, definition,
-                         instanceAttrs, classPath, normalizedScriptPath);
-        rawMixin = sol::make_object(lua, mixin);
+        RuntimeValue mixin = loadScriptMixin(classPath, normalizedScriptPath);
+        mergeScriptMixin(parentClassTable, mixin, definition, instanceAttrs,
+                         classPath, normalizedScriptPath);
+        rawMixin = retain(makeValue(mixin));
     }
-    for (const auto& entry : classAttrs) {
-        const sol::object mixinMember =
-            definition.raw_get<sol::object>(entry.first);
-        if (mixinMember.get_type() == sol::type::function) {
+    for (const auto& entry : entries(classAttrs)) {
+        const RuntimeValue mixinMember = rawGet(definition, entry.first);
+        if (kind(mixinMember) == "function") {
             throw std::runtime_error(
                 "Blueprint attr cannot replace Mixin method '" +
-                entry.first.as<std::string>() + "': " + classPath);
+                as<std::string>(entry.first) + "': " + classPath);
         }
-        const sol::object rawFieldMetadata =
-            attrMetadata.raw_get<sol::object>(entry.first);
-        sol::object targetType = nilObject(lua);
-        if (!rawFieldMetadata.is<sol::table>()) {
-            if (entry.first.is<std::string>()) {
-                targetType = luaValue(lua, dataValues.resolveAttrValueType(
-                                               runtimeValue(parentClass),
-                                               entry.first.as<std::string>()));
+        const RuntimeValue rawFieldMetadata = rawGet(attrMetadata, entry.first);
+        RuntimeValue targetType = RuntimeValue();
+        if (!isTable(rawFieldMetadata)) {
+            if (is<std::string>(entry.first)) {
+                targetType = retain(dataValues.resolveAttrValueType(
+                    data(parentClass), as<std::string>(entry.first)));
             }
-            if (targetType.valid() &&
-                targetType.get_type() != sol::type::lua_nil) {
-                attrTypes.raw_set(entry.first, targetType);
+            if (!targetType.isNil()) {
+                rawSet(attrTypes, entry.first, targetType);
             }
         }
-        definition.raw_set(
-            entry.first,
-            cloneAttrValue(lua, parentClass.as<sol::table>(), entry.first,
-                           entry.second, rawFieldMetadata, targetType));
-        instanceAttrs.raw_set(
-            entry.first,
-            ludork::standard::class_runtime::deepCopy(lua, entry.second));
+        rawSet(definition, entry.first,
+               cloneAttrValue(parentClass, entry.first, entry.second,
+                              rawFieldMetadata, targetType));
+        rawSet(instanceAttrs, entry.first, deepCopy(entry.second));
     }
 
-    definition.raw_set("_GENERATED_CLASS", true);
-    definition.raw_set("__blueprintClassPath", classPath);
-    definition.raw_set(
-        "init",
-        sol::as_function([state = lua.lua_state(), classPath](
-                             sol::object self, sol::variadic_args arguments) {
-            initializeGeneratedInstance(state, classPath, self, arguments);
-        }));
-    sol::table bases = lua.create_table(1, 0);
-    bases.raw_set(1, parentClass);
-    sol::table generatedClass =
-        ludork::standard::class_runtime::finalizeClass(definition, bases);
-    targetClass = sol::make_object(lua, generatedClass);
+    rawSet(definition, "_GENERATED_CLASS", true);
+    rawSet(definition, "__blueprintClassPath", classPath);
+    rawSet(
+        definition, "init",
+        callback(
+            [state = ludork::runtime::RuntimeScope().state(), classPath](
+                const RuntimeValue::Array& arguments) -> RuntimeValue::Array {
+                if (arguments.empty()) {
+                    throw std::invalid_argument(
+                        "Generated initializer requires self");
+                }
+                RuntimeValue::Array parameters(arguments.begin() + 1,
+                                               arguments.end());
+                initializeGeneratedInstance(state, classPath, arguments.front(),
+                                            parameters);
+                return {};
+            }));
+    RuntimeValue bases = table();
+    rawSet(bases, 1, parentClass);
+    RuntimeValue generatedClass = finalizeClass(definition, bases);
+    targetClass = retain(makeValue(generatedClass));
 
-    sol::table record = lua.create_table();
-    const sol::object parentRecord =
-        state.raw_get<sol::table>("records").raw_get<sol::object>(parentPath);
-    record.raw_set("class", generatedClass);
-    record.raw_set("attrs", instanceAttrs);
-    record.raw_set("parent", parentClass);
-    record.raw_set("parentRecord", parentRecord);
-    record.raw_set("metadata", attrMetadata);
-    record.raw_set("types", attrTypes);
-    record.raw_set("scriptMixin", scriptMixin);
-    if (rawMixin.is<sol::table>()) {
-        record.raw_set("scriptTable", rawMixin);
+    RuntimeValue record = table();
+    const RuntimeValue parentRecord =
+        rawGet(requireTable(rawGet(state, "records")), parentPath);
+    rawSet(record, "class", generatedClass);
+    rawSet(record, "attrs", instanceAttrs);
+    rawSet(record, "parent", parentClass);
+    rawSet(record, "parentRecord", parentRecord);
+    rawSet(record, "metadata", attrMetadata);
+    rawSet(record, "types", attrTypes);
+    rawSet(record, "scriptMixin", scriptMixin);
+    if (isTable(rawMixin)) {
+        rawSet(record, "scriptTable", rawMixin);
     }
     if (!normalizedScriptPath.empty()) {
-        record.raw_set("scriptPath", normalizedScriptPath);
+        rawSet(record, "scriptPath", normalizedScriptPath);
     }
-    record.raw_set(
-        "parentInit",
-        parentRecord.is<sol::table>()
-            ? parentRecord.as<sol::table>().raw_get<sol::object>("parentInit")
-            : parentClass.as<sol::table>().get<sol::object>("init"));
+    rawSet(record, "parentInit",
+           isTable(parentRecord) ? rawGet(parentRecord, "parentInit")
+                                 : get(parentClass, "init"));
     if (!scriptMixin) {
-        const sol::object graphTemplate =
-            compileGraphTemplate(lua, data, targetClass);
-        if (graphTemplate.valid() &&
-            graphTemplate.get_type() != sol::type::lua_nil) {
-            record.raw_set("graphTemplate", graphTemplate);
+        const RuntimeValue graphTemplate =
+            compileGraphTemplate(definitionData, targetClass);
+        if (!graphTemplate.isNil()) {
+            rawSet(record, "graphTemplate", graphTemplate);
         }
     }
-    record.raw_set("graphCompiled", true);
-    state.raw_get<sol::table>("records").raw_set(classPath, record);
-    classes.raw_set(classPath, generatedClass);
-    return {generatedClass, data};
+    rawSet(record, "graphCompiled", true);
+    rawSet(requireTable(rawGet(state, "records")), classPath, record);
+    rawSet(classes, classPath, generatedClass);
+    return {generatedClass, definitionData};
 }
 
 }  // namespace ludork::engine::class_runtime_detail

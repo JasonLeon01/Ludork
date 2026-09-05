@@ -1,13 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <CoreMinimal.hpp>
 
-#include <functional>
-#include <optional>
-#include <string>
-#include <unordered_map>
+#include <EngineRuntimeApi.hpp>
 
 enum class InputType {
     Mouse = 0,

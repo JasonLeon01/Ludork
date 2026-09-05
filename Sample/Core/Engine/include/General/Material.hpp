@@ -1,10 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-#include <string>
-#include <unordered_map>
-#include <variant>
 
 using MaterialValue = std::variant<bool, float>;
 using MaterialData = std::unordered_map<std::string, MaterialValue>;

@@ -1,8 +1,9 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <EngineLifecycle.hpp>
 
 BIND_MODULE_INIT()

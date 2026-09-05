@@ -1,6 +1,7 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
 struct lua_State;

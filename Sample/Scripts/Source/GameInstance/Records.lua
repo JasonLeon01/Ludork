@@ -98,10 +98,14 @@ function Records.UpsertTaggedRecord(records, record)
     records[#records + 1] = record
 end
 
-function Records.AppendUniquePosition(points, point)
-    if not table.contains(points, point) then
-        points[#points + 1] = point
+function Records.AppendUniqueTelepoint(points, position, tag)
+    assert(Class.isInstance(tag, "string"), "Telepoint tag must be a string")
+    for _, point in ipairs(points) do
+        if point.position.x == position.x and point.position.y == position.y then
+            return
+        end
     end
+    points[#points + 1] = { position = copy(position), tag = tag }
 end
 
 function Records.BuildAddedActorRecord(actor, layerName)

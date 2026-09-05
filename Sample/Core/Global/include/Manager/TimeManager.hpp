@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <SFML/System.hpp>
+#include <CoreMinimal.hpp>
 
 #include <atomic>
-#include <cstdint>
-#include <functional>
-#include <memory>
 #include <mutex>
 
 BIND_CLASS()

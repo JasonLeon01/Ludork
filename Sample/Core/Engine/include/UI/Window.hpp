@@ -1,17 +1,10 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <Graphics/RectBase.hpp>
 #include <UI/SpriteBase.hpp>
-
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/RenderTexture.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-
-#include <memory>
-#include <vector>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Window : public SpriteBase {

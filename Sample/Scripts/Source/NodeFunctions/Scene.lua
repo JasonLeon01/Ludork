@@ -166,11 +166,12 @@ function Scene.MoveCamera(delta)
     camera:fixViewPosition()
 end
 
-function Scene.RecordTelepoint(mapPath, x, y)
+function Scene.RecordTelepoint(mapPath, x, y, tag)
     mapPath = mapPath == nil and "" or mapPath
     x = x == nil and 0 or x
     y = y == nil and 0 or y
-    Context.RequireGameInstance():recordTelepoint(mapPath, sf.Vector2u.new(x, y))
+    tag = tag == nil and "" or tag
+    Context.RequireGameInstance():recordTelepoint(mapPath, sf.Vector2u.new(x, y), tag)
 end
 
 function Scene.CreateActorFromBPPath(bpPath, layerName, position, tag, emitCreateEvent)

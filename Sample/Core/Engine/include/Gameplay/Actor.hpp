@@ -1,6 +1,7 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <Filters/SoundFilter.hpp>
 #include <Gameplay/ActorApiTypes.hpp>
@@ -8,22 +9,8 @@
 #include <Gameplay/BPBase.hpp>
 #include <Gameplay/Components/LightComponent.hpp>
 #include <General/Material.hpp>
-#include <Runtime/RuntimeValue.hpp>
 
 #include <SFML/Audio/Sound.hpp>
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Shader.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/System/Angle.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/System/Vector3.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
-#include <unordered_set>
-#include <vector>
 
 namespace ludork::engine::actor_impl {
 struct ActorRuntime;

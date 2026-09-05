@@ -1,7 +1,7 @@
 #include "KeyHintRuntime.hpp"
 
 #include <Input/InputService.hpp>
-#include <LudorkRuntimeBinding/RegistryReference.hpp>
+#include <Runtime/RuntimeReference.hpp>
 #include <LudorkPlatform.hpp>
 
 #include <SFML/Window/Joystick.hpp>
@@ -39,33 +39,18 @@ std::string keyboardKeyText(const RuntimeValue& value,
 
 std::string handleKeyText(const RuntimeValue& value,
                           const std::string& source) {
-    const RuntimeIdentityPtr* identity = value.getIf<RuntimeIdentityPtr>();
-    const auto* opaque =
-        identity == nullptr || *identity == nullptr
-            ? nullptr
-            : dynamic_cast<const ludork::runtime::binding::LuaOpaqueIdentity<
-                  RuntimeIdentity>*>(identity->get());
-    if (opaque == nullptr) {
+    using namespace ludork::runtime::reference;
+    if (value.getIf<RuntimeIdentityPtr>() == nullptr || !isTable(value)) {
         throw std::invalid_argument(source +
                                     " must be an Engine.JoystickButton value");
     }
-    sol::state_view lua(opaque->value().state());
-    const sol::object luaValue =
-        ludork::runtime::binding::readLuaRegistryReference(lua,
-                                                           opaque->value());
-    if (!luaValue.is<sol::table>()) {
+    const RuntimeValue name = rawGet(value, "name");
+    const RuntimeValue code = rawGet(value, "value");
+    if (!is<std::string>(name) || !is<int>(code)) {
         throw std::invalid_argument(source +
                                     " must be an Engine.JoystickButton value");
     }
-    const sol::table buttonValue = luaValue.as<sol::table>();
-    const sol::object nameValue = buttonValue.raw_get<sol::object>("name");
-    const sol::object codeValue = buttonValue.raw_get<sol::object>("value");
-    if (!nameValue.is<std::string>() || !codeValue.is<int>()) {
-        throw std::invalid_argument(source +
-                                    " must be an Engine.JoystickButton value");
-    }
-    const InputNamedValue button{nameValue.as<std::string>(),
-                                 codeValue.as<int>()};
+    const InputNamedValue button{as<std::string>(name), as<int>(code)};
     if (!JoystickButton::isValid(button)) {
         throw std::invalid_argument(
             source + " must match a registered Engine.JoystickButton value");

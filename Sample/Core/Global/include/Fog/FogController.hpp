@@ -1,13 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <SFML/Graphics.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
+#include <CoreMinimal.hpp>
 
 class Camera;
 

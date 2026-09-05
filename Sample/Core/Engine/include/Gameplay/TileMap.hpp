@@ -1,22 +1,12 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <General/Material.hpp>
 #include <General/TileLayerData.hpp>
 #include <Graphics/TilemapGraphics.hpp>
-
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/Shader.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TileLayer : public TileLayerGraphics {

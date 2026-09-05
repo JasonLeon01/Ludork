@@ -1,12 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <General/Material.hpp>
-#include <array>
-#include <string>
-#include <unordered_map>
-#include <variant>
-#include <vector>
 
 using TilesetValue =
     std::variant<std::string, std::vector<bool>, std::vector<MaterialData>,

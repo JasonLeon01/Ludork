@@ -1,17 +1,11 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/Text.hpp>
-
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <functional>
-#include <memory>
 
 class Rect;
 

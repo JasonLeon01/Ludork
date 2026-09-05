@@ -1,13 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <CoreMinimal.hpp>
 
-#include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#include <EngineRuntimeApi.hpp>
 
 class LUDORK_ENGINE_API TypedDataService {
 public:

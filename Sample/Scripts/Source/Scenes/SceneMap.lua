@@ -128,9 +128,6 @@ function Scene:onCreate()
         function ()
             self:_onFloorTeleporterClose()
         end,
-        function (mapKey, telepoint)
-            return self:_getFloorTelepointTag(mapKey, telepoint)
-        end,
         function (mapKey)
             return self._mapBuilder:resolveMapPath(mapKey, self:_getCurrentRegionMap())
         end,
@@ -582,13 +579,6 @@ function Scene:_buildFloorMapPreview(mapKey, telepoint, previewSize, previewScal
     )
 end
 
----@param mapKey    string
----@param telepoint sf.Vector2u
----@return string | nil
-function Scene:_getFloorTelepointTag(mapKey, telepoint)
-    return self._mapBuilder:getFloorTelepointTag(self:_getCurrentRegionMap(), mapKey, telepoint)
-end
-
 function Scene:resolveRegionMapPath(mapKey)
     return self._mapBuilder:resolveRegionMapPath(mapKey, self:_getCurrentRegionMap())
 end
@@ -717,14 +707,6 @@ end
 
 function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
     return SceneMapInteractions._onFloorTeleporterConfirm(self, mapKey, telepoint)
-end
-
-function Scene:_recordCurrentFloorTelepoint()
-    return SceneMapInteractions._recordCurrentFloorTelepoint(self)
-end
-
-function Scene:_findNearestFloorTelepoint()
-    return SceneMapInteractions._findNearestFloorTelepoint(self)
 end
 
 function Scene.GetShopRects()

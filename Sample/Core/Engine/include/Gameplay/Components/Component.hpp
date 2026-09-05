@@ -1,11 +1,8 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <vector>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Component : public RuntimeObject {

@@ -1,18 +1,12 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <Filters/SoundFilter.hpp>
 #include <General/Material.hpp>
-#include <Runtime/RuntimeValue.hpp>
 
 #include <SFML/Audio/Sound.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
 
 class Actor;
 

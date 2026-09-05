@@ -1,9 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <UI/Text.hpp>
+#include <CoreMinimal.hpp>
 
-#include <string>
+#include <UI/Text.hpp>
 
 BIND_FUNCTION_GROUP(name = "TextLayout")
 

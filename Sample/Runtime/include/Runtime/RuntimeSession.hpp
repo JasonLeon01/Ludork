@@ -3,8 +3,6 @@
 #include <RuntimeApi.hpp>
 #include <RuntimeSession.hpp>
 
-#include <sol2/forward.hpp>
-
 #include <optional>
 
 struct lua_State;
@@ -18,7 +16,6 @@ class LUDORK_RUNTIME_API RuntimeScope {
 public:
     RuntimeScope();
 
-    sol::state_view lua() const;
     lua_State* state() const noexcept;
 
 private:

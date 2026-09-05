@@ -1,13 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <string>
-#include <unordered_map>
-#include <variant>
-#include <vector>
+#include <CoreMinimal.hpp>
 
 using LightValue =
     std::variant<std::vector<float>, std::vector<int>, float, int>;

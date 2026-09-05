@@ -49,6 +49,13 @@ function WindowFloorMapPreview:onReturn()
     self._owner:activateMapList(true)
 end
 
+---@param index integer
+function WindowFloorMapPreview:_setPointerIndex(index)
+    local previousIndex = self.index
+    super(WindowFloorMapPreview, self)._setPointerIndex(index)
+    self._previewUI:afterSelectionUpdate(previousIndex)
+end
+
 ---@param entries table
 function WindowFloorMapPreview:_rebuildTelepointList(entries)
     self._previewUI:rebuildTelepointList(entries)

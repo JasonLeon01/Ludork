@@ -1,6 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
 
 BIND_FUNCTION_GROUP(name = "NodeGraph")
 

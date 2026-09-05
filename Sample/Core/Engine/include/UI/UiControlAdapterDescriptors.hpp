@@ -1,8 +1,7 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
 
-#include <array>
 #include <span>
 #include <string_view>
 

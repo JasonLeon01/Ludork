@@ -1,23 +1,11 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Curve.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <UI/ControlBase.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/Font.hpp>
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/Text.hpp>
-
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 BIND_CLASS(copyable = true, table_init = true)
 struct TextOutlineConfig {

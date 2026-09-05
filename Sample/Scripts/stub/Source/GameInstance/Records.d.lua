@@ -15,9 +15,10 @@ function Records.AppendPlayer(players, playerKeys, player) end
 ---@param record  Source.GameInstance.AddedActorRecord
 function Records.UpsertTaggedRecord(records, record) end
 
----@param points sf.Vector2u[]
----@param point  sf.Vector2u
-function Records.AppendUniquePosition(points, point) end
+---@param points   Source.GameInstance.TelepointRecord[]
+---@param position sf.Vector2u
+---@param tag      string
+function Records.AppendUniqueTelepoint(points, position, tag) end
 
 ---@param changes table<string, Source.Data.ClassVarValue> | nil
 ---@return table<string, Source.GameInstance.RecordValue>

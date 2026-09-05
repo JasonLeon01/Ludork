@@ -130,7 +130,7 @@ RuntimeValue::Map MetadataRuntimeFacade::configVars(
 RuntimeValue MetadataRuntimeFacade::classModulePath(
     const RuntimeValue& classReference) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     return readValue(ludork::runtime::detail::findRuntimeClassModule(
         lua, writeValue(lua, classReference)));
 }
@@ -138,7 +138,7 @@ RuntimeValue MetadataRuntimeFacade::classModulePath(
 std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::classTypeMetadata(
     const RuntimeValue& classReference) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const sol::object rawClass = writeValue(lua, classReference);
     if (!rawClass.is<sol::table>()) {
         return {};
@@ -184,7 +184,7 @@ std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::classTypeMetadata(
 RuntimeValue MetadataRuntimeFacade::attrMetadata(
     const RuntimeValue& owner) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const sol::object rawOwner = writeValue(lua, owner);
     if (!rawOwner.is<sol::table>()) {
         return RuntimeValue(RuntimeValue::Map{});
@@ -197,7 +197,7 @@ RuntimeValue MetadataRuntimeFacade::attrMetadata(
 RuntimeValue MetadataRuntimeFacade::resolveAttrMetadata(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const sol::object rawOwner = writeValue(lua, owner);
     if (!rawOwner.is<sol::table>()) {
         return {};
@@ -210,7 +210,7 @@ RuntimeValue MetadataRuntimeFacade::resolveAttrMetadata(
 RuntimeValue MetadataRuntimeFacade::resolveAttrValueType(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const sol::object rawOwner = writeValue(lua, owner);
     sol::object valueType = ludork::runtime::detail::nilObject(lua);
     if (rawOwner.is<sol::table>()) {
@@ -268,7 +268,7 @@ RuntimeValue MetadataRuntimeFacade::resolveAttrValueType(
 std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::resolveConfigVar(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const auto [configName, settingName] =
         ludork::runtime::detail::resolveRuntimeConfigVar(
             lua, writeValue(lua, owner), sol::make_object(lua, key));
@@ -279,7 +279,7 @@ std::pair<RuntimeValue, RuntimeValue>
 MetadataRuntimeFacade::resolveMemberMetadata(const RuntimeValue& owner,
                                              const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const auto [metadata, declaringModule] =
         ludork::runtime::detail::resolveRuntimeMemberMetadata(
             lua, writeValue(lua, owner), sol::make_object(lua, key));
@@ -289,7 +289,7 @@ MetadataRuntimeFacade::resolveMemberMetadata(const RuntimeValue& owner,
 RuntimeValue MetadataRuntimeFacade::evaluateExpression(
     const RuntimeValue& value, const RuntimeValue::Map& environment) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     return readValue(ludork::runtime::detail::evaluateRuntimeExpression(
         lua, writeValue(lua, value),
         writeValue(lua, RuntimeValue(environment))));
@@ -299,7 +299,7 @@ RuntimeValue MetadataRuntimeFacade::resolveType(
     const RuntimeValue& typeReference,
     const std::string& declaringModule) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     return readValue(ludork::runtime::detail::resolveRuntimeMetadataType(
         lua, writeValue(lua, typeReference),
         sol::make_object(lua, declaringModule)));
@@ -309,7 +309,7 @@ RuntimeValue MetadataRuntimeFacade::constructTypedValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const sol::object rawValue = writeValue(lua, value);
     const sol::object target =
         ludork::runtime::detail::resolveRuntimeMetadataType(

@@ -1,9 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <string>
+#include <CoreMinimal.hpp>
 
 BIND_CLASS()
 class BPBase {
@@ -28,17 +25,18 @@ public:
     static bool IsBlueprintEventEmpty(const RuntimeIdentityPtr& object,
                                       const std::string& eventName);
 
-    BIND_METHOD(metadata = false)
-    static bool _classHasBlueprintEvent(const RuntimeIdentityPtr& classType,
+    BIND_METHOD(name = "_classHasBlueprintEvent", metadata = false)
+    static bool ClassHasBlueprintEvent(const RuntimeIdentityPtr& classType,
+                                       const std::string& eventName);
+
+    BIND_METHOD(name = "_graphHasExecutableEvent", metadata = false,
+                allow_nil = "graph")
+    static bool GraphHasExecutableEvent(const RuntimeIdentityPtr& graph,
                                         const std::string& eventName);
 
-    BIND_METHOD(metadata = false)
-    static bool _graphHasExecutableEvent(const RuntimeIdentityPtr& graph,
-                                         const std::string& eventName);
-
-    BIND_METHOD(metadata = false)
-    static bool _graphDataHasExecutableEvent(const RuntimeValue& graphData,
-                                             const std::string& eventName);
+    BIND_METHOD(name = "_graphDataHasExecutableEvent", metadata = false)
+    static bool GraphDataHasExecutableEvent(const RuntimeValue& graphData,
+                                            const std::string& eventName);
 
     BIND_METHOD(defaults = {nil, nil, nil, nil})
     static bool ExecuteParentEvent(

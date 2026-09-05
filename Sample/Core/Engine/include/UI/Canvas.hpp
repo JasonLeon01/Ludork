@@ -1,21 +1,12 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
 #include <Animation.hpp>
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/SpriteBase.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
-#include <SFML/Graphics/RenderTexture.hpp>
-#include <SFML/Graphics/View.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <memory>
-#include <vector>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Canvas : public SpriteBase, public FunctionalBase {

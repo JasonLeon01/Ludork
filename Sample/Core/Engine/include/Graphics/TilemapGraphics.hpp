@@ -1,23 +1,12 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <General/Material.hpp>
 #include <General/TileLayerData.hpp>
 
-#include <SFML/Graphics/Drawable.hpp>
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/Graphics/Transformable.hpp>
-#include <SFML/Graphics/VertexArray.hpp>
-#include <SFML/System/Vector2.hpp>
 #include <atomic>
-#include <memory>
-#include <optional>
-#include <string>
-#include <utility>
-#include <vector>
 
 namespace ludork::engine::tilemap_graphics_impl {
 struct TileChunk;

@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GlobalRuntimeApi.hpp>
-
-#include <SFML/Graphics/Font.hpp>
-
-#include <cstddef>
-#include <memory>
-#include <string>
-#include <vector>
 
 BIND_CLASS()
 class LUDORK_GLOBAL_API FontManager {

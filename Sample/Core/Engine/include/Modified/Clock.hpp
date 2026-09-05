@@ -1,9 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/System/Clock.hpp>
-#include <SFML/System/Time.hpp>
+#include <CoreMinimal.hpp>
 
 BIND_CLASS(name = "Clock")
 class ModifiedClock : public sf::Clock {

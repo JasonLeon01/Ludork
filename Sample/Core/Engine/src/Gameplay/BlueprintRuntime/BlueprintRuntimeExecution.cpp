@@ -1,20 +1,15 @@
+#include <Runtime/RuntimeReference.hpp>
 #include "BlueprintRuntimeInternal.hpp"
 #include <EngineRuntimeServices.hpp>
 
-#include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
 #include <Gameplay/EngineClassRuntime/EngineClassRuntimeInternal.hpp>
-#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Gameplay/EngineClassRuntime.hpp>
-#include <NodeGraph/NodeGraphRuntime.hpp>
+#include <NodeGraph/Runtime/NodeGraphRuntimeInternal.hpp>
 #include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/DataValue.hpp>
-
-extern "C" {
-#include <lua.h>
-}
 
 #include <algorithm>
 #include <climits>
@@ -34,230 +29,183 @@ extern "C" {
 
 namespace ludork::engine::runtime_detail {
 
-sol::object blueprintEngineType(sol::state_view lua, const char* name) {
-    const sol::object rawEngine = lua.globals().raw_get<sol::object>("Engine");
-    if (!rawEngine.is<sol::table>()) {
+using namespace ludork::runtime::reference;
+
+std::shared_ptr<Graph> requireBlueprintGraph(const RuntimeValue& graph) {
+    const std::shared_ptr<Graph> nativeGraph =
+        kind(graph) == "userdata"
+            ? std::dynamic_pointer_cast<Graph>(
+                  ludork::runtime::reference::object(graph))
+            : nullptr;
+    if (nativeGraph == nullptr) {
+        throw std::invalid_argument("Blueprint graph must be an Engine.Graph");
+    }
+    return nativeGraph;
+}
+
+RuntimeValue blueprintEngineType(const char* name) {
+    const RuntimeValue rawEngine = rawGet(globals(), "Engine");
+    if (!isTable(rawEngine)) {
         throw std::runtime_error("Engine module is not initialized");
     }
-    return rawEngine.as<sol::table>().raw_get<sol::object>(name);
+    return rawGet(rawEngine, name);
 }
 
-bool blueprintIsInstance(sol::this_state state, const sol::object& value,
-                         const sol::object& type) {
-    return type.is<sol::table>() &&
-           isInstance(state, value, type.as<sol::table>());
+bool blueprintIsInstance(const RuntimeValue& value, const RuntimeValue& type) {
+    return isTable(type) && isInstance(value, type);
 }
 
-sol::object callRuntimeMethodFirst(sol::state_view lua,
-                                   const sol::object& object, const char* name,
-                                   const std::vector<sol::object>& arguments) {
-    const sol::object method =
-        runtimeIndex(lua, object, sol::make_object(lua, name), false);
-    if (!method.is<sol::protected_function>()) {
-        return nilObject(lua);
+RuntimeValue callRuntimeMethodFirst(
+    const RuntimeValue& object, const char* name,
+    const std::vector<RuntimeValue>& arguments) {
+    const RuntimeValue method = get(object, retain(makeValue(name)));
+    if (!isFunction(method)) {
+        return RuntimeValue();
     }
-    std::vector<sol::object> values;
+    std::vector<RuntimeValue> values;
     values.reserve(arguments.size() + 1);
     values.push_back(object);
     values.insert(values.end(), arguments.begin(), arguments.end());
-    lua_State* state = lua.lua_state();
-    const int stackBase = lua_gettop(state);
-    try {
-        const int resultCount = invokeRuntimeFunction(
-            state, method, values, "runtime method arguments");
-        sol::object result = resultCount == 0 ? nilObject(lua)
-                                              : sol::stack::get<sol::object>(
-                                                    state, stackBase + 1);
-        lua_settop(state, stackBase);
-        return result;
-    } catch (...) {
-        lua_settop(state, stackBase);
-        throw;
-    }
+    return first(invoke(method, values));
 }
 
-std::optional<double> runtimeNumber(sol::state_view lua,
-                                    const sol::object& value) {
-    const sol::object rawToNumber =
-        lua.globals().raw_get<sol::object>("tonumber");
-    if (!rawToNumber.is<sol::protected_function>()) {
+std::optional<double> runtimeNumber(const RuntimeValue& value) {
+    const RuntimeValue rawToNumber = rawGet(globals(), "tonumber");
+    if (!isFunction(rawToNumber)) {
         return std::nullopt;
     }
-    sol::protected_function toNumber =
-        rawToNumber.as<sol::protected_function>();
-    sol::protected_function_result converted = toNumber(value);
-    const sol::object result = checkedResult(lua, converted);
-    return result.is<double>() ? std::optional<double>(result.as<double>())
-                               : std::nullopt;
+    RuntimeValue toNumber = rawToNumber;
+    RuntimeValue::Array converted = invoke(toNumber, {makeValue(value)});
+    const RuntimeValue result = first(converted);
+    return is<double>(result) ? std::optional<double>(as<double>(result))
+                              : std::nullopt;
 }
 
-bool blueprintGraphHasExecutableEvent(sol::state_view lua,
-                                      const sol::object& graph,
+bool blueprintGraphHasExecutableEvent(const RuntimeValue& graph,
                                       const std::string& eventName) {
-    if (!graph.valid() || graph.get_type() == sol::type::lua_nil) {
+    if (graph.isNil()) {
         return false;
     }
-    const sol::object direct = runtimeIndex(
-        lua, graph, sol::make_object(lua, "hasExecutableEvent"), false);
-    if (direct.is<sol::protected_function>()) {
-        return luaBoolean(
-            callRuntimeMethodFirst(lua, graph, "hasExecutableEvent",
-                                   {sol::make_object(lua, eventName)}));
-    }
-    const sol::object startNodes =
-        runtimeIndex(lua, graph, sol::make_object(lua, "startNodes"), false);
-    const sol::object nodes =
-        runtimeIndex(lua, graph, sol::make_object(lua, "nodes"), false);
-    if (!startNodes.is<sol::table>() || !nodes.is<sol::table>()) {
-        return false;
-    }
-    const sol::object rawStart =
-        startNodes.as<sol::table>().get<sol::object>(eventName);
-    const sol::object rawEventNodes =
-        nodes.as<sol::table>().get<sol::object>(eventName);
-    if (rawStart.get_type() == sol::type::lua_nil ||
-        !rawEventNodes.is<sol::table>()) {
-        return false;
-    }
-    const std::optional<double> start = runtimeNumber(lua, rawStart);
-    return start.has_value() && *start >= 0.0 &&
-           *start < static_cast<double>(rawEventNodes.as<sol::table>().size());
+    return requireBlueprintGraph(graph)->hasExecutableEvent(eventName);
 }
 
-bool blueprintGraphDataHasExecutableEvent(sol::state_view lua,
-                                          const sol::object& graphData,
+bool blueprintGraphDataHasExecutableEvent(const RuntimeValue& graphData,
                                           const std::string& eventName) {
-    if (!graphData.is<sol::table>()) {
+    if (!isTable(graphData)) {
         return false;
     }
-    const sol::table data = graphData.as<sol::table>();
-    const sol::object nodeGraph = data.get<sol::object>("nodeGraph");
-    const sol::object startNodes = data.get<sol::object>("startNodes");
-    if (!nodeGraph.is<sol::table>() || !startNodes.is<sol::table>()) {
+    const RuntimeValue data = graphData;
+    const RuntimeValue nodeGraph = get(data, "nodeGraph");
+    const RuntimeValue startNodes = get(data, "startNodes");
+    if (!isTable(nodeGraph) || !isTable(startNodes)) {
         return false;
     }
-    const sol::object eventGraph =
-        nodeGraph.as<sol::table>().get<sol::object>(eventName);
-    const sol::object rawStart =
-        startNodes.as<sol::table>().get<sol::object>(eventName);
-    if (!eventGraph.is<sol::table>() ||
-        rawStart.get_type() == sol::type::lua_nil) {
+    const RuntimeValue eventGraph = get(nodeGraph, eventName);
+    const RuntimeValue rawStart = get(startNodes, eventName);
+    if (!isTable(eventGraph) || rawStart.isNil()) {
         return false;
     }
-    const sol::object nodes =
-        eventGraph.as<sol::table>().get<sol::object>("nodes");
-    const std::optional<double> start = runtimeNumber(lua, rawStart);
-    return nodes.is<sol::table>() && start.has_value() && *start >= 0.0 &&
-           *start < static_cast<double>(nodes.as<sol::table>().size());
+    const RuntimeValue nodes = get(eventGraph, "nodes");
+    const std::optional<double> start = runtimeNumber(rawStart);
+    return isTable(nodes) && start.has_value() && *start >= 0.0 &&
+           *start < static_cast<double>(length(nodes));
 }
 
-bool generatedBlueprintGraphHasExecutableEvent(sol::state_view lua,
-                                               const sol::table& classType,
+bool generatedBlueprintGraphHasExecutableEvent(const RuntimeValue& classType,
                                                const std::string& eventName) {
-    const sol::object rawScriptMixin =
-        classType.get<sol::object>("scriptMixin");
-    if (rawScriptMixin.is<bool>() && rawScriptMixin.as<bool>()) {
+    const RuntimeValue rawScriptMixin = get(classType, "scriptMixin");
+    if (is<bool>(rawScriptMixin) && as<bool>(rawScriptMixin)) {
         return false;
     }
-    const sol::object rawPath =
-        classType.raw_get<sol::object>("__blueprintClassPath");
-    if (!rawPath.is<std::string>()) {
+    const RuntimeValue rawPath = rawGet(classType, "__blueprintClassPath");
+    if (!is<std::string>(rawPath)) {
         return false;
     }
     return ludork::engine::class_runtime_detail::classGraphHasExecutableEvent(
-        lua, rawPath.as<std::string>(), eventName);
+        as<std::string>(rawPath), eventName);
 }
 
-sol::object generatedBlueprintGraph(sol::state_view lua,
-                                    const sol::object& object,
-                                    const sol::table& classType) {
-    sol::object rawCache = runtimeIndex(
-        lua, object, sol::make_object(lua, "_parentGraphs"), false);
-    sol::table cache = rawCache.is<sol::table>() ? rawCache.as<sol::table>()
-                                                 : lua.create_table();
-    if (!rawCache.is<sol::table>()) {
-        runtimeAssign(lua, object, sol::make_object(lua, "_parentGraphs"),
-                      sol::make_object(lua, cache), false);
+RuntimeValue generatedBlueprintGraph(const RuntimeValue& object,
+                                     const RuntimeValue& classType) {
+    RuntimeValue rawCache = get(object, retain(makeValue("_parentGraphs")));
+    RuntimeValue cache = isTable(rawCache) ? rawCache : table();
+    if (!isTable(rawCache)) {
+        set(object, retain(makeValue("_parentGraphs")),
+            retain(makeValue(cache)));
     }
-    sol::object graph = cache.raw_get<sol::object>(classType);
-    if (graph.get_type() == sol::type::lua_nil) {
-        const sol::object rawPath =
-            classType.raw_get<sol::object>("__blueprintClassPath");
-        if (!rawPath.is<std::string>()) {
-            return nilObject(lua);
+    RuntimeValue graph = rawGet(cache, classType);
+    if (graph.isNil()) {
+        const RuntimeValue rawPath = rawGet(classType, "__blueprintClassPath");
+        if (!is<std::string>(rawPath)) {
+            return RuntimeValue();
         }
         graph = ludork::engine::class_runtime_detail::instantiateClassGraph(
-            lua, rawPath.as<std::string>(), object);
-        if (graph.valid() && graph.get_type() != sol::type::lua_nil) {
-            cache.raw_set(classType, graph);
+            as<std::string>(rawPath), object);
+        if (!graph.isNil()) {
+            rawSet(cache, classType, graph);
         }
     }
     return graph;
 }
 
-sol::table blueprintEventKeywordArguments(
-    sol::state_view lua, const sol::table& classType,
-    const std::string& eventName, const sol::object& rawArguments,
-    const sol::object& rawKeywordArguments) {
-    sol::table result = lua.create_table();
-    if (rawKeywordArguments.is<sol::table>()) {
-        for (const auto& entry : rawKeywordArguments.as<sol::table>()) {
-            result.raw_set(entry.first, entry.second);
+RuntimeValue blueprintEventKeywordArguments(
+    const RuntimeValue& classType, const std::string& eventName,
+    const RuntimeValue& rawArguments, const RuntimeValue& rawKeywordArguments) {
+    RuntimeValue result = table();
+    if (isTable(rawKeywordArguments)) {
+        for (const auto& entry : entries(rawKeywordArguments)) {
+            rawSet(result, entry.first, entry.second);
         }
     }
-    if (!rawArguments.is<sol::table>() ||
-        rawArguments.as<sol::table>().size() == 0) {
+    if (!isTable(rawArguments) || length(rawArguments) == 0) {
         return result;
     }
-    const sol::object method = classType.get<sol::object>(eventName);
-    if (!method.is<sol::protected_function>()) {
+    const RuntimeValue method = get(classType, eventName);
+    if (!isFunction(method)) {
         return result;
     }
-    const sol::table names = runtimeDescriptorParameters(
-        lua, runtimeEventDescriptor(lua, method, classType, eventName));
-    const sol::table arguments = rawArguments.as<sol::table>();
-    const std::size_t count = std::min(arguments.size(), names.size());
+    const RuntimeValue names = runtimeDescriptorParameters(
+        runtimeEventDescriptor(method, classType, eventName));
+    const RuntimeValue arguments = rawArguments;
+    const std::size_t count = std::min(length(arguments), length(names));
     for (std::size_t index = 1; index <= count; ++index) {
-        const sol::object rawName = names.raw_get<sol::object>(index);
-        if (!rawName.is<std::string>()) {
+        const RuntimeValue rawName = rawGet(names, index);
+        if (!is<std::string>(rawName)) {
             continue;
         }
-        const std::string name = rawName.as<std::string>();
-        if (result.get<sol::object>(name).get_type() == sol::type::lua_nil) {
-            result.set(name, arguments.get<sol::object>(index));
+        const std::string name = as<std::string>(rawName);
+        if (kind(get(result, name)) == "nil") {
+            set(result, name, get(arguments, index));
         }
     }
     return result;
 }
 
-void mergeBlueprintLocalArguments(sol::state_view lua,
-                                  const sol::table& classType,
+void mergeBlueprintLocalArguments(const RuntimeValue& classType,
                                   const std::string& eventName,
-                                  sol::table keywordArguments,
-                                  const sol::object& localGraph) {
-    if (!localGraph.is<sol::table>()) {
+                                  RuntimeValue keywordArguments,
+                                  const RuntimeValue& localGraph) {
+    if (!isTable(localGraph)) {
         return;
     }
-    const sol::object method = classType.get<sol::object>(eventName);
-    if (!method.is<sol::protected_function>()) {
+    const RuntimeValue method = get(classType, eventName);
+    if (!isFunction(method)) {
         return;
     }
-    const sol::table names = runtimeDescriptorParameters(
-        lua, runtimeEventDescriptor(lua, method, classType, eventName));
-    for (std::size_t index = 1; index <= names.size(); ++index) {
-        const sol::object rawName = names.raw_get<sol::object>(index);
-        if (!rawName.is<std::string>()) {
+    const RuntimeValue names = runtimeDescriptorParameters(
+        runtimeEventDescriptor(method, classType, eventName));
+    for (std::size_t index = 1; index <= length(names); ++index) {
+        const RuntimeValue rawName = rawGet(names, index);
+        if (!is<std::string>(rawName)) {
             continue;
         }
-        const std::string name = rawName.as<std::string>();
-        if (keywordArguments.get<sol::object>(name).get_type() !=
-            sol::type::lua_nil) {
+        const std::string name = as<std::string>(rawName);
+        if (kind(get(keywordArguments, name)) != "nil") {
             continue;
         }
-        const sol::object value =
-            localGraph.as<sol::table>().get<sol::object>("__" + name + "__");
-        if (value.get_type() != sol::type::lua_nil) {
-            keywordArguments.set(name, value);
+        const RuntimeValue value = get(localGraph, "__" + name + "__");
+        if (!value.isNil()) {
+            set(keywordArguments, name, value);
         }
     }
 }
@@ -293,13 +241,12 @@ void logBlueprintCompletionFailure(const std::string& eventName,
     }
 }
 
-bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
+bool executeBlueprintGraph(const RuntimeValue& graph,
                            const std::string& eventName,
-                           const sol::object& rawKeywordArguments,
-                           const sol::object& localGraph,
+                           const RuntimeValue& rawKeywordArguments,
+                           const RuntimeValue& localGraph,
                            const std::function<void()>& onComplete) {
-    const std::shared_ptr<Graph> nativeGraph =
-        graph.as<std::shared_ptr<Graph>>();
+    const std::shared_ptr<Graph> nativeGraph = requireBlueprintGraph(graph);
     if (nativeGraph->getLatentPendingCount(eventName) > 0) {
         return false;
     }
@@ -307,9 +254,9 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
         return false;
     }
     RuntimeIdentityPtr oldLocalGraph;
-    sol::object context;
-    sol::object oldContextGraph;
-    std::vector<std::pair<std::string, sol::object>> oldEventParameters;
+    RuntimeValue context;
+    RuntimeValue oldContextGraph;
+    std::vector<std::pair<std::string, RuntimeValue>> oldEventParameters;
     bool oldLocalGraphCaptured = false;
     bool contextGraphSet = false;
     std::exception_ptr failure;
@@ -317,50 +264,42 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
     try {
         oldLocalGraph = nativeGraph->getLocalGraph();
         oldLocalGraphCaptured = true;
-        context = nilObject(lua);
-        oldContextGraph = nilObject(lua);
+        context = RuntimeValue();
+        oldContextGraph = RuntimeValue();
         if (onComplete) {
             nativeGraph->addExecutionCompleteCallback(eventName, onComplete);
         }
-        if (localGraph.valid() && localGraph.get_type() != sol::type::lua_nil) {
-            nativeGraph->setLocalGraph(
-                ludork::runtime::binding::readLuaValue<RuntimeIdentityPtr>(
-                    localGraph));
+        if (!localGraph.isNil()) {
+            nativeGraph->setLocalGraph(identity(localGraph));
         }
         RuntimeIdentityPtr activeLocalGraph = nativeGraph->getLocalGraph();
         if (activeLocalGraph == nullptr) {
-            const NodeGraphContextObjects created =
-                createNodeGraphContext(lua,
-                                       ludork::runtime::binding::writeLuaValue(
-                                           lua, nativeGraph->parentClass),
-                                       ludork::runtime::binding::writeLuaValue(
-                                           lua, nativeGraph->getParent()));
-            activeLocalGraph =
-                ludork::runtime::binding::readLuaValue<RuntimeIdentityPtr>(
-                    created.localGraph);
+            const NodeGraphContextObjects created = createNodeGraphContext(
+                retain(makeValue(nativeGraph->parentClass)),
+                retain(makeValue(nativeGraph->getParent())));
+            activeLocalGraph = identity(created.localGraph);
             nativeGraph->setLocalGraph(activeLocalGraph);
         }
         if (activeLocalGraph == nullptr) {
             throw std::runtime_error("Blueprint graph has no local context");
         }
 
-        context =
-            ludork::runtime::binding::writeLuaValue(lua, activeLocalGraph);
-        oldContextGraph = getNodeGraphContextValue(lua, context, "__graph__");
-        setNodeGraphContextValue(lua, context, "__graph__",
-                                 ludork::runtime::binding::writeLuaValue(
-                                     lua, nativeGraph->getGraphContext()));
+        context = retain(makeValue(activeLocalGraph));
+        oldContextGraph = getNodeGraphContextValue(context, "__graph__");
+        setNodeGraphContextValue(
+            context, "__graph__",
+            retain(makeValue(nativeGraph->getGraphContext())));
         contextGraphSet = true;
-        if (rawKeywordArguments.is<sol::table>()) {
-            for (const auto& entry : rawKeywordArguments.as<sol::table>()) {
-                if (!entry.first.is<std::string>()) {
+        if (isTable(rawKeywordArguments)) {
+            for (const auto& entry : entries(rawKeywordArguments)) {
+                if (!is<std::string>(entry.first)) {
                     continue;
                 }
                 const std::string name =
-                    "__" + entry.first.as<std::string>() + "__";
+                    "__" + as<std::string>(entry.first) + "__";
                 oldEventParameters.emplace_back(
-                    name, getNodeGraphContextValue(lua, context, name));
-                setNodeGraphContextValue(lua, context, name, entry.second);
+                    name, getNodeGraphContextValue(context, name));
+                setNodeGraphContextValue(context, name, entry.second);
             }
         }
         nativeGraph->execute(eventName);
@@ -370,7 +309,7 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
 
     for (const auto& [name, value] : oldEventParameters) {
         try {
-            setNodeGraphContextValue(lua, context, name, value);
+            setNodeGraphContextValue(context, name, value);
         } catch (...) {
             const std::exception_ptr restoreFailure = std::current_exception();
             logBlueprintCleanupFailure(eventName, name, restoreFailure);
@@ -381,8 +320,7 @@ bool executeBlueprintGraph(sol::state_view lua, const sol::object& graph,
     }
     if (contextGraphSet) {
         try {
-            setNodeGraphContextValue(lua, context, "__graph__",
-                                     oldContextGraph);
+            setNodeGraphContextValue(context, "__graph__", oldContextGraph);
         } catch (...) {
             const std::exception_ptr restoreFailure = std::current_exception();
             logBlueprintCleanupFailure(eventName, "__graph__", restoreFailure);

@@ -1,11 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Gameplay/Actor.hpp>
+#include <CoreMinimal.hpp>
 
-#include <memory>
-#include <optional>
-#include <string>
+#include <Gameplay/Actor.hpp>
 
 BIND_CLASS(callbacks = true, invalid_vars(defaultRect))
 class Character : public Actor {

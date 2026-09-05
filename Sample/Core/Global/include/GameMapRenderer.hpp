@@ -1,15 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GlobalRuntimeApi.hpp>
 #include <Light.hpp>
-
-#include <SFML/Graphics.hpp>
-
-#include <functional>
-#include <memory>
-#include <string>
-#include <vector>
 
 class Actor;
 class Camera;

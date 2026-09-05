@@ -177,7 +177,6 @@ function Scene:showFloorTeleporter()
         self._floorTeleporterMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
         self.player:setMoveEnabled(false)
     end
-    self:_recordCurrentFloorTelepoint()
     self._windowFloorTeleporter:open(self.inst)
     self:_blockMapInput(2)
 end
@@ -248,32 +247,6 @@ function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
     self:gotoMapAndPos(targetMap, targetPosition)
     self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
     self:_blockMapInput(2)
-end
-
-function Scene:_recordCurrentFloorTelepoint()
-    if self._gameMap == nil or self._cachedMapFile == nil then
-        return
-    end
-    local telepoint = self:_findNearestFloorTelepoint()
-    if telepoint == nil then
-        return
-    end
-    local savedTelepoint = sf.Vector2u.new(telepoint.x, telepoint.y)
-    ---@cast savedTelepoint sf.Vector2u
-    self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint)
-end
-
----@return sf.Vector2i | nil
-function Scene:_findNearestFloorTelepoint()
-    local gameMap = self:getGameMap()
-    local player = gameMap:getPlayer()
-    if player == nil then
-        return nil
-    end
-    local Teleporter = require("Source.Teleporter")
-
-    local nearest = Teleporter.FindNearestTeleporter(gameMap:getAllActors(), player:getMapPosition())
-    return nearest ~= nil and nearest:getTeleportPosition() or nil
 end
 
 ---@return sf.IntRect, sf.IntRect, sf.IntRect
@@ -392,7 +365,7 @@ function Scene:_processPendingFloorTransfer()
     if self._cachedMapFile ~= nil then
         local savedTelepoint = sf.Vector2u.new(targetPos.x, targetPos.y)
         ---@cast savedTelepoint sf.Vector2u
-        self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint)
+        self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint, targetTeleporter:getMapTag())
     end
     targetPlayer:setMoveEnabled(moveEnabled)
     self._mapTransferInProgress = false

@@ -1,18 +1,10 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
-
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <functional>
-#include <memory>
-#include <utility>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Slider : public ControlBase, public FunctionalBase {

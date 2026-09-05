@@ -1,19 +1,10 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <Particles/ParticleBase.hpp>
 #include <UI/Text.hpp>
-
-#include <SFML/Graphics/Drawable.hpp>
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
-#include <SFML/Graphics/Transformable.hpp>
-
-#include <functional>
-#include <memory>
-#include <string>
 
 class LUDORK_ENGINE_API ParticleSystem;
 

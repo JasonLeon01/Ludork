@@ -228,8 +228,6 @@ public partial class MainWindow
     {
         if (editorSettings is null)
             return;
-        Width = Math.Max(MinWidth, editorSettings.Width);
-        Height = Math.Max(MinHeight, editorSettings.Height);
         leftColumn.Width = new GridLength(Math.Max(160, editorSettings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, editorSettings.UpperRightWidth));
         lowerLeftColumn.Width = new GridLength(Math.Max(180, editorSettings.LowerLeftWidth));

@@ -1367,7 +1367,7 @@
     "floor": [],
     "default": [
       {
-        "tag": "Map_w01_01.Teleportations_Downstair_default_0_0",
+        "tag": "Downstair",
         "bp": "Data.Blueprints.Teleportations.Downstair",
         "position": [
           0,

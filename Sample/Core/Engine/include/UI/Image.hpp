@@ -1,6 +1,7 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <UI/SpriteBase.hpp>
 
 BIND_CLASS(callbacks = true)

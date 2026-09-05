@@ -1,12 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Window/ContextSettings.hpp>
-
-#include <string>
-#include <unordered_map>
-#include <variant>
+#include <CoreMinimal.hpp>
 
 using ContextSettingValue = std::variant<unsigned int, bool>;
 using ContextSettingMap = std::unordered_map<std::string, ContextSettingValue>;

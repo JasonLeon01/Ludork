@@ -4,8 +4,6 @@
 #include <NodeGraph/Types.hpp>
 #include <Runtime/RuntimeValue.hpp>
 
-#include <sol2/sol.hpp>
-
 #include <memory>
 #include <string>
 
@@ -52,41 +50,3 @@ public:
 };
 
 LUDORK_ENGINE_API NodeGraphRuntimeFacade& nodeGraphRuntime();
-
-namespace ludork::engine::runtime_detail {
-
-struct NodeGraphContextObjects {
-    sol::object localGraph;
-    sol::object graph;
-};
-
-NodeGraphContextObjects createNodeGraphContext(sol::state_view lua,
-                                               const sol::object& parentClass,
-                                               const sol::object& parent);
-sol::object getNodeGraphContextValue(sol::state_view lua,
-                                     const sol::object& context,
-                                     const std::string& key);
-void setNodeGraphContextValue(sol::state_view lua, const sol::object& context,
-                              const std::string& key, const sol::object& value);
-sol::object getNodeGraphContextParent(sol::state_view lua,
-                                      const sol::object& graph);
-void setNodeGraphContextParent(sol::state_view lua, const sol::object& graph,
-                               const sol::object& parent);
-std::shared_ptr<Node> createNodeGraphNode(
-    sol::state_view lua, const sol::object& nodeModel, const sol::object& graph,
-    const sol::object& parent, const std::string& nodeFunction,
-    const sol::object& fallback, const sol::object& parameters);
-NodeResult invokeNodeGraphCallable(sol::state_view lua,
-                                   const sol::object& callable,
-                                   const sol::object& self,
-                                   const sol::object& arguments,
-                                   const sol::object& context);
-sol::object nodeGraphRefLocal(sol::state_view lua, const sol::object& callable);
-NodeGraphConditionResult evaluateNodeGraphCondition(
-    sol::state_view lua, const sol::object& condition);
-NodeCache readNodeGraphCache(sol::state_view lua, const sol::object& cache);
-void writeNodeGraphCache(sol::state_view lua, const sol::object& cache,
-                         const NodeCache& values);
-void clearNodeGraphRuntimeCaches(sol::state_view lua);
-
-}  // namespace ludork::engine::runtime_detail

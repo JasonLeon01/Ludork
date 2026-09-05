@@ -1,11 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <Runtime/RuntimeValue.hpp>
-#include <UI/Text.hpp>
+#include <CoreMinimal.hpp>
 
-#include <memory>
-#include <string>
+#include <UI/Text.hpp>
 
 BIND_FUNCTION_GROUP(name = "TextConfig")
 

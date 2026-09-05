@@ -1,13 +1,10 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <ConfigParser.hpp>
 
-#include <cstdint>
 #include <filesystem>
-#include <functional>
-#include <memory>
-#include <string>
 
 BIND_CLASS()
 class SystemConfigBase {

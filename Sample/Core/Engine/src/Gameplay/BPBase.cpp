@@ -23,18 +23,18 @@ bool BPBase::IsBlueprintEventEmpty(const RuntimeIdentityPtr& object,
     return !HasBlueprintEvent(object, eventName);
 }
 
-bool BPBase::_classHasBlueprintEvent(const RuntimeIdentityPtr& classType,
-                                     const std::string& eventName) {
+bool BPBase::ClassHasBlueprintEvent(const RuntimeIdentityPtr& classType,
+                                    const std::string& eventName) {
     return blueprintRuntime().classHasEvent(classType, eventName);
 }
 
-bool BPBase::_graphHasExecutableEvent(const RuntimeIdentityPtr& graph,
-                                      const std::string& eventName) {
+bool BPBase::GraphHasExecutableEvent(const RuntimeIdentityPtr& graph,
+                                     const std::string& eventName) {
     return blueprintRuntime().graphHasExecutableEvent(graph, eventName);
 }
 
-bool BPBase::_graphDataHasExecutableEvent(const RuntimeValue& graphData,
-                                          const std::string& eventName) {
+bool BPBase::GraphDataHasExecutableEvent(const RuntimeValue& graphData,
+                                         const std::string& eventName) {
     return blueprintRuntime().graphDataHasExecutableEvent(graphData, eventName);
 }
 

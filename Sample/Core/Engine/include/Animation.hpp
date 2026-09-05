@@ -1,14 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <Graphics/CompressAnimation.hpp>
-
-#include <SFML/Graphics/Sprite.hpp>
-
-#include <cstddef>
-#include <memory>
-#include <vector>
 
 BIND_CLASS(cast_bases = {"sf::Drawable", "sf::Transformable"}, callbacks = true)
 class LUDORK_ENGINE_API AnimSprite : public sf::Sprite {

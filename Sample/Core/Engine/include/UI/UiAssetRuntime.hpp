@@ -1,20 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <UI/ControlBase.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <cstddef>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace ludork::engine::ui_asset_runtime_impl {
 struct AssetState;

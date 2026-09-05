@@ -26,7 +26,7 @@ class LuaBoundary:
     impl_modules: tuple[str, ...]
 
 
-CPP_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".mm"}
+CPP_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".mm"}
 HOST_MEMBER_CANDIDATE = re.compile(
     r"^[ \t]*(?:[^;(){}\n]+[ \t]+)?([A-Za-z_]\w*)\s*::\s*"
     r"(?:~?\w+|operator\s*[^\s(]+)\s*\(",
@@ -378,13 +378,92 @@ def _check_lua(boundary: LuaBoundary, project_root: pathlib.Path) -> list[str]:
     return diagnostics
 
 
+def _check_core_sol(project_root: pathlib.Path) -> list[str]:
+    core = project_root / "Core"
+    if not core.is_dir():
+        return []
+    include_roots = _cpp_include_roots(project_root)
+    include_roots.extend(sorted(core.glob("*/src")))
+    include_roots.extend(
+        project_root / module / "include" for module in ("Standard", "LuaSF")
+    )
+    include_pattern = re.compile(
+        r'^[ \t]*#[ \t]*include[ \t]*[<"]([^>"]+)[>"]', re.MULTILINE
+    )
+    comment_pattern = re.compile(
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+    parsed: dict[
+        pathlib.Path, tuple[list[pathlib.Path], tuple[int, str] | None]
+    ] = {}
+
+    def mask(match: re.Match[str]) -> str:
+        return "".join("\n" if ch == "\n" else " " for ch in match[0])
+
+    def inspect(path: pathlib.Path) -> tuple[list[pathlib.Path], tuple[int, str] | None]:
+        if path in parsed:
+            return parsed[path]
+        text = path.read_text(encoding="utf-8")
+        code = comment_pattern.sub(mask, text)
+        usage = re.search(r"\bsol\s*::", code)
+        violation = (_line_number(code, usage.start()), "sol namespace") if usage else None
+        uncommented = comment_pattern.sub(
+            lambda match: mask(match)
+            if match[0].startswith(("//", "/*")) else match[0],
+            text,
+        )
+        includes: list[pathlib.Path] = []
+        for match in include_pattern.finditer(uncommented):
+            name = match[1]
+            line = _line_number(uncommented, match.start())
+            if (
+                re.match(r"^sol2?/", name)
+                or pathlib.PurePosixPath(name).name == "luasf_sol.hpp"
+            ):
+                violation = (line, name)
+                break
+            for directory in (path.parent, *include_roots):
+                candidate = directory / name
+                if candidate.is_file():
+                    includes.append(candidate.resolve())
+                    break
+        parsed[path] = includes, violation
+        return parsed[path]
+
+    diagnostics: list[str] = []
+    for source in _cpp_files(core):
+        pending = [(source.resolve(), ())]
+        visited: set[pathlib.Path] = set()
+        while pending:
+            path, chain = pending.pop()
+            if path in visited:
+                continue
+            visited.add(path)
+            includes, violation = inspect(path)
+            if violation is not None:
+                line, reason = violation
+                route = " -> ".join(
+                    str(item.relative_to(project_root))
+                    if item.is_relative_to(project_root) else str(item)
+                    for item in (*chain, path)
+                )
+                diagnostics.append(
+                    f"{source}:{line if not chain else 1}: handwritten Core must not depend on sol "
+                    f"({route}:{line}: {reason}); use a sol-free Runtime interface"
+                )
+                break
+            pending.extend((child, (*chain, path)) for child in includes)
+    return diagnostics
+
+
 def verify_impl_boundaries(project_root: pathlib.Path) -> None:
     root = project_root.resolve()
     if not root.is_dir():
         raise ImplBoundaryError(f"Project root was not found: {root}")
     cpp = _discover_cpp_boundaries(root)
     lua = _discover_lua_boundaries(root)
-    diagnostics: list[str] = []
+    diagnostics = _check_core_sol(root)
     for boundary in cpp:
         diagnostics.extend(_check_cpp(boundary, root))
     for boundary in lua:

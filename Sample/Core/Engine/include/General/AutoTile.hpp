@@ -1,10 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <General/Material.hpp>
-#include <string>
-#include <unordered_map>
-#include <variant>
 
 using AutoTileValue = std::variant<std::string, bool, MaterialData>;
 using AutoTileData = std::unordered_map<std::string, AutoTileValue>;

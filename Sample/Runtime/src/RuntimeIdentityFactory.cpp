@@ -8,7 +8,7 @@
 
 RuntimeIdentityPtr createRuntimeMapIdentity() {
     ludork::runtime::RuntimeScope scope;
-    sol::state_view lua = scope.lua();
+    sol::state_view lua = sol::state_view(scope.state());
     return ludork::runtime::binding::readOpaqueIdentity<RuntimeIdentityPtr>(
         sol::make_object(lua, lua.create_table()));
 }

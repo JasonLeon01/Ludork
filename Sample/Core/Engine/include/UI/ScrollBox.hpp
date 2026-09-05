@@ -1,18 +1,10 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <UI/Canvas.hpp>
-
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/Texture.hpp>
-#include <SFML/System/Vector2.hpp>
-
-#include <array>
-#include <memory>
-#include <optional>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ScrollBox : public Canvas {

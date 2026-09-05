@@ -1,17 +1,11 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GlobalRuntimeApi.hpp>
 #include <Manager/ManagedAudioSource.hpp>
 
 #include <SFML/Audio.hpp>
-#include <SFML/Graphics/Transformable.hpp>
-
-#include <cstddef>
-#include <cstdint>
-#include <functional>
-#include <memory>
-#include <string>
 
 struct lua_State;
 

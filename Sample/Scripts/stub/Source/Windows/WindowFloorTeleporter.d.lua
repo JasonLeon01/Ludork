@@ -2,7 +2,7 @@
 
 ---@brief Integrated floor teleporter window with visited-map list and preview.
 ---@class Source.Windows.WindowFloorTeleporter: Engine.Canvas
----@field new fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, getTelepointTag?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
+---@field new fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
 local WindowFloorTeleporter = {}
 
 ---@brief Construct the floor teleporter coordinator.
@@ -13,7 +13,6 @@ local WindowFloorTeleporter = {}
 --- - @param loadPreview Callback that builds preview textures.
 --- - @param onConfirm Callback invoked when the selected map and telepoint are confirmed.
 --- - @param onClose Callback invoked after the window closes.
---- - @param getTelepointTag Callback that finds the telepoint actor tag.
 --- - @param resolvePreviewMapPath Callback that resolves a map key for caching.
 --- - @param clearPreviewCache Callback that clears cached preview maps.
 ---@param inst                  Source.GameInstance.GameInstance
@@ -22,12 +21,10 @@ local WindowFloorTeleporter = {}
 ---@param loadPreview           function
 ---@param onConfirm             function | nil
 ---@param onClose               function | nil
----@param getTelepointTag       function | nil
 ---@param resolvePreviewMapPath function | nil
 ---@param clearPreviewCache     function | nil
 function WindowFloorTeleporter:init(
-    inst, listRect, previewRect, loadPreview, onConfirm, onClose, getTelepointTag, resolvePreviewMapPath,
-    clearPreviewCache
+    inst, listRect, previewRect, loadPreview, onConfirm, onClose, resolvePreviewMapPath, clearPreviewCache
 ) end
 
 ---@brief Get the floor map command window.

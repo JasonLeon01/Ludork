@@ -1,11 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
 
 #include <SFML/Audio.hpp>
-#include <SFML/System/Time.hpp>
-
-#include <optional>
 
 BIND_CLASS(table_init = true)
 class SoundFilter {

@@ -1,10 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
+#include <CoreMinimal.hpp>
 
-#include <SFML/Graphics.hpp>
-#include <string>
+#include <EngineRuntimeApi.hpp>
 
 #include "Particles/ParticleBase.hpp"
 

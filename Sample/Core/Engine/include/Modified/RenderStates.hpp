@@ -1,8 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Graphics/RenderStates.hpp>
+#include <CoreMinimal.hpp>
 
 BIND_CLASS(name = "RenderStates")
 class ModifiedRenderStates : public sf::RenderStates {

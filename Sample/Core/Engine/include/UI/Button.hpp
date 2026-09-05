@@ -1,13 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <UI/FunctionalBase.hpp>
 #include <UI/Image.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-
-#include <memory>
-#include <optional>
 
 BIND_CLASS()
 class Button : public Image, public FunctionalBase {

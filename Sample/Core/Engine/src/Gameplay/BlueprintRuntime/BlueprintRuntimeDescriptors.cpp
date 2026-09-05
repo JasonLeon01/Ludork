@@ -1,17 +1,13 @@
+#include <Runtime/RuntimeReference.hpp>
 #include "BlueprintRuntimeInternal.hpp"
 #include <EngineRuntimeServices.hpp>
 
-#include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
 #include <NodeGraph/Graph.hpp>
 #include <Gameplay/EngineClassRuntime.hpp>
 #include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
 #include <Utils/DataValue.hpp>
-
-extern "C" {
-#include <lua.h>
-}
 
 #include <algorithm>
 #include <climits>
@@ -29,286 +25,177 @@ extern "C" {
 
 namespace ludork::engine::runtime_detail {
 
-std::vector<std::string> debugRuntimeMethodParameterNames(
-    sol::state_view lua, const sol::object& method) {
-    std::vector<std::string> names;
-    if (!method.is<sol::protected_function>()) {
-        return names;
-    }
-    const sol::object rawDebug = lua.globals().raw_get<sol::object>("debug");
-    if (!rawDebug.is<sol::table>()) {
-        return names;
-    }
-    const sol::table debug = rawDebug.as<sol::table>();
-    const sol::object rawGetInfo = debug.raw_get<sol::object>("getinfo");
-    const sol::object rawGetLocal = debug.raw_get<sol::object>("getlocal");
-    if (!rawGetInfo.is<sol::protected_function>() ||
-        !rawGetLocal.is<sol::protected_function>()) {
-        return names;
-    }
-    sol::protected_function getInfo = rawGetInfo.as<sol::protected_function>();
-    sol::protected_function_result infoResult = getInfo(method, "u");
-    const sol::object rawInfo = checkedResult(lua, infoResult);
-    if (!rawInfo.is<sol::table>()) {
-        return names;
-    }
-    const sol::object rawCount =
-        rawInfo.as<sol::table>().raw_get<sol::object>("nparams");
-    const std::size_t count =
-        rawCount.is<std::size_t>() ? rawCount.as<std::size_t>() : 0;
-    sol::protected_function getLocal =
-        rawGetLocal.as<sol::protected_function>();
-    names.reserve(count);
-    for (std::size_t index = 1; index <= count; ++index) {
-        sol::protected_function_result localResult = getLocal(method, index);
-        if (!localResult.valid()) {
-            const sol::error error = localResult;
-            throw std::runtime_error(error.what());
-        }
-        if (localResult.return_count() == 0) {
-            continue;
-        }
-        const sol::object rawName = localResult.get<sol::object>(0);
-        if (!rawName.is<std::string>()) {
-            continue;
-        }
-        const std::string name = rawName.as<std::string>();
-        if (name != "self") {
-            names.push_back(name);
-        }
-    }
-    return names;
-}
+using namespace ludork::runtime::reference;
 
-sol::table createRuntimeParameterDescriptor(
-    sol::state_view lua, const std::vector<std::string>& names) {
-    sol::table descriptor = lua.create_table();
-    sol::table parameters = lua.create_table(static_cast<int>(names.size()), 0);
-    sol::table accepted = lua.create_table(0, static_cast<int>(names.size()));
+RuntimeValue createRuntimeParameterDescriptor(
+    const std::vector<std::string>& names) {
+    RuntimeValue descriptor = table();
+    RuntimeValue parameters = table();
+    RuntimeValue accepted = table();
     std::size_t index = 1;
     for (const std::string& name : names) {
-        parameters.raw_set(index++, name);
-        accepted.raw_set(name, true);
+        rawSet(parameters, index++, name);
+        rawSet(accepted, name, true);
     }
-    descriptor.raw_set("parameters", parameters);
-    descriptor.raw_set("accepted", accepted);
+    rawSet(descriptor, "parameters", parameters);
+    rawSet(descriptor, "accepted", accepted);
     return descriptor;
 }
 
-sol::table callableRuntimeParameterDescriptor(sol::state_view lua,
-                                              const sol::object& method) {
-    if (!method.is<sol::protected_function>()) {
-        return createRuntimeParameterDescriptor(lua,
-                                                std::vector<std::string>{});
+RuntimeValue callableRuntimeParameterDescriptor(const RuntimeValue& method) {
+    if (!isFunction(method)) {
+        return createRuntimeParameterDescriptor(std::vector<std::string>{});
     }
-    sol::table cache =
-        registryTable(lua, BLUEPRINT_CALLABLE_PARAMETER_CACHE_KEY, "k");
-    const sol::object cached = cache.raw_get<sol::object>(method);
-    if (cached.is<sol::table>()) {
-        return cached.as<sol::table>();
+    RuntimeValue cache =
+        registryTable(BLUEPRINT_CALLABLE_PARAMETER_CACHE_KEY, WeakMode::Keys);
+    const RuntimeValue cached = rawGet(cache, method);
+    if (isTable(cached)) {
+        return cached;
     }
-    sol::table descriptor = createRuntimeParameterDescriptor(
-        lua, debugRuntimeMethodParameterNames(lua, method));
-    cache.raw_set(method, descriptor);
+    RuntimeValue descriptor =
+        createRuntimeParameterDescriptor(functionParameterNames(method));
+    rawSet(cache, method, descriptor);
     return descriptor;
 }
 
-sol::table classRuntimeEventCache(sol::state_view lua,
-                                  const sol::table& classType) {
-    sol::table cache =
-        registryTable(lua, BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY, "k");
-    const sol::object classObject = sol::make_object(lua, classType);
-    const sol::object cached = cache.raw_get<sol::object>(classObject);
-    if (cached.is<sol::table>()) {
-        return cached.as<sol::table>();
+RuntimeValue classRuntimeEventCache(const RuntimeValue& classType) {
+    RuntimeValue cache =
+        registryTable(BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY, WeakMode::Keys);
+    const RuntimeValue classObject = retain(makeValue(classType));
+    const RuntimeValue cached = rawGet(cache, classObject);
+    if (isTable(cached)) {
+        return cached;
     }
-    sol::table result = lua.create_table();
-    result.raw_set("members", lua.create_table());
-    cache.raw_set(classObject, result);
+    RuntimeValue result = table();
+    rawSet(result, "members", table());
+    rawSet(cache, classObject, result);
     return result;
 }
 
-sol::table buildRuntimeEventDescriptor(sol::state_view lua,
-                                       const sol::table& classType,
-                                       const std::string& eventName) {
-    for (const sol::table& current : runtimeClassMro(lua, classType)) {
-        const sol::object rawMetadata = runtimeTypeMetadata(lua, current);
-        if (!rawMetadata.is<sol::table>()) {
+RuntimeValue buildRuntimeEventDescriptor(const RuntimeValue& classType,
+                                         const std::string& eventName) {
+    for (const RuntimeValue& current : classMro(classType)) {
+        const RuntimeValue rawMetadata = typeMetadata(current);
+        if (!isTable(rawMetadata)) {
             continue;
         }
-        const sol::object rawEvent =
-            rawMetadata.as<sol::table>().raw_get<sol::object>(eventName);
-        if (!rawEvent.is<sol::table>()) {
+        const RuntimeValue rawEvent = rawGet(rawMetadata, eventName);
+        if (!isTable(rawEvent)) {
             continue;
         }
         std::vector<std::string> names;
-        const sol::object rawParameters =
-            rawEvent.as<sol::table>().raw_get<sol::object>("parameters");
-        if (rawParameters.is<sol::table>()) {
-            const sol::table parameters = rawParameters.as<sol::table>();
-            names.reserve(parameters.size());
-            for (std::size_t index = 1; index <= parameters.size(); ++index) {
-                const sol::object rawName =
-                    parameters.raw_get<sol::object>(index);
-                if (rawName.is<std::string>()) {
-                    names.push_back(rawName.as<std::string>());
+        const RuntimeValue rawParameters = rawGet(rawEvent, "parameters");
+        if (isTable(rawParameters)) {
+            const RuntimeValue parameters = rawParameters;
+            names.reserve(length(parameters));
+            for (std::size_t index = 1; index <= length(parameters); ++index) {
+                const RuntimeValue rawName = rawGet(parameters, index);
+                if (is<std::string>(rawName)) {
+                    names.push_back(as<std::string>(rawName));
                 }
             }
         }
-        sol::table descriptor = createRuntimeParameterDescriptor(lua, names);
-        descriptor.raw_set("metadataFound", true);
-        descriptor.raw_set("metadata", rawEvent);
+        RuntimeValue descriptor = createRuntimeParameterDescriptor(names);
+        rawSet(descriptor, "metadataFound", true);
+        rawSet(descriptor, "metadata", rawEvent);
         return descriptor;
     }
 
-    const sol::object classMethod = classType.get<sol::object>(eventName);
-    sol::table descriptor =
-        callableRuntimeParameterDescriptor(lua, classMethod);
-    descriptor.raw_set("metadataFound", false);
-    if (classMethod.is<sol::protected_function>()) {
-        descriptor.raw_set("sourceMethod", classMethod);
+    const RuntimeValue classMethod = get(classType, eventName);
+    RuntimeValue descriptor = callableRuntimeParameterDescriptor(classMethod);
+    rawSet(descriptor, "metadataFound", false);
+    if (isFunction(classMethod)) {
+        rawSet(descriptor, "sourceMethod", classMethod);
     }
     return descriptor;
 }
 
-sol::table runtimeEventDescriptor(sol::state_view lua,
-                                  const sol::object& method,
-                                  const sol::table& classType,
-                                  const std::string& eventName) {
-    sol::table classCache = classRuntimeEventCache(lua, classType);
-    sol::table members = classCache.raw_get<sol::table>("members");
-    sol::object rawDescriptor = members.raw_get<sol::object>(eventName);
-    if (!rawDescriptor.is<sol::table>()) {
-        sol::table descriptor =
-            buildRuntimeEventDescriptor(lua, classType, eventName);
-        members.raw_set(eventName, descriptor);
-        rawDescriptor = sol::make_object(lua, descriptor);
+RuntimeValue runtimeEventDescriptor(const RuntimeValue& method,
+                                    const RuntimeValue& classType,
+                                    const std::string& eventName) {
+    RuntimeValue classCache = classRuntimeEventCache(classType);
+    RuntimeValue members = requireTable(rawGet(classCache, "members"));
+    RuntimeValue rawDescriptor = rawGet(members, eventName);
+    if (!isTable(rawDescriptor)) {
+        RuntimeValue descriptor =
+            buildRuntimeEventDescriptor(classType, eventName);
+        rawSet(members, eventName, descriptor);
+        rawDescriptor = retain(makeValue(descriptor));
     }
 
-    const sol::table descriptor = rawDescriptor.as<sol::table>();
-    const sol::object rawMetadataFound =
-        descriptor.raw_get<sol::object>("metadataFound");
-    if (rawMetadataFound.is<bool>() && rawMetadataFound.as<bool>()) {
+    const RuntimeValue descriptor = rawDescriptor;
+    const RuntimeValue rawMetadataFound = rawGet(descriptor, "metadataFound");
+    if (is<bool>(rawMetadataFound) && as<bool>(rawMetadataFound)) {
         return descriptor;
     }
-    const sol::object sourceMethod =
-        descriptor.raw_get<sol::object>("sourceMethod");
-    return rawEqual(lua, sourceMethod, method)
+    const RuntimeValue sourceMethod = rawGet(descriptor, "sourceMethod");
+    return rawEqual(sourceMethod, method)
                ? descriptor
-               : callableRuntimeParameterDescriptor(lua, method);
+               : callableRuntimeParameterDescriptor(method);
 }
 
-sol::table runtimeDescriptorParameters(sol::state_view lua,
-                                       const sol::table& descriptor) {
-    const sol::object rawParameters =
-        descriptor.raw_get<sol::object>("parameters");
-    return rawParameters.is<sol::table>() ? rawParameters.as<sol::table>()
-                                          : lua.create_table();
+RuntimeValue runtimeDescriptorParameters(const RuntimeValue& descriptor) {
+    const RuntimeValue rawParameters = rawGet(descriptor, "parameters");
+    return isTable(rawParameters) ? rawParameters : table();
 }
 
-sol::table runtimeDescriptorAccepted(sol::state_view lua,
-                                     const sol::table& descriptor) {
-    const sol::object rawAccepted = descriptor.raw_get<sol::object>("accepted");
-    return rawAccepted.is<sol::table>() ? rawAccepted.as<sol::table>()
-                                        : lua.create_table();
+RuntimeValue runtimeDescriptorAccepted(const RuntimeValue& descriptor) {
+    const RuntimeValue rawAccepted = rawGet(descriptor, "accepted");
+    return isTable(rawAccepted) ? rawAccepted : table();
 }
 
-void invokeNamedRuntimeMethod(sol::state_view lua, const sol::object& object,
-                              const sol::object& method,
-                              const sol::table& classType,
+void invokeNamedRuntimeMethod(const RuntimeValue& object,
+                              const RuntimeValue& method,
+                              const RuntimeValue& classType,
                               const std::string& eventName,
-                              const sol::object& rawKeywordArguments) {
-    if (!method.is<sol::protected_function>()) {
+                              const RuntimeValue& rawKeywordArguments) {
+    if (!isFunction(method)) {
         return;
     }
-    const sol::table keywordArguments =
-        rawKeywordArguments.is<sol::table>()
-            ? rawKeywordArguments.as<sol::table>()
-            : lua.create_table();
-    const sol::table descriptor =
-        runtimeEventDescriptor(lua, method, classType, eventName);
-    const sol::table names = runtimeDescriptorParameters(lua, descriptor);
-    const sol::table accepted = runtimeDescriptorAccepted(lua, descriptor);
-    for (const sol::object& key :
-         runtimeKeys(lua, sol::make_object(lua, keywordArguments), false)) {
-        if (!key.is<std::string>()) {
+    const RuntimeValue keywordArguments =
+        isTable(rawKeywordArguments) ? rawKeywordArguments : table();
+    const RuntimeValue descriptor =
+        runtimeEventDescriptor(method, classType, eventName);
+    const RuntimeValue names = runtimeDescriptorParameters(descriptor);
+    const RuntimeValue accepted = runtimeDescriptorAccepted(descriptor);
+    for (const RuntimeValue& key : keys(retain(makeValue(keywordArguments)),
+                                        RuntimeLookupMode::Visible)) {
+        if (!is<std::string>(key)) {
             continue;
         }
-        const sol::object acceptedValue =
-            accepted.raw_get<sol::object>(key.as<std::string>());
-        if (!acceptedValue.is<bool>() || !acceptedValue.as<bool>()) {
+        const RuntimeValue acceptedValue =
+            rawGet(accepted, as<std::string>(key));
+        if (!is<bool>(acceptedValue) || !as<bool>(acceptedValue)) {
             throw std::invalid_argument(
-                "Unexpected blueprint event argument '" +
-                key.as<std::string>() + "'");
+                "Unexpected blueprint event argument '" + as<std::string>(key) +
+                "'");
         }
     }
-    lua_State* state = lua.lua_state();
-    const int stackBase = lua_gettop(state);
-    try {
-        if (names.size() > static_cast<std::size_t>(INT_MAX - 1)) {
-            throw std::length_error("Blueprint event argument count overflow");
+    RuntimeValue::Array arguments{object};
+    arguments.reserve(length(names) + 1);
+    for (std::size_t index = 1; index <= length(names); ++index) {
+        const RuntimeValue rawName = rawGet(names, index);
+        if (is<std::string>(rawName)) {
+            arguments.push_back(get(keywordArguments, rawName));
         }
-        std::vector<sol::object> arguments;
-        arguments.reserve(names.size() + 1);
-        arguments.push_back(object);
-        for (std::size_t index = 1; index <= names.size(); ++index) {
-            const sol::object rawName = names.raw_get<sol::object>(index);
-            if (rawName.is<std::string>()) {
-                arguments.push_back(keywordArguments.get<sol::object>(
-                    rawName.as<std::string>()));
-            }
-        }
-        static_cast<void>(invokeRuntimeFunction(state, method, arguments,
-                                                "blueprint event arguments"));
-        lua_settop(state, stackBase);
-    } catch (...) {
-        lua_settop(state, stackBase);
-        throw;
     }
+    static_cast<void>(invoke(method, arguments));
 }
 
-bool calculateRuntimeMethodHasImplementation(sol::state_view lua,
-                                             const sol::object& method) {
-    if (!method.is<sol::protected_function>()) {
+bool calculateRuntimeMethodHasImplementation(const RuntimeValue& method) {
+    if (!isFunction(method)) {
         return false;
     }
-    const sol::object rawDebug = lua.globals().raw_get<sol::object>("debug");
-    if (!rawDebug.is<sol::table>()) {
+    const std::optional<FunctionSource> source = functionSource(method);
+    if (!source.has_value()) {
         return true;
     }
-    const sol::object rawGetInfo =
-        rawDebug.as<sol::table>().raw_get<sol::object>("getinfo");
-    if (!rawGetInfo.is<sol::protected_function>()) {
-        return true;
-    }
-    sol::protected_function getInfo = rawGetInfo.as<sol::protected_function>();
-    sol::protected_function_result infoResult = getInfo(method, "S");
-    const sol::object rawInfo = checkedResult(lua, infoResult);
-    if (!rawInfo.is<sol::table>()) {
-        return true;
-    }
-    const sol::table info = rawInfo.as<sol::table>();
-    const sol::object rawWhat = info.raw_get<sol::object>("what");
-    const sol::object rawSource = info.raw_get<sol::object>("source");
-    if (!rawWhat.is<std::string>() || rawWhat.as<std::string>() != "Lua" ||
-        !rawSource.is<std::string>()) {
-        return true;
-    }
-    const std::string source = rawSource.as<std::string>();
-    if (source.empty() || source.front() != '@') {
-        return true;
-    }
-    const sol::object rawFirst = info.raw_get<sol::object>("linedefined");
-    const sol::object rawLast = info.raw_get<sol::object>("lastlinedefined");
-    if (!rawFirst.is<std::size_t>() || !rawLast.is<std::size_t>()) {
-        return true;
-    }
-    std::ifstream file(ludork::standard::pathFromUtf8(source.substr(1)));
+    std::ifstream file(ludork::standard::pathFromUtf8(source->path));
     if (!file) {
         return true;
     }
-    const std::size_t firstLine = rawFirst.as<std::size_t>();
-    const std::size_t lastLine = rawLast.as<std::size_t>();
+    const std::size_t firstLine = source->firstLine;
+    const std::size_t lastLine = source->lastLine;
     std::string text;
     std::string line;
     std::size_t lineIndex = 0;
@@ -340,19 +227,18 @@ bool calculateRuntimeMethodHasImplementation(sol::state_view lua,
     return !body.empty() && body != "return" && body != "return nil";
 }
 
-bool runtimeMethodHasImplementation(sol::state_view lua,
-                                    const sol::object& method) {
-    if (!method.is<sol::protected_function>()) {
+bool runtimeMethodHasImplementation(const RuntimeValue& method) {
+    if (!isFunction(method)) {
         return false;
     }
-    sol::table cache =
-        registryTable(lua, BLUEPRINT_IMPLEMENTATION_CACHE_KEY, "k");
-    const sol::object cached = cache.raw_get<sol::object>(method);
-    if (cached.is<bool>()) {
-        return cached.as<bool>();
+    RuntimeValue cache =
+        registryTable(BLUEPRINT_IMPLEMENTATION_CACHE_KEY, WeakMode::Keys);
+    const RuntimeValue cached = rawGet(cache, method);
+    if (is<bool>(cached)) {
+        return as<bool>(cached);
     }
-    const bool result = calculateRuntimeMethodHasImplementation(lua, method);
-    cache.raw_set(method, result);
+    const bool result = calculateRuntimeMethodHasImplementation(method);
+    rawSet(cache, method, result);
     return result;
 }
 

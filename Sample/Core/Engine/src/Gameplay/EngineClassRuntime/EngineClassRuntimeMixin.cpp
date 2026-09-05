@@ -1,15 +1,12 @@
+#include <Runtime/RuntimeReference.hpp>
 #include "EngineClassRuntimeInternal.hpp"
-#include <Runtime/Detail/RuntimeServices.hpp>
 
-#include <ClassServices.hpp>
 #include <Gameplay/Components/ComponentRuntime.hpp>
 #include <LuaError.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <Runtime/ScriptStore.hpp>
 #include <RuntimeSession.hpp>
 #include <Utils/DataValue.hpp>
-
-#include <sol2/sol.hpp>
 
 #include <algorithm>
 #include <array>
@@ -26,6 +23,8 @@
 #include <vector>
 
 namespace ludork::engine::class_runtime_detail {
+
+using namespace ludork::runtime::reference;
 
 std::string normalizeScriptMixinPath(const std::string& value) {
     std::string path = value;
@@ -52,14 +51,6 @@ std::string normalizeScriptMixinPath(const std::string& value) {
     return path;
 }
 
-bool tableHasMetatable(sol::state_view lua, const sol::table& table) {
-    lua_State* state = lua.lua_state();
-    table.push();
-    const bool hasMetatable = lua_getmetatable(state, -1) != 0;
-    lua_pop(state, hasMetatable ? 2 : 1);
-    return hasMetatable;
-}
-
 bool isScriptMixinReservedName(const std::string& name) {
     return name.starts_with("__") || name == "init" || name == "new" ||
            name == "scriptMixin" || name == "scriptPath" ||
@@ -67,41 +58,31 @@ bool isScriptMixinReservedName(const std::string& name) {
            name == "_hasImplementationOwner";
 }
 
-sol::table loadScriptMixin(sol::state_view lua, const std::string& classPath,
-                           const std::string& scriptPath) {
-    lua_State* state = lua.lua_state();
-    const int stackBase = lua_gettop(state);
-    if (ludork::runtime::scriptStore().loadFile(
-            state, "Scripts/Mixins/" + scriptPath) != LUA_OK) {
-        const std::string error = ludork::standard::luaErrorMessage(state, -1);
-        lua_settop(state, stackBase);
+RuntimeValue loadScriptMixin(const std::string& classPath,
+                             const std::string& scriptPath) {
+    RuntimeValue value;
+    try {
+        value = first(executeScript("Scripts/Mixins/" + scriptPath));
+    } catch (const std::exception& error) {
         throw std::runtime_error("Failed to load Mixin " + scriptPath +
-                                 " for " + classPath + ": " + error);
+                                 " for " + classPath + ": " + error.what());
     }
-    if (ludork::standard::protectedLuaCall(state, 0, 1) != LUA_OK) {
-        const std::string error = ludork::standard::luaErrorMessage(state, -1);
-        lua_settop(state, stackBase);
-        throw std::runtime_error("Failed to execute Mixin " + scriptPath +
-                                 " for " + classPath + ": " + error);
-    }
-    sol::object value = sol::stack::get<sol::object>(state, -1);
-    lua_settop(state, stackBase);
-    if (!value.is<sol::table>()) {
+    if (!isTable(value)) {
         throw std::runtime_error("Mixin " + scriptPath + " for " + classPath +
                                  " must return a table");
     }
-    sol::table mixin = value.as<sol::table>();
-    if (tableHasMetatable(lua, mixin)) {
+    RuntimeValue mixin = value;
+    if (hasMetatable(mixin)) {
         throw std::runtime_error("Mixin " + scriptPath + " for " + classPath +
                                  " must return a table without a metatable");
     }
-    for (const auto& entry : mixin) {
-        if (!entry.first.is<std::string>()) {
+    for (const auto& entry : entries(mixin)) {
+        if (!is<std::string>(entry.first)) {
             throw std::runtime_error("Mixin " + scriptPath + " for " +
                                      classPath +
                                      " must use string member names");
         }
-        const std::string name = entry.first.as<std::string>();
+        const std::string name = as<std::string>(entry.first);
         if (isScriptMixinReservedName(name)) {
             throw std::runtime_error("Mixin " + scriptPath + " for " +
                                      classPath + " uses reserved member '" +
@@ -111,31 +92,26 @@ sol::table loadScriptMixin(sol::state_view lua, const std::string& classPath,
     return mixin;
 }
 
-void mergeScriptMixin(sol::state_view lua, const sol::table& parentClass,
-                      const sol::table& mixin, sol::table definition,
-                      sol::table instanceAttrs, const std::string& classPath,
+void mergeScriptMixin(const RuntimeValue& parentClass,
+                      const RuntimeValue& mixin, RuntimeValue definition,
+                      RuntimeValue instanceAttrs, const std::string& classPath,
                       const std::string& scriptPath) {
-    for (const auto& entry : mixin) {
-        const std::string name = entry.first.as<std::string>();
-        const sol::object inherited = parentClass.get<sol::object>(name);
-        const bool valueIsFunction =
-            entry.second.get_type() == sol::type::function;
-        const bool inheritedExists =
-            inherited.valid() && inherited.get_type() != sol::type::lua_nil;
+    for (const auto& entry : entries(mixin)) {
+        const std::string name = as<std::string>(entry.first);
+        const RuntimeValue inherited = get(parentClass, name);
+        const bool valueIsFunction = kind(entry.second) == "function";
+        const bool inheritedExists = !inherited.isNil();
         if (inheritedExists &&
-            (inherited.get_type() == sol::type::function) != valueIsFunction) {
+            (kind(inherited) == "function") != valueIsFunction) {
             throw std::runtime_error(
                 "Mixin " + scriptPath + " for " + classPath +
                 " changes the member kind of '" + name + "'");
         }
         if (valueIsFunction) {
-            definition.raw_set(name, entry.second);
+            rawSet(definition, name, entry.second);
         } else {
-            definition.raw_set(name, ludork::standard::class_runtime::deepCopy(
-                                         lua, entry.second));
-            instanceAttrs.raw_set(
-                name,
-                ludork::standard::class_runtime::deepCopy(lua, entry.second));
+            rawSet(definition, name, deepCopy(entry.second));
+            rawSet(instanceAttrs, name, deepCopy(entry.second));
         }
     }
 }

@@ -83,15 +83,22 @@ local function normaliseWorldMovedActors(worldMovedActors)
         local tags = {}
         result[MapPath.Normalise(worldPath)] = bucket
         for _, record in ipairs(records) do
-            assert(Class.isInstance(record.bp, "string") and bool(record.bp), "Moved world Actor bp must be a non-empty string")
+            assert(
+                Class.isInstance(record.bp, "string") and bool(record.bp),
+                "Moved world Actor bp must be a non-empty string"
+            )
             assert(
                 Class.isInstance(record.layer, "string") and bool(record.layer),
                 "Moved world Actor layer must be a non-empty string"
             )
             assert(
-                Class.isInstance(record.tag, "string") and bool(record.tag), "Moved world Actor tag must be a non-empty string"
+                Class.isInstance(record.tag, "string") and bool(record.tag),
+                "Moved world Actor tag must be a non-empty string"
             )
-            assert(Class.isInstance(record.definitionRegion, "string"), "Moved world Actor definitionRegion must be a string")
+            assert(
+                Class.isInstance(record.definitionRegion, "string"),
+                "Moved world Actor definitionRegion must be a string"
+            )
             assert(Class.isInstance(record.currentRegion, "string"), "Moved world Actor currentRegion must be a string")
             local definitionRegion = MapPath.Normalise(record.definitionRegion)
             local currentRegion = MapPath.Normalise(record.currentRegion)
@@ -191,7 +198,7 @@ local function normaliseTelepoints(telepoints)
         local bucket = {}
         result[MapPath.Normalise(mapPath)] = bucket
         for _, point in ipairs(points) do
-            Records.AppendUniquePosition(bucket, savedVector2u(point))
+            Records.AppendUniqueTelepoint(bucket, savedVector2u(point.position), point.tag)
         end
     end
     return result
@@ -202,7 +209,7 @@ local function serialiseTelepoints(telepoints)
     for mapPath, points in pairs(telepoints) do
         local serialisedPoints = {}
         for _, point in ipairs(points) do
-            serialisedPoints[#serialisedPoints + 1] = vectorArray(point)
+            serialisedPoints[#serialisedPoints + 1] = { position = vectorArray(point.position), tag = point.tag }
         end
         if bool(serialisedPoints) then
             result[mapPath] = serialisedPoints

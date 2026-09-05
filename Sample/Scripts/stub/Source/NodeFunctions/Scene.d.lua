@@ -97,10 +97,12 @@ function Scene.MoveCamera(delta) end
 --- - @param mapPath The map path where the telepoint is located.
 --- - @param x Telepoint tile column.
 --- - @param y Telepoint tile row.
+--- - @param tag Raw map-placement tag or locale source, defaulting to an empty string for a numbered display name.
 ---@param mapPath string
 ---@param x       integer
 ---@param y       integer
-function Scene.RecordTelepoint(mapPath, x, y) end
+---@param tag     string
+function Scene.RecordTelepoint(mapPath, x, y, tag) end
 
 ---@brief Create an actor from a blueprint path and spawn it on the current map.
 ---

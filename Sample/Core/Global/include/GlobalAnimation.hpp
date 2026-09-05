@@ -1,13 +1,10 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <Animation.hpp>
-#include <LudorkRuntimeBinding/Annotations.hpp>
 
 #include <SFML/Audio/Sound.hpp>
-
-#include <cstddef>
-#include <memory>
-#include <vector>
 
 BIND_CLASS(copyable = true, table_init = true)
 struct AnimationPlayingSound {

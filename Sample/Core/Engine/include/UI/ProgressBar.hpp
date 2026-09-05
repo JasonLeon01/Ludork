@@ -1,12 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <UI/ControlBase.hpp>
-
-#include <SFML/Graphics/Color.hpp>
-#include <SFML/Graphics/RectangleShape.hpp>
-#include <SFML/System/Vector2.hpp>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ProgressBar : public ControlBase {

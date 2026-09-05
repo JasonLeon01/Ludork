@@ -1,17 +1,11 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <CoreMinimal.hpp>
 
-#include <cstddef>
+#include <EngineRuntimeApi.hpp>
+
 #include <deque>
-#include <functional>
 #include <mutex>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 using EventHandler = std::function<void(const RuntimeValue&)>;
 

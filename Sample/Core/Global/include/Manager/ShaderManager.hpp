@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GlobalRuntimeApi.hpp>
-
-#include <SFML/Graphics/Shader.hpp>
-
-#include <cstddef>
-#include <memory>
-#include <optional>
-#include <string>
 
 BIND_CLASS()
 class LUDORK_GLOBAL_API ShaderManager {

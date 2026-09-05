@@ -1,19 +1,11 @@
 #pragma once
 
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Input/InputProvider.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <UI/FocusableMixin.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Window/Mouse.hpp>
-
-#include <functional>
-#include <optional>
-#include <string>
 
 class ScrollBox;
 

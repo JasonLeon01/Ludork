@@ -65,17 +65,12 @@ function Teleporter:_goFloor(step)
     if player == nil then
         return
     end
-    local sourceTeleporter = Teleporter.FindNearestTeleporter(map:getAllActors(), player:getMapPosition())
-    if sourceTeleporter == nil then
-        return
-    end
-    local anchorPosition = sourceTeleporter:getTeleportPosition()
-    inst:recordTelepoint(currentMap, sf.Vector2u.new(anchorPosition.x, anchorPosition.y))
-
+    local anchorPosition = self:getTeleportPosition()
     local targetMap = scene:resolveRegionMapPath(regionMaps[targetIndex])
     local moveEnabled = player:getMoveEnabled()
     player:setMoveEnabled(false)
     if scene:requestFloorTransfer(targetMap, anchorPosition, moveEnabled) then
+        inst:recordTelepoint(currentMap, sf.Vector2u.new(anchorPosition.x, anchorPosition.y), self:getMapTag())
         AudioManager.playSound(self.stairSE)
         self._floorTransferPending = true
         return

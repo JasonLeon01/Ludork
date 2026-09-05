@@ -1,18 +1,11 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <ConfigParser.hpp>
-#include <Runtime/RuntimeValue.hpp>
 #include <System/GraphicsTypes.hpp>
 #include <System/SceneRuntime.hpp>
 #include <Weather/WeatherController.hpp>
-
-#include <functional>
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
 
 namespace ludork::global {
 struct WindowedFramePlacement;

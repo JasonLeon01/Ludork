@@ -1,21 +1,11 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <Input/InputAction.hpp>
 #include <Input/InputEvent.hpp>
 #include <Input/InputProvider.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Window/Keyboard.hpp>
-#include <SFML/Window/Mouse.hpp>
-#include <SFML/Window/WindowBase.hpp>
-
-#include <functional>
-#include <optional>
-#include <string>
-#include <vector>
 
 class LUDORK_ENGINE_API InputService;
 LUDORK_ENGINE_API InputService& inputService();

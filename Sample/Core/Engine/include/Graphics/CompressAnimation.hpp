@@ -1,18 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Graphics/Image.hpp>
-#include <SFML/System/Vector2.hpp>
-#include <sol/forward.hpp>
-
-#include <array>
-#include <memory>
-#include <optional>
-#include <string>
-#include <tuple>
-#include <variant>
-#include <vector>
+#include <CoreMinimal.hpp>
 
 BIND_CLASS(copyable = true, table_init = true)
 struct AnimationKeyFrame {
@@ -152,9 +140,9 @@ struct AnimationData {
     std::vector<AnimationSoundEntry> sounds;
 };
 
-BIND_FUNCTION(returns = "duration,frames,sounds")
+BIND_FUNCTION(returns = "duration,frames,sounds", allow_nil = "zlibModule")
 std::tuple<float, std::vector<std::string>, std::vector<AnimationSoundEntry>>
-C_CompressAnimation(const sol::object& zlibModule, int frameCount,
+C_CompressAnimation(const RuntimeValue& zlibModule, int frameCount,
                     float frameStep, int frameRate,
                     const std::vector<AnimationTimeline>& timeLines,
                     const std::vector<std::string>& assets,

@@ -274,18 +274,6 @@ function SceneMapBuilder:buildFloorMapPreview(
     inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker
 ) end
 
----@brief Get the teleporter actor tag for a floor telepoint.
----
---- - @param currentMap Current map path used to resolve extension-less map keys.
---- - @param mapKey Region map key.
---- - @param telepoint Telepoint tile position.
---- - @return Teleporter actor tag, or nil.
----@param currentMap string | nil
----@param mapKey     string
----@param telepoint  sf.Vector2u
----@return string | nil
-function SceneMapBuilder:getFloorTelepointTag(currentMap, mapKey, telepoint) end
-
 ---@brief Resolve a region map key to a map data path.
 ---
 --- - @param mapKey Region map key or map file path.

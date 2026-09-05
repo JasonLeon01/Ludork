@@ -1,12 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <UI/FunctionalBase.hpp>
+#include <CoreMinimal.hpp>
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <UI/FunctionalBase.hpp>
 
 class FocusGroup;
 

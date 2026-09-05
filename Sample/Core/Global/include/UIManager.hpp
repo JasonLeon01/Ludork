@@ -1,13 +1,11 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <FocusManager.hpp>
 #include <UI/ControlBase.hpp>
 
-#include <functional>
-#include <memory>
 #include <mutex>
-#include <vector>
 
 BIND_CLASS()
 class UIManager {

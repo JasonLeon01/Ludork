@@ -1,14 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <GameMapBase.hpp>
 #include <Gameplay/Actor.hpp>
-
-#include <SFML/Graphics.hpp>
-
-#include <memory>
-#include <optional>
-#include <vector>
 
 ////////////////////////////////////////////////////////////
 /// \brief Camera with viewport tracking, smooth follow, and off-screen

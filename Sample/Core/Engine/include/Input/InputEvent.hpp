@@ -1,11 +1,6 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-
-#include <SFML/Window/Joystick.hpp>
-#include <SFML/Window/Keyboard.hpp>
-
-#include <string>
+#include <CoreMinimal.hpp>
 
 BIND_CLASS(copyable = true, table_init = true)
 struct InjectedInputEvent {

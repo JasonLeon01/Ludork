@@ -324,14 +324,17 @@ local _METADATA = {
                 "mapPath",
                 "x",
                 "y",
+                "tag",
                 mapPath = "string",
                 x = "int",
-                y = "int"
+                y = "int",
+                tag = "string"
             },
             default = {
                 [1] = "",
                 [2] = 0,
-                [3] = 0
+                [3] = 0,
+                [4] = ""
             },
             ["return"] = {},
             ExecSplit = {

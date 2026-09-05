@@ -34,6 +34,10 @@ sol::object writeOpaqueIdentity(sol::state_view lua, const Pointer& value) {
     if (!value) {
         return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
     }
+    if (const auto opaque =
+            std::dynamic_pointer_cast<LuaOpaqueIdentity<Base>>(value)) {
+        return readLuaRegistryReference(lua, opaque->value());
+    }
     const ludork::standard::LuaRegistryReference reference =
         ludork::standard::findRuntimeOpaqueValue(lua.lua_state(), value.get());
     if (reference) {

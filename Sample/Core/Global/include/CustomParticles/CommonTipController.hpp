@@ -1,13 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <Curve.hpp>
 #include <Particles/ParticleSystem.hpp>
-
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 class TextParticle;
 struct PlainTextConfig;

@@ -1,11 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
-#include <EngineRuntimeApi.hpp>
+#include <CoreMinimal.hpp>
 
-#include <SFML/Graphics/RenderStates.hpp>
-#include <SFML/Graphics/VertexArray.hpp>
-#include <SFML/System/Vector2.hpp>
+#include <EngineRuntimeApi.hpp>
 
 BIND_FUNCTION(name = "CanvasRenderStates")
 LUDORK_ENGINE_API sf::RenderStates canvasRenderStates();

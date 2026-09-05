@@ -1,13 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <NodeGraph/Types.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <memory>
-#include <string>
-#include <vector>
 
 class Graph;
 

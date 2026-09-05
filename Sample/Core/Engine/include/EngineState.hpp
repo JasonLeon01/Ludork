@@ -1,13 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
-
-#include <SFML/System/Vector2.hpp>
-#include <SFML/System/Vector3.hpp>
-
-#include <string>
-#include <unordered_map>
 
 BIND_LUA_HELPER(kind = "cast", path = "Cast")
 BIND_LUA_HELPER(kind = "assert_type", path = "AssertType")

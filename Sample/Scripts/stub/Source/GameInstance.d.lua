@@ -17,6 +17,14 @@
 ---@field position sf.Vector2i
 ---@field tileID   Global.GameMap.TerrainTileID
 
+---@class Source.GameInstance.TelepointRecord
+---@field position sf.Vector2u
+---@field tag      string      Raw map-placement tag or locale source, resolved only for display.
+
+---@class Source.GameInstance.SavedTelepointRecord
+---@field position integer[]
+---@field tag      string
+
 ---@class Source.GameInstance.SavedAddedActorRecord
 ---@field bp              string
 ---@field layer           string
@@ -45,7 +53,7 @@
 ---@field worldMovedActors table<string, Source.GameInstance.SavedWorldMovedActorRecord[]> | nil        Required when `map` is a world manifest or the save retains moved-world state.
 ---@field destroyedActors  table<string, string[]>
 ---@field destroyedTerrain table<string, table<string, Source.GameInstance.SavedTerrainChangeRecord[]>>
----@field telepoints       table<string, integer[][]>
+---@field telepoints       table<string, Source.GameInstance.SavedTelepointRecord[]>
 ---@field screenshot       integer[] | nil
 
 ---@brief Persistent game state container that survives across scene transitions.
@@ -57,6 +65,7 @@
 ---@field _playerKeys                 string[]
 ---@field _players                    table<string, Source.Player.Player>
 ---@field _cachedMap                  string | nil
+---@field _cachedTelepoints           table<string, Source.GameInstance.TelepointRecord[]>
 ---@field _cachedWorldMovedActors     table<string, Source.GameInstance.WorldMovedActorRecord[]>
 ---@field new                         fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
 ---@field FromDict                    fun(data: Source.GameInstance.SaveData): Source.GameInstance.GameInstance
@@ -69,7 +78,7 @@
 ---@field getActorPositions           fun(self: Source.GameInstance.GameInstance, mapPath: string): table<string, sf.Vector2i>
 ---@field getDestroyedActors          fun(self: Source.GameInstance.GameInstance, mapPath: string): string[]
 ---@field recordTerrainDestruction    fun(self: Source.GameInstance.GameInstance, mapPath: string, layerName: string, position: sf.Vector2i, tileID: Global.GameMap.TerrainTileID)
----@field recordTelepoint             fun(self: Source.GameInstance.GameInstance, mapPath: string, telepoint: sf.Vector2u)
+---@field recordTelepoint             fun(self: Source.GameInstance.GameInstance, mapPath: string, position: sf.Vector2u, tag: string)
 ---@field applyMapInfo                fun(self: Source.GameInstance.GameInstance, mapPath: string, position?: sf.Vector2i)
 ---@field recordAddedActor            fun(self: Source.GameInstance.GameInstance, mapPath: string, actor: Engine.Actor, layerName: string)
 ---@field recordAddedActorPosition    fun(self: Source.GameInstance.GameInstance, mapPath: string, actor: Engine.Actor, actorPosition?: sf.Vector2i)
@@ -314,18 +323,22 @@ function GameInstance:getTerrainDestructions(mapPath) end
 
 ---@brief Record a telepoint for persistence.
 ---
+--- Repeated coordinates keep the first recorded position and raw tag unchanged.
+---
 --- - @param mapPath The map path where the telepoint is located.
---- - @param telepoint The telepoint position.
----@param mapPath   string
----@param telepoint sf.Vector2u
-function GameInstance:recordTelepoint(mapPath, telepoint) end
+--- - @param position The telepoint position after applying the stair offset.
+--- - @param tag Raw map-placement tag or locale source. An empty tag uses a numbered display name.
+---@param mapPath  string
+---@param position sf.Vector2u
+---@param tag      string
+function GameInstance:recordTelepoint(mapPath, position, tag) end
 
----@brief Get telepoint positions for a map.
+---@brief Get telepoint records for a map.
 ---
 --- - @param mapPath The map path.
---- - @return A list of telepoint positions.
+--- - @return An ordered list of positions and raw tags.
 ---@param mapPath string
----@return sf.Vector2u[]
+---@return Source.GameInstance.TelepointRecord[]
 function GameInstance:getTelepoints(mapPath) end
 
 ---@brief Check whether an item or equip has been obtained before.

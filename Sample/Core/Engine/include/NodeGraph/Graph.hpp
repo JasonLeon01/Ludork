@@ -1,19 +1,9 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <NodeGraph/Node.hpp>
 #include <NodeGraph/Types.hpp>
-#include <Runtime/RuntimeValue.hpp>
-
-#include <cstddef>
-#include <functional>
-#include <memory>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
 
 namespace ludork::engine::graph_detail {
 struct ExecutionState;

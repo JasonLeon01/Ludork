@@ -19,6 +19,8 @@ LUDORK_RUNTIME_API int invokeRuntimeFunction(
     lua_State* state, const sol::object& callable,
     const std::vector<sol::object>& arguments, const char* context);
 LUDORK_RUNTIME_API sol::object nilObject(sol::state_view lua);
+LUDORK_RUNTIME_API sol::table createWeakTable(sol::state_view lua,
+                                              const char* mode);
 LUDORK_RUNTIME_API sol::table registryTable(sol::state_view lua,
                                             const char* key,
                                             const char* weakMode = nullptr);

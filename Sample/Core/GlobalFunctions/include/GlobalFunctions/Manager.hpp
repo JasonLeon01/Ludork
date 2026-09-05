@@ -1,14 +1,8 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
 
 #include <SFML/Audio.hpp>
-#include <SFML/Graphics.hpp>
-
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
 
 class SoundFilter;
 class MusicFilter;

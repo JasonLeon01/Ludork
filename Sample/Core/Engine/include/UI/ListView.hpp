@@ -1,15 +1,10 @@
 #pragma once
 
-#include <LudorkRuntimeBinding/Annotations.hpp>
+#include <CoreMinimal.hpp>
+
 #include <EngineRuntimeApi.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
-
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/RenderStates.hpp>
-
-#include <memory>
-#include <vector>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ListView : public ControlBase, public FunctionalBase {

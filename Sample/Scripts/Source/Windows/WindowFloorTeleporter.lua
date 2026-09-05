@@ -23,6 +23,31 @@ local _PREVIEW_WINDOW_HEIGHT = 240
 local function formatMapName(mapName)
     return LOC(tostring(mapName))
 end
+---@param tag   string
+---@param index integer
+---@return string
+local function formatTelepointName(tag, index)
+    local isDefaultTag = bool(
+        tag:match("^.+_default_%-?%d+_%-?%d+$") or tag:match("^.+_default_%-?%d+_%-?%d+_%d+$")
+            or tag:match("^.+%.runtime_default_%d+$")
+    )
+    if bool(tag) and not isDefaultTag then
+        return LOC(tag)
+    end
+    local fallback = "Point_" .. tostring(index + 1)
+    local pointFormat = LOC("POINT")
+    if pointFormat == "POINT" then
+        return fallback
+    end
+    local pointNumber = tostring(index + 1)
+    local formatted = string.replace(pointFormat, "{index}", pointNumber)
+    formatted = string.replace(formatted, "{0}", pointNumber)
+    if formatted == pointFormat then
+        return fallback
+    end
+    return formatted
+end
+
 local function getDefaultRects()
     local bounds = UiLayout.GetCenteredRect(_TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT)
     return Engine.ToIntRect(bounds.position.x, bounds.position.y, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT),
@@ -162,7 +187,7 @@ function WindowFloorTeleporterController:getCurrentTelepoint()
     local index = self.model._telepointIndexes[mapKey] or 0
     index = Engine.Clamp(index, 0, #telepoints - 1)
     self.model._telepointIndexes[mapKey] = index
-    return telepoints[index + 1]
+    return telepoints[index + 1].position
 end
 
 function WindowFloorTeleporterController:notifyMapIndexMaybeChanged(index)
@@ -213,7 +238,7 @@ function WindowFloorTeleporterController:getTelepointEntries(mapKey, telepoints)
     end
     local telepointKeys = {}
     for index, telepoint in ipairs(telepoints) do
-        telepointKeys[index] = TelepointKey.FromPoint(telepoint)
+        telepointKeys[index] = tuple { TelepointKey.FromPoint(telepoint.position), telepoint.tag }
     end
     local cacheKey = tuple { mapKey, tuple(telepointKeys) }
     local cached = self.model._telepointEntriesCache:get(cacheKey)
@@ -222,7 +247,7 @@ function WindowFloorTeleporterController:getTelepointEntries(mapKey, telepoints)
     end
     local result = {}
     for index, telepoint in ipairs(telepoints) do
-        result[#result + 1] = { telepoint, self:formatTelepointName(mapKey, telepoint, index - 1) }
+        result[#result + 1] = { telepoint.position, formatTelepointName(telepoint.tag, index - 1) }
     end
     self.model._telepointEntriesCache[cacheKey] = result
     return result
@@ -250,26 +275,6 @@ function WindowFloorTeleporterController:getMapDisplayName(mapKey)
     return formatMapName(tostring(mapName))
 end
 
-function WindowFloorTeleporterController:formatTelepointName(mapKey, telepoint, index)
-    local tag = self.model._getTelepointTagCallback ~= nil and self.model._getTelepointTagCallback(mapKey, telepoint)
-        or nil
-    if tag ~= nil and bool(tag) and not string.startsWith(tag, "Data.Blueprints.Teleportations") then
-        return LOC(tag)
-    end
-    local fallback = "Point_" .. tostring(index + 1)
-    local pointFormat = LOC("POINT")
-    if pointFormat == "POINT" then
-        return fallback
-    end
-    local pointNumber = tostring(index + 1)
-    local formatted = string.replace(pointFormat, "{index}", pointNumber)
-    formatted = string.replace(formatted, "{0}", pointNumber)
-    if formatted == pointFormat then
-        return fallback
-    end
-    return formatted
-end
-
 local FinalWindowFloorTeleporterController = class(WindowFloorTeleporterController)
 
 ---@class Source.Windows.WindowFloorTeleporter
@@ -278,14 +283,12 @@ local WindowFloorTeleporter = {}
 WindowFloorTeleporter.controllerClass = FinalWindowFloorTeleporterController
 
 function WindowFloorTeleporter:init(
-    inst, _listRect, previewRect, loadPreview, onConfirm, onClose, getTelepointTag, resolvePreviewMapPath,
-    clearPreviewCache
+    inst, _listRect, previewRect, loadPreview, onConfirm, onClose, resolvePreviewMapPath, clearPreviewCache
 )
     super(WindowFloorTeleporter, self).init(Engine.ToIntRect(
         previewRect.position.x, previewRect.position.y, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT
     ))
     self._inst = inst
-    self._getTelepointTagCallback = getTelepointTag
     self._onConfirmCallback = onConfirm
     self._onCloseCallback = onClose
     self._clearPreviewCacheCallback = clearPreviewCache
@@ -373,7 +376,6 @@ function WindowFloorTeleporter:dispose()
     self._teleporterController:hideImmediate()
     self._ui:dispose()
     self._inst = nil
-    self._getTelepointTagCallback = nil
     self._onConfirmCallback = nil
     self._onCloseCallback = nil
     self._clearPreviewCacheCallback = nil

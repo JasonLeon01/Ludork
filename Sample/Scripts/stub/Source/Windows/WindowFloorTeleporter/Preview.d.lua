@@ -41,4 +41,7 @@ function WindowFloorMapPreview:onKeyDown(kwargs) end
 
 function WindowFloorMapPreview:onReturn() end
 
+---@param index integer
+function WindowFloorMapPreview:_setPointerIndex(index) end
+
 return WindowFloorMapPreview

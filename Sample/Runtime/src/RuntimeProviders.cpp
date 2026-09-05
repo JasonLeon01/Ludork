@@ -178,7 +178,7 @@ void installDataRuntimeProviders(
     const RuntimeIdentityPtr& plainTextConfigResolver) {
     RuntimeScope runtime;
     installProviderGroup(
-        runtime.lua(),
+        sol::state_view(runtime.state()),
         {{RuntimeProviderSlot::Curve, curveResolver},
          {RuntimeProviderSlot::PlainTextConfig, plainTextConfigResolver}});
 }
@@ -190,7 +190,7 @@ void installBlueprintRuntimeProviders(
     const RuntimeIdentityPtr& instantiateGraphTemplate) {
     RuntimeScope runtime;
     installProviderGroup(
-        runtime.lua(),
+        sol::state_view(runtime.state()),
         {{RuntimeProviderSlot::BlueprintClassDataByPath, classDataByPath},
          {RuntimeProviderSlot::BlueprintInvalidateClassData,
           invalidateClassData},
@@ -201,7 +201,8 @@ void installBlueprintRuntimeProviders(
 
 void installConfigRuntimeProvider(const RuntimeIdentityPtr& configResolver) {
     RuntimeScope runtime;
-    installProvider(runtime.lua(), RuntimeProviderSlot::Config, configResolver);
+    installProvider(sol::state_view(runtime.state()),
+                    RuntimeProviderSlot::Config, configResolver);
 }
 
 }  // namespace ludork::runtime::detail
@@ -234,7 +235,7 @@ RuntimeIdentityPtr invokeIdentityProvider(
     const std::vector<RuntimeIdentityPtr>& identityArguments,
     const std::vector<std::string>& stringArguments = {}) {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     std::vector<sol::object> arguments;
     arguments.reserve(identityArguments.size() + stringArguments.size());
     for (const RuntimeIdentityPtr& argument : identityArguments) {
@@ -273,7 +274,7 @@ RuntimeIdentityPtr RuntimeProviderFacade::blueprintClassData(
 void RuntimeProviderFacade::invalidateBlueprintClassData(
     const std::string& classPath) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     ludork::runtime::detail::invokeRuntimeProviderVoid(
         lua,
         ludork::runtime::detail::RuntimeProviderSlot::
@@ -300,7 +301,7 @@ RuntimeIdentityPtr RuntimeProviderFacade::instantiateBlueprintGraph(
 std::string RuntimeProviderFacade::config(
     const std::string& configName, const std::string& settingName) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = runtime.lua();
+    sol::state_view lua = sol::state_view(runtime.state());
     const sol::object value = ludork::runtime::detail::invokeRuntimeProviderOne(
         lua, ludork::runtime::detail::RuntimeProviderSlot::Config,
         {sol::make_object(lua, configName),
