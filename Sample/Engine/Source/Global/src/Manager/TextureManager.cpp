@@ -1,4 +1,5 @@
 #include <Manager/TextureManager.hpp>
+#include <Runtime/AssetInputStream.hpp>
 
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/ConcurrentResourceCache.hpp>

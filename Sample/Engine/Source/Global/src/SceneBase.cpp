@@ -1,8 +1,9 @@
 #include <SceneBase.hpp>
+#include <Manager/TimerEntry.hpp>
 
-#include "SceneBase/LifecycleRuntime.hpp"
-#include "SceneBase/LogicRuntime.hpp"
-#include "SceneBase/TimerRuntime.hpp"
+#include "SceneBase/LifecycleImpl.hpp"
+#include "SceneBase/LogicImpl.hpp"
+#include "SceneBase/TimerImpl.hpp"
 #include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <Input/InputService.hpp>
@@ -25,8 +26,8 @@ SceneBase::SceneBase()
       commonTipParticleSystem_(std::make_shared<ParticleSystem>()),
       commonTipController_(
           std::make_shared<CommonTipController>(commonTipParticleSystem_)),
-      lifecycle_(std::make_unique<
-                 ludork::global::scene_base_impl::LifecycleRuntime>()) {}
+      lifecycleImpl_(
+          std::make_unique<ludork::global::scene_base_impl::LifecycleImpl>()) {}
 
 SceneBase::~SceneBase() {
     systemShutdown();
@@ -108,17 +109,17 @@ void SceneBase::addCommonTip(const std::string& text) {
 
 void SceneBase::systemMain() {
     ludork::standard::LuaExecutionPause luaExecutionPause;
-    if (!lifecycle_->tryStartMain()) {
+    if (!lifecycleImpl_->tryStartMain()) {
         return;
     }
     std::exception_ptr failure;
     try {
         systemEnter();
-        if (!lifecycle_->isDestroyed()) {
+        if (!lifecycleImpl_->isDestroyed()) {
             TimeManager::update();
             startLogicThread();
         }
-        while (!lifecycle_->isStopping() && System::isActive() &&
+        while (!lifecycleImpl_->isStopping() && System::isActive() &&
                System::getScene().get() == this) {
             PerformanceProfiler::beginMainFrame();
             const bool profile = PerformanceProfiler::isEnabled();
@@ -132,12 +133,12 @@ void SceneBase::systemMain() {
                 std::unique_lock<std::recursive_mutex> lock =
                     lockLogicDataForMain();
                 if (System::hasPendingSceneOperations()) {
-                    lifecycle_->requestStop();
+                    lifecycleImpl_->requestStop();
                     break;
                 }
                 System::updateRuntime();
                 if (System::hasPendingSceneOperations()) {
-                    lifecycle_->requestStop();
+                    lifecycleImpl_->requestStop();
                     break;
                 }
             }
@@ -257,7 +258,7 @@ void SceneBase::systemMain() {
             failure = std::current_exception();
         }
     }
-    lifecycle_->finishMain();
+    lifecycleImpl_->finishMain();
 
     try {
         System::drainRetiredScenes();
@@ -272,33 +273,33 @@ void SceneBase::systemMain() {
 }
 
 void SceneBase::systemEnter() {
-    if (lifecycle_->isDestroyed()) {
+    if (lifecycleImpl_->isDestroyed()) {
         return;
     }
-    if (!lifecycle_->isCreated()) {
+    if (!lifecycleImpl_->isCreated()) {
         onCreate();
-        lifecycle_->markCreated();
+        lifecycleImpl_->markCreated();
     }
-    if (lifecycle_->isEntered()) {
+    if (lifecycleImpl_->isEntered()) {
         return;
     }
-    lifecycle_->markEntered();
+    lifecycleImpl_->markEntered();
     fixedAccumulator_ = 0.0f;
     onEnter();
 }
 
 void SceneBase::systemQuit() {
     stopLogicThread();
-    if (!lifecycle_->isEntered()) {
+    if (!lifecycleImpl_->isEntered()) {
         return;
     }
-    lifecycle_->markExited();
+    lifecycleImpl_->markExited();
     onQuit();
 }
 
 void SceneBase::systemDestroy() {
     stopLogicThread();
-    if (lifecycle_->isDestroyed()) {
+    if (lifecycleImpl_->isDestroyed()) {
         return;
     }
     std::exception_ptr failure;
@@ -307,8 +308,8 @@ void SceneBase::systemDestroy() {
     } catch (...) {
         failure = std::current_exception();
     }
-    lifecycle_->markDestroyed();
-    if (lifecycle_->isCreated()) {
+    lifecycleImpl_->markDestroyed();
+    if (lifecycleImpl_->isCreated()) {
         try {
             onDestroy();
         } catch (...) {
@@ -324,18 +325,18 @@ void SceneBase::systemDestroy() {
 }
 
 void SceneBase::systemShutdown() noexcept {
-    lifecycle_->requestStop();
+    lifecycleImpl_->requestStop();
     stopLogicThread();
-    lifecycle_->shutdown();
+    lifecycleImpl_->shutdown();
     clearRuntimeState();
 }
 
 bool SceneBase::systemIsRunning() const noexcept {
-    return lifecycle_->isRunning();
+    return lifecycleImpl_->isRunning();
 }
 
 void SceneBase::systemInput() {
-    if (lifecycle_->isEntered() && !lifecycle_->isDestroyed()) {
+    if (lifecycleImpl_->isEntered() && !lifecycleImpl_->isDestroyed()) {
         onInput();
     }
 }
@@ -463,7 +464,7 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
                                                         bool profile) {
     const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
     LogicStepPerformance performance;
-    if (lifecycle_->isStopping() || !System::isActive() ||
+    if (lifecycleImpl_->isStopping() || !System::isActive() ||
         System::getScene().get() != this ||
         System::hasPendingSceneOperations()) {
         return performance;
@@ -519,7 +520,7 @@ void SceneBase::startLogicThread() {
     if (logicThread_.joinable()) {
         return;
     }
-    lifecycle_->resetStop();
+    lifecycleImpl_->resetStop();
     {
         const std::lock_guard<std::mutex> lock(logicFailureMutex_);
         logicFailure_ = nullptr;
@@ -530,13 +531,13 @@ void SceneBase::startLogicThread() {
         } catch (...) {
             const std::lock_guard<std::mutex> lock(logicFailureMutex_);
             logicFailure_ = std::current_exception();
-            lifecycle_->requestStop();
+            lifecycleImpl_->requestStop();
         }
     });
 }
 
 void SceneBase::stopLogicThread() noexcept {
-    lifecycle_->requestStop();
+    lifecycleImpl_->requestStop();
     if (!logicThread_.joinable()) {
         return;
     }
@@ -549,7 +550,7 @@ void SceneBase::logicLoop() {
     fixedAccumulator_ = 0.0f;
     auto lastTime = std::chrono::steady_clock::now();
     std::uint64_t videoPlaybackSequence = getVideoPlaybackCompletionSequence();
-    while (!lifecycle_->isStopping() && System::isActive() &&
+    while (!lifecycleImpl_->isStopping() && System::isActive() &&
            System::getScene().get() == this &&
            !System::hasPendingSceneOperations()) {
         const int targetFps = std::max(1, System::getFrameRate());

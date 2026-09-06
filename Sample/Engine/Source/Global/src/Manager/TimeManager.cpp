@@ -12,26 +12,6 @@ std::atomic<float> TimeManager::speed_ = 1.0f;
 std::atomic_bool TimeManager::initialized_ = false;
 std::mutex TimeManager::writerMutex_;
 
-TimerEntry::TimerEntry(float timeValue, RuntimeIdentityPtr taskValue,
-                       RuntimeValue::Array paramsValue, bool blockingValue)
-    : time(timeValue),
-      task(std::move(taskValue)),
-      params(std::move(paramsValue)),
-      blocking(blockingValue) {}
-
-bool TimerEntry::isReady() const {
-    return time <= 0.0f;
-}
-
-bool TimerEntry::isCancelled() const {
-    return cancelled_;
-}
-
-void TimerEntry::cancel() {
-    cancelled_ = true;
-    time = 0.0f;
-}
-
 void TimeManager::init() {
     const std::lock_guard<std::mutex> lock(writerMutex_);
     initializeLocked();

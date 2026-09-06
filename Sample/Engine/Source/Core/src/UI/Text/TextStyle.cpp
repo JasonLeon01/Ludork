@@ -1,4 +1,5 @@
 #include "TextCommon.hpp"
+#include <UI/TextStyle.hpp>
 
 #include <EngineState.hpp>
 

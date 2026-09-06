@@ -6,13 +6,13 @@
 #include <string>
 #include <vector>
 
-enum class RuntimeLookupMode {
-    Visible,
-    Own,
-};
-
 class LUDORK_RUNTIME_API RuntimeReflectionFacade {
 public:
+    enum class RuntimeLookupMode {
+        Visible,
+        Own,
+    };
+
     std::string kind(const RuntimeValue& value) const;
     RuntimeValue typeOf(const RuntimeValue& value) const;
     bool isSubclass(const RuntimeValue& value,

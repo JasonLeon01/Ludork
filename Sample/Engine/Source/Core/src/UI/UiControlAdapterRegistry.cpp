@@ -1,6 +1,6 @@
 #include <UI/UiControlAdapterRegistry.hpp>
 
-#include "UiControlAdapters/UiControlAdapterRegistryBuilder.hpp"
+#include "UiControlAdapters/UiControlAdapterRegistryBuilderImpl.hpp"
 
 #include <stdexcept>
 
@@ -81,11 +81,11 @@ void UiControlAdapterRegistry::reflowChildren(const std::string& controlId,
 }
 
 UiControlAdapterRegistry::UiControlAdapterRegistry() {
-    Builder::registerLayoutAdapters(*this);
-    Builder::registerVisualAdapters(*this);
-    Builder::registerInputAdapters(*this);
-    Builder::registerSkinnedAdapters(*this);
-    Builder::registerTextAdapters(*this);
+    BuilderImpl::registerLayoutAdapters(*this);
+    BuilderImpl::registerVisualAdapters(*this);
+    BuilderImpl::registerInputAdapters(*this);
+    BuilderImpl::registerSkinnedAdapters(*this);
+    BuilderImpl::registerTextAdapters(*this);
 }
 
 const UiControlAdapterRegistry::Adapter&

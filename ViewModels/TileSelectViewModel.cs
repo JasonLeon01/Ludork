@@ -229,21 +229,4 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
 
 public sealed record TilesetTabViewModel(string Key, string Name, string AssetPath);
 
-public sealed class AutoTileItemViewModel
-{
-    public AutoTileItemViewModel(
-        string key,
-        string projectPath,
-        string assetPath)
-    {
-        Key = key;
-        ProjectPath = projectPath;
-        AssetPath = assetPath;
-    }
-
-    public string Key { get; }
-    public string ProjectPath { get; }
-    public string AssetPath { get; }
-}
-
 public sealed record TileSelection(int OriginTileNumber, int Width, int Height);

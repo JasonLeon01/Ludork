@@ -58,10 +58,11 @@ from .layout import (
 )
 from .metadata import raw_string_chunks
 from .model import EnumInfo, Member, TypeInfo
+from .scopes import binding_identifier
 
 
 def class_binder_name(module: str, native_class: str) -> str:
-    return f"bind_{module}_{native_class}"
+    return f"bind_{module}_{binding_identifier(native_class)}"
 
 
 def enum_binding_lines(enums: list[EnumInfo]) -> list[str]:
@@ -75,22 +76,26 @@ def enum_binding_lines(enums: list[EnumInfo]) -> list[str]:
         for value in info.values:
             output.append(
                 f'{variable}.raw_set("{value.name}", '
-                f"static_cast<std::underlying_type_t<{info.name}>>("
-                f"{info.name}::{value.name}));"
+                f"static_cast<std::underlying_type_t<{info.cpp_name}>>("
+                f"{info.cpp_name}::{value.name}));"
             )
         output.append(f'root.raw_set("{public_name}", {variable});')
     return output
 
 
-def generate_binding_traits_header(types: list[TypeInfo]) -> str:
-    unique_types = {info.name: info for info in types}
+def generate_binding_traits_header(
+    context: GeneratorContext,
+    types: list[TypeInfo],
+    include_directories: list[Path],
+) -> str:
+    unique_types = {info.cpp_name: info for info in types}
     dynamic_types = sorted(
-        info.name
+        info.cpp_name
         for info in unique_types.values()
         if info.options.get("dynamic_value", "false").lower() == "true"
     )
     opaque_types = sorted(
-        info.name
+        info.cpp_name
         for info in unique_types.values()
         if info.options.get("opaque_identity", "false").lower() == "true"
     )
@@ -102,7 +107,26 @@ def generate_binding_traits_header(types: list[TypeInfo]) -> str:
         "#include <LudorkRuntimeBinding/ValueTraits.hpp>",
         "",
     ]
-    output.extend(f"class {name};" for name in declared_types)
+    nested_headers: set[Path] = set()
+    forwards: list[str] = []
+    for name in declared_types:
+        info = unique_types[name]
+        scopes = name.split("::")[:-1]
+        has_class_owner = any(
+            declaration.kind in {"class", "struct"}
+            for length in range(1, len(scopes) + 1)
+            for declaration in context.native_declarations.get(
+                "::".join(scopes[:length]), []
+            )
+        )
+        if has_class_owner:
+            nested_headers.add(info.source)
+        elif scopes:
+            forwards.append(f"namespace {'::'.join(scopes)} {{ class {info.name}; }}")
+        else:
+            forwards.append(f"class {name};")
+    output.extend(include_lines(nested_headers, include_directories))
+    output.extend(forwards)
     if declared_types:
         output.append("")
     if dynamic_types or opaque_types:
@@ -158,35 +182,35 @@ def include_lines(sources: set[Path], include_directories: list[Path]) -> list[s
 
 
 def require_class_traits(context: GeneratorContext, info: TypeInfo) -> None:
-    require_binding_type_features(context, info.name)
+    require_binding_type_features(context, info.cpp_name)
     if info.options.get("table_init", "false").lower() == "true":
-        context.required_table_traits.add(info.name)
-        context.required_bound_types.add(info.name)
+        context.required_table_traits.add(info.cpp_name)
+        context.required_bound_types.add(info.cpp_name)
     if info.options.get("dynamic_value", "false").lower() == "true":
         context.require_binding_feature("dynamic")
-        context.required_dynamic_traits.add(info.name)
-        context.required_bound_types.add(info.name)
+        context.required_dynamic_traits.add(info.cpp_name)
+        context.required_bound_types.add(info.cpp_name)
     if info.options.get("opaque_identity", "false").lower() == "true":
         context.require_binding_feature("native")
-        context.required_opaque_traits.add(info.name)
-        context.required_bound_types.add(info.name)
+        context.required_opaque_traits.add(info.cpp_name)
+        context.required_bound_types.add(info.cpp_name)
 
 
 def complete_trait_requirements(
     context: GeneratorContext, trait_types: list[TypeInfo]
 ) -> None:
-    type_map = {info.name: info for info in trait_types}
+    type_map = {info.cpp_name: info for info in trait_types}
     processed: set[str] = set()
     while True:
         pending = [
             info
             for info in trait_types
-            if info.name in context.required_table_traits and info.name not in processed
+            if info.cpp_name in context.required_table_traits and info.cpp_name not in processed
         ]
         if not pending:
             break
         for info in pending:
-            processed.add(info.name)
+            processed.add(info.cpp_name)
             for prop in table_value_properties(info, type_map):
                 require_binding_type_features(context, property_type(context, prop))
     missing_table_types = context.required_table_traits - set(type_map)
@@ -197,13 +221,13 @@ def complete_trait_requirements(
         )
     if context.required_dynamic_traits:
         opaque_types = [
-            info for info in trait_types if info.name in context.opaque_identity_types
+            info for info in trait_types if info.cpp_name in context.opaque_identity_types
         ]
         if opaque_types:
             context.require_binding_feature("native")
         for info in opaque_types:
-            context.required_opaque_traits.add(info.name)
-            context.required_bound_types.add(info.name)
+            context.required_opaque_traits.add(info.cpp_name)
+            context.required_bound_types.add(info.cpp_name)
 
 
 def trait_lines(context: GeneratorContext, trait_types: list[TypeInfo]) -> list[str]:
@@ -220,7 +244,7 @@ def required_source_paths(
     trait_types: list[TypeInfo],
     initial_sources: set[Path],
 ) -> set[Path]:
-    type_map = {info.name: info for info in trait_types}
+    type_map = {info.cpp_name: info for info in trait_types}
     result = set(initial_sources)
     for type_name in context.required_bound_types:
         info = type_map.get(type_name)
@@ -270,10 +294,11 @@ def class_binding_body(
     module_types: list[TypeInfo],
     trait_types: list[TypeInfo],
 ) -> tuple[list[str], list[str]]:
-    type_map = {value.name: value for value in trait_types}
-    local_types = {value.name for value in module_types}
-    public_names = {value.name: exposed_type_name(value) for value in module_types}
-    public_name = public_names[info.name]
+    type_map = {value.cpp_name: value for value in trait_types}
+    local_types = {value.cpp_name for value in module_types}
+    public_names = {value.cpp_name: exposed_type_name(value) for value in module_types}
+    public_name = public_names[info.cpp_name]
+    identifier = binding_identifier(info.cpp_name)
     require_class_traits(context, info)
     declared_bases = (
         [item for item in info.bases if item]
@@ -295,7 +320,7 @@ def class_binding_body(
         require_binding_type_features(context, type_name)
     adapter_output, adapter = adapter_class_lines(context, info, type_map)
     output = [
-        f"void {class_binder_name(module, info.name)}(",
+        f"void {class_binder_name(module, info.cpp_name)}(",
         "    sol::state_view lua, sol::table root,",
         "    sol::table bindingRuntimeMetadata)",
         "{",
@@ -308,7 +333,7 @@ def class_binding_body(
         member for member in info.constructors if member.access == "public"
     ]
     factories = callable_overloads(
-        context, public_constructors, info.name, True, conversion_bases
+        context, public_constructors, info.cpp_name, True, conversion_bases
     )
     if info.options.get("table_init", "false").lower() == "true":
         context.require_binding_feature("native")
@@ -318,19 +343,19 @@ def class_binding_body(
     if factories:
         constructor = ", sol::factories(" + ", ".join(factories) + ")"
     output.append(
-        f'    auto {info.name}Type = root.new_usertype<{info.name}>("{public_name}"{constructor}{base});'
+        f'    auto {identifier}Type = root.new_usertype<{info.cpp_name}>("{public_name}"{constructor}{base});'
     )
-    external_types = ", ".join([info.name, *conversion_bases])
+    external_types = ", ".join([info.cpp_name, *conversion_bases])
     output.append(f"    lua_sf::register_external_usertype<{external_types}>(lua);")
     if conversion_bases:
         context.require_binding_feature("native")
-        writer_types = ", ".join([info.name, info.name, *conversion_bases])
+        writer_types = ", ".join([info.cpp_name, info.cpp_name, *conversion_bases])
         output.append(
             "    ludork::runtime::binding::registerDynamicNativeWriter<"
             f"{writer_types}>(lua);"
         )
         if adapter is not None:
-            adapter_writer_types = ", ".join([adapter, info.name, *conversion_bases])
+            adapter_writer_types = ", ".join([adapter, info.cpp_name, *conversion_bases])
             output.append(
                 "    ludork::runtime::binding::registerDynamicNativeWriter<"
                 f"{adapter_writer_types}>(lua);"
@@ -341,19 +366,19 @@ def class_binding_body(
     output.extend(
         [
             (
-                f"    sol::object {info.name}RuntimeMetadataValue = "
+                f"    sol::object {identifier}RuntimeMetadataValue = "
                 f'bindingRuntimeMetadata.raw_get<sol::object>("{public_name}");'
             ),
             (
-                f"    sol::table {info.name}RuntimeMetadata = "
-                f"{info.name}RuntimeMetadataValue.is<sol::table>() "
-                f"? {info.name}RuntimeMetadataValue.as<sol::table>() "
+                f"    sol::table {identifier}RuntimeMetadata = "
+                f"{identifier}RuntimeMetadataValue.is<sol::table>() "
+                f"? {identifier}RuntimeMetadataValue.as<sol::table>() "
                 ": lua.create_table();"
             ),
-            f'    {info.name}RuntimeMetadata.raw_set("module", "{module}");',
+            f'    {identifier}RuntimeMetadata.raw_set("module", "{module}");',
             (
                 f'    root["{public_name}"].get<sol::table>().raw_set('
-                f'"__runtimeMetadata", {info.name}RuntimeMetadata);'
+                f'"__runtimeMetadata", {identifier}RuntimeMetadata);'
             ),
         ]
     )
@@ -361,17 +386,17 @@ def class_binding_body(
     for injector in info.injectors:
         output.extend(
             "    " + line
-            for line in injection_lines(context, injector, injection_index, info.name)
+            for line in injection_lines(context, injector, injection_index, info.cpp_name)
         )
         injection_index += 1
     callbacks, base_members = adapter_members(info, type_map)
     callback_names = [member.name for member in callbacks]
     if callback_names:
-        output.append(f"    sol::table {info.name}Callbacks = lua.create_table();")
+        output.append(f"    sol::table {identifier}Callbacks = lua.create_table();")
         for callback_name in callback_names:
-            output.append(f'    {info.name}Callbacks.add("{callback_name}");')
+            output.append(f'    {identifier}Callbacks.add("{callback_name}");')
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set("__classCallbacks", {info.name}Callbacks);'
+            f'    root["{public_name}"].get<sol::table>().raw_set("__classCallbacks", {identifier}Callbacks);'
         )
     if adapter is not None:
         class_factories = adapter_factories(context, info, adapter, conversion_bases)
@@ -388,7 +413,7 @@ def class_binding_body(
                         '"__classRelease", '
                     ),
                     (
-                        f"        [](const std::shared_ptr<{info.name}> "
+                        f"        [](const std::shared_ptr<{info.cpp_name}> "
                         "&nativeObject) noexcept {"
                     ),
                     (f"            const std::shared_ptr<{adapter}> bindingAdapter ="),
@@ -428,15 +453,15 @@ def class_binding_body(
         )
         if expression is None:
             if "runtime_base" in info.options or "runtime_bases" in info.options:
-                raise ValueError(f"unknown runtime base {runtime_base} on {info.name}")
+                raise ValueError(f"unknown runtime base {runtime_base} on {info.cpp_name}")
             continue
         visible_runtime_bases.append(expression)
-    output.append(f"    sol::table {info.name}RuntimeBases = lua.create_table();")
+    output.append(f"    sol::table {identifier}RuntimeBases = lua.create_table();")
     for expression in visible_runtime_bases:
-        output.append(f"    {info.name}RuntimeBases.add({expression});")
+        output.append(f"    {identifier}RuntimeBases.add({expression});")
     output.append(
         f'    root["{public_name}"].get<sol::table>().raw_set('
-        f'"__runtimeBases", {info.name}RuntimeBases);'
+        f'"__runtimeBases", {identifier}RuntimeBases);'
     )
     visible_native_bases = []
     for native_base in native_bases(info):
@@ -445,26 +470,26 @@ def class_binding_body(
         )
         if expression is None:
             if "native_base" in info.options or "native_bases" in info.options:
-                raise ValueError(f"unknown native base {native_base} on {info.name}")
+                raise ValueError(f"unknown native base {native_base} on {info.cpp_name}")
             continue
         visible_native_bases.append(expression)
-    output.append(f"    sol::table {info.name}NativeBases = lua.create_table();")
+    output.append(f"    sol::table {identifier}NativeBases = lua.create_table();")
     for expression in visible_native_bases:
-        output.append(f"    {info.name}NativeBases.add({expression});")
+        output.append(f"    {identifier}NativeBases.add({expression});")
     output.append(
         f'    root["{public_name}"].get<sol::table>().raw_set('
-        f'"__nativeBases", {info.name}NativeBases);'
+        f'"__nativeBases", {identifier}NativeBases);'
     )
     public_methods = [member for member in info.methods if member.access == "public"]
     for line in function_registrations(
-        context, public_methods, f"{info.name}Type", info.name
+        context, public_methods, f"{identifier}Type", info.cpp_name
     ):
         output.append("    " + line)
     singleton = singleton_options(info)
     if singleton is not None:
         module_path, singleton_accessor = singleton
         scope_lines, singleton_target = binding_scope_lines(
-            "root", module_path, info.name + "SingletonModule"
+            "root", module_path, identifier + "SingletonModule"
         )
         output.extend("    " + line for line in scope_lines)
         output.extend(
@@ -491,31 +516,31 @@ def class_binding_body(
         output.append("    " + property_registration(context, info, prop))
     if public_properties:
         output.append(
-            f"    sol::table {info.name}NativeProperties = lua.create_table();"
+            f"    sol::table {identifier}NativeProperties = lua.create_table();"
         )
         for prop in public_properties:
-            output.append(f'    {info.name}NativeProperties.add("{prop.name}");')
+            output.append(f'    {identifier}NativeProperties.add("{prop.name}");')
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set("__nativeProperties", {info.name}NativeProperties);'
+            f'    root["{public_name}"].get<sol::table>().raw_set("__nativeProperties", {identifier}NativeProperties);'
         )
     indexer_line = indexer_registration(context, info, public_name)
     if indexer_line is not None:
         output.append("    " + indexer_line)
     if adapter is not None and base_members:
-        output.append(f"    sol::table {info.name}BaseMethods = lua.create_table();")
+        output.append(f"    sol::table {identifier}BaseMethods = lua.create_table();")
         for member in base_members:
             output.append(
-                f'    {info.name}BaseMethods.set_function("{member.name}", '
+                f'    {identifier}BaseMethods.set_function("{member.name}", '
                 + base_method_lambda(context, info, adapter, member)
                 + ");"
             )
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set("__classBaseMethods", {info.name}BaseMethods);'
+            f'    root["{public_name}"].get<sol::table>().raw_set("__classBaseMethods", {identifier}BaseMethods);'
         )
     output.append(
         "    ludork::standard::class_runtime::registerNativeClass("
         f'root["{public_name}"].get<sol::table>(), '
-        f"{info.name}RuntimeMetadata);"
+        f"{identifier}RuntimeMetadata);"
     )
     output.extend(["}", ""])
     return adapter_output, output
@@ -586,7 +611,7 @@ def generate_stub_binding(
     for member in [value for value in functions if value.kind == "MODULE_PROPERTY"]:
         for path in option_list(member.options, "reverse", "reverses"):
             validate_lua_path(path)
-            source = module_property_values.get(member.name)
+            source = module_property_values.get(member.cpp_name)
             if source is None:
                 raise ValueError(
                     f"reverse-map module property {member.name} must be cached"
@@ -633,11 +658,11 @@ def generate_stub_binding(
     ordered_types = order_types(types)
     for info in ordered_types:
         output.append(
-            f"    {class_binder_name(module, info.name)}("
+            f"    {class_binder_name(module, info.cpp_name)}("
             "lua, root, bindingRuntimeMetadata);"
         )
     for initializer in [member for member in functions if member.kind == "MODULE_INIT"]:
-        output.append(f"    {initializer.name}(state);")
+        output.append(f"    {initializer.cpp_name}(state);")
     output.extend(
         [
             "    root.push();",
@@ -664,7 +689,7 @@ def generate_stub_binding(
     )
     declarations = [
         (
-            f"void {class_binder_name(module, info.name)}("
+            f"void {class_binder_name(module, info.cpp_name)}("
             "sol::state_view lua, sol::table root, "
             "sol::table bindingRuntimeMetadata);"
         )
@@ -703,7 +728,7 @@ def generate_bindings(
     include_directories = [*include_directories, *external_include_directories]
     output: dict[str, str] = {}
     for info in order_types(types):
-        name = class_binding_source_name(module, info.name)
+        name = class_binding_source_name(module, info.cpp_name)
         output[name] = generate_class_binding(
             context,
             include_directories,

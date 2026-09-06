@@ -497,7 +497,7 @@ end
 ---@param originY number
 ---@return number
 function WindowSelectable:_clampScrollOriginY(originY)
-    return Engine.Clamp(originY, 0.0, self:_getMaxScrollOriginY())
+    return math.clamp(originY, 0.0, self:_getMaxScrollOriginY())
 end
 
 function WindowSelectable:_ensureSelectionVisible()

@@ -1,4 +1,7 @@
 #include <UIManager.hpp>
+#include <FocusGroup.hpp>
+#include <FocusManager.hpp>
+#include <UI/RuntimeCallbackRegistry.hpp>
 
 #include <System.hpp>
 #include <EngineState.hpp>

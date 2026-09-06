@@ -207,9 +207,10 @@ DisposeSnapshot createDisposeSnapshot(sol::state_view lua,
     return snapshot;
 }
 
-void invokeNativeDisposeHooks(sol::state_view lua, const sol::object& instance,
-                              const std::vector<NativeDisposeTarget>& targets) {
-    for (const NativeDisposeTarget& target : targets) {
+void invokeNativeDisposeHooks(
+    sol::state_view lua, const sol::object& instance,
+    const std::vector<DisposeSnapshot::NativeDisposeTarget>& targets) {
+    for (const DisposeSnapshot::NativeDisposeTarget& target : targets) {
         runDisposePhase("native hook", [&]() {
             const sol::object rawDispose = rawMember(
                 lua, target.root, sol::make_object(lua, "__classRelease"));

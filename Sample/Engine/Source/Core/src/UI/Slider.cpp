@@ -4,7 +4,7 @@
 
 #include <Input/InputService.hpp>
 #include <EngineState.hpp>
-#include <Utils/Math.hpp>
+#include <Math.hpp>
 
 #include <SFML/Window/Mouse.hpp>
 
@@ -95,7 +95,7 @@ void Slider::setValueFromRatio(float ratio) {
         static_cast<double>(maxValue_) - static_cast<double>(minValue_);
     const double resolved = static_cast<double>(minValue_) +
                             static_cast<double>(normalized) * range;
-    const std::int64_t rounded = roundNumber(resolved);
+    const std::int64_t rounded = ludork::standard::math::round(resolved);
     setValue(static_cast<int>(std::clamp(
         rounded, static_cast<std::int64_t>(std::numeric_limits<int>::min()),
         static_cast<std::int64_t>(std::numeric_limits<int>::max()))));
@@ -118,7 +118,7 @@ void Slider::adjust(int delta) {
 }
 
 int Slider::getHandlePosition() const {
-    const std::int64_t rounded = roundNumber(handleOffset());
+    const std::int64_t rounded = ludork::standard::math::round(handleOffset());
     return static_cast<int>(std::clamp(
         rounded, static_cast<std::int64_t>(std::numeric_limits<int>::min()),
         static_cast<std::int64_t>(std::numeric_limits<int>::max())));

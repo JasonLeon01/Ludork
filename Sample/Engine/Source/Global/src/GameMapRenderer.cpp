@@ -1,6 +1,7 @@
 #include <GameMapRenderer.hpp>
+#include <Gameplay/Tilemap/Tilemap.hpp>
 
-#include "GameMapRenderer/Impl.hpp"
+#include "GameMapRenderer/GameMapRendererImpl.hpp"
 
 #include <Manager/ShaderManager.hpp>
 #include <EngineState.hpp>

@@ -1,4 +1,6 @@
 #pragma once
+#include <FocusGroup.hpp>
+#include <UI/RuntimeCallbackRegistry.hpp>
 
 #include <CoreMinimal.hpp>
 

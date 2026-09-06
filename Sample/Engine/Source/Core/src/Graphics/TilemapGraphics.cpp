@@ -1,7 +1,7 @@
 #include <Graphics/TilemapGraphics.hpp>
 #include "TilemapGraphics/ChunkBuilder.hpp"
 #include "TilemapGraphics/Pattern.hpp"
-#include "TilemapGraphics/RenderRuntime.hpp"
+#include "TilemapGraphics/RenderImpl.hpp"
 #include <SFML/Graphics/PrimitiveType.hpp>
 
 #include <algorithm>

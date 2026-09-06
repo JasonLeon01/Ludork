@@ -2,19 +2,6 @@
 
 #include <utility>
 
-RuntimeObject::~RuntimeObject() = default;
-
-void RuntimeObject::bindRuntimeOwner(
-    const std::shared_ptr<RuntimeObject>& owner) {
-    runtimeOwner_ = owner;
-}
-
-std::shared_ptr<RuntimeObject> RuntimeObject::runtimeOwner() const {
-    return runtimeOwner_.lock();
-}
-
-RuntimeIdentity::~RuntimeIdentity() = default;
-
 RuntimeValue::RuntimeValue(RuntimeValue&& other) noexcept
     : storage_(std::move(other.storage_)) {
     other.storage_ = RuntimeData();

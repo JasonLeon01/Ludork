@@ -10,6 +10,12 @@ class Graph;
 BIND_CLASS(metadata = false)
 class LUDORK_RUNTIME_API LatentManager {
 public:
+    struct ConditionResult {
+        RuntimeValue::Array values;
+        std::size_t count = 0;
+        bool finished = true;
+    };
+
     BIND_INIT()
     LatentManager() = default;
 

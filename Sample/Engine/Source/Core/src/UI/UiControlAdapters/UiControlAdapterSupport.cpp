@@ -1,8 +1,11 @@
+#include "UiControlAdapterSupportImpl.hpp"
 #include "UiControlAdapterSupport.hpp"
+#include <Runtime/AssetInputStream.hpp>
+#include <UI/PlainTextConfig.hpp>
+#include <UI/RichText.hpp>
 
 #include <Text/TextConfigCodec.hpp>
 
-#include <Curve.hpp>
 #include <UI/UIState.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiVector4CurveResource.hpp>
@@ -145,11 +148,6 @@ std::optional<sf::IntRect> optionalIntRectProperty(
     }
     return requireIntRect(*value, name);
 }
-
-struct PlaceholderTextureCache {
-    std::mutex mutex;
-    std::shared_ptr<sf::Texture> texture;
-};
 
 PlaceholderTextureCache& placeholderTextureCache() {
     static PlaceholderTextureCache cache;
@@ -300,11 +298,11 @@ std::shared_ptr<PlainTextConfig> plainTextControlConfig(
     return result;
 }
 
-std::shared_ptr<RichTextConfig> richTextConfig(
+std::shared_ptr<RichText::RichTextConfig> richTextConfig(
     const std::string& textConfigKey) {
     if (textConfigKey.empty()) {
-        std::shared_ptr<RichTextConfig> result =
-            std::make_shared<RichTextConfig>();
+        std::shared_ptr<RichText::RichTextConfig> result =
+            std::make_shared<RichText::RichTextConfig>();
         result->name = "UI Asset Default";
         result->font = loadFont({}, result->name);
         return result;

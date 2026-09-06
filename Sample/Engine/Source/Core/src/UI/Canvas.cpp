@@ -1,4 +1,5 @@
 #include <UI/Canvas.hpp>
+#include <AnimSprite.hpp>
 
 #include <EngineState.hpp>
 #include <UI/ListView.hpp>

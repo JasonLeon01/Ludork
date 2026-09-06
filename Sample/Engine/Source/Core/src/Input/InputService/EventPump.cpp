@@ -1,4 +1,5 @@
-#include "InputRuntime.hpp"
+#include "InputImpl.hpp"
+#include <Input/InjectedInputEvent.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
 
@@ -12,6 +13,8 @@
 #include <limits>
 #include <string_view>
 #include <utility>
+
+namespace ludork::engine::input_impl {
 
 namespace {
 
@@ -54,13 +57,13 @@ constexpr float TouchDragThreshold = 8.0f;
 
 }  // namespace
 
-std::atomic_bool InputEventPump::pendingSystemCancel_{false};
+std::atomic_bool InputEventPumpImpl::pendingSystemCancel_{false};
 
-void InputEventPump::requestSystemCancel() noexcept {
+void InputEventPumpImpl::requestSystemCancel() noexcept {
     pendingSystemCancel_.store(true, std::memory_order_release);
 }
 
-sf::Keyboard::Key InputRuntime::keyFromName(const std::string& name) {
+sf::Keyboard::Key InputImpl::keyFromName(const std::string& name) {
     if (name.size() == 1 && name[0] >= 'A' && name[0] <= 'Z') {
         return static_cast<Key>(static_cast<int>(Key::A) + name[0] - 'A');
     }
@@ -128,7 +131,7 @@ sf::Keyboard::Key InputRuntime::keyFromName(const std::string& name) {
     return iterator == namedKeys.end() ? Key::Unknown : iterator->second;
 }
 
-sf::Mouse::Button InputRuntime::mouseButtonFromName(const std::string& name) {
+sf::Mouse::Button InputImpl::mouseButtonFromName(const std::string& name) {
     if (name == "Right") {
         return sf::Mouse::Button::Right;
     }
@@ -144,7 +147,7 @@ sf::Mouse::Button InputRuntime::mouseButtonFromName(const std::string& name) {
     return sf::Mouse::Button::Left;
 }
 
-std::string InputRuntime::toUtf8(char32_t codepoint) {
+std::string InputImpl::toUtf8(char32_t codepoint) {
     if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
         codepoint = 0xFFFD;
     }
@@ -167,8 +170,8 @@ std::string InputRuntime::toUtf8(char32_t codepoint) {
     return result;
 }
 
-void InputRuntime::consumePendingSystemCancel() {
-    if (!InputEventPump::pendingSystemCancel_.exchange(
+void InputImpl::consumePendingSystemCancel() {
+    if (!InputEventPumpImpl::pendingSystemCancel_.exchange(
             false, std::memory_order_acq_rel)) {
         return;
     }
@@ -177,7 +180,7 @@ void InputRuntime::consumePendingSystemCancel() {
     setKeyPulse(Key::Escape, sf::Keyboard::Scancode::Escape, {});
 }
 
-void InputRuntime::setFocused(bool focused) {
+void InputImpl::setFocused(bool focused) {
     if (eventPump_.focused_ == focused) {
         return;
     }
@@ -198,12 +201,12 @@ void InputRuntime::setFocused(bool focused) {
     clearKeyboardState();
 }
 
-void InputRuntime::injectEvent(const InjectedInputEvent& event) {
+void InputImpl::injectEvent(const InjectedInputEvent& event) {
     const std::lock_guard<std::mutex> lock(eventPump_.injectedEventsMutex_);
     eventPump_.injectedEvents_.push_back(event);
 }
 
-void InputRuntime::setUseInjectedMouseOnly(bool value) {
+void InputImpl::setUseInjectedMouseOnly(bool value) {
     eventPump_.useInjectedMouseOnly_ = value;
     if (!value) {
         pointer_.injectedPixel_.reset();
@@ -211,7 +214,7 @@ void InputRuntime::setUseInjectedMouseOnly(bool value) {
     }
 }
 
-void InputRuntime::setPointerViewport(std::optional<sf::IntRect> viewport) {
+void InputImpl::setPointerViewport(std::optional<sf::IntRect> viewport) {
     pointer_.viewport_ = std::move(viewport);
     if (!eventPump_.useInjectedMouseOnly_ ||
         !pointer_.injectedPixel_.has_value() ||
@@ -231,7 +234,7 @@ void InputRuntime::setPointerViewport(std::optional<sf::IntRect> viewport) {
         pixelToWorld(*eventPump_.activeWindow_, *pointer_.injectedPixel_);
 }
 
-void InputRuntime::onWindowRecreated(sf::WindowBase& window) {
+void InputImpl::onWindowRecreated(sf::WindowBase& window) {
     resetFrameState();
     clearKeyboardState();
     pointer_.mouseButtonPressed_ = false;
@@ -275,7 +278,7 @@ void InputRuntime::onWindowRecreated(sf::WindowBase& window) {
                                  InputType::Mouse);
 }
 
-void InputRuntime::processPlatformScrollEvents(sf::WindowBase& window) {
+void InputImpl::processPlatformScrollEvents(sf::WindowBase& window) {
     if (!ludork::engine::platform_input::isScrollCaptureAvailable()) {
         return;
     }
@@ -305,7 +308,7 @@ void InputRuntime::processPlatformScrollEvents(sf::WindowBase& window) {
     }
 }
 
-void InputRuntime::processInjectedEvents() {
+void InputImpl::processInjectedEvents() {
     std::deque<InjectedInputEvent> events;
     {
         const std::lock_guard<std::mutex> lock(eventPump_.injectedEventsMutex_);
@@ -399,8 +402,8 @@ void InputRuntime::processInjectedEvents() {
     }
 }
 
-bool InputRuntime::processNativeEvent(sf::WindowBase& window,
-                                      const sf::Event& event) {
+bool InputImpl::processNativeEvent(sf::WindowBase& window,
+                                   const sf::Event& event) {
     if (event.is<sf::Event::Closed>()) {
         window.close();
     }
@@ -638,7 +641,7 @@ bool InputRuntime::processNativeEvent(sf::WindowBase& window,
     return true;
 }
 
-void InputRuntime::initializeNativePolling() {
+void InputImpl::initializeNativePolling() {
     if (eventPump_.useInjectedMouseOnly_) {
         return;
     }
@@ -646,14 +649,16 @@ void InputRuntime::initializeNativePolling() {
     ludork::engine::platform_input::initialize();
 }
 
-bool InputRuntime::isFocused() const {
+bool InputImpl::isFocused() const {
     return eventPump_.focused_;
 }
 
-bool InputRuntime::isFocusLost() const {
+bool InputImpl::isFocusLost() const {
     return eventPump_.focusLost_;
 }
 
-bool InputRuntime::isFocusGained() const {
+bool InputImpl::isFocusGained() const {
     return eventPump_.focusGained_;
 }
+
+}  // namespace ludork::engine::input_impl

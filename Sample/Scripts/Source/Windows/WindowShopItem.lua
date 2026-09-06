@@ -1,4 +1,3 @@
-local Engine = require("Engine")
 local WindowShopItemUI = require("Source.UI.Parts.WindowShop.WindowShopItem")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
@@ -40,7 +39,7 @@ function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap, showValues
         if restoredIndex ~= nil then
             self.index = restoredIndex
         elseif previousIndex ~= nil then
-            self.index = Engine.ToInteger(math.min(previousIndex, #itemIDs - 1))
+            self.index = math.trunc(math.min(previousIndex, #itemIDs - 1))
         else
             self.index = 0
         end

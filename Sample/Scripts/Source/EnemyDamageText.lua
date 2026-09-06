@@ -179,8 +179,8 @@ function EnemyDamageText:_renderTextTexture(damageText, criticalText, damageColo
     if self._text == nil then
         return false
     end
-    width = Engine.ToInteger(math.max(1, width))
-    height = Engine.ToInteger(math.max(1, height))
+    width = math.trunc(math.max(1, width))
+    height = math.trunc(math.max(1, height))
     local size = sf.Vector2u.new(width, height)
     local replaceTexture = self._overlayTexture == nil or width ~= self._overlayTextureWidth
         or height ~= self._overlayTextureHeight
@@ -289,7 +289,7 @@ function getParentSize(parent)
     if rect == nil then
         return Engine.CellSize, Engine.CellSize
     end
-    return Engine.ToInteger(math.max(1, rect.size.x)), Engine.ToInteger(math.max(1, rect.size.y))
+    return math.trunc(math.max(1, rect.size.x)), math.trunc(math.max(1, rect.size.y))
 end
 
 ---@return Source.Player.Player | nil

@@ -88,8 +88,8 @@ std::string resolveShaderPath(const std::string& value) {
     return value;
 }
 
-ShaderSourceResult decodeShader(const std::string& path,
-                                const std::vector<std::uint8_t>& encoded) {
+ShaderLoader::ShaderSourceResult decodeShader(
+    const std::string& path, const std::vector<std::uint8_t>& encoded) {
     try {
         return {ludork::standard::decodeEncryptedPayload(encoded, ShaderFormat,
                                                          path),
@@ -100,9 +100,9 @@ ShaderSourceResult decodeShader(const std::string& path,
     }
 }
 
-ShaderSourceResult readShaderSource(const std::string& value) {
+ShaderLoader::ShaderSourceResult readShaderSource(const std::string& value) {
     const std::string path = resolveShaderPath(value);
-    const std::optional<ludork::runtime::AssetStat> stat =
+    const std::optional<ludork::runtime::AssetStore::AssetStat> stat =
         ludork::runtime::assetStore().stat(path);
     if (!stat.has_value() || stat->directory) {
         return {{}, path, "Shader file not found: " + path};
@@ -123,13 +123,14 @@ ShaderSourceResult readShaderSource(const std::string& value) {
     return {std::string(contents.begin(), contents.end()), path, {}};
 }
 
-ShaderLoadResult failedLoad(const ShaderSourceResult& source) {
+ShaderLoadResult failedLoad(const ShaderLoader::ShaderSourceResult& source) {
     return {nullptr, {}, source.resolvedPath, source.error};
 }
 
 }  // namespace
 
-ShaderSourceResult ShaderLoader::readSource(const std::string& shaderPath) {
+ShaderLoader::ShaderSourceResult ShaderLoader::readSource(
+    const std::string& shaderPath) {
     return readShaderSource(shaderPath);
 }
 
@@ -141,7 +142,7 @@ std::optional<sf::Shader::Type> ShaderLoader::inferType(
 
 ShaderLoadResult ShaderLoader::load(
     const std::string& shaderPath, std::optional<sf::Shader::Type> shaderType) {
-    ShaderSourceResult source = readSource(shaderPath);
+    ShaderLoader::ShaderSourceResult source = readSource(shaderPath);
     if (!source) {
         return failedLoad(source);
     }
@@ -159,11 +160,11 @@ ShaderLoadResult ShaderLoader::load(
 
 ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
                                     const std::string& fragmentPath) {
-    ShaderSourceResult vertex = readSource(vertexPath);
+    ShaderLoader::ShaderSourceResult vertex = readSource(vertexPath);
     if (!vertex) {
         return failedLoad(vertex);
     }
-    ShaderSourceResult fragment = readSource(fragmentPath);
+    ShaderLoader::ShaderSourceResult fragment = readSource(fragmentPath);
     if (!fragment) {
         return failedLoad(fragment);
     }
@@ -181,15 +182,15 @@ ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
 ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
                                     const std::string& geometryPath,
                                     const std::string& fragmentPath) {
-    ShaderSourceResult vertex = readSource(vertexPath);
+    ShaderLoader::ShaderSourceResult vertex = readSource(vertexPath);
     if (!vertex) {
         return failedLoad(vertex);
     }
-    ShaderSourceResult geometry = readSource(geometryPath);
+    ShaderLoader::ShaderSourceResult geometry = readSource(geometryPath);
     if (!geometry) {
         return failedLoad(geometry);
     }
-    ShaderSourceResult fragment = readSource(fragmentPath);
+    ShaderLoader::ShaderSourceResult fragment = readSource(fragmentPath);
     if (!fragment) {
         return failedLoad(fragment);
     }

@@ -21,9 +21,6 @@ struct AudioProcessorOptions {
     std::string moduleName;
     std::string resolverName;
     std::string effectName;
-    std::string helperModuleName;
-    std::string clampName;
-    std::function<double(double, double, double)> clamp;
     AudioProcessorControl control;
     std::uint32_t sampleRate = 0;
 };

@@ -1,8 +1,13 @@
-#include "InputRuntime.hpp"
+#include "InputImpl.hpp"
+#include <Input/InputActionKey.hpp>
+#include <Input/InputNamedValue.hpp>
+#include <Input/JoystickButton.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <utility>
+
+namespace ludork::engine::input_impl {
 
 namespace {
 
@@ -70,12 +75,12 @@ bool isDefaultDirectionalAxis(const InputActionKey& key) {
 
 }  // namespace
 
-bool InputRuntime::axisMatches(float position, const InputActionKey& key) {
+bool InputImpl::axisMatches(float position, const InputActionKey& key) {
     return key.comparison ? key.comparison(position, key.threshold)
                           : position > key.threshold;
 }
 
-void InputRuntime::dispatchActionMappings() {
+void InputImpl::dispatchActionMappings() {
     struct MoveAction {
         float position = 0.0f;
         InputActionCallback callback;
@@ -202,7 +207,7 @@ void InputRuntime::dispatchActionMappings() {
     }
 }
 
-bool InputRuntime::triggerFromMap(
+bool InputImpl::triggerFromMap(
     std::unordered_map<std::string, InputTriggerEntry>& entries,
     const std::string& id, bool down, bool handled, float repeatDelay,
     float repeatInterval) {
@@ -240,9 +245,9 @@ bool InputRuntime::triggerFromMap(
     return true;
 }
 
-bool InputRuntime::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
-                                  bool shift, bool system, bool handled,
-                                  float repeatDelay, float repeatInterval) {
+bool InputImpl::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
+                               bool shift, bool system, bool handled,
+                               float repeatDelay, float repeatInterval) {
     if (!eventPump_.focused_ || keyboard_.blocked_) {
         return false;
     }
@@ -252,9 +257,9 @@ bool InputRuntime::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
         isKeyboardKeyDown(key), handled, repeatDelay, repeatInterval);
 }
 
-bool InputRuntime::isAnyJoystickButtonTriggered(unsigned int button,
-                                                bool handled, float repeatDelay,
-                                                float repeatInterval) {
+bool InputImpl::isAnyJoystickButtonTriggered(unsigned int button, bool handled,
+                                             float repeatDelay,
+                                             float repeatInterval) {
     if (joystick_.blocked_) {
         return false;
     }
@@ -292,15 +297,16 @@ bool InputRuntime::isAnyJoystickButtonTriggered(unsigned int button,
     return true;
 }
 
-bool InputRuntime::isAnyJoystickButtonValueTriggered(
-    const InputNamedValue& button, bool handled, float repeatDelay,
-    float repeatInterval) {
+bool InputImpl::isAnyJoystickButtonValueTriggered(const InputNamedValue& button,
+                                                  bool handled,
+                                                  float repeatDelay,
+                                                  float repeatInterval) {
     return isAnyJoystickButtonTriggered(static_cast<unsigned int>(button.value),
                                         handled, repeatDelay, repeatInterval);
 }
 
-bool InputRuntime::actionTriggered(const InputActionKey& key, bool handled,
-                                   float repeatDelay, float repeatInterval) {
+bool InputImpl::actionTriggered(const InputActionKey& key, bool handled,
+                                float repeatDelay, float repeatInterval) {
     if (key.kind == InputActionKind::KeyOrScan) {
         const bool keyTriggered =
             isKeyTriggered(static_cast<Key>(key.code), false, false, false,
@@ -379,9 +385,9 @@ bool InputRuntime::actionTriggered(const InputActionKey& key, bool handled,
     return false;
 }
 
-bool InputRuntime::isActionTriggered(
-    const std::vector<InputActionKey>& actionKeys, bool handled,
-    float repeatDelay, float repeatInterval) {
+bool InputImpl::isActionTriggered(const std::vector<InputActionKey>& actionKeys,
+                                  bool handled, float repeatDelay,
+                                  float repeatInterval) {
     bool result = false;
     for (const InputActionKey& key : actionKeys) {
         if (actionTriggered(key, handled, repeatDelay, repeatInterval)) {
@@ -391,7 +397,7 @@ bool InputRuntime::isActionTriggered(
     return result;
 }
 
-bool InputRuntime::actionHeld(const InputActionKey& key) const {
+bool InputImpl::actionHeld(const InputActionKey& key) const {
     if (key.kind == InputActionKind::KeyOrScan) {
         return eventPump_.focused_ && !keyboard_.blocked_ &&
                (isKeyboardKeyDown(static_cast<Key>(key.code)) ||
@@ -449,7 +455,7 @@ bool InputRuntime::actionHeld(const InputActionKey& key) const {
     return false;
 }
 
-bool InputRuntime::isActionHeld(
+bool InputImpl::isActionHeld(
     const std::vector<InputActionKey>& actionKeys) const {
     return std::any_of(actionKeys.begin(), actionKeys.end(),
                        [this](const InputActionKey& key) {
@@ -457,7 +463,7 @@ bool InputRuntime::isActionHeld(
                        });
 }
 
-std::vector<InputActionKey> InputRuntime::getConfirmKeys() const {
+std::vector<InputActionKey> InputImpl::getConfirmKeys() const {
     return {
         keyboardKey(Key::Enter),
         keyboardKey(Key::Space),
@@ -469,7 +475,7 @@ std::vector<InputActionKey> InputRuntime::getConfirmKeys() const {
     };
 }
 
-std::vector<InputActionKey> InputRuntime::getCancelKeys() const {
+std::vector<InputActionKey> InputImpl::getCancelKeys() const {
     return {
         keyboardKey(Key::Escape),
         keyboardScan(sf::Keyboard::Scancode::Escape),
@@ -478,7 +484,7 @@ std::vector<InputActionKey> InputRuntime::getCancelKeys() const {
     };
 }
 
-std::vector<InputActionKey> InputRuntime::getUpKeys() const {
+std::vector<InputActionKey> InputImpl::getUpKeys() const {
     return {
         keyboardKey(Key::Up),
         keyboardScan(sf::Keyboard::Scancode::Up),
@@ -487,7 +493,7 @@ std::vector<InputActionKey> InputRuntime::getUpKeys() const {
     };
 }
 
-std::vector<InputActionKey> InputRuntime::getDownKeys() const {
+std::vector<InputActionKey> InputImpl::getDownKeys() const {
     return {
         keyboardKey(Key::Down),
         keyboardScan(sf::Keyboard::Scancode::Down),
@@ -496,7 +502,7 @@ std::vector<InputActionKey> InputRuntime::getDownKeys() const {
     };
 }
 
-std::vector<InputActionKey> InputRuntime::getLeftKeys() const {
+std::vector<InputActionKey> InputImpl::getLeftKeys() const {
     return {
         keyboardKey(Key::Left),
         keyboardScan(sf::Keyboard::Scancode::Left),
@@ -505,7 +511,7 @@ std::vector<InputActionKey> InputRuntime::getLeftKeys() const {
     };
 }
 
-std::vector<InputActionKey> InputRuntime::getRightKeys() const {
+std::vector<InputActionKey> InputImpl::getRightKeys() const {
     return {
         keyboardKey(Key::Right),
         keyboardScan(sf::Keyboard::Scancode::Right),
@@ -514,11 +520,11 @@ std::vector<InputActionKey> InputRuntime::getRightKeys() const {
     };
 }
 
-void InputRuntime::registerActionMapping(RuntimeIdentityPtr object,
-                                         std::string actionName,
-                                         std::vector<InputActionKey> actionKeys,
-                                         InputActionCallback callback,
-                                         bool triggerOnHold) {
+void InputImpl::registerActionMapping(RuntimeIdentityPtr object,
+                                      std::string actionName,
+                                      std::vector<InputActionKey> actionKeys,
+                                      InputActionCallback callback,
+                                      bool triggerOnHold) {
     const auto iterator = std::find_if(
         actions_.mappings_.begin(), actions_.mappings_.end(),
         [&actionName, &actionKeys](const InputActionMapping& mapping) {
@@ -535,8 +541,8 @@ void InputRuntime::registerActionMapping(RuntimeIdentityPtr object,
     }
 }
 
-void InputRuntime::unregisterActionMapping(const RuntimeIdentityPtr& object,
-                                           const std::string& actionName) {
+void InputImpl::unregisterActionMapping(const RuntimeIdentityPtr& object,
+                                        const std::string& actionName) {
     std::erase_if(actions_.mappings_,
                   [object, &actionName](const InputActionMapping& mapping) {
                       const bool sameObject =
@@ -546,3 +552,5 @@ void InputRuntime::unregisterActionMapping(const RuntimeIdentityPtr& object,
                       return sameObject && mapping.actionName == actionName;
                   });
 }
+
+}  // namespace ludork::engine::input_impl

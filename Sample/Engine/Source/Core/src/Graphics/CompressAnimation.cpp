@@ -1,4 +1,11 @@
+#include <AnimSprite.hpp>
+#include <Runtime/AssetInputStream.hpp>
+#include <Graphics/AnimationSourceData.hpp>
+#include <Graphics/AnimationSoundEntry.hpp>
+#include <Graphics/AnimationTimeTag.hpp>
 #include <Graphics/CompressAnimation.hpp>
+
+#include "CompressAnimationImpl.hpp"
 
 #include <Base64.hpp>
 #include <Compression.hpp>
@@ -24,16 +31,10 @@
 
 namespace {
 
-struct SegmentTransform {
-    float x;
-    float y;
-    float rotation;
-    float scaleX;
-    float scaleY;
-};
-
-std::optional<SegmentTransform> getSegmentTransform(
-    const AnimationSegment& segment, float frameTime) {
+std::optional<ludork::engine::animation_compression::SegmentTransform>
+getSegmentTransform(
+    const AnimationSourceData::AnimationTimeline::AnimationSegment& segment,
+    float frameTime) {
     if (frameTime < segment.startFrame.time ||
         frameTime > segment.endFrame.time) {
         return std::nullopt;
@@ -42,7 +43,7 @@ std::optional<SegmentTransform> getSegmentTransform(
     const float factor = duration <= 1e-4f
                              ? 0.0f
                              : (frameTime - segment.startFrame.time) / duration;
-    return SegmentTransform{
+    return ludork::engine::animation_compression::SegmentTransform{
         segment.startFrame.position[0] +
             (segment.endFrame.position[0] - segment.startFrame.position[0]) *
                 factor,
@@ -98,18 +99,20 @@ std::vector<std::uint8_t> compressFrame(const std::uint8_t* data,
 }
 
 void updateCanvasExtent(
-    const std::vector<AnimationTimeline>& timeLines, float frameTime,
-    const std::vector<std::string>& assets,
+    const std::vector<AnimationSourceData::AnimationTimeline>& timeLines,
+    float frameTime, const std::vector<std::string>& assets,
     std::unordered_map<int, std::unique_ptr<sf::Texture>>& cache, float& maxX,
     float& maxY) {
-    for (const AnimationTimeline& timeline : timeLines) {
-        for (const AnimationSegment& segment : timeline.timeSegments) {
+    for (const AnimationSourceData::AnimationTimeline& timeline : timeLines) {
+        for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
+                 segment : timeline.timeSegments) {
             if (segment.type != "frame") {
                 continue;
             }
             sf::Texture* texture = getTexture(cache, assets, segment.asset);
-            const std::optional<SegmentTransform> transform =
-                getSegmentTransform(segment, frameTime);
+            const std::optional<
+                ludork::engine::animation_compression::SegmentTransform>
+                transform = getSegmentTransform(segment, frameTime);
             if (texture == nullptr || !transform.has_value()) {
                 continue;
             }
@@ -126,12 +129,6 @@ void updateCanvasExtent(
     }
 }
 
-struct CompressedAnimationFrames {
-    float duration = 0.0f;
-    std::vector<std::string> frames;
-    std::vector<AnimationSoundEntry> sounds;
-};
-
 std::vector<AnimationTimeTag> sortedTimeTags(
     const std::vector<AnimationTimeTag>& source) {
     std::vector<AnimationTimeTag> result = source;
@@ -143,11 +140,12 @@ std::vector<AnimationTimeTag> sortedTimeTags(
     return result;
 }
 
-CompressedAnimationFrames compressAnimationFrames(
+ludork::engine::animation_compression::CompressedAnimationFrames
+compressAnimationFrames(
     int frameCount, float frameStep, int frameRate,
-    const std::vector<AnimationTimeline>& timeLines,
+    const std::vector<AnimationSourceData::AnimationTimeline>& timeLines,
     const std::vector<std::string>& assets, const std::string& imageFormat) {
-    CompressedAnimationFrames result;
+    ludork::engine::animation_compression::CompressedAnimationFrames result;
     result.duration = frameRate > 0 ? static_cast<float>(frameCount) /
                                           static_cast<float>(frameRate)
                                     : 0.0f;
@@ -174,14 +172,17 @@ CompressedAnimationFrames compressAnimationFrames(
     for (int frame = 0; frame < frameCount; ++frame) {
         target.clear(sf::Color::Transparent);
         const float frameTime = frame * frameStep;
-        for (const AnimationTimeline& timeline : timeLines) {
-            for (const AnimationSegment& segment : timeline.timeSegments) {
+        for (const AnimationSourceData::AnimationTimeline& timeline :
+             timeLines) {
+            for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
+                     segment : timeline.timeSegments) {
                 if (segment.type != "frame") {
                     continue;
                 }
                 sf::Texture* texture = getTexture(cache, assets, segment.asset);
-                const std::optional<SegmentTransform> transform =
-                    getSegmentTransform(segment, frameTime);
+                const std::optional<
+                    ludork::engine::animation_compression::SegmentTransform>
+                    transform = getSegmentTransform(segment, frameTime);
                 if (texture == nullptr || !transform.has_value()) {
                     continue;
                 }
@@ -212,8 +213,9 @@ CompressedAnimationFrames compressAnimationFrames(
             compressed.size());
     }
 
-    for (const AnimationTimeline& timeline : timeLines) {
-        for (const AnimationSegment& segment : timeline.timeSegments) {
+    for (const AnimationSourceData::AnimationTimeline& timeline : timeLines) {
+        for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
+                 segment : timeline.timeSegments) {
             if (segment.type != "sound") {
                 continue;
             }
@@ -243,20 +245,22 @@ CompressedAnimationFrames compressAnimationFrames(
 }  // namespace
 
 std::tuple<float, std::vector<std::string>, std::vector<AnimationSoundEntry>>
-C_CompressAnimation(const RuntimeValue& zlibModule, int frameCount,
-                    float frameStep, int frameRate,
-                    const std::vector<AnimationTimeline>& timeLines,
-                    const std::vector<std::string>& assets,
-                    const std::string& imageFormat) {
+C_CompressAnimation(
+    const RuntimeValue& zlibModule, int frameCount, float frameStep,
+    int frameRate,
+    const std::vector<AnimationSourceData::AnimationTimeline>& timeLines,
+    const std::vector<std::string>& assets, const std::string& imageFormat) {
     (void)zlibModule;
-    CompressedAnimationFrames result = compressAnimationFrames(
-        frameCount, frameStep, frameRate, timeLines, assets, imageFormat);
+    ludork::engine::animation_compression::CompressedAnimationFrames result =
+        compressAnimationFrames(frameCount, frameStep, frameRate, timeLines,
+                                assets, imageFormat);
     return {result.duration, std::move(result.frames),
             std::move(result.sounds)};
 }
 
-AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
-                                const std::string& imageFormat) {
+AnimSprite::AnimationData compressAnimation(
+    std::optional<AnimationSourceData> sourceValue,
+    const std::string& imageFormat) {
     if (!sourceValue.has_value() ||
         (sourceValue->type.empty() && sourceValue->name.empty() &&
          sourceValue->frameRate == 0 && sourceValue->frameCount == 0 &&
@@ -264,7 +268,7 @@ AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
          !sourceValue->duration.has_value() &&
          !sourceValue->visualDuration.has_value() &&
          sourceValue->timeLines.empty() && sourceValue->assets.empty())) {
-        AnimationData empty;
+        AnimSprite::AnimationData empty;
         empty.frameRate = 0;
         empty.frameCount = 0;
         empty.visualFrameCount = 0;
@@ -277,15 +281,17 @@ AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
     }
 
     const AnimationSourceData& source = *sourceValue;
-    AnimationData result;
+    AnimSprite::AnimationData result;
     result.name = source.name;
     result.frameRate = source.frameRate > 0 ? source.frameRate : 30;
     result.timeTags = sortedTimeTags(source.timeTags);
 
     float maxTime = 0.0f;
     float visualMaxTime = 0.0f;
-    for (const AnimationTimeline& timeline : source.timeLines) {
-        for (const AnimationSegment& segment : timeline.timeSegments) {
+    for (const AnimationSourceData::AnimationTimeline& timeline :
+         source.timeLines) {
+        for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
+                 segment : timeline.timeSegments) {
             maxTime = std::max(maxTime, segment.endFrame.time);
             if (segment.type == "frame") {
                 visualMaxTime = std::max(visualMaxTime, segment.endFrame.time);
@@ -305,9 +311,10 @@ AnimationData compressAnimation(std::optional<AnimationSourceData> sourceValue,
         static_cast<float>(visualFrameCount) / result.frameRate;
 
     const float frameStep = 1.0f / result.frameRate;
-    CompressedAnimationFrames compressed =
-        compressAnimationFrames(result.frameCount, frameStep, result.frameRate,
-                                source.timeLines, source.assets, imageFormat);
+    ludork::engine::animation_compression::CompressedAnimationFrames
+        compressed = compressAnimationFrames(result.frameCount, frameStep,
+                                             result.frameRate, source.timeLines,
+                                             source.assets, imageFormat);
     result.duration = compressed.duration;
     result.frames.reserve(compressed.frames.size());
     for (const std::string& frame : compressed.frames) {

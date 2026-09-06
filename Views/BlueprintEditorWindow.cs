@@ -1287,19 +1287,3 @@ public sealed class BlueprintEditorWindow : Window
         }
     }
 }
-
-public sealed class BlueprintGraphRequestedEventArgs(
-    BlueprintEditorDocument document,
-    string eventName,
-    JsonObject eventGraph) : EventArgs
-{
-    public BlueprintEditorDocument Document { get; } = document;
-    public string EventName { get; } = eventName;
-    public JsonObject EventGraph { get; } = eventGraph;
-    public Control? Content { get; set; }
-}
-
-public sealed class BlueprintGraphOrganizeRequestedEventArgs(string eventName) : EventArgs
-{
-    public string EventName { get; } = eventName;
-}

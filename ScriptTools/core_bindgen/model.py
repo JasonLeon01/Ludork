@@ -41,6 +41,12 @@ class Member:
     access: str = "public"
     line: int = 0
     source: Path | None = None
+    cpp_name: str = ""
+    cpp_scope: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.cpp_name:
+            self.cpp_name = "::".join((*self.cpp_scope, self.name))
 
 
 @dataclass
@@ -57,6 +63,12 @@ class TypeInfo:
     class_properties: list[Member] = field(default_factory=list)
     injectors: list[Member] = field(default_factory=list)
     line: int = 0
+    cpp_name: str = ""
+    cpp_scope: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.cpp_name:
+            self.cpp_name = "::".join((*self.cpp_scope, self.name))
 
 
 @dataclass(frozen=True)
@@ -71,6 +83,20 @@ class EnumInfo:
     doc: str
     source: Path
     options: dict[str, str] = field(default_factory=dict)
+    line: int = 0
+    cpp_name: str = ""
+    cpp_scope: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.cpp_name:
+            self.cpp_name = "::".join((*self.cpp_scope, self.name))
+
+
+@dataclass(frozen=True)
+class TypeAlias:
+    target: str
+    cpp_scope: tuple[str, ...] = ()
+    source: Path | None = None
     line: int = 0
 
 

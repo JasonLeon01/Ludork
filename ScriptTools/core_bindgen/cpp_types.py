@@ -8,7 +8,10 @@ from .model import (
     Member,
     ParsedType,
     TypeInfo,
+    TypeAlias,
 )
+from .scopes import HeaderScopes, code_mask
+from pathlib import Path
 
 
 SEQUENCE_TYPES = {"std::vector", "std::array"}
@@ -104,12 +107,13 @@ def documentation_before(text: str, offset: int) -> str:
 
 
 def balanced_body(text: str, start: int) -> tuple[str, int]:
-    opening = text.find("{", start)
+    mask = code_mask(text)
+    opening = mask.find("{", start)
     depth = 0
     for index in range(opening, len(text)):
-        if text[index] == "{":
+        if mask[index] == "{":
             depth += 1
-        elif text[index] == "}":
+        elif mask[index] == "}":
             depth -= 1
             if depth == 0:
                 return text[opening + 1 : index], index + 1
@@ -156,11 +160,16 @@ def remove_pointer(value: str) -> str:
 def parse_cpp_type(
     context: GeneratorContext, value: str, seen: frozenset[str] = frozenset()
 ) -> ParsedType:
-    clean = remove_type_qualifiers(value)
+    clean = qualify_cpp_text(context, remove_type_qualifiers(value))
     if clean in context.callback_codecs:
         return ParsedType(clean)
-    if clean in context.type_aliases and clean not in seen:
-        return parse_cpp_type(context, context.type_aliases[clean], seen | {clean})
+    if clean in context.type_aliases:
+        if clean in seen:
+            raise ValueError(f"cyclic C++ type alias: {clean}")
+        alias = context.type_aliases[clean]
+        return parse_cpp_type(
+            context.for_scope(alias.cpp_scope), alias.target, seen | {clean}
+        )
     opening = clean.find("<")
     if opening >= 0 and clean.endswith(">"):
         name = clean[:opening].strip()
@@ -360,14 +369,73 @@ def callback_codec_policy(
     return native_policy(parsed)
 
 
-def parse_aliases(text: str) -> dict[str, str]:
-    result = {
-        match.group(1): normalize_declaration(match.group(2))
-        for match in re.finditer(r"\busing\s+([A-Za-z_]\w*)\s*=\s*([^;]+);", text)
-    }
-    for match in re.finditer(r"\btypedef\s+([^;]+?)\s+([A-Za-z_]\w*)\s*;", text):
-        result[match.group(2)] = normalize_declaration(match.group(1))
-    return result
+def parse_aliases(text: str) -> dict[str, TypeAlias]:
+    return HeaderScopes(Path("<memory>"), text).aliases()
+
+
+def qualify_cpp_text(context: GeneratorContext, value: str) -> str:
+    mask = code_mask(value)
+    replacements: list[tuple[int, int, str]] = []
+    for match in re.finditer(r"(?:::)?[A-Za-z_]\w*(?:\s*::\s*[A-Za-z_]\w*)*", mask):
+        name = re.sub(r"\s*::\s*", "::", match[0])
+        resolved = context.resolve_cpp_name(name)
+        if resolved == name and "::" in name:
+            parts = name.split("::")
+            for length in range(len(parts) - 1, 0, -1):
+                prefix = "::".join(parts[:length])
+                qualified = context.resolve_cpp_name(prefix)
+                if qualified != prefix:
+                    resolved = "::".join((qualified, *parts[length:]))
+                    break
+        if resolved != match[0]:
+            replacements.append((match.start(), match.end(), resolved))
+    for start, end, replacement in reversed(replacements):
+        value = value[:start] + replacement + value[end:]
+    return value
+
+
+def qualify_member(context: GeneratorContext, member: Member) -> None:
+    context = context.for_scope(member.cpp_scope)
+    declaration = member.declaration
+    callable_name = member.options.get("getter", member.name)
+    callable_match = re.search(rf"\b{re.escape(callable_name)}\s*\(", declaration)
+    if callable_match is not None:
+        opening = callable_match.end() - 1
+        depth = 1
+        closing = opening + 1
+        mask = code_mask(declaration)
+        while closing < len(mask) and depth:
+            depth += (mask[closing] == "(") - (mask[closing] == ")")
+            closing += 1
+        parameters: list[str] = []
+        for parameter in parameter_declarations(declaration):
+            without_default = parameter_without_default(parameter)
+            name = re.search(r"[A-Za-z_]\w*$", without_default)
+            if name is None:
+                parameters.append(qualify_cpp_text(context, parameter))
+            else:
+                parameters.append(
+                    qualify_cpp_text(context, parameter[: name.start()])
+                    + name[0]
+                    + qualify_cpp_text(context, parameter[name.end() :])
+                )
+        member.declaration = (
+            qualify_cpp_text(context, declaration[: callable_match.start()])
+            + declaration[callable_match.start() : opening + 1]
+            + ", ".join(parameters)
+            + declaration[closing - 1 :]
+        )
+    else:
+        name = re.search(rf"\b{re.escape(member.name)}\b", declaration)
+        if name is not None:
+            member.declaration = (
+                qualify_cpp_text(context, declaration[: name.start()])
+                + member.name
+                + qualify_cpp_text(context, declaration[name.end() :])
+            )
+    for key in ("type", "parameter_types", "return_type", "lua_return_type"):
+        if key in member.options:
+            member.options[key] = qualify_cpp_text(context, member.options[key])
 
 
 def resolved_cpp_type(context: GeneratorContext, value: str) -> str:

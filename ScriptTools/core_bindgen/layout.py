@@ -8,7 +8,7 @@ from pathlib import Path
 from .annotations import parse_header
 from .binding_calls import order_types
 from .context import GeneratorContext
-from .cpp_types import parse_aliases
+from .scopes import register_headers, binding_identifier, validate_bound_types
 from .model import TypeInfo
 
 
@@ -17,7 +17,7 @@ IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def class_binding_source_name(module: str, native_class: str) -> str:
-    return f"{module}.{native_class}.auto.cpp"
+    return f"{module}.{binding_identifier(native_class)}.auto.cpp"
 
 
 def stub_binding_source_name(module: str) -> str:
@@ -27,14 +27,11 @@ def stub_binding_source_name(module: str) -> str:
 def binding_source_layout(module: str, types: list[TypeInfo]) -> dict[str, object]:
     if IDENTIFIER_PATTERN.fullmatch(module) is None:
         raise ValueError(f"invalid binding module name: {module}")
+    validate_bound_types(types)
     class_sources: list[str] = []
     used_names = {stub_binding_source_name(module).casefold()}
     for info in order_types(types):
-        if IDENTIFIER_PATTERN.fullmatch(info.name) is None:
-            raise ValueError(
-                f"binding native class name is not a portable identifier: {info.name}"
-            )
-        source = class_binding_source_name(module, info.name)
+        source = class_binding_source_name(module, info.cpp_name)
         folded_source = source.casefold()
         if folded_source in used_names:
             raise ValueError(
@@ -58,8 +55,7 @@ def parse_module(include_directories: list[Path]) -> list[TypeInfo]:
                 f"binding include directory does not exist: {include_directory}"
             )
         header_paths.extend(sorted(include_directory.glob("**/*.hpp")))
-    for path in header_paths:
-        context.type_aliases.update(parse_aliases(path.read_text(encoding="utf-8")))
+    register_headers(context, header_paths)
     types: list[TypeInfo] = []
     for path in header_paths:
         parsed_types, _, _ = parse_header(context, path)

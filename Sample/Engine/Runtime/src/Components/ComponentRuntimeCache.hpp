@@ -4,15 +4,15 @@
 
 struct lua_State;
 
-enum class ComponentRuntimeCacheKind {
-    Types,
-    FieldDefaults,
-    FieldMap,
-    InheritedDefaults,
-};
-
 class ComponentRuntimeCache {
 public:
+    enum class ComponentRuntimeCacheKind {
+        Types,
+        FieldDefaults,
+        FieldMap,
+        InheritedDefaults,
+    };
+
     void clear(lua_State* state) const noexcept;
     RuntimeValue get(ComponentRuntimeCacheKind kind,
                      const RuntimeValue& key) const;

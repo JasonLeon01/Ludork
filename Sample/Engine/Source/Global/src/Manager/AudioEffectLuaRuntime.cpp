@@ -1,7 +1,8 @@
 #include "AudioEffectLuaRuntime.hpp"
+#include "AudioEffectLuaRuntimeImpl.hpp"
+#include <Manager/AudioEffectControl.hpp>
 
 #include <Manager/ManagedAudioSource.hpp>
-#include <Utils/Math.hpp>
 #include <Runtime/RuntimeAudioProcessor.hpp>
 
 extern "C" {
@@ -19,12 +20,10 @@ namespace ludork::global::audio {
 
 namespace {
 
-class LuaAudioEffectProcessor;
-
 std::mutex runtimeMutex;
 std::string runtimePackagePath;
 bool runtimeInitialized = false;
-std::vector<std::weak_ptr<LuaAudioEffectProcessor>> processors;
+std::vector<std::weak_ptr<LuaAudioEffectProcessorImpl>> processors;
 std::deque<std::string> pendingErrors;
 
 void enqueueDeferredError(std::string error) noexcept {
@@ -36,54 +35,6 @@ void enqueueDeferredError(std::string error) noexcept {
         pendingErrors.push_back(std::move(error));
     } catch (...) {}
 }
-
-class LuaAudioEffectProcessor final {
-public:
-    LuaAudioEffectProcessor(const std::string& name,
-                            const std::shared_ptr<AudioEffectControl>& control,
-                            std::uint32_t sampleRate,
-                            const std::string& packagePath)
-        : processor_(ludork::runtime::AudioProcessorOptions{
-              packagePath,
-              "Source.AudioEffects",
-              "Get",
-              name,
-              "Engine",
-              "Clamp",
-              &clampNumber,
-              {[control] {
-                   return control->isCancelled();
-               },
-               [control] {
-                   control->beginTail();
-               },
-               [control] {
-                   control->finishTail();
-               }},
-              sampleRate}) {}
-
-    ~LuaAudioEffectProcessor() {
-        if (const std::optional<std::string> error = takeDeferredError();
-            error.has_value()) {
-            enqueueDeferredError(*error);
-        }
-    }
-    LuaAudioEffectProcessor(const LuaAudioEffectProcessor&) = delete;
-    LuaAudioEffectProcessor& operator=(const LuaAudioEffectProcessor&) = delete;
-
-    void process(const float* inputFrames, unsigned int& inputFrameCount,
-                 float* outputFrames, unsigned int& outputFrameCount,
-                 unsigned int frameChannelCount) noexcept {
-        processor_.process(inputFrames, inputFrameCount, outputFrames,
-                           outputFrameCount, frameChannelCount);
-    }
-    std::optional<std::string> takeDeferredError() const {
-        return processor_.takeDeferredError();
-    }
-
-private:
-    ludork::runtime::AudioProcessor processor_;
-};
 
 std::string packagePathFrom(lua_State* state) {
     const int stackBase = lua_gettop(state);
@@ -105,6 +56,45 @@ std::string packagePathFrom(lua_State* state) {
 }
 
 }  // namespace
+
+LuaAudioEffectProcessorImpl::LuaAudioEffectProcessorImpl(
+    const std::string& name, const std::shared_ptr<AudioEffectControl>& control,
+    std::uint32_t sampleRate, const std::string& packagePath)
+    : processor_(ludork::runtime::AudioProcessorOptions{
+          packagePath,
+          "Source.AudioEffects",
+          "Get",
+          name,
+          {[control] {
+               return control->isCancelled();
+           },
+           [control] {
+               control->beginTail();
+           },
+           [control] {
+               control->finishTail();
+           }},
+          sampleRate}) {}
+
+LuaAudioEffectProcessorImpl::~LuaAudioEffectProcessorImpl() {
+    if (const std::optional<std::string> error = takeDeferredError();
+        error.has_value()) {
+        enqueueDeferredError(*error);
+    }
+}
+
+void LuaAudioEffectProcessorImpl::process(
+    const float* inputFrames, unsigned int& inputFrameCount,
+    float* outputFrames, unsigned int& outputFrameCount,
+    unsigned int frameChannelCount) noexcept {
+    processor_.process(inputFrames, inputFrameCount, outputFrames,
+                       outputFrameCount, frameChannelCount);
+}
+
+std::optional<std::string> LuaAudioEffectProcessorImpl::takeDeferredError()
+    const {
+    return processor_.takeDeferredError();
+}
 
 void initializeAudioEffectLuaRuntime(lua_State* mainState) {
     if (mainState == nullptr) {
@@ -142,9 +132,9 @@ sf::SoundSource::EffectProcessor createLuaAudioEffectProcessor(
         }
         packagePath = runtimePackagePath;
     }
-    const std::shared_ptr<LuaAudioEffectProcessor> processor =
-        std::make_shared<LuaAudioEffectProcessor>(name, control, sampleRate,
-                                                  packagePath);
+    const std::shared_ptr<LuaAudioEffectProcessorImpl> processor =
+        std::make_shared<LuaAudioEffectProcessorImpl>(name, control, sampleRate,
+                                                      packagePath);
     {
         const std::lock_guard<std::mutex> lock(runtimeMutex);
         if (!runtimeInitialized) {
@@ -161,7 +151,7 @@ sf::SoundSource::EffectProcessor createLuaAudioEffectProcessor(
 }
 
 void throwDeferredAudioEffectError() {
-    std::vector<std::shared_ptr<LuaAudioEffectProcessor>> activeProcessors;
+    std::vector<std::shared_ptr<LuaAudioEffectProcessorImpl>> activeProcessors;
     std::optional<std::string> pending;
     {
         const std::lock_guard<std::mutex> lock(runtimeMutex);
@@ -171,7 +161,7 @@ void throwDeferredAudioEffectError() {
         }
         for (auto iterator = processors.begin();
              iterator != processors.end();) {
-            if (std::shared_ptr<LuaAudioEffectProcessor> processor =
+            if (std::shared_ptr<LuaAudioEffectProcessorImpl> processor =
                     iterator->lock()) {
                 activeProcessors.push_back(std::move(processor));
                 ++iterator;
@@ -183,7 +173,7 @@ void throwDeferredAudioEffectError() {
     if (pending.has_value()) {
         throw std::runtime_error(*pending);
     }
-    for (const std::shared_ptr<LuaAudioEffectProcessor>& processor :
+    for (const std::shared_ptr<LuaAudioEffectProcessorImpl>& processor :
          activeProcessors) {
         if (const std::optional<std::string> error =
                 processor->takeDeferredError();

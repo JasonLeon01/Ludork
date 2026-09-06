@@ -1,4 +1,5 @@
 #pragma once
+#include <Runtime/RuntimeObject.hpp>
 
 #include <Runtime/RuntimeReflection.hpp>
 
@@ -51,7 +52,8 @@ LUDORK_RUNTIME_API void rawSet(const RuntimeHandle& target,
 LUDORK_RUNTIME_API Entries entries(const RuntimeHandle& target);
 LUDORK_RUNTIME_API RuntimeValue::Array keys(
     const RuntimeHandle& target,
-    RuntimeLookupMode mode = RuntimeLookupMode::Visible);
+    RuntimeReflectionFacade::RuntimeLookupMode mode =
+        RuntimeReflectionFacade::RuntimeLookupMode::Visible);
 LUDORK_RUNTIME_API std::size_t length(const RuntimeHandle& target);
 LUDORK_RUNTIME_API std::string kind(const RuntimeValue& value);
 LUDORK_RUNTIME_API bool hasMetatable(const RuntimeHandle& value);

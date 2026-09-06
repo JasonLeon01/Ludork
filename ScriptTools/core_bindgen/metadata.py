@@ -472,7 +472,7 @@ def metadata_methods(info: TypeInfo) -> list[Member]:
             )
             raise ValueError(
                 f"{location}: duplicate exposed metadata method "
-                f"{info.name}.{exposed_name}; first declared at "
+                f"{info.cpp_name}.{exposed_name}; first declared at "
                 f"{previous_location}. Mark secondary binding overloads "
                 "metadata = false"
             )
@@ -482,7 +482,7 @@ def metadata_methods(info: TypeInfo) -> list[Member]:
 
 def metadata_type_names(context: GeneratorContext, types: list[TypeInfo]) -> set[str]:
     result = {
-        info.name
+        info.cpp_name
         for info in types
         if info.options.get("metadata", "true").lower() != "false"
         and (info.decorators or metadata_properties(info) or metadata_methods(info))
@@ -492,7 +492,7 @@ def metadata_type_names(context: GeneratorContext, types: list[TypeInfo]) -> set
         changed = False
         for info in types:
             if (
-                info.name in result
+                info.cpp_name in result
                 or info.options.get("metadata", "true").lower() == "false"
                 or info.options.get("bind_bases", "true").lower() == "false"
             ):
@@ -501,7 +501,7 @@ def metadata_type_names(context: GeneratorContext, types: list[TypeInfo]) -> set
                 base in result and base not in context.suppressed_metadata_base_types
                 for base in info.bases
             ):
-                result.add(info.name)
+                result.add(info.cpp_name)
                 changed = True
     return result
 
@@ -827,7 +827,7 @@ def generate_metadata(
         "local _METADATA = {",
     ]
     for info in types:
-        if info.name not in metadata_types:
+        if info.cpp_name not in metadata_types:
             continue
         public_name = exposed_type_name(info)
         exposed_properties = metadata_properties(info)

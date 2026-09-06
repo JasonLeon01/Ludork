@@ -1,45 +1,4 @@
 ---@meta Source.Windows.WindowAttrShop
----@class Source.Windows._WindowAttrShopSelectable: Source.Windows.Base.WindowSelectable
----@field _owner         Source.Windows.WindowAttrShop
----@field _abilityKeys   string[]
----@field _cellAvailable boolean[]
----@field _listView      Engine.ListView
-local _WindowAttrShopSelectable = {}
-
----@brief Construct the attribute shop selection window.
----
---- - @param rect Window rectangle.
---- - @param owner Attribute shop coordinator.
----@param rect  sf.IntRect
----@param owner Source.Windows.WindowAttrShop
-function _WindowAttrShopSelectable:init(rect, owner) end
-
----@brief Rebuild the ability rows and leave command.
----
---- - @param abilities Mapping of player attribute names to purchased increments.
---- - @param prices Purchase prices ordered to match abilities.
---- - @param moneyName Player info component attribute used as currency.
---- - @param moneyAmount Current amount of the selected currency.
----@param abilities   table
----@param prices      table
----@param moneyName   string
----@param moneyAmount integer
-function _WindowAttrShopSelectable:refresh(abilities, prices, moneyName, moneyAmount) end
-
----@brief Get the selected player attribute name.
----
---- - @return Attribute name, or nil when Leave is selected.
----@return string | nil
-function _WindowAttrShopSelectable:getSelectedAbilityKey() end
-
----@brief Return whether the selected row can be confirmed.
----@return boolean
-function _WindowAttrShopSelectable:isCurrentAvailable() end
-
----@param deltaTime number
-function _WindowAttrShopSelectable:onTick(deltaTime) end
-
-function _WindowAttrShopSelectable:onReturn() end
 
 ---@brief Attribute upgrade shop coordinator.
 ---@class Source.Windows.WindowAttrShop
@@ -64,7 +23,7 @@ function _WindowAttrShopSelectable:onReturn() end
 ---@field _descText             Engine.PlainText
 ---@field _priceText            Engine.PlainText
 ---@field _shopUI               Source.UI.WindowAttrShop
----@field _selectable           Source.Windows._WindowAttrShopSelectable
+---@field _selectable           Source.Windows.WindowAttrShop.Selectable
 local WindowAttrShop = {}
 
 ---@return sf.IntRect
@@ -79,7 +38,7 @@ function WindowAttrShop.GetDefaultRect() end
 function WindowAttrShop:init(player, onClose) end
 
 ---@brief Get the shop selection window for UI manager registration.
----@return Source.Windows._WindowAttrShopSelectable
+---@return Source.Windows.WindowAttrShop.Selectable
 function WindowAttrShop:getSelectable() end
 
 ---@brief Get the player currently bound to the shop.

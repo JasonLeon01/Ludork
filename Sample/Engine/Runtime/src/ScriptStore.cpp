@@ -1,6 +1,6 @@
 #include <Runtime/ScriptStore.hpp>
 
-#include "ScriptStoreInternal.hpp"
+#include "ScriptStoreImpl.hpp"
 #include "LdPakArchive.hpp"
 #include <Utf8Path.hpp>
 

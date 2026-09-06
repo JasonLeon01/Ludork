@@ -2,7 +2,10 @@
 
 ---@brief Integrated floor teleporter window with visited-map list and preview.
 ---@class Source.Windows.WindowFloorTeleporter: Engine.Canvas
----@field new fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
+---@field controllerClass        Source.Windows.WindowFloorTeleporter.Controller
+---@field _teleporterController  Source.Windows.WindowFloorTeleporter.Controller
+---@field new                    fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
+---@field _telepointEntriesCache dict<tuple<any>, { [1]: sf.Vector2u, [2]: string } []>
 local WindowFloorTeleporter = {}
 
 ---@brief Construct the floor teleporter coordinator.
@@ -45,7 +48,8 @@ function WindowFloorTeleporter:getPreviewWindow() end
 ---@return boolean
 function WindowFloorTeleporter:getVisible() end
 
----@brief Open the floor teleporter with the floor list visible, the overlapping telepoint list hidden, and both selectors reset to their first entries.
+---@brief Open the floor teleporter with the floor list visible and the overlapping telepoint list hidden.
+--- Select the current map's floor entry, falling back to the first entry if absent; reset the telepoint selector to its first entry.
 ---
 --- - @param inst Optional current game instance to bind before opening.
 ---@param inst Source.GameInstance.GameInstance | nil

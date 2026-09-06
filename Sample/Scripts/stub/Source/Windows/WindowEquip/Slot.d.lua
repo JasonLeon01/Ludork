@@ -1,9 +1,15 @@
 ---@meta Source.Windows.WindowEquip.Slot
 
 ---@class Source.Windows.WindowEquipSlot: Source.Windows.Base.WindowSelectable
----@field _onCloseCallback function | nil
----@field new              fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSelect?: Source.Windows.WindowEquipSelect, windowEquipStatus?: Source.Windows.WindowEquipStatus, onClose?: function, instance?: Engine.AssetInstance): Source.Windows.WindowEquipSlot
----@field _player          Source.Player.Player
+---@field controllerClass    Source.Windows.WindowEquip.Slot.Controller
+---@field _slotController    Source.Windows.WindowEquip.Slot.Controller
+---@field _onCloseCallback   function | nil
+---@field new                fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSelect?: Source.Windows.WindowEquipSelect, windowEquipStatus?: Source.Windows.WindowEquipStatus, onClose?: function, instance?: Engine.AssetInstance): Source.Windows.WindowEquipSlot
+---@field _player            Source.Player.Player
+---@field _windowEquipStatus Source.Windows.WindowEquipStatus | nil
+---@field _windowEquipSelect Source.Windows.WindowEquipSelect | nil
+---@field _slotKeys          string[]
+---@field _lastSlotIndex     integer | nil
 local WindowEquipSlot = {}
 
 ---@brief Construct the equipped-slot window.

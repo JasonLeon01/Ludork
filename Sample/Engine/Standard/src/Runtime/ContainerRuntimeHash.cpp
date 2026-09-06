@@ -15,6 +15,13 @@
 
 namespace ludork::standard::container_runtime::detail {
 
+std::size_t EqualityContext::ObjectPairHash::operator()(
+    const ObjectPair& value) const noexcept {
+    std::size_t first = std::hash<const void*>{}(value.first);
+    std::size_t second = std::hash<const void*>{}(value.second);
+    return first ^ (second + 0x9e3779b9U + (first << 6U) + (first >> 2U));
+}
+
 std::uint64_t hashBytes(std::uint64_t seed, const void* data,
                         std::size_t size) {
     const unsigned char* bytes = static_cast<const unsigned char*>(data);

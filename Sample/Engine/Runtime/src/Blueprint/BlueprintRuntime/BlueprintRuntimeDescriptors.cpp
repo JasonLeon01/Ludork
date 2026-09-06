@@ -178,7 +178,8 @@ void invokeNamedRuntimeMethod(const RuntimeValue& object,
     const RuntimeHandle names = runtimeDescriptorParameters(descriptor);
     const RuntimeHandle accepted = runtimeDescriptorAccepted(descriptor);
     for (const RuntimeValue& key :
-         keys(keywordArguments, RuntimeLookupMode::Visible)) {
+         keys(keywordArguments,
+              RuntimeReflectionFacade::RuntimeLookupMode::Visible)) {
         if (!is<std::string>(key)) {
             continue;
         }

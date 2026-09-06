@@ -1,7 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
-
+#include <EngineRuntimeApi.hpp>
 #include <SFML/Audio.hpp>
 
 BIND_CLASS(table_init = true)
@@ -60,11 +60,4 @@ public:
 
     BIND_PROPERTY()
     std::optional<float> attenuation;
-};
-
-BIND_CLASS(table_init = true)
-class MusicFilter : public SoundFilter {
-public:
-    BIND_PROPERTY()
-    std::optional<sf::Music::TimeSpan> loopPoint;
 };

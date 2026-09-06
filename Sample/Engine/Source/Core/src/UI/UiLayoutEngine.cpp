@@ -1,6 +1,6 @@
 #include <UI/UiLayoutEngine.hpp>
 
-#include "UiAssetRuntime/RuntimeModel.hpp"
+#include "UiAssets/AssetImpl.hpp"
 
 #include <UI/UiControlAdapterRegistry.hpp>
 
@@ -37,21 +37,21 @@ AxisArrangement arrangeAxis(float parentSize, float anchorMinimum,
 
 void layoutNode(const std::shared_ptr<UiRuntimeNode>& node);
 
-void layoutInstance(UiAssetInstanceState& state,
+void layoutInstance(UiAssetInstanceState& impl,
                     const sf::Vector2f& logicalSize) {
-    state.logicalSize = logicalSize;
-    UiRuntimeNode& root = *state.root;
-    if (root.nestedState != nullptr) {
-        UiLayoutEngine::reflow(*root.nestedState, logicalSize);
+    impl.logicalSize = logicalSize;
+    UiRuntimeNode& root = *impl.root;
+    if (root.nestedImpl != nullptr) {
+        UiLayoutEngine::reflow(*root.nestedImpl, logicalSize);
     } else {
         UiControlAdapterRegistry::instance().arrange(
             root.controlId, *root.control, logicalSize, root.renderScale);
-        layoutNode(state.root);
+        layoutNode(impl.root);
     }
     if (logicalSize.x <= 0.0f || logicalSize.y <= 0.0f) {
         root.control->setScale({0.0f, 0.0f});
     }
-    state.layoutDirty = false;
+    impl.layoutDirty = false;
 }
 
 void layoutCanvas(const std::shared_ptr<UiRuntimeNode>& node) {
@@ -70,8 +70,8 @@ void layoutCanvas(const std::shared_ptr<UiRuntimeNode>& node) {
                         slot.anchorMaximum.y, slot.offsetTop, slot.offsetBottom,
                         slot.alignment.y, desired.y, slot.autoSize);
         const sf::Vector2f arrangedSize{horizontal.size, vertical.size};
-        if (child->nestedState != nullptr) {
-            UiLayoutEngine::reflow(*child->nestedState, arrangedSize);
+        if (child->nestedImpl != nullptr) {
+            UiLayoutEngine::reflow(*child->nestedImpl, arrangedSize);
         } else {
             registry.arrange(child->controlId, *child->control, arrangedSize,
                              child->renderScale);
@@ -84,8 +84,8 @@ void layoutCanvas(const std::shared_ptr<UiRuntimeNode>& node) {
 void layoutList(const std::shared_ptr<UiRuntimeNode>& node) {
     for (const std::shared_ptr<UiRuntimeNode>& child : node->children) {
         const sf::Vector2f childSize = child->control->getSize();
-        if (child->nestedState != nullptr) {
-            UiLayoutEngine::reflow(*child->nestedState, childSize);
+        if (child->nestedImpl != nullptr) {
+            UiLayoutEngine::reflow(*child->nestedImpl, childSize);
         } else {
             layoutNode(child);
         }
@@ -109,10 +109,10 @@ void layoutNode(const std::shared_ptr<UiRuntimeNode>& node) {
 
 }  // namespace
 
-void UiLayoutEngine::reflow(UiAssetInstanceState& state,
+void UiLayoutEngine::reflow(UiAssetInstanceState& impl,
                             const sf::Vector2f& logicalSize) {
     if (logicalSize.x < 0.0f || logicalSize.y < 0.0f) {
         throw std::invalid_argument("UI asset logical size cannot be negative");
     }
-    layoutInstance(state, logicalSize);
+    layoutInstance(impl, logicalSize);
 }

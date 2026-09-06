@@ -519,8 +519,8 @@ void registerList(sol::state_view lua) {
     overrideNewIndex(createList(lua), &rawListNewIndex);
     class_runtime::registerNativeDeepCopyProtocol(
         lua, typeTable,
-        {class_runtime::NativeDeepCopyMode::TwoPhase, &createListDeepCopy,
-         &populateListDeepCopy, nullptr});
+        {class_runtime::NativeDeepCopyProtocol::NativeDeepCopyMode::TwoPhase,
+         &createListDeepCopy, &populateListDeepCopy, nullptr});
 }
 
 void registerTuple(sol::state_view lua) {
@@ -575,8 +575,8 @@ void registerTuple(sol::state_view lua) {
     overrideNewIndex(createTuple(lua), &rawTupleNewIndex);
     class_runtime::registerNativeDeepCopyProtocol(
         lua, typeTable,
-        {class_runtime::NativeDeepCopyMode::Deferred, nullptr, nullptr,
-         &buildTupleDeepCopy});
+        {class_runtime::NativeDeepCopyProtocol::NativeDeepCopyMode::Deferred,
+         nullptr, nullptr, &buildTupleDeepCopy});
 }
 
 }  // namespace ludork::standard::container_runtime::detail

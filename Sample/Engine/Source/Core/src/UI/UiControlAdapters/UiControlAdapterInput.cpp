@@ -1,4 +1,4 @@
-#include "UiControlAdapterRegistryBuilder.hpp"
+#include "UiControlAdapterRegistryBuilderImpl.hpp"
 
 #include "UiControlAdapterSupport.hpp"
 
@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-void UiControlAdapterRegistry::Builder::registerInputAdapters(
+void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     UiControlAdapterRegistry& registry) {
     using namespace ui_control_adapter_detail;
 

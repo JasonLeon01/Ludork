@@ -289,17 +289,13 @@ function PlayerAttrHUDUI:refreshStates(language)
     return true
 end
 
-local function formatMapName(mapName)
-    return LOC(tostring(mapName))
-end
-
 function PlayerAttrHUDUI:getMapDisplayName()
     local gameMap = self.model._player:getMap()
     if gameMap == nil then
         return ""
     end
     ---@cast gameMap GameMap
-    return formatMapName(gameMap.mapName)
+    return LOC(tostring(gameMap.mapName))
 end
 
 function PlayerAttrHUDUI:refresh()
@@ -316,7 +312,7 @@ function PlayerAttrHUDUI:refresh()
     if self._headerSignature ~= headerSignature then
         self._headerSignature = headerSignature
         self._language = language
-        self:setText("MapName", formatMapName(mapName))
+        self:setText("MapName", LOC(tostring(mapName)))
         self:setText("HpLabel", LOC("HP"))
         self:setText("AtkLabel", LOC("ATK"))
         self:setText("DefLabel", LOC("DEF"))

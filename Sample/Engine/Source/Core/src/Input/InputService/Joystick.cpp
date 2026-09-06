@@ -1,7 +1,11 @@
-#include "InputRuntime.hpp"
+#include "InputImpl.hpp"
+#include <Input/InputNamedValue.hpp>
+#include <Input/JoystickAxisEvent.hpp>
 
 #include <array>
 #include <cmath>
+
+namespace ludork::engine::input_impl {
 
 namespace {
 
@@ -14,13 +18,13 @@ constexpr std::array DirectionalAxes = {
 
 }
 
-std::string InputRuntime::axisId(unsigned int joystickId,
-                                 sf::Joystick::Axis axis) {
+std::string InputImpl::axisId(unsigned int joystickId,
+                              sf::Joystick::Axis axis) {
     return std::to_string(joystickId) + ":" +
            std::to_string(static_cast<int>(axis));
 }
 
-void InputRuntime::updateJoystickDominantAxes() {
+void InputImpl::updateJoystickDominantAxes() {
     for (const auto& [joystickId, axes] : joystick_.axisStatus_) {
         std::optional<sf::Joystick::Axis> dominant;
         float maximum = 0.0f;
@@ -56,7 +60,7 @@ void InputRuntime::updateJoystickDominantAxes() {
     }
 }
 
-bool InputRuntime::isAnyJoystickButtonDown(unsigned int button) const {
+bool InputImpl::isAnyJoystickButtonDown(unsigned int button) const {
     for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
          ++joystickId) {
         if (sf::Joystick::isConnected(joystickId) &&
@@ -67,16 +71,16 @@ bool InputRuntime::isAnyJoystickButtonDown(unsigned int button) const {
     return false;
 }
 
-bool InputRuntime::isJoystickButtonPressed() const {
+bool InputImpl::isJoystickButtonPressed() const {
     return joystick_.buttonPressed_ && !joystick_.blocked_;
 }
 
-bool InputRuntime::isJoystickButtonReleased() const {
+bool InputImpl::isJoystickButtonReleased() const {
     return joystick_.buttonReleased_ && !joystick_.blocked_;
 }
 
-bool InputRuntime::getJoystickButtonPressed(unsigned int joystickId,
-                                            unsigned int button, bool handled) {
+bool InputImpl::getJoystickButtonPressed(unsigned int joystickId,
+                                         unsigned int button, bool handled) {
     if (!isJoystickButtonPressed()) {
         return false;
     }
@@ -95,16 +99,15 @@ bool InputRuntime::getJoystickButtonPressed(unsigned int joystickId,
     return result;
 }
 
-bool InputRuntime::getJoystickButtonValuePressed(unsigned int joystickId,
-                                                 const InputNamedValue& button,
-                                                 bool handled) {
+bool InputImpl::getJoystickButtonValuePressed(unsigned int joystickId,
+                                              const InputNamedValue& button,
+                                              bool handled) {
     return getJoystickButtonPressed(
         joystickId, static_cast<unsigned int>(button.value), handled);
 }
 
-bool InputRuntime::getJoystickButtonReleased(unsigned int joystickId,
-                                             unsigned int button,
-                                             bool handled) {
+bool InputImpl::getJoystickButtonReleased(unsigned int joystickId,
+                                          unsigned int button, bool handled) {
     if (!isJoystickButtonReleased()) {
         return false;
     }
@@ -123,18 +126,18 @@ bool InputRuntime::getJoystickButtonReleased(unsigned int joystickId,
     return result;
 }
 
-bool InputRuntime::getJoystickButtonValueReleased(unsigned int joystickId,
-                                                  const InputNamedValue& button,
-                                                  bool handled) {
+bool InputImpl::getJoystickButtonValueReleased(unsigned int joystickId,
+                                               const InputNamedValue& button,
+                                               bool handled) {
     return getJoystickButtonReleased(
         joystickId, static_cast<unsigned int>(button.value), handled);
 }
 
-bool InputRuntime::isJoystickAxisMoved() const {
+bool InputImpl::isJoystickAxisMoved() const {
     return joystick_.axisMoved_ && !joystick_.blocked_;
 }
 
-std::optional<JoystickAxisEvent> InputRuntime::getJoystickAxisMoved(
+std::optional<JoystickAxisEvent> InputImpl::getJoystickAxisMoved(
     unsigned int joystickId, bool handled) {
     if (!isJoystickAxisMoved()) {
         return std::nullopt;
@@ -154,22 +157,24 @@ std::optional<JoystickAxisEvent> InputRuntime::getJoystickAxisMoved(
     return result;
 }
 
-bool InputRuntime::isJoystickConnected() const {
+bool InputImpl::isJoystickConnected() const {
     return joystick_.connected_ && !joystick_.blocked_;
 }
 
-bool InputRuntime::isJoystickDisconnected() const {
+bool InputImpl::isJoystickDisconnected() const {
     return joystick_.disconnected_ && !joystick_.blocked_;
 }
 
-bool InputRuntime::isJoystickBlocked() const {
+bool InputImpl::isJoystickBlocked() const {
     return joystick_.blocked_;
 }
 
-void InputRuntime::blockJoystick() {
+void InputImpl::blockJoystick() {
     joystick_.blocked_ = true;
 }
 
-void InputRuntime::unblockJoystick() {
+void InputImpl::unblockJoystick() {
     joystick_.blocked_ = false;
 }
+
+}  // namespace ludork::engine::input_impl

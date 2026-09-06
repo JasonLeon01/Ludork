@@ -4,7 +4,8 @@
 
 #include <EngineRuntimeApi.hpp>
 #include <Particles/ParticleBase.hpp>
-#include <UI/Text.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 class LUDORK_ENGINE_API ParticleSystem;
 

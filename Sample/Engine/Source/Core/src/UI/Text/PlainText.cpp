@@ -1,3 +1,8 @@
+#include "PlainTextImpl.hpp"
+#include <Vector4CurveData.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
+#include <Vector4Curve.hpp>
 #include "TextCommon.hpp"
 
 #include <EngineState.hpp>
@@ -32,10 +37,6 @@ sf::Transform customSlantTransform(const PlainTextConfig& config) {
 }
 
 }  // namespace
-
-struct PlainText::EffectCache {
-    ludork::engine::text_effects::Cache data;
-};
 
 PlainText::PlainText(std::shared_ptr<PlainTextConfig> config,
                      const std::string& text)

@@ -8,13 +8,13 @@
 
 namespace ludork::standard::class_runtime::detail {
 
-struct NativeDisposeTarget {
-    sol::table root;
-    sol::object nativeObject;
-    bool requiresHook{};
-};
-
 struct DisposeSnapshot {
+    struct NativeDisposeTarget {
+        sol::table root;
+        sol::object nativeObject;
+        bool requiresHook{};
+    };
+
     sol::table fields;
     sol::table classTable;
     std::optional<std::size_t> instanceId;

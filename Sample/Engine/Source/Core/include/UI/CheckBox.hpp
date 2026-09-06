@@ -5,7 +5,8 @@
 #include <EngineRuntimeApi.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
-#include <UI/Text.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 class Rect;
 

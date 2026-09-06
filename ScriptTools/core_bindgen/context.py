@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 
-from .model import CallbackCodec
+from .model import CallbackCodec, TypeAlias
+from .scopes import HeaderScopes, NativeDeclaration
 
 
 BINDING_FEATURE_HEADERS = {
@@ -31,7 +33,10 @@ BINDING_FEATURE_DEPENDENCIES = {
 
 @dataclass
 class GeneratorContext:
-    type_aliases: dict[str, str] = field(default_factory=dict)
+    type_aliases: dict[str, TypeAlias] = field(default_factory=dict)
+    header_scopes: dict[Path, HeaderScopes] = field(default_factory=dict)
+    native_declarations: dict[str, list[NativeDeclaration]] = field(default_factory=dict)
+    cpp_scope: tuple[str, ...] = ()
     callback_codecs: dict[str, CallbackCodec] = field(default_factory=dict)
     exposed_type_names: dict[str, str] = field(default_factory=dict)
     enum_types: set[str] = field(default_factory=set)
@@ -47,9 +52,29 @@ class GeneratorContext:
     required_table_traits: set[str] = field(default_factory=set)
     required_opaque_traits: set[str] = field(default_factory=set)
 
+    def for_scope(self, scope: tuple[str, ...]) -> GeneratorContext:
+        return replace(self, cpp_scope=scope)
+
+    def resolve_cpp_name(self, name: str) -> str:
+        if name.startswith("::"):
+            return name[2:]
+        for length in range(len(self.cpp_scope), -1, -1):
+            candidate = "::".join((*self.cpp_scope[:length], name))
+            if (
+                candidate in self.native_declarations
+                or candidate in self.type_aliases
+                or candidate in self.exposed_type_names
+                or candidate in self.callback_codecs
+            ):
+                return candidate
+        return name
+
     def fork_translation_unit(self) -> GeneratorContext:
         return GeneratorContext(
             type_aliases=self.type_aliases,
+            header_scopes=self.header_scopes,
+            native_declarations=self.native_declarations,
+            cpp_scope=self.cpp_scope,
             callback_codecs=self.callback_codecs,
             exposed_type_names=self.exposed_type_names,
             enum_types=self.enum_types,

@@ -2,7 +2,7 @@
 
 #include <EngineState.hpp>
 #include <System.hpp>
-#include <Utils/Math.hpp>
+#include <Math.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
@@ -167,9 +167,10 @@ void Camera::setRenderStates(const sf::RenderStates& inRenderStates) {
 sf::Vector2f Camera::mapPixelToCoords(const sf::Vector2i& point) const {
     syncDisplayScale();
     const float scale = displayScale();
-    const sf::Vector2i scaled(
-        static_cast<int>(roundNumber(static_cast<double>(point.x) * scale)),
-        static_cast<int>(roundNumber(static_cast<double>(point.y) * scale)));
+    const sf::Vector2i scaled(static_cast<int>(ludork::standard::math::round(
+                                  static_cast<double>(point.x) * scale)),
+                              static_cast<int>(ludork::standard::math::round(
+                                  static_cast<double>(point.y) * scale)));
     return renderTexture_->mapPixelToCoords(scaled, renderTexture_->getView());
 }
 
@@ -179,8 +180,10 @@ sf::Vector2i Camera::mapCoordsToPixel(const sf::Vector2f& point) const {
     const sf::Vector2i scaled =
         renderTexture_->mapCoordsToPixel(point, renderTexture_->getView());
     return {
-        static_cast<int>(roundNumber(static_cast<double>(scaled.x) / scale)),
-        static_cast<int>(roundNumber(static_cast<double>(scaled.y) / scale)),
+        static_cast<int>(ludork::standard::math::round(
+            static_cast<double>(scaled.x) / scale)),
+        static_cast<int>(ludork::standard::math::round(
+            static_cast<double>(scaled.y) / scale)),
     };
 }
 

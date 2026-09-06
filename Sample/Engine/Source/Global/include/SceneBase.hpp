@@ -1,8 +1,9 @@
 #pragma once
+#include <Manager/TimerEntry.hpp>
 
 #include <CoreMinimal.hpp>
 
-#include <GlobalAnimation.hpp>
+#include <Animation.hpp>
 #include <CustomParticles/CommonTipController.hpp>
 #include <Manager/TimeManager.hpp>
 #include <Particles/ParticleSystem.hpp>
@@ -14,7 +15,7 @@
 #include <thread>
 
 namespace ludork::global::scene_base_impl {
-class LifecycleRuntime;
+class LifecycleImpl;
 }
 
 BIND_CLASS(bind_bases = false, cast_bases = {"SceneRuntime"}, callbacks = true)
@@ -130,6 +131,6 @@ private:
     std::thread logicThread_;
     std::mutex logicFailureMutex_;
     std::exception_ptr logicFailure_;
-    std::unique_ptr<ludork::global::scene_base_impl::LifecycleRuntime>
-        lifecycle_;
+    std::unique_ptr<ludork::global::scene_base_impl::LifecycleImpl>
+        lifecycleImpl_;
 };

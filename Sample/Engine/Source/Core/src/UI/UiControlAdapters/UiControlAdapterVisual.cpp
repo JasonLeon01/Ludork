@@ -1,9 +1,9 @@
-#include "UiControlAdapterRegistryBuilder.hpp"
+#include "UiControlAdapterRegistryBuilderImpl.hpp"
 
 #include "UiControlAdapterSupport.hpp"
 
 #include <UI/CharacterView.hpp>
-#include <UI/FunctionalUI.hpp>
+#include <UI/FunctionalImage.hpp>
 #include <UI/Image.hpp>
 #include <UI/ProgressBar.hpp>
 #include <UI/Rect.hpp>
@@ -16,7 +16,7 @@
 #include <optional>
 #include <utility>
 
-void UiControlAdapterRegistry::Builder::registerVisualAdapters(
+void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     UiControlAdapterRegistry& registry) {
     using namespace ui_control_adapter_detail;
 
@@ -229,7 +229,7 @@ void UiControlAdapterRegistry::Builder::registerVisualAdapters(
         std::move(functionalImage));
 }
 
-void UiControlAdapterRegistry::Builder::registerSkinnedAdapters(
+void UiControlAdapterRegistry::BuilderImpl::registerSkinnedAdapters(
     UiControlAdapterRegistry& registry) {
     using namespace ui_control_adapter_detail;
 

@@ -1,14 +1,16 @@
-#include "UiControlAdapterRegistryBuilder.hpp"
+#include "UiControlAdapterRegistryBuilderImpl.hpp"
 
 #include "UiControlAdapterSupport.hpp"
 
-#include <UI/FunctionalUI.hpp>
-#include <UI/Text.hpp>
+#include <UI/FunctionalPlainText.hpp>
+#include <UI/FunctionalRichText.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/RichText.hpp>
 
 #include <memory>
 #include <utility>
 
-void UiControlAdapterRegistry::Builder::registerTextAdapters(
+void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
     UiControlAdapterRegistry& registry) {
     using namespace ui_control_adapter_detail;
 

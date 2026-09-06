@@ -1,4 +1,6 @@
 #include <UI/Rect.hpp>
+#include <Runtime/RuntimeProviderFacade.hpp>
+#include <Curve.hpp>
 
 #include <EngineState.hpp>
 #if defined(LUDORK_UI_PREVIEW_HOST_RUNTIME)

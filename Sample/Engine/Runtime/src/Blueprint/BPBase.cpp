@@ -1,5 +1,6 @@
 #include <Runtime/Blueprint/BPBase.hpp>
 #include <Runtime/Blueprint/BlueprintRuntime.hpp>
+#include <Runtime/RuntimeObject.hpp>
 
 #include <utility>
 

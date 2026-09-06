@@ -20,33 +20,33 @@ enum class WorldRegionDemand {
     Active,
 };
 
-BIND_CLASS(copyable = true)
-struct LUDORK_GLOBAL_API WorldStreamingStats {
-    BIND_PROPERTY()
-    int Unloaded = 0;
-
-    BIND_PROPERTY()
-    int Reading = 0;
-
-    BIND_PROPERTY()
-    int Prepared = 0;
-
-    BIND_PROPERTY()
-    int Active = 0;
-
-    BIND_PROPERTY()
-    int Dormant = 0;
-
-    BIND_PROPERTY()
-    int queued = 0;
-
-    BIND_PROPERTY()
-    std::int64_t cacheBytes = 0;
-};
-
 BIND_CLASS()
 class LUDORK_GLOBAL_API WorldStreamingState {
 public:
+    BIND_CLASS(copyable = true)
+    struct LUDORK_GLOBAL_API WorldStreamingStats {
+        BIND_PROPERTY()
+        int Unloaded = 0;
+
+        BIND_PROPERTY()
+        int Reading = 0;
+
+        BIND_PROPERTY()
+        int Prepared = 0;
+
+        BIND_PROPERTY()
+        int Active = 0;
+
+        BIND_PROPERTY()
+        int Dormant = 0;
+
+        BIND_PROPERTY()
+        int queued = 0;
+
+        BIND_PROPERTY()
+        std::int64_t cacheBytes = 0;
+    };
+
     BIND_INIT()
     WorldStreamingState(std::vector<sf::IntRect> regionRects,
                         int nonActiveRegionLimit,
@@ -118,7 +118,8 @@ public:
     std::vector<int> getEvictionList() const;
 
     BIND_METHOD(metadata = false)
-    WorldStreamingStats getStats(int backgroundQueueDepth) const;
+    WorldStreamingState::WorldStreamingStats getStats(
+        int backgroundQueueDepth) const;
 
     BIND_METHOD(metadata = false)
     void reset();

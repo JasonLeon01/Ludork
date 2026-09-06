@@ -1,4 +1,5 @@
-#include "Impl.hpp"
+#include "GameMapRendererImpl.hpp"
+#include <LightOcclusionResult.hpp>
 
 #include <EngineState.hpp>
 #include <System.hpp>

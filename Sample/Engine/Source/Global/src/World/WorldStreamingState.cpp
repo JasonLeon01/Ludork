@@ -1,5 +1,7 @@
 #include <World/WorldStreamingState.hpp>
 
+#include "WorldStreamingStateImpl.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -31,149 +33,121 @@ double timestamp() {
 
 }  // namespace
 
-struct WorldStreamingState::Impl {
-    struct Region {
-        sf::IntRect rect;
-        WorldRegionState state = WorldRegionState::Unloaded;
-        WorldRegionDemand demand = WorldRegionDemand::None;
-        std::uint64_t demandGeneration = 0;
-        double lastUsed = -std::numeric_limits<double>::infinity();
-        std::int64_t payloadBytes = 0;
-        bool actorDemand = false;
-        bool preparedEvicted = false;
-        bool readQueued = false;
-        bool publishing = false;
-        bool publishQueued = false;
-        bool forceActivate = false;
-    };
-
-    explicit Impl(std::vector<sf::IntRect> regionRects, int regionLimit,
-                  std::int64_t byteLimit)
-        : nonActiveRegionLimit(regionLimit), nonActiveByteLimit(byteLimit) {
-        if (nonActiveRegionLimit < 0 || nonActiveByteLimit < 0) {
+WorldStreamingState::Impl::Impl(std::vector<sf::IntRect> regionRects,
+                                int regionLimit, std::int64_t byteLimit)
+    : nonActiveRegionLimit(regionLimit), nonActiveByteLimit(byteLimit) {
+    if (nonActiveRegionLimit < 0 || nonActiveByteLimit < 0) {
+        throw std::invalid_argument(
+            "World streaming cache limits must not be negative");
+    }
+    regions.reserve(regionRects.size());
+    for (const sf::IntRect& rect : regionRects) {
+        if (rect.size.x <= 0 || rect.size.y <= 0) {
             throw std::invalid_argument(
-                "World streaming cache limits must not be negative");
+                "World streaming region rectangles must be positive");
         }
-        regions.reserve(regionRects.size());
-        for (const sf::IntRect& rect : regionRects) {
-            if (rect.size.x <= 0 || rect.size.y <= 0) {
-                throw std::invalid_argument(
-                    "World streaming region rectangles must be positive");
-            }
-            regions.push_back({.rect = rect});
-        }
+        regions.push_back({.rect = rect});
     }
+}
 
-    Region& require(int regionIndex) {
-        if (regionIndex <= 0 ||
-            regionIndex > static_cast<int>(regions.size())) {
-            throw std::out_of_range(
-                "World streaming region index is out of range");
-        }
-        return regions[static_cast<std::size_t>(regionIndex - 1)];
+WorldStreamingState::Impl::Region& WorldStreamingState::Impl::require(
+    int regionIndex) {
+    if (regionIndex <= 0 || regionIndex > static_cast<int>(regions.size())) {
+        throw std::out_of_range("World streaming region index is out of range");
     }
+    return regions[static_cast<std::size_t>(regionIndex - 1)];
+}
 
-    const Region& require(int regionIndex) const {
-        if (regionIndex <= 0 ||
-            regionIndex > static_cast<int>(regions.size())) {
-            throw std::out_of_range(
-                "World streaming region index is out of range");
-        }
-        return regions[static_cast<std::size_t>(regionIndex - 1)];
+const WorldStreamingState::Impl::Region& WorldStreamingState::Impl::require(
+    int regionIndex) const {
+    if (regionIndex <= 0 || regionIndex > static_cast<int>(regions.size())) {
+        throw std::out_of_range("World streaming region index is out of range");
     }
+    return regions[static_cast<std::size_t>(regionIndex - 1)];
+}
 
-    bool demanded(const Region& region) const {
-        return (region.demandGeneration == demandGeneration &&
-                region.demand != WorldRegionDemand::None) ||
-               region.actorDemand;
+bool WorldStreamingState::Impl::demanded(const Region& region) const {
+    return (region.demandGeneration == demandGeneration &&
+            region.demand != WorldRegionDemand::None) ||
+           region.actorDemand;
+}
+
+bool WorldStreamingState::Impl::mayRead(const Region& region) const {
+    return demanded(region) && region.state == WorldRegionState::Unloaded &&
+           !region.publishing &&
+           !(region.demand == WorldRegionDemand::Prepared &&
+             region.preparedEvicted);
+}
+
+void WorldStreamingState::Impl::queueRead(std::size_t index) {
+    Region& region = regions[index];
+    if (!region.readQueued && mayRead(region)) {
+        region.readQueued = true;
+        readQueue.push_back(static_cast<int>(index + 1));
     }
+}
 
-    bool mayRead(const Region& region) const {
-        return demanded(region) && region.state == WorldRegionState::Unloaded &&
-               !region.publishing &&
-               !(region.demand == WorldRegionDemand::Prepared &&
-                 region.preparedEvicted);
+double WorldStreamingState::Impl::distanceSquared(const Region& region) const {
+    const double x = static_cast<double>(region.rect.position.x) +
+                     static_cast<double>(region.rect.size.x) * 0.5 -
+                     cameraCenter.x;
+    const double y = static_cast<double>(region.rect.position.y) +
+                     static_cast<double>(region.rect.size.y) * 0.5 -
+                     cameraCenter.y;
+    return x * x + y * y;
+}
+
+bool WorldStreamingState::Impl::demandedBefore(int leftIndex,
+                                               int rightIndex) const {
+    const Region& left = require(leftIndex);
+    const Region& right = require(rightIndex);
+    const bool leftActive = left.demand == WorldRegionDemand::Active;
+    const bool rightActive = right.demand == WorldRegionDemand::Active;
+    if (leftActive != rightActive) {
+        return leftActive;
     }
+    const double leftDistance = distanceSquared(left);
+    const double rightDistance = distanceSquared(right);
+    if (leftDistance != rightDistance) {
+        return leftDistance < rightDistance;
+    }
+    return leftIndex < rightIndex;
+}
 
-    void queueRead(std::size_t index) {
+void WorldStreamingState::Impl::sortQueues() {
+    const auto before = [&](int left, int right) {
+        return demandedBefore(left, right);
+    };
+    std::stable_sort(readQueue.begin(), readQueue.end(), before);
+    std::stable_sort(publishQueue.begin(), publishQueue.end(), before);
+}
+
+void WorldStreamingState::Impl::rebuildQueues() {
+    std::vector<int> reads;
+    reads.reserve(readQueue.size() + regions.size());
+    for (std::size_t index = 0; index < regions.size(); ++index) {
         Region& region = regions[index];
-        if (!region.readQueued && mayRead(region)) {
+        region.readQueued = false;
+        if (mayRead(region)) {
             region.readQueued = true;
-            readQueue.push_back(static_cast<int>(index + 1));
+            reads.push_back(static_cast<int>(index + 1));
         }
     }
+    readQueue = std::move(reads);
 
-    double distanceSquared(const Region& region) const {
-        const double x = static_cast<double>(region.rect.position.x) +
-                         static_cast<double>(region.rect.size.x) * 0.5 -
-                         cameraCenter.x;
-        const double y = static_cast<double>(region.rect.position.y) +
-                         static_cast<double>(region.rect.size.y) * 0.5 -
-                         cameraCenter.y;
-        return x * x + y * y;
-    }
-
-    bool demandedBefore(int leftIndex, int rightIndex) const {
-        const Region& left = require(leftIndex);
-        const Region& right = require(rightIndex);
-        const bool leftActive = left.demand == WorldRegionDemand::Active;
-        const bool rightActive = right.demand == WorldRegionDemand::Active;
-        if (leftActive != rightActive) {
-            return leftActive;
+    std::vector<int> publishes;
+    publishes.reserve(publishQueue.size());
+    for (const int index : publishQueue) {
+        Region& region = require(index);
+        if (region.publishing && (demanded(region) || region.forceActivate)) {
+            publishes.push_back(index);
+        } else {
+            region.publishQueued = false;
         }
-        const double leftDistance = distanceSquared(left);
-        const double rightDistance = distanceSquared(right);
-        if (leftDistance != rightDistance) {
-            return leftDistance < rightDistance;
-        }
-        return leftIndex < rightIndex;
     }
-
-    void sortQueues() {
-        const auto before = [&](int left, int right) {
-            return demandedBefore(left, right);
-        };
-        std::stable_sort(readQueue.begin(), readQueue.end(), before);
-        std::stable_sort(publishQueue.begin(), publishQueue.end(), before);
-    }
-
-    void rebuildQueues() {
-        std::vector<int> reads;
-        reads.reserve(readQueue.size() + regions.size());
-        for (std::size_t index = 0; index < regions.size(); ++index) {
-            Region& region = regions[index];
-            region.readQueued = false;
-            if (mayRead(region)) {
-                region.readQueued = true;
-                reads.push_back(static_cast<int>(index + 1));
-            }
-        }
-        readQueue = std::move(reads);
-
-        std::vector<int> publishes;
-        publishes.reserve(publishQueue.size());
-        for (const int index : publishQueue) {
-            Region& region = require(index);
-            if (region.publishing &&
-                (demanded(region) || region.forceActivate)) {
-                publishes.push_back(index);
-            } else {
-                region.publishQueued = false;
-            }
-        }
-        publishQueue = std::move(publishes);
-        sortQueues();
-    }
-
-    std::vector<Region> regions;
-    std::vector<int> readQueue;
-    std::vector<int> publishQueue;
-    std::uint64_t demandGeneration = 0;
-    sf::Vector2f cameraCenter;
-    std::optional<sf::Vector2f> previousCameraCenter;
-    int nonActiveRegionLimit = 0;
-    std::int64_t nonActiveByteLimit = 0;
-};
+    publishQueue = std::move(publishes);
+    sortQueues();
+}
 
 WorldStreamingState::WorldStreamingState(std::vector<sf::IntRect> regionRects,
                                          int nonActiveRegionLimit,
@@ -440,9 +414,9 @@ std::vector<int> WorldStreamingState::getEvictionList() const {
     return result;
 }
 
-WorldStreamingStats WorldStreamingState::getStats(
+WorldStreamingState::WorldStreamingStats WorldStreamingState::getStats(
     int backgroundQueueDepth) const {
-    WorldStreamingStats result;
+    WorldStreamingState::WorldStreamingStats result;
     result.queued =
         static_cast<int>(impl_->readQueue.size() + impl_->publishQueue.size()) +
         std::max(0, backgroundQueueDepth);

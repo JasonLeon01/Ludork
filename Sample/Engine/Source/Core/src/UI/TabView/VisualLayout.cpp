@@ -1,6 +1,6 @@
 #include "VisualLayout.hpp"
 
-#include "NavigationRuntime.hpp"
+#include "NavigationImpl.hpp"
 
 #include <algorithm>
 

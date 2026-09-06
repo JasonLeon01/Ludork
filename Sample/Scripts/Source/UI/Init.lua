@@ -1,4 +1,3 @@
-local Engine = require("Engine")
 local SourceSystem = require("Source.System")
 local Ui = require("Source.UI.Ui")
 
@@ -36,7 +35,7 @@ function SceneInitUI:getBackground()
 end
 
 function SceneInitUI:setProgress(value)
-    self._progress = Engine.Clamp(value, 0.0, 1.0)
+    self._progress = math.clamp(value, 0.0, 1.0)
 end
 
 return Ui.Define("Init", SceneInitUI)

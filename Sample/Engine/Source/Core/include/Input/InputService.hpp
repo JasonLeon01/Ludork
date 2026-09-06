@@ -3,8 +3,10 @@
 #include <CoreMinimal.hpp>
 
 #include <EngineRuntimeApi.hpp>
-#include <Input/InputAction.hpp>
-#include <Input/InputEvent.hpp>
+#include <Input/InputActionKey.hpp>
+#include <Input/InputNamedValue.hpp>
+#include <Input/InjectedInputEvent.hpp>
+#include <Input/JoystickAxisEvent.hpp>
 #include <Input/InputProvider.hpp>
 
 class LUDORK_ENGINE_API InputService;

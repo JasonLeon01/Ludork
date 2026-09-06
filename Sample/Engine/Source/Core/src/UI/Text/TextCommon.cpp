@@ -1,4 +1,5 @@
 #include "TextCommon.hpp"
+#include <UI/TextGradientConfig.hpp>
 
 #include <EngineState.hpp>
 

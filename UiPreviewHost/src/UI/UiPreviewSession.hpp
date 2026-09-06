@@ -15,6 +15,11 @@ class FrameFiles;
 
 class UiPreviewSession {
 public:
+    struct RenderTargetSpec {
+        float renderScale;
+        sf::Vector2u size;
+    };
+
     void reset() noexcept;
     RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
     RuntimeData hitTest(const RuntimeData::Map& request) const;

@@ -344,9 +344,9 @@ function SceneMapBuilder:buildFloorMapPreview(
         or telepointCentre.y < centre.y - halfView.y or telepointCentre.y > centre.y + halfView.y then
         centre = telepointCentre
     end
-    centre.x = mapPixelSize.x >= viewSize.x and Engine.Clamp(centre.x, halfView.x, mapPixelSize.x - halfView.x)
+    centre.x = mapPixelSize.x >= viewSize.x and math.clamp(centre.x, halfView.x, mapPixelSize.x - halfView.x)
         or mapPixelSize.x / 2.0
-    centre.y = mapPixelSize.y >= viewSize.y and Engine.Clamp(centre.y, halfView.y, mapPixelSize.y - halfView.y)
+    centre.y = mapPixelSize.y >= viewSize.y and math.clamp(centre.y, halfView.y, mapPixelSize.y - halfView.y)
         or mapPixelSize.y / 2.0
     target:setView(sf.View.new(centre, viewSize))
     local states = Engine.CanvasRenderStates()

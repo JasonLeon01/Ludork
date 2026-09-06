@@ -1,4 +1,6 @@
 #include "Particles/Particle.hpp"
+#include <Particles/ParticleBase.hpp>
+#include <Particles/ParticleInfo.hpp>
 
 #include "Particles/ParticleSystem.hpp"
 

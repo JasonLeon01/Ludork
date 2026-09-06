@@ -50,7 +50,7 @@ public:
                         ControlBase& control) const;
 
 private:
-    struct Builder;
+    struct BuilderImpl;
 
     struct Adapter {
         UiChildPolicy childPolicy = UiChildPolicy::None;

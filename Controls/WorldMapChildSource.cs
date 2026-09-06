@@ -1,21 +1,6 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Templates;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Threading;
-using Ludork.Models;
-using Ludork.Plugin.Avalonia;
-using Ludork.Services;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Globalization;
-using System.IO;
-using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -117,30 +102,3 @@ public sealed class WorldMapChildSource
         });
     }
 }
-
-public sealed class WorldMapPlacementChangedEventArgs(
-    string worldKey,
-    string childMapKey,
-    int x,
-    int y) : EventArgs
-{
-    public string WorldKey { get; } = worldKey;
-    public string ChildMapKey { get; } = childMapKey;
-    public int X { get; } = x;
-    public int Y { get; } = y;
-}
-
-public sealed class WorldMapPlacementRemovedEventArgs(
-    string worldKey,
-    string childMapKey) : EventArgs
-{
-    public string WorldKey { get; } = worldKey;
-    public string ChildMapKey { get; } = childMapKey;
-}
-
-public sealed class WorldMapCellSelectedEventArgs(int x, int y) : EventArgs
-{
-    public int X { get; } = x;
-    public int Y { get; } = y;
-}
-

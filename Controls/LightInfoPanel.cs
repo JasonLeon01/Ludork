@@ -170,8 +170,3 @@ public sealed class LightInfoPanel : UserControl
         return value % 1 == 0 ? ((int)value).ToString(CultureInfo.InvariantCulture) : value.ToString(CultureInfo.InvariantCulture);
     }
 }
-
-public sealed class LightInfoEditedEventArgs(JsonObject lightData) : EventArgs
-{
-    public JsonObject LightData { get; } = lightData;
-}

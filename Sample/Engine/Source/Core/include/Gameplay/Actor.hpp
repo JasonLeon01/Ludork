@@ -4,7 +4,8 @@
 
 #include <EngineRuntimeApi.hpp>
 #include <Filters/SoundFilter.hpp>
-#include <Gameplay/ActorApiTypes.hpp>
+#include <Gameplay/ActorMapService.hpp>
+#include <Gameplay/AutoSoundParams.hpp>
 #include <Gameplay/ActorUpdateBatch.hpp>
 #include <Runtime/Blueprint/BPBase.hpp>
 #include <Gameplay/Components/LightComponent.hpp>
@@ -13,7 +14,7 @@
 #include <SFML/Audio/Sound.hpp>
 
 namespace ludork::engine::actor_impl {
-struct ActorRuntime;
+struct ActorImpl;
 }
 
 BIND_CLASS(bind_bases = false, runtime_bases = "BPBase,sf::Sprite",
@@ -509,20 +510,20 @@ protected:
     SoundFilter buildAutoSoundFilter() const;
 
 private:
-    class RuntimeHandle {
+    class ImplHandle {
     public:
-        RuntimeHandle();
-        ~RuntimeHandle();
-        RuntimeHandle(const RuntimeHandle& other);
-        RuntimeHandle& operator=(const RuntimeHandle& other);
-        RuntimeHandle(RuntimeHandle&& other) noexcept;
-        RuntimeHandle& operator=(RuntimeHandle&& other) noexcept;
+        ImplHandle();
+        ~ImplHandle();
+        ImplHandle(const ImplHandle& other);
+        ImplHandle& operator=(const ImplHandle& other);
+        ImplHandle(ImplHandle&& other) noexcept;
+        ImplHandle& operator=(ImplHandle&& other) noexcept;
 
-        ludork::engine::actor_impl::ActorRuntime& get() noexcept;
-        const ludork::engine::actor_impl::ActorRuntime& get() const noexcept;
+        ludork::engine::actor_impl::ActorImpl& get() noexcept;
+        const ludork::engine::actor_impl::ActorImpl& get() const noexcept;
 
     private:
-        std::unique_ptr<ludork::engine::actor_impl::ActorRuntime> state_;
+        std::unique_ptr<ludork::engine::actor_impl::ActorImpl> state_;
     };
 
     static const sf::Texture& textureOrBlank(
@@ -530,16 +531,9 @@ private:
 
     void ensureShaderLoaded() const;
 
-    std::vector<sf::Vector2i> computeOccupiedCells(
-        const sf::FloatRect& bounds) const;
-
     static RuntimeValue actorListValue(const std::vector<Actor*>& actors);
 
     std::weak_ptr<ActorMapService> map_;
-    sf::Vector2f cachedPosition_;
-    sf::Vector2i cachedMapPosition_;
-    sf::FloatRect cachedGlobalBounds_;
-    std::vector<sf::Vector2i> occupiedCells_;
     bool pathfindingBlocks_ = false;
     std::unordered_set<Actor*> descendantActors_;
     std::weak_ptr<Actor> parent_;
@@ -550,16 +544,12 @@ private:
     sf::Vector2f relativeScale_{1.0f, 1.0f};
     std::shared_ptr<sf::Texture> texture_;
     std::shared_ptr<sf::Texture> spriteTexture_;
-    float switchTimer_ = 0.0f;
     bool visible_ = true;
     RuntimeIdentityPtr graph_;
-    mutable std::shared_ptr<sf::Shader> shader_;
-    mutable bool shaderError_ = false;
-    mutable std::string loadedShaderPath_;
     std::string mapTag_;
     bool destroyed_ = false;
 
-    RuntimeHandle runtime_;
+    ImplHandle impl_;
 };
 
 LUDORK_ENGINE_API void shutdownActorResources() noexcept;

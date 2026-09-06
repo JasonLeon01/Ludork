@@ -84,7 +84,8 @@ sol::object deepCopyNativeValue(
     }
     NativeDeepCopyContext context{lua, &visited};
     if (protocol->mode ==
-        ludork::standard::class_runtime::NativeDeepCopyMode::TwoPhase) {
+        ludork::standard::class_runtime::NativeDeepCopyProtocol::
+            NativeDeepCopyMode::TwoPhase) {
         if (protocol->create == nullptr || protocol->populate == nullptr) {
             throw std::runtime_error(
                 "Native two-phase deep-copy protocol is incomplete");
@@ -234,7 +235,7 @@ sol::object deepCopy(sol::state_view lua, const sol::object& value) {
 void registerNativeDeepCopyProtocol(sol::state_view lua,
                                     const sol::table& nativeType,
                                     const NativeDeepCopyProtocol& protocol) {
-    if (protocol.mode == NativeDeepCopyMode::TwoPhase) {
+    if (protocol.mode == NativeDeepCopyProtocol::NativeDeepCopyMode::TwoPhase) {
         if (protocol.create == nullptr || protocol.populate == nullptr ||
             protocol.build != nullptr) {
             throw std::invalid_argument(

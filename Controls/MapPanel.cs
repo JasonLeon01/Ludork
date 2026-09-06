@@ -1,21 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
 using Ludork.Services;
 using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
@@ -316,37 +309,4 @@ public sealed partial class MapPanel : Control
         InvalidateVisual();
     }
 
-}
-
-public sealed class TileSelectionChangedEventArgs(TileSelection? tiles, string? autoTileKey) : EventArgs
-{
-    public TileSelection? Tiles { get; } = tiles;
-    public string? AutoTileKey { get; } = autoTileKey;
-}
-
-public sealed class LightSelectionChangedEventArgs(string mapKey, int? index, JsonObject? lightData) : EventArgs
-{
-    public string MapKey { get; } = mapKey;
-    public int? Index { get; } = index;
-    public JsonObject? LightData { get; } = lightData;
-}
-
-public sealed class LightDataChangedEventArgs(string mapKey, int index, JsonObject lightData) : EventArgs
-{
-    public string MapKey { get; } = mapKey;
-    public int Index { get; } = index;
-    public JsonObject LightData { get; } = lightData;
-}
-
-public sealed class ActorSelectionChangedEventArgs(
-    string mapKey,
-    string? layerName,
-    int? index,
-    JsonObject? actorData) : EventArgs
-{
-    public string MapKey { get; } = mapKey;
-    public string? LayerName { get; } = layerName;
-    public int? Index { get; } = index;
-    public JsonObject? ActorData { get; } = actorData;
-    public string? BlueprintReference { get; } = actorData?["bp"]?.GetValue<string>();
 }

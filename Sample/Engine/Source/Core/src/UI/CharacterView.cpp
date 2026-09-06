@@ -1,4 +1,5 @@
 #include <UI/CharacterView.hpp>
+#include <UI/FunctionalImage.hpp>
 
 #include "Graphics/SpriteVisuals.hpp"
 

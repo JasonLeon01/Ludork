@@ -1,4 +1,4 @@
-#include "FileBatchRuntimeInternal.hpp"
+#include "FileBatchRuntimeImpl.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -40,16 +40,16 @@ bool isTerminal(FileBatchState state) {
 
 }  // namespace
 
-FileBatchRuntime::Implementation::Implementation() {
+FileBatchRuntime::Impl::Impl() {
     const unsigned int detected = std::thread::hardware_concurrency();
     workerCount_ = std::min(4U, std::max(1U, detected));
 }
 
-FileBatchRuntime::Implementation::~Implementation() {
+FileBatchRuntime::Impl::~Impl() {
     clearJson();
 }
 
-std::shared_ptr<FileBatchJob> FileBatchRuntime::Implementation::start(
+std::shared_ptr<FileBatchJob> FileBatchRuntime::Impl::start(
     std::vector<FileBatchSpec> specs) {
     FileBatchJsonCallbacks callbacks = jsonRuntime_.callbacks();
     const bool needsJson =
@@ -83,8 +83,7 @@ std::shared_ptr<FileBatchJob> FileBatchRuntime::Implementation::start(
     return job;
 }
 
-bool FileBatchRuntime::Implementation::cancel(
-    const std::shared_ptr<FileBatchJob>& job) {
+bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
     if (!job) {
         return false;
     }
@@ -126,7 +125,7 @@ bool FileBatchRuntime::Implementation::cancel(
     return cancelled || clearedConversion || discardedResults;
 }
 
-FileBatchSnapshot FileBatchRuntime::Implementation::poll(
+FileBatchSnapshot FileBatchRuntime::Impl::poll(
     const std::shared_ptr<FileBatchJob>& job, std::size_t maximum) {
     if (!job) {
         throw std::invalid_argument("file batch job is invalid");
@@ -157,7 +156,7 @@ FileBatchSnapshot FileBatchRuntime::Implementation::poll(
     return snapshot;
 }
 
-void FileBatchRuntime::Implementation::release(
+void FileBatchRuntime::Impl::release(
     const std::shared_ptr<FileBatchJob>& job) noexcept {
     if (!job) {
         return;
@@ -173,7 +172,7 @@ void FileBatchRuntime::Implementation::release(
     job->resultSpace.notify_all();
 }
 
-void FileBatchRuntime::Implementation::shutdown() {
+void FileBatchRuntime::Impl::shutdown() {
     bool expected = false;
     if (!stopping_.compare_exchange_strong(expected, true,
                                            std::memory_order_acq_rel)) {
@@ -216,15 +215,15 @@ void FileBatchRuntime::Implementation::shutdown() {
     }
 }
 
-void FileBatchRuntime::Implementation::configureJson(FileBatchJsonParser parser,
-                                                     FileBatchJsonBegin begin,
-                                                     FileBatchJsonStep step,
-                                                     FileBatchJsonClear clear) {
+void FileBatchRuntime::Impl::configureJson(FileBatchJsonParser parser,
+                                           FileBatchJsonBegin begin,
+                                           FileBatchJsonStep step,
+                                           FileBatchJsonClear clear) {
     jsonRuntime_.configure(std::move(parser), std::move(begin), std::move(step),
                            std::move(clear));
 }
 
-void FileBatchRuntime::Implementation::clearJson() noexcept {
+void FileBatchRuntime::Impl::clearJson() noexcept {
     shutdown();
     std::vector<std::shared_ptr<FileBatchJob>> jobs;
     {
@@ -254,13 +253,13 @@ void FileBatchRuntime::Implementation::clearJson() noexcept {
 }
 
 std::shared_ptr<FileBatchJsonConversionState>
-FileBatchRuntime::Implementation::beginJsonConversion(
+FileBatchRuntime::Impl::beginJsonConversion(
     lua_State* state, const std::shared_ptr<FileBatchJob>& job,
     const FileBatchParsedJson& parsedJson) {
     return jsonRuntime_.beginConversion(state, job, parsedJson);
 }
 
-FileBatchJsonStepResult FileBatchRuntime::Implementation::stepJsonConversion(
+FileBatchJsonStepResult FileBatchRuntime::Impl::stepJsonConversion(
     lua_State* state,
     const std::shared_ptr<FileBatchJsonConversionState>& conversion,
     std::size_t maximumNodes, double maximumMilliseconds) {
@@ -268,12 +267,12 @@ FileBatchJsonStepResult FileBatchRuntime::Implementation::stepJsonConversion(
                                        maximumMilliseconds);
 }
 
-bool FileBatchRuntime::Implementation::clearJsonConversion(
+bool FileBatchRuntime::Impl::clearJsonConversion(
     const std::shared_ptr<FileBatchJsonConversionState>& conversion) noexcept {
     return jsonRuntime_.clearConversion(conversion);
 }
 
-void FileBatchRuntime::Implementation::ensureWorkersLocked() {
+void FileBatchRuntime::Impl::ensureWorkersLocked() {
     if (!workers_.empty()) {
         return;
     }
@@ -285,7 +284,7 @@ void FileBatchRuntime::Implementation::ensureWorkersLocked() {
     }
 }
 
-void FileBatchRuntime::Implementation::pruneJobsLocked() {
+void FileBatchRuntime::Impl::pruneJobsLocked() {
     jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
                                [](const std::weak_ptr<FileBatchJob>& job) {
                                    return job.expired();
@@ -293,7 +292,7 @@ void FileBatchRuntime::Implementation::pruneJobsLocked() {
                 jobs_.end());
 }
 
-void FileBatchRuntime::Implementation::workerLoop() {
+void FileBatchRuntime::Impl::workerLoop() {
     while (true) {
         WorkItem workItem;
         {
@@ -319,7 +318,7 @@ void FileBatchRuntime::Implementation::workerLoop() {
     }
 }
 
-void FileBatchRuntime::Implementation::handleScan(
+void FileBatchRuntime::Impl::handleScan(
     const std::shared_ptr<FileBatchJob>& job) {
     if (stopping_.load(std::memory_order_acquire) ||
         job->cancellationRequested.load(std::memory_order_acquire)) {
@@ -368,7 +367,7 @@ void FileBatchRuntime::Implementation::handleScan(
     workReady_.notify_all();
 }
 
-void FileBatchRuntime::Implementation::handleRead(
+void FileBatchRuntime::Impl::handleRead(
     const std::shared_ptr<FileBatchJob>& job, const ManifestEntry& entry) {
     if (stopping_.load(std::memory_order_acquire) ||
         job->cancellationRequested.load(std::memory_order_acquire)) {
@@ -414,7 +413,7 @@ void FileBatchRuntime::Implementation::handleRead(
     }
 }
 
-void FileBatchRuntime::Implementation::finishCancelledWork(
+void FileBatchRuntime::Impl::finishCancelledWork(
     const std::shared_ptr<FileBatchJob>& job) {
     std::lock_guard<std::mutex> jobLock(job->mutex);
     job->cancellationRequested.store(true, std::memory_order_release);
@@ -428,7 +427,7 @@ void FileBatchRuntime::Implementation::finishCancelledWork(
     job->resultSpace.notify_all();
 }
 
-void FileBatchRuntime::Implementation::finishFailure(
+void FileBatchRuntime::Impl::finishFailure(
     const std::shared_ptr<FileBatchJob>& job, FileBatchError error) {
     std::lock_guard<std::mutex> jobLock(job->mutex);
     job->cancellationRequested.store(true, std::memory_order_release);
@@ -443,7 +442,7 @@ void FileBatchRuntime::Implementation::finishFailure(
     job->resultSpace.notify_all();
 }
 
-void FileBatchRuntime::Implementation::removeQueuedWork(
+void FileBatchRuntime::Impl::removeQueuedWork(
     const std::shared_ptr<FileBatchJob>& job) {
     std::size_t removed = 0;
     {
@@ -463,64 +462,63 @@ void FileBatchRuntime::Implementation::removeQueuedWork(
     job->resultSpace.notify_all();
 }
 
-FileBatchRuntime::FileBatchRuntime()
-    : implementation_(std::make_unique<Implementation>()) {}
+FileBatchRuntime::FileBatchRuntime() : impl_(std::make_unique<Impl>()) {}
 
 FileBatchRuntime::~FileBatchRuntime() = default;
 
 std::shared_ptr<FileBatchJob> FileBatchRuntime::start(
     std::vector<FileBatchSpec> specs) {
-    return implementation_->start(std::move(specs));
+    return impl_->start(std::move(specs));
 }
 
 FileBatchSnapshot FileBatchRuntime::poll(
     const std::shared_ptr<FileBatchJob>& job, std::size_t maximum) {
-    return implementation_->poll(job, maximum);
+    return impl_->poll(job, maximum);
 }
 
 bool FileBatchRuntime::cancel(const std::shared_ptr<FileBatchJob>& job) {
-    return implementation_->cancel(job);
+    return impl_->cancel(job);
 }
 
 void FileBatchRuntime::release(
     const std::shared_ptr<FileBatchJob>& job) noexcept {
-    implementation_->release(job);
+    impl_->release(job);
 }
 
 void FileBatchRuntime::shutdown() noexcept {
-    implementation_->shutdown();
+    impl_->shutdown();
 }
 
 void FileBatchRuntime::configureJson(FileBatchJsonParser parser,
                                      FileBatchJsonBegin begin,
                                      FileBatchJsonStep step,
                                      FileBatchJsonClear clear) {
-    implementation_->configureJson(std::move(parser), std::move(begin),
-                                   std::move(step), std::move(clear));
+    impl_->configureJson(std::move(parser), std::move(begin), std::move(step),
+                         std::move(clear));
 }
 
 void FileBatchRuntime::clearJson() noexcept {
-    implementation_->clearJson();
+    impl_->clearJson();
 }
 
 std::shared_ptr<FileBatchJsonConversionState>
 FileBatchRuntime::beginJsonConversion(lua_State* state,
                                       const std::shared_ptr<FileBatchJob>& job,
                                       const FileBatchParsedJson& parsedJson) {
-    return implementation_->beginJsonConversion(state, job, parsedJson);
+    return impl_->beginJsonConversion(state, job, parsedJson);
 }
 
 FileBatchJsonStepResult FileBatchRuntime::stepJsonConversion(
     lua_State* state,
     const std::shared_ptr<FileBatchJsonConversionState>& conversion,
     std::size_t maximumNodes, double maximumMilliseconds) {
-    return implementation_->stepJsonConversion(state, conversion, maximumNodes,
-                                               maximumMilliseconds);
+    return impl_->stepJsonConversion(state, conversion, maximumNodes,
+                                     maximumMilliseconds);
 }
 
 bool FileBatchRuntime::clearJsonConversion(
     const std::shared_ptr<FileBatchJsonConversionState>& conversion) noexcept {
-    return implementation_->clearJsonConversion(conversion);
+    return impl_->clearJsonConversion(conversion);
 }
 
 }  // namespace ludork::standard

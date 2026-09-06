@@ -3,10 +3,11 @@
 #include <CoreMinimal.hpp>
 
 #include <EngineRuntimeApi.hpp>
-#include <Input/InputAction.hpp>
+
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
-#include <UI/Text.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 class PlainText;
 class Rect;
@@ -42,8 +43,11 @@ public:
     std::vector<std::string> getItems() const;
 
     BIND_METHOD()
-    void setItems(const std::vector<std::string>& items,
-                  std::optional<std::function<void(int)>> callback);
+    void setItems(const std::vector<std::string>& items);
+
+    BIND_METHOD()
+    void setOnSelectedIndexChanged(
+        std::optional<std::function<void(int)>> callback);
 
     BIND_METHOD(Pure = true)
     int getSelectedIndex() const;

@@ -299,6 +299,97 @@ function table.index(values, expected) end
 ---@return string[]
 function table.orderedStringKeys(values, preferredOrder) end
 
+--- Return true only for finite Lua numbers, without converting numeric strings.
+---@param value any
+---@return boolean
+function math.isFinite(value) end
+
+--- Math extensions require finite numbers without implicit string conversion.
+--- Invalid bounds, numeric overflow and integer results outside the Lua integer
+--- range raise errors.
+--- Clamp to a closed interval; minimum must not exceed maximum.
+---@param value   number
+---@param minimum number
+---@param maximum number
+---@return number
+function math.clamp(value, minimum, maximum) end
+
+--- Linearly interpolate or extrapolate without clamping alpha.
+---@param from  number
+---@param to    number
+---@param alpha number
+---@return number
+function math.lerp(from, to, alpha) end
+
+--- Round to the nearest integer, choosing the even integer at exact halves.
+--- Lua integer inputs retain their exact value.
+---@param value number
+---@return integer
+function math.round(value) end
+
+--- Truncate towards zero; Lua integer inputs retain their exact value.
+--- Unlike math.tointeger, fractional numbers are accepted. Strings are not.
+---@param value number
+---@return integer
+function math.trunc(value) end
+
+--- Test abs(value) < epsilon; epsilon defaults to 0.1 and must be non-negative.
+---@param value    number
+---@param epsilon? number
+---@return boolean
+function math.isNearZero(value, epsilon) end
+
+--- Return the non-negative greatest common divisor; gcd(0, 0) is zero.
+--- Arguments must be Lua integers.
+---@param left  integer
+---@param right integer
+---@return integer
+function math.gcd(left, right) end
+
+--- Return the non-negative least common multiple, or zero if either input is zero.
+--- Arguments must be Lua integers.
+---@param left  integer
+---@param right integer
+---@return integer
+function math.lcm(left, right) end
+
+--- Return -1, 0 or 1; both signed zeros return zero.
+---@param value number
+---@return integer
+function math.sign(value) end
+
+--- Return (value - a) / (b - a), without clamping; endpoints must differ.
+---@param a     number
+---@param b     number
+---@param value number
+---@return number
+function math.inverseLerp(a, b, value) end
+
+--- Map between ranges without clamping. Input endpoints must differ;
+--- either range may run in reverse.
+---@param value  number
+---@param inMin  number
+---@param inMax  number
+---@param outMin number
+---@param outMax number
+---@return number
+function math.remap(value, inMin, inMax, outMin, outMax) end
+
+--- Return t*t*(3-2*t), with t normalised and clamped to [0, 1].
+--- edge0 must be less than edge1.
+---@param edge0 number
+---@param edge1 number
+---@param value number
+---@return number
+function math.smoothstep(edge0, edge1, value) end
+
+--- Move at most maxDelta towards target without passing it; maxDelta must be non-negative.
+---@param current  number
+---@param target   number
+---@param maxDelta number
+---@return number
+function math.moveTowards(current, target, maxDelta) end
+
 ---@return number
 function perfCounter() end
 

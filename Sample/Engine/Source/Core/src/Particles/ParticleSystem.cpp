@@ -1,4 +1,6 @@
 #include "Particles/ParticleSystem.hpp"
+#include <Runtime/AssetInputStream.hpp>
+#include <Particles/ParticleInfo.hpp>
 
 #include <Runtime/AssetStore.hpp>
 

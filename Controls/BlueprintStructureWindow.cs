@@ -1,0 +1,112 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Layout;
+using Ludork.Services;
+using Ludork.Views.Utils;
+using System;
+using System.Collections.Generic;
+using System.Text.Json.Nodes;
+
+namespace Ludork.Controls;
+
+internal sealed class BlueprintStructureWindow : Window
+{
+    private readonly BlueprintVariableForm variableForm;
+    private readonly JsonObject value;
+
+    private BlueprintStructureWindow(
+        string title,
+        IReadOnlyList<BlueprintVariableField> fields,
+        string assetsDirectory,
+        int cellSize,
+        IGameVariableCatalog? gameVariables,
+        bool readOnly)
+    {
+        Title = title;
+        double contentHeight = Math.Max(200, fields.Count * 38 + 68);
+        Width = 520;
+        Height = Math.Min(contentHeight, 640);
+        MinWidth = 420;
+        MinHeight = Math.Min(contentHeight, 640);
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        EditorWindowIcon.Apply(this);
+
+        value = [];
+        foreach (BlueprintVariableField field in fields)
+        {
+            JsonNode? fieldValue = field.PreserveNullValue
+                ? field.Value
+                : field.Value ?? field.DefaultValue;
+            value[field.Name] = fieldValue?.DeepClone();
+        }
+        variableForm = new BlueprintVariableForm
+        {
+            AssetsDirectory = assetsDirectory,
+            CellSize = cellSize,
+            GameVariables = gameVariables,
+            IsReadOnly = readOnly,
+        };
+        variableForm.ValueChanged += (_, args) => value[args.Name] = args.Value?.DeepClone();
+        variableForm.SetFields(fields);
+
+        ScrollViewer scroll = new()
+        {
+            Content = variableForm,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+        Button confirm = new()
+        {
+            Content = LocaleService.Get("CONFIRM"),
+            IsEnabled = !readOnly,
+        };
+        confirm.Click += (_, _) => Close(value.DeepClone() as JsonObject);
+        Button cancel = new() { Content = LocaleService.Get("CANCEL") };
+        cancel.Click += (_, _) => Close(null);
+        StackPanel actions = new()
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8,
+            Children = { confirm, cancel },
+        };
+        Grid layout = new()
+        {
+            Margin = new Thickness(10),
+            RowDefinitions = new RowDefinitions("*,Auto"),
+            RowSpacing = 8,
+        };
+        layout.Children.Add(scroll);
+        Grid.SetRow(actions, 1);
+        layout.Children.Add(actions);
+        Content = layout;
+        KeyDown += (_, args) =>
+        {
+            if (args.Key != Key.Escape)
+                return;
+            Close(null);
+            args.Handled = true;
+        };
+    }
+
+    public static System.Threading.Tasks.Task<JsonObject?> ShowAsync(
+        Window owner,
+        string title,
+        IReadOnlyList<BlueprintVariableField> fields,
+        string assetsDirectory,
+        int cellSize,
+        IGameVariableCatalog? gameVariables,
+        bool readOnly)
+    {
+        BlueprintStructureWindow window = new(
+            title,
+            fields,
+            assetsDirectory,
+            cellSize,
+            gameVariables,
+            readOnly);
+        return window.ShowDialog<JsonObject?>(owner);
+    }
+}

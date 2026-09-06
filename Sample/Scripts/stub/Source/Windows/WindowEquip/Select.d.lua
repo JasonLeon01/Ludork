@@ -1,8 +1,17 @@
 ---@meta Source.Windows.WindowEquip.Select
 
 ---@class Source.Windows.WindowEquipSelect: Source.Windows.Base.WindowSelectable
----@field new     fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSlot?: Source.Windows.WindowEquipSlot, windowEquipStatus?: Source.Windows.WindowEquipStatus, onEquip?: function, instance?: Engine.AssetInstance): Source.Windows.WindowEquipSelect
----@field _player Source.Player.Player
+---@field controllerClass    Source.Windows.WindowEquip.Select.Controller
+---@field _selectController  Source.Windows.WindowEquip.Select.Controller
+---@field new                fun(rect: sf.IntRect, player: Source.Player.Player, windowEquipSlot?: Source.Windows.WindowEquipSlot, windowEquipStatus?: Source.Windows.WindowEquipStatus, onEquip?: function, instance?: Engine.AssetInstance): Source.Windows.WindowEquipSelect
+---@field _player            Source.Player.Player
+---@field _windowEquipStatus Source.Windows.WindowEquipStatus | nil
+---@field _windowEquipSlot   Source.Windows.WindowEquipSlot | nil
+---@field _onEquipCallback   function | nil
+---@field _slotKey           string
+---@field _equipList         (string | table)[]
+---@field _equipCounts       table<string, integer>
+---@field _lastStatusIndex   integer | nil
 local WindowEquipSelect = {}
 
 ---@brief Construct the available-equip window.

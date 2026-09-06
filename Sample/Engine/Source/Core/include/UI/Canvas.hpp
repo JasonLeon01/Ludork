@@ -4,7 +4,7 @@
 
 #include <EngineRuntimeApi.hpp>
 
-#include <Animation.hpp>
+#include <AnimSprite.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/SpriteBase.hpp>
 

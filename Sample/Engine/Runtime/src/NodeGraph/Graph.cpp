@@ -6,6 +6,9 @@
 #include "Graph/LatentRuntime.hpp"
 #include "Graph/LoopRuntime.hpp"
 #include "Graph/RelationRuntime.hpp"
+#include <Runtime/NodeGraph/DataNode.hpp>
+#include <Runtime/NodeGraph/GraphLink.hpp>
+#include <Runtime/RuntimeObject.hpp>
 
 #include <Runtime/NodeGraph/LatentManager.hpp>
 #include "NodeGraphRuntime/NodeGraphRuntimeInternal.hpp"
@@ -499,7 +502,7 @@ NodeResult Graph::executeResult(const std::string& key,
         }
 
         if (metadata.loop || !metadata.loopNode.empty()) {
-            ludork::runtime::graph_detail::LoopResult loop =
+            Graph::LoopResult loop =
                 executeLoopNode(key, current, result, cache, limit);
             result = std::move(loop.result);
             steps += loop.steps;
@@ -583,9 +586,9 @@ NodeResult Graph::executeResult(const std::string& key,
     }
 }
 
-ludork::runtime::graph_detail::LoopResult Graph::executeLoopNode(
-    const std::string& key, int nodeIndex, const NodeResult& controlResult,
-    NodeCache& cache, std::size_t limit) {
+Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
+                                         const NodeResult& controlResult,
+                                         NodeCache& cache, std::size_t limit) {
     const std::shared_ptr<Node>& node = nodes_.at(key).at(nodeIndex);
     const NodeMemberMetadata& metadata = node->getMemberMetadata();
     const PinNexts& nexts = getNodeNexts(key, nodeIndex);
@@ -608,7 +611,7 @@ ludork::runtime::graph_detail::LoopResult Graph::executeLoopNode(
         }
     }
 
-    ludork::runtime::graph_detail::LoopResult loop;
+    Graph::LoopResult loop;
     loop.result = getLoopEmptyResult(metadata);
     if (body != nullptr) {
         const int* bodyStart = std::get_if<int>(&body->node);

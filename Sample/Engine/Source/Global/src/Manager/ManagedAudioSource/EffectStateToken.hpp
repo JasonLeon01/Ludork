@@ -5,12 +5,6 @@
 
 namespace ludork::global::managed_audio_source_impl {
 
-enum class EffectState : std::uint8_t {
-    Drained,
-    TailPending,
-    Cancelled
-};
-
 class EffectStateToken {
 public:
     bool isCancelled() const noexcept;
@@ -20,6 +14,12 @@ public:
     bool isDrained() const noexcept;
 
 private:
+    enum class EffectState : std::uint8_t {
+        Drained,
+        TailPending,
+        Cancelled
+    };
+
     std::atomic<EffectState> state_{EffectState::Drained};
 };
 

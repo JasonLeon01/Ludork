@@ -1,7 +1,9 @@
 #include <UI/DropBox.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
-#include "DropBox/PopupRuntime.hpp"
-#include "DropBox/VisualRuntime.hpp"
+#include "DropBox/PopupImpl.hpp"
+#include "DropBox/VisualImpl.hpp"
 #include "Interaction/InputArguments.hpp"
 
 #include <Input/InputService.hpp>

@@ -1,7 +1,5 @@
 using Ludork.Services;
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 
 namespace Ludork.ViewModels;
@@ -29,22 +27,4 @@ public sealed class StartViewModel : ViewModelBase
     public IReadOnlyList<RecentProjectViewModel> RecentProjects { get; }
     public bool HasRecentProjects => RecentProjects.Count > 0;
     public bool HasNoRecentProjects => RecentProjects.Count == 0;
-}
-
-public sealed class RecentProjectViewModel
-{
-    public RecentProjectViewModel(string projectFilePath)
-    {
-        ProjectFilePath = projectFilePath;
-        ProjectDirectory = Path.GetDirectoryName(projectFilePath)
-            ?? throw new ArgumentException("Project file path has no parent directory.", nameof(projectFilePath));
-        string directoryName = Path.GetFileName(ProjectDirectory.TrimEnd(Path.DirectorySeparatorChar));
-        Name = string.IsNullOrWhiteSpace(directoryName)
-            ? Path.GetFileNameWithoutExtension(projectFilePath)
-            : directoryName;
-    }
-
-    public string Name { get; }
-    public string ProjectDirectory { get; }
-    public string ProjectFilePath { get; }
 }

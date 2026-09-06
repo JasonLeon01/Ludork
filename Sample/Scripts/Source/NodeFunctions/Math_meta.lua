@@ -7,17 +7,17 @@ local _METADATA = {
                 "x",
                 "y",
                 x = "float",
-                y = "float",
+                y = "float"
             },
             default = {
                 [1] = 0.0,
-                [2] = 0.0,
+                [2] = 0.0
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         BuildVector2i = {
             type = "function",
@@ -25,17 +25,17 @@ local _METADATA = {
                 "x",
                 "y",
                 x = "int",
-                y = "int",
+                y = "int"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2i",
+                value = "sf.Vector2i"
             },
-            Pure = true,
+            Pure = true
         },
         BuildVector2u = {
             type = "function",
@@ -43,17 +43,17 @@ local _METADATA = {
                 "x",
                 "y",
                 x = "int",
-                y = "int",
+                y = "int"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2u",
+                value = "sf.Vector2u"
             },
-            Pure = true,
+            Pure = true
         },
         BuildVector3f = {
             type = "function",
@@ -63,18 +63,18 @@ local _METADATA = {
                 "z",
                 x = "float",
                 y = "float",
-                z = "float",
+                z = "float"
             },
             default = {
                 [1] = 0.0,
                 [2] = 0.0,
-                [3] = 0.0,
+                [3] = 0.0
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector3f",
+                value = "sf.Vector3f"
             },
-            Pure = true,
+            Pure = true
         },
         BuildVector3i = {
             type = "function",
@@ -84,18 +84,18 @@ local _METADATA = {
                 "z",
                 x = "int",
                 y = "int",
-                z = "int",
+                z = "int"
             },
             default = {
                 [1] = 0,
                 [2] = 0,
-                [3] = 0,
+                [3] = 0
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector3i",
+                value = "sf.Vector3i"
             },
-            Pure = true,
+            Pure = true
         },
         IsNearZero = {
             type = "function",
@@ -103,16 +103,16 @@ local _METADATA = {
                 "num",
                 "epsilon",
                 num = "float",
-                epsilon = "float",
+                epsilon = "float"
             },
             default = {
-                [2] = 0.1,
+                [2] = 0.1
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         IsVector2NearZero = {
             type = "function",
@@ -120,16 +120,16 @@ local _METADATA = {
                 "v",
                 "epsilon",
                 v = "sf.Vector2f",
-                epsilon = "float",
+                epsilon = "float"
             },
             default = {
-                [2] = 0.1,
+                [2] = 0.1
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         IsVector3NearZero = {
             type = "function",
@@ -137,112 +137,112 @@ local _METADATA = {
                 "v",
                 "epsilon",
                 v = "sf.Vector3f",
-                epsilon = "float",
+                epsilon = "float"
             },
             default = {
-                [2] = 0.1,
+                [2] = 0.1
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2fRound = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2fFloor = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2fCeil = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         ToVector2f = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2i",
+                v = "sf.Vector2i"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         ToVector2i = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2i",
+                value = "sf.Vector2i"
             },
-            Pure = true,
+            Pure = true
         },
         ToVector2u = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2u",
+                value = "sf.Vector2u"
             },
-            Pure = true,
+            Pure = true
         },
         ToVector3f = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector3i",
+                v = "sf.Vector3i"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector3f",
+                value = "sf.Vector3f"
             },
-            Pure = true,
+            Pure = true
         },
         ToVector3i = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector3f",
+                v = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector3i",
+                value = "sf.Vector3i"
             },
-            Pure = true,
+            Pure = true
         },
         ToIntRect = {
             type = "function",
@@ -254,19 +254,19 @@ local _METADATA = {
                 x = "int",
                 y = "int",
                 width = "int",
-                height = "int",
+                height = "int"
             },
             default = {
                 [1] = 0,
                 [2] = 0,
                 [3] = 32,
-                [4] = 32,
+                [4] = 32
             },
             ["return"] = {
                 "value",
-                value = "sf.IntRect",
+                value = "sf.IntRect"
             },
-            Pure = true,
+            Pure = true
         },
         ToFloatRect = {
             type = "function",
@@ -278,19 +278,19 @@ local _METADATA = {
                 x = "float",
                 y = "float",
                 width = "float",
-                height = "float",
+                height = "float"
             },
             default = {
                 [1] = 0.0,
                 [2] = 0.0,
                 [3] = 32.0,
-                [4] = 32.0,
+                [4] = 32.0
             },
             ["return"] = {
                 "value",
-                value = "sf.FloatRect",
+                value = "sf.FloatRect"
             },
-            Pure = true,
+            Pure = true
         },
         Clamp = {
             type = "function",
@@ -298,20 +298,20 @@ local _METADATA = {
                 "value",
                 "min_val",
                 "max_val",
-                value = "nil",
-                min_val = "nil",
-                max_val = "nil",
+                value = "float",
+                min_val = "float",
+                max_val = "float"
             },
             default = {
                 [1] = 0.0,
                 [2] = 0.0,
-                [3] = 1.0,
+                [3] = 1.0
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Lerp = {
             type = "function",
@@ -321,108 +321,213 @@ local _METADATA = {
                 "t",
                 a = "float",
                 b = "float",
-                t = "float",
+                t = "float"
             },
             default = {
                 [1] = 0.0,
                 [2] = 1.0,
-                [3] = 0.5,
+                [3] = 0.5
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
+        },
+        Sign = {
+            type = "function",
+            parameters = {
+                "value",
+                value = "float"
+            },
+            default = {
+                [1] = 0.0
+            },
+            ["return"] = {
+                "value",
+                value = "int"
+            },
+            Pure = true
+        },
+        InverseLerp = {
+            type = "function",
+            parameters = {
+                "a",
+                "b",
+                "value",
+                a = "float",
+                b = "float",
+                value = "float"
+            },
+            default = {
+                [1] = 0.0,
+                [2] = 1.0,
+                [3] = 0.0
+            },
+            ["return"] = {
+                "value",
+                value = "float"
+            },
+            Pure = true
+        },
+        Remap = {
+            type = "function",
+            parameters = {
+                "value",
+                "inMin",
+                "inMax",
+                "outMin",
+                "outMax",
+                value = "float",
+                inMin = "float",
+                inMax = "float",
+                outMin = "float",
+                outMax = "float"
+            },
+            default = {
+                [1] = 0.0,
+                [2] = 0.0,
+                [3] = 1.0,
+                [4] = 0.0,
+                [5] = 1.0
+            },
+            ["return"] = {
+                "value",
+                value = "float"
+            },
+            Pure = true
+        },
+        Smoothstep = {
+            type = "function",
+            parameters = {
+                "edge0",
+                "edge1",
+                "value",
+                edge0 = "float",
+                edge1 = "float",
+                value = "float"
+            },
+            default = {
+                [1] = 0.0,
+                [2] = 1.0,
+                [3] = 0.0
+            },
+            ["return"] = {
+                "value",
+                value = "float"
+            },
+            Pure = true
+        },
+        MoveTowards = {
+            type = "function",
+            parameters = {
+                "current",
+                "target",
+                "maxDelta",
+                current = "float",
+                target = "float",
+                maxDelta = "float"
+            },
+            default = {
+                [1] = 0.0,
+                [2] = 1.0,
+                [3] = 0.0
+            },
+            ["return"] = {
+                "value",
+                value = "float"
+            },
+            Pure = true
         },
         Abs = {
             type = "function",
             parameters = {
                 "value",
-                value = "float",
+                value = "float"
             },
             default = {
-                [1] = 0,
+                [1] = 0
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         ToInt = {
             type = "function",
             parameters = {
                 "value",
-                value = "float",
+                value = "float"
             },
             default = {
-                [1] = 0,
+                [1] = 0
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         ToFloat = {
             type = "function",
             parameters = {
                 "value",
-                value = "float",
+                value = "float"
             },
             default = {
-                [1] = 0,
+                [1] = 0
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Max = {
             type = "function",
             parameters = {
                 "values",
-                values = "any[]",
+                values = "any[]"
             },
             default = {
-                [1] = {},
+                [1] = {}
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         Min = {
             type = "function",
             parameters = {
                 "values",
-                values = "any[]",
+                values = "any[]"
             },
             default = {
-                [1] = {},
+                [1] = {}
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         Sqrt = {
             type = "function",
             parameters = {
                 "value",
-                value = "float",
+                value = "float"
             },
             default = {
-                [1] = 0,
+                [1] = 0
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Pow = {
             type = "function",
@@ -430,17 +535,17 @@ local _METADATA = {
                 "base",
                 "exp",
                 base = "float",
-                exp = "float",
+                exp = "float"
             },
             default = {
                 [1] = 1,
-                [2] = 2,
+                [2] = 2
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2Distance = {
             type = "function",
@@ -448,13 +553,13 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector2f",
-                v2 = "sf.Vector2f",
+                v2 = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector3Distance = {
             type = "function",
@@ -462,13 +567,13 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector3f",
-                v2 = "sf.Vector3f",
+                v2 = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2Dot = {
             type = "function",
@@ -476,13 +581,13 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector2f",
-                v2 = "sf.Vector2f",
+                v2 = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector3Dot = {
             type = "function",
@@ -490,13 +595,13 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector3f",
-                v2 = "sf.Vector3f",
+                v2 = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2Cross = {
             type = "function",
@@ -504,13 +609,13 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector2f",
-                v2 = "sf.Vector2f",
+                v2 = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector3Cross = {
             type = "function",
@@ -518,97 +623,97 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector3f",
-                v2 = "sf.Vector3f",
+                v2 = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector3f",
+                value = "sf.Vector3f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2Length = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector3Length = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector3f",
+                v = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2LengthSquared = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector3LengthSquared = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector3f",
+                v = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2Normalized = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector3Normalized = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector3f",
+                v = "sf.Vector3f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector3f",
+                value = "sf.Vector3f"
             },
-            Pure = true,
+            Pure = true
         },
         GetAngle = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Angle",
+                value = "sf.Angle"
             },
-            Pure = true,
+            Pure = true
         },
         GetAngleTo = {
             type = "function",
@@ -616,37 +721,37 @@ local _METADATA = {
                 "v1",
                 "v2",
                 v1 = "sf.Vector2f",
-                v2 = "sf.Vector2f",
+                v2 = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Angle",
+                value = "sf.Angle"
             },
-            Pure = true,
+            Pure = true
         },
         AsDegrees = {
             type = "function",
             parameters = {
                 "angle",
-                angle = "sf.Angle",
+                angle = "sf.Angle"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         AsRadians = {
             type = "function",
             parameters = {
                 "angle",
-                angle = "sf.Angle",
+                angle = "sf.Angle"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2ComponentWiseDiv = {
             type = "function",
@@ -654,13 +759,13 @@ local _METADATA = {
                 "v",
                 "div",
                 v = "sf.Vector2f",
-                div = "sf.Vector2f",
+                div = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2ComponentWiseMul = {
             type = "function",
@@ -668,25 +773,25 @@ local _METADATA = {
                 "v",
                 "mul",
                 v = "sf.Vector2f",
-                mul = "sf.Vector2f",
+                mul = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2Perpendicular = {
             type = "function",
             parameters = {
                 "v",
-                v = "sf.Vector2f",
+                v = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2ProjectedOnto = {
             type = "function",
@@ -694,13 +799,13 @@ local _METADATA = {
                 "v",
                 "axis",
                 v = "sf.Vector2f",
-                axis = "sf.Vector2f",
+                axis = "sf.Vector2f"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         Vector2RotatedBy = {
             type = "function",
@@ -708,43 +813,43 @@ local _METADATA = {
                 "v",
                 "phi",
                 v = "sf.Vector2f",
-                phi = "sf.Angle",
+                phi = "sf.Angle"
             },
             ["return"] = {
                 "value",
-                value = "sf.Vector2f",
+                value = "sf.Vector2f"
             },
-            Pure = true,
+            Pure = true
         },
         DegreesToAngle = {
             type = "function",
             parameters = {
                 "degrees_",
-                degrees_ = "float",
+                degrees_ = "float"
             },
             default = {
-                [1] = 0.0,
+                [1] = 0.0
             },
             ["return"] = {
                 "value",
-                value = "sf.Angle",
+                value = "sf.Angle"
             },
-            Pure = true,
+            Pure = true
         },
         RadiansToAngle = {
             type = "function",
             parameters = {
                 "radians_",
-                radians_ = "float",
+                radians_ = "float"
             },
             default = {
-                [1] = 0.0,
+                [1] = 0.0
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         RandomInt = {
             type = "function",
@@ -752,17 +857,17 @@ local _METADATA = {
                 "min_val",
                 "max_val",
                 min_val = "int",
-                max_val = "int",
+                max_val = "int"
             },
             default = {
                 [1] = 0,
-                [2] = 100,
+                [2] = 100
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         RandomFloat = {
             type = "function",
@@ -770,17 +875,17 @@ local _METADATA = {
                 "min_val",
                 "max_val",
                 min_val = "float",
-                max_val = "float",
+                max_val = "float"
             },
             default = {
                 [1] = 0.0,
-                [2] = 1.0,
+                [2] = 1.0
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         GCD = {
             type = "function",
@@ -788,17 +893,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "int",
-                b = "int",
+                b = "int"
             },
             default = {
                 [1] = 1,
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         LCM = {
             type = "function",
@@ -806,17 +911,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "int",
-                b = "int",
+                b = "int"
             },
             default = {
                 [1] = 1,
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         ADD = {
             type = "function",
@@ -824,20 +929,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
-                DisplayName = "+",
-            },
+                DisplayName = "+"
+            }
         },
         SUB = {
             type = "function",
@@ -845,20 +950,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
-                DisplayName = "-",
-            },
+                DisplayName = "-"
+            }
         },
         MUL = {
             type = "function",
@@ -866,20 +971,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 1,
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
-                DisplayName = "*",
-            },
+                DisplayName = "*"
+            }
         },
         DIV = {
             type = "function",
@@ -887,20 +992,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 1,
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
-                DisplayName = "/",
-            },
+                DisplayName = "/"
+            }
         },
         MOD = {
             type = "function",
@@ -908,20 +1013,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
-                DisplayName = "%",
-            },
+                DisplayName = "%"
+            }
         },
         POW = {
             type = "function",
@@ -929,20 +1034,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 1,
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
-                DisplayName = "**",
-            },
+                DisplayName = "**"
+            }
         },
         EQUALS = {
             type = "function",
@@ -950,20 +1055,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
-                DisplayName = "==",
-            },
+                DisplayName = "=="
+            }
         },
         NOT_EQUALS = {
             type = "function",
@@ -971,20 +1076,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
-                DisplayName = "!=",
-            },
+                DisplayName = "!="
+            }
         },
         LESS = {
             type = "function",
@@ -992,20 +1097,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
-                DisplayName = "<",
-            },
+                DisplayName = "<"
+            }
         },
         LESS_EQUALS = {
             type = "function",
@@ -1013,20 +1118,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
-                DisplayName = "<=",
-            },
+                DisplayName = "<="
+            }
         },
         GREATER = {
             type = "function",
@@ -1034,20 +1139,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
-                DisplayName = ">",
-            },
+                DisplayName = ">"
+            }
         },
         GREATER_EQUALS = {
             type = "function",
@@ -1055,20 +1160,20 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
                 [1] = 0,
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             Pure = true,
             Meta = {
-                DisplayName = ">=",
-            },
+                DisplayName = ">="
+            }
         },
         AND = {
             type = "function",
@@ -1076,17 +1181,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "bool",
-                b = "bool",
+                b = "bool"
             },
             default = {
                 [1] = false,
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         OR = {
             type = "function",
@@ -1094,32 +1199,32 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "bool",
-                b = "bool",
+                b = "bool"
             },
             default = {
                 [1] = false,
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         NOT = {
             type = "function",
             parameters = {
                 "a",
-                a = "bool",
+                a = "bool"
             },
             default = {
-                [1] = false,
+                [1] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         XOR = {
             type = "function",
@@ -1127,17 +1232,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "bool",
-                b = "bool",
+                b = "bool"
             },
             default = {
                 [1] = false,
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         NAND = {
             type = "function",
@@ -1145,17 +1250,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "bool",
-                b = "bool",
+                b = "bool"
             },
             default = {
                 [1] = false,
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         NOR = {
             type = "function",
@@ -1163,17 +1268,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "bool",
-                b = "bool",
+                b = "bool"
             },
             default = {
                 [1] = false,
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         XNOR = {
             type = "function",
@@ -1181,17 +1286,17 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "bool",
-                b = "bool",
+                b = "bool"
             },
             default = {
                 [1] = false,
-                [2] = false,
+                [2] = false
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         IADD = {
             type = "function",
@@ -1199,19 +1304,19 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
-                DisplayName = "+=",
-            },
+                DisplayName = "+="
+            }
         },
         ISUB = {
             type = "function",
@@ -1219,19 +1324,19 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
-                [2] = 1,
+                [2] = 1
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
-                DisplayName = "-=",
-            },
+                DisplayName = "-="
+            }
         },
         IMUL = {
             type = "function",
@@ -1239,19 +1344,19 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
-                [2] = 2,
+                [2] = 2
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
-                DisplayName = "*=",
-            },
+                DisplayName = "*="
+            }
         },
         IDIV = {
             type = "function",
@@ -1259,19 +1364,19 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
-                [2] = 2,
+                [2] = 2
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
-                DisplayName = "/=",
-            },
+                DisplayName = "/="
+            }
         },
         IMOD = {
             type = "function",
@@ -1279,19 +1384,19 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
-                [2] = 2,
+                [2] = 2
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
-                DisplayName = "%=",
-            },
+                DisplayName = "%="
+            }
         },
         IPOW = {
             type = "function",
@@ -1299,21 +1404,21 @@ local _METADATA = {
                 "a",
                 "b",
                 a = "any",
-                b = "any",
+                b = "any"
             },
             default = {
-                [2] = 2,
+                [2] = 2
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
-                DisplayName = "**=",
-            },
-        },
-    },
+                DisplayName = "**="
+            }
+        }
+    }
 }
 
 return _METADATA

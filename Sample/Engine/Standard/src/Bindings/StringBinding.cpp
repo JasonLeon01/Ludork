@@ -1,4 +1,5 @@
 #include "Bindings.hpp"
+#include "StringBindingInternal.hpp"
 
 #include "Core/Utf8.hpp"
 
@@ -17,22 +18,6 @@ namespace {
 using detail::decodeUtf8Codepoint;
 using detail::Utf8Codepoint;
 using detail::validateUtf8;
-
-enum class FormatPartKind {
-    Text,
-    Positional,
-    Named,
-};
-
-struct FormatPart {
-    FormatPartKind kind;
-    std::string value;
-};
-
-struct ParsedFormat {
-    std::vector<FormatPart> parts;
-    bool hasNamed = false;
-};
 
 bool isJavaWhitespace(char32_t codepoint) {
     return (codepoint >= U'\u0009' && codepoint <= U'\u000D') ||
@@ -66,15 +51,17 @@ bool isIdentifier(std::string_view value) {
     return true;
 }
 
-ParsedFormat parseFormat(const std::string& format) {
+string_binding_detail::ParsedFormat parseFormat(const std::string& format) {
     validateUtf8(format, "format");
-    ParsedFormat result;
+    string_binding_detail::ParsedFormat result;
     std::string text;
     const auto flushText = [&result, &text]() {
         if (text.empty()) {
             return;
         }
-        result.parts.push_back({FormatPartKind::Text, std::move(text)});
+        result.parts.push_back({string_binding_detail::ParsedFormat::
+                                    FormatPart::FormatPartKind::Text,
+                                std::move(text)});
         text.clear();
     };
     std::size_t index = 0;
@@ -102,13 +89,18 @@ ParsedFormat parseFormat(const std::string& format) {
             const std::string field =
                 format.substr(index + 1, close - index - 1);
             if (field.empty()) {
-                result.parts.push_back({FormatPartKind::Positional, {}});
+                result.parts.push_back(
+                    {string_binding_detail::ParsedFormat::FormatPart::
+                         FormatPartKind::Positional,
+                     {}});
             } else {
                 if (!isIdentifier(field)) {
                     throw std::invalid_argument(
                         "pformat field must be empty or an ASCII identifier");
                 }
-                result.parts.push_back({FormatPartKind::Named, field});
+                result.parts.push_back({string_binding_detail::ParsedFormat::
+                                            FormatPart::FormatPartKind::Named,
+                                        field});
                 result.hasNamed = true;
             }
             index = close + 1;
@@ -157,7 +149,7 @@ std::string pformat(sol::this_state current, const std::string& format,
     }
     sol::protected_function toString =
         rawToString.as<sol::protected_function>();
-    const ParsedFormat parsed = parseFormat(format);
+    const string_binding_detail::ParsedFormat parsed = parseFormat(format);
     const std::size_t argumentCount = arguments.size();
     std::size_t positionalCount = argumentCount;
     sol::table mapping;
@@ -173,12 +165,15 @@ std::string pformat(sol::this_state current, const std::string& format,
 
     std::string result;
     std::size_t positionalIndex = 0;
-    for (const FormatPart& part : parsed.parts) {
-        if (part.kind == FormatPartKind::Text) {
+    for (const string_binding_detail::ParsedFormat::FormatPart& part :
+         parsed.parts) {
+        if (part.kind == string_binding_detail::ParsedFormat::FormatPart::
+                             FormatPartKind::Text) {
             result += part.value;
             continue;
         }
-        if (part.kind == FormatPartKind::Positional) {
+        if (part.kind == string_binding_detail::ParsedFormat::FormatPart::
+                             FormatPartKind::Positional) {
             if (positionalIndex >= positionalCount) {
                 throw std::invalid_argument(
                     "pformat is missing a positional argument");

@@ -1,3 +1,8 @@
+#include "RichTextImpl.hpp"
+#include <Vector4CurveData.hpp>
+#include <UI/RichText.hpp>
+#include <UI/TextStyle.hpp>
+#include <Vector4Curve.hpp>
 #include "TextCommon.hpp"
 
 #include <EngineState.hpp>
@@ -56,11 +61,7 @@ float alignmentOffset(sf::Text::LineAlignment alignment, float availableWidth,
 
 }  // namespace
 
-struct RichText::EffectCache {
-    ludork::engine::text_effects::Cache data;
-};
-
-RichText::RichText(std::shared_ptr<RichTextConfig> config,
+RichText::RichText(std::shared_ptr<RichText::RichTextConfig> config,
                    const std::string& text)
     : config_(snapshotConfig(config)),
       localBounds_({0.0f, 0.0f}, {0.0f, 0.0f}),
@@ -71,7 +72,7 @@ RichText::RichText(std::shared_ptr<RichTextConfig> config,
 
 RichText::~RichText() = default;
 
-std::shared_ptr<RichTextConfig> RichText::getConfig() const {
+std::shared_ptr<RichText::RichTextConfig> RichText::getConfig() const {
     return snapshotConfig(*config_);
 }
 
@@ -161,8 +162,8 @@ void RichText::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     }
 }
 
-const RichTextConfig& RichText::configReference(
-    const std::shared_ptr<RichTextConfig>& config) {
+const RichText::RichTextConfig& RichText::configReference(
+    const std::shared_ptr<RichText::RichTextConfig>& config) {
     if (config == nullptr) {
         throw std::invalid_argument("RichText config must not be null");
     }
@@ -177,15 +178,15 @@ const RichTextConfig& RichText::configReference(
     return *config;
 }
 
-std::shared_ptr<RichTextConfig> RichText::snapshotConfig(
-    const std::shared_ptr<RichTextConfig>& config) {
+std::shared_ptr<RichText::RichTextConfig> RichText::snapshotConfig(
+    const std::shared_ptr<RichText::RichTextConfig>& config) {
     return snapshotConfig(configReference(config));
 }
 
-std::shared_ptr<RichTextConfig> RichText::snapshotConfig(
-    const RichTextConfig& config) {
-    std::shared_ptr<RichTextConfig> snapshot =
-        std::make_shared<RichTextConfig>(config);
+std::shared_ptr<RichText::RichTextConfig> RichText::snapshotConfig(
+    const RichText::RichTextConfig& config) {
+    std::shared_ptr<RichText::RichTextConfig> snapshot =
+        std::make_shared<RichText::RichTextConfig>(config);
     if (config.defaultStyle != nullptr) {
         snapshot->defaultStyle =
             std::make_shared<TextStyle>(*config.defaultStyle);

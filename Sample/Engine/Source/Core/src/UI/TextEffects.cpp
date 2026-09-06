@@ -1,7 +1,9 @@
 #include <UI/TextEffects.hpp>
+#include <Vector4Curve.hpp>
 
 #include <EngineState.hpp>
-#include <UI/Text.hpp>
+#include <UI/TextGlowConfig.hpp>
+#include <UI/TextGradientConfig.hpp>
 #include <UI/TextEffectResources.hpp>
 
 #include <SFML/Graphics/Image.hpp>

@@ -1,4 +1,12 @@
+#include "TextConfigCodecImpl.hpp"
 #include "TextConfigCodec.hpp"
+#include <Runtime/AssetInputStream.hpp>
+#include <UI/PlainTextConfig.hpp>
+#include <UI/RichText.hpp>
+#include <UI/TextGlowConfig.hpp>
+#include <UI/TextGradientConfig.hpp>
+#include <UI/TextOutlineConfig.hpp>
+#include <UI/TextStyle.hpp>
 
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
@@ -29,11 +37,6 @@ using ludork::runtime::value_reader::requireMap;
 using ludork::runtime::value_reader::requireNumber;
 using ludork::runtime::value_reader::requireString;
 using ludork::runtime::value_reader::requireValue;
-
-struct FontResource {
-    std::unique_ptr<ludork::runtime::AssetInputStream> stream;
-    sf::Font font;
-};
 
 [[noreturn]] void configError(const std::string& source,
                               const std::string& message) {
@@ -107,13 +110,6 @@ sf::Color colorValue(RuntimeValueView value, const std::string& source) {
     return {channel(0), channel(1), channel(2),
             channels.size() == 4 ? channel(3) : std::uint8_t{255}};
 }
-
-struct StyleFlags {
-    bool bold = false;
-    bool italic = false;
-    bool underlined = false;
-    bool strikeThrough = false;
-};
 
 StyleFlags styleFlags(RuntimeValueView value, const std::string& source,
                       bool requireAll) {
@@ -395,8 +391,8 @@ std::shared_ptr<PlainTextConfig> buildPlain(RuntimeMapView data,
     return result;
 }
 
-std::shared_ptr<RichTextConfig> buildRich(RuntimeMapView data,
-                                          const std::string& sourceName) {
+std::shared_ptr<RichText::RichTextConfig> buildRich(
+    RuntimeMapView data, const std::string& sourceName) {
     onlyFields(data,
                {"type", "name", "font", "lineAlignment", "defaultStyle",
                 "styleOrder", "styles", "glow", "gradient"},
@@ -406,7 +402,8 @@ std::shared_ptr<RichTextConfig> buildRich(RuntimeMapView data,
     if (type != "richTextConfig") {
         configError(sourceName + ".type", "Expected richTextConfig");
     }
-    std::shared_ptr<RichTextConfig> result = std::make_shared<RichTextConfig>();
+    std::shared_ptr<RichText::RichTextConfig> result =
+        std::make_shared<RichText::RichTextConfig>();
     result->type = type;
     result->name = stringValue(required(data, "name", sourceName),
                                sourceName + ".name", true);
@@ -469,7 +466,8 @@ std::shared_ptr<PlainTextConfig> loadPlain(const std::string& textConfigKey) {
     return buildPlain(requireMap(data, textConfigKey), textConfigKey);
 }
 
-std::shared_ptr<RichTextConfig> loadRich(const std::string& textConfigKey) {
+std::shared_ptr<RichText::RichTextConfig> loadRich(
+    const std::string& textConfigKey) {
     const RuntimeValue data = loadConfigData(textConfigKey);
     return buildRich(requireMap(data, textConfigKey), textConfigKey);
 }

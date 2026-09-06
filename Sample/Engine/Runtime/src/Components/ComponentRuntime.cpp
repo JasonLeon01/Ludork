@@ -68,7 +68,8 @@ std::vector<std::string> runtimeKeys(const RuntimeValue& value, bool raw) {
     }
     return runtimeReflection().keys(
         ludork::runtime::reference::intern(value),
-        raw ? RuntimeLookupMode::Own : RuntimeLookupMode::Visible);
+        raw ? RuntimeReflectionFacade::RuntimeLookupMode::Own
+            : RuntimeReflectionFacade::RuntimeLookupMode::Visible);
 }
 
 RuntimeValue runtimeGet(const RuntimeValue& value, const std::string& name,
@@ -79,7 +80,8 @@ RuntimeValue runtimeGet(const RuntimeValue& value, const std::string& name,
     }
     return runtimeReflection().get(
         ludork::runtime::reference::intern(value), name,
-        raw ? RuntimeLookupMode::Own : RuntimeLookupMode::Visible);
+        raw ? RuntimeReflectionFacade::RuntimeLookupMode::Own
+            : RuntimeReflectionFacade::RuntimeLookupMode::Visible);
 }
 
 void runtimeSet(const RuntimeValue& value, const std::string& name,
@@ -159,7 +161,8 @@ std::unordered_map<std::string, std::string> componentFieldMapFromValue(
 
 RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
     const RuntimeValue cached = componentRuntimeCache().get(
-        ComponentRuntimeCacheKind::InheritedDefaults, classValue);
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::InheritedDefaults,
+        classValue);
     if (std::optional<RuntimeMapView> defaults =
             RuntimeValueView(cached).map()) {
         return defaults->toMap();
@@ -197,8 +200,9 @@ RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
                            RuntimeValue(std::move(componentDefaults)));
         }
     }
-    componentRuntimeCache().set(ComponentRuntimeCacheKind::InheritedDefaults,
-                                classValue, RuntimeValue(result));
+    componentRuntimeCache().set(
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::InheritedDefaults,
+        classValue, RuntimeValue(result));
     return result;
 }
 
@@ -285,7 +289,7 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
         return {};
     }
     const RuntimeValue cached = componentRuntimeCache().get(
-        ComponentRuntimeCacheKind::Types, classValue);
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::Types, classValue);
     if (std::optional<RuntimeMapView> types = RuntimeValueView(cached).map()) {
         return types->toMap();
     }
@@ -318,14 +322,16 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
             result[name] = std::move(componentType);
         }
     }
-    componentRuntimeCache().set(ComponentRuntimeCacheKind::Types, classValue,
-                                RuntimeValue(result));
+    componentRuntimeCache().set(
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::Types, classValue,
+        RuntimeValue(result));
     return result;
 }
 
 RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
     const RuntimeValue cached = componentRuntimeCache().get(
-        ComponentRuntimeCacheKind::FieldDefaults, componentType);
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldDefaults,
+        componentType);
     if (std::optional<RuntimeMapView> defaults =
             RuntimeValueView(cached).map()) {
         return cloneRuntimeMap(*defaults);
@@ -354,15 +360,16 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
     for (auto& [name, value] : defaults) {
         value = cloneComponentFieldValue(componentType, name, value);
     }
-    componentRuntimeCache().set(ComponentRuntimeCacheKind::FieldDefaults,
-                                componentType, RuntimeValue(defaults));
+    componentRuntimeCache().set(
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldDefaults,
+        componentType, RuntimeValue(defaults));
     return cloneRuntimeMap(defaults);
 }
 
 std::unordered_map<std::string, std::string> getComponentFieldMap(
     const RuntimeValue& classValue) {
     const RuntimeValue cached = componentRuntimeCache().get(
-        ComponentRuntimeCacheKind::FieldMap, classValue);
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldMap, classValue);
     if (RuntimeValueView(cached).map().has_value()) {
         return componentFieldMapFromValue(cached);
     }
@@ -379,8 +386,9 @@ std::unordered_map<std::string, std::string> getComponentFieldMap(
     for (const auto& [fieldName, componentName] : result) {
         cachedMap.emplace(fieldName, RuntimeValue(componentName));
     }
-    componentRuntimeCache().set(ComponentRuntimeCacheKind::FieldMap, classValue,
-                                RuntimeValue(std::move(cachedMap)));
+    componentRuntimeCache().set(
+        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldMap, classValue,
+        RuntimeValue(std::move(cachedMap)));
     return result;
 }
 

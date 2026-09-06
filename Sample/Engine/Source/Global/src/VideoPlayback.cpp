@@ -1,7 +1,7 @@
 #include <VideoPlayback.hpp>
 
-#include "VideoPlaybackState.hpp"
-#include "VideoPlayer.hpp"
+#include "VideoPlaybackImpl.hpp"
+#include "VideoPlayerImpl.hpp"
 
 #include <Runtime/AssetPath.hpp>
 

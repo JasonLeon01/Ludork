@@ -11,12 +11,6 @@ local WindowSaveTabsUI = {}
 
 WindowSaveTabsUI.refreshEvents = { EventKeys.LocaleChanged }
 
-local function setTabItems(tabView, model)
-    tabView:setItems({ LOC("MENU_LOAD"), LOC("MENU_SAVE") }, function (index)
-        model:onSelectedIndexChanged(index)
-    end)
-end
-
 function WindowSaveTabsUI:init(model, size, instance)
     self._size = size
     super(WindowSaveTabsUI, self).init(model, instance)
@@ -35,11 +29,13 @@ function WindowSaveTabsUI:bind()
             Joystick = Engine.JoystickButton.getRB()
         })
     self._tabView:setCursorSound(GameSystem.GetCursorSE())
-    setTabItems(self._tabView, self.model)
+    self._tabView:setOnSelectedIndexChanged(function (index)
+        self.model:onSelectedIndexChanged(index)
+    end)
 end
 
 function WindowSaveTabsUI:refresh()
-    setTabItems(self._tabView, self.model)
+    self._tabView:setItems({ LOC("MENU_LOAD"), LOC("MENU_SAVE") })
 end
 
 function WindowSaveTabsUI:prepare()
@@ -68,7 +64,7 @@ end
 
 function WindowSaveTabsUI:dispose()
     if self._tabView ~= nil then
-        self._tabView:setItems(self._tabView:getItems(), nil)
+        self._tabView:setOnSelectedIndexChanged(nil)
         self._tabView = nil
     end
     super(WindowSaveTabsUI, self).dispose()

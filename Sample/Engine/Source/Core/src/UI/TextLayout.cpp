@@ -1,4 +1,6 @@
 #include <UI/TextLayout.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/RichText.hpp>
 
 #include "Text/TextConfigCodec.hpp"
 

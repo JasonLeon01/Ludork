@@ -1,8 +1,12 @@
 #include <UI/TabView.hpp>
+#include <Input/InputNamedValue.hpp>
+#include <Input/JoystickButton.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 #include "Interaction/InputArguments.hpp"
-#include "TabView/KeyHintRuntime.hpp"
-#include "TabView/NavigationRuntime.hpp"
+#include "TabView/KeyHintImpl.hpp"
+#include "TabView/NavigationImpl.hpp"
 #include "TabView/VisualLayout.hpp"
 
 #include <Input/InputService.hpp>
@@ -102,8 +106,7 @@ std::vector<std::string> TabView::getItems() const {
     return items_;
 }
 
-void TabView::setItems(const std::vector<std::string>& items,
-                       std::optional<std::function<void(int)>> callback) {
+void TabView::setItems(const std::vector<std::string>& items) {
     if (items.size() != items_.size()) {
         throw std::invalid_argument(
             "TabView item count cannot change after construction");
@@ -113,6 +116,10 @@ void TabView::setItems(const std::vector<std::string>& items,
         labels_[index]->setString(items_[index]);
         layoutLabel(*labels_[index], static_cast<int>(index));
     }
+}
+
+void TabView::setOnSelectedIndexChanged(
+    std::optional<std::function<void(int)>> callback) {
     selectedIndexChangedCallback_ = callback.has_value()
                                         ? std::move(*callback)
                                         : std::function<void(int)>();

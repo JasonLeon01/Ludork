@@ -1,3 +1,4 @@
+#include <Runtime/RuntimeProviderFacade.hpp>
 #include <Runtime/RuntimeReference.hpp>
 #include "ClassRuntimeInternal.hpp"
 

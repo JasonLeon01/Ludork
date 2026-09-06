@@ -1,4 +1,7 @@
 #include <Particles/TextParticle.hpp>
+#include <Particles/ParticleBase.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 #include <Particles/ParticleSystem.hpp>
 #include <EngineState.hpp>

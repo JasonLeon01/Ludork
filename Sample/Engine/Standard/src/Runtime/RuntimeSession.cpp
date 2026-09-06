@@ -43,10 +43,10 @@ bool isEnteredSession(
 }
 
 bool sessionAllowsCurrentThread(const RuntimeSessionState& session) noexcept {
-    const RuntimeSessionPhase phase =
+    const RuntimeSessionState::RuntimeSessionPhase phase =
         session.phase.load(std::memory_order_acquire);
-    return phase == RuntimeSessionPhase::running ||
-           (phase == RuntimeSessionPhase::stopping &&
+    return phase == RuntimeSessionState::RuntimeSessionPhase::running ||
+           (phase == RuntimeSessionState::RuntimeSessionPhase::stopping &&
             session.shutdownThread == std::this_thread::get_id());
 }
 
@@ -402,7 +402,7 @@ void initializeRuntimeSession(lua_State* state) {
     if (activeSession != nullptr) {
         if (activeSession->state == canonicalState &&
             activeSession->phase.load(std::memory_order_acquire) ==
-                RuntimeSessionPhase::running) {
+                RuntimeSessionState::RuntimeSessionPhase::running) {
             return;
         }
         throw std::logic_error("Only one Lua runtime session may be active");
@@ -438,10 +438,11 @@ void beginRuntimeShutdown(lua_State* state) noexcept {
     if (session == nullptr) {
         return;
     }
-    RuntimeSessionPhase expected = RuntimeSessionPhase::running;
+    RuntimeSessionState::RuntimeSessionPhase expected =
+        RuntimeSessionState::RuntimeSessionPhase::running;
     if (!session->phase.compare_exchange_strong(
-            expected, RuntimeSessionPhase::stopping, std::memory_order_acq_rel,
-            std::memory_order_acquire)) {
+            expected, RuntimeSessionState::RuntimeSessionPhase::stopping,
+            std::memory_order_acq_rel, std::memory_order_acquire)) {
         return;
     }
     std::scoped_lock luaLock(session->luaMutex);
@@ -459,7 +460,7 @@ void registerRuntimeCleanup(lua_State* state, RuntimeCleanup cleanup) {
     std::scoped_lock luaLock(session->luaMutex);
     if (session->state == nullptr ||
         session->phase.load(std::memory_order_acquire) !=
-            RuntimeSessionPhase::running) {
+            RuntimeSessionState::RuntimeSessionPhase::running) {
         throw std::logic_error("Lua runtime session is stopping");
     }
     if (std::find(session->moduleCleanups.begin(),
@@ -527,7 +528,7 @@ void releaseRuntimeSession(lua_State* state) noexcept {
         session = std::move(activeSession);
     }
     std::scoped_lock luaLock(session->luaMutex);
-    session->phase.store(RuntimeSessionPhase::stopped,
+    session->phase.store(RuntimeSessionState::RuntimeSessionPhase::stopped,
                          std::memory_order_release);
     session->shutdownThread = {};
     session->state = nullptr;
@@ -537,7 +538,7 @@ bool isRuntimeStopping(lua_State* state) noexcept {
     const std::shared_ptr<RuntimeSessionState> session = findSession(state);
     return session == nullptr ||
            session->phase.load(std::memory_order_acquire) !=
-               RuntimeSessionPhase::running;
+               RuntimeSessionState::RuntimeSessionPhase::running;
 }
 
 }  // namespace ludork::standard

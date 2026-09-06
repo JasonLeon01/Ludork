@@ -1,0 +1,30 @@
+using Avalonia.Media;
+using Ludork.Models;
+using NodifyM.Avalonia.ViewModelBase;
+
+namespace Ludork.Views.Utils.BlueprintGraph;
+
+public sealed class BlueprintGraphConnectionViewModel : ConnectionViewModelBase
+{
+    private readonly BlueprintGraphEditorViewModel editor;
+
+    public BlueprintGraphConnectionViewModel(
+        BlueprintGraphEditorViewModel editor,
+        BlueprintGraphConnection model,
+        BlueprintGraphPortViewModel source,
+        BlueprintGraphPortViewModel target) : base(editor, source, target)
+    {
+        this.editor = editor;
+        Model = model;
+    }
+
+    public BlueprintGraphConnection Model { get; }
+    public IBrush Stroke => Model.Kind == BlueprintGraphPortKind.Exec
+        ? BlueprintGraphBrushes.Execution
+        : BlueprintGraphBrushes.Parameter;
+
+    public override void DisconnectConnection(ConnectionViewModelBase connection)
+    {
+        editor.RemoveConnection(this);
+    }
+}

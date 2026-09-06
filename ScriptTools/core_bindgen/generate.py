@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .constants import CPP_GENERATED_FILE_MARKER
 from .context import GeneratorContext
+from .scopes import register_headers, binding_identifier, validate_bound_types
 from .callback_codecs import (
     load_callback_codecs,
     validate_callback_codec_aliases,
@@ -17,7 +18,6 @@ from .model import (
 )
 from .cpp_types import (
     exposed_type_name,
-    parse_aliases,
 )
 from .annotations import (
     lua_alternatives,
@@ -135,8 +135,7 @@ def main(arguments: list[str] | None = None) -> int:
         for _, directory in registry_entries
         for path in sorted(directory.glob("**/*.hpp"))
     ]
-    for path in [*registry_header_paths, *header_paths]:
-        context.type_aliases.update(parse_aliases(path.read_text(encoding="utf-8")))
+    register_headers(context, [*registry_header_paths, *header_paths])
     validate_callback_codec_aliases(
         context, arguments.callback_codecs.with_name("sfml_api.json")
     )
@@ -147,12 +146,12 @@ def main(arguments: list[str] | None = None) -> int:
         for path in sorted(directory.glob("**/*.hpp")):
             parsed_types, parsed_enums, _ = parse_header(context, path)
             for info in [*parsed_types, *parsed_enums]:
-                previous_module = external_type_modules.get(info.name)
+                previous_module = external_type_modules.get(info.cpp_name)
                 if previous_module is not None and previous_module != module_name:
                     raise ValueError(
-                        f"ambiguous external type registry for {info.name}"
+                        f"ambiguous external type registry for {info.cpp_name}"
                     )
-                external_type_modules[info.name] = module_name
+                external_type_modules[info.cpp_name] = module_name
             external_types.extend(parsed_types)
             external_enums.extend(parsed_enums)
     for path in header_paths:
@@ -163,33 +162,42 @@ def main(arguments: list[str] | None = None) -> int:
     all_types = [*external_types, *types]
     all_enums = [*external_enums, *enums]
     all_exposed_types = [*all_types, *all_enums]
+    validate_bound_types(all_exposed_types)
     context.exposed_type_names = {
-        info.name: exposed_type_name(info) for info in all_exposed_types
+        info.cpp_name: exposed_type_name(info) for info in all_exposed_types
     }
-    local_exposed_names = [exposed_type_name(info) for info in [*types, *enums]]
-    if len(set(local_exposed_names)) != len(local_exposed_names):
-        raise ValueError("duplicate exposed type names in module")
-    context.enum_types = {info.name for info in all_enums}
+    local_exposed_names: dict[str, TypeInfo | EnumInfo] = {}
+    for info in [*types, *enums]:
+        name = exposed_type_name(info)
+        previous = local_exposed_names.get(name)
+        if previous is not None:
+            raise ValueError(
+                f"{info.source}:{info.line}: duplicate exposed type name "
+                f"{arguments.module}.{name}; first declared at "
+                f"{previous.source}:{previous.line}"
+            )
+        local_exposed_names[name] = info
+    context.enum_types = {info.cpp_name for info in all_enums}
     context.dynamic_value_types = {
-        info.name
+        info.cpp_name
         for info in all_types
         if info.options.get("dynamic_value", "false").lower() == "true"
     }
     context.table_value_types = {
-        info.name
+        info.cpp_name
         for info in all_types
         if info.options.get("table_init", "false").lower() == "true"
     }
     context.lua_alternative_types = {
-        info.name for info in all_types if lua_alternatives(info)
+        info.cpp_name for info in all_types if lua_alternatives(info)
     }
     context.opaque_identity_types = {
-        info.name
+        info.cpp_name
         for info in all_types
         if info.options.get("opaque_identity", "false").lower() == "true"
     }
     context.suppressed_metadata_base_types = {
-        info.name
+        info.cpp_name
         for info in all_types
         if info.options.get("metadata_base", "true").lower() == "false"
     }
@@ -208,7 +216,7 @@ def main(arguments: list[str] | None = None) -> int:
             "table_init: " + ", ".join(sorted(identity_overlap))
         )
     type_modules = dict(external_type_modules)
-    type_modules.update({info.name: arguments.module for info in [*types, *enums]})
+    type_modules.update({info.cpp_name: arguments.module for info in [*types, *enums]})
     context.type_modules = type_modules
     metadata_path = (
         arguments.scripts_directory.resolve() / f"{arguments.module}_meta.lua"
@@ -252,7 +260,10 @@ def main(arguments: list[str] | None = None) -> int:
         write_generated_binding(binding_output_path(bindings_directory, name), contents)
     write_generated_binding(
         traits_header,
-        generate_binding_traits_header(all_types),
+        generate_binding_traits_header(
+            context, all_types,
+            [*arguments.include_directory, *[directory for _, directory in registry_entries]],
+        ),
     )
     write_metadata(metadata_path, metadata)
     write_if_different(arguments.stub, stub)

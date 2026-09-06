@@ -5,13 +5,13 @@
 #include <SFML/System/Vector2.hpp>
 
 namespace ludork::engine::ui_asset_runtime_impl {
-struct AssetState;
+struct AssetImpl;
 }
 
-using UiAssetInstanceState = ludork::engine::ui_asset_runtime_impl::AssetState;
+using UiAssetInstanceState = ludork::engine::ui_asset_runtime_impl::AssetImpl;
 
 class LUDORK_ENGINE_API UiLayoutEngine {
 public:
-    static void reflow(UiAssetInstanceState& state,
+    static void reflow(UiAssetInstanceState& impl,
                        const sf::Vector2f& logicalSize);
 };

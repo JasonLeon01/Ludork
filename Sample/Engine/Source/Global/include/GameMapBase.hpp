@@ -1,79 +1,25 @@
 #pragma once
+#include <Gameplay/ActorMapService.hpp>
+#include <Gameplay/TileLayer.hpp>
+#include <Gameplay/Tilemap/Tilemap.hpp>
 
 #include <CoreMinimal.hpp>
 #include <Gameplay/Actor.hpp>
-#include <Gameplay/TileMap.hpp>
 #include <General/Material.hpp>
 #include <Light.hpp>
+#include <LightOcclusionInput.hpp>
+#include <LightOcclusionResult.hpp>
 
 using ActorPtr = std::shared_ptr<Actor>;
 using ActorDict = std::unordered_map<std::string, std::vector<ActorPtr>>;
 using IntPair = std::pair<int, int>;
-struct IntPairHash {
-    std::size_t operator()(const IntPair& value) const;
-};
-using OccupancyMap =
-    std::unordered_map<IntPair, std::vector<Actor*>, IntPairHash>;
 
-class GameMapActorRegistry;
-
-////////////////////////////////////////////////////////////
-/// \brief Pathfinding result in all runtime path formats
-///
-////////////////////////////////////////////////////////////
-BIND_CLASS(copyable = true)
-struct PathResult {
-    ////////////////////////////////////////////////////////////
-    /// \brief Per-step movement offsets
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    std::vector<sf::Vector2i> offsets;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Absolute path points excluding the start position
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    std::vector<sf::Vector2i> points;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Absolute route including the start position
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_PROPERTY()
-    std::vector<sf::Vector2i> route;
-};
-
-BIND_CLASS(copyable = true, table_init = true, metadata = false)
-struct LightOcclusionInput {
-    BIND_PROPERTY(metadata = false)
-    Light light;
-
-    BIND_PROPERTY(metadata = false)
-    std::shared_ptr<Actor> owner;
-};
-
-BIND_CLASS(copyable = true, metadata = false)
-struct LightOcclusionResult {
-    BIND_PROPERTY(metadata = false)
-    bool hasStaticTransmissionLoss = false;
-
-    BIND_PROPERTY(metadata = false)
-    std::vector<std::shared_ptr<Actor>> occluders;
-
-    BIND_PROPERTY(metadata = false)
-    std::optional<sf::FloatRect> maskRect;
-
-    BIND_PROPERTY(metadata = false)
-    std::shared_ptr<sf::Texture> dynamicOccupancy;
-
-    BIND_PROPERTY(metadata = false)
-    sf::Vector2f dynamicOccupancyOrigin;
-
-    BIND_PROPERTY(metadata = false)
-    sf::Vector2f dynamicOccupancySize;
-};
+namespace ludork::global::game_map_base_impl {
+class ActorRegistryImpl;
+class OccupancyIndexImpl;
+class SparseWorldImpl;
+class LightOcclusionImpl;
+}  // namespace ludork::global::game_map_base_impl
 
 ////////////////////////////////////////////////////////////
 /// \brief Native game map base for material queries and navigation
@@ -82,6 +28,34 @@ struct LightOcclusionResult {
 BIND_CLASS()
 class GameMapBase : public ActorMapService {
 public:
+    ////////////////////////////////////////////////////////////
+    /// \brief Pathfinding result in all runtime path formats
+    ///
+    ////////////////////////////////////////////////////////////
+    BIND_CLASS(copyable = true)
+    struct PathResult {
+        ////////////////////////////////////////////////////////////
+        /// \brief Per-step movement offsets
+        ///
+        ////////////////////////////////////////////////////////////
+        BIND_PROPERTY()
+        std::vector<sf::Vector2i> offsets;
+
+        ////////////////////////////////////////////////////////////
+        /// \brief Absolute path points excluding the start position
+        ///
+        ////////////////////////////////////////////////////////////
+        BIND_PROPERTY()
+        std::vector<sf::Vector2i> points;
+
+        ////////////////////////////////////////////////////////////
+        /// \brief Absolute route including the start position
+        ///
+        ////////////////////////////////////////////////////////////
+        BIND_PROPERTY()
+        std::vector<sf::Vector2i> route;
+    };
+
     BIND_INIT()
     GameMapBase();
 
@@ -116,7 +90,7 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     BIND_METHOD(defaults = {nil, nil, nil, nil, {}})
-    PathResult findPathExt(
+    GameMapBase::PathResult findPathExt(
         const sf::Vector2i& start, const sf::Vector2i& goal,
         const sf::Vector2u& size, Actor& movingActor,
         const std::vector<sf::Vector2i>& excludedAnchors = {});
@@ -348,27 +322,6 @@ public:
     const ActorPtr& getPlayerActorForRenderer() const;
 
 private:
-    static constexpr int OccupancyPageSize = 32;
-
-    struct SparseOccupancyPage {
-        std::array<std::vector<Actor*>, OccupancyPageSize * OccupancyPageSize>
-            cells;
-        std::size_t occupiedCellCount = 0;
-    };
-
-    using SparseOccupancyPageMap =
-        std::unordered_map<IntPair, SparseOccupancyPage, IntPairHash>;
-
-    struct SparseWorldRegion {
-        sf::IntRect rect;
-        std::shared_ptr<Tilemap> tilemap;
-        std::vector<std::shared_ptr<TileLayer>> layersTopFirst;
-        bool actorsReady = false;
-    };
-
-    using SparseWorldRegionPageMap =
-        std::unordered_map<IntPair, std::vector<std::size_t>, IntPairHash>;
-
     ////////////////////////////////////////////////////////////
     /// \brief Check whether one grid node is traversable
     ///
@@ -386,31 +339,6 @@ private:
 
     bool passableForActor(int x, int y, int sx, int sy, int gx, int gy,
                           const Actor* excludedActor);
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Register one actor into all occupied cells in the occupancy map
-    ///
-    /// - \param actor Actor object to register
-    ///
-    ////////////////////////////////////////////////////////////
-    void registerActorOccupancy(Actor& actor);
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Remove one actor from every cell in the occupancy map
-    ///
-    /// - \param actor Actor object to unregister
-    ///
-    ////////////////////////////////////////////////////////////
-    void unregisterActorOccupancy(Actor& actor);
-
-    void clearActorOccupancy();
-
-    const std::vector<Actor*>* findActorsAtCell(int x, int y) const;
-
-    static int getOccupancyPageCoordinate(int value);
-    static int getOccupancyPageOffset(int value);
-    static IntPair getOccupancyPageKey(int x, int y);
-    static std::size_t getOccupancyPageCellIndex(int x, int y);
 
     std::vector<Actor*> getActorsInRangeImpl(int x, int y, int radius,
                                              const Actor* excludedActor);
@@ -447,19 +375,6 @@ private:
     bool isDirectionPassable(const sf::Vector2i& fromPosition,
                              const sf::Vector2i& toPosition,
                              int direction) const;
-
-    const SparseWorldRegion* findSparseWorldRegion(
-        const sf::Vector2i& position) const;
-    SparseWorldRegion& requireSparseWorldRegion(int regionIndex);
-    bool isSparseWorldTilePassable(const sf::Vector2i& position) const;
-    bool isSparseWorldDirectionPassable(const sf::Vector2i& fromPosition,
-                                        const sf::Vector2i& toPosition,
-                                        int direction) const;
-    std::optional<Material> getSparseWorldTopMaterial(
-        const sf::Vector2i& position) const;
-
-    void clearStaticLightOccupancy();
-    bool hasStaticLightOccupancy(const Light& light) const;
 
     void ensurePassabilityCache() const;
     void refreshActorOccupancyCache();
@@ -510,27 +425,14 @@ private:
                                      const Actor* selfActor) const;
 
     std::shared_ptr<Tilemap> tilemap_;
-    std::optional<sf::Vector2u> sparseWorldSize_;
-    std::vector<std::string> sparseWorldLayerOrder_;
-    std::vector<SparseWorldRegion> sparseWorldRegions_;
-    SparseWorldRegionPageMap sparseWorldRegionPages_;
-    std::optional<sf::IntRect> sparseWorldPreparedRect_;
-    std::shared_ptr<sf::Texture> staticLightOccupancy_;
-    sf::Vector2i staticLightOccupancyOrigin_;
-    sf::Vector2u staticLightOccupancySize_;
-    std::vector<std::size_t> staticLightOccupancyPrefix_;
-    std::vector<std::shared_ptr<sf::Texture>> dynamicLightOccupancies_;
+    std::unique_ptr<ludork::global::game_map_base_impl::SparseWorldImpl>
+        sparseWorld_;
+    std::unique_ptr<ludork::global::game_map_base_impl::LightOcclusionImpl>
+        lightOcclusion_;
     std::vector<std::vector<bool>> tilePassableGrid_;
     bool passabilityDirty_ = true;
-    OccupancyMap occupancyMap_;
-    SparseOccupancyPageMap sparseOccupancyPages_;
-    std::unordered_map<Actor*, std::vector<sf::Vector2i>>
-        registeredOccupancyCells_;
-    ActorDict actorsRef_;
-    ActorDict materialActorsRef_;
-    std::unordered_map<Actor*, std::string> actorLayerRef_;
-    ActorPtr playerActor_;
-    std::function<void()> actorListUpdater_;
-    std::function<void(Actor&)> actorDestroyer_;
-    std::unique_ptr<GameMapActorRegistry> actorRegistry_;
+    std::unique_ptr<ludork::global::game_map_base_impl::OccupancyIndexImpl>
+        occupancy_;
+    std::unique_ptr<ludork::global::game_map_base_impl::ActorRegistryImpl>
+        actorRegistry_;
 };

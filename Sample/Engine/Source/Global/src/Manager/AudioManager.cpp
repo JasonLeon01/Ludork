@@ -1,10 +1,15 @@
 #include <Manager/AudioManager.hpp>
+#include <Filters/MusicFilter.hpp>
+#include <Manager/AudioEffectControl.hpp>
+#include <Manager/ManagedMusic.hpp>
+#include <Manager/ManagedSound.hpp>
+#include <Runtime/AssetInputStream.hpp>
 
-#include "AudioManager/AudioRuntime.hpp"
-#include "AudioManager/EffectAttachmentRuntime.hpp"
-#include "AudioManager/ResourceRuntime.hpp"
+#include "AudioManager/AudioImpl.hpp"
+#include "AudioManager/EffectAttachmentImpl.hpp"
+#include "AudioManager/ResourceImpl.hpp"
 #include "AudioManager/ShutdownBarrier.hpp"
-#include "AudioManager/SpatialRuntime.hpp"
+#include "AudioManager/SpatialImpl.hpp"
 
 #include <Filters/SoundFilter.hpp>
 #include <Manager/TimeManager.hpp>
@@ -43,33 +48,30 @@ using ludork::global::audio_manager_impl::SoundRecord;
 using ludork::global::audio_manager_impl::VoiceRecord;
 
 auto& audioDeviceLease =
-    ludork::global::audio_manager_impl::audioRuntime().deviceLease;
+    ludork::global::audio_manager_impl::audioImpl().deviceLease;
 auto& soundBuffers =
-    ludork::global::audio_manager_impl::audioRuntime().soundBuffers;
+    ludork::global::audio_manager_impl::audioImpl().soundBuffers;
 auto& soundBufferCounts =
-    ludork::global::audio_manager_impl::audioRuntime().soundBufferCounts;
-auto& sounds = ludork::global::audio_manager_impl::audioRuntime().sounds;
-auto& voice = ludork::global::audio_manager_impl::audioRuntime().voice;
-auto& musics = ludork::global::audio_manager_impl::audioRuntime().musics;
-auto& soundEffect =
-    ludork::global::audio_manager_impl::audioRuntime().soundEffect;
-auto& voiceEffect =
-    ludork::global::audio_manager_impl::audioRuntime().voiceEffect;
-auto& musicEffect =
-    ludork::global::audio_manager_impl::audioRuntime().musicEffect;
+    ludork::global::audio_manager_impl::audioImpl().soundBufferCounts;
+auto& sounds = ludork::global::audio_manager_impl::audioImpl().sounds;
+auto& voice = ludork::global::audio_manager_impl::audioImpl().voice;
+auto& musics = ludork::global::audio_manager_impl::audioImpl().musics;
+auto& soundEffect = ludork::global::audio_manager_impl::audioImpl().soundEffect;
+auto& voiceEffect = ludork::global::audio_manager_impl::audioImpl().voiceEffect;
+auto& musicEffect = ludork::global::audio_manager_impl::audioImpl().musicEffect;
 auto& soundGeneration =
-    ludork::global::audio_manager_impl::audioRuntime().soundGeneration;
+    ludork::global::audio_manager_impl::audioImpl().soundGeneration;
 auto& voiceGeneration =
-    ludork::global::audio_manager_impl::audioRuntime().voiceGeneration;
+    ludork::global::audio_manager_impl::audioImpl().voiceGeneration;
 auto& musicGenerations =
-    ludork::global::audio_manager_impl::audioRuntime().musicGenerations;
+    ludork::global::audio_manager_impl::audioImpl().musicGenerations;
 auto& shuttingDown =
-    ludork::global::audio_manager_impl::audioRuntime().shuttingDown;
-auto& audioMutex = ludork::global::audio_manager_impl::audioRuntime().mutex;
+    ludork::global::audio_manager_impl::audioImpl().shuttingDown;
+auto& audioMutex = ludork::global::audio_manager_impl::audioImpl().mutex;
 auto& audioCreationCondition =
-    ludork::global::audio_manager_impl::audioRuntime().creationCondition;
+    ludork::global::audio_manager_impl::audioImpl().creationCondition;
 auto& audioCreationsInFlight =
-    ludork::global::audio_manager_impl::audioRuntime().creationsInFlight;
+    ludork::global::audio_manager_impl::audioImpl().creationsInFlight;
 
 void requireLogicThreadAudioLifecycle() {
     if (ludork::global::audio::isManagedAudioCallbackThread()) {
@@ -77,12 +79,6 @@ void requireLogicThreadAudioLifecycle() {
             "Audio Manager lifecycle cannot change from an effect processor");
     }
 }
-
-enum class SoundCategory {
-    Unmanaged,
-    Sound,
-    Voice
-};
 
 std::string caseAlias(const std::string& value) {
     std::string upper = value;
@@ -143,8 +139,7 @@ void stopSoundRecords(std::vector<SoundRecord>& records) {
         for (const std::string& filePath : filePaths) {
             std::shared_ptr<sf::SoundBuffer> buffer =
                 ludork::global::audio_manager_impl::releaseBuffer(
-                    ludork::global::audio_manager_impl::audioRuntime(),
-                    filePath);
+                    ludork::global::audio_manager_impl::audioImpl(), filePath);
             if (buffer != nullptr) {
                 releasedBuffers.push_back(std::move(buffer));
             }
@@ -163,7 +158,7 @@ void stopVoiceRecord(VoiceRecord& record) {
     {
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
         releasedBuffer = ludork::global::audio_manager_impl::releaseBuffer(
-            ludork::global::audio_manager_impl::audioRuntime(), filePath);
+            ludork::global::audio_manager_impl::audioImpl(), filePath);
     }
 }
 
@@ -203,7 +198,7 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
         return nullptr;
     }
     AudioCreationScope creation(
-        ludork::global::audio_manager_impl::audioRuntime());
+        ludork::global::audio_manager_impl::audioImpl());
     AudioEffectAttacher effect;
     std::uint64_t generation = 0;
     {
@@ -243,7 +238,7 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
         if (!shuttingDown && generation == soundGeneration) {
             ludork::global::audio_manager_impl::retainBuffer(
-                ludork::global::audio_manager_impl::audioRuntime(), filePath,
+                ludork::global::audio_manager_impl::audioImpl(), filePath,
                 buffer);
             sounds.push_back({managedSound, filePath, parent, baseVolume,
                               basePitch, std::move(effectControl)});
@@ -285,7 +280,7 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
         return nullptr;
     }
     AudioCreationScope creation(
-        ludork::global::audio_manager_impl::audioRuntime());
+        ludork::global::audio_manager_impl::audioImpl());
     AudioEffectAttacher effect;
     std::uint64_t generation = 0;
     {
@@ -328,7 +323,7 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
         if (!shuttingDown && generation == voiceGeneration &&
             voice.sound == nullptr) {
             ludork::global::audio_manager_impl::retainBuffer(
-                ludork::global::audio_manager_impl::audioRuntime(), filePath,
+                ludork::global::audio_manager_impl::audioImpl(), filePath,
                 buffer);
             voice = {activeVoice, filePath, refActor, baseVolume,
                      std::move(effectControl)};
@@ -371,7 +366,7 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
         stopMusic(alias);
     }
     AudioCreationScope creation(
-        ludork::global::audio_manager_impl::audioRuntime());
+        ludork::global::audio_manager_impl::audioImpl());
     AudioEffectAttacher effect;
     std::uint64_t generation = 0;
     {
@@ -563,14 +558,15 @@ void AudioManager::setSoundFilter(const std::shared_ptr<sf::Sound>& sound,
     if (sound == nullptr) {
         return;
     }
-    SoundCategory category = SoundCategory::Unmanaged;
+    AudioManager::SoundCategory category =
+        AudioManager::SoundCategory::Unmanaged;
     float baseVolume = sound->getVolume();
     float basePitch = sound->getPitch();
     {
         const std::lock_guard<std::recursive_mutex> lock(audioMutex);
         SoundRecord* record = findSoundRecord(sound.get());
         if (record != nullptr) {
-            category = SoundCategory::Sound;
+            category = AudioManager::SoundCategory::Sound;
             if (filter.volume.has_value()) {
                 record->baseVolume = *filter.volume;
             }
@@ -580,7 +576,7 @@ void AudioManager::setSoundFilter(const std::shared_ptr<sf::Sound>& sound,
             baseVolume = record->baseVolume;
             basePitch = record->basePitch;
         } else if (voice.sound == sound) {
-            category = SoundCategory::Voice;
+            category = AudioManager::SoundCategory::Voice;
             if (filter.volume.has_value()) {
                 voice.baseVolume = *filter.volume;
             }
@@ -589,14 +585,14 @@ void AudioManager::setSoundFilter(const std::shared_ptr<sf::Sound>& sound,
     }
     applySoundSettings(*sound, filter);
     if (filter.volume.has_value()) {
-        if (category == SoundCategory::Sound) {
+        if (category == AudioManager::SoundCategory::Sound) {
             if (!SystemConfigBase::getSoundOn()) {
                 sound->stop();
             } else {
                 sound->setVolume(baseVolume *
                                  SystemConfigBase::getSoundVolume() / 100.0f);
             }
-        } else if (category == SoundCategory::Voice) {
+        } else if (category == AudioManager::SoundCategory::Voice) {
             if (!SystemConfigBase::getVoiceOn()) {
                 sound->stop();
             } else {
@@ -607,9 +603,9 @@ void AudioManager::setSoundFilter(const std::shared_ptr<sf::Sound>& sound,
             sound->setVolume(*filter.volume);
         }
     }
-    if (category == SoundCategory::Sound) {
+    if (category == AudioManager::SoundCategory::Sound) {
         sound->setPitch(basePitch * TimeManager::getSpeed());
-    } else if (category == SoundCategory::Voice) {
+    } else if (category == AudioManager::SoundCategory::Voice) {
         if (filter.pitch.has_value()) {
             sound->setPitch(*filter.pitch);
         }

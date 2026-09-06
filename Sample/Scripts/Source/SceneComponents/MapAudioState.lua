@@ -134,9 +134,9 @@ function MapAudioState.Update(state, deltaTime)
         state.targetVolume = state.music:getVolume()
         return
     end
-    transition.elapsed = Engine.Clamp(transition.elapsed + deltaTime, 0.0, transition.duration)
+    transition.elapsed = math.clamp(transition.elapsed + deltaTime, 0.0, transition.duration)
     local alpha = transition.duration > 0.0 and transition.elapsed / transition.duration or 1.0
-    state.music:setVolume(Engine.Lerp(transition.startVolume, transition.targetVolume, alpha))
+    state.music:setVolume(math.lerp(transition.startVolume, transition.targetVolume, alpha))
     if alpha < 1.0 then
         return
     end

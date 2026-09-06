@@ -1,27 +1,26 @@
 #include "ShutdownBarrier.hpp"
 
-#include "AudioRuntime.hpp"
+#include "AudioImpl.hpp"
 
 #include <mutex>
 
 namespace ludork::global::audio_manager_impl {
 
-CreationScope::CreationScope(AudioRuntime& runtime) noexcept
-    : runtime_(&runtime) {}
+CreationScope::CreationScope(AudioImpl& impl) noexcept : impl_(&impl) {}
 
 CreationScope::~CreationScope() {
     if (!active_) {
         return;
     }
     {
-        const std::lock_guard<std::recursive_mutex> lock(runtime_->mutex);
-        --runtime_->creationsInFlight;
+        const std::lock_guard<std::recursive_mutex> lock(impl_->mutex);
+        --impl_->creationsInFlight;
     }
-    runtime_->creationCondition.notify_all();
+    impl_->creationCondition.notify_all();
 }
 
 void CreationScope::activate() noexcept {
-    ++runtime_->creationsInFlight;
+    ++impl_->creationsInFlight;
     active_ = true;
 }
 

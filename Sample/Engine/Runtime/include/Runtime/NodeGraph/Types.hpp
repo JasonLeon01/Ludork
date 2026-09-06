@@ -26,11 +26,6 @@ struct NodeResult {
 
 using NodeCache = std::unordered_map<NodeIndex, NodeResult, NodeIndexHash>;
 
-struct NodeGraphRuntimeContext {
-    RuntimeIdentityPtr localGraph;
-    RuntimeValue graph;
-};
-
 struct NodeGraphConditionResult {
     NodeResult result;
     bool finished = true;

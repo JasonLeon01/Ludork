@@ -4,8 +4,6 @@
 
 #include <EngineRuntimeApi.hpp>
 
-#include <mutex>
-
 class ControlBase;
 class Canvas;
 class FunctionalBase;
@@ -18,18 +16,7 @@ public:
 
 inline RuntimeCallbackReleasable::~RuntimeCallbackReleasable() = default;
 
-class LUDORK_ENGINE_API RuntimeCallbackRegistry {
-public:
-    void registerControl(ControlBase* control);
-    void unregisterControl(ControlBase* control) noexcept;
-    void releaseRuntimeCallbacks() noexcept;
-
-private:
-    bool contains(ControlBase* control) const noexcept;
-
-    mutable std::mutex mutex_;
-    std::unordered_set<ControlBase*> controls_;
-};
+class RuntimeCallbackRegistry;
 
 class ControlBaseSharedOwner
     : public std::enable_shared_from_this<ControlBase> {

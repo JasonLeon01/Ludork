@@ -169,13 +169,3 @@ internal static class PluginCompiler
         return builder.ToString();
     }
 }
-
-internal sealed class PluginCompilationException : Exception
-{
-    public PluginCompilationException(string diagnostics)
-        : base(string.IsNullOrWhiteSpace(diagnostics)
-            ? "Plugin compilation failed."
-            : diagnostics)
-    {
-    }
-}

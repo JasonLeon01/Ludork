@@ -2,7 +2,8 @@
 
 #include <Runtime/RuntimeValueReader.hpp>
 #include <UI/ControlBase.hpp>
-#include <UI/Text.hpp>
+#include <UI/PlainTextConfig.hpp>
+#include <UI/RichText.hpp>
 
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Image.hpp>
@@ -57,7 +58,7 @@ std::shared_ptr<PlainTextConfig> plainTextConfig(
     const std::string& textConfigKey);
 std::shared_ptr<PlainTextConfig> plainTextControlConfig(
     const RuntimeValue::Map& properties);
-std::shared_ptr<RichTextConfig> richTextConfig(
+std::shared_ptr<RichText::RichTextConfig> richTextConfig(
     const std::string& textConfigKey);
 
 void arrangeByScale(ControlBase& control, const sf::Vector2f& size,

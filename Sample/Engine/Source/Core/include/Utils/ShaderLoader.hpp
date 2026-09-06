@@ -8,16 +8,6 @@
 #include <optional>
 #include <string>
 
-struct LUDORK_ENGINE_API ShaderSourceResult {
-    std::string source;
-    std::string resolvedPath;
-    std::string error;
-
-    explicit operator bool() const noexcept {
-        return error.empty();
-    }
-};
-
 struct LUDORK_ENGINE_API ShaderLoadResult {
     std::shared_ptr<sf::Shader> shader;
     std::string source;
@@ -31,7 +21,18 @@ struct LUDORK_ENGINE_API ShaderLoadResult {
 
 class LUDORK_ENGINE_API ShaderLoader {
 public:
-    static ShaderSourceResult readSource(const std::string& shaderPath);
+    struct LUDORK_ENGINE_API ShaderSourceResult {
+        std::string source;
+        std::string resolvedPath;
+        std::string error;
+
+        explicit operator bool() const noexcept {
+            return error.empty();
+        }
+    };
+
+    static ShaderLoader::ShaderSourceResult readSource(
+        const std::string& shaderPath);
 
     static std::optional<sf::Shader::Type> inferType(
         const std::string& shaderPath);

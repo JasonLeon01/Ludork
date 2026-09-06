@@ -1,6 +1,6 @@
 #pragma once
 
-#include <UI/Text.hpp>
+#include <UI/TextGradientConfig.hpp>
 
 #include <SFML/System/String.hpp>
 

@@ -440,8 +440,3 @@ public sealed class GamePanel : NativeControlHost
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool TrackMouseEvent(ref NativeTrackMouseEvent trackingEvent);
 }
-
-public sealed class GameInputBatchEventArgs(IReadOnlyList<RuntimeInputEvent> events) : EventArgs
-{
-    public IReadOnlyList<RuntimeInputEvent> Events { get; } = events;
-}

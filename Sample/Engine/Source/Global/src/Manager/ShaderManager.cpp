@@ -1,3 +1,4 @@
+#include "ShaderManagerImpl.hpp"
 #include <Manager/ShaderManager.hpp>
 
 #include <Runtime/ConcurrentResourceCache.hpp>
@@ -7,17 +8,9 @@
 
 namespace {
 
-using ShaderCache = ludork::runtime::ConcurrentResourceCache<sf::Shader>;
-
-struct ShaderCaches {
-    ShaderCache shaders;
-    ShaderCache fullShaders;
-    ShaderCache geoShaders;
-};
-
-ShaderCaches& shaderCaches() {
-    static ShaderCaches caches;
-    return caches;
+ShaderManager::Impl& shaderManagerImpl() {
+    static ShaderManager::Impl impl;
+    return impl;
 }
 
 }  // namespace
@@ -29,7 +22,7 @@ std::shared_ptr<sf::Shader> ShaderManager::load(
                                 .value_or(sf::Shader::Type::Fragment));
     const std::string key =
         shaderPath + '\0' + std::to_string(static_cast<int>(type));
-    return shaderCaches().shaders.getOrLoad(key, [&]() {
+    return shaderManagerImpl().shaders.getOrLoad(key, [&]() {
         ShaderLoadResult result = ShaderLoader::load(shaderPath, shaderType);
         if (!result) {
             throw std::runtime_error(result.error);
@@ -41,7 +34,7 @@ std::shared_ptr<sf::Shader> ShaderManager::load(
 std::shared_ptr<sf::Shader> ShaderManager::loadFull(
     const std::string& vertPath, const std::string& fragPath) {
     const std::string key = vertPath + '\0' + fragPath;
-    return shaderCaches().fullShaders.getOrLoad(key, [&]() {
+    return shaderManagerImpl().fullShaders.getOrLoad(key, [&]() {
         ShaderLoadResult result = ShaderLoader::load(vertPath, fragPath);
         if (!result) {
             throw std::runtime_error(result.error);
@@ -54,7 +47,7 @@ std::shared_ptr<sf::Shader> ShaderManager::loadFullShaderWithGeo(
     const std::string& vertPath, const std::string& geoPath,
     const std::string& fragPath) {
     const std::string key = vertPath + '\0' + geoPath + '\0' + fragPath;
-    return shaderCaches().geoShaders.getOrLoad(key, [&]() {
+    return shaderManagerImpl().geoShaders.getOrLoad(key, [&]() {
         ShaderLoadResult result =
             ShaderLoader::load(vertPath, geoPath, fragPath);
         if (!result) {
@@ -65,17 +58,17 @@ std::shared_ptr<sf::Shader> ShaderManager::loadFullShaderWithGeo(
 }
 
 std::size_t ShaderManager::getMemory() {
-    ShaderCaches& caches = shaderCaches();
-    const std::size_t entries = caches.shaders.entryCount() +
-                                caches.fullShaders.entryCount() +
-                                caches.geoShaders.entryCount();
-    return sizeof(caches) +
+    ShaderManager::Impl& impl = shaderManagerImpl();
+    const std::size_t entries = impl.shaders.entryCount() +
+                                impl.fullShaders.entryCount() +
+                                impl.geoShaders.entryCount();
+    return sizeof(impl) +
            entries * (sizeof(sf::Shader) + sizeof(std::weak_ptr<sf::Shader>));
 }
 
 void ShaderManager::clear() noexcept {
-    ShaderCaches& caches = shaderCaches();
-    caches.geoShaders.clear();
-    caches.fullShaders.clear();
-    caches.shaders.clear();
+    ShaderManager::Impl& impl = shaderManagerImpl();
+    impl.geoShaders.clear();
+    impl.fullShaders.clear();
+    impl.shaders.clear();
 }

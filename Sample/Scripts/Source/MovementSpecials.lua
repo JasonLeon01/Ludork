@@ -25,8 +25,7 @@ end
 local function doBlockadeRetreat(enemy, playerPosition)
     local enemyPosition = enemy:getMapPosition()
     local offset = sf.Vector2i.new(
-        Engine.ToInteger(Engine.Clamp(enemyPosition.x - playerPosition.x, -1, 1)),
-        Engine.ToInteger(Engine.Clamp(enemyPosition.y - playerPosition.y, -1, 1))
+        math.sign(enemyPosition.x - playerPosition.x), math.sign(enemyPosition.y - playerPosition.y)
     )
     ---@cast offset sf.Vector2i
     local moved = enemy:MapMove(offset)

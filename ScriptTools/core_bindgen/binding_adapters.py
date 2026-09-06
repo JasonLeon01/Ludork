@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from .context import GeneratorContext
+from .scopes import binding_identifier
 from .model import (
     Member,
     TypeInfo,
@@ -50,13 +51,13 @@ def declared_callback_members(info: TypeInfo) -> list[Member]:
     if excluded_members and not callbacks_enabled:
         member = excluded_members[0]
         raise ValueError(
-            f"BIND_METHOD callback exclusion {info.name}.{member.name} requires "
+            f"BIND_METHOD callback exclusion {info.cpp_name}.{member.name} requires "
             "BIND_CLASS(callbacks = true)"
         )
     for member in excluded_members:
         if is_static_method(member) or not is_virtual_method(member):
             raise ValueError(
-                f"BIND_METHOD callback exclusion {info.name}.{member.name} "
+                f"BIND_METHOD callback exclusion {info.cpp_name}.{member.name} "
                 "requires a non-static virtual or override method"
             )
     if not callbacks_enabled:
@@ -70,7 +71,7 @@ def declared_callback_members(info: TypeInfo) -> list[Member]:
             continue
         if member.name in names:
             raise ValueError(
-                f"automatic BIND_CLASS callback {info.name}.{member.name} "
+                f"automatic BIND_CLASS callback {info.cpp_name}.{member.name} "
                 "cannot be overloaded; exclude all but one overload with "
                 "BIND_METHOD(callback = false)"
             )
@@ -92,9 +93,9 @@ def callback_members(info: TypeInfo, type_map: dict[str, TypeInfo]) -> list[Memb
             result[previous] = member
 
     def visit(current: TypeInfo, visiting: set[str]) -> None:
-        if current.name in visiting:
-            raise ValueError(f"cyclic BIND_CLASS callback bases for {info.name}")
-        next_visiting = {*visiting, current.name}
+        if current.cpp_name in visiting:
+            raise ValueError(f"cyclic BIND_CLASS callback bases for {info.cpp_name}")
+        next_visiting = {*visiting, current.cpp_name}
         if current.options.get("bind_bases", "true").lower() != "false":
             for base in current.bases:
                 base_info = type_map.get(remove_type_qualifiers(base))
@@ -110,7 +111,7 @@ def callback_members(info: TypeInfo, type_map: dict[str, TypeInfo]) -> list[Memb
             ]
             if len(overrides) > 1:
                 raise ValueError(
-                    f"inherited callback {current.name}.{name} cannot be overloaded"
+                    f"inherited callback {current.cpp_name}.{name} cannot be overloaded"
                 )
             if overrides:
                 append(overrides[0])
@@ -123,15 +124,15 @@ def member_declaring_type(
     info: TypeInfo, member: Member, type_map: dict[str, TypeInfo]
 ) -> str:
     if any(candidate is member for candidate in info.methods):
-        return info.name
+        return info.cpp_name
     visited: set[str] = set()
 
     def visit(current: TypeInfo) -> str | None:
-        if current.name in visited:
+        if current.cpp_name in visited:
             return None
-        visited.add(current.name)
+        visited.add(current.cpp_name)
         if any(candidate is member for candidate in current.methods):
-            return current.name
+            return current.cpp_name
         if current.options.get("bind_bases", "true").lower() == "false":
             return None
         for base in current.bases:
@@ -145,7 +146,7 @@ def member_declaring_type(
 
     declaring_type = visit(info)
     if declaring_type is None:
-        raise ValueError(f"cannot find declaring type for {info.name}.{member.name}")
+        raise ValueError(f"cannot find declaring type for {info.cpp_name}.{member.name}")
     return declaring_type
 
 
@@ -221,7 +222,7 @@ def singleton_registrations(
         values: list[str] = []
         for member, parameter_count in callable_candidates(context, members):
             value = singleton_callable_lambda(
-                context, member, parameter_count, info.name, singleton
+                context, member, parameter_count, info.cpp_name, singleton
             )
             if value not in values:
                 values.append(value)
@@ -275,7 +276,7 @@ def callback_result_lines(
     ]
     if re.search(r"=\s*0\s*;?$", member.declaration):
         lines.append(
-            f'throw std::runtime_error("Lua subclass must override {info.name}.{member.name}");'
+            f'throw std::runtime_error("Lua subclass must override {info.cpp_name}.{member.name}");'
         )
     elif return_type == "void":
         lines.extend([f"{base_invocation};", "return;"])
@@ -336,10 +337,10 @@ def adapter_class_lines(
     context.require_binding_feature("native")
     if callbacks:
         context.require_binding_feature("function")
-    adapter = info.name + "LuaBindingAdapter"
-    output = [f"class {adapter} final : public {info.name} {{", "public:"]
+    adapter = binding_identifier(info.cpp_name) + "LuaBindingAdapter"
+    output = [f"class {adapter} final : public {info.cpp_name} {{", "public:"]
     constructors = info.constructors or [
-        Member(info.name, f"{info.name}()", "", "INIT")
+        Member(info.name, f"{info.name}()", "", "INIT", cpp_scope=tuple(info.cpp_name.split("::")))
     ]
     for constructor in constructors:
         declarations = parameter_declarations(constructor.declaration)
@@ -348,7 +349,7 @@ def adapter_class_lines(
             "sol::table callbacks" if callbacks else "const sol::table &"
         )
         parameters = ", ".join([callback_parameter, *declarations])
-        initializers = [f"{info.name}({', '.join(names)})"]
+        initializers = [f"{info.cpp_name}({', '.join(names)})"]
         for member in callbacks:
             initializers.append(
                 f'{member.name}Callback_(ludork::runtime::binding::makeLuaCallbackReference(callbacks, "{member.name}"))'
@@ -440,10 +441,10 @@ def adapter_factory_lambda(
     parameters = ["sol::table callbacks", *(plan.declaration for plan in plans)]
     arguments = [plan.argument for plan in plans]
     body = [line for plan in plans for line in plan.prelude]
-    owner_types = [info.name, *owning_bases]
+    owner_types = [info.cpp_name, *owning_bases]
     base_arguments = f"<{', '.join(owner_types)}>"
     body.append(
-        f"auto result = std::static_pointer_cast<{info.name}>(std::make_shared<{adapter}>(std::move(callbacks)"
+        f"auto result = std::static_pointer_cast<{info.cpp_name}>(std::make_shared<{adapter}>(std::move(callbacks)"
         + (", " + ", ".join(arguments) if arguments else "")
         + "));"
     )
@@ -457,7 +458,7 @@ def adapter_factories(
     context: GeneratorContext, info: TypeInfo, adapter: str, owning_bases: list[str]
 ) -> list[str]:
     if not info.constructors:
-        constructor = Member(info.name, f"{info.name}()", "", "INIT")
+        constructor = Member(info.name, f"{info.name}()", "", "INIT", cpp_scope=tuple(info.cpp_name.split("::")))
         return [
             adapter_factory_lambda(context, info, adapter, constructor, 0, owning_bases)
         ]
@@ -482,7 +483,7 @@ def base_method_lambda(
         for name, type_name, declaration in zip(names, types, declarations)
     ]
     self_type = (
-        f"const {info.name} &self" if is_const_method(member) else f"{info.name} &self"
+        f"const {info.cpp_name} &self" if is_const_method(member) else f"{info.cpp_name} &self"
     )
     parameters = [self_type, *(plan.declaration for plan in plans)]
     arguments = [plan.argument for plan in plans]
@@ -613,7 +614,7 @@ def module_property_bindings(
             continue
         exposed_name = member.options.get("name", member.name)
         previous = properties.get(exposed_name)
-        if previous is not None and previous.name != member.name:
+        if previous is not None and previous.cpp_name != member.cpp_name:
             raise ValueError(f"duplicate module property path: {exposed_name}")
         properties[exposed_name] = member
     if not properties:
@@ -622,7 +623,7 @@ def module_property_bindings(
     lines: list[str] = []
     cached_values: dict[str, str] = {}
     unique_members: dict[str, Member] = {
-        member.name: member for member in properties.values()
+        member.cpp_name: member for member in properties.values()
     }
     for index, member in enumerate(unique_members.values()):
         require_binding_type_features(context, module_property_type(context, member))
@@ -634,17 +635,17 @@ def module_property_bindings(
             raise ValueError(f"cached module property {member.name} must be read-only")
         variable = f"bindingModulePropertyValue{index}"
         lines.append(
-            f"sol::object {variable} = ludork::runtime::binding::writeLuaValue(lua, {member.name});"
+            f"sol::object {variable} = ludork::runtime::binding::writeLuaValue(lua, {member.cpp_name});"
         )
-        cached_values[member.name] = variable
+        cached_values[member.cpp_name] = variable
     entries = sorted(properties.items(), key=lambda item: item[0])
     metatable = "bindingModulePropertyMetatable0"
     captures = ["lua"]
     captures.extend(
         dict.fromkeys(
-            cached_values[member.name]
+            cached_values[member.cpp_name]
             for _, member in entries
-            if member.name in cached_values
+            if member.cpp_name in cached_values
         )
     )
     lines.append(f"sol::table {metatable} = lua.create_table();")
@@ -657,8 +658,8 @@ def module_property_bindings(
     lines.append("    const std::string name = key.as<std::string>();")
     for name, member in entries:
         value_expression = cached_values.get(
-            member.name,
-            f"ludork::runtime::binding::writeLuaValue(lua, {member.name})",
+            member.cpp_name,
+            f"ludork::runtime::binding::writeLuaValue(lua, {member.cpp_name})",
         )
         lines.append(f'    if (name == "{name}") return {value_expression};')
     lines.append("    return sol::make_object(lua, sol::lua_nil);")
@@ -677,7 +678,7 @@ def module_property_bindings(
         else:
             value_type = module_property_type(context, member)
             lines.append(
-                f'        if (name == "{name}") {{ {member.name} = ludork::runtime::binding::readLuaValue<{value_type}>(value); return; }}'
+                f'        if (name == "{name}") {{ {member.cpp_name} = ludork::runtime::binding::readLuaValue<{value_type}>(value); return; }}'
             )
     lines.append("    }")
     lines.append("    self.raw_set(key, value);")

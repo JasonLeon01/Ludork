@@ -1,5 +1,7 @@
 #pragma once
 
+#include "UI/UiPreviewSession.hpp"
+
 #include <Runtime/RuntimeData.hpp>
 
 #include <SFML/System/Vector2.hpp>
@@ -14,13 +16,8 @@ class UiAssetInstance;
 
 namespace ludork::preview_host {
 
-struct RenderTargetSpec {
-    float renderScale;
-    sf::Vector2u size;
-};
-
-RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
-                                  double requestedScale);
+UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
+                                                    double requestedScale);
 std::vector<std::uint8_t> renderFrame(
     const std::shared_ptr<UiAssetInstance>& instance, const sf::Vector2u& size);
 RuntimeData::Array nodeGeometry(

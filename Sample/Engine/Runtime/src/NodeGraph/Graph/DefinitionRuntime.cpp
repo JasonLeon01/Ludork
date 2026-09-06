@@ -1,4 +1,5 @@
 #include "DefinitionRuntime.hpp"
+#include <Runtime/NodeGraph/DataNode.hpp>
 
 #include "Internal.hpp"
 

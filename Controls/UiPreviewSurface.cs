@@ -14,36 +14,6 @@ using System.Threading.Tasks;
 
 namespace Ludork.Controls;
 
-public sealed class UiPreviewNodeEventArgs : EventArgs
-{
-    public UiPreviewNodeEventArgs(string nodeName)
-    {
-        NodeName = nodeName;
-    }
-
-    public string NodeName { get; }
-}
-
-public sealed class UiPreviewTransformEventArgs : EventArgs
-{
-    public UiPreviewTransformEventArgs(
-        string nodeName,
-        double deltaX,
-        double deltaY,
-        bool resize)
-    {
-        NodeName = nodeName;
-        DeltaX = deltaX;
-        DeltaY = deltaY;
-        Resize = resize;
-    }
-
-    public string NodeName { get; }
-    public double DeltaX { get; }
-    public double DeltaY { get; }
-    public bool Resize { get; }
-}
-
 public sealed class UiPreviewSurface : UserControl
 {
     private readonly Border viewport;

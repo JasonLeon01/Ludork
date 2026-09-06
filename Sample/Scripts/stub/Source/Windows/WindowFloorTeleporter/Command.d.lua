@@ -2,11 +2,12 @@
 
 ---@brief Command list displaying visited maps in the current region.
 ---@class Source.Windows.WindowFloorMapCommand: Source.Windows.WindowCommand
----@field new            fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter, instance?: Engine.AssetInstance): Source.Windows.WindowFloorMapCommand
----@field _owner         Source.Windows.WindowFloorTeleporter
----@field _mapController Source.Windows.WindowFloorMapCommandController
----@field _mapKeys       string[]
----@field new            fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter): Source.Windows.WindowFloorMapCommand
+---@field controllerClass Source.Windows.WindowFloorTeleporter.Command.Controller
+---@field new             fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter, instance?: Engine.AssetInstance): Source.Windows.WindowFloorMapCommand
+---@field _owner          Source.Windows.WindowFloorTeleporter
+---@field _mapController  Source.Windows.WindowFloorTeleporter.Command.Controller
+---@field _mapKeys        string[]
+---@field new             fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter): Source.Windows.WindowFloorMapCommand
 local WindowFloorMapCommand = {}
 
 ---@brief Construct the floor map command list.

@@ -58,12 +58,6 @@ local function getTabLabels()
     return labels
 end
 
-local function setTabItems(tabView, model)
-    tabView:setItems(getTabLabels(), function (index)
-        model:_onTabSelected(index)
-    end)
-end
-
 local function getScaleLabels(scaleValues)
     local labels = {}
     for index, value in ipairs(scaleValues) do
@@ -184,7 +178,9 @@ function ConfigWindowUI:bind()
     self._settingsWindowFrame:setWindowSkin(self._windowSkin, false)
     self._tabView:setWindowSkin(self._windowSkin)
     self._tabView:setCursorSound(tostring(GameSystem.GetCursorSE()))
-    setTabItems(self._tabView, self.model)
+    self._tabView:setOnSelectedIndexChanged(function (index)
+        self.model:_onTabSelected(index)
+    end)
     self._tabView:setKeyHint(
         { Keyboard = sf.Keyboard.Key.Q, Joystick = Engine.JoystickButton.getLB() },
         { Keyboard = sf.Keyboard.Key.E, Joystick = Engine.JoystickButton.getRB() }
@@ -202,7 +198,7 @@ function ConfigWindowUI:refresh()
         local page = self:getPage(index)
         refreshRowLabels(page.rows, page.localeKeys)
     end
-    setTabItems(self._tabView, self.model)
+    self._tabView:setItems(getTabLabels())
     self._graphicsPresetRow:setItems(getGraphicsPresetLabels())
     self._languageRow:setItems(getLanguageLabels())
     if self._scaleRow ~= nil then
@@ -379,7 +375,7 @@ function ConfigWindowUI:onFrameRateSelectedIndexChanged(index)
     if self._applyingGraphicsPreset then
         return
     end
-    System.setFrameRate(Engine.ToInteger(_FRAMERATE_ITEMS[index + 1]))
+    System.setFrameRate(math.trunc(assert(tonumber(_FRAMERATE_ITEMS[index + 1]))))
     self:_syncGraphicsPresetSelection()
 end
 
@@ -388,7 +384,7 @@ function ConfigWindowUI:onAntiAliasingLevelSelectedIndexChanged(index)
         return
     end
     local value = assert(self._antiAliasingLevelItems[index + 1])
-    System.setAntiAliasingLevel(Engine.ToInteger(value))
+    System.setAntiAliasingLevel(math.trunc(assert(tonumber(value))))
     self:_syncGraphicsPresetSelection()
 end
 
@@ -433,7 +429,7 @@ end
 
 function ConfigWindowUI:dispose()
     if self._tabView ~= nil then
-        self._tabView:setItems(self._tabView:getItems(), nil)
+        self._tabView:setOnSelectedIndexChanged(nil)
     end
     for index = 0, self:getPageCount() - 1 do
         disposeRows(self:getPage(index).rows)
@@ -543,63 +539,36 @@ function ConfigWindowUI:_createGraphicsRows()
 end
 
 function ConfigWindowUI:_createAudioRows()
-    self._musicOnRow = ConfigCheckBoxRowUI.new(
-        LOC("musicon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getMusicOn(),
-        function (checked)
-            onMusicOnCheckedChanged(checked)
-        end
+    self._musicOnRow = ConfigCheckBoxRowUI.new(LOC("musicon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getMusicOn(), function (
+        checked
     )
-    self._musicVolumeRow = ConfigSliderRowUI.new(
-        LOC("musicvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getMusicVolume()),
-        function (value)
-            onMusicVolumeChanged(value)
-        end
+        onMusicOnCheckedChanged(checked)
+    end)
+    self._musicVolumeRow = ConfigSliderRowUI.new(LOC("musicvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
+        System.getMusicVolume()
+    ), function (value)
+        onMusicVolumeChanged(value)
+    end)
+    self._soundOnRow = ConfigCheckBoxRowUI.new(LOC("soundon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getSoundOn(), function (
+        checked
     )
-    self._soundOnRow = ConfigCheckBoxRowUI.new(
-        LOC("soundon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getSoundOn(),
-        function (checked)
-            onSoundOnCheckedChanged(checked)
-        end
+        onSoundOnCheckedChanged(checked)
+    end)
+    self._soundVolumeRow = ConfigSliderRowUI.new(LOC("soundvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
+        System.getSoundVolume()
+    ), function (value)
+        onSoundVolumeChanged(value)
+    end)
+    self._voiceOnRow = ConfigCheckBoxRowUI.new(LOC("voiceon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getVoiceOn(), function (
+        checked
     )
-    self._soundVolumeRow = ConfigSliderRowUI.new(
-        LOC("soundvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getSoundVolume()),
-        function (value)
-            onSoundVolumeChanged(value)
-        end
-    )
-    self._voiceOnRow = ConfigCheckBoxRowUI.new(
-        LOC("voiceon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getVoiceOn(),
-        function (checked)
-            onVoiceOnCheckedChanged(checked)
-        end
-    )
-    self._voiceVolumeRow = ConfigSliderRowUI.new(
-        LOC("voicevolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        Engine.Round(System.getVoiceVolume()),
-        function (value)
-            onVoiceVolumeChanged(value)
-        end
-    )
+        onVoiceOnCheckedChanged(checked)
+    end)
+    self._voiceVolumeRow = ConfigSliderRowUI.new(LOC("voicevolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
+        System.getVoiceVolume()
+    ), function (value)
+        onVoiceVolumeChanged(value)
+    end)
     self._pages[_AUDIO_PAGE_INDEX + 1] = {
         list = self._audioList,
         rows = {

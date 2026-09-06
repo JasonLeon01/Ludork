@@ -1,6 +1,7 @@
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/AssetInputStream.hpp>
 
-#include "AssetInputStreamInternal.hpp"
+#include "AssetInputStreamImpl.hpp"
 #include <Utf8Path.hpp>
 
 #include <algorithm>

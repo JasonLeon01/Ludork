@@ -15,22 +15,21 @@ namespace {
 
 constexpr const char* RUNTIME_MODULE_STATE_KEY = "Ludork.Runtime.moduleState";
 
-enum class RuntimeModuleState {
-    unattached,
-    attached,
-    detached,
-};
-
-RuntimeModuleState moduleState(lua_State* state) noexcept {
+ludork::runtime::RuntimeScope::RuntimeModuleState moduleState(
+    lua_State* state) noexcept {
     lua_getfield(state, LUA_REGISTRYINDEX, RUNTIME_MODULE_STATE_KEY);
-    const RuntimeModuleState result =
-        static_cast<RuntimeModuleState>(lua_tointeger(state, -1));
+    const ludork::runtime::RuntimeScope::RuntimeModuleState result =
+        static_cast<ludork::runtime::RuntimeScope::RuntimeModuleState>(
+            lua_tointeger(state, -1));
     lua_pop(state, 1);
     return result;
 }
 
-void setModuleState(lua_State* state, RuntimeModuleState value) noexcept {
-    if (value == RuntimeModuleState::unattached) {
+void setModuleState(
+    lua_State* state,
+    ludork::runtime::RuntimeScope::RuntimeModuleState value) noexcept {
+    if (value ==
+        ludork::runtime::RuntimeScope::RuntimeModuleState::unattached) {
         lua_pushnil(state);
     } else {
         lua_pushinteger(state, static_cast<lua_Integer>(value));
@@ -65,16 +64,17 @@ void initialize(lua_State* state) {
     }
     state = execution.state();
     switch (moduleState(state)) {
-        case RuntimeModuleState::attached:
+        case ludork::runtime::RuntimeScope::RuntimeModuleState::attached:
             return;
-        case RuntimeModuleState::detached:
+        case ludork::runtime::RuntimeScope::RuntimeModuleState::detached:
             throw std::runtime_error(
                 "Runtime was shut down; create a new Lua session to restart");
-        case RuntimeModuleState::unattached:
+        case ludork::runtime::RuntimeScope::RuntimeModuleState::unattached:
             break;
     }
     ludork::standard::registerRuntimeCleanup(state, shutdown);
-    setModuleState(state, RuntimeModuleState::attached);
+    setModuleState(state,
+                   ludork::runtime::RuntimeScope::RuntimeModuleState::attached);
     try {
         detail::clearRuntimeCaches(sol::state_view(state));
         detail::clearRuntimeProviders();
@@ -84,7 +84,9 @@ void initialize(lua_State* state) {
         class_runtime_detail::initializeClassRuntime(state);
     } catch (...) {
         clearRuntimeState(state);
-        setModuleState(state, RuntimeModuleState::unattached);
+        setModuleState(
+            state,
+            ludork::runtime::RuntimeScope::RuntimeModuleState::unattached);
         throw;
     }
 }
@@ -95,12 +97,14 @@ void shutdown(lua_State* state) noexcept {
     }
     ludork::standard::LuaExecutionScope execution(state);
     if (!execution.active() ||
-        moduleState(execution.state()) != RuntimeModuleState::attached) {
+        moduleState(execution.state()) !=
+            ludork::runtime::RuntimeScope::RuntimeModuleState::attached) {
         return;
     }
     state = execution.state();
     clearRuntimeState(state);
-    setModuleState(state, RuntimeModuleState::detached);
+    setModuleState(state,
+                   ludork::runtime::RuntimeScope::RuntimeModuleState::detached);
 }
 
 RuntimeScope::RuntimeScope() {
@@ -108,7 +112,8 @@ RuntimeScope::RuntimeScope() {
         throw std::runtime_error(
             "Lua runtime session is unavailable or stopping");
     }
-    if (moduleState(execution_.state()) != RuntimeModuleState::attached) {
+    if (moduleState(execution_.state()) !=
+        ludork::runtime::RuntimeScope::RuntimeModuleState::attached) {
         throw std::runtime_error("Runtime is not initialized");
     }
 }

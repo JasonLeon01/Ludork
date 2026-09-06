@@ -1,4 +1,5 @@
 #pragma once
+#include <Manager/AudioEffectControl.hpp>
 
 #include <CoreMinimal.hpp>
 
@@ -14,6 +15,13 @@ class MusicFilter;
 
 BIND_CLASS()
 class LUDORK_GLOBAL_API AudioManager {
+private:
+    enum class SoundCategory {
+        Unmanaged,
+        Sound,
+        Voice
+    };
+
 public:
     BIND_METHOD()
     static std::shared_ptr<sf::SoundBuffer> loadSound(

@@ -1,4 +1,5 @@
 #include <Manager/ActorAudioBridge.hpp>
+#include <Gameplay/ActorAudioService.hpp>
 
 #include <Filters/SoundFilter.hpp>
 #include <Gameplay/Actor.hpp>

@@ -27,12 +27,6 @@ struct LoopFrame {
     std::size_t limit = 1000000;
 };
 
-struct LoopResult {
-    std::optional<int> next;
-    NodeResult result;
-    std::size_t steps = 0;
-};
-
 struct ExecutionState {
     std::unordered_map<std::string, bool> locked;
     std::unordered_map<std::string, std::size_t> latentPendingCount;

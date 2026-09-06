@@ -1,4 +1,5 @@
 #pragma once
+#include <Runtime/NodeGraph/DataNode.hpp>
 
 #include <Runtime/NodeGraph/Node.hpp>
 #include <Runtime/RuntimeValue.hpp>

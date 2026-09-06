@@ -151,7 +151,7 @@ def validate_callback_codec_aliases(
                 f"{sfml_declared} != {codec.canonical_type}"
             )
         declared = context.type_aliases.get(cpp_name)
-        if declared is not None and _canonical_key(declared) != _canonical_key(
+        if declared is not None and _canonical_key(declared.target) != _canonical_key(
             codec.canonical_type
         ):
             raise ValueError(

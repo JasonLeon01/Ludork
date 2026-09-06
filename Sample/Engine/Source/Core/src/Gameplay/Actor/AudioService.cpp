@@ -1,6 +1,5 @@
 #include "AudioService.hpp"
-
-#include <Gameplay/ActorApiTypes.hpp>
+#include <Gameplay/ActorAudioService.hpp>
 
 namespace {
 ActorAudioService* service = nullptr;
@@ -8,10 +7,4 @@ ActorAudioService* service = nullptr;
 
 ActorAudioService*& actorAudioService() {
     return service;
-}
-
-ActorAudioService::~ActorAudioService() = default;
-
-void setActorAudioService(ActorAudioService* value) {
-    service = value;
 }

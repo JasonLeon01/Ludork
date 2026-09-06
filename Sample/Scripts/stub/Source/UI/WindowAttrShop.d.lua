@@ -2,7 +2,7 @@
 
 ---@class Source.UI.WindowAttrShop: Source.UI.UiController, Class.ClassType<Source.UI.WindowAttrShop>
 ---@field model              Source.Windows.WindowAttrShop
----@field _selectable        Source.Windows._WindowAttrShopSelectable | nil
+---@field _selectable        Source.Windows.WindowAttrShop.Selectable | nil
 ---@field _logicalSize       sf.Vector2u | nil
 ---@field _shopNameSource    string
 ---@field _descriptionSource string
@@ -24,10 +24,10 @@ function WindowAttrShopUI:bind() end
 
 function WindowAttrShopUI:refresh() end
 
----@param selectable Source.Windows._WindowAttrShopSelectable
+---@param selectable Source.Windows.WindowAttrShop.Selectable
 ---@param size       sf.Vector2i
 ---@return Engine.Canvas
----@param selectable Source.Windows._WindowAttrShopSelectable
+---@param selectable Source.Windows.WindowAttrShop.Selectable
 ---@param size       sf.Vector2i
 function WindowAttrShopUI:attachSelectable(selectable, size) end
 
@@ -43,7 +43,7 @@ function WindowAttrShopUI:getListView() end
 ---@return Engine.ScrollBox
 function WindowAttrShopUI:getScrollBox() end
 
----@return Source.Windows._WindowAttrShopSelectable
+---@return Source.Windows.WindowAttrShop.Selectable
 function WindowAttrShopUI:_getSelectable() end
 
 ---@param abilities   table

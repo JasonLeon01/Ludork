@@ -5,6 +5,7 @@
 #include <Runtime/NodeGraph/Node.hpp>
 #include <Runtime/Detail/RuntimeServices.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
+#include <Runtime/RuntimeObject.hpp>
 
 #include <climits>
 #include <exception>

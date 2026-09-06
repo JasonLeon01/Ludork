@@ -1,7 +1,8 @@
 #pragma once
 
 #include <Runtime/RuntimeValue.hpp>
-#include <UI/Text.hpp>
+#include <UI/PlainTextConfig.hpp>
+#include <UI/RichText.hpp>
 
 #include <SFML/Graphics/Font.hpp>
 
@@ -19,11 +20,12 @@ sf::Text::LineAlignment parseLineAlignment(const std::string& value,
 std::shared_ptr<PlainTextConfig> buildPlain(RuntimeMapView data,
                                             const std::string& sourceName);
 
-std::shared_ptr<RichTextConfig> buildRich(RuntimeMapView data,
-                                          const std::string& sourceName);
+std::shared_ptr<RichText::RichTextConfig> buildRich(
+    RuntimeMapView data, const std::string& sourceName);
 
 std::shared_ptr<PlainTextConfig> loadPlain(const std::string& textConfigKey);
 
-std::shared_ptr<RichTextConfig> loadRich(const std::string& textConfigKey);
+std::shared_ptr<RichText::RichTextConfig> loadRich(
+    const std::string& textConfigKey);
 
 }  // namespace ludork::engine::text_config

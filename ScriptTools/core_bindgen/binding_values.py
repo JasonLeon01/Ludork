@@ -138,7 +138,7 @@ def injection_lines(
     call = (
         f"{type_name}::{member.name}({value_name});"
         if type_name is not None
-        else f"{member.name}({value_name});"
+        else f"{member.cpp_name}({value_name});"
     )
     lines.append(call)
     return lines
@@ -184,7 +184,7 @@ def lua_alternative_property_map(
         for target, source in alternative.assignments:
             if target not in result:
                 raise ValueError(
-                    f"lua_alternatives target {info.name}.{target} must be "
+                    f"lua_alternatives target {info.cpp_name}.{target} must be "
                     "a writable public BIND_PROPERTY"
                 )
             if source.startswith("$"):
@@ -199,7 +199,7 @@ def lua_alternative_property_map(
                 is None
             ):
                 raise ValueError(
-                    f"unsafe lua_alternatives constant on {info.name}.{target}: "
+                    f"unsafe lua_alternatives constant on {info.cpp_name}.{target}: "
                     f"{source}"
                 )
     return result
@@ -219,7 +219,7 @@ def lua_emit_property_map(
         for name in referenced:
             if name not in result:
                 raise ValueError(
-                    f"lua_emit member {info.name}.{name} must be a public BIND_PROPERTY"
+                    f"lua_emit member {info.cpp_name}.{name} must be a public BIND_PROPERTY"
                 )
     return result
 
@@ -338,7 +338,7 @@ def lua_alternative_block(
     condition = " && ".join(conditions) if conditions else "true"
     lines.append(f"{indent}if ({condition}) {{")
     if read:
-        lines.append(f"{indent}    {info.name} result{{}};")
+        lines.append(f"{indent}    {info.cpp_name} result{{}};")
         for target, source in alternative.assignments:
             if source.startswith("$"):
                 target_type = property_type(context, property_map[target])
@@ -360,14 +360,14 @@ def table_value_trait_declaration_lines(types: list[TypeInfo]) -> list[str]:
     for info in types:
         lines.extend(
             [
-                f"template <> struct TableValueTraits<{info.name}> {{",
+                f"template <> struct TableValueTraits<{info.cpp_name}> {{",
                 "    static constexpr bool enabled = true;",
                 "    static bool canRead(const sol::object &value);",
-                f"    static void readInto({info.name} &result, const sol::table &value);",
-                f"    static {info.name} read(const sol::object &value);",
+                f"    static void readInto({info.cpp_name} &result, const sol::table &value);",
+                f"    static {info.cpp_name} read(const sol::object &value);",
                 (
                     "    static sol::object write(sol::state_view lua, "
-                    f"const {info.name} &value);"
+                    f"const {info.cpp_name} &value);"
                 ),
                 "};",
             ]
@@ -383,12 +383,12 @@ def table_value_trait_lines(
     table_types = [
         info
         for info in types
-        if info.name in required_names
+        if info.cpp_name in required_names
         and info.options.get("table_init", "false").lower() == "true"
     ]
     if not table_types:
         return []
-    type_map = {info.name: info for info in types}
+    type_map = {info.cpp_name: info for info in types}
     lines = ["namespace ludork::runtime::binding {"]
     lines.extend(table_value_trait_declaration_lines(table_types))
     lines.append("")
@@ -403,16 +403,16 @@ def table_value_trait_lines(
         tostring_member = info.options.get("lua_tostring", "").strip()
         if tostring_member and tostring_member not in emit_properties:
             raise ValueError(
-                f"lua_tostring member {info.name}.{tostring_member} must be a "
+                f"lua_tostring member {info.cpp_name}.{tostring_member} must be a "
                 "public BIND_PROPERTY"
             )
         writable = [prop for prop in properties if not is_read_only_property(prop)]
         lines.extend(
             [
-                f"inline bool TableValueTraits<{info.name}>::canRead(const sol::object &value) {{",
+                f"inline bool TableValueTraits<{info.cpp_name}>::canRead(const sol::object &value) {{",
                 (
                     "    if (value.get_type() == sol::type::userdata && "
-                    f"value.is<{info.name}>())"
+                    f"value.is<{info.cpp_name}>())"
                 ),
                 "        return true;",
             ]
@@ -455,8 +455,8 @@ def table_value_trait_lines(
         lines.extend(
             [
                 (
-                    f"inline void TableValueTraits<{info.name}>::readInto("
-                    f"{info.name} &result, const sol::table &value) {{"
+                    f"inline void TableValueTraits<{info.cpp_name}>::readInto("
+                    f"{info.cpp_name} &result, const sol::table &value) {{"
                 ),
             ]
         )
@@ -478,15 +478,15 @@ def table_value_trait_lines(
             )
         lines.extend(["}", ""])
         lines.append(
-            f"inline {info.name} TableValueTraits<{info.name}>::read(const sol::object &value) {{"
+            f"inline {info.cpp_name} TableValueTraits<{info.cpp_name}>::read(const sol::object &value) {{"
         )
         lines.extend(
             [
                 (
                     "    if (value.get_type() == sol::type::userdata && "
-                    f"value.is<{info.name}>())"
+                    f"value.is<{info.cpp_name}>())"
                 ),
-                f"        return value.as<{info.name}>();",
+                f"        return value.as<{info.cpp_name}>();",
             ]
         )
         for index, alternative in enumerate(alternatives):
@@ -504,14 +504,14 @@ def table_value_trait_lines(
             [
                 "    if (!value.is<sol::table>())",
                 '        throw std::invalid_argument("expected a Lua table initializer");',
-                f"    {info.name} result{{}};",
+                f"    {info.cpp_name} result{{}};",
                 "    readInto(result, value.as<sol::table>());",
                 "    return result;",
                 "}",
                 "",
                 (
-                    f"inline sol::object TableValueTraits<{info.name}>::write("
-                    f"sol::state_view lua, const {info.name} &value) {{"
+                    f"inline sol::object TableValueTraits<{info.cpp_name}>::write("
+                    f"sol::state_view lua, const {info.cpp_name} &value) {{"
                 ),
             ]
         )
@@ -558,22 +558,22 @@ def table_value_trait_lines(
 
 
 def table_initializer_factory(info: TypeInfo, owning_bases: list[str]) -> str:
-    owner_types = [info.name, *owning_bases]
+    owner_types = [info.cpp_name, *owning_bases]
     base_arguments = f"<{', '.join(owner_types)}>"
     return (
         "[lua](sol::table values) -> sol::object { "
-        f"auto result = std::make_shared<{info.name}>(); "
-        f"ludork::runtime::binding::TableValueTraits<{info.name}>::readInto(*result, values); "
+        f"auto result = std::make_shared<{info.cpp_name}>(); "
+        f"ludork::runtime::binding::TableValueTraits<{info.cpp_name}>::readInto(*result, values); "
         "return ludork::runtime::binding::writeOwningLuaObject"
         f"{base_arguments}(lua, result); }}"
     )
 
 
 def table_default_factory(info: TypeInfo, owning_bases: list[str]) -> str:
-    owner_types = [info.name, *owning_bases]
+    owner_types = [info.cpp_name, *owning_bases]
     base_arguments = f"<{', '.join(owner_types)}>"
     return (
         "[lua]() -> sol::object { "
         "return ludork::runtime::binding::writeOwningLuaObject"
-        f"{base_arguments}(lua, std::make_shared<{info.name}>()); }}"
+        f"{base_arguments}(lua, std::make_shared<{info.cpp_name}>()); }}"
     )

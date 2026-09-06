@@ -315,8 +315,8 @@ function WindowMessage:_updateWindowPosition(refPosition)
         local posX = anchorX - windowWidth * 0.5
         local maxX = math.max(0.0, gameWidth - windowWidth)
         local maxY = math.max(0.0, gameHeight - windowHeight)
-        posX = Engine.Clamp(posX, 0.0, maxX)
-        posY = Engine.Clamp(posY, 0.0, maxY)
+        posX = math.clamp(posX, 0.0, maxX)
+        posY = math.clamp(posY, 0.0, maxY)
         self._ui:setPanelPosition(sf.Vector2f.new(posX, posY))
     end
 end
@@ -356,7 +356,7 @@ function WindowMessage:_updateLayoutByTextSize()
         nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
     end
     local displayMessage = self._message
-    local maxContentWidth = Engine.ToInteger(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
+    local maxContentWidth = math.trunc(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
     self._ui:setMessage(displayMessage)
     local textBounds = self._text:getLocalBounds()
     local textWidth = self:_getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
@@ -371,8 +371,8 @@ function WindowMessage:_updateLayoutByTextSize()
     local textHeight = self:_getBoundsHeight(textBounds)
     local pauseMarkSize = WindowBase._PAUSE_MARK_SIZE
     ---@cast pauseMarkSize integer
-    local contentWidth = Engine.ToInteger(math.max(textWidth, nameWidth, pauseMarkSize))
-    contentWidth = Engine.ToInteger(math.min(contentWidth, maxContentWidth))
+    local contentWidth = math.trunc(math.max(textWidth, nameWidth, pauseMarkSize))
+    contentWidth = math.trunc(math.min(contentWidth, maxContentWidth))
     local contentHeight = textHeight + pauseMarkSize
     if hasName then
         contentHeight = contentHeight + nameHeight + self._NAME_MESSAGE_GAP
@@ -416,14 +416,12 @@ function WindowMessage:_updateLayoutBySelectionSize()
                 ---@cast child Engine.PlainText | Engine.RichText
                 optionWidth = child:getLocalBounds().size.x
             end
-            maxOptionTextWidth = math.max(maxOptionTextWidth, math.max(1, Engine.Round(optionWidth)))
+            maxOptionTextWidth = math.max(maxOptionTextWidth, math.max(1, math.round(optionWidth)))
         end
     end
-    local contentWidth = Engine.ToInteger(
-        math.max(32, nameWidth, maxOptionTextWidth + self._SELECTION_LIST_HORIZONTAL_INSET)
-    )
-    local maxContentWidth = Engine.ToInteger(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
-    contentWidth = Engine.ToInteger(math.min(contentWidth, maxContentWidth))
+    local contentWidth = math.trunc(math.max(32, nameWidth, maxOptionTextWidth + self._SELECTION_LIST_HORIZONTAL_INSET))
+    local maxContentWidth = math.trunc(math.max(32, self:_getMaxWindowWidth() - self._WINDOW_PADDING * 2))
+    contentWidth = math.trunc(math.min(contentWidth, maxContentWidth))
     local contentHeight = optionCount * self._OPTION_ITEM_HEIGHT
     if hasName then
         contentHeight = contentHeight + nameHeight + self._NAME_MESSAGE_GAP
@@ -478,7 +476,7 @@ function WindowMessage:_getRectWidth()
     if columns <= 0 then
         return super(WindowMessage, self)._getRectWidth()
     end
-    return math.max(1, Engine.Round(self._selectionListView:getSize().x / columns))
+    return math.max(1, math.round(self._selectionListView:getSize().x / columns))
 end
 
 ---@param width  integer

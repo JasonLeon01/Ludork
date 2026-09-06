@@ -2,11 +2,11 @@
 
 namespace ludork::global::audio_manager_impl {
 
-struct AudioRuntime;
+struct AudioImpl;
 
 class CreationScope {
 public:
-    explicit CreationScope(AudioRuntime& runtime) noexcept;
+    explicit CreationScope(AudioImpl& impl) noexcept;
     ~CreationScope();
     CreationScope(const CreationScope&) = delete;
     CreationScope& operator=(const CreationScope&) = delete;
@@ -14,7 +14,7 @@ public:
     void activate() noexcept;
 
 private:
-    AudioRuntime* runtime_;
+    AudioImpl* impl_;
     bool active_ = false;
 };
 

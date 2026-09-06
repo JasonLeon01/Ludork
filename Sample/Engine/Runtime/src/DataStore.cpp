@@ -1,6 +1,6 @@
 #include <Runtime/DataStore.hpp>
 
-#include "DataStoreInternal.hpp"
+#include "DataStoreImpl.hpp"
 #include "LdPakArchive.hpp"
 #include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>

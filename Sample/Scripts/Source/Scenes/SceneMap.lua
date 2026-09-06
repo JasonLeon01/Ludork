@@ -56,8 +56,8 @@ end
 ---@return sf.Color
 local function interpolateColour(from, to, alpha)
     return sf.Color.new(
-        Engine.Round(Engine.Lerp(from.r, to.r, alpha)), Engine.Round(Engine.Lerp(from.g, to.g, alpha)),
-        Engine.Round(Engine.Lerp(from.b, to.b, alpha)), Engine.Round(Engine.Lerp(from.a, to.a, alpha))
+        math.round(math.lerp(from.r, to.r, alpha)), math.round(math.lerp(from.g, to.g, alpha)),
+        math.round(math.lerp(from.b, to.b, alpha)), math.round(math.lerp(from.a, to.a, alpha))
     )
 end
 
@@ -457,7 +457,7 @@ function Scene:_updateWorldEnvironment(deltaTime, force)
     if self._worldAmbientStartColour == nil then
         return
     end
-    self._worldAmbientTransitionElapsed = Engine.Clamp(
+    self._worldAmbientTransitionElapsed = math.clamp(
         self._worldAmbientTransitionElapsed + deltaTime, 0.0, WORLD_AMBIENT_TRANSITION_TIME
     )
     local alpha = self._worldAmbientTransitionElapsed / WORLD_AMBIENT_TRANSITION_TIME

@@ -69,15 +69,11 @@ struct ObjectPair {
     }
 };
 
-struct ObjectPairHash {
-    std::size_t operator()(const ObjectPair& value) const noexcept {
-        std::size_t first = std::hash<const void*>{}(value.first);
-        std::size_t second = std::hash<const void*>{}(value.second);
-        return first ^ (second + 0x9e3779b9U + (first << 6U) + (first >> 2U));
-    }
-};
-
 struct EqualityContext {
+    struct ObjectPairHash {
+        std::size_t operator()(const ObjectPair& value) const noexcept;
+    };
+
     std::unordered_set<ObjectPair, ObjectPairHash> visited;
 };
 

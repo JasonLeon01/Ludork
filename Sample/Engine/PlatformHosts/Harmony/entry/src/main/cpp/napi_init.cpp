@@ -4,6 +4,7 @@
 #include <SFML/Window/Harmony/NativeAppImpl.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <System/NativeDisplayHost.hpp>
+#include <Input/InjectedInputEvent.hpp>
 
 #include <array>
 #include <cstdint>

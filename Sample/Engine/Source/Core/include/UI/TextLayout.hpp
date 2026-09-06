@@ -2,7 +2,7 @@
 
 #include <CoreMinimal.hpp>
 
-#include <UI/Text.hpp>
+#include <UI/PlainText.hpp>
 
 BIND_FUNCTION_GROUP(name = "TextLayout")
 

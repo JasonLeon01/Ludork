@@ -1,4 +1,5 @@
 #include "UI/UiPreviewSession.hpp"
+#include <UI/UiAssetInstance.hpp>
 
 #include "Protocol/FrameFiles.hpp"
 #include "Protocol/PreviewProtocol.hpp"

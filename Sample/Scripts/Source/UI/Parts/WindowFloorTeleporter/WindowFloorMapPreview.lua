@@ -1,4 +1,3 @@
-local Engine = require("Engine")
 local TelepointKey = require("Source.UI.Helpers.TelepointKey")
 local CommandRowUI = require("Source.UI.Parts.Shared.CommandRow")
 local Ui = require("Source.UI.Ui")
@@ -103,7 +102,7 @@ function WindowFloorMapPreviewUI:setMapKeyAndTelepoints(mapKey, entries, selecte
         self:hidePreview()
         return
     end
-    self.model.index = Engine.Clamp(selectedIndex, 0, #entries - 1)
+    self.model.index = math.clamp(selectedIndex, 0, #entries - 1)
     self:refreshSelectedPreview()
 end
 

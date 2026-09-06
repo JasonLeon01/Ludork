@@ -1,4 +1,5 @@
-#include "Impl.hpp"
+#include "GameMapRendererImpl.hpp"
+#include <Gameplay/TileLayer.hpp>
 
 #include <EngineState.hpp>
 

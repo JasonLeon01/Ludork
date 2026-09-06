@@ -1,6 +1,6 @@
 #include <UI/FunctionalBase.hpp>
 
-#include "FunctionalBase/InteractionRuntime.hpp"
+#include "FunctionalBase/InteractionImpl.hpp"
 
 #include <EngineState.hpp>
 #include <UI/ControlBase.hpp>

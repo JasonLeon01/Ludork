@@ -6,7 +6,12 @@
 
 BIND_CLASS()
 class LUDORK_GLOBAL_API FontManager {
+private:
+    struct FontResource;
+
 public:
+    struct Impl;
+
     BIND_METHOD()
     static std::shared_ptr<sf::Font> load(const std::string& filePath);
 

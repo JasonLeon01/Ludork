@@ -1,10 +1,13 @@
 #include <Gameplay/Actor.hpp>
+#include <Filters/SoundFilter.hpp>
+#include <Gameplay/ActorMapService.hpp>
+#include <Gameplay/AutoSoundParams.hpp>
 
-#include "Actor/ActorRuntime.hpp"
-#include "Actor/AudioRuntime.hpp"
-#include "Actor/AudioService.hpp"
-#include "Actor/MovementRuntime.hpp"
-#include "Actor/SpatialRuntime.hpp"
+#include "Actor/ActorImpl.hpp"
+#include "Actor/AudioImpl.hpp"
+#include "Actor/MovementImpl.hpp"
+#include "Actor/SpatialImpl.hpp"
+#include "Actor/VisualImpl.hpp"
 #include "Graphics/SpriteVisuals.hpp"
 
 #include <Runtime/Blueprint/BPBase.hpp>
@@ -25,34 +28,33 @@ RuntimeValue optionalStringValue(const std::optional<std::string>& value) {
 
 }  // namespace
 
-Actor::RuntimeHandle::RuntimeHandle()
-    : state_(std::make_unique<ludork::engine::actor_impl::ActorRuntime>()) {}
+Actor::ImplHandle::ImplHandle()
+    : state_(std::make_unique<ludork::engine::actor_impl::ActorImpl>()) {}
 
-Actor::RuntimeHandle::~RuntimeHandle() = default;
+Actor::ImplHandle::~ImplHandle() = default;
 
-Actor::RuntimeHandle::RuntimeHandle(const RuntimeHandle& other)
-    : state_(std::make_unique<ludork::engine::actor_impl::ActorRuntime>(
+Actor::ImplHandle::ImplHandle(const ImplHandle& other)
+    : state_(std::make_unique<ludork::engine::actor_impl::ActorImpl>(
           other.get())) {}
 
-Actor::RuntimeHandle& Actor::RuntimeHandle::operator=(
-    const RuntimeHandle& other) {
+Actor::ImplHandle& Actor::ImplHandle::operator=(const ImplHandle& other) {
     if (this != &other) {
-        state_ = std::make_unique<ludork::engine::actor_impl::ActorRuntime>(
+        state_ = std::make_unique<ludork::engine::actor_impl::ActorImpl>(
             other.get());
     }
     return *this;
 }
 
-Actor::RuntimeHandle::RuntimeHandle(RuntimeHandle&& other) noexcept = default;
+Actor::ImplHandle::ImplHandle(ImplHandle&& other) noexcept = default;
 
-Actor::RuntimeHandle& Actor::RuntimeHandle::operator=(
-    RuntimeHandle&& other) noexcept = default;
+Actor::ImplHandle& Actor::ImplHandle::operator=(ImplHandle&& other) noexcept =
+    default;
 
-ludork::engine::actor_impl::ActorRuntime& Actor::RuntimeHandle::get() noexcept {
+ludork::engine::actor_impl::ActorImpl& Actor::ImplHandle::get() noexcept {
     return *state_;
 }
 
-const ludork::engine::actor_impl::ActorRuntime& Actor::RuntimeHandle::get()
+const ludork::engine::actor_impl::ActorImpl& Actor::ImplHandle::get()
     const noexcept {
     return *state_;
 }
@@ -242,19 +244,15 @@ RuntimeValue Actor::GenActor(const RuntimeIdentityPtr& actorModel,
 }
 
 std::shared_ptr<AutoSoundParams> Actor::getAutoSoundParams() const {
-    return runtime_.get().autoSoundParams;
+    return impl_.get().audio.getParams();
 }
 
 void Actor::setAutoSoundParams(const AutoSoundParams& params) {
-    runtime_.get().autoSoundParams = std::make_shared<AutoSoundParams>(params);
+    impl_.get().audio.setParams(params);
 }
 
 void Actor::normaliseAutoSoundParams() {
-    std::shared_ptr<AutoSoundParams>& autoSoundParams =
-        runtime_.get().autoSoundParams;
-    autoSoundParams = autoSoundParams
-                          ? std::make_shared<AutoSoundParams>(*autoSoundParams)
-                          : std::make_shared<AutoSoundParams>();
+    impl_.get().audio.normaliseParams();
 }
 
 float Actor::autoSoundListenerDistance() const {
@@ -262,119 +260,60 @@ float Actor::autoSoundListenerDistance() const {
 }
 
 void Actor::updateAutoSound(float deltaTime) {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    if (autoSound.empty()) {
-        stopAutoSound();
-        runtime.autoSoundCooldown = 0.0f;
-        return;
-    }
-    const float stopDistance = runtime.autoSoundParams->maxDistance;
-    if (stopDistance > 0.0f) {
-        const float distance = autoSoundListenerDistance();
-        const float startDistance = stopDistance * 0.85f;
-        if (distance > stopDistance) {
-            stopAutoSound();
-            runtime.autoSoundCooldown = 0.0f;
-            return;
-        }
-        if (!runtime.autoSoundObject && distance > startDistance) {
-            return;
-        }
-    }
-    if (runtime.autoSoundObject) {
-        if (runtime.autoSoundObject->getStatus() ==
-            sf::SoundSource::Status::Stopped) {
-            runtime.autoSoundObject.reset();
-            runtime.autoSoundCooldown = std::max(0.0f, autoSoundInterval);
-        } else {
-            applyAutoSoundParams();
-            return;
-        }
-    }
-    if (runtime.autoSoundCooldown > 0.0f) {
-        runtime.autoSoundCooldown =
-            std::max(0.0f, runtime.autoSoundCooldown - deltaTime);
-        return;
-    }
-    playAutoSound();
+    impl_.get().audio.update(deltaTime, autoSound, autoSoundInterval, [this]() {
+        return getPosition();
+    });
 }
 
 void Actor::playAutoSound() {
-    if (actorAudioService() == nullptr) {
-        return;
-    }
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    runtime.autoSoundObject =
-        actorAudioService()->playSoundEffect(autoSound, buildAutoSoundFilter());
-    if (!runtime.autoSoundObject) {
-        return;
-    }
-    const sf::Vector2f position = getPosition();
-    runtime.autoSoundLastPosition = sf::Vector3f(position.x, position.y, 0.0f);
+    impl_.get().audio.play(autoSound, [this]() {
+        return getPosition();
+    });
 }
 
 void Actor::stopAutoSound() {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    if (!runtime.autoSoundObject) {
-        return;
-    }
-    if (runtime.autoSoundObject->getStatus() !=
-        sf::SoundSource::Status::Stopped) {
-        runtime.autoSoundObject->stop();
-    }
-    runtime.autoSoundObject.reset();
-    runtime.autoSoundLastPosition.reset();
+    impl_.get().audio.stop();
 }
 
 void Actor::applyAutoSoundParams() {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    if (!runtime.autoSoundObject || actorAudioService() == nullptr) {
-        return;
-    }
-    const sf::Vector2f position = getPosition();
-    const sf::Vector3f newPosition(position.x, position.y, 0.0f);
-    if (runtime.autoSoundLastPosition.has_value() &&
-        *runtime.autoSoundLastPosition == newPosition) {
-        return;
-    }
-    runtime.autoSoundLastPosition = newPosition;
-    actorAudioService()->setSoundFilter(runtime.autoSoundObject,
-                                        buildAutoSoundFilter());
+    impl_.get().audio.applyParams([this]() {
+        return getPosition();
+    });
 }
 
 SoundFilter Actor::buildAutoSoundFilter() const {
-    return ludork::engine::actor_impl::buildSoundFilter(
-        *runtime_.get().autoSoundParams, getPosition());
+    return impl_.get().audio.buildFilter([this]() {
+        return getPosition();
+    });
 }
 
 void Actor::fixedUpdate(float fixedDelta) {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
     const sf::Vector2f start = getPosition();
     float remaining = fixedDelta;
     while (remaining > 0.0f) {
-        if (!runtime.moving) {
+        if (!impl.moving) {
             tryStartNextRouteStep();
         }
-        if (!runtime.moving) {
+        if (!impl.moving) {
             const std::optional<sf::Vector2i> offset = _getContinueMoveOffset();
             if (offset.has_value()) {
                 MapMove(*offset);
             }
         }
-        if (!runtime.moving) {
+        if (!impl.moving) {
             break;
         }
         remaining = processMoving(remaining);
     }
     const float distance = (getPosition() - start).length();
-    runtime.realSpeed =
-        fixedDelta <= 0.0f || distance <= 0.001f ? 0.0f : distance / fixedDelta;
+    impl.recordRealSpeed(distance, fixedDelta);
 }
 
 bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
     const std::shared_ptr<ActorMapService> map = getMap();
-    if (!runtime.moveEnabled || !map || runtime.moving) {
+    if (!impl.moveEnabled || !map || impl.moving) {
         return false;
     }
     const sf::Vector2i offset =
@@ -411,63 +350,51 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
         }
         return false;
     }
-    runtime.moving = true;
-    runtime.moveOriginMapPosition = getMapPosition();
-    runtime.departure = getPosition();
-    runtime.destination = *runtime.departure +
-                          sf::Vector2f(static_cast<float>(offset.x * CellSize),
-                                       static_cast<float>(offset.y * CellSize));
+    impl.moving = true;
+    impl.moveOriginMapPosition = getMapPosition();
+    impl.departure = getPosition();
+    impl.setDestination(offset, CellSize);
     return true;
 }
 
 bool Actor::isMoving() const {
-    const ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    return runtime.moving || runtime.realSpeed > 0.0f || runtime.inRoute;
+    return impl_.get().movement.isMoving();
 }
 
 sf::Vector2i Actor::getMapPosition() const {
-    const ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    const ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
     syncMapCache();
-    if (runtime.moving && runtime.moveOriginMapPosition.has_value()) {
-        return *runtime.moveOriginMapPosition;
+    if (impl.moving && impl.moveOriginMapPosition.has_value()) {
+        return *impl.moveOriginMapPosition;
     }
-    return cachedMapPosition_;
+    return impl_.get().spatial.mapPosition;
 }
 
 bool Actor::isInRoute() const {
-    return runtime_.get().inRoute;
+    return impl_.get().movement.inRoute;
 }
 
 void Actor::setRoute(const std::optional<std::vector<sf::Vector2i>>& route) {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    runtime.route = route;
-    runtime.inRoute = runtime.route.has_value() && !runtime.route->empty();
+    impl_.get().movement.setRoute(route);
 }
 
 std::optional<std::vector<sf::Vector2i>> Actor::getRoute() const {
-    return runtime_.get().route;
+    return impl_.get().movement.route;
 }
 
 bool Actor::getMoveEnabled() const {
-    return runtime_.get().moveEnabled;
+    return impl_.get().movement.moveEnabled;
 }
 
 void Actor::setMoveEnabled(bool enabled) {
-    runtime_.get().moveEnabled = enabled;
-    if (!runtime_.get().moveEnabled) {
+    impl_.get().movement.moveEnabled = enabled;
+    if (!impl_.get().movement.moveEnabled) {
         stop();
     }
 }
 
 void Actor::stop() {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    runtime.moving = false;
-    runtime.inRoute = false;
-    runtime.route.reset();
-    runtime.departure.reset();
-    runtime.destination.reset();
-    runtime.moveOriginMapPosition.reset();
-    runtime.realSpeed = 0.0f;
+    impl_.get().movement.stop();
     autoFixMapPosition();
 }
 
@@ -478,10 +405,9 @@ std::optional<sf::Vector2f> Actor::getVelocity() const {
     }
     const std::optional<Material> topMaterial =
         map->getTopMaterial(getMapPosition());
-    const ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    return ludork::engine::actor_impl::movementVelocity(
-        runtime.departure, runtime.destination, speed,
-        topMaterial.has_value() ? topMaterial->speedRate : 1.0f);
+    const ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
+    return impl.velocity(
+        speed, topMaterial.has_value() ? topMaterial->speedRate : 1.0f);
 }
 
 std::optional<sf::Vector2i> Actor::_getContinueMoveOffset() {
@@ -491,25 +417,22 @@ std::optional<sf::Vector2i> Actor::_getContinueMoveOffset() {
 void Actor::_onArrivedAtMapCell() {}
 
 float Actor::processMoving(float deltaTime) {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
+    ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
     const std::optional<sf::Vector2f> velocity = getVelocity();
     const std::shared_ptr<ActorMapService> map = getMap();
-    if (!velocity.has_value() || !runtime.destination.has_value() ||
-        !runtime.departure.has_value() || !map) {
+    if (!velocity.has_value() || !impl.destination.has_value() ||
+        !impl.departure.has_value() || !map) {
         return 0.0f;
     }
     const ludork::engine::actor_impl::MovementAdvance advance =
         ludork::engine::actor_impl::advanceMovement(
-            getPosition(), *runtime.destination, *velocity, deltaTime);
+            getPosition(), *impl.destination, *velocity, deltaTime);
     if (!advance.completed) {
         move(advance.position - getPosition());
         return 0.0f;
     }
     setPosition(advance.position);
-    runtime.moving = false;
-    runtime.departure.reset();
-    runtime.destination.reset();
-    runtime.moveOriginMapPosition.reset();
+    impl.arrive();
     autoFixMapPosition();
     const std::vector<Actor*> overlaps = map->getOverlaps(*this);
     if (!overlaps.empty()) {
@@ -528,25 +451,16 @@ float Actor::processMoving(float deltaTime) {
 }
 
 void Actor::tryStartNextRouteStep() {
-    ludork::engine::actor_impl::ActorRuntime& runtime = runtime_.get();
-    if (!runtime.inRoute) {
-        return;
-    }
-    if (!runtime.route.has_value() || runtime.route->empty()) {
-        runtime.inRoute = false;
-        return;
-    }
-    const sf::Vector2i step = runtime.route->front();
-    runtime.route->erase(runtime.route->begin());
-    if (!MapMove(step)) {
-        runtime.inRoute = false;
-        runtime.route = std::vector<sf::Vector2i>{};
+    ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
+    const std::optional<sf::Vector2i> step = impl.takeNextRouteStep();
+    if (step.has_value() && !MapMove(*step)) {
+        impl.cancelRoute();
     }
 }
 
 void Actor::autoFixMapPosition() {
     const sf::Vector2f position = getPosition();
-    runtime_.get().moveOriginMapPosition.reset();
+    impl_.get().movement.moveOriginMapPosition.reset();
     setMapPosition(
         ludork::engine::actor_impl::snappedMapPosition(position, CellSize));
     const std::shared_ptr<ActorMapService> map = getMap();
@@ -570,8 +484,6 @@ RuntimeValue Actor::actorListValue(const std::vector<Actor*>& actors) {
     return RuntimeValue(std::move(values));
 }
 
-ActorMapService::~ActorMapService() = default;
-
 sf::Vector2f Actor::getPosition() const {
     return sf::Sprite::getPosition() - translation_;
 }
@@ -584,7 +496,7 @@ std::vector<sf::Vector2i> Actor::getOccupiedMapCells(
     const std::optional<sf::Vector2f>& worldPosition) const {
     syncMapCache();
     if (!worldPosition.has_value()) {
-        return occupiedCells_;
+        return impl_.get().spatial.occupiedCells;
     }
     const sf::Vector2f delta = *worldPosition - getPosition();
     const sf::Vector2i mapDelta(ludork::engine::actor_impl::roundHalfToEven(
@@ -597,13 +509,8 @@ std::vector<sf::Vector2i> Actor::getOccupiedMapCells(
 std::vector<sf::Vector2i> Actor::getOccupiedMapCellsAtMapPosition(
     const sf::Vector2i& mapPosition) const {
     syncMapCache();
-    const sf::Vector2i delta = mapPosition - cachedMapPosition_;
-    const sf::Vector2f worldPosition(
-        cachedPosition_.x + static_cast<float>(delta.x * CellSize),
-        cachedPosition_.y + static_cast<float>(delta.y * CellSize));
-    sf::FloatRect bounds = cachedGlobalBounds_;
-    bounds.position += worldPosition - cachedPosition_;
-    return computeOccupiedCells(bounds);
+    return impl_.get().spatial.occupiedCellsAtMapPosition(mapPosition,
+                                                          CellSize);
 }
 
 sf::Vector2i Actor::getRelativeMapPosition() const {
@@ -860,12 +767,9 @@ void Actor::removeChild(const std::shared_ptr<Actor>& child) {
 }
 
 void Actor::syncMapCache() const {
-    Actor* self = const_cast<Actor*>(this);
-    self->cachedPosition_ = getPosition();
-    self->cachedGlobalBounds_ = sf::Sprite::getGlobalBounds();
-    self->cachedMapPosition_ = ludork::engine::actor_impl::mapPosition(
-        self->cachedPosition_, CellSize);
-    self->occupiedCells_ = computeOccupiedCells(self->cachedGlobalBounds_);
+    ludork::engine::actor_impl::SpatialImpl& spatial = impl_.get().spatial;
+    spatial.position = getPosition();
+    spatial.syncBounds(sf::Sprite::getGlobalBounds(), CellSize);
 }
 
 void Actor::_superMove(const sf::Vector2f& offset) {
@@ -943,36 +847,18 @@ bool Actor::blocksPassability() const {
     return getCollisionEnabled() || getPathfindingBlocks();
 }
 
-std::vector<sf::Vector2i> Actor::computeOccupiedCells(
-    const sf::FloatRect& bounds) const {
-    return ludork::engine::actor_impl::occupiedCells(bounds, cachedMapPosition_,
-                                                     CellSize);
-}
-
 const sf::Texture& Actor::textureOrBlank(
     const std::shared_ptr<sf::Texture>& texture) {
     return ludork::engine::sprite_visuals::textureOrBlank(texture);
 }
 
 void Actor::ensureShaderLoaded() const {
-    if (loadedShaderPath_ == shaderPath) {
-        return;
-    }
-    loadedShaderPath_ = shaderPath;
-    shader_.reset();
-    shaderError_ = false;
-    if (shaderPath.empty()) {
-        return;
-    }
-    const ludork::engine::sprite_visuals::ShaderResult result =
-        ludork::engine::sprite_visuals::loadShader(shaderPath);
-    shader_ = result.shader;
-    shaderError_ = result.failed;
+    impl_.get().visual.ensureShaderLoaded(shaderPath);
 }
 
 void Actor::setShaderPath(const std::string& shaderPath) {
     this->shaderPath = shaderPath;
-    loadedShaderPath_.clear();
+    impl_.get().visual.invalidateShader();
     ensureShaderLoaded();
 }
 
@@ -982,12 +868,12 @@ const std::string& Actor::getShaderPath() const {
 
 std::shared_ptr<sf::Shader> Actor::getShader() const {
     ensureShaderLoaded();
-    return shader_;
+    return impl_.get().visual.getShader();
 }
 
 bool Actor::hasShaderError() const {
     ensureShaderLoaded();
-    return shaderError_;
+    return impl_.get().visual.hasShaderError();
 }
 
 bool Actor::getVisible() const {
@@ -1103,11 +989,9 @@ void Actor::_animate(float deltaTime) {
     if (!texture_) {
         return;
     }
-    switchTimer_ += deltaTime;
-    if (switchTimer_ < switchInterval) {
+    if (!impl_.get().visual.advanceAnimation(deltaTime, switchInterval)) {
         return;
     }
-    switchTimer_ = 0.0f;
     const sf::IntRect currentRect = getTextureRect();
     const sf::IntRect nextRect =
         ludork::engine::sprite_visuals::nextAnimationRect(

@@ -8,12 +8,6 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local WindowShopTabsUI = {}
 
-local function setTabItems(tabView, model)
-    tabView:setItems({ LOC("SHOP_BUY"), LOC("SHOP_SELL") }, function (index)
-        model:onSelectedIndexChanged(index)
-    end)
-end
-
 function WindowShopTabsUI:init(model, size, instance)
     self._size = size
     super(WindowShopTabsUI, self).init(model, instance)
@@ -32,11 +26,13 @@ function WindowShopTabsUI:bind()
             Joystick = Engine.JoystickButton.getRB()
         })
     self._tabView:setCursorSound(GameSystem.GetCursorSE())
-    setTabItems(self._tabView, self.model)
+    self._tabView:setOnSelectedIndexChanged(function (index)
+        self.model:onSelectedIndexChanged(index)
+    end)
 end
 
 function WindowShopTabsUI:refresh()
-    setTabItems(self._tabView, self.model)
+    self._tabView:setItems({ LOC("SHOP_BUY"), LOC("SHOP_SELL") })
 end
 
 function WindowShopTabsUI:prepare()
@@ -65,7 +61,7 @@ end
 
 function WindowShopTabsUI:dispose()
     if self._tabView ~= nil then
-        self._tabView:setItems(self._tabView:getItems(), nil)
+        self._tabView:setOnSelectedIndexChanged(nil)
         self._tabView = nil
     end
     super(WindowShopTabsUI, self).dispose()

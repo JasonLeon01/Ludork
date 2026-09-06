@@ -1,4 +1,6 @@
 #include <UI/CheckBox.hpp>
+#include <UI/PlainText.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 #include "Interaction/InputArguments.hpp"
 

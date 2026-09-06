@@ -1,4 +1,5 @@
 #pragma once
+#include <Runtime/RuntimeObject.hpp>
 
 #include <Runtime/RuntimeValue.hpp>
 

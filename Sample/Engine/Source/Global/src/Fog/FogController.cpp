@@ -1,7 +1,7 @@
 #include <Fog/FogController.hpp>
 
-#include "FogController/FogRenderRuntime.hpp"
-#include "FogController/WorldFogRuntime.hpp"
+#include "FogController/FogRenderImpl.hpp"
+#include "FogController/WorldFogImpl.hpp"
 
 #include <Camera.hpp>
 #include <Manager/ShaderManager.hpp>
@@ -41,25 +41,22 @@ float optionalFloat(const RuntimeValue::Map& mapData, const std::string& name) {
 
 using ludork::global::fog_controller_impl::WorldFogLayer;
 
-auto& worldFogState =
-    ludork::global::fog_controller_impl::worldFogRuntime().state;
-auto& graphic_ =
-    ludork::global::fog_controller_impl::fogRenderRuntime().graphic;
-auto& power_ = ludork::global::fog_controller_impl::fogRenderRuntime().power;
-auto& scroll_ = ludork::global::fog_controller_impl::fogRenderRuntime().scroll;
-auto& distort_ =
-    ludork::global::fog_controller_impl::fogRenderRuntime().distort;
-auto& offset_ = ludork::global::fog_controller_impl::fogRenderRuntime().offset;
-auto& time_ = ludork::global::fog_controller_impl::fogRenderRuntime().time;
-auto& active_ = ludork::global::fog_controller_impl::fogRenderRuntime().active;
+auto& worldFogState = ludork::global::fog_controller_impl::worldFogImpl().state;
+auto& graphic_ = ludork::global::fog_controller_impl::fogRenderImpl().graphic;
+auto& power_ = ludork::global::fog_controller_impl::fogRenderImpl().power;
+auto& scroll_ = ludork::global::fog_controller_impl::fogRenderImpl().scroll;
+auto& distort_ = ludork::global::fog_controller_impl::fogRenderImpl().distort;
+auto& offset_ = ludork::global::fog_controller_impl::fogRenderImpl().offset;
+auto& time_ = ludork::global::fog_controller_impl::fogRenderImpl().time;
+auto& active_ = ludork::global::fog_controller_impl::fogRenderImpl().active;
 auto& fogTexture_ =
-    ludork::global::fog_controller_impl::fogRenderRuntime().fogTexture;
+    ludork::global::fog_controller_impl::fogRenderImpl().fogTexture;
 auto& fogShader_ =
-    ludork::global::fog_controller_impl::fogRenderRuntime().fogShader;
+    ludork::global::fog_controller_impl::fogRenderImpl().fogShader;
 auto& fogBuffer_ =
-    ludork::global::fog_controller_impl::fogRenderRuntime().fogBuffer;
+    ludork::global::fog_controller_impl::fogRenderImpl().fogBuffer;
 auto& bufferSprite_ =
-    ludork::global::fog_controller_impl::fogRenderRuntime().bufferSprite;
+    ludork::global::fog_controller_impl::fogRenderImpl().bufferSprite;
 
 std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
                                                const sf::Vector2f& scroll,

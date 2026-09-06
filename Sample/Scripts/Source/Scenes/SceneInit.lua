@@ -168,7 +168,7 @@ function Scene:_setPhaseProgress(offset, weight)
     if self.progressTotal > 0 then
         fraction = self.processedCount / self.progressTotal
     end
-    local value = offset + weight * Engine.Clamp(fraction, 0.0, 1.0)
+    local value = offset + weight * math.clamp(fraction, 0.0, 1.0)
     self.progressValue = math.max(self.progressValue, value)
 end
 

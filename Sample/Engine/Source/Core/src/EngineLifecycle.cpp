@@ -1,6 +1,7 @@
 #include <EngineLifecycle.hpp>
+#include <Gameplay/ActorAudioService.hpp>
 
-#include <Animation.hpp>
+#include <AnimSprite.hpp>
 #include <EditorCommandServices.hpp>
 #include <FileBatchJson.hpp>
 #include <Gameplay/Actor.hpp>

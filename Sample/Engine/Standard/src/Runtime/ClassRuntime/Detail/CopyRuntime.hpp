@@ -7,12 +7,12 @@ namespace ludork::standard::class_runtime {
 using NativeDeepCopyRecurse = sol::object (*)(void* context,
                                               const sol::object& value);
 
-enum class NativeDeepCopyMode {
-    TwoPhase,
-    Deferred,
-};
-
 struct NativeDeepCopyProtocol {
+    enum class NativeDeepCopyMode {
+        TwoPhase,
+        Deferred,
+    };
+
     using Create = sol::object (*)(sol::state_view lua,
                                    const sol::object& source);
     using Populate = void (*)(sol::state_view lua, const sol::object& source,

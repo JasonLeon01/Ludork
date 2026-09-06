@@ -1,51 +1,5 @@
 local WindowAttrShopUI = require("Source.UI.WindowAttrShop")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
-
-local _ITEM_ROW_HEIGHT = 32
-
----@class Source.Windows._WindowAttrShopSelectable
-local _WindowAttrShopSelectable = {}
-
-function _WindowAttrShopSelectable:init(rect, owner)
-    super(_WindowAttrShopSelectable, self).init(rect, nil, rect.size.x - 64, _ITEM_ROW_HEIGHT, nil, nil, nil, nil, true)
-    self:setHasReturnBtn(true)
-    self._owner = owner
-    self._abilityKeys = {}
-    self._cellAvailable = {}
-    owner._shopUI:attachSelectable(self, rect.size)
-    self:setScrollBox(owner._shopUI:getScrollBox())
-    self:setListView(owner._shopUI:getListView())
-end
-
-function _WindowAttrShopSelectable:refresh(abilities, prices, moneyName, moneyAmount)
-    self._owner._shopUI:refreshRows(abilities, prices, moneyName, moneyAmount)
-end
-
-function _WindowAttrShopSelectable:getSelectedAbilityKey()
-    if self.index == nil or self.index < 0 or self.index >= #self._abilityKeys then
-        return nil
-    end
-    return self._abilityKeys[self.index + 1]
-end
-
-function _WindowAttrShopSelectable:isCurrentAvailable()
-    if self.index == nil or self.index < 0 or self.index >= #self._cellAvailable then
-        return false
-    end
-    return self._cellAvailable[self.index + 1]
-end
-
-function _WindowAttrShopSelectable:onTick(deltaTime)
-    self._owner._shopUI:tick(deltaTime)
-    super(_WindowAttrShopSelectable, self).onTick(deltaTime)
-end
-
-function _WindowAttrShopSelectable:onReturn()
-    self._owner:closeByCancel()
-end
-
----@type Class.ClassType<Source.Windows._WindowAttrShopSelectable>
-local Final_WindowAttrShopSelectable = class(_WindowAttrShopSelectable, WindowSelectable)
+local WindowAttrShopSelectable = require("Source.Windows.WindowAttrShop.Selectable")
 
 ---@class Source.Windows.WindowAttrShop
 local WindowAttrShop = {}
@@ -69,7 +23,7 @@ function WindowAttrShop:init(player, onClose)
     self._avatarSwitchInterval = 0.2
     self._avatarSwitchTimer = 0.0
     self._shopUI = self.uiClass.new(self)
-    self._selectable = Final_WindowAttrShopSelectable.new(WindowAttrShop.GetDefaultRect(), self)
+    self._selectable = WindowAttrShopSelectable.new(WindowAttrShop.GetDefaultRect(), self)
     self._selectable:hideImmediate()
     self._closed = true
 end
@@ -171,6 +125,4 @@ function WindowAttrShop:_closeAndNotify()
     self._shopUI:closeAndNotify()
 end
 
-local FinalWindowAttrShop = class(WindowAttrShop)
-
-return FinalWindowAttrShop
+return class(WindowAttrShop)

@@ -1,4 +1,5 @@
 #include <Runtime/RuntimeReference.hpp>
+#include <Runtime/RuntimeObject.hpp>
 
 #include "RuntimeBindingTraits.hpp"
 #include "RuntimeServiceInternals.hpp"
@@ -210,12 +211,14 @@ Entries entries(const RuntimeHandle& target) {
     return result;
 }
 
-RuntimeValue::Array keys(const RuntimeHandle& target, RuntimeLookupMode mode) {
+RuntimeValue::Array keys(const RuntimeHandle& target,
+                         RuntimeReflectionFacade::RuntimeLookupMode mode) {
     RuntimeScope scope;
     sol::state_view lua(scope.state());
     RuntimeValue::Array result;
     for (const sol::object& key : detail::runtimeKeys(
-             lua, write(lua, target), mode == RuntimeLookupMode::Own)) {
+             lua, write(lua, target),
+             mode == RuntimeReflectionFacade::RuntimeLookupMode::Own)) {
         result.push_back(detail::readRuntimeReference(key));
     }
     return result;

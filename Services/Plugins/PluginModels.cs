@@ -1,8 +1,5 @@
 using Ludork.Plugin.Abstractions;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text.Json.Serialization;
 
 namespace Ludork.Services.Plugins;
 
@@ -90,60 +87,6 @@ public sealed record PluginManagementResult(
     {
         return new PluginManagementResult(false, error, false);
     }
-}
-
-internal sealed class PluginManifest
-{
-    [JsonPropertyName("schemaVersion")]
-    public int SchemaVersion { get; set; }
-
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
-
-    [JsonPropertyName("version")]
-    public string Version { get; set; } = string.Empty;
-
-    [JsonPropertyName("minimumEditorVersion")]
-    public string MinimumEditorVersion { get; set; } = string.Empty;
-
-    [JsonPropertyName("entryType")]
-    public string EntryType { get; set; } = string.Empty;
-}
-
-internal sealed class PluginRegistryDocument
-{
-    [JsonPropertyName("schemaVersion")]
-    public int SchemaVersion { get; set; } = 1;
-
-    [JsonPropertyName("plugins")]
-    public List<PluginRegistryEntry> Plugins { get; set; } = [];
-
-    [JsonPropertyName("pendingDelete")]
-    public List<string> PendingDelete { get; set; } = [];
-
-    public PluginRegistryDocument Clone()
-    {
-        PluginRegistryDocument document = new()
-        {
-            SchemaVersion = SchemaVersion,
-        };
-        foreach (PluginRegistryEntry entry in Plugins)
-            document.Plugins.Add(new PluginRegistryEntry { Id = entry.Id, Directory = entry.Directory });
-        document.PendingDelete.AddRange(PendingDelete);
-        return document;
-    }
-}
-
-internal sealed class PluginRegistryEntry
-{
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [JsonPropertyName("directory")]
-    public string Directory { get; set; } = string.Empty;
 }
 
 internal sealed record PluginRegistryState(

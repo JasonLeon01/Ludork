@@ -1,4 +1,6 @@
 #include "UI/UiPreviewInstantiation.hpp"
+#include <Runtime/AssetInputStream.hpp>
+#include <UI/UiAssetInstance.hpp>
 
 #include "Protocol/PreviewProtocol.hpp"
 

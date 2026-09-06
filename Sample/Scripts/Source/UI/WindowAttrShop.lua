@@ -71,7 +71,7 @@ function WindowAttrShopUI:getScrollBox()
     return self._scrollBox
 end
 
----@return Source.Windows._WindowAttrShopSelectable
+---@return Source.Windows.WindowAttrShop.Selectable
 function WindowAttrShopUI:_getSelectable()
     assert(self._selectable ~= nil, "Attribute shop selectable has not been attached")
     return self._selectable
@@ -151,7 +151,7 @@ function WindowAttrShopUI:open(
     local selectable = self:_getSelectable()
     self.model._abilities = {}
     for key, value in pairs(abilities) do
-        self.model._abilities[tostring(key)] = Engine.ToInteger(tonumber(value) or 0)
+        self.model._abilities[tostring(key)] = math.trunc(tonumber(value) or 0)
     end
     self.model._abilityKeys = table.orderedStringKeys(self.model._abilities, _ABILITY_ORDER)
     self.model._priceRef = priceRef
@@ -192,7 +192,7 @@ function WindowAttrShopUI:refreshPriceText()
         self._priceTextValue = ""
     else
         self._priceTextValue = Engine.ApplyStringMappingFormat(LOC("SHOP_ATTR_PRICE"), {
-            gold = Engine.ToInteger(tonumber(priceValue) or 0)
+            gold = math.trunc(tonumber(priceValue) or 0)
         })
     end
     self:setText("Price", self._priceTextValue)
@@ -202,7 +202,7 @@ end
 function WindowAttrShopUI:refreshItems()
     self:refreshRows(
         self.model._abilities, self:getPrices(), self.model._moneyName,
-        Engine.ToInteger(tonumber(self.model._player.attributes[self.model._moneyName]) or 0)
+        math.trunc(tonumber(self.model._player.attributes[self.model._moneyName]) or 0)
     )
 end
 
@@ -329,7 +329,9 @@ end
 
 function WindowAttrShopUI:setPriceValue(value)
     if self.model._priceRef == nil then
-        self.model._fallbackPrice = Engine.ToInteger(value)
+        assert(Class.isInstance(value, "number"), "Fallback price must be a number")
+        ---@cast value integer
+        self.model._fallbackPrice = math.trunc(value)
         return
     end
     self.model._priceRef:set(value)
@@ -344,13 +346,13 @@ function WindowAttrShopUI:getPrices()
         end
         local result = {}
         for index, price in ipairs(priceValue) do
-            result[index] = Engine.ToInteger(tonumber(price) or 0)
+            result[index] = math.trunc(tonumber(price) or 0)
         end
         return result
     end
     local result = {}
     for index = 1, #self.model._abilityKeys do
-        result[index] = Engine.ToInteger(tonumber(priceValue) or 0)
+        result[index] = math.trunc(tonumber(priceValue) or 0)
     end
     return result
 end
@@ -361,13 +363,13 @@ function WindowAttrShopUI:increasePrice(abilityIndex)
         ---@cast priceValue integer[]
         local prices = {}
         for index, price in ipairs(priceValue) do
-            prices[index] = Engine.ToInteger(tonumber(price) or 0)
+            prices[index] = math.trunc(tonumber(price) or 0)
         end
         prices[abilityIndex] = prices[abilityIndex] + self.model._priceIncrement
         self:setPriceValue(prices)
         return
     end
-    self:setPriceValue(Engine.ToInteger(tonumber(priceValue) or 0) + self.model._priceIncrement)
+    self:setPriceValue(math.trunc(tonumber(priceValue) or 0) + self.model._priceIncrement)
 end
 
 function WindowAttrShopUI:closeAndNotify()

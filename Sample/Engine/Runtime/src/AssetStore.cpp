@@ -1,6 +1,7 @@
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/AssetInputStream.hpp>
 
-#include "AssetStoreInternal.hpp"
+#include "AssetStoreImpl.hpp"
 #include "LdPakArchive.hpp"
 #include <Runtime/AssetPath.hpp>
 #include <Utf8Path.hpp>
@@ -421,7 +422,8 @@ bool AssetStore::exists(const std::string& assetPath) const {
     return stat(assetPath).has_value();
 }
 
-std::optional<AssetStat> AssetStore::stat(const std::string& assetPath) const {
+std::optional<AssetStore::AssetStat> AssetStore::stat(
+    const std::string& assetPath) const {
     const AssetPath parsed = AssetPath::parse(assetPath);
     std::shared_lock lock(impl_->mutex);
     if (!impl_->configured) {
@@ -430,17 +432,19 @@ std::optional<AssetStat> AssetStore::stat(const std::string& assetPath) const {
     if (impl_->mode == AssetStoreMode::Loose) {
         const std::optional<StoreEntry> entry =
             findLooseEntry(impl_->runtimeRoot / "Assets", parsed);
-        return entry.has_value() ? std::optional<AssetStat>(
-                                       AssetStat{entry->directory, entry->size,
-                                                 entry->modificationTime})
-                                 : std::nullopt;
+        return entry.has_value()
+                   ? std::optional<AssetStore::AssetStat>(
+                         AssetStore::AssetStat{entry->directory, entry->size,
+                                               entry->modificationTime})
+                   : std::nullopt;
     }
     const auto iterator = impl_->entries.find(assetPath);
     if (iterator == impl_->entries.end()) {
         return std::nullopt;
     }
-    return AssetStat{iterator->second.directory, iterator->second.size,
-                     iterator->second.modificationTime};
+    return AssetStore::AssetStat{iterator->second.directory,
+                                 iterator->second.size,
+                                 iterator->second.modificationTime};
 }
 
 std::unique_ptr<AssetInputStream> AssetStore::open(

@@ -1,33 +1,17 @@
 #pragma once
+#include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
 #include <RuntimeApi.hpp>
 
 #include <Runtime/NodeGraph/Node.hpp>
+#include <Runtime/NodeGraph/DataNode.hpp>
+#include <Runtime/NodeGraph/GraphLink.hpp>
 #include <Runtime/NodeGraph/Types.hpp>
 
 namespace ludork::runtime::graph_detail {
 struct ExecutionState;
-struct LoopResult;
 }  // namespace ludork::runtime::graph_detail
-
-BIND_CLASS(copyable = true, table_init = true, metadata = false)
-struct LUDORK_RUNTIME_API GraphLink {
-    BIND_PROPERTY(metadata = false)
-    RuntimeValue left;
-
-    BIND_PROPERTY(metadata = false)
-    RuntimeValue right;
-
-    BIND_PROPERTY(metadata = false)
-    int leftOutPin = 0;
-
-    BIND_PROPERTY(metadata = false)
-    int rightInPin = 0;
-
-    BIND_PROPERTY(metadata = false)
-    std::string linkType;
-};
 
 BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API Graph : public RuntimeObject {
@@ -159,6 +143,12 @@ public:
     const std::string& getDoingPartKey() const;
 
 private:
+    struct LoopResult {
+        std::optional<int> next;
+        NodeResult result;
+        std::size_t steps = 0;
+    };
+
     struct InstanceTag {};
 
     void ensureInitialised();
@@ -174,9 +164,9 @@ private:
     const EventParams& eventParams() const;
     const RelyMap& nodeRely() const;
     const NextMap& nodeNexts() const;
-    ludork::runtime::graph_detail::LoopResult executeLoopNode(
-        const std::string& key, int nodeIndex, const NodeResult& controlResult,
-        NodeCache& cache, std::size_t limit);
+    LoopResult executeLoopNode(const std::string& key, int nodeIndex,
+                               const NodeResult& controlResult,
+                               NodeCache& cache, std::size_t limit);
     std::optional<int> getNamedExecPinIndex(const NodeMemberMetadata& metadata,
                                             const std::string& pinName) const;
     NodeResult getLoopEmptyResult(const NodeMemberMetadata& metadata) const;

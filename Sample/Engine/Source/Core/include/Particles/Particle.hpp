@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <Particles/ParticleInfo.hpp>
 
 #include <EngineRuntimeApi.hpp>
 

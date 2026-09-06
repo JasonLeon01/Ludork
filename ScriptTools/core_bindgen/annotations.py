@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
 from pathlib import Path
 
 from .context import GeneratorContext
+from .scopes import code_mask, register_headers, validate_public_type
 from .model import (
     EnumInfo,
     EnumValueInfo,
@@ -24,6 +26,8 @@ from .cpp_types import (
     option_list,
     parameter_declarations,
     parse_cpp_type,
+    qualify_cpp_text,
+    qualify_member,
     remove_type_qualifiers,
     split_return_type,
     strip_leading_binding_macros,
@@ -69,7 +73,7 @@ def split_macro_arguments(arguments: str) -> list[str]:
 def macro_invocations(text: str, kinds: tuple[str, ...]) -> list[MacroInvocation]:
     pattern = re.compile(r"\bBIND_(" + "|".join(kinds) + r")\s*\(")
     result: list[MacroInvocation] = []
-    for match in pattern.finditer(text):
+    for match in pattern.finditer(code_mask(text)):
         opening = text.find("(", match.start())
         depth = 0
         quote = ""
@@ -527,14 +531,14 @@ def lua_alternatives(info: TypeInfo) -> list[LuaAlternative]:
         for item in split_dsl_items(declaration, ";"):
             if "=>" not in item:
                 raise ValueError(
-                    f"invalid lua_alternatives branch on {info.name}: {item}"
+                    f"invalid lua_alternatives branch on {info.cpp_name}: {item}"
                 )
             shape_value, assignments_value = item.split("=>", 1)
             shape_value = shape_value.strip()
             shape_match = re.fullmatch(r"([A-Za-z_]\w*)(?:\((.*)\))?", shape_value)
             if shape_match is None:
                 raise ValueError(
-                    f"invalid lua_alternatives shape on {info.name}: {shape_value}"
+                    f"invalid lua_alternatives shape on {info.cpp_name}: {shape_value}"
                 )
             shape = shape_match.group(1)
             source_value = shape_match.group(2)
@@ -544,13 +548,13 @@ def lua_alternatives(info: TypeInfo) -> list[LuaAlternative]:
                     not re.fullmatch(r"[A-Za-z_]\w*", source) for source in sources
                 ):
                     raise ValueError(
-                        f"{shape} lua_alternatives shape on {info.name} "
+                        f"{shape} lua_alternatives shape on {info.cpp_name} "
                         "requires named sources"
                     )
             elif shape == "type":
                 if len(sources) != 1:
                     raise ValueError(
-                        f"type lua_alternatives shape on {info.name} "
+                        f"type lua_alternatives shape on {info.cpp_name} "
                         "requires one C++ type"
                     )
             elif sources or shape not in {
@@ -564,19 +568,19 @@ def lua_alternatives(info: TypeInfo) -> list[LuaAlternative]:
                 "thread",
             }:
                 raise ValueError(
-                    f"unsupported lua_alternatives shape on {info.name}: {shape}"
+                    f"unsupported lua_alternatives shape on {info.cpp_name}: {shape}"
                 )
             assignments: list[tuple[str, str]] = []
             for assignment in split_dsl_items(assignments_value, ","):
                 if "=" not in assignment:
                     raise ValueError(
-                        f"invalid lua_alternatives assignment on {info.name}: "
+                        f"invalid lua_alternatives assignment on {info.cpp_name}: "
                         f"{assignment}"
                     )
                 target, source = (part.strip() for part in assignment.split("=", 1))
                 if not re.fullmatch(r"[A-Za-z_]\w*", target) or not source:
                     raise ValueError(
-                        f"invalid lua_alternatives assignment on {info.name}: "
+                        f"invalid lua_alternatives assignment on {info.cpp_name}: "
                         f"{assignment}"
                     )
                 if source.startswith("$"):
@@ -584,17 +588,17 @@ def lua_alternatives(info: TypeInfo) -> list[LuaAlternative]:
                     if source_name and source_name not in sources:
                         raise ValueError(
                             f"unknown lua_alternatives source ${source_name} "
-                            f"on {info.name}"
+                            f"on {info.cpp_name}"
                         )
                     if not source_name and shape in {"fields", "array"}:
                         raise ValueError(
                             f"bare $ is not valid for {shape} "
-                            f"lua_alternatives on {info.name}"
+                            f"lua_alternatives on {info.cpp_name}"
                         )
                 assignments.append((target, source))
             if not assignments:
                 raise ValueError(
-                    f"lua_alternatives branch on {info.name} has no assignments"
+                    f"lua_alternatives branch on {info.cpp_name} has no assignments"
                 )
             alternatives.append(LuaAlternative(shape, sources, tuple(assignments)))
     return alternatives
@@ -619,28 +623,28 @@ def lua_emits(info: TypeInfo) -> list[LuaEmit]:
     emits: list[LuaEmit] = []
     for item in split_dsl_items(declaration, ";"):
         if "=>" not in item:
-            raise ValueError(f"invalid lua_emit branch on {info.name}: {item}")
+            raise ValueError(f"invalid lua_emit branch on {info.cpp_name}: {item}")
         predicates_value, shape_value = item.split("=>", 1)
         predicates: list[tuple[str, str]] = []
         for predicate in split_dsl_items(predicates_value, ","):
             if "=" not in predicate:
                 raise ValueError(
-                    f"invalid lua_emit predicate on {info.name}: {predicate}"
+                    f"invalid lua_emit predicate on {info.cpp_name}: {predicate}"
                 )
             member_name, expected = (part.strip() for part in predicate.split("=", 1))
             if not re.fullmatch(
                 r"[A-Za-z_]\w*", member_name
             ) or not safe_lua_dsl_cpp_value(expected):
                 raise ValueError(
-                    f"invalid lua_emit predicate on {info.name}: {predicate}"
+                    f"invalid lua_emit predicate on {info.cpp_name}: {predicate}"
                 )
             predicates.append((member_name, expected))
         if not predicates:
-            raise ValueError(f"lua_emit branch on {info.name} has no predicate")
+            raise ValueError(f"lua_emit branch on {info.cpp_name} has no predicate")
         shape_match = re.fullmatch(r"([A-Za-z_]\w*)\((.*)\)", shape_value.strip())
         if shape_match is None:
             raise ValueError(
-                f"invalid lua_emit shape on {info.name}: {shape_value.strip()}"
+                f"invalid lua_emit shape on {info.cpp_name}: {shape_value.strip()}"
             )
         shape = shape_match.group(1)
         arguments = split_dsl_items(shape_match.group(2), ",")
@@ -649,11 +653,11 @@ def lua_emits(info: TypeInfo) -> list[LuaEmit]:
             for argument in arguments:
                 if "=" not in argument:
                     raise ValueError(
-                        f"lua_emit fields on {info.name} requires name=value pairs"
+                        f"lua_emit fields on {info.cpp_name} requires name=value pairs"
                     )
                 key, expression = (part.strip() for part in argument.split("=", 1))
                 if not re.fullmatch(r"[A-Za-z_]\w*", key):
-                    raise ValueError(f"invalid lua_emit field on {info.name}: {key}")
+                    raise ValueError(f"invalid lua_emit field on {info.cpp_name}: {key}")
                 values.append((key, expression))
         elif shape == "array":
             values.extend(
@@ -662,18 +666,18 @@ def lua_emits(info: TypeInfo) -> list[LuaEmit]:
         elif shape == "value" and len(arguments) == 1:
             values.append(("", arguments[0]))
         else:
-            raise ValueError(f"unsupported lua_emit shape on {info.name}: {shape}")
+            raise ValueError(f"unsupported lua_emit shape on {info.cpp_name}: {shape}")
         if not values:
-            raise ValueError(f"lua_emit branch on {info.name} has no values")
+            raise ValueError(f"lua_emit branch on {info.cpp_name} has no values")
         for _, expression in values:
             if expression.startswith("$"):
                 if not re.fullmatch(r"\$[A-Za-z_]\w*", expression):
                     raise ValueError(
-                        f"invalid lua_emit member on {info.name}: {expression}"
+                        f"invalid lua_emit member on {info.cpp_name}: {expression}"
                     )
             elif not safe_lua_dsl_cpp_value(expression):
                 raise ValueError(
-                    f"unsafe lua_emit expression on {info.name}: {expression}"
+                    f"unsafe lua_emit expression on {info.cpp_name}: {expression}"
                 )
         emits.append(LuaEmit(tuple(predicates), shape, tuple(values)))
     return emits
@@ -734,7 +738,7 @@ def singleton_options(info: TypeInfo) -> tuple[str, str] | None:
     if module_path is None and singleton is None:
         return None
     if module_path is None or singleton is None:
-        raise ValueError(f"BIND_CLASS {info.name} requires both module and singleton")
+        raise ValueError(f"BIND_CLASS {info.cpp_name} requires both module and singleton")
     validate_lua_path(module_path)
     if not re.fullmatch(r"(?:[A-Za-z_]\w*::)*[A-Za-z_]\w*", singleton):
         raise ValueError(f"invalid singleton accessor: {singleton}")
@@ -897,7 +901,9 @@ def parse_enum_values(
 def parse_header(
     context: GeneratorContext, path: Path
 ) -> tuple[list[TypeInfo], list[EnumInfo], list[Member]]:
-    text = path.read_text(encoding="utf-8")
+    register_headers(context, [path])
+    scopes = context.header_scopes[path]
+    text = scopes.text
     function_group_matches = macro_invocations(text, ("FUNCTION_GROUP",))
     if len(function_group_matches) > 1:
         line = text.count("\n", 0, function_group_matches[1].start) + 1
@@ -975,15 +981,14 @@ def parse_header(
     enums: list[EnumInfo] = []
     free_functions: list[Member] = []
     class_spans: list[tuple[int, int]] = []
-    enum_pattern = re.compile(
-        r"BIND_ENUM\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*"
-        r"enum\s+class\s+(?:[A-Z][A-Z0-9_]*_API\s+)?"
-        r"(\w+)\s*(?::\s*([^\{]+))?"
-    )
-    for match in enum_pattern.finditer(text):
-        body, _ = balanced_body(text, match.end())
-        options = parse_macro_options(match.group(1))
-        enum_line = text.count("\n", 0, match.start()) + 1
+    for annotation in macro_invocations(text, ("ENUM",)):
+        native = scopes.declaration_after(annotation.end)
+        if native.kind != "enum class":
+            raise ValueError(f"{path}:{native.line}: BIND_ENUM requires an enum class")
+        validate_public_type(context, native)
+        body = text[native.opening + 1 : native.closing]
+        options = parse_macro_options(annotation.arguments)
+        enum_line = text.count("\n", 0, annotation.start) + 1
         unsupported_options = set(options) - {"name"}
         if unsupported_options:
             raise ValueError(
@@ -992,47 +997,48 @@ def parse_header(
             )
         validate_root_exposed_name(
             options,
-            match.group(2),
+            native.name,
             "ENUM",
             path,
             enum_line,
         )
         enums.append(
             EnumInfo(
-                match.group(2),
-                parse_enum_values(body, path, enum_line, match.group(2)),
-                documentation_before(text, match.start()),
+                native.name,
+                parse_enum_values(body, path, enum_line, native.name),
+                documentation_before(text, annotation.start),
                 path,
                 options,
                 enum_line,
+                cpp_name=native.cpp_name,
+                cpp_scope=native.cpp_scope,
             )
         )
-    class_pattern = re.compile(
-        r"BIND_CLASS\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*"
-        r"(class|struct)\s+(?:[A-Z][A-Z0-9_]*_API\s+)?"
-        r"(\w+)\s*(?::\s*([^\{]+))?"
-    )
-    for match in class_pattern.finditer(text):
-        body, end = balanced_body(text, match.end())
-        body_start = text.find("{", match.end()) + 1
-        class_spans.append((match.start(), end))
-        bases = (
-            []
-            if match.group(4) is None
-            else [
-                part.strip().replace("public ", "")
-                for part in match.group(4).split(",")
-            ]
-        )
-        class_prefix = text[max(0, match.start() - 4096) : match.start()]
+    for annotation in macro_invocations(text, ("CLASS",)):
+        native = scopes.declaration_after(annotation.end)
+        if native.kind not in {"class", "struct"}:
+            raise ValueError(f"{path}:{native.line}: BIND_CLASS requires a class or struct")
+        validate_public_type(context, native)
+        body_start = native.opening + 1
+        body = text[body_start : native.closing]
+        direct_body = scopes.direct_body(native)
+        end = native.closing + 1
+        class_spans.append((annotation.start, end))
+        declaration_head = text[native.start : native.opening]
+        base_match = re.search(r"(?<!:):(?!:)(.*)", declaration_head, re.DOTALL)
+        bases = [] if base_match is None else [
+            part.strip().replace("public ", "")
+            for part in split_macro_arguments(base_match[1])
+        ]
+        class_prefix = text[max(0, annotation.start - 4096) : annotation.start]
         class_boundary = max(
             class_prefix.rfind(";"), class_prefix.rfind("}"), class_prefix.rfind("{")
         )
         class_options, class_decorators = parse_binding_options(
-            match.group(1),
+            annotation.arguments,
             "CLASS",
         )
-        class_line = text.count("\n", 0, match.start()) + 1
+        class_line = text.count("\n", 0, annotation.start) + 1
         if "callbacks" in class_options and (
             class_options["callbacks"].lower() != "true"
         ):
@@ -1048,15 +1054,15 @@ def parse_header(
         )
         validate_root_exposed_name(
             class_options,
-            match.group(3),
+            native.name,
             "CLASS",
             path,
             class_line,
         )
         info = TypeInfo(
-            match.group(3),
+            native.name,
             bases,
-            documentation_before(text, match.start()),
+            documentation_before(text, annotation.start),
             path,
             class_options,
             [
@@ -1064,15 +1070,19 @@ def parse_header(
                 *class_decorators,
             ],
             line=class_line,
+            cpp_name=native.cpp_name,
+            cpp_scope=native.cpp_scope,
         )
         cast_bases(info)
         markers = macro_invocations(
             body,
             ("INIT", "METHOD", "PROPERTY", "CLASS_PROPERTY", "INJECT"),
         )
-        default_access = "private" if match.group(2) == "class" else "public"
         previous_marker_end = 0
         for member_match in markers:
+            position = body_start + member_match.start
+            if scopes.enclosing_brace(position) != native.opening:
+                continue
             raw_declaration, declaration_end = declaration_after_with_end(
                 body, member_match.end
             )
@@ -1085,7 +1095,7 @@ def parse_header(
                 member_match.arguments,
                 kind,
             )
-            decorators = decorators_in(body[previous_marker_end : member_match.start])
+            decorators = decorators_in(direct_body[previous_marker_end : member_match.start])
             decorators.extend(inline_decorators)
             decorators.extend(decorators_in(raw_declaration))
             member_line = (
@@ -1103,7 +1113,7 @@ def parse_header(
                     and "=" not in declaration[: function_declaration.start()]
                 ):
                     raise ValueError(
-                        f"{path}: {info.name}.{function_declaration.group(1)} "
+                        f"{path}: {info.cpp_name}.{function_declaration.group(1)} "
                         "function-backed properties must "
                         "use BIND_METHOD(property = ...)"
                     )
@@ -1111,7 +1121,7 @@ def parse_header(
                     name in options for name in {"getter", "setter", "property"}
                 ):
                     raise ValueError(
-                        f"{path}: {info.name} function-backed properties must "
+                        f"{path}: {info.cpp_name} function-backed properties must "
                         "use BIND_METHOD(property = ...)"
                     )
                 property_match = re.search(
@@ -1129,15 +1139,16 @@ def parse_header(
                         kind,
                         decorators,
                         options,
-                        member_access(body, member_match.start, default_access),
+                        scopes.access_at(native, position),
                         member_line,
                         path,
+                        cpp_scope=tuple(native.cpp_name.split("::")),
                     )
-                    validate_member_annotation(property_member, path, info.name)
+                    validate_member_annotation(property_member, path, info.cpp_name)
                     destination.append(property_member)
                 elif kind == "PROPERTY" and "(" in declaration:
                     raise ValueError(
-                        f"{path}: {info.name} function-backed properties must "
+                        f"{path}: {info.cpp_name} function-backed properties must "
                         "use BIND_METHOD(property = ...)"
                     )
                 previous_marker_end = declaration_end
@@ -1152,14 +1163,15 @@ def parse_header(
                 kind,
                 decorators,
                 options,
-                member_access(body, member_match.start, default_access),
+                scopes.access_at(native, position),
                 member_line,
                 path,
+                cpp_scope=tuple(native.cpp_name.split("::")),
             )
-            validate_member_annotation(member, path, info.name)
+            validate_member_annotation(member, path, info.cpp_name)
             if kind == "METHOD" and "property" in options:
                 property_name = options["property"]
-                property_label = f"{info.name}.{property_name} (getter {member.name})"
+                property_label = f"{info.cpp_name}.{property_name} (getter {member.name})"
                 if not re.fullmatch(r"[A-Za-z_]\w*", property_name):
                     raise ValueError(
                         f"{path}: invalid computed property name {property_label}"
@@ -1193,7 +1205,7 @@ def parse_header(
                 ):
                     raise ValueError(
                         f"{path}: invalid computed property setter "
-                        f"{info.name}.{setter_name}"
+                        f"{info.cpp_name}.{setter_name}"
                     )
                 if (
                     setter_name is not None
@@ -1223,6 +1235,7 @@ def parse_header(
                         member.access,
                         member.line,
                         path,
+                        cpp_scope=tuple(native.cpp_name.split("::")),
                     )
                 )
                 previous_marker_end = declaration_end
@@ -1234,6 +1247,22 @@ def parse_header(
             else:
                 info.methods.append(member)
             previous_marker_end = declaration_end
+        scoped_context = context.for_scope(tuple(info.cpp_name.split("::")))
+        info.bases = [qualify_cpp_text(scoped_context, base) for base in info.bases]
+        extra_bases = cast_bases(info)
+        qualified_bases = [qualify_cpp_text(scoped_context, base) for base in extra_bases]
+        if extra_bases != qualified_bases:
+            info.options["cast_bases"] = "{" + ", ".join(
+                json.dumps(base) for base in qualified_bases
+            ) + "}"
+        for key in ("runtime_base", "runtime_bases", "native_base", "native_bases", "singleton"):
+            if key in info.options:
+                info.options[key] = qualify_cpp_text(scoped_context, info.options[key])
+        for member in (
+            *info.constructors, *info.methods, *info.properties,
+            *info.class_properties, *info.injectors,
+        ):
+            qualify_member(context, member)
         types.append(info)
     function_markers = macro_invocations(
         text,
@@ -1289,8 +1318,10 @@ def parse_header(
                 options,
                 line=member_line,
                 source=path,
+                cpp_scope=scopes.scope_at(member_match.start),
             )
             validate_member_annotation(member, path)
+            qualify_member(context, member)
             free_functions.append(member)
     for match in re.finditer(r"BIND_LUA_REVERSE\(([^)]*)\)", text):
         options = parse_macro_options(match.group(1))

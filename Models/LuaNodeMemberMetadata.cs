@@ -10,39 +10,6 @@ public enum LuaNodeMemberKind
     Event,
 }
 
-public sealed class LuaNodeParameterMetadata
-{
-    public LuaNodeParameterMetadata(
-        string name,
-        LuaTypeReference type,
-        bool hasDefaultValue,
-        JsonNode? defaultValue
-    )
-    {
-        Name = name;
-        Type = type;
-        HasDefaultValue = hasDefaultValue;
-        DefaultValue = defaultValue?.DeepClone();
-    }
-
-    public string Name { get; }
-    public LuaTypeReference Type { get; }
-    public bool HasDefaultValue { get; }
-    public JsonNode? DefaultValue { get; }
-}
-
-public sealed class LuaNodeReturnMetadata
-{
-    public LuaNodeReturnMetadata(string name, LuaTypeReference type)
-    {
-        Name = name;
-        Type = type;
-    }
-
-    public string Name { get; }
-    public LuaTypeReference Type { get; }
-}
-
 public sealed class LuaNodeMemberMetadata
 {
     public LuaNodeMemberMetadata(

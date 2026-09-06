@@ -7,20 +7,6 @@
 #include <System/SceneRuntime.hpp>
 #include <Weather/WeatherController.hpp>
 
-namespace ludork::global {
-struct WindowedFramePlacement;
-namespace system_runtime {
-struct DisplayRuntime;
-struct FramePipelineRuntime;
-struct PendingSceneOperation;
-struct PendingTransition;
-struct SceneStackRuntime;
-enum class SceneOperationType;
-struct LifecycleRuntime;
-struct SystemRuntime;
-}  // namespace system_runtime
-}  // namespace ludork::global
-
 BIND_CLASS(runtime_bases = "SystemConfigBase", native_bases = "")
 class System {
 public:
@@ -439,48 +425,6 @@ public:
 
 private:
     friend class SceneBase;
-    static void onConfigChanged(const std::string& key);
-    static void unbindSceneOperationThread();
     static bool hasPendingSceneOperations();
-    static void requestSceneOperation(
-        ludork::global::system_runtime::SceneOperationType type,
-        std::shared_ptr<SceneRuntime> scene = {});
-    static void applySceneOperation(
-        ludork::global::system_runtime::PendingSceneOperation operation);
-    static void applySetScene(const std::shared_ptr<SceneRuntime>& scene);
-    static void applyPushScene(const std::shared_ptr<SceneRuntime>& scene);
-    static void applyPopScene();
-    static void applyExit();
     static void drainRetiredScenes();
-    static void updateFlash(float deltaTime);
-    static void updateScreenTone(float deltaTime);
-    static void updateShake(float deltaTime);
-    static bool ensureToneShader();
-    static void applyScreenToneUniform();
-    static void ensureToneBuffer(const sf::Vector2u& size);
-    static void cacheTransitionBackground();
-    static sf::Glsl::Vec4 makeToneColour(float red, float green, float blue,
-                                         float gray);
-    static bool isNeutralTone(const sf::Glsl::Vec4& toneColour);
-    static void applyGraphicsShadersLength();
-    static void setShaderUniform(sf::Shader& shader, const std::string& name,
-                                 const ShaderUniformValue& value);
-    static bool shadersAvailable();
-    static void applyPendingDisplayChanges();
-    static void applyConfiguredScale(float scale);
-    static void observeWindowResize();
-    static void updateWindowViewport();
-    static void rebuildDisplayTargets(float surfaceFitScale);
-    static void recreateDesktopWindow(bool fullscreen,
-                                      const sf::Vector2u& size);
-    static void replaceWindowedDesktopWindow(
-        const sf::Vector2u& size,
-        const ludork::global::WindowedFramePlacement* placement);
-    static void applyWindowPresentationSettings();
-    static float windowFitScale(const sf::Vector2u& size);
-    static float effectiveRenderScale(float surfaceFitScale);
-    static sf::Vector2u windowSizeForScale(float scale);
-    static sf::Vector2u renderSizeForScale(float scale);
-    static bool isEmbeddedDisplay();
-    static bool isMobileDisplay();
 };

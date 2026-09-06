@@ -1,5 +1,3 @@
-local Engine = require("Engine")
-
 local ECHO_DELAY = 0.3
 local ECHO_DECAY = 0.5
 local DISTORTION_DRIVE = 2.0
@@ -173,7 +171,7 @@ local function createDistortionProcessor(control)
         ---@cast sampleCount integer
         if not control:isCancelled() then
             for index = 1, sampleCount do
-                outputFrames[index] = Engine.Clamp(
+                outputFrames[index] = math.clamp(
                     inputFrames[index] * DISTORTION_DRIVE, -DISTORTION_THRESHOLD, DISTORTION_THRESHOLD
                 )
             end
@@ -390,7 +388,7 @@ local function createUnderwaterProcessor(control, sampleRate)
                 local frameBubble = frameBubbles[channel]
                 ---@cast frameBubble number
                 local output = (filtered + reverb * 0.4 + frameBubble) * (1.0 - UNDERWATER_DEPTH * 0.4)
-                outputFrames[sampleIndex] = Engine.Clamp(output, -0.8, 0.8)
+                outputFrames[sampleIndex] = math.clamp(output, -0.8, 0.8)
             end
             for index = 1, #indices do
                 local delayIndex = indices[index]
@@ -417,9 +415,9 @@ end
 ---@return sf.SoundSource.EffectProcessor
 local function createBehindWallProcessor(control, sampleRate)
     local maximumCutoff = math.max(20.0, sampleRate * 0.45)
-    local cutoff = Engine.Clamp(BEHIND_WALL_CUTOFF, 20.0, maximumCutoff)
+    local cutoff = math.clamp(BEHIND_WALL_CUTOFF, 20.0, maximumCutoff)
     local alpha = 1.0 - math.exp(-2.0 * math.pi * cutoff / sampleRate)
-    local gain = Engine.Clamp(BEHIND_WALL_TRANSMISSION, 0.0, 1.0)
+    local gain = math.clamp(BEHIND_WALL_TRANSMISSION, 0.0, 1.0)
     local firstStages = createZeroBuffer(MAXIMUM_CHANNEL_COUNT)
     local secondStages = createZeroBuffer(MAXIMUM_CHANNEL_COUNT)
     local filterChannelCount = 0
@@ -466,7 +464,7 @@ local function createBehindWallProcessor(control, sampleRate)
                 local second = secondStage + alpha * (first - secondStage)
                 firstStages[channel] = first
                 secondStages[channel] = second
-                outputFrames[sampleIndex] = Engine.Clamp(second * gain, -1.0, 1.0)
+                outputFrames[sampleIndex] = math.clamp(second * gain, -1.0, 1.0)
             end
         end
         if control:isCancelled() then

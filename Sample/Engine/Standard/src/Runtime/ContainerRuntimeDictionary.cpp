@@ -283,8 +283,8 @@ void registerDict(sol::state_view lua) {
     overrideNewIndex(createDict(lua), &rawDictNewIndex);
     class_runtime::registerNativeDeepCopyProtocol(
         lua, typeTable,
-        {class_runtime::NativeDeepCopyMode::TwoPhase, &createDictDeepCopy,
-         &populateDictDeepCopy, nullptr});
+        {class_runtime::NativeDeepCopyProtocol::NativeDeepCopyMode::TwoPhase,
+         &createDictDeepCopy, &populateDictDeepCopy, nullptr});
 }
 
 }  // namespace ludork::standard::container_runtime::detail

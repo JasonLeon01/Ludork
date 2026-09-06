@@ -1,387 +1,400 @@
 #include <Input/InputService.hpp>
+#include <Input/InjectedInputEvent.hpp>
+#include <Input/InputActionKey.hpp>
+#include <Input/InputNamedValue.hpp>
+#include <Input/JoystickAxisEvent.hpp>
 
-#include "InputService/InputRuntime.hpp"
+#include "InputService/InputImpl.hpp"
 
 #include <UI/FunctionalBase.hpp>
 
 #include <utility>
 
 void InputService::initializeNativePolling() {
-    inputRuntime().initializeNativePolling();
+    ludork::engine::input_impl::inputImpl().initializeNativePolling();
 }
 
 void InputService::update(sf::WindowBase& window) {
-    inputRuntime().update(window);
+    ludork::engine::input_impl::inputImpl().update(window);
 }
 
 void InputService::injectEvent(const InjectedInputEvent& event) {
-    inputRuntime().injectEvent(event);
+    ludork::engine::input_impl::inputImpl().injectEvent(event);
 }
 
 void InputService::setUseInjectedMouseOnly(bool value) {
-    inputRuntime().setUseInjectedMouseOnly(value);
+    ludork::engine::input_impl::inputImpl().setUseInjectedMouseOnly(value);
 }
 
 void InputService::setPointerViewport(std::optional<sf::IntRect> viewport) {
-    inputRuntime().setPointerViewport(std::move(viewport));
+    ludork::engine::input_impl::inputImpl().setPointerViewport(
+        std::move(viewport));
 }
 
 void InputService::onWindowRecreated(sf::WindowBase& window) {
-    inputRuntime().onWindowRecreated(window);
+    ludork::engine::input_impl::inputImpl().onWindowRecreated(window);
 }
 
 void InputService::requestSystemCancel() noexcept {
-    InputEventPump::requestSystemCancel();
+    ludork::engine::input_impl::InputEventPumpImpl::requestSystemCancel();
 }
 
 bool InputService::isFocused() const {
-    return inputRuntime().isFocused();
+    return ludork::engine::input_impl::inputImpl().isFocused();
 }
 
 bool InputService::isFocusLost() const {
-    return inputRuntime().isFocusLost();
+    return ludork::engine::input_impl::inputImpl().isFocusLost();
 }
 
 bool InputService::isFocusGained() const {
-    return inputRuntime().isFocusGained();
+    return ludork::engine::input_impl::inputImpl().isFocusGained();
 }
 
 bool InputService::isKeyPressed() const {
-    return inputRuntime().isKeyPressed();
+    return ludork::engine::input_impl::inputImpl().isKeyPressed();
 }
 
 bool InputService::isKeyReleased() const {
-    return inputRuntime().isKeyReleased();
+    return ludork::engine::input_impl::inputImpl().isKeyReleased();
 }
 
 bool InputService::getKeyPressed(sf::Keyboard::Key key, bool handled, bool alt,
                                  bool ctrl, bool shift, bool system) {
-    return inputRuntime().getKeyPressed(key, handled, alt, ctrl, shift, system);
+    return ludork::engine::input_impl::inputImpl().getKeyPressed(
+        key, handled, alt, ctrl, shift, system);
 }
 
 bool InputService::getScanPressed(sf::Keyboard::Scancode scan, bool handled,
                                   bool alt, bool ctrl, bool shift,
                                   bool system) {
-    return inputRuntime().getScanPressed(scan, handled, alt, ctrl, shift,
-                                         system);
+    return ludork::engine::input_impl::inputImpl().getScanPressed(
+        scan, handled, alt, ctrl, shift, system);
 }
 
 bool InputService::getKeyReleased(sf::Keyboard::Key key, bool handled, bool alt,
                                   bool ctrl, bool shift, bool system) {
-    return inputRuntime().getKeyReleased(key, handled, alt, ctrl, shift,
-                                         system);
+    return ludork::engine::input_impl::inputImpl().getKeyReleased(
+        key, handled, alt, ctrl, shift, system);
 }
 
 bool InputService::getScanReleased(sf::Keyboard::Scancode scan, bool handled,
                                    bool alt, bool ctrl, bool shift,
                                    bool system) {
-    return inputRuntime().getScanReleased(scan, handled, alt, ctrl, shift,
-                                          system);
+    return ludork::engine::input_impl::inputImpl().getScanReleased(
+        scan, handled, alt, ctrl, shift, system);
 }
 
 bool InputService::isMouseWheelScrolled() const {
-    return inputRuntime().isMouseWheelScrolled();
+    return ludork::engine::input_impl::inputImpl().isMouseWheelScrolled();
 }
 
 std::optional<sf::Mouse::Wheel> InputService::getMouseScrolledWheel() const {
-    return inputRuntime().getMouseScrolledWheel();
+    return ludork::engine::input_impl::inputImpl().getMouseScrolledWheel();
 }
 
 float InputService::getMouseScrolledWheelDelta() const {
-    return inputRuntime().getMouseScrolledWheelDelta();
+    return ludork::engine::input_impl::inputImpl().getMouseScrolledWheelDelta();
 }
 
 bool InputService::isMouseWheelPrecise() const {
-    return inputRuntime().isMouseWheelPrecise();
+    return ludork::engine::input_impl::inputImpl().isMouseWheelPrecise();
 }
 
 std::optional<sf::Vector2i> InputService::getMouseScrolledWheelPosition()
     const {
-    return inputRuntime().getMouseScrolledWheelPosition();
+    return ludork::engine::input_impl::inputImpl()
+        .getMouseScrolledWheelPosition();
 }
 
 bool InputService::isMouseButtonPressed() const {
-    return inputRuntime().isMouseButtonPressed();
+    return ludork::engine::input_impl::inputImpl().isMouseButtonPressed();
 }
 
 bool InputService::isMouseButtonReleased() const {
-    return inputRuntime().isMouseButtonReleased();
+    return ludork::engine::input_impl::inputImpl().isMouseButtonReleased();
 }
 
 bool InputService::getMouseButtonPressed(sf::Mouse::Button button,
                                          bool handled) {
-    return inputRuntime().getMouseButtonPressed(button, handled);
+    return ludork::engine::input_impl::inputImpl().getMouseButtonPressed(
+        button, handled);
 }
 
 bool InputService::getMouseButtonReleased(sf::Mouse::Button button,
                                           bool handled) {
-    return inputRuntime().getMouseButtonReleased(button, handled);
+    return ludork::engine::input_impl::inputImpl().getMouseButtonReleased(
+        button, handled);
 }
 
 bool InputService::isMouseMoved() const {
-    return inputRuntime().isMouseMoved();
+    return ludork::engine::input_impl::inputImpl().isMouseMoved();
 }
 
 sf::Vector2i InputService::getMousePosition() const {
-    return inputRuntime().getMousePosition();
+    return ludork::engine::input_impl::inputImpl().getMousePosition();
 }
 
 std::optional<sf::Vector2i> InputService::getMouseMovedDelta() const {
-    return inputRuntime().getMouseMovedDelta();
+    return ludork::engine::input_impl::inputImpl().getMouseMovedDelta();
 }
 
 void InputService::setMousePosition(const sf::Vector2i& position) {
-    inputRuntime().setMousePosition(position);
+    ludork::engine::input_impl::inputImpl().setMousePosition(position);
 }
 
 void InputService::setMousePosition(const sf::Vector2i& position,
                                     sf::WindowBase& window) {
-    inputRuntime().setMousePosition(position, window);
+    ludork::engine::input_impl::inputImpl().setMousePosition(position, window);
 }
 
 bool InputService::isMouseEntered() const {
-    return inputRuntime().isMouseEntered();
+    return ludork::engine::input_impl::inputImpl().isMouseEntered();
 }
 
 bool InputService::isMouseLeft() const {
-    return inputRuntime().isMouseLeft();
+    return ludork::engine::input_impl::inputImpl().isMouseLeft();
 }
 
 bool InputService::isTouchBegan(bool handled) {
-    return inputRuntime().isTouchBegan(handled);
+    return ludork::engine::input_impl::inputImpl().isTouchBegan(handled);
 }
 
 bool InputService::isTouchTap(bool handled) {
-    return inputRuntime().isTouchTap(handled);
+    return ludork::engine::input_impl::inputImpl().isTouchTap(handled);
 }
 
 bool InputService::isTouchEnded() const {
-    return inputRuntime().isTouchEnded();
+    return ludork::engine::input_impl::inputImpl().isTouchEnded();
 }
 
 bool InputService::isTouchMoved() const {
-    return inputRuntime().isTouchMoved();
+    return ludork::engine::input_impl::inputImpl().isTouchMoved();
 }
 
 bool InputService::isTouchDragged() const {
-    return inputRuntime().isTouchDragged();
+    return ludork::engine::input_impl::inputImpl().isTouchDragged();
 }
 
 bool InputService::isTouchActive() const {
-    return inputRuntime().isTouchActive();
+    return ludork::engine::input_impl::inputImpl().isTouchActive();
 }
 
 std::optional<sf::Vector2i> InputService::getTouchPosition() const {
-    return inputRuntime().getTouchPosition();
+    return ludork::engine::input_impl::inputImpl().getTouchPosition();
 }
 
 std::optional<sf::Vector2i> InputService::getTouchBeganPosition() const {
-    return inputRuntime().getTouchBeganPosition();
+    return ludork::engine::input_impl::inputImpl().getTouchBeganPosition();
 }
 
 std::optional<sf::Vector2i> InputService::getTouchTapPosition() const {
-    return inputRuntime().getTouchTapPosition();
+    return ludork::engine::input_impl::inputImpl().getTouchTapPosition();
 }
 
 std::optional<sf::Vector2i> InputService::getTouchEndedPosition() const {
-    return inputRuntime().getTouchEndedPosition();
+    return ludork::engine::input_impl::inputImpl().getTouchEndedPosition();
 }
 
 std::optional<sf::Vector2i> InputService::getTouchMovedDelta() const {
-    return inputRuntime().getTouchMovedDelta();
+    return ludork::engine::input_impl::inputImpl().getTouchMovedDelta();
 }
 
 void InputService::cancelTouchGesture() noexcept {
-    inputRuntime().cancelTouchGesture();
+    ludork::engine::input_impl::inputImpl().cancelTouchGesture();
 }
 
 bool InputService::isTouchTriggered(bool handled) {
-    return inputRuntime().isTouchTriggered(handled);
+    return ludork::engine::input_impl::inputImpl().isTouchTriggered(handled);
 }
 
 bool InputService::isTouchBlocked() const {
-    return inputRuntime().isTouchBlocked();
+    return ludork::engine::input_impl::inputImpl().isTouchBlocked();
 }
 
 void InputService::blockTouch() {
-    inputRuntime().blockTouch();
+    ludork::engine::input_impl::inputImpl().blockTouch();
 }
 
 void InputService::unblockTouch() {
-    inputRuntime().unblockTouch();
+    ludork::engine::input_impl::inputImpl().unblockTouch();
 }
 
 bool InputService::isJoystickButtonPressed() const {
-    return inputRuntime().isJoystickButtonPressed();
+    return ludork::engine::input_impl::inputImpl().isJoystickButtonPressed();
 }
 
 bool InputService::isJoystickButtonReleased() const {
-    return inputRuntime().isJoystickButtonReleased();
+    return ludork::engine::input_impl::inputImpl().isJoystickButtonReleased();
 }
 
 bool InputService::isMouseInputMode() const {
-    return inputRuntime().isMouseInputMode();
+    return ludork::engine::input_impl::inputImpl().isMouseInputMode();
 }
 
 bool InputService::getJoystickButtonPressed(unsigned int joystickId,
                                             unsigned int button, bool handled) {
-    return inputRuntime().getJoystickButtonPressed(joystickId, button, handled);
+    return ludork::engine::input_impl::inputImpl().getJoystickButtonPressed(
+        joystickId, button, handled);
 }
 
 bool InputService::getJoystickButtonValuePressed(unsigned int joystickId,
                                                  const InputNamedValue& button,
                                                  bool handled) {
-    return inputRuntime().getJoystickButtonValuePressed(joystickId, button,
-                                                        handled);
+    return ludork::engine::input_impl::inputImpl()
+        .getJoystickButtonValuePressed(joystickId, button, handled);
 }
 
 bool InputService::getJoystickButtonReleased(unsigned int joystickId,
                                              unsigned int button,
                                              bool handled) {
-    return inputRuntime().getJoystickButtonReleased(joystickId, button,
-                                                    handled);
+    return ludork::engine::input_impl::inputImpl().getJoystickButtonReleased(
+        joystickId, button, handled);
 }
 
 bool InputService::getJoystickButtonValueReleased(unsigned int joystickId,
                                                   const InputNamedValue& button,
                                                   bool handled) {
-    return inputRuntime().getJoystickButtonValueReleased(joystickId, button,
-                                                         handled);
+    return ludork::engine::input_impl::inputImpl()
+        .getJoystickButtonValueReleased(joystickId, button, handled);
 }
 
 bool InputService::isJoystickAxisMoved() const {
-    return inputRuntime().isJoystickAxisMoved();
+    return ludork::engine::input_impl::inputImpl().isJoystickAxisMoved();
 }
 
 std::optional<JoystickAxisEvent> InputService::getJoystickAxisMoved(
     unsigned int joystickId, bool handled) {
-    return inputRuntime().getJoystickAxisMoved(joystickId, handled);
+    return ludork::engine::input_impl::inputImpl().getJoystickAxisMoved(
+        joystickId, handled);
 }
 
 bool InputService::isJoystickConnected() const {
-    return inputRuntime().isJoystickConnected();
+    return ludork::engine::input_impl::inputImpl().isJoystickConnected();
 }
 
 bool InputService::isJoystickDisconnected() const {
-    return inputRuntime().isJoystickDisconnected();
+    return ludork::engine::input_impl::inputImpl().isJoystickDisconnected();
 }
 
 bool InputService::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
                                   bool shift, bool system, bool handled,
                                   float repeatDelay, float repeatInterval) {
-    return inputRuntime().isKeyTriggered(key, alt, ctrl, shift, system, handled,
-                                         repeatDelay, repeatInterval);
+    return ludork::engine::input_impl::inputImpl().isKeyTriggered(
+        key, alt, ctrl, shift, system, handled, repeatDelay, repeatInterval);
 }
 
 bool InputService::isAnyJoystickButtonTriggered(unsigned int button,
                                                 bool handled, float repeatDelay,
                                                 float repeatInterval) {
-    return inputRuntime().isAnyJoystickButtonTriggered(
+    return ludork::engine::input_impl::inputImpl().isAnyJoystickButtonTriggered(
         button, handled, repeatDelay, repeatInterval);
 }
 
 bool InputService::isAnyJoystickButtonValueTriggered(
     const InputNamedValue& button, bool handled, float repeatDelay,
     float repeatInterval) {
-    return inputRuntime().isAnyJoystickButtonValueTriggered(
-        button, handled, repeatDelay, repeatInterval);
+    return ludork::engine::input_impl::inputImpl()
+        .isAnyJoystickButtonValueTriggered(button, handled, repeatDelay,
+                                           repeatInterval);
 }
 
 bool InputService::isActionTriggered(
     const std::vector<InputActionKey>& actionKeys, bool handled,
     float repeatDelay, float repeatInterval) {
-    return inputRuntime().isActionTriggered(actionKeys, handled, repeatDelay,
-                                            repeatInterval);
+    return ludork::engine::input_impl::inputImpl().isActionTriggered(
+        actionKeys, handled, repeatDelay, repeatInterval);
 }
 
 bool InputService::isActionHeld(
     const std::vector<InputActionKey>& actionKeys) const {
-    return inputRuntime().isActionHeld(actionKeys);
+    return ludork::engine::input_impl::inputImpl().isActionHeld(actionKeys);
 }
 
 bool InputService::isMouseButtonTriggered(sf::Mouse::Button button,
                                           bool handled) {
-    return inputRuntime().isMouseButtonTriggered(button, handled);
+    return ludork::engine::input_impl::inputImpl().isMouseButtonTriggered(
+        button, handled);
 }
 
 bool InputService::isMouseButtonDown(sf::Mouse::Button button) const {
-    return inputRuntime().isMouseButtonDown(button);
+    return ludork::engine::input_impl::inputImpl().isMouseButtonDown(button);
 }
 
 std::string InputService::getEnteredText() const {
-    return inputRuntime().getEnteredText();
+    return ludork::engine::input_impl::inputImpl().getEnteredText();
 }
 
 bool InputService::isTextEntered() const {
-    return inputRuntime().isTextEntered();
+    return ludork::engine::input_impl::inputImpl().isTextEntered();
 }
 
 bool InputService::isKeyboardBlocked() const {
-    return inputRuntime().isKeyboardBlocked();
+    return ludork::engine::input_impl::inputImpl().isKeyboardBlocked();
 }
 
 bool InputService::isMouseBlocked() const {
-    return inputRuntime().isMouseBlocked();
+    return ludork::engine::input_impl::inputImpl().isMouseBlocked();
 }
 
 bool InputService::isJoystickBlocked() const {
-    return inputRuntime().isJoystickBlocked();
+    return ludork::engine::input_impl::inputImpl().isJoystickBlocked();
 }
 
 void InputService::blockKeyboard() {
-    inputRuntime().blockKeyboard();
+    ludork::engine::input_impl::inputImpl().blockKeyboard();
 }
 
 void InputService::blockMouse() {
-    inputRuntime().blockMouse();
+    ludork::engine::input_impl::inputImpl().blockMouse();
 }
 
 void InputService::blockJoystick() {
-    inputRuntime().blockJoystick();
+    ludork::engine::input_impl::inputImpl().blockJoystick();
 }
 
 void InputService::unblockKeyboard() {
-    inputRuntime().unblockKeyboard();
+    ludork::engine::input_impl::inputImpl().unblockKeyboard();
 }
 
 void InputService::unblockMouse() {
-    inputRuntime().unblockMouse();
+    ludork::engine::input_impl::inputImpl().unblockMouse();
 }
 
 void InputService::unblockJoystick() {
-    inputRuntime().unblockJoystick();
+    ludork::engine::input_impl::inputImpl().unblockJoystick();
 }
 
 void InputService::blockInput() {
-    inputRuntime().blockInput();
+    ludork::engine::input_impl::inputImpl().blockInput();
 }
 
 void InputService::unblockInput() {
-    inputRuntime().unblockInput();
+    ludork::engine::input_impl::inputImpl().unblockInput();
 }
 
 std::vector<InputActionKey> InputService::getConfirmKeys() const {
-    return inputRuntime().getConfirmKeys();
+    return ludork::engine::input_impl::inputImpl().getConfirmKeys();
 }
 
 std::vector<InputActionKey> InputService::getCancelKeys() const {
-    return inputRuntime().getCancelKeys();
+    return ludork::engine::input_impl::inputImpl().getCancelKeys();
 }
 
 std::vector<InputActionKey> InputService::getUpKeys() const {
-    return inputRuntime().getUpKeys();
+    return ludork::engine::input_impl::inputImpl().getUpKeys();
 }
 
 std::vector<InputActionKey> InputService::getDownKeys() const {
-    return inputRuntime().getDownKeys();
+    return ludork::engine::input_impl::inputImpl().getDownKeys();
 }
 
 std::vector<InputActionKey> InputService::getLeftKeys() const {
-    return inputRuntime().getLeftKeys();
+    return ludork::engine::input_impl::inputImpl().getLeftKeys();
 }
 
 std::vector<InputActionKey> InputService::getRightKeys() const {
-    return inputRuntime().getRightKeys();
+    return ludork::engine::input_impl::inputImpl().getRightKeys();
 }
 
 void InputService::registerActionMapping(RuntimeIdentityPtr object,
@@ -389,22 +402,24 @@ void InputService::registerActionMapping(RuntimeIdentityPtr object,
                                          std::vector<InputActionKey> actionKeys,
                                          ActionCallback callback,
                                          bool triggerOnHold) {
-    inputRuntime().registerActionMapping(
+    ludork::engine::input_impl::inputImpl().registerActionMapping(
         std::move(object), std::move(actionName), std::move(actionKeys),
         std::move(callback), triggerOnHold);
 }
 
 void InputService::unregisterActionMapping(const RuntimeIdentityPtr& object,
                                            const std::string& actionName) {
-    inputRuntime().unregisterActionMapping(object, actionName);
+    ludork::engine::input_impl::inputImpl().unregisterActionMapping(object,
+                                                                    actionName);
 }
 
 void InputService::setFrameCompletionCallback(std::function<void()> callback) {
-    inputRuntime().setFrameCompletionCallback(std::move(callback));
+    ludork::engine::input_impl::inputImpl().setFrameCompletionCallback(
+        std::move(callback));
 }
 
 void InputService::shutdown() noexcept {
-    inputRuntime().shutdown();
+    ludork::engine::input_impl::inputImpl().shutdown();
     FunctionalBase::setInputProvider(nullptr);
 }
 

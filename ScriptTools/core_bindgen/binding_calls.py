@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from .context import GeneratorContext
+from .scopes import binding_identifier
 from .model import (
     Member,
     ParameterPlan,
@@ -44,17 +45,17 @@ from .annotations import (
 
 
 def order_types(types: list[TypeInfo]) -> list[TypeInfo]:
-    by_name = {item.name: item for item in types}
+    by_name = {item.cpp_name: item for item in types}
     ordered: list[TypeInfo] = []
     visited: set[str] = set()
     visiting: set[str] = set()
 
     def visit(info: TypeInfo) -> None:
-        if info.name in visited:
+        if info.cpp_name in visited:
             return
-        if info.name in visiting:
-            raise ValueError(f"cyclic BIND_CLASS runtime bases for {info.name}")
-        visiting.add(info.name)
+        if info.cpp_name in visiting:
+            raise ValueError(f"cyclic BIND_CLASS runtime bases for {info.cpp_name}")
+        visiting.add(info.cpp_name)
         dependencies = list(
             dict.fromkeys([*info.bases, *runtime_bases(info), *native_bases(info)])
         )
@@ -62,8 +63,8 @@ def order_types(types: list[TypeInfo]) -> list[TypeInfo]:
             base_name = remove_type_qualifiers(base)
             if base_name in by_name:
                 visit(by_name[base_name])
-        visiting.remove(info.name)
-        visited.add(info.name)
+        visiting.remove(info.cpp_name)
+        visited.add(info.cpp_name)
         ordered.append(info)
 
     for info in types:
@@ -120,20 +121,20 @@ def indexer_method(context: GeneratorContext, info: TypeInfo) -> Member | None:
     if not values:
         return None
     if len(values) != 1:
-        raise ValueError(f"BIND_CLASS {info.name} may define only one indexer")
+        raise ValueError(f"BIND_CLASS {info.cpp_name} may define only one indexer")
     member = values[0]
     if member.access != "public" or is_static_method(member):
         raise ValueError(
-            f"indexer {info.name}.{member.name} must be a public instance method"
+            f"indexer {info.cpp_name}.{member.name} must be a public instance method"
         )
     declarations = parameter_declarations(member.declaration)
     if not declarations or 1 not in member_arities(member):
         raise ValueError(
-            f"indexer {info.name}.{member.name} must be callable with one key"
+            f"indexer {info.cpp_name}.{member.name} must be callable with one key"
         )
     return_type = split_return_type(member.declaration, member.name)
     if return_type == "void" or is_multiple_return(context, member, return_type):
-        raise ValueError(f"indexer {info.name}.{member.name} must return one value")
+        raise ValueError(f"indexer {info.cpp_name}.{member.name} must return one value")
     return member
 
 
@@ -149,12 +150,13 @@ def indexer_registration(
         context, split_return_type(member.declaration, member.name)
     )
     self_type = (
-        f"const {info.name} &self" if is_const_method(member) else f"{info.name} &self"
+        f"const {info.cpp_name} &self" if is_const_method(member) else f"{info.cpp_name} &self"
     )
-    type_table = f"{info.name}IndexerTypeTable"
+    identifier = binding_identifier(info.cpp_name)
+    type_table = f"{identifier}IndexerTypeTable"
     return (
         f'sol::table {type_table} = root["{public_name}"].get<sol::table>(); '
-        f"{info.name}Type[sol::meta_function::index] = "
+        f"{identifier}Type[sol::meta_function::index] = "
         f"[lua, {type_table}]({self_type}, sol::object key) -> sol::object {{ "
         f"const sol::object memberValue = {type_table}.get<sol::object>(key); "
         "if (!ludork::runtime::binding::isNil(memberValue)) return memberValue; "
@@ -328,7 +330,7 @@ def callable_lambda(
         return_type = split_return_type(member.declaration, member.name)
         static = type_name is None or is_static_method(member)
         if type_name is None:
-            call = f"{member.name}({', '.join(arguments)})"
+            call = f"{member.cpp_name}({', '.join(arguments)})"
         elif static:
             call = f"{type_name}::{member.name}({', '.join(arguments)})"
         else:
@@ -538,9 +540,9 @@ def table_value_properties(
     positions: dict[str, int] = {}
 
     def append_type(current: TypeInfo, seen: set[str]) -> None:
-        if current.name in seen:
-            raise ValueError(f"cyclic BIND_CLASS bases for {info.name}")
-        next_seen = {*seen, current.name}
+        if current.cpp_name in seen:
+            raise ValueError(f"cyclic BIND_CLASS bases for {info.cpp_name}")
+        next_seen = {*seen, current.cpp_name}
         for base in current.bases:
             base_name = remove_type_qualifiers(base)
             base_info = type_map.get(base_name)
@@ -563,15 +565,15 @@ def table_value_properties(
 def property_registration(
     context: GeneratorContext, type_info: TypeInfo, member: Member
 ) -> str:
-    target = f"{type_info.name}Type"
+    target = f"{binding_identifier(type_info.cpp_name)}Type"
     value_type = property_type(context, member)
     require_binding_type_features(context, value_type)
     computed_getter = member.options.get("getter")
     if computed_getter is not None:
         self_type = (
-            f"const {type_info.name} &self"
+            f"const {type_info.cpp_name} &self"
             if is_const_method(member)
-            else f"{type_info.name} &self"
+            else f"{type_info.cpp_name} &self"
         )
         getter = (
             f"[lua]({self_type}) -> sol::object {{ "
@@ -582,7 +584,7 @@ def property_registration(
         if computed_setter is None:
             return f'{target}.set("{member.name}", sol::readonly_property({getter}));'
         setter = (
-            f"[]({type_info.name} &self, sol::object value) {{ "
+            f"[]({type_info.cpp_name} &self, sol::object value) {{ "
             f"self.{computed_setter}("
             f"ludork::runtime::binding::readLuaValue<{value_type}>(value)); }}"
         )
@@ -594,14 +596,14 @@ def property_registration(
     ):
         return (
             f'{target}.set("{member.name}", sol::policies('
-            f"&{type_info.name}::{member.name}, sol::self_dependency{{}}));"
+            f"&{type_info.cpp_name}::{member.name}, sol::self_dependency{{}}));"
         )
     getter = (
-        f"[lua](const {type_info.name} &self) -> sol::object {{ "
+        f"[lua](const {type_info.cpp_name} &self) -> sol::object {{ "
         f"return ludork::runtime::binding::writeLuaValue(lua, self.{member.name}); }}"
     )
     setter = (
-        f"[]({type_info.name} &self, sol::object value) {{ "
+        f"[]({type_info.cpp_name} &self, sol::object value) {{ "
         f"self.{member.name} = ludork::runtime::binding::readLuaValue<{value_type}>(value); }}"
     )
     return f'{target}.set("{member.name}", sol::property({getter}, {setter}));'
@@ -612,19 +614,19 @@ def class_property_registration(
 ) -> str:
     if re.search(r"\bstatic\b", member.declaration) is None:
         raise ValueError(
-            f"BIND_CLASS_PROPERTY {type_info.name}.{member.name} must be static"
+            f"BIND_CLASS_PROPERTY {type_info.cpp_name}.{member.name} must be static"
         )
-    target = f"{type_info.name}Type"
+    target = f"{binding_identifier(type_info.cpp_name)}Type"
     require_binding_type_features(context, class_property_type(context, member))
     exposed_name = member.options.get("name", member.name)
     if not re.fullmatch(r"[A-Za-z_]\w*", exposed_name):
         raise ValueError(
-            f"invalid class property name for {type_info.name}.{member.name}: "
+            f"invalid class property name for {type_info.cpp_name}.{member.name}: "
             f"{exposed_name}"
         )
     getter = (
         f"[lua]() -> sol::object {{ return ludork::runtime::binding::writeLuaValue("
-        f"lua, {type_info.name}::{member.name}); }}"
+        f"lua, {type_info.cpp_name}::{member.name}); }}"
     )
     return f'{target}.set("{exposed_name}", sol::readonly_property({getter}));'
 
@@ -634,7 +636,7 @@ def class_property_new_index_lines(
 ) -> list[str]:
     if not properties:
         return []
-    prefix = type_info.name + "ClassProperty"
+    prefix = type_info.cpp_name + "ClassProperty"
     lines = [
         (
             f'sol::table {prefix}Table = root["{exposed_type_name(type_info)}"]'
@@ -667,7 +669,7 @@ def class_property_new_index_lines(
             require_binding_type_features(context, value_type)
             lines.append(
                 f'        if (name == "{exposed_name}") {{ '
-                f"{type_info.name}::{member.name} = "
+                f"{type_info.cpp_name}::{member.name} = "
                 f"ludork::runtime::binding::readLuaValue<{value_type}>(value); return; }}"
             )
     lines.extend(

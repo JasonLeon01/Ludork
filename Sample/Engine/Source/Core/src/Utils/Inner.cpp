@@ -208,7 +208,7 @@ bool assetExists(const std::string& assetPath) {
 }
 
 double assetModificationTime(const std::string& assetPath) {
-    const std::optional<ludork::runtime::AssetStat> stat =
+    const std::optional<ludork::runtime::AssetStore::AssetStat> stat =
         ludork::runtime::assetStore().stat(assetPath);
     if (!stat.has_value()) {
         throw std::runtime_error("Asset not found: " + assetPath);

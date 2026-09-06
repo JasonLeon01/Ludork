@@ -1,4 +1,6 @@
-#include <GlobalAnimation.hpp>
+#include <Animation.hpp>
+#include <AnimSprite.hpp>
+#include <Graphics/AnimationSoundEntry.hpp>
 
 #include <Filters/SoundFilter.hpp>
 #include <Manager/AudioManager.hpp>
@@ -8,7 +10,8 @@
 #include <algorithm>
 #include <utility>
 
-Animation::Animation(const AnimationData& animationData, bool isSpatial)
+Animation::Animation(const AnimSprite::AnimationData& animationData,
+                     bool isSpatial)
     : AnimSprite(animationData),
       animationData_(animationData),
       isSpatial_(isSpatial) {
@@ -18,7 +21,7 @@ Animation::Animation(const AnimationData& animationData, bool isSpatial)
                static_cast<float>(textureSize.y) / 2.0f});
 }
 
-void Animation::setData(const AnimationData& animationData) {
+void Animation::setData(const AnimSprite::AnimationData& animationData) {
     animationData_ = animationData;
     AnimSprite::setData(animationData);
     soundEntries = getSoundEntries();
@@ -61,22 +64,22 @@ void Animation::playSoundsUpToFrame(int frameIndex) {
 }
 
 void Animation::stopSoundsAtFrame(int frameIndex) {
-    for (AnimationPlayingSound& entry : playingSounds) {
+    for (Animation::AnimationPlayingSound& entry : playingSounds) {
         if (entry.sound != nullptr && entry.endFrame >= 0 &&
             frameIndex >= entry.endFrame) {
             entry.sound->stop();
         }
     }
     playingSounds.erase(
-        std::remove_if(playingSounds.begin(), playingSounds.end(),
-                       [frameIndex](const AnimationPlayingSound& entry) {
-                           return entry.endFrame >= 0 &&
-                                  frameIndex >= entry.endFrame;
-                       }),
+        std::remove_if(
+            playingSounds.begin(), playingSounds.end(),
+            [frameIndex](const Animation::AnimationPlayingSound& entry) {
+                return entry.endFrame >= 0 && frameIndex >= entry.endFrame;
+            }),
         playingSounds.end());
 }
 
-const AnimationData& Animation::getAnimationData() const {
+const AnimSprite::AnimationData& Animation::getAnimationData() const {
     return animationData_;
 }
 

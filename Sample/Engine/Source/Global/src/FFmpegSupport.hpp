@@ -1,4 +1,5 @@
 #pragma once
+#include <Runtime/AssetInputStream.hpp>
 
 #ifndef LUDORK_HAS_FFMPEG
 #define LUDORK_HAS_FFMPEG 0
@@ -23,10 +24,6 @@ extern "C" {
 
 namespace ludork::video {
 
-struct FormatContextDeleter {
-    void operator()(AVFormatContext* context) const noexcept;
-};
-
 struct CodecContextDeleter {
     void operator()(AVCodecContext* context) const noexcept;
 };
@@ -47,22 +44,24 @@ struct SwsContextDeleter {
     void operator()(SwsContext* context) const noexcept;
 };
 
-struct AvioContextDeleter {
-    void operator()(AVIOContext* context) const noexcept;
-};
-
-using FormatContextPtr = std::unique_ptr<AVFormatContext, FormatContextDeleter>;
 using CodecContextPtr = std::unique_ptr<AVCodecContext, CodecContextDeleter>;
 using FramePtr = std::unique_ptr<AVFrame, FrameDeleter>;
 using PacketPtr = std::unique_ptr<AVPacket, PacketDeleter>;
 using SwrContextPtr = std::unique_ptr<SwrContext, SwrContextDeleter>;
 using SwsContextPtr = std::unique_ptr<SwsContext, SwsContextDeleter>;
-using AvioContextPtr = std::unique_ptr<AVIOContext, AvioContextDeleter>;
 
 struct FormatInput {
+    struct AvioContextDeleter {
+        void operator()(AVIOContext* context) const noexcept;
+    };
+
+    struct FormatContextDeleter {
+        void operator()(AVFormatContext* context) const noexcept;
+    };
+
     std::unique_ptr<ludork::runtime::AssetInputStream> stream;
-    AvioContextPtr io;
-    FormatContextPtr context;
+    std::unique_ptr<AVIOContext, FormatInput::AvioContextDeleter> io;
+    std::unique_ptr<AVFormatContext, FormatInput::FormatContextDeleter> context;
 
     [[nodiscard]] AVFormatContext* get() const noexcept {
         return context.get();
@@ -72,6 +71,11 @@ struct FormatInput {
         return context.get();
     }
 };
+
+using FormatContextPtr =
+    std::unique_ptr<AVFormatContext, FormatInput::FormatContextDeleter>;
+using AvioContextPtr =
+    std::unique_ptr<AVIOContext, FormatInput::AvioContextDeleter>;
 
 std::string ffmpegError(int code);
 void requireFfmpeg(int result, const std::string& operation);

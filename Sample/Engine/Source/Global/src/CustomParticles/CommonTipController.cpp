@@ -1,10 +1,12 @@
+#include <Runtime/RuntimeProviderFacade.hpp>
 #include <CustomParticles/CommonTipController.hpp>
+#include <Curve.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 #include <EngineState.hpp>
 #include <Runtime/RuntimeProviders.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <System.hpp>
-#include <UI/Text.hpp>
 #include <Utils/RuntimeProvider.hpp>
 
 #include <algorithm>

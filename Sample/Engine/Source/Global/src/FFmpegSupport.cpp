@@ -1,4 +1,5 @@
 #include "FFmpegSupport.hpp"
+#include <Runtime/AssetInputStream.hpp>
 
 #if LUDORK_HAS_FFMPEG
 #include <algorithm>
@@ -22,7 +23,8 @@ void requireFfmpeg(int result, const std::string& operation) {
     }
 }
 
-void FormatContextDeleter::operator()(AVFormatContext* context) const noexcept {
+void ludork::video::FormatInput::FormatContextDeleter::operator()(
+    AVFormatContext* context) const noexcept {
     if (context != nullptr) {
         avformat_close_input(&context);
     }
@@ -58,7 +60,8 @@ void SwsContextDeleter::operator()(SwsContext* context) const noexcept {
     }
 }
 
-void AvioContextDeleter::operator()(AVIOContext* context) const noexcept {
+void ludork::video::FormatInput::AvioContextDeleter::operator()(
+    AVIOContext* context) const noexcept {
     if (context != nullptr) {
         av_freep(&context->buffer);
         avio_context_free(&context);

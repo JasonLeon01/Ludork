@@ -7,6 +7,8 @@
 BIND_CLASS()
 class LUDORK_GLOBAL_API ShaderManager {
 public:
+    struct Impl;
+
     BIND_METHOD(defaults = {nil})
     static std::shared_ptr<sf::Shader> load(
         const std::string& shaderPath,

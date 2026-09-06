@@ -315,11 +315,11 @@ function ConfigWindow:_onTabSelected(tabIndex)
     self._ui:setActivePage(tabIndex)
     self:setListView(self:_getActivePage().list)
     local session = self:_getPageSession(tabIndex)
-    session.index = Engine.ToInteger(Engine.Clamp(session.index, 0, math.max(0, #self:_getActivePage().rows - 1)))
+    session.index = math.trunc(math.clamp(session.index, 0, math.max(0, #self:_getActivePage().rows - 1)))
     local scrollBox = assert(self:getScrollBox())
     local maximum = scrollBox:getMaxScrollOffset()
     session.scrollOffset = sf.Vector2f.new(
-        Engine.Clamp(session.scrollOffset.x, 0.0, maximum.x), Engine.Clamp(session.scrollOffset.y, 0.0, maximum.y)
+        math.clamp(session.scrollOffset.x, 0.0, maximum.x), math.clamp(session.scrollOffset.y, 0.0, maximum.y)
     )
     self.index = session.index
     self._oldIndex = self.index

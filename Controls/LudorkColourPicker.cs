@@ -716,8 +716,3 @@ public sealed class LudorkColourPicker : Grid
         public int Hue { get; } = hue;
     }
 }
-
-public sealed class LudorkColourChangedEventArgs(Color color) : EventArgs
-{
-    public Color Color { get; } = color;
-}

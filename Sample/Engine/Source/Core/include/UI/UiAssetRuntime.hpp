@@ -1,81 +1,9 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
-
 #include <EngineRuntimeApi.hpp>
-#include <UI/ControlBase.hpp>
 
-namespace ludork::engine::ui_asset_runtime_impl {
-struct AssetState;
-}
-
-using UiAssetInstanceState = ludork::engine::ui_asset_runtime_impl::AssetState;
-class UiAssetRuntime;
-
-struct LUDORK_ENGINE_API UiAssetNodeView {
-    std::string nodeName;
-    std::shared_ptr<ControlBase> control;
-    sf::FloatRect bounds;
-    bool nestedBoundary = false;
-    int zOrder = 0;
-    std::size_t drawOrder = 0;
-};
-
-BIND_CLASS(name = "AssetInstance")
-class LUDORK_ENGINE_API UiAssetInstance {
-public:
-    explicit UiAssetInstance(std::shared_ptr<UiAssetInstanceState> state);
-
-    virtual ~UiAssetInstance();
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<ControlBase> getRoot() const;
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<ControlBase> requireControl(
-        const std::string& localName) const;
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<ControlBase> getNodeByName(const std::string& name) const;
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<UiAssetInstance> requireAsset(
-        const std::string& localName) const;
-
-    BIND_METHOD()
-    void setProperty(const std::string& localName,
-                     const std::string& propertyId, const RuntimeValue& value);
-
-    BIND_METHOD()
-    void setText(const std::string& localName, const std::string& text);
-
-    BIND_METHOD(defaults = {nil})
-    void reflow(std::optional<sf::Vector2u> logicalSize = std::nullopt);
-
-    BIND_METHOD(Pure = true, defaults = {nil})
-    bool hasAnimation(const std::string& name,
-                      std::optional<std::string> target = std::nullopt) const;
-
-    BIND_METHOD(defaults = {nil, nil})
-    bool playAnimation(const std::string& name,
-                       std::optional<std::string> target = std::nullopt,
-                       std::function<void()> onFinished = {});
-
-    BIND_METHOD(defaults = {nil})
-    void stopAnimation(const std::string& name,
-                       std::optional<std::string> target = std::nullopt);
-
-    bool sampleAnimation(const std::string& name,
-                         std::optional<std::string> target, float time);
-
-    std::vector<UiAssetNodeView> getNodeViews() const;
-
-private:
-    friend class UiAssetRuntime;
-    std::shared_ptr<UiAssetInstanceState> state_;
-    std::unordered_map<std::string, std::shared_ptr<UiAssetInstance>>
-        nestedAssets_;
-};
+class UiAssetInstance;
 
 class LUDORK_ENGINE_API UiAssetRuntime {
 public:

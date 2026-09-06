@@ -1,4 +1,5 @@
 #include <GlobalFunctions/Manager.hpp>
+#include <Filters/MusicFilter.hpp>
 
 #include <Manager/AudioManager.hpp>
 #include <Manager/AssetPath.hpp>

@@ -21,10 +21,10 @@ function RenderSupport.GetLightingCellRect(world, activeLights)
     local right = math.min(world._worldConfig.width, limit.x + limit.width, maximumX)
     local bottom = math.min(world._worldConfig.height, limit.y + limit.height, maximumY)
     if right <= left or bottom <= top then
-        left = Engine.ToInteger(Engine.Clamp(visible.x, 0, world._worldConfig.width - 1))
-        top = Engine.ToInteger(Engine.Clamp(visible.y, 0, world._worldConfig.height - 1))
-        right = Engine.ToInteger(Engine.Clamp(visible.x + visible.width, left + 1, world._worldConfig.width))
-        bottom = Engine.ToInteger(Engine.Clamp(visible.y + visible.height, top + 1, world._worldConfig.height))
+        left = math.trunc(math.clamp(visible.x, 0, world._worldConfig.width - 1))
+        top = math.trunc(math.clamp(visible.y, 0, world._worldConfig.height - 1))
+        right = math.trunc(math.clamp(visible.x + visible.width, left + 1, world._worldConfig.width))
+        bottom = math.trunc(math.clamp(visible.y + visible.height, top + 1, world._worldConfig.height))
     end
     ---@cast left integer
     ---@cast top integer

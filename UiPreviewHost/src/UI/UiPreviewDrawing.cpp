@@ -1,4 +1,5 @@
 #include "UI/UiPreviewDrawing.hpp"
+#include <UI/UiAssetInstance.hpp>
 
 #include "Protocol/PreviewProtocol.hpp"
 #include "Rendering/PixelConversion.hpp"
@@ -103,8 +104,8 @@ bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
 
 }  // namespace
 
-RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
-                                  double requestedScale) {
+UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
+                                                    double requestedScale) {
     if (requestedScale < static_cast<double>(minimumRenderScale)) {
         throw std::invalid_argument(
             "Render request.renderScale is below the engine minimum");
@@ -159,7 +160,8 @@ RuntimeData::Array nodeGeometry(
     const sf::FloatRect rootClip(
         {0.0f, 0.0f}, {static_cast<float>(size.x), static_cast<float>(size.y)});
     RuntimeData::Array result;
-    for (const UiAssetNodeView& node : instance->getNodeViews()) {
+    for (const UiAssetInstance::UiAssetNodeView& node :
+         instance->getNodeViews()) {
         const sf::FloatRect clip = effectiveClip(node.control, rootClip);
         result.emplace_back(object({
             {"nodeName", RuntimeData(node.nodeName)},
@@ -187,13 +189,14 @@ std::optional<std::string> hitTestUiPreview(
     const sf::FloatRect rootClip(
         {0.0f, 0.0f},
         {static_cast<float>(renderSize.x), static_cast<float>(renderSize.y)});
-    std::vector<UiAssetNodeView> nodes = instance->getNodeViews();
-    std::stable_sort(
-        nodes.begin(), nodes.end(),
-        [](const UiAssetNodeView& left, const UiAssetNodeView& right) {
-            return left.drawOrder > right.drawOrder;
-        });
-    for (const UiAssetNodeView& node : nodes) {
+    std::vector<UiAssetInstance::UiAssetNodeView> nodes =
+        instance->getNodeViews();
+    std::stable_sort(nodes.begin(), nodes.end(),
+                     [](const UiAssetInstance::UiAssetNodeView& left,
+                        const UiAssetInstance::UiAssetNodeView& right) {
+                         return left.drawOrder > right.drawOrder;
+                     });
+    for (const UiAssetInstance::UiAssetNodeView& node : nodes) {
         if (!effectiveVisible(node.control)) {
             continue;
         }

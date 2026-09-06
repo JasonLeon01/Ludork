@@ -67,6 +67,7 @@ void initialize(lua_State* state, int cjsonIndex) {
     binding::registerSystemServices(lua);
     binding::registerAsyncio(lua);
     binding::registerFileBatch(lua);
+    initializeMath(state);
     binding::registerString(lua);
     binding::registerTable(lua);
     sol::table cjson = sol::stack::get<sol::table>(state, absoluteCjsonIndex);

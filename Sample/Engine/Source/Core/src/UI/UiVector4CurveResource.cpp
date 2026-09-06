@@ -2,6 +2,10 @@
 
 #include <Runtime/ConcurrentResourceCache.hpp>
 #include <Curve.hpp>
+#include <CurveKey.hpp>
+#include <Vector4Curve.hpp>
+#include <Vector4CurveData.hpp>
+#include <Vector4CurveKey.hpp>
 #include <Runtime/RuntimeValueReader.hpp>
 #include <Runtime/Json.hpp>
 
@@ -83,13 +87,14 @@ CurveKey scalarCurveKey(const RuntimeData& value, const std::string& source) {
     return result;
 }
 
-CurveData scalarCurveData(const RuntimeData& value, const std::string& source) {
+Curve::CurveData scalarCurveData(const RuntimeData& value,
+                                 const std::string& source) {
     const RuntimeData::Map& values = requireMap(value, source);
     const RuntimeData* type = findValue(values, "type");
     if (type == nullptr || requireString(*type, source + ".type") != "curve") {
         throw std::invalid_argument("UI curve must have type curve: " + source);
     }
-    CurveData result;
+    Curve::CurveData result;
     result.name = stringValue(values, "name", result.name, source);
     result.defaultValue =
         floatValue(values, "defaultValue", result.defaultValue, source);

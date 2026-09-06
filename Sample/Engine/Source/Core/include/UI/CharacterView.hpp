@@ -3,7 +3,7 @@
 #include <CoreMinimal.hpp>
 
 #include <EngineRuntimeApi.hpp>
-#include <UI/FunctionalUI.hpp>
+#include <UI/FunctionalImage.hpp>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API CharacterView : public FunctionalImage {

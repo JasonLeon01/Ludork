@@ -4,8 +4,9 @@
 using namespace ludork::runtime;
 using namespace ludork::runtime::node_graph_detail;
 
-NodeGraphRuntimeContext NodeGraphRuntimeFacade::createContext(
-    const RuntimeValue& parentClass, const RuntimeValue& parent) const {
+NodeGraphRuntimeFacade::NodeGraphRuntimeContext
+NodeGraphRuntimeFacade::createContext(const RuntimeValue& parentClass,
+                                      const RuntimeValue& parent) const {
     RuntimeScope scope;
     const auto context = createNodeGraphContext(scope, parentClass, parent);
     return {context.localGraph.identity(), RuntimeValue(context.graph)};

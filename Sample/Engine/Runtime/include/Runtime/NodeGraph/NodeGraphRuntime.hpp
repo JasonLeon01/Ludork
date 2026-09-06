@@ -12,6 +12,11 @@ class Node;
 
 class LUDORK_RUNTIME_API NodeGraphRuntimeFacade {
 public:
+    struct NodeGraphRuntimeContext {
+        RuntimeIdentityPtr localGraph;
+        RuntimeValue graph;
+    };
+
     NodeGraphRuntimeContext createContext(const RuntimeValue& parentClass,
                                           const RuntimeValue& parent) const;
     RuntimeValue getContextValue(const RuntimeIdentityPtr& context,

@@ -56,7 +56,7 @@ end
 
 function Math.IsNearZero(num, epsilon)
     epsilon = epsilon == nil and 0.1 or epsilon
-    return Engine.IsNearZero(num, epsilon)
+    return math.isNearZero(num, epsilon)
 end
 
 function Math.IsVector2NearZero(v, epsilon)
@@ -121,14 +121,49 @@ function Math.Clamp(value, min_val, max_val)
     value = value == nil and 0.0 or value
     min_val = min_val == nil and 0.0 or min_val
     max_val = max_val == nil and 1.0 or max_val
-    return Engine.Clamp(value, min_val, max_val)
+    return math.clamp(value, min_val, max_val)
 end
 
 function Math.Lerp(a, b, t)
     a = a == nil and 0.0 or a
     b = b == nil and 1.0 or b
     t = t == nil and 0.5 or t
-    return Engine.Lerp(a, b, t)
+    return math.lerp(a, b, t)
+end
+
+function Math.Sign(value)
+    value = value == nil and 0.0 or value
+    return math.sign(value)
+end
+
+function Math.InverseLerp(a, b, value)
+    a = a == nil and 0.0 or a
+    b = b == nil and 1.0 or b
+    value = value == nil and 0.0 or value
+    return math.inverseLerp(a, b, value)
+end
+
+function Math.Remap(value, inMin, inMax, outMin, outMax)
+    value = value == nil and 0.0 or value
+    inMin = inMin == nil and 0.0 or inMin
+    inMax = inMax == nil and 1.0 or inMax
+    outMin = outMin == nil and 0.0 or outMin
+    outMax = outMax == nil and 1.0 or outMax
+    return math.remap(value, inMin, inMax, outMin, outMax)
+end
+
+function Math.Smoothstep(edge0, edge1, value)
+    edge0 = edge0 == nil and 0.0 or edge0
+    edge1 = edge1 == nil and 1.0 or edge1
+    value = value == nil and 0.0 or value
+    return math.smoothstep(edge0, edge1, value)
+end
+
+function Math.MoveTowards(current, target, maxDelta)
+    current = current == nil and 0.0 or current
+    target = target == nil and 1.0 or target
+    maxDelta = maxDelta == nil and 0.0 or maxDelta
+    return math.moveTowards(current, target, maxDelta)
 end
 
 function Math.Abs(value)
@@ -138,7 +173,7 @@ end
 
 function Math.ToInt(value)
     value = value == nil and 0 or value
-    return Engine.ToInteger(value)
+    return math.trunc(value)
 end
 
 function Math.ToFloat(value)
@@ -296,13 +331,13 @@ end
 function Math.GCD(a, b)
     a = a == nil and 1 or a
     b = b == nil and 1 or b
-    return Engine.GCD(a, b)
+    return math.gcd(a, b)
 end
 
 function Math.LCM(a, b)
     a = a == nil and 1 or a
     b = b == nil and 1 or b
-    return Engine.LCM(a, b)
+    return math.lcm(a, b)
 end
 
 function Math.ADD(a, b)

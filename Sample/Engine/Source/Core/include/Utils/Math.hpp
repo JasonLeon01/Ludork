@@ -4,15 +4,6 @@
 
 #include <EngineRuntimeApi.hpp>
 
-BIND_FUNCTION(name = "Round")
-LUDORK_ENGINE_API std::int64_t roundNumber(double value);
-
-BIND_FUNCTION(name = "ToInteger")
-std::int64_t toInteger(const RuntimeValue& value);
-
-BIND_FUNCTION(name = "IsNearZero")
-LUDORK_ENGINE_API bool isNearZero(double number, double epsilon = 0.1);
-
 BIND_FUNCTION(name = "IsVector2NearZero")
 bool isVector2NearZero(const sf::Vector2f& value, float epsilon = 0.1f);
 
@@ -58,19 +49,6 @@ sf::IntRect toIntRect(int x, int y, int width, int height);
 BIND_FUNCTION(name = "ToFloatRect")
 sf::FloatRect toFloatRect(float x, float y, float width, float height);
 
-BIND_FUNCTION(name = "Clamp")
-LUDORK_ENGINE_API double clampNumber(double value, double minimum,
-                                     double maximum);
-
-BIND_FUNCTION(name = "Lerp")
-double lerpNumber(double from, double to, double alpha);
-
 BIND_FUNCTION(name = "ManhattanDistance")
 std::int64_t manhattanDistance(const sf::Vector2i& left,
                                const sf::Vector2i& right);
-
-BIND_FUNCTION(name = "GCD")
-std::int64_t greatestCommonDivisor(std::int64_t left, std::int64_t right);
-
-BIND_FUNCTION(name = "LCM")
-std::int64_t leastCommonMultiple(std::int64_t left, std::int64_t right);

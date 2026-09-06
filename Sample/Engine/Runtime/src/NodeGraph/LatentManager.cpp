@@ -11,12 +11,6 @@
 #include <utility>
 
 namespace {
-struct ConditionResult {
-    RuntimeValue::Array values;
-    std::size_t count = 0;
-    bool finished = true;
-};
-
 class UpdateScope {
 public:
     explicit UpdateScope(bool& updating) : updating_(updating) {
@@ -34,7 +28,8 @@ private:
     bool& updating_;
 };
 
-ConditionResult pollCondition(const RuntimeIdentityPtr& condition) {
+LatentManager::ConditionResult pollCondition(
+    const RuntimeIdentityPtr& condition) {
     ludork::runtime::RuntimeScope scope;
     NodeGraphConditionResult result =
         ludork::runtime::node_graph_detail::evaluateNodeGraphCondition(
@@ -58,8 +53,9 @@ RuntimeValue normaliseMatchValue(const RuntimeValue& value) {
     return value;
 }
 
-std::vector<int> latentExecIndexes(const NodeMemberMetadata& metadata,
-                                   const ConditionResult& condition) {
+std::vector<int> latentExecIndexes(
+    const NodeMemberMetadata& metadata,
+    const LatentManager::ConditionResult& condition) {
     std::vector<int> result;
     for (std::size_t valueIndex = 0; valueIndex < condition.count;
          ++valueIndex) {
@@ -191,7 +187,8 @@ void LatentManager::update() {
             continue;
         }
 
-        const ConditionResult condition = pollCondition(entry->condition);
+        const LatentManager::ConditionResult condition =
+            pollCondition(entry->condition);
         const std::vector<std::shared_ptr<Node>> nodes =
             graph->getNodes(entry->key);
         if (entry->index < 0 ||

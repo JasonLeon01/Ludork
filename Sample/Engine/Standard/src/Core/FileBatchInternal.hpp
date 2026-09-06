@@ -78,12 +78,6 @@ enum class WorkKind {
     Read,
 };
 
-struct WorkItem {
-    WorkKind kind = WorkKind::Scan;
-    std::shared_ptr<FileBatchJob> job;
-    ManifestEntry entry;
-};
-
 struct ScanResult {
     std::vector<ManifestEntry> entries;
     std::optional<FileBatchError> error;

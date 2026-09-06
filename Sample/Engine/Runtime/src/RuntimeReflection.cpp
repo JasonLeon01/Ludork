@@ -171,12 +171,14 @@ RuntimeValue::Array RuntimeReflectionFacade::mro(
 }
 
 std::vector<std::string> RuntimeReflectionFacade::keys(
-    const RuntimeHandle& value, RuntimeLookupMode mode) const {
+    const RuntimeHandle& value,
+    RuntimeReflectionFacade::RuntimeLookupMode mode) const {
     ludork::runtime::RuntimeScope runtime;
     sol::state_view lua = sol::state_view(runtime.state());
     const std::vector<sol::object> rawKeys =
-        ludork::runtime::detail::runtimeKeys(lua, writeValue(lua, value),
-                                             mode == RuntimeLookupMode::Own);
+        ludork::runtime::detail::runtimeKeys(
+            lua, writeValue(lua, value),
+            mode == RuntimeReflectionFacade::RuntimeLookupMode::Own);
     std::vector<std::string> result;
     result.reserve(rawKeys.size());
     for (const sol::object& key : rawKeys) {
@@ -187,14 +189,14 @@ std::vector<std::string> RuntimeReflectionFacade::keys(
     return result;
 }
 
-RuntimeValue RuntimeReflectionFacade::get(const RuntimeHandle& value,
-                                          const std::string& name,
-                                          RuntimeLookupMode mode) const {
+RuntimeValue RuntimeReflectionFacade::get(
+    const RuntimeHandle& value, const std::string& name,
+    RuntimeReflectionFacade::RuntimeLookupMode mode) const {
     ludork::runtime::RuntimeScope runtime;
     sol::state_view lua = sol::state_view(runtime.state());
     return readValue(ludork::runtime::detail::runtimeIndex(
         lua, writeValue(lua, value), sol::make_object(lua, name),
-        mode == RuntimeLookupMode::Own));
+        mode == RuntimeReflectionFacade::RuntimeLookupMode::Own));
 }
 
 void RuntimeReflectionFacade::set(const RuntimeHandle& value,

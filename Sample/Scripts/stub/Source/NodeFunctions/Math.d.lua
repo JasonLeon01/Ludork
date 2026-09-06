@@ -104,6 +104,36 @@ function Math.Clamp(value, min_val, max_val) end
 ---@return number
 function Math.Lerp(a, b, t) end
 
+---@param value number
+---@return integer
+function Math.Sign(value) end
+
+---@param a     number
+---@param b     number
+---@param value number
+---@return number
+function Math.InverseLerp(a, b, value) end
+
+---@param value  number
+---@param inMin  number
+---@param inMax  number
+---@param outMin number
+---@param outMax number
+---@return number
+function Math.Remap(value, inMin, inMax, outMin, outMax) end
+
+---@param edge0 number
+---@param edge1 number
+---@param value number
+---@return number
+function Math.Smoothstep(edge0, edge1, value) end
+
+---@param current  number
+---@param target   number
+---@param maxDelta number
+---@return number
+function Math.MoveTowards(current, target, maxDelta) end
+
 ---@generic T: number
 ---@param value T
 ---@return T

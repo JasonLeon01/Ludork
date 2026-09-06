@@ -2,7 +2,8 @@
 
 #include <CoreMinimal.hpp>
 
-#include <UI/Text.hpp>
+#include <UI/PlainTextConfig.hpp>
+#include <UI/RichText.hpp>
 
 BIND_FUNCTION_GROUP(name = "TextConfig")
 
@@ -11,5 +12,5 @@ std::shared_ptr<PlainTextConfig> buildPlainTextConfig(
     const RuntimeValue::Map& data, const std::string& sourceName);
 
 BIND_FUNCTION(name = "buildRich", metadata = false)
-std::shared_ptr<RichTextConfig> buildRichTextConfig(
+std::shared_ptr<RichText::RichTextConfig> buildRichTextConfig(
     const RuntimeValue::Map& data, const std::string& sourceName);

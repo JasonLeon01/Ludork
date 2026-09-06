@@ -19,13 +19,13 @@ class LuaRegistryReference;
 struct RuntimeRegistryReferenceState;
 using RuntimeCleanup = void (*)(lua_State*) noexcept;
 
-enum class RuntimeSessionPhase {
-    running,
-    stopping,
-    stopped,
-};
-
 struct RuntimeSessionState {
+    enum class RuntimeSessionPhase {
+        running,
+        stopping,
+        stopped,
+    };
+
     explicit RuntimeSessionState(lua_State* value) : state(value) {}
 
     lua_State* state;

@@ -1,6 +1,8 @@
-#include "InputRuntime.hpp"
+#include "InputImpl.hpp"
 
 #include <algorithm>
+
+namespace ludork::engine::input_impl {
 
 namespace {
 
@@ -57,7 +59,7 @@ void restorePulseTriggers(
 
 }  // namespace
 
-std::string InputRuntime::keyId(int code, const InputModifiers& modifiers) {
+std::string InputImpl::keyId(int code, const InputModifiers& modifiers) {
     std::string result = std::to_string(code);
     result.push_back(':');
     result.push_back(modifiers.alt ? '1' : '0');
@@ -70,7 +72,7 @@ std::string InputRuntime::keyId(int code, const InputModifiers& modifiers) {
     return result;
 }
 
-void InputRuntime::clearKeyboardState() {
+void InputImpl::clearKeyboardState() {
     keyboard_.keyPressed_ = false;
     keyboard_.keyReleased_ = false;
     keyboard_.keyPressedEvents_.clear();
@@ -87,9 +89,9 @@ void InputRuntime::clearKeyboardState() {
     keyboard_.heldScans_.clear();
 }
 
-void InputRuntime::setKeyPressed(sf::Keyboard::Key key,
-                                 sf::Keyboard::Scancode scan,
-                                 const InputModifiers& modifiers) {
+void InputImpl::setKeyPressed(sf::Keyboard::Key key,
+                              sf::Keyboard::Scancode scan,
+                              const InputModifiers& modifiers) {
     const bool knownKey = isKnownKey(key);
     const bool knownScan = isKnownScan(scan);
     if (!knownKey && !knownScan) {
@@ -145,9 +147,9 @@ void InputRuntime::setKeyPressed(sf::Keyboard::Key key,
     }
 }
 
-void InputRuntime::setKeyReleased(sf::Keyboard::Key key,
-                                  sf::Keyboard::Scancode scan,
-                                  const InputModifiers& modifiers) {
+void InputImpl::setKeyReleased(sf::Keyboard::Key key,
+                               sf::Keyboard::Scancode scan,
+                               const InputModifiers& modifiers) {
     const bool knownKey = isKnownKey(key);
     const bool knownScan = isKnownScan(scan);
     if (!knownKey && !knownScan) {
@@ -254,9 +256,8 @@ void InputRuntime::setKeyReleased(sf::Keyboard::Key key,
     }
 }
 
-void InputRuntime::setKeyPulse(sf::Keyboard::Key key,
-                               sf::Keyboard::Scancode scan,
-                               const InputModifiers& modifiers) {
+void InputImpl::setKeyPulse(sf::Keyboard::Key key, sf::Keyboard::Scancode scan,
+                            const InputModifiers& modifiers) {
     const bool knownKey = isKnownKey(key);
     const bool knownScan = isKnownScan(scan);
     if (!knownKey && !knownScan) {
@@ -281,14 +282,14 @@ void InputRuntime::setKeyPulse(sf::Keyboard::Key key,
     }
 }
 
-void InputRuntime::restoreKeyPulses() {
+void InputImpl::restoreKeyPulses() {
     restorePulseTriggers(keyboard_.keyTriggers_,
                          keyboard_.keyPulseTriggerBackups_);
     restorePulseTriggers(keyboard_.scanTriggers_,
                          keyboard_.scanPulseTriggerBackups_);
 }
 
-bool InputRuntime::isKeyboardKeyDown(sf::Keyboard::Key key) const {
+bool InputImpl::isKeyboardKeyDown(sf::Keyboard::Key key) const {
     if (!isKnownKey(key)) {
         return false;
     }
@@ -298,7 +299,7 @@ bool InputRuntime::isKeyboardKeyDown(sf::Keyboard::Key key) const {
     return !eventPump_.useInjectedMouseOnly_ && sf::Keyboard::isKeyPressed(key);
 }
 
-bool InputRuntime::isKeyboardScanDown(sf::Keyboard::Scancode scan) const {
+bool InputImpl::isKeyboardScanDown(sf::Keyboard::Scancode scan) const {
     if (!isKnownScan(scan)) {
         return false;
     }
@@ -309,16 +310,16 @@ bool InputRuntime::isKeyboardScanDown(sf::Keyboard::Scancode scan) const {
            sf::Keyboard::isKeyPressed(scan);
 }
 
-bool InputRuntime::isKeyPressed() const {
+bool InputImpl::isKeyPressed() const {
     return keyboard_.keyPressed_ && eventPump_.focused_ && !keyboard_.blocked_;
 }
 
-bool InputRuntime::isKeyReleased() const {
+bool InputImpl::isKeyReleased() const {
     return keyboard_.keyReleased_ && eventPump_.focused_ && !keyboard_.blocked_;
 }
 
-bool InputRuntime::consume(std::unordered_map<std::string, bool>& events,
-                           const std::string& id, bool handled) {
+bool InputImpl::consume(std::unordered_map<std::string, bool>& events,
+                        const std::string& id, bool handled) {
     const auto iterator = events.find(id);
     if (iterator == events.end()) {
         return false;
@@ -330,8 +331,8 @@ bool InputRuntime::consume(std::unordered_map<std::string, bool>& events,
     return result;
 }
 
-bool InputRuntime::getKeyPressed(sf::Keyboard::Key key, bool handled, bool alt,
-                                 bool ctrl, bool shift, bool system) {
+bool InputImpl::getKeyPressed(sf::Keyboard::Key key, bool handled, bool alt,
+                              bool ctrl, bool shift, bool system) {
     if (!isKeyPressed()) {
         return false;
     }
@@ -362,9 +363,8 @@ bool InputRuntime::getKeyPressed(sf::Keyboard::Key key, bool handled, bool alt,
     return result;
 }
 
-bool InputRuntime::getScanPressed(sf::Keyboard::Scancode scan, bool handled,
-                                  bool alt, bool ctrl, bool shift,
-                                  bool system) {
+bool InputImpl::getScanPressed(sf::Keyboard::Scancode scan, bool handled,
+                               bool alt, bool ctrl, bool shift, bool system) {
     if (!isKeyPressed()) {
         return false;
     }
@@ -373,8 +373,8 @@ bool InputRuntime::getScanPressed(sf::Keyboard::Scancode scan, bool handled,
                    handled);
 }
 
-bool InputRuntime::getKeyReleased(sf::Keyboard::Key key, bool handled, bool alt,
-                                  bool ctrl, bool shift, bool system) {
+bool InputImpl::getKeyReleased(sf::Keyboard::Key key, bool handled, bool alt,
+                               bool ctrl, bool shift, bool system) {
     if (!isKeyReleased()) {
         return false;
     }
@@ -405,9 +405,8 @@ bool InputRuntime::getKeyReleased(sf::Keyboard::Key key, bool handled, bool alt,
     return result;
 }
 
-bool InputRuntime::getScanReleased(sf::Keyboard::Scancode scan, bool handled,
-                                   bool alt, bool ctrl, bool shift,
-                                   bool system) {
+bool InputImpl::getScanReleased(sf::Keyboard::Scancode scan, bool handled,
+                                bool alt, bool ctrl, bool shift, bool system) {
     if (!isKeyReleased()) {
         return false;
     }
@@ -416,22 +415,24 @@ bool InputRuntime::getScanReleased(sf::Keyboard::Scancode scan, bool handled,
                    handled);
 }
 
-std::string InputRuntime::getEnteredText() const {
+std::string InputImpl::getEnteredText() const {
     return keyboard_.enteredText_;
 }
 
-bool InputRuntime::isTextEntered() const {
+bool InputImpl::isTextEntered() const {
     return !keyboard_.enteredText_.empty() && !keyboard_.blocked_;
 }
 
-bool InputRuntime::isKeyboardBlocked() const {
+bool InputImpl::isKeyboardBlocked() const {
     return keyboard_.blocked_;
 }
 
-void InputRuntime::blockKeyboard() {
+void InputImpl::blockKeyboard() {
     keyboard_.blocked_ = true;
 }
 
-void InputRuntime::unblockKeyboard() {
+void InputImpl::unblockKeyboard() {
     keyboard_.blocked_ = false;
 }
+
+}  // namespace ludork::engine::input_impl

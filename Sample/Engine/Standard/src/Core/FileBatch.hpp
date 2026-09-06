@@ -94,8 +94,8 @@ public:
             conversion) noexcept;
 
 private:
-    class Implementation;
-    std::unique_ptr<Implementation> implementation_;
+    class Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 const char* fileBatchStateName(FileBatchState state);
