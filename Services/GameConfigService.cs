@@ -216,7 +216,7 @@ public sealed class GameConfigService
             number(document, "scale", defaults.Scale, 1.0),
             number(document, "maxrenderscale", defaults.MaximumRenderScale, 2.0),
             number(document, "lightingrenderscale", defaults.LightingRenderScale, 1.0),
-            Math.Max(1, integer(document, "framerate", defaults.FrameRate, 30)),
+            integer(document, "framerate", defaults.FrameRate, 30),
             Math.Max(0, integer(
                 document,
                 "antialiasinglevel",
@@ -253,7 +253,7 @@ public sealed class GameConfigService
                 ? data.MaximumRenderScale
                 : 2.0,
             LightingRenderScale = lightingRenderScale(data.LightingRenderScale),
-            FrameRate = Math.Max(1, data.FrameRate),
+            FrameRate = data.FrameRate < 0 ? 1 : data.FrameRate,
             AntiAliasingLevel = Math.Max(0, data.AntiAliasingLevel),
             MusicVolume = volume(data.MusicVolume),
             SoundVolume = volume(data.SoundVolume),

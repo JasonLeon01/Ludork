@@ -18,7 +18,7 @@ public sealed class GameConfigWindow : Window
     private static readonly double[] scaleValues = [0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0];
     private static readonly double[] maximumRenderScaleValues = [0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 0.0];
     private static readonly double[] lightingRenderScaleValues = [0.5, 0.75, 1.0];
-    private static readonly int[] frameRateValues = [30, 60, 90, 120];
+    private static readonly int[] frameRateValues = [30, 60, 90, 120, 0];
     private static readonly int[] antiAliasingLevelValues = [0, 2, 4, 8];
     private readonly GameConfigData initialData;
     private readonly ComboBox languageBox;
@@ -83,13 +83,16 @@ public sealed class GameConfigWindow : Window
             initialData.LightingRenderScale);
 
         string[] frameRates = frameRateValues
-            .Select(value => value.ToString(CultureInfo.InvariantCulture))
+            .Select(value => value == 0
+                ? LocaleService.Get("UNLIMITED")
+                : value.ToString(CultureInfo.InvariantCulture))
             .ToArray();
         frameRateBox = createComboBox(frameRates.Cast<object>().ToArray());
         int selectedFrameRate = frameRateValues.Contains(initialData.FrameRate)
             ? initialData.FrameRate
-            : frameRateValues.MinBy(value => Math.Abs(value - initialData.FrameRate));
-        frameRateBox.SelectedItem = selectedFrameRate.ToString(CultureInfo.InvariantCulture);
+            : frameRateValues.Where(value => value > 0)
+                .MinBy(value => Math.Abs(value - initialData.FrameRate));
+        frameRateBox.SelectedIndex = Array.IndexOf(frameRateValues, selectedFrameRate);
         string[] antiAliasingLevels = antiAliasingLevelValues
             .Append(initialData.AntiAliasingLevel)
             .Distinct()
@@ -196,10 +199,9 @@ public sealed class GameConfigWindow : Window
         double lightingRenderScale = lightingRenderScaleBox.SelectedIndex >= 0
             ? lightingRenderScaleValues[lightingRenderScaleBox.SelectedIndex]
             : 1.0;
-        int frameRate = int.Parse(
-            frameRateBox.SelectedItem?.ToString() ?? "30",
-            NumberStyles.Integer,
-            CultureInfo.InvariantCulture);
+        int frameRate = frameRateBox.SelectedIndex >= 0
+            ? frameRateValues[frameRateBox.SelectedIndex]
+            : 30;
         int antiAliasingLevel = int.Parse(
             antiAliasingLevelBox.SelectedItem?.ToString() ?? "0",
             NumberStyles.Integer,

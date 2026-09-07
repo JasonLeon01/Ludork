@@ -126,8 +126,8 @@ function AttrRef:init(obj, name)
 end
 
 function AttrRef:get()
-    local value = ComponentsFunctions.getComponentFieldValue(self.obj, self.name, Class.MISSING)
-    if value ~= Class.MISSING then
+    local value = ComponentsFunctions.getComponentFieldValue(self.obj, self.name)
+    if value ~= nil then
         return value
     end
     value = self.obj[self.name]
@@ -306,8 +306,8 @@ function Utils.GetAttrRef(obj, attrName)
 end
 
 function Utils.GetAttr(obj, attrName)
-    local value = ComponentsFunctions.getComponentFieldValue(obj, attrName, Class.MISSING)
-    if value ~= Class.MISSING then
+    local value = ComponentsFunctions.getComponentFieldValue(obj, attrName)
+    if value ~= nil then
         return value
     end
     value = obj[attrName]

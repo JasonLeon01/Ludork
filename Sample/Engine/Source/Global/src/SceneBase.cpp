@@ -553,9 +553,10 @@ void SceneBase::logicLoop() {
     while (!lifecycleImpl_->isStopping() && System::isActive() &&
            System::getScene().get() == this &&
            !System::hasPendingSceneOperations()) {
-        const int targetFps = std::max(1, System::getFrameRate());
-        const auto logicFrameTime =
-            std::chrono::duration<double>(1.0 / static_cast<double>(targetFps));
+        const int targetFps = System::getFrameRate();
+        const auto logicFrameTime = std::chrono::duration<double>(
+            targetFps == 0 ? 0.0
+                           : 1.0 / static_cast<double>(std::max(1, targetFps)));
         const auto frameStart = std::chrono::steady_clock::now();
         const float deltaTime =
             ludork::global::scene_base_impl::nonNegativeScaledDelta(

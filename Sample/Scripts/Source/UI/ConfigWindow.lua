@@ -24,12 +24,12 @@ local _AUDIO_PAGE_INDEX = 1
 local _LANGUAGE_PAGE_INDEX = 2
 local _TAB_LOCALE_KEYS = { "graphics", "audio", "other" }
 local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
-local _FRAMERATE_ITEMS = { "30", "60", "90", "120" }
+local _FRAMERATE_ITEMS = { "30", "60", "90", "120", "0" }
 ---@type string[]
 local _ANTI_ALIASING_LEVEL_ITEMS = { "0", "2", "4", "8" }
 local _LIGHTING_RENDER_SCALE_VALUES = { 0.5, 0.75, 1.0 }
 local _LIGHTING_RENDER_SCALE_ITEMS = { "50%", "75%", "100%" }
-local _GRAPHICS_PRESET_LOCALE_KEYS = { "low", "medium", "high", "extrahigh", "original", "custom" }
+local _GRAPHICS_PRESET_LOCALE_KEYS = { "low", "medium", "high", "extrahigh", "original" }
 local _GRAPHICS_PRESETS = {
     { 0.75, 30, 0, 0.5 }, { 1.0, 60, 2, 0.75 }, { 2.0, 60, 8, 1.0 }, { 3.0, 90, 8, 1.0 }, { 0.0, 120, 8, 1.0 }
 }
@@ -42,10 +42,19 @@ local function getLanguageLabels()
     return languageLabels
 end
 
-local function getGraphicsPresetLabels()
+local function getFrameRateLabels()
+    local labels = copy(_FRAMERATE_ITEMS)
+    labels[#labels] = LOC("unlimited")
+    return labels
+end
+
+local function getGraphicsPresetLabels(selectedIndex)
     local labels = {}
     for index, key in ipairs(_GRAPHICS_PRESET_LOCALE_KEYS) do
         labels[index] = LOC(key)
+    end
+    if selectedIndex == #_GRAPHICS_PRESETS then
+        labels[#labels + 1] = LOC("custom")
     end
     return labels
 end
@@ -199,7 +208,7 @@ function ConfigWindowUI:refresh()
         refreshRowLabels(page.rows, page.localeKeys)
     end
     self._tabView:setItems(getTabLabels())
-    self._graphicsPresetRow:setItems(getGraphicsPresetLabels())
+    self._framerateRow:setItems(getFrameRateLabels())
     self._languageRow:setItems(getLanguageLabels())
     if self._scaleRow ~= nil then
         self._scaleRow:setItems(getScaleLabels(self._scaleValues))
@@ -476,9 +485,10 @@ function ConfigWindowUI:_createScaleRow()
 end
 
 function ConfigWindowUI:_createGraphicsRows()
+    local graphicsPresetIndex = getGraphicsPresetIndex()
     self._graphicsPresetRow = ConfigSettingRowUI.new(
-        LOC("graphicspreset"), getGraphicsPresetLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
-        getGraphicsPresetIndex()
+        LOC("graphicspreset"), getGraphicsPresetLabels(graphicsPresetIndex), _CONTENT_WIDTH, _DROPBOX_WIDTH,
+        self._windowSkin, graphicsPresetIndex
     )
     if System.isDisplayScaleConfigurable() then
         self:_createScaleRow()
@@ -492,7 +502,7 @@ function ConfigWindowUI:_createGraphicsRows()
         _DROPBOX_WIDTH, self._windowSkin, findScaleIndex(self._maximumRenderScaleValues, effectiveMaximumRenderScale)
     )
     self._framerateRow = ConfigSettingRowUI.new(
-        LOC("framerate"), _FRAMERATE_ITEMS, _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
+        LOC("framerate"), getFrameRateLabels(), _CONTENT_WIDTH, _DROPBOX_WIDTH, self._windowSkin,
         self.model.FindSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
     )
     self._antiAliasingLevelItems = getAntiAliasingLevelItems(System.getAntiAliasingLevel())
@@ -662,7 +672,9 @@ function ConfigWindowUI:_syncGraphicsPresetSelection()
     if self._applyingGraphicsPreset then
         return
     end
-    self._graphicsPresetRow:getDropBox():setSelectedIndex(getGraphicsPresetIndex())
+    local index = getGraphicsPresetIndex()
+    self._graphicsPresetRow:setItems(getGraphicsPresetLabels(index))
+    self._graphicsPresetRow:getDropBox():setSelectedIndex(index)
 end
 
 function ConfigWindowUI:_onGraphicsPresetSelectionConfirmed(index)
