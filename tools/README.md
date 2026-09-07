@@ -57,6 +57,31 @@ The normal command without these options rebuilds both inputs before packaging.
 The prepared template folder must remain outside `obj/editor-package`, which is
 recreated during packaging.
 
+`create_templates --native-cache <folder>` stores native outputs separately by
+`plain`/`ffmpeg` and `Debug`/`Release`. A matching entry supplies runtime binaries,
+the Windows game launcher, and the seven generated Lua stub/metadata files;
+templates still copy current Sample content and run the packaging validations.
+Keep this folder outside both Sample and the template output. The caller must
+invalidate it when native sources, bindings, dependencies or build options
+change. `build_standalone --use-current-build` packages the matching existing
+`bin/<configuration>` output and Windows `build/launcher/<configuration>`.
+
+`pack_editor --use-current-editor-build` restores NuGet dependencies and runs
+`dotnet publish --no-build` against matching Release outputs for the editor and
+its two contract projects. It still refreshes Content and compiles current locale
+data in a clean staging directory. Windows also accepts `--launcher <file>` for
+a prepared editor launcher outside that staging directory.
+
+The [Export Editor workflow](../.github/workflows/export-editor.yml) uses separate
+exact caches for the prepared environment, native components, C# build outputs
+and Windows editor launcher. Keys include tracked input paths and Git object
+IDs, platform, architecture and configuration; the C# key also includes the .NET
+SDK version. Source additions, deletions and renames invalidate the affected key.
+Only successful results are saved, with no prefix-key fallback. A missing or
+evicted cache rebuilds that component. Workflow or cache-rule changes invalidate
+all groups. Delete the relevant Actions cache to force a rebuild with unchanged
+sources. Every run packages the current Sample, Lua, plug-ins, locale and docs.
+
 Both editor packaging scripts use the shared ScriptTools command
 `editor-official-plugins prepare <source> <output-root>` to clean-copy the fixed
 official plug-ins and generate their registry. The matching

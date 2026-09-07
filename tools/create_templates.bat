@@ -3,33 +3,72 @@ setlocal EnableExtensions
 cd /d "%~dp0.."
 
 set "VARIANT=all"
+set "NATIVE_CACHE="
+set "CONFIG="
+set "OUTPUT_FOLDER="
+:parse_args
+if "%~1"=="" goto args_parsed
+set "ARG=%~1"
+set "OPTION_VALUE=%~2"
 if /I "%~1"=="--variant" (
     if "%~2"=="" goto usage
+    if "%OPTION_VALUE:~0,2%"=="--" goto usage
     set "VARIANT=%~2"
     shift
     shift
+    goto parse_args
 )
-
-set "CONFIG=%~1"
-if "%CONFIG%"=="" set "CONFIG=Release"
-if not "%~3"=="" goto usage
-if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" (
+if /I "%~1"=="--native-cache" (
+    if "%~2"=="" goto usage
+    if "%OPTION_VALUE:~0,2%"=="--" goto usage
+    for %%I in ("%~2") do set "NATIVE_CACHE=%%~fI"
+    shift
+    shift
+    goto parse_args
+)
+if "%ARG:~0,2%"=="--" goto usage
+if not defined CONFIG (
+    set "CONFIG=%~1"
+) else if not defined OUTPUT_FOLDER (
+    set "OUTPUT_FOLDER=%~1"
+) else (
     goto usage
 )
+shift
+goto parse_args
+:args_parsed
+if not defined CONFIG set "CONFIG=Release"
+if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto usage
+if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
+if /I "%CONFIG%"=="Release" set "CONFIG=Release"
 if /I not "%VARIANT%"=="all" if /I not "%VARIANT%"=="plain" if /I not "%VARIANT%"=="ffmpeg" goto usage
 
 set "SOURCE_DIR=%CD%\Sample"
 set "LICENSES_DIR=%CD%\Licenses"
-if "%~2"=="" (
+if not defined OUTPUT_FOLDER (
     set "TEMPLATES_DIR=%CD%\Templates"
 ) else (
-    for %%I in ("%~2") do set "TEMPLATES_DIR=%%~fI"
+    for %%I in ("%OUTPUT_FOLDER%") do set "TEMPLATES_DIR=%%~fI"
 )
 set "CPP_TEMPLATE_DIR=%TEMPLATES_DIR%\Cpp"
 set "STANDALONE_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone"
 set "CPP_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Cpp-ffmpeg"
 set "STANDALONE_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone-ffmpeg"
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
+rem CMake publishes these seven files; all other Scripts content comes from Sample.
+set "GENERATED_SCRIPTS=stub\Engine.d.lua stub\GlobalCore.d.lua stub\GlobalFunctions.d.lua stub\LuaSF.d.lua Engine_meta.lua GlobalCore_meta.lua GlobalFunctions_meta.lua"
+if defined NATIVE_CACHE (
+    call :validate_native_cache_paths
+    if errorlevel 1 exit /b 1
+    for %%V in (plain ffmpeg) do if /I "%VARIANT%"=="all" (
+        call :check_native_cache "%NATIVE_CACHE%\%%V\%CONFIG%"
+        if errorlevel 1 exit /b 1
+    )
+    if /I not "%VARIANT%"=="all" (
+        call :check_native_cache "%NATIVE_CACHE%\%VARIANT%\%CONFIG%"
+        if errorlevel 1 exit /b 1
+    )
+)
 set "FFMPEG_VERSION="
 for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%CD%\versions.conf") do if /I "%%A"=="FFMPEG_VERSION" set "FFMPEG_VERSION=%%B"
 if not defined FFMPEG_VERSION (
@@ -85,7 +124,7 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :usage
-echo Usage: tools\create_templates.bat [--variant all^|plain^|ffmpeg] [Debug^|Release] [output-folder]
+echo Usage: tools\create_templates.bat [--variant all^|plain^|ffmpeg] [--native-cache ^<folder^>] [Debug^|Release] [output-folder]
 exit /b 1
 
 :create_template_pair
@@ -105,12 +144,25 @@ if errorlevel 1 exit /b %errorlevel%
 if errorlevel 1 exit /b %errorlevel%
 call :copy_runtime_legal_files "%CPP_TARGET%" "%INCLUDE_FFMPEG%"
 if errorlevel 1 exit /b %errorlevel%
-call "%CD%\tools\build_standalone.bat" "%CPP_TARGET%" "%STANDALONE_TARGET%" "%CONFIG%"
+set "CURRENT_BUILD_OPTION="
+set "CACHE_ENTRY="
+if defined NATIVE_CACHE (
+    call :restore_native_cache
+    if errorlevel 1 exit /b 1
+)
+call "%CD%\tools\build_standalone.bat" %CURRENT_BUILD_OPTION% "%CPP_TARGET%" "%STANDALONE_TARGET%" "%CONFIG%"
 if errorlevel 1 exit /b %errorlevel%
 call :copy_standalone_files "%CPP_TARGET%" "%STANDALONE_TARGET%"
 if errorlevel 1 exit /b %errorlevel%
 "%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_TARGET%\Main.proj" false %FFMPEG_ENABLED%
 if errorlevel 1 exit /b %errorlevel%
+if defined CACHE_ENTRY if not defined CURRENT_BUILD_OPTION (
+    call :copy_native_outputs "%CPP_TARGET%" "%CACHE_ENTRY%"
+    if errorlevel 1 exit /b 1
+    call :validate_native_cache "%CACHE_ENTRY%"
+    if errorlevel 1 exit /b 1
+    echo Saved native cache: %CACHE_ENTRY%
+)
 if exist "%CPP_TARGET%\build" rmdir /S /Q "%CPP_TARGET%\build"
 if exist "%CPP_TARGET%\bin" rmdir /S /Q "%CPP_TARGET%\bin"
 if exist "%CPP_TARGET%\Intermediate" rmdir /S /Q "%CPP_TARGET%\Intermediate"
@@ -124,6 +176,70 @@ if "%INCLUDE_FFMPEG%"=="1" (
 ) else (
     echo C++ source template is ready: %CPP_TARGET%
     echo Standalone template is ready: %STANDALONE_TARGET%\Main.exe
+)
+exit /b 0
+
+:validate_native_cache_paths
+powershell -NoProfile -Command ^
+    "$ErrorActionPreference = 'Stop';" ^
+    "function Check-Path($path) { $path = [IO.Path]::GetFullPath($path); $current = $path; while ($current) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw ('Unsafe cache/template path: ' + $current) } }; $current = [IO.Path]::GetDirectoryName($current.TrimEnd('\')) }; return $path.TrimEnd('\') + '\' };" ^
+    "$cache = Check-Path $env:NATIVE_CACHE;" ^
+    "foreach ($variant in @('plain', 'ffmpeg')) { [void](Check-Path ($cache + $variant + '\' + $env:CONFIG)) };" ^
+    "foreach ($path in @($env:TEMPLATES_DIR, $env:SOURCE_DIR)) { $protected = Check-Path $path; if ($cache.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase) -or $protected.StartsWith($cache, [StringComparison]::OrdinalIgnoreCase)) { throw ('Native cache overlaps templates or Sample: ' + $cache) } }"
+exit /b %errorlevel%
+
+:check_native_cache
+if not exist "%~1" exit /b 0
+call :validate_native_cache "%~1"
+exit /b %errorlevel%
+
+:restore_native_cache
+set "CACHE_VARIANT=plain"
+if "%INCLUDE_FFMPEG%"=="1" set "CACHE_VARIANT=ffmpeg"
+set "CACHE_ENTRY=%NATIVE_CACHE%\%CACHE_VARIANT%\%CONFIG%"
+if not exist "%CACHE_ENTRY%" exit /b 0
+call :copy_native_outputs "%CACHE_ENTRY%" "%CPP_TARGET%"
+if errorlevel 1 exit /b 1
+set "CURRENT_BUILD_OPTION=--use-current-build"
+echo Reusing native cache: %CACHE_ENTRY%
+exit /b 0
+
+:copy_native_outputs
+for %%D in (bin\%CONFIG% build\launcher\%CONFIG%) do (
+    robocopy "%~1\%%D" "%~2\%%D" /E /NFL /NDL /NJH /NJS /NP
+    if errorlevel 8 exit /b 1
+)
+if not exist "%~2\Scripts\stub" (
+    mkdir "%~2\Scripts\stub"
+    if errorlevel 1 exit /b 1
+)
+for %%F in (%GENERATED_SCRIPTS%) do (
+    copy /Y "%~1\Scripts\%%F" "%~2\Scripts\%%F" >nul
+    if errorlevel 1 exit /b 1
+)
+exit /b 0
+
+:validate_native_cache
+for %%F in (Main.exe Engine.dll GlobalCore.dll GlobalFunctions.dll LuaSF.dll lua.dll) do (
+    call :require_native_file "%~1\bin\%CONFIG%\%%F"
+    if errorlevel 1 exit /b 1
+)
+call :require_native_file "%~1\build\launcher\%CONFIG%\Main.exe"
+if errorlevel 1 exit /b 1
+for %%F in (%GENERATED_SCRIPTS%) do (
+    call :require_native_file "%~1\Scripts\%%F"
+    if errorlevel 1 exit /b 1
+)
+exit /b 0
+
+:require_native_file
+if not exist "%~1" (
+    echo Required native cache file was not found: %~1
+    exit /b 1
+)
+for %%F in ("%~1") do if "%%~zF"=="0" (
+    echo Required native cache file is empty: %~1
+    exit /b 1
 )
 exit /b 0
 

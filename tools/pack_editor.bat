@@ -5,6 +5,8 @@ chcp 65001>nul
 for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
 set "PREBUILT_TEMPLATES_DIR="
 set "USE_CURRENT_UI_PREVIEW_HOST=0"
+set "EDITOR_PUBLISH_OPTIONS="
+set "PREBUILT_LAUNCHER="
 
 :parse_arguments
 if "%~1"=="" goto arguments_ready
@@ -17,6 +19,18 @@ if /I "%~1"=="--templates" (
 )
 if /I "%~1"=="--use-current-ui-preview-host" (
     set "USE_CURRENT_UI_PREVIEW_HOST=1"
+    shift
+    goto parse_arguments
+)
+if /I "%~1"=="--use-current-editor-build" (
+    set "EDITOR_PUBLISH_OPTIONS=--no-build"
+    shift
+    goto parse_arguments
+)
+if /I "%~1"=="--launcher" (
+    if "%~2"=="" goto usage
+    for %%I in ("%~2") do set "PREBUILT_LAUNCHER=%%~fI"
+    shift
     shift
     goto parse_arguments
 )
@@ -147,16 +161,26 @@ if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 mkdir "%STAGE_DIR%"
 if errorlevel 1 goto failed
 
-echo Building Windows x64 editor launcher...
-cmake -S "%ROOT_DIR%\tools\editor_launcher" -B "%LAUNCHER_BUILD_DIR%" -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=%PRODUCT_VERSION%"
-if errorlevel 1 goto failed
-cmake --build "%LAUNCHER_BUILD_DIR%" --config Release --target LudorkEditorLauncher
-if errorlevel 1 goto failed
-copy /Y "%LAUNCHER_BUILD_DIR%\bin\Release\Ludork.exe" "%STAGE_DIR%\Ludork.exe" >nul
-if errorlevel 1 goto failed
+if defined PREBUILT_LAUNCHER (
+    echo Using prepared Windows x64 editor launcher...
+    copy /Y "%PREBUILT_LAUNCHER%" "%STAGE_DIR%\Ludork.exe" >nul
+    if errorlevel 1 goto failed
+) else (
+    echo Building Windows x64 editor launcher...
+    cmake -S "%ROOT_DIR%\tools\editor_launcher" -B "%LAUNCHER_BUILD_DIR%" -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=%PRODUCT_VERSION%"
+    if errorlevel 1 goto failed
+    cmake --build "%LAUNCHER_BUILD_DIR%" --config Release --target LudorkEditorLauncher
+    if errorlevel 1 goto failed
+    copy /Y "%LAUNCHER_BUILD_DIR%\bin\Release\Ludork.exe" "%STAGE_DIR%\Ludork.exe" >nul
+    if errorlevel 1 goto failed
+)
 
 echo Publishing Windows x64 editor...
-dotnet publish "%PROJECT_FILE%" -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
+if defined EDITOR_PUBLISH_OPTIONS (
+    dotnet restore "%PROJECT_FILE%" -r win-x64 -p:Configuration=Release -p:SelfContained=true -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
+    if errorlevel 1 goto failed
+)
+dotnet publish "%PROJECT_FILE%" %EDITOR_PUBLISH_OPTIONS% -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
 if errorlevel 1 goto failed
 
 "%SCRIPT_TOOLS%" prune-editor-windows-publish "%BINARIES_DIR%"
@@ -792,7 +816,7 @@ for /d /r "%~1" %%D in (UiPreviewCurveResolver*) do if exist "%%~fD" (
 exit /b 0
 
 :usage
-echo Usage: tools\pack_editor.bat [--templates ^<folder^>] [--use-current-ui-preview-host]
+echo Usage: tools\pack_editor.bat [--templates ^<folder^>] [--use-current-ui-preview-host] [--use-current-editor-build] [--launcher ^<file^>]
 exit /b 1
 
 :failed

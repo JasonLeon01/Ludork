@@ -7,11 +7,12 @@ set -eu
 
 PREBUILT_TEMPLATES_DIR=
 USE_CURRENT_UI_PREVIEW_HOST=0
+USE_CURRENT_EDITOR_BUILD=0
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --templates)
             if [ "$#" -lt 2 ]; then
-                echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host]" >&2
+                echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host] [--use-current-editor-build]" >&2
                 exit 1
             fi
             PREBUILT_TEMPLATES_DIR=$2
@@ -21,8 +22,12 @@ while [ "$#" -gt 0 ]; do
             USE_CURRENT_UI_PREVIEW_HOST=1
             shift
             ;;
+        --use-current-editor-build)
+            USE_CURRENT_EDITOR_BUILD=1
+            shift
+            ;;
         *)
-            echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host]" >&2
+            echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host] [--use-current-editor-build]" >&2
             exit 1
             ;;
     esac
@@ -1051,7 +1056,16 @@ WORK_DIR_OWNED=1
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$STAGE_DIR"
 
 echo "Publishing macOS Apple Silicon editor..."
+set --
+if [ "$USE_CURRENT_EDITOR_BUILD" -eq 1 ]; then
+    dotnet restore "$PROJECT_FILE" -r osx-arm64 \
+        -p:Configuration=Release -p:SelfContained=true \
+        -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false \
+        -p:DebugSymbols=false -p:DebugType=None
+    set -- --no-build
+fi
 dotnet publish "$PROJECT_FILE" \
+    "$@" \
     -c Release \
     -r osx-arm64 \
     --self-contained true \

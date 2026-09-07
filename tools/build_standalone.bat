@@ -6,6 +6,11 @@ cd /d "%ROOT_DIR%"
 set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 
+set "USE_CURRENT_BUILD=0"
+if /I "%~1"=="--use-current-build" (
+    set "USE_CURRENT_BUILD=1"
+    shift
+)
 if "%~1"=="" goto :usage
 if "%~2"=="" goto :usage
 if "%~3"=="" goto :usage
@@ -25,10 +30,19 @@ if errorlevel 1 (
     exit /b 1
 )
 
-call "%TOOLS_DIR%\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-cmake --build "%CPP_DIR%\build" --config "%CONFIG%" --target LudorkLauncher
-if errorlevel 1 exit /b %errorlevel%
+if "%USE_CURRENT_BUILD%"=="1" (
+    if not exist "%SCRIPT_TOOLS%" (
+        echo ScriptTools was not found. Run tools\init.bat first.
+        exit /b 1
+    )
+    "%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
+    if errorlevel 1 exit /b 1
+) else (
+    call "%TOOLS_DIR%\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
+    if errorlevel 1 exit /b 1
+    cmake --build "%CPP_DIR%\build" --config "%CONFIG%" --target LudorkLauncher
+    if errorlevel 1 exit /b 1
+)
 
 if not exist "%CPP_DIR%\Assets" (
     echo Assets folder was not found: %CPP_DIR%\Assets
@@ -113,7 +127,7 @@ echo Standalone build complete: %STANDALONE_DIR%
 exit /b 0
 
 :usage
-echo Usage: tools\build_standalone.bat ^<cpp-folder^> ^<standalone-folder^> ^<Debug^|Release^>
+echo Usage: tools\build_standalone.bat [--use-current-build] ^<cpp-folder^> ^<standalone-folder^> ^<Debug^|Release^>
 exit /b 1
 
 :remove_ui_preview_host_entries

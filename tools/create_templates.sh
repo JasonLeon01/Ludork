@@ -5,32 +5,45 @@ set -eu
 . "$PROJECT_ROOT/versions.conf"
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 VARIANT=all
-if [ "${1:-}" = "--variant" ]; then
-    if [ "$#" -lt 2 ]; then
-        echo "Usage: tools/create_templates.sh [--variant all|plain|ffmpeg] [Debug|Release] [output-folder]" >&2
-        exit 1
-    fi
-    VARIANT=$2
-    shift 2
-fi
-CONFIG=${1:-Release}
-if [ "$#" -gt 2 ] || { [ "$CONFIG" != "Debug" ] && [ "$CONFIG" != "Release" ]; }; then
-    echo "Usage: tools/create_templates.sh [--variant all|plain|ffmpeg] [Debug|Release] [output-folder]" >&2
+NATIVE_CACHE=
+CONFIG=Release
+OUTPUT_FOLDER=
+POSITIONAL_COUNT=0
+usage() {
+    echo "Usage: tools/create_templates.sh [--variant all|plain|ffmpeg] [--native-cache <folder>] [Debug|Release] [output-folder]" >&2
     exit 1
-fi
+}
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --variant | --native-cache)
+            [ "$#" -ge 2 ] && [ -n "$2" ] || usage
+            case "$2" in --*) usage ;; esac
+            if [ "$1" = "--variant" ]; then VARIANT=$2; else NATIVE_CACHE=$2; fi
+            shift 2
+            ;;
+        --*) usage ;;
+        *)
+            case "$POSITIONAL_COUNT" in
+                0) CONFIG=$1 ;;
+                1) OUTPUT_FOLDER=$1 ;;
+                *) usage ;;
+            esac
+            POSITIONAL_COUNT=$((POSITIONAL_COUNT + 1))
+            shift
+            ;;
+    esac
+done
+if [ "$CONFIG" != "Debug" ] && [ "$CONFIG" != "Release" ]; then usage; fi
 case "$VARIANT" in
     all | plain | ffmpeg) ;;
-    *)
-        echo "Usage: tools/create_templates.sh [--variant all|plain|ffmpeg] [Debug|Release] [output-folder]" >&2
-        exit 1
-        ;;
+    *) usage ;;
 esac
 
 SOURCE_DIR="$PROJECT_ROOT/Sample"
 LICENSES_DIR="$PROJECT_ROOT/Licenses"
 FFMPEG_SOURCE_ARCHIVE="$SOURCE_DIR/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
-if [ "$#" -eq 2 ]; then
-    TEMPLATES_DIR=$(absolute_path "$2")
+if [ -n "$OUTPUT_FOLDER" ]; then
+    TEMPLATES_DIR=$(absolute_path "$OUTPUT_FOLDER")
 else
     TEMPLATES_DIR="$PROJECT_ROOT/Templates"
 fi
@@ -39,6 +52,91 @@ STANDALONE_TEMPLATE_DIR="$TEMPLATES_DIR/Standalone"
 CPP_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/Cpp-ffmpeg"
 STANDALONE_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/Standalone-ffmpeg"
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
+# CMake publishes these seven files; all other Scripts content comes from Sample.
+GENERATED_SCRIPTS="stub/Engine.d.lua stub/GlobalCore.d.lua stub/GlobalFunctions.d.lua stub/LuaSF.d.lua Engine_meta.lua GlobalCore_meta.lua GlobalFunctions_meta.lua"
+
+physical_path() (
+    if [ -d "$1" ]; then
+        CDPATH= cd -P -- "$1"
+        pwd -P
+    else
+        path_parent=$(physical_path "$(dirname -- "$1")")
+        case "$(basename -- "$1")" in
+            .) printf '%s\n' "$path_parent" ;;
+            ..) dirname -- "$path_parent" ;;
+            *) printf '%s/%s\n' "${path_parent%/}" "$(basename -- "$1")" ;;
+        esac
+    fi
+)
+
+if [ -n "$NATIVE_CACHE" ]; then
+    NATIVE_CACHE=$(physical_path "$NATIVE_CACHE")
+    for protected_dir in "$TEMPLATES_DIR" "$SOURCE_DIR"; do
+        protected_dir=$(physical_path "$protected_dir")
+        case "${NATIVE_CACHE%/}/" in "${protected_dir%/}/"*)
+            echo "Native cache overlaps templates or Sample: $NATIVE_CACHE" >&2
+            exit 1 ;;
+        esac
+        case "${protected_dir%/}/" in "${NATIVE_CACHE%/}/"*)
+            echo "Native cache overlaps templates or Sample: $NATIVE_CACHE" >&2
+            exit 1 ;;
+        esac
+    done
+    for cache_variant in plain ffmpeg; do
+        if [ -L "$NATIVE_CACHE/$cache_variant" ] || [ -L "$NATIVE_CACHE/$cache_variant/$CONFIG" ]; then
+            echo "Native cache entries must not be symbolic links: $NATIVE_CACHE/$cache_variant/$CONFIG" >&2
+            exit 1
+        fi
+    done
+fi
+
+native_cache_entry() {
+    if [ "$1" -eq 1 ]; then
+        printf '%s/ffmpeg/%s\n' "$NATIVE_CACHE" "$CONFIG"
+    else
+        printf '%s/plain/%s\n' "$NATIVE_CACHE" "$CONFIG"
+    fi
+}
+
+validate_native_cache() (
+    cache_entry=$1
+    if [ ! -s "$cache_entry/bin/$CONFIG/Main" ]; then
+        echo "Incomplete native cache: $cache_entry/bin/$CONFIG/Main" >&2
+        exit 1
+    fi
+    for generated_script in $GENERATED_SCRIPTS; do
+        if [ ! -s "$cache_entry/Scripts/$generated_script" ]; then
+            echo "Incomplete native cache: $cache_entry/Scripts/$generated_script" >&2
+            exit 1
+        fi
+    done
+    runtime_library=$(find "$cache_entry/bin/$CONFIG" -maxdepth 1 \
+        \( -type f -o -type l \) \
+        \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) -print -quit)
+    if [ -z "$runtime_library" ]; then
+        echo "Native cache contains no runtime libraries: $cache_entry" >&2
+        exit 1
+    fi
+)
+
+copy_native_outputs() (
+    native_source=$1
+    native_target=$2
+    mkdir -p "$native_target/bin/$CONFIG" "$native_target/Scripts/stub"
+    rsync -a "$native_source/bin/$CONFIG/" "$native_target/bin/$CONFIG/"
+    for generated_script in $GENERATED_SCRIPTS; do
+        cp -p "$native_source/Scripts/$generated_script" "$native_target/Scripts/$generated_script"
+    done
+)
+
+if [ -n "$NATIVE_CACHE" ]; then
+    for cache_variant in plain ffmpeg; do
+        if [ "$VARIANT" = all ] || [ "$VARIANT" = "$cache_variant" ]; then
+            cache_entry="$NATIVE_CACHE/$cache_variant/$CONFIG"
+            if [ -e "$cache_entry" ]; then validate_native_cache "$cache_entry"; fi
+        fi
+    done
+fi
 
 validate_no_ui_preview_host() {
     template_dir=$1
@@ -156,13 +254,20 @@ build_template_pair() {
     standalone_template_dir=$2
     include_ffmpeg=$3
     dependency_cache=$4
+    set -- "$source_template_dir" "$standalone_template_dir" "$CONFIG"
+    if [ -n "$NATIVE_CACHE" ]; then
+        cache_entry=$(native_cache_entry "$include_ffmpeg")
+        if [ -e "$cache_entry" ] || [ -L "$cache_entry" ]; then
+            copy_native_outputs "$cache_entry" "$source_template_dir"
+            set -- --use-current-build "$@"
+            echo "Reusing native cache: $cache_entry"
+        fi
+    fi
     if [ -n "$dependency_cache" ]; then
         LUDORK_DEPENDENCY_CACHE="$dependency_cache" \
-            sh "$TOOLS_DIR/build_standalone.sh" \
-            "$source_template_dir" "$standalone_template_dir" "$CONFIG"
+            sh "$TOOLS_DIR/build_standalone.sh" "$@"
     else
-        sh "$TOOLS_DIR/build_standalone.sh" \
-            "$source_template_dir" "$standalone_template_dir" "$CONFIG"
+        sh "$TOOLS_DIR/build_standalone.sh" "$@"
     fi
     copy_standalone_files "$source_template_dir" "$standalone_template_dir"
     if [ "$include_ffmpeg" -eq 1 ]; then
@@ -178,6 +283,14 @@ finalize_template_pair() {
     source_template_dir=$1
     standalone_template_dir=$2
     include_ffmpeg=$3
+    if [ -n "$NATIVE_CACHE" ]; then
+        cache_entry=$(native_cache_entry "$include_ffmpeg")
+        if [ ! -e "$cache_entry" ]; then
+            copy_native_outputs "$source_template_dir" "$cache_entry"
+            validate_native_cache "$cache_entry"
+            echo "Saved native cache: $cache_entry"
+        fi
+    fi
     rm -rf "$source_template_dir/build" "$source_template_dir/bin" \
         "$source_template_dir/Intermediate"
     validate_no_ui_preview_host "$source_template_dir"

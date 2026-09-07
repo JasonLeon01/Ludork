@@ -3,8 +3,13 @@ set -eu
 
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
+USE_CURRENT_BUILD=0
+if [ "${1:-}" = "--use-current-build" ]; then
+    USE_CURRENT_BUILD=1
+    shift
+fi
 if [ "$#" -ne 3 ]; then
-    echo "Usage: tools/build_standalone.sh <cpp-folder> <standalone-folder> <Debug|Release>" >&2
+    echo "Usage: tools/build_standalone.sh [--use-current-build] <cpp-folder> <standalone-folder> <Debug|Release>" >&2
     exit 1
 fi
 
@@ -46,7 +51,12 @@ for protected_name in Assets Data Scripts bin build Licenses ThirdPartySource En
     esac
 done
 
-sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"
+if [ "$USE_CURRENT_BUILD" -eq 1 ]; then
+    SCRIPT_TOOLS=$(resolve_script_tools)
+    "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
+else
+    sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"
+fi
 
 for resource in Assets Data Scripts; do
     if [ ! -d "$CPP_DIR/$resource" ]; then

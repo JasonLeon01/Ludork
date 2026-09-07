@@ -21,8 +21,26 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  build_inputs:
+    name: Fingerprint build inputs
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.keys.outputs.environment }}
+      native: ${{ steps.keys.outputs.native }}
+      managed: ${{ steps.keys.outputs.managed }}
+      launcher: ${{ steps.keys.outputs.launcher }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Fingerprint tracked sources and build configuration
+        id: keys
+        run: python3 .github/scripts/export_editor_cache.py
+
   windows_prepare:
     name: Prepare Windows x64 environment
+    needs: build_inputs
     runs-on: windows-2022
     timeout-minutes: 90
 
@@ -32,7 +50,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Restore prepared environment cache
+        id: environment-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: windows-native-environment.tar
+          key: export-v1-windows-2022-${{ runner.arch }}-environment-${{ needs.build_inputs.outputs.environment }}
+
+      - name: Unpack cached environment
+        if: steps.environment-cache.outputs.cache-hit == 'true'
+        shell: cmd
+        run: tar.exe -xf windows-native-environment.tar -C .
+
       - name: Set up Python
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -40,11 +71,13 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Set up MSVC command-line environment
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
 
       - name: Restore FFmpeg source archive
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
         with:
@@ -52,22 +85,25 @@ jobs:
           key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
 
       - name: Set up project Python environment
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 10
         run: tools\setup_python.bat
 
       - name: Build ScriptTools
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 30
         run: tools\build_script_tools.bat
 
       - name: Initialize C++ dependencies
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 20
         run: tools\init_cpp_dependencies.bat Sample
 
       - name: Save FFmpeg source archive
-        if: steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
+        if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
@@ -85,8 +121,16 @@ jobs:
           if errorlevel 1 exit /b 1
 
       - name: Archive prepared environment
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Sample\Engine\ThirdParty\LuaSF Sample\Engine\ThirdParty\lua-cjson Sample\Engine\ThirdParty\zlib Sample\Engine\ThirdParty\ffmpeg Sample\ThirdPartySource
+
+      - name: Save prepared environment cache
+        if: steps.environment-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: windows-native-environment.tar
+          key: ${{ steps.environment-cache.outputs.cache-primary-key }}
 
       - name: Upload prepared environment
         uses: actions/upload-artifact@v7
@@ -99,7 +143,7 @@ jobs:
 
   windows_native:
     name: Windows x64 native / ${{ matrix.component }}
-    needs: windows_prepare
+    needs: [build_inputs, windows_prepare]
     runs-on: windows-2022
     timeout-minutes: 180
     strategy:
@@ -117,7 +161,17 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Restore native binaries
+        id: native-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            .tools/Lua
+          key: export-v1-windows-2022-${{ runner.arch }}-native-${{ matrix.component }}-Release-${{ needs.build_inputs.outputs.native }}
+
       - name: Set up MSVC command-line environment
+        if: steps.native-cache.outputs.cache-hit != 'true'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
@@ -133,19 +187,19 @@ jobs:
         run: tar.exe -xf obj\native-environment\windows-native-environment.tar -C .
 
       - name: Build native UI preview host
-        if: matrix.component == 'ui-preview-host'
+        if: matrix.component == 'ui-preview-host' && steps.native-cache.outputs.cache-hit != 'true'
         shell: cmd
         run: tools\build_ui_preview_host.bat Release
 
       - name: Build templates without FFmpeg
         if: matrix.component == 'templates-plain'
         shell: cmd
-        run: tools\create_templates_plain.bat Release obj\export-editor-inputs\Templates
+        run: tools\create_templates_plain.bat --native-cache "%CD%\obj\template-native-cache" Release obj\export-editor-inputs\Templates
 
       - name: Build templates with FFmpeg
         if: matrix.component == 'templates-ffmpeg'
         shell: cmd
-        run: tools\create_templates_ffmpeg.bat Release obj\export-editor-inputs\Templates
+        run: tools\create_templates_ffmpeg.bat --native-cache "%CD%\obj\template-native-cache" Release obj\export-editor-inputs\Templates
 
       - name: Archive native UI preview host
         if: matrix.component == 'ui-preview-host'
@@ -166,6 +220,15 @@ jobs:
         if: matrix.component == 'templates-ffmpeg'
         shell: cmd
         run: tar.exe -cf windows-templates-ffmpeg.tar -C obj\export-editor-inputs\Templates Cpp-ffmpeg Standalone-ffmpeg
+
+      - name: Save native binaries
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            .tools/Lua
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
       - name: Upload native component
         uses: actions/upload-artifact@v7
@@ -188,7 +251,7 @@ jobs:
 
   windows:
     name: Windows x64
-    needs: windows_native
+    needs: [build_inputs, windows_native]
     runs-on: windows-2022
     timeout-minutes: 180
     env:
@@ -205,10 +268,56 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
+      - name: Resolve active .NET SDK
+        id: dotnet-sdk
+        shell: pwsh
+        run: |
+          $version = & dotnet --version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore C# build outputs
+        id: managed-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Ludork.Plugin.Abstractions/bin/Release
+            Ludork.Plugin.Abstractions/obj/Release
+            Ludork.Plugin.Avalonia/bin/Release
+            Ludork.Plugin.Avalonia/obj/Release
+          key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.build_inputs.outputs.managed }}
+
       - name: Set up MSVC command-line environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
+
+      - name: Restore editor launcher
+        id: launcher-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: obj/editor-launcher/bin/Release
+          key: export-v1-windows-2022-${{ runner.arch }}-launcher-Release-${{ needs.build_inputs.outputs.launcher }}
+
+      - name: Build editor launcher
+        if: steps.launcher-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $version = (& dotnet msbuild Ludork.csproj -nologo -getProperty:Version).Trim()
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake -S tools/editor_launcher -B obj/editor-launcher -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=$version"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build obj/editor-launcher --config Release --target LudorkEditorLauncher
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Save editor launcher
+        if: steps.launcher-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: obj/editor-launcher/bin/Release
+          key: ${{ steps.launcher-cache.outputs.cache-primary-key }}
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8
@@ -258,8 +367,23 @@ jobs:
           if errorlevel 1 exit /b 1
 
       - name: Package editor
+        env:
+          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
         shell: cmd
-        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --use-current-ui-preview-host
+        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --use-current-ui-preview-host --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_BUILD_OPTION%
+
+      - name: Save C# build outputs
+        if: steps.managed-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Ludork.Plugin.Abstractions/bin/Release
+            Ludork.Plugin.Abstractions/obj/Release
+            Ludork.Plugin.Avalonia/bin/Release
+            Ludork.Plugin.Avalonia/obj/Release
+          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
 
       - name: Upload editor package
         uses: actions/upload-artifact@v7
@@ -273,6 +397,7 @@ jobs:
 
   macos_prepare:
     name: Prepare macOS ARM64 environment
+    needs: build_inputs
     runs-on: macos-15
     timeout-minutes: 90
 
@@ -282,7 +407,19 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Restore prepared environment cache
+        id: environment-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: macos-native-environment.tar
+          key: export-v1-macos-15-${{ runner.arch }}-environment-${{ needs.build_inputs.outputs.environment }}
+
+      - name: Unpack cached environment
+        if: steps.environment-cache.outputs.cache-hit == 'true'
+        run: tar -xf macos-native-environment.tar -C .
+
       - name: Set up Python
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -290,6 +427,7 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Restore FFmpeg source archive
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
         with:
@@ -297,21 +435,24 @@ jobs:
           key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
 
       - name: Set up project Python environment
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         env:
           PYTHON: python3
         timeout-minutes: 10
         run: sh tools/setup_python.sh
 
       - name: Build ScriptTools
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         timeout-minutes: 30
         run: sh tools/build_script_tools.sh
 
       - name: Initialize C++ dependencies
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         timeout-minutes: 20
         run: sh tools/init_cpp_dependencies.sh Sample
 
       - name: Save FFmpeg source archive
-        if: steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
+        if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
@@ -325,7 +466,15 @@ jobs:
           .tools/ScriptTools/ScriptTools ui-assets validate Sample
 
       - name: Archive prepared environment
+        if: steps.environment-cache.outputs.cache-hit != 'true'
         run: tar -cf macos-native-environment.tar .tools/ScriptTools Sample/Engine/ThirdParty/LuaSF Sample/Engine/ThirdParty/lua-cjson Sample/Engine/ThirdParty/zlib Sample/Engine/ThirdParty/ffmpeg Sample/ThirdPartySource
+
+      - name: Save prepared environment cache
+        if: steps.environment-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: macos-native-environment.tar
+          key: ${{ steps.environment-cache.outputs.cache-primary-key }}
 
       - name: Upload prepared environment
         uses: actions/upload-artifact@v7
@@ -338,7 +487,7 @@ jobs:
 
   macos_native:
     name: macOS ARM64 native / ${{ matrix.component }}
-    needs: macos_prepare
+    needs: [build_inputs, macos_prepare]
     runs-on: macos-15
     timeout-minutes: 180
     strategy:
@@ -356,6 +505,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Restore native binaries
+        id: native-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            .tools/Lua
+          key: export-v1-macos-15-${{ runner.arch }}-native-${{ matrix.component }}-Release-${{ needs.build_inputs.outputs.native }}
+
       - name: Download prepared environment
         uses: actions/download-artifact@v8
         with:
@@ -366,20 +524,20 @@ jobs:
         run: tar -xf obj/native-environment/macos-native-environment.tar -C .
 
       - name: Build native UI preview host
-        if: matrix.component == 'ui-preview-host'
+        if: matrix.component == 'ui-preview-host' && steps.native-cache.outputs.cache-hit != 'true'
         run: sh tools/build_ui_preview_host.sh Release
 
       - name: Build templates without FFmpeg
         if: matrix.component == 'templates-plain'
         run: |
           mkdir -p obj/export-editor-inputs
-          sh tools/create_templates_plain.sh Release obj/export-editor-inputs/Templates
+          sh tools/create_templates_plain.sh --native-cache "$PWD/obj/template-native-cache" Release obj/export-editor-inputs/Templates
 
       - name: Build templates with FFmpeg
         if: matrix.component == 'templates-ffmpeg'
         run: |
           mkdir -p obj/export-editor-inputs
-          sh tools/create_templates_ffmpeg.sh Release obj/export-editor-inputs/Templates
+          sh tools/create_templates_ffmpeg.sh --native-cache "$PWD/obj/template-native-cache" Release obj/export-editor-inputs/Templates
 
       - name: Archive native UI preview host
         if: matrix.component == 'ui-preview-host'
@@ -396,6 +554,15 @@ jobs:
       - name: Archive templates with FFmpeg
         if: matrix.component == 'templates-ffmpeg'
         run: tar -cf macos-templates-ffmpeg.tar -C obj/export-editor-inputs/Templates Cpp-ffmpeg Standalone-ffmpeg
+
+      - name: Save native binaries
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            .tools/Lua
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
       - name: Upload native component
         uses: actions/upload-artifact@v7
@@ -418,7 +585,7 @@ jobs:
 
   macos:
     name: macOS ARM64 unsigned
-    needs: macos_native
+    needs: [build_inputs, macos_native]
     runs-on: macos-15
     timeout-minutes: 180
     env:
@@ -434,6 +601,25 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "9.0.x"
+
+      - name: Resolve active .NET SDK
+        id: dotnet-sdk
+        run: |
+          version=$(dotnet --version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore C# build outputs
+        id: managed-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Ludork.Plugin.Abstractions/bin/Release
+            Ludork.Plugin.Abstractions/obj/Release
+            Ludork.Plugin.Avalonia/bin/Release
+            Ludork.Plugin.Avalonia/obj/Release
+          key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.build_inputs.outputs.managed }}
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8
@@ -475,7 +661,22 @@ jobs:
           tar -xf obj/editor-inputs/artifacts/macos-templates-ffmpeg.tar -C obj/editor-inputs/Templates
 
       - name: Package unsigned editor DMG
-        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" --use-current-ui-preview-host
+        env:
+          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
+        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" --use-current-ui-preview-host ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
+
+      - name: Save C# build outputs
+        if: steps.managed-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Ludork.Plugin.Abstractions/bin/Release
+            Ludork.Plugin.Abstractions/obj/Release
+            Ludork.Plugin.Avalonia/bin/Release
+            Ludork.Plugin.Avalonia/obj/Release
+          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
 
       - name: Upload unsigned editor DMG
         uses: actions/upload-artifact@v7
