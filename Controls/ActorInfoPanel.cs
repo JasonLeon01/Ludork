@@ -696,75 +696,7 @@ public sealed class ActorInfoPanel : UserControl
 
     private static bool blueprintValuesEqual(JsonNode? left, JsonNode? right)
     {
-        if (ReferenceEquals(left, right))
-            return true;
-        if (left is null || right is null)
-            return false;
-        if (tryGetNumber(left, out double leftNumber)
-            && tryGetNumber(right, out double rightNumber))
-        {
-            return Math.Abs(leftNumber - rightNumber) <= 0.0001;
-        }
-        if (left is JsonArray leftArray && right is JsonArray rightArray)
-        {
-            if (leftArray.Count != rightArray.Count)
-                return false;
-            for (int index = 0; index < leftArray.Count; index += 1)
-            {
-                if (!blueprintValuesEqual(leftArray[index], rightArray[index]))
-                    return false;
-            }
-            return true;
-        }
-        if (left is JsonObject leftObject && right is JsonObject rightObject)
-        {
-            if (leftObject.Count != rightObject.Count)
-                return false;
-            foreach (KeyValuePair<string, JsonNode?> pair in leftObject)
-            {
-                if (!rightObject.TryGetPropertyValue(pair.Key, out JsonNode? rightValue)
-                    || !blueprintValuesEqual(pair.Value, rightValue))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
         return JsonNode.DeepEquals(left, right);
-    }
-
-    private static bool tryGetNumber(JsonNode value, out double number)
-    {
-        if (value is JsonValue scalar)
-        {
-            if (scalar.TryGetValue(out int integer))
-            {
-                number = integer;
-                return true;
-            }
-            if (scalar.TryGetValue(out long longValue))
-            {
-                number = longValue;
-                return true;
-            }
-            if (scalar.TryGetValue(out float floatValue))
-            {
-                number = floatValue;
-                return true;
-            }
-            if (scalar.TryGetValue(out double doubleValue))
-            {
-                number = doubleValue;
-                return true;
-            }
-            if (scalar.TryGetValue(out decimal decimalValue))
-            {
-                number = decimal.ToDouble(decimalValue);
-                return true;
-            }
-        }
-        number = 0;
-        return false;
     }
 
     private static int getInt(JsonNode? value, int fallback)

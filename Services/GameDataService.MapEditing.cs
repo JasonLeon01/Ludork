@@ -152,27 +152,42 @@ public sealed partial class GameDataService
                     || sections["WorldMaps"].Data.ContainsKey(newKey)
                     || File.Exists(getMapDataPath(newKey))))
             return false;
+        MapInfo baseline = getMapInfo(currentKey)!;
         JsonObject candidate = (JsonObject)current.DeepClone();
-        int oldWidth = candidate["width"]?.GetValue<int?>() ?? 0;
-        int oldHeight = candidate["height"]?.GetValue<int?>() ?? 0;
-        if (oldWidth != info.Width || oldHeight != info.Height)
+        bool sizeChanged = baseline.Width != info.Width || baseline.Height != info.Height;
+        if (sizeChanged)
             resizeMapLayers(candidate, info.Width, info.Height);
-        if (!string.IsNullOrWhiteSpace(info.MapName))
+        if (!string.IsNullOrWhiteSpace(info.MapName) && info.MapName.Trim() != baseline.MapName.Trim())
             candidate["mapName"] = info.MapName.Trim();
-        candidate["width"] = info.Width;
-        candidate["height"] = info.Height;
-        candidate["ambientLight"] = normaliseAmbientLight(info.AmbientLight);
-        candidate["bgm"] = info.Bgm.Trim();
-        candidate["bgmFilter"] = cloneObject(info.BgmFilter);
-        candidate["bgs"] = info.Bgs.Trim();
-        candidate["bgsFilter"] = cloneObject(info.BgsFilter);
-        candidate["fog"] = info.Fog.Trim();
-        candidate["fogPower"] = string.IsNullOrWhiteSpace(info.Fog) ? 0 : info.FogPower;
-        candidate["fogOx"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOx;
-        candidate["fogOy"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOy;
-        candidate["fogDistort"] = string.IsNullOrWhiteSpace(info.Fog) ? 0 : info.FogDistort;
+        if (info.Width != baseline.Width)
+            candidate["width"] = info.Width;
+        if (info.Height != baseline.Height)
+            candidate["height"] = info.Height;
+        JsonArray ambientLight = normaliseAmbientLight(info.AmbientLight);
+        if (!JsonNode.DeepEquals(ambientLight, normaliseAmbientLight(baseline.AmbientLight)))
+            candidate["ambientLight"] = ambientLight;
+        if (info.Bgm.Trim() != baseline.Bgm.Trim())
+            candidate["bgm"] = info.Bgm.Trim();
+        if (!JsonNode.DeepEquals(info.BgmFilter, baseline.BgmFilter))
+            candidate["bgmFilter"] = cloneObject(info.BgmFilter);
+        if (info.Bgs.Trim() != baseline.Bgs.Trim())
+            candidate["bgs"] = info.Bgs.Trim();
+        if (!JsonNode.DeepEquals(info.BgsFilter, baseline.BgsFilter))
+            candidate["bgsFilter"] = cloneObject(info.BgsFilter);
+        bool fogChanged = info.Fog.Trim() != baseline.Fog.Trim();
+        bool clearFog = fogChanged && string.IsNullOrWhiteSpace(info.Fog);
+        if (fogChanged)
+            candidate["fog"] = info.Fog.Trim();
+        if (clearFog || info.FogPower != baseline.FogPower)
+            candidate["fogPower"] = clearFog ? 0 : info.FogPower;
+        if (clearFog || info.FogOx != baseline.FogOx)
+            candidate["fogOx"] = clearFog ? 0.0 : info.FogOx;
+        if (clearFog || info.FogOy != baseline.FogOy)
+            candidate["fogOy"] = clearFog ? 0.0 : info.FogOy;
+        if (clearFog || info.FogDistort != baseline.FogDistort)
+            candidate["fogDistort"] = clearFog ? 0 : info.FogDistort;
         JsonObject? worldCandidate = null;
-        if (childMap && getWorldMap(worldKey) is JsonObject world)
+        if (childMap && (sizeChanged || currentKey != newKey) && getWorldMap(worldKey) is JsonObject world)
         {
             WorldMapValidationResult worldValidation = ValidateWorldMap(worldKey);
             if (!worldValidation.IsValid)

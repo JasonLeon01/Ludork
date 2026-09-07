@@ -174,7 +174,10 @@ function WindowBase:_bindReturnButton()
         if model == nil or not model:_canUseReturnButton() or kwargs.button ~= sf.Mouse.Button.Left then
             return false
         end
-        local position = sf.Vector2f.new(kwargs.position.x, kwargs.position.y)
+        if kwargs.position == nil then
+            return false
+        end
+        local position = kwargs.position
         local bounds = button:getAbsoluteBounds()
         ---@cast bounds sf.FloatRect
         if not sf.FloatRect.contains(bounds, position) then

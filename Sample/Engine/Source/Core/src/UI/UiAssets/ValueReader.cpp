@@ -1,13 +1,13 @@
 #include "ValueReader.hpp"
 
-#include <Runtime/RuntimeValueReader.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
 #include <stdexcept>
 
 namespace ludork::engine::ui_asset_runtime_impl {
 
-sf::Vector2f requireVector2f(RuntimeValueView value,
+sf::Vector2f requireVector2f(const RuntimeData& value,
                              const std::string& source) {
-    RuntimeArrayView array =
+    const RuntimeData::Array& array =
         ludork::runtime::value_reader::requireArray(value, source);
     if (array.size() != 2) {
         throw std::invalid_argument(source + " must contain two numbers");

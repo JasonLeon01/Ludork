@@ -65,6 +65,8 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
             restoreLocation();
             return;
         }
+        if (Location.X.Equals(Model.X) && Location.Y.Equals(Model.Y))
+            return;
         Model.X = Location.X;
         Model.Y = Location.Y;
         document.NotifyChanged();

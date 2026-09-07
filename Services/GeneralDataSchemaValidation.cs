@@ -1,6 +1,8 @@
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
@@ -74,11 +76,13 @@ internal static class GeneralDataSchemaValidation
     {
         foreach (KeyValuePair<string, JsonNode?> entry in parameters)
         {
-            if (entry.Value is not JsonObject definition
-                || getString(definition["type"]) != "file")
-            {
+            if (entry.Value is not JsonObject definition)
                 continue;
-            }
+            LuaMetadataType? schema = readParameterSchema(definition, path + ".params." + entry.Key, errors);
+            if (schema is not null)
+                LuaMetadataLiteralValidation.ValidateUnions(schema, definition["defaultValue"], path + ".params." + entry.Key + ".defaultValue", errors);
+            if (getString(definition["type"]) != "file")
+                continue;
             if (getString(definition["defaultValue"]) is not "")
                 errors.Add(path + $": file parameter '{entry.Key}' defaultValue must be empty");
             string? baseHint = getString(definition["base"]);
@@ -98,6 +102,9 @@ internal static class GeneralDataSchemaValidation
             if (entry.Value is not JsonObject definition)
                 continue;
             string? type = getString(definition["type"]);
+            LuaMetadataType? schema = readParameterSchema(definition, path + "." + entry.Key, errors);
+            if (schema is not null)
+                LuaMetadataLiteralValidation.ValidateUnions(schema, member[entry.Key], path + "." + entry.Key, errors);
             if (type == "file")
             {
                 validateAssetPath(path + "." + entry.Key, member[entry.Key], errors);
@@ -118,6 +125,26 @@ internal static class GeneralDataSchemaValidation
                 foreach (KeyValuePair<string, JsonNode?> item in values)
                     validateAssetPath(path + $".{entry.Key}.{item.Key}", item.Value, errors);
             }
+        }
+    }
+
+    private static LuaMetadataType? readParameterSchema(JsonObject definition, string path, ICollection<string> errors)
+    {
+        if (definition["type"] is null)
+            return null;
+        try
+        {
+            return getString(definition["type"]) switch
+            {
+                "list" when definition["itemType"] is not null => LuaMetadataType.Parse(new JsonObject { ["list"] = definition["itemType"]!.DeepClone() }),
+                "dict" when definition["valueType"] is not null => LuaMetadataType.Parse(new JsonObject { ["dict"] = definition["valueType"]!.DeepClone() }),
+                _ => LuaMetadataType.Parse(definition["type"]),
+            };
+        }
+        catch (InvalidDataException exception)
+        {
+            errors.Add(path + ": " + exception.Message);
+            return null;
         }
     }
 

@@ -4,6 +4,8 @@
 
 #include <EngineRuntimeApi.hpp>
 
+#include <Input/InputNamedValue.hpp>
+#include <SFML/Window/Keyboard.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/PlainText.hpp>
@@ -16,6 +18,15 @@ class SolidRect;
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TabView : public ControlBase, public FunctionalBase {
 public:
+    BIND_CLASS(copyable = true, table_init = true, strict_fields = true)
+    struct KeyHint {
+        BIND_PROPERTY()
+        std::optional<sf::Keyboard::Key> Keyboard;
+
+        BIND_PROPERTY()
+        std::optional<InputNamedValue> Joystick;
+    };
+
     BIND_INIT(defaults = {0})
     TabView(const sf::Vector2f& size, const sf::Image& windowSkin,
             std::shared_ptr<PlainTextConfig> textConfig,
@@ -74,8 +85,7 @@ public:
     const std::string& getCursorSound() const;
 
     BIND_METHOD()
-    void setKeyHint(const RuntimeValue::Map& leftHint,
-                    const RuntimeValue::Map& rightHint);
+    void setKeyHint(const KeyHint& leftHint, const KeyHint& rightHint);
 
     BIND_METHOD(Pure = true)
     virtual sf::FloatRect getLocalBounds() const override;
@@ -84,13 +94,14 @@ public:
     virtual void update(float deltaTime) override;
 
     BIND_METHOD()
-    virtual void onClick(const RuntimeValue::Map& arguments) override;
+    virtual void onClick(const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual bool onMouseButtonDown(const RuntimeValue::Map& arguments) override;
+    virtual bool onMouseButtonDown(
+        const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual void onMouseMoved(const RuntimeValue::Map& arguments) override;
+    virtual void onMouseMoved(const UiInputEventArguments& arguments) override;
 
     void refreshDisplayScale() override;
 
@@ -106,21 +117,21 @@ protected:
     bool acceptsTouchCapture() const override;
 
 private:
-    struct KeyHint {
+    struct KeyHintText {
         std::optional<std::string> keyboard;
         std::optional<std::string> handle;
     };
 
     static sf::Vector2f normalizedSize(const sf::Vector2f& size);
     static int clampedIndex(int index, std::size_t count);
-    static KeyHint parseKeyHint(const RuntimeValue::Map& values,
-                                const std::string& source);
+    static KeyHintText parseKeyHint(const KeyHint& values,
+                                    const std::string& source);
     static bool anyJoystickConnected();
     static bool keyboardHintsAvailableWithoutJoystick();
 
     bool setSelectedIndexInternal(int index, bool playSound);
     bool selectPointerPosition(const sf::Vector2f& screenPosition);
-    void selectMouseHover(const RuntimeValue::Map& arguments);
+    void selectMouseHover(const UiInputEventArguments& arguments);
     std::optional<int> tabIndexAt(const sf::Vector2f& localPosition) const;
     sf::Vector2f toLocalPosition(const sf::Vector2f& screenPosition) const;
     void rebuildVisuals();
@@ -132,15 +143,16 @@ private:
     void updateSelectionVisual();
     void updateHintVisibility();
     void applyPresentationColour();
-    const std::optional<std::string>& visibleHint(const KeyHint& hint) const;
+    const std::optional<std::string>& visibleHint(
+        const KeyHintText& hint) const;
 
     sf::Vector2f size_;
     sf::Image windowSkin_;
     std::shared_ptr<PlainTextConfig> textConfig_;
     std::vector<std::string> items_;
     int selectedIndex_ = 0;
-    KeyHint leftHint_;
-    KeyHint rightHint_;
+    KeyHintText leftHint_;
+    KeyHintText rightHint_;
     std::function<void(int)> selectedIndexChangedCallback_;
     std::string cursorSound_;
     std::unique_ptr<Rect> selectionRect_;

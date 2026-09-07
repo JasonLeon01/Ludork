@@ -44,6 +44,7 @@ function Class.isSubclass(value, targetClass) end
 function Class.type(value) end
 
 --- Return whether key is stored directly on a table or composite instance.
+--- This includes an explicit nil restored for a declared script field.
 ---@param value table | userdata
 ---@param key   any
 ---@return boolean

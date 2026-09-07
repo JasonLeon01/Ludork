@@ -6,7 +6,7 @@
 
 namespace ludork::global::ability_system_impl {
 
-AttributeNumber resolvedNumber(const NumericValue& value) {
+GameplayNumber resolvedNumber(const NumericValue& value) {
     if (value.integer) {
         if (value.value <
                 static_cast<double>(std::numeric_limits<std::int64_t>::min()) ||
@@ -20,7 +20,7 @@ AttributeNumber resolvedNumber(const NumericValue& value) {
     return value.value;
 }
 
-RuntimeValue runtimeNumber(const AttributeNumber& value) {
+RuntimeValue runtimeNumber(const GameplayNumber& value) {
     return std::visit(
         [](auto number) {
             return RuntimeValue(number);
@@ -28,19 +28,7 @@ RuntimeValue runtimeNumber(const AttributeNumber& value) {
         value);
 }
 
-RuntimeValue runtimeNumber(const NumericValue& value) {
-    return runtimeNumber(resolvedNumber(value));
-}
-
-RuntimeValue::Map runtimeNumbers(const AttributeNumbers& values) {
-    RuntimeValue::Map result;
-    for (const auto& [name, value] : values) {
-        result.emplace(name, runtimeNumber(value));
-    }
-    return result;
-}
-
-AttributeNumber attributeNumber(const RuntimeValue& value) {
+GameplayNumber attributeNumber(const RuntimeValue& value) {
     if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
         return *integer;
     }
@@ -51,16 +39,12 @@ AttributeNumber attributeNumber(const RuntimeValue& value) {
         "Validated numeric attribute has an incompatible value");
 }
 
-bool runtimeEqual(const AttributeNumber& left, const AttributeNumber& right) {
+bool runtimeEqual(const GameplayNumber& left, const GameplayNumber& right) {
     return std::visit(
         [](auto a, auto b) {
             return static_cast<double>(a) == static_cast<double>(b);
         },
         left, right);
-}
-
-RuntimeValue runtimeObject(const std::shared_ptr<RuntimeObject>& value) {
-    return RuntimeValue(value);
 }
 
 RuntimeIdentityPtr runtimeMap(RuntimeValue::Map values) {
@@ -93,17 +77,15 @@ bool runtimeEqual(const RuntimeValue& left, const RuntimeValue& right) {
     return runtimeReflection().equal(left, right);
 }
 
-NumericValue unrestrictedNumeric(const RuntimeValue& value,
+NumericValue unrestrictedNumeric(const GameplayNumber& value,
                                  const std::string& context) {
     NumericValue result;
-    if (const std::int64_t* integer = value.getIf<std::int64_t>()) {
+    if (const std::int64_t* integer = std::get_if<std::int64_t>(&value)) {
         result.value = static_cast<double>(*integer);
         result.integer = true;
-    } else if (const double* number = value.getIf<double>()) {
-        result.value = *number;
-        result.integer = false;
     } else {
-        throw std::invalid_argument(context + " must be numeric");
+        result.value = std::get<double>(value);
+        result.integer = false;
     }
     if (!std::isfinite(result.value)) {
         throw std::invalid_argument(context + " must be finite");
@@ -154,19 +136,25 @@ std::vector<RuntimeValue> invokeCallable(const RuntimeHandle& callable,
 NumericValue resolveMagnitude(const GameplayModifier& modifier,
                               const std::shared_ptr<GameplayEffectSpec>& spec,
                               int stacks) {
-    RuntimeValue magnitude = modifier.magnitude;
-    if (magnitude.getIf<RuntimeHandle>() != nullptr) {
-        const std::vector<RuntimeValue> results =
-            invokeCallable(ludork::runtime::reference::intern(magnitude),
-                           {runtimeObject(spec),
-                            RuntimeValue(static_cast<std::int64_t>(stacks))});
-        if (results.size() != 1) {
-            throw std::invalid_argument(
-                "Gameplay Effect modifier magnitude function must return one "
-                "value");
-        }
-        magnitude = results.front();
+    if (!modifier.magnitude.has_value()) {
+        throw std::invalid_argument(
+            "Gameplay Effect modifier magnitude must be numeric");
     }
+    const GameplayNumber magnitude = std::visit(
+        [&spec, stacks](const auto& value) -> GameplayNumber {
+            if constexpr (std::is_same_v<std::decay_t<decltype(value)>,
+                                         GameplayModifier::MagnitudeFunction>) {
+                if (!value) {
+                    throw std::invalid_argument(
+                        "Gameplay Effect modifier magnitude function is "
+                        "missing");
+                }
+                return value(spec, stacks);
+            } else {
+                return value;
+            }
+        },
+        *modifier.magnitude);
     return unrestrictedNumeric(magnitude, "Gameplay Effect modifier magnitude");
 }
 

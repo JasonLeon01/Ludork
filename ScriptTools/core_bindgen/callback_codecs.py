@@ -135,6 +135,25 @@ def _load_sfml_callback_aliases(path: Path) -> dict[str, str]:
     return result
 
 
+def load_api_enum_types(path: Path) -> set[str]:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    result: set[str] = set()
+
+    def visit(value: object) -> None:
+        if isinstance(value, list):
+            for item in value:
+                visit(item)
+        elif isinstance(value, dict):
+            name = value.get("qualified_name")
+            if value.get("kind") == "ENUM_DECL" and isinstance(name, str):
+                result.add(name)
+            for item in value.values():
+                visit(item)
+
+    visit(document)
+    return result
+
+
 def validate_callback_codec_aliases(
     context: GeneratorContext, sfml_api_path: Path
 ) -> None:

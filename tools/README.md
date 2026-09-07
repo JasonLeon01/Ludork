@@ -7,7 +7,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `init` | Prepare the generator environment and native dependencies; the standard root-Sample init also builds the Release `UiPreviewHost` |
 | `setup_python` | Create `.venv` and install build-time Python requirements |
 | `build_script_tools` | Build the repository-owned ScriptTools executable under `.tools` |
-| `build_ui_preview_host` | Build the repository-owned native preview tool under `.tools` |
+| `build_ui_preview_host` | Build the native preview tool without Lua bindings under `.tools` |
 | `init_cpp_dependencies` | Download dependencies for a C++ project folder |
 | `run_editor` | Start the editor from the repository root |
 | `build_cpp` | Configure/build a C++ project; also regenerates Core bindings, stubs and metadata |
@@ -209,5 +209,11 @@ Encryption runs before archiving, and the source project remains loose and uncha
 
 Desktop Standalone output keeps its launcher at the root and native dependencies
 under `Binaries`; a packaged macOS app uses its standard `Contents` layout.
+
+`LUDORK_WITH_LUA` defaults to `ON` for normal projects; configuring the game application with it disabled is an error. The standalone `UiPreviewHost` CMake entry sets it to `OFF`. Runtime and Standard keep their targets and library names but compile only the native data, JSON, asset, path, compression and mathematical sources needed by preview. Full game builds retain Lua sessions, bindings, Blueprint services, audio and networking.
+
+The preview build configures the bundled LuaSF project to obtain its SFML targets, with LuaSF excluded from the default build and stub generation disabled. `build_ui_preview_host` builds neither LuaSF bindings, Lua, `luac` nor SFML Audio/Network. The host's runtime files are `UiPreviewHostRuntime`, `LudorkRuntime`, `LudorkStandard` and SFML Graphics/Window/System, plus platform dependencies. The editor package copies this set into `tools/UiPreviewHost`; its separate `tools/luac` remains available for game packaging.
+
+Preview build state is isolated in `.tools/UiPreviewHost/build`, with outputs in `.tools/UiPreviewHost/bin/<configuration>`. Sample game build state remains under `Sample/build`, `Sample/Intermediate` and `Sample/bin`; do not reuse either build directory for the other mode.
 
 `Templates/Cpp` is the reusable source template; `Templates/Standalone` is the prebuilt desktop-runtime target. `Sample` carries the Ludork licence and a game-runtime legal set containing native runtime, optional FFmpeg and bundled-asset materials. Template generation refreshes that set in both C++ templates and carries it into the derived Standalone templates; editor, managed-runtime, preview-host and build-tool notices remain only in the editor distribution. The standard `init` command without a custom C++ project builds the editor-owned Release `UiPreviewHost` into `.tools/UiPreviewHost`; `build_ui_preview_host` remains available for explicit Debug builds or refreshes, and Debug is preferred by the development editor when both configurations exist. The Host is distributed once under the editor's `tools/UiPreviewHost`; it is not part of any project template or game package. macOS packaging does not sign or notarise the result.

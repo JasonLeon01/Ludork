@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Ludork.Services;
 using System.Text.Json.Nodes;
 
@@ -34,55 +35,37 @@ public sealed class CommonFunctionEditorDocument
             data = [];
             return false;
         }
-        data = normalize(stored);
+        data = (JsonObject)stored.DeepClone();
         return true;
     }
 
     public JsonObject GetEventGraph()
     {
-        JsonObject nodeGraph = ensureObject(data, "nodeGraph");
-        JsonObject eventGraph = ensureObject(nodeGraph, "common");
-        ensureArray(eventGraph, "nodes");
-        ensureArray(eventGraph, "links");
-        return eventGraph;
+        return data["nodeGraph"] is JsonObject nodeGraph && nodeGraph["common"] is JsonObject eventGraph
+            ? eventGraph
+            : new JsonObject { ["nodes"] = new JsonArray(), ["links"] = new JsonArray() };
     }
 
     public JsonObject GetStartNodes()
     {
-        return ensureObject(data, "startNodes");
+        return data["startNodes"] as JsonObject ?? [];
     }
 
-    public bool CommitGraph()
+    public bool CommitGraph(BlueprintGraphSaveResult result)
     {
-        data = normalize(data);
+        if (JsonNode.DeepEquals(GetEventGraph(), result.EventGraph)
+            && JsonNode.DeepEquals(GetStartNodes()["common"], result.StartNode))
+        {
+            return false;
+        }
+        ensureObject(data, "nodeGraph")["common"] = result.EventGraph.DeepClone();
+        ensureObject(data, "startNodes")["common"] = result.StartNode?.DeepClone();
         return gameData.UpdateCommonFunction(Name, data);
-    }
-
-    private static JsonObject normalize(JsonObject source)
-    {
-        JsonObject result = (JsonObject)source.DeepClone();
-        if (!result.ContainsKey("parent"))
-            result["parent"] = null;
-        JsonObject nodeGraph = ensureObject(result, "nodeGraph");
-        JsonObject eventGraph = ensureObject(nodeGraph, "common");
-        ensureArray(eventGraph, "nodes");
-        ensureArray(eventGraph, "links");
-        ensureObject(result, "startNodes");
-        return result;
     }
 
     private static JsonObject ensureObject(JsonObject parent, string name)
     {
         if (parent[name] is JsonObject value)
-            return value;
-        value = [];
-        parent[name] = value;
-        return value;
-    }
-
-    private static JsonArray ensureArray(JsonObject parent, string name)
-    {
-        if (parent[name] is JsonArray value)
             return value;
         value = [];
         parent[name] = value;

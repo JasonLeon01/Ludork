@@ -31,6 +31,10 @@ enum class WeakMode {
 
 LUDORK_RUNTIME_API RuntimeValue retain(const RuntimeValue& value);
 LUDORK_RUNTIME_API RuntimeValue snapshot(const RuntimeValue& value);
+LUDORK_RUNTIME_API std::optional<RuntimeValue::Array> arrayValues(
+    const RuntimeValue& value);
+LUDORK_RUNTIME_API std::optional<RuntimeValue::Map> mapValues(
+    const RuntimeValue& value);
 LUDORK_RUNTIME_API RuntimeData data(const RuntimeValue& value);
 LUDORK_RUNTIME_API RuntimeIdentityPtr identity(const RuntimeValue& value);
 LUDORK_RUNTIME_API std::shared_ptr<RuntimeObject> object(

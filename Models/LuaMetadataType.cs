@@ -1,18 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json.Nodes;
 
 namespace Ludork.Models;
 
-internal enum LuaMetadataTypeKind
+public enum LuaMetadataTypeKind
 {
     Named,
     List,
     Dictionary,
     Tuple,
     Table,
+    Union,
 }
 
-internal sealed class LuaMetadataType
+public sealed class LuaMetadataType
 {
     private LuaMetadataType(
         LuaMetadataTypeKind kind,
@@ -46,6 +50,75 @@ internal sealed class LuaMetadataType
         return result;
     }
 
+    public static LuaMetadataType Parse(JsonNode? schema)
+    {
+        if (schema is JsonValue scalar && scalar.TryGetValue(out string? name) && !string.IsNullOrWhiteSpace(name))
+            return Parse(name);
+        if (schema is JsonArray reference && reference.Count == 2
+            && reference[0] is JsonValue module && module.TryGetValue(out string? moduleName)
+            && reference[1] is JsonValue type && type.TryGetValue(out string? typeName))
+        {
+            return Parse($"{moduleName}.{typeName}");
+        }
+        if (schema is not JsonObject map || map.Count != 1)
+            throw new InvalidDataException("Metadata type must be a name, module reference or structured schema.");
+        if (map.TryGetPropertyValue("list", out JsonNode? list))
+            return createList(Parse(list));
+        if (map.TryGetPropertyValue("dict", out JsonNode? dictionary))
+            return createDictionary(createNamed("string"), Parse(dictionary));
+        foreach ((string key, LuaMetadataTypeKind kind) in new[]
+        {
+            ("union", LuaMetadataTypeKind.Union),
+            ("tuple", LuaMetadataTypeKind.Tuple),
+        })
+        {
+            if (!map.TryGetPropertyValue(key, out JsonNode? value))
+                continue;
+            if (value is not JsonArray entries || entries.Count == 0)
+                throw new InvalidDataException($"Metadata {key} requires an ordered non-empty type list.");
+            LuaMetadataType[] arguments = entries.Select(Parse).ToArray();
+            if (kind == LuaMetadataTypeKind.Union
+                && arguments.Select(argument => argument.ToString()).Distinct(StringComparer.Ordinal).Count() != arguments.Length)
+            {
+                throw new InvalidDataException("Metadata union contains duplicate branches.");
+            }
+            return new LuaMetadataType(kind, key, arguments);
+        }
+        throw new InvalidDataException("Unknown metadata type schema.");
+    }
+
+    public JsonNode ToSchema()
+    {
+        return Kind switch
+        {
+            LuaMetadataTypeKind.List => new JsonObject { ["list"] = Arguments[0].ToSchema() },
+            LuaMetadataTypeKind.Dictionary => new JsonObject { ["dict"] = Arguments[1].ToSchema() },
+            LuaMetadataTypeKind.Tuple => new JsonObject { ["tuple"] = new JsonArray(Arguments.Select(argument => argument.ToSchema()).ToArray()) },
+            LuaMetadataTypeKind.Union => new JsonObject { ["union"] = new JsonArray(Arguments.Select(argument => argument.ToSchema()).ToArray()) },
+            _ => JsonValue.Create(Name)!,
+        };
+    }
+
+    public bool ContainsUnion => Kind == LuaMetadataTypeKind.Union || Arguments.Any(argument => argument.ContainsUnion);
+
+    public bool IsAssignableTo(LuaMetadataType target, Func<string, string, bool>? isDerived = null)
+    {
+        if (IsAny || target.IsAny)
+            return true;
+        if (Kind == LuaMetadataTypeKind.Union)
+            return Arguments.All(argument => argument.IsAssignableTo(target, isDerived));
+        if (target.Kind == LuaMetadataTypeKind.Union)
+            return target.Arguments.Any(argument => IsAssignableTo(argument, isDerived));
+        if (Kind != target.Kind)
+            return false;
+        if (Kind != LuaMetadataTypeKind.Named)
+            return Arguments.Count == target.Arguments.Count
+                && Arguments.Zip(target.Arguments).All(pair => pair.First.IsAssignableTo(pair.Second, isDerived));
+        return string.Equals(Name, target.Name, StringComparison.Ordinal)
+            || Name == "int" && target.Name == "float"
+            || isDerived?.Invoke(Name, target.Name) == true;
+    }
+
     public override string ToString()
     {
         return Kind switch
@@ -54,6 +127,7 @@ internal sealed class LuaMetadataType
             LuaMetadataTypeKind.Dictionary => $"Dict[{Arguments[0]}, {Arguments[1]}]",
             LuaMetadataTypeKind.Tuple => $"Tuple[{string.Join(", ", Arguments)}]",
             LuaMetadataTypeKind.Table => "table",
+            LuaMetadataTypeKind.Union => $"Union[{string.Join(", ", Arguments)}]",
             _ => Name,
         };
     }
@@ -102,6 +176,11 @@ internal sealed class LuaMetadataType
             && string.Equals(arguments[0].Name, "string", StringComparison.OrdinalIgnoreCase))
         {
             return createDictionary(arguments[0], arguments[1]);
+        }
+        if (string.Equals(containerName, "Union", StringComparison.OrdinalIgnoreCase)
+            && arguments.Count > 0)
+        {
+            return new LuaMetadataType(LuaMetadataTypeKind.Union, "Union", arguments);
         }
         if (string.Equals(containerName, "Tuple", StringComparison.OrdinalIgnoreCase)
             && arguments.Count > 0)

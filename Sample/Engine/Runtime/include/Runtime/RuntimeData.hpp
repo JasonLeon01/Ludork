@@ -1,6 +1,7 @@
 #pragma once
 
 #include <RuntimeApi.hpp>
+#include <LudorkRuntimeBinding/Annotations.hpp>
 
 #include <cstdint>
 #include <functional>
@@ -12,6 +13,7 @@
 #include <variant>
 #include <vector>
 
+BIND_CLASS(pure_data = true, metadata = false)
 class LUDORK_RUNTIME_API RuntimeData {
 public:
     using Array = std::vector<RuntimeData>;

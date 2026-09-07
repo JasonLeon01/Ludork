@@ -209,6 +209,16 @@ void RuntimeReflectionFacade::set(const RuntimeHandle& value,
                                            writeValue(lua, member), false);
 }
 
+void RuntimeReflectionFacade::setTyped(const RuntimeHandle& value,
+                                       const std::string& name,
+                                       const RuntimeValue& member) const {
+    ludork::runtime::RuntimeScope runtime;
+    sol::state_view lua(runtime.state());
+    ludork::standard::class_runtime::protectedSetTyped(
+        lua, writeValue(lua, value), sol::make_object(lua, name),
+        writeValue(lua, member));
+}
+
 std::string RuntimeReflectionFacade::toString(const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
     sol::state_view lua = sol::state_view(runtime.state());

@@ -306,10 +306,26 @@ public sealed partial class GameDataService
         WorldMapValidationResult currentValidation = ValidateWorldMap(worldKey);
         if (!currentValidation.IsValid)
             return WorldMapMutationResult.Failed(formatWorldMapValidation(currentValidation));
-        JsonObject candidate = createWorldMapData(
-            info,
-            currentValidation.LayerOrder,
-            currentValidation.Placements);
+        WorldMapInfo baseline = getWorldMapInfo(worldKey)!;
+        JsonObject candidate = (JsonObject)current.DeepClone();
+        if (info.WorldName.Trim() != baseline.WorldName.Trim())
+            candidate["worldName"] = info.WorldName.Trim();
+        if (info.Width != baseline.Width)
+            candidate["width"] = info.Width;
+        if (info.Height != baseline.Height)
+            candidate["height"] = info.Height;
+        bool fogChanged = info.Fog.Trim() != baseline.Fog.Trim();
+        bool clearFog = fogChanged && string.IsNullOrWhiteSpace(info.Fog);
+        if (fogChanged)
+            candidate["fog"] = info.Fog.Trim();
+        if (clearFog || info.FogPower != baseline.FogPower)
+            candidate["fogPower"] = clearFog ? 0 : info.FogPower;
+        if (clearFog || info.FogOx != baseline.FogOx)
+            candidate["fogOx"] = clearFog ? 0.0 : info.FogOx;
+        if (clearFog || info.FogOy != baseline.FogOy)
+            candidate["fogOy"] = clearFog ? 0.0 : info.FogOy;
+        if (clearFog || info.FogDistort != baseline.FogDistort)
+            candidate["fogDistort"] = clearFog ? 0 : info.FogDistort;
         WorldMapValidationResult validation = worldMapValidation.Validate(
             worldKey,
             candidate,

@@ -3,6 +3,7 @@
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeBridge.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <sol2/sol.hpp>
@@ -252,7 +253,8 @@ sol::object findInClass(sol::state_view lua, const sol::table& classTable,
     if (rawOwner.is<sol::table>()) {
         const sol::object cached =
             rawMember(lua, rawOwner.as<sol::table>(), key);
-        if (cached.valid() && cached.get_type() != sol::type::lua_nil) {
+        if ((cached.valid() && cached.get_type() != sol::type::lua_nil) ||
+            hasExplicitNilField(lua, rawOwner, key)) {
             return cached;
         }
         owners.raw_set(key, sol::lua_nil);
@@ -266,7 +268,8 @@ sol::object findInClass(sol::state_view lua, const sol::table& classTable,
         }
         const sol::object result =
             rawMember(lua, rawType.as<sol::table>(), key);
-        if (result.valid() && result.get_type() != sol::type::lua_nil) {
+        if ((result.valid() && result.get_type() != sol::type::lua_nil) ||
+            hasExplicitNilField(lua, rawType, key)) {
             owners.raw_set(key, rawType);
             return result;
         }
@@ -316,13 +319,20 @@ sol::object findAccessor(sol::state_view lua, const sol::table& classTable,
 }
 
 sol::object findScriptMember(sol::state_view lua, const sol::table& classTable,
-                             const sol::object& key) {
+                             const sol::object& key, bool* found) {
+    if (found != nullptr) {
+        *found = false;
+    }
     sol::table owners = classLookupOwners(lua, classTable, "scriptMembers");
     const sol::object rawOwner = owners.raw_get<sol::object>(key);
     if (rawOwner.is<sol::table>()) {
         const sol::object cached =
             rawOwner.as<sol::table>().raw_get<sol::object>(key);
-        if (cached.valid() && cached.get_type() != sol::type::lua_nil) {
+        if ((cached.valid() && cached.get_type() != sol::type::lua_nil) ||
+            hasExplicitNilField(lua, rawOwner, key)) {
+            if (found != nullptr) {
+                *found = true;
+            }
             return cached;
         }
         owners.raw_set(key, sol::lua_nil);
@@ -338,7 +348,11 @@ sol::object findScriptMember(sol::state_view lua, const sol::table& classTable,
             continue;
         }
         const sol::object result = type.raw_get<sol::object>(key);
-        if (result.valid() && result.get_type() != sol::type::lua_nil) {
+        if ((result.valid() && result.get_type() != sol::type::lua_nil) ||
+            hasExplicitNilField(lua, rawType, key)) {
+            if (found != nullptr) {
+                *found = true;
+            }
             owners.raw_set(key, type);
             return result;
         }
@@ -356,7 +370,8 @@ sol::object findClassOverride(sol::state_view lua, const sol::table& classTable,
         }
         const sol::object value =
             rawType.as<sol::table>().raw_get<sol::object>(key);
-        if (value.valid() && value.get_type() != sol::type::lua_nil) {
+        if ((value.valid() && value.get_type() != sol::type::lua_nil) ||
+            hasExplicitNilField(lua, rawType, key)) {
             return value;
         }
     }

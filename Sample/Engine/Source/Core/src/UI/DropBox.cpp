@@ -42,7 +42,6 @@ constexpr bool MobilePlatform = true;
 constexpr bool MobilePlatform = false;
 #endif
 
-using ludork::engine::ui_interaction::numericValue;
 using ludork::engine::ui_interaction::pointerButtonIndex;
 using ludork::engine::ui_interaction::pointerPosition;
 
@@ -246,7 +245,7 @@ void DropBox::update(float deltaTime) {
     suppressNextClick_ = false;
 }
 
-void DropBox::onConfirm(const RuntimeValue::Map& arguments) {
+void DropBox::onConfirm(const UiInputEventArguments& arguments) {
     if (MobilePlatform && hasTouchCapture()) {
         const std::optional<sf::Vector2f> position = pointerPosition(arguments);
         if (position.has_value()) {
@@ -263,12 +262,12 @@ void DropBox::onConfirm(const RuntimeValue::Map& arguments) {
     FunctionalBase::onConfirm(arguments);
 }
 
-void DropBox::onCancel(const RuntimeValue::Map& arguments) {
+void DropBox::onCancel(const UiInputEventArguments& arguments) {
     cancel();
     FunctionalBase::onCancel(arguments);
 }
 
-void DropBox::onClick(const RuntimeValue::Map& arguments) {
+void DropBox::onClick(const UiInputEventArguments& arguments) {
     if (suppressNextClick_) {
         suppressNextClick_ = false;
     } else if (const std::optional<sf::Vector2f> position =
@@ -279,7 +278,7 @@ void DropBox::onClick(const RuntimeValue::Map& arguments) {
     FunctionalBase::onClick(arguments);
 }
 
-bool DropBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
+bool DropBox::onMouseButtonDown(const UiInputEventArguments& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
     const std::optional<int> button = pointerButtonIndex(arguments);
     if (position.has_value() && handlePointerAction(*position, button)) {
@@ -293,7 +292,7 @@ bool DropBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     return FunctionalBase::onMouseButtonDown(arguments);
 }
 
-void DropBox::onMouseMoved(const RuntimeValue::Map& arguments) {
+void DropBox::onMouseMoved(const UiInputEventArguments& arguments) {
     const std::optional<sf::Vector2f> position = pointerPosition(arguments);
     if (expanded_ && position.has_value() && MobilePlatform &&
         hasTouchCapture()) {
@@ -318,10 +317,9 @@ void DropBox::onMouseMoved(const RuntimeValue::Map& arguments) {
     FunctionalBase::onMouseMoved(arguments);
 }
 
-void DropBox::onMouseWheelScrolled(const RuntimeValue::Map& arguments) {
-    const auto iterator = arguments.find("delta");
-    if (expanded_ && iterator != arguments.end()) {
-        const std::optional<double> delta = numericValue(iterator->second);
+void DropBox::onMouseWheelScrolled(const UiInputEventArguments& arguments) {
+    if (expanded_ && arguments.delta.has_value()) {
+        const std::optional<float> delta = arguments.delta;
         const std::optional<sf::Mouse::Wheel> wheel =
             inputService().getMouseScrolledWheel();
         if (delta.has_value() && *delta != 0.0 &&
@@ -343,7 +341,7 @@ void DropBox::onMouseWheelScrolled(const RuntimeValue::Map& arguments) {
     FunctionalBase::onMouseWheelScrolled(arguments);
 }
 
-void DropBox::onKeyDown(const RuntimeValue::Map& arguments) {
+void DropBox::onKeyDown(const UiInputEventArguments& arguments) {
     InputService& input = inputService();
     if (expanded_) {
         if (input.isActionTriggered(input.getCancelKeys(), false)) {

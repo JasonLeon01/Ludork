@@ -2,7 +2,7 @@
 
 #include "AssetImpl.hpp"
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <functional>
 #include <memory>
@@ -11,7 +11,7 @@
 
 namespace ludork::engine::ui_asset_runtime_impl {
 
-void parseAnimations(RuntimeMapView asset, AssetImpl& impl,
+void parseAnimations(const RuntimeData::Map& asset, AssetImpl& impl,
                      const std::string& source);
 
 void installAnimationUpdater(const std::shared_ptr<AssetImpl>& impl);

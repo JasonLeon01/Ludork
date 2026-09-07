@@ -1,6 +1,7 @@
 #include <Gameplay/AttributeSet.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <Runtime/RuntimeObject.hpp>
+#include <Runtime/TypedDataService.hpp>
 
 #include <cmath>
 #include <stdexcept>
@@ -13,6 +14,14 @@ RuntimeValue cloneRuntimeValue(const RuntimeValue& value) {
 }
 
 }  // namespace
+
+RuntimeValue AttributeSet::AttributeSchema::getDefault() const {
+    return defaultValue_;
+}
+
+void AttributeSet::AttributeSchema::setDefault(RuntimeValue value) {
+    defaultValue_ = std::move(value);
+}
 
 RuntimeValue AttributeSet::selfValue() const {
     std::shared_ptr<RuntimeObject> owner = runtimeOwner();
@@ -28,6 +37,15 @@ RuntimeValue AttributeSet::selfValue() const {
 }
 
 void AttributeSet::initialize(const RuntimeValue::Map& values) {
+    initializeValues(values, false);
+}
+
+void AttributeSet::initializeStored(const RuntimeValue::Map& values) {
+    initializeValues(values, true);
+}
+
+void AttributeSet::initializeValues(const RuntimeValue::Map& values,
+                                    bool stored) {
     const RuntimeValue self = selfValue();
     const RuntimeValue type = runtimeReflection().typeOf(self);
     const RuntimeValue rawNames = runtimeReflection().get(
@@ -43,7 +61,26 @@ void AttributeSet::initialize(const RuntimeValue::Map& values) {
 
     attributeNames_.clear();
     attributeNames_.reserve(names->size());
-    schema_ = schema->toMap();
+    schema_.clear();
+    for (const auto& [name, rawEntry] : *schema) {
+        const std::optional<RuntimeMapView> entry = rawEntry.map();
+        if (!entry) {
+            throw std::invalid_argument("Attribute schema must be a table: " +
+                                        name);
+        }
+        const std::optional<RuntimeValueView> type = entry->find("type");
+        if (!type || type->isNil()) {
+            throw std::invalid_argument("Attribute schema type is missing: " +
+                                        name);
+        }
+        AttributeSchema parsed;
+        parsed.type = type->toData();
+        if (const std::optional<RuntimeValueView> defaultValue =
+                entry->find("default")) {
+            parsed.setDefault(defaultValue->toValue());
+        }
+        schema_.emplace(name, std::move(parsed));
+    }
     for (RuntimeValueView rawName : *names) {
         const std::string* name = rawName.getIf<std::string>();
         if (name == nullptr || name->empty()) {
@@ -55,24 +92,18 @@ void AttributeSet::initialize(const RuntimeValue::Map& values) {
             throw std::invalid_argument("Attribute schema is missing for " +
                                         *name);
         }
-        std::optional<RuntimeMapView> entry =
-            RuntimeValueView(schemaIt->second).map();
-        if (!entry) {
-            throw std::invalid_argument("Attribute schema must be a table: " +
-                                        *name);
-        }
         const auto valueIt = values.find(*name);
-        std::optional<RuntimeValueView> selected;
-        if (valueIt != values.end() && !valueIt->second.isNil()) {
-            selected = RuntimeValueView(valueIt->second);
-        }
-        if (!selected) {
-            selected = entry->find("default");
-        }
-        const RuntimeValue value =
-            !selected ? RuntimeValue() : cloneRuntimeValue(selected->toValue());
-        runtimeReflection().set(ludork::runtime::reference::intern(self), *name,
-                                value);
+        const RuntimeValue valueType(schemaIt->second.type);
+        const bool provided = valueIt != values.end();
+        const RuntimeValue rawValue =
+            provided ? valueIt->second : schemaIt->second.getDefault();
+        const RuntimeValue value = cloneRuntimeValue(
+            provided && !stored ? typedDataService().resolveRuntimeTypedValue(
+                                      rawValue, valueType)
+                                : typedDataService().resolveTypedDataValue(
+                                      rawValue, valueType, {}, {}, false));
+        runtimeReflection().setTyped(ludork::runtime::reference::intern(self),
+                                     *name, value);
         attributeNames_.push_back(*name);
     }
 
@@ -92,9 +123,12 @@ std::vector<std::string> AttributeSet::getAttributeNames() const {
     return attributeNames_;
 }
 
-RuntimeValue AttributeSet::getAttributeSchema(const std::string& name) const {
+std::optional<AttributeSet::AttributeSchema> AttributeSet::getAttributeSchema(
+    const std::string& name) const {
     const auto iterator = schema_.find(name);
-    return iterator == schema_.end() ? RuntimeValue() : iterator->second;
+    return iterator == schema_.end()
+               ? std::nullopt
+               : std::optional<AttributeSchema>(iterator->second);
 }
 
 RuntimeValue AttributeSet::getAttributeValue(const std::string& name) const {
@@ -108,22 +142,21 @@ void AttributeSet::setAttributeValue(const std::string& name,
                             name, value);
 }
 
-std::string AttributeSet::getAttributeType(const std::string& name) const {
+std::optional<AttributeSet::NumericType> AttributeSet::getNumericAttributeType(
+    const std::string& name) const {
     const auto iterator = schema_.find(name);
     if (iterator == schema_.end()) {
         throw std::invalid_argument("Unknown attribute schema: " + name);
     }
-    std::optional<RuntimeMapView> schema =
-        RuntimeValueView(iterator->second).map();
-    if (!schema) {
-        throw std::invalid_argument("Attribute schema must be a table: " +
-                                    name);
+    const std::string* type = iterator->second.type.getIf<std::string>();
+    if (type == nullptr) {
+        return std::nullopt;
     }
-    const auto type = schema->find("type");
-    const std::string* result = !type ? nullptr : type->getIf<std::string>();
-    if (result == nullptr) {
-        throw std::invalid_argument("Attribute schema type is missing: " +
-                                    name);
+    if (*type == "int") {
+        return NumericType::Integer;
     }
-    return *result;
+    if (*type == "float") {
+        return NumericType::Float;
+    }
+    return std::nullopt;
 }

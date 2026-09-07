@@ -1,7 +1,7 @@
 local Container = {}
 
 ---@generic T
----@param list  T[]
+---@param list  T[] | list<T> | tuple<T>
 ---@param index integer
 ---@return integer
 local function listIndex(list, index)

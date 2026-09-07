@@ -3,6 +3,8 @@
 
 #include <CoreMinimal.hpp>
 #include <GlobalRuntimeApi.hpp>
+#include <Gameplay/GameplayNumber.hpp>
+#include <Runtime/StrictFunction.hpp>
 
 class GameplayAbilityResult;
 class GameplayEventData;
@@ -16,6 +18,9 @@ BIND_CLASS()
 class LUDORK_GLOBAL_API AbilitySystemComponent : public RuntimeObject {
 public:
     struct Impl;
+    using NumericConstraint = ludork::runtime::StrictFunction<GameplayNumber(
+        GameplayNumber, std::shared_ptr<AbilitySystemComponent>,
+        const GameplayNumbers&)>;
 
     BIND_INIT(parameter_types = {any, AttributeSet})
     AbilitySystemComponent(RuntimeValue owner,
@@ -32,20 +37,20 @@ public:
     std::shared_ptr<AttributeSet> getAttributeSet() const;
 
     BIND_METHOD(Pure = true)
-    RuntimeValue getNumericAttribute(const std::string& name) const;
+    GameplayNumber getNumericAttribute(const std::string& name) const;
 
     BIND_METHOD(Pure = true)
-    RuntimeValue getNumericAttributeBase(const std::string& name) const;
+    GameplayNumber getNumericAttributeBase(const std::string& name) const;
 
     BIND_METHOD()
     void setNumericAttributeBase(const std::string& name,
-                                 const RuntimeValue& value);
+                                 const GameplayNumber& value);
 
     BIND_METHOD()
-    void setNumericAttributeBases(const RuntimeValue::Map& values);
+    void setNumericAttributeBases(const GameplayNumbers& values);
 
     BIND_METHOD(Pure = true)
-    RuntimeValue::Map getNumericAttributeBases() const;
+    GameplayNumbers getNumericAttributeBases() const;
 
     BIND_METHOD(defaults = {nil, nil, {}},
                 parameter_types = {string, function, any[]})
@@ -53,9 +58,9 @@ public:
                                     RuntimeIdentityPtr callback,
                                     RuntimeValue::Array params = {});
 
-    BIND_METHOD(defaults = {nil}, parameter_types = {string, function})
+    BIND_METHOD(defaults = {nil})
     void setNumericAttributeConstraint(const std::string& name,
-                                       RuntimeIdentityPtr callback = {});
+                                       NumericConstraint callback = {});
 
     BIND_METHOD(defaults = {nil}, parameter_types = {GameplayAbility, any})
     std::shared_ptr<GameplayAbilitySpec> giveAbility(

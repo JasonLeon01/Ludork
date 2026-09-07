@@ -106,26 +106,27 @@ public:
     virtual void update(float deltaTime) override;
 
     BIND_METHOD()
-    virtual void onConfirm(const RuntimeValue::Map& arguments) override;
+    virtual void onConfirm(const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual void onCancel(const RuntimeValue::Map& arguments) override;
+    virtual void onCancel(const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual void onClick(const RuntimeValue::Map& arguments) override;
+    virtual void onClick(const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual bool onMouseButtonDown(const RuntimeValue::Map& arguments) override;
+    virtual bool onMouseButtonDown(
+        const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual void onMouseMoved(const RuntimeValue::Map& arguments) override;
+    virtual void onMouseMoved(const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
     virtual void onMouseWheelScrolled(
-        const RuntimeValue::Map& arguments) override;
+        const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    virtual void onKeyDown(const RuntimeValue::Map& arguments) override;
+    virtual void onKeyDown(const UiInputEventArguments& arguments) override;
 
     void refreshDisplayScale() override;
 

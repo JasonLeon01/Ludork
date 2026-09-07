@@ -1,50 +1,39 @@
 #include <Gameplay/GameplayAbilityResult.hpp>
 #include "GameplayValueUtils.hpp"
 
-#include <cmath>
 #include <stdexcept>
 #include <utility>
 
 namespace {
 
-bool resultCodeTruthy(const RuntimeValue& code) {
-    if (const std::string* value = code.getIf<std::string>()) {
+bool resultCodeTruthy(const GameplayAbilityResult::Code& code) {
+    if (const std::string* value = std::get_if<std::string>(&code)) {
         return !value->empty();
     }
-    if (const std::int64_t* value = code.getIf<std::int64_t>()) {
-        return *value != 0;
-    }
-    if (const double* value = code.getIf<double>()) {
-        return std::isfinite(*value) && *value != 0.0;
-    }
-    return false;
+    return std::get<std::int64_t>(code) != 0;
 }
 
 }  // namespace
 
 GameplayAbilityResult::GameplayAbilityResult(bool succeeded,
-                                             RuntimeValue resultCode,
+                                             std::optional<Code> resultCode,
                                              RuntimeIdentityPtr resultData)
-    : ok(succeeded), code(std::move(resultCode)), data(std::move(resultData)) {
-    if (code.isNil()) {
-        code = RuntimeValue("");
-    }
+    : ok(succeeded),
+      code(resultCode.value_or(Code(std::string{}))),
+      data(std::move(resultData)) {
     if (data == nullptr) {
         data = ludork::global::gameplay_detail::runtimeMap();
     }
 }
 
 std::shared_ptr<GameplayAbilityResult> GameplayAbilityResult::Success(
-    RuntimeValue code, RuntimeIdentityPtr data) {
-    if (code.isNil()) {
-        code = RuntimeValue("Success");
-    }
-    return std::make_shared<GameplayAbilityResult>(true, std::move(code),
-                                                   std::move(data));
+    std::optional<Code> code, RuntimeIdentityPtr data) {
+    return std::make_shared<GameplayAbilityResult>(
+        true, code.value_or(Code(std::string("Success"))), std::move(data));
 }
 
 std::shared_ptr<GameplayAbilityResult> GameplayAbilityResult::Failure(
-    RuntimeValue code, RuntimeIdentityPtr data) {
+    Code code, RuntimeIdentityPtr data) {
     if (!resultCodeTruthy(code)) {
         throw std::invalid_argument(
             "Gameplay Ability failure code must not be empty");

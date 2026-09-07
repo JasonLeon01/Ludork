@@ -148,6 +148,8 @@ internal sealed class RectRangeCanvas : Control
     private readonly int imageHeight;
     private readonly int step;
     private RectRangeSelection selection;
+    private readonly RectRangeSelection initialSelection;
+    private bool selectionChanged;
     private RectRangeDragMode dragMode;
     private Point dragStart;
     private RectRangeSelection dragStartSelection;
@@ -158,13 +160,14 @@ internal sealed class RectRangeCanvas : Control
         imageWidth = source?.PixelSize.Width ?? 0;
         imageHeight = source?.PixelSize.Height ?? 0;
         step = Math.Max(1, snapStep);
+        initialSelection = initial;
         selection = RectRangeWindow.Normalize(initial, imageWidth, imageHeight);
         Cursor = new Cursor(StandardCursorType.Cross);
         ClipToBounds = true;
         Focusable = true;
     }
 
-    public RectRangeSelection Selection => selection;
+    public RectRangeSelection Selection => selectionChanged ? selection : initialSelection;
 
     protected override Size MeasureOverride(Size availableSize)
     {
@@ -277,7 +280,10 @@ internal sealed class RectRangeCanvas : Control
             (int)Math.Round(y),
             Math.Max(0, (int)Math.Round(width)),
             Math.Max(0, (int)Math.Round(height)));
-        selection = RectRangeWindow.Normalize(next, imageWidth, imageHeight);
+        RectRangeSelection normalized = RectRangeWindow.Normalize(next, imageWidth, imageHeight);
+        if (selection != normalized)
+            selectionChanged = true;
+        selection = normalized;
         InvalidateVisual();
     }
 

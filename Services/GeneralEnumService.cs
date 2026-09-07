@@ -1,3 +1,4 @@
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -109,7 +110,7 @@ internal sealed class GeneralEnumService
                         throw new InvalidDataException(
                             $"General Data parameter {entry.Key}.{parameterEntry.Key} must be an object");
                     }
-                    string? attributeType = definition["type"]?.GetValue<string>();
+                    string? attributeType = readSchemaName(definition["type"]);
                     if (string.IsNullOrWhiteSpace(attributeType)
                         || !definition.TryGetPropertyValue("defaultValue", out JsonNode? defaultValue))
                     {
@@ -120,8 +121,8 @@ internal sealed class GeneralEnumService
                         parameterEntry.Key,
                         attributeType,
                         defaultValue?.DeepClone(),
-                        definition["itemType"]?.GetValue<string>(),
-                        definition["valueType"]?.GetValue<string>()));
+                        readSchemaName(definition["itemType"]),
+                        readSchemaName(definition["valueType"])));
                 }
             }
             result.Add(new GeneralEnumType(entry.Key, typeName, typeName + "AttributeSet", members, attributes));
@@ -193,9 +194,16 @@ internal sealed class GeneralEnumService
             .Append("\nlocal AttributeSet = require(")
             .Append(quote(AttributeSetModule))
             .Append(").AttributeSet\n\n")
-            .Append("local function initAttributeSet(self, values)\n")
+            .Append("---@param self GlobalCore.AttributeSet\n")
+            .Append("---@param values? table<string, any>\n")
+            .Append("---@param stored? boolean\n")
+            .Append("local function initAttributeSet(self, values, stored)\n")
             .Append("    AttributeSet.init(self)\n")
-            .Append("    self:initialize(values or {})\n")
+            .Append("    if stored == true then\n")
+            .Append("        self:initializeStored(values or {})\n")
+            .Append("    else\n")
+            .Append("        self:initialize(values or {})\n")
+            .Append("    end\n")
             .Append("end\n");
         foreach (GeneralEnumType type in types)
         {
@@ -237,12 +245,11 @@ internal sealed class GeneralEnumService
             .Append("    local values = { ID = deepcopy(memberId) }\n")
             .Append("    for _, name in ipairs(attributeType.ATTRIBUTE_NAMES) do\n")
             .Append("        local value = rawget(memberData, name)\n")
-            .Append("        if value == nil then\n")
-            .Append("            value = attributeType.SCHEMA[name].default\n")
+            .Append("        if value ~= nil then\n")
+            .Append("            values[name] = deepcopy(value)\n")
             .Append("        end\n")
-            .Append("        values[name] = deepcopy(value)\n")
             .Append("    end\n")
-            .Append("    return attributeType.new(values)\n")
+            .Append("    return attributeType.new(values, true)\n")
             .Append("end\n\n")
             .Append("return GeneralDataTypes\n");
         return builder.ToString();
@@ -284,9 +291,15 @@ internal sealed class GeneralEnumService
                 GeneralDataAttribute attribute = type.Attributes[index];
                 builder.Append("    ");
                 appendLuaTableKey(builder, attribute.Name);
-                builder.Append(" = { type = ")
-                    .Append(quote(attribute.Type))
-                    .Append(", default = ");
+                builder.Append(" = { type = ");
+                JsonNode typeSchema = attribute.Type switch
+                {
+                    "list" => new JsonObject { ["list"] = LuaMetadataType.Parse(attribute.ItemType ?? "any").ToSchema() },
+                    "dict" => new JsonObject { ["dict"] = LuaMetadataType.Parse(attribute.ValueType ?? "any").ToSchema() },
+                    _ => LuaMetadataType.Parse(attribute.Type).ToSchema(),
+                };
+                appendLuaValue(builder, typeSchema);
+                builder.Append(", default = ");
                 appendLuaValue(builder, attribute.DefaultValue);
                 builder.Append(" }");
                 if (index != type.Attributes.Count - 1)
@@ -316,7 +329,7 @@ internal sealed class GeneralEnumService
             [
                 new LuaDocField("ID", "string"),
                 new LuaDocField("ATTRIBUTE_NAMES", "string[]"),
-                new LuaDocField("SCHEMA", "table<string, { type: string, default: any }>"),
+                new LuaDocField("SCHEMA", "table<string, { type: string|table, default: any }>"),
             ];
             foreach (GeneralDataAttribute attribute in type.Attributes)
                 fields.Add(new LuaDocField(luaDocFieldName(attribute.Name), luaDocType(attribute)));
@@ -392,22 +405,41 @@ internal sealed class GeneralEnumService
             "int" => "integer",
             "float" => "number",
             "string" or "file" => "string",
-            "list" => luaDocScalarType(attribute.ItemType) + "[]",
+            "list" => luaDocSchema(LuaMetadataType.Parse(new JsonObject { ["list"] = LuaMetadataType.Parse(attribute.ItemType ?? "any").ToSchema() })),
             "dict" => "table<string, " + luaDocScalarType(attribute.ValueType) + ">",
             _ => luaDocScalarType(attribute.Type),
         };
     }
 
+    private static string? readSchemaName(JsonNode? value)
+    {
+        if (value is JsonValue scalar && scalar.TryGetValue(out string? name))
+            return name;
+        return value is null ? null : LuaMetadataType.Parse(value).ToString();
+    }
+
     private static string luaDocScalarType(string? type)
     {
-        return type switch
+        return luaDocSchema(LuaMetadataType.Parse(type ?? "any"));
+    }
+
+    private static string luaDocSchema(LuaMetadataType type)
+    {
+        return type.Kind switch
         {
-            "bool" => "boolean",
-            "int" => "integer",
-            "float" => "number",
-            "string" or "file" => "string",
-            null or "" or "any" => "any",
-            _ => type,
+            LuaMetadataTypeKind.Union => string.Join("|", type.Arguments.Select(luaDocSchema)),
+            LuaMetadataTypeKind.List => (type.Arguments[0].Kind == LuaMetadataTypeKind.Union
+                ? "(" + luaDocSchema(type.Arguments[0]) + ")" : luaDocSchema(type.Arguments[0])) + "[]",
+            LuaMetadataTypeKind.Dictionary => "table<string, " + luaDocSchema(type.Arguments[1]) + ">",
+            LuaMetadataTypeKind.Tuple => "{ " + string.Join(", ", type.Arguments.Select((item, index) => $"[{index + 1}]: {luaDocSchema(item)}")) + " }",
+            _ => type.Name switch
+            {
+                "bool" => "boolean",
+                "int" => "integer",
+                "float" => "number",
+                "string" or "file" => "string",
+                _ => type.Name,
+            },
         };
     }
 

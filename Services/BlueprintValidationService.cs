@@ -385,6 +385,22 @@ public sealed class BlueprintValidationService
                         errors.Add($"graph.nodeGraph[\"{eventName}\"].links[{index}] is missing required field \"{field}\"");
                     }
                 }
+                string path = $"graph.nodeGraph[\"{eventName}\"].links[{index}]";
+                string? kind = getString(link["linkType"]);
+                if (kind is not "Exec" and not "Params")
+                    errors.Add(path + ".linkType must be Exec or Params");
+                if (!tryGetInteger(link["left"], out int _)
+                    && (kind != "Params" || string.IsNullOrWhiteSpace(getString(link["left"]))))
+                {
+                    errors.Add(path + ".left must be a node index or a data event parameter");
+                }
+                if (!tryGetInteger(link["right"], out int _))
+                    errors.Add(path + ".right must be a node index");
+                foreach (string pinField in new[] { "leftOutPin", "rightInPin" })
+                {
+                    if (!tryGetInteger(link[pinField], out int pin) || pin < 0)
+                        errors.Add(path + "." + pinField + " must be a non-negative integer");
+                }
                 if (tryGetInteger(link["left"], out int left) && !isNodeIndexValid(left, nodes.Count))
                 {
                     errors.Add($"graph.nodeGraph[\"{eventName}\"].links[{index}].left index {left} is out of range "
@@ -457,9 +473,32 @@ public sealed class BlueprintValidationService
                     errors);
             }
 
+            for (int nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
+            {
+                if (nodeDefinitions[nodeIndex] is not BlueprintGraphNodeDefinition definition
+                    || nodes[nodeIndex]?["params"] is not JsonArray values)
+                {
+                    continue;
+                }
+                foreach (BlueprintGraphPortDefinition port in definition.Ports)
+                {
+                    if (port.Direction != BlueprintGraphPortDirection.Input
+                        || port.Kind != BlueprintGraphPortKind.Params
+                        || port.ParameterIndex is not int parameterIndex
+                        || parameterIndex >= values.Count)
+                    {
+                        continue;
+                    }
+                    LuaMetadataLiteralValidation.ValidateNodeParameter(
+                        LuaMetadataType.Parse(port.TypeName), values[parameterIndex],
+                        $"graph.nodeGraph[\"{pair.Key}\"].nodes[{nodeIndex}].params[{parameterIndex}]", errors);
+                }
+            }
+
             for (int linkIndex = 0; linkIndex < links.Count; linkIndex++)
             {
                 JsonObject link = (JsonObject)links[linkIndex]!;
+                validateConnectionType(pair.Key, linkIndex, link, nodeDefinitions, parametersByKey, errors);
                 string? linkType = getString(link["linkType"]);
                 if (linkType is not "Exec" and not "Params")
                     continue;
@@ -496,6 +535,48 @@ public sealed class BlueprintValidationService
         }
     }
 
+    private void validateConnectionType(
+        string eventName,
+        int linkIndex,
+        JsonObject link,
+        IReadOnlyList<BlueprintGraphNodeDefinition?> nodes,
+        IReadOnlyDictionary<string, BlueprintGraphEventParameterDefinition> eventParameters,
+        ICollection<string> errors)
+    {
+        string? kindName = getString(link["linkType"]);
+        if (kindName is not "Exec" and not "Params")
+            return;
+        BlueprintGraphPortKind kind = kindName == "Exec" ? BlueprintGraphPortKind.Exec : BlueprintGraphPortKind.Params;
+        string path = $"graph.nodeGraph[\"{eventName}\"].links[{linkIndex}]";
+        if (!tryGetInteger(link["right"], out int right) || right < 0 || right >= nodes.Count
+            || !tryGetInteger(link["rightInPin"], out int rightPin))
+        {
+            errors.Add(path + " has an invalid target node or input pin");
+            return;
+        }
+        BlueprintGraphPortDefinition? target = nodes[right]?.Ports.FirstOrDefault(port =>
+            port.Direction == BlueprintGraphPortDirection.Input && port.Kind == kind && port.PinIndex == rightPin);
+        if (target is null)
+        {
+            errors.Add(path + " targets an undeclared input pin");
+            return;
+        }
+        if (kind != BlueprintGraphPortKind.Params || !tryGetInteger(link["leftOutPin"], out int leftPin))
+            return;
+        string? sourceType = null;
+        if (tryGetInteger(link["left"], out int left) && left >= 0 && left < nodes.Count)
+        {
+            sourceType = nodes[left]?.Ports.FirstOrDefault(port =>
+                port.Direction == BlueprintGraphPortDirection.Output && port.Kind == kind && port.PinIndex == leftPin)?.TypeName;
+        }
+        else if (getString(link["left"]) is string key && eventParameters.TryGetValue(key, out BlueprintGraphEventParameterDefinition? parameter))
+        {
+            sourceType = parameter.TypeName;
+        }
+        if (sourceType is not null && !metadataService.IsTypeAssignable(sourceType, target.TypeName))
+            errors.Add($"{path} cannot connect {sourceType} to {target.TypeName}");
+    }
+
     private static void validateAssetAttributes(
         JsonObject data,
         ResolvedBlueprintClass resolved,
@@ -507,6 +588,7 @@ public sealed class BlueprintValidationService
         {
             if (!attributes.TryGetPropertyValue(field.Name, out JsonNode? value))
                 continue;
+            LuaMetadataLiteralValidation.ValidateUnions(field.Type.Schema, value, $"attrs.{field.Name}", errors);
             bool projectPath = hasMetaReference(field.Metadata?.Meta["PathRoot"], field.Name, "Project");
             bool assetPath = hasMetaReference(field.Metadata?.Meta["PathVars"], field.Name)
                 || hasMetaReference(resolved.Meta["PathVars"], field.Name);

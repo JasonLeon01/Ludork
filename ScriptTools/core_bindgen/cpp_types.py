@@ -232,6 +232,9 @@ def require_binding_type_features(context: GeneratorContext, value: str) -> None
             )
             context.required_dynamic_traits.add(dynamic_type)
             context.required_bound_types.add(dynamic_type)
+        if item.name in context.pure_data_types:
+            context.require_binding_feature("pure")
+            context.required_bound_types.add(item.name)
         if item.name in context.table_value_types:
             context.required_table_traits.add(item.name)
             context.required_bound_types.add(item.name)
@@ -241,14 +244,14 @@ def require_binding_type_features(context: GeneratorContext, value: str) -> None
             context.required_bound_types.add(item.name)
         if item.name in context.exposed_type_names:
             context.required_bound_types.add(item.name)
-        if item.name == "std::function":
+        if item.name in {"std::function", "ludork::runtime::StrictFunction"}:
             context.require_binding_feature("function")
             if len(item.arguments) == 1:
                 visit_function_signature(item.arguments[0].name)
         if item.name == "std::shared_ptr" or item.name.endswith("*"):
             context.require_binding_feature("native")
         for argument in item.arguments:
-            if item.name == "std::function":
+            if item.name in {"std::function", "ludork::runtime::StrictFunction"}:
                 continue
             visit(argument)
 
@@ -426,7 +429,8 @@ def qualify_member(context: GeneratorContext, member: Member) -> None:
             + declaration[closing - 1 :]
         )
     else:
-        name = re.search(rf"\b{re.escape(member.name)}\b", declaration)
+        names = list(re.finditer(rf"\b{re.escape(member.name)}\b", declaration.split("=", 1)[0]))
+        name = names[-1] if names else None
         if name is not None:
             member.declaration = (
                 qualify_cpp_text(context, declaration[: name.start()])
@@ -469,6 +473,7 @@ def is_data_type(context: GeneratorContext, value: str) -> bool:
         | VARIANT_TYPES
         | PAIR_TYPES
         | TUPLE_TYPES
+        or parsed.name in context.pure_data_types
         or parsed.name in context.dynamic_value_types
         or parsed.name in context.table_value_types
         or dynamic_value_nested_type(context, value) is not None
@@ -863,6 +868,9 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
         return codec.lua_type
     parsed = parse_cpp_type(context, value)
     nested_dynamic_type = dynamic_value_nested_type(context, value)
+    if parsed.name in context.pure_data_types:
+        module = context.type_modules.get(parsed.name, "Engine")
+        return module + "." + context.exposed_type_names.get(parsed.name, parsed.name.split("::")[-1]) + "Value"
     if parsed.name in context.dynamic_value_types:
         return "any"
     if nested_dynamic_type == "Array":
@@ -875,7 +883,13 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
         and parsed.arguments[0].name in context.opaque_identity_types
     ):
         return "any"
-    if parsed.name == "std::function":
+    if parsed.name in {"std::function", "ludork::runtime::StrictFunction"}:
+        signature = parsed.arguments[0].name if parsed.arguments else ""
+        opening = signature.find("(")
+        if opening > 0 and signature.endswith(")"):
+            args = split_template_arguments(signature[opening + 1:-1])
+            params = ", ".join(f"arg{index + 1}: {lua_type(context, item)}" for index, item in enumerate(args) if item != "void")
+            return f"fun({params}): {lua_type(context, signature[:opening])}"
         return "fun(...: any): any"
     if parsed.name in SEQUENCE_TYPES and parsed.arguments:
         item = lua_type_name(context, parsed.arguments[0])
@@ -883,7 +897,7 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
             item = f"({item})"
         return item + "[]"
     if parsed.name in MAP_TYPES:
-        return "table"
+        return (f"table<{lua_type_name(context, parsed.arguments[0])}, {lua_type_name(context, parsed.arguments[1])}>" if len(parsed.arguments) >= 2 else "table")
     if parsed.name in OPTIONAL_TYPES | {"sol::optional"} and parsed.arguments:
         inner = lua_type_name(context, parsed.arguments[0])
         if inner.startswith("fun("):
@@ -893,13 +907,19 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
         values: list[str] = []
         for argument in parsed.arguments:
             item = lua_type_name(context, argument)
+            if item.startswith("fun("):
+                item = f"({item})"
             if item not in values:
                 values.append(item)
         return "|".join(values) if values else "any"
-    if parsed.name in PAIR_TYPES:
-        return "table"
-    if parsed.name in TUPLE_TYPES:
-        return "table"
+    if parsed.name in PAIR_TYPES | TUPLE_TYPES:
+        fields = []
+        for index, item in enumerate(parsed.arguments, 1):
+            item_type = lua_type_name(context, item)
+            if item_type.startswith("fun("):
+                item_type = f"({item_type})"
+            fields.append(f"[{index}]: {item_type}")
+        return "{ " + ", ".join(fields) + " }"
     if parsed.name in SMART_POINTER_TYPES and parsed.arguments:
         inner = lua_type_name(context, parsed.arguments[0])
         return inner if "nil" in inner.split("|") else inner + "|nil"
@@ -908,6 +928,7 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
         return "integer"
     substitutions = {
         "void": "nil",
+        "std::monostate": "nil",
         "bool": "boolean",
         "int": "integer",
         "unsigned int": "integer",

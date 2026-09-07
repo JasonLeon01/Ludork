@@ -8,6 +8,11 @@ struct DynamicValueTraits {
 };
 
 template <typename T>
+struct PureDataValueTraits {
+    static constexpr bool enabled = false;
+};
+
+template <typename T>
 struct OpaqueIdentityTraits {
     static constexpr bool enabled = false;
 };

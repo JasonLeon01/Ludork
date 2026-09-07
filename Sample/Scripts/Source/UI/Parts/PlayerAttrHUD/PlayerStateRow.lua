@@ -32,7 +32,7 @@ function PlayerStateRowUI:refresh()
     self._icon:setTexture(self.model.iconTexture, true)
     local textureSize = self.model.iconTexture:getSize()
     local scale = self.model.iconSize / math.max(textureSize.x, textureSize.y, 1.0)
-    self:setProperty("Icon", "scale", { scale, scale })
+    self:setProperty("Icon", "scale", sf.Vector2f.new(scale, scale))
     self:setProperty("Icon", "visible", true)
     self:setProperty("StateName", "visible", false)
 end

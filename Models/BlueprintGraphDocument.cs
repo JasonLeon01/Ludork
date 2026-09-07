@@ -12,28 +12,40 @@ public sealed class BlueprintGraphDocument
     public BlueprintGraphDocument(string eventName, JsonObject rawEventGraph)
     {
         EventName = eventName;
-        RawEventGraph = BlueprintGraphRawData.CloneWithout(rawEventGraph, "nodes", "links");
+        RawEventGraph = (JsonObject)rawEventGraph.DeepClone();
     }
 
     public event EventHandler? Changed;
 
     public string EventName { get; }
+    public Func<string, string, bool>? IsTypeAssignable { get; set; }
+
+    public bool ArePortTypesCompatible(BlueprintGraphPort source, BlueprintGraphPort target)
+    {
+        return source.Kind == target.Kind && (source.Kind == BlueprintGraphPortKind.Exec
+            || (IsTypeAssignable?.Invoke(source.TypeName, target.TypeName)
+                ?? LuaMetadataType.Parse(source.TypeName).IsAssignableTo(LuaMetadataType.Parse(target.TypeName))));
+    }
     public JsonObject RawEventGraph { get; }
     public ObservableCollection<BlueprintGraphNode> Nodes { get; } = [];
     public ObservableCollection<BlueprintGraphConnection> Connections { get; } = [];
+    public ObservableCollection<BlueprintGraphUnresolvedConnection> UnresolvedConnections { get; } = [];
+    internal JsonNode? UnresolvedStartNode { get; private set; }
     public BlueprintGraphEndpoint? Start
     {
         get => start;
         set
         {
             if (start?.NodeId == value?.NodeId
-                && string.Equals(start?.ExternalKey, value?.ExternalKey, StringComparison.Ordinal))
+                && string.Equals(start?.ExternalKey, value?.ExternalKey, StringComparison.Ordinal)
+                && UnresolvedStartNode is null)
             {
                 return;
             }
             if (start?.NodeId is Guid previousId && FindNode(previousId) is BlueprintGraphNode previous)
                 previous.IsStart = false;
             start = value;
+            UnresolvedStartNode = null;
             if (start?.NodeId is Guid nextId && FindNode(nextId) is BlueprintGraphNode next)
                 next.IsStart = true;
             Changed?.Invoke(this, EventArgs.Empty);
@@ -66,6 +78,7 @@ public sealed class BlueprintGraphDocument
             || target.Direction != BlueprintGraphPortDirection.Input
             || source.Kind != target.Kind
             || source.Kind != connection.Kind
+            || !ArePortTypesCompatible(source, target)
             || target.ConnectionCount > 0)
         {
             return false;
@@ -94,6 +107,12 @@ public sealed class BlueprintGraphDocument
         Connections.Add(connection);
         FindPort(connection.SourcePortId)?.AttachConnection();
         FindPort(connection.TargetPortId)?.AttachConnection();
+    }
+
+    internal void SetLoadedStart(BlueprintGraphEndpoint? value, JsonNode? rawStart)
+    {
+        Start = value;
+        UnresolvedStartNode = value is null ? rawStart?.DeepClone() : null;
     }
 
     public void NotifyChanged()

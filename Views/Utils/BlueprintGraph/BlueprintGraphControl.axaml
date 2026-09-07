@@ -36,6 +36,7 @@
                                        Target="{Binding Target.Anchor}"
                                        Stroke="{Binding Stroke}"
                                        StrokeThickness="3"
+                                       ToolTip.Tip="{Binding Diagnostic}"
                                        Focusable="True"
                                        DisconnectCommand="{Binding DisconnectConnectionCommand}"
                                        Direction="{Binding ., Converter={StaticResource FlowToDirectionConverter}}" />

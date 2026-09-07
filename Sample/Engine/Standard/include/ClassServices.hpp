@@ -31,6 +31,11 @@ LUDORK_STANDARD_API void protectedSet(sol::state_view lua,
                                       const sol::object& key,
                                       const sol::object& value);
 
+LUDORK_STANDARD_API void protectedSetTyped(sol::state_view lua,
+                                           const sol::object& target,
+                                           const sol::object& key,
+                                           const sol::object& value);
+
 LUDORK_STANDARD_API sol::object rawGetOwnField(sol::state_view lua,
                                                const sol::object& target,
                                                const sol::object& key);

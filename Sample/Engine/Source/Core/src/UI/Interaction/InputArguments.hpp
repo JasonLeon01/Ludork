@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <UI/UiInputEventArguments.hpp>
 
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Mouse.hpp>
@@ -9,10 +9,10 @@
 
 namespace ludork::engine::ui_interaction {
 
-std::optional<double> numericValue(RuntimeValueView value);
-std::optional<sf::Vector2f> pointerPosition(const RuntimeValue::Map& arguments);
+std::optional<sf::Vector2f> pointerPosition(
+    const UiInputEventArguments& arguments);
 std::optional<sf::Mouse::Button> pointerMouseButton(
-    const RuntimeValue::Map& arguments);
-std::optional<int> pointerButtonIndex(const RuntimeValue::Map& arguments);
+    const UiInputEventArguments& arguments);
+std::optional<int> pointerButtonIndex(const UiInputEventArguments& arguments);
 
 }  // namespace ludork::engine::ui_interaction

@@ -257,7 +257,7 @@ public sealed class GameVariableManagerWindow : Window
             detailPanel.IsVisible = false;
             noSelectionText.IsVisible = true;
             deleteButton.IsEnabled = false;
-            initialValueHost.Content = null;
+            clearInitialValueEditor();
             return;
         }
 
@@ -273,6 +273,7 @@ public sealed class GameVariableManagerWindow : Window
 
     private void rebuildInitialValueEditor(GameVariableDefinition definition)
     {
+        clearInitialValueEditor();
         BlueprintVariableForm form = new()
         {
             ShowFieldNames = false,
@@ -287,8 +288,19 @@ public sealed class GameVariableManagerWindow : Window
             PreserveNullValue = definition.InitialValue is null,
         };
         form.SetFields([field]);
-        form.ValueChanged += (_, args) => changeSelectedInitialValue(args.Value);
+        form.ValueChanged += (_, args) =>
+        {
+            if (ReferenceEquals(initialValueHost.Content, form))
+                changeInitialValue(definition.Name, args.Value);
+        };
         initialValueHost.Content = form;
+    }
+
+    private void clearInitialValueEditor()
+    {
+        if (initialValueHost.Content is BlueprintVariableForm form)
+            form.Dispose();
+        initialValueHost.Content = null;
     }
 
     private async Task createVariableAsync()
@@ -347,9 +359,9 @@ public sealed class GameVariableManagerWindow : Window
         showSaveResult(result);
     }
 
-    private void changeSelectedInitialValue(JsonNode? value)
+    private void changeInitialValue(string name, JsonNode? value)
     {
-        if (loading || variableList.SelectedItem is not string name)
+        if (loading)
             return;
         GameVariableSaveResult result = applyChange(() =>
             gameVariables.SetInitialValue(name, value));
@@ -414,6 +426,7 @@ public sealed class GameVariableManagerWindow : Window
     {
         gameVariables.Changed -= onVariablesChanged;
         gameVariables.Saved -= onVariablesSaved;
+        clearInitialValueEditor();
     }
 
     private void onKeyDown(object? sender, KeyEventArgs args)

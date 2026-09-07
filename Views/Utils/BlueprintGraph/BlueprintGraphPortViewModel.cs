@@ -93,10 +93,10 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     public event EventHandler? ParameterValueChanged;
     public event EventHandler? ParameterEdited;
     public string DisplayTitle => Model.Kind == BlueprintGraphPortKind.Params
-        ? $"{Title} ({displayTypeName})"
+        ? $"{Title} ({displayTypeName})" + (Model.ValueDiagnostic is string diagnostic ? Environment.NewLine + diagnostic : string.Empty)
         : Title;
     public bool IsEditorVisible => Model.IsEditorVisible;
-    public IBrush Brush => Model.Kind == BlueprintGraphPortKind.Exec
+    public IBrush Brush => Model.ValueDiagnostic is not null ? Brushes.OrangeRed : Model.Kind == BlueprintGraphPortKind.Exec
         ? BlueprintGraphBrushes.Execution
         : BlueprintGraphBrushes.Parameter;
 
@@ -166,7 +166,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         synchronizeParameterFormDependencies();
         form.ValueChanged += (_, args) =>
         {
-            if (isReadOnly())
+            if (isReadOnly() || JsonNode.DeepEquals(Model.Value, args.Value))
                 return;
             Model.Value = args.Value?.DeepClone();
             document.NotifyChanged();
@@ -203,6 +203,11 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         {
             ensureParameterEditor();
             OnPropertyChanged(nameof(IsEditorVisible));
+        }
+        else if (string.Equals(args.PropertyName, nameof(BlueprintGraphPort.ValueDiagnostic), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(DisplayTitle));
+            OnPropertyChanged(nameof(Brush));
         }
     }
 

@@ -18,7 +18,7 @@ function WindowSaveSlot:init(rect, owner, instance) end
 ---@param deltaTime number
 function WindowSaveSlot:onTick(deltaTime) end
 
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowSaveSlot:onKeyDown(kwargs) end
 
 function WindowSaveSlot:onReturn() end

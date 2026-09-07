@@ -30,7 +30,7 @@ sol::object findInClass(sol::state_view lua, const sol::table& classTable,
 sol::object findAccessor(sol::state_view lua, const sol::table& classTable,
                          const char* collectionName, const sol::object& key);
 sol::object findScriptMember(sol::state_view lua, const sol::table& classTable,
-                             const sol::object& key);
+                             const sol::object& key, bool* found = nullptr);
 sol::object findClassOverride(sol::state_view lua, const sol::table& classTable,
                               const sol::object& key);
 bool derivesFrom(sol::state_view lua, const sol::table& classTable,

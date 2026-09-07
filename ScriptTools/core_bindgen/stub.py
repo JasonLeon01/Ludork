@@ -278,6 +278,10 @@ def generate_stub(
         public_name = exposed_type_name(info)
         if info.doc:
             output.extend(stub_doc_lines(info.doc))
+        if info.cpp_name in context.pure_data_types:
+            alias = f"{module}.{public_name}Value"
+            output.extend([f"---@alias {alias} nil|boolean|integer|number|string|{alias}[]|table<string, {alias}>", ""])
+            continue
         bases = stub_bases(context, info)
         inheritance = f" : {', '.join(bases)}" if bases else ""
         output.append(f"---@class {module}.{public_name}{inheritance}")

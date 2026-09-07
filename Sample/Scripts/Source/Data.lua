@@ -26,13 +26,30 @@ local Data = {
     _generalData = {},
     _blueprintClassPaths = nil,
     _blueprintClassPathIndex = nil,
-    _blueprintClassData = {},
-    _classDict = Engine.ClassDict.new()
+    _blueprintClassData = {}
 }
 
-local dataLoading = DataLoading.new(Data)
-local dataTextConfigs = DataTextConfigs.new(Data)
-local dataBlueprints = DataBlueprints.new(Data, dataLoading)
+---@type Source.Data.Loading
+local dataLoading
+---@type Source.Data.TextConfigs
+local dataTextConfigs
+---@type Source.Data.Blueprints
+local dataBlueprints
+
+function Data.InitializeRuntime()
+    assert(Data._classDict == nil, "Data runtime is already initialized")
+    Data._classDict = Engine.ClassDict.new()
+    dataLoading = DataLoading.new(Data)
+    dataTextConfigs = DataTextConfigs.new(Data)
+    dataBlueprints = DataBlueprints.new(Data, dataLoading)
+    RuntimeProviders.installData(function (name)
+        return Data.GetCurve(name)
+    end,
+        function (name)
+            return Data.GetPlainTextConfig(name)
+        end)
+    dataBlueprints:installRuntimeProviders()
+end
 
 function Data.BeginInitialLoad()
     return dataLoading:beginInitialLoad()
@@ -233,14 +250,5 @@ end
 function Data.GenActorFromData(actorData, layerName, classVarChanges)
     return dataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
 end
-
-RuntimeProviders.installData(function (name)
-    return Data.GetCurve(name)
-end,
-    function (name)
-        return Data.GetPlainTextConfig(name)
-    end)
-
-dataBlueprints:installRuntimeProviders()
 
 return Data

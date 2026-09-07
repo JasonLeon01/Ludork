@@ -15,8 +15,8 @@ local _SPECIAL_ICON_SIZE = 16
 local _SPECIAL_GAP = 4
 local _SPECIAL_RIGHT_PAD = 4
 local _SPECIAL_NAME_MAX_WIDTH = 80
-local _STAT_TEXT_COLOUR = { 255, 255, 255, 255 }
-local _UNDEFEATABLE_TEXT_COLOUR = { 255, 96, 96, 255 }
+local _STAT_TEXT_COLOUR = sf.Color.new(255, 255, 255, 255)
+local _UNDEFEATABLE_TEXT_COLOUR = sf.Color.new(255, 96, 96, 255)
 local _STAT_FIELDS = {
     {
         labelControl = "HPLabel",

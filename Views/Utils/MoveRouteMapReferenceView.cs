@@ -24,7 +24,10 @@ internal sealed class MoveRouteMapReferenceView : MapReferenceView
     public override void SetMap(string? mapKey, JsonObject? mapData)
     {
         base.SetMap(mapKey, mapData);
-        ClearRoute();
+        dragging = false;
+        currentCell = null;
+        routeCells.Clear();
+        InvalidateVisual();
     }
 
     public void SetRoute(JsonNode? value)

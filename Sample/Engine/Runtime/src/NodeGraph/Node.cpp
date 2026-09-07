@@ -172,7 +172,22 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
     for (std::size_t index = 0; index < definition.paramCount_; ++index) {
         const auto replacement = inputPinReplace.find(static_cast<int>(index));
         if (replacement != inputPinReplace.end()) {
-            actualParams[index] = replacement->second;
+            const auto parameterType =
+                index < definition.paramOrder_.size()
+                    ? definition.paramList_.find(definition.paramOrder_[index])
+                    : definition.paramList_.end();
+            try {
+                actualParams[index] =
+                    parameterType == definition.paramList_.end()
+                        ? replacement->second
+                        : typedDataService().resolveRuntimeTypedValue(
+                              replacement->second, parameterType->second,
+                              definition.declaringModule_);
+            } catch (const std::exception& error) {
+                throw std::runtime_error(
+                    "Node " + functionName + " parameter " +
+                    std::to_string(index + 1) + ": " + error.what());
+            }
             continue;
         }
 
@@ -427,8 +442,14 @@ RuntimeValue::Array Node::resolveStoredParams(
                 parameterType = type->second;
             }
         }
-        result.push_back(typedDataService().resolveTypedDataValue(
-            value, parameterType, {}, declaringModule_));
+        try {
+            result.push_back(typedDataService().resolveTypedDataValue(
+                value, parameterType, {}, declaringModule_));
+        } catch (const std::exception& error) {
+            throw std::runtime_error("Node " + functionName + " parameter " +
+                                     std::to_string(index + 1) + ": " +
+                                     error.what());
+        }
     }
     return result;
 }

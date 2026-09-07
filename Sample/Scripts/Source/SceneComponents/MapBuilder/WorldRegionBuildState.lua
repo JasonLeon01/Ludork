@@ -432,7 +432,21 @@ local function createWorldRegionBuildCoroutine(
         ---@param background boolean
         ---@async
         local function buildLight(lightData, background)
-            local light = GlobalCore.Light.fromDict(lightData)
+            ---@type table<string, number | integer | number[] | integer[]>
+            local values = {}
+            if lightData.position ~= nil then
+                values.position = lightData.position
+            end
+            if lightData.color ~= nil then
+                values.color = lightData.color
+            end
+            if lightData.radius ~= nil then
+                values.radius = lightData.radius
+            end
+            if lightData.intensity ~= nil then
+                values.intensity = lightData.intensity
+            end
+            local light = GlobalCore.Light.fromDict(values)
             local translated = copy(light)
             translated.position = sf.Vector2f.new(
                 light.position.x + region.x * Engine.CellSize, light.position.y + region.y * Engine.CellSize

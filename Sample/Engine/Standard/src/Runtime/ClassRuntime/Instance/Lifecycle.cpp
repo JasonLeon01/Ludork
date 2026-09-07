@@ -6,6 +6,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <LuaError.hpp>
@@ -322,6 +323,7 @@ bool disposeInstanceCore(sol::state_view lua, const sol::object& instance,
     });
     runDisposePhase("instance fields", [&]() {
         clearInstanceFields(snapshot.fields);
+        clearExplicitNilFields(lua, instance);
     });
     runDisposePhase("disposed metatable", [&]() {
         protectDisposedInstance(lua, instance);

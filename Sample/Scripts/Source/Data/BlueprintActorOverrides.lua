@@ -25,13 +25,7 @@ local function resolveValue(actorType, key, value, descriptor)
         targetType = descriptor.type
         declaringModule = descriptor.module
     end
-    if Class.isInstance(value, "string") and Engine.shouldEvalValueType(targetType) then
-        return Engine.evalDataExpression(value)
-    end
-    if targetType ~= "any" then
-        return deepcopy(Engine.resolveTypedDataValue(value, targetType, nil, declaringModule))
-    end
-    return deepcopy(value)
+    return deepcopy(Engine.resolveTypedDataValue(value, targetType, nil, declaringModule))
 end
 
 local function isBlueprintOnly(descriptor)
@@ -72,10 +66,13 @@ local function applyComponentChange(actor, componentName, componentType, value)
     local fieldDefaults = ComponentsFunctions.getComponentFieldDefaults(componentType)
     for fieldName, fieldValue in pairs(value) do
         assert(
-            Class.isInstance(fieldName, "string") and fieldDefaults[fieldName] ~= nil,
+            Class.isInstance(fieldName, "string")
+                and (fieldDefaults[fieldName] ~= nil or Engine.resolveAttrMetadata(componentType, fieldName) ~= nil),
             "Unknown component member " .. tostring(fieldName) .. " in " .. componentName
         )
-        component[fieldName] = ComponentsFunctions._cloneComponentFieldValue(componentType, fieldName, fieldValue)
+        Engine.setRuntimeTypedAttribute(
+            component, fieldName, ComponentsFunctions._cloneComponentFieldValue(componentType, fieldName, fieldValue)
+        )
     end
 end
 
@@ -106,7 +103,7 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
                 if componentType ~= nil then
                     applyComponentChange(actor, key, componentType, value)
                 else
-                    actor[key] = resolveValue(actorType, key, value, descriptor)
+                    Engine.setRuntimeTypedAttribute(actor, key, resolveValue(actorType, key, value, descriptor))
                 end
             end
         end

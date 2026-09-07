@@ -1,7 +1,8 @@
 #pragma once
 
 #include <EngineRuntimeApi.hpp>
-#include <Runtime/RuntimeValue.hpp>
+#include <UI/UiControlPropertyValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/UiControlAdapterDescriptors.hpp>
 
@@ -33,12 +34,15 @@ public:
     UiControlSlotType slotType(const std::string& controlId) const;
     bool supportsProperty(const std::string& controlId,
                           const std::string& propertyId) const;
+    UiControlProperties parseProperties(const std::string& controlId,
+                                        const RuntimeData::Map& properties,
+                                        const std::string& source) const;
     std::shared_ptr<ControlBase> create(
         const std::string& controlId,
-        const RuntimeValue::Map& properties) const;
+        const UiControlProperties& properties) const;
     void setProperty(const std::string& controlId, ControlBase& control,
                      const std::string& propertyId,
-                     const RuntimeValue& value) const;
+                     const UiControlPropertyValue& value) const;
     sf::Vector2f measure(const ControlBase& control) const;
     void arrange(const std::string& controlId, ControlBase& control,
                  const sf::Vector2f& size,
@@ -57,10 +61,10 @@ private:
         UiControlSlotType slotType = UiControlSlotType::None;
         std::unordered_set<std::string> properties;
         std::function<std::shared_ptr<ControlBase>(
-            const RuntimeValue::Map& properties)>
+            const UiControlProperties& properties)>
             factory;
         std::function<void(ControlBase& control, const std::string& propertyId,
-                           const RuntimeValue& value)>
+                           const UiControlPropertyValue& value)>
             setter;
         std::function<void(ControlBase& control, const sf::Vector2f& size,
                            const sf::Vector2f& renderScale)>

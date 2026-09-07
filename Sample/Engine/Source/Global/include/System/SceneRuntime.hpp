@@ -1,8 +1,6 @@
 #pragma once
 #include <Runtime/RuntimeObject.hpp>
 
-#include <Runtime/RuntimeValue.hpp>
-
 class SceneRuntime : public RuntimeObject {
 public:
     virtual ~SceneRuntime() = default;

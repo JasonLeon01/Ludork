@@ -9,6 +9,15 @@ internal static class LuaMetadataValueDefaults
         LuaMetadataType type,
         Func<string, JsonNode?> createUnknownDefault)
     {
+        if (type.Kind == LuaMetadataTypeKind.Union)
+        {
+            foreach (LuaMetadataType branch in type.Arguments)
+            {
+                if (TryCreateLiteral(branch, out JsonNode? branchValue))
+                    return WrapUnion(branch, branchValue);
+            }
+            return null;
+        }
         if (type.Kind == LuaMetadataTypeKind.List)
             return new JsonArray();
         if (type.Kind == LuaMetadataTypeKind.Dictionary
@@ -26,6 +35,33 @@ internal static class LuaMetadataValueDefaults
         return tryCreateNamedDefault(type.Name, out JsonNode? value)
             ? value
             : createUnknownDefault(type.Name);
+    }
+
+    public static JsonObject WrapUnion(LuaMetadataType branch, JsonNode? value)
+    {
+        return new JsonObject { ["$type"] = branch.ToSchema(), ["$value"] = value?.DeepClone() };
+    }
+
+    public static bool TryCreateLiteral(LuaMetadataType type, out JsonNode? value)
+    {
+        value = null;
+        if (type.Kind == LuaMetadataTypeKind.Named)
+            return type.Name is not "function" and not "event" and not "any"
+                && tryCreateNamedDefault(type.Name, out value);
+        if (type.Kind == LuaMetadataTypeKind.Tuple)
+        {
+            JsonArray tuple = [];
+            foreach (LuaMetadataType argument in type.Arguments)
+            {
+                if (!TryCreateLiteral(argument, out JsonNode? item))
+                    return false;
+                tuple.Add(item);
+            }
+            value = tuple;
+            return true;
+        }
+        value = Create(type, _ => null);
+        return value is not null;
     }
 
     private static bool tryCreateNamedDefault(string typeName, out JsonNode? value)
@@ -62,40 +98,40 @@ internal static class LuaMetadataValueDefaults
             return true;
         }
         if (string.Equals(type, "Pair", StringComparison.OrdinalIgnoreCase)
-            || type.EndsWith("Vector2f", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(type, "sf.Vector2f", StringComparison.Ordinal))
         {
             value = new JsonArray(0.0, 0.0);
             return true;
         }
-        if (type.EndsWith("Vector2i", StringComparison.OrdinalIgnoreCase)
-            || type.EndsWith("Vector2u", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(type, "sf.Vector2i", StringComparison.Ordinal)
+            || string.Equals(type, "sf.Vector2u", StringComparison.Ordinal))
         {
             value = new JsonArray(0, 0);
             return true;
         }
-        if (type.EndsWith("Vector3f", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(type, "sf.Vector3f", StringComparison.Ordinal))
         {
             value = new JsonArray(0.0, 0.0, 0.0);
             return true;
         }
-        if (type.EndsWith("Vector3i", StringComparison.OrdinalIgnoreCase)
-            || type.EndsWith("Vector3u", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(type, "sf.Vector3i", StringComparison.Ordinal)
+            || string.Equals(type, "sf.Vector3u", StringComparison.Ordinal))
         {
             value = new JsonArray(0, 0, 0);
             return true;
         }
-        if (type.EndsWith("Color", StringComparison.OrdinalIgnoreCase)
-            || type.EndsWith("Colour", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(type, "sf.Color", StringComparison.Ordinal)
+            || string.Equals(type, "sf.Colour", StringComparison.Ordinal))
         {
             value = new JsonArray(255, 255, 255, 255);
             return true;
         }
-        if (type.EndsWith("IntRect", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(type, "sf.IntRect", StringComparison.Ordinal))
         {
             value = new JsonArray(new JsonArray(0, 0, 0, 0));
             return true;
         }
-        if (type.EndsWith("FloatRect", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(type, "sf.FloatRect", StringComparison.Ordinal))
         {
             value = new JsonArray(0.0, 0.0, 0.0, 0.0);
             return true;

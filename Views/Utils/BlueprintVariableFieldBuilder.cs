@@ -65,6 +65,11 @@ public sealed class BlueprintVariableFieldBuilder
         return result;
     }
 
+    public bool IsTypeAssignable(string source, string target)
+    {
+        return metadataService.IsTypeAssignable(source, target);
+    }
+
     public bool IsGeneralDataSelector(ResolvedBlueprintClass resolved, string fieldName)
     {
         if (!string.Equals(fieldName, "ID", StringComparison.Ordinal))
@@ -335,13 +340,13 @@ public sealed class BlueprintVariableFieldBuilder
 
     private static string getGeneralDataPreviewType(JsonObject definition)
     {
+        if (definition["type"] is JsonObject schema)
+            return LuaMetadataType.Parse(schema).ToString();
         string type = getString(definition["type"]) ?? "any";
         return type switch
         {
-            "list" => getString(definition["itemType"]) is string itemType
-                ? itemType + "[]"
-                : "any[]",
-            "dict" => "Dict[string, " + (getString(definition["valueType"]) ?? "any") + "]",
+            "list" => (definition["itemType"] is JsonNode itemType ? LuaMetadataType.Parse(itemType).ToString() : "any") + "[]",
+            "dict" => "Dict[string, " + (definition["valueType"] is JsonNode valueType ? LuaMetadataType.Parse(valueType).ToString() : "any") + "]",
             "file" => "string",
             _ => type,
         };

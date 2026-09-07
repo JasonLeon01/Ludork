@@ -9,49 +9,49 @@ local _METADATA = {
                 "step",
                 firstIndex = "int",
                 lastIndex = "int",
-                step = "int",
+                step = "int"
             },
             default = { 0, 0, 1 },
             ["return"] = {
                 "index",
-                index = "int",
+                index = "int"
             },
             ExecSplit = {
                 "LoopBody",
                 "Completed",
                 LoopBody = { "__loop_body__" },
-                Completed = { "__loop_completed__" },
+                Completed = { "__loop_completed__" }
             },
-            LoopNode = "ForLoop",
+            LoopNode = "ForLoop"
         },
         ForEach = {
             type = "function",
             parameters = {
                 "list_",
-                list_ = "any[]",
+                list_ = { union = { "any[]", { "_G", "list" } } }
             },
             ["return"] = {
                 "element",
                 "index",
                 element = "any",
-                index = "int",
+                index = "int"
             },
             ExecSplit = {
                 "LoopBody",
                 "Completed",
                 LoopBody = { "__loop_body__" },
-                Completed = { "__loop_completed__" },
+                Completed = { "__loop_completed__" }
             },
-            LoopNode = "ForEach",
+            LoopNode = "ForEach"
         },
         CreateDict = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         DictGet = {
             type = "function",
@@ -59,13 +59,13 @@ local _METADATA = {
                 "dict_",
                 "key",
                 dict_ = "any",
-                key = "any",
+                key = "any"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         DictAdd = {
             type = "function",
@@ -75,13 +75,13 @@ local _METADATA = {
                 "value",
                 dict_ = "any",
                 key = "any",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         DictRemove = {
             type = "function",
@@ -89,25 +89,25 @@ local _METADATA = {
                 "dict_",
                 "key",
                 dict_ = "any",
-                key = "any",
+                key = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         DictClear = {
             type = "function",
             parameters = {
                 "dict_",
-                dict_ = "any",
+                dict_ = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         DictContains = {
             type = "function",
@@ -115,174 +115,174 @@ local _METADATA = {
                 "dict_",
                 "key",
                 dict_ = "any",
-                key = "any",
+                key = "any"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         TableToDict = {
             type = "function",
             parameters = {
                 "table_",
-                table_ = "any",
+                table_ = "any"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = { "_G", "dict" }
             },
-            Pure = true,
+            Pure = true
         },
         DictToTable = {
             type = "function",
             parameters = {
                 "dict_",
-                dict_ = "any",
+                dict_ = { "_G", "dict" }
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         CreateList = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "value",
-                value = "any[]",
+                value = "any[]"
             },
-            Pure = true,
+            Pure = true
         },
         ListGet = {
             type = "function",
             parameters = {
                 "list_",
                 "index",
-                list_ = "any[]",
-                index = "int",
+                list_ = { union = { "any[]", { "_G", "list" }, { "_G", "tuple" } } },
+                index = "int"
             },
             default = {
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         ListAppend = {
             type = "function",
             parameters = {
                 "list_",
                 "value",
-                list_ = "any[]",
-                value = "any",
+                list_ = { union = { "any[]", { "_G", "list" } } },
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ListExtend = {
             type = "function",
             parameters = {
                 "list_",
                 "values",
-                list_ = "any[]",
-                values = "any[]",
+                list_ = { union = { "any[]", { "_G", "list" } } },
+                values = { union = { "any[]", { "_G", "list" }, { "_G", "tuple" } } }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ListRemove = {
             type = "function",
             parameters = {
                 "list_",
                 "index",
-                list_ = "any[]",
-                index = "int",
+                list_ = { union = { "any[]", { "_G", "list" } } },
+                index = "int"
             },
             default = {
-                [2] = 0,
+                [2] = 0
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ListFind = {
             type = "function",
             parameters = {
                 "list_",
                 "value",
-                list_ = "any[]",
-                value = "any",
+                list_ = { union = { "any[]", { "_G", "list" } } },
+                value = "any"
             },
             ["return"] = {
                 "index",
-                index = "int",
+                index = "int"
             },
-            Pure = true,
+            Pure = true
         },
         ListClear = {
             type = "function",
             parameters = {
                 "list_",
-                list_ = "any[]",
+                list_ = { union = { "any[]", { "_G", "list" } } }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ListContains = {
             type = "function",
             parameters = {
                 "list_",
                 "value",
-                list_ = "any[]",
-                value = "any",
+                list_ = { union = { "any[]", { "_G", "list" } } },
+                value = "any"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         TableToList = {
             type = "function",
             parameters = {
                 "table_",
-                table_ = "any[]",
+                table_ = "any[]"
             },
             ["return"] = {
                 "value",
-                value = "any[]",
+                value = { "_G", "list" }
             },
-            Pure = true,
+            Pure = true
         },
         ListToTable = {
             type = "function",
             parameters = {
                 "list_",
-                list_ = "any[]",
+                list_ = { "_G", "list" }
             },
             ["return"] = {
                 "value",
-                value = "any[]",
+                value = "any[]"
             },
-            Pure = true,
-        },
-    },
+            Pure = true
+        }
+    }
 }
 
 return _METADATA

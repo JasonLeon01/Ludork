@@ -99,7 +99,8 @@ def generate_binding_traits_header(
         for info in unique_types.values()
         if info.options.get("opaque_identity", "false").lower() == "true"
     )
-    declared_types = sorted({*dynamic_types, *opaque_types})
+    pure_types = sorted(info.cpp_name for info in unique_types.values() if info.options.get("pure_data", "false").lower() == "true")
+    declared_types = sorted({*dynamic_types, *opaque_types, *pure_types})
     output = [
         CPP_GENERATED_FILE_MARKER,
         "#pragma once",
@@ -129,7 +130,7 @@ def generate_binding_traits_header(
     output.extend(forwards)
     if declared_types:
         output.append("")
-    if dynamic_types or opaque_types:
+    if dynamic_types or opaque_types or pure_types:
         output.append("namespace ludork::runtime::binding {")
         output.append("")
         for name in dynamic_types:
@@ -141,6 +142,8 @@ def generate_binding_traits_header(
                     "",
                 ]
             )
+        for name in pure_types:
+            output.extend([f"template <> struct PureDataValueTraits<{name}> {{", "    static constexpr bool enabled = true;", "};", ""])
         for name in opaque_types:
             output.extend(
                 [

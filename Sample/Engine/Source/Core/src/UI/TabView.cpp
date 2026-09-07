@@ -206,10 +206,9 @@ const std::string& TabView::getCursorSound() const {
     return cursorSound_;
 }
 
-void TabView::setKeyHint(const RuntimeValue::Map& leftHint,
-                         const RuntimeValue::Map& rightHint) {
-    KeyHint parsedLeft = parseKeyHint(leftHint, "TabView left key hint");
-    KeyHint parsedRight = parseKeyHint(rightHint, "TabView right key hint");
+void TabView::setKeyHint(const KeyHint& leftHint, const KeyHint& rightHint) {
+    KeyHintText parsedLeft = parseKeyHint(leftHint, "TabView left key hint");
+    KeyHintText parsedRight = parseKeyHint(rightHint, "TabView right key hint");
     leftHint_ = std::move(parsedLeft);
     rightHint_ = std::move(parsedRight);
     updateHintVisibility();
@@ -226,7 +225,7 @@ void TabView::update(float deltaTime) {
     suppressNextClick_ = false;
 }
 
-void TabView::onClick(const RuntimeValue::Map& arguments) {
+void TabView::onClick(const UiInputEventArguments& arguments) {
     if (suppressNextClick_) {
         suppressNextClick_ = false;
     } else if (isInteractionEnabled()) {
@@ -238,7 +237,7 @@ void TabView::onClick(const RuntimeValue::Map& arguments) {
     FunctionalBase::onClick(arguments);
 }
 
-bool TabView::onMouseButtonDown(const RuntimeValue::Map& arguments) {
+bool TabView::onMouseButtonDown(const UiInputEventArguments& arguments) {
     const bool callbackHandled = FunctionalBase::onMouseButtonDown(arguments);
     suppressNextClick_ = true;
     if (!isInteractionEnabled()) {
@@ -254,7 +253,7 @@ bool TabView::onMouseButtonDown(const RuntimeValue::Map& arguments) {
            callbackHandled;
 }
 
-void TabView::onMouseMoved(const RuntimeValue::Map& arguments) {
+void TabView::onMouseMoved(const UiInputEventArguments& arguments) {
     selectMouseHover(arguments);
     FunctionalBase::onMouseMoved(arguments);
 }
@@ -308,11 +307,18 @@ int TabView::clampedIndex(int index, std::size_t count) {
     return ludork::engine::tab_view_impl::clampedIndex(index, count);
 }
 
-TabView::KeyHint TabView::parseKeyHint(const RuntimeValue::Map& values,
-                                       const std::string& source) {
-    const auto result =
-        ludork::engine::tab_view_impl::parseKeyHint(values, source);
-    return {result.keyboard, result.handle};
+TabView::KeyHintText TabView::parseKeyHint(const KeyHint& values,
+                                           const std::string& source) {
+    KeyHintText result;
+    if (values.Keyboard) {
+        result.keyboard = ludork::engine::tab_view_impl::keyboardKeyText(
+            *values.Keyboard, source + ".Keyboard");
+    }
+    if (values.Joystick) {
+        result.handle = ludork::engine::tab_view_impl::handleKeyText(
+            *values.Joystick, source + ".Joystick");
+    }
+    return result;
 }
 
 bool TabView::anyJoystickConnected() {
@@ -351,7 +357,7 @@ bool TabView::selectPointerPosition(const sf::Vector2f& screenPosition) {
     return true;
 }
 
-void TabView::selectMouseHover(const RuntimeValue::Map& arguments) {
+void TabView::selectMouseHover(const UiInputEventArguments& arguments) {
     if (!isInteractionEnabled() || hasTouchCapture()) {
         return;
     }
@@ -477,7 +483,7 @@ void TabView::applyPresentationColour() {
 }
 
 const std::optional<std::string>& TabView::visibleHint(
-    const KeyHint& hint) const {
+    const KeyHintText& hint) const {
     if (anyJoystickConnected()) {
         return hint.handle;
     }

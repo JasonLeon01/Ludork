@@ -15,10 +15,12 @@ internal sealed class BlueprintStructureWindow : Window
 {
     private readonly BlueprintVariableForm variableForm;
     private readonly JsonObject value;
+    private bool hasEdits;
 
     private BlueprintStructureWindow(
         string title,
         IReadOnlyList<BlueprintVariableField> fields,
+        JsonObject? initialValue,
         string assetsDirectory,
         int cellSize,
         IGameVariableCatalog? gameVariables,
@@ -33,14 +35,7 @@ internal sealed class BlueprintStructureWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
 
-        value = [];
-        foreach (BlueprintVariableField field in fields)
-        {
-            JsonNode? fieldValue = field.PreserveNullValue
-                ? field.Value
-                : field.Value ?? field.DefaultValue;
-            value[field.Name] = fieldValue?.DeepClone();
-        }
+        value = initialValue?.DeepClone() as JsonObject ?? [];
         variableForm = new BlueprintVariableForm
         {
             AssetsDirectory = assetsDirectory,
@@ -48,7 +43,11 @@ internal sealed class BlueprintStructureWindow : Window
             GameVariables = gameVariables,
             IsReadOnly = readOnly,
         };
-        variableForm.ValueChanged += (_, args) => value[args.Name] = args.Value?.DeepClone();
+        variableForm.ValueChanged += (_, args) =>
+        {
+            value[args.Name] = args.Value?.DeepClone();
+            hasEdits = true;
+        };
         variableForm.SetFields(fields);
 
         ScrollViewer scroll = new()
@@ -62,7 +61,9 @@ internal sealed class BlueprintStructureWindow : Window
             Content = LocaleService.Get("CONFIRM"),
             IsEnabled = !readOnly,
         };
-        confirm.Click += (_, _) => Close(value.DeepClone() as JsonObject);
+        confirm.Click += (_, _) => Close(hasEdits && !JsonNode.DeepEquals(initialValue, value)
+            ? value.DeepClone() as JsonObject
+            : null);
         Button cancel = new() { Content = LocaleService.Get("CANCEL") };
         cancel.Click += (_, _) => Close(null);
         StackPanel actions = new()
@@ -95,6 +96,7 @@ internal sealed class BlueprintStructureWindow : Window
         Window owner,
         string title,
         IReadOnlyList<BlueprintVariableField> fields,
+        JsonObject? initialValue,
         string assetsDirectory,
         int cellSize,
         IGameVariableCatalog? gameVariables,
@@ -103,6 +105,7 @@ internal sealed class BlueprintStructureWindow : Window
         BlueprintStructureWindow window = new(
             title,
             fields,
+            initialValue,
             assetsDirectory,
             cellSize,
             gameVariables,

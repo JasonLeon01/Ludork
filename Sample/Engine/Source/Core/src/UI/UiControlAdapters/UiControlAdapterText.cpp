@@ -15,7 +15,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
     using namespace ui_control_adapter_detail;
 
     UiControlAdapterRegistry::Adapter plainText;
-    plainText.factory = [](const RuntimeValue::Map& properties) {
+    plainText.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<PlainText> result =
             std::make_shared<PlainText>(plainTextControlConfig(properties),
                                         stringProperty(properties, "text"));
@@ -24,7 +24,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
         return result;
     };
     plainText.setter = [](ControlBase& control, const std::string& propertyId,
-                          const RuntimeValue& value) {
+                          const UiControlPropertyValue& value) {
         PlainText& text =
             requireControlType<PlainText>(control, "Engine.PlainText");
         if (propertyId == "text") {
@@ -44,7 +44,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
         std::move(plainText));
 
     UiControlAdapterRegistry::Adapter functionalPlainText;
-    functionalPlainText.factory = [](const RuntimeValue::Map& properties) {
+    functionalPlainText.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<FunctionalPlainText> result =
             std::make_shared<FunctionalPlainText>(
                 plainTextControlConfig(properties),
@@ -55,7 +55,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
     };
     functionalPlainText.setter = [](ControlBase& control,
                                     const std::string& propertyId,
-                                    const RuntimeValue& value) {
+                                    const UiControlPropertyValue& value) {
         FunctionalPlainText& text = requireControlType<FunctionalPlainText>(
             control, "Engine.FunctionalPlainText");
         if (propertyId == "text") {
@@ -76,7 +76,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
         std::move(functionalPlainText));
 
     UiControlAdapterRegistry::Adapter richText;
-    richText.factory = [](const RuntimeValue::Map& properties) {
+    richText.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<RichText> result = std::make_shared<RichText>(
             richTextConfig(stringProperty(properties, "textConfig")),
             stringProperty(properties, "text"));
@@ -85,7 +85,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
         return result;
     };
     richText.setter = [](ControlBase& control, const std::string& propertyId,
-                         const RuntimeValue& value) {
+                         const UiControlPropertyValue& value) {
         RichText& text =
             requireControlType<RichText>(control, "Engine.RichText");
         if (propertyId == "text") {
@@ -104,7 +104,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
     registry.registerAdapter<RichTextUiControlAdapterTag>(std::move(richText));
 
     UiControlAdapterRegistry::Adapter functionalRichText;
-    functionalRichText.factory = [](const RuntimeValue::Map& properties) {
+    functionalRichText.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<FunctionalRichText> result =
             std::make_shared<FunctionalRichText>(
                 richTextConfig(stringProperty(properties, "textConfig")),
@@ -115,7 +115,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerTextAdapters(
     };
     functionalRichText.setter = [](ControlBase& control,
                                    const std::string& propertyId,
-                                   const RuntimeValue& value) {
+                                   const UiControlPropertyValue& value) {
         FunctionalRichText& text = requireControlType<FunctionalRichText>(
             control, "Engine.FunctionalRichText");
         if (propertyId == "text") {

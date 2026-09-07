@@ -27,6 +27,7 @@ local nodeCompilerContext = {
     }
 }
 
+---@class Source.Data.Blueprints
 local DataBlueprints = {}
 
 function DataBlueprints:init(data, loading)
@@ -217,31 +218,35 @@ function DataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
     return actor
 end
 
-function DataBlueprints:installRuntimeProviders()
-    RuntimeProviders.installBlueprint(function (classPath)
-        if self._data._blueprintClassPaths == nil then
-            self:_loadBlueprintClassPaths()
-        end
-        if Class.isInstance(self._data._blueprintClassData[classPath], "string") then
-            local loadedData = self._loading:normaliseJsonNull(cjson.decode(self._data._blueprintClassData[classPath]))
-            ---@cast loadedData table<string, Source.Data.JsonValue>
-            self._data._blueprintClassData[classPath] = loadedData
-        end
-        if self._data._blueprintClassData[classPath] ~= nil then
-            return self._data._blueprintClassData[classPath]
-        end
-        local relative = classPath:match("^Data%.Blueprints%.(.+)$")
-        if relative == nil then
-            return nil
-        end
-        local path = "./Data/Blueprints/" .. relative:gsub("%.", "/") .. ".json"
-        if not Engine.jsonExists(path) then
-            return nil
-        end
-        local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
+function DataBlueprints:resolveBlueprintData(classPath)
+    if self._data._blueprintClassPaths == nil then
+        self:_loadBlueprintClassPaths()
+    end
+    if Class.isInstance(self._data._blueprintClassData[classPath], "string") then
+        local loadedData = self._loading:normaliseJsonNull(cjson.decode(self._data._blueprintClassData[classPath]))
         ---@cast loadedData table<string, Source.Data.JsonValue>
         self._data._blueprintClassData[classPath] = loadedData
-        return loadedData
+    end
+    if self._data._blueprintClassData[classPath] ~= nil then
+        return self._data._blueprintClassData[classPath]
+    end
+    local relative = classPath:match("^Data%.Blueprints%.(.+)$")
+    if relative == nil then
+        return nil
+    end
+    local path = "./Data/Blueprints/" .. relative:gsub("%.", "/") .. ".json"
+    if not Engine.jsonExists(path) then
+        return nil
+    end
+    local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
+    ---@cast loadedData table<string, Source.Data.JsonValue>
+    self._data._blueprintClassData[classPath] = loadedData
+    return loadedData
+end
+
+function DataBlueprints:installRuntimeProviders()
+    RuntimeProviders.installBlueprint(function (classPath)
+        return self:resolveBlueprintData(classPath)
     end,
         function (graphData, parentClass)
             return self:compileGraphTemplate(graphData, parentClass)

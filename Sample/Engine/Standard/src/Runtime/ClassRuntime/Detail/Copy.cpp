@@ -1,7 +1,9 @@
+#include "Detail/CopyImpl.hpp"
 #include "Detail/CopyRuntime.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassServices.hpp>
@@ -55,11 +57,6 @@ void copyTableMetatable(const sol::table& source, const sol::table& target) {
 sol::object deepCopyImpl(sol::state_view lua, const sol::object& value,
                          std::unordered_map<const void*, sol::object>& visited);
 
-struct NativeDeepCopyContext {
-    sol::state_view lua;
-    std::unordered_map<const void*, sol::object>* visited = nullptr;
-};
-
 sol::object deepCopyNativeChild(void* rawContext, const sol::object& value) {
     auto* context = static_cast<NativeDeepCopyContext*>(rawContext);
     if (context == nullptr || context->visited == nullptr) {
@@ -93,6 +90,7 @@ sol::object deepCopyNativeValue(
         const sol::object result = protocol->create(lua, value);
         visited.emplace(identity, result);
         protocol->populate(lua, value, result, &deepCopyNativeChild, &context);
+        copyExplicitNilFields(lua, value, result);
         return result;
     }
     if (protocol->build == nullptr) {
@@ -106,6 +104,7 @@ sol::object deepCopyNativeValue(
         return existing->second;
     }
     visited.emplace(identity, result);
+    copyExplicitNilFields(lua, value, result);
     return result;
 }
 
@@ -144,6 +143,7 @@ sol::object deepCopyImpl(
         result.raw_set(entry.first, deepCopyImpl(lua, entry.second, visited));
     }
     copyTableMetatable(source, result);
+    copyExplicitNilFields(lua, value, sol::make_object(lua, result));
     return sol::make_object(lua, result);
 }
 
@@ -160,6 +160,7 @@ sol::object clonePlainDataImpl(sol::state_view lua, const sol::object& value) {
         result.raw_set(entry.first, clonePlainDataImpl(lua, entry.second));
     }
     copyTableMetatable(source, result);
+    copyExplicitNilFields(lua, value, sol::make_object(lua, result));
     return sol::make_object(lua, result);
 }
 
@@ -186,7 +187,9 @@ sol::object copyNativeValue(sol::state_view lua, const sol::object& value) {
     }
     sol::protected_function copy = rawCopy.as<sol::protected_function>();
     sol::protected_function_result result = copy(value);
-    return checkedResult(lua, result);
+    const sol::object copied = checkedResult(lua, result);
+    copyExplicitNilFields(lua, value, copied);
+    return copied;
 }
 
 sol::object shallowCopyImpl(sol::state_view lua, const sol::object& value) {
@@ -202,6 +205,7 @@ sol::object shallowCopyImpl(sol::state_view lua, const sol::object& value) {
         result.raw_set(entry.first, entry.second);
     }
     copyTableMetatable(source, result);
+    copyExplicitNilFields(lua, value, sol::make_object(lua, result));
     return sol::make_object(lua, result);
 }
 

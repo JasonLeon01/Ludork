@@ -23,6 +23,9 @@ function Scene.GameOver() end
 ---@return function
 function Scene.AddTimer(interval, blocking) end
 
+---@brief Open the current-map monster handbook when the player owns it and the scene allows opening an overlay.
+function Scene.ShowEnemyBook() end
+
 ---@brief Show a dialogue message on the current map scene by actor tag.
 ---@param name        string
 ---@param message     string

@@ -171,7 +171,7 @@ function ConfigWindow:_applyScaleRowChange(scaleRowChange) end
 ---@brief Handle configuration input, giving an expanded DropBox priority.
 ---
 --- - @param kwargs Event arguments
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function ConfigWindow:onKeyDown(kwargs) end
 
 ---@brief Move the selection within the active settings page.

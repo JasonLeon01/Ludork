@@ -28,7 +28,7 @@
     },
     "cost": {
       "type": "bool",
-      "comment": "Whether the inventory displays this item's stack count.",
+      "comment": "Whether the inventory displays this item\u0027s stack count.",
       "defaultValue": true
     }
   },
@@ -102,33 +102,15 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "Source.Scenes.SceneMap.showEnemyBook",
-                "params": [
-                  ""
-                ],
+                "nodeFunction": "NodeFunctions.Scene.ShowEnemyBook",
+                "params": [],
                 "pos": [
                   0,
                   0.0
                 ]
-              },
-              {
-                "nodeFunction": "NodeFunctions.Utils.GetScene",
-                "params": [],
-                "pos": [
-                  -720,
-                  250.0
-                ]
               }
             ],
-            "links": [
-              {
-                "left": 1,
-                "right": 0,
-                "leftOutPin": 0,
-                "rightInPin": 0,
-                "linkType": "Params"
-              }
-            ]
+            "links": []
           }
         },
         "startNodes": {
@@ -320,8 +302,11 @@
                 "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
                 "params": [
                   "default",
-                  "",
-                  "nil"
+                  [
+                    0,
+                    0
+                  ],
+                  null
                 ],
                 "pos": [
                   720,
@@ -332,7 +317,10 @@
                 "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
                 "params": [
                   "default",
-                  ""
+                  [
+                    0,
+                    0
+                  ]
                 ],
                 "pos": [
                   -1440,
@@ -342,11 +330,16 @@
               {
                 "nodeFunction": "NodeFunctions.Container.ListContains",
                 "params": [
-                  [
-                    5,
-                    6,
-                    7
-                  ],
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": [
+                      5,
+                      6,
+                      7
+                    ]
+                  },
                   ""
                 ],
                 "pos": [
@@ -357,7 +350,7 @@
               {
                 "nodeFunction": "NodeFunctions.Utils.IF",
                 "params": [
-                  ""
+                  false
                 ],
                 "pos": [
                   0,
@@ -450,8 +443,8 @@
                 "nodeFunction": "NodeFunctions.Scene.DestroyTerrainList",
                 "params": [
                   "default",
-                  "",
-                  "nil"
+                  [],
+                  null
                 ],
                 "pos": [
                   1440,
@@ -515,8 +508,18 @@
               {
                 "nodeFunction": "NodeFunctions.Container.ListExtend",
                 "params": [
-                  [],
-                  []
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": []
+                  },
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": []
+                  }
                 ],
                 "pos": [
                   0,
@@ -526,8 +529,18 @@
               {
                 "nodeFunction": "NodeFunctions.Container.ListExtend",
                 "params": [
-                  [],
-                  []
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": []
+                  },
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": []
+                  }
                 ],
                 "pos": [
                   720,
@@ -537,7 +550,7 @@
               {
                 "nodeFunction": "NodeFunctions.Container.ListToTable",
                 "params": [
-                  []
+                  null
                 ],
                 "pos": [
                   720,
@@ -652,7 +665,10 @@
                 "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
                 "params": [
                   "lava",
-                  ""
+                  [
+                    0,
+                    0
+                  ]
                 ],
                 "pos": [
                   -1440,
@@ -662,10 +678,15 @@
               {
                 "nodeFunction": "NodeFunctions.Container.ListContains",
                 "params": [
-                  [
-                    14,
-                    "lava"
-                  ],
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": [
+                      14,
+                      "lava"
+                    ]
+                  },
                   ""
                 ],
                 "pos": [
@@ -676,7 +697,7 @@
               {
                 "nodeFunction": "NodeFunctions.Utils.IF",
                 "params": [
-                  ""
+                  false
                 ],
                 "pos": [
                   0,
@@ -687,8 +708,11 @@
                 "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
                 "params": [
                   "lava",
-                  "",
-                  "nil"
+                  [
+                    0,
+                    0
+                  ],
+                  null
                 ],
                 "pos": [
                   720,
@@ -781,7 +805,10 @@
                 "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
                 "params": [
                   "default",
-                  ""
+                  [
+                    0,
+                    0
+                  ]
                 ],
                 "pos": [
                   -1440,
@@ -791,9 +818,14 @@
               {
                 "nodeFunction": "NodeFunctions.Container.ListContains",
                 "params": [
-                  [
-                    15
-                  ],
+                  {
+                    "$type": {
+                      "list": "any"
+                    },
+                    "$value": [
+                      15
+                    ]
+                  },
                   ""
                 ],
                 "pos": [
@@ -804,7 +836,7 @@
               {
                 "nodeFunction": "NodeFunctions.Utils.IF",
                 "params": [
-                  ""
+                  false
                 ],
                 "pos": [
                   0,
@@ -815,8 +847,11 @@
                 "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
                 "params": [
                   "default",
-                  "",
-                  "nil"
+                  [
+                    0,
+                    0
+                  ],
+                  null
                 ],
                 "pos": [
                   720,

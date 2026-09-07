@@ -1,6 +1,6 @@
 #include "AssetBuilder.hpp"
 
-#include <Runtime/RuntimeValueReader.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
 
 #include <stdexcept>
 
@@ -30,12 +30,13 @@ std::string nestedAssetKey(const std::string& controlId) {
     return controlId.substr(prefixLength);
 }
 
-sf::Vector2f parseDesignSize(RuntimeMapView asset, const std::string& source) {
+sf::Vector2f parseDesignSize(const RuntimeData::Map& asset,
+                             const std::string& source) {
     const auto value = findValue(asset, "designSize");
     if (!value) {
         throw std::invalid_argument(source + " is missing designSize");
     }
-    RuntimeMapView size = requireMap(*value, source + ".designSize");
+    const RuntimeData::Map& size = requireMap(*value, source + ".designSize");
     const auto width = findValue(size, "width");
     const auto height = findValue(size, "height");
     if (!width || !height) {
@@ -51,12 +52,12 @@ sf::Vector2f parseDesignSize(RuntimeMapView asset, const std::string& source) {
     return result;
 }
 
-RuntimeValue::Map effectiveProperties(RuntimeMapView node,
-                                      RuntimeMapView properties,
-                                      const std::string& controlId,
-                                      bool designMode,
-                                      const std::string& source) {
-    RuntimeValue::Map result = properties.toMap();
+RuntimeData::Map effectiveProperties(const RuntimeData::Map& node,
+                                     const RuntimeData::Map& properties,
+                                     const std::string& controlId,
+                                     bool designMode,
+                                     const std::string& source) {
+    RuntimeData::Map result = properties;
     if (!designMode) {
         return result;
     }
@@ -64,14 +65,15 @@ RuntimeValue::Map effectiveProperties(RuntimeMapView node,
     if (!editorValue) {
         return result;
     }
-    RuntimeMapView editor = requireMap(*editorValue, source + ".editor");
+    const RuntimeData::Map& editor =
+        requireMap(*editorValue, source + ".editor");
     const auto previewText = findValue(editor, "previewText");
     if (!previewText) {
         return result;
     }
     if (controlId == "Engine.DropBox") {
         result.insert_or_assign(
-            "previewText", RuntimeValue(requireString(
+            "previewText", RuntimeData(requireString(
                                *previewText, source + ".editor.previewText")));
         return result;
     }
@@ -82,8 +84,8 @@ RuntimeValue::Map effectiveProperties(RuntimeMapView node,
             source + ".editor.previewText is only valid on text controls");
     }
     result.insert_or_assign(
-        "text", RuntimeValue(requireString(*previewText,
-                                           source + ".editor.previewText")));
+        "text", RuntimeData(requireString(*previewText,
+                                          source + ".editor.previewText")));
     return result;
 }
 

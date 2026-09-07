@@ -30,15 +30,24 @@ RuntimeValue instantiateClassGraph(const std::string& classPath,
 std::string declaringModule(const RuntimeValue& value);
 RuntimeValue cloneMetadataValue(const RuntimeValue& value,
                                 const RuntimeValue& fieldMetadata,
-                                const std::string& fallbackModule = {});
+                                const std::string& fallbackModule = {},
+                                bool stored = true);
 RuntimeValue cloneAttrValue(const RuntimeValue& parentClass,
                             const RuntimeValue& key, const RuntimeValue& value,
                             const RuntimeValue& rawMetadata,
-                            const RuntimeValue& rawTargetType);
+                            const RuntimeValue& rawTargetType,
+                            bool stored = true);
 RuntimeValue configReferences(const RuntimeValue& owner);
 std::string normalizeScriptMixinPath(const std::string& value);
 RuntimeValue loadScriptMixin(const std::string& classPath,
                              const std::string& scriptPath);
+void validateScriptMixin(const RuntimeValue& mixin,
+                         const std::string& classPath,
+                         const std::string& scriptPath);
+void validateScriptMixinMembers(const RuntimeValue& parentClass,
+                                const RuntimeValue& mixin,
+                                const std::string& classPath,
+                                const std::string& scriptPath);
 void mergeScriptMixin(const RuntimeValue& parentClass,
                       const RuntimeValue& mixin, RuntimeValue definition,
                       RuntimeValue instanceAttrs, const std::string& classPath,

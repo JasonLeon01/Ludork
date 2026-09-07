@@ -422,7 +422,7 @@ public sealed class BlueprintClassResolver : IDisposable
             if (structuralDefault is not null)
                 structuralDefaults[name] = structuralDefault;
             if (fieldsWithMetadataDefaults.Contains(name) && structuralDefault is not null)
-                metadataDefaults[name] = mergeNodes(structuralDefault, metadataDefaults[name]);
+                metadataDefaults[name] = mergeFieldValue(field.Type.Schema, structuralDefault, metadataDefaults[name]);
         }
 
         Dictionary<string, JsonNode?> blueprintValues = new(StringComparer.Ordinal);
@@ -436,7 +436,8 @@ public sealed class BlueprintClassResolver : IDisposable
                 structuralDefaults,
                 blueprintValues,
                 blueprintOrder,
-                blueprintFieldSet
+                blueprintFieldSet,
+                schema
             );
         }
         foreach (JsonObject blueprint in blueprintChain)
@@ -449,7 +450,8 @@ public sealed class BlueprintClassResolver : IDisposable
                 structuralDefaults,
                 blueprintValues,
                 blueprintOrder,
-                blueprintFieldSet
+                blueprintFieldSet,
+                schema
             );
         }
 
@@ -535,13 +537,14 @@ public sealed class BlueprintClassResolver : IDisposable
         }
     }
 
-    private static void applyBlueprintValues(
+    private void applyBlueprintValues(
         IEnumerable<KeyValuePair<string, JsonNode?>> attrs,
         IReadOnlyDictionary<string, JsonNode?> metadataDefaults,
         IReadOnlyDictionary<string, JsonNode?> structuralDefaults,
         IDictionary<string, JsonNode?> blueprintValues,
         ICollection<string> blueprintOrder,
-        ISet<string> blueprintFieldSet
+        ISet<string> blueprintFieldSet,
+        IReadOnlyDictionary<string, BlueprintFieldMetadata> schema
     )
     {
         foreach (KeyValuePair<string, JsonNode?> pair in attrs)
@@ -552,7 +555,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 ? metadataDefault
                 : structuralDefaults.GetValueOrDefault(pair.Key);
             blueprintValues[pair.Key] = structureDefault is JsonObject && pair.Value is JsonObject
-                ? mergeNodes(structureDefault, pair.Value)
+                ? mergeFieldValue(schema.GetValueOrDefault(pair.Key)?.Type.Schema, structureDefault, pair.Value)
                 : cloneNode(pair.Value);
         }
     }
@@ -677,7 +680,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 JsonObject? nestedDefault = buildStructuredDefault(nestedField, resolving, dependencyTypes);
                 if (nestedField.HasDefaultValue)
                 {
-                    result[name] = mergeNodes(nestedDefault, nestedField.DefaultValue);
+                    result[name] = mergeFieldValue(nestedField.Type.Schema, nestedDefault, nestedField.DefaultValue);
                     hasValue = true;
                 }
                 else if (nestedDefault is not null)
@@ -689,6 +692,26 @@ public sealed class BlueprintClassResolver : IDisposable
         }
         resolving.Remove(typeReference.QualifiedName);
         return hasValue ? result : null;
+    }
+
+    private JsonNode? mergeFieldValue(LuaMetadataType? type, JsonNode? inheritedValue, JsonNode? nextValue)
+    {
+        if (type?.Kind == LuaMetadataTypeKind.Union)
+            return cloneNode(nextValue);
+        if (inheritedValue is not JsonObject inheritedObject || nextValue is not JsonObject nextObject)
+            return cloneNode(nextValue);
+        IReadOnlyList<LuaTypeMetadata> metadata = type?.Kind == LuaMetadataTypeKind.Named
+            && metadataService.GetType(type.Name) is not null ? metadataService.ResolveMro(type.Name) : [];
+        JsonObject result = (JsonObject)inheritedObject.DeepClone();
+        foreach (KeyValuePair<string, JsonNode?> pair in nextObject)
+        {
+            LuaMetadataType? childType = type?.Kind == LuaMetadataTypeKind.Dictionary
+                ? type.Arguments[1]
+                : metadata.Select(owner => owner.Fields.GetValueOrDefault(pair.Key)).FirstOrDefault(field => field is not null)?.Type.Schema;
+            result.TryGetPropertyValue(pair.Key, out JsonNode? previous);
+            result[pair.Key] = mergeFieldValue(childType, previous, pair.Value);
+        }
+        return result;
     }
 
     private static JsonNode? mergeNodes(JsonNode? inheritedValue, JsonNode? nextValue)

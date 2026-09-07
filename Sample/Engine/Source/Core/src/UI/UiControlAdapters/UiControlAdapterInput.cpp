@@ -17,7 +17,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     using namespace ui_control_adapter_detail;
 
     UiControlAdapterRegistry::Adapter button;
-    button.factory = [](const RuntimeValue::Map& properties) {
+    button.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<Button> result = std::make_shared<Button>(
             loadTexture(stringProperty(properties, "texture")),
             optionalIntRectProperty(properties, "textureRect"),
@@ -28,13 +28,13 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
         return result;
     };
     button.setter = [](ControlBase& control, const std::string& propertyId,
-                       const RuntimeValue& value) {
+                       const UiControlPropertyValue& value) {
         Button& button = requireControlType<Button>(control, "Engine.Button");
         if (propertyId == "texture") {
             button.setTexture(loadTexture(requireString(value, "texture")),
                               true);
         } else if (propertyId == "textureRect") {
-            if (value.isNil()) {
+            if (isNil(value)) {
                 button.setTextureRect(
                     {{0, 0},
                      {static_cast<int>(button.getTexture().getSize().x),
@@ -60,7 +60,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     registry.registerAdapter<ButtonUiControlAdapterTag>(std::move(button));
 
     UiControlAdapterRegistry::Adapter checkBox;
-    checkBox.factory = [](const RuntimeValue::Map& properties) {
+    checkBox.factory = [](const UiControlProperties& properties) {
         return std::make_shared<CheckBox>(
             vector2fProperty(properties, "size", {32.0f, 32.0f}),
             loadWindowSkin(stringProperty(properties, "windowSkin")),
@@ -68,7 +68,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
             boolProperty(properties, "checked", false));
     };
     checkBox.setter = [](ControlBase& control, const std::string& propertyId,
-                         const RuntimeValue& value) {
+                         const UiControlPropertyValue& value) {
         CheckBox& check =
             requireControlType<CheckBox>(control, "Engine.CheckBox");
         if (propertyId == "size") {
@@ -96,7 +96,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     registry.registerAdapter<CheckBoxUiControlAdapterTag>(std::move(checkBox));
 
     UiControlAdapterRegistry::Adapter slider;
-    slider.factory = [](const RuntimeValue::Map& properties) {
+    slider.factory = [](const UiControlProperties& properties) {
         return std::make_shared<Slider>(
             vector2fProperty(properties, "size", {64.0f, 8.0f}),
             loadTexture(stringProperty(properties, "lineTexture")),
@@ -106,7 +106,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
             intProperty(properties, "value", 0));
     };
     slider.setter = [](ControlBase& control, const std::string& propertyId,
-                       const RuntimeValue& value) {
+                       const UiControlPropertyValue& value) {
         Slider& range = requireControlType<Slider>(control, "Engine.Slider");
         if (propertyId == "size") {
             range.resize(requireVector2f(value, "size"));
@@ -138,7 +138,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     registry.registerAdapter<SliderUiControlAdapterTag>(std::move(slider));
 
     UiControlAdapterRegistry::Adapter dropBox;
-    dropBox.factory = [](const RuntimeValue::Map& properties) {
+    dropBox.factory = [](const UiControlProperties& properties) {
         const std::string preview = stringProperty(properties, "previewText");
         std::vector<std::string> items;
         if (!preview.empty()) {
@@ -150,7 +150,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
             plainTextControlConfig(properties), std::move(items), 0, false);
     };
     dropBox.setter = [](ControlBase& control, const std::string& propertyId,
-                        const RuntimeValue& value) {
+                        const UiControlPropertyValue& value) {
         DropBox& field = requireControlType<DropBox>(control, "Engine.DropBox");
         if (propertyId == "size") {
             field.resize(requireVector2f(value, "size"));
@@ -179,7 +179,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     registry.registerAdapter<DropBoxUiControlAdapterTag>(std::move(dropBox));
 
     UiControlAdapterRegistry::Adapter tabView;
-    tabView.factory = [](const RuntimeValue::Map& properties) {
+    tabView.factory = [](const UiControlProperties& properties) {
         std::vector<std::string> items =
             stringArrayProperty(properties, "items", {"#TAB"});
         if (items.empty()) {
@@ -191,7 +191,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
             plainTextControlConfig(properties), std::move(items), 0);
     };
     tabView.setter = [](ControlBase& control, const std::string& propertyId,
-                        const RuntimeValue& value) {
+                        const UiControlPropertyValue& value) {
         TabView& tabs = requireControlType<TabView>(control, "Engine.TabView");
         if (propertyId == "size") {
             tabs.resize(requireVector2f(value, "size"));

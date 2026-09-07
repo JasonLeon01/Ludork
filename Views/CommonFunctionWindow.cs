@@ -168,11 +168,7 @@ public sealed class CommonFunctionWindow : Window
     {
         if (graphControl is null || currentDocument is null)
             return;
-        BlueprintGraphCodec.SaveInto(
-            graphControl.Document,
-            currentDocument.GetEventGraph(),
-            currentDocument.GetStartNodes());
-        currentDocument.CommitGraph();
+        currentDocument.CommitGraph(BlueprintGraphCodec.Save(graphControl.Document));
     }
 
     private void onListPointerPressed(object? sender, PointerPressedEventArgs args)

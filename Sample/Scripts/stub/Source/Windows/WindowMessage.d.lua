@@ -46,7 +46,7 @@ function WindowMessage:onTick(deltaTime) end
 ---@brief Handle keyboard input for selection cancel and option navigation.
 ---
 --- - @param kwargs Event data.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowMessage:onKeyDown(kwargs) end
 
 ---@brief Cancel the current selection dialogue through the shared return path.

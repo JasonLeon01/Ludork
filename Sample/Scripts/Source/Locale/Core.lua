@@ -146,6 +146,4 @@ Core.LOC = Core.ApplyStringLocaleFormat
 Core.LOC_L = Core.GetLocaleContent
 Core.LOC_D = Core.GetLocaleDict
 
-Core.Init()
-
 return Core

@@ -4,7 +4,7 @@
 ---@class Source.Configs.GeneralDataTypes.ClassAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field slot            table<string, string>
@@ -14,7 +14,7 @@ local ClassAttributeSet = {}
 ---@class Source.Configs.GeneralDataTypes.EnemyAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field MAXHP           integer
@@ -31,7 +31,7 @@ local EnemyAttributeSet = {}
 ---@class Source.Configs.GeneralDataTypes.EquipAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field icon            string
@@ -43,7 +43,7 @@ local EquipAttributeSet = {}
 ---@class Source.Configs.GeneralDataTypes.ItemAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field usable          boolean
@@ -56,7 +56,7 @@ local ItemAttributeSet = {}
 ---@class Source.Configs.GeneralDataTypes.PlayerAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field CLASS           string
@@ -74,7 +74,7 @@ local PlayerAttributeSet = {}
 ---@class Source.Configs.GeneralDataTypes.SpecialAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field icon            string
@@ -84,7 +84,7 @@ local SpecialAttributeSet = {}
 ---@class Source.Configs.GeneralDataTypes.StateAttributeSet: GlobalCore.AttributeSet
 ---@field ID              string
 ---@field ATTRIBUTE_NAMES string[]
----@field SCHEMA          table<string, { type: string, default: any }>
+---@field SCHEMA          table<string, { type: string|table, default: any }>
 ---@field name            string
 ---@field desc            string
 ---@field icon            string

@@ -333,7 +333,7 @@ void FunctionalBase::update(float deltaTime) {
                         getAbsoluteTouchHitBounds();
                     if (position.has_value() && releaseBounds.has_value() &&
                         releaseBounds->contains(sf::Vector2f(*position))) {
-                        const RuntimeValue::Map arguments =
+                        const UiInputEventArguments arguments =
                             pointerArguments(sf::Vector2f(*position));
                         if (confirmCallback_) {
                             onConfirm(arguments);
@@ -376,60 +376,61 @@ void FunctionalBase::fixedUpdate(float fixedDelta) {
     onFixedTick(fixedDelta);
 }
 
-void FunctionalBase::onConfirm(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onConfirm(const UiInputEventArguments& arguments) {
     if (confirmCallback_) {
         confirmCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onCancel(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onCancel(const UiInputEventArguments& arguments) {
     if (cancelCallback_) {
         cancelCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onClick(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onClick(const UiInputEventArguments& arguments) {
     if (clickCallback_) {
         clickCallback_(*this, arguments);
     }
 }
 
-bool FunctionalBase::onMouseButtonDown(const RuntimeValue::Map& arguments) {
+bool FunctionalBase::onMouseButtonDown(const UiInputEventArguments& arguments) {
     return mouseButtonDownCallback_ &&
            mouseButtonDownCallback_(*this, arguments);
 }
 
-void FunctionalBase::onHover(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onHover(const UiInputEventArguments& arguments) {
     if (hoverCallback_) {
         hoverCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onUnHover(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onUnHover(const UiInputEventArguments& arguments) {
     if (unHoverCallback_) {
         unHoverCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onMouseMoved(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onMouseMoved(const UiInputEventArguments& arguments) {
     if (mouseMovedCallback_) {
         mouseMovedCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onMouseWheelScrolled(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onMouseWheelScrolled(
+    const UiInputEventArguments& arguments) {
     if (mouseWheelScrolledCallback_) {
         mouseWheelScrolledCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onKeyDown(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onKeyDown(const UiInputEventArguments& arguments) {
     if (keyDownCallback_) {
         keyDownCallback_(*this, arguments);
     }
 }
 
-void FunctionalBase::onKeyUp(const RuntimeValue::Map& arguments) {
+void FunctionalBase::onKeyUp(const UiInputEventArguments& arguments) {
     if (keyUpCallback_) {
         keyUpCallback_(*this, arguments);
     }
@@ -503,18 +504,18 @@ void FunctionalBase::resetPointerInteraction() {
 
 void FunctionalBase::onInteractionStateChanged() {}
 
-RuntimeValue::Map FunctionalBase::pointerArguments(
+UiInputEventArguments FunctionalBase::pointerArguments(
     const sf::Vector2f& position) {
     return ludork::engine::functional_base_impl::pointerArguments(position);
 }
 
-RuntimeValue::Map FunctionalBase::mouseButtonArguments(
+UiInputEventArguments FunctionalBase::mouseButtonArguments(
     const sf::Vector2f& position, sf::Mouse::Button button) {
     return ludork::engine::functional_base_impl::mouseButtonArguments(position,
                                                                       button);
 }
 
-RuntimeValue::Map FunctionalBase::mouseWheelArguments(
+UiInputEventArguments FunctionalBase::mouseWheelArguments(
     const sf::Vector2f& position, float delta) {
     return ludork::engine::functional_base_impl::mouseWheelArguments(position,
                                                                      delta);

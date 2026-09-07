@@ -14,22 +14,17 @@ AbilitySystemComponent::Impl::Impl(AbilitySystemComponent* ownerComponent,
                                    RuntimeValue systemOwner,
                                    std::shared_ptr<AttributeSet> attributes)
     : component(ownerComponent), owner(std::move(systemOwner)) {
-    state.selfValue = [this]() {
-        return selfValue();
+    state.constrain = [this](const std::string& name, GameplayNumber value,
+                             const GameplayNumbers& resolvedValues)
+        -> std::optional<GameplayNumber> {
+        const auto constraint = constraints.find(name);
+        if (constraint == constraints.end()) {
+            return std::nullopt;
+        }
+        return constraint->second(std::move(value), self(), resolvedValues);
     };
     ludork::global::ability_system_impl::initialize(state,
                                                     std::move(attributes));
-}
-
-RuntimeValue AbilitySystemComponent::Impl::selfValue() const {
-    std::shared_ptr<RuntimeObject> ownerObject = component->runtimeOwner();
-    if (ownerObject == nullptr) {
-        ownerObject = component->weak_from_this().lock();
-    }
-    if (ownerObject == nullptr) {
-        throw std::logic_error("Ability System has no stable runtime owner");
-    }
-    return RuntimeValue(ownerObject);
 }
 
 std::shared_ptr<AbilitySystemComponent> AbilitySystemComponent::Impl::self()
@@ -58,31 +53,31 @@ std::shared_ptr<AttributeSet> AbilitySystemComponent::getAttributeSet() const {
     return ludork::global::ability_system_impl::getAttributeSet(impl_->state);
 }
 
-RuntimeValue AbilitySystemComponent::getNumericAttribute(
+GameplayNumber AbilitySystemComponent::getNumericAttribute(
     const std::string& name) const {
     return ludork::global::ability_system_impl::getNumericAttribute(
         impl_->state, name);
 }
 
-RuntimeValue AbilitySystemComponent::getNumericAttributeBase(
+GameplayNumber AbilitySystemComponent::getNumericAttributeBase(
     const std::string& name) const {
     return ludork::global::ability_system_impl::getNumericAttributeBase(
         impl_->state, name);
 }
 
 void AbilitySystemComponent::setNumericAttributeBase(
-    const std::string& name, const RuntimeValue& value) {
+    const std::string& name, const GameplayNumber& value) {
     ludork::global::ability_system_impl::setNumericAttributeBase(impl_->state,
                                                                  name, value);
 }
 
 void AbilitySystemComponent::setNumericAttributeBases(
-    const RuntimeValue::Map& values) {
+    const GameplayNumbers& values) {
     ludork::global::ability_system_impl::setNumericAttributeBases(impl_->state,
                                                                   values);
 }
 
-RuntimeValue::Map AbilitySystemComponent::getNumericAttributeBases() const {
+GameplayNumbers AbilitySystemComponent::getNumericAttributeBases() const {
     return ludork::global::ability_system_impl::getNumericAttributeBases(
         impl_->state);
 }
@@ -95,9 +90,15 @@ void AbilitySystemComponent::addAttributeChangeListener(
 }
 
 void AbilitySystemComponent::setNumericAttributeConstraint(
-    const std::string& name, RuntimeIdentityPtr callback) {
-    ludork::global::ability_system_impl::setNumericAttributeConstraint(
-        impl_->state, name, std::move(callback));
+    const std::string& name, NumericConstraint callback) {
+    ludork::global::ability_system_impl::requireNumericAttribute(impl_->state,
+                                                                 name);
+    if (!callback) {
+        impl_->constraints.erase(name);
+    } else {
+        impl_->constraints[name] = std::move(callback);
+    }
+    ludork::global::ability_system_impl::refreshConstraints(impl_->state);
 }
 
 std::shared_ptr<GameplayAbilitySpec> AbilitySystemComponent::giveAbility(
@@ -124,7 +125,7 @@ AbilitySystemComponent::tryActivateAbility(
                                                                abilityID);
     if (matches.empty()) {
         return GameplayAbilityResult::Failure(
-            RuntimeValue("AbilityNotFound"),
+            std::string("AbilityNotFound"),
             ludork::global::ability_system_impl::runtimeMap(
                 {{"abilityID", RuntimeValue(abilityID)}}));
     }
@@ -147,7 +148,7 @@ AbilitySystemComponent::tryActivateAbility(
         }
     }
     return GameplayAbilityResult::Failure(
-        RuntimeValue("AbilityNotActivated"),
+        std::string("AbilityNotActivated"),
         ludork::global::ability_system_impl::runtimeMap(
             {{"abilityID", RuntimeValue(abilityID)}}));
 }

@@ -4,6 +4,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
@@ -36,6 +37,7 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
     auto assignValue = [&]() {
         if (!rawClass.is<sol::table>()) {
             fields.raw_set(key, value);
+            clearExplicitNilField(lua, target, key);
             return;
         }
         const sol::table classTable = rawClass.as<sol::table>();
@@ -43,6 +45,7 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
             findAccessor(lua, classTable, "__setters", key);
         if (setter.is<sol::function>()) {
             setter.as<sol::function>()(target, value);
+            clearExplicitNilField(lua, target, key);
             cacheFastClassOwner(lua, fields, classTable, key, "__getters",
                                 FastIndexKind::Getter);
             return;
@@ -50,6 +53,7 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
         sol::object assignedObject = nilObject(lua);
         if (setNativeMember(lua, fields, classTable, key, value,
                             &assignedObject)) {
+            clearExplicitNilField(lua, target, key);
             markNativePropertyDirty(lua, fields, assignedObject, key);
             const sol::object rawType = nativeTypeOf(lua, assignedObject);
             if (rawType.is<sol::table>()) {
@@ -61,6 +65,7 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
             return;
         }
         fields.raw_set(key, value);
+        clearExplicitNilField(lua, target, key);
     };
     const sol::object rawCallbacks =
         fields.raw_get<sol::object>("__monitorCallbacks");
@@ -176,6 +181,7 @@ int compositeNewIndex(lua_State* state) {
                                             lua_pushvalue(state, 2);
                                             lua_pushvalue(state, 3);
                                             lua_settable(state, -3);
+                                            clearExplicitNilField(state, 1, 2);
                                             lua_settop(state, 0);
                                             return 0;
                                         }
@@ -195,6 +201,7 @@ int compositeNewIndex(lua_State* state) {
                                             lua_pushvalue(state, 1);
                                             lua_pushvalue(state, 3);
                                             lua_call(state, 2, 0);
+                                            clearExplicitNilField(state, 1, 2);
                                             lua_settop(state, 0);
                                             return 0;
                                         }

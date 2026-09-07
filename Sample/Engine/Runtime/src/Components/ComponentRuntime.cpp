@@ -2,6 +2,7 @@
 
 #include <Components/ComponentRuntimeCache.hpp>
 #include <Runtime/RuntimeReflection.hpp>
+#include <Runtime/RuntimeReference.hpp>
 #include <Runtime/TypedDataService.hpp>
 
 #include <cstdint>
@@ -90,6 +91,22 @@ void runtimeSet(const RuntimeValue& value, const std::string& name,
                             member);
 }
 
+bool runtimeHasOwnField(const RuntimeValue& value, const std::string& name) {
+    if (value.tag() != RuntimeValue::Tag::Handle &&
+        value.tag() != RuntimeValue::Tag::NativeObject) {
+        const std::optional<RuntimeMapView> map = value.view().map();
+        return map && map->find(name).has_value();
+    }
+    return ludork::runtime::reference::hasOwnField(
+        ludork::runtime::reference::intern(value), RuntimeValue(name));
+}
+
+void runtimeSetTyped(const RuntimeValue& value, const std::string& name,
+                     const RuntimeValue& member) {
+    runtimeReflection().setTyped(ludork::runtime::reference::intern(value),
+                                 name, member);
+}
+
 RuntimeValue cloneComponentRuntimeValue(RuntimeValueView value) {
     if (std::optional<RuntimeArrayView> array =
             RuntimeValueView(value).array()) {
@@ -123,6 +140,42 @@ RuntimeValue::Map cloneRuntimeMap(RuntimeMapView values) {
         result.emplace(name, cloneComponentRuntimeValue(value));
     }
     return result;
+}
+
+RuntimeValue::Map encodeCachedFields(const RuntimeValue::Map& values) {
+    RuntimeValue::Map result;
+    for (const auto& [name, value] : values) {
+        result.emplace(name, RuntimeValue(RuntimeValue::Array{value}));
+    }
+    return result;
+}
+
+RuntimeValue::Map decodeCachedFields(RuntimeMapView values) {
+    RuntimeValue::Map result;
+    for (const auto& [name, packed] : values) {
+        const std::optional<RuntimeArrayView> entries = packed.array();
+        if (!entries || entries->size() != 1) {
+            throw std::logic_error("Invalid cached component field: " + name);
+        }
+        result.emplace(name, cloneComponentRuntimeValue((*entries)[0]));
+    }
+    return result;
+}
+
+RuntimeValue cloneRuntimeComponentFieldValue(const RuntimeValue& componentType,
+                                             const std::string& fieldName,
+                                             const RuntimeValue& value) {
+    const RuntimeValue metadata =
+        typedDataService().resolveAttrMetadata(componentType, fieldName);
+    if (metadata.isNil()) {
+        return cloneComponentRuntimeValue(value);
+    }
+    const RuntimeValue type = runtimeGet(metadata, "type");
+    const RuntimeValue moduleValue = runtimeGet(metadata, "module");
+    const std::string* module = moduleValue.getIf<std::string>();
+    const RuntimeValue resolved = typedDataService().resolveRuntimeTypedValue(
+        value, type, module == nullptr ? std::string{} : *module);
+    return cloneComponentRuntimeValue(resolved);
 }
 
 RuntimeValue resolveRuntimeType(const std::string& name) {
@@ -165,7 +218,16 @@ RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
         classValue);
     if (std::optional<RuntimeMapView> defaults =
             RuntimeValueView(cached).map()) {
-        return defaults->toMap();
+        RuntimeValue::Map result;
+        for (const auto& [name, fields] : *defaults) {
+            const std::optional<RuntimeMapView> packed = fields.map();
+            if (!packed) {
+                throw std::logic_error("Invalid inherited component cache: " +
+                                       name);
+            }
+            result.emplace(name, RuntimeValue(decodeCachedFields(*packed)));
+        }
+        return result;
     }
     RuntimeValue::Map result;
     const RuntimeValue::Array mro = runtimeMro(classValue);
@@ -188,10 +250,12 @@ RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
                 }
                 const RuntimeValue parent =
                     runtimeGet(parentComponent, fieldName);
-                if (!isBlankComponentValue(parent)) {
+                if (!isBlankComponentValue(parent) ||
+                    (parent.isNil() &&
+                     runtimeHasOwnField(parentComponent, fieldName))) {
                     componentDefaults.emplace(
-                        fieldName, cloneComponentFieldValue(componentType,
-                                                            fieldName, parent));
+                        fieldName, cloneRuntimeComponentFieldValue(
+                                       componentType, fieldName, parent));
                 }
             }
         }
@@ -200,9 +264,15 @@ RuntimeValue::Map inheritedComponentDefaults(const RuntimeValue& classValue) {
                            RuntimeValue(std::move(componentDefaults)));
         }
     }
+    RuntimeValue::Map cachedValues;
+    for (const auto& [name, fields] : result) {
+        cachedValues.emplace(
+            name,
+            RuntimeValue(encodeCachedFields(fields.view().map()->toMap())));
+    }
     componentRuntimeCache().set(
         ComponentRuntimeCache::ComponentRuntimeCacheKind::InheritedDefaults,
-        classValue, RuntimeValue(result));
+        classValue, RuntimeValue(std::move(cachedValues)));
     return result;
 }
 
@@ -248,18 +318,11 @@ RuntimeValue cloneComponentValue(const RuntimeValue& value,
                                  const RuntimeValue& declaringModule) {
     RuntimeValue resolved = value;
     TypedDataService& dataValues = typedDataService();
-    if (value.getIf<std::string>() != nullptr &&
-        dataValues.shouldEvalValueType(valueType)) {
-        resolved = dataValues.evalDataExpression(value);
-    }
     if (!valueType.isNil()) {
-        const std::string* typeName = valueType.getIf<std::string>();
-        if (typeName == nullptr || *typeName != "any") {
-            const std::string* module = declaringModule.getIf<std::string>();
-            resolved = dataValues.resolveTypedDataValue(
-                resolved, valueType, RuntimeValue::Map{},
-                module == nullptr ? std::string() : *module);
-        }
+        const std::string* module = declaringModule.getIf<std::string>();
+        resolved = dataValues.resolveTypedDataValue(
+            resolved, valueType, RuntimeValue::Map{},
+            module == nullptr ? std::string() : *module);
     }
     return cloneComponentRuntimeValue(resolved);
 }
@@ -334,7 +397,7 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
         componentType);
     if (std::optional<RuntimeMapView> defaults =
             RuntimeValueView(cached).map()) {
-        return cloneRuntimeMap(*defaults);
+        return decodeCachedFields(*defaults);
     }
     RuntimeValue::Map defaults;
     RuntimeValue::Array mro = runtimeMro(componentType);
@@ -354,15 +417,13 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
         const RuntimeValue member = runtimeGet(descriptor, "metadata");
         const RuntimeValue defaultValue = runtimeGet(member, "default");
         if (!defaultValue.isNil()) {
-            defaults[name] = defaultValue;
+            defaults[name] =
+                cloneComponentFieldValue(componentType, name, defaultValue);
         }
-    }
-    for (auto& [name, value] : defaults) {
-        value = cloneComponentFieldValue(componentType, name, value);
     }
     componentRuntimeCache().set(
         ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldDefaults,
-        componentType, RuntimeValue(defaults));
+        componentType, RuntimeValue(encodeCachedFields(defaults)));
     return cloneRuntimeMap(defaults);
 }
 
@@ -394,22 +455,33 @@ std::unordered_map<std::string, std::string> getComponentFieldMap(
 
 RuntimeValue componentFromData(const RuntimeValue& componentType,
                                const RuntimeValue& data) {
-    RuntimeValue source = data;
-    if (runtimeIsInstance(source, componentType)) {
-        source = RuntimeValue(componentToData(source));
-    }
+    const RuntimeValue& source = data;
+    const bool runtimeSource = runtimeIsInstance(source, componentType);
     RuntimeValue::Map values = getComponentFieldDefaults(componentType);
-    if (runtimeKind(source) == "table") {
+    if (runtimeSource || runtimeKind(source) == "table") {
         for (auto& [name, value] : values) {
             const RuntimeValue supplied = runtimeGet(source, name);
-            if (!supplied.isNil()) {
-                value = cloneComponentFieldValue(componentType, name, supplied);
+            if (runtimeSource || !supplied.isNil()) {
+                value = runtimeSource ? cloneRuntimeComponentFieldValue(
+                                            componentType, name, supplied)
+                                      : cloneComponentFieldValue(
+                                            componentType, name, supplied);
             }
         }
     }
-    return runtimeReflection().construct(
+    std::vector<std::string> nilFields;
+    for (const auto& [name, value] : values) {
+        if (value.isNil()) {
+            nilFields.push_back(name);
+        }
+    }
+    const RuntimeValue result = runtimeReflection().construct(
         ludork::runtime::reference::intern(componentType),
         {RuntimeValue(std::move(values))});
+    for (const std::string& name : nilFields) {
+        runtimeSetTyped(result, name, RuntimeValue());
+    }
+    return result;
 }
 
 RuntimeValue::Map componentToData(const RuntimeValue& value) {
@@ -439,14 +511,15 @@ RuntimeValue::Map componentToData(const RuntimeValue& value) {
     return result;
 }
 
-std::tuple<RuntimeValue, RuntimeValue, RuntimeValue> getComponentFieldTarget(
-    const RuntimeValue& object, const std::string& fieldName) {
+std::tuple<RuntimeValue, std::optional<std::string>, RuntimeValue>
+getComponentFieldTarget(const RuntimeValue& object,
+                        const std::string& fieldName) {
     ComponentFieldTarget target =
         resolveComponentFieldTarget(object, fieldName);
     if (!target.found) {
-        return {RuntimeValue(), RuntimeValue(), RuntimeValue()};
+        return {RuntimeValue(), std::nullopt, RuntimeValue()};
     }
-    return {std::move(target.component), RuntimeValue(fieldName),
+    return {std::move(target.component), fieldName,
             std::move(target.componentType)};
 }
 
@@ -467,12 +540,12 @@ bool setComponentFieldValue(const RuntimeValue& object,
                             const RuntimeValue& value) {
     ComponentFieldTarget target =
         resolveComponentFieldTarget(object, fieldName);
-    if (!target.found || runtimeGet(target.component, fieldName).isNil()) {
+    if (!target.found) {
         return false;
     }
-    runtimeSet(
-        target.component, fieldName,
-        cloneComponentFieldValue(target.componentType, fieldName, value));
+    runtimeSetTyped(target.component, fieldName,
+                    cloneRuntimeComponentFieldValue(target.componentType,
+                                                    fieldName, value));
     return true;
 }
 
@@ -518,9 +591,11 @@ void mergeComponentDefaults(const RuntimeValue& object) {
         }
         for (const auto& [fieldName, parent] : *componentDefaults) {
             const RuntimeValue current = runtimeGet(value, fieldName);
-            if (isBlankComponentValue(current)) {
-                runtimeSet(value, fieldName,
-                           cloneComponentFieldValue(componentType, fieldName,
+            if (isBlankComponentValue(current) &&
+                !(current.isNil() && runtimeHasOwnField(value, fieldName))) {
+                runtimeSetTyped(
+                    value, fieldName,
+                    cloneRuntimeComponentFieldValue(componentType, fieldName,
                                                     parent.toValue()));
             }
         }

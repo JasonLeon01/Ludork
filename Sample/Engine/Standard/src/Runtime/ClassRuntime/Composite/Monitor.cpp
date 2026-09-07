@@ -4,6 +4,7 @@
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeBridge.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 
 #include <sol2/sol.hpp>
 
@@ -158,6 +159,7 @@ void monitoredTableNewIndex(sol::object target, sol::object key,
             : nilObject(lua);
     if (!rawEntry.is<sol::table>()) {
         originalMonitoredNewIndex(lua, monitor, target, key, value);
+        clearExplicitNilField(lua, target, key);
         return;
     }
     if (!value.valid() || value.get_type() == sol::type::lua_nil) {
@@ -172,6 +174,7 @@ void monitoredTableNewIndex(sol::object target, sol::object key,
     entry.raw_set("value", value);
     entry.raw_set("hasValue", true);
     entry.raw_set("assigned", true);
+    clearExplicitNilField(lua, target, key);
     invokeMonitorCallback(lua, entry, oldValue, value);
 }
 

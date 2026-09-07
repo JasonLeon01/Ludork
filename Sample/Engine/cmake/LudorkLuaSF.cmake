@@ -1,5 +1,9 @@
-set(LUASF_LUA_STUB_OUTPUT
-    "${CMAKE_CURRENT_SOURCE_DIR}/Scripts/stub/LuaSF.d.lua")
+set(LUASF_GENERATE_LUA_STUB ${LUDORK_WITH_LUA} CACHE BOOL
+    "Generate Lua language-server stub from the built LuaSF module" FORCE)
+if(LUDORK_WITH_LUA)
+    set(LUASF_LUA_STUB_OUTPUT
+        "${CMAKE_CURRENT_SOURCE_DIR}/Scripts/stub/LuaSF.d.lua")
+endif()
 set(
     LUDORK_LUASF_SOURCE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThirdParty/LuaSF"
@@ -13,7 +17,12 @@ if(NOT EXISTS "${LUDORK_LUASF_SOURCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
         "LuaSF source project was not found: ${LUDORK_LUASF_SOURCE_DIR}")
 endif()
-add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF)
+if(LUDORK_WITH_LUA)
+    add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF)
+else()
+    add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF EXCLUDE_FROM_ALL)
+endif()
+
 if(MSVC)
     foreach(dependency IN ITEMS
         freetype
@@ -29,6 +38,10 @@ if(MSVC)
             target_compile_options(${dependency} PRIVATE /W0)
         endif()
     endforeach()
+endif()
+
+if(NOT LUDORK_WITH_LUA)
+    return()
 endif()
 
 if(TARGET LuaSF_luac AND DEFINED LUDORK_LUAC_CACHE_FILE)

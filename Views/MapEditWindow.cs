@@ -17,6 +17,10 @@ namespace Ludork.Views;
 public sealed class MapEditWindow : Window
 {
     private readonly GameDataService gameData;
+    private readonly double initialFogOx;
+    private readonly double initialFogOy;
+    private readonly decimal? displayedFogOx;
+    private readonly decimal? displayedFogOy;
     private readonly string currentKey;
     private readonly string keyPrefix;
     private readonly bool isNew;
@@ -71,6 +75,10 @@ public sealed class MapEditWindow : Window
         fogPowerBox.Value = initial.FogPower;
         fogOxBox.Value = (decimal)initial.FogOx;
         fogOyBox.Value = (decimal)initial.FogOy;
+        initialFogOx = initial.FogOx;
+        initialFogOy = initial.FogOy;
+        displayedFogOx = fogOxBox.Value;
+        displayedFogOy = fogOyBox.Value;
         fogDistortBox.Value = initial.FogDistort;
         updateAmbientButton();
 
@@ -238,8 +246,8 @@ public sealed class MapEditWindow : Window
             BgsFilter = cloneObject(bgsFilter),
             Fog = fogBox.Text?.Trim() ?? string.Empty,
             FogPower = getIntValue(fogPowerBox),
-            FogOx = getDoubleValue(fogOxBox),
-            FogOy = getDoubleValue(fogOyBox),
+            FogOx = fogOxBox.Value == displayedFogOx ? initialFogOx : getDoubleValue(fogOxBox),
+            FogOy = fogOyBox.Value == displayedFogOy ? initialFogOy : getDoubleValue(fogOyBox),
             FogDistort = getIntValue(fogDistortBox),
         });
     }

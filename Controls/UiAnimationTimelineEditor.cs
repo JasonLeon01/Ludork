@@ -600,6 +600,8 @@ public sealed class UiAnimationTimelineEditor : UserControl
         JsonObject? animation = currentAnimation();
         if (refreshing || choice is not { Inherited: false } || animation is null)
             return;
+        if (string.Equals(nameBox.Text, choice.Name, StringComparison.Ordinal))
+            return;
         string requested = nameBox.Text?.Trim() ?? string.Empty;
         string name = uniqueName(requested.Length == 0 ? "Animation" : requested, choice.Target, choice.Index);
         if (string.Equals(choice.Name, name, StringComparison.Ordinal))
@@ -619,6 +621,8 @@ public sealed class UiAnimationTimelineEditor : UserControl
             return;
         }
         string? target = targets[targetBox.SelectedIndex].Name;
+        if (string.Equals(choice.Target, target, StringComparison.Ordinal))
+            return;
         string name = uniqueName(choice.Name, target, choice.Index);
         animation["target"] = target;
         animation["name"] = name;

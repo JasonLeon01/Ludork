@@ -399,8 +399,10 @@ local _METADATA = {
             ["return"] = {
                 "playerInfo",
                 playerInfo = {
-                    "Source.Player",
-                    "Player"
+                    union = {
+                        { "Source.Player", "Player" },
+                        "nil"
+                    }
                 }
             },
             Pure = true

@@ -1,5 +1,7 @@
 #include "LoopRuntime.hpp"
 
+#include <Runtime/RuntimeReference.hpp>
+
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -29,28 +31,43 @@ std::vector<NodeResult> loopResults(const NodeMemberMetadata& metadata,
     std::vector<NodeResult> result;
     if (metadata.loopNode == "ForEach") {
         if (controlResult.count == 0 || controlResult.values.empty()) {
-            return result;
+            throw std::invalid_argument("ForEach requires an array or list");
         }
-        if (std::optional<RuntimeArrayView> items =
-                RuntimeValueView(controlResult.values.front()).array()) {
-            result.reserve(items->size());
-            for (std::size_t index = 0; index < items->size(); ++index) {
-                result.push_back(
-                    NodeResult{{(*items)[index].toValue(),
-                                RuntimeValue(static_cast<std::int64_t>(index))},
-                               2});
+        const RuntimeValue& value = controlResult.values.front();
+        std::optional<RuntimeValue::Array> items =
+            reference::arrayValues(value);
+        if (!items &&
+            reference::isInstance(
+                value, reference::rawGet(reference::globals(), "list"))) {
+            const RuntimeValue::Array iterator =
+                reference::invoke(reference::intern(reference::rawGet(
+                                      reference::globals(), "ipairs")),
+                                  {value});
+            if (iterator.size() != 3 || !reference::isFunction(iterator[0])) {
+                throw std::invalid_argument("ForEach list iterator is invalid");
             }
-        } else if (std::optional<RuntimeMapView> items =
-                       controlResult.values.front().view().map()) {
-            result.reserve(items->size());
-            std::size_t index = 0;
-            for (const auto& [_, value] : *items) {
-                result.push_back(
-                    NodeResult{{value.toValue(),
-                                RuntimeValue(static_cast<std::int64_t>(index))},
-                               2});
-                ++index;
+            const RuntimeHandle next = reference::intern(iterator[0]);
+            RuntimeValue current = iterator[2];
+            items.emplace();
+            while (true) {
+                RuntimeValue::Array entry =
+                    reference::invoke(next, {iterator[1], current});
+                if (entry.empty() || entry.front().isNil()) {
+                    break;
+                }
+                current = entry.front();
+                items->push_back(entry.size() > 1 ? entry[1] : RuntimeValue());
             }
+        }
+        if (!items) {
+            throw std::invalid_argument("ForEach requires an array or list");
+        }
+        result.reserve(items->size());
+        for (std::size_t index = 0; index < items->size(); ++index) {
+            result.push_back(
+                NodeResult{{(*items)[index],
+                            RuntimeValue(static_cast<std::int64_t>(index))},
+                           2});
         }
         return result;
     }

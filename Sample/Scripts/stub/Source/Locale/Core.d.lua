@@ -23,6 +23,7 @@ local Core = {}
 function Core.GetLocaleKeys() end
 
 ---@brief Load all locale data files from the locale source directory.
+--- Entry calls this once before reading user settings; requiring the module does not load dictionaries.
 function Core.Init() end
 
 ---@brief Get localized content for a specific locale.

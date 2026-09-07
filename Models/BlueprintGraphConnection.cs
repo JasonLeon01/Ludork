@@ -26,13 +26,7 @@ public sealed class BlueprintGraphConnection
         Kind = kind;
         SourcePinIndex = sourcePinIndex;
         TargetPinIndex = targetPinIndex;
-        RawData = BlueprintGraphRawData.CloneWithout(
-            rawData,
-            "left",
-            "right",
-            "leftOutPin",
-            "rightInPin",
-            "linkType");
+        RawData = (JsonObject)rawData.DeepClone();
     }
 
     public Guid Id { get; }

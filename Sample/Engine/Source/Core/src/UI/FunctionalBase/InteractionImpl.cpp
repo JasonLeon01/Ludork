@@ -17,24 +17,18 @@ void validateTouchHitBounds(const std::optional<sf::FloatRect>& bounds) {
     }
 }
 
-RuntimeValue::Map pointerArguments(const sf::Vector2f& position) {
-    return {{"position",
-             RuntimeValue(RuntimeValue::Map{{"x", RuntimeValue(position.x)},
-                                            {"y", RuntimeValue(position.y)}})}};
+UiInputEventArguments pointerArguments(const sf::Vector2f& position) {
+    return {.position = position};
 }
 
-RuntimeValue::Map mouseButtonArguments(const sf::Vector2f& position,
-                                       sf::Mouse::Button button) {
-    RuntimeValue::Map result = pointerArguments(position);
-    result.emplace("button", RuntimeValue(static_cast<std::int64_t>(button)));
-    return result;
+UiInputEventArguments mouseButtonArguments(const sf::Vector2f& position,
+                                           sf::Mouse::Button button) {
+    return {.position = position, .button = button};
 }
 
-RuntimeValue::Map mouseWheelArguments(const sf::Vector2f& position,
-                                      float delta) {
-    RuntimeValue::Map result = pointerArguments(position);
-    result.emplace("delta", RuntimeValue(static_cast<double>(delta)));
-    return result;
+UiInputEventArguments mouseWheelArguments(const sf::Vector2f& position,
+                                          float delta) {
+    return {.position = position, .delta = delta};
 }
 
 bool pointerStateIsEmpty(bool hovered, bool pressed, bool hasPointerSource) {

@@ -3,6 +3,7 @@
 ---@brief Game system bootstrap that initialises engine subsystems.
 ---@class Source.System.Module
 ---@field Init                    fun()
+---@field InstallRuntimeProviders fun()
 ---@field GetConfigValue          fun(configName: string, settingName: string): string
 ---@field GetTitle                fun(): string
 ---@field GetFonts                fun(): sf.Font[]
@@ -34,6 +35,9 @@ local System = {}
 ---
 --- Loads system.json, sets up the window, fonts, cursor, and global settings.
 function System.Init() end
+
+---@brief Install the session configuration provider once before the first scene.
+function System.InstallRuntimeProviders() end
 
 ---@brief Get a runtime config value by config file and setting key.
 ---

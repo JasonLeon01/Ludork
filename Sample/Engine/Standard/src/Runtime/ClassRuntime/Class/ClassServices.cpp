@@ -2,6 +2,7 @@
 
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassServices.hpp>
@@ -12,6 +13,48 @@
 #include <utility>
 
 namespace ludork::standard::class_runtime {
+
+namespace {
+
+bool hasManagedField(sol::state_view lua, const sol::object& target,
+                     const sol::object& key) {
+    if (target.is<sol::table>() && detail::isClass(target.as<sol::table>())) {
+        return false;
+    }
+    const sol::object rawClass = detail::scriptClassOf(lua, target);
+    if (!rawClass.is<sol::table>()) {
+        return target.get_type() == sol::type::userdata;
+    }
+    const sol::table classTable = rawClass.as<sol::table>();
+    if (detail::findAccessor(lua, classTable, "__getters", key)
+            .is<sol::function>() ||
+        detail::findAccessor(lua, classTable, "__setters", key)
+            .is<sol::function>()) {
+        return true;
+    }
+    if (target.get_type() != sol::type::userdata) {
+        return false;
+    }
+    for (const auto& entry : detail::getMro(lua, classTable)) {
+        if (!entry.second.is<sol::table>()) {
+            continue;
+        }
+        const sol::table type = entry.second.as<sol::table>();
+        if (!detail::isNativeType(lua, type)) {
+            continue;
+        }
+        if (detail::nativeTypeDeclaresProperty(type, key)) {
+            return true;
+        }
+        const sol::object member = detail::nativeTypeDefinition(lua, type, key);
+        if (member.valid() && member.get_type() != sol::type::lua_nil) {
+            return true;
+        }
+    }
+    return false;
+}
+
+}  // namespace
 
 sol::table finalizeClass(sol::table definition, const sol::table& bases) {
     return detail::finalizeClassImpl(std::move(definition), bases);
@@ -25,6 +68,23 @@ sol::object protectedGet(sol::state_view lua, const sol::object& target,
 void protectedSet(sol::state_view lua, const sol::object& target,
                   const sol::object& key, const sol::object& value) {
     detail::protectedAssign(lua, target, key, value);
+}
+
+void protectedSetTyped(sol::state_view lua, const sol::object& target,
+                       const sol::object& key, const sol::object& value) {
+    if (!key.is<std::string>() || (target.get_type() != sol::type::table &&
+                                   target.get_type() != sol::type::userdata)) {
+        throw std::invalid_argument(
+            "Typed fields require an object and a string key");
+    }
+    detail::protectedAssign(lua, target, key, value);
+    if ((!value.valid() || value.get_type() == sol::type::lua_nil) &&
+        !hasManagedField(lua, target, key)) {
+        detail::markExplicitNilField(lua, target, key);
+    }
+    if (target.is<sol::table>() && detail::isClass(target.as<sol::table>())) {
+        detail::invalidateClassLookup(lua, target.as<sol::table>());
+    }
 }
 
 sol::object rawGetOwnField(sol::state_view lua, const sol::object& target,

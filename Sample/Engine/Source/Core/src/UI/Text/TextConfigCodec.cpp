@@ -9,7 +9,7 @@
 #include <UI/TextStyle.hpp>
 
 #include <Runtime/AssetStore.hpp>
-#include <Runtime/RuntimeValueReader.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UIState.hpp>
 #include <UI/UiVector4CurveResource.hpp>
 #include <Runtime/Json.hpp>
@@ -43,7 +43,7 @@ using ludork::runtime::value_reader::requireValue;
     throw std::invalid_argument(message + " in text config " + source);
 }
 
-void onlyFields(RuntimeMapView value,
+void onlyFields(const RuntimeData::Map& value,
                 std::initializer_list<std::string_view> fields,
                 const std::string& source) {
     for (const auto& [key, _] : value) {
@@ -53,8 +53,9 @@ void onlyFields(RuntimeMapView value,
     }
 }
 
-RuntimeValueView required(RuntimeMapView value, const std::string& field,
-                          const std::string& source) {
+const RuntimeData& required(const RuntimeData::Map& value,
+                            const std::string& field,
+                            const std::string& source) {
     const auto result = findValue(value, field);
     if (!result) {
         configError(source, "Missing " + field);
@@ -62,7 +63,7 @@ RuntimeValueView required(RuntimeMapView value, const std::string& field,
     return *result;
 }
 
-std::string stringValue(RuntimeValueView value, const std::string& source,
+std::string stringValue(const RuntimeData& value, const std::string& source,
                         bool allowEmpty) {
     const std::string& result = requireString(value, source);
     if (!allowEmpty && result.empty()) {
@@ -71,7 +72,7 @@ std::string stringValue(RuntimeValueView value, const std::string& source,
     return result;
 }
 
-double numberValue(RuntimeValueView value, const std::string& source,
+double numberValue(const RuntimeData& value, const std::string& source,
                    double minimum, double maximum) {
     const double result = requireNumber(value, source);
     if (result < minimum) {
@@ -85,7 +86,7 @@ double numberValue(RuntimeValueView value, const std::string& source,
     return result;
 }
 
-std::int64_t integerValue(RuntimeValueView value, const std::string& source,
+std::int64_t integerValue(const RuntimeData& value, const std::string& source,
                           std::int64_t minimum, std::int64_t maximum) {
     const double result = requireNumber(value, source);
     if (std::floor(result) != result || result < static_cast<double>(minimum) ||
@@ -97,8 +98,8 @@ std::int64_t integerValue(RuntimeValueView value, const std::string& source,
     return static_cast<std::int64_t>(result);
 }
 
-sf::Color colorValue(RuntimeValueView value, const std::string& source) {
-    RuntimeArrayView channels = requireArray(value, source);
+sf::Color colorValue(const RuntimeData& value, const std::string& source) {
+    const RuntimeData::Array& channels = requireArray(value, source);
     if (channels.size() != 3 && channels.size() != 4) {
         configError(source, "Expected three or four colour channels");
     }
@@ -111,9 +112,9 @@ sf::Color colorValue(RuntimeValueView value, const std::string& source) {
             channels.size() == 4 ? channel(3) : std::uint8_t{255}};
 }
 
-StyleFlags styleFlags(RuntimeValueView value, const std::string& source,
+StyleFlags styleFlags(const RuntimeData& value, const std::string& source,
                       bool requireAll) {
-    RuntimeMapView flags = requireMap(value, source);
+    const RuntimeData::Map& flags = requireMap(value, source);
     onlyFields(flags, {"bold", "italic", "underlined", "strikeThrough"},
                source);
     StyleFlags result;
@@ -135,7 +136,7 @@ StyleFlags styleFlags(RuntimeValueView value, const std::string& source,
     return result;
 }
 
-std::uint32_t plainStyle(RuntimeValueView value, const std::string& source) {
+std::uint32_t plainStyle(const RuntimeData& value, const std::string& source) {
     const StyleFlags flags = styleFlags(value, source, true);
     std::uint32_t result = sf::Text::Regular;
     if (flags.bold) {
@@ -153,9 +154,9 @@ std::uint32_t plainStyle(RuntimeValueView value, const std::string& source) {
     return result;
 }
 
-TextOutlineConfig outlineValue(RuntimeValueView value,
+TextOutlineConfig outlineValue(const RuntimeData& value,
                                const std::string& source) {
-    RuntimeMapView map = requireMap(value, source);
+    const RuntimeData::Map& map = requireMap(value, source);
     onlyFields(map, {"color", "thickness"}, source);
     return {
         .color = colorValue(required(map, "color", source), source + ".color"),
@@ -165,8 +166,8 @@ TextOutlineConfig outlineValue(RuntimeValueView value,
     };
 }
 
-TextGlowConfig glowValue(RuntimeValueView value, const std::string& source) {
-    RuntimeMapView map = requireMap(value, source);
+TextGlowConfig glowValue(const RuntimeData& value, const std::string& source) {
+    const RuntimeData::Map& map = requireMap(value, source);
     onlyFields(map, {"enabled", "color", "radius", "intensity"}, source);
     return {
         .enabled =
@@ -180,9 +181,9 @@ TextGlowConfig glowValue(RuntimeValueView value, const std::string& source) {
     };
 }
 
-TextGradientConfig gradientValue(RuntimeValueView value,
+TextGradientConfig gradientValue(const RuntimeData& value,
                                  const std::string& source) {
-    RuntimeMapView map = requireMap(value, source);
+    const RuntimeData::Map& map = requireMap(value, source);
     onlyFields(map, {"enabled", "direction", "curve"}, source);
     TextGradientConfig result;
     result.enabled =
@@ -203,10 +204,10 @@ TextGradientConfig gradientValue(RuntimeValueView value,
     return result;
 }
 
-std::shared_ptr<TextStyle> richStyle(RuntimeValueView value,
+std::shared_ptr<TextStyle> richStyle(const RuntimeData& value,
                                      const std::string& source,
                                      bool requireAll) {
-    RuntimeMapView map = requireMap(value, source);
+    const RuntimeData::Map& map = requireMap(value, source);
     onlyFields(map,
                {"characterSize", "style", "fillColor", "letterSpacing",
                 "lineSpacing", "outline"},
@@ -219,13 +220,13 @@ std::shared_ptr<TextStyle> richStyle(RuntimeValueView value,
         configError(source, "Missing characterSize");
     }
     if (const auto style = findValue(map, "style")) {
-        RuntimeMapView flags = requireMap(*style, source + ".style");
+        const RuntimeData::Map& flags = requireMap(*style, source + ".style");
         onlyFields(flags, {"bold", "italic", "underlined", "strikeThrough"},
                    source + ".style");
         const auto assign = [&](const std::string& name,
                                 std::optional<bool>& target) {
             const auto setting = findValue(flags, name);
-            if (setting.has_value()) {
+            if (setting != nullptr) {
                 target = requireBool(*setting, source + ".style." + name);
             } else if (requireAll) {
                 configError(source + ".style", "Missing " + name);
@@ -256,7 +257,8 @@ std::shared_ptr<TextStyle> richStyle(RuntimeValueView value,
         configError(source, "Missing lineSpacing");
     }
     if (const auto outline = findValue(map, "outline")) {
-        RuntimeMapView outlineMap = requireMap(*outline, source + ".outline");
+        const RuntimeData::Map& outlineMap =
+            requireMap(*outline, source + ".outline");
         onlyFields(outlineMap, {"color", "thickness"}, source + ".outline");
         if (const auto color = findValue(outlineMap, "color")) {
             result->outlineColor =
@@ -293,14 +295,14 @@ std::filesystem::path safeRelativePath(const std::string& value) {
     return relative;
 }
 
-RuntimeValue loadConfigData(const std::string& textConfigKey) {
+RuntimeData loadConfigData(const std::string& textConfigKey) {
     std::filesystem::path relative = safeRelativePath(textConfigKey);
     if (relative.extension().empty()) {
         relative += ".json";
     }
     const std::filesystem::path path =
         std::filesystem::path(".") / "Data" / "TextConfigs" / relative;
-    RuntimeValue data(getJSONData(path));
+    RuntimeData data(getJSONData(path));
     requireMap(data, ludork::standard::pathToUtf8(path));
     return data;
 }
@@ -341,7 +343,7 @@ sf::Text::LineAlignment parseLineAlignment(const std::string& value,
     configError(source, "Invalid line alignment " + value);
 }
 
-std::shared_ptr<PlainTextConfig> buildPlain(RuntimeMapView data,
+std::shared_ptr<PlainTextConfig> buildPlain(const RuntimeData::Map& data,
                                             const std::string& sourceName) {
     onlyFields(data,
                {"type", "name", "font", "characterSize", "style", "slantAngle",
@@ -392,7 +394,7 @@ std::shared_ptr<PlainTextConfig> buildPlain(RuntimeMapView data,
 }
 
 std::shared_ptr<RichText::RichTextConfig> buildRich(
-    RuntimeMapView data, const std::string& sourceName) {
+    const RuntimeData::Map& data, const std::string& sourceName) {
     onlyFields(data,
                {"type", "name", "font", "lineAlignment", "defaultStyle",
                 "styleOrder", "styles", "glow", "gradient"},
@@ -417,10 +419,10 @@ std::shared_ptr<RichText::RichTextConfig> buildRich(
     result->defaultStyle = richStyle(required(data, "defaultStyle", sourceName),
                                      sourceName + ".defaultStyle", true);
 
-    RuntimeArrayView order = requireArray(
+    const RuntimeData::Array& order = requireArray(
         required(data, "styleOrder", sourceName), sourceName + ".styleOrder");
-    RuntimeMapView styles = requireMap(required(data, "styles", sourceName),
-                                       sourceName + ".styles");
+    const RuntimeData::Map& styles = requireMap(
+        required(data, "styles", sourceName), sourceName + ".styles");
     std::unordered_set<std::string> orderedStyles;
     result->styleOrder.reserve(order.size());
     for (std::size_t index = 0; index < order.size(); ++index) {
@@ -462,13 +464,13 @@ std::shared_ptr<RichText::RichTextConfig> buildRich(
 }
 
 std::shared_ptr<PlainTextConfig> loadPlain(const std::string& textConfigKey) {
-    const RuntimeValue data = loadConfigData(textConfigKey);
+    const RuntimeData data = loadConfigData(textConfigKey);
     return buildPlain(requireMap(data, textConfigKey), textConfigKey);
 }
 
 std::shared_ptr<RichText::RichTextConfig> loadRich(
     const std::string& textConfigKey) {
-    const RuntimeValue data = loadConfigData(textConfigKey);
+    const RuntimeData data = loadConfigData(textConfigKey);
     return buildRich(requireMap(data, textConfigKey), textConfigKey);
 }
 

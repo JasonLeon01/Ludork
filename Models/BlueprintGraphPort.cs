@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
@@ -10,6 +11,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
     private JsonNode? value;
     private int connectionCount;
     private bool isValueModified;
+    private string? valueDiagnostic;
 
     public BlueprintGraphPort(
         Guid id,
@@ -35,6 +37,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
         SupportsEditor = supportsEditor;
         this.value = value?.DeepClone();
         Meta = meta?.DeepClone() as JsonObject ?? [];
+        updateValueDiagnostic();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -52,10 +55,11 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
     public bool IsValueModified => isValueModified;
     public int ConnectionCount => connectionCount;
     public bool IsConnected => connectionCount > 0;
+    public string? ValueDiagnostic => valueDiagnostic;
     public bool IsEditorVisible => Direction == BlueprintGraphPortDirection.Input
         && Kind == BlueprintGraphPortKind.Params
         && SupportsEditor
-        && !IsConnected;
+        && (!IsConnected || ValueDiagnostic is not null);
     public JsonNode? Value
     {
         get => value;
@@ -65,9 +69,23 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
                 return;
             this.value = value?.DeepClone();
             isValueModified = true;
+            updateValueDiagnostic();
             notifyPropertyChanged();
             notifyPropertyChanged(nameof(IsValueModified));
+            notifyPropertyChanged(nameof(ValueDiagnostic));
+            notifyPropertyChanged(nameof(IsEditorVisible));
         }
+    }
+
+    private void updateValueDiagnostic()
+    {
+        valueDiagnostic = null;
+        if (Direction != BlueprintGraphPortDirection.Input || Kind != BlueprintGraphPortKind.Params)
+            return;
+        List<string> errors = [];
+        LuaMetadataLiteralValidation.ValidateNodeParameter(LuaMetadataType.Parse(TypeName), value, Name, errors);
+        if (errors.Count != 0)
+            valueDiagnostic = string.Join(Environment.NewLine, errors);
     }
 
     internal void AttachConnection()

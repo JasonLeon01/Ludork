@@ -78,7 +78,8 @@ public partial class MarkdownPreviewWindow : Window
         EditorInputs.ApplyEditable(SearchBox);
         SearchBox.PlaceholderText = LocaleService.Get("SEARCH");
         KeyDown += onKeyDown;
-        DocumentScrollViewer.SizeChanged += onDocumentViewportSizeChanged;
+        SizeChanged += onDocumentViewportSizeChanged;
+        DocumentScrollViewer.PropertyChanged += onDocumentViewportChanged;
     }
 
     public MarkdownPreviewWindow(string path, string title, string imageRoot) : this()
@@ -702,7 +703,18 @@ public partial class MarkdownPreviewWindow : Window
         };
     }
 
+    private void onDocumentViewportChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+    {
+        if (args.Property == ScrollViewer.ViewportProperty)
+            updateImageWidths();
+    }
+
     private void onDocumentViewportSizeChanged(object? sender, SizeChangedEventArgs args)
+    {
+        updateImageWidths();
+    }
+
+    private void updateImageWidths()
     {
         foreach (Image image in renderedImages)
             updateImageWidth(image);
@@ -711,8 +723,7 @@ public partial class MarkdownPreviewWindow : Window
     private void updateImageWidth(Image image)
     {
         double availableWidth = DocumentScrollViewer.Viewport.Width - DocumentPreview.Margin.Left - DocumentPreview.Margin.Right;
-        if (availableWidth > 0)
-            image.MaxWidth = availableWidth;
+        image.MaxWidth = Math.Max(0, Math.Min(ClientSize.Width * 0.6, availableWidth));
     }
 
     private void clearRenderedContent()

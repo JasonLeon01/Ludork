@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json.Nodes;
 
@@ -18,6 +19,7 @@ public sealed class LightInfoPanel : UserControl
     private readonly TextBox radiusEditor = createEditor();
     private readonly TextBox intensityEditor = createEditor();
     private readonly Border colorPreview = new() { Width = 28, Height = 28, BorderBrush = Brushes.DimGray, BorderThickness = new Thickness(1) };
+    private readonly Dictionary<TextBox, string> displayedValues = [];
     private bool isLoading;
     private JsonObject? lightData;
 
@@ -71,6 +73,12 @@ public sealed class LightInfoPanel : UserControl
         setEditors(colorEditors, nextLight["color"] as JsonArray, 4);
         radiusEditor.Text = formatNumber(getNumber(nextLight["radius"]));
         intensityEditor.Text = formatNumber(getNumber(nextLight["intensity"]));
+        foreach (TextBox editor in positionEditors)
+            displayedValues[editor] = editor.Text ?? string.Empty;
+        foreach (TextBox editor in colorEditors)
+            displayedValues[editor] = editor.Text ?? string.Empty;
+        displayedValues[radiusEditor] = radiusEditor.Text ?? string.Empty;
+        displayedValues[intensityEditor] = intensityEditor.Text ?? string.Empty;
         colorPreview.Background = new SolidColorBrush(Color.FromArgb(
             (byte)Math.Clamp((int)getNumber(nextLight["color"] is JsonArray color && color.Count > 3 ? color[3] : null, 255), 0, 255),
             (byte)Math.Clamp((int)getNumber(nextLight["color"] is JsonArray red && red.Count > 0 ? red[0] : null, 255), 0, 255),
@@ -81,18 +89,35 @@ public sealed class LightInfoPanel : UserControl
 
     private void onEditorFinished(object? sender, EventArgs args)
     {
-        if (isLoading || lightData is null)
+        if (isLoading || lightData is null || sender is not TextBox editor
+            || string.Equals(editor.Text ?? string.Empty, displayedValues.GetValueOrDefault(editor), StringComparison.Ordinal)
+            || !double.TryParse(editor.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+            || !double.IsFinite(value))
             return;
-        JsonObject next = new()
+        JsonObject next = (JsonObject)lightData.DeepClone();
+        int index = Array.IndexOf(positionEditors, editor);
+        string property = "position";
+        if (index < 0)
         {
-            ["position"] = new JsonArray(parseNumber(positionEditors[0].Text), parseNumber(positionEditors[1].Text)),
-            ["color"] = new JsonArray(parseNumber(colorEditors[0].Text), parseNumber(colorEditors[1].Text), parseNumber(colorEditors[2].Text), parseNumber(colorEditors[3].Text)),
-            ["radius"] = parseNumber(radiusEditor.Text),
-            ["intensity"] = parseNumber(intensityEditor.Text),
-        };
+            index = Array.IndexOf(colorEditors, editor);
+            property = "color";
+        }
+        if (index >= 0)
+        {
+            JsonArray values = next[property] as JsonArray ?? new JsonArray();
+            while (values.Count <= index)
+                values.Add(0);
+            values[index] = value;
+            next[property] = values;
+        }
+        else
+            next[ReferenceEquals(editor, radiusEditor) ? "radius" : "intensity"] = value;
         if (JsonNode.DeepEquals(lightData, next))
+        {
+            displayedValues[editor] = editor.Text ?? string.Empty;
             return;
-        lightData = next;
+        }
+        updateLight(next);
         LightEdited?.Invoke(this, new LightInfoEditedEventArgs(next));
     }
 
@@ -155,11 +180,6 @@ public sealed class LightInfoPanel : UserControl
             editors[index].Text = formatNumber(getNumber(values is not null && index < values.Count ? values[index] : null));
     }
 
-    private static double parseNumber(string? text)
-    {
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) ? value : 0;
-    }
-
     private static double getNumber(JsonNode? value, double fallback = 0)
     {
         return double.TryParse(value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double number) ? number : fallback;
@@ -167,6 +187,6 @@ public sealed class LightInfoPanel : UserControl
 
     private static string formatNumber(double value)
     {
-        return value % 1 == 0 ? ((int)value).ToString(CultureInfo.InvariantCulture) : value.ToString(CultureInfo.InvariantCulture);
+        return value.ToString(CultureInfo.InvariantCulture);
     }
 }

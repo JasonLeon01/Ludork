@@ -37,18 +37,17 @@ end
 
 function Ui.Define(assetKey, definition, baseClass)
     local updateEvent = Ui.GetEventName(assetKey)
-    local channel = getChannel(updateEvent)
-    local function unregister(instance)
-        channel.instances[instance] = nil
-    end
     definition.assetKey = assetKey
     definition.viewUpdateEvent = updateEvent
     definition.Publish = function (payload)
         Engine.publish(updateEvent, payload)
     end
     definition._registerUiInstance = function (instance)
+        local channel = getChannel(updateEvent)
         channel.instances[instance] = true
-        instance:_setViewUpdateUnregister(unregister)
+        instance:_setViewUpdateUnregister(function (registeredInstance)
+            channel.instances[registeredInstance] = nil
+        end)
     end
     return class(definition, baseClass or UiController)
 end

@@ -37,7 +37,7 @@ public sealed class BlueprintGraphNode : INotifyPropertyChanged
         IsResolved = isResolved;
         IsVirtual = isVirtual;
         ExternalKey = externalKey;
-        RawData = BlueprintGraphRawData.CloneWithout(rawData, "nodeFunction", "params", "pos");
+        RawData = (JsonObject)rawData.DeepClone();
         Parameters = (JsonArray)parameters.DeepClone();
         Description = description ?? string.Empty;
     }

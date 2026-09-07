@@ -281,13 +281,7 @@ public sealed partial class MapPanel : Control
     {
         if (selectedLightIndex is not int index || CurrentMapData?["lights"] is not JsonArray lights || index < 0 || index >= lights.Count || lights[index] is not JsonObject light)
             return;
-        JsonObject next = new()
-        {
-            ["position"] = lightData["position"]?.DeepClone(),
-            ["color"] = lightData["color"]?.DeepClone(),
-            ["radius"] = lightData["radius"]?.DeepClone(),
-            ["intensity"] = lightData["intensity"]?.DeepClone(),
-        };
+        JsonObject next = (JsonObject)lightData.DeepClone();
         if (JsonNode.DeepEquals(light, next))
             return;
         recordMapEditSnapshot();

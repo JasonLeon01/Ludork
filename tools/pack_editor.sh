@@ -588,6 +588,22 @@ validate_package() {
         echo "UiPreviewHost native runtime was not found." >&2
         exit 1
     fi
+    for preview_runtime_pattern in \
+        '*LudorkRuntime*.dylib' '*LudorkStandard*.dylib' \
+        '*sfml-system*.dylib*' '*sfml-window*.dylib*' '*sfml-graphics*.dylib*'; do
+        preview_runtime=$(find \
+            "$package_resources/tools/UiPreviewHost" \
+            -maxdepth 1 -type f -name "$preview_runtime_pattern" -print -quit)
+        if [ -z "$preview_runtime" ]; then
+            echo "UI preview package dependency was not found: $preview_runtime_pattern" >&2
+            exit 1
+        fi
+    done
+    for preview_obsolete_pattern in \
+        'LuaSF.*' 'liblua.*' '*sfml-audio*' '*sfml-network*'; do
+        validate_absent_pattern \
+            "$package_resources/tools/UiPreviewHost" "$preview_obsolete_pattern"
+    done
     validate_ui_preview_host_ownership "$package_app"
     require_package_file "$package_resources/LICENSE.md"
     require_package_file "$package_resources/README.md"
@@ -1129,7 +1145,7 @@ cp "$LUAC" "$RESOURCES_DIR/tools/luac"
 preview_source="$PROJECT_ROOT/.tools/UiPreviewHost/bin/Release"
 preview_target="$RESOURCES_DIR/tools/UiPreviewHost"
 mkdir -p "$preview_target"
-preview_patterns='UiPreviewHost UiPreviewHostRuntime.* *LudorkStandard* LuaSF.* liblua.* *sfml-system*.dylib* *sfml-window*.dylib* *sfml-graphics*.dylib* *sfml-audio*.dylib* *sfml-network*.dylib*'
+preview_patterns='UiPreviewHost UiPreviewHostRuntime.* *LudorkRuntime*.dylib *LudorkStandard*.dylib *sfml-system*.dylib* *sfml-window*.dylib* *sfml-graphics*.dylib*'
 for preview_pattern in $preview_patterns; do
     preview_found=0
     for source_path in "$preview_source"/$preview_pattern; do

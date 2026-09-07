@@ -18,6 +18,7 @@ public sealed class LuaMetadataService
     private readonly Dictionary<NodeMemberCacheKey, IReadOnlyList<LuaNodeMemberMetadata>> nodeMemberCache = [];
     private readonly Dictionary<LuaNodeMemberKind, IReadOnlyList<LuaNodeMemberMetadata>> enumeratedNodeMemberCache = [];
     private CachedMetadataFileSet? metadataFileSet;
+    private LuaStubTypeHierarchy? stubTypeHierarchy;
     private IReadOnlyList<LuaNodeMemberMetadata>? enumeratedNodeMembers;
     private IReadOnlyList<LuaTypeMetadata>? enumeratedTypes;
     private Dictionary<string, FileStamp>? readDependencyStamps;
@@ -132,6 +133,40 @@ public sealed class LuaMetadataService
             return;
         readDependencyStamps = new Dictionary<string, FileStamp>(StringComparer.OrdinalIgnoreCase);
         readDependenciesConsistent = true;
+    }
+
+    public bool IsTypeAssignable(string source, string target)
+    {
+        LuaMetadataType sourceType = LuaMetadataType.Parse(source);
+        LuaMetadataType targetType = LuaMetadataType.Parse(target);
+        if (sourceType.IsAssignableTo(targetType))
+            return true;
+        using IDisposable read = BeginRead();
+        return sourceType.IsAssignableTo(targetType, isDerivedType);
+    }
+
+    private bool isDerivedType(string source, string target)
+    {
+        stubTypeHierarchy ??= new LuaStubTypeHierarchy(Path.Combine(scriptsPath, "stub"));
+        Stack<string> pending = new();
+        HashSet<string> visited = new(StringComparer.Ordinal);
+        pending.Push(source);
+        while (pending.TryPop(out string? current))
+        {
+            if (string.Equals(current, target, StringComparison.Ordinal))
+                return true;
+            if (!visited.Add(current))
+                continue;
+            LuaTypeMetadata? metadata = GetType(current);
+            if (metadata is not null)
+            {
+                foreach (LuaTypeReference parent in metadata.Bases)
+                    pending.Push(parent.WithDefaultModule(metadata.Type.ModuleName).QualifiedName);
+            }
+            foreach (string parent in stubTypeHierarchy.GetBases(current))
+                pending.Push(parent);
+        }
+        return false;
     }
 
     public LuaTypeMetadata? GetType(string qualifiedTypeName)
@@ -323,6 +358,11 @@ public sealed class LuaMetadataService
     {
         if (readScopeDepth != 0)
             return;
+        if (stubTypeHierarchy is not null && !stubTypeHierarchy.IsCurrent())
+        {
+            invalidateCaches();
+            return;
+        }
         foreach (KeyValuePair<string, CachedMetadataFile> entry in fileCache)
         {
             if (entry.Value.Stamp != getFileStamp(entry.Key))
@@ -358,6 +398,7 @@ public sealed class LuaMetadataService
         nodeMemberCache.Clear();
         enumeratedNodeMemberCache.Clear();
         metadataFileSet = null;
+        stubTypeHierarchy = null;
         enumeratedNodeMembers = null;
         enumeratedTypes = null;
         revision++;
@@ -625,7 +666,7 @@ public sealed class LuaMetadataService
             DynValue defaultValue = fieldTable.Get("default");
             bool hasDefaultValue = defaultValue.Type is not DataType.Nil and not DataType.Void;
             JsonNode? defaultNode = hasDefaultValue
-                ? toJsonNode(defaultValue, LuaMetadataType.Parse(fieldType.QualifiedName))
+                ? toJsonNode(defaultValue, fieldType.Schema)
                 : null;
             bool component = fieldTable.Get("component").CastToBool();
             JsonObject meta = toJsonObject(fieldTable.Get("Meta"));
@@ -687,6 +728,7 @@ public sealed class LuaMetadataService
         DynValue parametersValue = table.Get("parameters");
         IReadOnlyList<string> parameterNames = readStringArray(parametersValue);
         DynValue defaultsValue = table.Get("default");
+        IReadOnlyList<string> unsetDefaults = readStringArray(table.Get("defaultUnset"));
         for (int index = 0; index < parameterNames.Count; index++)
         {
             string parameterName = parameterNames[index];
@@ -697,15 +739,16 @@ public sealed class LuaMetadataService
             DynValue defaultValue = defaultsValue.Type == DataType.Table
                 ? defaultsValue.Table.Get(index + 1)
                 : DynValue.Nil;
-            bool hasDefaultValue = defaultValue.Type is not DataType.Nil and not DataType.Void;
+            bool hasLiteralDefault = defaultValue.Type is not DataType.Nil and not DataType.Void;
+            bool hasDefaultValue = hasLiteralDefault || unsetDefaults.Contains(parameterName, StringComparer.Ordinal);
             parameters.Add(new LuaNodeParameterMetadata(
                 parameterName,
                 parameterType,
                 hasDefaultValue,
-                hasDefaultValue
+                hasLiteralDefault
                     ? toJsonNode(
                         defaultValue,
-                        LuaMetadataType.Parse(parameterType.QualifiedName))
+                        parameterType.Schema)
                     : null
             ));
         }
@@ -747,8 +790,9 @@ public sealed class LuaMetadataService
         {
             if (!names.Add(name))
                 continue;
-            LuaTypeReference type = readFieldType(value.Table.Get(name))
-                ?? new LuaTypeReference(null, "any");
+            DynValue declared = value.Table.Get(name);
+            LuaTypeReference type = readFieldType(declared)
+                ?? new LuaTypeReference(null, declared.Type is DataType.Nil or DataType.Void ? "nil" : "any");
             returns.Add(new LuaNodeReturnMetadata(name, type));
         }
         return returns;
@@ -757,8 +801,10 @@ public sealed class LuaMetadataService
     private static LuaTypeReference? readFieldType(DynValue value)
     {
         if (value.Type == DataType.String && !string.IsNullOrWhiteSpace(value.String))
-            return new LuaTypeReference(null, value.String);
-        return value.Type == DataType.Table ? readExplicitTypeReference(value.Table) : null;
+            return LuaTypeReference.FromSchema(LuaMetadataType.Parse(value.String));
+        return value.Type == DataType.Table
+            ? LuaTypeReference.FromSchema(LuaMetadataType.Parse(toJsonNode(value)))
+            : null;
     }
 
     private static IReadOnlyList<LuaTypeReference> readBases(DynValue value, string moduleName)
@@ -836,6 +882,20 @@ public sealed class LuaMetadataService
         DynValue value,
         LuaMetadataType? declaredType = null)
     {
+        if (declaredType?.Kind == LuaMetadataTypeKind.Union)
+        {
+            if (value.Type != DataType.Table)
+                throw new InvalidDataException("Union metadata defaults require $type and $value.");
+            JsonNode? branchSchema = toJsonNode(value.Table.Get("$type"));
+            LuaMetadataType selected = LuaMetadataType.Parse(branchSchema);
+            if (!declaredType.Arguments.Any(branch => JsonNode.DeepEquals(branch.ToSchema(), selected.ToSchema())))
+                throw new InvalidDataException("Union metadata default selects an undeclared branch.");
+            return new JsonObject
+            {
+                ["$type"] = selected.ToSchema(),
+                ["$value"] = toJsonNode(value.Table.Get("$value"), selected),
+            };
+        }
         return value.Type switch
         {
             DataType.Nil or DataType.Void => null,

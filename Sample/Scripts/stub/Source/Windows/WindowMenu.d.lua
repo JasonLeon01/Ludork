@@ -47,7 +47,7 @@ function WindowMenu:refreshRows() end
 ---
 --- - @param kwargs Event data.
 ---@brief Handle right-click cancel to close the menu.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 ---@return boolean
 function WindowMenu:onMouseButtonDown(kwargs) end
 

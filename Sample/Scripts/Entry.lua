@@ -12,16 +12,20 @@ local APP_NAME = "LudorkSample"
 
 -- Entry point.
 local function entry()
+    local Data = require("Source.Data")
     local SceneInit = require("Source.Scenes.SceneInit")
     local SourceSystem = require("Source.System")
 
     Engine.setAppName(APP_NAME)
     Logging.info("Starting %s", APP_NAME)
+    Locale.Init()
     local iniFilePath, iniFile = MainConfig.LoadOrCreate()
     Locale.SetLanguage(Locale.ResolveLanguage(iniFile:get("Main", "language", "")))
     NodeGraphFunctions.initLatent()
     GlobalSystem.init(iniFile, iniFilePath)
     Locale.SetLanguage(Locale.ResolveLanguage(GlobalSystem.getLanguage()))
+    Data.InitializeRuntime()
+    SourceSystem.InstallRuntimeProviders()
     GlobalSystem.setScene(SceneInit.new())
     SourceSystem.Init()
     GlobalSystem.run()

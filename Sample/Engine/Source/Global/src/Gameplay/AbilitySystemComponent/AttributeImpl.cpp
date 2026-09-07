@@ -7,6 +7,31 @@
 namespace ludork::global::ability_system_impl {
 
 namespace {
+RuntimeValue attributeChangeValue(
+    const AbilitySystemImpl::AttributeChange& change) {
+    std::string source;
+    switch (change.source) {
+        case AbilitySystemImpl::AttributeChangeSource::Base:
+            source = "Base";
+            break;
+        case AbilitySystemImpl::AttributeChangeSource::Effect:
+            source = "Effect";
+            break;
+        case AbilitySystemImpl::AttributeChangeSource::Constraint:
+            source = "Constraint";
+            break;
+    }
+    RuntimeValue::Map value{{"source", RuntimeValue(std::move(source))},
+                            {"force", RuntimeValue(change.force)}};
+    if (change.oldBase.has_value()) {
+        value.emplace("oldBase", runtimeNumber(*change.oldBase));
+    }
+    if (change.newBase.has_value()) {
+        value.emplace("newBase", runtimeNumber(*change.newBase));
+    }
+    return RuntimeValue(std::move(value));
+}
+
 void accumulateModifiers(AbilitySystemImpl::ModifierAggregate& aggregate,
                          const std::string& attribute,
                          const std::shared_ptr<GameplayEffectSpec>& spec,
@@ -31,9 +56,9 @@ void accumulateModifiers(AbilitySystemImpl::ModifierAggregate& aggregate,
                 "Unsupported Gameplay Effect modifier operation: " +
                 modifier.operation);
         }
-        if (!modifier.minimum.isNil()) {
+        if (modifier.minimum.has_value()) {
             const NumericValue minimum = unrestrictedNumeric(
-                modifier.minimum, "Gameplay Effect modifier minimum");
+                *modifier.minimum, "Gameplay Effect modifier minimum");
             if (!aggregate.minimum.has_value() ||
                 minimum.value > aggregate.minimum->value) {
                 aggregate.minimum = minimum;
@@ -51,13 +76,14 @@ void initialize(AbilitySystemImpl& state,
         throw std::invalid_argument("Ability System requires an AttributeSet");
     }
     for (const std::string& name : state.attributeSet->getAttributeNames()) {
-        const std::string type = state.attributeSet->getAttributeType(name);
-        if (type != "int" && type != "float") {
+        const std::optional<AttributeSet::NumericType> type =
+            state.attributeSet->getNumericAttributeType(name);
+        if (!type.has_value()) {
             continue;
         }
         RuntimeValue value = state.attributeSet->getAttributeValue(name);
         static_cast<void>(
-            numericValue(value, type, "Numeric attribute default", name));
+            numericValue(value, *type, "Numeric attribute default", name));
         state.numericAttributes.push_back(name);
         state.baseValues.emplace(name, attributeNumber(value));
     }
@@ -72,10 +98,10 @@ void requireNumericAttribute(const AbilitySystemImpl& state,
 
 NumericValue resolveAttribute(
     const AbilitySystemImpl& state, const std::string& name,
-    const AttributeNumbers& bases,
+    const GameplayNumbers& bases,
     const std::shared_ptr<GameplayEffectSpec>& pendingSpec,
     std::optional<int> replacedHandle, std::optional<int> replacementStacks,
-    const AttributeNumbers& resolvedValues) {
+    const GameplayNumbers& resolvedValues) {
     AbilitySystemImpl::ModifierAggregate aggregate;
     for (const int handle : state.activeEffectOrder) {
         const std::shared_ptr<ActiveGameplayEffect> active =
@@ -111,30 +137,24 @@ NumericValue resolveAttribute(
         current = *aggregate.minimum;
     }
 
-    const auto constraint = state.constraints.find(name);
-    if (constraint != state.constraints.end()) {
-        const std::vector<RuntimeValue> results = invokeCallable(
-            constraint->second, {runtimeNumber(current), state.selfValue(),
-                                 RuntimeValue(runtimeNumbers(resolvedValues))});
-        if (results.size() != 1) {
-            throw std::invalid_argument(
-                "Numeric attribute constraint must return one value");
-        }
-        current = validateNumeric(state, name, results.front(),
+    const std::optional<GameplayNumber> constrained =
+        state.constrain(name, resolvedNumber(current), resolvedValues);
+    if (constrained.has_value()) {
+        current = validateNumeric(state, name, *constrained,
                                   "Numeric attribute current value");
     } else {
-        current = validateNumeric(state, name, runtimeNumber(current),
+        current = validateNumeric(state, name, resolvedNumber(current),
                                   "Numeric attribute current value");
     }
     return current;
 }
 
-AttributeNumbers preview(const AbilitySystemImpl& state,
-                         const AttributeNumbers& bases,
-                         const std::shared_ptr<GameplayEffectSpec>& pendingSpec,
-                         std::optional<int> replacedHandle,
-                         std::optional<int> replacementStacks) {
-    AttributeNumbers values;
+GameplayNumbers preview(const AbilitySystemImpl& state,
+                        const GameplayNumbers& bases,
+                        const std::shared_ptr<GameplayEffectSpec>& pendingSpec,
+                        std::optional<int> replacedHandle,
+                        std::optional<int> replacementStacks) {
+    GameplayNumbers values;
     for (const std::string& name : state.numericAttributes) {
         if (name != "HP") {
             values.emplace(name,
@@ -153,12 +173,9 @@ AttributeNumbers preview(const AbilitySystemImpl& state,
 
 void notify(const AbilitySystemImpl& state, const std::string& name,
             const RuntimeValue& oldValue, const RuntimeValue& newValue,
-            const RuntimeValue::Map& change) {
-    const bool force = change.contains("force") &&
-                       change.at("force").getIf<bool>() != nullptr &&
-                       *change.at("force").getIf<bool>();
+            const AbilitySystemImpl::AttributeChange& change) {
     if (state.suppressAttributeListeners ||
-        (runtimeEqual(oldValue, newValue) && !force)) {
+        (runtimeEqual(oldValue, newValue) && !change.force)) {
         return;
     }
     const auto entries = state.listeners.find(name);
@@ -166,7 +183,8 @@ void notify(const AbilitySystemImpl& state, const std::string& name,
         return;
     }
     for (const AbilitySystemImpl::Listener& listener : entries->second) {
-        RuntimeValue::Array arguments{oldValue, newValue, RuntimeValue(change)};
+        RuntimeValue::Array arguments{oldValue, newValue,
+                                      attributeChangeValue(change)};
         arguments.insert(arguments.end(), listener.params.begin(),
                          listener.params.end());
         static_cast<void>(
@@ -174,11 +192,10 @@ void notify(const AbilitySystemImpl& state, const std::string& name,
     }
 }
 
-bool applyCurrentValues(AbilitySystemImpl& state,
-                        const AttributeNumbers& values,
-                        const std::string& source,
-                        const AttributeNumbers* oldBases,
-                        const AttributeNumbers* newBases,
+bool applyCurrentValues(AbilitySystemImpl& state, const GameplayNumbers& values,
+                        AbilitySystemImpl::AttributeChangeSource source,
+                        const GameplayNumbers* oldBases,
+                        const GameplayNumbers* newBases,
                         const RuntimeValue::Map* oldValueOverrides) {
     RuntimeValue::Map oldValues;
     for (const std::string& name : state.numericAttributes) {
@@ -218,30 +235,26 @@ bool applyCurrentValues(AbilitySystemImpl& state,
 
     bool changed = false;
     for (const std::string& name : state.numericAttributes) {
-        RuntimeValue::Map change{{"source", RuntimeValue(source)},
-                                 {"force", RuntimeValue(false)}};
-        if (source == "Base") {
-            const RuntimeValue oldBase = runtimeNumber(oldBases->at(name));
-            const RuntimeValue newBase = runtimeNumber(newBases->at(name));
-            const bool force = !runtimeEqual(oldBase, newBase);
-            change["force"] = RuntimeValue(force);
-            change["oldBase"] = oldBase;
-            change["newBase"] = newBase;
+        AbilitySystemImpl::AttributeChange change{source};
+        if (source == AbilitySystemImpl::AttributeChangeSource::Base) {
+            change.oldBase = oldBases->at(name);
+            change.newBase = newBases->at(name);
+            change.force = !runtimeEqual(*change.oldBase, *change.newBase);
         }
         const RuntimeValue current =
             state.attributeSet->getAttributeValue(name);
-        const bool fieldChanged = !runtimeEqual(oldValues.at(name), current) ||
-                                  *change.at("force").getIf<bool>();
+        const bool fieldChanged =
+            !runtimeEqual(oldValues.at(name), current) || change.force;
         changed = changed || fieldChanged;
         notify(state, name, oldValues.at(name), current, change);
     }
     return changed;
 }
 
-void commitBases(AbilitySystemImpl& state, const AttributeNumbers& bases,
+void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
                  const RuntimeValue::Map* oldValueOverrides) {
-    const AttributeNumbers oldBases = state.baseValues;
-    const AttributeNumbers currentValues = preview(state, bases);
+    const GameplayNumbers oldBases = state.baseValues;
+    const GameplayNumbers currentValues = preview(state, bases);
     bool baseChanged = false;
     for (const std::string& name : state.numericAttributes) {
         if (!runtimeEqual(oldBases.at(name), bases.at(name))) {
@@ -250,9 +263,9 @@ void commitBases(AbilitySystemImpl& state, const AttributeNumbers& bases,
         }
     }
     state.baseValues = bases;
-    const bool currentChanged =
-        applyCurrentValues(state, currentValues, "Base", &oldBases,
-                           &state.baseValues, oldValueOverrides);
+    const bool currentChanged = applyCurrentValues(
+        state, currentValues, AbilitySystemImpl::AttributeChangeSource::Base,
+        &oldBases, &state.baseValues, oldValueOverrides);
     if (baseChanged || currentChanged) {
         ++state.revision;
     }
@@ -262,42 +275,42 @@ std::shared_ptr<AttributeSet> getAttributeSet(const AbilitySystemImpl& state) {
     return state.attributeSet;
 }
 
-RuntimeValue getNumericAttribute(const AbilitySystemImpl& state,
-                                 const std::string& name) {
+GameplayNumber getNumericAttribute(const AbilitySystemImpl& state,
+                                   const std::string& name) {
     requireNumericAttribute(state, name);
-    return state.attributeSet->getAttributeValue(name);
+    return attributeNumber(state.attributeSet->getAttributeValue(name));
 }
 
-RuntimeValue getNumericAttributeBase(const AbilitySystemImpl& state,
-                                     const std::string& name) {
+GameplayNumber getNumericAttributeBase(const AbilitySystemImpl& state,
+                                       const std::string& name) {
     requireNumericAttribute(state, name);
-    return runtimeNumber(state.baseValues.at(name));
+    return state.baseValues.at(name);
 }
 
 void setNumericAttributeBase(AbilitySystemImpl& state, const std::string& name,
-                             const RuntimeValue& value) {
+                             const GameplayNumber& value) {
     requireNumericAttribute(state, name);
     static_cast<void>(
         validateNumeric(state, name, value, "Numeric attribute base"));
-    AttributeNumbers bases = state.baseValues;
-    bases[name] = attributeNumber(value);
+    GameplayNumbers bases = state.baseValues;
+    bases[name] = value;
     commitBases(state, bases);
 }
 
 void setNumericAttributeBases(AbilitySystemImpl& state,
-                              const RuntimeValue::Map& values) {
-    AttributeNumbers bases = state.baseValues;
+                              const GameplayNumbers& values) {
+    GameplayNumbers bases = state.baseValues;
     for (const auto& [name, value] : values) {
         requireNumericAttribute(state, name);
         static_cast<void>(
             validateNumeric(state, name, value, "Numeric attribute base"));
-        bases[name] = attributeNumber(value);
+        bases[name] = value;
     }
     commitBases(state, bases);
 }
 
-RuntimeValue::Map getNumericAttributeBases(const AbilitySystemImpl& state) {
-    return runtimeNumbers(state.baseValues);
+GameplayNumbers getNumericAttributeBases(const AbilitySystemImpl& state) {
+    return state.baseValues;
 }
 
 void addAttributeChangeListener(AbilitySystemImpl& state,
@@ -313,17 +326,11 @@ void addAttributeChangeListener(AbilitySystemImpl& state,
         {RuntimeHandle(std::move(callback)), std::move(params)});
 }
 
-void setNumericAttributeConstraint(AbilitySystemImpl& state,
-                                   const std::string& name,
-                                   RuntimeIdentityPtr callback) {
-    requireNumericAttribute(state, name);
-    if (callback == nullptr) {
-        state.constraints.erase(name);
-    } else {
-        state.constraints[name] = RuntimeHandle(std::move(callback));
-    }
-    const AttributeNumbers current = preview(state, state.baseValues);
-    if (applyCurrentValues(state, current, "Constraint")) {
+void refreshConstraints(AbilitySystemImpl& state) {
+    const GameplayNumbers current = preview(state, state.baseValues);
+    if (applyCurrentValues(
+            state, current,
+            AbilitySystemImpl::AttributeChangeSource::Constraint)) {
         ++state.revision;
     }
 }
@@ -341,7 +348,7 @@ void onAttributeWrite(AbilitySystemImpl& state, const std::string& name,
     requireNumericAttribute(state, name);
     static_cast<void>(
         validateNumeric(state, name, newValue, "Numeric attribute assignment"));
-    AttributeNumbers bases = state.baseValues;
+    GameplayNumbers bases = state.baseValues;
     bases[name] = attributeNumber(newValue);
     const RuntimeValue::Map overrides{{name, oldValue}};
     commitBases(state, bases, &overrides);

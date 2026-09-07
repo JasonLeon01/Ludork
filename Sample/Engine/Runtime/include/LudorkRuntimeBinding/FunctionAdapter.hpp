@@ -12,11 +12,16 @@
 
 namespace ludork::runtime::binding {
 
+template <typename Return, bool Exact, typename... Arguments>
+Return callPushedLuaFunctionWithPolicy(lua_State* state,
+                                       Arguments&&... arguments);
+
 template <typename Signature>
 struct LuaFunctionAdapter;
 
 template <typename Return, typename... Arguments>
 struct LuaFunctionAdapter<Return(Arguments...)> {
+    template <bool Exact = false>
     static std::function<Return(Arguments...)> read(const sol::object& value) {
         if (isNil(value)) {
             return {};
@@ -36,10 +41,12 @@ struct LuaFunctionAdapter<Return(Arguments...)> {
                 throw std::runtime_error("Lua callback is no longer available");
             }
             if constexpr (std::is_void_v<Return>) {
-                callPushedLuaFunction<void>(state, arguments...);
+                callPushedLuaFunctionWithPolicy<void, Exact>(state,
+                                                             arguments...);
                 return;
             } else {
-                return callPushedLuaFunction<Return>(state, arguments...);
+                return callPushedLuaFunctionWithPolicy<Return, Exact>(
+                    state, arguments...);
             }
         };
     }
@@ -103,10 +110,10 @@ template <typename T>
 sol::object writeLuaCallbackArgument(sol::state_view lua, T&& value) {
     using Value = LuaValueType<T>;
     constexpr bool converted =
-        IsDynamicValue<Value> || IsTableValue<Value> ||
-        IsOpaqueIdentityPointer<Value>::value || IsStdFunction<Value> ||
-        IsVector<Value>::value || IsArray<Value>::value ||
-        IsPair<Value>::value || IsMap<Value>::value ||
+        IsDynamicValue<Value> || IsPureDataValue<Value> ||
+        IsTableValue<Value> || IsOpaqueIdentityPointer<Value>::value ||
+        IsStdFunction<Value> || IsVector<Value>::value ||
+        IsArray<Value>::value || IsPair<Value>::value || IsMap<Value>::value ||
         IsOptional<Value>::value || IsVariant<Value>::value ||
         IsSharedPointer<Value>::value || std::is_pointer_v<Value> ||
         std::is_same_v<Value, std::string> ||
@@ -131,20 +138,30 @@ sol::object writeLuaCallbackArgument(sol::state_view lua, T&& value) {
     }
 }
 
-template <typename Return, typename... Arguments>
-Return callPushedLuaFunction(lua_State* state, Arguments&&... arguments) {
+template <typename Return, bool Exact, typename... Arguments>
+Return callPushedLuaFunctionWithPolicy(lua_State* state,
+                                       Arguments&&... arguments) {
     const int stackBase = lua_gettop(state) - 1;
     try {
         sol::state_view lua(state);
         (writeLuaCallbackArgument(lua, std::forward<Arguments>(arguments))
              .push(),
          ...);
-        constexpr int resultCount = std::is_void_v<Return> ? 0 : 1;
+        constexpr int resultCount =
+            Exact ? LUA_MULTRET : (std::is_void_v<Return> ? 0 : 1);
         if (ludork::standard::protectedLuaCall(state, sizeof...(Arguments),
                                                resultCount) != LUA_OK) {
             const std::string message =
                 ludork::standard::luaErrorMessage(state, -1);
             throw std::runtime_error(message);
+        }
+        if constexpr (Exact) {
+            constexpr int expected = std::is_void_v<Return> ? 0 : 1;
+            if (lua_gettop(state) - stackBase != expected) {
+                throw std::invalid_argument(
+                    "Lua callback must return exactly " +
+                    std::to_string(expected) + " value(s)");
+            }
         }
         if constexpr (std::is_void_v<Return>) {
             lua_settop(state, stackBase);
@@ -160,6 +177,52 @@ Return callPushedLuaFunction(lua_State* state, Arguments&&... arguments) {
         lua_settop(state, stackBase);
         throw;
     }
+}
+
+template <typename Return, typename... Arguments>
+Return callPushedLuaFunction(lua_State* state, Arguments&&... arguments) {
+    return callPushedLuaFunctionWithPolicy<Return, false>(
+        state, std::forward<Arguments>(arguments)...);
+}
+
+template <typename Signature>
+ludork::runtime::StrictFunction<Signature> strictFunctionFromLua(
+    const sol::object& value) {
+    if (isNil(value)) {
+        return {};
+    }
+    using Function = ludork::runtime::StrictFunction<Signature>;
+    struct Reference final : Function::Reference {
+        ludork::standard::LuaRegistryReference value;
+        explicit Reference(ludork::standard::LuaRegistryReference reference)
+            : value(std::move(reference)) {}
+        bool push(lua_State* state) const override {
+            return value.state() == state && value.pushUnderExecutionScope();
+        }
+    };
+    return Function(
+        LuaFunctionAdapter<Signature>::template read<true>(value),
+        std::make_shared<Reference>(makeLuaRegistryReference(value)));
+}
+
+template <typename Signature>
+sol::object strictFunctionToLua(
+    sol::state_view lua,
+    const ludork::runtime::StrictFunction<Signature>& value) {
+    if (!value) {
+        return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+    }
+    if (!value.reference()) {
+        return functionToLua(lua, value.function());
+    }
+    ludork::standard::LuaExecutionScope execution(lua.lua_state());
+    if (!execution.active() || !value.reference()->push(lua.lua_state())) {
+        throw std::runtime_error(
+            "Lua callback belongs to an unavailable session");
+    }
+    sol::object result = sol::stack::get<sol::object>(lua.lua_state(), -1);
+    lua_pop(lua.lua_state(), 1);
+    return result;
 }
 
 }  // namespace ludork::runtime::binding

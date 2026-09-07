@@ -135,13 +135,15 @@ public sealed class AnimationEditor : UserControl
         root.Children.Add(leftScroll);
 
         left.Children.Add(new TextBlock { Text = LocaleService.Get("ANIMATION_NAME") });
-        nameBox.TextChanged += (_, _) =>
+        nameBox.PropertyChanged += (_, args) =>
         {
-            if (!loadingInspector)
-            {
-                data["name"] = nameBox.Text ?? string.Empty;
-                commit();
-            }
+            if (args.Property != TextBox.TextProperty || loadingInspector)
+                return;
+            string value = nameBox.Text ?? string.Empty;
+            if (string.Equals(data["name"]?.GetValue<string>() ?? key, value, StringComparison.Ordinal))
+                return;
+            data["name"] = value;
+            commit();
         };
         left.Children.Add(nameBox);
 
@@ -149,7 +151,7 @@ public sealed class AnimationEditor : UserControl
         fpsBox.ItemsSource = new[] { "30", "60" };
         fpsBox.SelectionChanged += (_, _) =>
         {
-            if (loadingInspector || fpsBox.SelectedItem is not string value || !int.TryParse(value, out int frameRate))
+            if (loadingInspector || fpsBox.SelectedItem is not string value || !int.TryParse(value, out int frameRate) || frameRate == this.frameRate())
                 return;
             data["frameRate"] = frameRate;
             timeline.Refresh();
@@ -199,7 +201,14 @@ public sealed class AnimationEditor : UserControl
         left.Children.Add(new TextBlock { Text = LocaleService.Get("SEGMENT_PROPERTIES"), FontWeight = FontWeight.Bold });
         left.Children.Add(flipX);
         flipX.IsEnabled = false;
-        flipX.IsCheckedChanged += (_, _) => updateInspector();
+        flipX.IsCheckedChanged += (_, _) =>
+        {
+            if (loadingInspector || getSelectedSegment() is not JsonObject segment
+                || (segment["flipX"]?.GetValue<bool>() ?? false) == (flipX.IsChecked == true))
+                return;
+            segment["flipX"] = flipX.IsChecked == true;
+            onSegmentChanged();
+        };
         addFrameRows(left, LocaleService.Get("startFrame"), startTime, startX, startY, startRotation, startScaleX, startScaleY);
         addFrameRows(left, LocaleService.Get("endFrame"), endTime, endX, endY, endRotation, endScaleX, endScaleY);
 
@@ -267,7 +276,11 @@ public sealed class AnimationEditor : UserControl
         {
             TextBox field = fields[index];
             field.IsEnabled = false;
-            field.TextChanged += (_, _) => updateInspector();
+            field.PropertyChanged += (_, args) =>
+            {
+                if (args.Property == TextBox.TextProperty)
+                    updateInspector(field);
+            };
             Grid row = new() { ColumnDefinitions = new ColumnDefinitions("88,*"), ColumnSpacing = 6 };
             row.Children.Add(new TextBlock { Text = labels[index], VerticalAlignment = VerticalAlignment.Center });
             Grid.SetColumn(field, 1);
@@ -286,7 +299,7 @@ public sealed class AnimationEditor : UserControl
             FileSelectorDialog.AllFilesFilter(star: true), LocaleService.Get(audio ? "ADD_AUDIO" : "ADD_ASSET"));
         if (paths is null)
             return;
-        JsonArray assets = getAssets();
+        JsonArray assets = getAssets(true);
         foreach (string path in paths)
         {
             if (GameAssetPath.TryFromProjectFile(
@@ -589,7 +602,7 @@ public sealed class AnimationEditor : UserControl
         if (audio)
             segment["originalDuration"] = duration;
         int track = timeline.FindAvailableTrack(start, start + duration);
-        JsonArray lines = getTimeLines();
+        JsonArray lines = getTimeLines(true);
         while (lines.Count <= track)
             lines.Add(new JsonObject { ["timeSegments"] = new JsonArray() });
         ((JsonObject)lines[track]!)["timeSegments"]!.AsArray().Add(segment);
@@ -689,26 +702,63 @@ public sealed class AnimationEditor : UserControl
             loadingInspector = false;
             return;
         }
-        JsonObject start = ensureFrame(segment!, "startFrame");
-        JsonObject end = ensureFrame(segment!, "endFrame");
+        JsonObject start = segment!["startFrame"] as JsonObject ?? new JsonObject();
+        JsonObject end = segment!["endFrame"] as JsonObject ?? new JsonObject();
         setFrameFields(start, startTime, startX, startY, startRotation, startScaleX, startScaleY);
         setFrameFields(end, endTime, endX, endY, endRotation, endScaleX, endScaleY);
         flipX.IsChecked = segment!["flipX"]?.GetValue<bool>() ?? false;
         loadingInspector = false;
     }
 
-    private void updateInspector()
+    private void updateInspector(TextBox editor)
     {
-        if (loadingInspector || getSelectedSegment() is not JsonObject segment)
+        if (loadingInspector || getSelectedSegment() is not JsonObject segment
+            || !tryNumber(editor.Text, out double value))
             return;
-        if (!tryReadFrame(startTime, startX, startY, startRotation, startScaleX, startScaleY, out JsonObject start)
-            || !tryReadFrame(endTime, endX, endY, endRotation, endScaleX, endScaleY, out JsonObject end))
+        TextBox[] startEditors = [startTime, startX, startY, startRotation, startScaleX, startScaleY];
+        TextBox[] endEditors = [endTime, endX, endY, endRotation, endScaleX, endScaleY];
+        int index = Array.IndexOf(startEditors, editor);
+        string frameName = "startFrame";
+        if (index < 0)
+        {
+            index = Array.IndexOf(endEditors, editor);
+            frameName = "endFrame";
+        }
+        if (index < 0)
             return;
-        if (number(end["time"]) < number(start["time"]) + (segment["type"]?.GetValue<string>() == "sound" ? 1.0 / frameRate() : 0.05))
-            return;
-        segment["startFrame"] = start;
-        segment["endFrame"] = end;
-        segment["flipX"] = flipX.IsChecked == true;
+        JsonObject frame = segment[frameName] is JsonObject current
+            ? (JsonObject)current.DeepClone()
+            : new JsonObject();
+        if (index is 0 or 3)
+        {
+            string property = index == 0 ? "time" : "rotation";
+            if (index == 0)
+            {
+                value = Math.Max(0, value);
+                double first = frameName == "startFrame" ? value : number((segment["startFrame"] as JsonObject)?["time"]);
+                double last = frameName == "endFrame" ? value : number((segment["endFrame"] as JsonObject)?["time"]);
+                double minimumDuration = segment["type"]?.GetValue<string>() == "sound" ? 1.0 / frameRate() : 0.05;
+                if (last < first + minimumDuration)
+                    return;
+            }
+            if (number(frame[property]) == value)
+                return;
+            frame[property] = value;
+        }
+        else
+        {
+            string property = index < 3 ? "position" : "scale";
+            int component = index < 3 ? index - 1 : index - 4;
+            double fallback = property == "scale" ? 1 : 0;
+            JsonArray values = frame[property] as JsonArray ?? new JsonArray();
+            if (number(values.ElementAtOrDefault(component), fallback) == value)
+                return;
+            while (values.Count < 2)
+                values.Add(fallback);
+            values[component] = value;
+            frame[property] = values;
+        }
+        segment[frameName] = frame;
         onSegmentChanged();
     }
 
@@ -1095,22 +1145,24 @@ public sealed class AnimationEditor : UserControl
         return [startTime, startX, startY, startRotation, startScaleX, startScaleY, endTime, endX, endY, endRotation, endScaleX, endScaleY];
     }
 
-    private JsonArray getAssets()
+    private JsonArray getAssets(bool create = false)
     {
         if (data["assets"] is not JsonArray assets)
         {
             assets = new JsonArray();
-            data["assets"] = assets;
+            if (create)
+                data["assets"] = assets;
         }
         return assets;
     }
 
-    private JsonArray getTimeLines()
+    private JsonArray getTimeLines(bool create = false)
     {
         if (data["timeLines"] is not JsonArray lines)
         {
             lines = new JsonArray();
-            data["timeLines"] = lines;
+            if (create)
+                data["timeLines"] = lines;
         }
         return lines;
     }
@@ -1134,15 +1186,6 @@ public sealed class AnimationEditor : UserControl
         ["scale"] = new JsonArray(1.0, 1.0),
     };
 
-    private static JsonObject ensureFrame(JsonObject segment, string property)
-    {
-        if (segment[property] is JsonObject frame)
-            return frame;
-        frame = createFrame(0.0);
-        segment[property] = frame;
-        return frame;
-    }
-
     private static void setFrameFields(JsonObject frame, TextBox time, TextBox x, TextBox y, TextBox rotation, TextBox scaleX, TextBox scaleY)
     {
         JsonArray position = frame["position"] as JsonArray ?? new JsonArray(0.0, 0.0);
@@ -1155,20 +1198,7 @@ public sealed class AnimationEditor : UserControl
         scaleY.Text = number(scale.ElementAtOrDefault(1), 1).ToString(CultureInfo.InvariantCulture);
     }
 
-    private static bool tryReadFrame(TextBox time, TextBox x, TextBox y, TextBox rotation, TextBox scaleX, TextBox scaleY, out JsonObject frame)
-    {
-        frame = createFrame(0);
-        if (!tryNumber(time.Text, out double frameTime) || !tryNumber(x.Text, out double positionX) || !tryNumber(y.Text, out double positionY)
-            || !tryNumber(rotation.Text, out double frameRotation) || !tryNumber(scaleX.Text, out double frameScaleX) || !tryNumber(scaleY.Text, out double frameScaleY))
-            return false;
-        frame["time"] = Math.Max(0, frameTime);
-        frame["position"] = new JsonArray(positionX, positionY);
-        frame["rotation"] = frameRotation;
-        frame["scale"] = new JsonArray(frameScaleX, frameScaleY);
-        return true;
-    }
-
-    private static bool tryNumber(string? value, out double result) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+    private static bool tryNumber(string? value, out double result) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result) && double.IsFinite(result);
     internal static double number(JsonNode? node, double fallback = 0)
     {
         if (node is not JsonValue value)

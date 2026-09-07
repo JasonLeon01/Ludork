@@ -13,6 +13,7 @@ BINDING_FEATURE_HEADERS = {
     "value": "LudorkRuntimeBinding/ValueCodec.hpp",
     "native": "LudorkRuntimeBinding/NativeObjectCodec.hpp",
     "dynamic": "LudorkRuntimeBinding/DynamicValueCodec.hpp",
+    "pure": "LudorkRuntimeBinding/PureDataCodec.hpp",
     "function": "LudorkRuntimeBinding/FunctionAdapter.hpp",
     "variadic": "LudorkRuntimeBinding/VariadicFunctionAdapter.hpp",
     "callback": "LudorkRuntimeBinding/CallbackCodec.hpp",
@@ -24,6 +25,7 @@ BINDING_FEATURE_DEPENDENCIES = {
     "value": (),
     "native": ("value",),
     "dynamic": ("native",),
+    "pure": ("value",),
     "function": ("native",),
     "variadic": ("function",),
     "callback": ("value",),
@@ -40,6 +42,7 @@ class GeneratorContext:
     callback_codecs: dict[str, CallbackCodec] = field(default_factory=dict)
     exposed_type_names: dict[str, str] = field(default_factory=dict)
     enum_types: set[str] = field(default_factory=set)
+    pure_data_types: set[str] = field(default_factory=set)
     dynamic_value_types: set[str] = field(default_factory=set)
     table_value_types: set[str] = field(default_factory=set)
     lua_alternative_types: set[str] = field(default_factory=set)
@@ -79,6 +82,7 @@ class GeneratorContext:
             exposed_type_names=self.exposed_type_names,
             enum_types=self.enum_types,
             dynamic_value_types=self.dynamic_value_types,
+            pure_data_types=self.pure_data_types,
             table_value_types=self.table_value_types,
             lua_alternative_types=self.lua_alternative_types,
             opaque_identity_types=self.opaque_identity_types,

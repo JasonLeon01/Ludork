@@ -2,6 +2,7 @@
 #include <Runtime/RuntimeObject.hpp>
 #include <Gameplay/GameplayModifier.hpp>
 #include <Gameplay/GameplayEffectSpec.hpp>
+#include <Gameplay/AttributeSet.hpp>
 #include <cmath>
 #include <stdexcept>
 
@@ -11,19 +12,13 @@ struct NumericValue {
     double value = 0.0;
     bool integer = true;
 };
-using AttributeNumber = std::variant<std::int64_t, double>;
-using AttributeNumbers = std::unordered_map<std::string, AttributeNumber>;
-
-AttributeNumber resolvedNumber(const NumericValue& value);
-RuntimeValue runtimeNumber(const AttributeNumber& value);
-RuntimeValue runtimeNumber(const NumericValue& value);
-RuntimeValue::Map runtimeNumbers(const AttributeNumbers& values);
-AttributeNumber attributeNumber(const RuntimeValue& value);
-bool runtimeEqual(const AttributeNumber& left, const AttributeNumber& right);
+GameplayNumber resolvedNumber(const NumericValue& value);
+RuntimeValue runtimeNumber(const GameplayNumber& value);
+GameplayNumber attributeNumber(const RuntimeValue& value);
+bool runtimeEqual(const GameplayNumber& left, const GameplayNumber& right);
 bool runtimeEqual(const RuntimeValue& left, const RuntimeValue& right);
-RuntimeValue runtimeObject(const std::shared_ptr<RuntimeObject>& value);
 RuntimeIdentityPtr runtimeMap(RuntimeValue::Map values = {});
-NumericValue unrestrictedNumeric(const RuntimeValue& value,
+NumericValue unrestrictedNumeric(const GameplayNumber& value,
                                  const std::string& context);
 NumericValue addNumbers(const NumericValue& left, const NumericValue& right);
 NumericValue multiplyNumbers(const NumericValue& left,
@@ -47,12 +42,13 @@ const T* numberIf(const RuntimeValue& value) {
 }
 
 template <typename T>
-const T* numberIf(const AttributeNumber& value) {
+const T* numberIf(const GameplayNumber& value) {
     return std::get_if<T>(&value);
 }
 
 template <typename Value>
-NumericValue numericValue(const Value& value, const std::string& schemaType,
+NumericValue numericValue(const Value& value,
+                          AttributeSet::NumericType schemaType,
                           const std::string& context, const std::string& name) {
     NumericValue result;
     if (const std::int64_t* integer = numberIf<std::int64_t>(value)) {
@@ -67,13 +63,11 @@ NumericValue numericValue(const Value& value, const std::string& schemaType,
     if (!std::isfinite(result.value)) {
         throw std::invalid_argument(context + " must be finite: " + name);
     }
-    if (schemaType == "int") {
+    if (schemaType == AttributeSet::NumericType::Integer) {
         if (!result.integer) {
             throw std::invalid_argument(context +
                                         " must be an integer: " + name);
         }
-    } else if (schemaType != "float") {
-        throw std::invalid_argument("Attribute is not numeric: " + name);
     }
     return result;
 }

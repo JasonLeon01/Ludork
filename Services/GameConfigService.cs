@@ -91,6 +91,8 @@ public sealed class GameConfigService
     public void SetPending(GameConfigData data)
     {
         GameConfigData normalized = normalize(data);
+        if (normalized == CurrentData)
+            return;
         pendingData = normalized == savedData ? null : normalized;
         Changed?.Invoke(this, EventArgs.Empty);
     }

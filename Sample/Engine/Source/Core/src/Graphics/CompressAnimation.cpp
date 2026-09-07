@@ -246,11 +246,9 @@ compressAnimationFrames(
 
 std::tuple<float, std::vector<std::string>, std::vector<AnimationSoundEntry>>
 C_CompressAnimation(
-    const RuntimeValue& zlibModule, int frameCount, float frameStep,
-    int frameRate,
+    int frameCount, float frameStep, int frameRate,
     const std::vector<AnimationSourceData::AnimationTimeline>& timeLines,
     const std::vector<std::string>& assets, const std::string& imageFormat) {
-    (void)zlibModule;
     ludork::engine::animation_compression::CompressedAnimationFrames result =
         compressAnimationFrames(frameCount, frameStep, frameRate, timeLines,
                                 assets, imageFormat);

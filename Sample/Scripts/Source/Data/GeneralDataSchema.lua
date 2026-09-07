@@ -89,7 +89,7 @@ local function canonicaliseScalar(value, typeName, relativePath, context)
     if not isArray(value) then
         generalDataError(relativePath, context, "expected JSON array for " .. typeName)
     end
-    local result = Engine.resolveTypedDataValue(value, typeName)
+    local result = Engine.resolveTypedDataValue(value, typeName, nil, nil, false)
     local sfType = sf[typeName:sub(4)]
     if sfType == nil then
         generalDataError(relativePath, context, "could not construct " .. typeName)
@@ -102,12 +102,15 @@ local function canonicaliseScalar(value, typeName, relativePath, context)
 end
 
 local function canonicaliseValue(value, typeName, param, relativePath, context)
+    if Class.isInstance(typeName, "table") then
+        return Engine.resolveTypedDataValue(value, typeName, nil, nil, false)
+    end
     if typeName == "list" then
         local itemType = param.itemType
-        if not Class.isInstance(itemType, "string") or not bool(itemType) then
+        if not Class.isInstance(itemType, "string") and not Class.isInstance(itemType, "table") then
             generalDataError(relativePath, context, "list requires itemType")
         end
-        if rawget(scalarTypes, itemType) ~= true then
+        if Class.isInstance(itemType, "string") and rawget(scalarTypes, itemType) ~= true then
             generalDataError(relativePath, context, "unsupported itemType " .. tostring(itemType))
         end
         if not isArray(value) then
@@ -115,16 +118,18 @@ local function canonicaliseValue(value, typeName, param, relativePath, context)
         end
         local result = {}
         for index, item in ipairs(value) do
-            result[index] = canonicaliseScalar(item, itemType, relativePath, context .. "[" .. tostring(index) .. "]")
+            result[index] = canonicaliseValue(
+                item, itemType, {}, relativePath, context .. "[" .. tostring(index) .. "]"
+            )
         end
         return result
     end
     if typeName == "dict" then
         local valueType = param.valueType
-        if not Class.isInstance(valueType, "string") or not bool(valueType) then
+        if not Class.isInstance(valueType, "string") and not Class.isInstance(valueType, "table") then
             generalDataError(relativePath, context, "dict requires valueType")
         end
-        if rawget(scalarTypes, valueType) ~= true then
+        if Class.isInstance(valueType, "string") and rawget(scalarTypes, valueType) ~= true then
             generalDataError(relativePath, context, "unsupported valueType " .. tostring(valueType))
         end
         if not isDictionary(value) then
@@ -132,11 +137,26 @@ local function canonicaliseValue(value, typeName, param, relativePath, context)
         end
         local result = {}
         for key, item in pairs(value) do
-            result[key] = canonicaliseScalar(item, valueType, relativePath, context .. "." .. key)
+            result[key] = canonicaliseValue(item, valueType, {}, relativePath, context .. "." .. key)
         end
         return result
     end
     return canonicaliseScalar(value, typeName, relativePath, context)
+end
+
+local function containsUnion(typeName)
+    if not Class.isInstance(typeName, "table") then
+        return false
+    end
+    if typeName.union ~= nil then
+        return true
+    end
+    for _, nested in pairs(typeName) do
+        if containsUnion(nested) then
+            return true
+        end
+    end
+    return false
 end
 
 local function validateGraph(member, memberName, declaredEvents, relativePath)
@@ -216,7 +236,8 @@ function GeneralDataSchema.Canonicalise(payload, relativePath)
             generalDataError(relativePath, "parameter " .. fieldName, "definition must be a JSON object")
         end
         local typeName = param.type
-        if not Class.isInstance(typeName, "string") or not valueTypes[typeName] then
+        if not Class.isInstance(typeName, "table")
+            and (not Class.isInstance(typeName, "string") or not valueTypes[typeName]) then
             generalDataError(relativePath, "parameter " .. fieldName, "unsupported type " .. tostring(typeName))
         end
         if rawget(param, "defaultValue") == nil then
@@ -240,9 +261,13 @@ function GeneralDataSchema.Canonicalise(payload, relativePath)
             if value == nil then
                 generalDataError(relativePath, "member " .. memberName, "missing field " .. fieldName)
             end
-            member[fieldName] = canonicaliseValue(
+            local resolved = canonicaliseValue(
                 value, param.type, param, relativePath, "member " .. memberName .. "." .. fieldName
             )
+            if not containsUnion(param.type) and not containsUnion(param.itemType)
+                and not containsUnion(param.valueType) then
+                member[fieldName] = resolved
+            end
         end
         validateGraph(member, memberName, declaredEvents, relativePath)
     end

@@ -184,10 +184,10 @@ end
 
 ---@param itemCount integer
 function WindowFloorMapPreviewUI:_applyListLayout(itemCount)
-    self:setProperty("TelepointList", "size", {
-        _TELEPOINT_LIST_WIDTH,
-        math.max(_TELEPOINT_VIEW_HEIGHT, itemCount * _TELEPOINT_ROW_HEIGHT)
-    })
+    self:setProperty(
+        "TelepointList", "size",
+        sf.Vector2f.new(_TELEPOINT_LIST_WIDTH, math.max(_TELEPOINT_VIEW_HEIGHT, itemCount * _TELEPOINT_ROW_HEIGHT))
+    )
     self:setProperty("TelepointList", "columns", 1)
 end
 

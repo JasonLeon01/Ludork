@@ -182,8 +182,8 @@ function ConfigWindowUI:bind()
         self.model:_onTabSelected(index)
     end)
     self._tabView:setKeyHint(
-        { Keyboard = sf.Keyboard.Key.Q, Joystick = Engine.JoystickButton.getLB() },
-        { Keyboard = sf.Keyboard.Key.E, Joystick = Engine.JoystickButton.getRB() }
+        Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.Q, Joystick = Engine.JoystickButton.getLB() }),
+        Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.E, Joystick = Engine.JoystickButton.getRB() })
     )
     self:_createRows()
     self:setActivePage(_GRAPHICS_PAGE_INDEX)
@@ -539,36 +539,63 @@ function ConfigWindowUI:_createGraphicsRows()
 end
 
 function ConfigWindowUI:_createAudioRows()
-    self._musicOnRow = ConfigCheckBoxRowUI.new(LOC("musicon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getMusicOn(), function (
-        checked
+    self._musicOnRow = ConfigCheckBoxRowUI.new(
+        LOC("musicon"),
+        _CONTENT_WIDTH,
+        _CHECKBOX_SIZE,
+        self._windowSkin,
+        System.getMusicOn(),
+        function (checked)
+            onMusicOnCheckedChanged(checked)
+        end
     )
-        onMusicOnCheckedChanged(checked)
-    end)
-    self._musicVolumeRow = ConfigSliderRowUI.new(LOC("musicvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
-        System.getMusicVolume()
-    ), function (value)
-        onMusicVolumeChanged(value)
-    end)
-    self._soundOnRow = ConfigCheckBoxRowUI.new(LOC("soundon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getSoundOn(), function (
-        checked
+    self._musicVolumeRow = ConfigSliderRowUI.new(
+        LOC("musicvolume"),
+        _CONTENT_WIDTH,
+        _SLIDER_WIDTH,
+        math.round(System.getMusicVolume()),
+        function (value)
+            onMusicVolumeChanged(value)
+        end
     )
-        onSoundOnCheckedChanged(checked)
-    end)
-    self._soundVolumeRow = ConfigSliderRowUI.new(LOC("soundvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
-        System.getSoundVolume()
-    ), function (value)
-        onSoundVolumeChanged(value)
-    end)
-    self._voiceOnRow = ConfigCheckBoxRowUI.new(LOC("voiceon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getVoiceOn(), function (
-        checked
+    self._soundOnRow = ConfigCheckBoxRowUI.new(
+        LOC("soundon"),
+        _CONTENT_WIDTH,
+        _CHECKBOX_SIZE,
+        self._windowSkin,
+        System.getSoundOn(),
+        function (checked)
+            onSoundOnCheckedChanged(checked)
+        end
     )
-        onVoiceOnCheckedChanged(checked)
-    end)
-    self._voiceVolumeRow = ConfigSliderRowUI.new(LOC("voicevolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
-        System.getVoiceVolume()
-    ), function (value)
-        onVoiceVolumeChanged(value)
-    end)
+    self._soundVolumeRow = ConfigSliderRowUI.new(
+        LOC("soundvolume"),
+        _CONTENT_WIDTH,
+        _SLIDER_WIDTH,
+        math.round(System.getSoundVolume()),
+        function (value)
+            onSoundVolumeChanged(value)
+        end
+    )
+    self._voiceOnRow = ConfigCheckBoxRowUI.new(
+        LOC("voiceon"),
+        _CONTENT_WIDTH,
+        _CHECKBOX_SIZE,
+        self._windowSkin,
+        System.getVoiceOn(),
+        function (checked)
+            onVoiceOnCheckedChanged(checked)
+        end
+    )
+    self._voiceVolumeRow = ConfigSliderRowUI.new(
+        LOC("voicevolume"),
+        _CONTENT_WIDTH,
+        _SLIDER_WIDTH,
+        math.round(System.getVoiceVolume()),
+        function (value)
+            onVoiceVolumeChanged(value)
+        end
+    )
     self._pages[_AUDIO_PAGE_INDEX + 1] = {
         list = self._audioList,
         rows = {

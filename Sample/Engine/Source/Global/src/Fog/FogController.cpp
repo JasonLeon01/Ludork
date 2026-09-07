@@ -7,7 +7,6 @@
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
 #include <EngineState.hpp>
-#include <Runtime/RuntimeValueReader.hpp>
 #include <System.hpp>
 #include <Utils/Render.hpp>
 
@@ -19,10 +18,6 @@
 #include <utility>
 
 namespace {
-using ludork::runtime::value_reader::findValue;
-using ludork::runtime::value_reader::requireFloat;
-using ludork::runtime::value_reader::requireString;
-
 std::string trim(std::string value) {
     const std::size_t first = value.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) {
@@ -32,11 +27,17 @@ std::string trim(std::string value) {
     return value.substr(first, last - first + 1);
 }
 
-float optionalFloat(const RuntimeValue::Map& mapData, const std::string& name) {
-    const RuntimeValue* value = findValue(mapData, name);
-    return value == nullptr || value->isNil()
-               ? 0.0f
-               : requireFloat(*value, "mapData." + name);
+void validateMapFogSettings(const MapFogSettings& mapData) {
+    const auto requireFinite = [](float value, const char* name) {
+        if (!std::isfinite(value)) {
+            throw std::invalid_argument(std::string("mapData.") + name +
+                                        " must be finite");
+        }
+    };
+    requireFinite(mapData.fogPower, "fogPower");
+    requireFinite(mapData.fogOx, "fogOx");
+    requireFinite(mapData.fogOy, "fogOy");
+    requireFinite(mapData.fogDistort, "fogDistort");
 }
 
 using ludork::global::fog_controller_impl::WorldFogLayer;
@@ -92,16 +93,12 @@ std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
     return layer;
 }
 
-std::optional<WorldFogLayer> makeWorldFogLayer(const RuntimeValue::Map& mapData,
+std::optional<WorldFogLayer> makeWorldFogLayer(const MapFogSettings& mapData,
                                                const sf::IntRect& cellRect) {
-    const RuntimeValue* fogValue = findValue(mapData, "fog");
-    return makeWorldFogLayer(
-        fogValue == nullptr || fogValue->isNil()
-            ? std::string{}
-            : requireString(*fogValue, "mapData.fog"),
-        optionalFloat(mapData, "fogPower"),
-        {optionalFloat(mapData, "fogOx"), optionalFloat(mapData, "fogOy")},
-        optionalFloat(mapData, "fogDistort"), cellRect);
+    validateMapFogSettings(mapData);
+    return makeWorldFogLayer(mapData.fog, mapData.fogPower,
+                             {mapData.fogOx, mapData.fogOy}, mapData.fogDistort,
+                             cellRect);
 }
 
 std::optional<sf::FloatRect> worldFogRect(const WorldFogLayer& layer,
@@ -130,19 +127,14 @@ std::optional<sf::FloatRect> worldFogRect(const WorldFogLayer& layer,
 
 }  // namespace
 
-void FogController::applyFromMapData(const RuntimeValue::Map& mapData) {
+void FogController::applyFromMapData(const MapFogSettings& mapData) {
     clearFog();
-    const RuntimeValue* fogValue = findValue(mapData, "fog");
-    const std::string graphic =
-        trim(fogValue == nullptr || fogValue->isNil()
-                 ? std::string{}
-                 : requireString(*fogValue, "mapData.fog"));
-    const float power = std::clamp(
-        std::floor(optionalFloat(mapData, "fogPower")), 0.0f, 100.0f);
-    const sf::Vector2f scroll{optionalFloat(mapData, "fogOx"),
-                              optionalFloat(mapData, "fogOy")};
-    const float distort = std::clamp(
-        std::floor(optionalFloat(mapData, "fogDistort")), 0.0f, 100.0f);
+    validateMapFogSettings(mapData);
+    const std::string graphic = trim(mapData.fog);
+    const float power = std::clamp(std::floor(mapData.fogPower), 0.0f, 100.0f);
+    const sf::Vector2f scroll{mapData.fogOx, mapData.fogOy};
+    const float distort =
+        std::clamp(std::floor(mapData.fogDistort), 0.0f, 100.0f);
     if (graphic.empty() || power <= 0.0f) {
         return;
     }
@@ -160,7 +152,7 @@ void FogController::applyFromMapData(const RuntimeValue::Map& mapData) {
     ensureShader();
 }
 
-void FogController::applyWorldFromMapData(const RuntimeValue::Map& mapData) {
+void FogController::applyWorldFromMapData(const MapFogSettings& mapData) {
     clearFog();
     worldFogState.emplace();
     worldFogState->base = makeWorldFogLayer(mapData, {});

@@ -29,6 +29,10 @@ mark_as_advanced(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkBuild.cmake")
 
+if(LUDORK_BUILD_SAMPLE_APPLICATION AND NOT LUDORK_WITH_LUA)
+    message(FATAL_ERROR "The game application requires LUDORK_WITH_LUA=ON.")
+endif()
+
 if(ANDROID)
     ludork_require_android_package_contract()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "OHOS")

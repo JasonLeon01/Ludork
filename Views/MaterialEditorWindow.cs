@@ -18,6 +18,7 @@ public sealed class MaterialEditorWindow : Window
     private readonly TextBox reflectionStrength;
     private readonly TextBox opacity;
     private readonly TextBox speedRate;
+    private readonly JsonObject initialDisplay;
 
     public MaterialEditorWindow(JsonObject material, Action<JsonObject> onAccepted)
     {
@@ -37,6 +38,14 @@ public sealed class MaterialEditorWindow : Window
         reflectionStrength = addNumberRow(form, 2, "reflectionStrength", 0.5);
         opacity = addNumberRow(form, 3, "opacity", 1.0);
         speedRate = addNumberRow(form, 4, "speedRate", 1.0);
+        initialDisplay = new JsonObject
+        {
+            ["lightBlock"] = lightBlock.Text,
+            ["mirror"] = mirror.IsChecked == true,
+            ["reflectionStrength"] = reflectionStrength.Text,
+            ["opacity"] = opacity.Text,
+            ["speedRate"] = speedRate.Text,
+        };
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
         confirm.Click += onConfirm;
@@ -98,12 +107,19 @@ public sealed class MaterialEditorWindow : Window
             || !tryParse(opacity, out double nextOpacity)
             || !tryParse(speedRate, out double nextSpeedRate))
             return;
-        material["lightBlock"] = nextLightBlock;
-        material["mirror"] = mirror.IsChecked == true;
-        material["reflectionStrength"] = nextReflectionStrength;
-        material["opacity"] = nextOpacity;
-        material["speedRate"] = nextSpeedRate;
-        onAccepted(material);
+        JsonObject changed = (JsonObject)material.DeepClone();
+        if (lightBlock.Text != initialDisplay["lightBlock"]?.GetValue<string>())
+            changed["lightBlock"] = nextLightBlock;
+        if ((mirror.IsChecked == true) != initialDisplay["mirror"]!.GetValue<bool>())
+            changed["mirror"] = mirror.IsChecked == true;
+        if (reflectionStrength.Text != initialDisplay["reflectionStrength"]?.GetValue<string>())
+            changed["reflectionStrength"] = nextReflectionStrength;
+        if (opacity.Text != initialDisplay["opacity"]?.GetValue<string>())
+            changed["opacity"] = nextOpacity;
+        if (speedRate.Text != initialDisplay["speedRate"]?.GetValue<string>())
+            changed["speedRate"] = nextSpeedRate;
+        if (!JsonNode.DeepEquals(material, changed))
+            onAccepted(changed);
         Close();
     }
 

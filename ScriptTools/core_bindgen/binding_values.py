@@ -272,7 +272,7 @@ def lua_alternative_shape_condition(alternative: LuaAlternative) -> str:
         "string": "value.is<std::string>()",
         "boolean": "value.is<bool>()",
         "function": "value.is<sol::protected_function>()",
-        "table": "value.is<sol::table>()",
+        "table": "(value.get_type() == sol::type::table)",
         "userdata": "value.get_type() == sol::type::userdata",
         "thread": "value.get_type() == sol::type::thread",
     }
@@ -296,7 +296,7 @@ def lua_alternative_block(
     if alternative.shape in {"fields", "array"}:
         lines.extend(
             [
-                "    if (value.is<sol::table>()) {",
+                "    if ((value.get_type() == sol::type::table)) {",
                 (
                     f"        const sol::table alternativeTable{index} = "
                     "value.as<sol::table>();"
@@ -430,7 +430,7 @@ def table_value_trait_lines(
             )
         lines.extend(
             [
-                "    if (!value.is<sol::table>())",
+                "    if (!(value.get_type() == sol::type::table))",
                 "        return false;",
                 "    const sol::table table = value.as<sol::table>();",
             ]
@@ -451,6 +451,9 @@ def table_value_trait_lines(
                     "        return false;",
                 ]
             )
+        if info.options.get("strict_fields", "false").lower() == "true":
+            names = " && ".join(f'key != "{prop.name}"' for prop in properties) or "true"
+            lines.extend(["    for (const auto& entry : table) {", '        if (entry.first.get_type() != sol::type::string) return false;', "        const std::string key = entry.first.as<std::string>();", f"        if ({names}) return false;", "    }"])
         lines.extend(["    return true;", "}", ""])
         lines.extend(
             [
@@ -460,6 +463,9 @@ def table_value_trait_lines(
                 ),
             ]
         )
+        if info.options.get("strict_fields", "false").lower() == "true":
+            names = " && ".join(f'key != "{prop.name}"' for prop in properties) or "true"
+            lines.extend(["    for (const auto& entry : value) {", '        if (entry.first.get_type() != sol::type::string) throw std::invalid_argument("Unknown table initializer field");', "        const std::string key = entry.first.as<std::string>();", f'        if ({names}) throw std::invalid_argument("Unknown table initializer field: " + key);', "    }"])
         for index, prop in enumerate(writable):
             value_name = f"propertyValue{index}"
             value_type = property_type(context, prop)
@@ -470,10 +476,17 @@ def table_value_trait_lines(
                         f'value.raw_get<sol::object>("{prop.name}");'
                     ),
                     f"    if (!isNil({value_name}))",
+                    "    {",
+                    "        try {",
                     (
-                        f"        result.{prop.name} = "
-                        f"readLuaValue<{value_type}>({value_name});"
+                        f"            result.{prop.options['setter']}(readLuaValue<{value_type}>({value_name}));"
+                        if "getter" in prop.options else
+                        f"            result.{prop.name} = readLuaValue<{value_type}>({value_name});"
                     ),
+                    "        } catch (const std::exception& error) {",
+                    f'            throw std::invalid_argument("{info.cpp_name}.{prop.name}: " + std::string(error.what()));',
+                    "        }",
+                    "    }",
                 ]
             )
         lines.extend(["}", ""])
@@ -502,7 +515,7 @@ def table_value_trait_lines(
             )
         lines.extend(
             [
-                "    if (!value.is<sol::table>())",
+                "    if (!(value.get_type() == sol::type::table))",
                 '        throw std::invalid_argument("expected a Lua table initializer");',
                 f"    {info.cpp_name} result{{}};",
                 "    readInto(result, value.as<sol::table>());",
@@ -523,7 +536,9 @@ def table_value_trait_lines(
                 [
                     (
                         f"    const sol::object {prop.name}Value = "
-                        f"writeLuaValue(lua, value.{prop.name});"
+                        f"writeLuaValue(lua, value.{prop.options['getter']}());"
+                        if "getter" in prop.options else
+                        f"    const sol::object {prop.name}Value = writeLuaValue(lua, value.{prop.name});"
                     ),
                     f"    if (!isNil({prop.name}Value))",
                     f'        table.raw_set("{prop.name}", {prop.name}Value);',

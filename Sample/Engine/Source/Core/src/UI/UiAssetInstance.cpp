@@ -3,9 +3,8 @@
 #include "UiAssets/AnimationImpl.hpp"
 #include "UiAssets/NodeViewCollector.hpp"
 #include "UiAssets/AssetImpl.hpp"
-#include "UiAssets/ValueReader.hpp"
 
-#include <Runtime/RuntimeValueReader.hpp>
+#include "UiControlAdapters/UiControlAdapterSupport.hpp"
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiLayoutEngine.hpp>
 
@@ -96,7 +95,7 @@ std::shared_ptr<UiAssetInstance> UiAssetInstance::requireAsset(
 
 void UiAssetInstance::setProperty(const std::string& localName,
                                   const std::string& propertyId,
-                                  const RuntimeValue& value) {
+                                  const UiControlPropertyValue& value) {
     const auto iterator = impl_->controls.find(localName);
     if (iterator == impl_->controls.end()) {
         if (nestedAssets_.contains(localName)) {
@@ -110,22 +109,21 @@ void UiAssetInstance::setProperty(const std::string& localName,
     UiRuntimeNode& node = *iterator->second;
     if (propertyId == "visible") {
         node.control->setVisible(
-            ludork::runtime::value_reader::requireBool(value, propertyId));
+            ui_control_adapter_detail::requireBool(value, propertyId));
     } else if (propertyId == "rotation") {
         node.control->setRotationDegrees(
-            ludork::runtime::value_reader::requireFloat(value, propertyId));
+            ui_control_adapter_detail::requireFloat(value, propertyId));
     } else if (propertyId == "scale") {
-        node.renderScale =
-            ludork::engine::ui_asset_runtime_impl::requireVector2f(value,
-                                                                   propertyId);
-        if (node.renderScale.x < 0.0f || node.renderScale.y < 0.0f) {
+        const sf::Vector2f scale =
+            ui_control_adapter_detail::requireVector2f(value, propertyId);
+        if (scale.x < 0.0f || scale.y < 0.0f) {
             throw std::invalid_argument("scale cannot be negative");
         }
-        node.control->setScale(node.renderScale);
+        node.control->setScale(scale);
+        node.renderScale = scale;
     } else if (propertyId == "origin") {
         node.control->setOrigin(
-            ludork::engine::ui_asset_runtime_impl::requireVector2f(value,
-                                                                   propertyId));
+            ui_control_adapter_detail::requireVector2f(value, propertyId));
     } else {
         UiControlAdapterRegistry::instance().setProperty(
             node.controlId, *node.control, propertyId, value);
@@ -150,7 +148,7 @@ void UiAssetInstance::setText(const std::string& localName,
         throw std::invalid_argument(localName + " is not a text control");
     }
     UiControlAdapterRegistry::instance().setProperty(
-        node.controlId, *node.control, "text", RuntimeValue(text));
+        node.controlId, *node.control, "text", UiControlPropertyValue(text));
     impl_->layoutDirty = true;
 }
 

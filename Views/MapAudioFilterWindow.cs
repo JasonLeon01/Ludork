@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -13,6 +14,8 @@ namespace Ludork.Views;
 internal sealed class MapAudioFilterWindow : Window
 {
     private readonly bool isBgm;
+    private readonly JsonObject initial;
+    private readonly Dictionary<NumericUpDown, decimal?> displayedValues;
     private readonly NumericUpDown offsetBox;
     private readonly NumericUpDown pitchBox;
     private readonly NumericUpDown panBox;
@@ -23,6 +26,7 @@ internal sealed class MapAudioFilterWindow : Window
     private MapAudioFilterWindow(JsonObject initial, bool isBgm)
     {
         this.isBgm = isBgm;
+        this.initial = (JsonObject)initial.DeepClone();
         Title = LocaleService.Get(isBgm ? "EDIT_BGM_FILTER" : "EDIT_BGS_FILTER");
         Width = isBgm ? 403 : 320;
         Height = isBgm ? 272 : 230;
@@ -36,6 +40,15 @@ internal sealed class MapAudioFilterWindow : Window
         JsonObject loopPoint = initial["loopPoint"] as JsonObject ?? new JsonObject();
         loopStartBox = createNumber(getValue(loopPoint, "start", 0), 0, 999999, 0.1m);
         loopEndBox = createNumber(getValue(loopPoint, "end", 0), 0, 999999, 0.1m);
+        displayedValues = new Dictionary<NumericUpDown, decimal?>
+        {
+            [offsetBox] = offsetBox.Value,
+            [pitchBox] = pitchBox.Value,
+            [panBox] = panBox.Value,
+            [volumeBox] = volumeBox.Value,
+            [loopStartBox] = loopStartBox.Value,
+            [loopEndBox] = loopEndBox.Value,
+        };
 
         Grid form = new() { RowSpacing = 8 };
         addRow(form, LocaleService.Get("FILTER_OFFSET"), offsetBox);
@@ -70,15 +83,27 @@ internal sealed class MapAudioFilterWindow : Window
 
     private JsonObject buildResult()
     {
-        JsonObject result = new();
-        addIfDifferent(result, "offset", getValue(offsetBox), 0);
-        addIfDifferent(result, "pitch", getValue(pitchBox), 1);
-        addIfDifferent(result, "pan", getValue(panBox), 0);
-        addIfDifferent(result, "volume", getValue(volumeBox), 100);
-        double loopStart = getValue(loopStartBox);
-        double loopEnd = getValue(loopEndBox);
-        if (isBgm && (loopStart > 0 || loopEnd > 0))
-            result["loopPoint"] = new JsonObject { ["start"] = loopStart, ["end"] = loopEnd };
+        JsonObject result = (JsonObject)initial.DeepClone();
+        applyChangedValue(result, "offset", offsetBox, 0);
+        applyChangedValue(result, "pitch", pitchBox, 1);
+        applyChangedValue(result, "pan", panBox, 0);
+        applyChangedValue(result, "volume", volumeBox, 100);
+        if (isBgm && (isChanged(loopStartBox) || isChanged(loopEndBox)))
+        {
+            decimal loopStart = loopStartBox.Value ?? 0;
+            decimal loopEnd = loopEndBox.Value ?? 0;
+            if (loopStart == 0 && loopEnd == 0)
+                result.Remove("loopPoint");
+            else
+            {
+                JsonObject loopPoint = result["loopPoint"] as JsonObject ?? new JsonObject();
+                if (isChanged(loopStartBox) || !loopPoint.ContainsKey("start"))
+                    loopPoint["start"] = loopStart;
+                if (isChanged(loopEndBox) || !loopPoint.ContainsKey("end"))
+                    loopPoint["end"] = loopEnd;
+                result["loopPoint"] = loopPoint;
+            }
+        }
         return result;
     }
 
@@ -104,11 +129,16 @@ internal sealed class MapAudioFilterWindow : Window
         return values[name]?.GetValue<decimal?>() ?? fallback;
     }
 
-    private static double getValue(NumericUpDown number) => (double)(number.Value ?? 0);
+    private bool isChanged(NumericUpDown number) => number.Value != displayedValues[number];
 
-    private static void addIfDifferent(JsonObject result, string key, double value, double defaultValue)
+    private void applyChangedValue(JsonObject result, string key, NumericUpDown number, decimal defaultValue)
     {
-        if (Math.Abs(value - defaultValue) > double.Epsilon)
+        if (!isChanged(number))
+            return;
+        decimal value = number.Value ?? defaultValue;
+        if (value == defaultValue)
+            result.Remove(key);
+        else
             result[key] = value;
     }
 }

@@ -14,7 +14,7 @@ std::shared_ptr<ActiveGameplayEffect> findStackableEffect(
     const AbilitySystemImpl& state,
     const std::shared_ptr<GameplayEffectSpec>& spec);
 
-std::pair<AttributeNumbers, bool> instantBases(
+std::pair<GameplayNumbers, bool> instantBases(
     const AbilitySystemImpl& state,
     const std::shared_ptr<GameplayEffectSpec>& spec);
 

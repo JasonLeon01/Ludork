@@ -1,6 +1,7 @@
 #include <UI/UiControlAdapterRegistry.hpp>
 
 #include "UiControlAdapters/UiControlAdapterRegistryBuilderImpl.hpp"
+#include "UiControlAdapters/UiControlPropertyCodec.hpp"
 
 #include <stdexcept>
 
@@ -32,15 +33,27 @@ bool UiControlAdapterRegistry::supportsProperty(
     return requireAdapter(controlId).properties.contains(propertyId);
 }
 
+UiControlProperties UiControlAdapterRegistry::parseProperties(
+    const std::string& controlId, const RuntimeData::Map& properties,
+    const std::string& source) const {
+    for (const UiControlAdapterDescriptor& descriptor :
+         uiControlAdapterDescriptors()) {
+        if (descriptor.controlId == controlId) {
+            return ui_control_adapter_detail::parseProperties(
+                descriptor, properties, source);
+        }
+    }
+    throw std::invalid_argument("Unknown UI control adapter: " + controlId);
+}
+
 std::shared_ptr<ControlBase> UiControlAdapterRegistry::create(
-    const std::string& controlId, const RuntimeValue::Map& properties) const {
+    const std::string& controlId, const UiControlProperties& properties) const {
     return requireAdapter(controlId).factory(properties);
 }
 
-void UiControlAdapterRegistry::setProperty(const std::string& controlId,
-                                           ControlBase& control,
-                                           const std::string& propertyId,
-                                           const RuntimeValue& value) const {
+void UiControlAdapterRegistry::setProperty(
+    const std::string& controlId, ControlBase& control,
+    const std::string& propertyId, const UiControlPropertyValue& value) const {
     const Adapter& adapter = requireAdapter(controlId);
     if (!adapter.properties.contains(propertyId)) {
         throw std::invalid_argument("Unknown property " + propertyId +

@@ -2,6 +2,7 @@
 
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Instance/InstanceRuntime.hpp"
 #include "Native/NativeRuntime.hpp"
 
@@ -46,7 +47,11 @@ int classInstanceIndex(lua_State* state) {
             lua_call(state, 1, 1);
             return 1;
         }
-        findInClass(lua, classTable, key).push();
+        if (hasExplicitNilField(lua, target, key)) {
+            lua_pushnil(state);
+        } else {
+            findInClass(lua, classTable, key).push();
+        }
         return 1;
     } catch (const std::exception& error) {
         return luaL_error(state, "%s", error.what());
@@ -65,11 +70,13 @@ int classInstanceNewIndex(lua_State* state) {
             lua_pushvalue(state, 1);
             lua_pushvalue(state, 3);
             lua_call(state, 2, 0);
+            clearExplicitNilField(state, 1, 2);
             return 0;
         }
         lua_pushvalue(state, 2);
         lua_pushvalue(state, 3);
         lua_rawset(state, 1);
+        clearExplicitNilField(state, 1, 2);
         invalidateClassLookup(lua, classTable);
         const sol::object value = sol::stack::get<sol::object>(state, 3);
         if (value.is<sol::function>()) {
@@ -91,7 +98,11 @@ int classMetatableIndex(lua_State* state) {
     try {
         sol::state_view lua(state);
         const sol::object key = sol::stack::get<sol::object>(state, 2);
-        findInClass(lua, constructorClass(state), key, false).push();
+        if (hasExplicitNilField(state, 1, 2)) {
+            lua_pushnil(state);
+        } else {
+            findInClass(lua, constructorClass(state), key, false).push();
+        }
         return 1;
     } catch (const std::exception& error) {
         return luaL_error(state, "%s", error.what());
@@ -106,6 +117,7 @@ int classMetatableNewIndex(lua_State* state) {
         lua_pushvalue(state, 2);
         lua_pushvalue(state, 3);
         lua_rawset(state, 1);
+        clearExplicitNilField(state, 1, 2);
         invalidateClassLookup(lua, classTable);
         if (value.is<sol::function>()) {
             const sol::object implementationOwner =

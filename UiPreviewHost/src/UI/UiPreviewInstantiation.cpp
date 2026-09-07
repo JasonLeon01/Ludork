@@ -6,7 +6,7 @@
 
 #include <EngineState.hpp>
 #include <Runtime/AssetStore.hpp>
-#include <Runtime/RuntimeValueReader.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UiAssetRuntime.hpp>
 #include <UI/UIState.hpp>
 #include <Runtime/Json.hpp>
@@ -126,10 +126,8 @@ std::shared_ptr<UiAssetInstance> instantiateUiPreview(
     float renderScale) {
     engineState().setScale(renderScale);
     configureUiResources();
-    const RuntimeValue dependencyValues{RuntimeData(dependencies)};
     return UiAssetRuntime::instance().instantiateSnapshot(
-        assetKey, RuntimeValue(asset), dependencyValues.view().map()->toMap(),
-        design, true);
+        assetKey, asset, dependencies, design, true);
 }
 
 }  // namespace ludork::preview_host

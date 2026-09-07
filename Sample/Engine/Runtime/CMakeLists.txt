@@ -2,8 +2,21 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkRuntime LANGUAGES CXX)
 
-file(GLOB_RECURSE LUDORK_RUNTIME_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+if(LUDORK_WITH_LUA)
+    file(GLOB_RECURSE LUDORK_RUNTIME_SOURCES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+else()
+    set(LUDORK_RUNTIME_SOURCES
+        src/RuntimeData.cpp
+        src/RuntimeValue.cpp
+        src/RuntimeObject.cpp
+        src/RuntimeIdentity.cpp
+        src/Json.cpp
+        src/AssetPath.cpp
+        src/AssetStore.cpp
+        src/AssetInputStream.cpp
+        src/LdPakArchive.cpp)
+endif()
 
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/MetadataRuntime.cpp"
@@ -35,6 +48,7 @@ add_library(Ludork::Runtime ALIAS LudorkRuntime)
 
 target_compile_features(LudorkRuntime PUBLIC cxx_std_20)
 target_compile_definitions(LudorkRuntime
+    PUBLIC LUDORK_WITH_LUA=$<BOOL:${LUDORK_WITH_LUA}>
     PRIVATE LUDORK_RUNTIME_EXPORTS=1)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
    CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
@@ -42,21 +56,17 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
         _ALLOW_COMPILER_AND_STL_VERSION_MISMATCH)
 endif()
 target_include_directories(LudorkRuntime
-    PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        ${LUDORK_LUASF_CONSUMER_INCLUDES}
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(LudorkRuntime
-    PUBLIC
-        Ludork::SolConfig
-        Ludork::Standard
-        LuaSF::LuaSF
-        LuaSF::Lua
-        SFML::Graphics
-        SFML::Audio
-        SFML::Network
-    PRIVATE
-        zlibstatic)
+    PUBLIC Ludork::Standard SFML::Graphics
+    PRIVATE zlibstatic)
+if(LUDORK_WITH_LUA)
+    target_include_directories(LudorkRuntime
+        PUBLIC ${LUDORK_LUASF_CONSUMER_INCLUDES})
+    target_link_libraries(LudorkRuntime
+        PUBLIC Ludork::SolConfig LuaSF::LuaSF LuaSF::Lua SFML::Audio SFML::Network)
+endif()
 
 set_target_properties(LudorkRuntime PROPERTIES
     CXX_VISIBILITY_PRESET hidden

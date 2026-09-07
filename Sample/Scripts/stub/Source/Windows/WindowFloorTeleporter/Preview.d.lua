@@ -36,7 +36,7 @@ function WindowFloorMapPreview:setMapKeyAndTelepoints(mapKey, entries, selectedI
 ---@param deltaTime number
 function WindowFloorMapPreview:onTick(deltaTime) end
 
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowFloorMapPreview:onKeyDown(kwargs) end
 
 function WindowFloorMapPreview:onReturn() end

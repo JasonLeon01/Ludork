@@ -15,12 +15,14 @@ from .model import (
 )
 from .cpp_types import (
     LUA_RESERVED_WORDS,
+    INTEGER_TYPES,
     MAP_TYPES,
     OPTIONAL_TYPES,
     PAIR_TYPES,
     SEQUENCE_TYPES,
     SMART_POINTER_TYPES,
     VARIANT_TYPES,
+    TUPLE_TYPES,
     dynamic_value_nested_type,
     exposed_parameters,
     exposed_type_name,
@@ -311,7 +313,7 @@ def metadata_type(
 ) -> MetadataType:
     value = remove_pointer(value)
     parsed = parse_cpp_type(context, value)
-    if parsed.name in context.enum_types:
+    if parsed.name in context.enum_types or parsed.name in INTEGER_TYPES:
         return MetadataType("int")
     nested_dynamic_type = dynamic_value_nested_type(context, value)
     if parsed.name in context.dynamic_value_types:
@@ -428,14 +430,142 @@ def lua_key(key: str) -> str:
     )
 
 
-def lua_metadata_type(
-    context: GeneratorContext, value: str, type_modules: dict[str, str]
-) -> str:
+def metadata_schema(context: GeneratorContext, value: str, type_modules: dict[str, str]) -> object:
+    parsed = parse_cpp_type(context, remove_pointer(value))
+    if parsed.name in context.pure_data_types:
+        return "any"
+    if parsed.name in {"std::function", "ludork::runtime::StrictFunction"}:
+        return "function"
+    if parsed.name == "std::monostate":
+        return "nil"
+    if parsed.name in OPTIONAL_TYPES and parsed.arguments:
+        return metadata_schema(context, render_parsed_type(parsed.arguments[0]), type_modules)
+    if parsed.name in VARIANT_TYPES:
+        alternatives = []
+        for argument in parsed.arguments:
+            schema = metadata_schema(context, render_parsed_type(argument), type_modules)
+            for item in schema.get("union", []) if isinstance(schema, dict) and "union" in schema else [schema]:
+                if item not in alternatives:
+                    alternatives.append(item)
+        return {"union": alternatives}
+    if parsed.name in MAP_TYPES and len(parsed.arguments) >= 2:
+        key = metadata_schema(context, render_parsed_type(parsed.arguments[0]), type_modules)
+        if key == "string":
+            return {"dict": metadata_schema(context, render_parsed_type(parsed.arguments[1]), type_modules)}
+    if parsed.name in SEQUENCE_TYPES and parsed.arguments:
+        return {"list": metadata_schema(context, render_parsed_type(parsed.arguments[0]), type_modules)}
+    if parsed.name in PAIR_TYPES | TUPLE_TYPES:
+        return {"tuple": [metadata_schema(context, render_parsed_type(item), type_modules) for item in parsed.arguments]}
     type_info = metadata_type(context, value, type_modules)
     name = type_info.name + "[]" * type_info.array_depth
-    if type_info.module is None:
-        return lua_string(name)
-    return f"{{ {lua_string(type_info.module)}, {lua_string(name)} }}"
+    return name if type_info.module is None else [type_info.module, name]
+
+
+def canonical_schema(schema: object) -> object:
+    if isinstance(schema, list) and len(schema) == 2 and all(isinstance(item, str) for item in schema):
+        return ".".join(schema)
+    if isinstance(schema, dict):
+        return {
+            key: [canonical_schema(item) for item in value]
+            if key in {"union", "tuple"} and isinstance(value, list)
+            else canonical_schema(value)
+            for key, value in schema.items()
+        }
+    return schema
+
+
+def wrap_metadata_union(schema: object, value: object) -> dict[str, object]:
+    result = {"$type": canonical_schema(schema)}
+    if schema != "nil" or value is not None:
+        result["$value"] = value
+    return result
+
+
+def tag_metadata_default(value: object, schema: object) -> object:
+    if isinstance(schema, dict) and "union" in schema:
+        choices = schema["union"]
+        if isinstance(value, dict) and "$type" in value:
+            selected = next((item for item in choices if canonical_schema(item) == canonical_schema(value["$type"])), None)
+            if selected is None or set(value) - {"$type", "$value"}:
+                raise ValueError(f"metadata default selects an undeclared union branch: {value!r}")
+            if "$value" not in value and selected != "nil":
+                raise ValueError("non-nil union metadata defaults require $value")
+            return wrap_metadata_union(selected, tag_metadata_default(value.get("$value"), selected))
+        primitive = "nil" if value is None else "bool" if isinstance(value, bool) else "int" if isinstance(value, int) else "float" if isinstance(value, float) else "string" if isinstance(value, str) else None
+        selected = next((item for item in choices if item == primitive), None)
+        if selected is None and primitive == "int" and "float" in choices:
+            selected = "float"
+        if selected is None and value in ({}, []):
+            containers = [item for item in choices if isinstance(item, dict) and ("dict" in item or "list" in item)]
+            if len(containers) == 1:
+                selected = containers[0]
+                value = {} if "dict" in selected else []
+        if selected is None:
+            raise ValueError(f"metadata default {value!r} has no unambiguous union branch {choices!r}")
+        return wrap_metadata_union(selected, tag_metadata_default(value, selected))
+    if isinstance(schema, dict) and "dict" in schema and isinstance(value, dict):
+        return {key: tag_metadata_default(item, schema["dict"]) for key, item in value.items()}
+    if isinstance(schema, dict) and "list" in schema and isinstance(value, list):
+        return [tag_metadata_default(item, schema["list"]) for item in value]
+    if isinstance(schema, dict) and "tuple" in schema and isinstance(value, list):
+        if len(value) != len(schema["tuple"]):
+            raise ValueError("tuple metadata default must have one value per declared slot")
+        return [tag_metadata_default(item, item_schema) for item, item_schema in zip(value, schema["tuple"])]
+    if schema == "nil" and value is not None:
+        raise ValueError("nil union metadata defaults cannot carry a value")
+    return value
+
+
+def value_initialized_default(context: GeneratorContext, type_name: str, type_modules: dict[str, str]) -> object:
+    parsed = parse_cpp_type(context, remove_pointer(type_name))
+    schema = metadata_schema(context, type_name, type_modules)
+    if parsed.name in VARIANT_TYPES and parsed.arguments:
+        first = render_parsed_type(parsed.arguments[0])
+        first_schema = metadata_schema(context, first, type_modules)
+        value = value_initialized_default(context, first, type_modules)
+        if isinstance(first_schema, dict) and "union" in first_schema:
+            return value
+        if value is None and first_schema != "nil":
+            raise ValueError(f"value-initialized variant branch {first} has nil state not represented by its metadata schema")
+        return wrap_metadata_union(first_schema, value)
+    if parsed.name == "std::monostate":
+        return None
+    if parsed.name in OPTIONAL_TYPES | SMART_POINTER_TYPES | {"std::function", "ludork::runtime::StrictFunction"}:
+        return None
+    if parsed.name in MAP_TYPES:
+        return {}
+    if parsed.name in SEQUENCE_TYPES:
+        if parsed.name == "std::array":
+            if len(parsed.arguments) != 2 or not parsed.arguments[1].name.isdecimal():
+                raise ValueError(f"value-initialized array default requires a literal size: {type_name}")
+            return [value_initialized_default(context, render_parsed_type(parsed.arguments[0]), type_modules) for _ in range(int(parsed.arguments[1].name))]
+        return []
+    if parsed.name in PAIR_TYPES | TUPLE_TYPES:
+        return [value_initialized_default(context, render_parsed_type(item), type_modules) for item in parsed.arguments]
+    if schema == "bool":
+        return False
+    if schema == "int" and parsed.name in INTEGER_TYPES:
+        return 0
+    if schema == "float":
+        return 0.0
+    if schema == "string":
+        return ""
+    raise ValueError(f"cannot derive value-initialized metadata default for {type_name}; declare an explicit default")
+
+
+def tag_declared_default(context: GeneratorContext, value: object, type_name: str, type_modules: dict[str, str], value_initialized: bool = False) -> object:
+    parsed = parse_cpp_type(context, remove_pointer(type_name))
+    if value_initialized and parsed.name in VARIANT_TYPES:
+        return value_initialized_default(context, type_name, type_modules)
+    return tag_metadata_default(value, metadata_schema(context, type_name, type_modules))
+
+
+def property_has_value_initializer(member: Member) -> bool:
+    return "default" not in member.options and re.search(r"=\s*\{\s*\}\s*;\s*$", member.declaration) is not None
+
+
+def lua_metadata_type(context: GeneratorContext, value: str, type_modules: dict[str, str]) -> str:
+    return lua_data_value(metadata_schema(context, value, type_modules), "            ")
 
 
 def metadata_properties(info: TypeInfo) -> list[Member]:
@@ -706,12 +836,39 @@ def lua_data_value(value: object, indent: str) -> str:
     raise ValueError(f"unsupported metadata default value: {value!r}")
 
 
-def member_defaults(member: Member) -> str | None:
+def member_defaults(context: GeneratorContext, member: Member, type_modules: dict[str, str]) -> str | None:
     raw = member.options.get("defaults")
     if raw is None:
         return None
     values = split_macro_arguments(raw)
-    return "{ " + ", ".join(lua_default_value(value) for value in values) + " }"
+    parameters = exposed_parameters(member)
+    if len(values) > len(parameters):
+        raise ValueError(f"too many defaults for {member.name}")
+    types = [type_name for _, type_name in parameters[len(parameters) - len(values):]]
+    output = []
+    offset = len(parameters) - len(values)
+    for index, (value, type_name) in enumerate(zip(values, types), offset + 1):
+        literal = lua_default_value(value)
+        if literal == "nil":
+            continue
+        default = cpp_literal_default(value)
+        if default is _NO_DEFAULT:
+            if value.strip().startswith(("{", "[")):
+                default = PureDataParser(value, "parameter default").parse()
+            else:
+                default = value.strip()
+        output.append(f"[{index}] = " + lua_data_value(tag_declared_default(context, default, type_name, type_modules, value.strip() == "{}"), "            "))
+    return "{ " + ", ".join(output) + " }"
+
+
+def member_unset_defaults(member: Member) -> list[str]:
+    raw = member.options.get("defaults")
+    if raw is None:
+        return []
+    defaults = split_macro_arguments(raw)
+    parameters = exposed_parameters(member)
+    offset = len(parameters) - len(defaults)
+    return [parameters[offset + index][0] for index, value in enumerate(defaults) if lua_default_value(value) == "nil"]
 
 
 def lua_decorator_value(value: str, indent: str, label: str) -> str:
@@ -855,6 +1012,7 @@ def generate_metadata(
             )
             default = property_default(member)
             if default is not _NO_DEFAULT:
+                default = tag_declared_default(context, default, property_type_name, type_modules, property_has_value_initializer(member))
                 output.append(
                     f"            default = {lua_data_value(default, '            ')},"
                 )
@@ -872,9 +1030,12 @@ def generate_metadata(
             output.append(
                 f"            parameters = {parameter_metadata(context, member, type_modules)},"
             )
-            defaults = member_defaults(member)
+            defaults = member_defaults(context, member, type_modules)
             if defaults is not None:
                 output.append(f"            default = {defaults},")
+            unset_defaults = member_unset_defaults(member)
+            if unset_defaults:
+                output.append(f"            defaultUnset = {lua_data_value(unset_defaults, '            ')},")
             output.extend(return_metadata_lines(context, member, type_modules))
             if is_pure(member):
                 output.append("            Pure = true,")
@@ -926,6 +1087,7 @@ def generate_metadata(
             )
             default = property_default(member)
             if default is not _NO_DEFAULT:
+                default = tag_declared_default(context, default, module_property_type(context, member), type_modules, property_has_value_initializer(member))
                 output.append(
                     f"            default = {lua_data_value(default, '            ')},"
                 )
@@ -940,9 +1102,12 @@ def generate_metadata(
             output.append(
                 f"            parameters = {parameter_metadata(context, member, type_modules)},"
             )
-            defaults = member_defaults(member)
+            defaults = member_defaults(context, member, type_modules)
             if defaults is not None:
                 output.append(f"            default = {defaults},")
+            unset_defaults = member_unset_defaults(member)
+            if unset_defaults:
+                output.append(f"            defaultUnset = {lua_data_value(unset_defaults, '            ')},")
             output.extend(return_metadata_lines(context, member, type_modules))
             if is_pure(member):
                 output.append("            Pure = true,")

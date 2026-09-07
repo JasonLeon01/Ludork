@@ -32,11 +32,11 @@ function WindowEnemyEncyclopedia:refreshLocale() end
 ---@brief Close on confirm or cancel.
 ---
 --- - @param kwargs Event data.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowEnemyEncyclopedia:onKeyDown(kwargs) end
 
 ---@brief Close on right click.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 ---@return boolean
 function WindowEnemyEncyclopedia:onMouseButtonDown(kwargs) end
 

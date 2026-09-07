@@ -13,7 +13,7 @@ public:
 
     ~Character() override = default;
 
-    BIND_PROPERTY(metadata_type = "Direction")
+    BIND_PROPERTY(meta(DropBox = {0, 1, 2, 3}))
     int direction = 0;
 
     BIND_PROPERTY()

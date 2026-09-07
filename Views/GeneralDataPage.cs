@@ -394,7 +394,7 @@ internal sealed class GeneralDataPage : Grid
 
     private Control buildTableEditor(GeneralDataTableRow row, GeneralDataTableColumn column)
     {
-        string type = column.Definition["type"]?.GetValue<string>() ?? "string";
+        string type = readTypeName(column.Definition["type"]);
         JsonNode? rawValue = row.Member[column.Name];
         if (type == "bool")
         {
@@ -414,44 +414,8 @@ internal sealed class GeneralDataPage : Grid
             };
             return check;
         }
-        if (type == "int")
-        {
-            NumericUpDown number = EditorInputs.CreateNumericUpDown(
-                rawValue?.GetValue<int?>() ?? 0,
-                -999999,
-                999999,
-                1);
-            HistoryMergeBehavior.Attach(number, gameData);
-            number.ValueChanged += (_, _) =>
-            {
-                int next = (int)(number.Value ?? 0);
-                if ((row.Member[column.Name]?.GetValue<int?>() ?? 0) == next)
-                    return;
-                gameData.RecordSnapshot();
-                row.Member[column.Name] = next;
-                gameData.refreshModifiedState();
-            };
-            return number;
-        }
-        if (type == "float")
-        {
-            NumericUpDown number = EditorInputs.CreateNumericUpDown(
-                (decimal)(rawValue?.GetValue<double?>() ?? 0.0),
-                -999999,
-                999999,
-                0.01m);
-            HistoryMergeBehavior.Attach(number, gameData);
-            number.ValueChanged += (_, _) =>
-            {
-                double next = (double)(number.Value ?? 0);
-                if (Math.Abs((row.Member[column.Name]?.GetValue<double?>() ?? 0.0) - next) < 1e-10)
-                    return;
-                gameData.RecordSnapshot();
-                row.Member[column.Name] = next;
-                gameData.refreshModifiedState();
-            };
-            return number;
-        }
+        if (type is "int" or "float")
+            return buildTypedFieldEditor(column.Name, column.Definition, rawValue, row.Member, null);
         if (type == "string")
         {
             string current = rawValue?.GetValue<string>() ?? string.Empty;
@@ -905,7 +869,7 @@ internal sealed class GeneralDataPage : Grid
     {
         if (paramDef is null)
             return false;
-        string type = paramDef["type"]?.GetValue<string>() ?? "string";
+        string type = readTypeName(paramDef["type"]);
         return type == "string"
             || type == "dict"
             || (type == "list" && getContainerItemType(paramDef, "itemType") == "string");
@@ -972,7 +936,7 @@ internal sealed class GeneralDataPage : Grid
         if (result is null)
             return;
 
-        JsonObject nextDefinition = updateParamDefinition(currentDefinition, result);
+        JsonObject nextDefinition = updateParamDefinition(currentDefinition, initialValue, result);
         bool resetMemberValues = hasValueTypeChanged(initialValue, result);
         if (result.Name == paramName && JsonNode.DeepEquals(currentDefinition, nextDefinition))
             return;
@@ -1028,7 +992,13 @@ internal sealed class GeneralDataPage : Grid
 
     private Control buildFieldEditor(string paramName, JsonObject paramDef, JsonNode? rawValue, JsonObject member)
     {
-        string type = paramDef["type"]?.GetValue<string>() ?? "string";
+        string type = readTypeName(paramDef["type"]);
+        if (LuaMetadataType.Parse(type).Kind == LuaMetadataTypeKind.Union
+            || type.StartsWith("Tuple[", StringComparison.Ordinal)
+            || paramDef["type"] is JsonObject)
+        {
+            return buildTypedFieldEditor(paramName, paramDef, rawValue, member, null);
+        }
         JsonObject? reference = getParamReference(paramDef);
         string refKind = reference?["kind"]?.GetValue<string>() ?? string.Empty;
         string refKey = reference?["key"]?.GetValue<string>() ?? string.Empty;
@@ -1050,41 +1020,8 @@ internal sealed class GeneralDataPage : Grid
             return check;
         }
 
-        if (type == "int")
-        {
-            int current = rawValue?.GetValue<int?>() ?? 0;
-            NumericUpDown num = EditorInputs.CreateNumericUpDown(current, -999999, 999999, 1);
-            HistoryMergeBehavior.Attach(num, gameData);
-            num.ValueChanged += (_, _) =>
-            {
-                int next = (int)(num.Value ?? 0);
-                if ((rawValue?.GetValue<int?>() ?? 0) == next)
-                    return;
-                gameData.RecordSnapshot();
-                member[paramName] = next;
-                rawValue = member[paramName];
-                gameData.refreshModifiedState();
-            };
-            return num;
-        }
-
-        if (type == "float")
-        {
-            double current = rawValue?.GetValue<double?>() ?? 0.0;
-            NumericUpDown num = EditorInputs.CreateNumericUpDown((decimal)current, -999999, 999999, 0.01m);
-            HistoryMergeBehavior.Attach(num, gameData);
-            num.ValueChanged += (_, _) =>
-            {
-                double next = (double)(num.Value ?? 0);
-                if (Math.Abs((rawValue?.GetValue<double?>() ?? 0.0) - next) < 1e-10)
-                    return;
-                gameData.RecordSnapshot();
-                member[paramName] = next;
-                rawValue = member[paramName];
-                gameData.refreshModifiedState();
-            };
-            return num;
-        }
+        if (type is "int" or "float")
+            return buildTypedFieldEditor(paramName, paramDef, rawValue, member, null);
 
         if (type == "file")
         {
@@ -1230,7 +1167,7 @@ internal sealed class GeneralDataPage : Grid
         JsonObject member,
         IReadOnlyList<string>? referenceOptions)
     {
-        string type = paramDef["type"]?.GetValue<string>() ?? "string";
+        string type = readTypeName(paramDef["type"]);
         string editorType = type switch
         {
             "list" => getContainerItemType(paramDef, "itemType") + "[]",
@@ -1251,6 +1188,7 @@ internal sealed class GeneralDataPage : Grid
             ShowFieldNames = false,
             CustomValueEditorFactory = createGeneralDataReferenceEditor,
         };
+        form.SetFields([field]);
         form.ValueChanged += (_, args) =>
         {
             if (JsonNode.DeepEquals(member[paramName], args.Value))
@@ -1259,7 +1197,6 @@ internal sealed class GeneralDataPage : Grid
             member[paramName] = args.Value?.DeepClone();
             gameData.refreshModifiedState();
         };
-        form.SetFields([field]);
         return form;
     }
 
@@ -1321,10 +1258,22 @@ internal sealed class GeneralDataPage : Grid
 
     private static string getContainerItemType(JsonObject paramDef, string name)
     {
-        string? value = paramDef[name]?.GetValue<string>();
+        string? value = paramDef[name] is null ? null : readTypeName(paramDef[name]);
         if (string.IsNullOrWhiteSpace(value))
             throw new InvalidOperationException($"General Data container is missing {name}");
         return value;
+    }
+
+    private static string readTypeName(JsonNode? type)
+    {
+        if (type is JsonValue scalar && scalar.TryGetValue(out string? text))
+            return text ?? "string";
+        return type is null ? "string" : LuaMetadataType.Parse(type).ToString();
+    }
+
+    private static JsonNode canonicalTypeNode(string type)
+    {
+        return type is "list" or "dict" ? JsonValue.Create(type)! : LuaMetadataType.Parse(type).ToSchema();
     }
 
     private static bool isSfType(string type)
@@ -1362,17 +1311,21 @@ internal sealed class GeneralDataPage : Grid
 
     private static JsonNode? buildMemberDefaultValue(JsonObject paramDef)
     {
-        string type = paramDef["type"]?.GetValue<string>() ?? "string";
+        string type = readTypeName(paramDef["type"]);
         JsonNode? defaultDef = paramDef["defaultValue"];
+        LuaMetadataType schema = LuaMetadataType.Parse(type);
+        if (schema.Kind == LuaMetadataTypeKind.Union || type.StartsWith("Tuple[", StringComparison.Ordinal)
+            || paramDef["type"] is JsonObject)
+            return defaultDef?.DeepClone() ?? LuaMetadataValueDefaults.Create(schema, _ => null);
         return type switch
         {
-            "int" => defaultDef?.GetValue<int?>() ?? 0,
+            "int" => defaultDef?.GetValue<long?>() ?? 0,
             "float" => defaultDef?.GetValue<double?>() ?? 0.0,
             "bool" => defaultDef?.GetValue<bool?>() ?? false,
             "list" => defaultDef is JsonArray arr ? (JsonArray)arr.DeepClone() : new JsonArray(),
             "dict" => defaultDef is JsonObject obj ? (JsonObject)obj.DeepClone() : new JsonObject(),
             "file" => JsonValue.Create(string.Empty),
-            _ when isSfType(type) => createTypedDefault(type),
+            _ when isSfType(type) => defaultDef?.DeepClone() ?? createTypedDefault(type),
             _ => JsonValue.Create(defaultDef?.GetValue<string>() ?? string.Empty),
         };
     }
@@ -1388,7 +1341,7 @@ internal sealed class GeneralDataPage : Grid
     {
         JsonObject definition = new()
         {
-            ["type"] = value.Type,
+            ["type"] = canonicalTypeNode(value.Type),
             ["defaultValue"] = value.Type == "file"
                 ? JsonValue.Create(string.Empty)
                 : parseDefaultValue(value.Type, value.DefaultText),
@@ -1398,38 +1351,56 @@ internal sealed class GeneralDataPage : Grid
         if (value.Comment.Length > 0)
             definition["comment"] = value.Comment;
         if (value.ItemType is not null)
-            definition["itemType"] = value.ItemType;
+            definition["itemType"] = canonicalTypeNode(value.ItemType);
         if (value.ValueType is not null)
-            definition["valueType"] = value.ValueType;
+            definition["valueType"] = canonicalTypeNode(value.ValueType);
         return definition;
     }
 
     private static JsonObject updateParamDefinition(
         JsonObject currentDefinition,
+        GeneralDataParamCreation initialValue,
         GeneralDataParamCreation value)
     {
         JsonObject definition = (JsonObject)currentDefinition.DeepClone();
-        definition["type"] = value.Type;
-        definition["defaultValue"] = value.Type == "file"
-            ? JsonValue.Create(string.Empty)
-            : parseDefaultValue(value.Type, value.DefaultText);
-        if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
-            definition["base"] = value.DefaultText.Trim();
-        else
-            definition.Remove("base");
-        if (value.Comment.Length == 0)
-            definition.Remove("comment");
-        else
-            definition["comment"] = value.Comment;
-        if (value.ItemType is null)
-            definition.Remove("itemType");
-        else
-            definition["itemType"] = value.ItemType;
-        if (value.ValueType is null)
-            definition.Remove("valueType");
-        else
-            definition["valueType"] = value.ValueType;
-        if (!isParamReferenceAllowed(definition))
+        bool typeChanged = hasValueTypeChanged(initialValue, value);
+        if (initialValue.Type != value.Type)
+            definition["type"] = canonicalTypeNode(value.Type);
+        if (typeChanged || initialValue.DefaultText != value.DefaultText)
+        {
+            if (typeChanged || value.Type != "file")
+            {
+                definition["defaultValue"] = value.Type == "file"
+                    ? JsonValue.Create(string.Empty)
+                    : parseDefaultValue(value.Type, value.DefaultText);
+            }
+            if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
+                definition["base"] = value.DefaultText.Trim();
+            else if (initialValue.Type == "file" || value.Type == "file")
+                definition.Remove("base");
+        }
+        if (initialValue.Comment.Trim() != value.Comment)
+        {
+            if (value.Comment.Length == 0)
+                definition.Remove("comment");
+            else
+                definition["comment"] = value.Comment;
+        }
+        if (initialValue.ItemType != value.ItemType)
+        {
+            if (value.ItemType is null)
+                definition.Remove("itemType");
+            else
+                definition["itemType"] = canonicalTypeNode(value.ItemType);
+        }
+        if (initialValue.ValueType != value.ValueType)
+        {
+            if (value.ValueType is null)
+                definition.Remove("valueType");
+            else
+                definition["valueType"] = canonicalTypeNode(value.ValueType);
+        }
+        if (typeChanged && !isParamReferenceAllowed(definition))
             definition.Remove("reference");
         return definition;
     }
@@ -1438,7 +1409,7 @@ internal sealed class GeneralDataPage : Grid
         string name,
         JsonObject definition)
     {
-        string type = definition["type"]?.GetValue<string>() ?? "string";
+        string type = readTypeName(definition["type"]);
         return new GeneralDataParamCreation(
             name,
             type,
@@ -1468,11 +1439,12 @@ internal sealed class GeneralDataPage : Grid
     {
         return type switch
         {
-            "int" => (value?.GetValue<int?>() ?? 0).ToString(CultureInfo.InvariantCulture),
+            "int" => (value?.GetValue<long?>() ?? 0).ToString(CultureInfo.InvariantCulture),
             "float" => (value?.GetValue<double?>() ?? 0.0).ToString(CultureInfo.InvariantCulture),
             "bool" => value?.GetValue<bool?>() == true ? "true" : "false",
             "list" or "dict" => string.Empty,
             _ when isSfType(type) => string.Empty,
+            _ when LuaMetadataType.Parse(type).Kind != LuaMetadataTypeKind.Named => value?.ToJsonString() ?? "null",
             _ => value?.GetValue<string>() ?? string.Empty,
         };
     }
@@ -1498,11 +1470,12 @@ internal sealed class GeneralDataPage : Grid
     {
         return type switch
         {
-            "int" => int.TryParse(text, out int i) ? i : 0,
-            "float" => double.TryParse(text, out double d) ? d : 0.0,
+            "int" => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long i) ? i : 0,
+            "float" => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : 0.0,
             "bool" => text.Equals("true", StringComparison.OrdinalIgnoreCase) ? true : false,
             "list" => new JsonArray(),
             "dict" => new JsonObject(),
+            _ when LuaMetadataType.Parse(type).Kind != LuaMetadataTypeKind.Named => JsonNode.Parse(text)!,
             "file" => JsonValue.Create(string.Empty)!,
             _ when isSfType(type) => createTypedDefault(type),
             _ => JsonValue.Create(text) ?? JsonValue.Create(string.Empty)!,

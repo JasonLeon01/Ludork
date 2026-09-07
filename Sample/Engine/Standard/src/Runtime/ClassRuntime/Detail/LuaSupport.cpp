@@ -1,6 +1,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 
 #include <LuaError.hpp>
 #include <sol2/sol.hpp>
@@ -72,6 +73,7 @@ void protectedAssign(sol::state_view lua, const sol::object& target,
         throw std::runtime_error(
             popLuaError(state, "Lua indexed write failed"));
     }
+    clearExplicitNilField(lua, target, key);
 }
 
 bool isClass(const sol::table& value) {

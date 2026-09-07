@@ -81,6 +81,10 @@ function Scene.AddTimer(interval, blocking)
     end
 end
 
+function Scene.ShowEnemyBook()
+    Context.RequireSceneMap():showEnemyBook()
+end
+
 function Scene.ShowMessageByTag(name, message, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = Context.RequireSceneMap()

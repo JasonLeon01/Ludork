@@ -489,7 +489,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         BlueprintGraphNodeDefinition[] compatible = viewModel.Definitions
             .Where(definition => definition.Ports.Any(port =>
                 port.Direction == BlueprintGraphPortDirection.Input
-                && port.Kind == args.Source.Model.Kind))
+                && viewModel.CanConnectType(args.Source.Model, port)))
             .ToArray();
         Window? owner = TopLevel.GetTopLevel(this) as Window;
         if (owner is null || compatible.Length == 0)

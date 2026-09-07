@@ -1,5 +1,6 @@
 #include <Runtime/RuntimeProviderFacade.hpp>
 #include <Runtime/RuntimeReference.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
 
 #include <Runtime/Components/ComponentRuntime.hpp>
@@ -85,42 +86,14 @@ RuntimeValue instantiateClassGraph(const std::string& classPath,
         identity(graphTemplate), identity(parent)));
 }
 
-bool isSequence(const RuntimeValue& value) {
-    const RuntimeValue rawCount =
-        rawGet(ludork::runtime::reference::intern(value), "n");
-    std::size_t count = length(ludork::runtime::reference::intern(value));
-    if (!rawCount.isNil()) {
-        if (!is<std::int64_t>(rawCount) || as<std::int64_t>(rawCount) < 0) {
-            return false;
-        }
-        count = static_cast<std::size_t>(as<std::int64_t>(rawCount));
-    }
-    std::size_t entryCount = 0;
-    for (const auto& entry :
-         entries(ludork::runtime::reference::intern(value))) {
-        if (is<std::string>(entry.first) &&
-            as<std::string>(entry.first) == "n") {
-            continue;
-        }
-        if (!is<std::int64_t>(entry.first)) {
-            return false;
-        }
-        const std::int64_t index = as<std::int64_t>(entry.first);
-        if (index < 1 || static_cast<std::size_t>(index) > count) {
-            return false;
-        }
-        ++entryCount;
-    }
-    return entryCount == count;
-}
-
 std::string declaringModule(const RuntimeValue& value) {
     return is<std::string>(value) ? as<std::string>(value) : std::string();
 }
 
 RuntimeValue cloneMetadataValue(const RuntimeValue& value,
                                 const RuntimeValue& fieldMetadata,
-                                const std::string& fallbackModule) {
+                                const std::string& fallbackModule,
+                                bool stored) {
     TypedDataService& dataValues = typedDataService();
     const RuntimeValue typeReference =
         rawGet(ludork::runtime::reference::intern(fieldMetadata), "type");
@@ -134,20 +107,6 @@ RuntimeValue cloneMetadataValue(const RuntimeValue& value,
     const std::string moduleName =
         fieldModule.empty() ? fallbackModule : fieldModule;
 
-    if (is<std::string>(typeReference)) {
-        const std::string typeName = as<std::string>(typeReference);
-        if (typeName == "bool" || typeName == "int" || typeName == "float" ||
-            typeName == "string") {
-            return dataValues.resolveTypedDataValue(
-                value, runtimeType, RuntimeValue::Map{}, moduleName);
-        }
-        if (typeName == "any" || typeName == "table" || typeName == "list" ||
-            typeName == "dict" || typeName == "Pair" ||
-            typeName.ends_with("[]")) {
-            return deepCopy(value);
-        }
-    }
-
     const RuntimeValue component =
         rawGet(ludork::runtime::reference::intern(fieldMetadata), "component");
     if (is<bool>(component) && as<bool>(component)) {
@@ -159,11 +118,9 @@ RuntimeValue cloneMetadataValue(const RuntimeValue& value,
         }
         return deepCopy(value);
     }
-    if (isTable(value) && !isSequence(value)) {
-        return deepCopy(value);
-    }
-    if (is<std::string>(value)) {
-        return dataValues.evalDataExpression(value);
+    if (!stored) {
+        return deepCopy(dataValues.resolveRuntimeTypedValue(value, runtimeType,
+                                                            moduleName));
     }
     return deepCopy(dataValues.resolveTypedDataValue(
         value, runtimeType, RuntimeValue::Map{}, moduleName));
@@ -172,10 +129,10 @@ RuntimeValue cloneMetadataValue(const RuntimeValue& value,
 RuntimeValue cloneAttrValue(const RuntimeValue& parentClass,
                             const RuntimeValue& key, const RuntimeValue& value,
                             const RuntimeValue& rawMetadata,
-                            const RuntimeValue& rawTargetType) {
+                            const RuntimeValue& rawTargetType, bool stored) {
     TypedDataService& dataValues = typedDataService();
     if (isTable(rawMetadata)) {
-        return cloneMetadataValue(value, rawMetadata);
+        return cloneMetadataValue(value, rawMetadata, {}, stored);
     }
     RuntimeValue targetType;
     if (!rawTargetType.isNil()) {
@@ -186,15 +143,12 @@ RuntimeValue cloneAttrValue(const RuntimeValue& parentClass,
         targetType =
             dataValues.resolveAttrValueType(parentClass, as<std::string>(key));
     }
-    if (is<std::string>(value)) {
-        if (dataValues.shouldEvalValueType(targetType)) {
-            return dataValues.evalDataExpression(value);
-        }
-    }
     const std::string* targetName = targetType.getIf<std::string>();
     if (!targetType.isNil() &&
         (targetName == nullptr || *targetName != "any")) {
-        return deepCopy(dataValues.resolveTypedDataValue(value, targetType));
+        return deepCopy(
+            stored ? dataValues.resolveTypedDataValue(value, targetType)
+                   : dataValues.resolveRuntimeTypedValue(value, targetType));
     }
     return deepCopy(value);
 }
@@ -296,6 +250,8 @@ void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
         const RuntimeValue current = rawRecord;
         const RuntimeHandle classAttrs = requireTable(
             rawGet(ludork::runtime::reference::intern(current), "attrs"));
+        const RuntimeHandle nilAttrs = requireTable(
+            rawGet(ludork::runtime::reference::intern(current), "nilAttrs"));
         const RuntimeHandle parentClass = requireTable(
             rawGet(ludork::runtime::reference::intern(current), "parent"));
         const RuntimeHandle attrMetadata = requireTable(
@@ -308,10 +264,22 @@ void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
                 appliedAttrs.insert(as<std::string>(entry.first)).second &&
                 !hasOwnField(ludork::runtime::reference::intern(self),
                              entry.first)) {
-                set(ludork::runtime::reference::intern(self), entry.first,
+                runtimeReflection().setTyped(
+                    ludork::runtime::reference::intern(self),
+                    as<std::string>(entry.first),
                     cloneAttrValue(parentClass, entry.first, entry.second,
                                    rawGet(attrMetadata, entry.first),
-                                   rawGet(attrTypes, entry.first)));
+                                   rawGet(attrTypes, entry.first), false));
+            }
+        }
+        for (const auto& entry : entries(nilAttrs)) {
+            if (is<std::string>(entry.first) &&
+                appliedAttrs.insert(as<std::string>(entry.first)).second &&
+                !hasOwnField(ludork::runtime::reference::intern(self),
+                             entry.first)) {
+                runtimeReflection().setTyped(
+                    ludork::runtime::reference::intern(self),
+                    as<std::string>(entry.first), RuntimeValue());
             }
         }
         rawRecord =

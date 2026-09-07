@@ -14,61 +14,62 @@ template <typename Value>
 NumericValue validateNumeric(const AbilitySystemImpl& state,
                              const std::string& name, const Value& value,
                              const std::string& context) {
-    return numericValue(value, state.attributeSet->getAttributeType(name),
-                        context, name);
+    const std::optional<AttributeSet::NumericType> type =
+        state.attributeSet->getNumericAttributeType(name);
+    if (!type.has_value()) {
+        throw std::invalid_argument("Attribute is not numeric: " + name);
+    }
+    return numericValue(value, *type, context, name);
 }
 
 NumericValue resolveAttribute(
     const AbilitySystemImpl& state, const std::string& name,
-    const AttributeNumbers& bases,
+    const GameplayNumbers& bases,
     const std::shared_ptr<GameplayEffectSpec>& pendingSpec,
     std::optional<int> replacedHandle, std::optional<int> replacementStacks,
-    const AttributeNumbers& resolvedValues);
+    const GameplayNumbers& resolvedValues);
 
-AttributeNumbers preview(
-    const AbilitySystemImpl& state, const AttributeNumbers& bases,
+GameplayNumbers preview(
+    const AbilitySystemImpl& state, const GameplayNumbers& bases,
     const std::shared_ptr<GameplayEffectSpec>& pendingSpec = {},
     std::optional<int> replacedHandle = std::nullopt,
     std::optional<int> replacementStacks = std::nullopt);
 
 void notify(const AbilitySystemImpl& state, const std::string& name,
             const RuntimeValue& oldValue, const RuntimeValue& newValue,
-            const RuntimeValue::Map& change);
+            const AbilitySystemImpl::AttributeChange& change);
 
-bool applyCurrentValues(AbilitySystemImpl& state,
-                        const AttributeNumbers& values,
-                        const std::string& source,
-                        const AttributeNumbers* oldBases = nullptr,
-                        const AttributeNumbers* newBases = nullptr,
+bool applyCurrentValues(AbilitySystemImpl& state, const GameplayNumbers& values,
+                        AbilitySystemImpl::AttributeChangeSource source,
+                        const GameplayNumbers* oldBases = nullptr,
+                        const GameplayNumbers* newBases = nullptr,
                         const RuntimeValue::Map* oldValueOverrides = nullptr);
 
-void commitBases(AbilitySystemImpl& state, const AttributeNumbers& bases,
+void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
                  const RuntimeValue::Map* oldValueOverrides = nullptr);
 
 std::shared_ptr<AttributeSet> getAttributeSet(const AbilitySystemImpl& state);
 
-RuntimeValue getNumericAttribute(const AbilitySystemImpl& state,
-                                 const std::string& name);
+GameplayNumber getNumericAttribute(const AbilitySystemImpl& state,
+                                   const std::string& name);
 
-RuntimeValue getNumericAttributeBase(const AbilitySystemImpl& state,
-                                     const std::string& name);
+GameplayNumber getNumericAttributeBase(const AbilitySystemImpl& state,
+                                       const std::string& name);
 
 void setNumericAttributeBase(AbilitySystemImpl& state, const std::string& name,
-                             const RuntimeValue& value);
+                             const GameplayNumber& value);
 
 void setNumericAttributeBases(AbilitySystemImpl& state,
-                              const RuntimeValue::Map& values);
+                              const GameplayNumbers& values);
 
-RuntimeValue::Map getNumericAttributeBases(const AbilitySystemImpl& state);
+GameplayNumbers getNumericAttributeBases(const AbilitySystemImpl& state);
 
 void addAttributeChangeListener(AbilitySystemImpl& state,
                                 const std::string& name,
                                 RuntimeIdentityPtr callback,
                                 RuntimeValue::Array params = {});
 
-void setNumericAttributeConstraint(AbilitySystemImpl& state,
-                                   const std::string& name,
-                                   RuntimeIdentityPtr callback);
+void refreshConstraints(AbilitySystemImpl& state);
 
 int getRevision(const AbilitySystemImpl& state);
 

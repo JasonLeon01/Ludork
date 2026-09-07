@@ -221,6 +221,7 @@ public sealed class UiAssetEditorDocument
         string value = name.Trim();
         if (node is null
             || value.Length == 0
+            || string.Equals(getString(node, "name"), value, StringComparison.Ordinal)
             || enumerateNodes()
                 .Any(candidate => !ReferenceEquals(candidate, node)
                     && string.Equals(getString(candidate, "name"), value, StringComparison.Ordinal)))

@@ -1,6 +1,10 @@
 #include <Runtime/TypedDataService.hpp>
 
 #include <Runtime/MetadataRuntime.hpp>
+#include <Runtime/RuntimeReference.hpp>
+#include <Runtime/RuntimeReflection.hpp>
+
+#include "TypedDataSchema.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -33,10 +37,6 @@ std::string trim(const std::string& value) {
                                            return std::isspace(character) != 0;
                                        });
     return std::string(first, last.base());
-}
-
-bool endsWithArray(const std::string& value) {
-    return value.size() >= 2 && value.ends_with("[]");
 }
 
 std::optional<RuntimeValueView> mapValue(RuntimeValueView value,
@@ -72,8 +72,11 @@ bool parseInteger(const std::string& text, std::int64_t& result) {
     }
     char* floatEnd = nullptr;
     const double number = std::strtod(text.c_str(), &floatEnd);
-    if (floatEnd == text.c_str() + text.size() && std::isfinite(number)) {
-        result = static_cast<std::int64_t>(number);
+    const double truncated = std::trunc(number);
+    const double limit = std::ldexp(1.0, 63);
+    if (floatEnd != text.c_str() && floatEnd == text.c_str() + text.size() &&
+        std::isfinite(truncated) && truncated >= -limit && truncated < limit) {
+        result = static_cast<std::int64_t>(truncated);
         return true;
     }
     return false;
@@ -85,53 +88,314 @@ bool parseFloat(const std::string& text, double& result) {
     return end == text.c_str() + text.size() && std::isfinite(result);
 }
 
+using ludork::runtime::typed_data_impl::parseSchema;
+using ludork::runtime::typed_data_impl::schemaName;
+using ludork::runtime::typed_data_impl::schemaValue;
+using ludork::runtime::typed_data_impl::TypeSchema;
+
+RuntimeValue snapshotContainer(const RuntimeValue& value) {
+    return value.getIf<RuntimeHandle>() == nullptr
+               ? value
+               : ludork::runtime::reference::snapshot(value);
+}
+
+bool matchesRuntime(const RuntimeValue& value, const TypeSchema& type,
+                    const std::string& declaringModule) {
+    if (type.kind == TypeSchema::Kind::Optional) {
+        return value.isNil() ||
+               matchesRuntime(value, type.arguments.front(), declaringModule);
+    }
+    if (type.kind == TypeSchema::Kind::Union) {
+        return std::any_of(
+            type.arguments.begin(), type.arguments.end(),
+            [&value, &declaringModule](const TypeSchema& argument) {
+                return matchesRuntime(value, argument, declaringModule);
+            });
+    }
+    if (type.kind == TypeSchema::Kind::List ||
+        type.kind == TypeSchema::Kind::Tuple) {
+        const std::optional<RuntimeValue::Array> array =
+            ludork::runtime::reference::arrayValues(value);
+        if (!array || (type.kind == TypeSchema::Kind::Tuple &&
+                       array->size() != type.arguments.size())) {
+            return false;
+        }
+        for (std::size_t index = 0; index < array->size(); ++index) {
+            const TypeSchema& itemType = type.kind == TypeSchema::Kind::List
+                                             ? type.arguments.front()
+                                             : type.arguments[index];
+            if (!matchesRuntime((*array)[index], itemType, declaringModule)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (type.kind == TypeSchema::Kind::Dictionary) {
+        const std::optional<RuntimeValue::Map> map =
+            ludork::runtime::reference::mapValues(value);
+        if (!map) {
+            return false;
+        }
+        for (const auto& [key, item] : *map) {
+            if (!matchesRuntime(item, type.arguments.front(),
+                                declaringModule)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (type.module.empty()) {
+        if (type.name == "any") {
+            return true;
+        }
+        if (type.name == "nil") {
+            return value.isNil();
+        }
+        if (type.name == "bool") {
+            return value.getIf<bool>() != nullptr;
+        }
+        if (type.name == "int") {
+            return value.getIf<std::int64_t>() != nullptr;
+        }
+        if (type.name == "float") {
+            const double* number = value.getIf<double>();
+            return value.getIf<std::int64_t>() != nullptr ||
+                   (number != nullptr && std::isfinite(*number));
+        }
+        if (type.name == "string" || type.name == "file") {
+            return value.getIf<std::string>() != nullptr;
+        }
+        if (type.name == "function" || type.name == "event") {
+            return ludork::runtime::reference::isFunction(value);
+        }
+        if (type.name == "table" || type.name == "Pair" ||
+            type.name == "pair") {
+            return ludork::runtime::reference::arrayValues(value).has_value() ||
+                   ludork::runtime::reference::mapValues(value).has_value();
+        }
+    }
+    const RuntimeValue target =
+        metadataRuntime().resolveType(schemaValue(type), declaringModule);
+    return !target.isNil() && runtimeReflection().isInstance(value, target);
+}
+
+[[noreturn]] void valueTypeError(const std::string& path,
+                                 const TypeSchema& type) {
+    throw std::invalid_argument(path + " must be " + schemaName(type));
+}
+
+RuntimeValue resolveStored(const TypedDataService& service,
+                           const RuntimeValue& value, const TypeSchema& type,
+                           const RuntimeValue::Map& environment,
+                           const std::string& declaringModule,
+                           const std::string& path, bool strict,
+                           bool evaluateAnyExpressions = true);
+
+RuntimeValue resolveStoredRecord(const TypedDataService& service,
+                                 const RuntimeValue& value,
+                                 const TypeSchema& type,
+                                 const RuntimeValue::Map& environment,
+                                 const std::string& declaringModule,
+                                 const std::string& path) {
+    const RuntimeValue target =
+        service.resolveMetadataType(schemaValue(type), declaringModule);
+    if (target.isNil()) {
+        throw std::invalid_argument(path + ": cannot resolve " +
+                                    schemaName(type));
+    }
+    RuntimeValue result = value;
+    const std::optional<RuntimeMapView> map = value.view().map();
+    if (map) {
+        const RuntimeValue metadata = service.getAttrMetadata(target);
+        const RuntimeValue ownedMetadata = snapshotContainer(metadata);
+        const std::optional<RuntimeMapView> fields = ownedMetadata.view().map();
+        RuntimeValue::Map values = map->toMap();
+        if (fields) {
+            for (auto& [name, item] : values) {
+                const std::optional<RuntimeValueView> field =
+                    fields->find(name);
+                const std::optional<RuntimeMapView> fieldMap =
+                    field ? field->map() : std::nullopt;
+                const std::optional<RuntimeValueView> fieldType =
+                    fieldMap ? fieldMap->find("type") : std::nullopt;
+                if (fieldType) {
+                    item = resolveStored(
+                        service, item, parseSchema(*fieldType), environment,
+                        type.module.empty() ? declaringModule : type.module,
+                        path + "." + name, true, false);
+                }
+            }
+        }
+        result = RuntimeValue(std::move(values));
+    }
+    result =
+        service.constructTypedValue(result, schemaValue(type), declaringModule);
+    if (!matchesRuntime(result, type, declaringModule)) {
+        valueTypeError(path, type);
+    }
+    return result;
+}
+
+RuntimeValue resolveStored(const TypedDataService& service,
+                           const RuntimeValue& value, const TypeSchema& type,
+                           const RuntimeValue::Map& environment,
+                           const std::string& declaringModule,
+                           const std::string& path, bool strict,
+                           bool evaluateAnyExpressions) {
+    if (value.isNil()) {
+        if (strict && type.kind == TypeSchema::Kind::Union) {
+            throw std::invalid_argument(
+                path + ": union value requires $type and $value");
+        }
+        if (strict && type.kind != TypeSchema::Kind::Optional &&
+            !matchesRuntime(value, type, declaringModule)) {
+            valueTypeError(path, type);
+        }
+        return value;
+    }
+    if (type.kind == TypeSchema::Kind::Optional) {
+        return resolveStored(service, value, type.arguments.front(),
+                             environment, declaringModule, path, strict,
+                             evaluateAnyExpressions);
+    }
+    if (type.kind == TypeSchema::Kind::Union) {
+        const RuntimeValue owned = snapshotContainer(value);
+        const std::optional<RuntimeMapView> wrapper = owned.view().map();
+        const std::optional<RuntimeValueView> branch =
+            wrapper ? wrapper->find("$type") : std::nullopt;
+        if (!wrapper || !branch || wrapper->size() > 2) {
+            throw std::invalid_argument(
+                path + ": union value requires $type and $value");
+        }
+        const TypeSchema selected = parseSchema(*branch);
+        if (std::find(type.arguments.begin(), type.arguments.end(), selected) ==
+            type.arguments.end()) {
+            throw std::invalid_argument(path + ": undeclared union branch " +
+                                        schemaName(selected));
+        }
+        const std::optional<RuntimeValueView> data = wrapper->find("$value");
+        const bool nilBranch = selected.kind == TypeSchema::Kind::Named &&
+                               selected.module.empty() &&
+                               selected.name == "nil";
+        if (!data && !nilBranch) {
+            throw std::invalid_argument(path +
+                                        ": union value is missing $value");
+        }
+        const RuntimeValue result =
+            resolveStored(service, data ? data->toValue() : RuntimeValue(),
+                          selected, environment, declaringModule,
+                          path + ".$value", true, evaluateAnyExpressions);
+        if (!matchesRuntime(result, selected, declaringModule)) {
+            valueTypeError(path, selected);
+        }
+        return result;
+    }
+    if (type.kind == TypeSchema::Kind::Named && type.module.empty() &&
+        type.name == "any") {
+        return evaluateAnyExpressions
+                   ? service.evalDataExpression(value, environment)
+                   : value;
+    }
+    RuntimeValue resolved = snapshotContainer(value);
+    if (type.kind == TypeSchema::Kind::List ||
+        type.kind == TypeSchema::Kind::Tuple) {
+        if (resolved.getIf<std::string>() != nullptr) {
+            resolved = snapshotContainer(
+                service.evalDataExpression(resolved, environment));
+        }
+        const std::optional<RuntimeValue::Array> array =
+            ludork::runtime::reference::arrayValues(resolved);
+        if (!array || (type.kind == TypeSchema::Kind::Tuple &&
+                       array->size() != type.arguments.size())) {
+            valueTypeError(path, type);
+        }
+        RuntimeValue::Array result;
+        for (std::size_t index = 0; index < array->size(); ++index) {
+            const TypeSchema& itemType = type.kind == TypeSchema::Kind::List
+                                             ? type.arguments.front()
+                                             : type.arguments[index];
+            result.push_back(resolveStored(
+                service, (*array)[index], itemType, environment,
+                declaringModule, path + "[" + std::to_string(index + 1) + "]",
+                strict, false));
+        }
+        return RuntimeValue(std::move(result));
+    }
+    if (type.kind == TypeSchema::Kind::Dictionary) {
+        if (resolved.getIf<std::string>() != nullptr) {
+            resolved = snapshotContainer(
+                service.evalDataExpression(resolved, environment));
+        }
+        const std::optional<RuntimeValue::Map> map =
+            ludork::runtime::reference::mapValues(resolved);
+        if (!map) {
+            valueTypeError(path, type);
+        }
+        RuntimeValue::Map result;
+        for (const auto& [key, item] : *map) {
+            result.emplace(key,
+                           resolveStored(service, item, type.arguments.front(),
+                                         environment, declaringModule,
+                                         path + "." + key, strict, false));
+        }
+        return RuntimeValue(std::move(result));
+    }
+    if (type.module.empty() && (type.name == "string" || type.name == "file")) {
+        if (strict && resolved.getIf<std::string>() == nullptr) {
+            valueTypeError(path, type);
+        }
+        const RuntimeValue scalarType(type.name);
+        return type.name == "file"
+                   ? resolved
+                   : service.coerceStandardValue(resolved, scalarType);
+    }
+    if (type.module.empty() && (type.name == "int" || type.name == "float" ||
+                                type.name == "bool" || type.name == "nil")) {
+        if (strict && !matchesRuntime(resolved, type, declaringModule)) {
+            valueTypeError(path, type);
+        }
+        const RuntimeValue scalarType(type.name);
+        resolved = service.coerceStandardValue(resolved, scalarType);
+        if (!matchesRuntime(resolved, type, declaringModule)) {
+            valueTypeError(path, type);
+        }
+        return resolved;
+    }
+    if (type.module.empty() &&
+        (type.name == "table" || type.name == "Pair" || type.name == "pair")) {
+        resolved = service.evalDataExpression(resolved, environment);
+        if (!matchesRuntime(resolved, type, declaringModule)) {
+            valueTypeError(path, type);
+        }
+        return resolved;
+    }
+    if (matchesRuntime(value, type, declaringModule)) {
+        return value;
+    }
+    if (resolved.getIf<std::string>() != nullptr) {
+        resolved = service.evalDataExpression(resolved, environment);
+        if (matchesRuntime(resolved, type, declaringModule)) {
+            return resolved;
+        }
+    }
+    if (type.module.empty() &&
+        (type.name == "function" || type.name == "event")) {
+        valueTypeError(path, type);
+    }
+    return resolveStoredRecord(service, resolved, type, environment,
+                               declaringModule, path);
+}
+
 }  // namespace
 
 bool TypedDataService::isContainerValueType(RuntimeValueView valueType) const {
-    if (const std::string* text = valueType.getIf<std::string>()) {
-        return *text == "table" || *text == "list" || *text == "dict" ||
-               *text == "Pair" || *text == "pair" || endsWithArray(*text) ||
-               text->starts_with("List[") || text->starts_with("Dict[") ||
-               text->starts_with("Set[") || text->starts_with("Tuple[");
-    }
-    std::optional<RuntimeArrayView> reference =
-        RuntimeValueView(valueType).array();
-    if (reference.has_value() && reference->size() >= 2) {
-        const std::string* name = (*reference)[1].getIf<std::string>();
-        return name != nullptr && endsWithArray(*name);
-    }
-    return false;
+    return ludork::runtime::typed_data_impl::isContainerSchema(
+        parseSchema(valueType));
 }
 
 bool TypedDataService::isStandardValueType(RuntimeValueView valueType) const {
-    if (valueType.isNil()) {
-        return true;
-    }
-    if (isContainerValueType(valueType)) {
-        return true;
-    }
-    if (mapValue(valueType, "optional").has_value()) {
-        return isStandardValueType(unwrapOptional(valueType));
-    }
-    if (const auto unionValue = mapValue(valueType, "union")) {
-        std::optional<RuntimeArrayView> arguments =
-            RuntimeValueView(*unionValue).array();
-        if (!arguments || arguments->empty()) {
-            return false;
-        }
-        return std::all_of(arguments->begin(), arguments->end(),
-                           [this](RuntimeValueView argument) {
-                               return isStandardValueType(argument);
-                           });
-    }
-    const std::string* text = valueType.getIf<std::string>();
-    if (text == nullptr) {
-        return false;
-    }
-    const std::string type = lower(*text);
-    return type == "nil" || type == "any" || type == "bool" ||
-           type == "number" || type == "int" || type == "float" ||
-           type == "string";
+    return ludork::runtime::typed_data_impl::isStandardSchema(
+        parseSchema(valueType));
 }
 
 bool TypedDataService::shouldEvalValueType(RuntimeValueView valueType) const {
@@ -196,11 +460,9 @@ RuntimeValue TypedDataService::coerceStandardValue(
         return value;
     }
     const RuntimeValueView unwrapped = unwrapOptional(valueType);
-    if (const auto unionValue = mapValue(unwrapped, "union")) {
-        if (std::optional<RuntimeArrayView> arguments =
-                RuntimeValueView(*unionValue).array()) {
-            return coerceUnionValue(value, *arguments);
-        }
+    const TypeSchema schema = parseSchema(unwrapped);
+    if (schema.kind != TypeSchema::Kind::Named) {
+        return resolveStored(*this, value, schema, {}, {}, "value", false);
     }
     if (const std::string* text = unwrapped.getIf<std::string>()) {
         const std::string type = lower(*text);
@@ -235,14 +497,7 @@ RuntimeValue TypedDataService::resolveMetadataType(
 
 std::string TypedDataService::metadataTypeName(
     RuntimeValueView typeReference) const {
-    if (std::optional<RuntimeArrayView> reference =
-            RuntimeValueView(typeReference).array()) {
-        if (reference->size() >= 2) {
-            return scalarString((*reference)[0]) + "." +
-                   scalarString((*reference)[1]);
-        }
-    }
-    return scalarString(typeReference);
+    return schemaName(parseSchema(typeReference));
 }
 
 RuntimeValue TypedDataService::constructTypedValue(
@@ -254,78 +509,28 @@ RuntimeValue TypedDataService::constructTypedValue(
 
 RuntimeValue TypedDataService::resolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
-    const RuntimeValue::Map& environment,
+    const RuntimeValue::Map& environment, const std::string& declaringModule,
+    bool evaluateAnyExpressions) const {
+    return resolveStored(*this, value, parseSchema(valueType), environment,
+                         declaringModule, "value", true,
+                         evaluateAnyExpressions);
+}
+
+RuntimeValue TypedDataService::resolveRuntimeTypedValue(
+    const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule) const {
-    RuntimeValue resolved = value;
-    if (shouldEvalValueType(valueType) &&
-        value.getIf<std::string>() != nullptr) {
-        resolved = evalDataExpression(value, environment);
+    const TypeSchema schema = parseSchema(valueType);
+    if ((!value.isNil() || schema.kind == TypeSchema::Kind::Union) &&
+        !matchesRuntime(value, schema, declaringModule)) {
+        valueTypeError("runtime value", schema);
     }
-    const RuntimeValueView unwrapped = unwrapOptional(valueType);
-    if (isStandardValueType(unwrapped) ||
-        mapValue(unwrapped, "union").has_value()) {
-        return coerceStandardValue(resolved, unwrapped);
-    }
-    return constructTypedValue(resolved, unwrapped.toValue(), declaringModule);
+    return value;
 }
 
 RuntimeValueView TypedDataService::unwrapOptional(
     RuntimeValueView valueType) const {
     const auto optional = mapValue(valueType, "optional");
     return !optional ? valueType : *optional;
-}
-
-RuntimeValue TypedDataService::coerceUnionValue(
-    const RuntimeValue& value, RuntimeArrayView arguments) const {
-    RuntimeValue last = value;
-    for (RuntimeValueView argument : arguments) {
-        const std::string* name = argument.getIf<std::string>();
-        if (name != nullptr && *name == "nil") {
-            continue;
-        }
-        RuntimeValue coerced = coerceStandardValue(value, argument);
-        if (matchesType(coerced, argument)) {
-            return coerced;
-        }
-        last = std::move(coerced);
-    }
-    return last;
-}
-
-bool TypedDataService::matchesType(RuntimeValueView value,
-                                   RuntimeValueView valueType) const {
-    const std::string* name = valueType.getIf<std::string>();
-    if (name == nullptr) {
-        return false;
-    }
-    const std::string type = lower(*name);
-    if (type == "any") {
-        return true;
-    }
-    if (type == "nil") {
-        return value.isNil();
-    }
-    if (type == "bool") {
-        return value.getIf<bool>() != nullptr;
-    }
-    if (type == "int") {
-        return value.getIf<std::int64_t>() != nullptr;
-    }
-    if (type == "number" || type == "float") {
-        return value.getIf<double>() != nullptr ||
-               value.getIf<std::int64_t>() != nullptr;
-    }
-    if (type == "string") {
-        return value.getIf<std::string>() != nullptr;
-    }
-    if (type == "list" || type == "table" || type == "pair") {
-        return RuntimeValueView(value).array().has_value() ||
-               RuntimeValueView(value).map().has_value();
-    }
-    if (type == "dict") {
-        return RuntimeValueView(value).map().has_value();
-    }
-    return false;
 }
 
 RuntimeValue TypedDataService::coerceBool(const RuntimeValue& value) const {
@@ -337,7 +542,14 @@ RuntimeValue TypedDataService::coerceInteger(const RuntimeValue& value) const {
         return RuntimeValue(*integer);
     }
     if (const double* number = value.getIf<double>()) {
-        return RuntimeValue(static_cast<std::int64_t>(*number));
+        const double truncated = std::trunc(*number);
+        const double limit = std::ldexp(1.0, 63);
+        if (!std::isfinite(truncated) || truncated < -limit ||
+            truncated >= limit) {
+            throw std::invalid_argument(
+                "Integer conversion is outside the signed 64-bit range");
+        }
+        return RuntimeValue(static_cast<std::int64_t>(truncated));
     }
     if (const bool* boolean = value.getIf<bool>()) {
         return RuntimeValue(static_cast<std::int64_t>(*boolean ? 1 : 0));
@@ -469,11 +681,38 @@ RuntimeValue dataValueConstructTypedValue(const RuntimeValue& value,
 
 RuntimeValue dataValueResolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
-    const RuntimeValue::Map& environment, const std::string& declaringModule) {
+    const RuntimeValue::Map& environment, const std::string& declaringModule,
+    bool evaluateAnyExpressions) {
     return typedDataService().resolveTypedDataValue(
-        value, valueType, environment, declaringModule);
+        value, valueType, environment, declaringModule, evaluateAnyExpressions);
 }
 
 RuntimeValue::Map getConfigVars(const RuntimeValue& meta) {
     return metadataRuntime().configVars(meta);
+}
+
+RuntimeValue dataValueResolveRuntimeTypedValue(
+    const RuntimeValue& value, const RuntimeValue& valueType,
+    const std::string& declaringModule) {
+    return typedDataService().resolveRuntimeTypedValue(value, valueType,
+                                                       declaringModule);
+}
+
+void dataValueSetRuntimeTypedAttribute(const RuntimeValue& owner,
+                                       const std::string& name,
+                                       const RuntimeValue& value) {
+    TypedDataService& service = typedDataService();
+    const RuntimeValue ownerType = runtimeReflection().typeOf(owner);
+    const RuntimeValue metadata = service.resolveAttrMetadata(ownerType, name);
+    const std::optional<RuntimeValueView> type = mapValue(metadata, "type");
+    const std::optional<RuntimeValueView> module = mapValue(metadata, "module");
+    const std::string* declaringModule =
+        module ? module->getIf<std::string>() : nullptr;
+    const RuntimeValue valueType =
+        type ? type->toValue() : service.resolveAttrValueType(ownerType, name);
+    const RuntimeValue resolved = service.resolveRuntimeTypedValue(
+        value, valueType,
+        declaringModule == nullptr ? std::string() : *declaringModule);
+    runtimeReflection().setTyped(ludork::runtime::reference::intern(owner),
+                                 name, resolved);
 }

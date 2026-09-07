@@ -309,7 +309,7 @@ void System::clearFog() {
     FogController::clearFog();
 }
 
-void System::applyFogFromMapData(const RuntimeValue::Map& mapData) {
+void System::applyFogFromMapData(const MapFogSettings& mapData) {
     FogController::applyFromMapData(mapData);
 }
 

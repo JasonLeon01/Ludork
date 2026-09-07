@@ -97,7 +97,7 @@ function WindowSelectable:onTick(deltaTime) end
 ---@brief Handle mouse movement events.
 ---
 --- - @param kwargs Event data.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowSelectable:onMouseMoved(kwargs) end
 
 ---@return boolean
@@ -110,14 +110,14 @@ function WindowSelectable:requestKeyboardFocusAtCursor() end
 --- ~0.1 s while held.
 ---
 --- - @param kwargs Event data.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowSelectable:onKeyDown(kwargs) end
 
 ---@brief Handle right-click cancel through `onReturn`.
 ---
 --- - @param kwargs Event data.
 --- - @return True when right-click cancel was handled.
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 ---@return boolean
 function WindowSelectable:onMouseButtonDown(kwargs) end
 

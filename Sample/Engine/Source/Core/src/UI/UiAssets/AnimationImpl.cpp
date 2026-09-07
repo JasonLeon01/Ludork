@@ -1,7 +1,7 @@
 #include "AnimationSupport.hpp"
 #include "AnimationImpl.hpp"
 
-#include <Runtime/RuntimeValueReader.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
 #include <UI/Canvas.hpp>
 
 #include <algorithm>
@@ -25,7 +25,7 @@ using ludork::runtime::value_reader::requireInt;
 using ludork::runtime::value_reader::requireMap;
 using ludork::runtime::value_reader::requireString;
 
-void requireOnlyKeys(RuntimeMapView values,
+void requireOnlyKeys(const RuntimeData::Map& values,
                      const std::unordered_set<std::string>& allowed,
                      const std::string& source) {
     for (const auto& [name, value] : values) {
@@ -36,9 +36,9 @@ void requireOnlyKeys(RuntimeMapView values,
     }
 }
 
-sf::Vector2f requireVector2f(RuntimeValueView value,
+sf::Vector2f requireVector2f(const RuntimeData& value,
                              const std::string& source) {
-    RuntimeArrayView array = requireArray(value, source);
+    const RuntimeData::Array& array = requireArray(value, source);
     if (array.size() != 2) {
         throw std::invalid_argument(source + " must contain two numbers");
     }
@@ -59,9 +59,9 @@ bool isBlank(const std::string& value) {
 }
 
 std::vector<AnimationDefinition::AnimationScalarKey> parseScalarKeys(
-    RuntimeValueView value, float duration, const std::string& source,
+    const RuntimeData& value, float duration, const std::string& source,
     const std::function<void(float, const std::string&)>& validate) {
-    RuntimeArrayView values = requireArray(value, source);
+    const RuntimeData::Array& values = requireArray(value, source);
     if (values.empty()) {
         throw std::invalid_argument(source + " must contain at least one key");
     }
@@ -71,7 +71,7 @@ std::vector<AnimationDefinition::AnimationScalarKey> parseScalarKeys(
     for (std::size_t index = 0; index < values.size(); ++index) {
         const std::string keySource =
             source + "[" + std::to_string(index) + "]";
-        RuntimeMapView key = requireMap(values[index], keySource);
+        const RuntimeData::Map& key = requireMap(values[index], keySource);
         requireOnlyKeys(key, {"time", "value"}, keySource);
         const auto timeValue = findValue(key, "time");
         const auto dataValue = findValue(key, "value");
@@ -92,10 +92,10 @@ std::vector<AnimationDefinition::AnimationScalarKey> parseScalarKeys(
 }
 
 std::vector<AnimationDefinition::AnimationVectorKey> parseVectorKeys(
-    RuntimeValueView value, float duration, const std::string& source,
+    const RuntimeData& value, float duration, const std::string& source,
     const std::function<void(const sf::Vector2f&, const std::string&)>&
         validate) {
-    RuntimeArrayView values = requireArray(value, source);
+    const RuntimeData::Array& values = requireArray(value, source);
     if (values.empty()) {
         throw std::invalid_argument(source + " must contain at least one key");
     }
@@ -105,7 +105,7 @@ std::vector<AnimationDefinition::AnimationVectorKey> parseVectorKeys(
     for (std::size_t index = 0; index < values.size(); ++index) {
         const std::string keySource =
             source + "[" + std::to_string(index) + "]";
-        RuntimeMapView key = requireMap(values[index], keySource);
+        const RuntimeData::Map& key = requireMap(values[index], keySource);
         requireOnlyKeys(key, {"time", "value"}, keySource);
         const auto timeValue = findValue(key, "time");
         const auto dataValue = findValue(key, "value");
@@ -127,8 +127,8 @@ std::vector<AnimationDefinition::AnimationVectorKey> parseVectorKeys(
 }
 
 std::vector<AnimationDefinition::AnimationColourKey> parseColourKeys(
-    RuntimeValueView value, float duration, const std::string& source) {
-    RuntimeArrayView values = requireArray(value, source);
+    const RuntimeData& value, float duration, const std::string& source) {
+    const RuntimeData::Array& values = requireArray(value, source);
     if (values.empty()) {
         throw std::invalid_argument(source + " must contain at least one key");
     }
@@ -138,7 +138,7 @@ std::vector<AnimationDefinition::AnimationColourKey> parseColourKeys(
     for (std::size_t index = 0; index < values.size(); ++index) {
         const std::string keySource =
             source + "[" + std::to_string(index) + "]";
-        RuntimeMapView key = requireMap(values[index], keySource);
+        const RuntimeData::Map& key = requireMap(values[index], keySource);
         requireOnlyKeys(key, {"time", "value"}, keySource);
         const auto timeValue = findValue(key, "time");
         const auto dataValue = findValue(key, "value");
@@ -150,7 +150,7 @@ std::vector<AnimationDefinition::AnimationColourKey> parseColourKeys(
             throw std::invalid_argument(
                 keySource + ".time must be strictly ordered within duration");
         }
-        RuntimeArrayView components =
+        const RuntimeData::Array& components =
             requireArray(*dataValue, keySource + ".value");
         if (components.size() != 4) {
             throw std::invalid_argument(keySource +
@@ -391,18 +391,19 @@ void update(const std::shared_ptr<AssetImpl>& impl, float deltaTime) {
 
 }  // namespace
 
-void parseAnimations(RuntimeMapView asset, AssetImpl& impl,
+void parseAnimations(const RuntimeData::Map& asset, AssetImpl& impl,
                      const std::string& source) {
     const auto animationsValue = findValue(asset, "animations");
     if (!animationsValue) {
         return;
     }
-    RuntimeArrayView animations =
+    const RuntimeData::Array& animations =
         requireArray(*animationsValue, source + ".animations");
     for (std::size_t index = 0; index < animations.size(); ++index) {
         const std::string animationSource =
             source + ".animations[" + std::to_string(index) + "]";
-        RuntimeMapView data = requireMap(animations[index], animationSource);
+        const RuntimeData::Map& data =
+            requireMap(animations[index], animationSource);
         requireOnlyKeys(data, {"name", "target", "duration", "pivot", "tracks"},
                         animationSource);
         const auto nameValue = findValue(data, "name");
@@ -448,7 +449,7 @@ void parseAnimations(RuntimeMapView asset, AssetImpl& impl,
             }
         }
 
-        RuntimeMapView tracks =
+        const RuntimeData::Map& tracks =
             requireMap(*tracksValue, animationSource + ".tracks");
         requireOnlyKeys(tracks, {"translation", "rotation", "scale", "colour"},
                         animationSource + ".tracks");

@@ -3,6 +3,7 @@
 #include <CoreMinimal.hpp>
 
 #include <ConfigParser.hpp>
+#include <Fog/MapFogSettings.hpp>
 #include <System/GraphicsTypes.hpp>
 #include <System/SceneRuntime.hpp>
 #include <Weather/WeatherController.hpp>
@@ -279,7 +280,7 @@ public:
     static void clearFog();
 
     BIND_METHOD()
-    static void applyFogFromMapData(const RuntimeValue::Map& mapData);
+    static void applyFogFromMapData(const MapFogSettings& mapData);
 
     BIND_METHOD(metadata = false)
     static bool isPerformanceProfilerEnabled();

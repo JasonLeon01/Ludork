@@ -48,10 +48,10 @@ public:
     void render() override;
 
     BIND_METHOD()
-    void onMouseMoved(const RuntimeValue::Map& arguments) override;
+    void onMouseMoved(const UiInputEventArguments& arguments) override;
 
     BIND_METHOD()
-    void onMouseWheelScrolled(const RuntimeValue::Map& arguments) override;
+    void onMouseWheelScrolled(const UiInputEventArguments& arguments) override;
 
 protected:
     bool acceptsTouchCapture() const override;

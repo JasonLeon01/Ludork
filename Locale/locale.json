@@ -1,4 +1,28 @@
 {
+  "UNION_SELECT_TYPE": {
+    "zh_CN": "选择类型",
+    "en_GB": "Select type"
+  },
+  "UNION_INVALID_VALUE": {
+    "zh_CN": "联合类型值无效，请选择类型",
+    "en_GB": "Invalid union value: select type"
+  },
+  "UNION_CONNECT_FUNCTION": {
+    "zh_CN": "请连接函数值",
+    "en_GB": "Connect a function value"
+  },
+  "UNION_CONNECT_VALUE": {
+    "zh_CN": "请连接此类型的值",
+    "en_GB": "Connect a value of this type"
+  },
+  "GENERAL_DATA_TYPE_TIP_UNION": {
+    "zh_CN": "联合类型保留明确选择的分支；成员值使用对应分支的编辑器。",
+    "en_GB": "Union values preserve the selected branch and use that branch's editor."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_UNION": {
+    "zh_CN": "默认值使用包含 $type 和 $value 的 JSON 对象；null 表示未设置。",
+    "en_GB": "Enter a JSON object containing $type and $value; null leaves the default unset."
+  },
   "ADD_TILESET": {
     "zh_CN": "新增图块集",
     "en_GB": "Add Tileset"

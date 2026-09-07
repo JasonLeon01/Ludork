@@ -16,10 +16,14 @@ public sealed class BlueprintGraphConnectionViewModel : ConnectionViewModelBase
     {
         this.editor = editor;
         Model = model;
+        IsTypeCompatible = editor.Document.ArePortTypesCompatible(source.Model, target.Model);
+        Diagnostic = IsTypeCompatible ? null : $"Cannot connect {source.Model.TypeName} to {target.Model.TypeName}";
     }
 
     public BlueprintGraphConnection Model { get; }
-    public IBrush Stroke => Model.Kind == BlueprintGraphPortKind.Exec
+    public bool IsTypeCompatible { get; }
+    public string? Diagnostic { get; }
+    public IBrush Stroke => !IsTypeCompatible ? Brushes.OrangeRed : Model.Kind == BlueprintGraphPortKind.Exec
         ? BlueprintGraphBrushes.Execution
         : BlueprintGraphBrushes.Parameter;
 

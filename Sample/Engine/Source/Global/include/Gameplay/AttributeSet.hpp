@@ -7,25 +7,49 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_GLOBAL_API AttributeSet : public RuntimeObject {
 public:
+    BIND_CLASS(copyable = true, table_init = true)
+    struct LUDORK_GLOBAL_API AttributeSchema {
+        BIND_PROPERTY()
+        RuntimeData type;
+
+        BIND_METHOD(property = "default", setter = "setDefault")
+        RuntimeValue getDefault() const;
+        void setDefault(RuntimeValue value);
+
+    private:
+        RuntimeValue defaultValue_;
+    };
+
+    enum class NumericType {
+        Integer,
+        Float
+    };
+
     BIND_INIT()
     AttributeSet() = default;
 
     BIND_METHOD(metadata = false)
     void initialize(const RuntimeValue::Map& values);
 
+    BIND_METHOD(metadata = false)
+    void initializeStored(const RuntimeValue::Map& values);
+
     BIND_METHOD(Pure = true)
     std::vector<std::string> getAttributeNames() const;
 
     BIND_METHOD(Pure = true)
-    RuntimeValue getAttributeSchema(const std::string& name) const;
+    std::optional<AttributeSchema> getAttributeSchema(
+        const std::string& name) const;
 
     RuntimeValue getAttributeValue(const std::string& name) const;
     void setAttributeValue(const std::string& name, const RuntimeValue& value);
-    std::string getAttributeType(const std::string& name) const;
+    std::optional<NumericType> getNumericAttributeType(
+        const std::string& name) const;
 
 private:
     RuntimeValue selfValue() const;
+    void initializeValues(const RuntimeValue::Map& values, bool stored);
 
     std::vector<std::string> attributeNames_;
-    RuntimeValue::Map schema_;
+    std::unordered_map<std::string, AttributeSchema> schema_;
 };

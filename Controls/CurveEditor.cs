@@ -43,7 +43,6 @@ public sealed class CurveEditor : UserControl
         this.data = (JsonObject)data.DeepClone();
         curveType = normalizeCurveType(this.data["type"]?.GetValue<string>());
         componentCount = curveComponentCount(curveType);
-        normalizeData();
         for (int index = 0; index < componentCount; index += 1)
         {
             TextBox box = EditorInputs.CreateEditableTextBox();
@@ -62,7 +61,6 @@ public sealed class CurveEditor : UserControl
     public void Reload(JsonObject nextData)
     {
         data = (JsonObject)nextData.DeepClone();
-        normalizeData();
         refreshEditor(true);
     }
 
@@ -102,11 +100,21 @@ public sealed class CurveEditor : UserControl
             canvas.SelectComponent(componentList.SelectedIndex);
             refreshInspector();
         };
-        nameBox.TextChanged += (_, _) => updateGeneral();
+        nameBox.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == TextBox.TextProperty)
+                updateGeneral("name");
+        };
         foreach (TextBox box in defaultValueBoxes)
-            box.TextChanged += (_, _) => updateGeneral();
-        preInfinityBox.SelectionChanged += (_, _) => updateGeneral();
-        postInfinityBox.SelectionChanged += (_, _) => updateGeneral();
+        {
+            box.PropertyChanged += (_, args) =>
+            {
+                if (args.Property == TextBox.TextProperty)
+                    updateGeneral("defaultValue");
+            };
+        }
+        preInfinityBox.SelectionChanged += (_, _) => updateGeneral("preInfinity");
+        postInfinityBox.SelectionChanged += (_, _) => updateGeneral("postInfinity");
 
         Grid center = new()
         {
@@ -168,7 +176,13 @@ public sealed class CurveEditor : UserControl
         addInspectorField(LocaleService.Get("CURVE_LEAVE_TANGENT"), leaveTangentBox);
         keyInspector.Children.Add(noSelection);
         foreach (TextBox box in new[] { timeBox, valueBox, arriveTangentBox, leaveTangentBox })
-            box.TextChanged += (_, _) => updateInspector();
+        {
+            box.PropertyChanged += (_, args) =>
+            {
+                if (args.Property == TextBox.TextProperty)
+                    updateInspector();
+            };
+        }
         interpolationBox.SelectionChanged += (_, _) => updateInspector();
         componentBox.SelectionChanged += (_, _) =>
         {
@@ -295,25 +309,42 @@ public sealed class CurveEditor : UserControl
         syncing = false;
     }
 
-    private void updateGeneral()
+    private void updateGeneral(string property)
     {
         if (syncing)
             return;
-        double[] defaultValue = new double[componentCount];
-        for (int index = 0; index < componentCount; index += 1)
+        JsonNode next;
+        JsonNode current;
+        if (property == "name")
         {
-            if (!tryNumber(defaultValueBoxes[index].Text, out defaultValue[index]))
-                return;
+            next = JsonValue.Create(nameBox.Text ?? string.Empty);
+            current = JsonValue.Create(data["name"]?.GetValue<string>() ?? key);
         }
-        data["name"] = nameBox.Text ?? string.Empty;
-        data["defaultValue"] = valueJson(defaultValue);
-        data["preInfinity"] = infinity(preInfinityBox.SelectedItem as string);
-        data["postInfinity"] = infinity(postInfinityBox.SelectedItem as string);
+        else if (property == "defaultValue")
+        {
+            double[] values = new double[componentCount];
+            for (int index = 0; index < componentCount; index += 1)
+            {
+                if (!tryNumber(defaultValueBoxes[index].Text, out values[index]))
+                    return;
+            }
+            next = valueJson(values);
+            current = valueJson(vector(data[property], componentCount));
+        }
+        else
+        {
+            ComboBox box = property == "preInfinity" ? preInfinityBox : postInfinityBox;
+            next = JsonValue.Create(infinity(box.SelectedItem as string));
+            current = JsonValue.Create(infinity(data[property]?.GetValue<string>()));
+        }
+        if (JsonNode.DeepEquals(current, next))
+            return;
+        data[property] = next;
         canvas.SetCurveData(
             keys(),
-            defaultValue,
-            infinity(preInfinityBox.SelectedItem as string),
-            infinity(postInfinityBox.SelectedItem as string),
+            vector(data["defaultValue"], componentCount),
+            infinity(data["preInfinity"]?.GetValue<string>()),
+            infinity(data["postInfinity"]?.GetValue<string>()),
             componentCount);
         commit();
     }
@@ -337,30 +368,12 @@ public sealed class CurveEditor : UserControl
 
     private void commit()
     {
-        normalizeData();
         gameData.UpdateCurve(key, data);
         Modified?.Invoke(this, EventArgs.Empty);
     }
 
-    private void normalizeData()
-    {
-        data["name"] ??= key.Split('/').LastOrDefault() ?? string.Empty;
-        data["type"] = curveType;
-        data["defaultValue"] = valueJson(vector(data["defaultValue"], componentCount));
-        data["preInfinity"] = infinity(data["preInfinity"]?.GetValue<string>());
-        data["postInfinity"] = infinity(data["postInfinity"]?.GetValue<string>());
-        JsonArray normalized = new();
-        foreach (JsonNode? node in data["keys"] as JsonArray ?? [])
-        {
-            if (node is not JsonObject item)
-                continue;
-            normalized.Add(new CurveKey(item, componentCount).ToJson());
-        }
-        data["keys"] = normalized;
-    }
-
     private JsonArray keys() => data["keys"] as JsonArray ?? new JsonArray();
-    private static bool tryNumber(string? text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    private static bool tryNumber(string? text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
     internal static double number(JsonNode? node) => node is JsonValue value && value.TryGetValue<double>(out double number) ? number : 0;
     internal static double[] vector(JsonNode? node, int componentCount)
     {

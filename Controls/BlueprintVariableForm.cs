@@ -292,6 +292,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 owner,
                 getDisplayName(field),
                 materializeStructureFields(field),
+                getFieldValue(field) as JsonObject,
                 AssetsDirectory,
                 CellSize,
                 GameVariables,
@@ -422,6 +423,9 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
 
         field = resolveInstanceVariableValueField(field, dictionaryKey);
+        LuaMetadataType declaredType = LuaMetadataType.Parse(field.Type);
+        if (declaredType.Kind == LuaMetadataTypeKind.Union)
+            return createUnionEditor(field, declaredType, displayValue, changed, dictionaryKey);
         Control? customEditor = CustomValueEditorFactory?.Invoke(
             new BlueprintVariableEditorRequest(field, cloneNode(displayValue), changed));
         if (customEditor is not null)
@@ -518,6 +522,9 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (isIntRectType(type))
             return createIntRectEditor(displayValue, changed);
 
+        if (valueType.Kind == LuaMetadataTypeKind.Named && valueType.Name == "nil")
+            return EditorInputs.CreateReadOnlyTextBox("null");
+
         if (valueType.IsAny
             && (displayValue is null || tryGetString(displayValue, out string _)))
         {
@@ -537,6 +544,69 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             displayValue,
             !string.Equals(type, "string", StringComparison.OrdinalIgnoreCase),
             changed);
+    }
+
+    private Control createUnionEditor(
+        BlueprintVariableField field,
+        LuaMetadataType type,
+        JsonNode? value,
+        Action<JsonNode?, bool> changed,
+        string? dictionaryKey)
+    {
+        ComboBox selector = new()
+        {
+            ItemsSource = type.Arguments.Select(branch => branch.ToString()).ToArray(),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            PlaceholderText = LocaleService.Get(value is null ? "UNION_SELECT_TYPE" : "UNION_INVALID_VALUE"),
+        };
+        StackPanel container = new() { Spacing = 4 };
+        ContentControl content = new();
+        container.Children.Add(selector);
+        container.Children.Add(content);
+        JsonObject? wrapper = value as JsonObject;
+        int selectedIndex = wrapper is not null && wrapper.Count == 2
+            && wrapper.ContainsKey("$value")
+            ? type.Arguments.ToList().FindIndex(branch => JsonNode.DeepEquals(branch.ToSchema(), wrapper["$type"]))
+            : -1;
+        void showBranch(LuaMetadataType branch, JsonNode? branchValue)
+        {
+            if (!LuaMetadataValueDefaults.TryCreateLiteral(branch, out JsonNode? _))
+            {
+                TextBox unavailable = EditorInputs.CreateReadOnlyTextBox();
+                unavailable.Text = branch.Name is "function" or "event"
+                    ? LocaleService.Get("UNION_CONNECT_FUNCTION")
+                    : LocaleService.Get("UNION_CONNECT_VALUE");
+                content.Content = unavailable;
+                return;
+            }
+            if (branch.Kind == LuaMetadataTypeKind.Named && branch.Name == "nil")
+            {
+                TextBox nil = EditorInputs.CreateReadOnlyTextBox();
+                nil.Text = "null";
+                content.Content = nil;
+                return;
+            }
+            BlueprintVariableField branchField = createContainerItemField(field, branch, branchValue, field.Meta);
+            content.Content = createValueEditor(
+                branchField,
+                branchValue,
+                (next, refresh) => changed(LuaMetadataValueDefaults.WrapUnion(branch, next), refresh),
+                dictionaryKey);
+        }
+        selector.SelectedIndex = selectedIndex;
+        if (selectedIndex >= 0)
+            showBranch(type.Arguments[selectedIndex], wrapper!["$value"]);
+        selector.SelectionChanged += (_, _) =>
+        {
+            if (selector.SelectedIndex < 0 || selector.SelectedIndex == selectedIndex)
+                return;
+            selectedIndex = selector.SelectedIndex;
+            LuaMetadataType branch = type.Arguments[selectedIndex];
+            bool hasLiteral = LuaMetadataValueDefaults.TryCreateLiteral(branch, out JsonNode? next);
+            showBranch(branch, next);
+            changed(hasLiteral ? LuaMetadataValueDefaults.WrapUnion(branch, next) : null, false);
+        };
+        return container;
     }
 
     private Control createBoolEditor(JsonNode? value, Action<JsonNode?, bool> changed)
@@ -590,51 +660,97 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     {
         NumericUpDown box = EditorInputs.CreateNumericUpDown(
             getDecimal(value),
-            int.MinValue,
-            int.MaxValue,
+            long.MinValue,
+            long.MaxValue,
             1);
         box.FormatString = "0";
         attachHistory(box);
-        box.ValueChanged += (_, _) => changed(JsonValue.Create(decimal.ToInt32(box.Value ?? 0)), false);
+        decimal? displayed = box.Value;
+        box.ValueChanged += (_, _) =>
+        {
+            if (displayed == box.Value)
+                return;
+            displayed = box.Value;
+            changed(JsonValue.Create(decimal.ToInt64(box.Value ?? 0)), false);
+        };
         return box;
     }
 
     private Control createFloatEditor(JsonNode? value, Action<JsonNode?, bool> changed)
     {
-        NumericUpDown box = EditorInputs.CreateNumericUpDown(
-            getDecimal(value),
-            -999999999m,
-            999999999m,
-            0.1m);
-        box.FormatString = "0.00";
-        attachHistory(box);
-        box.ValueChanged += (_, _) => changed(JsonValue.Create(decimal.ToDouble(box.Value ?? 0)), false);
-        return box;
+        return createFloatingPointEditor(value, double.MaxValue, changed);
+    }
+
+    private Control createFloatingPointEditor(JsonNode? value, double limit, Action<JsonNode?, bool> changed)
+    {
+        double number = getDouble(value);
+        decimal displayedNumber = getDecimal(value);
+        if (double.IsFinite(number) && decimal.ToDouble(displayedNumber) == number)
+        {
+            NumericUpDown box = EditorInputs.CreateNumericUpDown(displayedNumber, decimal.MinValue, decimal.MaxValue, 0.1m);
+            box.FormatString = "G";
+            attachHistory(box);
+            decimal? displayed = box.Value;
+            box.ValueChanged += (_, _) =>
+            {
+                if (displayed == box.Value)
+                    return;
+                displayed = box.Value;
+                double next = decimal.ToDouble(box.Value ?? 0);
+                if (Math.Abs(next) <= limit)
+                    changed(JsonValue.Create(next), false);
+            };
+            return box;
+        }
+        TextBox input = EditorInputs.CreateEditableTextBox(getText(value));
+        input.HorizontalAlignment = HorizontalAlignment.Stretch;
+        IBrush? normalBorder = input.BorderBrush;
+        attachHistory(input);
+        input.PropertyChanged += (_, args) =>
+        {
+            if (args.Property != TextBox.TextProperty)
+                return;
+            if (!double.TryParse(input.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double next)
+                || !double.IsFinite(next) || Math.Abs(next) > limit)
+            {
+                input.BorderBrush = Brushes.OrangeRed;
+                return;
+            }
+            input.BorderBrush = normalBorder;
+            changed(JsonValue.Create(next), false);
+        };
+        return input;
     }
 
     private Control createTextEditor(
         JsonNode? value,
-        bool nilAsNull,
+        bool emptyAsNull,
         Action<JsonNode?, bool> changed)
     {
-        TextBox box = EditorInputs.CreateEditableTextBox(formatTextValue(value, nilAsNull));
+        TextBox box = EditorInputs.CreateEditableTextBox(getText(value));
+        if (emptyAsNull)
+            box.PlaceholderText = "null";
         box.HorizontalAlignment = HorizontalAlignment.Stretch;
         attachHistory(box);
-        box.TextChanged += (_, _) =>
+        box.PropertyChanged += (_, args) =>
         {
+            if (args.Property != TextBox.TextProperty)
+                return;
             string text = box.Text ?? string.Empty;
-            changed(nilAsNull && text == "nil" ? null : JsonValue.Create(text), false);
+            changed(emptyAsNull && string.IsNullOrWhiteSpace(text) ? null : JsonValue.Create(text), false);
         };
         return box;
     }
 
     private Control createAnyEditor(JsonNode? value, Action<JsonNode?, bool> changed)
     {
-        TextBox box = EditorInputs.CreateEditableTextBox(formatAnyValue(value));
+        TextBox box = EditorInputs.CreateEditableTextBox(value is null ? "null" : getText(value));
         box.HorizontalAlignment = HorizontalAlignment.Stretch;
         attachHistory(box);
-        box.TextChanged += (_, _) =>
+        box.PropertyChanged += (_, args) =>
         {
+            if (args.Property != TextBox.TextProperty)
+                return;
             string text = box.Text ?? string.Empty;
             changed(parseAnyValue(text), false);
         };
@@ -643,8 +759,6 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private static JsonNode? parseAnyValue(string text)
     {
-        if (text == "nil")
-            return null;
         try
         {
             JsonNode? parsed = JsonNode.Parse(text);
@@ -653,7 +767,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             {
                 return JsonValue.Create(text);
             }
-            return parsed ?? JsonValue.Create(text);
+            return parsed;
         }
         catch (JsonException)
         {
@@ -664,7 +778,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private Control createJsonTableEditor(JsonNode? value, Action<JsonNode?, bool> changed)
     {
         string text = value is null
-            ? "nil"
+            ? "null"
             : value is JsonArray array
                 ? array.ToJsonString()
                 : "[]";
@@ -673,25 +787,21 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         box.MinWidth = 220;
         IBrush? normalBorder = box.BorderBrush;
         attachHistory(box);
-        box.TextChanged += (_, _) =>
+        box.PropertyChanged += (_, args) =>
         {
-            string current = box.Text ?? string.Empty;
-            if (current == "nil")
-            {
-                box.BorderBrush = normalBorder;
-                changed(null, false);
+            if (args.Property != TextBox.TextProperty)
                 return;
-            }
+            string current = box.Text ?? string.Empty;
             try
             {
                 JsonNode? parsed = JsonNode.Parse(current);
-                if (parsed is not JsonArray table)
+                if (parsed is not null and not JsonArray)
                 {
                     box.BorderBrush = new SolidColorBrush(Color.Parse("#c65353"));
                     return;
                 }
                 box.BorderBrush = normalBorder;
-                changed(table, false);
+                changed(parsed, false);
             }
             catch (JsonException)
             {
@@ -722,8 +832,11 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         };
         box.SelectionChanged += (_, _) =>
         {
-            if (box.SelectedItem is BlueprintVariableOption option)
-                changed(cloneNode(option.Value), false);
+            if (box.SelectedItem is BlueprintVariableOption option && !JsonNode.DeepEquals(value, option.Value))
+            {
+                value = cloneNode(option.Value);
+                changed(cloneNode(value), false);
+            }
         };
         return box;
     }
@@ -739,36 +852,42 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             ColumnSpacing = 4,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        List<NumericUpDown> boxes = [];
         for (int index = 0; index < spec.Count; index++)
         {
+            int componentIndex = index;
             grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-            decimal number = index < source.Count ? getDecimal(source[index]) : 0;
-            NumericUpDown box = EditorInputs.CreateNumericUpDown(
-                number,
-                spec.Minimum,
-                spec.Maximum,
-                spec.IsInteger ? 1 : 0.1m);
-            box.FormatString = spec.IsInteger ? "0" : "0.00";
-            attachHistory(box);
-            boxes.Add(box);
-            Grid.SetColumn(box, index);
-            grid.Children.Add(box);
-        }
-        foreach (NumericUpDown box in boxes)
-        {
-            box.ValueChanged += (_, _) =>
+            JsonNode? component = index < source.Count ? source[index] : null;
+            void setComponent(JsonNode? next, bool refresh)
             {
-                JsonArray result = [];
-                foreach (NumericUpDown item in boxes)
+                if (componentIndex < source.Count && JsonNode.DeepEquals(source[componentIndex], next))
+                    return;
+                while (source.Count < spec.Count)
+                    source.Add(0);
+                source[componentIndex] = cloneNode(next);
+                changed(cloneNode(source), refresh);
+            }
+            Control editor;
+            if (spec.IsInteger)
+            {
+                NumericUpDown box = EditorInputs.CreateNumericUpDown(getDecimal(component), spec.Minimum, spec.Maximum, 1);
+                box.FormatString = "0";
+                attachHistory(box);
+                decimal? displayed = box.Value;
+                box.ValueChanged += (_, _) =>
                 {
-                    if (spec.IsInteger)
-                        result.Add(decimal.ToInt32(item.Value ?? 0));
-                    else
-                        result.Add(decimal.ToDouble(item.Value ?? 0));
-                }
-                changed(result, false);
-            };
+                    if (displayed == box.Value)
+                        return;
+                    displayed = box.Value;
+                    setComponent(JsonValue.Create(decimal.ToInt64(box.Value ?? 0)), false);
+                };
+                editor = box;
+            }
+            else
+            {
+                editor = createFloatingPointEditor(component, float.MaxValue, setComponent);
+            }
+            Grid.SetColumn(editor, index);
+            grid.Children.Add(editor);
         }
         return grid;
     }
@@ -801,8 +920,12 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
         foreach (NumericUpDown box in boxes)
         {
+            decimal? displayed = box.Value;
             box.ValueChanged += (_, _) =>
             {
+                if (displayed == box.Value)
+                    return;
+                displayed = box.Value;
                 RectRangeSelection result = new(
                     decimal.ToInt32(boxes[0].Value ?? 0),
                     decimal.ToInt32(boxes[1].Value ?? 0),
@@ -1176,8 +1299,10 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             {
                 TextBox keyBox = EditorInputs.CreateEditableTextBox(currentKey);
                 attachHistory(keyBox);
-                keyBox.TextChanged += (_, _) =>
+                keyBox.PropertyChanged += (_, args) =>
                 {
+                    if (args.Property != TextBox.TextProperty)
+                        return;
                     string nextKey = keyBox.Text?.Trim() ?? string.Empty;
                     if (string.Equals(nextKey, currentKey, StringComparison.Ordinal))
                         return;
@@ -1382,7 +1507,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         };
         nestedHistoryForms.Add(nested);
         List<BlueprintVariableField> nestedFields = materializeStructureFields(field);
-        JsonObject value = buildStructureValue(nestedFields);
+        JsonObject value = getFieldValue(field)?.DeepClone() as JsonObject ?? [];
         nested.ValueChanged += (_, args) =>
         {
             value[args.Name] = cloneNode(args.Value);
@@ -1414,9 +1539,11 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private void commit(BlueprintVariableField field, JsonNode? value, bool refresh)
     {
-        if (isReadOnly || field.IsReadOnly)
+        if (disposed || building || isReadOnly || field.IsReadOnly)
             return;
         values.TryGetValue(field.Name, out JsonNode? previous);
+        if (JsonNode.DeepEquals(previous, value))
+            return;
         JsonNode? next = cloneNode(value);
         field.Value = cloneNode(next);
         if (next is null)
@@ -1468,128 +1595,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private static bool valuesSemanticallyEqual(JsonNode? left, JsonNode? right)
     {
-        if (left is null || right is null)
-            return left is null && right is null;
-        JsonArray? leftArray = left as JsonArray;
-        JsonArray? rightArray = right as JsonArray;
-        if (leftArray is not null || rightArray is not null)
-        {
-            if (leftArray is null || rightArray is null || leftArray.Count != rightArray.Count)
-                return false;
-            for (int index = 0; index < leftArray.Count; index++)
-            {
-                if (!valuesSemanticallyEqual(leftArray[index], rightArray[index]))
-                    return false;
-            }
-            return true;
-        }
-        JsonObject? leftObject = left as JsonObject;
-        JsonObject? rightObject = right as JsonObject;
-        if (leftObject is not null || rightObject is not null)
-        {
-            if (leftObject is null || rightObject is null || leftObject.Count != rightObject.Count)
-                return false;
-            foreach (KeyValuePair<string, JsonNode?> item in leftObject)
-            {
-                if (!rightObject.TryGetPropertyValue(item.Key, out JsonNode? rightValue)
-                    || !valuesSemanticallyEqual(item.Value, rightValue))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-        bool leftIsBoolean = tryGetBoolean(left, out bool leftBoolean);
-        bool rightIsBoolean = tryGetBoolean(right, out bool rightBoolean);
-        if (leftIsBoolean || rightIsBoolean)
-            return leftIsBoolean
-                && rightIsBoolean
-                && leftBoolean == rightBoolean;
-        bool leftIsNumber = tryGetNumber(left, out double leftNumber);
-        bool rightIsNumber = tryGetNumber(right, out double rightNumber);
-        if (leftIsNumber || rightIsNumber)
-            return leftIsNumber
-                && rightIsNumber
-                && Math.Abs(leftNumber - rightNumber) <= 0.0001;
-        bool leftIsString = tryGetString(left, out string leftText);
-        bool rightIsString = tryGetString(right, out string rightText);
-        if (leftIsString || rightIsString)
-            return leftIsString
-                && rightIsString
-                && string.Equals(leftText, rightText, StringComparison.Ordinal);
         return JsonNode.DeepEquals(left, right);
-    }
-
-    private static bool tryGetBoolean(JsonNode? value, out bool result)
-    {
-        if (value is JsonValue json && json.TryGetValue(out result))
-            return true;
-        result = false;
-        return false;
-    }
-
-    private static bool tryGetNumber(JsonNode? value, out double result)
-    {
-        if (value is JsonValue json)
-        {
-            if (json.TryGetValue(out double doubleValue))
-            {
-                result = doubleValue;
-                return true;
-            }
-            if (json.TryGetValue(out decimal decimalValue))
-            {
-                result = decimal.ToDouble(decimalValue);
-                return true;
-            }
-            if (json.TryGetValue(out long longValue))
-            {
-                result = longValue;
-                return true;
-            }
-            if (json.TryGetValue(out ulong unsignedLongValue))
-            {
-                result = unsignedLongValue;
-                return true;
-            }
-            if (json.TryGetValue(out int integerValue))
-            {
-                result = integerValue;
-                return true;
-            }
-            if (json.TryGetValue(out uint unsignedIntegerValue))
-            {
-                result = unsignedIntegerValue;
-                return true;
-            }
-            if (json.TryGetValue(out float floatValue))
-            {
-                result = floatValue;
-                return true;
-            }
-            if (json.TryGetValue(out short shortValue))
-            {
-                result = shortValue;
-                return true;
-            }
-            if (json.TryGetValue(out ushort unsignedShortValue))
-            {
-                result = unsignedShortValue;
-                return true;
-            }
-            if (json.TryGetValue(out byte byteValue))
-            {
-                result = byteValue;
-                return true;
-            }
-            if (json.TryGetValue(out sbyte signedByteValue))
-            {
-                result = signedByteValue;
-                return true;
-            }
-        }
-        result = 0;
-        return false;
     }
 
     private List<BlueprintVariableField> materializeStructureFields(BlueprintVariableField field)
@@ -2029,7 +2035,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             return new VectorSpec(2, true, int.MinValue, int.MaxValue);
         if (string.Equals(type, "sf.Vector2u", StringComparison.OrdinalIgnoreCase)
             || string.Equals(type, "Vector2u", StringComparison.OrdinalIgnoreCase))
-            return new VectorSpec(2, true, 0, int.MaxValue);
+            return new VectorSpec(2, true, 0, uint.MaxValue);
         if (string.Equals(type, "sf.Vector3f", StringComparison.OrdinalIgnoreCase)
             || string.Equals(type, "Vector3f", StringComparison.OrdinalIgnoreCase))
             return new VectorSpec(3, false, -999999999m, 999999999m);
@@ -2038,7 +2044,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             return new VectorSpec(3, true, int.MinValue, int.MaxValue);
         if (string.Equals(type, "sf.Vector3u", StringComparison.OrdinalIgnoreCase)
             || string.Equals(type, "Vector3u", StringComparison.OrdinalIgnoreCase))
-            return new VectorSpec(3, true, 0, int.MaxValue);
+            return new VectorSpec(3, true, 0, uint.MaxValue);
         return null;
     }
 
@@ -2102,7 +2108,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private static string getTypeName(BlueprintVariableField field)
     {
-        return string.IsNullOrWhiteSpace(field.TypeName) ? field.Type : field.TypeName;
+        return field.Type;
     }
 
     private static string inferType(JsonNode? value)
@@ -2272,22 +2278,10 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         return value.ToJsonString();
     }
 
-    private static string formatTextValue(JsonNode? value, bool nilAsNull)
-    {
-        return value is null && nilAsNull ? "nil" : getText(value);
-    }
-
-    private static string formatAnyValue(JsonNode? value)
-    {
-        if (value is null)
-            return "nil";
-        return getText(value);
-    }
-
     private static string formatNode(JsonNode? value)
     {
         if (value is null)
-            return "nil";
+            return "null";
         if (value is JsonValue json && json.TryGetValue(out bool boolean))
             return boolean ? "true" : "false";
         return getText(value);
@@ -2332,12 +2326,10 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     private static decimal getDecimal(JsonNode? value)
     {
-        double number = getDouble(value);
-        if (number > (double)decimal.MaxValue)
-            return decimal.MaxValue;
-        if (number < (double)decimal.MinValue)
-            return decimal.MinValue;
-        return (decimal)number;
+        if (decimal.TryParse(getText(value), NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number))
+            return number;
+        double floating = getDouble(value);
+        return floating > 0 ? decimal.MaxValue : floating < 0 ? decimal.MinValue : 0;
     }
 
     private static bool isWhole(double value)

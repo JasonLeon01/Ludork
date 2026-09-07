@@ -3,6 +3,7 @@
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <sol2/sol.hpp>
@@ -50,13 +51,18 @@ sol::object rawOwnField(sol::state_view lua, const sol::object& target,
 bool hasRawOwnField(sol::state_view lua, const sol::object& target,
                     const sol::object& key) {
     const sol::object value = rawOwnField(lua, target, key);
-    return value.valid() && value.get_type() != sol::type::lua_nil;
+    const bool explicitNil = hasExplicitNilField(lua, target, key);
+    return explicitNil ||
+           (value.valid() && value.get_type() != sol::type::lua_nil);
 }
 
 sol::table ownKeyList(sol::state_view lua, const sol::object& target) {
     sol::table result = lua.create_table();
     for (const auto& entry : ownFields(lua, target)) {
         result.add(entry.first);
+    }
+    for (const auto& entry : explicitNilFieldKeys(lua, target)) {
+        result.add(entry.second);
     }
     return result;
 }

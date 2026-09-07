@@ -25,11 +25,8 @@ function(ludork_add_ui_preview_host_runtime target)
         LUDORK_UI_PREVIEW_HOST_RUNTIME=1
         LUDORK_PLATFORM="${LUDORK_PLATFORM}")
     target_include_directories(${target}
-        PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/include"
-            ${LUDORK_LUASF_CONSUMER_INCLUDES}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
         PRIVATE
-            "${LUDORK_LUASF_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/src"
             "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
     target_link_libraries(${target}
@@ -37,9 +34,7 @@ function(ludork_add_ui_preview_host_runtime target)
             Ludork::Runtime
             Ludork::Standard
             SFML::Graphics
-        PRIVATE
-            LuaSF::Lua
-            zlibstatic)
+        PRIVATE zlibstatic)
     ludork_link_engine_platform(${target})
     ludork_configure_core_target(${target})
     ludork_enable_release_symbols(${target})

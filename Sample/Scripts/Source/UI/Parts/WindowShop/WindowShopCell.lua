@@ -1,7 +1,7 @@
 local Ui = require("Source.UI.Ui")
 
 local _SHOP_DISABLED_ALPHA = 120
-local _SHOP_DISABLED_TEXT_COLOUR = { 160, 160, 160, 255 }
+local _SHOP_DISABLED_TEXT_COLOUR = sf.Color.new(160, 160, 160, 255)
 
 local WindowShopCellUI = {}
 
@@ -20,18 +20,16 @@ function WindowShopCellUI:refresh()
     else
         self._icon:setTexture(self.model.iconTexture, true)
         self:setProperty("Icon", "visible", true)
-        self:setProperty("Icon", "colour", {
-            255,
-            255,
-            255,
-            self.model.available and 255 or _SHOP_DISABLED_ALPHA
-        })
+        self:setProperty(
+            "Icon", "colour", sf.Color.new(255, 255, 255, self.model.available and 255 or _SHOP_DISABLED_ALPHA)
+        )
     end
     if self.model.showValue then
         self:setText("ValueText", tostring(self.model.value or 0))
         self:setProperty("ValueText", "visible", true)
         self:setProperty(
-            "ValueText", "colour", self.model.available and { 255, 255, 255, 255 } or _SHOP_DISABLED_TEXT_COLOUR
+            "ValueText", "colour",
+            self.model.available and sf.Color.new(255, 255, 255, 255) or _SHOP_DISABLED_TEXT_COLOUR
         )
     else
         self:setText("ValueText", "")

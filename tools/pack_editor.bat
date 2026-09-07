@@ -341,14 +341,11 @@ if not exist "%PREVIEW_TARGET%" mkdir "%PREVIEW_TARGET%"
 for %%F in (
     UiPreviewHost.exe
     UiPreviewHostRuntime.dll
+    LudorkRuntime.dll
     LudorkStandard.dll
-    LuaSF.dll
-    lua.dll
     sfml-system-3.dll
     sfml-window-3.dll
     sfml-graphics-3.dll
-    sfml-audio-3.dll
-    sfml-network-3.dll
 ) do (
     call :require_file "%PREVIEW_SOURCE%\%%F"
     if errorlevel 1 exit /b 1
@@ -431,6 +428,22 @@ call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\UiPreviewHost.exe"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\UiPreviewHostRuntime.dll"
 if errorlevel 1 exit /b 1
+for %%F in (
+    LudorkRuntime.dll
+    LudorkStandard.dll
+    sfml-system-3.dll
+    sfml-window-3.dll
+    sfml-graphics-3.dll
+) do (
+    call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\%%F"
+    if errorlevel 1 exit /b 1
+)
+for %%F in (LuaSF.dll lua.dll sfml-audio-3.dll sfml-network-3.dll) do (
+    if exist "%PACKAGE_DIR%\tools\UiPreviewHost\%%F" (
+        echo Unexpected Lua or non-visual dependency in UI preview package: %%F
+        exit /b 1
+    )
+)
 call :validate_ui_preview_host_ownership "%PACKAGE_DIR%"
 if errorlevel 1 exit /b 1
 for %%F in (

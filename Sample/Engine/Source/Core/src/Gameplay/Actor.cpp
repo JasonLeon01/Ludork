@@ -101,11 +101,11 @@ void Actor::lateUpdate(float deltaTime) {
     static_cast<void>(deltaTime);
 }
 
-void Actor::setGraph(const RuntimeIdentityPtr& graph) {
+void Actor::setGraph(const std::shared_ptr<Graph>& graph) {
     graph_ = graph;
 }
 
-RuntimeIdentityPtr Actor::getGraph() const {
+std::shared_ptr<Graph> Actor::getGraph() const {
     return graph_;
 }
 

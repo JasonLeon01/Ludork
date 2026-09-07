@@ -106,7 +106,7 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._layerNames = self._worldLayerOrder
     self._worldLastReadyCameraPosition = nil
     self._worldRuntimeLights = {}
-    FogController.applyWorldFromMapData(config)
+    FogController.applyWorldFromMapData(GlobalCore.MapFogSettings.new(config))
 end
 
 ---@diagnostic disable-next-line: unused

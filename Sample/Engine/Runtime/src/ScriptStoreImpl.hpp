@@ -27,6 +27,9 @@ struct ScriptStore::Impl {
     std::filesystem::path runtimeRoot;
     ScriptStoreMode mode = ScriptStoreMode::Loose;
     bool configured = false;
+    std::uint64_t generation = 0;
+    const ScriptStore* reloadOwner = nullptr;
+    std::uint64_t reloadGeneration = 0;
     std::shared_ptr<detail::LdPakArchive> archive;
     std::unordered_map<std::string, script_store_impl::ScriptEntry> entries;
     std::unordered_map<std::string, std::string> modules;

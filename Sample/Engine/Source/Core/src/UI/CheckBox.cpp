@@ -92,12 +92,12 @@ void CheckBox::update(float deltaTime) {
     FunctionalBase::update(deltaTime);
 }
 
-void CheckBox::onConfirm(const RuntimeValue::Map& arguments) {
+void CheckBox::onConfirm(const UiInputEventArguments& arguments) {
     toggle();
     FunctionalBase::onConfirm(arguments);
 }
 
-void CheckBox::onClick(const RuntimeValue::Map& arguments) {
+void CheckBox::onClick(const UiInputEventArguments& arguments) {
     if (!suppressClick_) {
         toggle();
     }
@@ -105,7 +105,7 @@ void CheckBox::onClick(const RuntimeValue::Map& arguments) {
     FunctionalBase::onClick(arguments);
 }
 
-bool CheckBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
+bool CheckBox::onMouseButtonDown(const UiInputEventArguments& arguments) {
     const bool callbackHandled = FunctionalBase::onMouseButtonDown(arguments);
     const std::optional<sf::Mouse::Button> button =
         ludork::engine::ui_interaction::pointerMouseButton(arguments);
@@ -121,7 +121,7 @@ bool CheckBox::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     return callbackHandled || accepted;
 }
 
-void CheckBox::onKeyDown(const RuntimeValue::Map& arguments) {
+void CheckBox::onKeyDown(const UiInputEventArguments& arguments) {
     InputService* service = dynamic_cast<InputService*>(inputProvider());
     if (service != nullptr && ownsKeyboardCursorFocus() &&
         service->isActionTriggered(service->getConfirmKeys(), true)) {

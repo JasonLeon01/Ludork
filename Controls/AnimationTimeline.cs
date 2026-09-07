@@ -113,7 +113,7 @@ public sealed class AnimationTimeline : Control
             ["tag"] = tag,
             ["time"] = CurrentTime,
         };
-        timeTags().Add(timeTag);
+        timeTags(true).Add(timeTag);
         SelectedTimeTag = sortTimeTags(timeTag);
         TimeTagChanged?.Invoke();
         Refresh();
@@ -194,7 +194,7 @@ public sealed class AnimationTimeline : Control
 
     public bool InsertSegmentAt(int track, JsonObject segment, double startTime)
     {
-        JsonArray tracks = lines();
+        JsonArray tracks = lines(true);
         while (tracks.Count <= track)
             tracks.Add(new JsonObject { ["timeSegments"] = new JsonArray() });
         JsonArray segments = ((JsonObject)tracks[track]!)["timeSegments"]!.AsArray();
@@ -1064,7 +1064,7 @@ public sealed class AnimationTimeline : Control
 
     private void insertAssetSegments(int track, List<JsonObject> segments)
     {
-        JsonArray tracks = lines();
+        JsonArray tracks = lines(true);
         while (tracks.Count <= track)
             tracks.Add(new JsonObject { ["timeSegments"] = new JsonArray() });
         JsonObject trackData = (JsonObject)tracks[track]!;
@@ -1117,23 +1117,25 @@ public sealed class AnimationTimeline : Control
             && segment >= 0 && segment < segments.Count ? segments[segment] as JsonObject : null;
     }
 
-    private JsonArray lines()
+    private JsonArray lines(bool create = false)
     {
         JsonObject data = getData();
         if (data["timeLines"] is JsonArray lines)
             return lines;
         lines = new JsonArray();
-        data["timeLines"] = lines;
+        if (create)
+            data["timeLines"] = lines;
         return lines;
     }
 
-    private JsonArray timeTags()
+    private JsonArray timeTags(bool create = false)
     {
         JsonObject data = getData();
         if (data["timeTags"] is JsonArray tags)
             return tags;
         tags = new JsonArray();
-        data["timeTags"] = tags;
+        if (create)
+            data["timeTags"] = tags;
         return tags;
     }
 

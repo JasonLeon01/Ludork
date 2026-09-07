@@ -32,6 +32,8 @@ public sealed class TextConfigEditorWindow : Window
     };
     private readonly Toast toast;
     private JsonObject data;
+    private JsonObject sourceData;
+    private JsonObject displayBaseline = [];
     private bool syncing;
 
     public TextConfigEditorWindow(
@@ -43,6 +45,7 @@ public sealed class TextConfigEditorWindow : Window
         this.gameData = gameData;
         this.projectSave = projectSave;
         this.key = key;
+        sourceData = (JsonObject)data.DeepClone();
         this.data = (JsonObject)data.DeepClone();
         normalizeData();
         Title = $"{LocaleService.Get("TEXT_CONFIG_EDITOR")} - {key}";
@@ -65,6 +68,7 @@ public sealed class TextConfigEditorWindow : Window
         previewText.TextChanged += (_, _) => refreshPreview();
         Content = buildLayout();
         rebuildInspector();
+        displayBaseline = (JsonObject)this.data.DeepClone();
         refreshPreview();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         gameData.DataChanged += onDataChanged;
@@ -78,9 +82,11 @@ public sealed class TextConfigEditorWindow : Window
 
     public void Reload(JsonObject nextData)
     {
+        sourceData = (JsonObject)nextData.DeepClone();
         data = (JsonObject)nextData.DeepClone();
         normalizeData();
         rebuildInspector();
+        displayBaseline = (JsonObject)data.DeepClone();
         refreshPreview();
     }
 
@@ -656,9 +662,9 @@ public sealed class TextConfigEditorWindow : Window
     private void addStringField(string label, JsonObject target, string field)
     {
         TextBox input = EditorInputs.CreateEditableTextBox(stringValue(target[field]));
-        input.TextChanged += (_, _) =>
+        input.PropertyChanged += (_, args) =>
         {
-            if (syncing)
+            if (args.Property != TextBox.TextProperty || syncing)
                 return;
             target[field] = input.Text ?? string.Empty;
             applyChanges();
@@ -754,9 +760,9 @@ public sealed class TextConfigEditorWindow : Window
         TextConfigReferenceKind kind)
     {
         TextBox input = EditorInputs.CreateEditableTextBox(stringValue(target[field]));
-        input.TextChanged += (_, _) =>
+        input.PropertyChanged += (_, args) =>
         {
-            if (syncing)
+            if (args.Property != TextBox.TextProperty || syncing)
                 return;
             target[field] = kind == TextConfigReferenceKind.Font
                 ? input.Text ?? string.Empty
@@ -868,6 +874,8 @@ public sealed class TextConfigEditorWindow : Window
 
     private void applyChanges()
     {
+        if (syncing)
+            return;
         refreshPreview();
         IReadOnlyList<string> errors = getReferenceErrors();
         updateValidation(errors);
@@ -878,7 +886,38 @@ public sealed class TextConfigEditorWindow : Window
             Close();
             return;
         }
-        gameData.UpdateTextConfig(key, data);
+        JsonObject changed = (JsonObject)sourceData.DeepClone();
+        applyEditedFields(changed, displayBaseline, data);
+        if (JsonNode.DeepEquals(sourceData, changed))
+            return;
+        sourceData = changed;
+        displayBaseline = (JsonObject)data.DeepClone();
+        gameData.UpdateTextConfig(key, sourceData);
+    }
+
+    private static void applyEditedFields(JsonObject target, JsonObject before, JsonObject after)
+    {
+        foreach (string name in before.Select(item => item.Key).Union(after.Select(item => item.Key)))
+        {
+            bool wasPresent = before.TryGetPropertyValue(name, out JsonNode? previous);
+            bool isPresent = after.TryGetPropertyValue(name, out JsonNode? current);
+            if (wasPresent == isPresent && JsonNode.DeepEquals(previous, current))
+                continue;
+            if (!isPresent)
+            {
+                target.Remove(name);
+            }
+            else if (previous is JsonObject oldObject && current is JsonObject newObject)
+            {
+                JsonObject result = target[name]?.DeepClone() as JsonObject ?? [];
+                applyEditedFields(result, oldObject, newObject);
+                target[name] = result;
+            }
+            else
+            {
+                target[name] = current?.DeepClone();
+            }
+        }
     }
 
     private void refreshPreview()

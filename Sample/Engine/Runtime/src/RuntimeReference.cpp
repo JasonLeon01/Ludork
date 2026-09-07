@@ -119,6 +119,89 @@ RuntimeValue snapshot(const RuntimeValue& value) {
         write(sol::state_view(scope.state()), value));
 }
 
+std::optional<RuntimeValue::Array> arrayValues(const RuntimeValue& value) {
+    if (const auto values = value.view().array()) {
+        return values->toArray();
+    }
+    if (const auto values = value.view().map()) {
+        return values->empty() ? std::optional(RuntimeValue::Array{})
+                               : std::nullopt;
+    }
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    sol::state_view lua(state);
+    const sol::object raw = write(lua, value);
+    if (raw.get_type() != sol::type::table) {
+        return std::nullopt;
+    }
+    if (binding::luaValueHasMetatable(raw)) {
+        const sol::object metatable =
+            sol::make_object(lua, detail::objectMetatable(lua, raw));
+        bool jsonArray = false;
+        for (const char* key :
+             {"LuaSF.JsonArrayMetatable", "LuaSF.JsonEmptyArrayMetatable"}) {
+            const sol::object known = lua.registry().raw_get<sol::object>(key);
+            auto pushedMetatable = sol::stack::push_pop(metatable);
+            auto pushedKnown = sol::stack::push_pop(known);
+            if (lua_rawequal(state, pushedMetatable.index_of(metatable),
+                             pushedKnown.index_of(known))) {
+                jsonArray = true;
+                break;
+            }
+        }
+        if (!jsonArray) {
+            return std::nullopt;
+        }
+    }
+    const sol::table table = raw.as<sol::table>();
+    std::size_t length = 0;
+    if (!binding::dynamicTableIsArray<RuntimeValue>(table, length) &&
+        table.begin() != table.end()) {
+        return std::nullopt;
+    }
+    RuntimeValue::Array result;
+    result.reserve(length);
+    for (std::size_t index = 1; index <= length; ++index) {
+        const sol::object item = table.raw_get<sol::object>(index);
+        result.push_back(binding::isJsonNull(item)
+                             ? RuntimeValue()
+                             : detail::readRuntimeReference(item));
+    }
+    return result;
+}
+
+std::optional<RuntimeValue::Map> mapValues(const RuntimeValue& value) {
+    if (const auto values = value.view().map()) {
+        return values->toMap();
+    }
+    if (const auto values = value.view().array()) {
+        return values->empty() ? std::optional(RuntimeValue::Map{})
+                               : std::nullopt;
+    }
+    RuntimeScope scope;
+    const sol::object raw = write(sol::state_view(scope.state()), value);
+    if (raw.get_type() != sol::type::table ||
+        binding::luaValueHasMetatable(raw)) {
+        return std::nullopt;
+    }
+    const sol::table table = raw.as<sol::table>();
+    std::size_t length = 0;
+    if (binding::dynamicTableIsArray<RuntimeValue>(table, length)) {
+        return length == 0 ? std::optional(RuntimeValue::Map{}) : std::nullopt;
+    }
+    RuntimeValue::Map result;
+    for (const auto& [key, item] : table) {
+        if (key.get_type() != sol::type::string) {
+            return std::nullopt;
+        }
+        result.emplace(key.as<std::string>(),
+                       binding::isJsonNull(item)
+                           ? RuntimeValue()
+                           : detail::readRuntimeReference(item));
+    }
+    return result;
+}
+
 RuntimeIdentityPtr identity(const RuntimeValue& value) {
     if (value.isNil()) {
         return nullptr;

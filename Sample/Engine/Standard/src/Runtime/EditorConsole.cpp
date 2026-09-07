@@ -1,4 +1,5 @@
 #include "EditorConsole.hpp"
+#include "EditorConsoleImpl.hpp"
 
 #include <EditorCommandServices.hpp>
 #include <LuaError.hpp>
@@ -28,21 +29,7 @@ extern "C" {
 namespace ludork::standard::runtime {
 namespace {
 
-struct EditorConsoleRuntime {
-    lua_State* state{};
-    sf::TcpListener listener;
-    sf::TcpSocket client;
-    std::string input;
-    int environmentReference{LUA_NOREF};
-    int jsonDecodeReference{LUA_NOREF};
-    int inputInjectReference{LUA_NOREF};
-    int shutdownReference{LUA_NOREF};
-    std::unordered_map<std::string, EditorCommandBoolControlHandler>
-        boolControlHandlers;
-    bool connected{};
-};
-
-std::unique_ptr<EditorConsoleRuntime> editorConsole;
+std::unique_ptr<EditorConsoleImpl> editorConsole;
 constexpr lua_Integer protocolVersion = 2;
 constexpr std::size_t maximumMessageSize = 64 * 1024;
 
@@ -68,7 +55,7 @@ void writeLuaError(lua_State* state) {
               << std::endl;
 }
 
-bool ensureEnvironment(lua_State* state, EditorConsoleRuntime& runtime) {
+bool ensureEnvironment(lua_State* state, EditorConsoleImpl& runtime) {
     if (runtime.environmentReference != LUA_NOREF) {
         return true;
     }
@@ -83,7 +70,7 @@ bool ensureEnvironment(lua_State* state, EditorConsoleRuntime& runtime) {
     return true;
 }
 
-bool decodeMessage(lua_State* state, EditorConsoleRuntime& runtime,
+bool decodeMessage(lua_State* state, EditorConsoleImpl& runtime,
                    const std::string& line) {
     if (runtime.jsonDecodeReference == LUA_NOREF) {
         return false;
@@ -132,8 +119,22 @@ bool appendResult(lua_State* state, int resultIndex, std::string& output) {
     return true;
 }
 
-void executeCommand(lua_State* state, EditorConsoleRuntime& runtime,
+void executeCommand(lua_State* state, EditorConsoleImpl& runtime,
                     const std::string& command) {
+    if (command == "$r") {
+        if (runtime.reloadHandler == nullptr) {
+            std::cerr << "ERROR:Lua hot reload is unavailable in this session."
+                      << std::endl;
+            return;
+        }
+        try {
+            runtime.reloadHandler(state);
+        } catch (const std::exception& error) {
+            std::cerr << "ERROR:Lua hot reload failed: " << error.what()
+                      << std::endl;
+        }
+        return;
+    }
     int stackBase = lua_gettop(state);
     if (!ensureEnvironment(state, runtime)) {
         lua_settop(state, stackBase);
@@ -184,7 +185,7 @@ void executeCommand(lua_State* state, EditorConsoleRuntime& runtime,
     lua_settop(state, stackBase);
 }
 
-bool injectInputEvents(lua_State* state, EditorConsoleRuntime& runtime,
+bool injectInputEvents(lua_State* state, EditorConsoleImpl& runtime,
                        int messageIndex) {
     if (runtime.inputInjectReference == LUA_NOREF) {
         std::cerr << "[EditorBridge] No input handler is registered."
@@ -222,7 +223,7 @@ bool injectInputEvents(lua_State* state, EditorConsoleRuntime& runtime,
     return true;
 }
 
-bool requestShutdown(lua_State* state, EditorConsoleRuntime& runtime) {
+bool requestShutdown(lua_State* state, EditorConsoleImpl& runtime) {
     if (runtime.shutdownReference == LUA_NOREF) {
         std::cerr << "[EditorBridge] No shutdown handler is registered."
                   << std::endl;
@@ -237,7 +238,7 @@ bool requestShutdown(lua_State* state, EditorConsoleRuntime& runtime) {
     return true;
 }
 
-void applyBoolControl(lua_State* state, EditorConsoleRuntime& runtime,
+void applyBoolControl(lua_State* state, EditorConsoleImpl& runtime,
                       int messageIndex) {
     lua_getfield(state, messageIndex, "name");
     std::size_t nameLength{};
@@ -272,7 +273,7 @@ void applyBoolControl(lua_State* state, EditorConsoleRuntime& runtime,
     handler->second(enabled);
 }
 
-bool processMessage(lua_State* state, EditorConsoleRuntime& runtime,
+bool processMessage(lua_State* state, EditorConsoleImpl& runtime,
                     const std::string& line) {
     int stackBase = lua_gettop(state);
     if (!decodeMessage(state, runtime, line)) {
@@ -323,7 +324,7 @@ bool processMessage(lua_State* state, EditorConsoleRuntime& runtime,
     return true;
 }
 
-bool processMessages(lua_State* state, EditorConsoleRuntime& runtime) {
+bool processMessages(lua_State* state, EditorConsoleImpl& runtime) {
     std::size_t newline = runtime.input.find('\n');
     while (newline != std::string::npos) {
         std::string line = runtime.input.substr(0, newline);
@@ -349,13 +350,13 @@ bool processMessages(lua_State* state, EditorConsoleRuntime& runtime) {
     return true;
 }
 
-void disconnectClient(EditorConsoleRuntime& runtime) {
+void disconnectClient(EditorConsoleImpl& runtime) {
     runtime.client.disconnect();
     runtime.connected = false;
     runtime.input.clear();
 }
 
-bool sendReady(EditorConsoleRuntime& runtime) {
+bool sendReady(EditorConsoleImpl& runtime) {
     static constexpr std::string_view ready = "{\"v\":2,\"type\":\"ready\"}\n";
     return runtime.client.send(ready.data(), ready.size()) ==
            sf::Socket::Status::Done;
@@ -382,8 +383,8 @@ void initializeEditorConsole(lua_State* state, int jsonDecodeIndex) {
         return;
     }
 
-    std::unique_ptr<EditorConsoleRuntime> runtime =
-        std::make_unique<EditorConsoleRuntime>();
+    std::unique_ptr<EditorConsoleImpl> runtime =
+        std::make_unique<EditorConsoleImpl>();
     sf::Socket::Status status =
         runtime->listener.listen(*port, sf::IpAddress::LocalHostV4);
     if (status != sf::Socket::Status::Done) {
@@ -402,7 +403,7 @@ void updateEditorConsole(lua_State* state) {
     if (!editorConsole) {
         return;
     }
-    EditorConsoleRuntime& runtime = *editorConsole;
+    EditorConsoleImpl& runtime = *editorConsole;
 
     if (!runtime.connected) {
         sf::Socket::Status acceptStatus =
@@ -541,6 +542,13 @@ void clearEditorCommandShutdownHandler(lua_State* state) noexcept {
     editorConsole->shutdownReference = LUA_NOREF;
 }
 
+void setEditorCommandReloadHandler(lua_State* state,
+                                   EditorCommandReloadHandler handler) {
+    if (editorConsole && editorConsole->state == state) {
+        editorConsole->reloadHandler = handler;
+    }
+}
+
 void setEditorCommandBoolControlHandler(
     lua_State* state, const char* name,
     EditorCommandBoolControlHandler handler) {
@@ -612,6 +620,21 @@ void unregisterEditorCommandShutdownHandler(lua_State* state) noexcept {
         return;
     }
     runtime::clearEditorCommandShutdownHandler(state);
+}
+
+void registerEditorCommandReloadHandler(lua_State* state,
+                                        EditorCommandReloadHandler handler) {
+    LuaExecutionScope execution(state);
+    if (execution.active()) {
+        runtime::setEditorCommandReloadHandler(execution.state(), handler);
+    }
+}
+
+void unregisterEditorCommandReloadHandler(lua_State* state) noexcept {
+    LuaExecutionScope execution(state);
+    if (execution.active()) {
+        runtime::setEditorCommandReloadHandler(execution.state(), nullptr);
+    }
 }
 
 void registerEditorCommandBoolControlHandler(

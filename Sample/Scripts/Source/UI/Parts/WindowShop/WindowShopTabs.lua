@@ -17,14 +17,10 @@ function WindowShopTabsUI:bind()
     self._windowFrame = self:requireControl("WindowFrame")
     self._content = self:requireControl("Content")
     self._tabView = self:requireControl("Tabs")
-    self._tabView:setKeyHint({
-        Keyboard = sf.Keyboard.Key.Q,
-        Joystick = Engine.JoystickButton.getLB()
-    },
-        {
-            Keyboard = sf.Keyboard.Key.E,
-            Joystick = Engine.JoystickButton.getRB()
-        })
+    self._tabView:setKeyHint(
+        Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.Q, Joystick = Engine.JoystickButton.getLB() }),
+        Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.E, Joystick = Engine.JoystickButton.getRB() })
+    )
     self._tabView:setCursorSound(GameSystem.GetCursorSE())
     self._tabView:setOnSelectedIndexChanged(function (index)
         self.model:onSelectedIndexChanged(index)

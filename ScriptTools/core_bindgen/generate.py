@@ -9,6 +9,7 @@ from .context import GeneratorContext
 from .scopes import register_headers, binding_identifier, validate_bound_types
 from .callback_codecs import (
     load_callback_codecs,
+    load_api_enum_types,
     validate_callback_codec_aliases,
 )
 from .model import (
@@ -177,11 +178,17 @@ def main(arguments: list[str] | None = None) -> int:
                 f"{previous.source}:{previous.line}"
             )
         local_exposed_names[name] = info
-    context.enum_types = {info.cpp_name for info in all_enums}
+    context.enum_types = {info.cpp_name for info in all_enums} | load_api_enum_types(
+        arguments.callback_codecs.with_name("sfml_api.json")
+    )
     context.dynamic_value_types = {
         info.cpp_name
         for info in all_types
         if info.options.get("dynamic_value", "false").lower() == "true"
+    }
+    context.pure_data_types = {
+        info.cpp_name for info in all_types
+        if info.options.get("pure_data", "false").lower() == "true"
     }
     context.table_value_types = {
         info.cpp_name
@@ -201,6 +208,9 @@ def main(arguments: list[str] | None = None) -> int:
         for info in all_types
         if info.options.get("metadata_base", "true").lower() == "false"
     }
+    pure_overlap = context.pure_data_types & (context.dynamic_value_types | context.table_value_types | context.opaque_identity_types)
+    if pure_overlap:
+        raise ValueError("pure_data cannot combine with other value modes: " + ", ".join(sorted(pure_overlap)))
     overlap = context.dynamic_value_types & context.table_value_types
     if overlap:
         raise ValueError(

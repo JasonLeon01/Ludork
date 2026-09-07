@@ -149,7 +149,7 @@ void Slider::update(float deltaTime) {
     updateMouseDrag();
 }
 
-void Slider::onClick(const RuntimeValue::Map& arguments) {
+void Slider::onClick(const UiInputEventArguments& arguments) {
     const std::optional<sf::Vector2f> position =
         ludork::engine::ui_interaction::pointerPosition(arguments);
     if (!suppressClick_ && position.has_value()) {
@@ -159,7 +159,7 @@ void Slider::onClick(const RuntimeValue::Map& arguments) {
     FunctionalBase::onClick(arguments);
 }
 
-bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
+bool Slider::onMouseButtonDown(const UiInputEventArguments& arguments) {
     const bool callbackHandled = FunctionalBase::onMouseButtonDown(arguments);
     const std::optional<sf::Mouse::Button> button =
         ludork::engine::ui_interaction::pointerMouseButton(arguments);
@@ -177,7 +177,7 @@ bool Slider::onMouseButtonDown(const RuntimeValue::Map& arguments) {
     return callbackHandled || accepted;
 }
 
-void Slider::onMouseMoved(const RuntimeValue::Map& arguments) {
+void Slider::onMouseMoved(const UiInputEventArguments& arguments) {
     const std::optional<sf::Vector2f> position =
         ludork::engine::ui_interaction::pointerPosition(arguments);
     if ((mouseDragging_ || hasTouchCapture()) && position.has_value()) {
@@ -186,7 +186,7 @@ void Slider::onMouseMoved(const RuntimeValue::Map& arguments) {
     FunctionalBase::onMouseMoved(arguments);
 }
 
-void Slider::onKeyDown(const RuntimeValue::Map& arguments) {
+void Slider::onKeyDown(const UiInputEventArguments& arguments) {
     InputService* service = dynamic_cast<InputService*>(inputProvider());
     if (service != nullptr && ownsKeyboardCursorFocus()) {
         if (service->isActionTriggered(service->getLeftKeys(), true, 0.4f,

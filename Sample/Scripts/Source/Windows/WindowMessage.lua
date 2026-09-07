@@ -123,7 +123,7 @@ function WindowMessage:onReturn()
     local child = children[self.index + 1]
     if Class.isInstance(child, FunctionalBase) then
         ---@cast child Engine.ControlBase & Engine.FunctionalBase
-        child:onCancel({})
+        child:onCancel(Engine.UiInputEventArguments.new({}))
     end
 end
 
@@ -147,7 +147,7 @@ function WindowMessage:confirmMessage()
         return false
     end
     if self._messageAdvancer ~= nil then
-        self._messageAdvancer:onConfirm({})
+        self._messageAdvancer:onConfirm(Engine.UiInputEventArguments.new({}))
     end
     return true
 end

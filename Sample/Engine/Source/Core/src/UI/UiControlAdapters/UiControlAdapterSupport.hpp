@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValueReader.hpp>
+#include <UI/UiControlPropertyValue.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/PlainTextConfig.hpp>
 #include <UI/RichText.hpp>
@@ -19,45 +19,63 @@
 
 namespace ui_control_adapter_detail {
 
-using ludork::runtime::value_reader::requireBool;
-using ludork::runtime::value_reader::requireFloat;
-using ludork::runtime::value_reader::requireInt;
-using ludork::runtime::value_reader::requireString;
+template <typename T>
+const T& requirePropertyValue(const UiControlPropertyValue& value,
+                              const std::string& source) {
+    const T* result = std::get_if<T>(&value);
+    if (result == nullptr) {
+        throw std::invalid_argument(source +
+                                    " has an invalid UI property type");
+    }
+    return *result;
+}
 
-sf::Vector2f requireVector2f(RuntimeValueView value, const std::string& source);
-sf::Vector2u requireVector2u(RuntimeValueView value, const std::string& source);
-sf::IntRect requireIntRect(RuntimeValueView value, const std::string& source);
-sf::Color requireColor(RuntimeValueView value, const std::string& source);
+bool isNil(const UiControlPropertyValue& value);
+bool requireBool(const UiControlPropertyValue& value,
+                 const std::string& source);
+float requireFloat(const UiControlPropertyValue& value,
+                   const std::string& source);
+int requireInt(const UiControlPropertyValue& value, const std::string& source);
+const std::string& requireString(const UiControlPropertyValue& value,
+                                 const std::string& source);
+sf::Vector2f requireVector2f(const UiControlPropertyValue& value,
+                             const std::string& source);
+sf::Vector2u requireVector2u(const UiControlPropertyValue& value,
+                             const std::string& source);
+sf::IntRect requireIntRect(const UiControlPropertyValue& value,
+                           const std::string& source);
+sf::Color requireColor(const UiControlPropertyValue& value,
+                       const std::string& source);
 
-sf::Vector2f vector2fProperty(const RuntimeValue::Map& properties,
+sf::Vector2f vector2fProperty(const UiControlProperties& properties,
                               const std::string& name,
                               const sf::Vector2f& fallback);
-sf::Vector2u vector2uProperty(const RuntimeValue::Map& properties,
+sf::Vector2u vector2uProperty(const UiControlProperties& properties,
                               const std::string& name,
                               const sf::Vector2u& fallback);
-std::string stringProperty(const RuntimeValue::Map& properties,
+std::string stringProperty(const UiControlProperties& properties,
                            const std::string& name,
                            const std::string& fallback = {});
 std::vector<std::string> stringArrayProperty(
-    const RuntimeValue::Map& properties, const std::string& name,
+    const UiControlProperties& properties, const std::string& name,
     const std::vector<std::string>& fallback = {});
-int intProperty(const RuntimeValue::Map& properties, const std::string& name,
+int intProperty(const UiControlProperties& properties, const std::string& name,
                 int fallback);
-float floatProperty(const RuntimeValue::Map& properties,
+float floatProperty(const UiControlProperties& properties,
                     const std::string& name, float fallback);
-bool boolProperty(const RuntimeValue::Map& properties, const std::string& name,
-                  bool fallback);
-sf::Color colorProperty(const RuntimeValue::Map& properties,
+bool boolProperty(const UiControlProperties& properties,
+                  const std::string& name, bool fallback);
+sf::Color colorProperty(const UiControlProperties& properties,
                         const std::string& name, const sf::Color& fallback);
 std::optional<sf::IntRect> optionalIntRectProperty(
-    const RuntimeValue::Map& properties, const std::string& name);
+    const UiControlProperties& properties, const std::string& name);
 
 std::shared_ptr<sf::Texture> loadTexture(const std::string& assetKey);
 sf::Image loadWindowSkin(const std::string& requestedKey);
 std::shared_ptr<PlainTextConfig> plainTextConfig(
     const std::string& textConfigKey);
 std::shared_ptr<PlainTextConfig> plainTextControlConfig(
-    const RuntimeValue::Map& properties);
+    const UiControlProperties& properties);
 std::shared_ptr<RichText::RichTextConfig> richTextConfig(
     const std::string& textConfigKey);
 

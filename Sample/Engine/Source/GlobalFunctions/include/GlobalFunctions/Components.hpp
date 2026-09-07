@@ -2,6 +2,9 @@
 
 #include <CoreMinimal.hpp>
 
+#include <optional>
+#include <tuple>
+
 BIND_FUNCTION_GROUP(name = "Components")
 
 BIND_FUNCTION(name = "_cloneComponentValue", defaults = {nil, nil},
@@ -37,8 +40,9 @@ RuntimeValue::Map componentToData(const RuntimeValue& value);
 
 BIND_FUNCTION(name = "_getComponentFieldTarget", multiple_returns = true,
               metadata = false)
-std::tuple<RuntimeValue, RuntimeValue, RuntimeValue> getComponentFieldTarget(
-    const RuntimeValue& object, const std::string& fieldName);
+std::tuple<RuntimeValue, std::optional<std::string>, RuntimeValue>
+getComponentFieldTarget(const RuntimeValue& object,
+                        const std::string& fieldName);
 
 BIND_FUNCTION(name = "getComponentFieldValue", defaults = {nil},
               metadata = false)

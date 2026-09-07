@@ -11,6 +11,7 @@ function Ui.GetEventName(assetKey) end
 ---@param payload  any
 function Ui.Publish(assetKey, payload) end
 
+--- Define a controller class; its update channel is created when the first instance is prepared.
 ---@generic T: table
 ---@param assetKey   string
 ---@param definition T

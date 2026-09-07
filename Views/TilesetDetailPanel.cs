@@ -47,7 +47,11 @@ internal sealed class TilesetDetailPanel : Grid
             VerticalAlignment = VerticalAlignment.Top,
         };
         HistoryMergeBehavior.Attach(nameBox, gameData);
-        nameBox.TextChanged += (_, _) => updateName();
+        nameBox.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == TextBox.TextProperty)
+                updateName();
+        };
         modeList.SelectionChanged += (_, _) => updateMode();
         modeList.ItemsSource = isAutoTile
             ? new[] { LocaleService.Get("PASSABLE"), LocaleService.Get("MATERIAL") }
@@ -121,7 +125,7 @@ internal sealed class TilesetDetailPanel : Grid
         if (populating || data is null)
             return;
         string value = nameBox.Text ?? string.Empty;
-        if (data["name"]?.GetValue<string>() == value)
+        if ((data["name"]?.GetValue<string>() ?? string.Empty) == value)
             return;
         gameData.RecordSnapshot();
         data["name"] = value;

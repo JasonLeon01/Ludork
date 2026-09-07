@@ -19,6 +19,7 @@ local categoryFields = {
     textConfigs = "_textConfigData"
 }
 
+---@class Source.Data.Loading
 local DataLoading = {}
 
 function DataLoading:init(data)
@@ -171,10 +172,12 @@ function DataLoading:applyInitialLoadItem(stage, item)
     elseif category == "tilesets" then
         payload.type = nil
         name = splitCompound(relativePath)
+        ---@cast payload table<string, string | boolean[] | table<string, boolean | number>[] | boolean[][]>
         stage._tilesetData[name] = Engine.Tileset.fromData(payload)
     elseif category == "autoTiles" then
         payload.type = nil
         name = splitCompound(relativePath)
+        ---@cast payload table<string, string | boolean | table<string, boolean | number>>
         stage._autoTileData[name] = Engine.AutoTile.fromData(payload)
     elseif category == "general" then
         payload.type = nil

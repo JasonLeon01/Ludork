@@ -4,7 +4,6 @@
 
 #include <Input/InputService.hpp>
 #include <EngineState.hpp>
-#include <Runtime/RuntimeValueReader.hpp>
 #include <UI/DropBox.hpp>
 #include <UI/Slider.hpp>
 #include <Utils/Render.hpp>
@@ -122,7 +121,7 @@ void ScrollBox::render() {
     drawIndicators();
 }
 
-void ScrollBox::onMouseMoved(const RuntimeValue::Map& arguments) {
+void ScrollBox::onMouseMoved(const UiInputEventArguments& arguments) {
     if (hasTouchCapture() && inputService().isTouchDragged()) {
         const std::optional<sf::Vector2f> position =
             ludork::engine::ui_interaction::pointerPosition(arguments);
@@ -133,18 +132,19 @@ void ScrollBox::onMouseMoved(const RuntimeValue::Map& arguments) {
     FunctionalBase::onMouseMoved(arguments);
 }
 
-void ScrollBox::onMouseWheelScrolled(const RuntimeValue::Map& arguments) {
+void ScrollBox::onMouseWheelScrolled(const UiInputEventArguments& arguments) {
     if (!scrollingEnabled_) {
         FunctionalBase::onMouseWheelScrolled(arguments);
         return;
     }
-    const auto iterator = arguments.find("delta");
-    if (iterator == arguments.end()) {
+    if (!arguments.delta.has_value()) {
         FunctionalBase::onMouseWheelScrolled(arguments);
         return;
     }
-    const double delta =
-        ludork::runtime::value_reader::requireNumber(iterator->second, "delta");
+    const float delta = *arguments.delta;
+    if (!std::isfinite(delta)) {
+        throw std::invalid_argument("delta must be finite");
+    }
     if (delta == 0.0) {
         FunctionalBase::onMouseWheelScrolled(arguments);
         return;

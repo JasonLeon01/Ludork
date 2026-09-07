@@ -28,6 +28,8 @@ public:
                      RuntimeLookupMode mode = RuntimeLookupMode::Visible) const;
     void set(const RuntimeHandle& value, const std::string& name,
              const RuntimeValue& member) const;
+    void setTyped(const RuntimeHandle& value, const std::string& name,
+                  const RuntimeValue& member) const;
     std::string toString(const RuntimeValue& value) const;
     RuntimeValue construct(const RuntimeHandle& classType,
                            const RuntimeValue::Array& arguments = {}) const;

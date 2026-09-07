@@ -57,9 +57,9 @@ void validateEffectSpec(const AbilitySystemImpl& state,
                 modifier.operation);
         }
         static_cast<void>(resolveMagnitude(modifier, spec, spec->stacks));
-        if (!modifier.minimum.isNil()) {
+        if (modifier.minimum.has_value()) {
             static_cast<void>(unrestrictedNumeric(
-                modifier.minimum, "Gameplay Effect modifier minimum"));
+                *modifier.minimum, "Gameplay Effect modifier minimum"));
         }
     }
     if (std::any_of(effect.grantedTags.begin(), effect.grantedTags.end(),
@@ -101,10 +101,10 @@ std::shared_ptr<ActiveGameplayEffect> findStackableEffect(
     return nullptr;
 }
 
-std::pair<AttributeNumbers, bool> instantBases(
+std::pair<GameplayNumbers, bool> instantBases(
     const AbilitySystemImpl& state,
     const std::shared_ptr<GameplayEffectSpec>& spec) {
-    AttributeNumbers result = state.baseValues;
+    GameplayNumbers result = state.baseValues;
     bool changed = false;
     for (const GameplayModifier& modifier : spec->effect->modifiers) {
         NumericValue base = validateNumeric(state, modifier.attribute,
@@ -122,14 +122,14 @@ std::pair<AttributeNumbers, bool> instantBases(
         } else if (modifier.operation == "Override") {
             base = magnitude;
         }
-        if (!modifier.minimum.isNil()) {
+        if (modifier.minimum.has_value()) {
             const NumericValue minimum = unrestrictedNumeric(
-                modifier.minimum, "Gameplay Effect modifier minimum");
+                *modifier.minimum, "Gameplay Effect modifier minimum");
             if (base.value < minimum.value) {
                 base = minimum;
             }
         }
-        const AttributeNumber value = resolvedNumber(base);
+        const GameplayNumber value = resolvedNumber(base);
         static_cast<void>(validateNumeric(state, modifier.attribute, value,
                                           "Gameplay Effect result"));
         result[modifier.attribute] = value;
@@ -192,17 +192,19 @@ std::optional<int> applyGameplayEffectSpec(
     if (existing != nullptr) {
         if (spec->effect->stackingPolicy == "Aggregate") {
             const int replacementStacks = existing->stacks + spec->stacks;
-            const AttributeNumbers current =
+            const GameplayNumbers current =
                 preview(state, state.baseValues, {}, existing->handle,
                         replacementStacks);
             existing->stacks = replacementStacks;
-            applyCurrentValues(state, current, "Effect");
+            applyCurrentValues(
+                state, current,
+                AbilitySystemImpl::AttributeChangeSource::Effect);
             ++state.revision;
         }
         return existing->handle;
     }
 
-    const AttributeNumbers current = preview(state, state.baseValues, spec);
+    const GameplayNumbers current = preview(state, state.baseValues, spec);
     const int handle = state.nextEffectHandle++;
     std::shared_ptr<ActiveGameplayEffect> active =
         std::make_shared<ActiveGameplayEffect>(handle, spec,
@@ -217,7 +219,8 @@ std::optional<int> applyGameplayEffectSpec(
         active->grantedAbilitySpecs.push_back(
             giveAbility(state, ability, runtimeObject(active)));
     }
-    applyCurrentValues(state, current, "Effect");
+    applyCurrentValues(state, current,
+                       AbilitySystemImpl::AttributeChangeSource::Effect);
     ++state.revision;
     return handle;
 }
@@ -236,15 +239,16 @@ bool removeActiveGameplayEffect(AbilitySystemImpl& state, int handle,
     if (active->spec->effect->stackingPolicy == "Aggregate" &&
         removeStacks < active->stacks) {
         const int replacementStacks = active->stacks - removeStacks;
-        const AttributeNumbers current = preview(
+        const GameplayNumbers current = preview(
             state, state.baseValues, {}, active->handle, replacementStacks);
         active->stacks = replacementStacks;
-        applyCurrentValues(state, current, "Effect");
+        applyCurrentValues(state, current,
+                           AbilitySystemImpl::AttributeChangeSource::Effect);
         ++state.revision;
         return true;
     }
 
-    const AttributeNumbers current =
+    const GameplayNumbers current =
         preview(state, state.baseValues, {}, active->handle, 0);
     state.activeEffects.erase(handle);
     std::erase(state.activeEffectOrder, handle);
@@ -252,7 +256,8 @@ bool removeActiveGameplayEffect(AbilitySystemImpl& state, int handle,
         changeTagCount(state, tag, -1);
     }
     removeAbilitiesBySource(state, runtimeObject(active));
-    applyCurrentValues(state, current, "Effect");
+    applyCurrentValues(state, current,
+                       AbilitySystemImpl::AttributeChangeSource::Effect);
     ++state.revision;
     return true;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <Runtime/RuntimeData.hpp>
 #include <EngineRuntimeApi.hpp>
 
 class UiAssetInstance;
@@ -14,8 +15,8 @@ public:
         std::optional<sf::Vector2u> logicalSize = std::nullopt) const;
 
     std::shared_ptr<UiAssetInstance> instantiateSnapshot(
-        const std::string& assetKey, const RuntimeValue& asset,
-        const RuntimeValue::Map& dependencies,
+        const std::string& assetKey, const RuntimeData& asset,
+        const RuntimeData::Map& dependencies,
         std::optional<sf::Vector2u> logicalSize = std::nullopt,
         bool designMode = true) const;
 };

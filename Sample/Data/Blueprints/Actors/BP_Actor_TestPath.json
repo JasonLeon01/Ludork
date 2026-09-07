@@ -38,7 +38,7 @@
           {
             "nodeFunction": "NodeFunctions.Movement.SetAutoPathToDestination",
             "params": [
-              "",
+              null,
               [
                 9,
                 9

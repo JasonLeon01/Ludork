@@ -126,10 +126,12 @@ function System.GetConfigValue(configName, settingName)
     return ""
 end
 
-RuntimeProviders.installConfig(function (configName, settingName)
-    local value = System.GetConfigValue(configName, settingName)
-    return Class.isInstance(value, "string") and value or tostring(value)
-end)
+function System.InstallRuntimeProviders()
+    RuntimeProviders.installConfig(function (configName, settingName)
+        local value = System.GetConfigValue(configName, settingName)
+        return Class.isInstance(value, "string") and value or tostring(value)
+    end)
+end
 
 function System.GetTitle()
     return System._title

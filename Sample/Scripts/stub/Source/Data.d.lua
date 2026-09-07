@@ -110,6 +110,9 @@
 ---@field _classDict               Engine.ClassDict
 local Data = {}
 
+---@brief Create session data services and install runtime providers once before the first scene.
+function Data.InitializeRuntime() end
+
 ---@return Source.Data.InitialLoadStage
 function Data.BeginInitialLoad() end
 

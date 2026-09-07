@@ -269,28 +269,28 @@ RuntimeValue MetadataRuntimeFacade::constructTypedValue(
     if (!target.valid() || target.get_type() == sol::type::lua_nil) {
         throw std::runtime_error("Cannot resolve runtime metadata type");
     }
-    if (target.is<sol::table>() &&
+    if (target.get_type() == sol::type::table &&
         ludork::standard::class_runtime::isInstanceOf(
             lua, rawValue, target.as<sol::table>())) {
         return value;
     }
-    if (!rawValue.is<sol::table>()) {
+    if (rawValue.get_type() != sol::type::table) {
         return value;
     }
     std::vector<sol::object> constructorArguments;
     if (!ludork::runtime::detail::runtimeSequence(rawValue.as<sol::table>(),
                                                   constructorArguments)) {
-        return value;
+        constructorArguments = {rawValue};
     }
     if (constructorArguments.size() == 1 &&
-        constructorArguments.front().is<sol::table>()) {
+        constructorArguments.front().get_type() == sol::type::table) {
         std::vector<sol::object> nested;
         if (ludork::runtime::detail::runtimeSequence(
                 constructorArguments.front().as<sol::table>(), nested)) {
             constructorArguments = std::move(nested);
         }
     }
-    if (!target.is<sol::table>()) {
+    if (target.get_type() != sol::type::table) {
         throw std::runtime_error("Runtime metadata type is not constructible");
     }
     const sol::object constructor =

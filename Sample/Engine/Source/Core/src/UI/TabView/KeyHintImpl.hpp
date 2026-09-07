@@ -1,19 +1,14 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
-
-#include <optional>
+#include <Input/InputNamedValue.hpp>
+#include <SFML/Window/Keyboard.hpp>
 #include <string>
 
 namespace ludork::engine::tab_view_impl {
 
-struct KeyHint {
-    std::optional<std::string> keyboard;
-    std::optional<std::string> handle;
-};
-
-KeyHint parseKeyHint(const RuntimeValue::Map& values,
-                     const std::string& source);
+std::string keyboardKeyText(sf::Keyboard::Key key, const std::string& source);
+std::string handleKeyText(const InputNamedValue& button,
+                          const std::string& source);
 bool anyJoystickConnected();
 bool keyboardHintsAvailableWithoutJoystick();
 

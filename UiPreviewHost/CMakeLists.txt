@@ -15,6 +15,11 @@ get_filename_component(
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
     ABSOLUTE)
 set(LUDORK_SAMPLE_SOURCE_DIR "${LUDORK_REPOSITORY_ROOT}/Sample")
+set(LUDORK_WITH_LUA
+    OFF
+    CACHE BOOL
+    "Build the complete Lua scripting runtime and bindings"
+    FORCE)
 set(LUDORK_BUILD_SAMPLE_APPLICATION
     OFF
     CACHE BOOL

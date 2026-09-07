@@ -21,7 +21,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     using namespace ui_control_adapter_detail;
 
     UiControlAdapterRegistry::Adapter solidRect;
-    solidRect.factory = [](const RuntimeValue::Map& properties) {
+    solidRect.factory = [](const UiControlProperties& properties) {
         return std::make_shared<SolidRect>(
             vector2fProperty(properties, "size", {100.0f, 32.0f}),
             colorProperty(properties, "fillColor", sf::Color::White),
@@ -29,7 +29,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             floatProperty(properties, "outlineThickness", 0.0f));
     };
     solidRect.setter = [](ControlBase& control, const std::string& propertyId,
-                          const RuntimeValue& value) {
+                          const UiControlPropertyValue& value) {
         SolidRect& rect =
             requireControlType<SolidRect>(control, "Engine.SolidRect");
         if (propertyId == "size") {
@@ -56,7 +56,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
         std::move(solidRect));
 
     UiControlAdapterRegistry::Adapter progressBar;
-    progressBar.factory = [](const RuntimeValue::Map& properties) {
+    progressBar.factory = [](const UiControlProperties& properties) {
         return std::make_shared<ProgressBar>(
             vector2fProperty(properties, "size", {100.0f, 12.0f}),
             floatProperty(properties, "progress", 0.0f),
@@ -65,7 +65,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             colorProperty(properties, "fillColor", sf::Color::White));
     };
     progressBar.setter = [](ControlBase& control, const std::string& propertyId,
-                            const RuntimeValue& value) {
+                            const UiControlPropertyValue& value) {
         ProgressBar& progress =
             requireControlType<ProgressBar>(control, "Engine.ProgressBar");
         if (propertyId == "size") {
@@ -92,7 +92,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
         std::move(progressBar));
 
     UiControlAdapterRegistry::Adapter image;
-    image.factory = [](const RuntimeValue::Map& properties) {
+    image.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<Image> result = std::make_shared<Image>(
             loadTexture(stringProperty(properties, "texture")),
             optionalIntRectProperty(properties, "textureRect"));
@@ -101,13 +101,13 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
         return result;
     };
     image.setter = [](ControlBase& control, const std::string& propertyId,
-                      const RuntimeValue& value) {
+                      const UiControlPropertyValue& value) {
         Image& image = requireControlType<Image>(control, "Engine.Image");
         if (propertyId == "texture") {
             image.setTexture(loadTexture(requireString(value, "texture")),
                              true);
         } else if (propertyId == "textureRect") {
-            if (value.isNil()) {
+            if (isNil(value)) {
                 image.setTextureRect(
                     {{0, 0},
                      {static_cast<int>(image.getTexture().getSize().x),
@@ -128,7 +128,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     registry.registerAdapter<ImageUiControlAdapterTag>(std::move(image));
 
     UiControlAdapterRegistry::Adapter characterView;
-    characterView.factory = [](const RuntimeValue::Map& properties) {
+    characterView.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<CharacterView> result = std::make_shared<CharacterView>(
             loadTexture(stringProperty(properties, "texture")),
             optionalIntRectProperty(properties, "textureRect"),
@@ -145,7 +145,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     };
     characterView.setter = [](ControlBase& control,
                               const std::string& propertyId,
-                              const RuntimeValue& value) {
+                              const UiControlPropertyValue& value) {
         CharacterView& view =
             requireControlType<CharacterView>(control, "Engine.CharacterView");
         if (propertyId == "size") {
@@ -154,7 +154,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             view.setCharacterTexture(
                 loadTexture(requireString(value, "texture")));
         } else if (propertyId == "textureRect") {
-            if (value.isNil()) {
+            if (isNil(value)) {
                 view.resetFrameRectToTexture();
             } else {
                 view.setFrameRect(requireIntRect(value, "textureRect"));
@@ -187,7 +187,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
         std::move(characterView));
 
     UiControlAdapterRegistry::Adapter functionalImage;
-    functionalImage.factory = [](const RuntimeValue::Map& properties) {
+    functionalImage.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<FunctionalImage> result =
             std::make_shared<FunctionalImage>(
                 loadTexture(stringProperty(properties, "texture")),
@@ -198,14 +198,14 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     };
     functionalImage.setter = [](ControlBase& control,
                                 const std::string& propertyId,
-                                const RuntimeValue& value) {
+                                const UiControlPropertyValue& value) {
         FunctionalImage& image = requireControlType<FunctionalImage>(
             control, "Engine.FunctionalImage");
         if (propertyId == "texture") {
             image.setTexture(loadTexture(requireString(value, "texture")),
                              true);
         } else if (propertyId == "textureRect") {
-            if (value.isNil()) {
+            if (isNil(value)) {
                 image.setTextureRect(
                     {{0, 0},
                      {static_cast<int>(image.getTexture().getSize().x),
@@ -234,7 +234,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerSkinnedAdapters(
     using namespace ui_control_adapter_detail;
 
     UiControlAdapterRegistry::Adapter window;
-    window.factory = [](const RuntimeValue::Map& properties) {
+    window.factory = [](const UiControlProperties& properties) {
         const sf::Vector2u size =
             vector2uProperty(properties, "size", {160u, 96u});
         return std::make_shared<Window>(
@@ -244,7 +244,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerSkinnedAdapters(
             boolProperty(properties, "repeated", false));
     };
     window.setter = [](ControlBase& control, const std::string& propertyId,
-                       const RuntimeValue& value) {
+                       const UiControlPropertyValue& value) {
         Window& window = requireControlType<Window>(control, "Engine.Window");
         if (propertyId == "size") {
             window.resize(requireVector2u(value, "size"));
@@ -264,7 +264,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerSkinnedAdapters(
     registry.registerAdapter<WindowUiControlAdapterTag>(std::move(window));
 
     UiControlAdapterRegistry::Adapter rect;
-    rect.factory = [](const RuntimeValue::Map& properties) {
+    rect.factory = [](const UiControlProperties& properties) {
         const sf::Vector2f size =
             vector2fProperty(properties, "size", {160.0f, 96.0f});
         const std::string curve = stringProperty(properties, "opacityCurve");
@@ -275,7 +275,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerSkinnedAdapters(
             curve.empty() ? std::nullopt : std::optional<std::string>(curve));
     };
     rect.setter = [](ControlBase& control, const std::string& propertyId,
-                     const RuntimeValue& value) {
+                     const UiControlPropertyValue& value) {
         Rect& rect = requireControlType<Rect>(control, "Engine.Rect");
         if (propertyId == "size") {
             rect.resize(requireVector2f(value, "size"));

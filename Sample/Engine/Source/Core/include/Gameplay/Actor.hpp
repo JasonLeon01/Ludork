@@ -8,6 +8,7 @@
 #include <Gameplay/AutoSoundParams.hpp>
 #include <Gameplay/ActorUpdateBatch.hpp>
 #include <Runtime/Blueprint/BPBase.hpp>
+#include <Runtime/NodeGraph/Graph.hpp>
 #include <Gameplay/Components/LightComponent.hpp>
 #include <General/Material.hpp>
 
@@ -293,10 +294,10 @@ public:
     virtual void setIgnoreLighting(bool ignoreLighting);
 
     BIND_METHOD(outpins(default = nil))
-    virtual void setGraph(const RuntimeIdentityPtr& graph);
+    virtual void setGraph(const std::shared_ptr<Graph>& graph);
 
     BIND_METHOD(Pure = true)
-    virtual RuntimeIdentityPtr getGraph() const;
+    virtual std::shared_ptr<Graph> getGraph() const;
 
     BIND_METHOD(Pure = true)
     virtual bool hasGraph() const;
@@ -545,7 +546,7 @@ private:
     std::shared_ptr<sf::Texture> texture_;
     std::shared_ptr<sf::Texture> spriteTexture_;
     bool visible_ = true;
-    RuntimeIdentityPtr graph_;
+    std::shared_ptr<Graph> graph_;
     std::string mapTag_;
     bool destroyed_ = false;
 

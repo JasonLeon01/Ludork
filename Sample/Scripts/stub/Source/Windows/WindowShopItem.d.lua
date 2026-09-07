@@ -39,7 +39,7 @@ function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap, showValues
 ---@param deltaTime number
 function WindowShopItem:onTick(deltaTime) end
 
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowShopItem:onKeyDown(kwargs) end
 
 function WindowShopItem:resetSelection() end

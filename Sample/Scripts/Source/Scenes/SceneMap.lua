@@ -412,13 +412,13 @@ function Scene:loadMap(mapPath, initialPosition)
         ---@cast mapData Source.SceneComponents.MapData
         self._mapAudio:playMapAudio(mapData)
         GlobalSystem.clearFog()
-        GlobalSystem.applyFogFromMapData({
-            fog = mapData.fog,
-            fogPower = mapData.fogPower,
-            fogOx = mapData.fogOx,
-            fogOy = mapData.fogOy,
-            fogDistort = mapData.fogDistort
-        })
+        GlobalSystem.applyFogFromMapData(GlobalCore.MapFogSettings.new({
+                fog = mapData.fog,
+                fogPower = mapData.fogPower,
+                fogOx = mapData.fogOx,
+                fogOy = mapData.fogOy,
+                fogDistort = mapData.fogDistort
+            }))
     end
     self:_updateCurrentRegion(mapFile)
     Logging.info("Loaded map %s in %.3fs", mapFile, perfCounter() - startTime)

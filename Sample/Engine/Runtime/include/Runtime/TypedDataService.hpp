@@ -39,13 +39,14 @@ public:
     RuntimeValue resolveTypedDataValue(
         const RuntimeValue& value, const RuntimeValue& valueType,
         const RuntimeValue::Map& environment = RuntimeValue::Map{},
+        const std::string& declaringModule = std::string(),
+        bool evaluateAnyExpressions = true) const;
+    RuntimeValue resolveRuntimeTypedValue(
+        const RuntimeValue& value, const RuntimeValue& valueType,
         const std::string& declaringModule = std::string()) const;
 
 private:
     RuntimeValueView unwrapOptional(RuntimeValueView valueType) const;
-    RuntimeValue coerceUnionValue(const RuntimeValue& value,
-                                  RuntimeArrayView arguments) const;
-    bool matchesType(RuntimeValueView value, RuntimeValueView valueType) const;
     RuntimeValue coerceBool(const RuntimeValue& value) const;
     RuntimeValue coerceInteger(const RuntimeValue& value) const;
     RuntimeValue coerceFloat(const RuntimeValue& value) const;
@@ -118,12 +119,25 @@ LUDORK_RUNTIME_API RuntimeValue dataValueConstructTypedValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule = std::string());
 
-BIND_FUNCTION(name = "resolveTypedDataValue", defaults = {nil, nil})
+BIND_FUNCTION(name = "resolveTypedDataValue", defaults = {nil, nil, true},
+              allow_nil = "value")
 LUDORK_RUNTIME_API RuntimeValue dataValueResolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const RuntimeValue::Map& environment = RuntimeValue::Map{},
-    const std::string& declaringModule = std::string());
+    const std::string& declaringModule = std::string(),
+    bool evaluateAnyExpressions = true);
 
 BIND_FUNCTION(name = "GetConfigVars")
 LUDORK_RUNTIME_API std::unordered_map<std::string, RuntimeValue> getConfigVars(
     const RuntimeValue& meta);
+
+BIND_FUNCTION(name = "resolveRuntimeTypedValue", defaults = {nil},
+              allow_nil = "value")
+LUDORK_RUNTIME_API RuntimeValue dataValueResolveRuntimeTypedValue(
+    const RuntimeValue& value, const RuntimeValue& valueType,
+    const std::string& declaringModule = std::string());
+
+BIND_FUNCTION(name = "setRuntimeTypedAttribute", allow_nil = "value")
+LUDORK_RUNTIME_API void dataValueSetRuntimeTypedAttribute(
+    const RuntimeValue& owner, const std::string& name,
+    const RuntimeValue& value);

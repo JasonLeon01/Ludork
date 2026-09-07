@@ -1,5 +1,6 @@
 #include <Runtime/RuntimeProviderFacade.hpp>
 #include <Runtime/RuntimeReference.hpp>
+#include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
 #include "RuntimeServiceInternals.hpp"
 #include "RuntimeBindingTraits.hpp"
@@ -259,6 +260,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
 
     RuntimeHandle definition = table();
     RuntimeHandle instanceAttrs = table();
+    RuntimeHandle nilAttrs = table();
     RuntimeValue rawMixin = RuntimeValue();
     std::string normalizedScriptPath;
     if (scriptMixin && !localScriptPath.empty()) {
@@ -289,10 +291,17 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
                 rawSet(attrTypes, entry.first, targetType);
             }
         }
-        rawSet(definition, entry.first,
-               cloneAttrValue(parentClass, entry.first, entry.second,
-                              rawFieldMetadata, targetType));
-        rawSet(instanceAttrs, entry.first, deepCopy(entry.second));
+        const RuntimeValue resolvedValue =
+            cloneAttrValue(parentClass, entry.first, entry.second,
+                           rawFieldMetadata, targetType);
+        if (resolvedValue.isNil() && is<std::string>(entry.first)) {
+            const std::string name = as<std::string>(entry.first);
+            runtimeReflection().setTyped(definition, name, resolvedValue);
+            rawSet(nilAttrs, name, true);
+        } else {
+            rawSet(definition, entry.first, resolvedValue);
+        }
+        rawSet(instanceAttrs, entry.first, deepCopy(resolvedValue));
     }
 
     rawSet(definition, "_GENERATED_CLASS", true);
@@ -321,6 +330,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     const RuntimeValue parentRecord =
         rawGet(requireTable(rawGet(state, "records")), parentPath);
     rawSet(record, "attrs", instanceAttrs);
+    rawSet(record, "nilAttrs", nilAttrs);
     rawSet(record, "parent", parentClass);
     rawSet(record, "parentRecord", parentRecord);
     rawSet(record, "metadata", attrMetadata);

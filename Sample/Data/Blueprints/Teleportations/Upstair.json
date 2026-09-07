@@ -46,26 +46,16 @@
         "nodes": [
           {
             "nodeFunction": "goUpstairs",
-            "params": [
-              ""
-            ],
+            "params": [],
             "pos": [
               720,
               314
             ]
           },
           {
-            "nodeFunction": "NodeFunctions.Utils.SELF",
-            "params": [],
-            "pos": [
-              0,
-              814
-            ]
-          },
-          {
             "nodeFunction": "NodeFunctions.Player.MeetPlayer",
             "params": [
-              ""
+              []
             ],
             "pos": [
               -720,
@@ -81,32 +71,42 @@
               0,
               314
             ]
+          },
+          {
+            "nodeFunction": "NodeFunctions.Utils.IsValidValue",
+            "params": [
+              null
+            ],
+            "pos": [
+              -360,
+              564
+            ]
           }
         ],
         "links": [
           {
-            "left": 1,
-            "right": 0,
-            "leftOutPin": 0,
-            "rightInPin": 0,
-            "linkType": "Params"
-          },
-          {
             "left": "default_0",
-            "right": 2,
-            "leftOutPin": 0,
-            "rightInPin": 0,
-            "linkType": "Params"
-          },
-          {
-            "left": 2,
-            "right": 3,
+            "right": 1,
             "leftOutPin": 0,
             "rightInPin": 0,
             "linkType": "Params"
           },
           {
             "left": 3,
+            "right": 2,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Params"
+          },
+          {
+            "left": 1,
+            "right": 3,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Params"
+          },
+          {
+            "left": 2,
             "right": 0,
             "leftOutPin": 0,
             "rightInPin": 0,
@@ -125,7 +125,7 @@
       "onDestroy": null,
       "onFixedTick": null,
       "onLateTick": null,
-      "onOverlap": 3,
+      "onOverlap": 2,
       "onTick": null
     }
   },

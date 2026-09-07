@@ -3,6 +3,7 @@
 #include <RuntimeApi.hpp>
 #include <Runtime/RuntimeValue.hpp>
 
+#include <optional>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -33,7 +34,8 @@ componentFromData(const RuntimeValue& componentType, const RuntimeValue& data);
 
 LUDORK_RUNTIME_API RuntimeValue::Map componentToData(const RuntimeValue& value);
 
-LUDORK_RUNTIME_API std::tuple<RuntimeValue, RuntimeValue, RuntimeValue>
+LUDORK_RUNTIME_API
+std::tuple<RuntimeValue, std::optional<std::string>, RuntimeValue>
 getComponentFieldTarget(const RuntimeValue& object,
                         const std::string& fieldName);
 

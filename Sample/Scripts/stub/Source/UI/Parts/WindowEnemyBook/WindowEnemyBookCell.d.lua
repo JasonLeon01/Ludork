@@ -2,7 +2,7 @@
 
 ---@class Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell.Model
 ---@field entry    Source.UI.WindowEnemyBook.Entry
----@field callback fun(obj: any, kwargs: table) | nil
+---@field callback fun(obj: any, kwargs: Engine.UiInputEventArguments) | nil
 
 ---@class Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell: Source.UI.UiController
 ---@field model                Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell.Model

@@ -17,14 +17,14 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
     using namespace ui_control_adapter_detail;
 
     UiControlAdapterRegistry::Adapter canvas;
-    canvas.factory = [](const RuntimeValue::Map& properties) {
+    canvas.factory = [](const UiControlProperties& properties) {
         const sf::Vector2u size =
             vector2uProperty(properties, "size", {100u, 100u});
         return std::make_shared<Canvas>(sf::IntRect(
             {0, 0}, {static_cast<int>(size.x), static_cast<int>(size.y)}));
     };
     canvas.setter = [](ControlBase& control, const std::string& propertyId,
-                       const RuntimeValue& value) {
+                       const UiControlPropertyValue& value) {
         Canvas& canvas = requireControlType<Canvas>(control, "Engine.Canvas");
         if (propertyId == "size") {
             canvas.resize(requireVector2u(value, "size"));
@@ -52,13 +52,13 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
     registry.registerAdapter<CanvasUiControlAdapterTag>(std::move(canvas));
 
     UiControlAdapterRegistry::Adapter scrollBox;
-    scrollBox.factory = [](const RuntimeValue::Map& properties) {
+    scrollBox.factory = [](const UiControlProperties& properties) {
         return std::make_shared<ScrollBox>(
             vector2fProperty(properties, "size", {100.0f, 100.0f}),
             loadWindowSkin(stringProperty(properties, "windowSkin")));
     };
     scrollBox.setter = [](ControlBase& control, const std::string& propertyId,
-                          const RuntimeValue& value) {
+                          const UiControlPropertyValue& value) {
         ScrollBox& scroll =
             requireControlType<ScrollBox>(control, "Engine.ScrollBox");
         if (propertyId == "size") {
@@ -92,7 +92,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
         std::move(scrollBox));
 
     UiControlAdapterRegistry::Adapter listView;
-    listView.factory = [](const RuntimeValue::Map& properties) {
+    listView.factory = [](const UiControlProperties& properties) {
         const sf::Vector2f size =
             vector2fProperty(properties, "size", {100.0f, 100.0f});
         const int defaultItemHeight =
@@ -106,7 +106,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
             defaultItemHeight, fixItemHeight, columns);
     };
     listView.setter = [](ControlBase& control, const std::string& propertyId,
-                         const RuntimeValue& value) {
+                         const UiControlPropertyValue& value) {
         ListView& list =
             requireControlType<ListView>(control, "Engine.ListView");
         if (propertyId == "size") {

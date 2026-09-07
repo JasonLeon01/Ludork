@@ -4,6 +4,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Instance/InstanceRuntime.hpp"
 #include "Native/NativeRuntime.hpp"
 
@@ -92,8 +93,13 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
             return nativeValue;
         }
     }
-    const sol::object scriptMember = findScriptMember(lua, classTable, key);
-    if (scriptMember.valid() && scriptMember.get_type() != sol::type::lua_nil) {
+    if (hasExplicitNilField(lua, target, key)) {
+        return nilObject(lua);
+    }
+    bool foundScriptMember = false;
+    const sol::object scriptMember =
+        findScriptMember(lua, classTable, key, &foundScriptMember);
+    if (foundScriptMember) {
         cacheFastClassOwner(lua, fields, classTable, key, "scriptMembers",
                             FastIndexKind::ScriptMember);
         return scriptMember;
@@ -252,6 +258,12 @@ int compositeIndex(lua_State* state) {
                                         ? lua_tointeger(state, -1)
                                         : 0);
                             lua_pop(state, 1);
+                            if ((kind == FastIndexKind::Value ||
+                                 kind == FastIndexKind::ScriptMember) &&
+                                hasExplicitNilField(state, 1, 2)) {
+                                lua_pushnil(state);
+                                return returnTopValue(state);
+                            }
                             if (kind == FastIndexKind::Value) {
                                 lua_rawgeti(state, entryIndex, 2);
                                 if (!lua_isnil(state, -1)) {
@@ -263,7 +275,8 @@ int compositeIndex(lua_State* state) {
                                 if (lua_istable(state, -1)) {
                                     lua_pushvalue(state, 2);
                                     lua_rawget(state, -2);
-                                    if (!lua_isnil(state, -1)) {
+                                    if (!lua_isnil(state, -1) ||
+                                        hasExplicitNilField(state, -2, 2)) {
                                         return returnTopValue(state);
                                     }
                                     lua_pop(state, 1);

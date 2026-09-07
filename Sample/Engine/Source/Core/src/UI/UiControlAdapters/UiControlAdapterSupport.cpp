@@ -9,141 +9,148 @@
 #include <UI/UIState.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiVector4CurveResource.hpp>
-#include <Runtime/Json.hpp>
 
 #include <Runtime/AssetStore.hpp>
 
 #include <SFML/Graphics/Font.hpp>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <cstdint>
 #include <mutex>
 #include <utility>
 
 namespace ui_control_adapter_detail {
 
-using ludork::runtime::value_reader::findValue;
-using ludork::runtime::value_reader::requireArray;
-using ludork::runtime::value_reader::requireInteger;
-using ludork::runtime::value_reader::requireMap;
-using ludork::runtime::value_reader::requireUnsigned;
+bool isNil(const UiControlPropertyValue& value) {
+    return std::holds_alternative<std::monostate>(value);
+}
 
-sf::Vector2f requireVector2f(RuntimeValueView value,
+bool requireBool(const UiControlPropertyValue& value,
+                 const std::string& source) {
+    return requirePropertyValue<bool>(value, source);
+}
+
+float requireFloat(const UiControlPropertyValue& value,
+                   const std::string& source) {
+    const std::int64_t* integer = std::get_if<std::int64_t>(&value);
+    const double number = integer != nullptr
+                              ? static_cast<double>(*integer)
+                              : requirePropertyValue<double>(value, source);
+    if (!std::isfinite(number) ||
+        std::abs(number) > std::numeric_limits<float>::max()) {
+        throw std::invalid_argument(source + " must be a finite float");
+    }
+    return static_cast<float>(number);
+}
+
+int requireInt(const UiControlPropertyValue& value, const std::string& source) {
+    const std::int64_t number =
+        requirePropertyValue<std::int64_t>(value, source);
+    if (number < std::numeric_limits<int>::min() ||
+        number > std::numeric_limits<int>::max()) {
+        throw std::invalid_argument(source + " is outside the int range");
+    }
+    return static_cast<int>(number);
+}
+
+const std::string& requireString(const UiControlPropertyValue& value,
+                                 const std::string& source) {
+    return requirePropertyValue<std::string>(value, source);
+}
+
+sf::Vector2f requireVector2f(const UiControlPropertyValue& value,
                              const std::string& source) {
-    const RuntimeArrayView array = requireArray(value, source);
-    if (array.size() != 2) {
-        throw std::invalid_argument(source + " must contain two numbers");
-    }
-    return {requireFloat(array[0], source + "[0]"),
-            requireFloat(array[1], source + "[1]")};
-}
-
-sf::Vector2u requireVector2u(RuntimeValueView value,
-                             const std::string& source) {
-    const RuntimeArrayView array = requireArray(value, source);
-    if (array.size() != 2) {
-        throw std::invalid_argument(source + " must contain two integers");
-    }
-    return {requireUnsigned(array[0], source + "[0]"),
-            requireUnsigned(array[1], source + "[1]")};
-}
-
-sf::IntRect requireIntRect(RuntimeValueView value, const std::string& source) {
-    const RuntimeArrayView array = requireArray(value, source);
-    if (array.size() != 4) {
-        throw std::invalid_argument(source + " must contain four integers");
-    }
-    return {{requireInt(array[0], source + "[0]"),
-             requireInt(array[1], source + "[1]")},
-            {requireInt(array[2], source + "[2]"),
-             requireInt(array[3], source + "[3]")}};
-}
-
-sf::Color requireColor(RuntimeValueView value, const std::string& source) {
-    const RuntimeArrayView array = requireArray(value, source);
-    if (array.size() != 3 && array.size() != 4) {
-        throw std::invalid_argument(
-            source + " must contain three or four integer channels");
-    }
-    auto channel = [&](std::size_t index) {
-        const std::int64_t number = requireInteger(
-            array[index], source + "[" + std::to_string(index) + "]");
-        if (number < 0 || number > 255) {
-            throw std::invalid_argument(source +
-                                        " channels must be between 0 and 255");
-        }
-        return static_cast<std::uint8_t>(number);
-    };
-    return {channel(0), channel(1), channel(2),
-            array.size() == 4 ? channel(3) : std::uint8_t{255}};
-}
-
-sf::Vector2f vector2fProperty(const RuntimeValue::Map& properties,
-                              const std::string& name,
-                              const sf::Vector2f& fallback) {
-    const RuntimeValue* value = findValue(properties, name);
-    return value == nullptr ? fallback : requireVector2f(*value, name);
-}
-
-sf::Vector2u vector2uProperty(const RuntimeValue::Map& properties,
-                              const std::string& name,
-                              const sf::Vector2u& fallback) {
-    const RuntimeValue* value = findValue(properties, name);
-    return value == nullptr ? fallback : requireVector2u(*value, name);
-}
-
-std::string stringProperty(const RuntimeValue::Map& properties,
-                           const std::string& name,
-                           const std::string& fallback) {
-    const RuntimeValue* value = findValue(properties, name);
-    return value == nullptr ? fallback : requireString(*value, name);
-}
-
-std::vector<std::string> stringArrayProperty(
-    const RuntimeValue::Map& properties, const std::string& name,
-    const std::vector<std::string>& fallback) {
-    const RuntimeValue* value = findValue(properties, name);
-    if (value == nullptr) {
-        return fallback;
-    }
-    const RuntimeArrayView array = requireArray(*value, name);
-    std::vector<std::string> result;
-    result.reserve(array.size());
-    for (std::size_t index = 0; index < array.size(); ++index) {
-        result.push_back(requireString(
-            array[index], name + "[" + std::to_string(index) + "]"));
+    const sf::Vector2f& result =
+        requirePropertyValue<sf::Vector2f>(value, source);
+    if (!std::isfinite(result.x) || !std::isfinite(result.y)) {
+        throw std::invalid_argument(source +
+                                    " must contain finite coordinates");
     }
     return result;
 }
 
-int intProperty(const RuntimeValue::Map& properties, const std::string& name,
+sf::Vector2u requireVector2u(const UiControlPropertyValue& value,
+                             const std::string& source) {
+    return requirePropertyValue<sf::Vector2u>(value, source);
+}
+
+sf::IntRect requireIntRect(const UiControlPropertyValue& value,
+                           const std::string& source) {
+    return requirePropertyValue<sf::IntRect>(value, source);
+}
+
+sf::Color requireColor(const UiControlPropertyValue& value,
+                       const std::string& source) {
+    return requirePropertyValue<sf::Color>(value, source);
+}
+
+const UiControlPropertyValue* findValue(const UiControlProperties& properties,
+                                        const std::string& name) {
+    const auto found = properties.find(name);
+    return found == properties.end() ? nullptr : &found->second;
+}
+
+sf::Vector2f vector2fProperty(const UiControlProperties& properties,
+                              const std::string& name,
+                              const sf::Vector2f& fallback) {
+    const UiControlPropertyValue* value = findValue(properties, name);
+    return value == nullptr ? fallback : requireVector2f(*value, name);
+}
+
+sf::Vector2u vector2uProperty(const UiControlProperties& properties,
+                              const std::string& name,
+                              const sf::Vector2u& fallback) {
+    const UiControlPropertyValue* value = findValue(properties, name);
+    return value == nullptr ? fallback : requireVector2u(*value, name);
+}
+
+std::string stringProperty(const UiControlProperties& properties,
+                           const std::string& name,
+                           const std::string& fallback) {
+    const UiControlPropertyValue* value = findValue(properties, name);
+    return value == nullptr ? fallback : requireString(*value, name);
+}
+
+std::vector<std::string> stringArrayProperty(
+    const UiControlProperties& properties, const std::string& name,
+    const std::vector<std::string>& fallback) {
+    const UiControlPropertyValue* value = findValue(properties, name);
+    if (value == nullptr) {
+        return fallback;
+    }
+    return requirePropertyValue<std::vector<std::string>>(*value, name);
+}
+
+int intProperty(const UiControlProperties& properties, const std::string& name,
                 int fallback) {
-    const RuntimeValue* value = findValue(properties, name);
+    const UiControlPropertyValue* value = findValue(properties, name);
     return value == nullptr ? fallback : requireInt(*value, name);
 }
 
-float floatProperty(const RuntimeValue::Map& properties,
+float floatProperty(const UiControlProperties& properties,
                     const std::string& name, float fallback) {
-    const RuntimeValue* value = findValue(properties, name);
+    const UiControlPropertyValue* value = findValue(properties, name);
     return value == nullptr ? fallback : requireFloat(*value, name);
 }
 
-bool boolProperty(const RuntimeValue::Map& properties, const std::string& name,
-                  bool fallback) {
-    const RuntimeValue* value = findValue(properties, name);
+bool boolProperty(const UiControlProperties& properties,
+                  const std::string& name, bool fallback) {
+    const UiControlPropertyValue* value = findValue(properties, name);
     return value == nullptr ? fallback : requireBool(*value, name);
 }
 
-sf::Color colorProperty(const RuntimeValue::Map& properties,
+sf::Color colorProperty(const UiControlProperties& properties,
                         const std::string& name, const sf::Color& fallback) {
-    const RuntimeValue* value = findValue(properties, name);
+    const UiControlPropertyValue* value = findValue(properties, name);
     return value == nullptr ? fallback : requireColor(*value, name);
 }
 
 std::optional<sf::IntRect> optionalIntRectProperty(
-    const RuntimeValue::Map& properties, const std::string& name) {
-    const RuntimeValue* value = findValue(properties, name);
-    if (value == nullptr || value->isNil()) {
+    const UiControlProperties& properties, const std::string& name) {
+    const UiControlPropertyValue* value = findValue(properties, name);
+    if (value == nullptr || isNil(*value)) {
         return std::nullopt;
     }
     return requireIntRect(*value, name);
@@ -215,7 +222,7 @@ std::shared_ptr<PlainTextConfig> plainTextConfig(
 }
 
 std::shared_ptr<PlainTextConfig> plainTextControlConfig(
-    const RuntimeValue::Map& properties) {
+    const UiControlProperties& properties) {
     const std::string textConfigKey = stringProperty(properties, "textConfig");
     if (!textConfigKey.empty()) {
         return plainTextConfig(textConfigKey);

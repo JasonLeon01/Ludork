@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Ludork.Services;
 using System;
 using System.Collections.Generic;
@@ -130,7 +131,6 @@ public sealed class BlueprintEditorDocument
                 return false;
             }
             data = (JsonObject)blueprint.DeepClone();
-            data["graph"] = normalizeGraph(data["graph"], []);
             return true;
         }
 
@@ -153,7 +153,7 @@ public sealed class BlueprintEditorDocument
         data = new JsonObject
         {
             ["attrs"] = new JsonObject(),
-            ["graph"] = normalizeGraph(member["_graph"], requiredEvents),
+            ["graph"] = member["_graph"]?.DeepClone(),
         };
         return true;
     }
@@ -175,19 +175,22 @@ public sealed class BlueprintEditorDocument
 
     public JsonObject GetEventGraph(string eventName)
     {
-        JsonObject graph = ensureGraph(data);
-        JsonObject nodeGraph = ensureObject(graph, "nodeGraph");
-        JsonObject startNodes = ensureObject(graph, "startNodes");
-        if (nodeGraph[eventName] is not JsonObject eventGraph)
+        return getNodeGraph(data)?[eventName] as JsonObject ?? createEmptyEventGraph();
+    }
+
+    public bool CommitEventGraph(string eventName, BlueprintGraphSaveResult result)
+    {
+        JsonObject? currentGraph = data["graph"] as JsonObject;
+        JsonObject? currentStartNodes = currentGraph?["startNodes"] as JsonObject;
+        if (JsonNode.DeepEquals(GetEventGraph(eventName), result.EventGraph)
+            && JsonNode.DeepEquals(currentStartNodes?[eventName], result.StartNode))
         {
-            eventGraph = createEmptyEventGraph();
-            nodeGraph[eventName] = eventGraph;
+            return false;
         }
-        ensureArray(eventGraph, "nodes");
-        ensureArray(eventGraph, "links");
-        if (!startNodes.ContainsKey(eventName))
-            startNodes[eventName] = null;
-        return eventGraph;
+        JsonObject graph = ensureGraph(data);
+        ensureObject(graph, "nodeGraph")[eventName] = result.EventGraph.DeepClone();
+        ensureObject(graph, "startNodes")[eventName] = result.StartNode?.DeepClone();
+        return CommitGraph();
     }
 
     public bool CommitAttribute(string name, JsonNode? value)
@@ -276,7 +279,7 @@ public sealed class BlueprintEditorDocument
 
     public bool CommitGraph()
     {
-        JsonObject graph = normalizeGraph(data["graph"], requiredEvents);
+        JsonNode? graph = data["graph"];
         JsonObject? target = Kind == BlueprintEditorDocumentKind.Blueprint
             ? getStoredBlueprint()
             : getGeneralMember();
@@ -286,7 +289,7 @@ public sealed class BlueprintEditorDocument
         if (JsonNode.DeepEquals(target[propertyName], graph))
             return false;
         gameData.RecordSnapshot();
-        target[propertyName] = graph.DeepClone();
+        target[propertyName] = graph?.DeepClone();
         gameData.refreshModifiedState();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -302,7 +305,9 @@ public sealed class BlueprintEditorDocument
         {
             return false;
         }
-        GetEventGraph(eventName);
+        JsonObject graph = ensureGraph(data);
+        ensureObject(graph, "nodeGraph")[eventName] = createEmptyEventGraph();
+        ensureObject(graph, "startNodes")[eventName] = null;
         return CommitGraph();
     }
 
@@ -379,38 +384,6 @@ public sealed class BlueprintEditorDocument
             addUnique(result, nodeGraph.Select(entry => entry.Key));
     }
 
-    private static JsonObject normalizeGraph(JsonNode? source, IEnumerable<string> events)
-    {
-        JsonObject graph = source is JsonObject sourceObject
-            ? (JsonObject)sourceObject.DeepClone()
-            : [];
-        JsonObject nodeGraph = ensureObject(graph, "nodeGraph");
-        JsonObject startNodes = ensureObject(graph, "startNodes");
-        foreach (KeyValuePair<string, JsonNode?> entry in nodeGraph.ToArray())
-        {
-            JsonObject eventGraph = entry.Value as JsonObject ?? createEmptyEventGraph();
-            ensureArray(eventGraph, "nodes");
-            ensureArray(eventGraph, "links");
-            if (!ReferenceEquals(entry.Value, eventGraph))
-                nodeGraph[entry.Key] = eventGraph;
-            if (!startNodes.ContainsKey(entry.Key))
-                startNodes[entry.Key] = null;
-        }
-        foreach (string eventName in events)
-        {
-            if (nodeGraph[eventName] is not JsonObject eventGraph)
-            {
-                eventGraph = createEmptyEventGraph();
-                nodeGraph[eventName] = eventGraph;
-            }
-            ensureArray(eventGraph, "nodes");
-            ensureArray(eventGraph, "links");
-            if (!startNodes.ContainsKey(eventName))
-                startNodes[eventName] = null;
-        }
-        return graph;
-    }
-
     private static JsonObject ensureGraph(JsonObject blueprint)
     {
         if (blueprint["graph"] is JsonObject graph)
@@ -422,21 +395,12 @@ public sealed class BlueprintEditorDocument
 
     private static JsonObject? getNodeGraph(JsonObject blueprint)
     {
-        return blueprint["graph"]?["nodeGraph"] as JsonObject;
+        return blueprint["graph"] is JsonObject graph ? graph["nodeGraph"] as JsonObject : null;
     }
 
     private static JsonObject ensureObject(JsonObject parent, string name)
     {
         if (parent[name] is JsonObject value)
-            return value;
-        value = [];
-        parent[name] = value;
-        return value;
-    }
-
-    private static JsonArray ensureArray(JsonObject parent, string name)
-    {
-        if (parent[name] is JsonArray value)
             return value;
         value = [];
         parent[name] = value;

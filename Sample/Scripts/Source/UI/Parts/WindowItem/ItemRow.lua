@@ -11,12 +11,9 @@ function ItemRowUI:refresh()
         local icon = self:requireControl("Icon")
         icon:setTexture(self.model.iconTexture, true)
         self:setProperty("Icon", "visible", true)
-        self:setProperty("Icon", "colour", {
-            255,
-            255,
-            255,
-            self.model.usable and 255 or _UNUSABLE_ICON_ALPHA
-        })
+        self:setProperty(
+            "Icon", "colour", sf.Color.new(255, 255, 255, self.model.usable and 255 or _UNUSABLE_ICON_ALPHA)
+        )
     end
     self:setText("Count", self.model.cost and tostring(self.model.count) or "")
     self:setProperty("Count", "visible", self.model.cost)

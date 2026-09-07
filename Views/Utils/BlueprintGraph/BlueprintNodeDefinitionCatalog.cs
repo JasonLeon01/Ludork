@@ -460,7 +460,9 @@ public sealed class BlueprintNodeDefinitionCatalog
     {
         if (parameter.HasDefaultValue)
             return parameter.DefaultValue?.DeepClone();
-        return null;
+        return LuaMetadataValueDefaults.TryCreateLiteral(parameter.Type.Schema, out JsonNode? value)
+            ? value
+            : null;
     }
 
     private static JsonObject extractParameterMeta(

@@ -1,6 +1,7 @@
 #include <Runtime/RuntimeSession.hpp>
 
 #include "RuntimeServiceInternals.hpp"
+#include "HotReload.hpp"
 #include "Blueprint/BlueprintRuntime/BlueprintRuntimeInternal.hpp"
 #include "Blueprint/ClassRuntime/ClassRuntimeInternal.hpp"
 #include "Components/ComponentRuntimeCache.hpp"
@@ -39,6 +40,7 @@ void setModuleState(
 
 void clearRuntimeState(lua_State* state) noexcept {
     using namespace ludork::runtime;
+    shutdownHotReload(state);
     latentManager().clear();
     latentManager().setInitialised(false);
     class_runtime_detail::shutdownClassRuntime(state);
@@ -82,6 +84,7 @@ void initialize(lua_State* state) {
         node_graph_detail::clearNodeGraphRuntimeCaches(state);
         componentRuntimeCache().clear(state);
         class_runtime_detail::initializeClassRuntime(state);
+        initializeHotReload(state);
     } catch (...) {
         clearRuntimeState(state);
         setModuleState(

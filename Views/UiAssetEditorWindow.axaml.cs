@@ -1216,7 +1216,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         Action<string> commit)
     {
         TextBox box = EditorInputs.CreateEditableTextBox(value);
-        Action commitValue = () => commit(box.Text ?? string.Empty);
+        string displayed = box.Text ?? string.Empty;
+        Action commitValue = () =>
+        {
+            string next = box.Text ?? string.Empty;
+            if (string.Equals(displayed, next, StringComparison.Ordinal))
+                return;
+            displayed = next;
+            commit(next);
+        };
         box.GotFocus += (_, _) => pendingFieldCommit = commitValue;
         box.LostFocus += (_, _) =>
         {
@@ -1271,10 +1279,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         box.AcceptsReturn = true;
         box.MinHeight = 96;
         box.TextWrapping = TextWrapping.Wrap;
+        string displayed = box.Text ?? string.Empty;
         Action commitValue = () =>
         {
+            string next = box.Text ?? string.Empty;
+            if (string.Equals(displayed, next, StringComparison.Ordinal))
+                return;
+            displayed = next;
             JsonArray result = new();
-            foreach (string item in (box.Text ?? string.Empty).Split(
+            foreach (string item in next.Length == 0 ? Array.Empty<string>() : next.Split(
                          ["\r\n", "\n", "\r"],
                          StringSplitOptions.None))
             {

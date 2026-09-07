@@ -3,6 +3,7 @@
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <UI/ControlBase.hpp>
+#include <UI/UiControlPropertyValue.hpp>
 
 namespace ludork::engine::ui_asset_runtime_impl {
 struct AssetImpl;
@@ -43,7 +44,8 @@ public:
 
     BIND_METHOD()
     void setProperty(const std::string& localName,
-                     const std::string& propertyId, const RuntimeValue& value);
+                     const std::string& propertyId,
+                     const UiControlPropertyValue& value);
 
     BIND_METHOD()
     void setText(const std::string& localName, const std::string& text);

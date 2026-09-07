@@ -5,6 +5,7 @@
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeBridge.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
@@ -204,6 +205,7 @@ void shutdown(lua_State* state) noexcept {
         return;
     }
     const int stackTop = lua_gettop(state);
+    clearExplicitNilFields(state);
     lua_pushboolean(state, 1);
     lua_setfield(state, LUA_REGISTRYINDEX, SHUTTING_DOWN_KEY);
     constexpr const char* registryKeys[] = {

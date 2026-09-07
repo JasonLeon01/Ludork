@@ -4,6 +4,7 @@ local Validation = require("Source.Data.Validation")
 local requireNamedValue = Validation.RequireNamedValue
 local TextConfig = Engine.TextConfig
 
+---@class Source.Data.TextConfigs
 local DataTextConfigs = {}
 
 function DataTextConfigs:init(data)

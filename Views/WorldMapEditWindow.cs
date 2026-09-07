@@ -17,6 +17,10 @@ namespace Ludork.Views;
 public sealed class WorldMapEditWindow : Window
 {
     private readonly GameDataService gameData;
+    private readonly double initialFogOx;
+    private readonly double initialFogOy;
+    private readonly decimal? displayedFogOx;
+    private readonly decimal? displayedFogOy;
     private readonly bool isNew;
     private readonly TextBox directoryNameBox = EditorInputs.CreateEditableTextBox();
     private readonly TextBox worldNameBox = EditorInputs.CreateEditableTextBox();
@@ -57,6 +61,10 @@ public sealed class WorldMapEditWindow : Window
         fogPowerBox.Value = initial.FogPower;
         fogOxBox.Value = (decimal)initial.FogOx;
         fogOyBox.Value = (decimal)initial.FogOy;
+        initialFogOx = initial.FogOx;
+        initialFogOy = initial.FogOy;
+        displayedFogOx = fogOxBox.Value;
+        displayedFogOy = fogOyBox.Value;
         fogDistortBox.Value = initial.FogDistort;
 
         Grid form = new() { RowSpacing = 8 };
@@ -191,8 +199,8 @@ public sealed class WorldMapEditWindow : Window
             Height = decimal.ToInt32(heightBox.Value ?? 0),
             Fog = fog,
             FogPower = decimal.ToInt32(fogPowerBox.Value ?? 0),
-            FogOx = (double)(fogOxBox.Value ?? 0),
-            FogOy = (double)(fogOyBox.Value ?? 0),
+            FogOx = fogOxBox.Value == displayedFogOx ? initialFogOx : (double)(fogOxBox.Value ?? 0),
+            FogOy = fogOyBox.Value == displayedFogOy ? initialFogOy : (double)(fogOyBox.Value ?? 0),
             FogDistort = decimal.ToInt32(fogDistortBox.Value ?? 0),
         });
     }

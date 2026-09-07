@@ -4,6 +4,9 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Ludork.Services;
+using Ludork.Models;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -120,10 +123,13 @@ public sealed class AddParamDialog : Window
         {
             nameBox.Text = initialValue.Name;
             commentBox.Text = initialValue.Comment;
+            if (!typeCombo.Items.Contains(initialValue.Type))
+                typeCombo.Items.Add(initialValue.Type);
             typeCombo.SelectedItem = initialValue.Type;
-            containerItemTypeCombo.SelectedItem = initialValue.ItemType
-                ?? initialValue.ValueType
-                ?? "any";
+            string itemType = initialValue.ItemType ?? initialValue.ValueType ?? "any";
+            if (!containerItemTypeCombo.Items.Contains(itemType))
+                containerItemTypeCombo.Items.Add(itemType);
+            containerItemTypeCombo.SelectedItem = itemType;
             defaultBox.Text = initialValue.DefaultText;
         }
 
@@ -205,7 +211,7 @@ public sealed class AddParamDialog : Window
         bool sfType = t.StartsWith("sf.", System.StringComparison.Ordinal);
         defaultBox.IsEnabled = !list && !dict && !sfType;
         defaultLabel.Text = LocaleService.Get(t == "file" ? "ASSET_SELECTION_ROOT" : "DEFAULT_VALUE");
-        string tipType = sfType ? "SF" : t.ToUpperInvariant();
+        string tipType = sfType ? "SF" : LuaMetadataType.Parse(t).Kind == LuaMetadataTypeKind.Union ? "UNION" : t.ToUpperInvariant();
         typeTipBlock.Text = LocaleService.Get("GENERAL_DATA_TYPE_TIP_" + tipType);
         defaultTipBlock.Text = LocaleService.Get("GENERAL_DATA_DEFAULT_TIP_" + tipType);
     }
@@ -243,6 +249,26 @@ public sealed class AddParamDialog : Window
         string containerItemType = containerItemTypeCombo.SelectedItem as string ?? "string";
         string defaultText = defaultBox.Text ?? string.Empty;
         string comment = commentBox.Text?.Trim() ?? string.Empty;
+        if (LuaMetadataType.Parse(type).ContainsUnion)
+        {
+            JsonNode? defaultValue;
+            try
+            {
+                defaultValue = JsonNode.Parse(defaultBox.Text ?? "null");
+            }
+            catch (JsonException exception)
+            {
+                errorText.Text = exception.Message;
+                return;
+            }
+            List<string> errors = [];
+            LuaMetadataLiteralValidation.ValidateUnions(LuaMetadataType.Parse(type), defaultValue, "defaultValue", errors);
+            if (errors.Count > 0)
+            {
+                errorText.Text = string.Join("\n", errors);
+                return;
+            }
+        }
         Close(new GeneralDataParamCreation(
             name,
             type,

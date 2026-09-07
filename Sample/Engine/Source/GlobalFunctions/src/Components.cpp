@@ -43,8 +43,9 @@ RuntimeValue::Map componentToData(const RuntimeValue& value) {
     return ludork::runtime::components::componentToData(value);
 }
 
-std::tuple<RuntimeValue, RuntimeValue, RuntimeValue> getComponentFieldTarget(
-    const RuntimeValue& object, const std::string& fieldName) {
+std::tuple<RuntimeValue, std::optional<std::string>, RuntimeValue>
+getComponentFieldTarget(const RuntimeValue& object,
+                        const std::string& fieldName) {
     return ludork::runtime::components::getComponentFieldTarget(object,
                                                                 fieldName);
 }

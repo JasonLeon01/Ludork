@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeData.hpp>
 #include <UI/PlainTextConfig.hpp>
 #include <UI/RichText.hpp>
 
@@ -17,11 +17,11 @@ std::shared_ptr<sf::Font> loadFont(const std::string& fontKey,
 sf::Text::LineAlignment parseLineAlignment(const std::string& value,
                                            const std::string& source);
 
-std::shared_ptr<PlainTextConfig> buildPlain(RuntimeMapView data,
+std::shared_ptr<PlainTextConfig> buildPlain(const RuntimeData::Map& data,
                                             const std::string& sourceName);
 
 std::shared_ptr<RichText::RichTextConfig> buildRich(
-    RuntimeMapView data, const std::string& sourceName);
+    const RuntimeData::Map& data, const std::string& sourceName);
 
 std::shared_ptr<PlainTextConfig> loadPlain(const std::string& textConfigKey);
 

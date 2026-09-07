@@ -38,8 +38,8 @@ function UiController:prepare(logicalSize) end
 ---@return Engine.ControlBase
 function UiController:attachTo(parent, logicalSize) end
 
----@param host        Source.Windows.Base.WindowBase
----@param logicalSize sf.Vector2u | nil
+---@param host             Source.Windows.Base.WindowBase
+---@param logicalSize      sf.Vector2u | nil
 ---@param transitionTarget string | nil
 ---@return Engine.ControlBase
 function UiController:attachWindowView(host, logicalSize, transitionTarget) end
@@ -97,6 +97,9 @@ function UiController:getNodeByName(name) end
 ---@return Engine.AssetInstance
 function UiController:requireAsset(name) end
 
+---@param name       string
+---@param propertyId string
+---@param value      nil | boolean | number | string | sf.Vector2f | sf.Vector2u | sf.IntRect | sf.Color | string[]
 function UiController:setProperty(name, propertyId, value) end
 
 function UiController:setText(name, text) end

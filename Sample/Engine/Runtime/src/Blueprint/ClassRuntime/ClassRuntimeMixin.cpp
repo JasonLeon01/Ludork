@@ -67,11 +67,17 @@ RuntimeValue loadScriptMixin(const std::string& classPath,
         throw std::runtime_error("Failed to load Mixin " + scriptPath +
                                  " for " + classPath + ": " + error.what());
     }
-    if (!isTable(value)) {
+    validateScriptMixin(value, classPath, scriptPath);
+    return value;
+}
+
+void validateScriptMixin(const RuntimeValue& mixin,
+                         const std::string& classPath,
+                         const std::string& scriptPath) {
+    if (!isTable(mixin)) {
         throw std::runtime_error("Mixin " + scriptPath + " for " + classPath +
                                  " must return a table");
     }
-    RuntimeValue mixin = value;
     if (hasMetatable(ludork::runtime::reference::intern(mixin))) {
         throw std::runtime_error("Mixin " + scriptPath + " for " + classPath +
                                  " must return a table without a metatable");
@@ -90,13 +96,12 @@ RuntimeValue loadScriptMixin(const std::string& classPath,
                                      name + "'");
         }
     }
-    return mixin;
 }
 
-void mergeScriptMixin(const RuntimeValue& parentClass,
-                      const RuntimeValue& mixin, RuntimeValue definition,
-                      RuntimeValue instanceAttrs, const std::string& classPath,
-                      const std::string& scriptPath) {
+void validateScriptMixinMembers(const RuntimeValue& parentClass,
+                                const RuntimeValue& mixin,
+                                const std::string& classPath,
+                                const std::string& scriptPath) {
     for (const auto& entry :
          entries(ludork::runtime::reference::intern(mixin))) {
         const std::string name = as<std::string>(entry.first);
@@ -110,7 +115,18 @@ void mergeScriptMixin(const RuntimeValue& parentClass,
                 "Mixin " + scriptPath + " for " + classPath +
                 " changes the member kind of '" + name + "'");
         }
-        if (valueIsFunction) {
+    }
+}
+
+void mergeScriptMixin(const RuntimeValue& parentClass,
+                      const RuntimeValue& mixin, RuntimeValue definition,
+                      RuntimeValue instanceAttrs, const std::string& classPath,
+                      const std::string& scriptPath) {
+    validateScriptMixinMembers(parentClass, mixin, classPath, scriptPath);
+    for (const auto& entry :
+         entries(ludork::runtime::reference::intern(mixin))) {
+        const std::string name = as<std::string>(entry.first);
+        if (kind(entry.second) == "function") {
             rawSet(ludork::runtime::reference::intern(definition), name,
                    entry.second);
         } else {

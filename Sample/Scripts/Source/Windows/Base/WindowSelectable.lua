@@ -228,7 +228,10 @@ function WindowSelectable:onMouseMoved(kwargs)
         or self._listView == nil or not Input.isMouseInputMode() or not Input.isMouseMoved() then
         return
     end
-    local position = sf.Vector2f.new(kwargs.position.x, kwargs.position.y)
+    if kwargs.position == nil then
+        return
+    end
+    local position = kwargs.position
     self:requestKeyboardFocus()
     local index = self:_getSelectionAt(position)
     if index ~= nil then
@@ -273,7 +276,7 @@ function WindowSelectable:onKeyDown(kwargs)
             local child = children[self.index + 1]
             if Class.isInstance(child, FunctionalBase) then
                 ---@cast child Engine.ControlBase & Engine.FunctionalBase
-                child:onConfirm({})
+                child:onConfirm(Engine.UiInputEventArguments.new({}))
                 Input.isActionTriggered(Input.getConfirmKeys(), true)
             end
         end
@@ -764,7 +767,7 @@ function WindowSelectable:_confirmSelectionIndex(index)
         return false
     end
     ---@cast child Engine.ControlBase & Engine.FunctionalBase
-    child:onConfirm({})
+    child:onConfirm(Engine.UiInputEventArguments.new({}))
     return true
 end
 

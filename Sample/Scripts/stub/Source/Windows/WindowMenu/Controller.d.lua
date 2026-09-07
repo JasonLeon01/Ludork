@@ -17,7 +17,7 @@ function WindowMenuController:bind() end
 function WindowMenuController:setMoveRestoreGuard(guard) end
 
 ---@return boolean
----@param kwargs table
+---@param kwargs Engine.UiInputEventArguments
 function WindowMenuController:handleMouseButtonDown(kwargs) end
 
 function WindowMenuController:tick() end

@@ -2,6 +2,7 @@
 #include <EngineLifecycle.hpp>
 
 #include <Input/InputService.hpp>
+#include <Gameplay/Actor.hpp>
 #include <Runtime/Blueprint/BlueprintRuntime.hpp>
 #include <Runtime/NodeGraph/LatentManager.hpp>
 #include <Runtime/RuntimeReference.hpp>
@@ -14,18 +15,11 @@
 namespace {
 
 RuntimeValue actorGraph(const RuntimeValue& object) {
-    using namespace ludork::runtime::reference;
-    const RuntimeValue engine = rawGet(globals(), "Engine");
-    if (!isTable(engine)) {
-        throw std::runtime_error("Engine module is not initialized");
-    }
-    const RuntimeValue actorType = rawGet(intern(engine), "Actor");
-    if (!isTable(actorType) || !isInstance(object, actorType)) {
-        return {};
-    }
-    const RuntimeValue method = get(intern(object), "getGraph");
-    return isFunction(method) ? first(invoke(intern(method), {object}))
-                              : RuntimeValue();
+    const std::shared_ptr<Actor> actor = std::dynamic_pointer_cast<Actor>(
+        ludork::runtime::reference::object(object));
+    const std::shared_ptr<Graph> graph =
+        actor == nullptr ? nullptr : actor->getGraph();
+    return graph == nullptr ? RuntimeValue() : RuntimeValue(graph);
 }
 
 }  // namespace

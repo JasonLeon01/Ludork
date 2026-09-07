@@ -60,6 +60,15 @@ local _METADATA = {
                 }
             }
         },
+        ShowEnemyBook = {
+            type = "function",
+            parameters = {},
+            ["return"] = {},
+            ExecSplit = {
+                "default",
+                default = "nil"
+            }
+        },
         ShowMessageByTag = {
             type = "function",
             parameters = {

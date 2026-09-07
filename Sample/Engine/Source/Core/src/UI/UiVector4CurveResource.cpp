@@ -6,7 +6,7 @@
 #include <Vector4Curve.hpp>
 #include <Vector4CurveData.hpp>
 #include <Vector4CurveKey.hpp>
-#include <Runtime/RuntimeValueReader.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
 #include <Runtime/Json.hpp>
 
 #include <Utf8Path.hpp>

@@ -870,11 +870,7 @@ public sealed class BlueprintEditorWindow : Window
     private BlueprintGraphControl createGraphControl(string eventName, JsonObject eventGraph)
     {
         JsonObject graph = document.Data["graph"] as JsonObject ?? [];
-        if (document.Data["graph"] is not JsonObject)
-            document.Data["graph"] = graph;
         JsonObject startNodes = graph["startNodes"] as JsonObject ?? [];
-        if (graph["startNodes"] is not JsonObject)
-            graph["startNodes"] = startNodes;
         BlueprintNodeDefinitionSet definitionSet;
         IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters;
         using (IDisposable metadataBatch = classResolver.BeginBatch())
@@ -907,8 +903,7 @@ public sealed class BlueprintEditorWindow : Window
             isGraphReadOnly());
         control.GraphChanged += (_, _) =>
         {
-            BlueprintGraphCodec.SaveInto(control.Document, eventGraph, startNodes);
-            document.CommitGraph();
+            document.CommitEventGraph(eventName, BlueprintGraphCodec.Save(control.Document));
         };
         return control;
     }

@@ -1,6 +1,11 @@
 include_guard(GLOBAL)
 
 option(
+    LUDORK_WITH_LUA
+    "Build the complete Lua scripting runtime and bindings"
+    ON)
+
+option(
     LUDORK_OPTIMIZE_DEBUG
     "Build Debug with release-grade optimization while retaining debug symbols"
     ON)
@@ -9,14 +14,16 @@ option(
     "Enable full sol2 safety checks in Debug builds"
     OFF)
 
-add_library(LudorkSolConfig INTERFACE)
-add_library(Ludork::SolConfig ALIAS LudorkSolConfig)
-target_compile_definitions(LudorkSolConfig INTERFACE
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
-    SOL_SAFE_NUMERICS=1
-    SOL_USE_INTEROP=1
-    SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
-    SOL_USERTYPE_TYPE_BINDING_INFO=0)
+if(LUDORK_WITH_LUA)
+    add_library(LudorkSolConfig INTERFACE)
+    add_library(Ludork::SolConfig ALIAS LudorkSolConfig)
+    target_compile_definitions(LudorkSolConfig INTERFACE
+        $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
+        SOL_SAFE_NUMERICS=1
+        SOL_USE_INTEROP=1
+        SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
+        SOL_USERTYPE_TYPE_BINDING_INFO=0)
+endif()
 
 function(ludork_require_android_package_contract)
     if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
@@ -244,10 +251,20 @@ function(ludork_enable_release_symbols target)
 endfunction()
 
 function(ludork_copy_runtime_libraries target)
-    if(NOT COMMAND luasf_copy_runtime_dlls)
-        message(FATAL_ERROR "LuaSF runtime copy helper is unavailable.")
+    if(LUDORK_WITH_LUA)
+        if(NOT COMMAND luasf_copy_runtime_dlls)
+            message(FATAL_ERROR "LuaSF runtime copy helper is unavailable.")
+        endif()
+        luasf_copy_runtime_dlls(${target})
+    else()
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:sfml-system>"
+                "$<TARGET_FILE:sfml-window>"
+                "$<TARGET_FILE:sfml-graphics>"
+                "$<TARGET_FILE_DIR:${target}>"
+            VERBATIM)
     endif()
-    luasf_copy_runtime_dlls(${target})
 endfunction()
 
 function(ludork_add_macos_runtime_symlinks target)
@@ -255,12 +272,11 @@ function(ludork_add_macos_runtime_symlinks target)
         return()
     endif()
 
-    foreach(runtime_target IN ITEMS
-        sfml-system
-        sfml-window
-        sfml-graphics
-        sfml-audio
-        sfml-network)
+    set(runtime_targets sfml-system sfml-window sfml-graphics)
+    if(LUDORK_WITH_LUA)
+        list(APPEND runtime_targets sfml-audio sfml-network)
+    endif()
+    foreach(runtime_target IN LISTS runtime_targets)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E create_symlink
                 "$<TARGET_FILE_NAME:${runtime_target}>"

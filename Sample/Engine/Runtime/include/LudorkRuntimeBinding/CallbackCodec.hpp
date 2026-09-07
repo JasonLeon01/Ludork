@@ -100,7 +100,7 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
     static_assert(IsVector<Sequence>::value || IsArray<Sequence>::value);
 
     static bool canRead(const sol::object& value) {
-        if (!value.is<sol::table>()) {
+        if (!(value.get_type() == sol::type::table)) {
             return false;
         }
         const sol::table table = value.as<sol::table>();
@@ -123,7 +123,7 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
     }
 
     static Sequence read(const sol::object& value, std::string_view label) {
-        if (!value.is<sol::table>()) {
+        if (!(value.get_type() == sol::type::table)) {
             throw std::invalid_argument("expected a Lua sequence table");
         }
         const sol::table table = value.as<sol::table>();
@@ -192,7 +192,7 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
     static_assert(IsMap<Map>::value);
 
     static bool canRead(const sol::object& value) {
-        if (!value.is<sol::table>()) {
+        if (!(value.get_type() == sol::type::table)) {
             return false;
         }
         const sol::table table = value.as<sol::table>();
@@ -206,7 +206,7 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
     }
 
     static Map read(const sol::object& value, std::string_view label) {
-        if (!value.is<sol::table>()) {
+        if (!(value.get_type() == sol::type::table)) {
             throw std::invalid_argument("expected a Lua map table");
         }
         const sol::table table = value.as<sol::table>();
@@ -270,11 +270,20 @@ struct LuaCodecAdapter<Variant, LuaVariantCodecPolicy<Policies...>> {
     static_assert(std::variant_size_v<Variant> == sizeof...(Policies));
 
     static bool canRead(const sol::object& value) {
-        return canReadAt<sizeof...(Policies)>(value);
+        return select<sizeof...(Policies)>(value, true).has_value() ||
+               select<sizeof...(Policies)>(value, false).has_value();
     }
 
     static Variant read(const sol::object& value, std::string_view label) {
-        return readAt<sizeof...(Policies)>(value, label);
+        auto selected = select<sizeof...(Policies)>(value, true);
+        if (!selected) {
+            selected = select<sizeof...(Policies)>(value, false);
+        }
+        if (!selected) {
+            throw std::invalid_argument(
+                "Lua value does not match any variant alternative");
+        }
+        return readAt<sizeof...(Policies)>(value, label, *selected);
     }
 
     static sol::object write(sol::state_view lua, const Variant& value,
@@ -287,31 +296,36 @@ struct LuaCodecAdapter<Variant, LuaVariantCodecPolicy<Policies...>> {
 
 private:
     template <std::size_t Index>
-    static bool canReadAt(const sol::object& value) {
+    static std::optional<std::size_t> select(const sol::object& value,
+                                             bool exact) {
         if constexpr (Index == 0) {
-            return false;
+            return std::nullopt;
         } else {
             using Alternative = std::variant_alternative_t<Index - 1, Variant>;
             using Policy = std::tuple_element_t<Index - 1, PolicyTuple>;
-            return LuaCodecAdapter<Alternative, Policy>::canRead(value) ||
-                   canReadAt<Index - 1>(value);
+            if (compatibleVariantAlternative<Alternative>(value, exact) &&
+                LuaCodecAdapter<Alternative, Policy>::canRead(value)) {
+                return Index - 1;
+            }
+            return select<Index - 1>(value, exact);
         }
     }
 
     template <std::size_t Index>
-    static Variant readAt(const sol::object& value, std::string_view label) {
+    static Variant readAt(const sol::object& value, std::string_view label,
+                          std::size_t selected) {
         if constexpr (Index == 0) {
             throw std::invalid_argument(
                 "Lua value does not match any variant alternative");
         } else {
             using Alternative = std::variant_alternative_t<Index - 1, Variant>;
             using Policy = std::tuple_element_t<Index - 1, PolicyTuple>;
-            if (LuaCodecAdapter<Alternative, Policy>::canRead(value)) {
+            if (selected == Index - 1) {
                 return Variant(
                     std::in_place_index<Index - 1>,
                     LuaCodecAdapter<Alternative, Policy>::read(value, label));
             }
-            return readAt<Index - 1>(value, label);
+            return readAt<Index - 1>(value, label, selected);
         }
     }
 
@@ -340,7 +354,7 @@ struct LuaCodecAdapter<Pair, LuaPairCodecPolicy<FirstPolicy, SecondPolicy>> {
     static_assert(IsPair<Pair>::value);
 
     static bool canRead(const sol::object& value) {
-        if (!value.is<sol::table>()) {
+        if (!(value.get_type() == sol::type::table)) {
             return false;
         }
         const sol::table table = value.as<sol::table>();
@@ -390,7 +404,7 @@ struct LuaCodecAdapter<Tuple, LuaTupleCodecPolicy<Policies...>> {
     static_assert(std::tuple_size_v<Tuple> == sizeof...(Policies));
 
     static bool canRead(const sol::object& value) {
-        if (!value.is<sol::table>()) {
+        if (!(value.get_type() == sol::type::table)) {
             return false;
         }
         const sol::table table = value.as<sol::table>();

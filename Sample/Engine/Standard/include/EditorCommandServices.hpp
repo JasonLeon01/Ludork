@@ -7,6 +7,12 @@ struct lua_State;
 namespace ludork::standard {
 
 using EditorCommandBoolControlHandler = void (*)(bool enabled);
+using EditorCommandReloadHandler = void (*)(lua_State* state);
+
+LUDORK_STANDARD_API void registerEditorCommandReloadHandler(
+    lua_State* state, EditorCommandReloadHandler handler);
+LUDORK_STANDARD_API void unregisterEditorCommandReloadHandler(
+    lua_State* state) noexcept;
 
 LUDORK_STANDARD_API void registerEditorCommandEnvironment(lua_State* state,
                                                           const char* name,

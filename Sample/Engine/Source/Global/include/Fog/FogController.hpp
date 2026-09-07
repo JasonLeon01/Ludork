@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <Fog/MapFogSettings.hpp>
 
 class Camera;
 
@@ -8,10 +9,10 @@ BIND_CLASS()
 class FogController {
 public:
     BIND_METHOD()
-    static void applyFromMapData(const RuntimeValue::Map& mapData);
+    static void applyFromMapData(const MapFogSettings& mapData);
 
     BIND_METHOD(metadata = false)
-    static void applyWorldFromMapData(const RuntimeValue::Map& mapData);
+    static void applyWorldFromMapData(const MapFogSettings& mapData);
 
     BIND_METHOD(metadata = false)
     static void setWorldRegionFog(const std::string& key,

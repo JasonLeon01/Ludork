@@ -38,6 +38,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         this.document = document;
         this.definitions = definitions;
         this.fieldBuilder = fieldBuilder;
+        document.IsTypeAssignable = fieldBuilder.IsTypeAssignable;
         this.parameterEditorFactory = parameterEditorFactory;
         this.gameVariables = gameVariables;
         this.assetsDirectory = assetsDirectory;
@@ -100,6 +101,12 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             port.SetReadOnly(value);
     }
 
+    public bool CanConnectType(BlueprintGraphPort source, BlueprintGraphPortDefinition target)
+    {
+        return source.Kind == target.Kind && (source.Kind == BlueprintGraphPortKind.Exec
+            || fieldBuilder.IsTypeAssignable(source.TypeName, target.TypeName));
+    }
+
     public override void Connect(ConnectorViewModelBase first, ConnectorViewModelBase second)
     {
         if (IsReadOnly
@@ -115,7 +122,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphPortViewModel target = ReferenceEquals(source, firstPort) ? secondPort : firstPort;
         if (source.Model.Direction != BlueprintGraphPortDirection.Output
             || target.Model.Direction != BlueprintGraphPortDirection.Input
-            || source.Model.Kind != target.Model.Kind)
+            || !document.ArePortTypesCompatible(source.Model, target.Model))
         {
             return;
         }
@@ -175,7 +182,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphNodeViewModel node = addNode(definition, location);
         BlueprintGraphPortViewModel[] candidates = node.Input
             .OfType<BlueprintGraphPortViewModel>()
-            .Where(port => port.Model.Kind == source.Model.Kind)
+            .Where(port => document.ArePortTypesCompatible(source.Model, port.Model))
             .OrderBy(port => port.Model.PinIndex)
             .ToArray();
         BlueprintGraphPortViewModel? target = source.Model.Kind == BlueprintGraphPortKind.Params
@@ -361,8 +368,16 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 copiedConnection.SourcePinIndex,
                 copiedConnection.TargetPinIndex,
                 copiedConnection.RawData);
-            if (document.AddConnection(connection))
+            if (document.ArePortTypesCompatible(sourcePort, targetPort))
+            {
+                if (document.AddConnection(connection))
+                    addConnectionViewModel(connection);
+            }
+            else
+            {
+                document.AddLoadedConnection(connection);
                 addConnectionViewModel(connection);
+            }
         }
         SelectedNodes.Clear();
         foreach (BlueprintGraphNode node in pasted)

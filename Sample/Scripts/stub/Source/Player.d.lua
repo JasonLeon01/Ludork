@@ -3,7 +3,7 @@
 ---@field playerClass string
 ---@field tag         string
 ---@field position    integer[]
----@field attr        table<string, integer | string>
+---@field attr        table<string, number>
 ---@field items       table<string, integer>
 ---@field equips      table<string, integer>
 ---@field equipInfo   table<string, string>
