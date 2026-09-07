@@ -14,6 +14,23 @@ if(NOT EXISTS "${LUDORK_LUASF_SOURCE_DIR}/CMakeLists.txt")
         "LuaSF source project was not found: ${LUDORK_LUASF_SOURCE_DIR}")
 endif()
 add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF)
+if(MSVC)
+    foreach(dependency IN ITEMS
+        freetype
+        harfbuzz
+        SheenBidi
+        ogg
+        FLAC
+        vorbis
+        vorbisenc
+        vorbisfile
+        libssh2_static)
+        if(TARGET ${dependency})
+            target_compile_options(${dependency} PRIVATE /W0)
+        endif()
+    endforeach()
+endif()
+
 if(TARGET LuaSF_luac AND DEFINED LUDORK_LUAC_CACHE_FILE)
     get_filename_component(
         LUDORK_LUAC_CACHE_DIRECTORY

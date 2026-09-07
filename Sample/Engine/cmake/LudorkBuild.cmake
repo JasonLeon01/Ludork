@@ -68,8 +68,8 @@ endif()
 if(LUDORK_OPTIMIZE_DEBUG)
     add_compile_definitions("$<$<CONFIG:Debug>:NDEBUG>")
     if(MSVC)
-        string(REPLACE "/RTC1" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-        string(REPLACE "/RTC1" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+        string(REGEX REPLACE "/RTC1|/Ob0" "" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+        string(REGEX REPLACE "/RTC1|/Ob0" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
         add_compile_options(
             "$<$<CONFIG:Debug>:/O2>"
             "$<$<CONFIG:Debug>:/Ob3>")
@@ -110,8 +110,11 @@ function(ludork_apply_msvc_debug_source_options)
         set_property(SOURCE "${source}" APPEND PROPERTY
             COMPILE_OPTIONS
                 "$<$<CONFIG:Debug>:/O1>"
-                "$<$<CONFIG:Debug>:/Ob1>"
                 "$<$<CONFIG:Debug>:/Oy->")
+        if(NOT LUDORK_OPTIMIZE_DEBUG OR NOT CMAKE_GENERATOR MATCHES "^Visual Studio")
+            set_property(SOURCE "${source}" APPEND PROPERTY
+                COMPILE_OPTIONS "$<$<CONFIG:Debug>:/Ob1>")
+        endif()
         set_property(SOURCE "${source}" APPEND PROPERTY
             VS_SETTINGS
                 "$<$<CONFIG:Debug>:BasicRuntimeChecks=Default>")
