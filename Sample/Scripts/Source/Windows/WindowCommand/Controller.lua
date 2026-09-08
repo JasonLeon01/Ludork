@@ -47,7 +47,7 @@ end
 
 function WindowCommandController:addRow(item)
     local child = self:createRow(item)
-    self.model:_applyItem(child)
+    self.model:applyItem(child)
     self.root:addChild(child)
 end
 

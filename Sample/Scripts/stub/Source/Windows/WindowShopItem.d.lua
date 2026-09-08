@@ -5,7 +5,6 @@
 ---@field new              fun(rect: sf.IntRect, owner: Source.Windows.WindowShop, instance?: Engine.AssetInstance): Source.Windows.WindowShopItem
 ---@field _owner           Source.Windows.WindowShop
 ---@field _itemIDs         string[]
----@field _cellAvailable   boolean[]
 ---@field _lastDetailIndex integer | nil
 ---@field _ui              Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI
 ---@field _listView        Engine.ListView
@@ -53,5 +52,7 @@ function WindowShopItem:isCurrentAvailable() end
 function WindowShopItem:onReturn() end
 
 function WindowShopItem:dispose() end
+
+function WindowShopItem:confirmItem() end
 
 return WindowShopItem

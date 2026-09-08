@@ -5,12 +5,18 @@
 ---@field _logicalSize          sf.Vector2u | nil
 ---@field _changeList           Engine.ListView
 ---@field _changeRowControllers Source.UI.Parts.WindowEquip.EquipStatusRow[]
----@field new                   fun(model: Source.Windows.WindowEquipStatus, instance?: Engine.AssetInstance): Source.UI.Parts.WindowEquip.WindowEquipStatus
+---@field new                   fun(model: Source.Windows.WindowEquipStatus, instance: Engine.AssetInstance | nil, player: Source.Player.Player): Source.UI.Parts.WindowEquip.WindowEquipStatus
+---@field _player               Source.Player.Player
+---@field _slotKey              string
+---@field _changeTexts          Engine.PlainText[]
+---@field _descNameText         Engine.PlainText
+---@field _descText             Engine.PlainText
 local WindowEquipStatusUI = {}
 
 ---@param model    Source.Windows.WindowEquipStatus
 ---@param instance Engine.AssetInstance | nil
-function WindowEquipStatusUI:init(model, instance) end
+---@param player   Source.Player.Player
+function WindowEquipStatusUI:init(model, instance, player) end
 
 function WindowEquipStatusUI:bind() end
 

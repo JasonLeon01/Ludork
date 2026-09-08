@@ -172,7 +172,7 @@ end
 
 function ConfigWindow:dispose()
     self:hideImmediate()
-    self:_detachSelectionRect()
+    self:detachSelectionRect()
     self.content = self._windowContent
     if self._ui ~= nil then
         self._ui:dispose()
@@ -254,7 +254,7 @@ function ConfigWindow:onKeyDown(kwargs)
     if self._selectionInputPaused then
         return
     end
-    if self:_handleTabNavigation() then
+    if self:handleTabNavigation() then
         return
     end
     if self:_handleSelectedSliderKeyDown() then
@@ -286,7 +286,7 @@ function ConfigWindow:_setPointerIndex(index)
 end
 
 ---@return boolean
-function ConfigWindow:_handleTabNavigation()
+function ConfigWindow:handleTabNavigation()
     if self._tabNavigationHandledThisFrame then
         return true
     end
@@ -301,7 +301,7 @@ function ConfigWindow:_handleTabNavigation()
 end
 
 ---@param tabIndex integer
-function ConfigWindow:_onTabSelected(tabIndex)
+function ConfigWindow:selectTab(tabIndex)
     self._tabNavigationHandledThisFrame = true
     if tabIndex == self._activePageIndex then
         return
@@ -340,7 +340,7 @@ function ConfigWindow.MakeSettingRowConfirmCallback(row)
 end
 
 ---@param expanded boolean
-function ConfigWindow:_onDropBoxExpandedChanged(expanded)
+function ConfigWindow:onDropBoxExpandedChanged(expanded)
     if expanded then
         self:_setSelectionInputPaused(true)
         local expandedRow = self:_getExpandedSettingRow()
@@ -459,7 +459,7 @@ function ConfigWindow.FindSelectedIndex(items, value)
 end
 
 ---@return integer
-function ConfigWindow:_getRectWidth()
+function ConfigWindow:getItemWidth()
     return self.content:getSize().x
 end
 

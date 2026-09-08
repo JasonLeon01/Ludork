@@ -2,7 +2,7 @@ local Engine = require("Engine")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Data = require("Source.Data")
 local EnemyDamageText = require("Source.EnemyDamageText")
-local Utils = require("Source.NodeFunctions.Utils")
+local NumberFormat = require("Source.Utils.NumberFormat")
 
 local PlainText = Engine.PlainText
 
@@ -48,7 +48,7 @@ function MovementDangerPreviewComponent:_refreshEntries(player)
         if self._texts[index] == nil then
             self._texts[index] = PlainText.new(Data.GetPlainTextConfig(EnemyDamageText.textConfig), "")
         end
-        self._texts[index]:setString(tostring(Utils.ToShortNumber(entry.damage)))
+        self._texts[index]:setString(tostring(NumberFormat.ToShortNumber(entry.damage)))
         self._texts[index]:setScale(sf.Vector2f.new(inverseScale, inverseScale))
         self._texts[index]:setColour(EnemyDamageText.GetDamageColor(entry.damage, player.attributes.HP))
         local bounds = self._texts[index]:getLocalBounds()

@@ -1,6 +1,8 @@
 ---@meta Source.UI.Parts.WindowShop.WindowShopDetail
 
 ---@class Source.UI.Parts.WindowShop.WindowShopDetail.WindowShopDetailUI: Source.UI.UiController
+---@field _itemInfo Source.Data.GeneralItemData | nil
+---@field _price    integer | nil
 local WindowShopDetailUI = {}
 
 ---@param model    Source.Windows.WindowShopDetail

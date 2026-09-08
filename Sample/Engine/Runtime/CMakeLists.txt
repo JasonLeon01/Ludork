@@ -5,6 +5,8 @@ project(LudorkRuntime LANGUAGES CXX)
 if(LUDORK_WITH_LUA)
     file(GLOB_RECURSE LUDORK_RUNTIME_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+    list(FILTER LUDORK_RUNTIME_SOURCES EXCLUDE REGEX
+        ".*/src/(LuaServices|Metadata)/.*\\.cpp$")
 else()
     set(LUDORK_RUNTIME_SOURCES
         src/RuntimeData.cpp
@@ -24,8 +26,8 @@ ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviderFacade.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviderInternals.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeReflection.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeServiceCommon.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeServiceInternals.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeServiceCommon.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeServiceInternals.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/ClassDict.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Graph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Node.cpp"
@@ -45,6 +47,11 @@ ludork_apply_msvc_debug_source_options(
 add_library(LudorkRuntime ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_RUNTIME_SOURCES})
 add_library(Ludork::Runtime ALIAS LudorkRuntime)
+
+if(LUDORK_WITH_LUA)
+    add_subdirectory(src/Metadata)
+    add_subdirectory(src/LuaServices)
+endif()
 
 target_compile_features(LudorkRuntime PUBLIC cxx_std_20)
 target_compile_definitions(LudorkRuntime

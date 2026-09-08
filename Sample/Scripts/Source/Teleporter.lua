@@ -1,10 +1,8 @@
 local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
-local RegionDict = require("Source.Configs.RegionDict")
 local MapPath = require("Source.MapPath")
+local GameplayScene = require("Source.Gameplay.GameplayScene")
 
 local Actor = Engine.Actor
-local AudioManager = GlobalCore.AudioManager
 
 local Teleporter = {}
 
@@ -33,49 +31,20 @@ end
 
 ---@param step integer
 function Teleporter:_goFloor(step)
-    local MapScene = require("Source.Scenes.SceneMap")
-
     local map = self:getMap()
     if self._floorTransferPending or map == nil then
         return
     end
     local scene = map:getScene()
-    if scene == nil then
+    if not Class.isInstance(scene, GameplayScene) then
         return
     end
-    if not Class.isInstance(scene, MapScene) then
-        return
+    ---@cast scene Source.Gameplay.GameplayScene
+    ---@cast self Source.Teleporter.Teleporter
+    self._floorTransferPending = true
+    if not scene:requestFloorStep(self, step) then
+        self._floorTransferPending = false
     end
-    local inst = scene.inst
-    local regionMaps = RegionDict[inst:getCurrentRegion()] or {}
-    local currentMap = scene._cachedMapFile
-    if not bool(currentMap) then
-        return
-    end
-    local currentIndex = Teleporter.FindCurrentMapIndex(regionMaps, currentMap)
-    if currentIndex == nil then
-        return
-    end
-    local targetIndex = currentIndex + step
-    if targetIndex < 1 or targetIndex > #regionMaps then
-        return
-    end
-
-    local player = map:getPlayer()
-    if player == nil then
-        return
-    end
-    local anchorPosition = self:getTeleportPosition()
-    local targetMap = scene:resolveRegionMapPath(regionMaps[targetIndex])
-    local moveEnabled = player:getMoveEnabled()
-    player:setMoveEnabled(false)
-    if scene:requestFloorTransfer(targetMap, anchorPosition, moveEnabled) then
-        inst:recordTelepoint(currentMap, sf.Vector2u.new(anchorPosition.x, anchorPosition.y), self:getMapTag())
-        AudioManager.playSound(self.stairSE)
-        self._floorTransferPending = true
-        return
-    end
-    player:setMoveEnabled(moveEnabled)
 end
 
 ---@param actors   Engine.Actor[]

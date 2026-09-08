@@ -75,8 +75,16 @@ function WindowFloorMapPreview:_hidePreview()
 end
 
 ---@return integer
-function WindowFloorMapPreview:_getRectWidth()
+function WindowFloorMapPreview:getItemWidth()
     return self._telepointItemWidth
+end
+
+function WindowFloorMapPreview:confirmSelectedTelepoint()
+    self._owner:confirmSelectedTelepoint()
+end
+
+function WindowFloorMapPreview:notifyTelepointIndexMaybeChanged(index)
+    self._owner:notifyTelepointIndexMaybeChanged(index)
 end
 
 return class(WindowFloorMapPreview, WindowSelectable)

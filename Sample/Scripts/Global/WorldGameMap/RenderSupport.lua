@@ -2,8 +2,7 @@ local Engine = require("Engine")
 
 local RenderSupport = {}
 
-function RenderSupport.GetLightingCellRect(world, activeLights)
-    local visible = world:_getVisibleCellRect()
+function RenderSupport.GetLightingCellRect(visible, limit, worldSize, activeLights)
     local minimumX = visible.x
     local minimumY = visible.y
     local maximumX = visible.x + visible.width
@@ -15,16 +14,15 @@ function RenderSupport.GetLightingCellRect(world, activeLights)
         maximumX = math.max(maximumX, math.ceil((light.position.x + light.radius) / Engine.CellSize) + 1)
         maximumY = math.max(maximumY, math.ceil((light.position.y + light.radius) / Engine.CellSize) + 1)
     end
-    local limit = world._worldPreparedRect or world._worldActiveRect or visible
     local left = math.max(0, limit.x, minimumX)
     local top = math.max(0, limit.y, minimumY)
-    local right = math.min(world._worldConfig.width, limit.x + limit.width, maximumX)
-    local bottom = math.min(world._worldConfig.height, limit.y + limit.height, maximumY)
+    local right = math.min(worldSize.x, limit.x + limit.width, maximumX)
+    local bottom = math.min(worldSize.y, limit.y + limit.height, maximumY)
     if right <= left or bottom <= top then
-        left = math.trunc(math.clamp(visible.x, 0, world._worldConfig.width - 1))
-        top = math.trunc(math.clamp(visible.y, 0, world._worldConfig.height - 1))
-        right = math.trunc(math.clamp(visible.x + visible.width, left + 1, world._worldConfig.width))
-        bottom = math.trunc(math.clamp(visible.y + visible.height, top + 1, world._worldConfig.height))
+        left = math.trunc(math.clamp(visible.x, 0, worldSize.x - 1))
+        top = math.trunc(math.clamp(visible.y, 0, worldSize.y - 1))
+        right = math.trunc(math.clamp(visible.x + visible.width, left + 1, worldSize.x))
+        bottom = math.trunc(math.clamp(visible.y + visible.height, top + 1, worldSize.y))
     end
     ---@cast left integer
     ---@cast top integer

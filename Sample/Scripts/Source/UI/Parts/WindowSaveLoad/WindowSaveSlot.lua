@@ -30,12 +30,12 @@ function WindowSaveSlotUI:bind()
         local rowUI = WindowSaveSlotRowUI.new({
             text = LOC("SAVEFILE"):pformat(slot + 1),
             callback = function (_obj, _kwargs)
-                self.model._owner:onSlotConfirm(slot)
+                self.model:confirmSlot(slot)
             end
         })
         local root = rowUI:prepare()
         self._slotRowUIs[#self._slotRowUIs + 1] = rowUI
-        self.model:_applyItem(root)
+        self.model:applyItem(root)
         self._listView:addChild(root)
         self._slotItems[#self._slotItems + 1] = root
     end

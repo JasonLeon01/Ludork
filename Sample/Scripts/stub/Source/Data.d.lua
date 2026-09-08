@@ -29,19 +29,19 @@
 ---@field Reborn?    string
 
 ---@class Source.Data.InitialLoadStage
----@field _animationData       table<string, Engine.AnimationData>
----@field _curveData           table<string, Source.Data.CurveValue>
----@field _curveTypes          table<string, string>
----@field _textConfigData      table<string, table>
----@field _commonFunctionsData table
----@field _tilesetData         table<string, Engine.Tileset>
----@field _autoTileData        table<string, Engine.AutoTile>
----@field _generalData         table<string, table<string, Source.Data.GeneralValue>>
----@field _aborted             boolean
----@field _committed           boolean
+---@field animationData       table<string, Engine.AnimationData>
+---@field curveData           table<string, Source.Data.CurveValue>
+---@field curveTypes          table<string, string>
+---@field textConfigData      table<string, table>
+---@field commonFunctionsData table
+---@field tilesetData         table<string, Engine.Tileset>
+---@field autoTileData        table<string, Engine.AutoTile>
+---@field generalData         table<string, table<string, Source.Data.GeneralValue>>
+---@field aborted             boolean
+---@field committed           boolean
 
 ---@class Source.Data.GeneratedActor: Engine.Actor
----@field _classVarChanges table<string, Source.Data.ClassVarValue> | nil
+---@field classVarChanges table<string, Source.Data.ClassVarValue> | nil
 
 ---@class Source.Data.GraphData
 ---@field parent      string | nil
@@ -92,22 +92,23 @@
 
 ---@class Source.Data.GeneralSpecialData: Source.Data.GeneralMemberData
 
+---@class Source.Data.Cache
+---@field animationData           table<string, Engine.AnimationData>
+---@field curveData               table<string, Source.Data.CurveValue>
+---@field curveTypes              table<string, string>
+---@field textConfigData          table<string, table>
+---@field plainTextConfigs        table<string, Engine.PlainTextConfig>
+---@field richTextConfigs         table<string, Engine.RichTextConfig>
+---@field commonFunctionsData     table<string, Source.Data.GraphData>
+---@field tilesetData             table<string, Engine.Tileset>
+---@field autoTileData            table<string, Engine.AutoTile>
+---@field generalData             table<string, table<string, Source.Data.GeneralValue>>
+---@field blueprintClassPaths     string[] | nil
+---@field blueprintClassPathIndex table<string, string> | nil
+---@field blueprintClassData      table<string, string | table>
+
 ---@class (partial) Source.Data
----@field dataKinds                integer
----@field _animationData           table<string, Engine.AnimationData>
----@field _curveData               table<string, Source.Data.CurveValue>
----@field _curveTypes              table<string, string>
----@field _textConfigData          table<string, table>
----@field _plainTextConfigs        table<string, Engine.PlainTextConfig>
----@field _richTextConfigs         table<string, Engine.RichTextConfig>
----@field _commonFunctionsData     table<string, Source.Data.GraphData>
----@field _tilesetData             table<string, Engine.Tileset>
----@field _autoTileData            table<string, Engine.AutoTile>
----@field _generalData             table<string, table<string, Source.Data.GeneralValue>>
----@field _blueprintClassPaths     string[] | nil
----@field _blueprintClassPathIndex table<string, string> | nil
----@field _blueprintClassData      table<string, string | table>
----@field _classDict               Engine.ClassDict
+---@field dataKinds integer
 local Data = {}
 
 ---@brief Create session data services and install runtime providers once before the first scene.

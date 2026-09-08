@@ -94,7 +94,10 @@ function MapClickAutoPath:onTick(_deltaTime)
     end
     local dangerRevision = self._dangerState:getPathfindingRevision()
     if self._autoPathing and self._routeDangerRevision ~= dangerRevision then
-        if MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(self, player) then
+        if MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(
+            self._parent, self._dangerState, self._routeState:getRoute(), self._activeGoal,
+            self._activeGoal ~= nil and self:_getIgnoredGoalEnemies(self._activeGoal) or nil, player
+        ) then
             self:_replanForDangerChange(player)
         else
             self._routeDangerRevision = dangerRevision

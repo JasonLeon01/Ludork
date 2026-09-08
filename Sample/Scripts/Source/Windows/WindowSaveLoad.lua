@@ -102,8 +102,7 @@ function WindowSaveLoad:open(transitionProfile)
     if latestSlot ~= nil then
         local latestSlotIndex = latestSlot - 1
         ---@cast latestSlotIndex integer
-        self._slotWindow.index = latestSlotIndex
-        self._slotWindow._oldIndex = latestSlotIndex
+        self._slotWindow:selectIndex(latestSlotIndex)
     end
     self._lastSlotIndex = nil
     if self._tabWindow ~= nil then

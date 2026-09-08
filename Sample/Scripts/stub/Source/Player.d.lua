@@ -23,6 +23,27 @@
 ---@field new                       fun(texture?: sf.Texture, tag?: string): Source.Player.Player
 local Player = {}
 
+---@return boolean
+function Player:getLoading() end
+
+---@brief Get an independent inventory count snapshot.
+---@return table<string, integer>
+function Player:getItems() end
+
+---@brief Get an independent equipment count snapshot.
+---@return table<string, integer>
+function Player:getEquips() end
+
+---@param data Source.Player.SaveData
+function Player:restoreFromData(data) end
+
+function Player:applyInitialEquipment() end
+
+---@param actors Engine.Actor[]
+---@param player Source.Player.Player | nil
+---@return Source.Player.Player | nil
+function Player.MeetPlayer(actors, player) end
+
 ---@param texture sf.Texture | nil
 ---@param tag     string
 function Player:init(texture, tag) end

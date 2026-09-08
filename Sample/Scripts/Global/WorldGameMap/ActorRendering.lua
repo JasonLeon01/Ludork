@@ -1,13 +1,13 @@
 local Pool = require("Global.Pool")
 local Render = require("Global.Utils.Render")
 
----@type WorldGameMapImplState
 local GameMapRendering = {}
 
 ---@param layerKeys        string[]
 ---@param playerLayerIndex integer
 ---@return boolean, sf.Vector2i | nil
-function GameMapRendering:_preparePlayerCover(layerKeys, playerLayerIndex)
+---@param self             WorldGameMapImplState
+function GameMapRendering.PreparePlayerCover(self, layerKeys, playerLayerIndex)
     if self._player == nil or playerLayerIndex == -1 then
         self:_resetTransparentTiles()
         return false, nil
@@ -47,7 +47,8 @@ function GameMapRendering:_preparePlayerCover(layerKeys, playerLayerIndex)
     return true, playerPosition
 end
 
-function GameMapRendering:_resetTransparentTiles()
+---@param self WorldGameMapImplState
+function GameMapRendering.ResetTransparentTiles(self)
     for _, item in ipairs(self._transparentTiles) do
         if item[1].resetTileColor ~= nil then
             item[1]:resetTileColor(item[2], item[3])
@@ -64,7 +65,8 @@ end
 
 ---@param layerKeys string[]
 ---@return integer
-function GameMapRendering:_getPlayerLayerIndex(layerKeys)
+---@param self      WorldGameMapImplState
+function GameMapRendering.GetPlayerLayerIndex(self, layerKeys)
     if self._player == nil then
         return -1
     end
@@ -80,7 +82,8 @@ end
 ---@param layerIndex       integer
 ---@param playerLayerIndex integer
 ---@param playerPosition   sf.Vector2i
-function GameMapRendering:_applyPlayerCover(layer, layerIndex, playerLayerIndex, playerPosition)
+---@param self             WorldGameMapImplState
+function GameMapRendering.ApplyPlayerCover(self, layer, layerIndex, playerLayerIndex, playerPosition)
     if self._player == nil or layerIndex <= playerLayerIndex or playerLayerIndex == -1 then
         return
     end
@@ -105,7 +108,10 @@ end
 ---@param layerIndex       integer
 ---@param playerLayerIndex integer
 ---@param applyPlayerCover boolean
-function GameMapRendering:_drawLayerActors(target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover)
+---@param self             WorldGameMapImplState
+function GameMapRendering.DrawLayerActors(
+    self, target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover
+)
     for _, actor in ipairs(self._actors[layerName] or {}) do
         if self._actorPixelShatterByActor[actor] == nil then
             local actorAlpha = 255
@@ -120,7 +126,8 @@ function GameMapRendering:_drawLayerActors(target, states, layerName, layerIndex
     self:_drawActorPixelShatterEffects(target, layerName)
 end
 
-function GameMapRendering:_prepareActorPixelShatterEffects()
+---@param self WorldGameMapImplState
+function GameMapRendering.PrepareActorPixelShatterEffects(self)
     local function drawActor(snapshotTarget, actor)
         self:_drawActor(snapshotTarget, sf.RenderStates.new(), actor, 255)
     end
@@ -135,7 +142,8 @@ end
 
 ---@param target    sf.RenderTarget
 ---@param layerName string
-function GameMapRendering:_drawActorPixelShatterEffects(target, layerName)
+---@param self      WorldGameMapImplState
+function GameMapRendering.DrawActorPixelShatterEffects(self, target, layerName)
     if not bool(self._actorPixelShatterEffects[layerName]) then
         return
     end
@@ -150,7 +158,8 @@ end
 ---@param states     sf.RenderStates
 ---@param actor      Engine.Actor
 ---@param actorAlpha integer
-function GameMapRendering:_drawActor(target, states, actor, actorAlpha)
+---@param self       WorldGameMapImplState
+function GameMapRendering.DrawActor(self, target, states, actor, actorAlpha)
     local hue = Render.NormaliseActorHue(actor.hue or 0.0)
     local hasHue = self._actorHueShader ~= nil and not Render.IsNeutralActorHue(hue)
     local hasShaderError = actor:hasShaderError()
@@ -199,7 +208,8 @@ end
 ---@param hue         number
 ---@param actorAlpha  integer
 ---@return boolean
-function GameMapRendering:_drawActorShaderWithHue(target, actor, actorShader, hue, actorAlpha)
+---@param self        WorldGameMapImplState
+function GameMapRendering.DrawActorShaderWithHue(self, target, actor, actorShader, hue, actorAlpha)
     if self._actorHueShader == nil then
         return false
     end
@@ -245,7 +255,8 @@ end
 
 ---@param size sf.Vector2u
 ---@return sf.RenderTexture
-function GameMapRendering:_ensureActorShaderBuffer(size)
+---@param self WorldGameMapImplState
+function GameMapRendering.EnsureActorShaderBuffer(self, size)
     if self._actorShaderBuffer == nil or self._actorShaderBuffer:getSize() ~= size then
         self._actorShaderBuffer = sf.RenderTexture.new(size)
     end
@@ -254,7 +265,8 @@ end
 
 ---@param size sf.Vector2u
 ---@return sf.RenderTexture
-function GameMapRendering:_ensureActorHueBuffer(size)
+---@param self WorldGameMapImplState
+function GameMapRendering.EnsureActorHueBuffer(self, size)
     if self._actorHueBuffer == nil or self._actorHueBuffer:getSize() ~= size then
         self._actorHueBuffer = sf.RenderTexture.new(size)
     end
@@ -263,15 +275,17 @@ end
 
 ---@param texture sf.Texture
 ---@return sf.Sprite
-function GameMapRendering:_ensureActorHueSourceSprite(texture)
+---@param self    WorldGameMapImplState
+function GameMapRendering.EnsureActorHueSourceSprite(self, texture)
     if self._actorHueSourceSprite == nil then
         self._actorHueSourceSprite = sf.Sprite.new(texture)
     end
     return self._actorHueSourceSprite
 end
 
----@param hue number
-function GameMapRendering:_applyActorHueUniform(hue)
+---@param hue  number
+---@param self WorldGameMapImplState
+function GameMapRendering.ApplyActorHueUniform(self, hue)
     if self._actorHueShader ~= nil then
         self._actorHueShader:setUniform("screenTex", sf.Shader.CurrentTexture)
         self._actorHueShader:setUniform("hue", hue)

@@ -240,6 +240,19 @@ function WorldGameMap:prepareViewportAt(position) end
 ---@return Engine.Actor[]
 function WorldGameMap:getAllActors() end
 
+---@brief Get a detached Active-area rectangle, or the visible area before Active bounds exist, without loading regions.
+---@return Global.WorldGeometry.CellRect
+function WorldGameMap:getGameplayCellRect() end
+
+---@return boolean
+function WorldGameMap:_lightingShadersAvailable() end
+
+---@return Global.GameMap.ActiveLight[]
+function WorldGameMap:_getActiveLights() end
+
+---@return sf.RenderTexture, boolean targetChanged
+function WorldGameMap:_ensureDirectLight() end
+
 ---@param actor Engine.Actor
 ---@return string | nil
 function WorldGameMap:getActorLayer(actor) end
@@ -253,5 +266,49 @@ function WorldGameMap:spawnPersistedWorldActor(actor, layer, definitionRegion, e
 ---@param actor    Engine.Actor
 ---@param position sf.Vector2i | nil
 function WorldGameMap:recordWorldActorPosition(actor, position) end
+
+---@private
+---@param root              Engine.Actor
+---@param destinationRegion Source.SceneComponents.WorldRegionData
+---@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
+---@param position          sf.Vector2i
+---@param touchedRegions    table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+function WorldGameMap:_queuePendingWorldActorRehome(root, destinationRegion, sourceRegion, position, touchedRegions) end
+
+---@private
+---@param root              Engine.Actor
+---@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
+---@param destinationRegion Source.SceneComponents.WorldRegionData | nil
+---@param layerName         string
+---@param position          sf.Vector2i
+---@param touchedRegions    table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+function WorldGameMap:_transferWorldActorRoot(root, sourceRegion, destinationRegion, layerName, position, touchedRegions) end
+
+---@private
+---@param touchedRegions table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@param looseTouched   boolean
+---@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+function WorldGameMap:_advancePendingWorldActorRehomes(touchedRegions, looseTouched) end
+
+---@private
+---@param root           Engine.Actor
+---@param position       sf.Vector2i
+---@param touchedRegions table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@param looseTouched   boolean
+---@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+function WorldGameMap:_rehomeChangedWorldActorRoot(root, position, touchedRegions, looseTouched) end
+
+---@private
+---@param position sf.Vector2f | nil
+---@return boolean
+function WorldGameMap:_prepareWorldCameraPosition(position) end
+
+---@private
+---@param region       Source.SceneComponents.WorldRegionData
+---@param builder      Global.WorldGameMap.RegionBuildState
+---@param requiredRect Global.WorldGeometry.CellRect
+function WorldGameMap:_prepareWorldRegionRect(region, builder, requiredRect) end
 
 return WorldGameMap

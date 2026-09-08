@@ -282,36 +282,36 @@ local function normaliseObtainedItems(obtainedItems)
     return result
 end
 
-function SaveCodec.Encode(instance)
+function SaveCodec.Encode(state)
     local players = {}
-    for _, playerKey in ipairs(instance._playerKeys) do
-        assert(Class.hasOwnField(instance._players, playerKey), "Player data is missing for key: " .. playerKey)
+    for _, playerKey in ipairs(state.playerKeys) do
+        assert(Class.hasOwnField(state.players, playerKey), "Player data is missing for key: " .. playerKey)
         assert(
-            Records.RequirePlayerKey(instance._players[playerKey]) == playerKey,
+            Records.RequirePlayerKey(state.players[playerKey]) == playerKey,
             "Player ID does not match player key: " .. playerKey
         )
         assert(players[playerKey] == nil, "Duplicate player key: " .. playerKey)
-        players[playerKey] = instance._players[playerKey]:asDict()
+        players[playerKey] = state.players[playerKey]:asDict()
     end
-    for playerKey in pairs(instance._players) do
+    for playerKey in pairs(state.players) do
         assert(players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
-    local cachedMap = assert(instance._cachedMap, "Cannot serialise a GameInstance before its current map is set")
-    local worldMovedActors = serialiseWorldMovedActors(instance._cachedWorldMovedActors)
+    local cachedMap = assert(state.currentMap, "Cannot serialise a GameInstance before its current map is set")
+    local worldMovedActors = serialiseWorldMovedActors(state.worldMovedActors)
     local saveData = {
         version = SAVE_VERSION,
-        region = instance._currentRegion,
-        playerKeys = copy(instance._playerKeys),
+        region = state.currentRegion,
+        playerKeys = copy(state.playerKeys),
         players = players,
-        variables = instance._variables,
+        variables = deepcopy(state.variables),
         map = cachedMap,
-        obtainedItems = instance._cachedNewItem,
-        addedActors = serialiseAddedActors(instance._cachedAddedActors),
-        actorPositions = serialiseActorPositions(instance._cachedActorPositions),
-        destroyedActors = instance._cachedDestroyedActors,
-        destroyedTerrain = serialiseTerrainDestructions(instance._cachedTerrainDestructions),
-        telepoints = serialiseTelepoints(instance._cachedTelepoints),
-        screenshot = instance._screenshot
+        obtainedItems = deepcopy(state.obtainedItems),
+        addedActors = serialiseAddedActors(state.addedActors),
+        actorPositions = serialiseActorPositions(state.actorPositions),
+        destroyedActors = deepcopy(state.destroyedActors),
+        destroyedTerrain = serialiseTerrainDestructions(state.terrainDestructions),
+        telepoints = serialiseTelepoints(state.telepoints),
+        screenshot = deepcopy(state.screenshot)
     }
     if bool(worldMovedActors) or os.path.basename(cachedMap) == "_world.json" then
         saveData.worldMovedActors = worldMovedActors
@@ -319,7 +319,7 @@ function SaveCodec.Encode(instance)
     return saveData
 end
 
-function SaveCodec.DecodeInto(instance, data)
+function SaveCodec.Decode(data)
     assert(Class.isInstance(data, "table"), "Save data must be an object")
     assert(
         Class.isInstance(data.version, "number") and data.version == SAVE_VERSION,
@@ -327,7 +327,8 @@ function SaveCodec.DecodeInto(instance, data)
     )
     local Player = require("Source.Player")
 
-    instance._currentRegion = data.region
+    local state = { players = {}, playerKeys = {} }
+    state.currentRegion = data.region
     assert(#data.playerKeys > 0, "playerKeys must contain at least one player key")
     for _, playerKey in ipairs(data.playerKeys) do
         assert(Class.isInstance(playerKey, "string") and bool(playerKey), "Player key must be a non-empty string")
@@ -335,30 +336,30 @@ function SaveCodec.DecodeInto(instance, data)
         local playerData = assert(data.players[playerKey], "Player data is missing for key: " .. playerKey)
         local player = Player.FromDict(playerData)
         assert(Records.RequirePlayerKey(player) == playerKey, "Player ID does not match player key: " .. playerKey)
-        Records.AppendPlayer(instance._players, instance._playerKeys, player)
+        Records.AppendPlayer(state.players, state.playerKeys, player)
     end
     for playerKey in pairs(data.players) do
-        assert(instance._players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
+        assert(state.players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
-    instance._variables = data.variables
-    instance._cachedMap = data.map
-    instance._cachedAddedActors = normaliseAddedActors(data.addedActors)
-    instance._cachedActorPositions = normaliseActorPositions(data.actorPositions)
+    state.variables = data.variables
+    state.currentMap = data.map
+    state.addedActors = normaliseAddedActors(data.addedActors)
+    state.actorPositions = normaliseActorPositions(data.actorPositions)
     if data.worldMovedActors == nil then
         assert(
             os.path.basename(MapPath.Normalise(data.map)) ~= "_world.json",
             "worldMovedActors must be an object for a world save"
         )
-        instance._cachedWorldMovedActors = {}
+        state.worldMovedActors = {}
     else
-        instance._cachedWorldMovedActors = normaliseWorldMovedActors(data.worldMovedActors)
+        state.worldMovedActors = normaliseWorldMovedActors(data.worldMovedActors)
     end
-    instance:_validateWorldActorRecordTags()
-    instance._cachedDestroyedActors = normaliseDestroyedActors(data.destroyedActors)
-    instance._cachedTerrainDestructions = normaliseTerrainDestructions(data.destroyedTerrain)
-    instance._cachedNewItem = normaliseObtainedItems(data.obtainedItems)
-    instance._cachedTelepoints = normaliseTelepoints(data.telepoints)
-    instance._screenshot = data.screenshot == cjson.null and nil or data.screenshot
+    state.destroyedActors = normaliseDestroyedActors(data.destroyedActors)
+    state.terrainDestructions = normaliseTerrainDestructions(data.destroyedTerrain)
+    state.obtainedItems = normaliseObtainedItems(data.obtainedItems)
+    state.telepoints = normaliseTelepoints(data.telepoints)
+    state.screenshot = data.screenshot == cjson.null and nil or data.screenshot
+    return state
 end
 
 return SaveCodec

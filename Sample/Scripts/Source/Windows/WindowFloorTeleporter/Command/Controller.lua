@@ -7,14 +7,12 @@ function WindowFloorMapCommandController:init(model, size, rowHeight, columns)
     super(WindowFloorMapCommandController, self).init(model, size, rowHeight, columns)
     ---@cast self.model Source.Windows.WindowFloorMapCommand
     self._mapKeys = {}
-    self.model._mapKeys = self._mapKeys
 end
 
 function WindowFloorMapCommandController:refreshMaps(entries)
     ---@cast self.model Source.Windows.WindowFloorMapCommand
     local previousMapKey = self:getCurrentMapKey()
     self._mapKeys = {}
-    self.model._mapKeys = self._mapKeys
     self._rowControllers = {}
     self.root:clearChildren()
     for index, entry in ipairs(entries) do
@@ -22,10 +20,10 @@ function WindowFloorMapCommandController:refreshMaps(entries)
         local child = self:createRow({
             text = entry[2],
             callback = function ()
-                self.model._owner:activateTelepointSelector()
+                self.model:activateTelepointSelector()
             end
         })
-        self.model:_applyItem(child)
+        self.model:applyItem(child)
         self.root:addChild(child)
     end
     self:prepare()
@@ -41,7 +39,7 @@ function WindowFloorMapCommandController:refreshMaps(entries)
         end
         self.model.index = previousIndex or 0
     end
-    self.model._owner:notifyMapIndexMaybeChanged(self.model.index)
+    self.model:notifyMapIndexMaybeChanged(self.model.index)
 end
 
 function WindowFloorMapCommandController:getCurrentMapKey()
@@ -53,7 +51,7 @@ end
 
 function WindowFloorMapCommandController:afterTick()
     ---@cast self.model Source.Windows.WindowFloorMapCommand
-    self.model._owner:notifyMapIndexMaybeChanged(self.model.index)
+    self.model:notifyMapIndexMaybeChanged(self.model.index)
 end
 
 return class(WindowFloorMapCommandController, WindowCommandController)

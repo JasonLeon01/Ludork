@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local EnemyText = require("Source.EnemyText")
 local Locale = require("Source.Locale.Core")
-local NodeUtils = require("Source.NodeFunctions.Utils")
+local NumberFormat = require("Source.Utils.NumberFormat")
 local Ui = require("Source.UI.Ui")
 local WindowEnemyBookUI = require("Source.UI.WindowEnemyBook")
 local EnemyEncyclopediaInfoPairUI = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair")
@@ -10,7 +10,7 @@ local EnemyEncyclopediaSpecialRowUI = require("Source.UI.Parts.WindowEnemyEncycl
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 local TextLayout = Engine.TextLayout
-local ToShortNumber = NodeUtils.ToShortNumber
+local ToShortNumber = NumberFormat.ToShortNumber
 
 local _PORTRAIT_AREA_HEIGHT = Engine.CellSize
 local _NAME_TOP_MARGIN = 8
@@ -118,11 +118,8 @@ function WindowEnemyEncyclopediaUI:_renderEntry(entry)
     self:buildInfo(entry)
     local descY = infoY + 3 * _INFO_ROW_GAP + _DESC_TOP_MARGIN
     self._descriptionControl:setPosition(sf.Vector2f.new(0.0, descY))
-    self.model._infoTexts[#self.model._infoTexts + 1] = self._descriptionControl
     local specialY = descY + _DESC_MAX_LINES * _DESC_LINE_GAP + _SPECIAL_TOP_MARGIN
     self:buildSpecials(entry, specialY)
-    self.model._portrait = self._portraitControl
-    self.model._nameText = self._nameControl
 end
 
 ---@return number
@@ -197,8 +194,6 @@ function WindowEnemyEncyclopediaUI:addInfoPair(label, value)
     ---@cast self._infoLayer Engine.ListView
     self._infoLayer:addChild(root)
     self._infoPairControllers[#self._infoPairControllers + 1] = controller
-    self.model._infoTexts[#self.model._infoTexts + 1] = controller:getLabel()
-    self.model._infoTexts[#self.model._infoTexts + 1] = controller:getValue()
 end
 
 function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
@@ -221,8 +216,6 @@ function WindowEnemyEncyclopediaUI:buildSpecials(entry, y)
         local root = controller:prepare()
         self._specialList:addChild(root)
         self._specialRowControllers[#self._specialRowControllers + 1] = controller
-        self.model._infoTexts[#self.model._infoTexts + 1] = controller:getNameText()
-        self.model._infoTexts[#self.model._infoTexts + 1] = controller:getDescriptionText()
     end
 end
 
@@ -259,8 +252,6 @@ function WindowEnemyEncyclopediaUI:clearEnemyControls()
     self:setProperty("Portrait", "visible", false)
     self._entry = nil
     self._portraitControl:resetAnimation()
-    self.model._portrait = nil
-    self.model._nameText = nil
 end
 
 function WindowEnemyEncyclopediaUI:_clearTextControls()
@@ -280,7 +271,6 @@ function WindowEnemyEncyclopediaUI:_clearTextControls()
     self:setProperty("Description", "visible", false)
     self:setText("Name", "")
     self:setText("Description", "")
-    self.model._infoTexts = {}
 end
 
 return Ui.Define("WindowEnemyEncyclopedia", WindowEnemyEncyclopediaUI)

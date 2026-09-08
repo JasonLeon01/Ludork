@@ -1,14 +1,15 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local ActorTree = require("Global.ActorTree")
-local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
-local GameplayEventData = GlobalCore.GameplayEventData
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Effects = require("Source.Gameplay.Effects")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
+local GameplayScene = require("Source.Gameplay.GameplayScene")
 
+local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
+local GameplayEventData = GlobalCore.GameplayEventData
 local Special = GeneralEnum.Special
 
 local MovementSpecials = {}
@@ -22,7 +23,8 @@ end
 
 ---@param enemy          Source.Enemy
 ---@param playerPosition sf.Vector2i
-local function doBlockadeRetreat(enemy, playerPosition)
+---@param scene          Source.Gameplay.GameplayScene
+local function doBlockadeRetreat(enemy, playerPosition, scene)
     local enemyPosition = enemy:getMapPosition()
     local offset = sf.Vector2i.new(
         math.sign(enemyPosition.x - playerPosition.x), math.sign(enemyPosition.y - playerPosition.y)
@@ -32,17 +34,12 @@ local function doBlockadeRetreat(enemy, playerPosition)
     local newPosition = moved and enemyPosition + offset or enemyPosition
     ---@cast newPosition sf.Vector2i
     if moved then
-        local gameMap = enemy:getMap()
-        ---@cast gameMap GameMap
-        local scene = gameMap:getScene()
-        ---@cast scene Source.Scenes.SceneMap.SceneMap
         scene:recordActorPosition(enemy, newPosition)
     end
-    local NodeUtils = require("Source.NodeFunctions.Utils")
-
+    local instance = scene:getGameInstance()
     local tag = enemy.tag or enemy.ID
-    NodeUtils.SetGameVariable("Blockade_" .. tag .. "_X", newPosition.x)
-    NodeUtils.SetGameVariable("Blockade_" .. tag .. "_Y", newPosition.y)
+    instance:setVariable("Blockade_" .. tag .. "_X", newPosition.x)
+    instance:setVariable("Blockade_" .. tag .. "_Y", newPosition.y)
 end
 
 local function queryEnemy(enemy, player, playerPosition, previewContext)
@@ -182,23 +179,27 @@ function MovementSpecials.Commit(player, pathPositions)
             end
         end
     end
+    if totalDamage <= 0 and not bool(blockadeRetreats) then
+        return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = allSources }))
+    end
+    local scene = gameMap:getScene()
+    assert(
+        Class.isInstance(scene, GameplayScene), "Movement hazard settlement requires a GameplayScene on its owning map"
+    )
+    ---@cast scene Source.Gameplay.GameplayScene
     for _, retreat in ipairs(blockadeRetreats) do
-        doBlockadeRetreat(retreat.enemy, retreat.playerPosition)
+        doBlockadeRetreat(retreat.enemy, retreat.playerPosition, scene)
     end
     if totalDamage <= 0 then
         return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = allSources }))
     end
-    local scene = gameMap:getScene()
     local animationLength = 0.0
-    if scene ~= nil then
-        ---@cast scene Source.Scenes.SceneMap.SceneMap
-        local playerPosition = player:getPosition()
-        local seenEnemies = {}
-        for _, source in ipairs(allSources) do
-            if not seenEnemies[source.enemy] then
-                seenEnemies[source.enemy] = true
-                animationLength = math.max(animationLength, source.enemy:playAttackAnimationAt(scene, playerPosition))
-            end
+    local playerPosition = player:getPosition()
+    local seenEnemies = {}
+    for _, source in ipairs(allSources) do
+        if not seenEnemies[source.enemy] then
+            seenEnemies[source.enemy] = true
+            animationLength = math.max(animationLength, source.enemy:playAttackAnimationAt(scene, playerPosition))
         end
     end
     local eventData = GameplayEventData.new(
@@ -207,17 +208,7 @@ function MovementSpecials.Commit(player, pathPositions)
     Effects.ApplyInstantModifier(player, "Movement.HazardDamage", "HP", "Add", -totalDamage, eventData)
     gameMap:addDamageText(tostring(totalDamage), player:getPosition())
     if player.attributes.HP <= 0 then
-        local function gameOver()
-            local SceneGameOver = require("Source.Scenes.SceneGameOver")
-
-            GlobalCore.System.setScene(SceneGameOver.new())
-        end
-
-        if scene == nil then
-            gameOver()
-        else
-            scene:addTimer(animationLength, gameOver)
-        end
+        scene:requestGameOver(player, animationLength)
     end
     return assert(GameplayAbilityResult.Success("MovementHazardCommitted", {
             damage = totalDamage,

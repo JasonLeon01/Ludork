@@ -10,10 +10,6 @@ WindowMenu.controllerClass = WindowMenuController
 
 function WindowMenu:init(player, windows)
     self._player = player
-    self._windowItem = windows.item
-    self._windowEquip = windows.equip
-    self._windowSaveLoad = windows.saveLoad
-    self._configWindow = windows.config
     local commands = WindowMenuController.CreateCommands(self)
     super(WindowMenu, self).init(Engine.ToIntRect(0, 0, 192, 192), nil, 160, 32, nil, nil, nil, nil, true)
     self._ui = WindowMenuUI.new(self)
@@ -21,10 +17,9 @@ function WindowMenu:init(player, windows)
     self:setHasReturnBtn(true)
     self:setScrollBox(self._ui:getScrollBox())
     self:setListView(self._ui:getListView())
-    self._menuController = self.controllerClass.new(self, self.content:getSize(), 32, 1)
+    self._menuController = self.controllerClass.new(self, self.content:getSize(), 32, 1, windows)
     self._menuController:attachTo(self._ui:getListView(), commands)
     ---@cast self._menuController Source.Windows.WindowMenu.Controller
-    self._menuControls = self._menuController:getMenuControls()
     self:hideImmediate()
 end
 
@@ -68,26 +63,26 @@ function WindowMenu:isBlocking()
 end
 
 function WindowMenu:onReturn()
-    self._menuController:_handleCancel()
+    self._menuController:handleCancel()
 end
 
-function WindowMenu:_onMenuItem()
-    self._menuController:_onMenuItem()
+function WindowMenu:openInventory()
+    self._menuController:openInventory()
 end
 
-function WindowMenu:_onMenuEquip()
-    self._menuController:_onMenuEquip()
+function WindowMenu:openEquipment()
+    self._menuController:openEquipment()
 end
 
-function WindowMenu:_onMenuSave()
-    self._menuController:_onMenuSave()
+function WindowMenu:openSaveLoad()
+    self._menuController:openSaveLoad()
 end
 
-function WindowMenu:_onMenuConfig()
-    self._menuController:_onMenuConfig()
+function WindowMenu:openConfig()
+    self._menuController:openConfig()
 end
 
-function WindowMenu:_onMenuExit()
+function WindowMenu:exitGame()
     self._menuController:onMenuExit()
 end
 
@@ -99,26 +94,8 @@ function WindowMenu:onConfigClose()
     self._menuController:onConfigClose()
 end
 
----@return Source.Windows.Base.WindowSelectable | nil
-function WindowMenu:_getCurrentSubMenuFocusTarget()
-    return self._menuController:_getCurrentSubMenuFocusTarget()
-end
-
----@param position sf.Vector2f
----@return boolean
-function WindowMenu:_isPointerInsideMenuGroup(position)
-    return self._menuController:_isPointerInsideMenuGroup(position)
-end
-
----@param exceptName string | nil
----@return boolean
-function WindowMenu:_closeSubMenus(exceptName)
-    return self._menuController:_closeSubMenus(exceptName)
-end
-
----@return boolean
-function WindowMenu:_returnEquipSelectToSlot()
-    return self._menuController:_returnEquipSelectToSlot()
+function WindowMenu:getPlayer()
+    return self._player
 end
 
 return class(WindowMenu, WindowSelectable)

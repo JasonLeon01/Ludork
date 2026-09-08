@@ -120,7 +120,7 @@ function Records.BuildAddedActorRecord(actor, layerName)
     end
     local actorRecord = { bp = blueprintPath, layer = layerName, position = copy(actorPosition), tag = actorTag }
     ---@cast actor Source.Data.GeneratedActor
-    local classVarChanges = Records.NormaliseClassVarChanges(actor._classVarChanges)
+    local classVarChanges = Records.NormaliseClassVarChanges(actor.classVarChanges)
     if bool(classVarChanges) then
         actorRecord.classVarChanges = classVarChanges
     end

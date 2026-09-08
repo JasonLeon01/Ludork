@@ -5,7 +5,6 @@ local GameMap = require("Global.GameMap")
 local Actor = Engine.Actor
 local WorldRegionState = GlobalCore.WorldRegionState
 
----@type WorldGameMapImplState
 local WorldGameMapActors = {}
 
 ---@param actors Engine.Actor[]
@@ -17,23 +16,25 @@ local function appendActorOnce(actors, actor)
     actors[#actors + 1] = actor
 end
 
----@param world Global.WorldGameMap.WorldGameMap
-local function keepPlayerAtLayerEnd(world)
-    if world._player == nil then
+---@param player        Engine.Actor | nil
+---@param actorLayers   table<Engine.Actor, string>
+---@param actorsByLayer table<string, Engine.Actor[]>
+local function keepPlayerAtLayerEnd(player, actorLayers, actorsByLayer)
+    if player == nil then
         return
     end
-    local layerName = world._worldActorLayers[world._player]
+    local layerName = actorLayers[player]
     if layerName == nil then
         return
     end
-    local actors = world._actors[layerName]
-    if actors == nil or actors[#actors] == world._player then
+    local actors = actorsByLayer[layerName]
+    if actors == nil or actors[#actors] == player then
         return
     end
-    local index = table.index(actors, world._player)
+    local index = table.index(actors, player)
     if index ~= nil then
         table.remove(actors, index)
-        actors[#actors + 1] = world._player
+        actors[#actors + 1] = player
     end
 end
 
@@ -46,9 +47,10 @@ local function removeRoot(roots, root)
     end
 end
 
----@param world Global.WorldGameMap.WorldGameMap
----@param roots Engine.Actor[]
-local function removeRootsFromLiveActors(world, roots)
+---@param actorsByLayer table<string, Engine.Actor[]>
+---@param roots         Engine.Actor[]
+---@return boolean
+local function removeRootsFromLiveActors(actorsByLayer, roots)
     local targets = {}
     for _, root in ipairs(roots) do
         for _, actor in ipairs(root:collectTree()) do
@@ -56,7 +58,7 @@ local function removeRootsFromLiveActors(world, roots)
         end
     end
     local changed = false
-    for layerName, actors in pairs(world._actors) do
+    for layerName, actors in pairs(actorsByLayer) do
         local kept = {}
         for _, actor in ipairs(actors) do
             if targets[actor] then
@@ -65,76 +67,14 @@ local function removeRootsFromLiveActors(world, roots)
                 kept[#kept + 1] = actor
             end
         end
-        world._actors[layerName] = kept
+        actorsByLayer[layerName] = kept
     end
-    if changed then
-        world:updateActorList()
-        world._materialDirty = true
-    end
+    return changed
 end
 
----@param world Global.WorldGameMap.WorldGameMap
----@param roots Engine.Actor[]
-local function sleepRoots(world, roots)
-    local sleeping = {}
-    local sleepTime = perfCounter()
-    for _, root in ipairs(roots) do
-        if world._worldRootStates[root] == "Active" then
-            sleeping[#sleeping + 1] = root
-            world._worldRootStates[root] = "Dormant"
-            world._worldRootSleepTimes[root] = sleepTime
-        end
-    end
-    if not bool(sleeping) then
-        return
-    end
-    removeRootsFromLiveActors(world, sleeping)
-    for _, root in ipairs(sleeping) do
-        for _, actor in ipairs(root:collectTree()) do
-            if not actor:isDestroyed() then
-                Actor.BlueprintEvent(actor, Actor, "onWorldSleep")
-            end
-        end
-    end
-end
-
----@param world Global.WorldGameMap.WorldGameMap
----@param roots Engine.Actor[]
-local function activateRoots(world, roots)
-    if not bool(roots) then
-        return
-    end
-    local waking = {}
-    world:beginActorBatch()
-    for _, root in ipairs(roots) do
-        local state = world._worldRootStates[root]
-        if state ~= "Active" and not root:isDestroyed() then
-            local layerName = world._worldActorLayers[root]
-            world:_addActorTreeToLayer(root, layerName)
-            if state == "Dormant" then
-                waking[#waking + 1] = root
-            end
-            world._worldRootStates[root] = "Active"
-        end
-    end
-    world:endActorBatch()
-    world:initialiseActorsAndComponents()
-    local wakeTime = perfCounter()
-    for _, root in ipairs(waking) do
-        local elapsedSeconds = math.max(0.0, wakeTime - (world._worldRootSleepTimes[root] or wakeTime))
-        for _, actor in ipairs(root:collectTree()) do
-            if not actor:isDestroyed() then
-                Actor.BlueprintEvent(actor, Actor, "onWorldWake", { elapsedSeconds = elapsedSeconds })
-            end
-        end
-        world._worldRootSleepTimes[root] = nil
-    end
-end
-
----@param _world  Global.WorldGameMap.WorldGameMap
 ---@param payload Global.WorldGameMap.RegionPayload
 ---@param root    Engine.Actor
-local function removeRegionRootMetadata(_world, payload, root)
+local function removeRegionRootMetadata(payload, root)
     payload.activeRoots[root] = nil
     payload.definitionRegions[root] = nil
     for _, actor in ipairs(root:collectTree()) do
@@ -153,20 +93,21 @@ local function actorTagSource(actor, definitionRegion)
     return "persisted:" .. actor:getMapTag()
 end
 
----@param world  Global.WorldGameMap.WorldGameMap
----@param tag    string
----@param source string
----@param actor  Engine.Actor
-local function claimWorldTag(world, tag, source, actor)
-    local resident = world._worldActorsByTag[tag]
+---@param actorsByTag        table<string, Engine.Actor>
+---@param reservedTagSources table<string, string>
+---@param tag                string
+---@param source             string
+---@param actor              Engine.Actor
+local function claimWorldTag(actorsByTag, reservedTagSources, tag, source, actor)
+    local resident = actorsByTag[tag]
     assert(resident == nil or resident == actor, "Duplicate world MapTag: " .. tag)
-    local existingSource = world._worldReservedTagSources[tag]
+    local existingSource = reservedTagSources[tag]
     assert(
         existingSource == nil or existingSource == "reserved" or existingSource == source,
         "Duplicate world MapTag: " .. tag
     )
-    world._worldReservedTagSources[tag] = source
-    world._worldActorsByTag[tag] = actor
+    reservedTagSources[tag] = source
+    actorsByTag[tag] = actor
 end
 
 ---@param actor      Engine.Actor
@@ -190,7 +131,8 @@ local function filterSuppressedActorTree(actor, suppressed, objects)
     return true
 end
 
-function WorldGameMapActors:_initialiseWorldActorState(config, reservedTags)
+---@param self WorldGameMapImplState
+function WorldGameMapActors.InitialiseWorldActorState(self, config, reservedTags)
     self._worldActorsByTag = {}
     self._worldActorLayers = {}
     self._worldActorDefinitionRegions = {}
@@ -225,18 +167,21 @@ function WorldGameMapActors:_initialiseWorldActorState(config, reservedTags)
 end
 
 ---@param destroyedActorTagProvider fun(): string[]
-function WorldGameMapActors:setDestroyedActorTagProvider(destroyedActorTagProvider)
+---@param self                      WorldGameMapImplState
+function WorldGameMapActors.SetDestroyedActorTagProvider(self, destroyedActorTagProvider)
     self._worldDestroyedActorTagProvider = destroyedActorTagProvider
     self:_refreshSuppressedActorTags()
 end
 
 ---@param addedActorPositionRecorder fun(actor: Engine.Actor, position: sf.Vector2i)
-function WorldGameMapActors:setAddedActorPositionPersistenceCallback(addedActorPositionRecorder)
+---@param self                       WorldGameMapImplState
+function WorldGameMapActors.SetAddedActorPositionPersistenceCallback(self, addedActorPositionRecorder)
     self._worldAddedActorPositionRecorder = addedActorPositionRecorder
 end
 
 ---@return boolean
-function WorldGameMapActors:_refreshSuppressedActorTags()
+---@param self WorldGameMapImplState
+function WorldGameMapActors.RefreshSuppressedActorTags(self)
     if self._worldDestroyedActorTagProvider == nil then
         return false
     end
@@ -252,7 +197,8 @@ function WorldGameMapActors:_refreshSuppressedActorTags()
     return changed
 end
 
-function WorldGameMapActors:_applySuppressedActorTags()
+---@param self WorldGameMapImplState
+function WorldGameMapActors.ApplySuppressedActorTags(self)
     for tag in pairs(self._worldSuppressedActorTags) do
         local actor = self._worldActorsByTag[tag]
         if actor ~= nil and self._worldRootStates[self._worldActorRoots[actor] or actor] ~= "NeverActive" then
@@ -288,8 +234,9 @@ function WorldGameMapActors:_applySuppressedActorTags()
     self:markPassabilityDirty()
 end
 
----@param tag string
-function WorldGameMapActors:suppressActorTag(tag)
+---@param tag  string
+---@param self WorldGameMapImplState
+function WorldGameMapActors.SuppressActorTag(self, tag)
     if not bool(tag) then
         return
     end
@@ -301,7 +248,8 @@ end
 
 ---@param region  Source.SceneComponents.WorldRegionData
 ---@param payload Global.WorldGameMap.RegionPayload
-function WorldGameMapActors:_filterSuppressedRegionActors(region, payload)
+---@param self    WorldGameMapImplState
+function WorldGameMapActors.FilterSuppressedRegionActors(self, region, payload)
     payload.worldRegion = region
     payload.actorSet = payload.actorSet or {}
     payload.actorRoots = payload.actorRoots or {}
@@ -320,7 +268,7 @@ function WorldGameMapActors:_filterSuppressedRegionActors(region, payload)
             if filterSuppressedActorTree(root, filteredTags, self._worldSuppressedActorObjects) then
                 kept[#kept + 1] = root
             else
-                removeRegionRootMetadata(self, payload, root)
+                removeRegionRootMetadata(payload, root)
                 self:_unindexWorldActorTree(root)
             end
         end
@@ -329,7 +277,8 @@ function WorldGameMapActors:_filterSuppressedRegionActors(region, payload)
 end
 
 ---@param layerName string
-function WorldGameMapActors:_ensureWorldLayer(layerName)
+---@param self      WorldGameMapImplState
+function WorldGameMapActors.EnsureWorldLayer(self, layerName)
     if self._worldLayerNames[layerName] then
         return
     end
@@ -339,7 +288,8 @@ end
 
 ---@param position sf.Vector2i
 ---@return string
-function WorldGameMapActors:_getRuntimeTagNamespace(position)
+---@param self     WorldGameMapImplState
+function WorldGameMapActors.GetRuntimeTagNamespace(self, position)
     local regionIndex = self:getSparseWorldRegionIndexAt(position)
     local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
     if region ~= nil then
@@ -349,8 +299,9 @@ function WorldGameMapActors:_getRuntimeTagNamespace(position)
     return self._worldConfig.worldName
 end
 
----@param tag string
-function WorldGameMapActors:_trackRuntimeTag(tag)
+---@param tag  string
+---@param self WorldGameMapImplState
+function WorldGameMapActors.TrackRuntimeTag(self, tag)
     local prefix, suffix = tag:match("^(.-%.runtime_default_)(%d+)$")
     if prefix == nil or suffix == nil then
         return
@@ -363,7 +314,8 @@ end
 
 ---@param position sf.Vector2i
 ---@return string
-function WorldGameMapActors:_allocateRuntimeTag(position)
+---@param self     WorldGameMapImplState
+function WorldGameMapActors.AllocateRuntimeTag(self, position)
     local prefix = self:_getRuntimeTagNamespace(position) .. ".runtime_default_"
     local index = self._worldRuntimeTagIndices[prefix] or 0
     local tag
@@ -391,7 +343,8 @@ end
 ---@param region    Source.SceneComponents.WorldRegionData | nil
 ---@param root      Engine.Actor | nil
 ---@return boolean
-function WorldGameMapActors:_indexRegionActor(payload, layerName, actor, region, root)
+---@param self      WorldGameMapImplState
+function WorldGameMapActors.IndexRegionActor(self, payload, layerName, actor, region, root)
     local targetRegion = region or payload.worldRegion
     assert(targetRegion ~= nil, "World region Actor indexing requires its region")
     root = root or actor
@@ -406,7 +359,9 @@ function WorldGameMapActors:_indexRegionActor(payload, layerName, actor, region,
     local tag = actor:getMapTag()
     self:_trackRuntimeTag(tag)
     local definitionRegion = payload.definitionRegions[root]
-    claimWorldTag(self, tag, actorTagSource(actor, definitionRegion), actor)
+    claimWorldTag(
+        self._worldActorsByTag, self._worldReservedTagSources, tag, actorTagSource(actor, definitionRegion), actor
+    )
     self:_ensureWorldLayer(layerName)
     self._worldActorLayers[actor] = layerName
     self._worldActorRoots[actor] = root
@@ -423,7 +378,8 @@ function WorldGameMapActors:_indexRegionActor(payload, layerName, actor, region,
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapActors:_indexRegionActors(region)
+---@param self   WorldGameMapImplState
+function WorldGameMapActors.IndexRegionActors(self, region)
     local payload = assert(region.payload)
     initialisePayloadActorState(payload, region)
     for layerName, roots in pairs(payload.actors) do
@@ -441,7 +397,8 @@ end
 
 ---@param actor Engine.Actor
 ---@param layer string
-function WorldGameMapActors:_registerWorldActorTree(actor, layer)
+---@param self  WorldGameMapImplState
+function WorldGameMapActors.RegisterWorldActorTree(self, actor, layer)
     self:_ensureWorldLayer(layer)
     for _, listed in ipairs(actor:collectTree()) do
         if not bool(listed:getMapTag()) then
@@ -449,7 +406,7 @@ function WorldGameMapActors:_registerWorldActorTree(actor, layer)
         end
         local tag = listed:getMapTag()
         self:_trackRuntimeTag(tag)
-        claimWorldTag(self, tag, "persisted:" .. tag, listed)
+        claimWorldTag(self._worldActorsByTag, self._worldReservedTagSources, tag, "persisted:" .. tag, listed)
         self._worldActorLayers[listed] = layer
         self._worldActorRoots[listed] = actor
     end
@@ -458,7 +415,8 @@ function WorldGameMapActors:_registerWorldActorTree(actor, layer)
 end
 
 ---@param actor Engine.Actor
-function WorldGameMapActors:_unindexWorldActorTree(actor)
+---@param self  WorldGameMapImplState
+function WorldGameMapActors.UnindexWorldActorTree(self, actor)
     for _, listed in ipairs(actor:collectTree()) do
         local tag = listed:getMapTag()
         if bool(tag) and self._worldActorsByTag[tag] == listed then
@@ -479,7 +437,8 @@ end
 ---@param actor            Engine.Actor
 ---@param layer            string
 ---@param definitionRegion string | nil
-function WorldGameMapActors:_attachRegionRoot(region, actor, layer, definitionRegion)
+---@param self             WorldGameMapImplState
+function WorldGameMapActors.AttachRegionRoot(self, region, actor, layer, definitionRegion)
     local payload = assert(region.payload, "World region is not loaded: " .. region.path)
     initialisePayloadActorState(payload, region)
     local roots = payload.actors[layer] or {}
@@ -498,7 +457,8 @@ end
 ---@param actor           Engine.Actor
 ---@param layer           string
 ---@param emitCreateEvent boolean | nil
-function WorldGameMapActors:spawnActor(actor, layer, emitCreateEvent)
+---@param self            WorldGameMapImplState
+function WorldGameMapActors.SpawnActor(self, actor, layer, emitCreateEvent)
     self:_refreshSuppressedActorTags()
     if not filterSuppressedActorTree(actor, self._worldSuppressedActorTags, self._worldSuppressedActorObjects) then
         local parent = actor:getParent()
@@ -533,7 +493,8 @@ end
 ---@param layer            string
 ---@param definitionRegion string
 ---@param emitCreateEvent  boolean | nil
-function WorldGameMapActors:spawnPersistedWorldActor(actor, layer, definitionRegion, emitCreateEvent)
+---@param self             WorldGameMapImplState
+function WorldGameMapActors.SpawnPersistedWorldActor(self, actor, layer, definitionRegion, emitCreateEvent)
     assert(bool(definitionRegion), "Persisted world Actor definition region must be a non-empty map path")
     local regionIndex = self:getSparseWorldRegionIndexAt(actor:getMapPosition())
     local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
@@ -543,7 +504,8 @@ function WorldGameMapActors:spawnPersistedWorldActor(actor, layer, definitionReg
     return self:spawnActor(actor, layer, emitCreateEvent)
 end
 
-function WorldGameMapActors:getAllActors()
+---@param self WorldGameMapImplState
+function WorldGameMapActors.GetAllActors(self)
     local actors = {}
     local seen = {}
     for _, actorList in pairs(self._actors) do
@@ -557,18 +519,21 @@ function WorldGameMapActors:getAllActors()
     return actors
 end
 
-function WorldGameMapActors:updateActorList()
-    keepPlayerAtLayerEnd(self)
+---@param self WorldGameMapImplState
+function WorldGameMapActors.UpdateActorList(self)
+    keepPlayerAtLayerEnd(self._player, self._worldActorLayers, self._actors)
     self:_syncActorViews(self._actors)
 end
 
 ---@param actor Engine.Actor
-function WorldGameMapActors:destroyActor(actor)
+---@param self  WorldGameMapImplState
+function WorldGameMapActors.DestroyActor(self, actor)
     self._worldDestroyedRootsDirty = true
     GameMap.destroyActor(self, actor)
 end
 
-function WorldGameMapActors:getActorByTag(tag)
+---@param self WorldGameMapImplState
+function WorldGameMapActors.GetActorByTag(self, tag)
     if self._worldSuppressedActorTags[tag] then
         return nil
     end
@@ -584,7 +549,8 @@ function WorldGameMapActors:getActorByTag(tag)
     return nil
 end
 
-function WorldGameMapActors:removeActorsByTags(tags)
+---@param self WorldGameMapImplState
+function WorldGameMapActors.RemoveActorsByTags(self, tags)
     if not bool(tags) then
         return
     end
@@ -593,7 +559,8 @@ function WorldGameMapActors:removeActorsByTags(tags)
     end
 end
 
-function WorldGameMapActors:getActorLayer(actor)
+---@param self WorldGameMapImplState
+function WorldGameMapActors.GetActorLayer(self, actor)
     local layer = self._worldActorLayers[actor]
     if layer ~= nil then
         return layer
@@ -603,7 +570,8 @@ end
 
 ---@param actor    Engine.Actor
 ---@param position sf.Vector2i | nil
-function WorldGameMapActors:recordWorldActorPosition(actor, position)
+---@param self     WorldGameMapImplState
+function WorldGameMapActors.RecordWorldActorPosition(self, actor, position)
     position = position or actor:getMapPosition()
     local root = self._worldActorRoots[actor] or actor
     local regionIndex = self:getSparseWorldRegionIndexAt(position)
@@ -614,7 +582,8 @@ end
 ---@param actor             Engine.Actor
 ---@param currentRegionPath string
 ---@param position          sf.Vector2i
-function WorldGameMapActors:_recordWorldRootPosition(actor, currentRegionPath, position)
+---@param self              WorldGameMapImplState
+function WorldGameMapActors.RecordWorldRootPosition(self, actor, currentRegionPath, position)
     local definitionRegion = self._worldActorDefinitionRegions[actor]
     if definitionRegion ~= nil then
         local actorTag = actor:getMapTag()
@@ -631,7 +600,8 @@ end
 
 ---@param root     Engine.Actor
 ---@param position sf.Vector2i | nil
-function WorldGameMapActors:_rememberWorldRootPosition(root, position)
+---@param self     WorldGameMapImplState
+function WorldGameMapActors.RememberWorldRootPosition(self, root, position)
     position = position or root:getMapPosition()
     local observed = self._worldObservedRootPositions[root]
     if observed == nil then
@@ -645,7 +615,8 @@ end
 
 ---@param root Engine.Actor
 ---@return sf.Vector2i | nil
-function WorldGameMapActors:_getChangedWorldRootPosition(root)
+---@param self WorldGameMapImplState
+function WorldGameMapActors.GetChangedWorldRootPosition(self, root)
     local position = root:getMapPosition()
     local observed = self._worldObservedRootPositions[root]
     if observed == nil then
@@ -662,7 +633,8 @@ end
 ---@param layerName    string
 ---@param visibleRect? Global.WorldGeometry.CellRect
 ---@return boolean
-function WorldGameMapActors:_isWorldActorLayerVisible(actor, layerName, visibleRect)
+---@param self         WorldGameMapImplState
+function WorldGameMapActors.IsWorldActorLayerVisible(self, actor, layerName, visibleRect)
     local root = self._worldActorRoots[actor] or actor
     ---@type Source.SceneComponents.WorldRegionData | nil
     local region = self._worldActorRegions[root]
@@ -690,43 +662,91 @@ end
 
 ---@param roots Engine.Actor[]
 ---@param root  Engine.Actor
----@diagnostic disable-next-line: unused
-function WorldGameMapActors:_removeWorldRoot(roots, root)
+function WorldGameMapActors.RemoveWorldRoot(roots, root)
     removeRoot(roots, root)
 end
 
 ---@param roots Engine.Actor[]
 ---@param root  Engine.Actor
----@diagnostic disable-next-line: unused
-function WorldGameMapActors:_appendWorldActorOnce(roots, root)
+function WorldGameMapActors.AppendWorldActorOnce(roots, root)
     appendActorOnce(roots, root)
 end
 
 ---@param root Engine.Actor
-function WorldGameMapActors:_sleepWorldRoot(root)
-    sleepRoots(self, { root })
+---@param self WorldGameMapImplState
+function WorldGameMapActors.SleepWorldRoot(self, root)
+    self:_sleepWorldRoots({ root })
 end
 
 ---@param roots Engine.Actor[]
-function WorldGameMapActors:_sleepWorldRoots(roots)
-    sleepRoots(self, roots)
+---@param self  WorldGameMapImplState
+function WorldGameMapActors.SleepWorldRoots(self, roots)
+    local sleeping = {}
+    local sleepTime = perfCounter()
+    for _, root in ipairs(roots) do
+        if self._worldRootStates[root] == "Active" then
+            sleeping[#sleeping + 1] = root
+            self._worldRootStates[root] = "Dormant"
+            self._worldRootSleepTimes[root] = sleepTime
+        end
+    end
+    if not bool(sleeping) then
+        return
+    end
+    if removeRootsFromLiveActors(self._actors, sleeping) then
+        self:updateActorList()
+        self._materialDirty = true
+    end
+    for _, root in ipairs(sleeping) do
+        for _, actor in ipairs(root:collectTree()) do
+            if not actor:isDestroyed() then
+                Actor.BlueprintEvent(actor, Actor, "onWorldSleep")
+            end
+        end
+    end
 end
 
 ---@param roots Engine.Actor[]
-function WorldGameMapActors:_activateWorldRoots(roots)
-    activateRoots(self, roots)
+---@param self  WorldGameMapImplState
+function WorldGameMapActors.ActivateWorldRoots(self, roots)
+    if not bool(roots) then
+        return
+    end
+    local waking = {}
+    self:beginActorBatch()
+    for _, root in ipairs(roots) do
+        local wasDormant = self._worldRootStates[root] == "Dormant"
+        if self._worldRootStates[root] ~= "Active" and not root:isDestroyed() then
+            self:_addActorTreeToLayer(root, self._worldActorLayers[root])
+            if wasDormant then
+                waking[#waking + 1] = root
+            end
+            self._worldRootStates[root] = "Active"
+        end
+    end
+    self:endActorBatch()
+    self:initialiseActorsAndComponents()
+    local wakeTime = perfCounter()
+    for _, root in ipairs(waking) do
+        local elapsedSeconds = math.max(0.0, wakeTime - (self._worldRootSleepTimes[root] or wakeTime))
+        for _, actor in ipairs(root:collectTree()) do
+            if not actor:isDestroyed() then
+                Actor.BlueprintEvent(actor, Actor, "onWorldWake", { elapsedSeconds = elapsedSeconds })
+            end
+        end
+        self._worldRootSleepTimes[root] = nil
+    end
 end
 
 ---@param payload Global.WorldGameMap.RegionPayload
 ---@param root    Engine.Actor
-function WorldGameMapActors:_removeRegionRootMetadata(payload, root)
-    removeRegionRootMetadata(self, payload, root)
+function WorldGameMapActors.RemoveRegionRootMetadata(payload, root)
+    removeRegionRootMetadata(payload, root)
 end
 
 ---@param payload Global.WorldGameMap.RegionPayload
 ---@param region  Source.SceneComponents.WorldRegionData
----@diagnostic disable-next-line: unused
-function WorldGameMapActors:_initialiseRegionActorPayload(payload, region)
+function WorldGameMapActors.InitialiseRegionActorPayload(payload, region)
     initialisePayloadActorState(payload, region)
 end
 

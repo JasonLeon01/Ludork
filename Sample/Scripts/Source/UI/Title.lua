@@ -18,34 +18,43 @@ function SceneTitleUI:bind()
         {
             localeKey = "TITLE_START",
             callback = function ()
-                self.model:_startGame()
+                self.model:startGame()
             end
         },
         {
             localeKey = "TITLE_CONTINUE",
             callback = function ()
-                self.model:_onLoadCommand()
+                self.model:openLoad()
             end
         },
         {
             localeKey = "TITLE_CONFIG",
             callback = function ()
-                self.model:_onConfigCommand()
+                self.model:toggleConfig()
             end
         },
         {
             localeKey = "TITLE_EXIT",
             callback = function ()
-                self.model:_exitGame()
+                self.model:exitGame()
             end
         }
     }
-    self._windowCommand = WindowCommand.new(Engine.ToIntRect(192, 240, 256, 160), self._commandModels, 224, 32, nil, nil, 1, {
-        windowFrame = self._commandWindowFrame,
-        content = self._commandContent,
-        scrollBox = self._commandScrollBox,
-        listView = self._commandList
-    })
+    self._windowCommand = WindowCommand.new(
+        Engine.ToIntRect(192, 240, 256, 160),
+        self._commandModels,
+        224,
+        32,
+        nil,
+        nil,
+        1,
+        {
+            windowFrame = self._commandWindowFrame,
+            content = self._commandContent,
+            scrollBox = self._commandScrollBox,
+            listView = self._commandList
+        }
+    )
 end
 
 function SceneTitleUI:refresh()

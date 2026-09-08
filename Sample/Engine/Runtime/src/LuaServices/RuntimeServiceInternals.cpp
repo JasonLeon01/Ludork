@@ -1,9 +1,11 @@
 #include "RuntimeServiceInternals.hpp"
 
 #include "RuntimeBindingTraits.hpp"
+#include "RuntimeClassIdentity.hpp"
+#include "Metadata/ConfigVarReferences.hpp"
 #include <ClassServices.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
-#include <Runtime/MetadataRuntime.hpp>
+#include <Runtime/RuntimeValue.hpp>
 
 #include <sol2/sol.hpp>
 
@@ -35,13 +37,6 @@ constexpr const char* CLASS_TYPE_METADATA_CACHE_KEY =
     "Ludork.Runtime.classTypeMetadataCache";
 constexpr const char* ATTR_METADATA_CACHE_KEY =
     "Ludork.Runtime.attrMetadataCache";
-
-struct RuntimeClassIdentity {
-    sol::table descriptor;
-    std::string module;
-    std::string type;
-    bool direct = false;
-};
 
 RuntimeClassIdentity classIdentityFromDescriptor(const sol::table& descriptor) {
     const sol::object rawModule = descriptor.raw_get<sol::object>("module");
@@ -336,7 +331,7 @@ std::pair<sol::object, sol::object> resolveRuntimeConfigVar(
             continue;
         }
         const RuntimeValue::Map references =
-            metadataRuntime().configVars(metaIterator->toValue());
+            parseConfigVarReferences(metaIterator->toValue());
         const auto iterator = references.find(name);
         if (iterator == references.end()) {
             continue;
@@ -664,7 +659,6 @@ void clearRuntimeCaches(sol::state_view lua) {
     lua.registry().raw_set(CLASS_IDENTITY_CACHE_KEY, sol::lua_nil);
     lua.registry().raw_set(CLASS_TYPE_METADATA_CACHE_KEY, sol::lua_nil);
     lua.registry().raw_set(ATTR_METADATA_CACHE_KEY, sol::lua_nil);
-    clearRuntimeCommonCaches(lua);
 }
 
 sol::object resolveRuntimeAttrValueType(sol::state_view lua,

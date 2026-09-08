@@ -13,7 +13,6 @@ function WindowShopItem:init(rect, owner, instance)
     self:setHasReturnBtn(true)
     self._owner = owner
     self._itemIDs = {}
-    self._cellAvailable = {}
     self._lastDetailIndex = nil
     self._ui = self.uiClass.new(self, rect.size, instance)
     self._ui:attach(instance ~= nil)
@@ -76,10 +75,11 @@ function WindowShopItem:getCurrentItemID()
 end
 
 function WindowShopItem:isCurrentAvailable()
-    if self.index == nil or self.index >= #self._cellAvailable then
-        return false
-    end
-    return self._cellAvailable[self.index + 1]
+    return self._ui:isItemAvailable(self.index)
+end
+
+function WindowShopItem:confirmItem()
+    self._owner:confirmItem()
 end
 
 function WindowShopItem:onReturn()

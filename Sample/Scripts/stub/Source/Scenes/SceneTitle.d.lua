@@ -19,8 +19,12 @@ function Scene:onQuit() end
 ---@brief Ensure title BGM is stopped when scene is destroyed.
 function Scene:onDestroy() end
 
-function Scene:_startGame() end
+function Scene:startGame() end
 
-function Scene:_exitGame() end
+function Scene:exitGame() end
+
+function Scene:openLoad() end
+
+function Scene:toggleConfig() end
 
 return Scene

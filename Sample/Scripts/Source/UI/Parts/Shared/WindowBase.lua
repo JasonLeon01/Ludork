@@ -2,7 +2,9 @@ local Ui = require("Source.UI.Ui")
 
 local WindowBaseUI = {}
 
-function WindowBaseUI:init(model, windowSkin, repeated)
+function WindowBaseUI:init(model, windowSkin, repeated, pauseMarkAtlasRect, pauseMarkFrameRect)
+    self._pauseMarkAtlasRect = pauseMarkAtlasRect
+    self._pauseMarkFrameRect = pauseMarkFrameRect
     self._windowSkin = windowSkin
     if repeated == nil then
         repeated = false
@@ -17,10 +19,10 @@ function WindowBaseUI:bind()
     self._returnButton = self:requireControl("ReturnButton")
     self._pauseMark = self:requireControl("PauseMark")
     self._window:setWindowSkin(self._windowSkin, self._repeated)
-    self._pauseMarkTexture = sf.Texture.new(self._windowSkin, false, self.model._PAUSE_MARK_ATLAS_RECT)
+    self._pauseMarkTexture = sf.Texture.new(self._windowSkin, false, self._pauseMarkAtlasRect)
     self._pauseMarkTexture:setSmooth(false)
     self._pauseMark:setTexture(self._pauseMarkTexture, true)
-    self._pauseMark:setTextureRect(self.model._PAUSE_MARK_FRAME_RECTS[1])
+    self._pauseMark:setTextureRect(self._pauseMarkFrameRect)
     self._pauseMark:setVisible(false)
     self._returnButton:setVisible(false)
     self._returnButton:setActive(false)
@@ -28,8 +30,16 @@ end
 
 function WindowBaseUI:attachTo(parent, logicalSize)
     self:prepare(logicalSize)
-    parent:addChild(self.root)
-    parent:_setUiController(self)
+    parent:attachPreparedView(self, {
+        root = self.root,
+        windowFrame = self._window,
+        content = self._content,
+        chromeRoot = self._content,
+        returnButton = self._returnButton,
+        pauseMark = self._pauseMark,
+        pauseMarkTexture = self._pauseMarkTexture,
+        nested = false
+    })
 end
 
 function WindowBaseUI:getWindow()

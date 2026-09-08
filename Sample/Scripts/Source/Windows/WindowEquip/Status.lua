@@ -8,9 +8,6 @@ WindowEquipStatus.uiClass = WindowEquipStatusUI
 
 function WindowEquipStatus:init(rect, player, instance)
     super(WindowEquipStatus, self).init(rect, nil, nil, instance ~= nil)
-    self._player = player
-    self._slotKey = ""
-    self._changeTexts = {}
     local statusInstance = nil
     if instance ~= nil then
         local paneUI = WindowEquipStatusPaneUI.new(self, instance)
@@ -18,14 +15,13 @@ function WindowEquipStatus:init(rect, player, instance)
         paneUI:attach()
         statusInstance = paneUI:getStatusAsset()
     end
-    self._statusUI = self.uiClass.new(self, statusInstance)
+    self._statusUI = self.uiClass.new(self, statusInstance, player)
     self._statusUI:attach(statusInstance ~= nil)
     self:setActive(false)
     self:setVisible(false)
 end
 
 function WindowEquipStatus:setPlayer(player)
-    self._player = player
     self._statusUI:setPlayer(player)
 end
 

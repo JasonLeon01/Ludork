@@ -1,6 +1,8 @@
 ---@meta Source.UI.Parts.WindowShop.WindowShopItem
 
 ---@class Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI: Source.UI.UiController
+---@field _cellAvailable boolean[]
+---@field _listView      Engine.ListView
 local WindowShopItemUI = {}
 
 ---@return Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI
@@ -34,5 +36,9 @@ function WindowShopItemUI:getScrollBox() end
 ---@param valueMap     table
 ---@param showValues   boolean
 function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap, showValues) end
+
+---@param index integer | nil
+---@return boolean
+function WindowShopItemUI:isItemAvailable(index) end
 
 return WindowShopItemUI

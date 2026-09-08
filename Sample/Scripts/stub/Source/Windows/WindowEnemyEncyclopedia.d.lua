@@ -3,9 +3,6 @@
 ---@field new              fun(rect: sf.IntRect, onClose?: function): Source.Windows.WindowEnemyEncyclopedia
 ---@field uiClass          Source.UI.WindowEnemyEncyclopedia
 ---@field _onCloseCallback function | nil
----@field _portrait        Engine.CharacterView | nil
----@field _nameText        Engine.FunctionalPlainText | nil
----@field _infoTexts       Engine.FunctionalPlainText[]
 ---@field _ui              Source.UI.WindowEnemyEncyclopedia
 local WindowEnemyEncyclopedia = {}
 

@@ -63,7 +63,7 @@ function WindowSelectable:getListView() end
 function WindowSelectable:getScrollBox() end
 
 ---@brief Detach the selection rectangle from its current content or ScrollBox parent.
-function WindowSelectable:_detachSelectionRect() end
+function WindowSelectable:detachSelectionRect() end
 
 ---@param scrollBox Engine.ScrollBox
 function WindowSelectable:setScrollBox(scrollBox) end
@@ -135,10 +135,10 @@ function WindowSelectable:onDirectionalKey(direction) end
 function WindowSelectable:_getRectPositionForIndex(index) end
 
 ---@return integer
-function WindowSelectable:_getRectWidth() end
+function WindowSelectable:getItemWidth() end
 
 ---@param item Engine.ControlBase
-function WindowSelectable:_applyItem(item) end
+function WindowSelectable:applyItem(item) end
 
 ---@param position sf.Vector2f
 ---@return boolean
@@ -167,5 +167,10 @@ function WindowSelectable:onPointerInteractionReset() end
 ---@brief Pause or resume every parent-list input path while a child owns input.
 ---@param paused boolean
 function WindowSelectable:_setSelectionInputPaused(paused) end
+
+function WindowSelectable:hideSelectionCursor() end
+
+---@param index integer | nil
+function WindowSelectable:selectIndex(index) end
 
 return WindowSelectable

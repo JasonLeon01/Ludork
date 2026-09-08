@@ -1,5 +1,5 @@
 local GlobalCore = require("GlobalCore")
-local PlayerFunctions = require("Source.NodeFunctions.Player")
+local Player = require("Source.Player")
 local System = require("Source.System")
 
 local AudioManager = GlobalCore.AudioManager
@@ -29,12 +29,16 @@ function Pickup.HandleCollision(actor, other, parentCollision, applyPickup)
     if actor:isDestroyed() then
         return
     end
-    local player = PlayerFunctions.MeetPlayer(other)
+    local gameMap = actor:getMap()
+    if gameMap == nil then
+        return
+    end
+    local player = Player.MeetPlayer(other, gameMap:getPlayer())
     if player == nil then
         return
     end
-    local scene = actor:getMap():getScene()
-    local inst = scene.inst
+    local scene = gameMap:getScene()
+    local inst = scene:getGameInstance()
     playPickupSound(actor)
     applyPickup(player, inst, scene)
     parentCollision(other)

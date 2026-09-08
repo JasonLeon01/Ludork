@@ -14,14 +14,15 @@ local DEFAULT_LISTENER_DIRECTION = sf.Vector3f.new(0.0, 0.0, -1.0)
 local CHARACTER_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 0.0, -1.0)
 local DEFAULT_LISTENER_UP_VECTOR = sf.Vector3f.new(0.0, 1.0, 0.0)
 
----@type GameMapImplState
 local GameMapPresentation = {}
 
-function GameMapPresentation:getPlayer()
+---@param self GameMapImplState
+function GameMapPresentation.GetPlayer(self)
     return self._player
 end
 
-function GameMapPresentation:setPlayer(player)
+---@param self GameMapImplState
+function GameMapPresentation.SetPlayer(self, player)
     if self._camera == nil then
         return
     end
@@ -33,7 +34,8 @@ function GameMapPresentation:setPlayer(player)
     self:_updateAudioListener()
 end
 
-function GameMapPresentation:worldToMapViewPosition(position)
+---@param self GameMapImplState
+function GameMapPresentation.WorldToMapViewPosition(self, position)
     local camera = self:getCamera()
     if camera == nil then
         return copy(position)
@@ -45,19 +47,22 @@ function GameMapPresentation:worldToMapViewPosition(position)
     return sf.Vector2f.new(position.x - viewPosition.x, position.y - viewPosition.y)
 end
 
-function GameMapPresentation:worldToUIScreenPosition(position)
+---@param self GameMapImplState
+function GameMapPresentation.WorldToUIScreenPosition(self, position)
     local mapPosition = self:worldToMapViewPosition(position)
     local mapViewPosition = self._mapViewRect.position
     return sf.Vector2f.new(mapPosition.x + mapViewPosition.x, mapPosition.y + mapViewPosition.y)
 end
 
-function GameMapPresentation:worldToCanvasPosition(position)
+---@param self GameMapImplState
+function GameMapPresentation.WorldToCanvasPosition(self, position)
     local uiPosition = self:worldToUIScreenPosition(position)
     local scale = System.getScale()
     return sf.Vector2f.new(uiPosition.x * scale, uiPosition.y * scale)
 end
 
-function GameMapPresentation:_updateAudioListener()
+---@param self GameMapImplState
+function GameMapPresentation.UpdateAudioListener(self)
     if self._player == nil then
         return
     end
@@ -83,7 +88,8 @@ end
 ---@param direction integer
 ---@return sf.Vector3f
 ---@diagnostic disable-next-line: unused
-function GameMapPresentation:_getAudioListenerDirection(direction)
+---@param self      GameMapImplState
+function GameMapPresentation.GetAudioListenerDirection(self, direction)
     if direction == Engine.Direction.UP then
         return LISTENER_DIRECTION_UP
     elseif direction == Engine.Direction.LEFT then

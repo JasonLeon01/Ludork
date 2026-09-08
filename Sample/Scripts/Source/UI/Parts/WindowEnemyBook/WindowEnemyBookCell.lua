@@ -1,11 +1,11 @@
 local Engine = require("Engine")
 local Locale = require("Source.Locale.Core")
-local NodeUtils = require("Source.NodeFunctions.Utils")
+local NumberFormat = require("Source.Utils.NumberFormat")
 local Ui = require("Source.UI.Ui")
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
-local ToShortNumber = NodeUtils.ToShortNumber
+local ToShortNumber = NumberFormat.ToShortNumber
 local TextLayout = Engine.TextLayout
 
 local _CELL_WIDTH = 320

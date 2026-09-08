@@ -11,7 +11,7 @@ function Battler:init(attributes) end
 ---@return GlobalCore.AbilitySystemComponent
 function Battler:getAbilitySystemComponent() end
 
----@param scene          Source.Scenes.SceneMap.SceneMap
+---@param scene          GlobalCore.SceneBase
 ---@param targetPosition sf.Vector2f
 ---@return number
 function Battler:playAttackAnimationAt(scene, targetPosition) end

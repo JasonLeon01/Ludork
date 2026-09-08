@@ -35,4 +35,9 @@ function WindowFloorMapCommand:onTick(deltaTime) end
 
 function WindowFloorMapCommand:onReturn() end
 
+function WindowFloorMapCommand:activateTelepointSelector() end
+
+---@param index integer | nil
+function WindowFloorMapCommand:notifyMapIndexMaybeChanged(index) end
+
 return WindowFloorMapCommand

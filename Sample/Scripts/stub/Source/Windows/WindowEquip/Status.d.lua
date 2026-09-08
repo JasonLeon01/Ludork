@@ -1,13 +1,8 @@
 ---@meta Source.Windows.WindowEquip.Status
 
 ---@class Source.Windows.WindowEquipStatus: Source.Windows.Base.WindowBase
----@field new           fun(rect: sf.IntRect, player: Source.Player.Player, instance?: Engine.AssetInstance): Source.Windows.WindowEquipStatus
----@field _player       Source.Player.Player
----@field _slotKey      string
----@field _changeTexts  Engine.PlainText[]
----@field _descNameText Engine.PlainText
----@field _descText     Engine.PlainText
----@field _statusUI     Source.UI.Parts.WindowEquip.WindowEquipStatus
+---@field new       fun(rect: sf.IntRect, player: Source.Player.Player, instance?: Engine.AssetInstance): Source.Windows.WindowEquipStatus
+---@field _statusUI Source.UI.Parts.WindowEquip.WindowEquipStatus
 local WindowEquipStatus = {}
 
 ---@brief Construct the equipment status window.

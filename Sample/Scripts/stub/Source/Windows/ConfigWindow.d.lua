@@ -180,13 +180,13 @@ function ConfigWindow:onKeyDown(kwargs) end
 function ConfigWindow:onDirectionalKey(direction) end
 
 ---@return boolean
-function ConfigWindow:_handleTabNavigation() end
+function ConfigWindow:handleTabNavigation() end
 
 ---@param tabIndex integer
-function ConfigWindow:_onTabSelected(tabIndex) end
+function ConfigWindow:selectTab(tabIndex) end
 
 ---@param expanded boolean
-function ConfigWindow:_onDropBoxExpandedChanged(expanded) end
+function ConfigWindow:onDropBoxExpandedChanged(expanded) end
 
 ---@return number
 function ConfigWindow:_getMaxScrollOriginY() end

@@ -4,6 +4,9 @@ local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
+local RegionDict = require("Source.Configs.RegionDict")
+local GameplayScene = require("Source.Gameplay.GameplayScene")
+local Teleporter = require("Source.Teleporter")
 local MapPath = require("Source.MapPath")
 local SceneMapInteractions = require("Source.Scenes.SceneMap.Interactions")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
@@ -27,7 +30,6 @@ local Direction = Engine.FocusDirection
 local FocusGroup = GlobalCore.FocusGroup
 local FocusNeighbor = GlobalCore.FocusNeighbor
 local FocusTransition = GlobalCore.FocusTransition
-local SceneBase = GlobalCore.SceneBase
 local GlobalSystem = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
 
@@ -61,10 +63,8 @@ local function interpolateColour(from, to, alpha)
     )
 end
 
----@class (partial) Source.Scenes.SceneMap.SceneMap: GlobalCore.SceneBase
+---@class (partial) Source.Scenes.SceneMap.SceneMap: Source.Gameplay.GameplayScene
 local Scene = {}
-
----@alias SceneMapInteractionsState Source.Scenes.SceneMap.SceneMap
 
 ---@diagnostic disable-next-line: unused
 function Scene:onEnter()
@@ -72,10 +72,13 @@ function Scene:onEnter()
 end
 
 function Scene:setInst(inst)
+    self._gameOverRequest = nil
     self.inst = inst
 end
 
 function Scene:onCreate()
+    self._gameplayRequestsActive = true
+    self._gameOverRequest = nil
     local uiManager = assert(self:getUIManager(), "Scene map UI manager is unavailable")
     uiManager:setFocusNavigationEnabled(true)
     self.player = self.inst:getPlayer()
@@ -175,7 +178,7 @@ function Scene:onCreate()
     self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
         local scene = sceneRef[1]
         if scene ~= nil then
-            scene:_refreshMapUiLocale()
+            scene:refreshLocale()
         end
     end)
 
@@ -193,7 +196,7 @@ function Scene:onCreate()
     self._worldAmbientStartColour = nil
     self._worldAmbientTargetColour = nil
     self._worldAmbientTransitionElapsed = 0
-    local startMap = self.inst._cachedMap or GameSystem.GetStartMap()
+    local startMap = self.inst:getCurrentMapPath() or GameSystem.GetStartMap()
     self:gotoMapAndPos(startMap, nil, true)
 end
 
@@ -241,6 +244,8 @@ function Scene:onQuit()
 end
 
 function Scene:onDestroy()
+    self._gameplayRequestsActive = false
+    self._gameOverRequest = nil
     if self._gameMap ~= nil then
         self._gameMap:disposeStreaming()
     end
@@ -265,7 +270,7 @@ function Scene:onDestroy()
     self._regionTitleUI:dispose()
 end
 
-function Scene:_refreshMapUiLocale()
+function Scene:refreshLocale()
     if self._dialogueLocaleSource ~= nil and self._messageWindow:isInDialogue() then
         if self._dialogueLocaleSource.kind == "selection" then
             ---@cast self._dialogueLocaleSource Source.Scenes.SceneMap.DialogueSelectionLocaleSource
@@ -301,40 +306,20 @@ function Scene:onInput()
     local HotKey = require("Source.Configs.HotKey")
 
     for key, hotKeyConfig in pairs(HotKey) do
-        local sceneType = hotKeyConfig.Scene
-        if Class.isInstance(self, sceneType) then
-            local casual = bool(hotKeyConfig.Filter) and table.contains(hotKeyConfig.Filter, "casual")
-            if casual then
-                local functionWhenPressed = hotKeyConfig.FunctionWhenPressed
-                if Scene.IsHotKeySceneMethod(sceneType, functionWhenPressed) and Input.getKeyPressed(key, false) then
-                    functionWhenPressed(self)
-                    Input.getKeyPressed(key, true)
-                end
-                local functionWhenReleased = hotKeyConfig.FunctionWhenReleased
-                if Scene.IsHotKeySceneMethod(sceneType, functionWhenReleased) and Input.getKeyReleased(key, false) then
-                    functionWhenReleased(self)
-                    Input.getKeyReleased(key, true)
-                end
+        if Class.isInstance(self, hotKeyConfig.Scene) and hotKeyConfig.Filter ~= nil
+            and table.contains(hotKeyConfig.Filter, "casual") then
+            local functionWhenPressed = hotKeyConfig.FunctionWhenPressed
+            if functionWhenPressed ~= nil and Input.getKeyPressed(key, false) then
+                functionWhenPressed(self)
+                Input.getKeyPressed(key, true)
+            end
+            local functionWhenReleased = hotKeyConfig.FunctionWhenReleased
+            if functionWhenReleased ~= nil and Input.getKeyReleased(key, false) then
+                functionWhenReleased(self)
+                Input.getKeyReleased(key, true)
             end
         end
     end
-end
-
----@param sceneType Class.ClassType<any>
----@param function_ function | nil
----@return boolean
-function Scene.IsHotKeySceneMethod(sceneType, function_)
-    if not bool(function_) then
-        return false
-    end
-    for _, classType in ipairs(Class.getMro(sceneType)) do
-        for _, value in pairs(classType) do
-            if value == function_ then
-                return true
-            end
-        end
-    end
-    return false
 end
 
 function Scene:onTick(deltaTime)
@@ -389,6 +374,7 @@ function Scene:loadMap(mapPath, initialPosition)
     if self._gameMap ~= nil then
         self._gameMap:disposeStreaming()
     end
+    self._gameOverRequest = nil
     self._gameMap = gameMap
     gameMap:setScene(self)
     if not gameMap:isWorldMap() then
@@ -585,7 +571,7 @@ end
 
 ---@return string
 function Scene:_getCurrentRegionMap()
-    return self._cachedMapFile or self.inst._cachedMap or GameSystem.GetStartMap()
+    return self._cachedMapFile or self.inst:getCurrentMapPath() or GameSystem.GetStartMap()
 end
 
 ---@param mapFile string
@@ -604,9 +590,6 @@ end
 ---@param mapFile string
 ---@return string | nil
 function Scene.FindRegionForMap(mapFile)
-    ---@type table<string, string[]>
-    local RegionDict = require("Source.Configs.RegionDict")
-
     local currentName = Scene.NormaliseRegionMapName(mapFile)
     local currentBaseName = os.path.basename(currentName)
     for region, regionMaps in pairs(RegionDict) do
@@ -640,73 +623,145 @@ function Scene:_updateRegionTitle(deltaTime)
 end
 
 function Scene:getGameMap()
-    return SceneMapInteractions.getGameMap(self)
+    return SceneMapInteractions.GetGameMap(self)
+end
+
+function Scene:getGameInstance()
+    return self.inst
+end
+
+function Scene:requestFloorStep(teleporter, step)
+    assert(step == 1 or step == -1, "Floor transfer step must be 1 or -1")
+    if not self._gameplayRequestsActive or GlobalSystem.getScene() ~= self or self._mapTransferInProgress
+        or self._pendingFloorTransfer ~= nil or self._pendingWorldTransfer ~= nil or self._gameMap == nil
+        or teleporter:isDestroyed() or teleporter:getMap() ~= self._gameMap then
+        return false
+    end
+    local player = self._gameMap:getPlayer()
+    if player == nil or not bool(self._cachedMapFile) then
+        return false
+    end
+    ---@cast self._cachedMapFile string
+    local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
+    local currentIndex = Teleporter.FindCurrentMapIndex(regionMaps, self._cachedMapFile)
+    if currentIndex == nil then
+        return false
+    end
+    local targetIndex = currentIndex + step
+    if targetIndex < 1 or targetIndex > #regionMaps then
+        return false
+    end
+    local targetMapKey = regionMaps[targetIndex]
+    ---@cast targetMapKey string
+    local anchorPosition = teleporter:getTeleportPosition()
+    local targetMap = self:resolveRegionMapPath(targetMapKey)
+    local moveEnabled = player:getMoveEnabled()
+    player:setMoveEnabled(false)
+    if not self:requestFloorTransfer(targetMap, anchorPosition, moveEnabled) then
+        player:setMoveEnabled(moveEnabled)
+        return false
+    end
+    local sourceTelepoint = sf.Vector2u.new(anchorPosition.x, anchorPosition.y)
+    ---@cast sourceTelepoint sf.Vector2u
+    self.inst:recordTelepoint(self._cachedMapFile, sourceTelepoint, teleporter:getMapTag())
+    GlobalCore.AudioManager.playSound(teleporter.stairSE)
+    return true
+end
+
+function Scene:requestGameOver(player, delay)
+    assert(math.isFinite(delay) and delay >= 0, "Game over delay must be finite and non-negative")
+    if not self._gameplayRequestsActive or GlobalSystem.getScene() ~= self
+        or self._gameMap == nil or player ~= self.player
+        or self._gameMap:getPlayer() ~= player or player:isDestroyed()
+        or player:getMap() ~= self._gameMap or self._gameOverRequest ~= nil then
+        return
+    end
+    local request = { player = player, gameMap = self._gameMap }
+    self._gameOverRequest = request
+    local function finishGameOver()
+        if not self._gameplayRequestsActive or self._gameOverRequest ~= request
+            or GlobalSystem.getScene() ~= self or self.player ~= request.player
+            or self._gameMap ~= request.gameMap or request.gameMap:getPlayer() ~= request.player
+            or request.player:isDestroyed() or request.player:getMap() ~= request.gameMap then
+            return
+        end
+        local SceneGameOver = require("Source.Scenes.SceneGameOver")
+
+        self._gameplayRequestsActive = false
+        self._gameOverRequest = nil
+        GlobalSystem.setScene(SceneGameOver.new())
+    end
+    if delay == 0 then
+        finishGameOver()
+    else
+        self:addTimer(delay, finishGameOver)
+    end
 end
 
 function Scene:showMessage(name, message, refActor, localeArgs)
-    return SceneMapInteractions.showMessage(self, name, message, refActor, localeArgs)
+    return SceneMapInteractions.ShowMessage(self, name, message, refActor, localeArgs)
 end
 
 function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
-    return SceneMapInteractions.showSelection(self, name, options, refActor, allowCancel, localeArgs)
+    return SceneMapInteractions.ShowSelection(self, name, options, refActor, allowCancel, localeArgs)
 end
 
 function Scene:applyLoadedGame(inst)
-    return SceneMapInteractions.applyLoadedGame(self, inst)
+    return SceneMapInteractions.ApplyLoadedGame(self, inst)
 end
 
 function Scene:_rebindPlayerToUI()
-    return SceneMapInteractions._rebindPlayerToUI(self)
+    return SceneMapInteractions.RebindPlayerToUI(self)
 end
 
 function Scene:showEnemyBook()
-    return SceneMapInteractions.showEnemyBook(self)
+    return SceneMapInteractions.ShowEnemyBook(self)
 end
 
 function Scene:showFloorTeleporter()
-    return SceneMapInteractions.showFloorTeleporter(self)
+    return SceneMapInteractions.ShowFloorTeleporter(self)
 end
 
 function Scene:openMenu()
-    return SceneMapInteractions.openMenu(self)
+    return SceneMapInteractions.OpenMenu(self)
 end
 
 function Scene:openShop(buyItemIDs, canSell)
-    return SceneMapInteractions.openShop(self, buyItemIDs, canSell)
+    return SceneMapInteractions.OpenShop(self, buyItemIDs, canSell)
 end
 
 function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
-    return SceneMapInteractions.openAttrShop(
+    return SceneMapInteractions.OpenAttrShop(
         self, actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName
     )
 end
 
 function Scene:_onShopClose()
-    return SceneMapInteractions._onShopClose(self)
+    return SceneMapInteractions.OnShopClose(self)
 end
 
 function Scene:_onAttrShopClose()
-    return SceneMapInteractions._onAttrShopClose(self)
+    return SceneMapInteractions.OnAttrShopClose(self)
 end
 
 function Scene:_onEnemyBookClose()
-    return SceneMapInteractions._onEnemyBookClose(self)
+    return SceneMapInteractions.OnEnemyBookClose(self)
 end
 
 function Scene:_onEnemyBookConfirm(entry)
-    return SceneMapInteractions._onEnemyBookConfirm(self, entry)
+    return SceneMapInteractions.OnEnemyBookConfirm(self, entry)
 end
 
 function Scene:_onEnemyEncyclopediaClose()
-    return SceneMapInteractions._onEnemyEncyclopediaClose(self)
+    return SceneMapInteractions.OnEnemyEncyclopediaClose(self)
 end
 
 function Scene:_onFloorTeleporterClose()
-    return SceneMapInteractions._onFloorTeleporterClose(self)
+    return SceneMapInteractions.OnFloorTeleporterClose(self)
 end
 
 function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
-    return SceneMapInteractions._onFloorTeleporterConfirm(self, mapKey, telepoint)
+    return SceneMapInteractions.OnFloorTeleporterConfirm(self, mapKey, telepoint)
 end
 
 function Scene.GetShopRects()
@@ -738,87 +793,87 @@ function Scene.GetEnemyEncyclopediaRect()
 end
 
 function Scene:_canRestoreMoveAfterMenuClose()
-    return SceneMapInteractions._canRestoreMoveAfterMenuClose(self)
+    return SceneMapInteractions.CanRestoreMoveAfterMenuClose(self)
 end
 
 function Scene:_hasVisibleBlockingWindow()
-    return SceneMapInteractions._hasVisibleBlockingWindow(self)
+    return SceneMapInteractions.HasVisibleBlockingWindow(self)
 end
 
 function Scene:_blockMapInput(frames)
-    return SceneMapInteractions._blockMapInput(self, frames)
+    return SceneMapInteractions.BlockMapInput(self, frames)
 end
 
 function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled)
-    return SceneMapInteractions.requestFloorTransfer(self, targetMap, anchorPos, moveEnabled)
+    return SceneMapInteractions.RequestFloorTransfer(self, targetMap, anchorPos, moveEnabled)
 end
 
 function Scene:_processPendingFloorTransfer()
-    return SceneMapInteractions._processPendingFloorTransfer(self)
+    return SceneMapInteractions.ProcessPendingFloorTransfer(self)
 end
 
 function Scene:_cancelFloorTransfer(moveEnabled)
-    return SceneMapInteractions._cancelFloorTransfer(self, moveEnabled)
+    return SceneMapInteractions.CancelFloorTransfer(self, moveEnabled)
 end
 
 function Scene:_applyMapDestination(targetMap, targetPosition, blockTransition)
-    return SceneMapInteractions._applyMapDestination(self, targetMap, targetPosition, blockTransition)
+    return SceneMapInteractions.ApplyMapDestination(self, targetMap, targetPosition, blockTransition)
 end
 
 function Scene:_queueWorldTransfer(targetMap, targetPosition)
-    return SceneMapInteractions._queueWorldTransfer(self, targetMap, targetPosition)
+    return SceneMapInteractions.QueueWorldTransfer(self, targetMap, targetPosition)
 end
 
 function Scene:_processPendingWorldTransfer()
-    return SceneMapInteractions._processPendingWorldTransfer(self)
+    return SceneMapInteractions.ProcessPendingWorldTransfer(self)
 end
 
 function Scene:_getSaveSource()
-    return SceneMapInteractions._getSaveSource(self)
+    return SceneMapInteractions.GetSaveSource(self)
 end
 
 function Scene:_onSaveLoadClose(reason)
-    return SceneMapInteractions._onSaveLoadClose(self, reason)
+    return SceneMapInteractions.OnSaveLoadClose(self, reason)
 end
 
 function Scene:_onConfigClose()
-    return SceneMapInteractions._onConfigClose(self)
+    return SceneMapInteractions.OnConfigClose(self)
 end
 
 function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
-    return SceneMapInteractions.gotoMapAndPos(self, mapPath, pos, blockTransition)
+    return SceneMapInteractions.GotoMapAndPos(self, mapPath, pos, blockTransition)
 end
 
 function Scene:tryCenterSymmetricTeleport()
-    return SceneMapInteractions.tryCenterSymmetricTeleport(self)
+    return SceneMapInteractions.TryCenterSymmetricTeleport(self)
 end
 
 function Scene:tryAdjacentFloorSamePos(step)
-    return SceneMapInteractions.tryAdjacentFloorSamePos(self, step)
+    return SceneMapInteractions.TryAdjacentFloorSamePos(self, step)
 end
 
 function Scene:_isMapPositionPassable(mapPath, actor, position)
-    return SceneMapInteractions._isMapPositionPassable(self, mapPath, actor, position)
+    return SceneMapInteractions.IsMapPositionPassable(self, mapPath, actor, position)
 end
 
 function Scene:recordAddedActor(actor)
-    return SceneMapInteractions.recordAddedActor(self, actor)
+    return SceneMapInteractions.RecordAddedActor(self, actor)
 end
 
 function Scene:recordActorPosition(actor, position)
-    return SceneMapInteractions.recordActorPosition(self, actor, position)
+    return SceneMapInteractions.RecordActorPosition(self, actor, position)
 end
 
 function Scene:recordDestroyedActor(actor)
-    return SceneMapInteractions.recordDestroyedActor(self, actor)
+    return SceneMapInteractions.RecordDestroyedActor(self, actor)
 end
 
 function Scene:recordDestroyedActorTag(actorTag)
-    return SceneMapInteractions.recordDestroyedActorTag(self, actorTag)
+    return SceneMapInteractions.RecordDestroyedActorTag(self, actorTag)
 end
 
 function Scene:recordTerrainDestructions(layerName, positions)
-    return SceneMapInteractions.recordTerrainDestructions(self, layerName, positions)
+    return SceneMapInteractions.RecordTerrainDestructions(self, layerName, positions)
 end
 
-return class(Scene, SceneBase)
+return class(Scene, GameplayScene)

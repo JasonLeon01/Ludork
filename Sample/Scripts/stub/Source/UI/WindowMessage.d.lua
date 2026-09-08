@@ -15,6 +15,9 @@
 ---@field _nameText          Engine.PlainText
 ---@field _messageText       Engine.RichText
 ---@field new                fun(model: Source.Windows.WindowMessage): Source.UI.WindowMessage
+---@field _name              string
+---@field _message           string
+---@field _panelSize         sf.Vector2f
 local WindowMessageUI = {}
 
 ---@param model Source.Windows.WindowMessage
@@ -76,5 +79,33 @@ function WindowMessageUI:showSelectionList(options, onConfirm, onCancel) end
 function WindowMessageUI:reflow(width, height) end
 
 function WindowMessageUI:dispose() end
+
+function WindowMessageUI:updateLayoutBySelectionSize() end
+
+function WindowMessageUI:updateLayoutByTextSize() end
+
+---@param refPosition sf.Vector2f | nil
+function WindowMessageUI:updateWindowPosition(refPosition) end
+
+function WindowMessageUI:resetTextColour() end
+
+---@param visible boolean
+function WindowMessageUI:setMessageVisible(visible) end
+
+function WindowMessageUI:confirmMessageAdvancer() end
+
+---@param index integer | nil
+function WindowMessageUI:cancelSelection(index) end
+
+---@param options string[]
+function WindowMessageUI:refreshSelection(options) end
+
+---@param index     integer
+---@param rowHeight number
+---@return sf.Vector2f | nil
+function WindowMessageUI:getSelectionPosition(index, rowHeight) end
+
+---@return integer | nil
+function WindowMessageUI:getSelectionWidth() end
 
 return WindowMessageUI

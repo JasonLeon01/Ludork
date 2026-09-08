@@ -8,20 +8,21 @@ local _TELEPOINT_LIST_WIDTH = 144
 local _TELEPOINT_VIEW_HEIGHT = 208
 local _TELEPOINT_ROW_HEIGHT = 32
 
+---@class Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
 local WindowFloorMapPreviewUI = {}
 
 function WindowFloorMapPreviewUI:init(model, size, loadPreview, resolvePreviewMapPath, instance)
-    self._logicalSize = sf.Vector2u.new(size.x, size.y)
+    local logicalSize = sf.Vector2u.new(size.x, size.y)
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
     self._loadPreview = loadPreview
     self._resolvePreviewMapPath = resolvePreviewMapPath
     self._rowControllers = {}
-    model._loadPreview = loadPreview
-    model._resolvePreviewMapPath = resolvePreviewMapPath
-    model._mapKey = nil
-    model._telepoints = {}
-    model._currentListKey = nil
-    model._currentPreviewKey = nil
-    model._previewTextureCache = dict()
+    self._mapKey = nil
+    self._telepoints = {}
+    self._currentListKey = nil
+    self._currentPreviewKey = nil
+    self._previewTextureCache = dict()
     super(WindowFloorMapPreviewUI, self).init(model, instance)
 end
 
@@ -31,13 +32,14 @@ function WindowFloorMapPreviewUI:bind()
     self._content = self:requireControl("TelepointContent")
     self._scrollBox = self:requireControl("TelepointScrollBox")
     self._listView = self:requireControl("TelepointList")
+    ---@cast self._listView Engine.ListView
     self._listView:clearChildren()
     self._previewImage = self:requireControl("PreviewImage")
-    self.model._previewImage = self._previewImage
+    ---@cast self._previewImage Engine.Image
 end
 
 function WindowFloorMapPreviewUI:refresh()
-    self:_applyListLayout(#self.model._telepoints)
+    self:_applyListLayout(#self._telepoints)
     self:setProperty("PreviewImage", "visible", false)
 end
 
@@ -51,7 +53,7 @@ function WindowFloorMapPreviewUI:attach(nested)
     else
         self:attachWindowView(self.model)
     end
-    self._previewWindowFrame:setWindowSkin(self.model._windowSkin, self.model._repeated)
+    self.model:applyWindowSkin(self._previewWindowFrame)
 end
 
 function WindowFloorMapPreviewUI:getWindowFrame()
@@ -71,7 +73,7 @@ function WindowFloorMapPreviewUI:getScrollBox()
 end
 
 function WindowFloorMapPreviewUI:clearPreviewCache()
-    self.model._previewTextureCache = dict()
+    self._previewTextureCache = dict()
     self:hidePreview()
 end
 
@@ -79,7 +81,7 @@ function WindowFloorMapPreviewUI:onActiveChanged(active, wasActive)
     self._windowFrame:setVisible(active)
     self._content:setVisible(active)
     if not active then
-        self.model._rect:setVisible(false)
+        self.model:hideSelectionCursor()
     end
     if active ~= wasActive then
         self:refreshSelectedPreview()
@@ -88,12 +90,12 @@ end
 
 function WindowFloorMapPreviewUI:setMapKeyAndTelepoints(mapKey, entries, selectedIndex)
     local listKey = tuple { tostring(mapKey or ""), TelepointKey.FromEntries(entries) }
-    if listKey ~= self.model._currentListKey then
-        self.model._currentListKey = listKey
-        self.model._mapKey = mapKey
-        self.model._telepoints = {}
+    if listKey ~= self._currentListKey then
+        self._currentListKey = listKey
+        self._mapKey = mapKey
+        self._telepoints = {}
         for index, entry in ipairs(entries) do
-            self.model._telepoints[index] = entry[1]
+            self._telepoints[index] = entry[1]
         end
         self:rebuildTelepointList(entries)
     end
@@ -102,18 +104,18 @@ function WindowFloorMapPreviewUI:setMapKeyAndTelepoints(mapKey, entries, selecte
         self:hidePreview()
         return
     end
-    self.model.index = math.clamp(selectedIndex, 0, #entries - 1)
+    self.model.index = math.trunc(math.clamp(selectedIndex, 0, #entries - 1))
     self:refreshSelectedPreview()
 end
 
 function WindowFloorMapPreviewUI:afterSelectionUpdate(previousIndex)
     if not self.model:getActive() then
-        self.model._rect:setVisible(false)
+        self.model:hideSelectionCursor()
     end
     if self.model.index == previousIndex then
         return
     end
-    self.model._owner:notifyTelepointIndexMaybeChanged(self.model.index)
+    self.model:notifyTelepointIndexMaybeChanged(self.model.index)
     self:refreshSelectedPreview()
 end
 
@@ -124,14 +126,14 @@ function WindowFloorMapPreviewUI:rebuildTelepointList(entries)
         local controller = CommandRowUI.new({
             text = entry[2],
             callback = function ()
-                self.model._owner:confirmSelectedTelepoint()
+                self.model:confirmSelectedTelepoint()
             end
         })
-        local logicalSize = sf.Vector2u.new(self.model._telepointItemWidth, _TELEPOINT_ROW_HEIGHT)
+        local logicalSize = sf.Vector2u.new(self.model:getItemWidth(), _TELEPOINT_ROW_HEIGHT)
         ---@cast logicalSize sf.Vector2u
         local child = controller:prepare(logicalSize)
         self._rowControllers[#self._rowControllers + 1] = controller
-        self.model:_applyItem(child)
+        self.model:applyItem(child)
         self._listView:addChild(child)
     end
     self:_applyListLayout(#entries)
@@ -141,24 +143,24 @@ end
 function WindowFloorMapPreviewUI:refreshSelectedPreview()
     local telepoint = self:getSelectedTelepoint()
     local showMarker = self.model:getActive()
-    local mapPath = tostring(self.model._mapKey or "")
+    local mapPath = tostring(self._mapKey or "")
     if self._resolvePreviewMapPath ~= nil and bool(mapPath) then
         mapPath = self._resolvePreviewMapPath(mapPath)
     end
     local currentKey = tuple { tostring(mapPath or ""), TelepointKey.FromPoint(telepoint), showMarker }
-    if currentKey == self.model._currentPreviewKey then
+    if currentKey == self._currentPreviewKey then
         return
     end
-    self.model._currentPreviewKey = currentKey
-    if not bool(self.model._mapKey) or not bool(telepoint) then
+    self._currentPreviewKey = currentKey
+    if not bool(self._mapKey) or not bool(telepoint) then
         self:hidePreview()
         return
     end
-    local texture = self.model._previewTextureCache:get(currentKey)
+    local texture = self._previewTextureCache:get(currentKey)
     if texture == nil then
-        texture = self._loadPreview(self.model._mapKey, telepoint, _PREVIEW_CONTENT_SIZE, _PREVIEW_SCALE, showMarker)
+        texture = self._loadPreview(self._mapKey, telepoint, _PREVIEW_CONTENT_SIZE, _PREVIEW_SCALE, showMarker)
         if texture ~= nil then
-            self.model._previewTextureCache[currentKey] = texture
+            self._previewTextureCache[currentKey] = texture
         end
     end
     if texture == nil then
@@ -171,14 +173,14 @@ function WindowFloorMapPreviewUI:refreshSelectedPreview()
 end
 
 function WindowFloorMapPreviewUI:getSelectedTelepoint()
-    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self.model._telepoints then
+    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self._telepoints then
         return nil
     end
-    return self.model._telepoints[self.model.index + 1]
+    return self._telepoints[self.model.index + 1]
 end
 
 function WindowFloorMapPreviewUI:hidePreview()
-    self.model._currentPreviewKey = nil
+    self._currentPreviewKey = nil
     self:setProperty("PreviewImage", "visible", false)
 end
 

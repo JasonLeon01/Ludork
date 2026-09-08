@@ -29,36 +29,44 @@ end
 ---@class (partial) Source.Windows.WindowMenu.Controller
 local WindowMenuController = {}
 
+function WindowMenuController:init(model, size, rowHeight, columns, windows)
+    self._windowItem = windows.item
+    self._windowEquip = windows.equip
+    self._windowSaveLoad = windows.saveLoad
+    self._configWindow = windows.config
+    super(WindowMenuController, self).init(model, size, rowHeight, columns)
+end
+
 function WindowMenuController.CreateCommands(owner)
     return {
         {
             localeKey = "MENU_ITEM",
             callback = function ()
-                owner:_onMenuItem()
+                owner:openInventory()
             end
         },
         {
             localeKey = "MENU_EQUIP",
             callback = function ()
-                owner:_onMenuEquip()
+                owner:openEquipment()
             end
         },
         {
             localeKey = "MENU_SAVE_FILE",
             callback = function ()
-                owner:_onMenuSave()
+                owner:openSaveLoad()
             end
         },
         {
             localeKey = "MENU_CONFIG",
             callback = function ()
-                owner:_onMenuConfig()
+                owner:openConfig()
             end
         },
         {
             localeKey = "MENU_EXIT",
             callback = function ()
-                owner:_onMenuExit()
+                owner:exitGame()
             end
         }
     }
@@ -66,9 +74,9 @@ end
 
 function WindowMenuController:bind()
     self._menuControls = {
-        configureMenuControl(self.model), configureMenuControl(self.model._windowItem),
-        configureMenuControl(self.model._windowEquip), configureMenuControl(self.model._windowSaveLoad),
-        configureMenuControl(self.model._configWindow)
+        configureMenuControl(self.model), configureMenuControl(self._windowItem),
+        configureMenuControl(self._windowEquip), configureMenuControl(self._windowSaveLoad),
+        configureMenuControl(self._configWindow)
     }
     self._moveRestoreGuard = function ()
         return true
@@ -79,11 +87,11 @@ function WindowMenuController:bind()
             self.model:requestKeyboardFocus()
         end
     end
-    self.model._windowItem._onCloseCallback = onSubMenuClose
-    self.model._windowEquip:setOnCloseCallback(onSubMenuClose)
-    self.model._windowItem._onUseCallback = function ()
+    self._windowItem:setOnCloseCallback(onSubMenuClose)
+    self._windowEquip:setOnCloseCallback(onSubMenuClose)
+    self._windowItem:setOnUseCallback(function ()
         self:close()
-    end
+    end)
 end
 
 function WindowMenuController:setMoveRestoreGuard(guard)
@@ -126,7 +134,7 @@ end
 
 function WindowMenuController:open()
     AudioManager.playSound(GameSystem.GetDecisionSE())
-    self.model._player:setMoveEnabled(false)
+    self.model:getPlayer():setMoveEnabled(false)
     self.model:resetSelection()
     self:_syncReturnButtonSuppression()
     self.model:showWithAnimation("FadeIn", function ()
@@ -141,7 +149,7 @@ function WindowMenuController:close(onHidden)
     self:_syncReturnButtonSuppression()
     self.model:hideWithAnimation("FadeOut", function ()
         if self._moveRestoreGuard() then
-            self.model._player:setMoveEnabled(true)
+            self.model:getPlayer():setMoveEnabled(true)
         end
         if onHidden ~= nil then
             onHidden()
@@ -158,16 +166,12 @@ function WindowMenuController:isBlocking()
     return false
 end
 
-function WindowMenuController:getMenuControls()
-    return self._menuControls
-end
-
 function WindowMenuController:_closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
     self:close()
 end
 
-function WindowMenuController:_handleCancel()
+function WindowMenuController:handleCancel()
     if self:_returnEquipSelectToSlot() then
         return
     end
@@ -178,32 +182,32 @@ function WindowMenuController:_handleCancel()
     self:_closeByCancel()
 end
 
-function WindowMenuController:_onMenuItem()
+function WindowMenuController:openInventory()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("item")
-    self.model._windowItem:open()
+    self._windowItem:open()
     self:_syncReturnButtonSuppression()
 end
 
-function WindowMenuController:_onMenuEquip()
+function WindowMenuController:openEquipment()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
-    self.model._windowEquip:open()
+    self._windowEquip:open()
     self:_syncReturnButtonSuppression()
 end
 
-function WindowMenuController:_onMenuSave()
+function WindowMenuController:openSaveLoad()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
-    self.model._windowSaveLoad:open(WindowTransition.MENU)
+    self._windowSaveLoad:open(WindowTransition.MENU)
     self:_syncReturnButtonSuppression()
 end
 
-function WindowMenuController:_onMenuConfig()
+function WindowMenuController:openConfig()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("config")
     self.model:setActive(false)
-    self.model._configWindow:open()
+    self._configWindow:open()
     self:_syncReturnButtonSuppression()
 end
 
@@ -234,14 +238,14 @@ end
 
 ---@return Source.Windows.Base.WindowSelectable | nil
 function WindowMenuController:_getCurrentSubMenuFocusTarget()
-    if self.model.index == 0 and self.model._windowItem:getVisible() then
-        return asSelectableWindow(self.model._windowItem)
+    if self.model.index == 0 and self._windowItem:getVisible() then
+        return asSelectableWindow(self._windowItem)
     end
-    if self.model.index == 1 and self.model._windowEquip:getVisible() then
-        return asSelectableWindow(self.model._windowEquip:getSlotFocusTarget())
+    if self.model.index == 1 and self._windowEquip:getVisible() then
+        return asSelectableWindow(self._windowEquip:getSlotFocusTarget())
     end
-    if self.model.index == 2 and self.model._windowSaveLoad:getVisible() then
-        return asSelectableWindow(self.model._windowSaveLoad:getSlotWindow())
+    if self.model.index == 2 and self._windowSaveLoad:getVisible() then
+        return asSelectableWindow(self._windowSaveLoad:getSlotWindow())
     end
     return nil
 end
@@ -258,20 +262,20 @@ end
 function WindowMenuController:_closeSubMenus(exceptName)
     exceptName = exceptName or ""
     local closed = false
-    if exceptName ~= "item" and self.model._windowItem:getVisible() then
-        self.model._windowItem:close()
+    if exceptName ~= "item" and self._windowItem:getVisible() then
+        self._windowItem:close()
         closed = true
     end
-    if exceptName ~= "equip" and self.model._windowEquip:getVisible() then
-        self.model._windowEquip:close()
+    if exceptName ~= "equip" and self._windowEquip:getVisible() then
+        self._windowEquip:close()
         closed = true
     end
-    if exceptName ~= "save" and self.model._windowSaveLoad:getVisible() then
-        self.model._windowSaveLoad:close()
+    if exceptName ~= "save" and self._windowSaveLoad:getVisible() then
+        self._windowSaveLoad:close()
         closed = true
     end
-    if exceptName ~= "config" and self.model._configWindow:isOpen() then
-        self.model._configWindow:close()
+    if exceptName ~= "config" and self._configWindow:isOpen() then
+        self._configWindow:close()
         closed = true
     end
     self:_syncReturnButtonSuppression()
@@ -279,13 +283,13 @@ function WindowMenuController:_closeSubMenus(exceptName)
 end
 
 function WindowMenuController:_syncReturnButtonSuppression()
-    local suppressed = self.model._windowItem:getVisible() or self.model._windowEquip:getVisible()
-        or self.model._windowSaveLoad:getVisible() or self.model._configWindow:isOpen()
-    self.model:_setReturnButtonSuppressed(suppressed)
+    local suppressed = self._windowItem:getVisible() or self._windowEquip:getVisible()
+        or self._windowSaveLoad:getVisible() or self._configWindow:isOpen()
+    self.model:setReturnButtonSuppressed(suppressed)
 end
 
 function WindowMenuController:_returnEquipSelectToSlot()
-    return self.model._windowEquip:returnSelectToSlot()
+    return self._windowEquip:returnSelectToSlot()
 end
 
 return class(WindowMenuController, WindowCommandController)

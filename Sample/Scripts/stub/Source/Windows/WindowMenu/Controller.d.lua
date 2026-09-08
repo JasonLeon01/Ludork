@@ -4,7 +4,11 @@
 ---@field model             Source.Windows.WindowMenu
 ---@field _menuControls     Engine.Canvas[]
 ---@field _moveRestoreGuard fun(): boolean
----@field new               fun(model: Source.Windows.WindowMenu, size: sf.Vector2u, rowHeight: integer, columns: integer): Source.Windows.WindowMenu.Controller
+---@field new               fun(model: Source.Windows.WindowMenu, size: sf.Vector2u, rowHeight: integer, columns: integer, windows: Source.Windows.WindowMenuWindows): Source.Windows.WindowMenu.Controller
+---@field _windowItem       Source.Windows.WindowItem
+---@field _windowEquip      Source.Windows.WindowEquip
+---@field _windowSaveLoad   Source.Windows.WindowSaveLoad
+---@field _configWindow     Source.Windows.ConfigWindow
 local WindowMenuController = {}
 
 ---@param owner Source.Windows.WindowMenu
@@ -34,10 +38,7 @@ function WindowMenuController:close(onHidden) end
 ---@return boolean
 function WindowMenuController:isBlocking() end
 
-function WindowMenuController:_handleCancel() end
-
----@return Engine.Canvas[]
-function WindowMenuController:getMenuControls() end
+function WindowMenuController:handleCancel() end
 
 function WindowMenuController:onSaveLoadClose() end
 
@@ -47,13 +48,13 @@ function WindowMenuController:onMenuExit() end
 
 function WindowMenuController:_closeByCancel() end
 
-function WindowMenuController:_onMenuItem() end
+function WindowMenuController:openInventory() end
 
-function WindowMenuController:_onMenuEquip() end
+function WindowMenuController:openEquipment() end
 
-function WindowMenuController:_onMenuSave() end
+function WindowMenuController:openSaveLoad() end
 
-function WindowMenuController:_onMenuConfig() end
+function WindowMenuController:openConfig() end
 
 ---@return Source.Windows.Base.WindowSelectable | nil
 function WindowMenuController:_getCurrentSubMenuFocusTarget() end
@@ -70,5 +71,12 @@ function WindowMenuController:_syncReturnButtonSuppression() end
 
 ---@return boolean
 function WindowMenuController:_returnEquipSelectToSlot() end
+
+---@param model     Source.Windows.WindowMenu
+---@param size      sf.Vector2u
+---@param rowHeight integer
+---@param columns   integer
+---@param windows   Source.Windows.WindowMenuWindows
+function WindowMenuController:init(model, size, rowHeight, columns, windows) end
 
 return WindowMenuController

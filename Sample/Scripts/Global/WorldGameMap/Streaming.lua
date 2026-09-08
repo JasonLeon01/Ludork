@@ -8,10 +8,10 @@ local WorldRegionState = GlobalCore.WorldRegionState
 local STREAM_BATCH_SIZE = 4
 local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 
----@type WorldGameMapImplState
 local WorldGameMapStreaming = {}
 
-function WorldGameMapStreaming:_syncStreamingCamera()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.SyncStreamingCamera(self)
     if self._camera == nil then
         self._worldStreamingCameraPosition = nil
         return
@@ -22,7 +22,8 @@ function WorldGameMapStreaming:_syncStreamingCamera()
 end
 
 ---@return Global.WorldGeometry.CellRect
-function WorldGameMapStreaming:_getVisibleCellRect()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.GetVisibleCellRect(self)
     local camera = self._camera
     ---@cast camera GlobalCore.Camera
     local viewport = camera:getViewport()
@@ -58,11 +59,21 @@ function WorldGameMapStreaming:_getVisibleCellRect()
 end
 
 ---@return Global.WorldGeometry.CellRect
-function WorldGameMapStreaming:_getGameplayCellRect()
-    return self._worldActiveRect or self:_getVisibleCellRect()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.GetGameplayCellRect(self)
+    if self._worldActiveRect ~= nil then
+        return {
+            x = self._worldActiveRect.x,
+            y = self._worldActiveRect.y,
+            width = self._worldActiveRect.width,
+            height = self._worldActiveRect.height
+        }
+    end
+    return self:_getVisibleCellRect()
 end
 
-function WorldGameMapStreaming:_refreshStreamingStates()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.RefreshStreamingStates(self)
     if self._worldDisposed then
         return
     end
@@ -134,9 +145,7 @@ function WorldGameMapStreaming:_refreshStreamingStates()
     local actorDemandRegions = self:_refreshActorRegionDemands()
     self._worldStreamingState:updateDemand(activeRect, preparedRect, center, actorDemandRegions)
     for _, region in ipairs(self._worldRegions) do
-        if region.publishState ~= nil
-            and not self:_isRegionDemanded(region)
-            and not region.publishState.forceActivate then
+        if region.publishState ~= nil and not self:_isRegionDemanded(region) and not region.publishState.forceActivate then
             self:_cancelRegionPublish(region)
         end
     end
@@ -162,12 +171,14 @@ end
 
 ---@param region Source.SceneComponents.WorldRegionData
 ---@return boolean
-function WorldGameMapStreaming:_isRegionDemanded(region)
+---@param self   WorldGameMapImplState
+function WorldGameMapStreaming.IsRegionDemanded(self, region)
     return self._worldStreamingState:isRegionDemanded(region.index)
 end
 
 ---@return boolean
-function WorldGameMapStreaming:_streamBatchHasDemand()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.StreamBatchHasDemand(self)
     for _, region in pairs(self._worldStreamJobRegions) do
         if region.payload == nil and self:_isRegionDemanded(region) then
             return true
@@ -183,7 +194,8 @@ function WorldGameMapStreaming:_streamBatchHasDemand()
 end
 
 ---@param requeue boolean
-function WorldGameMapStreaming:_finishStreamingBatch(requeue)
+---@param self    WorldGameMapImplState
+function WorldGameMapStreaming.FinishStreamingBatch(self, requeue)
     local regions = self._worldStreamBatchRegions
     self._worldStreamJob = nil
     self._worldStreamJobRegions = {}
@@ -195,7 +207,8 @@ function WorldGameMapStreaming:_finishStreamingBatch(requeue)
     end
 end
 
-function WorldGameMapStreaming:_cancelExpiredStreamingBatch()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.CancelExpiredStreamingBatch(self)
     if self._worldStreamJob == nil or self:_streamBatchHasDemand() then
         return
     end
@@ -203,7 +216,8 @@ function WorldGameMapStreaming:_cancelExpiredStreamingBatch()
     self:_finishStreamingBatch(true)
 end
 
-function WorldGameMapStreaming:_startStreamingBatch()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.StartStreamingBatch(self)
     if self._worldStreamJob ~= nil then
         return
     end
@@ -233,7 +247,8 @@ function WorldGameMapStreaming:_startStreamingBatch()
 end
 
 ---@param item FileBatchItem
-function WorldGameMapStreaming:_consumeStreamingItem(item)
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
     local region = self._worldStreamJobRegions[item.category]
     local conversion = assert(item.conversion, "World region JSON conversion is unavailable")
     local contentBytes = assert(item.contentBytes, "World region JSON byte size is unavailable")
@@ -256,7 +271,8 @@ function WorldGameMapStreaming:_consumeStreamingItem(item)
     self._worldStreamJobRegions[item.category] = nil
 end
 
-function WorldGameMapStreaming:_pumpStreaming()
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.PumpStreaming(self)
     if self._worldDisposed then
         return
     end

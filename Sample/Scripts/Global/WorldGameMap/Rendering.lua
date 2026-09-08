@@ -11,16 +11,17 @@ local WorldRegionState = GlobalCore.WorldRegionState
 local WORLD_SHADER_PREWARM_SIZE = sf.Vector2u.new(1, 1)
 ---@cast WORLD_SHADER_PREWARM_SIZE sf.Vector2u
 
----@type WorldGameMapImplState
 local WorldGameMapRendering = {}
 
-function WorldGameMapRendering:drawMapFogOverlay()
+---@param self WorldGameMapImplState
+function WorldGameMapRendering.DrawMapFogOverlay(self)
     local camera = self._camera
     ---@cast camera GlobalCore.Camera
     FogController.drawWorldOverlay(camera)
 end
 
-function WorldGameMapRendering:_ensureWorldLightingTargets()
+---@param self WorldGameMapImplState
+function WorldGameMapRendering.EnsureWorldLightingTargets(self)
     local targetSize = assert(assert(self._camera):getRenderTexture()):getSize()
     if self._staticTransmission ~= nil and self._surfaceMask ~= nil
         and self._staticTransmission:getSize() == targetSize and self._surfaceMask:getSize() == targetSize then
@@ -42,8 +43,9 @@ end
 ---@param viewPosition sf.Vector2f
 ---@param viewSize     sf.Vector2f
 ---@param viewRotation number
-function WorldGameMapRendering:_drawWorldTileMaskLayer(
-    target, baseStates, layerName, layer, region, viewPosition, viewSize, viewRotation
+---@param self         WorldGameMapImplState
+function WorldGameMapRendering.DrawWorldTileMaskLayer(
+    self, target, baseStates, layerName, layer, region, viewPosition, viewSize, viewRotation
 )
     self:_setTileMaskUniforms(
         RenderSupport.TileMaskCacheKey(region, layerName), layer,
@@ -59,7 +61,8 @@ function WorldGameMapRendering:_drawWorldTileMaskLayer(
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapRendering:_releaseWorldRegionTileMaskCache(region)
+---@param self   WorldGameMapImplState
+function WorldGameMapRendering.ReleaseWorldRegionTileMaskCache(self, region)
     for _, layerName in ipairs(self._worldConfig.layerOrder) do
         self._layerMaskTextureCache[RenderSupport.TileMaskCacheKey(region, layerName)] = nil
     end
@@ -67,11 +70,15 @@ end
 
 ---@param activeLights  Global.GameMap.ActiveLight[]
 ---@param _staticActors Engine.Actor[]
-function WorldGameMapRendering:_rebuildStaticTransmission(activeLights, _staticActors)
+---@param self          WorldGameMapImplState
+function WorldGameMapRendering.RebuildStaticTransmission(self, activeLights, _staticActors)
     self:_ensureWorldLightingTargets()
     ---@cast self._staticTransmission sf.RenderTexture
     ---@cast self._transmissionTileRenderStates sf.RenderStates
-    local lightingRect = RenderSupport.GetLightingCellRect(self, activeLights)
+    local visibleRect = self:_getVisibleCellRect()
+    local lightingRect = RenderSupport.GetLightingCellRect(
+        visibleRect, self._worldPreparedRect or self._worldActiveRect or visibleRect, self:getSize(), activeLights
+    )
     ---@type (string | integer | boolean)[]
     local signatureValues = { lightingRect.x, lightingRect.y, lightingRect.width, lightingRect.height }
     for _, region in ipairs(self._worldRegions) do
@@ -131,7 +138,8 @@ function WorldGameMapRendering:_rebuildStaticTransmission(activeLights, _staticA
 end
 
 ---@return Engine.Actor[]
-function WorldGameMapRendering:_renderSurfaceMask()
+---@param self WorldGameMapImplState
+function WorldGameMapRendering.RenderSurfaceMask(self)
     self:_ensureWorldLightingTargets()
     assert(self._camera ~= nil, "World surface mask requires a camera")
     ---@cast self._surfaceMask sf.RenderTexture
@@ -178,7 +186,8 @@ function WorldGameMapRendering:_renderSurfaceMask()
 end
 
 ---@return sf.RenderTexture
-function WorldGameMapRendering:_getWorldShaderPrewarmTarget()
+---@param self WorldGameMapImplState
+function WorldGameMapRendering.GetWorldShaderPrewarmTarget(self)
     if self._worldShaderPrewarmTarget == nil then
         self._worldShaderPrewarmTarget = sf.RenderTexture.new(WORLD_SHADER_PREWARM_SIZE)
         self._worldShaderPrewarmTarget:setSmooth(false)
@@ -186,14 +195,15 @@ function WorldGameMapRendering:_getWorldShaderPrewarmTarget()
     return self._worldShaderPrewarmTarget
 end
 
----@param world         Global.WorldGameMap.WorldGameMap
----@param target        sf.RenderTexture
----@param sourceTexture sf.Texture
----@param shader        sf.Shader | nil
----@return boolean
-local function prewarmShader(world, target, sourceTexture, shader)
+---@param target               sf.RenderTexture
+---@param sourceTexture        sf.Texture
+---@param shader               sf.Shader | nil
+---@param prewarmed            boolean
+---@param readbackMilliseconds number
+---@return boolean, number
+local function prewarmShader(target, sourceTexture, shader, prewarmed, readbackMilliseconds)
     if shader == nil then
-        return false
+        return prewarmed, readbackMilliseconds
     end
     local sprite = sf.Sprite.new(sourceTexture)
     local states = sf.RenderStates.new()
@@ -203,14 +213,13 @@ local function prewarmShader(world, target, sourceTexture, shader)
     target:display()
     local readbackStarted = perfCounter()
     target:getTexture():copyToImage()
-    world._worldPrewarmReadbackMilliseconds = world._worldPrewarmReadbackMilliseconds
-        + (perfCounter() - readbackStarted) * 1000.0
-    return true
+    return true, readbackMilliseconds + (perfCounter() - readbackStarted) * 1000.0
 end
 
 ---@param target sf.RenderTexture
 ---@return boolean
-function WorldGameMapRendering:_prewarmWorldShaderPrograms(target)
+---@param self   WorldGameMapImplState
+function WorldGameMapRendering.PrewarmWorldShaderPrograms(self, target)
     if self._worldShadersPrewarmed then
         return false
     end
@@ -218,11 +227,23 @@ function WorldGameMapRendering:_prewarmWorldShaderPrograms(target)
     self:_ensureDirectLight()
     self:refreshShader()
     local sourceTexture = assert(self._camera):getTexture()
-    local programsStarted = prewarmShader(self, target, sourceTexture, self._materialShader)
-    programsStarted = prewarmShader(self, target, sourceTexture, self._tilemapLightMaskShader) or programsStarted
-    programsStarted = prewarmShader(self, target, sourceTexture, self._lightMaskShader) or programsStarted
-    programsStarted = prewarmShader(self, target, sourceTexture, self._lightPassShader) or programsStarted
-    programsStarted = prewarmShader(self, target, sourceTexture, self._unobstructedLightPassShader) or programsStarted
+    local programsStarted = false
+    programsStarted, self._worldPrewarmReadbackMilliseconds = prewarmShader(
+        target, sourceTexture, self._materialShader, programsStarted, self._worldPrewarmReadbackMilliseconds
+    )
+    programsStarted, self._worldPrewarmReadbackMilliseconds = prewarmShader(
+        target, sourceTexture, self._tilemapLightMaskShader, programsStarted, self._worldPrewarmReadbackMilliseconds
+    )
+    programsStarted, self._worldPrewarmReadbackMilliseconds = prewarmShader(
+        target, sourceTexture, self._lightMaskShader, programsStarted, self._worldPrewarmReadbackMilliseconds
+    )
+    programsStarted, self._worldPrewarmReadbackMilliseconds = prewarmShader(
+        target, sourceTexture, self._lightPassShader, programsStarted, self._worldPrewarmReadbackMilliseconds
+    )
+    programsStarted, self._worldPrewarmReadbackMilliseconds = prewarmShader(
+        target, sourceTexture, self._unobstructedLightPassShader, programsStarted,
+        self._worldPrewarmReadbackMilliseconds
+    )
     self._worldShadersPrewarmed = true
     return programsStarted
 end
@@ -230,7 +251,8 @@ end
 ---@param visibleRect Global.WorldGeometry.CellRect
 ---@param _drain      boolean
 ---@return boolean
-function WorldGameMapRendering:_prewarmWorldViewport(visibleRect, _drain)
+---@param self        WorldGameMapImplState
+function WorldGameMapRendering.PrewarmWorldViewport(self, visibleRect, _drain)
     if PLATFORM == "ohos" then
         return true
     end
@@ -247,7 +269,9 @@ function WorldGameMapRendering:_prewarmWorldViewport(visibleRect, _drain)
                     local shader = layer:getShader()
                     if shader ~= nil
                         and (payload.prewarmedLayerShaders == nil or not payload.prewarmedLayerShaders[layerName]) then
-                        prewarmed = prewarmShader(self, target, sourceTexture, shader) or prewarmed
+                        prewarmed, self._worldPrewarmReadbackMilliseconds = prewarmShader(
+                            target, sourceTexture, shader, prewarmed, self._worldPrewarmReadbackMilliseconds
+                        )
                         payload.prewarmedLayerShaders = payload.prewarmedLayerShaders or {}
                         payload.prewarmedLayerShaders[layerName] = true
                     end
@@ -263,7 +287,8 @@ end
 
 ---@param visibleRect Global.WorldGeometry.CellRect
 ---@return boolean
-function WorldGameMapRendering:_isWorldViewportReady(visibleRect)
+---@param self        WorldGameMapImplState
+function WorldGameMapRendering.IsWorldViewportReady(self, visibleRect)
     for _, region in ipairs(self._worldRegions) do
         if WorldGeometry.RectIntersects(region, visibleRect) then
             if region.payload == nil or self._worldStreamingState:getRegionState(region.index)
@@ -278,71 +303,74 @@ function WorldGameMapRendering:_isWorldViewportReady(visibleRect)
     return true
 end
 
----@param world    Global.WorldGameMap.WorldGameMap
 ---@param position sf.Vector2f | nil
 ---@return boolean
-local function prepareCameraPosition(world, position)
+---@param self     WorldGameMapImplState
+function WorldGameMapRendering.PrepareWorldCameraPosition(self, position)
     if position ~= nil then
-        assert(world._camera):setViewPosition(position)
+        assert(self._camera):setViewPosition(position)
     end
-    local visibleRect = world:_getVisibleCellRect()
-    return world:_isWorldViewportReady(visibleRect) and world:_prewarmWorldViewport(visibleRect, false)
+    local visibleRect = self:_getVisibleCellRect()
+    return self:_isWorldViewportReady(visibleRect) and self:_prewarmWorldViewport(visibleRect, false)
 end
 
 ---@return boolean
-function WorldGameMapRendering:_prepareCameraFrame()
+---@param self WorldGameMapImplState
+function WorldGameMapRendering.PrepareCameraFrame(self)
     if self._camera == nil then
         return true
     end
     self._camera:syncFollowTarget()
     local desiredPosition = self._camera:getViewPosition()
-    if prepareCameraPosition(self, desiredPosition) then
+    if self:_prepareWorldCameraPosition(desiredPosition) then
         self._worldLastReadyCameraPosition = desiredPosition ~= nil and copy(desiredPosition) or nil
         return true
     end
-    if self._worldStreamingCameraPosition ~= nil and prepareCameraPosition(self, self._worldStreamingCameraPosition) then
+    if self._worldStreamingCameraPosition ~= nil
+        and self:_prepareWorldCameraPosition(self._worldStreamingCameraPosition) then
         self._worldLastReadyCameraPosition = copy(self._worldStreamingCameraPosition)
         return true
     end
     if self._worldLastReadyCameraPosition ~= nil then
-        if prepareCameraPosition(self, self._worldLastReadyCameraPosition) then
+        if self:_prepareWorldCameraPosition(self._worldLastReadyCameraPosition) then
             return true
         end
     end
     return false
 end
 
----@param world        Global.WorldGameMap.WorldGameMap
 ---@param region       Source.SceneComponents.WorldRegionData
 ---@param builder      Global.WorldGameMap.RegionBuildState
 ---@param requiredRect Global.WorldGeometry.CellRect
-local function prepareRegionRect(world, region, builder, requiredRect)
+---@param self         WorldGameMapImplState
+function WorldGameMapRendering.PrepareWorldRegionRect(self, region, builder, requiredRect)
     local started = perfCounter()
     while not builder.isRectReady(requiredRect) do
-        world:_pumpRegionBackgroundActors(region, builder, math.huge)
+        self:_pumpRegionBackgroundActors(region, builder, math.huge)
         local prepareStarted = perfCounter()
         builder.prepareRect(requiredRect, math.huge)
         local prepareMilliseconds = (perfCounter() - prepareStarted) * 1000.0
-        if prepareMilliseconds > world._worldPublishSlowStageMilliseconds then
-            world._worldPublishSlowStage = "prepareVisibleTileChunk"
-            world._worldPublishSlowStageMilliseconds = prepareMilliseconds
+        if prepareMilliseconds > self._worldPublishSlowStageMilliseconds then
+            self._worldPublishSlowStage = "prepareVisibleTileChunk"
+            self._worldPublishSlowStageMilliseconds = prepareMilliseconds
         end
-        world:_pumpRegionBackgroundActors(region, builder, math.huge)
+        self:_pumpRegionBackgroundActors(region, builder, math.huge)
         region.geometryRevision = builder.geometryRevision
         if region.lightingRevision ~= builder.lightingRevision then
             region.lightingRevision = builder.lightingRevision
-            world:_refreshWorldLights()
+            self:_refreshWorldLights()
         end
     end
     if builder.completed and builder.actorPublishQueue == nil and not bool(builder.readyActorRoots) then
         region.backgroundBuilder = nil
     end
     local elapsedMilliseconds = (perfCounter() - started) * 1000.0
-    world._worldPublishMilliseconds = world._worldPublishMilliseconds + elapsedMilliseconds
+    self._worldPublishMilliseconds = self._worldPublishMilliseconds + elapsedMilliseconds
 end
 
 ---@param position sf.Vector2i
-function WorldGameMapRendering:prepareViewportAt(position)
+---@param self     WorldGameMapImplState
+function WorldGameMapRendering.PrepareViewportAt(self, position)
     assert(
         WorldGeometry.RectContainsPosition(self._worldBounds, position),
         "World viewport destination is outside world bounds"
@@ -376,7 +404,7 @@ function WorldGameMapRendering:prepareViewportAt(position)
     end
     for _, region in ipairs(initialActiveRegions) do
         if region.backgroundBuilder ~= nil then
-            prepareRegionRect(self, region, region.backgroundBuilder, activeRect)
+            self:_prepareWorldRegionRect(region, region.backgroundBuilder, activeRect)
         end
     end
     self._worldActivationDeferred = false
@@ -407,7 +435,8 @@ function WorldGameMapRendering:prepareViewportAt(position)
     self:show()
 end
 
-function WorldGameMapRendering:drawMapContent(target, states, _applyPlayerCover)
+---@param self WorldGameMapImplState
+function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayerCover)
     states = states or sf.RenderStates.new()
     local visibleRect = self:_getVisibleCellRect()
     for _, layerName in ipairs(self._worldLayerOrder) do

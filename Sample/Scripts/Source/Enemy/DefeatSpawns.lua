@@ -1,4 +1,3 @@
-local GlobalCore = require("GlobalCore")
 local Logging = require("Global.Utils.Logging")
 local Data = require("Source.Data")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
@@ -18,7 +17,7 @@ local DefeatSpawns = {}
 ---@field reservedTags table<string, boolean>
 
 ---@param enemy Source.Enemy
----@param scene Source.Scenes.SceneMap.SceneMap
+---@param scene Source.Gameplay.GameplayScene
 ---@return EnemyDefeatSpawnContext
 local function createContext(enemy, scene)
     local gameMap = scene:getGameMap()
@@ -57,8 +56,7 @@ end
 local function prepareActor(context, blueprintPath, kind, tagSuffix)
     assert(
         Class.isInstance(blueprintPath, "string") and bool(blueprintPath),
-        "Enemy " .. kind
-            .. " requires a Blueprint class path"
+        "Enemy " .. kind .. " requires a Blueprint class path"
     )
     local actor = assert(
         Data.GenActorFromClassPath(blueprintPath), "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath
@@ -131,12 +129,6 @@ end
 function DefeatSpawns.Spawn(scene, actor, layerName)
     scene:getGameMap():spawnActor(actor, layerName)
     scene:recordAddedActor(actor)
-end
-
-function DefeatSpawns.GameOver()
-    local SceneGameOver = require("Source.Scenes.SceneGameOver")
-
-    GlobalCore.System.setScene(SceneGameOver.new())
 end
 
 return DefeatSpawns

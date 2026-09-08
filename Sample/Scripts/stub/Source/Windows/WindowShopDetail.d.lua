@@ -1,10 +1,8 @@
 ---@meta Source.Windows.WindowShopDetail
 
 ---@class Source.Windows.WindowShopDetail: Source.Windows.Base.WindowBase
----@field new       fun(rect: sf.IntRect, instance?: Engine.AssetInstance): Source.Windows.WindowShopDetail
----@field _ui       Source.UI.Parts.WindowShop.WindowShopDetail.WindowShopDetailUI
----@field _itemInfo Source.Data.GeneralItemData | nil
----@field _price    integer | nil
+---@field new fun(rect: sf.IntRect, instance?: Engine.AssetInstance): Source.Windows.WindowShopDetail
+---@field _ui Source.UI.Parts.WindowShop.WindowShopDetail.WindowShopDetailUI
 local WindowShopDetail = {}
 
 ---@param rect sf.IntRect

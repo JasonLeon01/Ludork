@@ -2,6 +2,11 @@
 
 ---@brief Actor used to move between neighbouring maps in the current region.
 ---@class Source.Teleporter.Teleporter: Engine.Actor
+---@field Offset                sf.Vector2i
+---@field stairSE               string
+---@field transitionName        string
+---@field transitionTime        number
+---@field _floorTransferPending boolean
 local Teleporter = {}
 
 ---@brief Initialise a teleporter actor.

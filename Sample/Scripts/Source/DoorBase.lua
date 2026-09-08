@@ -8,19 +8,16 @@ local AudioManager = GlobalCore.AudioManager
 local LATENT_STARTED = 0
 local LATENT_FINISHED = 1
 
----@class Source.DoorBase.DoorAnimationCondition
----@field _door           Source.DoorBase.DoorBase
----@field _finishedAttr   string
----@field _startedEmitted boolean
----@field _finished       boolean
----@param door         Source.DoorBase.DoorBase
----@param finishedAttr string
+---@param isComplete fun(): boolean
 ---@return Source.DoorBase.DoorAnimationCondition
-local function newDoorAnimationCondition(door, finishedAttr)
-    local condition = { _door = door, _finishedAttr = finishedAttr, _startedEmitted = false, _finished = false }
+local function newDoorAnimationCondition(isComplete)
+    local condition = { _isComplete = isComplete, _startedEmitted = false, _finished = false }
     ---@return boolean
     function condition:isFinished()
         return self._finished
+    end
+    function condition:finish()
+        self._finished = true
     end
     return setmetatable(condition, {
         __call = function (self)
@@ -31,7 +28,7 @@ local function newDoorAnimationCondition(door, finishedAttr)
                 self._startedEmitted = true
                 return { LATENT_STARTED }
             end
-            if self._door[self._finishedAttr] then
+            if self._isComplete() then
                 self._finished = true
                 return { LATENT_FINISHED }
             end
@@ -70,8 +67,10 @@ end
 
 function DoorBase:openDoor()
     if self._openFinished or self:isDestroyed() or self.opening then
-        local condition = newDoorAnimationCondition(self, "_openFinished")
-        condition._finished = true
+        local condition = newDoorAnimationCondition(function ()
+            return self._openFinished
+        end)
+        condition:finish()
         return condition
     end
     if self.closing then
@@ -87,13 +86,17 @@ function DoorBase:openDoor()
     self._closeFinished = false
     self:setTickable(true, false)
     self:_advanceToFrame(0)
-    return newDoorAnimationCondition(self, "_openFinished")
+    return newDoorAnimationCondition(function ()
+        return self._openFinished
+    end)
 end
 
 function DoorBase:closeDoor()
     if self:isDestroyed() or self._openFinished or self.closing then
-        local condition = newDoorAnimationCondition(self, "_closeFinished")
-        condition._finished = true
+        local condition = newDoorAnimationCondition(function ()
+            return self._closeFinished
+        end)
+        condition:finish()
         return condition
     end
     local wasOpening = self.opening
@@ -111,8 +114,10 @@ function DoorBase:closeDoor()
         if wasOpening then
             self:setTickable(false, false)
         end
-        local condition = newDoorAnimationCondition(self, "_closeFinished")
-        condition._finished = true
+        local condition = newDoorAnimationCondition(function ()
+            return self._closeFinished
+        end)
+        condition:finish()
         return condition
     end
     self:_playGateSE()
@@ -123,7 +128,9 @@ function DoorBase:closeDoor()
     self._closeFinished = false
     self._openFinished = false
     self:setTickable(true, false)
-    return newDoorAnimationCondition(self, "_closeFinished")
+    return newDoorAnimationCondition(function ()
+        return self._closeFinished
+    end)
 end
 
 function DoorBase:onTick(deltaTime)

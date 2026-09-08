@@ -3,31 +3,18 @@
 --- Supports Timeline fade-in/out, speaker name display, multi-option selection,
 --- and automatic positioning relative to reference actors.
 ---@class Source.Windows.WindowMessage: Source.Windows.Base.WindowSelectable
----@field new                              fun(): Source.Windows.WindowMessage
----@field _WINDOW_PADDING                  integer
----@field _SCREEN_EDGE_MARGIN              integer
----@field _NAME_MESSAGE_GAP                integer
----@field _OPTION_ITEM_HEIGHT              integer
----@field _SELECTION_LIST_HORIZONTAL_INSET integer
----@field _TEXT_RENDER_GUTTER              integer
----@field _MAX_OPTIONS                     integer
----@field _inDialogue                      boolean
----@field _contentMode                     integer
----@field _selectionListView               Engine.ListView | nil
----@field _messageListView                 Engine.ListView | nil
----@field _messageAdvancer                 Engine.FunctionalPlainText | nil
----@field _selectionResult                 integer | nil
----@field _allowCancel                     boolean
----@field _onFinished                      fun() | nil
----@field _pendingLayout                   boolean
----@field _pendingFadeIn                   boolean
----@field _pendingRefPosition              sf.Vector2f | nil
----@field _name                            string
----@field _message                         string
----@field _panelSize                       sf.Vector2f
----@field _ui                              Source.UI.WindowMessage
----@field _nameText                        Engine.PlainText
----@field _text                            Engine.RichText
+---@field new                 fun(): Source.Windows.WindowMessage
+---@field _OPTION_ITEM_HEIGHT integer
+---@field _MAX_OPTIONS        integer
+---@field _inDialogue         boolean
+---@field _contentMode        integer
+---@field _selectionResult    integer | nil
+---@field _allowCancel        boolean
+---@field _onFinished         fun() | nil
+---@field _pendingLayout      boolean
+---@field _pendingFadeIn      boolean
+---@field _pendingRefPosition sf.Vector2f | nil
+---@field _ui                 Source.UI.WindowMessage
 local WindowMessage = {}
 
 ---@brief Construct a message window with default fade and layout settings.

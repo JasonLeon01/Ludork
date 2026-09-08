@@ -1,6 +1,7 @@
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local WindowItemUI = require("Source.UI.WindowItem")
 
+---@class Source.Windows.WindowItem
 local WindowItem = {}
 
 function WindowItem:init(rect, player, onClose)
@@ -9,8 +10,6 @@ function WindowItem:init(rect, player, onClose)
     self._onCloseCallback = onClose
     self._onUseCallback = nil
     self._player = player
-    self._lastDescIndex = nil
-    self._itemList = {}
     self._itemUI = WindowItemUI.new(self)
     self._itemUI:attach()
     self:_refreshItems()
@@ -53,11 +52,35 @@ function WindowItem:close(onHidden)
 end
 
 function WindowItem:onReturn()
-    self._itemUI:_closeByCancel()
+    self._itemUI:closeByCancel()
 end
 
 function WindowItem:_onUseItem()
-    self._itemUI:_onUseItem()
+    self._itemUI:useSelectedItem()
+end
+
+function WindowItem:getPlayer()
+    return self._player
+end
+
+function WindowItem:setOnCloseCallback(callback)
+    self._onCloseCallback = callback
+end
+
+function WindowItem:setOnUseCallback(callback)
+    self._onUseCallback = callback
+end
+
+function WindowItem:onItemUsed()
+    if self._onUseCallback ~= nil then
+        self._onUseCallback()
+    end
+end
+
+function WindowItem:notifyClosed()
+    if self._onCloseCallback ~= nil then
+        self._onCloseCallback()
+    end
 end
 
 return class(WindowItem, WindowSelectable)

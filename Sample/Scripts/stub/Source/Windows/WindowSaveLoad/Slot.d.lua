@@ -25,4 +25,7 @@ function WindowSaveSlot:onReturn() end
 
 function WindowSaveSlot:dispose() end
 
+---@param slot integer
+function WindowSaveSlot:confirmSlot(slot) end
+
 return WindowSaveSlot

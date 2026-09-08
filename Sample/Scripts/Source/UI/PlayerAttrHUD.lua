@@ -5,7 +5,7 @@ local GeneralEnum = require("Source.Configs.GeneralEnum")
 local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
 local Effects = require("Source.Gameplay.Effects")
 local LocaleCore = require("Source.Locale.Core")
-local NodeUtils = require("Source.NodeFunctions.Utils")
+local NumberFormat = require("Source.Utils.NumberFormat")
 local IconTexture = require("Source.UI.IconTexture")
 local PlayerStateRowUI = require("Source.UI.Parts.PlayerAttrHUD.PlayerStateRow")
 local Ui = require("Source.UI.Ui")
@@ -14,7 +14,7 @@ local Ui = require("Source.UI.Ui")
 local LOC = LocaleCore.ApplyStringLocaleFormat
 local Item = GeneralEnum.Item
 local State = GeneralEnum.State
-local ToShortNumber = NodeUtils.ToShortNumber
+local ToShortNumber = NumberFormat.ToShortNumber
 local createStateSignature = tuple
 local createSignature = tuple
 ---@cast createStateSignature fun(values: string[]): tuple<string>
@@ -22,6 +22,26 @@ local createSignature = tuple
 
 ---@class Source.UI.PlayerAttrHUD.PlayerAttrHUDUI
 local PlayerAttrHUDUI = {}
+
+local _AVATAR_MIN_SIZE = 32
+local _FONT_SIZE = 18
+local _STATE_ICON_SIZE = 16
+local _STATE_GAP = 4
+local _ROW_SHIFT = 32
+local _HEADER_ROW_Y = 0
+local _HP_ROW_Y = 68 + _ROW_SHIFT
+local _HP_BAR_OFFSET_Y = 8
+local _HP_BAR_HEIGHT = 8
+local _HP_TEXT_LAYOUT_HEIGHT = 12
+local _HP_BAR_WIDTH = 96
+local _STAT_VALUE_X = 128
+local _DEBUFF_TEXT_OFFSET_X = 2
+local _ATK_ROW_Y = 96 + _ROW_SHIFT
+local _DEF_ROW_Y = 128 + _ROW_SHIFT
+local _EXP_ROW_Y = 192 + _ROW_SHIFT
+local _GOLD_ROW_Y = 224 + _ROW_SHIFT
+local _KEY_ROW_Y = 288 + _ROW_SHIFT
+local _KEY_ICON_HEIGHT = 32
 
 PlayerAttrHUDUI.refreshEvents = { EventKeys.LocaleChanged }
 
@@ -46,16 +66,16 @@ local function getStateDisplaySignature(states, language)
     return createStateSignature(values)
 end
 
-local function stateSignatureMatches(ui, signature)
-    return ui._stateSignature == signature and #ui._stateUIs == #signature
+local function stateSignatureMatches(currentSignature, rowCount, signature)
+    return currentSignature == signature and rowCount == #signature
 end
 
 function PlayerAttrHUDUI:init(model)
     self._avatarTexture = nil
     self._avatarRect = nil
-    self._avatarSize = model._AVATAR_MIN_SIZE
-    self._infoStartX = model._AVATAR_MIN_SIZE
-    self._hpBarWidth = model._HP_BAR_WIDTH
+    self._avatarSize = _AVATAR_MIN_SIZE
+    self._infoStartX = _AVATAR_MIN_SIZE
+    self._hpBarWidth = _HP_BAR_WIDTH
     self._stateUIs = {}
     self._stateWidgets = {}
     self._stateSignature = nil
@@ -71,8 +91,8 @@ function PlayerAttrHUDUI:init(model)
     self._progressSignature = nil
     self._keySignature = nil
     self._layoutDirty = false
-    self:_initialiseAvatar(model._player)
-    self:_initialiseLayout(model)
+    self:_initialiseAvatar(model:getPlayer())
+    self:_initialiseLayout()
     super(PlayerAttrHUDUI, self).init(model)
 end
 
@@ -94,27 +114,18 @@ function PlayerAttrHUDUI:_initialiseAvatar(player)
     self._infoStartX = math.max(self._infoStartX, self._avatarSize)
 end
 
-function PlayerAttrHUDUI:_initialiseLayout(model)
+function PlayerAttrHUDUI:_initialiseLayout()
     local hudWidth = math.max(
-        self._infoStartX + self._hpBarWidth, self._hpBarWidth + model._AVATAR_MIN_SIZE, model._STAT_VALUE_X + 16
+        self._infoStartX + self._hpBarWidth, self._hpBarWidth + _AVATAR_MIN_SIZE, _STAT_VALUE_X + 16
     )
     self._hpBarWidth = hudWidth
-    local keyRowHeight = math.max(model._FONT_SIZE, model._KEY_ICON_HEIGHT)
-    local hudHeight = model._KEY_ROW_Y + keyRowHeight + 4
+    local keyRowHeight = math.max(_FONT_SIZE, _KEY_ICON_HEIGHT)
+    local hudHeight = _KEY_ROW_Y + keyRowHeight + 4
     ---@cast hudWidth integer
     ---@cast hudHeight integer
     local logicalSize = sf.Vector2u.new(hudWidth, hudHeight)
     ---@cast logicalSize sf.Vector2u
     self._logicalSize = logicalSize
-
-    model._avatarSize = self._avatarSize
-    model._infoStartX = self._infoStartX
-    model._hpBarWidth = self._hpBarWidth
-    model._hudWidth = hudWidth
-    model._hudHeight = hudHeight
-    model._stateWidgets = self._stateWidgets
-    model._stateSignature = self._stateSignature
-    model._stateIconCache = self._stateIconCache
 end
 
 function PlayerAttrHUDUI:bind()
@@ -152,7 +163,6 @@ function PlayerAttrHUDUI:bind()
     ---@cast self._itemText Engine.RichText
     ---@cast self._statValueTexts table<string, Engine.PlainText>
     self:_bindAvatar()
-    self:_publishControls()
 end
 
 function PlayerAttrHUDUI:_bindAvatar()
@@ -165,35 +175,16 @@ function PlayerAttrHUDUI:_bindAvatar()
     self._avatar:setTexture(self._avatarTexture, true)
     self._avatar:setTextureRect(self._avatarRect)
     self:setProperty("Avatar", "visible", true)
-    if self.model._openMenuCallback == nil then
-        return
-    end
     ---@type Source.Windows.PlayerAttrHUD[]
     local modelRef = setmetatable({ self.model }, {
         __mode = "v"
     })
     self._avatar:addClickCallback(function ()
         local model = modelRef[1]
-        if model ~= nil and model._openMenuCallback ~= nil then
-            model._openMenuCallback()
+        if model ~= nil then
+            model:openMenu()
         end
     end)
-end
-
-function PlayerAttrHUDUI:_publishControls()
-    self.model._avatar = self._avatarTexture ~= nil and self._avatar or nil
-    self.model._mapNameText = self._mapNameText
-    self.model._levelText = self._levelText
-    self.model._hpBack = self._hpBack
-    self.model._hpFill = self._hpFill
-    self.model._hpLabelText = self._hpLabelText
-    self.model._hpText = self._hpText
-    self.model._statValueTexts = self._statValueTexts
-    self.model._atkDebuffText = self._atkDebuffText
-    self.model._defDebuffText = self._defDebuffText
-    self.model._hpPoisonText = self._hpPoisonText
-    self.model._keyIcon = self._keyIcon
-    self.model._itemText = self._itemText
 end
 
 function PlayerAttrHUDUI:getLogicalSize()
@@ -223,12 +214,10 @@ function PlayerAttrHUDUI:clearStateRows()
     self._stateWidgets = {}
     self._stateSignature = nil
     self._stateDisplaySignature = nil
-    self.model._stateWidgets = self._stateWidgets
-    self.model._stateSignature = nil
 end
 
 function PlayerAttrHUDUI:stateSignatureMatches(states)
-    return stateSignatureMatches(self, getStateSignature(states))
+    return stateSignatureMatches(self._stateSignature, #self._stateUIs, getStateSignature(states))
 end
 
 ---@param states    Source.Configs.GeneralDataTypes.StateAttributeSet[]
@@ -238,12 +227,11 @@ function PlayerAttrHUDUI:_rebuildStateRows(states, signature)
     self._stateSignature = signature
     for index in ipairs(states) do
         self._stateUIs[index] = PlayerStateRowUI.new({
-            iconSize = self.model._STATE_ICON_SIZE,
+            iconSize = _STATE_ICON_SIZE,
             iconTexture = nil,
             name = ""
         })
     end
-    self.model._stateSignature = self._stateSignature
 end
 
 ---@param states Source.Configs.GeneralDataTypes.StateAttributeSet[]
@@ -262,19 +250,18 @@ function PlayerAttrHUDUI:_updateStateRows(states)
             self._stateWidgets[index] = rowRoot
         end
         rowRoot:setPosition(sf.Vector2f.new(x, 0.0))
-        x = x + self._stateUIs[index]:getWidth() + self.model._STATE_GAP
+        x = x + self._stateUIs[index]:getWidth() + _STATE_GAP
         ---@diagnostic enable: need-check-nil
     end
-    self.model._stateWidgets = self._stateWidgets
 end
 
 function PlayerAttrHUDUI:refreshStates(language)
     local states = {}
-    for _, stateID in ipairs(Effects.GetStateIDs(self.model._player)) do
+    for _, stateID in ipairs(Effects.GetStateIDs(self.model:getPlayer())) do
         states[#states + 1] = GeneralDataTypes.Create("State", stateID, Data.GetGeneralStateData(stateID))
     end
     local signature = getStateSignature(states)
-    local rebuild = not stateSignatureMatches(self, signature)
+    local rebuild = not stateSignatureMatches(self._stateSignature, #self._stateUIs, signature)
     if rebuild then
         self:_rebuildStateRows(states, signature)
     end
@@ -290,7 +277,7 @@ function PlayerAttrHUDUI:refreshStates(language)
 end
 
 function PlayerAttrHUDUI:getMapDisplayName()
-    local gameMap = self.model._player:getMap()
+    local gameMap = self.model:getPlayer():getMap()
     if gameMap == nil then
         return ""
     end
@@ -302,7 +289,7 @@ function PlayerAttrHUDUI:refresh()
     local layoutDirty = false
     local language = LocaleCore.GetLanguage()
     local localeChanged = self._language ~= language
-    local gameMap = self.model._player:getMap()
+    local gameMap = self.model:getPlayer():getMap()
     local mapName = ""
     if gameMap ~= nil then
         ---@cast gameMap GameMap
@@ -321,30 +308,34 @@ function PlayerAttrHUDUI:refresh()
         layoutDirty = true
     end
 
-    local abilitySystem = self.model._player:getAbilitySystemComponent()
-    local combatSignature = createSignature(self.model._player.attributes, abilitySystem:getRevision())
+    local abilitySystem = self.model:getPlayer():getAbilitySystemComponent()
+    local combatSignature = createSignature(self.model:getPlayer().attributes, abilitySystem:getRevision())
     local refreshStateRows = localeChanged
     if self._combatSignature ~= combatSignature then
         self._combatSignature = combatSignature
         refreshStateRows = true
 
-        local hpSignature = createSignature(self.model._player.attributes.HP, self.model._player.attributes.MAXHP)
+        local hpSignature = createSignature(
+            self.model:getPlayer().attributes.HP, self.model:getPlayer().attributes.MAXHP
+        )
         if self._hpSignature ~= hpSignature then
             self._hpSignature = hpSignature
             self:setText(
                 "HpValue",
-                "#default#" .. tostring(ToShortNumber(self.model._player.attributes.HP)) .. "/#max#"
-                    .. tostring(ToShortNumber(self.model._player.attributes.MAXHP)) .. "#default#"
+                "#default#" .. tostring(ToShortNumber(self.model:getPlayer().attributes.HP)) .. "/#max#"
+                    .. tostring(ToShortNumber(self.model:getPlayer().attributes.MAXHP)) .. "#default#"
             )
-            self._hpRate = self.model._player.attributes.HP / self.model._player.attributes.MAXHP
+            self._hpRate = self.model:getPlayer().attributes.HP / self.model:getPlayer().attributes.MAXHP
             layoutDirty = true
         end
 
-        local statSignature = createSignature(self.model._player.attributes.ATK, self.model._player.attributes.DEF)
+        local statSignature = createSignature(
+            self.model:getPlayer().attributes.ATK, self.model:getPlayer().attributes.DEF
+        )
         if self._statSignature ~= statSignature then
             self._statSignature = statSignature
-            self:setText("AtkValue", tostring(ToShortNumber(self.model._player.attributes.ATK)))
-            self:setText("DefValue", tostring(ToShortNumber(self.model._player.attributes.DEF)))
+            self:setText("AtkValue", tostring(ToShortNumber(self.model:getPlayer().attributes.ATK)))
+            self:setText("DefValue", tostring(ToShortNumber(self.model:getPlayer().attributes.DEF)))
             layoutDirty = true
         end
 
@@ -362,19 +353,20 @@ function PlayerAttrHUDUI:refresh()
     end
 
     local progressSignature = createSignature(
-        self.model._player.attributes.LEVEL, self.model._player.attributes.EXP, self.model._player.attributes.GOLD
+        self.model:getPlayer().attributes.LEVEL, self.model:getPlayer().attributes.EXP,
+        self.model:getPlayer().attributes.GOLD
     )
     if self._progressSignature ~= progressSignature then
         self._progressSignature = progressSignature
-        self:setText("Level", "Lv. " .. tostring(self.model._player.attributes.LEVEL))
-        self:setText("ExpValue", tostring(ToShortNumber(self.model._player.attributes.EXP)))
-        self:setText("GoldValue", tostring(ToShortNumber(self.model._player.attributes.GOLD)))
+        self:setText("Level", "Lv. " .. tostring(self.model:getPlayer().attributes.LEVEL))
+        self:setText("ExpValue", tostring(ToShortNumber(self.model:getPlayer().attributes.EXP)))
+        self:setText("GoldValue", tostring(ToShortNumber(self.model:getPlayer().attributes.GOLD)))
         layoutDirty = true
     end
 
-    local keyYCount = self.model._player:getItemCount(Item.KEY_Y)
-    local keyBCount = self.model._player:getItemCount(Item.KEY_B)
-    local keyRCount = self.model._player:getItemCount(Item.KEY_R)
+    local keyYCount = self.model:getPlayer():getItemCount(Item.KEY_Y)
+    local keyBCount = self.model:getPlayer():getItemCount(Item.KEY_B)
+    local keyRCount = self.model:getPlayer():getItemCount(Item.KEY_R)
     local keySignature = createSignature(keyYCount, keyBCount, keyRCount)
     if self._keySignature ~= keySignature then
         self._keySignature = keySignature
@@ -393,25 +385,24 @@ function PlayerAttrHUDUI:refresh()
 end
 
 function PlayerAttrHUDUI:_applyGeometry()
-    self._mapNameText:setPosition(sf.Vector2f.new(self._infoStartX, self.model._HEADER_ROW_Y))
+    self._mapNameText:setPosition(sf.Vector2f.new(self._infoStartX, _HEADER_ROW_Y))
     self._levelText:setPosition(sf.Vector2f.new(0.0, self._avatarSize))
-    self._stateHost:setPosition(sf.Vector2f.new(0.0, self._avatarSize + self.model._ROW_SHIFT))
-    self._hpFill:setSize(sf.Vector2f.new(self._hpBarWidth * self._hpRate, self.model._HP_BAR_HEIGHT))
+    self._stateHost:setPosition(sf.Vector2f.new(0.0, self._avatarSize + _ROW_SHIFT))
+    self._hpFill:setSize(sf.Vector2f.new(self._hpBarWidth * self._hpRate, _HP_BAR_HEIGHT))
 
     local hpBounds = self._hpText:getLocalBounds()
-    local textY = self.model._HP_ROW_Y + (self.model._HP_TEXT_LAYOUT_HEIGHT - hpBounds.size.y) / 2.0
-        - hpBounds.position.y
-    local textX = self.model._STAT_VALUE_X - hpBounds.size.x - hpBounds.position.x
+    local textY = _HP_ROW_Y + (_HP_TEXT_LAYOUT_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
+    local textX = _STAT_VALUE_X - hpBounds.size.x - hpBounds.position.x
     self._hpLabelText:setPosition(sf.Vector2f.new(0.0, textY))
     self._hpText:setPosition(sf.Vector2f.new(textX, textY))
-    self._hpPoisonText:setPosition(sf.Vector2f.new(self.model._STAT_VALUE_X + self.model._DEBUFF_TEXT_OFFSET_X, textY))
+    self._hpPoisonText:setPosition(sf.Vector2f.new(_STAT_VALUE_X + _DEBUFF_TEXT_OFFSET_X, textY))
 
     local itemBounds = self._itemText:getLocalBounds()
-    local itemX = self.model._STAT_VALUE_X - itemBounds.size.x - itemBounds.position.x
-    local keyRowHeight = math.max(self.model._FONT_SIZE, self.model._KEY_ICON_HEIGHT)
-    local itemY = self.model._KEY_ROW_Y + (keyRowHeight - itemBounds.size.y) / 2.0 - itemBounds.position.y
+    local itemX = _STAT_VALUE_X - itemBounds.size.x - itemBounds.position.x
+    local keyRowHeight = math.max(_FONT_SIZE, _KEY_ICON_HEIGHT)
+    local itemY = _KEY_ROW_Y + (keyRowHeight - itemBounds.size.y) / 2.0 - itemBounds.position.y
     self._itemText:setPosition(sf.Vector2f.new(itemX, itemY))
-    local iconY = self.model._KEY_ROW_Y + (keyRowHeight - self.model._KEY_ICON_HEIGHT) / 2.0
+    local iconY = _KEY_ROW_Y + (keyRowHeight - _KEY_ICON_HEIGHT) / 2.0
     self._keyIcon:setPosition(sf.Vector2f.new(0.0, iconY))
 end
 

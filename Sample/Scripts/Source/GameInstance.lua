@@ -6,8 +6,6 @@ local MapPath = require("Source.MapPath")
 ---@class (partial) Source.GameInstance.GameInstance
 local GameInstance = {}
 
----@alias GameInstanceImplState Source.GameInstance.GameInstance
-
 function GameInstance:init(skipDefaultPlayer)
     self._playerKeys = {}
     self._players = {}
@@ -36,13 +34,53 @@ function GameInstance:init(skipDefaultPlayer)
 end
 
 function GameInstance:asDict()
-    return GameInstanceSaveCodec.Encode(self)
+    return GameInstanceSaveCodec.Encode({
+        playerKeys = self._playerKeys,
+        players = self._players,
+        currentRegion = self._currentRegion,
+        variables = self._variables,
+        currentMap = self._cachedMap,
+        addedActors = self._cachedAddedActors,
+        actorPositions = self._cachedActorPositions,
+        worldMovedActors = self._cachedWorldMovedActors,
+        destroyedActors = self._cachedDestroyedActors,
+        terrainDestructions = self._cachedTerrainDestructions,
+        obtainedItems = self._cachedNewItem,
+        telepoints = self._cachedTelepoints,
+        screenshot = self._screenshot
+    })
 end
 
 function GameInstance.FromDict(data)
     local instance = GameInstance.new(true)
-    GameInstanceSaveCodec.DecodeInto(instance, data)
+    instance:restoreFromData(data)
     return instance
+end
+
+function GameInstance:restoreFromData(data)
+    local state = GameInstanceSaveCodec.Decode(data)
+    GameInstanceWorldPersistence.ValidateWorldActorRecordTags(state.addedActors, state.worldMovedActors)
+    self._playerKeys = state.playerKeys
+    self._players = state.players
+    self._currentRegion = state.currentRegion
+    self._variables = state.variables
+    self._cachedMap = state.currentMap
+    self._cachedAddedActors = state.addedActors
+    self._cachedActorPositions = state.actorPositions
+    self._cachedWorldMovedActors = state.worldMovedActors
+    self._cachedDestroyedActors = state.destroyedActors
+    self._cachedTerrainDestructions = state.terrainDestructions
+    self._cachedNewItem = state.obtainedItems
+    self._cachedTelepoints = state.telepoints
+    self._screenshot = state.screenshot
+end
+
+function GameInstance:getCurrentMapPath()
+    return self._cachedMap
+end
+
+function GameInstance:getVisitedMapPaths()
+    return table.orderedStringKeys(self._cachedTelepoints)
 end
 
 function GameInstance:getCurrentRegion()
@@ -171,6 +209,16 @@ function GameInstance:recordTelepoint(mapPath, position, tag)
     GameInstanceRecords.AppendUniqueTelepoint(points, position, tag)
 end
 
+function GameInstance:getTelepointsForMap(mapKey)
+    local target = MapPath.WithoutExtension(mapKey)
+    for _, mapPath in ipairs(table.orderedStringKeys(self._cachedTelepoints)) do
+        if MapPath.WithoutExtension(mapPath) == target then
+            return deepcopy(self._cachedTelepoints[mapPath])
+        end
+    end
+    return {}
+end
+
 function GameInstance:getTelepoints(mapPath)
     return self._cachedTelepoints[MapPath.Normalise(mapPath)] or {}
 end
@@ -197,49 +245,51 @@ function GameInstance:setCachedNewItem(itemID)
 end
 
 function GameInstance:getAddedActors(mapPath)
-    return GameInstanceWorldPersistence.getAddedActors(self, mapPath)
+    return GameInstanceWorldPersistence.GetAddedActors(self, mapPath)
 end
 
 function GameInstance:recordAddedActorPosition(mapPath, actor, actorPosition)
-    return GameInstanceWorldPersistence.recordAddedActorPosition(self, mapPath, actor, actorPosition)
+    return GameInstanceWorldPersistence.RecordAddedActorPosition(self, mapPath, actor, actorPosition)
 end
 
 function GameInstance:recordActorPosition(mapPath, actor, actorPosition)
-    return GameInstanceWorldPersistence.recordActorPosition(self, mapPath, actor, actorPosition)
+    return GameInstanceWorldPersistence.RecordActorPosition(self, mapPath, actor, actorPosition)
 end
 
 function GameInstance:getActorPositions(mapPath)
-    return GameInstanceWorldPersistence.getActorPositions(self, mapPath)
+    return GameInstanceWorldPersistence.GetActorPositions(self, mapPath)
 end
 
 function GameInstance:recordWorldMovedActor(worldPath, actor, definitionRegion, currentRegion, layerName, actorPosition)
-    return GameInstanceWorldPersistence.recordWorldMovedActor(
+    return GameInstanceWorldPersistence.RecordWorldMovedActor(
         self, worldPath, actor, definitionRegion, currentRegion, layerName, actorPosition
     )
 end
 
 function GameInstance:removeWorldMovedActor(worldPath, actorTag)
-    return GameInstanceWorldPersistence.removeWorldMovedActor(self, worldPath, actorTag)
+    return GameInstanceWorldPersistence.RemoveWorldMovedActor(self, worldPath, actorTag)
 end
 
 function GameInstance:getWorldMovedActors(worldPath)
-    return GameInstanceWorldPersistence.getWorldMovedActors(self, worldPath)
+    return GameInstanceWorldPersistence.GetWorldMovedActors(self, worldPath)
 end
 
 function GameInstance:_validateWorldActorRecordTags()
-    return GameInstanceWorldPersistence._validateWorldActorRecordTags(self)
+    return GameInstanceWorldPersistence.ValidateWorldActorRecordTags(
+        self._cachedAddedActors, self._cachedWorldMovedActors
+    )
 end
 
 function GameInstance:recordDestroyedActorTag(mapPath, actorTag)
-    return GameInstanceWorldPersistence.recordDestroyedActorTag(self, mapPath, actorTag)
+    return GameInstanceWorldPersistence.RecordDestroyedActorTag(self, mapPath, actorTag)
 end
 
 function GameInstance:recordDestroyedActor(mapPath, actor)
-    return GameInstanceWorldPersistence.recordDestroyedActor(self, mapPath, actor)
+    return GameInstanceWorldPersistence.RecordDestroyedActor(self, mapPath, actor)
 end
 
 function GameInstance:getDestroyedActors(mapPath)
-    return GameInstanceWorldPersistence.getDestroyedActors(self, mapPath)
+    return GameInstanceWorldPersistence.GetDestroyedActors(self, mapPath)
 end
 
 return class(GameInstance)

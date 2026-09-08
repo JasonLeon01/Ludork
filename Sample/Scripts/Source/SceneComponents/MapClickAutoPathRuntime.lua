@@ -14,18 +14,17 @@ function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal)
     return false
 end
 
-function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(autoPath, player)
-    local goal = autoPath._activeGoal
+function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(
+    gameMap, dangerState, route, goal, ignoredGoalEnemies, player
+)
     if goal == nil then
         return false
     end
-    local route = autoPath._routeState:getRoute()
     ---@cast route sf.Vector2i[]
     if not bool(route) then
         return false
     end
-    local ignoredGoalEnemies = autoPath:_getIgnoredGoalEnemies(goal)
-    local excludedAnchors = autoPath._dangerState:getExcludedAnchors(goal, ignoredGoalEnemies, true)
+    local excludedAnchors = dangerState:getExcludedAnchors(goal, ignoredGoalEnemies, true)
     local excludedRows = {}
     for _, position in ipairs(excludedAnchors) do
         local row = excludedRows[position.y] or {}
@@ -38,9 +37,8 @@ function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(autoPath, player)
             return true
         end
     end
-    return route[#route] == goal and bool(ignoredGoalEnemies) and autoPath._parent:isPathfindingPassable(player, goal)
-        and autoPath._parent:isPassable(player, goal)
-        and autoPath._dangerState:getDamageAt(goal, ignoredGoalEnemies) > 0
+    return route[#route] == goal and bool(ignoredGoalEnemies) and gameMap:isPathfindingPassable(player, goal)
+        and gameMap:isPassable(player, goal) and dangerState:getDamageAt(goal, ignoredGoalEnemies) > 0
 end
 
 function MapClickAutoPathRuntime.GetTeleportPathPositions(route, destination)

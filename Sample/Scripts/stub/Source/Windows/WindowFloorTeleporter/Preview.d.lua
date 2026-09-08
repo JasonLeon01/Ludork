@@ -44,4 +44,9 @@ function WindowFloorMapPreview:onReturn() end
 ---@param index integer
 function WindowFloorMapPreview:_setPointerIndex(index) end
 
+function WindowFloorMapPreview:confirmSelectedTelepoint() end
+
+---@param index integer | nil
+function WindowFloorMapPreview:notifyTelepointIndexMaybeChanged(index) end
+
 return WindowFloorMapPreview

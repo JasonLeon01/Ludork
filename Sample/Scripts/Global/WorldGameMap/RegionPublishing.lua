@@ -7,23 +7,18 @@ local WorldRegionState = GlobalCore.WorldRegionState
 local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 local STREAM_CONVERSION_NODE_BUDGET = 64
 
----@type WorldGameMapImplState
 local WorldGameMapRegionPublishing = {}
 
----@param world        Global.WorldGameMap.WorldGameMap
----@param stage        string
----@param milliseconds number
-local function recordPublishStage(world, stage, milliseconds)
-    if milliseconds > world._worldPublishSlowStageMilliseconds then
-        world._worldPublishSlowStage = stage
-        world._worldPublishSlowStageMilliseconds = milliseconds
+---@param currentStage        string
+---@param currentMilliseconds number
+---@param stage               string
+---@param milliseconds        number
+---@return string, number
+local function recordPublishStage(currentStage, currentMilliseconds, stage, milliseconds)
+    if milliseconds > currentMilliseconds then
+        return stage, milliseconds
     end
-end
-
----@param world   Global.WorldGameMap.WorldGameMap
----@param builder Global.WorldGameMap.RegionBuildState
-local function recordBuilderStage(world, builder)
-    recordPublishStage(world, builder.lastStepMaximumStage, builder.lastStepMaximumMilliseconds)
+    return currentStage, currentMilliseconds
 end
 
 ---@param builder Global.WorldGameMap.RegionBuildState
@@ -33,15 +28,15 @@ local function resetBuilderStage(builder)
     builder.lastStepResumeCount = 0
 end
 
----@param world         Global.WorldGameMap.WorldGameMap
----@param region        Source.SceneComponents.WorldRegionData
----@param forceActivate boolean
+---@param streamingState GlobalCore.WorldStreamingState
+---@param region         Source.SceneComponents.WorldRegionData
+---@param forceActivate  boolean
 ---@return Global.WorldGameMap.RegionPublishState | nil
-local function beginRegionPublishState(world, region, forceActivate)
+local function beginRegionPublishState(streamingState, region, forceActivate)
     if region.publishState ~= nil then
         if forceActivate then
             region.publishState.forceActivate = true
-            world._worldStreamingState:beginPublish(region.index, true)
+            streamingState:beginPublish(region.index, true)
         end
         return nil
     end
@@ -58,12 +53,13 @@ local function beginRegionPublishState(world, region, forceActivate)
         definitionRoots = {}
     }
     region.publishState = state
-    world._worldStreamingState:beginPublish(region.index, forceActivate)
+    streamingState:beginPublish(region.index, forceActivate)
     return state
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapRegionPublishing:_cancelRegionPublish(region)
+---@param self   WorldGameMapImplState
+function WorldGameMapRegionPublishing.CancelRegionPublish(self, region)
     local state = region.publishState
     if state == nil then
         return
@@ -98,8 +94,9 @@ end
 ---@param data          Source.SceneComponents.SerializedMapData
 ---@param forceActivate boolean
 ---@param priorityRect  Global.WorldGeometry.CellRect | nil
-function WorldGameMapRegionPublishing:_beginRegionPublish(region, data, forceActivate, priorityRect)
-    local state = beginRegionPublishState(self, region, forceActivate)
+---@param self          WorldGameMapImplState
+function WorldGameMapRegionPublishing.BeginRegionPublish(self, region, data, forceActivate, priorityRect)
+    local state = beginRegionPublishState(self._worldStreamingState, region, forceActivate)
     if state == nil then
         return
     end
@@ -112,10 +109,11 @@ end
 ---@param contentBytes  integer
 ---@param forceActivate boolean
 ---@param priorityRect  Global.WorldGeometry.CellRect | nil
-function WorldGameMapRegionPublishing:_beginRegionConversion(
-    region, conversion, contentBytes, forceActivate, priorityRect
+---@param self          WorldGameMapImplState
+function WorldGameMapRegionPublishing.BeginRegionConversion(
+    self, region, conversion, contentBytes, forceActivate, priorityRect
 )
-    local state = beginRegionPublishState(self, region, forceActivate)
+    local state = beginRegionPublishState(self._worldStreamingState, region, forceActivate)
     if state == nil then
         asyncio.clear_file_batch_json(conversion)
         return
@@ -128,7 +126,8 @@ end
 
 ---@param state Global.WorldGameMap.RegionPublishState
 ---@return boolean
-function WorldGameMapRegionPublishing:_prepareNextRegionRoot(state)
+---@param self  WorldGameMapImplState
+function WorldGameMapRegionPublishing.PrepareNextRegionRoot(self, state)
     local payload = assert(state.payload, "World region payload is not built")
     while state.layerIndex <= #state.layerNames do
         local layerName = state.layerNames[state.layerIndex]
@@ -156,7 +155,8 @@ end
 ---@param region   Source.SceneComponents.WorldRegionData
 ---@param deadline number
 ---@return boolean
-function WorldGameMapRegionPublishing:_stepRegionPublish(region, deadline)
+---@param self     WorldGameMapImplState
+function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
     local state = assert(region.publishState)
     if state.phase == "convert" then
         local remainingMilliseconds = (deadline - perfCounter()) * 1000.0
@@ -183,7 +183,10 @@ function WorldGameMapRegionPublishing:_stepRegionPublish(region, deadline)
         end
         local builder = assert(state.builder, "World region builder is unavailable")
         local payload = builder.step(deadline)
-        recordBuilderStage(self, builder)
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
+            builder.lastStepMaximumMilliseconds
+        )
         if payload == nil then
             return false
         end
@@ -218,7 +221,10 @@ function WorldGameMapRegionPublishing:_stepRegionPublish(region, deadline)
             state.actorQueue = nil
             state.actorRoot = nil
         end
-        recordPublishStage(self, "publishInitialActorTree", (perfCounter() - actorStarted) * 1000.0)
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, "publishInitialActorTree",
+            (perfCounter() - actorStarted) * 1000.0
+        )
     end
     if state.phase ~= "finalise" or perfCounter() >= deadline then
         return false
@@ -236,7 +242,10 @@ function WorldGameMapRegionPublishing:_stepRegionPublish(region, deadline)
         state.forceActivate or self._worldStreamingState:getRegionDemand(region.index) == WorldRegionDemand.Active,
         state.contentBytes
     )
-    recordPublishStage(self, "installRegion", (perfCounter() - installStarted) * 1000.0)
+    self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, "installRegion",
+        (perfCounter() - installStarted) * 1000.0
+    )
     return true
 end
 
@@ -256,7 +265,8 @@ end
 ---@param builder  Global.WorldGameMap.RegionBuildState
 ---@param deadline number
 ---@return boolean
-function WorldGameMapRegionPublishing:_pumpRegionBackgroundActors(region, builder, deadline)
+---@param self     WorldGameMapImplState
+function WorldGameMapRegionPublishing.PumpRegionBackgroundActors(self, region, builder, deadline)
     local payload = assert(region.payload)
     local started = perfCounter()
     local worked = builder.actorPublishQueue ~= nil
@@ -265,7 +275,10 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundActors(region, builde
             local record = table.remove(builder.readyActorRoots, 1)
             if record == nil then
                 if worked then
-                    recordPublishStage(self, "publishActorTree", (perfCounter() - started) * 1000.0)
+                    self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+                        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, "publishActorTree",
+                        (perfCounter() - started) * 1000.0
+                    )
                 end
                 return true
             end
@@ -299,13 +312,17 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundActors(region, builde
         end
     end
     if worked then
-        recordPublishStage(self, "publishActorTree", (perfCounter() - started) * 1000.0)
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, "publishActorTree",
+            (perfCounter() - started) * 1000.0
+        )
     end
     return builder.actorPublishQueue == nil and not bool(builder.readyActorRoots)
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapRegionPublishing:_drainRegionActors(region)
+---@param self   WorldGameMapImplState
+function WorldGameMapRegionPublishing.DrainRegionActors(self, region)
     local builder = region.backgroundBuilder
     if builder == nil then
         return
@@ -315,7 +332,10 @@ function WorldGameMapRegionPublishing:_drainRegionActors(region)
         self:_pumpRegionBackgroundActors(region, builder, math.huge)
         if not builder.areActorsReady() then
             builder.prepareActors(math.huge)
-            recordBuilderStage(self, builder)
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+                self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
+                builder.lastStepMaximumMilliseconds
+            )
         end
     end
     self:setSparseWorldRegionActorsReady(region.index)
@@ -326,7 +346,8 @@ function WorldGameMapRegionPublishing:_drainRegionActors(region)
 end
 
 ---@param deadline number
-function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
+---@param self     WorldGameMapImplState
+function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
     if perfCounter() >= deadline then
         return
     end
@@ -356,10 +377,16 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
         if self:_pumpRegionBackgroundActors(region, builder, deadline) and perfCounter() < deadline then
             local prepareStarted = perfCounter()
             builder.prepareRect(assert(visibleRect), deadline)
-            recordPublishStage(self, "prepareVisibleTileChunk", (perfCounter() - prepareStarted) * 1000.0)
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+                self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, "prepareVisibleTileChunk",
+                (perfCounter() - prepareStarted) * 1000.0
+            )
             self:_pumpRegionBackgroundActors(region, builder, deadline)
         end
-        recordBuilderStage(self, builder)
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
+            builder.lastStepMaximumMilliseconds
+        )
         region.geometryRevision = builder.geometryRevision
         local actorsAreReady = builder.areActorsReady()
         if not actorsWereReady and actorsAreReady then
@@ -390,7 +417,10 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
             builder.step(deadline)
             self:_pumpRegionBackgroundActors(region, builder, deadline)
         end
-        recordBuilderStage(self, builder)
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
+            builder.lastStepMaximumMilliseconds
+        )
         region.geometryRevision = builder.geometryRevision
         local actorsAreReady = builder.areActorsReady()
         if not actorsWereReady and actorsAreReady then
@@ -412,7 +442,8 @@ function WorldGameMapRegionPublishing:_pumpRegionBackgroundBuilds(deadline)
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
-function WorldGameMapRegionPublishing:_drainRegionPublish(region)
+---@param self   WorldGameMapImplState
+function WorldGameMapRegionPublishing.DrainRegionPublish(self, region)
     local started = perfCounter()
     while region.publishState ~= nil do
         local deadline = region.publishState.phase == "convert" and perfCounter() + STREAM_PUBLISH_BUDGET_SECONDS
@@ -423,7 +454,8 @@ function WorldGameMapRegionPublishing:_drainRegionPublish(region)
 end
 
 ---@param deadline number
-function WorldGameMapRegionPublishing:_pumpRegionPublishing(deadline)
+---@param self     WorldGameMapImplState
+function WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline)
     while perfCounter() < deadline do
         local regionIndex = self._worldStreamingState:takePublishItem()
         if regionIndex == nil then
@@ -448,19 +480,24 @@ end
 ---@param region   Source.SceneComponents.WorldRegionData
 ---@param data     Source.SceneComponents.SerializedMapData
 ---@param activate boolean
-function WorldGameMapRegionPublishing:_publishRegion(region, data, activate)
+---@param self     WorldGameMapImplState
+function WorldGameMapRegionPublishing.PublishRegion(self, region, data, activate)
     self:_beginRegionPublish(region, data, activate, self._camera ~= nil and self:_getVisibleCellRect() or nil)
     self:_drainRegionPublish(region)
 end
 
-function WorldGameMapRegionPublishing:_enforceCacheBudget()
+---@param self WorldGameMapImplState
+function WorldGameMapRegionPublishing.EnforceCacheBudget(self)
     for _, regionIndex in ipairs(self._worldStreamingState:getEvictionList()) do
-        self:_evictRegion(assert(self._worldRegions[regionIndex], "Native world eviction list returned an invalid region"))
+        self:_evictRegion(
+            assert(self._worldRegions[regionIndex], "Native world eviction list returned an invalid region")
+        )
     end
 end
 
 ---@return integer
-function WorldGameMapRegionPublishing:_getActiveActorCount()
+---@param self WorldGameMapImplState
+function WorldGameMapRegionPublishing.GetActiveActorCount(self)
     local actors = {}
     local count = 0
     for _, actorList in pairs(self._actors) do
@@ -475,7 +512,8 @@ function WorldGameMapRegionPublishing:_getActiveActorCount()
 end
 
 ---@return integer
-function WorldGameMapRegionPublishing:_getVisibleTileChunkCount()
+---@param self WorldGameMapImplState
+function WorldGameMapRegionPublishing.GetVisibleTileChunkCount(self)
     local visible = self:_getVisibleCellRect()
     local count = 0
     for _, region in ipairs(self._worldRegions) do
@@ -491,7 +529,8 @@ function WorldGameMapRegionPublishing:_getVisibleTileChunkCount()
     return count
 end
 
-function WorldGameMapRegionPublishing:_recordStreamingProfile()
+---@param self WorldGameMapImplState
+function WorldGameMapRegionPublishing.RecordStreamingProfile(self)
     if not System.isPerformanceProfilerEnabled() then
         return
     end

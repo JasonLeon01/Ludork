@@ -454,71 +454,71 @@ function WorldGameMap:_refreshWorldLights()
 end
 
 function WorldGameMap:_initialiseWorldActorState(config, reservedTags)
-    return WorldGameMapActors._initialiseWorldActorState(self, config, reservedTags)
+    return WorldGameMapActors.InitialiseWorldActorState(self, config, reservedTags)
 end
 
 function WorldGameMap:setDestroyedActorTagProvider(destroyedActorTagProvider)
-    return WorldGameMapActors.setDestroyedActorTagProvider(self, destroyedActorTagProvider)
+    return WorldGameMapActors.SetDestroyedActorTagProvider(self, destroyedActorTagProvider)
 end
 
 function WorldGameMap:setAddedActorPositionPersistenceCallback(addedActorPositionRecorder)
-    return WorldGameMapActors.setAddedActorPositionPersistenceCallback(self, addedActorPositionRecorder)
+    return WorldGameMapActors.SetAddedActorPositionPersistenceCallback(self, addedActorPositionRecorder)
 end
 
 function WorldGameMap:_refreshSuppressedActorTags()
-    return WorldGameMapActors._refreshSuppressedActorTags(self)
+    return WorldGameMapActors.RefreshSuppressedActorTags(self)
 end
 
 function WorldGameMap:_applySuppressedActorTags()
-    return WorldGameMapActors._applySuppressedActorTags(self)
+    return WorldGameMapActors.ApplySuppressedActorTags(self)
 end
 
 function WorldGameMap:suppressActorTag(tag)
-    return WorldGameMapActors.suppressActorTag(self, tag)
+    return WorldGameMapActors.SuppressActorTag(self, tag)
 end
 
 function WorldGameMap:_filterSuppressedRegionActors(region, payload)
-    return WorldGameMapActors._filterSuppressedRegionActors(self, region, payload)
+    return WorldGameMapActors.FilterSuppressedRegionActors(self, region, payload)
 end
 
 function WorldGameMap:_ensureWorldLayer(layerName)
-    return WorldGameMapActors._ensureWorldLayer(self, layerName)
+    return WorldGameMapActors.EnsureWorldLayer(self, layerName)
 end
 
 function WorldGameMap:_getRuntimeTagNamespace(position)
-    return WorldGameMapActors._getRuntimeTagNamespace(self, position)
+    return WorldGameMapActors.GetRuntimeTagNamespace(self, position)
 end
 
 function WorldGameMap:_trackRuntimeTag(tag)
-    return WorldGameMapActors._trackRuntimeTag(self, tag)
+    return WorldGameMapActors.TrackRuntimeTag(self, tag)
 end
 
 function WorldGameMap:_allocateRuntimeTag(position)
-    return WorldGameMapActors._allocateRuntimeTag(self, position)
+    return WorldGameMapActors.AllocateRuntimeTag(self, position)
 end
 
 function WorldGameMap:_indexRegionActor(payload, layerName, actor, region, root)
-    return WorldGameMapActors._indexRegionActor(self, payload, layerName, actor, region, root)
+    return WorldGameMapActors.IndexRegionActor(self, payload, layerName, actor, region, root)
 end
 
 function WorldGameMap:_indexRegionActors(region)
-    return WorldGameMapActors._indexRegionActors(self, region)
+    return WorldGameMapActors.IndexRegionActors(self, region)
 end
 
 function WorldGameMap:_registerWorldActorTree(actor, layer)
-    return WorldGameMapActors._registerWorldActorTree(self, actor, layer)
+    return WorldGameMapActors.RegisterWorldActorTree(self, actor, layer)
 end
 
 function WorldGameMap:_unindexWorldActorTree(actor)
-    return WorldGameMapActors._unindexWorldActorTree(self, actor)
+    return WorldGameMapActors.UnindexWorldActorTree(self, actor)
 end
 
 function WorldGameMap:_attachRegionRoot(region, actor, layer, definitionRegion)
-    return WorldGameMapActors._attachRegionRoot(self, region, actor, layer, definitionRegion)
+    return WorldGameMapActors.AttachRegionRoot(self, region, actor, layer, definitionRegion)
 end
 
 function WorldGameMap:spawnActor(actor, layer, emitCreateEvent)
-    return WorldGameMapActors.spawnActor(self, actor, layer, emitCreateEvent)
+    return WorldGameMapActors.SpawnActor(self, actor, layer, emitCreateEvent)
 end
 
 ---@param actor            Engine.Actor
@@ -526,507 +526,523 @@ end
 ---@param definitionRegion string
 ---@param emitCreateEvent  boolean | nil
 function WorldGameMap:spawnPersistedWorldActor(actor, layer, definitionRegion, emitCreateEvent)
-    return WorldGameMapActors.spawnPersistedWorldActor(self, actor, layer, definitionRegion, emitCreateEvent)
+    return WorldGameMapActors.SpawnPersistedWorldActor(self, actor, layer, definitionRegion, emitCreateEvent)
 end
 
 function WorldGameMap:getAllActors()
-    return WorldGameMapActors.getAllActors(self)
+    return WorldGameMapActors.GetAllActors(self)
 end
 
 function WorldGameMap:updateActorList()
-    return WorldGameMapActors.updateActorList(self)
+    return WorldGameMapActors.UpdateActorList(self)
 end
 
 function WorldGameMap:destroyActor(actor)
-    return WorldGameMapActors.destroyActor(self, actor)
+    return WorldGameMapActors.DestroyActor(self, actor)
 end
 
 function WorldGameMap:getActorByTag(tag)
-    return WorldGameMapActors.getActorByTag(self, tag)
+    return WorldGameMapActors.GetActorByTag(self, tag)
 end
 
 function WorldGameMap:removeActorsByTags(tags)
-    return WorldGameMapActors.removeActorsByTags(self, tags)
+    return WorldGameMapActors.RemoveActorsByTags(self, tags)
 end
 
 function WorldGameMap:getActorLayer(actor)
-    return WorldGameMapActors.getActorLayer(self, actor)
+    return WorldGameMapActors.GetActorLayer(self, actor)
 end
 
 function WorldGameMap:recordWorldActorPosition(actor, position)
-    return WorldGameMapActors.recordWorldActorPosition(self, actor, position)
+    return WorldGameMapActors.RecordWorldActorPosition(self, actor, position)
 end
 
 function WorldGameMap:_recordWorldRootPosition(actor, currentRegionPath, position)
-    return WorldGameMapActors._recordWorldRootPosition(self, actor, currentRegionPath, position)
+    return WorldGameMapActors.RecordWorldRootPosition(self, actor, currentRegionPath, position)
 end
 
 function WorldGameMap:_rememberWorldRootPosition(root, position)
-    return WorldGameMapActors._rememberWorldRootPosition(self, root, position)
+    return WorldGameMapActors.RememberWorldRootPosition(self, root, position)
 end
 
 function WorldGameMap:_getChangedWorldRootPosition(root)
-    return WorldGameMapActors._getChangedWorldRootPosition(self, root)
+    return WorldGameMapActors.GetChangedWorldRootPosition(self, root)
 end
 
 function WorldGameMap:_isWorldActorLayerVisible(actor, layerName, visibleRect)
-    return WorldGameMapActors._isWorldActorLayerVisible(self, actor, layerName, visibleRect)
-end
-
-function WorldGameMap:_removeWorldRoot(roots, root)
-    return WorldGameMapActors._removeWorldRoot(self, roots, root)
-end
-
-function WorldGameMap:_appendWorldActorOnce(roots, root)
-    return WorldGameMapActors._appendWorldActorOnce(self, roots, root)
+    return WorldGameMapActors.IsWorldActorLayerVisible(self, actor, layerName, visibleRect)
 end
 
 function WorldGameMap:_sleepWorldRoot(root)
-    return WorldGameMapActors._sleepWorldRoot(self, root)
+    return WorldGameMapActors.SleepWorldRoot(self, root)
 end
 
 function WorldGameMap:_sleepWorldRoots(roots)
-    return WorldGameMapActors._sleepWorldRoots(self, roots)
+    return WorldGameMapActors.SleepWorldRoots(self, roots)
 end
 
 function WorldGameMap:_activateWorldRoots(roots)
-    return WorldGameMapActors._activateWorldRoots(self, roots)
-end
-
-function WorldGameMap:_removeRegionRootMetadata(payload, root)
-    return WorldGameMapActors._removeRegionRootMetadata(self, payload, root)
-end
-
-function WorldGameMap:_initialiseRegionActorPayload(payload, region)
-    return WorldGameMapActors._initialiseRegionActorPayload(self, payload, region)
+    return WorldGameMapActors.ActivateWorldRoots(self, roots)
 end
 
 function WorldGameMap:_updateWorldActiveChunkGeneration()
-    return WorldGameMapActorStreaming._updateWorldActiveChunkGeneration(self)
+    return WorldGameMapActorStreaming.UpdateWorldActiveChunkGeneration(self)
 end
 
 function WorldGameMap:_syncWorldActiveChunkActivation()
-    return WorldGameMapActorStreaming._syncWorldActiveChunkActivation(self)
+    return WorldGameMapActorStreaming.SyncWorldActiveChunkActivation(self)
 end
 
 function WorldGameMap:_syncRegionActorActivation(region)
-    return WorldGameMapActorStreaming._syncRegionActorActivation(self, region)
+    return WorldGameMapActorStreaming.SyncRegionActorActivation(self, region)
 end
 
 function WorldGameMap:_syncLooseRootActivation()
-    return WorldGameMapActorStreaming._syncLooseRootActivation(self)
+    return WorldGameMapActorStreaming.SyncLooseRootActivation(self)
 end
 
 function WorldGameMap:_activateRegion(region)
-    return WorldGameMapActorStreaming._activateRegion(self, region)
+    return WorldGameMapActorStreaming.ActivateRegion(self, region)
 end
 
 function WorldGameMap:_deactivateRegion(region, state)
-    return WorldGameMapActorStreaming._deactivateRegion(self, region, state)
+    return WorldGameMapActorStreaming.DeactivateRegion(self, region, state)
 end
 
 function WorldGameMap:_evictRegion(region)
-    return WorldGameMapActorStreaming._evictRegion(self, region)
+    return WorldGameMapActorStreaming.EvictRegion(self, region)
 end
 
 function WorldGameMap:_refreshActorRegionDemands()
-    return WorldGameMapActorStreaming._refreshActorRegionDemands(self)
+    return WorldGameMapActorStreaming.RefreshActorRegionDemands(self)
 end
 
 function WorldGameMap:_getPendingWorldActorTags(_region)
-    return WorldGameMapActorStreaming._getPendingWorldActorTags(self, _region)
+    return WorldGameMapActorStreaming.GetPendingWorldActorTags(self, _region)
 end
 
 function WorldGameMap:_isPendingWorldActorTag(_region, tag)
-    return WorldGameMapActorStreaming._isPendingWorldActorTag(self, _region, tag)
+    return WorldGameMapActorStreaming.IsPendingWorldActorTag(self, _region, tag)
 end
 
 function WorldGameMap:_rehomeRegionActors()
-    return WorldGameMapActorStreaming._rehomeRegionActors(self)
+    return WorldGameMapActorStreaming.RehomeRegionActors(self)
 end
 
 function WorldGameMap:_pruneDestroyedRegionActors()
-    return WorldGameMapActorStreaming._pruneDestroyedRegionActors(self)
+    return WorldGameMapActorStreaming.PruneDestroyedRegionActors(self)
 end
 
 function WorldGameMap:drawMapFogOverlay()
-    return WorldGameMapRendering.drawMapFogOverlay(self)
+    return WorldGameMapRendering.DrawMapFogOverlay(self)
 end
 
 function WorldGameMap:_ensureWorldLightingTargets()
-    return WorldGameMapRendering._ensureWorldLightingTargets(self)
+    return WorldGameMapRendering.EnsureWorldLightingTargets(self)
 end
 
 function WorldGameMap:_drawWorldTileMaskLayer(
     target, baseStates, layerName, layer, region, viewPosition, viewSize, viewRotation
 )
-    return WorldGameMapRendering._drawWorldTileMaskLayer(
+    return WorldGameMapRendering.DrawWorldTileMaskLayer(
         self, target, baseStates, layerName, layer, region, viewPosition, viewSize, viewRotation
     )
 end
 
 function WorldGameMap:_releaseWorldRegionTileMaskCache(region)
-    return WorldGameMapRendering._releaseWorldRegionTileMaskCache(self, region)
+    return WorldGameMapRendering.ReleaseWorldRegionTileMaskCache(self, region)
 end
 
 function WorldGameMap:_rebuildStaticTransmission(activeLights, _staticActors)
-    return WorldGameMapRendering._rebuildStaticTransmission(self, activeLights, _staticActors)
+    return WorldGameMapRendering.RebuildStaticTransmission(self, activeLights, _staticActors)
 end
 
 function WorldGameMap:_renderSurfaceMask()
-    return WorldGameMapRendering._renderSurfaceMask(self)
+    return WorldGameMapRendering.RenderSurfaceMask(self)
 end
 
 function WorldGameMap:_getWorldShaderPrewarmTarget()
-    return WorldGameMapRendering._getWorldShaderPrewarmTarget(self)
+    return WorldGameMapRendering.GetWorldShaderPrewarmTarget(self)
 end
 
 function WorldGameMap:_prewarmWorldShaderPrograms(target)
-    return WorldGameMapRendering._prewarmWorldShaderPrograms(self, target)
+    return WorldGameMapRendering.PrewarmWorldShaderPrograms(self, target)
 end
 
 function WorldGameMap:_prewarmWorldViewport(visibleRect, _drain)
-    return WorldGameMapRendering._prewarmWorldViewport(self, visibleRect, _drain)
+    return WorldGameMapRendering.PrewarmWorldViewport(self, visibleRect, _drain)
 end
 
 function WorldGameMap:_isWorldViewportReady(visibleRect)
-    return WorldGameMapRendering._isWorldViewportReady(self, visibleRect)
+    return WorldGameMapRendering.IsWorldViewportReady(self, visibleRect)
 end
 
 function WorldGameMap:_prepareCameraFrame()
-    return WorldGameMapRendering._prepareCameraFrame(self)
+    return WorldGameMapRendering.PrepareCameraFrame(self)
 end
 
 function WorldGameMap:prepareViewportAt(position)
-    return WorldGameMapRendering.prepareViewportAt(self, position)
+    return WorldGameMapRendering.PrepareViewportAt(self, position)
 end
 
 function WorldGameMap:drawMapContent(target, states, _applyPlayerCover)
-    return WorldGameMapRendering.drawMapContent(self, target, states, _applyPlayerCover)
+    return WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayerCover)
 end
 
 function WorldGameMap:_preparePlayerCover(layerKeys, playerLayerIndex)
-    return WorldGameMapActorRendering._preparePlayerCover(self, layerKeys, playerLayerIndex)
+    return WorldGameMapActorRendering.PreparePlayerCover(self, layerKeys, playerLayerIndex)
 end
 
 function WorldGameMap:_resetTransparentTiles()
-    return WorldGameMapActorRendering._resetTransparentTiles(self)
+    return WorldGameMapActorRendering.ResetTransparentTiles(self)
 end
 
 function WorldGameMap:_getPlayerLayerIndex(layerKeys)
-    return WorldGameMapActorRendering._getPlayerLayerIndex(self, layerKeys)
+    return WorldGameMapActorRendering.GetPlayerLayerIndex(self, layerKeys)
 end
 
 function WorldGameMap:_applyPlayerCover(layer, layerIndex, playerLayerIndex, playerPosition)
-    return WorldGameMapActorRendering._applyPlayerCover(self, layer, layerIndex, playerLayerIndex, playerPosition)
+    return WorldGameMapActorRendering.ApplyPlayerCover(self, layer, layerIndex, playerLayerIndex, playerPosition)
 end
 
 function WorldGameMap:_drawLayerActors(target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover)
-    return WorldGameMapActorRendering._drawLayerActors(
+    return WorldGameMapActorRendering.DrawLayerActors(
         self, target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover
     )
 end
 
 function WorldGameMap:_prepareActorPixelShatterEffects()
-    return WorldGameMapActorRendering._prepareActorPixelShatterEffects(self)
+    return WorldGameMapActorRendering.PrepareActorPixelShatterEffects(self)
 end
 
 function WorldGameMap:_drawActorPixelShatterEffects(target, layerName)
-    return WorldGameMapActorRendering._drawActorPixelShatterEffects(self, target, layerName)
+    return WorldGameMapActorRendering.DrawActorPixelShatterEffects(self, target, layerName)
 end
 
 function WorldGameMap:_drawActor(target, states, actor, actorAlpha)
-    return WorldGameMapActorRendering._drawActor(self, target, states, actor, actorAlpha)
+    return WorldGameMapActorRendering.DrawActor(self, target, states, actor, actorAlpha)
 end
 
 function WorldGameMap:_drawActorShaderWithHue(target, actor, actorShader, hue, actorAlpha)
-    return WorldGameMapActorRendering._drawActorShaderWithHue(self, target, actor, actorShader, hue, actorAlpha)
+    return WorldGameMapActorRendering.DrawActorShaderWithHue(self, target, actor, actorShader, hue, actorAlpha)
 end
 
 function WorldGameMap:_ensureActorShaderBuffer(size)
-    return WorldGameMapActorRendering._ensureActorShaderBuffer(self, size)
+    return WorldGameMapActorRendering.EnsureActorShaderBuffer(self, size)
 end
 
 function WorldGameMap:_ensureActorHueBuffer(size)
-    return WorldGameMapActorRendering._ensureActorHueBuffer(self, size)
+    return WorldGameMapActorRendering.EnsureActorHueBuffer(self, size)
 end
 
 function WorldGameMap:_ensureActorHueSourceSprite(texture)
-    return WorldGameMapActorRendering._ensureActorHueSourceSprite(self, texture)
+    return WorldGameMapActorRendering.EnsureActorHueSourceSprite(self, texture)
 end
 
 function WorldGameMap:_applyActorHueUniform(hue)
-    return WorldGameMapActorRendering._applyActorHueUniform(self, hue)
+    return WorldGameMapActorRendering.ApplyActorHueUniform(self, hue)
 end
 
 function WorldGameMap:_initialiseWorldRendering()
-    return WorldGameMapLighting._initialiseWorldRendering(self)
+    return WorldGameMapLighting.InitialiseWorldRendering(self)
 end
 
 function WorldGameMap:_getMaterialShader()
-    return WorldGameMapLighting._getMaterialShader(self)
+    return WorldGameMapLighting.GetMaterialShader(self)
 end
 
 function WorldGameMap:refreshShader()
-    return WorldGameMapLighting.refreshShader(self)
+    return WorldGameMapLighting.RefreshShader(self)
 end
 
 function WorldGameMap:_lightingShadersAvailable()
-    return WorldGameMapLighting._lightingShadersAvailable(self)
+    return WorldGameMapLighting.LightingShadersAvailable(self)
 end
 
 function WorldGameMap:_partitionLightBlockingActors(visibleActors)
-    return WorldGameMapLighting._partitionLightBlockingActors(self, visibleActors)
+    return WorldGameMapLighting.PartitionLightBlockingActors(self, visibleActors)
 end
 
 function WorldGameMap:_staticTransmissionActorsMatch(actors)
-    return WorldGameMapLighting._staticTransmissionActorsMatch(self, actors)
+    return WorldGameMapLighting.StaticTransmissionActorsMatch(self, actors)
 end
 
 function WorldGameMap:_cacheStaticTransmissionActors(actors)
-    return WorldGameMapLighting._cacheStaticTransmissionActors(self, actors)
+    return WorldGameMapLighting.CacheStaticTransmissionActors(self, actors)
 end
 
 function WorldGameMap:_surfaceMaskActorsMatch(actors)
-    return WorldGameMapLighting._surfaceMaskActorsMatch(self, actors)
+    return WorldGameMapLighting.SurfaceMaskActorsMatch(self, actors)
 end
 
 function WorldGameMap:_cacheSurfaceMaskActors(actors)
-    return WorldGameMapLighting._cacheSurfaceMaskActors(self, actors)
+    return WorldGameMapLighting.CacheSurfaceMaskActors(self, actors)
 end
 
 function WorldGameMap:_renderedLightingMatches(activeLights, dynamicOccluders)
-    return WorldGameMapLighting._renderedLightingMatches(self, activeLights, dynamicOccluders)
+    return WorldGameMapLighting.RenderedLightingMatches(self, activeLights, dynamicOccluders)
 end
 
 function WorldGameMap:_cacheRenderedLighting(activeLights, dynamicOccluders)
-    return WorldGameMapLighting._cacheRenderedLighting(self, activeLights, dynamicOccluders)
+    return WorldGameMapLighting.CacheRenderedLighting(self, activeLights, dynamicOccluders)
 end
 
 function WorldGameMap:_renderDynamicLighting(activeLights, analyses)
-    return WorldGameMapLighting._renderDynamicLighting(self, activeLights, analyses)
+    return WorldGameMapLighting.RenderDynamicLighting(self, activeLights, analyses)
 end
 
 function WorldGameMap:_renderCachedLighting(activeLights, analyses)
-    return WorldGameMapLighting._renderCachedLighting(self, activeLights, analyses)
+    return WorldGameMapLighting.RenderCachedLighting(self, activeLights, analyses)
 end
 
 function WorldGameMap:_getStaticTransmissionSignature()
-    return WorldGameMapLighting._getStaticTransmissionSignature(self)
+    return WorldGameMapLighting.GetStaticTransmissionSignature(self)
 end
 
 function WorldGameMap:_setTileMaskUniforms(cacheKey, layer, worldMask, regionRevision)
-    return WorldGameMapLighting._setTileMaskUniforms(self, cacheKey, layer, worldMask, regionRevision)
+    return WorldGameMapLighting.SetTileMaskUniforms(self, cacheKey, layer, worldMask, regionRevision)
 end
 
 function WorldGameMap:_setActorMaskUniforms(actor)
-    return WorldGameMapLighting._setActorMaskUniforms(self, actor)
+    return WorldGameMapLighting.SetActorMaskUniforms(self, actor)
 end
 
 function WorldGameMap:_renderLighting(activeLights)
-    return WorldGameMapLightingPass._renderLighting(self, activeLights)
+    return WorldGameMapLightingPass.RenderLighting(self, activeLights)
 end
 
 function WorldGameMap:_ensureDynamicTransmission(activeLights)
-    return WorldGameMapLightingPass._ensureDynamicTransmission(self, activeLights)
+    return WorldGameMapLightingPass.EnsureDynamicTransmission(self, activeLights)
 end
 
 function WorldGameMap:_ensureDirectLight()
-    return WorldGameMapLightingPass._ensureDirectLight(self)
+    return WorldGameMapLightingPass.EnsureDirectLight(self)
 end
 
 function WorldGameMap:_ensureStaticDirectLight()
-    return WorldGameMapLightingPass._ensureStaticDirectLight(self)
+    return WorldGameMapLightingPass.EnsureStaticDirectLight(self)
 end
 
 function WorldGameMap:_setLightPassCommonUniforms()
-    return WorldGameMapLightingPass._setLightPassCommonUniforms(self)
+    return WorldGameMapLightingPass.SetLightPassCommonUniforms(self)
 end
 
 function WorldGameMap:_setLightPassWorldUniforms()
-    return WorldGameMapLightingPass._setLightPassWorldUniforms(self)
+    return WorldGameMapLightingPass.SetLightPassWorldUniforms(self)
 end
 
 function WorldGameMap:_setLightPassCacheUniforms(target, light)
-    return WorldGameMapLightingPass._setLightPassCacheUniforms(self, target, light)
+    return WorldGameMapLightingPass.SetLightPassCacheUniforms(self, target, light)
 end
 
 function WorldGameMap:_ensureStaticLightCache(index, entry)
-    return WorldGameMapLightingPass._ensureStaticLightCache(self, index, entry)
+    return WorldGameMapLightingPass.EnsureStaticLightCache(self, index, entry)
 end
 
 function WorldGameMap:_setLightPassTextureUniforms()
-    return WorldGameMapLightingPass._setLightPassTextureUniforms(self)
+    return WorldGameMapLightingPass.SetLightPassTextureUniforms(self)
 end
 
 function WorldGameMap:_setViewShaderUniforms(shader, screenSize, mapViewOffset, usesFragmentCoordinates)
-    return WorldGameMapLightingPass._setViewShaderUniforms(
+    return WorldGameMapLightingPass.SetViewShaderUniforms(
         self, shader, screenSize, mapViewOffset, usesFragmentCoordinates
     )
 end
 
 function WorldGameMap:_renderLight(entry, dynamicOrigin, dynamicSize, traceStatic, traceDynamic, target)
-    return WorldGameMapLightingPass._renderLight(
+    return WorldGameMapLightingPass.RenderLight(
         self, entry, dynamicOrigin, dynamicSize, traceStatic, traceDynamic, target
     )
 end
 
 function WorldGameMap:_renderStaticLights(entries, target)
-    return WorldGameMapLightingPass._renderStaticLights(self, entries, target)
+    return WorldGameMapLightingPass.RenderStaticLights(self, entries, target)
 end
 
 function WorldGameMap:_renderUnobstructedLights(entries, target)
-    return WorldGameMapLightingPass._renderUnobstructedLights(self, entries, target)
+    return WorldGameMapLightingPass.RenderUnobstructedLights(self, entries, target)
 end
 
 function WorldGameMap:_lightsMatchCache(entries, cache)
-    return WorldGameMapLightingPass._lightsMatchCache(self, entries, cache)
+    return WorldGameMapLightingPass.LightsMatchCache(self, entries, cache)
 end
 
 function WorldGameMap:_cacheUnobstructedLights(entries)
-    return WorldGameMapLightingPass._cacheUnobstructedLights(self, entries)
+    return WorldGameMapLightingPass.CacheUnobstructedLights(self, entries)
 end
 
 function WorldGameMap:_cacheLightValues(light)
-    return WorldGameMapLightingPass._cacheLightValues(self, light)
+    return WorldGameMapLightingPass.CacheLightValues(self, light)
 end
 
 function WorldGameMap:_cacheLightList(entries)
-    return WorldGameMapLightingPass._cacheLightList(self, entries)
+    return WorldGameMapLightingPass.CacheLightList(self, entries)
 end
 
 function WorldGameMap:_appendLightBatch(vertices, vertex, light, index)
-    return WorldGameMapLightingPass._appendLightBatch(self, vertices, vertex, light, index)
+    return WorldGameMapLightingPass.AppendLightBatch(self, vertices, vertex, light, index)
 end
 
 function WorldGameMap:_appendLightBatchVertex(vertices, vertex, x, y, textureX, textureY, colour)
-    return WorldGameMapLightingPass._appendLightBatchVertex(self, vertices, vertex, x, y, textureX, textureY, colour)
+    return WorldGameMapLightingPass.AppendLightBatchVertex(self, vertices, vertex, x, y, textureX, textureY, colour)
 end
 
 function WorldGameMap:_renderDynamicTransmission(analysis)
-    return WorldGameMapLightingPass._renderDynamicTransmission(self, analysis)
+    return WorldGameMapLightingPass.RenderDynamicTransmission(self, analysis)
 end
 
 function WorldGameMap:_getActiveLights()
-    return WorldGameMapLightingPass._getActiveLights(self)
+    return WorldGameMapLightingPass.GetActiveLights(self)
 end
 
 function WorldGameMap:_getActorLightPosition(actor, lightComp, result)
-    return WorldGameMapLightingPass._getActorLightPosition(self, actor, lightComp, result)
+    return WorldGameMapLightingPass.GetActorLightPosition(self, actor, lightComp, result)
 end
 
 function WorldGameMap:_isLightVisible(position, radius, viewport)
-    return WorldGameMapLightingPass._isLightVisible(self, position, radius, viewport)
+    return WorldGameMapLightingPass.IsLightVisible(self, position, radius, viewport)
 end
 
 function WorldGameMap:_toShaderColour(colour, applyAlpha)
-    return WorldGameMapLightingPass._toShaderColour(self, colour, applyAlpha)
+    return WorldGameMapLightingPass.ToShaderColour(self, colour, applyAlpha)
 end
 
 function WorldGameMap:_cancelRegionPublish(region)
-    return WorldGameMapRegionPublishing._cancelRegionPublish(self, region)
+    return WorldGameMapRegionPublishing.CancelRegionPublish(self, region)
 end
 
 function WorldGameMap:_beginRegionPublish(region, data, forceActivate, priorityRect)
-    return WorldGameMapRegionPublishing._beginRegionPublish(self, region, data, forceActivate, priorityRect)
+    return WorldGameMapRegionPublishing.BeginRegionPublish(self, region, data, forceActivate, priorityRect)
 end
 
 function WorldGameMap:_beginRegionConversion(region, conversion, contentBytes, forceActivate, priorityRect)
-    return WorldGameMapRegionPublishing._beginRegionConversion(
+    return WorldGameMapRegionPublishing.BeginRegionConversion(
         self, region, conversion, contentBytes, forceActivate, priorityRect
     )
 end
 
 function WorldGameMap:_prepareNextRegionRoot(state)
-    return WorldGameMapRegionPublishing._prepareNextRegionRoot(self, state)
+    return WorldGameMapRegionPublishing.PrepareNextRegionRoot(self, state)
 end
 
 function WorldGameMap:_stepRegionPublish(region, deadline)
-    return WorldGameMapRegionPublishing._stepRegionPublish(self, region, deadline)
+    return WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
 end
 
 function WorldGameMap:_pumpRegionBackgroundActors(region, builder, deadline)
-    return WorldGameMapRegionPublishing._pumpRegionBackgroundActors(self, region, builder, deadline)
+    return WorldGameMapRegionPublishing.PumpRegionBackgroundActors(self, region, builder, deadline)
 end
 
 function WorldGameMap:_drainRegionActors(region)
-    return WorldGameMapRegionPublishing._drainRegionActors(self, region)
+    return WorldGameMapRegionPublishing.DrainRegionActors(self, region)
 end
 
 function WorldGameMap:_pumpRegionBackgroundBuilds(deadline)
-    return WorldGameMapRegionPublishing._pumpRegionBackgroundBuilds(self, deadline)
+    return WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
 end
 
 function WorldGameMap:_drainRegionPublish(region)
-    return WorldGameMapRegionPublishing._drainRegionPublish(self, region)
+    return WorldGameMapRegionPublishing.DrainRegionPublish(self, region)
 end
 
 function WorldGameMap:_pumpRegionPublishing(deadline)
-    return WorldGameMapRegionPublishing._pumpRegionPublishing(self, deadline)
+    return WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline)
 end
 
 function WorldGameMap:_publishRegion(region, data, activate)
-    return WorldGameMapRegionPublishing._publishRegion(self, region, data, activate)
+    return WorldGameMapRegionPublishing.PublishRegion(self, region, data, activate)
 end
 
 function WorldGameMap:_enforceCacheBudget()
-    return WorldGameMapRegionPublishing._enforceCacheBudget(self)
+    return WorldGameMapRegionPublishing.EnforceCacheBudget(self)
 end
 
 function WorldGameMap:_getActiveActorCount()
-    return WorldGameMapRegionPublishing._getActiveActorCount(self)
+    return WorldGameMapRegionPublishing.GetActiveActorCount(self)
 end
 
 function WorldGameMap:_getVisibleTileChunkCount()
-    return WorldGameMapRegionPublishing._getVisibleTileChunkCount(self)
+    return WorldGameMapRegionPublishing.GetVisibleTileChunkCount(self)
 end
 
 function WorldGameMap:_recordStreamingProfile()
-    return WorldGameMapRegionPublishing._recordStreamingProfile(self)
+    return WorldGameMapRegionPublishing.RecordStreamingProfile(self)
 end
 
 function WorldGameMap:_syncStreamingCamera()
-    return WorldGameMapStreaming._syncStreamingCamera(self)
+    return WorldGameMapStreaming.SyncStreamingCamera(self)
 end
 
 function WorldGameMap:_getVisibleCellRect()
-    return WorldGameMapStreaming._getVisibleCellRect(self)
+    return WorldGameMapStreaming.GetVisibleCellRect(self)
 end
 
-function WorldGameMap:_getGameplayCellRect()
-    return WorldGameMapStreaming._getGameplayCellRect(self)
+function WorldGameMap:getGameplayCellRect()
+    return WorldGameMapStreaming.GetGameplayCellRect(self)
 end
 
 function WorldGameMap:_refreshStreamingStates()
-    return WorldGameMapStreaming._refreshStreamingStates(self)
+    return WorldGameMapStreaming.RefreshStreamingStates(self)
 end
 
 function WorldGameMap:_isRegionDemanded(region)
-    return WorldGameMapStreaming._isRegionDemanded(self, region)
+    return WorldGameMapStreaming.IsRegionDemanded(self, region)
 end
 
 function WorldGameMap:_streamBatchHasDemand()
-    return WorldGameMapStreaming._streamBatchHasDemand(self)
+    return WorldGameMapStreaming.StreamBatchHasDemand(self)
 end
 
 function WorldGameMap:_finishStreamingBatch(requeue)
-    return WorldGameMapStreaming._finishStreamingBatch(self, requeue)
+    return WorldGameMapStreaming.FinishStreamingBatch(self, requeue)
 end
 
 function WorldGameMap:_cancelExpiredStreamingBatch()
-    return WorldGameMapStreaming._cancelExpiredStreamingBatch(self)
+    return WorldGameMapStreaming.CancelExpiredStreamingBatch(self)
 end
 
 function WorldGameMap:_startStreamingBatch()
-    return WorldGameMapStreaming._startStreamingBatch(self)
+    return WorldGameMapStreaming.StartStreamingBatch(self)
 end
 
 function WorldGameMap:_consumeStreamingItem(item)
-    return WorldGameMapStreaming._consumeStreamingItem(self, item)
+    return WorldGameMapStreaming.ConsumeStreamingItem(self, item)
 end
 
 function WorldGameMap:_pumpStreaming()
-    return WorldGameMapStreaming._pumpStreaming(self)
+    return WorldGameMapStreaming.PumpStreaming(self)
+end
+
+function WorldGameMap:_queuePendingWorldActorRehome(root, destinationRegion, sourceRegion, position, touchedRegions)
+    return WorldGameMapActorStreaming.QueuePendingWorldActorRehome(
+        self, root, destinationRegion, sourceRegion, position, touchedRegions
+    )
+end
+
+function WorldGameMap:_transferWorldActorRoot(
+    root, sourceRegion, destinationRegion, layerName, position, touchedRegions
+)
+    return WorldGameMapActorStreaming.TransferWorldActorRoot(
+        self, root, sourceRegion, destinationRegion, layerName, position, touchedRegions
+    )
+end
+
+function WorldGameMap:_advancePendingWorldActorRehomes(touchedRegions, looseTouched)
+    return WorldGameMapActorStreaming.AdvancePendingWorldActorRehomes(self, touchedRegions, looseTouched)
+end
+
+function WorldGameMap:_rehomeChangedWorldActorRoot(root, position, touchedRegions, looseTouched)
+    return WorldGameMapActorStreaming.RehomeChangedWorldActorRoot(
+        self, root, position, touchedRegions, looseTouched, self._worldActorRegions[root]
+    )
+end
+
+function WorldGameMap:_prepareWorldCameraPosition(position)
+    return WorldGameMapRendering.PrepareWorldCameraPosition(self, position)
+end
+
+function WorldGameMap:_prepareWorldRegionRect(region, builder, requiredRect)
+    return WorldGameMapRendering.PrepareWorldRegionRect(self, region, builder, requiredRect)
 end
 
 return class(WorldGameMap, GameMap)

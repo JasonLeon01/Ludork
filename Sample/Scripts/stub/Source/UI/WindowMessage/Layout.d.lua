@@ -1,4 +1,4 @@
----@meta Source.Windows.WindowMessageLayout
+---@meta Source.UI.WindowMessage.Layout
 
 local WindowMessageLayout = {}
 

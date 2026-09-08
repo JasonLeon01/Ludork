@@ -49,12 +49,8 @@
 
 ---@brief Manage map BGM/BGS playback and music filters.
 ---@class Source.SceneComponents.SceneMapAudioController
----@field _currentBgmMusic sf.Music | nil
----@field _currentBgmFile  string
----@field _currentBgsMusic sf.Music | nil
----@field _currentBgsFile  string
----@field _bgmState        Source.SceneComponents.SceneMapMusicState
----@field _bgsState        Source.SceneComponents.SceneMapMusicState
+---@field _bgmState Source.SceneComponents.SceneMapMusicState
+---@field _bgsState Source.SceneComponents.SceneMapMusicState
 local SceneMapAudioController = {}
 
 ---@return Source.SceneComponents.SceneMapAudioController

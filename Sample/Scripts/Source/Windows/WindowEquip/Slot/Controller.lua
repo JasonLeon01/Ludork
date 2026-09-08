@@ -17,7 +17,13 @@ local WindowEquipSlotController = {}
 
 WindowEquipSlotController.ROW_HEIGHT = 32
 
-function WindowEquipSlotController:init(model)
+function WindowEquipSlotController:init(model, player, windowEquipSelect, windowEquipStatus, onClose)
+    self._player = player
+    self._windowEquipSelect = windowEquipSelect
+    self._windowEquipStatus = windowEquipStatus
+    self._onCloseCallback = onClose
+    self._slotKeys = {}
+    self._lastSlotIndex = nil
     self._logicalSize = nil
     self._rowUIs = {}
     super
@@ -36,7 +42,7 @@ function WindowEquipSlotController:attach(listView)
 end
 
 function WindowEquipSlotController:getSlotCellData(slotKey)
-    local equipID = self.model._player:getEquipInfo(slotKey)
+    local equipID = self._player:getEquipInfo(slotKey)
     if not bool(equipID) then
         return nil, LOC("EQUIP_UNEQUIPPED")
     end
@@ -48,19 +54,19 @@ end
 
 function WindowEquipSlotController:refreshSlots()
     local savedSlotKey = self:getCurrentSlotKey()
-    local classData = Data.GetGeneralClassData(self.model._player.attributes.CLASS)
+    local classData = Data.GetGeneralClassData(self._player.attributes.CLASS)
     local classSlots = classData.slot
     if classSlots == nil then
         classSlots = {}
     end
-    self.model._slotKeys = table.orderedStringKeys(classSlots, _SLOT_ORDER)
+    self._slotKeys = table.orderedStringKeys(classSlots, _SLOT_ORDER)
     self:_refreshLogicalSize()
     self._columns = 1
     self.root:setColumns(self._columns)
     self.root:clearChildren()
     self._rowUIs = {}
-    local cellWidth = self.model:_getRectWidth()
-    for _, slotKey in ipairs(self.model._slotKeys) do
+    local cellWidth = self.model:getItemWidth()
+    for _, slotKey in ipairs(self._slotKeys) do
         local iconTexture, label = self:getSlotCellData(slotKey)
         local rowUI = EquipSlotRowUI.new({
             label = label,
@@ -71,26 +77,26 @@ function WindowEquipSlotController:refreshSlots()
             self:focusSelectWindow()
         end)
         self._rowUIs[#self._rowUIs + 1] = rowUI
-        self.model:_applyItem(child)
+        self.model:applyItem(child)
         self.root:addChild(child)
     end
     self:prepare(self._logicalSize)
     self.model:setListView(self.root)
     if savedSlotKey ~= nil then
         local restoredIndex = nil
-        local index = table.index(self.model._slotKeys, savedSlotKey)
+        local index = table.index(self._slotKeys, savedSlotKey)
         if index ~= nil then
             restoredIndex = index - 1
         end
         self.model.index = restoredIndex
     else
-        self.model.index = bool(self.model._slotKeys) and 0 or nil
+        self.model.index = bool(self._slotKeys) and 0 or nil
     end
-    if self.model.index == nil and bool(self.model._slotKeys) then
+    if self.model.index == nil and bool(self._slotKeys) then
         self.model.index = 0
     end
-    self.model._lastSlotIndex = self.model.index
-    self.model:_detachSelectionRect()
+    self._lastSlotIndex = self.model.index
+    self.model:detachSelectionRect()
     self:redrawIfVisible()
 end
 
@@ -103,38 +109,24 @@ function WindowEquipSlotController:refreshLocale()
     if slotKey == nil then
         return
     end
-    if self.model._windowEquipSelect ~= nil and self.model._windowEquipSelect:getActive() then
-        self.model._windowEquipSelect:updateStatus()
+    if self._windowEquipSelect ~= nil and self._windowEquipSelect:getActive() then
+        self._windowEquipSelect:updateStatus()
         return
     end
-    if self.model._windowEquipStatus ~= nil then
-        self.model._windowEquipStatus:refreshForSlot(slotKey)
+    if self._windowEquipStatus ~= nil then
+        self._windowEquipStatus:refreshForSlot(slotKey)
     end
 end
 
 function WindowEquipSlotController:redrawIfVisible()
-    if not self.model:getVisible() then
-        return
-    end
-    local wasActive = self.model:getActive()
-    local returnButtonSuppressed = self.model._returnButtonSuppressed == true
-    if not wasActive then
-        self.model:_setReturnButtonSuppressed(true)
-        self.model:setActive(true)
-    end
-    self.model:update(0.0)
-    self.model:render()
-    if not wasActive then
-        self.model:setActive(false)
-        self.model:_setReturnButtonSuppressed(returnButtonSuppressed)
-    end
+    self.model:redrawIfVisible()
 end
 
 function WindowEquipSlotController:getCurrentSlotKey()
-    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self.model._slotKeys then
+    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self._slotKeys then
         return nil
     end
-    return self.model._slotKeys[self.model.index + 1]
+    return self._slotKeys[self.model.index + 1]
 end
 
 function WindowEquipSlotController:notifySlotChanged()
@@ -142,46 +134,46 @@ function WindowEquipSlotController:notifySlotChanged()
     if slotKey == nil then
         return
     end
-    if self.model._windowEquipStatus ~= nil and self.model._windowEquipStatus:getVisible() then
-        self.model._windowEquipStatus:refreshForSlot(slotKey)
+    if self._windowEquipStatus ~= nil and self._windowEquipStatus:getVisible() then
+        self._windowEquipStatus:refreshForSlot(slotKey)
     end
-    if self.model._windowEquipSelect ~= nil and self.model._windowEquipSelect:getVisible() then
-        self.model._windowEquipSelect:refreshForSlot(slotKey)
+    if self._windowEquipSelect ~= nil and self._windowEquipSelect:getVisible() then
+        self._windowEquipSelect:refreshForSlot(slotKey)
     end
 end
 
 function WindowEquipSlotController:tick()
-    if self.model._lastSlotIndex == self.model.index then
+    if self._lastSlotIndex == self.model.index then
         return
     end
-    self.model._lastSlotIndex = self.model.index
+    self._lastSlotIndex = self.model.index
     self:notifySlotChanged()
 end
 
 function WindowEquipSlotController:focusSelectWindow()
-    if self.model._windowEquipSelect == nil then
+    if self._windowEquipSelect == nil then
         return
     end
     AudioManager.playSound(GameSystem.GetDecisionSE())
     local slotKey = self:getCurrentSlotKey()
     if slotKey ~= nil then
-        self.model._windowEquipSelect:refreshForSlot(slotKey)
+        self._windowEquipSelect:refreshForSlot(slotKey)
     end
-    if self.model._windowEquipStatus ~= nil and slotKey ~= nil then
-        self.model._windowEquipStatus:setVisible(true)
-        self.model._windowEquipStatus:refreshForSlot(slotKey)
+    if self._windowEquipStatus ~= nil and slotKey ~= nil then
+        self._windowEquipStatus:setVisible(true)
+        self._windowEquipStatus:refreshForSlot(slotKey)
     end
     self.model:setActive(false)
-    self.model._windowEquipSelect:setVisible(true)
-    self.model._windowEquipSelect:setActive(true)
-    self.model._windowEquipSelect:updateStatus()
-    self.model._windowEquipSelect:requestKeyboardFocusAtCursor()
+    self._windowEquipSelect:setVisible(true)
+    self._windowEquipSelect:setActive(true)
+    self._windowEquipSelect:updateStatus()
+    self._windowEquipSelect:requestKeyboardFocusAtCursor()
 end
 
 function WindowEquipSlotController:open()
     self:refreshSlots()
     self.model:resetSelection()
-    self.model._lastSlotIndex = self.model.index
+    self._lastSlotIndex = self.model.index
     self.model:setVisible(true)
     self.model:setActive(true)
     local slotKey = self:getCurrentSlotKey()
@@ -189,21 +181,21 @@ function WindowEquipSlotController:open()
         self:closeChildWindows()
         return
     end
-    if self.model._windowEquipStatus ~= nil then
-        self.model._windowEquipStatus:openForSlot(slotKey)
+    if self._windowEquipStatus ~= nil then
+        self._windowEquipStatus:openForSlot(slotKey)
     end
-    if self.model._windowEquipSelect ~= nil then
-        self.model._windowEquipSelect:refreshForSlot(slotKey)
-        self.model._windowEquipSelect:open()
+    if self._windowEquipSelect ~= nil then
+        self._windowEquipSelect:refreshForSlot(slotKey)
+        self._windowEquipSelect:open()
     end
 end
 
 function WindowEquipSlotController:closeChildWindows()
-    if self.model._windowEquipStatus ~= nil then
-        self.model._windowEquipStatus:close()
+    if self._windowEquipStatus ~= nil then
+        self._windowEquipStatus:close()
     end
-    if self.model._windowEquipSelect ~= nil then
-        self.model._windowEquipSelect:close()
+    if self._windowEquipSelect ~= nil then
+        self._windowEquipSelect:close()
     end
 end
 
@@ -215,8 +207,8 @@ end
 
 function WindowEquipSlotController:closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
-    if self.model._onCloseCallback ~= nil then
-        self.model._onCloseCallback()
+    if self._onCloseCallback ~= nil then
+        self._onCloseCallback()
     else
         self:close()
     end
@@ -227,6 +219,22 @@ function WindowEquipSlotController:_refreshLogicalSize()
     local logicalSize = sf.Vector2u.new(math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y)))
     ---@cast logicalSize sf.Vector2u
     self._logicalSize = logicalSize
+end
+
+function WindowEquipSlotController:setPlayer(player)
+    self._player = player
+end
+
+function WindowEquipSlotController:setEquipStatusWindow(windowEquipStatus)
+    self._windowEquipStatus = windowEquipStatus
+end
+
+function WindowEquipSlotController:setEquipSelectWindow(windowEquipSelect)
+    self._windowEquipSelect = windowEquipSelect
+end
+
+function WindowEquipSlotController:setOnCloseCallback(callback)
+    self._onCloseCallback = callback
 end
 
 return class(WindowEquipSlotController, ListViewController)

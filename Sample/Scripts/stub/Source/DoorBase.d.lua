@@ -1,5 +1,12 @@
 ---@meta Source.DoorBase
 
+---@class Source.DoorBase.DoorAnimationCondition
+---@field _isComplete     fun(): boolean
+---@field _startedEmitted boolean
+---@field _finished       boolean
+---@field isFinished      fun(self: Source.DoorBase.DoorAnimationCondition): boolean
+---@field finish          fun(self: Source.DoorBase.DoorAnimationCondition)
+
 --- Base door actor that plays sprite-sheet open and close animations.
 ---
 --- The texture should contain frames arranged horizontally (left to right).

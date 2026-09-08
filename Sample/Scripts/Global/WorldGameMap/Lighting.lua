@@ -5,10 +5,10 @@ local GlobalCore = require("GlobalCore")
 
 local ShaderManager = GlobalCore.ShaderManager
 
----@type WorldGameMapImplState
 local GameMapLighting = {}
 
-function GameMapLighting:_initialiseWorldRendering()
+---@param self WorldGameMapImplState
+function GameMapLighting.InitialiseWorldRendering(self)
     local materialShader = nil
     local tilemapLightMaskShader = nil
     local lightMaskShader = nil
@@ -17,15 +17,13 @@ function GameMapLighting:_initialiseWorldRendering()
     local actorHueShader = nil
     if sf.Shader.isAvailable() then
         tilemapLightMaskShader = ShaderManager.load(
-            "/Game/Assets/Shaders/Global/TilemapLightMask.frag",
-            sf.Shader.Type.Fragment
+            "/Game/Assets/Shaders/Global/TilemapLightMask.frag", sf.Shader.Type.Fragment
         )
         lightMaskShader = ShaderManager.load("/Game/Assets/Shaders/Global/LightMask.frag", sf.Shader.Type.Fragment)
         materialShader = ShaderManager.load("/Game/Assets/Shaders/Global/WorldMaterial.frag", sf.Shader.Type.Fragment)
         lightPassShader = ShaderManager.load("/Game/Assets/Shaders/Global/LightPass.frag", sf.Shader.Type.Fragment)
         unobstructedLightPassShader = ShaderManager.load(
-            "/Game/Assets/Shaders/Global/UnoccludedLightPass.frag",
-            sf.Shader.Type.Fragment
+            "/Game/Assets/Shaders/Global/UnoccludedLightPass.frag", sf.Shader.Type.Fragment
         )
         actorHueShader = ShaderManager.load("/Game/Assets/Shaders/Global/Hue.frag", sf.Shader.Type.Fragment)
     end
@@ -118,7 +116,8 @@ function GameMapLighting:_initialiseWorldRendering()
     self._unobstructedLightVertex = sf.Vertex.new()
 end
 
-function GameMapLighting:_getMaterialShader()
+---@param self WorldGameMapImplState
+function GameMapLighting.GetMaterialShader(self)
     return self._materialShader
 end
 
@@ -183,7 +182,8 @@ local function captureActorLightingState(actor)
     }
 end
 
-function GameMapLighting:refreshShader()
+---@param self WorldGameMapImplState
+function GameMapLighting.RefreshShader(self)
     ---@diagnostic disable-next-line: unnecessary-if
     if self._materialDirty then
         self:_rebuildPassabilityCache()
@@ -205,7 +205,8 @@ function GameMapLighting:refreshShader()
 end
 
 ---@return boolean
-function GameMapLighting:_lightingShadersAvailable()
+---@param self WorldGameMapImplState
+function GameMapLighting.LightingShadersAvailable(self)
     return self._camera ~= nil and self._materialShader ~= nil and self._tilemapLightMaskShader ~= nil
         and self._lightMaskShader ~= nil and self._lightPassShader ~= nil and self._unobstructedLightPassShader ~= nil
         and self._staticTransmission ~= nil and self._surfaceMask ~= nil
@@ -213,7 +214,8 @@ end
 
 ---@param visibleActors Engine.Actor[]
 ---@return Engine.Actor[], Engine.Actor[]
-function GameMapLighting:_partitionLightBlockingActors(visibleActors)
+---@param self          WorldGameMapImplState
+function GameMapLighting.PartitionLightBlockingActors(self, visibleActors)
     if self:isWorldMap() then
         return visibleActors, {}
     end
@@ -233,7 +235,8 @@ end
 
 ---@param actors Engine.Actor[]
 ---@return boolean
-function GameMapLighting:_staticTransmissionActorsMatch(actors)
+---@param self   WorldGameMapImplState
+function GameMapLighting.StaticTransmissionActorsMatch(self, actors)
     if self._staticTransmissionActorCache == nil or #self._staticTransmissionActorCache ~= #actors then
         return false
     end
@@ -262,7 +265,8 @@ function GameMapLighting:_staticTransmissionActorsMatch(actors)
 end
 
 ---@param actors Engine.Actor[]
-function GameMapLighting:_cacheStaticTransmissionActors(actors)
+---@param self   WorldGameMapImplState
+function GameMapLighting.CacheStaticTransmissionActors(self, actors)
     local cache = {}
     for index, actor in ipairs(actors) do
         local position = actor:getPosition()
@@ -297,7 +301,8 @@ end
 
 ---@param actors Engine.Actor[]
 ---@return boolean
-function GameMapLighting:_surfaceMaskActorsMatch(actors)
+---@param self   WorldGameMapImplState
+function GameMapLighting.SurfaceMaskActorsMatch(self, actors)
     if self._surfaceMaskActorCache == nil or #self._surfaceMaskActorCache ~= #actors then
         return false
     end
@@ -310,7 +315,8 @@ function GameMapLighting:_surfaceMaskActorsMatch(actors)
 end
 
 ---@param actors Engine.Actor[]
-function GameMapLighting:_cacheSurfaceMaskActors(actors)
+---@param self   WorldGameMapImplState
+function GameMapLighting.CacheSurfaceMaskActors(self, actors)
     local cache = {}
     for index, actor in ipairs(actors) do
         cache[index] = captureActorLightingState(actor)
@@ -321,7 +327,8 @@ end
 ---@param activeLights     Global.GameMap.ActiveLight[]
 ---@param dynamicOccluders Engine.Actor[]
 ---@return boolean
-function GameMapLighting:_renderedLightingMatches(activeLights, dynamicOccluders)
+---@param self             WorldGameMapImplState
+function GameMapLighting.RenderedLightingMatches(self, activeLights, dynamicOccluders)
     if self._directLight == nil or self._renderedLightingStaticGeneration ~= self._staticTransmissionGeneration
         or self._renderedLightingView == nil or self._renderedLightingTargetSize == nil
         or not self:_lightsMatchCache(activeLights, self._renderedLightingLights) or self._renderedLightingOwners == nil
@@ -351,7 +358,8 @@ end
 
 ---@param activeLights     Global.GameMap.ActiveLight[]
 ---@param dynamicOccluders Engine.Actor[]
-function GameMapLighting:_cacheRenderedLighting(activeLights, dynamicOccluders)
+---@param self             WorldGameMapImplState
+function GameMapLighting.CacheRenderedLighting(self, activeLights, dynamicOccluders)
     self._renderedLightingLights = self:_cacheLightList(activeLights)
     self._renderedLightingOwners = {}
     for index, entry in ipairs(activeLights) do
@@ -375,7 +383,8 @@ end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
 ---@param analyses     GlobalCore.LightOcclusionResult[]
-function GameMapLighting:_renderDynamicLighting(activeLights, analyses)
+---@param self         WorldGameMapImplState
+function GameMapLighting.RenderDynamicLighting(self, activeLights, analyses)
     ---@cast self._directLight sf.RenderTexture
     local unobstructedLights = {}
     local staticLightTextures = {}
@@ -412,7 +421,8 @@ end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
 ---@param analyses     GlobalCore.LightOcclusionResult[]
-function GameMapLighting:_renderCachedLighting(activeLights, analyses)
+---@param self         WorldGameMapImplState
+function GameMapLighting.RenderCachedLighting(self, activeLights, analyses)
     self:_ensureStaticDirectLight()
     ---@cast self._staticDirectLight sf.RenderTexture
     local cacheValid = self._cachedLightMaterialRevision == self._materialRevision and self._cachedLightTransmissionSignature
@@ -447,7 +457,8 @@ end
 
 ---@param _activeLights? Global.GameMap.ActiveLight[]
 ---@param staticActors   Engine.Actor[]
-function GameMapLighting:_rebuildStaticTransmission(_activeLights, staticActors)
+---@param self           WorldGameMapImplState
+function GameMapLighting.RebuildStaticTransmission(self, _activeLights, staticActors)
     local transmissionSignature = self:_getStaticTransmissionSignature()
     if self._staticTransmissionRevision == self._materialRevision and self._staticTransmissionSignature
             == transmissionSignature and self:_staticTransmissionActorsMatch(staticActors) then
@@ -486,7 +497,8 @@ function GameMapLighting:_rebuildStaticTransmission(_activeLights, staticActors)
 end
 
 ---@return Global.GameMap.StaticTransmissionSignature
-function GameMapLighting:_getStaticTransmissionSignature()
+---@param self WorldGameMapImplState
+function GameMapLighting.GetStaticTransmissionSignature(self)
     ---@type Global.GameMap.StaticTransmissionElement[]
     local states = {}
     for _, layerName in ipairs(self._layerNames) do
@@ -516,7 +528,8 @@ function GameMapLighting:_getStaticTransmissionSignature()
 end
 
 ---@return Engine.Actor[]
-function GameMapLighting:_renderSurfaceMask()
+---@param self WorldGameMapImplState
+function GameMapLighting.RenderSurfaceMask(self)
     local visibleActors = {}
     local visibleActorSet = {}
     for _, layerName in ipairs(self._layerNames) do
@@ -569,7 +582,8 @@ end
 ---@param layer           Engine.TileLayer
 ---@param worldMask?      Global.GameMap.WorldTileMaskConfig
 ---@param regionRevision? integer
-function GameMapLighting:_setTileMaskUniforms(cacheKey, layer, worldMask, regionRevision)
+---@param self            WorldGameMapImplState
+function GameMapLighting.SetTileMaskUniforms(self, cacheKey, layer, worldMask, regionRevision)
     local effectiveRegionRevision = regionRevision or false
     local cached = self._layerMaskTextureCache[cacheKey]
     ---@cast cached Global.GameMap.LayerMaskTextureCacheEntry | nil
@@ -611,7 +625,8 @@ function GameMapLighting:_setTileMaskUniforms(cacheKey, layer, worldMask, region
 end
 
 ---@param actor Engine.Actor
-function GameMapLighting:_setActorMaskUniforms(actor)
+---@param self  WorldGameMapImplState
+function GameMapLighting.SetActorMaskUniforms(self, actor)
     self._lightMaskShader:setUniform("lightBlock", actor:getLightBlock())
     self._lightMaskShader:setUniform("reflectionStrength", actor:getMirror() and actor:getReflectionStrength() or 0.0)
     self._lightMaskShader:setUniform("ignoreLighting", actor:getIgnoreLighting() and 1.0 or 0.0)

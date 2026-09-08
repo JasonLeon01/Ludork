@@ -38,4 +38,10 @@ function WindowEnemyBook:refreshLocale() end
 ---@brief Close the handbook through its cancel path.
 function WindowEnemyBook:onReturn() end
 
+---@return Source.Player.Player
+function WindowEnemyBook:getPlayer() end
+
+---@param entry Source.UI.WindowEnemyBook.Entry
+function WindowEnemyBook:confirmEnemy(entry) end
+
 return WindowEnemyBook

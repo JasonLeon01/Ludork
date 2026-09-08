@@ -11,12 +11,6 @@ function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus
     super(WindowEquipSlot, self).init(rect, nil, nil, WindowEquipSlotController.ROW_HEIGHT, nil, nil, nil, nil, instance
         ~= nil)
     self:setHasReturnBtn(true)
-    self._onCloseCallback = onClose
-    self._player = player
-    self._windowEquipSelect = windowEquipSelect
-    self._windowEquipStatus = windowEquipStatus
-    self._slotKeys = {}
-    self._lastSlotIndex = nil
     if instance ~= nil then
         local ui = WindowEquipSlotUI.new(self, instance)
         self._ui = ui
@@ -24,7 +18,7 @@ function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus
         self:setScrollBox(ui:getScrollBox())
         self:setListView(ui:getListView())
     end
-    self._slotController = self.controllerClass.new(self)
+    self._slotController = self.controllerClass.new(self, player, windowEquipSelect, windowEquipStatus, onClose)
     self._slotController:attach(self:getListView())
     self:refreshSlots()
     self:setActive(false)
@@ -32,15 +26,15 @@ function WindowEquipSlot:init(rect, player, windowEquipSelect, windowEquipStatus
 end
 
 function WindowEquipSlot:setEquipSelectWindow(windowEquipSelect)
-    self._windowEquipSelect = windowEquipSelect
+    self._slotController:setEquipSelectWindow(windowEquipSelect)
 end
 
 function WindowEquipSlot:setPlayer(player)
-    self._player = player
+    self._slotController:setPlayer(player)
 end
 
 function WindowEquipSlot:setEquipStatusWindow(windowEquipStatus)
-    self._windowEquipStatus = windowEquipStatus
+    self._slotController:setEquipStatusWindow(windowEquipStatus)
 end
 
 ---@param slotKey string
@@ -59,8 +53,22 @@ function WindowEquipSlot:refreshLocale()
 end
 
 -- Force redraw while visible even when inactive.
-function WindowEquipSlot:_redrawIfVisible()
-    self._slotController:redrawIfVisible()
+function WindowEquipSlot:redrawIfVisible()
+    if not self:getVisible() then
+        return
+    end
+    local wasActive = self:getActive()
+    local returnButtonSuppressed = self._returnButtonSuppressed == true
+    if not wasActive then
+        self:setReturnButtonSuppressed(true)
+        self:setActive(true)
+    end
+    self:update(0.0)
+    self:render()
+    if not wasActive then
+        self:setActive(false)
+        self:setReturnButtonSuppressed(returnButtonSuppressed)
+    end
 end
 
 ---@return string | nil
@@ -95,6 +103,10 @@ end
 
 function WindowEquipSlot:onReturn()
     self._slotController:closeByCancel()
+end
+
+function WindowEquipSlot:setOnCloseCallback(callback)
+    self._slotController:setOnCloseCallback(callback)
 end
 
 return class(WindowEquipSlot, WindowSelectable)

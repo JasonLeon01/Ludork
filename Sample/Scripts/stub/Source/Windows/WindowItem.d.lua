@@ -7,6 +7,7 @@
 ---@field _onUseCallback   function | nil
 ---@field new              fun(rect: sf.IntRect, player: Source.Player.Player, onClose?: function): Source.Windows.WindowItem
 ---@field _player          Source.Player.Player
+---@field _itemUI          Source.UI.WindowItem
 local WindowItem = {}
 
 ---@brief Construct the item window.
@@ -41,5 +42,18 @@ function WindowItem:close(onHidden) end
 
 ---@brief Close the item window through its cancel path.
 function WindowItem:onReturn() end
+
+---@return Source.Player.Player
+function WindowItem:getPlayer() end
+
+---@param callback function | nil
+function WindowItem:setOnCloseCallback(callback) end
+
+---@param callback function | nil
+function WindowItem:setOnUseCallback(callback) end
+
+function WindowItem:onItemUsed() end
+
+function WindowItem:notifyClosed() end
 
 return WindowItem

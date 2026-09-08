@@ -59,9 +59,21 @@ function WindowBase:setActive(active) end
 ---@param visible boolean
 function WindowBase:setVisible(visible) end
 
+---@class Source.Windows.Base.WindowBase.PreparedView
+---@field root             Engine.ControlBase
+---@field windowFrame      Engine.Window
+---@field content          Engine.Canvas
+---@field chromeRoot       Engine.Canvas
+---@field nested           boolean
+---@field transitionTarget string | nil
+---@field returnButton     Engine.Button | nil
+---@field pauseMark        Engine.Image | nil
+---@field pauseMarkTexture sf.Texture | nil
+
+---@brief Attach a prepared controller view while retaining ownership of host chrome and transitions.
 ---@param controller Source.UI.UiController
----@param target     string | nil
-function WindowBase:_setUiController(controller, target) end
+---@param viewParts  Source.Windows.Base.WindowBase.PreparedView
+function WindowBase:attachPreparedView(controller, viewParts) end
 
 ---@param animationName string | nil
 ---@param onReady       function | nil
@@ -80,7 +92,7 @@ function WindowBase:isTransitionBlocking() end
 function WindowBase:isTransitionOpen() end
 
 ---@param suppressed boolean
-function WindowBase:_setReturnButtonSuppressed(suppressed) end
+function WindowBase:setReturnButtonSuppressed(suppressed) end
 
 ---@brief Enable or disable the pause mark display.
 ---
@@ -108,5 +120,14 @@ function WindowBase:refreshPauseMarkLayout() end
 --- - @param deltaTime Elapsed time in seconds.
 ---@param deltaTime number
 function WindowBase:onTick(deltaTime) end
+
+---@return boolean
+function WindowBase:isReturnButtonEnabled() end
+
+---@param windowFrame Engine.Window
+function WindowBase:applyWindowSkin(windowFrame) end
+
+---@return integer
+function WindowBase:getPauseMarkSize() end
 
 return WindowBase

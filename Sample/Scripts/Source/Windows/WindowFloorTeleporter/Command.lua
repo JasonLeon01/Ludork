@@ -35,5 +35,12 @@ function WindowFloorMapCommand:onReturn()
     self._owner:closeByCancel()
 end
 
----@type Class.ClassType<Source.Windows.WindowFloorMapCommand>
+function WindowFloorMapCommand:activateTelepointSelector()
+    self._owner:activateTelepointSelector()
+end
+
+function WindowFloorMapCommand:notifyMapIndexMaybeChanged(index)
+    self._owner:notifyMapIndexMaybeChanged(index)
+end
+
 return class(WindowFloorMapCommand, WindowCommand)

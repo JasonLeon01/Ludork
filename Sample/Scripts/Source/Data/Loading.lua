@@ -10,20 +10,21 @@ local Vector3Curve = Engine.Vector3Curve
 local Vector4Curve = Engine.Vector4Curve
 
 local categoryFields = {
-    animations = "_animationData",
-    commonFunctions = "_commonFunctionsData",
-    tilesets = "_tilesetData",
-    autoTiles = "_autoTileData",
-    general = "_generalData",
-    curves = "_curveData",
-    textConfigs = "_textConfigData"
+    animations = "animationData",
+    commonFunctions = "commonFunctionsData",
+    tilesets = "tilesetData",
+    autoTiles = "autoTileData",
+    general = "generalData",
+    curves = "curveData",
+    textConfigs = "textConfigData"
 }
 
 ---@class Source.Data.Loading
 local DataLoading = {}
 
+---@param data Source.Data.Cache
 function DataLoading:init(data)
-    self._data = data
+    self._state = data
 end
 
 ---@param fileName string
@@ -123,34 +124,34 @@ function DataLoading:_loadOneCategory(spec, onFileLoaded)
     end)
     local field = assert(categoryFields[spec.category])
     if spec.category == "animations" then
-        self._data._animationData = stage._animationData
+        self._state.animationData = stage.animationData
     elseif spec.category == "curves" then
-        self._data._curveData = stage._curveData
-        self._data._curveTypes = stage._curveTypes
+        self._state.curveData = stage.curveData
+        self._state.curveTypes = stage.curveTypes
     else
-        self._data[field] = stage[field]
+        self._state[field] = stage[field]
     end
 end
 
 ---@diagnostic disable-next-line: unused
 function DataLoading:beginInitialLoad()
     return {
-        _animationData = {},
-        _curveData = {},
-        _curveTypes = {},
-        _textConfigData = {},
-        _commonFunctionsData = {},
-        _tilesetData = {},
-        _autoTileData = {},
-        _generalData = {},
-        _aborted = false,
-        _committed = false
+        animationData = {},
+        curveData = {},
+        curveTypes = {},
+        textConfigData = {},
+        commonFunctionsData = {},
+        tilesetData = {},
+        autoTileData = {},
+        generalData = {},
+        aborted = false,
+        committed = false
     }
 end
 
 function DataLoading:applyInitialLoadItem(stage, item)
-    assert(not stage._aborted, "Initial data stage is unavailable")
-    assert(not stage._committed, "Initial data stage is already committed")
+    assert(not stage.aborted, "Initial data stage is unavailable")
+    assert(not stage.committed, "Initial data stage is already committed")
     local relativePath = item.relativePath
     local category = item.category
     Logging.debug("Loading %s: %s", category, relativePath)
@@ -164,26 +165,26 @@ function DataLoading:applyInitialLoadItem(stage, item)
         )
         name = animationNameFromRelativePath(relativePath)
         payload.type = nil
-        stage._animationData[name] = Engine.AnimationData.new(payload)
+        stage.animationData[name] = Engine.AnimationData.new(payload)
     elseif category == "commonFunctions" then
         payload.type = nil
         name = splitCompound(relativePath)
-        stage._commonFunctionsData[name] = payload
+        stage.commonFunctionsData[name] = payload
     elseif category == "tilesets" then
         payload.type = nil
         name = splitCompound(relativePath)
         ---@cast payload table<string, string | boolean[] | table<string, boolean | number>[] | boolean[][]>
-        stage._tilesetData[name] = Engine.Tileset.fromData(payload)
+        stage.tilesetData[name] = Engine.Tileset.fromData(payload)
     elseif category == "autoTiles" then
         payload.type = nil
         name = splitCompound(relativePath)
         ---@cast payload table<string, string | boolean | table<string, boolean | number>>
-        stage._autoTileData[name] = Engine.AutoTile.fromData(payload)
+        stage.autoTileData[name] = Engine.AutoTile.fromData(payload)
     elseif category == "general" then
         payload.type = nil
         name = splitCompound(relativePath)
         GeneralDataSchema.Canonicalise(payload, relativePath)
-        stage._generalData[name] = payload
+        stage.generalData[name] = payload
     elseif category == "curves" then
         local curveType = payload.type
         payload.type = nil
@@ -191,30 +192,30 @@ function DataLoading:applyInitialLoadItem(stage, item)
         if curveType == "curve" then
             local curveData = payload
             ---@cast curveData Engine.CurveData
-            stage._curveData[name] = Curve.fromData(curveData)
+            stage.curveData[name] = Curve.fromData(curveData)
         elseif curveType == "vector2Curve" then
             local curveData = payload
             ---@cast curveData Engine.Vector2CurveData
-            stage._curveData[name] = Vector2Curve.fromData(curveData)
+            stage.curveData[name] = Vector2Curve.fromData(curveData)
         elseif curveType == "vector3Curve" then
             local curveData = payload
             ---@cast curveData Engine.Vector3CurveData
-            stage._curveData[name] = Vector3Curve.fromData(curveData)
+            stage.curveData[name] = Vector3Curve.fromData(curveData)
         elseif curveType == "vector4Curve" then
             local curveData = payload
             ---@cast curveData Engine.Vector4CurveData
-            stage._curveData[name] = Vector4Curve.fromData(curveData)
+            stage.curveData[name] = Vector4Curve.fromData(curveData)
         else
             error("Invalid curve type " .. tostring(curveType) .. ": " .. relativePath)
         end
-        stage._curveTypes[name] = curveType
+        stage.curveTypes[name] = curveType
     elseif category == "textConfigs" then
         assert(
             payload.type == "plainTextConfig" or payload.type == "richTextConfig",
             "Invalid text config type: " .. relativePath
         )
         name = splitCompound(relativePath)
-        stage._textConfigData[name] = payload
+        stage.textConfigData[name] = payload
     else
         error("Unknown initial data category: " .. tostring(category))
     end
@@ -222,26 +223,26 @@ function DataLoading:applyInitialLoadItem(stage, item)
 end
 
 function DataLoading:commitInitialLoad(stage, blueprints)
-    assert(not stage._aborted, "Initial data stage is unavailable")
-    assert(not stage._committed, "Initial data stage is already committed")
-    self._data._animationData = stage._animationData
-    self._data._curveData = stage._curveData
-    self._data._curveTypes = stage._curveTypes
-    self._data._textConfigData = stage._textConfigData
-    self._data._plainTextConfigs = {}
-    self._data._richTextConfigs = {}
-    self._data._commonFunctionsData = stage._commonFunctionsData
-    self._data._tilesetData = stage._tilesetData
-    self._data._autoTileData = stage._autoTileData
-    self._data._generalData = stage._generalData
+    assert(not stage.aborted, "Initial data stage is unavailable")
+    assert(not stage.committed, "Initial data stage is already committed")
+    self._state.animationData = stage.animationData
+    self._state.curveData = stage.curveData
+    self._state.curveTypes = stage.curveTypes
+    self._state.textConfigData = stage.textConfigData
+    self._state.plainTextConfigs = {}
+    self._state.richTextConfigs = {}
+    self._state.commonFunctionsData = stage.commonFunctionsData
+    self._state.tilesetData = stage.tilesetData
+    self._state.autoTileData = stage.autoTileData
+    self._state.generalData = stage.generalData
     blueprints:clearGraphTemplates()
-    stage._committed = true
+    stage.committed = true
 end
 
 ---@diagnostic disable-next-line: unused
 function DataLoading:abortInitialLoad(stage)
-    if not stage._committed then
-        stage._aborted = true
+    if not stage.committed then
+        stage.aborted = true
     end
 end
 

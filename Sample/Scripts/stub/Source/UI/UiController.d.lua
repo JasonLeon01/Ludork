@@ -26,7 +26,7 @@ function UiController:refresh() end
 
 function UiController:onViewUpdate(_) end
 
-function UiController:_refreshFromEvent(payload) end
+function UiController:refreshFromEvent(payload) end
 
 function UiController:subscribe(eventName, handler, priority) end
 
@@ -105,5 +105,10 @@ function UiController:setProperty(name, propertyId, value) end
 function UiController:setText(name, text) end
 
 function UiController:dispose() end
+
+function UiController:registerUiInstance() end
+
+---@param unregister fun(controller: Source.UI.UiController)
+function UiController:setViewUpdateUnregister(unregister) end
 
 return UiController

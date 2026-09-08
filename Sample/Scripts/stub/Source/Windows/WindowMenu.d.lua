@@ -8,12 +8,7 @@
 ---@class Source.Windows.WindowMenu: Source.Windows.Base.WindowSelectable
 ---@field controllerClass Source.Windows.WindowMenu.Controller
 ---@field _player         Source.Player.Player
----@field _windowItem     Source.Windows.WindowItem
----@field _windowEquip    Source.Windows.WindowEquip
----@field _windowSaveLoad Source.Windows.WindowSaveLoad
----@field _configWindow   Source.Windows.ConfigWindow
 ---@field _menuController Source.Windows.WindowMenu.Controller
----@field _menuControls   Engine.Canvas[]
 ---@field new             fun(player: Source.Player.Player, windows: Source.Windows.WindowMenuWindows): Source.Windows.WindowMenu
 local WindowMenu = {}
 
@@ -76,33 +71,22 @@ function WindowMenu:close(onHidden) end
 ---@return boolean
 function WindowMenu:isBlocking() end
 
-function WindowMenu:_onMenuItem() end
+function WindowMenu:openInventory() end
 
-function WindowMenu:_onMenuEquip() end
+function WindowMenu:openEquipment() end
 
-function WindowMenu:_onMenuSave() end
+function WindowMenu:openSaveLoad() end
 
-function WindowMenu:_onMenuConfig() end
+function WindowMenu:openConfig() end
 
-function WindowMenu:_onMenuExit() end
-
----@return Source.Windows.Base.WindowSelectable | nil
-function WindowMenu:_getCurrentSubMenuFocusTarget() end
-
----@param position sf.Vector2f
----@return boolean
-function WindowMenu:_isPointerInsideMenuGroup(position) end
-
----@param exceptName string | nil
----@return boolean
-function WindowMenu:_closeSubMenus(exceptName) end
-
----@return boolean
-function WindowMenu:_returnEquipSelectToSlot() end
+function WindowMenu:exitGame() end
 
 function WindowMenu:onSaveLoadClose() end
 
 ---@brief Reactivate the command list and return focus after the Config window closes.
 function WindowMenu:onConfigClose() end
+
+---@return Source.Player.Player
+function WindowMenu:getPlayer() end
 
 return WindowMenu

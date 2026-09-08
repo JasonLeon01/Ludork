@@ -124,8 +124,8 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     self._renderEffectTarget = nil
     self._drawLayerEffects = function (layerName)
         local gameMap = selfRef[1]
-        if gameMap ~= nil and gameMap._renderEffectTarget ~= nil then
-            gameMap:_drawActorPixelShatterEffects(gameMap._renderEffectTarget, layerName)
+        if gameMap ~= nil then
+            gameMap:drawLayerEffects(layerName)
         end
     end
     self:setActorListUpdater(function ()
@@ -200,13 +200,19 @@ function GameMap:getSize()
 end
 
 ---@return Global.WorldGeometry.CellRect
-function GameMap:_getGameplayCellRect()
+function GameMap:getGameplayCellRect()
     local size = self:getSize()
     return { x = 0, y = 0, width = size.x, height = size.y }
 end
 
 function GameMap:getMapViewRect()
     return self._mapViewRect
+end
+
+function GameMap:drawLayerEffects(layerName)
+    if self._renderEffectTarget ~= nil then
+        self:_drawActorPixelShatterEffects(self._renderEffectTarget, layerName)
+    end
 end
 
 function GameMap:getScene()
@@ -339,273 +345,271 @@ function GameMap:show()
 end
 
 function GameMap:_syncActorsForMapCache()
-    return GameMapActors._syncActorsForMapCache(self)
+    return GameMapActors.SyncActorsForMapCache(self)
 end
 
 function GameMap:_syncActorsForPathfinding()
-    return GameMapActors._syncActorsForPathfinding(self)
+    return GameMapActors.SyncActorsForPathfinding(self)
 end
 
 function GameMap:_checkDir4Between(fromPosition, toPosition, direction)
-    return GameMapActors._checkDir4Between(self, fromPosition, toPosition, direction)
+    return GameMapActors.CheckDir4Between(self, fromPosition, toPosition, direction)
 end
 
 function GameMap:getAllActors()
-    return GameMapActors.getAllActors(self)
+    return GameMapActors.GetAllActors(self)
 end
 
 function GameMap:getActorLayer(actor)
-    return GameMapActors.getActorLayer(self, actor)
+    return GameMapActors.GetActorLayer(self, actor)
 end
 
 function GameMap:getActorsByPosition(position)
-    return GameMapActors.getActorsByPosition(self, position)
+    return GameMapActors.GetActorsByPosition(self, position)
 end
 
 function GameMap:getActorByLayerAndPosition(layer, position)
-    return GameMapActors.getActorByLayerAndPosition(self, layer, position)
+    return GameMapActors.GetActorByLayerAndPosition(self, layer, position)
 end
 
 function GameMap:getActorsByRange(position, radius)
-    return GameMapActors.getActorsByRange(self, position, radius)
+    return GameMapActors.GetActorsByRange(self, position, radius)
 end
 
 function GameMap:getActorByTag(tag)
-    return GameMapActors.getActorByTag(self, tag)
+    return GameMapActors.GetActorByTag(self, tag)
 end
 
 function GameMap:getAllActorsByTag(tag)
-    return GameMapActors.getAllActorsByTag(self, tag)
+    return GameMapActors.GetAllActorsByTag(self, tag)
 end
 
 function GameMap:removeActorsByTags(tags)
-    return GameMapActors.removeActorsByTags(self, tags)
+    return GameMapActors.RemoveActorsByTags(self, tags)
 end
 
 function GameMap:applyActorPositions(actorPositions)
-    return GameMapActors.applyActorPositions(self, actorPositions)
+    return GameMapActors.ApplyActorPositions(self, actorPositions)
 end
 
 function GameMap:spawnActor(actor, layer, emitCreateEvent)
-    return GameMapActors.spawnActor(self, actor, layer, emitCreateEvent)
+    return GameMapActors.SpawnActor(self, actor, layer, emitCreateEvent)
 end
 
 function GameMap:createActor(actorClass, layer, kwargs, emitCreateEvent)
-    return GameMapActors.createActor(self, actorClass, layer, kwargs, emitCreateEvent)
+    return GameMapActors.CreateActor(self, actorClass, layer, kwargs, emitCreateEvent)
 end
 
 function GameMap:initialiseActorsAndComponents()
-    return GameMapActors.initialiseActorsAndComponents(self)
+    return GameMapActors.InitialiseActorsAndComponents(self)
 end
 
 function GameMap:_addActorTreeToLayer(actor, layer)
-    return GameMapActors._addActorTreeToLayer(self, actor, layer)
+    return GameMapActors.AddActorTreeToLayer(self, actor, layer)
 end
 
 function GameMap:_addActorToLayer(actor, layer)
-    return GameMapActors._addActorToLayer(self, actor, layer)
+    return GameMapActors.AddActorToLayer(self, actor, layer)
 end
 
 function GameMap:destroyActor(actor)
-    return GameMapActors.destroyActor(self, actor)
+    return GameMapActors.DestroyActor(self, actor)
 end
 
 function GameMap:playActorPixelShatterEffect(actor)
-    return GameMapActors.playActorPixelShatterEffect(self, actor)
+    return GameMapActors.PlayActorPixelShatterEffect(self, actor)
 end
 
 function GameMap:findPathResult(start, goal, actor, excludedAnchors)
-    return GameMapActors.findPathResult(self, start, goal, actor, excludedAnchors)
+    return GameMapActors.FindPathResult(self, start, goal, actor, excludedAnchors)
 end
 
 function GameMap:_clearActorsPathfindingBlocks()
-    return GameMapActors._clearActorsPathfindingBlocks(self)
+    return GameMapActors.ClearActorsPathfindingBlocks(self)
 end
 
 function GameMap:findPath(start, goal, actor, excludedAnchors)
-    return GameMapActors.findPath(self, start, goal, actor, excludedAnchors)
+    return GameMapActors.FindPath(self, start, goal, actor, excludedAnchors)
 end
 
 function GameMap:isPathfindingPassable(actor, targetPosition)
-    return GameMapActors.isPathfindingPassable(self, actor, targetPosition)
+    return GameMapActors.IsPathfindingPassable(self, actor, targetPosition)
 end
 
 function GameMap:hasPathBlockingOverlapActor(actor, targetPosition)
-    return GameMapActors.hasPathBlockingOverlapActor(self, actor, targetPosition)
+    return GameMapActors.HasPathBlockingOverlapActor(self, actor, targetPosition)
 end
 
 function GameMap:_getDescendantActorIDs(actor)
-    return GameMapActors._getDescendantActorIDs(self, actor)
+    return GameMapActors.GetDescendantActorIDs(self, actor)
 end
 
 function GameMap:updateActorList()
-    return GameMapActors.updateActorList(self)
+    return GameMapActors.UpdateActorList(self)
 end
 
 function GameMap:_updateActorPixelShatterEffects(deltaTime)
-    return GameMapActors._updateActorPixelShatterEffects(self, deltaTime)
+    return GameMapActors.UpdateActorPixelShatterEffects(self, deltaTime)
 end
 
 function GameMap:getTerrainTile(layerName, position)
-    return GameMapTerrain.getTerrainTile(self, layerName, position)
+    return GameMapTerrain.GetTerrainTile(self, layerName, position)
 end
 
 function GameMap:getTerrainTilePositions(layerName, tileID)
-    return GameMapTerrain.getTerrainTilePositions(self, layerName, tileID)
+    return GameMapTerrain.GetTerrainTilePositions(self, layerName, tileID)
 end
 
 function GameMap:setTerrainTile(layerName, position, tileID)
-    return GameMapTerrain.setTerrainTile(self, layerName, position, tileID)
+    return GameMapTerrain.SetTerrainTile(self, layerName, position, tileID)
 end
 
 function GameMap:setTerrainTiles(layerName, positions, tileID)
-    return GameMapTerrain.setTerrainTiles(self, layerName, positions, tileID)
+    return GameMapTerrain.SetTerrainTiles(self, layerName, positions, tileID)
 end
 
 function GameMap:applyTerrainDestructions(terrainDestructions)
-    return GameMapTerrain.applyTerrainDestructions(self, terrainDestructions)
+    return GameMapTerrain.ApplyTerrainDestructions(self, terrainDestructions)
 end
 
 function GameMap:markPassabilityDirty()
-    return GameMapTerrain.markPassabilityDirty(self)
+    return GameMapTerrain.MarkPassabilityDirty(self)
 end
 
 function GameMap:updateActorOccupancy(actor)
-    return GameMapTerrain.updateActorOccupancy(self, actor)
+    return GameMapTerrain.UpdateActorOccupancy(self, actor)
 end
 
 function GameMap:_replaceTerrainLayer(_layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
-    return GameMapTerrain._replaceTerrainLayer(
-        self, _layerName, layer, layerData, autoTileTextures, autoTileFrameCounts
-    )
+    return GameMapTerrain.ReplaceTerrainLayer(self, _layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
 end
 
 function GameMap:_getMaterialPropertyTexture(functionName, invalidValue, smooth)
-    return GameMapTerrain._getMaterialPropertyTexture(self, functionName, invalidValue, smooth)
+    return GameMapTerrain.GetMaterialPropertyTexture(self, functionName, invalidValue, smooth)
 end
 
 function GameMap:_rebuildPassabilityCache()
-    return GameMapTerrain._rebuildPassabilityCache(self)
+    return GameMapTerrain.RebuildPassabilityCache(self)
 end
 
 function GameMap:getLights()
-    return GameMapLighting.getLights(self)
+    return GameMapLighting.GetLights(self)
 end
 
 function GameMap:setLights(lights)
-    return GameMapLighting.setLights(self, lights)
+    return GameMapLighting.SetLights(self, lights)
 end
 
 function GameMap:addLight(light)
-    return GameMapLighting.addLight(self, light)
+    return GameMapLighting.AddLight(self, light)
 end
 
 function GameMap:removeLight(light)
-    return GameMapLighting.removeLight(self, light)
+    return GameMapLighting.RemoveLight(self, light)
 end
 
 function GameMap:_requireLight(light)
-    return GameMapLighting._requireLight(self, light)
+    return GameMapLighting.RequireLight(self, light)
 end
 
 function GameMap:setLightPosition(light, position)
-    return GameMapLighting.setLightPosition(self, light, position)
+    return GameMapLighting.SetLightPosition(self, light, position)
 end
 
 function GameMap:setLightColour(light, colour)
-    return GameMapLighting.setLightColour(self, light, colour)
+    return GameMapLighting.SetLightColour(self, light, colour)
 end
 
 function GameMap:setLightRadius(light, radius)
-    return GameMapLighting.setLightRadius(self, light, radius)
+    return GameMapLighting.SetLightRadius(self, light, radius)
 end
 
 function GameMap:setLightIntensity(light, intensity)
-    return GameMapLighting.setLightIntensity(self, light, intensity)
+    return GameMapLighting.SetLightIntensity(self, light, intensity)
 end
 
 function GameMap:getAmbientLight()
-    return GameMapLighting.getAmbientLight(self)
+    return GameMapLighting.GetAmbientLight(self)
 end
 
 function GameMap:setAmbientLight(ambientLight)
-    return GameMapLighting.setAmbientLight(self, ambientLight)
+    return GameMapLighting.SetAmbientLight(self, ambientLight)
 end
 
 function GameMap:getMaterialPropertyMap(functionName, invalidValue)
-    return GameMapLighting.getMaterialPropertyMap(self, functionName, invalidValue)
+    return GameMapLighting.GetMaterialPropertyMap(self, functionName, invalidValue)
 end
 
 function GameMap:getActorLayerLightBlockMap(layerName, size)
-    return GameMapLighting.getActorLayerLightBlockMap(self, layerName, size)
+    return GameMapLighting.GetActorLayerLightBlockMap(self, layerName, size)
 end
 
 function GameMap:_lightingShadersAvailable()
-    return GameMapLighting._lightingShadersAvailable(self)
+    return GameMapLighting.LightingShadersAvailable(self)
 end
 
 function GameMap:_getActiveLights()
-    return GameMapLighting._getActiveLights(self)
+    return GameMapLighting.GetActiveLights(self)
 end
 
 function GameMap:_renderLighting(mapLights)
-    return GameMapLighting._renderLighting(self, mapLights)
+    return GameMapLighting.RenderLighting(self, mapLights)
 end
 
 function GameMap:refreshShader()
-    return GameMapLighting.refreshShader(self)
+    return GameMapLighting.RefreshShader(self)
 end
 
 function GameMap:_getMaterialShader()
-    return GameMapLighting._getMaterialShader(self)
+    return GameMapLighting.GetMaterialShader(self)
 end
 
 function GameMap:getPlayer()
-    return GameMapPresentation.getPlayer(self)
+    return GameMapPresentation.GetPlayer(self)
 end
 
 function GameMap:setPlayer(player)
-    return GameMapPresentation.setPlayer(self, player)
+    return GameMapPresentation.SetPlayer(self, player)
 end
 
 function GameMap:worldToMapViewPosition(position)
-    return GameMapPresentation.worldToMapViewPosition(self, position)
+    return GameMapPresentation.WorldToMapViewPosition(self, position)
 end
 
 function GameMap:worldToUIScreenPosition(position)
-    return GameMapPresentation.worldToUIScreenPosition(self, position)
+    return GameMapPresentation.WorldToUIScreenPosition(self, position)
 end
 
 function GameMap:worldToCanvasPosition(position)
-    return GameMapPresentation.worldToCanvasPosition(self, position)
+    return GameMapPresentation.WorldToCanvasPosition(self, position)
 end
 
 function GameMap:_updateAudioListener()
-    return GameMapPresentation._updateAudioListener(self)
+    return GameMapPresentation.UpdateAudioListener(self)
 end
 
 function GameMap:_getAudioListenerDirection(direction)
-    return GameMapPresentation._getAudioListenerDirection(self, direction)
+    return GameMapPresentation.GetAudioListenerDirection(self, direction)
 end
 
 function GameMap:_resetTransparentTiles()
-    return GameMapRendering._resetTransparentTiles(self)
+    return GameMapRendering.ResetTransparentTiles(self)
 end
 
 function GameMap:_drawActor(target, states, actor, actorAlpha)
-    return GameMapRendering._drawActor(self, target, states, actor, actorAlpha)
+    return GameMapRendering.DrawActor(self, target, states, actor, actorAlpha)
 end
 
 function GameMap:_setActorEffectHidden(actor, hidden)
-    return GameMapRendering._setActorEffectHidden(self, actor, hidden)
+    return GameMapRendering.SetActorEffectHidden(self, actor, hidden)
 end
 
 function GameMap:_prepareActorPixelShatterEffects()
-    return GameMapRendering._prepareActorPixelShatterEffects(self)
+    return GameMapRendering.PrepareActorPixelShatterEffects(self)
 end
 
 function GameMap:_drawActorPixelShatterEffects(target, layerName)
-    return GameMapRendering._drawActorPixelShatterEffects(self, target, layerName)
+    return GameMapRendering.DrawActorPixelShatterEffects(self, target, layerName)
 end
 
 return class(GameMap, GameMapBase)

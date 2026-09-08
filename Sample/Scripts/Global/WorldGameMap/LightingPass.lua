@@ -23,16 +23,7 @@ local function getLightingTargetSize(size, scale)
     return targetSize
 end
 
----@type WorldGameMapImplState
 local GameMapLighting = {}
-
----@param gameMap Global.WorldGameMap.WorldGameMap
----@return sf.RenderTexture
-local function getEnsuredDirectLight(gameMap)
-    gameMap:_ensureDirectLight()
-    ---@cast gameMap._directLight sf.RenderTexture
-    return gameMap._directLight
-end
 
 ---@param analyses GlobalCore.LightOcclusionResult[]
 ---@return boolean
@@ -46,7 +37,8 @@ local function hasRelevantLightBlockingActors(analyses)
 end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
-function GameMapLighting:_renderLighting(activeLights)
+---@param self         WorldGameMapImplState
+function GameMapLighting.RenderLighting(self, activeLights)
     ---@diagnostic disable-next-line: unnecessary-if
     if self._materialDirty then
         self:_rebuildPassabilityCache()
@@ -57,9 +49,8 @@ function GameMapLighting:_renderLighting(activeLights)
     if bool(activeLights) then
         self:_rebuildStaticTransmission(activeLights, staticOccluders)
     end
-    local previousDirectLight = self._directLight
-    local directLight = getEnsuredDirectLight(self)
-    if directLight == previousDirectLight and self:_renderedLightingMatches(activeLights, dynamicOccluders) then
+    local directLight, targetChanged = self:_ensureDirectLight()
+    if not targetChanged and self:_renderedLightingMatches(activeLights, dynamicOccluders) then
         return
     end
     local analyses = bool(activeLights) and self:analyseLightOcclusion(activeLights, dynamicOccluders) or {}
@@ -72,7 +63,7 @@ function GameMapLighting:_renderLighting(activeLights)
         return
     end
     if not bool(activeLights) then
-        if directLight ~= previousDirectLight or not self._directLightCleared then
+        if targetChanged or not self._directLightCleared then
             directLight:setView(self._camera:getView())
             directLight:clear(sf.Color.Black)
             directLight:display()
@@ -90,7 +81,8 @@ function GameMapLighting:_renderLighting(activeLights)
 end
 
 ---@param activeLights Global.GameMap.ActiveLight[]
-function GameMapLighting:_ensureDynamicTransmission(activeLights)
+---@param self         WorldGameMapImplState
+function GameMapLighting.EnsureDynamicTransmission(self, activeLights)
     local requiredSize = 1
     for _, entry in ipairs(activeLights) do
         local light = entry.light
@@ -110,7 +102,9 @@ function GameMapLighting:_ensureDynamicTransmission(activeLights)
     self._dynamicTransmissionPixelSize = requiredSize
 end
 
-function GameMapLighting:_ensureDirectLight()
+---@param self WorldGameMapImplState
+---@return sf.RenderTexture, boolean
+function GameMapLighting.EnsureDirectLight(self)
     ---@cast self._camera GlobalCore.Camera
     local viewSize = assert(self._camera:getViewSize())
     local logicalSize = sf.Vector2u.new(math.max(1, math.floor(viewSize.x)), math.max(1, math.floor(viewSize.y)))
@@ -119,13 +113,15 @@ function GameMapLighting:_ensureDirectLight()
     local requiredSize = getLightingTargetSize(logicalSize, lightingRenderScale)
     if self._directLight ~= nil and self._directLight:getSize() == requiredSize then
         self._directLight:setSmooth(lightingRenderScale < 1.0)
-        return
+        return self._directLight, false
     end
     self._directLight = sf.RenderTexture.new(requiredSize)
     self._directLight:setSmooth(lightingRenderScale < 1.0)
+    return self._directLight, true
 end
 
-function GameMapLighting:_ensureStaticDirectLight()
+---@param self WorldGameMapImplState
+function GameMapLighting.EnsureStaticDirectLight(self)
     local tilemapSize = self._tilemap:getSize()
     local mapPixelSize = sf.Vector2u.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
     ---@cast mapPixelSize sf.Vector2u
@@ -140,7 +136,8 @@ function GameMapLighting:_ensureStaticDirectLight()
     self._cachedLightMaterialRevision = -1
 end
 
-function GameMapLighting:_setLightPassCommonUniforms()
+---@param self WorldGameMapImplState
+function GameMapLighting.SetLightPassCommonUniforms(self)
     ---@cast self._camera GlobalCore.Camera
     ---@cast self._directLight sf.RenderTexture
     local screenSize = self._camera:getViewSize()
@@ -154,7 +151,8 @@ function GameMapLighting:_setLightPassCommonUniforms()
     self:_setViewShaderUniforms(self._lightPassShader, screenSize, self._zeroShaderOffset, true)
 end
 
-function GameMapLighting:_setLightPassWorldUniforms()
+---@param self WorldGameMapImplState
+function GameMapLighting.SetLightPassWorldUniforms(self)
     ---@cast self._staticDirectLight sf.RenderTexture
     local tilemapSize = self._tilemap:getSize()
     local screenSize = sf.Vector2f.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
@@ -174,7 +172,8 @@ end
 
 ---@param target sf.RenderTexture
 ---@param light  GlobalCore.Light
-function GameMapLighting:_setLightPassCacheUniforms(target, light)
+---@param self   WorldGameMapImplState
+function GameMapLighting.SetLightPassCacheUniforms(self, target, light)
     local diameter = light.radius * 2.0
     local screenSize = sf.Vector2f.new(diameter, diameter)
     local targetSize = target:getSize()
@@ -195,7 +194,8 @@ end
 ---@param index integer
 ---@param entry Global.GameMap.ActiveLight
 ---@return sf.Texture
-function GameMapLighting:_ensureStaticLightCache(index, entry)
+---@param self  WorldGameMapImplState
+function GameMapLighting.EnsureStaticLightCache(self, index, entry)
     local light = entry.light
     local diameter = light.radius * 2.0
     local logicalSize = sf.Vector2u.new(math.max(1, math.ceil(diameter)), math.max(1, math.ceil(diameter)))
@@ -230,7 +230,8 @@ function GameMapLighting:_ensureStaticLightCache(index, entry)
     return target:getTexture()
 end
 
-function GameMapLighting:_setLightPassTextureUniforms()
+---@param self WorldGameMapImplState
+function GameMapLighting.SetLightPassTextureUniforms(self)
     ---@cast self._staticTransmission sf.RenderTexture
     self._lightPassShader:setUniform("staticTransmission", self._staticTransmission:getTexture())
     self._lightPassShader:setUniform("staticOccupancy", self._staticOccupancy)
@@ -249,7 +250,8 @@ end
 ---@param screenSize              sf.Vector2f
 ---@param mapViewOffset           sf.Vector2f
 ---@param usesFragmentCoordinates boolean
-function GameMapLighting:_setViewShaderUniforms(shader, screenSize, mapViewOffset, usesFragmentCoordinates)
+---@param self                    WorldGameMapImplState
+function GameMapLighting.SetViewShaderUniforms(self, shader, screenSize, mapViewOffset, usesFragmentCoordinates)
     if usesFragmentCoordinates then
         shader:setUniform("mapViewOffset", mapViewOffset)
     end
@@ -272,7 +274,8 @@ end
 ---@param traceStatic   boolean
 ---@param traceDynamic  boolean
 ---@param target        sf.RenderTexture
-function GameMapLighting:_renderLight(entry, dynamicOrigin, dynamicSize, traceStatic, traceDynamic, target)
+---@param self          WorldGameMapImplState
+function GameMapLighting.RenderLight(self, entry, dynamicOrigin, dynamicSize, traceStatic, traceDynamic, target)
     local light = entry.light
     if traceDynamic then
         ---@cast self._dynamicTransmission sf.RenderTexture
@@ -296,7 +299,8 @@ end
 
 ---@param entries Global.GameMap.ActiveLight[]
 ---@param target  sf.RenderTexture
-function GameMapLighting:_renderStaticLights(entries, target)
+---@param self    WorldGameMapImplState
+function GameMapLighting.RenderStaticLights(self, entries, target)
     for _, entry in ipairs(entries) do
         self:_renderLight(entry, self._zeroShaderOffset, self._zeroShaderOffset, true, false, target)
     end
@@ -304,7 +308,8 @@ end
 
 ---@param entries Global.GameMap.ActiveLight[]
 ---@param target  sf.RenderTexture
-function GameMapLighting:_renderUnobstructedLights(entries, target)
+---@param self    WorldGameMapImplState
+function GameMapLighting.RenderUnobstructedLights(self, entries, target)
     if not bool(entries) then
         self._unobstructedLightCache = nil
         return
@@ -321,7 +326,8 @@ end
 ---@param cache   Global.GameMap.LightCacheEntry[] | nil
 ---@return boolean
 ---@diagnostic disable-next-line: unused
-function GameMapLighting:_lightsMatchCache(entries, cache)
+---@param self    WorldGameMapImplState
+function GameMapLighting.LightsMatchCache(self, entries, cache)
     if cache == nil or #cache ~= #entries then
         return false
     end
@@ -339,7 +345,8 @@ function GameMapLighting:_lightsMatchCache(entries, cache)
 end
 
 ---@param entries Global.GameMap.ActiveLight[]
-function GameMapLighting:_cacheUnobstructedLights(entries)
+---@param self    WorldGameMapImplState
+function GameMapLighting.CacheUnobstructedLights(self, entries)
     local cache = {}
     ---@cast self._unobstructedLightVertices sf.VertexArray
     ---@cast self._unobstructedLightVertex sf.Vertex
@@ -356,7 +363,8 @@ end
 ---@param light GlobalCore.Light
 ---@return Global.GameMap.LightCacheEntry
 ---@diagnostic disable-next-line: unused
-function GameMapLighting:_cacheLightValues(light)
+---@param self  WorldGameMapImplState
+function GameMapLighting.CacheLightValues(self, light)
     return {
         light.position.x, light.position.y, light.colour.r, light.colour.g, light.colour.b, light.radius,
         light.intensity
@@ -365,7 +373,8 @@ end
 
 ---@param entries Global.GameMap.ActiveLight[]
 ---@return Global.GameMap.LightCacheEntry[]
-function GameMapLighting:_cacheLightList(entries)
+---@param self    WorldGameMapImplState
+function GameMapLighting.CacheLightList(self, entries)
     local cache = {}
     for index, entry in ipairs(entries) do
         cache[index] = self:_cacheLightValues(entry.light)
@@ -377,7 +386,8 @@ end
 ---@param vertex   sf.Vertex
 ---@param light    GlobalCore.Light
 ---@param index    integer
-function GameMapLighting:_appendLightBatch(vertices, vertex, light, index)
+---@param self     WorldGameMapImplState
+function GameMapLighting.AppendLightBatch(self, vertices, vertex, light, index)
     local radius = light.radius
     local left = light.position.x - radius
     local right = light.position.x + radius
@@ -400,7 +410,8 @@ end
 ---@param textureY number
 ---@param colour   sf.Color
 ---@diagnostic disable-next-line: unused
-function GameMapLighting:_appendLightBatchVertex(vertices, vertex, x, y, textureX, textureY, colour)
+---@param self     WorldGameMapImplState
+function GameMapLighting.AppendLightBatchVertex(self, vertices, vertex, x, y, textureX, textureY, colour)
     vertex.position = sf.Vector2f.new(x, y)
     vertex.texCoords = sf.Vector2f.new(textureX, textureY)
     vertex.color = colour
@@ -409,7 +420,8 @@ end
 
 ---@param analysis GlobalCore.LightOcclusionResult
 ---@return sf.Vector2f, sf.Vector2f, boolean
-function GameMapLighting:_renderDynamicTransmission(analysis)
+---@param self     WorldGameMapImplState
+function GameMapLighting.RenderDynamicTransmission(self, analysis)
     local maskRect = analysis.maskRect
     if maskRect == nil then
         return self._zeroShaderOffset, self._zeroShaderOffset, false
@@ -434,7 +446,8 @@ function GameMapLighting:_renderDynamicTransmission(analysis)
 end
 
 ---@return Global.GameMap.ActiveLight[]
-function GameMapLighting:_getActiveLights()
+---@param self WorldGameMapImplState
+function GameMapLighting.GetActiveLights(self)
     local lights = {}
     local viewport = self._camera ~= nil and self._camera:getViewport() or nil
     for _, light in ipairs(self._lights) do
@@ -483,7 +496,8 @@ end
 ---@param result    sf.Vector2f | nil
 ---@return sf.Vector2f
 ---@diagnostic disable-next-line: unused
-function GameMapLighting:_getActorLightPosition(actor, lightComp, result)
+---@param self      WorldGameMapImplState
+function GameMapLighting.GetActorLightPosition(self, actor, lightComp, result)
     local bounds = actor:getLocalBounds()
     local offset = lightComp.lightOffset
     local localPosition = sf.Vector2f.new(
@@ -500,7 +514,8 @@ end
 ---@param radius   number
 ---@param viewport sf.FloatRect | nil
 ---@return boolean
-function GameMapLighting:_isLightVisible(position, radius, viewport)
+---@param self     WorldGameMapImplState
+function GameMapLighting.IsLightVisible(self, position, radius, viewport)
     if viewport == nil then
         return true
     end
@@ -521,7 +536,8 @@ end
 ---@param colour     sf.Color
 ---@param applyAlpha boolean
 ---@return sf.Vector3f
-function GameMapLighting:_toShaderColour(colour, applyAlpha)
+---@param self       WorldGameMapImplState
+function GameMapLighting.ToShaderColour(self, colour, applyAlpha)
     local alpha = applyAlpha and colour.a / 255.0 or 1.0
     self._shaderColour.x = colour.r / 255.0 * alpha
     self._shaderColour.y = colour.g / 255.0 * alpha

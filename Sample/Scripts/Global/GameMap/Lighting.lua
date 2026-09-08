@@ -1,19 +1,22 @@
----@type GameMapImplState
 local GameMapLighting = {}
 
-function GameMapLighting:getLights()
+---@param self GameMapImplState
+function GameMapLighting.GetLights(self)
     return self._lights
 end
 
-function GameMapLighting:setLights(lights)
+---@param self GameMapImplState
+function GameMapLighting.SetLights(self, lights)
     self._lights = lights
 end
 
-function GameMapLighting:addLight(light)
+---@param self GameMapImplState
+function GameMapLighting.AddLight(self, light)
     self._lights[#self._lights + 1] = light
 end
 
-function GameMapLighting:removeLight(light)
+---@param self GameMapImplState
+function GameMapLighting.RemoveLight(self, light)
     local index = table.index(self._lights, light)
     if index == nil then
         error("Light not found in map", 2)
@@ -22,46 +25,55 @@ function GameMapLighting:removeLight(light)
 end
 
 ---@param light GlobalCore.Light
-function GameMapLighting:_requireLight(light)
+---@param self  GameMapImplState
+function GameMapLighting.RequireLight(self, light)
     if not table.contains(self._lights, light) then
         error("Light not found in map", 3)
     end
 end
 
-function GameMapLighting:setLightPosition(light, position)
+---@param self GameMapImplState
+function GameMapLighting.SetLightPosition(self, light, position)
     self:_requireLight(light)
     light.position = position
 end
 
-function GameMapLighting:setLightColour(light, colour)
+---@param self GameMapImplState
+function GameMapLighting.SetLightColour(self, light, colour)
     self:_requireLight(light)
     light.colour = colour
 end
 
-function GameMapLighting:setLightRadius(light, radius)
+---@param self GameMapImplState
+function GameMapLighting.SetLightRadius(self, light, radius)
     self:_requireLight(light)
     light.radius = radius
 end
 
-function GameMapLighting:setLightIntensity(light, intensity)
+---@param self GameMapImplState
+function GameMapLighting.SetLightIntensity(self, light, intensity)
     self:_requireLight(light)
     light.intensity = intensity
 end
 
-function GameMapLighting:getAmbientLight()
+---@param self GameMapImplState
+function GameMapLighting.GetAmbientLight(self)
     return self._ambientLight
 end
 
-function GameMapLighting:setAmbientLight(ambientLight)
+---@param self GameMapImplState
+function GameMapLighting.SetAmbientLight(self, ambientLight)
     self._ambientLight = ambientLight
 end
 
-function GameMapLighting:getMaterialPropertyMap(functionName, invalidValue)
+---@param self GameMapImplState
+function GameMapLighting.GetMaterialPropertyMap(self, functionName, invalidValue)
     local mapSize = self._tilemap:getSize()
     return self:getMaterialPropertyMapExt(mapSize.x, mapSize.y, functionName, invalidValue)
 end
 
-function GameMapLighting:getActorLayerLightBlockMap(layerName, size)
+---@param self GameMapImplState
+function GameMapLighting.GetActorLayerLightBlockMap(self, layerName, size)
     if self._actors[layerName] == nil then
         return nil
     end
@@ -79,16 +91,19 @@ function GameMapLighting:getActorLayerLightBlockMap(layerName, size)
     return result
 end
 
-function GameMapLighting:_lightingShadersAvailable()
+---@param self GameMapImplState
+function GameMapLighting.LightingShadersAvailable(self)
     return self._renderer ~= nil and not self._previewOnly and sf.Shader.isAvailable()
 end
 
-function GameMapLighting:_getActiveLights()
+---@param self GameMapImplState
+function GameMapLighting.GetActiveLights(self)
     return self._lights
 end
 
 ---@param mapLights GlobalCore.Light[]
-function GameMapLighting:_renderLighting(mapLights)
+---@param self      GameMapImplState
+function GameMapLighting.RenderLighting(self, mapLights)
     if self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
@@ -97,7 +112,8 @@ function GameMapLighting:_renderLighting(mapLights)
     self._renderer:renderLighting(mapLights, self._ambientLight, self._materialRevision)
 end
 
-function GameMapLighting:refreshShader()
+---@param self GameMapImplState
+function GameMapLighting.RefreshShader(self)
     if self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
@@ -107,7 +123,8 @@ function GameMapLighting:refreshShader()
     end
 end
 
-function GameMapLighting:_getMaterialShader()
+---@param self GameMapImplState
+function GameMapLighting.GetMaterialShader(self)
     if self._renderer == nil then
         return nil
     end

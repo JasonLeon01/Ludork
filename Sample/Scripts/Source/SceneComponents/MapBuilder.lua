@@ -25,8 +25,6 @@ local DAMAGE_TEXT_SPEED_CURVE = "Global/DamageTextSpeed"
 ---@class (partial) Source.SceneComponents.SceneMapBuilder
 local SceneMapBuilder = {}
 
----@alias SceneMapBuilderImplState Source.SceneComponents.SceneMapBuilder
-
 ---@param data integer[] | nil
 ---@return sf.Color
 function SceneMapBuilder.BuildAmbientLight(data)
@@ -292,7 +290,7 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
             if actor ~= nil then
                 actor:setMapPosition(actorRecord.position)
                 gameMap:spawnActor(actor, actorRecord.layer, false)
-                self:_indexActorTreeByTag(actorsByTag, actor)
+                self:indexActorTreeByTag(actorsByTag, actor)
                 addedAny = true
             end
         end
@@ -392,7 +390,7 @@ function SceneMapBuilder:buildFloorMapPreview(
                         localRecord.position = localPosition
                         persistedActors[#persistedActors + 1] = localRecord
                     end
-                    for _, actorRecord in ipairs(self:_selectWorldMovedActors(movedActors, region)) do
+                    for _, actorRecord in ipairs(self:selectWorldMovedActors(movedActors, region)) do
                         ---@type Source.GameInstance.AddedActorRecord
                         local localRecord = copy(actorRecord)
                         local localX = actorRecord.position.x - region.x
@@ -446,12 +444,12 @@ function SceneMapBuilder:resolveRegionMapPath(mapKey, currentMap)
     return self:resolveMapPath(mapKey, currentMap)
 end
 
-function SceneMapBuilder:_selectWorldMovedActors(records, targetRegion)
-    return MapBuilderWorldActors._selectWorldMovedActors(self, records, targetRegion)
+function SceneMapBuilder:selectWorldMovedActors(records, targetRegion)
+    return MapBuilderWorldActors.SelectWorldMovedActors(self, records, targetRegion)
 end
 
-function SceneMapBuilder:_pruneDestroyedActorTree(actor, destroyedActors)
-    return MapBuilderWorldActors._pruneDestroyedActorTree(self, actor, destroyedActors)
+function SceneMapBuilder:pruneDestroyedActorTree(actor, destroyedActors)
+    return MapBuilderWorldActors.PruneDestroyedActorTree(self, actor, destroyedActors)
 end
 
 ---@param actorRecord          Source.GameInstance.AddedActorRecord | Source.GameInstance.WorldMovedActorRecord
@@ -459,58 +457,59 @@ end
 ---@param destroyedActors      table<string, boolean>
 ---@param preserveRootPosition boolean
 ---@return Engine.Actor | nil
-function SceneMapBuilder:_generatePersistedActor(actorRecord, actorPositions, destroyedActors, preserveRootPosition)
-    return MapBuilderWorldActors._generatePersistedActor(
+function SceneMapBuilder:generatePersistedActor(actorRecord, actorPositions, destroyedActors, preserveRootPosition)
+    return MapBuilderWorldActors.GeneratePersistedActor(
         self, actorRecord, actorPositions, destroyedActors, preserveRootPosition
     )
 end
 
 function SceneMapBuilder:_applyHoleWorldMovedActors(gameMap, movedActors, actorPositions, destroyedActors)
-    return MapBuilderWorldActors._applyHoleWorldMovedActors(self, gameMap, movedActors, actorPositions, destroyedActors)
+    return MapBuilderWorldActors.ApplyHoleWorldMovedActors(self, gameMap, movedActors, actorPositions, destroyedActors)
 end
 
 function SceneMapBuilder:generateWorldGameMap(worldPath, worldData, inst, initialPosition)
-    return MapBuilderWorldActors.generateWorldGameMap(self, worldPath, worldData, inst, initialPosition)
+    return MapBuilderWorldActors.GenerateWorldGameMap(self, worldPath, worldData, inst, initialPosition)
 end
 
-function SceneMapBuilder:_indexActorTreeByTag(actorsByTag, root)
-    return MapBuilderWorldActors._indexActorTreeByTag(self, actorsByTag, root)
+function SceneMapBuilder:indexActorTreeByTag(actorsByTag, root)
+    return MapBuilderWorldActors.IndexActorTreeByTag(self, actorsByTag, root)
 end
 
 function SceneMapBuilder:createWorldRegionBuildState(
     worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
 )
-    return MapBuilderWorldRegion.createWorldRegionBuildState(
+    return MapBuilderWorldRegion.CreateWorldRegionBuildState(
         self, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
     )
 end
 
-function SceneMapBuilder:_createWorldRegionChunks(region, width, height, priorityRect)
-    return MapBuilderWorldTiles._createWorldRegionChunks(self, region, width, height, priorityRect)
+function SceneMapBuilder:createWorldRegionChunks(region, width, height, priorityRect)
+    return MapBuilderWorldTiles.CreateWorldRegionChunks(self, region, width, height, priorityRect)
 end
 
-function SceneMapBuilder:_createWorldTileGraphicsChunks(region, width, height, priorityRect)
-    return MapBuilderWorldTiles._createWorldTileGraphicsChunks(self, region, width, height, priorityRect)
+function SceneMapBuilder:createWorldTileGraphicsChunks(region, width, height, priorityRect)
+    return MapBuilderWorldTiles.CreateWorldTileGraphicsChunks(self, region, width, height, priorityRect)
 end
 
-function SceneMapBuilder:_createWorldTerrainOverrides(data, terrainDestructions, yieldStep)
-    return MapBuilderWorldTiles._createWorldTerrainOverrides(self, data, terrainDestructions, yieldStep)
+---@async
+function SceneMapBuilder:createWorldTerrainOverrides(data, terrainDestructions, yieldStep)
+    return MapBuilderWorldTiles.CreateWorldTerrainOverrides(self, data, terrainDestructions, yieldStep)
 end
 
-function SceneMapBuilder:_normaliseActorData(actorData)
-    return MapBuilderWorldTiles._normaliseActorData(self, actorData)
+function SceneMapBuilder:normaliseActorData(actorData)
+    return MapBuilderWorldTiles.NormaliseActorData(self, actorData)
 end
 
-function SceneMapBuilder:_validateIncrementalMapData(data)
-    return MapBuilderWorldTiles._validateIncrementalMapData(self, data)
+function SceneMapBuilder:validateIncrementalMapData(data)
+    return MapBuilderWorldTiles.ValidateIncrementalMapData(self, data)
 end
 
-function SceneMapBuilder:_writeWorldLayerDataChunk(layerState, chunk)
-    return MapBuilderWorldTiles._writeWorldLayerDataChunk(self, layerState, chunk)
+function SceneMapBuilder:writeWorldLayerDataChunk(layerState, chunk)
+    return MapBuilderWorldTiles.WriteWorldLayerDataChunk(self, layerState, chunk)
 end
 
-function SceneMapBuilder:_prepareWorldLayerNativeChunk(layerState, chunk, deadline)
-    return MapBuilderWorldTiles._prepareWorldLayerNativeChunk(self, layerState, chunk, deadline)
+function SceneMapBuilder:prepareWorldLayerNativeChunk(layerState, chunk, deadline)
+    return MapBuilderWorldTiles.PrepareWorldLayerNativeChunk(self, layerState, chunk, deadline)
 end
 
 return class(SceneMapBuilder)

@@ -284,4 +284,63 @@ function SceneMapBuilder:buildFloorMapPreview(
 ---@return string
 function SceneMapBuilder:resolveRegionMapPath(mapKey, currentMap) end
 
+---@param records      Source.GameInstance.WorldMovedActorRecord[]
+---@param targetRegion Source.SceneComponents.WorldRegionData | nil
+---@return Source.GameInstance.WorldMovedActorRecord[]
+function SceneMapBuilder:selectWorldMovedActors(records, targetRegion) end
+
+---@param actor           Engine.Actor
+---@param destroyedActors table<string, boolean>
+---@return boolean
+function SceneMapBuilder:pruneDestroyedActorTree(actor, destroyedActors) end
+
+---@param actorRecord          Source.GameInstance.AddedActorRecord | Source.GameInstance.WorldMovedActorRecord
+---@param actorPositions       table<string, sf.Vector2i>
+---@param destroyedActors      table<string, boolean>
+---@param preserveRootPosition boolean
+---@return Engine.Actor | nil
+function SceneMapBuilder:generatePersistedActor(actorRecord, actorPositions, destroyedActors, preserveRootPosition) end
+
+---@param actorsByTag table<string, Engine.Actor>
+---@param root        Engine.Actor
+function SceneMapBuilder:indexActorTreeByTag(actorsByTag, root) end
+
+---@param region       Source.SceneComponents.WorldRegionData
+---@param width        integer
+---@param height       integer
+---@param priorityRect Global.WorldGeometry.CellRect | nil
+---@return Global.WorldGeometry.CellRect[], Global.WorldGeometry.CellRect[], integer
+function SceneMapBuilder:createWorldRegionChunks(region, width, height, priorityRect) end
+
+---@param region       Source.SceneComponents.WorldRegionData
+---@param width        integer
+---@param height       integer
+---@param priorityRect Global.WorldGeometry.CellRect | nil
+---@return Global.WorldGeometry.CellRect[], integer
+function SceneMapBuilder:createWorldTileGraphicsChunks(region, width, height, priorityRect) end
+
+---@param data                Source.SceneComponents.SerializedMapData
+---@param terrainDestructions table<string, table<string, Source.GameInstance.TerrainChangeRecord>>
+---@param yieldStep           fun()
+---@return table<string, table<integer, table<integer, Source.SceneComponents.WorldTerrainOverride>>>
+---@async
+function SceneMapBuilder:createWorldTerrainOverrides(data, terrainDestructions, yieldStep) end
+
+---@param actorData Source.Data.SerializedActorData
+---@return Source.Data.ActorData
+function SceneMapBuilder:normaliseActorData(actorData) end
+
+---@param data Source.SceneComponents.SerializedMapData
+function SceneMapBuilder:validateIncrementalMapData(data) end
+
+---@param layerState Source.SceneComponents.WorldLayerBuildState
+---@param chunk      Global.WorldGeometry.CellRect
+function SceneMapBuilder:writeWorldLayerDataChunk(layerState, chunk) end
+
+---@param layerState Source.SceneComponents.WorldLayerBuildState
+---@param chunk      Global.WorldGeometry.CellRect
+---@param deadline   number
+---@return boolean
+function SceneMapBuilder:prepareWorldLayerNativeChunk(layerState, chunk, deadline) end
+
 return SceneMapBuilder

@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local Context = require("Source.NodeFunctions.Context")
 local Effects = require("Source.Gameplay.Effects")
+local PlayerClass = require("Source.Player")
 
 local Player = {}
 
@@ -197,14 +198,7 @@ function Player.AddEXP(amount)
 end
 
 function Player.MeetPlayer(actors)
-    local player = Player.GetPlayer()
-    if player == nil then
-        return nil
-    end
-    if table.contains(actors, player) then
-        return player
-    end
-    return nil
+    return PlayerClass.MeetPlayer(actors, Player.GetPlayer())
 end
 
 return Player

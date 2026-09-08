@@ -70,9 +70,12 @@ local function applyComponentChange(actor, componentName, componentType, value)
                 and (fieldDefaults[fieldName] ~= nil or Engine.resolveAttrMetadata(componentType, fieldName) ~= nil),
             "Unknown component member " .. tostring(fieldName) .. " in " .. componentName
         )
-        Engine.setRuntimeTypedAttribute(
-            component, fieldName, ComponentsFunctions._cloneComponentFieldValue(componentType, fieldName, fieldValue)
-        )
+        local descriptor = Engine.resolveAttrMetadata(componentType, fieldName)
+        local resolvedValue = fieldValue
+        if descriptor ~= nil then
+            resolvedValue = Engine.resolveTypedDataValue(fieldValue, descriptor.type, nil, descriptor.module)
+        end
+        Engine.setRuntimeTypedAttribute(component, fieldName, deepcopy(resolvedValue))
     end
 end
 
@@ -86,7 +89,7 @@ end
 function BlueprintActorOverrides.ApplyChanges(actor, changes)
     ---@type Source.Data.GeneratedActor
     local generatedActor = actor
-    local storedChanges = generatedActor._classVarChanges
+    local storedChanges = generatedActor.classVarChanges
     if storedChanges == nil then
         storedChanges = {}
     else
@@ -109,7 +112,7 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
         end
     end
     if bool(storedChanges) then
-        generatedActor._classVarChanges = storedChanges
+        generatedActor.classVarChanges = storedChanges
     end
     normaliseObjects(actor)
     if changes.shaderPath ~= nil then

@@ -386,8 +386,15 @@ function GameMap:setAmbientLight(ambientLight) end
 ---@return sf.Vector2u
 function GameMap:getSize() end
 
+---@brief Get the current gameplay area in map cells without loading world regions.
+--- Ordinary maps return their full bounds. World maps return their Active area,
+--- or the camera-visible area before Active bounds are available. The returned rectangle is detached.
 ---@return Global.WorldGeometry.CellRect
-function GameMap:_getGameplayCellRect() end
+function GameMap:getGameplayCellRect() end
+
+---@brief Draw this map's layer effects into its current render pass, when one is active.
+---@param layerName string
+function GameMap:drawLayerEffects(layerName) end
 
 ---@brief Get the logical-screen rectangle occupied by the map canvas.
 ---

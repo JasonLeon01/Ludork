@@ -1,7 +1,18 @@
 ---@meta Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
 
 ---@class Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview: Source.UI.UiController
----@field new fun(model: table, size: sf.Vector2i, loadPreview: function, resolvePreviewMapPath?: function, instance?: Engine.AssetInstance): Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
+---@field new                    fun(model: table, size: sf.Vector2i, loadPreview: function, resolvePreviewMapPath?: function, instance?: Engine.AssetInstance): Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
+---@field model                  Source.Windows.WindowFloorMapPreview
+---@field _mapKey                string | nil
+---@field _telepoints            sf.Vector2u[]
+---@field _currentListKey        tuple<any> | nil
+---@field _currentPreviewKey     tuple<any> | nil
+---@field _previewTextureCache   dict<tuple<any>, sf.Texture>
+---@field _loadPreview           function
+---@field _resolvePreviewMapPath function | nil
+---@field _logicalSize           sf.Vector2u
+---@field _listView              Engine.ListView
+---@field _previewImage          Engine.Image
 local WindowFloorMapPreviewUI = {}
 
 ---@param model                 Source.Windows.WindowFloorMapPreview

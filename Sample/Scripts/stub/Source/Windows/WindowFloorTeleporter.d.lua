@@ -2,10 +2,13 @@
 
 ---@brief Integrated floor teleporter window with visited-map list and preview.
 ---@class Source.Windows.WindowFloorTeleporter: Engine.Canvas
----@field controllerClass        Source.Windows.WindowFloorTeleporter.Controller
----@field _teleporterController  Source.Windows.WindowFloorTeleporter.Controller
----@field new                    fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
----@field _telepointEntriesCache dict<tuple<any>, { [1]: sf.Vector2u, [2]: string } []>
+---@field controllerClass            Source.Windows.WindowFloorTeleporter.Controller
+---@field _teleporterController      Source.Windows.WindowFloorTeleporter.Controller
+---@field new                        fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
+---@field _inst                      Source.GameInstance.GameInstance | nil
+---@field _onCloseCallback           function | nil
+---@field _onConfirmCallback         fun(mapKey: string, telepoint: sf.Vector2u) | nil
+---@field _clearPreviewCacheCallback function | nil
 local WindowFloorTeleporter = {}
 
 ---@brief Construct the floor teleporter coordinator.
@@ -100,5 +103,16 @@ function WindowFloorTeleporter:notifyMapIndexMaybeChanged(index) end
 --- - @return A pair containing the floor-list rectangle and the overlapping telepoint-plus-preview host rectangle.
 ---@return sf.IntRect, sf.IntRect
 function WindowFloorTeleporter.GetDefaultFloorTeleporterRects() end
+
+---@return Source.GameInstance.GameInstance
+function WindowFloorTeleporter:getGameInstance() end
+
+function WindowFloorTeleporter:clearPreviewCache() end
+
+function WindowFloorTeleporter:notifyClosed() end
+
+---@param mapKey    string
+---@param telepoint sf.Vector2u
+function WindowFloorTeleporter:confirmTelepoint(mapKey, telepoint) end
 
 return WindowFloorTeleporter

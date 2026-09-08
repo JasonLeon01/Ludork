@@ -3,26 +3,26 @@ local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
-local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
-local GameplayEventData = GlobalCore.GameplayEventData
 ---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Battler = require("Source.Battler")
 local DefeatSpawns = require("Source.Enemy.DefeatSpawns")
 local Effects = require("Source.Gameplay.Effects")
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
+local GameplayScene = require("Source.Gameplay.GameplayScene")
+local Player = require("Source.Player")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
+local GameplayEventData = GlobalCore.GameplayEventData
 local ComponentsFunctions = GlobalFunctions.Components
 local Actor = Engine.Actor
-local actorComponentOwner = Actor
----@cast actorComponentOwner + { _componentTypes: table<string, table> }
 local Special = GeneralEnum.Special
 local State = GeneralEnum.State
 
 local componentTypes = {}
-for name, componentType in pairs(actorComponentOwner._componentTypes or {}) do
+for name, componentType in pairs(ComponentsFunctions.getComponentTypes(Actor)) do
     componentTypes[name] = componentType
 end
 componentTypes.childActorComp = ChildActorComponent
@@ -88,9 +88,8 @@ function Enemy:_getAfterBattleOperation(key)
     return self.afterBattleVarChanges[key][1], self.afterBattleVarChanges[key][2]
 end
 
-function Enemy:_evaluateAfterBattleVariableChanges()
-    local Utils = require("Source.NodeFunctions.Utils")
-
+---@param instance Source.GameInstance.GameInstance
+function Enemy:_evaluateAfterBattleVariableChanges(instance)
     local changes = {}
     for _, key in ipairs(table.orderedStringKeys(self.afterBattleVarChanges)) do
         local operator, value = self:_getAfterBattleOperation(key)
@@ -100,14 +99,19 @@ function Enemy:_evaluateAfterBattleVariableChanges()
             assert(value ~= 0, "After-battle variable operation cannot divide by zero")
         end
         local defaultValue = operator == "=" and nil or 0
-        local current = Utils.GetGameVariable(key, defaultValue)
+        local current = instance:getVariable(key)
+        if current == nil then
+            current = defaultValue
+        end
         changes[key] = Engine.Eval(expression, { current = current, value = value })
     end
     return changes
 end
 
+---@param player Source.Player.Player
+---@param scene  Source.Gameplay.GameplayScene
 function Enemy:_preparePostBattle(player, scene)
-    self:_evaluateAfterBattleVariableChanges()
+    self:_evaluateAfterBattleVariableChanges(scene:getGameInstance())
     local rebornEnemy, droppedActors, spawnLayer = DefeatSpawns.Prepare(self, scene)
     local eventData = GameplayEventData.new(self, player, "Event.Combat.Reward")
     local effectSpecs = {
@@ -147,16 +151,15 @@ function Enemy:_executeDropAbility(player, droppedActor)
     )
 end
 
+---@param scene Source.Gameplay.GameplayScene
 function Enemy:_finaliseDefeat(scene, prepared)
     if self._defeatFinalised then
         return
     end
     self._defeatFinalised = true
-    local Utils = require("Source.NodeFunctions.Utils")
-
-    local variableChanges = self:_evaluateAfterBattleVariableChanges()
+    local variableChanges = self:_evaluateAfterBattleVariableChanges(scene:getGameInstance())
     for _, key in ipairs(table.orderedStringKeys(variableChanges)) do
-        Utils.SetGameVariable(key, variableChanges[key])
+        scene:getGameInstance():setVariable(key, variableChanges[key])
     end
     scene:recordDestroyedActor(self)
     if bool(Enemy.DefeatShatterEffectEnabled) then
@@ -176,14 +179,16 @@ function Enemy:_finaliseDefeat(scene, prepared)
 end
 
 function Enemy:onCollision(other)
-    local scene = GlobalCore.System.getScene()
-    ---@cast scene Source.Scenes.SceneMap.SceneMap
-    local PlayerFunctions = require("Source.NodeFunctions.Player")
-
-    local player = PlayerFunctions.MeetPlayer(other)
+    local gameMap = self:getMap()
+    ---@cast gameMap GameMap | nil
+    local player = Player.MeetPlayer(other, gameMap ~= nil and gameMap:getPlayer() or nil)
     if player == nil or self._defeatFinalising or (self._battleCondition ~= nil and not self._battleCondition()) then
         return
     end
+    assert(gameMap ~= nil, "Enemy combat requires an owning map")
+    local scene = gameMap:getScene()
+    assert(Class.isInstance(scene, GameplayScene), "Enemy combat requires a GameplayScene on its owning map")
+    ---@cast scene Source.Gameplay.GameplayScene
     self._battleCondition = nil
     local battleEvent = createCombatEvent(player, self, "Event.Combat.MotaBattle", { commit = false })
     battleEvent.target = player
@@ -206,7 +211,7 @@ function Enemy:onCollision(other)
             end)
         else
             player:getAbilitySystemComponent():applyGameplayEffectSpec(result.data.gameOverEffectSpec)
-            DefeatSpawns.GameOver()
+            scene:requestGameOver(player, 0)
         end
     end)
 end

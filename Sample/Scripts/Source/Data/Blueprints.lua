@@ -30,8 +30,11 @@ local nodeCompilerContext = {
 ---@class Source.Data.Blueprints
 local DataBlueprints = {}
 
-function DataBlueprints:init(data, loading)
-    self._data = data
+---@param data      Source.Data.Cache
+---@param classDict Engine.ClassDict
+function DataBlueprints:init(data, loading, classDict)
+    self._state = data
+    self._classDict = classDict
     self._loading = loading
     self._graphTemplates = {}
 end
@@ -42,8 +45,8 @@ end
 
 ---@return string[]
 function DataBlueprints:_loadBlueprintClassPaths()
-    if self._data._blueprintClassPaths ~= nil then
-        return self._data._blueprintClassPaths
+    if self._state.blueprintClassPaths ~= nil then
+        return self._state.blueprintClassPaths
     end
     local paths = {}
     self._loading:drainFileBatch({
@@ -60,7 +63,7 @@ function DataBlueprints:_loadBlueprintClassPaths()
             relative = relative:gsub("%.json$", "")
             local classPath = "Data.Blueprints." .. relative:gsub("/", ".")
             paths[#paths + 1] = classPath
-            self._data._blueprintClassData[classPath] = item.content
+            self._state.blueprintClassData[classPath] = item.content
         end)
     table.sort(paths)
     local index = {}
@@ -80,8 +83,8 @@ function DataBlueprints:_loadBlueprintClassPaths()
             index[leaf] = matches[1]
         end
     end
-    self._data._blueprintClassPaths = paths
-    self._data._blueprintClassPathIndex = index
+    self._state.blueprintClassPaths = paths
+    self._state.blueprintClassPathIndex = index
     return paths
 end
 
@@ -93,15 +96,15 @@ function DataBlueprints:resolveClassPath(className)
     if not bool(className) then
         return ""
     end
-    if self._data._classDict:containsCached(className) then
+    if self._classDict:containsCached(className) then
         return className
     end
-    local cachedPath = self._data._classDict:findCachedPathByName(className)
+    local cachedPath = self._classDict:findCachedPathByName(className)
     if cachedPath ~= nil then
         return cachedPath
     end
     self:_loadBlueprintClassPaths()
-    local blueprintPath = assert(self._data._blueprintClassPathIndex)[className]
+    local blueprintPath = assert(self._state.blueprintClassPathIndex)[className]
     if blueprintPath ~= nil then
         return blueprintPath
     end
@@ -109,14 +112,14 @@ function DataBlueprints:resolveClassPath(className)
 end
 
 function DataBlueprints:getCommonFunction(name)
-    if self._data._commonFunctionsData[name] == nil then
+    if self._state.commonFunctionsData[name] == nil then
         local path = "./Data/CommonFunctions/" .. tostring(name) .. ".json"
         assert(Engine.jsonExists(path), "Common function not found: " .. tostring(name))
         local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
         ---@cast loadedData Source.Data.GraphData
-        self._data._commonFunctionsData[name] = loadedData
+        self._state.commonFunctionsData[name] = loadedData
     end
-    return self:genGraphFromData(self._data._commonFunctionsData[name])
+    return self:genGraphFromData(self._state.commonFunctionsData[name])
 end
 
 ---@param data        Source.Data.GraphData
@@ -174,7 +177,7 @@ function DataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
     if not bool(classPath) then
         return nil
     end
-    local classModel = self._data.GetClass(classPath)
+    local classModel = self._classDict:get(classPath)
     if classModel == nil then
         return nil
     end
@@ -185,7 +188,7 @@ function DataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
     actor:setMapTag(tag == nil and "" or tostring(tag))
     actor.texturePath = texturePath
     BlueprintActorOverrides.ApplyGeneration(actor)
-    local graph = self._data._classDict:instantiateGraph(classPath, actor)
+    local graph = self._classDict:instantiateGraph(classPath, actor)
     if graph ~= nil then
         actor:setGraph(graph)
     end
@@ -219,16 +222,18 @@ function DataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
 end
 
 function DataBlueprints:resolveBlueprintData(classPath)
-    if self._data._blueprintClassPaths == nil then
+    if self._state.blueprintClassPaths == nil then
         self:_loadBlueprintClassPaths()
     end
-    if Class.isInstance(self._data._blueprintClassData[classPath], "string") then
-        local loadedData = self._loading:normaliseJsonNull(cjson.decode(self._data._blueprintClassData[classPath]))
+    if Class.isInstance(self._state.blueprintClassData[classPath], "string") then
+        local loadedData = self._loading:normaliseJsonNull(
+            cjson.decode(tostring(self._state.blueprintClassData[classPath]))
+        )
         ---@cast loadedData table<string, Source.Data.JsonValue>
-        self._data._blueprintClassData[classPath] = loadedData
+        self._state.blueprintClassData[classPath] = loadedData
     end
-    if self._data._blueprintClassData[classPath] ~= nil then
-        return self._data._blueprintClassData[classPath]
+    if self._state.blueprintClassData[classPath] ~= nil then
+        return self._state.blueprintClassData[classPath]
     end
     local relative = classPath:match("^Data%.Blueprints%.(.+)$")
     if relative == nil then
@@ -240,7 +245,7 @@ function DataBlueprints:resolveBlueprintData(classPath)
     end
     local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
     ---@cast loadedData table<string, Source.Data.JsonValue>
-    self._data._blueprintClassData[classPath] = loadedData
+    self._state.blueprintClassData[classPath] = loadedData
     return loadedData
 end
 

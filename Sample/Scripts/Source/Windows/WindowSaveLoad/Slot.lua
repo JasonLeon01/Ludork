@@ -47,4 +47,8 @@ function WindowSaveSlot:dispose()
     self._owner = nil
 end
 
+function WindowSaveSlot:confirmSlot(slot)
+    self._owner:onSlotConfirm(slot)
+end
+
 return class(WindowSaveSlot, WindowSelectable)

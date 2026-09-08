@@ -1,11 +1,10 @@
 ---@meta Source.Windows.WindowAttrShop.Selectable
 
 ---@class Source.Windows.WindowAttrShop.Selectable: Source.Windows.Base.WindowSelectable
----@field _owner         Source.Windows.WindowAttrShop
----@field _abilityKeys   string[]
----@field _cellAvailable boolean[]
----@field _listView      Engine.ListView
----@field new            fun(rect: sf.IntRect, owner: Source.Windows.WindowAttrShop): Source.Windows.WindowAttrShop.Selectable
+---@field _owner    Source.Windows.WindowAttrShop
+---@field _listView Engine.ListView
+---@field new       fun(rect: sf.IntRect, owner: Source.Windows.WindowAttrShop, ui: Source.UI.WindowAttrShop): Source.Windows.WindowAttrShop.Selectable
+---@field _ui       Source.UI.WindowAttrShop
 local WindowAttrShopSelectable = {}
 
 ---@brief Construct the attribute shop selection window.
@@ -14,19 +13,11 @@ local WindowAttrShopSelectable = {}
 --- - @param owner Attribute shop coordinator.
 ---@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowAttrShop
-function WindowAttrShopSelectable:init(rect, owner) end
+---@param ui    Source.UI.WindowAttrShop
+function WindowAttrShopSelectable:init(rect, owner, ui) end
 
 ---@brief Rebuild the ability rows and leave command.
----
---- - @param abilities Mapping of player attribute names to purchased increments.
---- - @param prices Purchase prices ordered to match abilities.
---- - @param moneyName Player info component attribute used as currency.
---- - @param moneyAmount Current amount of the selected currency.
----@param abilities   table
----@param prices      table
----@param moneyName   string
----@param moneyAmount integer
-function WindowAttrShopSelectable:refresh(abilities, prices, moneyName, moneyAmount) end
+function WindowAttrShopSelectable:refresh() end
 
 ---@brief Get the selected player attribute name.
 ---

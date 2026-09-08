@@ -4,9 +4,9 @@ local Pool = require("Global.Pool")
 ---@class (partial) DamageTextParticle
 local DamageTextParticle = {}
 
-DamageTextParticle._MOVE_X = 32.0
-DamageTextParticle._DURATION = 0.5
-DamageTextParticle._active = {}
+local MOVE_X = 32.0
+local DURATION = 0.5
+local active = {}
 
 function DamageTextParticle:init(particleSystem, text, position, textConfig, speedCurve)
     assert(speedCurve ~= nil, "DamageTextParticle speed curve must not be nil")
@@ -35,7 +35,7 @@ function DamageTextParticle:init(particleSystem, text, position, textConfig, spe
     self._textParticle = textParticle
     self:_applyPosition(0.0)
     self._particleSystem:addText(textParticle)
-    DamageTextParticle._active[#DamageTextParticle._active + 1] = self
+    active[#active + 1] = self
 end
 
 function DamageTextParticle:destroy()
@@ -51,9 +51,9 @@ function DamageTextParticle:destroy()
             parent:removeText(particleState.textParticle)
         end
     end
-    local index = table.index(DamageTextParticle._active, self)
+    local index = table.index(active, self)
     if index ~= nil then
-        table.remove(DamageTextParticle._active, index)
+        table.remove(active, index)
     end
 end
 
@@ -62,7 +62,7 @@ function DamageTextParticle:update(countTime)
         return
     end
     self:_applyPosition(countTime)
-    if countTime >= self._DURATION then
+    if countTime >= DURATION then
         self:_requestDestroy()
     end
 end
@@ -87,10 +87,10 @@ function DamageTextParticle:_applyPosition(countTime)
     if self._textParticle == nil then
         return
     end
-    local xProgress = math.min(1.0, countTime / self._DURATION)
+    local xProgress = math.min(1.0, countTime / DURATION)
     local yOffset = self._speedCurve:evaluate(countTime)
     local position = Pool.Get("sf.Vector2f", sf.Vector2f, {
-        x = self._startPosition.x + self._MOVE_X * xProgress,
+        x = self._startPosition.x + MOVE_X * xProgress,
         y = self._startPosition.y + yOffset
     })
     self._textParticle:setPosition(position)

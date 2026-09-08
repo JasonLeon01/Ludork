@@ -30,9 +30,9 @@ function WindowEquip:init(player)
     self:addChild(self._slotWindow)
     self:addChild(self._selectWindow)
     self:addChild(self._statusWindow)
-    self._slotWindow._onCloseCallback = function ()
+    self._slotWindow:setOnCloseCallback(function ()
         self:close(self._onCloseCallback)
-    end
+    end)
     self._slotWindow:close()
     self._transition:hideImmediate()
 end

@@ -1,7 +1,7 @@
----@type GameMapImplState
 local GameMapRendering = {}
 
-function GameMapRendering:_resetTransparentTiles()
+---@param self GameMapImplState
+function GameMapRendering.ResetTransparentTiles(self)
     if self._renderer ~= nil then
         self._renderer:resetTransparentTiles()
     end
@@ -11,20 +11,23 @@ end
 ---@param states     sf.RenderStates
 ---@param actor      Engine.Actor
 ---@param actorAlpha integer
-function GameMapRendering:_drawActor(target, states, actor, actorAlpha)
+---@param self       GameMapImplState
+function GameMapRendering.DrawActor(self, target, states, actor, actorAlpha)
     assert(self._renderer ~= nil, "GameMap renderer is unavailable")
     self._renderer:drawActor(target, states, actor, actorAlpha, self._shaderTime)
 end
 
 ---@param actor  Engine.Actor
 ---@param hidden boolean
-function GameMapRendering:_setActorEffectHidden(actor, hidden)
+---@param self   GameMapImplState
+function GameMapRendering.SetActorEffectHidden(self, actor, hidden)
     if self._renderer ~= nil then
         self._renderer:setActorEffectHidden(actor, hidden)
     end
 end
 
-function GameMapRendering:_prepareActorPixelShatterEffects()
+---@param self GameMapImplState
+function GameMapRendering.PrepareActorPixelShatterEffects(self)
     local function drawActor(snapshotTarget, actor)
         self:_drawActor(snapshotTarget, sf.RenderStates.new(), actor, 255)
     end
@@ -39,7 +42,8 @@ end
 
 ---@param target    sf.RenderTarget
 ---@param layerName string
-function GameMapRendering:_drawActorPixelShatterEffects(target, layerName)
+---@param self      GameMapImplState
+function GameMapRendering.DrawActorPixelShatterEffects(self, target, layerName)
     if not bool(self._actorPixelShatterEffects[layerName]) then
         return
     end

@@ -33,7 +33,7 @@ end
 
 function MovementDangerState:onTick(_deltaTime)
     ---@cast self._parent GameMap
-    local area = self._parent:_getGameplayCellRect()
+    local area = self._parent:getGameplayCellRect()
     local player = self._parent:getPlayer()
     local pathfindingChanged = player ~= self._player
     local dangerChanged = pathfindingChanged
@@ -58,41 +58,38 @@ function MovementDangerState:onTick(_deltaTime)
     self._enemyScanRevision = enemyScanRevision
     if player ~= nil then
         ---@cast player Source.Player.Player
-        for _, actorList in pairs(self._parent._actors) do
-            for _, actor in ipairs(actorList) do
-                if Class.isInstance(actor, Enemy) and not actor:isDestroyed()
-                    and MovementDangerGrid.HasMovementSpecial(actor) then
-                    ---@cast actor Source.Enemy
-                    local position = actor:getMapPosition()
-                    local abilityRevision = actor:getAbilitySystemComponent():getRevision()
-                    local snapshot = self._enemySnapshots[actor]
-                    if snapshot == nil then
-                        snapshot = {
-                            x = position.x,
-                            y = position.y,
-                            abilityRevision = abilityRevision,
-                            attributes = actor.attributes,
-                            scanRevision = enemyScanRevision
-                        }
-                        self._enemySnapshots[actor] = snapshot
-                        dangerChanged = true
-                        pathfindingChanged = true
-                    elseif snapshot.x ~= position.x or snapshot.y ~= position.y
-                        or snapshot.abilityRevision ~= abilityRevision or snapshot.attributes ~= actor.attributes then
-                        dangerChanged = true
-                        pathfindingChanged = true
-                    end
-                    snapshot.x = position.x
-                    snapshot.y = position.y
-                    snapshot.abilityRevision = abilityRevision
-                    snapshot.attributes = actor.attributes
-                    snapshot.scanRevision = enemyScanRevision
-                    enemyCount = enemyCount + 1
-                    if self._enemies[enemyCount] ~= actor then
-                        self._enemies[enemyCount] = actor
-                        dangerChanged = true
-                        pathfindingChanged = true
-                    end
+        for _, actor in ipairs(self._parent:getAllActors()) do
+            if Class.isInstance(actor, Enemy) and not actor:isDestroyed()
+                and MovementDangerGrid.HasMovementSpecial(actor) then
+                ---@cast actor Source.Enemy
+                local position = actor:getMapPosition()
+                local abilityRevision = actor:getAbilitySystemComponent():getRevision()
+                if self._enemySnapshots[actor] == nil then
+                    self._enemySnapshots[actor] = {
+                        x = position.x,
+                        y = position.y,
+                        abilityRevision = abilityRevision,
+                        attributes = actor.attributes,
+                        scanRevision = enemyScanRevision
+                    }
+                    dangerChanged = true
+                    pathfindingChanged = true
+                elseif self._enemySnapshots[actor].x ~= position.x or self._enemySnapshots[actor].y ~= position.y
+                    or self._enemySnapshots[actor].abilityRevision ~= abilityRevision
+                    or self._enemySnapshots[actor].attributes ~= actor.attributes then
+                    dangerChanged = true
+                    pathfindingChanged = true
+                end
+                self._enemySnapshots[actor].x = position.x
+                self._enemySnapshots[actor].y = position.y
+                self._enemySnapshots[actor].abilityRevision = abilityRevision
+                self._enemySnapshots[actor].attributes = actor.attributes
+                self._enemySnapshots[actor].scanRevision = enemyScanRevision
+                enemyCount = enemyCount + 1
+                if self._enemies[enemyCount] ~= actor then
+                    self._enemies[enemyCount] = actor
+                    dangerChanged = true
+                    pathfindingChanged = true
                 end
             end
         end
@@ -162,8 +159,7 @@ function MovementDangerState:_ensureEntries()
         return
     end
     local previewContext = assert(self:_getPreviewContext())
-    if self._entryAreaX == nil or self._entryAreaY == nil
-        or self._entryAreaWidth == nil or self._entryAreaHeight == nil then
+    if self._entryAreaX == nil or self._entryAreaY == nil or self._entryAreaWidth == nil or self._entryAreaHeight == nil then
         self._entries, self._entryGrid = MovementDangerGrid.Build(
             self._enemies, self._player, assert(areaX), assert(areaY), assert(areaWidth), assert(areaHeight),
             previewContext

@@ -14,7 +14,15 @@ WindowEquipSelectController.CELL_SIZE = 32
 
 WindowEquipSelectController.UNEQUIP = {}
 
-function WindowEquipSelectController:init(model)
+function WindowEquipSelectController:init(model, player, windowEquipSlot, windowEquipStatus, onEquip)
+    self._player = player
+    self._windowEquipSlot = windowEquipSlot
+    self._windowEquipStatus = windowEquipStatus
+    self._onEquipCallback = onEquip
+    self._slotKey = ""
+    self._equipList = {}
+    self._equipCounts = {}
+    self._lastStatusIndex = nil
     self._logicalSize = nil
     self._rowUIs = {}
     super
@@ -41,33 +49,33 @@ function WindowEquipSelectController:resizeCanvas(target, width, height)
 end
 
 function WindowEquipSelectController:refreshForSlot(slotKey)
-    self.model._slotKey = slotKey
+    self._slotKey = slotKey
     self:_updateLayout()
     self.root:clearChildren()
     self._rowUIs = {}
     local equipData = Data.GetAllGeneralEquipData()
-    local playerEquips = self.model._player._equips or {}
-    local currentEquipped = self.model._player:getEquipInfo(slotKey)
+    local playerEquips = self._player:getEquips()
+    local currentEquipped = self._player:getEquipInfo(slotKey)
     local orderedEquips = {}
     if bool(currentEquipped) then
         orderedEquips[#orderedEquips + 1] = self.UNEQUIP
     end
-    self.model._equipCounts = {}
+    self._equipCounts = {}
     for _, equipID in ipairs(table.orderedStringKeys(equipData)) do
         local equip = equipData[equipID] or {}
         if playerEquips[equipID] ~= nil and equip.slot == slotKey then
             orderedEquips[#orderedEquips + 1] = equipID
-            self.model._equipCounts[equipID] = playerEquips[equipID]
+            self._equipCounts[equipID] = playerEquips[equipID]
         end
     end
-    self.model._equipList = orderedEquips
+    self._equipList = orderedEquips
     for _, entry in ipairs(orderedEquips) do
         local iconTexture = nil
         local count = 0
         if entry ~= self.UNEQUIP then
             local member = equipData[entry] or {}
             iconTexture = IconTexture.Load(member.icon or "")
-            count = self.model._equipCounts[entry] or 1
+            count = self._equipCounts[entry] or 1
         end
         local rowUI = EquipItemRowUI.new({
             iconTexture = iconTexture,
@@ -80,43 +88,41 @@ function WindowEquipSelectController:refreshForSlot(slotKey)
             self:onConfirmAction()
         end)
         self._rowUIs[#self._rowUIs + 1] = rowUI
-        self.model:_applyItem(cell)
+        self.model:applyItem(cell)
         self.root:addChild(cell)
     end
     self:prepare(self._logicalSize)
     self.model:setListView(self.root)
     self.model:resetSelection()
-    self.model._lastStatusIndex = nil
+    self._lastStatusIndex = nil
     if self.model:getActive() then
         self:updateStatus()
     end
 end
 
 function WindowEquipSelectController:tick()
-    if self.model._lastStatusIndex == self.model.index then
+    if self._lastStatusIndex == self.model.index then
         return
     end
-    self.model._lastStatusIndex = self.model.index
+    self._lastStatusIndex = self.model.index
     if self.model:getActive() then
         self:updateStatus()
     end
 end
 
 function WindowEquipSelectController:updateStatus()
-    if self.model._windowEquipStatus == nil then
+    if self._windowEquipStatus == nil then
         return
     end
-    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self.model._equipList then
-        self.model._windowEquipStatus:refreshForEquip(self.model._slotKey, nil)
+    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self._equipList then
+        self._windowEquipStatus:refreshForEquip(self._slotKey, nil)
         return
     end
-    local showUnequip = self.model._equipList[self.model.index + 1] == self.UNEQUIP
+    local showUnequip = self._equipList[self.model.index + 1] == self.UNEQUIP
     if showUnequip then
-        self.model._windowEquipStatus:refreshForEquip(self.model._slotKey, nil, true)
+        self._windowEquipStatus:refreshForEquip(self._slotKey, nil, true)
     else
-        self.model._windowEquipStatus:refreshForEquip(
-            self.model._slotKey, self.model._equipList[self.model.index + 1], false
-        )
+        self._windowEquipStatus:refreshForEquip(self._slotKey, self._equipList[self.model.index + 1], false)
     end
 end
 
@@ -134,12 +140,12 @@ function WindowEquipSelectController:returnToSlotWindow(playSE)
     end
     self.model:setActive(false)
     self.model:setVisible(true)
-    if self.model._windowEquipSlot ~= nil then
-        self.model._windowEquipSlot:setActive(true)
-        self.model._windowEquipSlot:requestKeyboardFocus()
+    if self._windowEquipSlot ~= nil then
+        self._windowEquipSlot:setActive(true)
+        self._windowEquipSlot:requestKeyboardFocus()
     end
-    if self.model._windowEquipStatus ~= nil and bool(self.model._slotKey) then
-        self.model._windowEquipStatus:refreshForSlot(self.model._slotKey)
+    if self._windowEquipStatus ~= nil and bool(self._slotKey) then
+        self._windowEquipStatus:refreshForSlot(self._slotKey)
     end
 end
 
@@ -158,26 +164,26 @@ function WindowEquipSelectController:close()
 end
 
 function WindowEquipSelectController:onConfirmAction()
-    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self.model._equipList then
+    if self.model.index == nil or self.model.index < 0 or self.model.index >= #self._equipList then
         return
     end
-    local equipID = assert(self.model._equipList[self.model.index + 1])
-    local currentEquipped = self.model._player:getEquipInfo(self.model._slotKey)
+    local equipID = assert(self._equipList[self.model.index + 1])
+    local currentEquipped = self._player:getEquipInfo(self._slotKey)
     AudioManager.playSound(GameSystem.GetEquipSE())
     if equipID == self.UNEQUIP or equipID == currentEquipped then
         if bool(currentEquipped) then
-            self.model._player:unequip(self.model._slotKey)
+            self._player:unequip(self._slotKey)
         end
     else
         ---@cast equipID string
-        self.model._player:equip(equipID)
+        self._player:equip(equipID)
     end
-    if self.model._windowEquipSlot ~= nil then
-        self.model._windowEquipSlot:refreshSlots()
+    if self._windowEquipSlot ~= nil then
+        self._windowEquipSlot:refreshSlots()
     end
-    self:refreshForSlot(self.model._slotKey)
-    if self.model._onEquipCallback ~= nil then
-        self.model._onEquipCallback()
+    self:refreshForSlot(self._slotKey)
+    if self._onEquipCallback ~= nil then
+        self._onEquipCallback()
     end
 end
 
@@ -191,6 +197,18 @@ function WindowEquipSelectController:_updateLayout()
     self._logicalSize = logicalSize
     self._columns = self:getGridColumns(contentWidth)
     self.root:setColumns(self._columns)
+end
+
+function WindowEquipSelectController:setPlayer(player)
+    self._player = player
+end
+
+function WindowEquipSelectController:setEquipStatusWindow(windowEquipStatus)
+    self._windowEquipStatus = windowEquipStatus
+end
+
+function WindowEquipSelectController:setEquipSlotWindow(windowEquipSlot)
+    self._windowEquipSlot = windowEquipSlot
 end
 
 return class(WindowEquipSelectController, ListViewController)

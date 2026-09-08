@@ -5,7 +5,6 @@ local ActorPixelShatterEffect = require("Global.CustomEffects.ActorPixelShatterE
 local Actor = Engine.Actor
 local ComponentsFunctions = GlobalFunctions.Components
 
----@type GameMapImplState
 local GameMapActors = {}
 
 ---@param actor Engine.Actor
@@ -18,14 +17,16 @@ local function initialiseActorComponents(actor)
     ComponentsFunctions.attachInstanceComponents(actor)
 end
 
-function GameMapActors:_syncActorsForMapCache()
+---@param self GameMapImplState
+function GameMapActors.SyncActorsForMapCache(self)
     for _, actor in ipairs(self:getAllActors()) do
         actor:syncMapCache()
         actor:refreshDescendantCache()
     end
 end
 
-function GameMapActors:_syncActorsForPathfinding()
+---@param self GameMapImplState
+function GameMapActors.SyncActorsForPathfinding(self)
     for _, actor in ipairs(self:getAllActors()) do
         actor:setPathfindingBlocks(Actor.HasBlueprintEvent(actor, "onOverlap") and not actor:getCollisionEnabled())
     end
@@ -35,7 +36,8 @@ end
 ---@param toPosition   sf.Vector2i
 ---@param direction    integer
 ---@return boolean
-function GameMapActors:_checkDir4Between(fromPosition, toPosition, direction)
+---@param self         GameMapImplState
+function GameMapActors.CheckDir4Between(self, fromPosition, toPosition, direction)
     local oppositeDirection = Engine.OppositeDirection(direction)
     local fromBlocked = false
     local toBlocked = false
@@ -67,7 +69,8 @@ function GameMapActors:_checkDir4Between(fromPosition, toPosition, direction)
     return true
 end
 
-function GameMapActors:getAllActors()
+---@param self GameMapImplState
+function GameMapActors.GetAllActors(self)
     local actors = {}
     for _, actorList in pairs(self._actors) do
         for _, actor in ipairs(actorList) do
@@ -77,7 +80,8 @@ function GameMapActors:getAllActors()
     return actors
 end
 
-function GameMapActors:getActorLayer(actor)
+---@param self GameMapImplState
+function GameMapActors.GetActorLayer(self, actor)
     local registeredLayer = self:_getRegisteredActorLayer(actor)
     if registeredLayer ~= nil then
         return registeredLayer
@@ -90,7 +94,8 @@ function GameMapActors:getActorLayer(actor)
     return nil
 end
 
-function GameMapActors:getActorsByPosition(position)
+---@param self GameMapImplState
+function GameMapActors.GetActorsByPosition(self, position)
     if self._tilePassableGrid == nil or self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
@@ -98,7 +103,8 @@ function GameMapActors:getActorsByPosition(position)
     return self:getActorsAt(position.x, position.y)
 end
 
-function GameMapActors:getActorByLayerAndPosition(layer, position)
+---@param self GameMapImplState
+function GameMapActors.GetActorByLayerAndPosition(self, layer, position)
     for _, actor in ipairs(self._actors[layer] or {}) do
         if actor:getPosition() == position then
             return actor
@@ -107,7 +113,8 @@ function GameMapActors:getActorByLayerAndPosition(layer, position)
     return nil
 end
 
-function GameMapActors:getActorsByRange(position, radius)
+---@param self GameMapImplState
+function GameMapActors.GetActorsByRange(self, position, radius)
     if self._tilePassableGrid == nil or self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
@@ -115,7 +122,8 @@ function GameMapActors:getActorsByRange(position, radius)
     return self:getActorsInRange(position.x, position.y, radius)
 end
 
-function GameMapActors:getActorByTag(tag)
+---@param self GameMapImplState
+function GameMapActors.GetActorByTag(self, tag)
     for _, actorList in pairs(self._actors) do
         for _, actor in ipairs(actorList) do
             if actor:getMapTag() == tag then
@@ -126,12 +134,14 @@ function GameMapActors:getActorByTag(tag)
     return nil
 end
 
-function GameMapActors:getAllActorsByTag(tag)
+---@param self GameMapImplState
+function GameMapActors.GetAllActorsByTag(self, tag)
     local actor = self:getActorByTag(tag)
     return actor == nil and {} or { actor }
 end
 
-function GameMapActors:removeActorsByTags(tags)
+---@param self GameMapImplState
+function GameMapActors.RemoveActorsByTags(self, tags)
     if not bool(tags) then
         return
     end
@@ -171,7 +181,8 @@ function GameMapActors:removeActorsByTags(tags)
     end
 end
 
-function GameMapActors:applyActorPositions(actorPositions)
+---@param self GameMapImplState
+function GameMapActors.ApplyActorPositions(self, actorPositions)
     if actorPositions == nil then
         return
     end
@@ -197,7 +208,8 @@ function GameMapActors:applyActorPositions(actorPositions)
     end
 end
 
-function GameMapActors:spawnActor(actor, layer, emitCreateEvent)
+---@param self GameMapImplState
+function GameMapActors.SpawnActor(self, actor, layer, emitCreateEvent)
     if emitCreateEvent == nil then
         emitCreateEvent = true
     end
@@ -209,7 +221,8 @@ function GameMapActors:spawnActor(actor, layer, emitCreateEvent)
     end
 end
 
-function GameMapActors:createActor(actorClass, layer, kwargs, emitCreateEvent)
+---@param self GameMapImplState
+function GameMapActors.CreateActor(self, actorClass, layer, kwargs, emitCreateEvent)
     if emitCreateEvent == nil then
         emitCreateEvent = true
     end
@@ -225,14 +238,16 @@ function GameMapActors:createActor(actorClass, layer, kwargs, emitCreateEvent)
     return actor
 end
 
-function GameMapActors:initialiseActorsAndComponents()
+---@param self GameMapImplState
+function GameMapActors.InitialiseActorsAndComponents(self)
     self:_drainActorLifecycle(initialiseActorCreateEvent, initialiseActorComponents)
     self._materialDirty = true
 end
 
 ---@param actor Engine.Actor
 ---@param layer string
-function GameMapActors:_addActorTreeToLayer(actor, layer)
+---@param self  GameMapImplState
+function GameMapActors.AddActorTreeToLayer(self, actor, layer)
     self:_addActorToLayer(actor, layer)
     for _, child in ipairs(actor:getChildren()) do
         self:_addActorTreeToLayer(child, layer)
@@ -241,7 +256,8 @@ end
 
 ---@param actor Engine.Actor
 ---@param layer string
-function GameMapActors:_addActorToLayer(actor, layer)
+---@param self  GameMapImplState
+function GameMapActors.AddActorToLayer(self, actor, layer)
     if self._actors[layer] == nil then
         self._actors[layer] = {}
     end
@@ -252,12 +268,14 @@ function GameMapActors:_addActorToLayer(actor, layer)
     end
 end
 
-function GameMapActors:destroyActor(actor)
+---@param self GameMapImplState
+function GameMapActors.DestroyActor(self, actor)
     self._actorsOnDestroy[#self._actorsOnDestroy + 1] = actor
     self._materialDirty = true
 end
 
-function GameMapActors:playActorPixelShatterEffect(actor)
+---@param self GameMapImplState
+function GameMapActors.PlayActorPixelShatterEffect(self, actor)
     if self._previewOnly or self._actorPixelShatterShader == nil
         or actor:isDestroyed() or self._actorPixelShatterByActor[actor] ~= nil then
         return false
@@ -282,31 +300,36 @@ function GameMapActors:playActorPixelShatterEffect(actor)
     return true
 end
 
-function GameMapActors:findPathResult(start, goal, actor, excludedAnchors)
+---@param self GameMapImplState
+function GameMapActors.FindPathResult(self, start, goal, actor, excludedAnchors)
     self:_syncActorsForPathfinding()
     local result = self:findPathExt(start, goal, self._tilemap:getSize(), actor, excludedAnchors or {})
     self:_clearActorsPathfindingBlocks()
     return result
 end
 
-function GameMapActors:_clearActorsPathfindingBlocks()
+---@param self GameMapImplState
+function GameMapActors.ClearActorsPathfindingBlocks(self)
     for _, actor in ipairs(self:getAllActors()) do
         actor:setPathfindingBlocks(false)
     end
 end
 
-function GameMapActors:findPath(start, goal, actor, excludedAnchors)
+---@param self GameMapImplState
+function GameMapActors.FindPath(self, start, goal, actor, excludedAnchors)
     return self:findPathResult(start, goal, actor, excludedAnchors).offsets
 end
 
-function GameMapActors:isPathfindingPassable(actor, targetPosition)
+---@param self GameMapImplState
+function GameMapActors.IsPathfindingPassable(self, actor, targetPosition)
     if not self:isPassable(actor, targetPosition) then
         return false
     end
     return not self:hasPathBlockingOverlapActor(actor, targetPosition)
 end
 
-function GameMapActors:hasPathBlockingOverlapActor(actor, targetPosition)
+---@param self GameMapImplState
+function GameMapActors.HasPathBlockingOverlapActor(self, actor, targetPosition)
     if self._tilePassableGrid == nil or self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
@@ -324,7 +347,8 @@ end
 ---@param actor Engine.Actor
 ---@return table<Engine.Actor, boolean>
 ---@diagnostic disable-next-line: unused
-function GameMapActors:_getDescendantActorIDs(actor)
+---@param self  GameMapImplState
+function GameMapActors.GetDescendantActorIDs(self, actor)
     local descendantActors = {}
     local stack = {}
     for _, child in ipairs(actor:getChildren()) do
@@ -342,11 +366,13 @@ function GameMapActors:_getDescendantActorIDs(actor)
     return descendantActors
 end
 
-function GameMapActors:updateActorList()
+---@param self GameMapImplState
+function GameMapActors.UpdateActorList(self)
     self:_syncActorViews(self._actors)
 end
 
-function GameMapActors:_updateActorPixelShatterEffects(deltaTime)
+---@param self GameMapImplState
+function GameMapActors.UpdateActorPixelShatterEffects(self, deltaTime)
     for layerName, effects in pairs(self._actorPixelShatterEffects) do
         local activeEffects = {}
         for _, effect in ipairs(effects) do

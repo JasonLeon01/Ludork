@@ -1,8 +1,7 @@
 #include <Runtime/RuntimeReflection.hpp>
 
-#include "RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeBindingTraits.hpp"
 #include "Runtime/RuntimeSession.hpp"
-#include "RuntimeServiceInternals.hpp"
 #include <Runtime/Detail/RuntimeServices.hpp>
 
 #include <ClassServices.hpp>

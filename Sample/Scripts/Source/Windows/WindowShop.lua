@@ -262,7 +262,7 @@ end
 ---@return table
 function WindowShop:_getSellableItems()
     local itemData = Data.GetAllGeneralItemData()
-    local playerItems = self._player._items or {}
+    local playerItems = self._player:getItems()
     local result = {}
     for _, itemID in ipairs(table.orderedStringKeys(itemData)) do
         if (playerItems[itemID] or 0) > 0 and WindowShop.GetSellPrice(itemID) > 0 then

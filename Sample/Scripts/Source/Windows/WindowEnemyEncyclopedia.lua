@@ -18,9 +18,6 @@ function WindowEnemyEncyclopedia:init(rect, onClose)
     super(WindowEnemyEncyclopedia, self).init(rect, nil, nil, true)
     self:setHasReturnBtn(true)
     self._onCloseCallback = onClose
-    self._portrait = nil
-    self._nameText = nil
-    self._infoTexts = {}
     ---@cast self Source.Windows.WindowEnemyEncyclopedia
     self._ui = self.uiClass.new(self, rect.size)
     self._ui:attach()

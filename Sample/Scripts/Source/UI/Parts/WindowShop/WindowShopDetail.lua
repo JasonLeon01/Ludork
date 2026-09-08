@@ -7,12 +7,13 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 local TextLayout = Engine.TextLayout
 
 local _DETAIL_TEXT_WIDTH = 320
+---@class Source.UI.Parts.WindowShop.WindowShopDetail.WindowShopDetailUI
 local WindowShopDetailUI = {}
 
 function WindowShopDetailUI:init(model, size, instance)
     self._size = size
-    model._itemInfo = nil
-    model._price = nil
+    self._itemInfo = nil
+    self._price = nil
     super(WindowShopDetailUI, self).init(model, instance)
 end
 
@@ -24,20 +25,19 @@ function WindowShopDetailUI:bind()
 end
 
 function WindowShopDetailUI:refresh()
-    if self.model._itemInfo == nil then
+    if self._itemInfo == nil then
         self:setText("ItemName", "")
         self:setText("Price", "")
         self:setText("Description", "")
     else
-        self:setText("ItemName", LOC(self.model._itemInfo.name or ""))
-        self:setText("Price", tostring(self.model._price or 0))
-        local description = LOC(self.model._itemInfo.desc or ""):gsub("\\n", "\n")
-        self:setText(
-            "Description",
-            TextLayout.wrapPlainText(description, _DETAIL_TEXT_WIDTH, self._descriptionControl)
-        )
+        self:setText("ItemName", LOC(self._itemInfo.name or ""))
+        self:setText("Price", tostring(self._price or 0))
+        local description = LOC(self._itemInfo.desc or ""):gsub("\\n", "\n")
+        self:setText("Description", TextLayout.wrapPlainText(description, _DETAIL_TEXT_WIDTH, self._descriptionControl))
     end
-    self.view:reflow(sf.Vector2u.new(self._size.x, self._size.y))
+    local logicalSize = sf.Vector2u.new(self._size.x, self._size.y)
+    ---@cast logicalSize sf.Vector2u
+    self.view:reflow(logicalSize)
 end
 
 function WindowShopDetailUI:prepare()
@@ -63,8 +63,8 @@ end
 ---@param itemInfo Source.Data.GeneralItemData | nil
 ---@param price    integer | nil
 function WindowShopDetailUI:setItem(itemInfo, price)
-    self.model._itemInfo = itemInfo
-    self.model._price = price
+    self._itemInfo = itemInfo
+    self._price = price
     self:refresh()
 end
 

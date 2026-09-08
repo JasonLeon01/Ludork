@@ -13,21 +13,28 @@ local RuntimeProviders = Engine.RuntimeProviders
 
 ---@class (partial) Source.Data
 local Data = {
-    dataKinds = 7,
-    _animationData = {},
-    _curveData = {},
-    _curveTypes = {},
-    _textConfigData = {},
-    _plainTextConfigs = {},
-    _richTextConfigs = {},
-    _commonFunctionsData = {},
-    _tilesetData = {},
-    _autoTileData = {},
-    _generalData = {},
-    _blueprintClassPaths = nil,
-    _blueprintClassPathIndex = nil,
-    _blueprintClassData = {}
+    dataKinds = 7
 }
+
+---@type Source.Data.Cache
+local dataState = {
+    animationData = {},
+    curveData = {},
+    curveTypes = {},
+    textConfigData = {},
+    plainTextConfigs = {},
+    richTextConfigs = {},
+    commonFunctionsData = {},
+    tilesetData = {},
+    autoTileData = {},
+    generalData = {},
+    blueprintClassPaths = nil,
+    blueprintClassPathIndex = nil,
+    blueprintClassData = {}
+}
+
+---@type Engine.ClassDict | nil
+local classDict
 
 ---@type Source.Data.Loading
 local dataLoading
@@ -37,11 +44,11 @@ local dataTextConfigs
 local dataBlueprints
 
 function Data.InitializeRuntime()
-    assert(Data._classDict == nil, "Data runtime is already initialized")
-    Data._classDict = Engine.ClassDict.new()
-    dataLoading = DataLoading.new(Data)
-    dataTextConfigs = DataTextConfigs.new(Data)
-    dataBlueprints = DataBlueprints.new(Data, dataLoading)
+    assert(classDict == nil, "Data runtime is already initialized")
+    classDict = Engine.ClassDict.new()
+    dataLoading = DataLoading.new(dataState)
+    dataTextConfigs = DataTextConfigs.new(dataState)
+    dataBlueprints = DataBlueprints.new(dataState, dataLoading, classDict)
     RuntimeProviders.installData(function (name)
         return Data.GetCurve(name)
     end,
@@ -104,28 +111,28 @@ function Data.LoadTextConfigs(onFileLoaded)
 end
 
 function Data.GetAnimation(name)
-    local animation = requireNamedValue(Data._animationData, name, "Animation data not found: " .. tostring(name))
+    local animation = requireNamedValue(dataState.animationData, name, "Animation data not found: " .. tostring(name))
     return copy(animation)
 end
 
 function Data.GetCurve(name)
-    assert(Data._curveTypes[name] == "curve", "Float curve data not found: " .. tostring(name))
-    return requireNamedValue(Data._curveData, name, "Float curve data not found: " .. tostring(name))
+    assert(dataState.curveTypes[name] == "curve", "Float curve data not found: " .. tostring(name))
+    return requireNamedValue(dataState.curveData, name, "Float curve data not found: " .. tostring(name))
 end
 
 function Data.GetVector2Curve(name)
-    assert(Data._curveTypes[name] == "vector2Curve", "Vector2 curve data not found: " .. tostring(name))
-    return requireNamedValue(Data._curveData, name, "Vector2 curve data not found: " .. tostring(name))
+    assert(dataState.curveTypes[name] == "vector2Curve", "Vector2 curve data not found: " .. tostring(name))
+    return requireNamedValue(dataState.curveData, name, "Vector2 curve data not found: " .. tostring(name))
 end
 
 function Data.GetVector3Curve(name)
-    assert(Data._curveTypes[name] == "vector3Curve", "Vector3 curve data not found: " .. tostring(name))
-    return requireNamedValue(Data._curveData, name, "Vector3 curve data not found: " .. tostring(name))
+    assert(dataState.curveTypes[name] == "vector3Curve", "Vector3 curve data not found: " .. tostring(name))
+    return requireNamedValue(dataState.curveData, name, "Vector3 curve data not found: " .. tostring(name))
 end
 
 function Data.GetVector4Curve(name)
-    assert(Data._curveTypes[name] == "vector4Curve", "Vector4 curve data not found: " .. tostring(name))
-    return requireNamedValue(Data._curveData, name, "Vector4 curve data not found: " .. tostring(name))
+    assert(dataState.curveTypes[name] == "vector4Curve", "Vector4 curve data not found: " .. tostring(name))
+    return requireNamedValue(dataState.curveData, name, "Vector4 curve data not found: " .. tostring(name))
 end
 
 function Data.GetPlainTextConfig(name)
@@ -137,19 +144,19 @@ function Data.GetRichTextConfig(name)
 end
 
 function Data.GetTileset(name)
-    return requireNamedValue(Data._tilesetData, name, "Tileset data not found: " .. tostring(name))
+    return requireNamedValue(dataState.tilesetData, name, "Tileset data not found: " .. tostring(name))
 end
 
 function Data.GetAutoTile(name)
-    return requireNamedValue(Data._autoTileData, name, "AutoTile data not found: " .. tostring(name))
+    return requireNamedValue(dataState.autoTileData, name, "AutoTile data not found: " .. tostring(name))
 end
 
 function Data.HasAutoTile(name)
-    return Data._autoTileData[name] ~= nil
+    return dataState.autoTileData[name] ~= nil
 end
 
 function Data.GetGeneralData(name)
-    return requireNamedValue(Data._generalData, name, "General data not found: " .. tostring(name))
+    return requireNamedValue(dataState.generalData, name, "General data not found: " .. tostring(name))
 end
 
 ---@param name string
@@ -218,11 +225,11 @@ function Data.GetGeneralStateData(key)
 end
 
 function Data.GetClass(classPath)
-    return Data._classDict:get(classPath)
+    return assert(classDict, "Data runtime is not initialized"):get(classPath)
 end
 
 function Data.GetClassData(classPath)
-    return Data._classDict:getData(classPath)
+    return assert(classDict, "Data runtime is not initialized"):getData(classPath)
 end
 
 function Data.ResolveClassPath(className)

@@ -7,10 +7,16 @@ local MapClickAutoPathRuntime = {}
 ---@return boolean
 function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal) end
 
----@param autoPath Source.SceneComponents.MapClickAutoPath
----@param player   Source.Player.Player
+---@param gameMap            GameMap
+---@param dangerState        Source.SceneComponents.MovementDangerState
+---@param route              sf.Vector2i[]
+---@param goal               sf.Vector2i | nil
+---@param ignoredGoalEnemies Source.Enemy[] | nil
+---@param player             Source.Player.Player
 ---@return boolean
-function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(autoPath, player) end
+function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(
+    gameMap, dangerState, route, goal, ignoredGoalEnemies, player
+) end
 
 ---@param route       sf.Vector2i[]
 ---@param destination sf.Vector2i

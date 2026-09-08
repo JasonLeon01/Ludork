@@ -64,6 +64,7 @@ local function loadSpecialIcon(iconPath)
 end
 
 function WindowEnemyBookUI:init(model, size)
+    self._enemies = {}
     self._size = size
     self._cellControllers = {}
     super(WindowEnemyBookUI, self).init(model, nil)
@@ -117,7 +118,7 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
             end
         end
     end
-    self.model._enemies = entries
+    self._enemies = entries
     self._listView:clearChildren()
     self._cellControllers = {}
     for _, entry in ipairs(entries) do
@@ -125,7 +126,7 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
         local cellController = WindowEnemyBookCellUI.new({
             entry = enemyEntry,
             callback = function (_obj, _kwargs)
-                self.model:_confirmEnemy(enemyEntry)
+                self.model:confirmEnemy(enemyEntry)
             end
         })
         local logicalSize = sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT)
@@ -135,11 +136,11 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
         self._listView:addChild(cell)
     end
     self.model:resetSelection()
-    self.model:_detachSelectionRect()
+    self.model:detachSelectionRect()
 end
 
 function WindowEnemyBookUI:refreshLocale()
-    for _, entry in ipairs(self.model._enemies) do
+    for _, entry in ipairs(self._enemies) do
         WindowEnemyBookUI.RefreshEntryLocale(entry)
     end
     for _, cellController in ipairs(self._cellControllers) do
@@ -152,7 +153,7 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
     local abilitySystem = enemy:getAbilitySystemComponent()
     local battleResult = MotaBattleAbility
         .new()
-        :calculate(abilitySystem, GameplayEventData.new(nil, self.model._player))
+        :calculate(abilitySystem, GameplayEventData.new(nil, self.model:getPlayer()))
     local battleData = battleResult.data
     local special = enemy.attributes.special
     local textureRect = copy(assert(visual.rect or visual.textureRect))
@@ -170,7 +171,7 @@ function WindowEnemyBookUI:buildEntry(enemy, visual)
         EXP = enemy.attributes.EXP,
         GOLD = enemy.attributes.GOLD,
         damage = battleResult.code == MotaBattleAbility.BattleResult.CANNOT_DAMAGE and "???" or battleData.damage,
-        critical = MotaBattleAbility.CalculateCriticalValue(enemy, self.model._player),
+        critical = MotaBattleAbility.CalculateCriticalValue(enemy, self.model:getPlayer()),
         hitCount = abilitySystem:hasMatchingGameplayTag("Special." .. Special.MultiHit)
             and battleData.enemyAttack.hitCount
             or nil,

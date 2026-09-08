@@ -5,7 +5,6 @@ local WindowTransition = require("Source.UI.WindowTransition")
 local subscribe = Engine.subscribe
 
 ---@class Source.UI.UiController
----@field _refreshFromEvent fun(self: Source.UI.UiController, payload: any)
 local UiController = {}
 
 UiController.assetKey = ""
@@ -44,7 +43,7 @@ function UiController:onViewUpdate(_)
 end
 
 ---@diagnostic disable-next-line: unused
-function UiController:_registerUiInstance()
+function UiController:registerUiInstance()
 end
 
 function UiController:subscribe(eventName, handler, priority)
@@ -56,8 +55,8 @@ function UiController:subscribe(eventName, handler, priority)
     return token
 end
 
-function UiController:_refreshFromEvent(payload)
-    if self._disposed == true then
+function UiController:refreshFromEvent(payload)
+    if self._disposed == true or not self._bound then
         return
     end
     self:onViewUpdate(payload)
@@ -82,7 +81,7 @@ function UiController:_subscribeRefreshEvent(eventName)
             Engine.unsubscribe(subscriptionToken)
             return
         end
-        controller:_refreshFromEvent(payload)
+        controller:refreshFromEvent(payload)
     end)
     self._eventSubscriptions[#self._eventSubscriptions + 1] = token
 end
@@ -93,7 +92,7 @@ function UiController:_bindViewUpdates()
     end
 end
 
-function UiController:_setViewUpdateUnregister(unregister)
+function UiController:setViewUpdateUnregister(unregister)
     self._viewUpdateUnregister = unregister
 end
 
@@ -105,7 +104,7 @@ function UiController:prepare(logicalSize)
     if not self._bound then
         self:bind()
         self:_bindViewUpdates()
-        self:_registerUiInstance()
+        self:registerUiInstance()
         self._bound = true
     end
     self:refresh()
@@ -120,62 +119,30 @@ function UiController:attachTo(parent, logicalSize)
 end
 
 function UiController:attachWindowView(host, logicalSize, transitionTarget)
-    return self:_attachWindowRoot(host, self:prepare(logicalSize), transitionTarget)
+    local root = self:prepare(logicalSize)
+    local chromeRoot = transitionTarget ~= nil and self:requireControl(transitionTarget) or root
+    ---@cast chromeRoot Engine.Canvas
+    host:attachPreparedView(self, {
+        root = root,
+        windowFrame = self:getWindowFrame(),
+        content = self:getContent(),
+        chromeRoot = chromeRoot,
+        transitionTarget = transitionTarget,
+        nested = false
+    })
+    return root
 end
 
 function UiController:attachNestedWindowView(host, logicalSize)
     local root = self:prepare(logicalSize)
     ---@cast root Engine.Canvas
-    assert(root:getParent() ~= nil, "Nested declarative window root must already belong to its top-level asset")
-    assert(host._window == nil and host.content == nil, "Declarative window host must defer its base view")
-    local pauseMark = host._pauseMark
-    local returnButton = host._returnButton
-    ---@cast pauseMark Engine.Image
-    ---@cast returnButton Engine.Button
-    local windowFrame = self:getWindowFrame()
-    local content = self:getContent()
-    local repeated = host._repeated
-    if repeated == nil then
-        repeated = false
-    end
-    if host._windowSkin ~= nil then
-        windowFrame:setWindowSkin(host._windowSkin, repeated)
-    end
-    host._window = windowFrame
-    host.content = content
-    host._visualRoot = root
-    content:addChild(pauseMark)
-    root:addChild(returnButton)
-    host:_setUiController(self)
-    return root
-end
-
----@param host Source.Windows.Base.WindowBase
----@param root Engine.ControlBase
----@return Engine.ControlBase
-function UiController:_attachWindowRoot(host, root, transitionTarget)
-    assert(host._window == nil and host.content == nil, "Declarative window host must defer its base view")
-    local pauseMark = host._pauseMark
-    local returnButton = host._returnButton
-    ---@cast pauseMark Engine.Image
-    ---@cast returnButton Engine.Button
-    local windowFrame = self:getWindowFrame()
-    local content = self:getContent()
-    local repeated = host._repeated
-    if repeated == nil then
-        repeated = false
-    end
-    if host._windowSkin ~= nil then
-        windowFrame:setWindowSkin(host._windowSkin, repeated)
-    end
-    host:addChild(root)
-    host._window = windowFrame
-    host.content = content
-    content:addChild(pauseMark)
-    local chromeRoot = transitionTarget ~= nil and self:requireControl(transitionTarget) or root
-    ---@cast chromeRoot Engine.Canvas
-    chromeRoot:addChild(returnButton)
-    host:_setUiController(self, transitionTarget)
+    host:attachPreparedView(self, {
+        root = root,
+        windowFrame = self:getWindowFrame(),
+        content = self:getContent(),
+        chromeRoot = root,
+        nested = true
+    })
     return root
 end
 

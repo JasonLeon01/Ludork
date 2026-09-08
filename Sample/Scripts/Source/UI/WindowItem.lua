@@ -22,12 +22,16 @@ local function orderedInventory(data, playerItems)
     return result
 end
 
+---@class Source.UI.WindowItem
 local WindowItemUI = {}
 
 function WindowItemUI:init(model)
     super(WindowItemUI, self).init(model)
     self._logicalSize = nil
     self._rowUIs = {}
+    self._itemList = {}
+    self._lastDescIndex = nil
+    self._descMaxWidth = 1
 end
 
 function WindowItemUI:bind()
@@ -46,8 +50,6 @@ function WindowItemUI:attach()
     self._logicalSize = logicalSize
     self:attachWindowView(self.model, self._logicalSize)
     self:_updateLayout()
-    self.model._descNameText = self:requireControl("ItemName")
-    self.model._descText = self:requireControl("Description")
     self.model:setScrollBox(self._scrollBox)
     self.model:setListView(self._listView)
 end
@@ -69,9 +71,9 @@ function WindowItemUI:refreshItems()
     self._listView:clearChildren()
     self._rowUIs = {}
     local itemData = Data.GetAllGeneralItemData()
-    local playerItems = self.model._player._items or {}
+    local playerItems = self.model:getPlayer():getItems()
     local orderedItems = orderedInventory(itemData, playerItems)
-    self.model._itemList = orderedItems
+    self._itemList = orderedItems
     for _, entry in ipairs(orderedItems) do
         local itemID = entry[1]
         local count = entry[2]
@@ -92,10 +94,10 @@ function WindowItemUI:refreshItems()
         })
         local cell = rowUI:prepare(sf.Vector2u.new(32, 32))
         cell:addConfirmCallback(function ()
-            self:_onUseItem()
+            self:useSelectedItem()
         end)
         self._rowUIs[#self._rowUIs + 1] = rowUI
-        self.model:_applyItem(cell)
+        self.model:applyItem(cell)
         self._listView:addChild(cell)
     end
     self.model:resetSelection()
@@ -103,15 +105,15 @@ function WindowItemUI:refreshItems()
 end
 
 function WindowItemUI:tick()
-    if self.model._lastDescIndex == self.model.index then
+    if self._lastDescIndex == self.model.index then
         return
     end
-    self.model._lastDescIndex = self.model.index
+    self._lastDescIndex = self.model.index
     self:updateDescription()
 end
 
 function WindowItemUI:wrapDescription(text)
-    return TextLayout.wrapPlainText(text, self.model._descMaxWidth, self._descriptionControl)
+    return TextLayout.wrapPlainText(text, self._descMaxWidth, self._descriptionControl)
 end
 
 function WindowItemUI:updateDescription()
@@ -132,11 +134,11 @@ function WindowItemUI:close(onHidden)
     self.model:hideWithAnimation("FadeOut_Menu", onHidden)
 end
 
-function WindowItemUI:_onUseItem()
-    if self.model.index == nil or self.model.index >= #self.model._itemList then
+function WindowItemUI:useSelectedItem()
+    if self.model.index == nil or self.model.index >= #self._itemList then
         return
     end
-    local itemInfoData = Data.GetGeneralItemData(self.model._itemList[self.model.index + 1][1])
+    local itemInfoData = Data.GetGeneralItemData(assert(self._itemList[self.model.index + 1])[1])
     local usable = itemInfoData.usable
     if usable == nil then
         usable = true
@@ -145,21 +147,17 @@ function WindowItemUI:_onUseItem()
         return
     end
     AudioManager.playSound(GameSystem.GetDecisionSE())
-    local itemID = self.model._itemList[self.model.index + 1][1]
-    local result = self.model._player:activateItem(itemID)
+    local itemID = assert(self._itemList[self.model.index + 1])[1]
+    local result = self.model:getPlayer():activateItem(itemID)
     assert(result.ok, "Item Ability failed: " .. tostring(result.code))
     self:close()
-    if self.model._onUseCallback ~= nil then
-        self.model._onUseCallback()
-    end
+    self.model:onItemUsed()
 end
 
-function WindowItemUI:_closeByCancel()
+function WindowItemUI:closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
     self:close(function ()
-        if self.model._onCloseCallback ~= nil then
-            self.model._onCloseCallback()
-        end
+        self.model:notifyClosed()
     end)
 end
 
@@ -167,18 +165,20 @@ function WindowItemUI:_updateLayout()
     local windowSize = self.model:getSize()
     local contentWidth = math.max(1, math.floor(windowSize.x - 32))
     local contentHeight = math.max(1, math.floor(windowSize.y - 96))
-    self.model._descMaxWidth = contentWidth
+    self._descMaxWidth = contentWidth
     self._scrollBox:resize(sf.Vector2f.new(contentWidth, contentHeight))
-    self._listView:setSize(sf.Vector2i.new(contentWidth, contentHeight))
+    local size = sf.Vector2i.new(contentWidth, contentHeight)
+    ---@cast size sf.Vector2i
+    self._listView:setSize(size)
 end
 
 function WindowItemUI:_assignDescription()
-    if self.model.index == nil or self.model.index >= #self.model._itemList then
+    if self.model.index == nil or self.model.index >= #self._itemList then
         self:setText("ItemName", "")
         self:setText("Description", "")
         return
     end
-    local itemData = Data.GetGeneralItemData(self.model._itemList[self.model.index + 1][1])
+    local itemData = Data.GetGeneralItemData(assert(self._itemList[self.model.index + 1])[1])
     self:setText("ItemName", LOC(itemData.name or ""))
     local rawDescription = LOC(itemData.desc or "")
     self:setText("Description", self:wrapDescription(rawDescription))

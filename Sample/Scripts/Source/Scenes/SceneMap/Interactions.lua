@@ -7,6 +7,8 @@ local GeneralEnum = require("Source.Configs.GeneralEnum")
 local UiLayout = require("Source.UI.UiLayout")
 local WindowAttrShop = require("Source.Windows.WindowAttrShop")
 local WindowShop = require("Source.Windows.WindowShop")
+local Teleporter = require("Source.Teleporter")
+local RegionDict = require("Source.Configs.RegionDict")
 
 local Node = Engine.Node
 local GlobalSystem = GlobalCore.System
@@ -21,22 +23,22 @@ local MAP_TRANSITION_TIME = 0.5
 local ENEMY_BOOK_ITEM_ID = GeneralEnum.Item.EnemyBook
 local FLOOR_TELEPORTER_ITEM_ID = GeneralEnum.Item.Teleport
 
----@type SceneMapInteractionsState
 local Scene = {}
 
----@param scene Source.Scenes.SceneMap.SceneMap
+---@param player     Source.Player.Player
+---@param blockInput fun()
 ---@return fun()
-local function suspendPlayerMovement(scene)
-    local moveEnabled = scene.player:getMoveEnabled()
+local function suspendPlayerMovement(player, blockInput)
+    local moveEnabled = player:getMoveEnabled()
     local restored = false
-    scene.player:setMoveEnabled(false)
+    player:setMoveEnabled(false)
     return function ()
         if restored then
             return
         end
         restored = true
-        scene.player:setMoveEnabled(moveEnabled)
-        scene:_blockMapInput(2)
+        player:setMoveEnabled(moveEnabled)
+        blockInput()
     end
 end
 
@@ -77,22 +79,26 @@ local function formatDialogueText(text, context)
     return text
 end
 
-function Scene:getGameMap()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.GetGameMap(self)
     assert(self._gameMap ~= nil, "Scene map is not loaded")
     return self._gameMap
 end
 
-function Scene:showMessage(name, message, refActor, localeArgs)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ShowMessage(self, name, message, refActor, localeArgs)
     local refPosition = nil
     if refActor ~= nil then
         local gameMap = self:getGameMap()
         refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
     end
-    local restoreMove = suspendPlayerMovement(self)
+    local restoreMove = suspendPlayerMovement(self.player, function ()
+        self:_blockMapInput(2)
+    end)
     ---@type Source.Scenes.SceneMap.DialogueMessageLocaleSource
     local dialogueSource = {
         kind = "message",
-        context = createDialogueLocaleContext(self, name, localeArgs, Scene.showMessage),
+        context = createDialogueLocaleContext(self, name, localeArgs, Scene.ShowMessage),
         content = message
     }
     self._dialogueLocaleSource = dialogueSource
@@ -107,7 +113,8 @@ function Scene:showMessage(name, message, refActor, localeArgs)
     end
 end
 
-function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ShowSelection(self, name, options, refActor, allowCancel, localeArgs)
     if allowCancel == nil then
         allowCancel = true
     end
@@ -116,11 +123,13 @@ function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
         local gameMap = self:getGameMap()
         refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
     end
-    local restoreMove = suspendPlayerMovement(self)
+    local restoreMove = suspendPlayerMovement(self.player, function ()
+        self:_blockMapInput(2)
+    end)
     ---@type Source.Scenes.SceneMap.DialogueSelectionLocaleSource
     local dialogueSource = {
         kind = "selection",
-        context = createDialogueLocaleContext(self, name, localeArgs, Scene.showSelection),
+        context = createDialogueLocaleContext(self, name, localeArgs, Scene.ShowSelection),
         content = copy(options)
     }
     self._dialogueLocaleSource = dialogueSource
@@ -136,18 +145,21 @@ function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)
     end
 end
 
-function Scene:applyLoadedGame(inst)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ApplyLoadedGame(self, inst)
+    self._gameOverRequest = nil
     self.inst = inst
     self.player = inst:getPlayer()
     self:_rebindPlayerToUI()
-    local mapPath = inst._cachedMap or GameSystem.GetStartMap()
+    local mapPath = inst:getCurrentMapPath() or GameSystem.GetStartMap()
     local position = self.player:getMapPosition()
     self._cachedMapFile = nil
     self._currentRegion = nil
     self:gotoMapAndPos(mapPath, position)
 end
 
-function Scene:_rebindPlayerToUI()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RebindPlayerToUI(self)
     self._windowItem:setPlayer(self.player)
     self._windowEquip:setPlayer(self.player)
     self._windowMenu:setPlayer(self.player)
@@ -157,7 +169,8 @@ function Scene:_rebindPlayerToUI()
     self._playerHUD:setPlayer(self.player)
 end
 
-function Scene:showEnemyBook()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ShowEnemyBook(self)
     if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(ENEMY_BOOK_ITEM_ID) then
         return
     end
@@ -169,7 +182,8 @@ function Scene:showEnemyBook()
     self:_blockMapInput(2)
 end
 
-function Scene:showFloorTeleporter()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ShowFloorTeleporter(self)
     if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
         return
     end
@@ -181,13 +195,15 @@ function Scene:showFloorTeleporter()
     self:_blockMapInput(2)
 end
 
-function Scene:openMenu()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OpenMenu(self)
     if self:_canOpenMenu() then
         self._pendingMenuOpen = true
     end
 end
 
-function Scene:openShop(buyItemIDs, canSell)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OpenShop(self, buyItemIDs, canSell)
     self._shopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
     self.player:setMoveEnabled(false)
     self._windowShop:open(buyItemIDs, canSell)
@@ -196,7 +212,8 @@ function Scene:openShop(buyItemIDs, canSell)
     end
 end
 
-function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OpenAttrShop(self, actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
     self._attrShopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
     self.player:setMoveEnabled(false)
     self._windowAttrShop:open(
@@ -207,39 +224,46 @@ function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRe
     end
 end
 
-function Scene:_onShopClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnShopClose(self)
     self.player:setMoveEnabled(self._shopMoveEnabledBeforeOpen)
 end
 
-function Scene:_onAttrShopClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnAttrShopClose(self)
     self.player:setMoveEnabled(self._attrShopMoveEnabledBeforeOpen)
     self:_blockMapInput(1)
 end
 
-function Scene:_onEnemyBookClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnEnemyBookClose(self)
     self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
     self:_blockMapInput(1)
 end
 
 ---@param entry Source.UI.WindowEnemyBook.Entry
-function Scene:_onEnemyBookConfirm(entry)
+---@param self  Source.Scenes.SceneMap.SceneMap
+function Scene.OnEnemyBookConfirm(self, entry)
     self._windowEnemyEncyclopedia:open(entry)
     self:_blockMapInput(2)
 end
 
-function Scene:_onEnemyEncyclopediaClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnEnemyEncyclopediaClose(self)
     self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
     self:_blockMapInput(1)
 end
 
-function Scene:_onFloorTeleporterClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnFloorTeleporterClose(self)
     self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
     self:_blockMapInput(1)
 end
 
 ---@param mapKey    string
 ---@param telepoint sf.Vector2u
-function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
+---@param self      Source.Scenes.SceneMap.SceneMap
+function Scene.OnFloorTeleporterConfirm(self, mapKey, telepoint)
     local targetMap = self:resolveRegionMapPath(mapKey)
     local targetPosition = sf.Vector2i.new(telepoint.x, telepoint.y)
     ---@cast targetPosition sf.Vector2i
@@ -299,12 +323,14 @@ function Scene.GetEnemyEncyclopediaRect()
 end
 
 ---@return boolean
-function Scene:_canRestoreMoveAfterMenuClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.CanRestoreMoveAfterMenuClose(self)
     return not self:_hasVisibleBlockingWindow()
 end
 
 ---@return boolean
-function Scene:_hasVisibleBlockingWindow()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.HasVisibleBlockingWindow(self)
     for _, window in ipairs(self._blockingWindows) do
         if window:getVisible() then
             return true
@@ -314,12 +340,14 @@ function Scene:_hasVisibleBlockingWindow()
 end
 
 ---@param frames integer
-function Scene:_blockMapInput(frames)
+---@param self   Source.Scenes.SceneMap.SceneMap
+function Scene.BlockMapInput(self, frames)
     frames = frames or 1
     self._mapInputBlockFrames = math.max(self._mapInputBlockFrames, frames)
 end
 
-function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RequestFloorTransfer(self, targetMap, anchorPos, moveEnabled)
     if self._pendingFloorTransfer ~= nil or self._pendingWorldTransfer ~= nil then
         return false
     end
@@ -328,7 +356,8 @@ function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled)
     return true
 end
 
-function Scene:_processPendingFloorTransfer()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ProcessPendingFloorTransfer(self)
     if self._pendingFloorTransfer == nil or not GlobalSystem.isTransitionBackgroundFrozen() then
         return
     end
@@ -350,7 +379,6 @@ function Scene:_processPendingFloorTransfer()
         self._mapTransferInProgress = false
         return
     end
-    local Teleporter = require("Source.Teleporter")
 
     local targetTeleporter = Teleporter.FindNearestTeleporter(
         targetGameMap:getAllActors(), targetPlayer:getMapPosition()
@@ -372,7 +400,8 @@ function Scene:_processPendingFloorTransfer()
 end
 
 ---@param moveEnabled boolean
-function Scene:_cancelFloorTransfer(moveEnabled)
+---@param self        Source.Scenes.SceneMap.SceneMap
+function Scene.CancelFloorTransfer(self, moveEnabled)
     self.player:setMoveEnabled(moveEnabled)
     GlobalSystem.cancelTransitionBackgroundFreeze()
     GlobalSystem.cancelPendingTransition()
@@ -381,7 +410,8 @@ end
 ---@param targetMap       string
 ---@param targetPosition  sf.Vector2i | nil
 ---@param blockTransition boolean
-function Scene:_applyMapDestination(targetMap, targetPosition, blockTransition)
+---@param self            Source.Scenes.SceneMap.SceneMap
+function Scene.ApplyMapDestination(self, targetMap, targetPosition, blockTransition)
     if bool(targetMap) and self._cachedMapFile ~= targetMap then
         targetMap = self:loadMap(targetMap, targetPosition or self.player:getMapPosition())
         self._cachedMapFile = targetMap
@@ -401,14 +431,16 @@ end
 
 ---@param targetMap      string
 ---@param targetPosition sf.Vector2i
-function Scene:_queueWorldTransfer(targetMap, targetPosition)
+---@param self           Source.Scenes.SceneMap.SceneMap
+function Scene.QueueWorldTransfer(self, targetMap, targetPosition)
     assert(self._pendingWorldTransfer == nil and self._pendingFloorTransfer == nil, "A map transfer is already pending")
     self._pendingWorldTransfer = { targetMap = targetMap, targetPosition = targetPosition }
     self._mapTransferInProgress = true
     GlobalSystem.freezeTransitionBackground()
 end
 
-function Scene:_processPendingWorldTransfer()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ProcessPendingWorldTransfer(self)
     if self._pendingWorldTransfer == nil or not GlobalSystem.isTransitionBackgroundFrozen() then
         return
     end
@@ -419,12 +451,14 @@ function Scene:_processPendingWorldTransfer()
 end
 
 ---@return Source.GameInstance.GameInstance
-function Scene:_getSaveSource()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.GetSaveSource(self)
     return self.inst
 end
 
 ---@param reason string
-function Scene:_onSaveLoadClose(reason)
+---@param self   Source.Scenes.SceneMap.SceneMap
+function Scene.OnSaveLoadClose(self, reason)
     if reason == "cancel" then
         self._windowMenu:onSaveLoadClose()
         return
@@ -432,11 +466,13 @@ function Scene:_onSaveLoadClose(reason)
     self._windowMenu:close()
 end
 
-function Scene:_onConfigClose()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnConfigClose(self)
     self._windowMenu:onConfigClose()
 end
 
-function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.GotoMapAndPos(self, mapPath, pos, blockTransition)
     local targetMap = mapPath
     local targetPosition = pos
     if bool(mapPath) then
@@ -467,7 +503,8 @@ function Scene:gotoMapAndPos(mapPath, pos, blockTransition)
     self:_applyMapDestination(targetMap, targetPosition, blockTransition == true)
 end
 
-function Scene:tryCenterSymmetricTeleport()
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.TryCenterSymmetricTeleport(self)
     local gameMap = self:getGameMap()
     local player = gameMap:getPlayer()
     if player == nil then
@@ -485,11 +522,8 @@ function Scene:tryCenterSymmetricTeleport()
     return true
 end
 
-function Scene:tryAdjacentFloorSamePos(step)
-    ---@type table<string, string[]>
-    local RegionDict = require("Source.Configs.RegionDict")
-    local Teleporter = require("Source.Teleporter")
-
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.TryAdjacentFloorSamePos(self, step)
     local gameMap = self:getGameMap()
     local player = gameMap:getPlayer()
     if player == nil then
@@ -534,7 +568,8 @@ end
 ---@param actor    Engine.Actor
 ---@param position sf.Vector2i
 ---@return boolean
-function Scene:_isMapPositionPassable(mapPath, actor, position)
+---@param self     Source.Scenes.SceneMap.SceneMap
+function Scene.IsMapPositionPassable(self, mapPath, actor, position)
     local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:_getCurrentRegionMap())
     assert(mapData.type ~= "worldMap", "Floor passability preview does not support world manifests: " .. mapFile)
     ---@cast mapData Source.SceneComponents.MapData
@@ -546,7 +581,8 @@ function Scene:_isMapPositionPassable(mapPath, actor, position)
     return gameMap:isPassable(actor, position)
 end
 
-function Scene:recordAddedActor(actor)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RecordAddedActor(self, actor)
     local layerName = self:getGameMap():getActorLayer(actor)
     if layerName ~= nil then
         assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
@@ -554,7 +590,8 @@ function Scene:recordAddedActor(actor)
     end
 end
 
-function Scene:recordActorPosition(actor, position)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RecordActorPosition(self, actor, position)
     assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
     self.inst:recordActorPosition(self._cachedMapFile, actor, position)
     local gameMap = self:getGameMap()
@@ -565,12 +602,14 @@ function Scene:recordActorPosition(actor, position)
     end
 end
 
-function Scene:recordDestroyedActor(actor)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RecordDestroyedActor(self, actor)
     assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
     self.inst:recordDestroyedActor(self._cachedMapFile, actor)
 end
 
-function Scene:recordDestroyedActorTag(actorTag)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RecordDestroyedActorTag(self, actorTag)
     assert(self._cachedMapFile ~= nil, "Scene map path is not loaded")
     self.inst:recordDestroyedActorTag(self._cachedMapFile, actorTag)
     if not bool(actorTag) then
@@ -585,7 +624,8 @@ function Scene:recordDestroyedActorTag(actorTag)
     worldMap:suppressActorTag(actorTag)
 end
 
-function Scene:recordTerrainDestructions(layerName, positions)
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.RecordTerrainDestructions(self, layerName, positions)
     if not bool(positions) then
         return
     end

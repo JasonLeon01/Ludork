@@ -18,9 +18,7 @@ local function getChannel(eventName)
     }
     channel.token = Engine.subscribe(eventName, function (payload)
         for instance in pairs(channel.instances) do
-            if instance._bound == true and instance._disposed ~= true then
-                instance:_refreshFromEvent(payload)
-            end
+            instance:refreshFromEvent(payload)
         end
     end)
     _channels[eventName] = channel
@@ -42,10 +40,10 @@ function Ui.Define(assetKey, definition, baseClass)
     definition.Publish = function (payload)
         Engine.publish(updateEvent, payload)
     end
-    definition._registerUiInstance = function (instance)
+    definition.registerUiInstance = function (instance)
         local channel = getChannel(updateEvent)
         channel.instances[instance] = true
-        instance:_setViewUpdateUnregister(function (registeredInstance)
+        instance:setViewUpdateUnregister(function (registeredInstance)
             channel.instances[registeredInstance] = nil
         end)
     end

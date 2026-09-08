@@ -28,7 +28,7 @@ function WindowSelectable:init(
     self._ownsScrollBox = false
     self._listView = listView
     if rectWidth == nil then
-        rectWidth = deferView == true and 1 or self:_getRectWidth()
+        rectWidth = deferView == true and 1 or self:getItemWidth()
     end
     ---@cast rectWidth integer
     self._rectWidth = rectWidth
@@ -70,7 +70,7 @@ function WindowSelectable:_createSelectionRect()
     return rect
 end
 
-function WindowSelectable:_detachSelectionRect()
+function WindowSelectable:detachSelectionRect()
     local parent = self._rect:getParent()
     if parent ~= nil then
         ---@cast parent Engine.Canvas
@@ -174,9 +174,9 @@ function WindowSelectable:onTick(deltaTime)
     local active = self:canReceiveFocus()
     local focused = self:_hasCursorFocus()
     if self.index ~= nil then
-        if self._rectWidth ~= self:_getRectWidth() then
-            self._rectWidth = self:_getRectWidth()
-            self:_detachSelectionRect()
+        if self._rectWidth ~= self:getItemWidth() then
+            self._rectWidth = self:getItemWidth()
+            self:detachSelectionRect()
             self._rect = self:_createSelectionRect()
             self._ensureSelectionVisibleRequested = true
         end
@@ -398,7 +398,7 @@ function WindowSelectable:_getItemHitAbsoluteBounds(index)
 end
 
 ---@return integer
-function WindowSelectable:_getRectWidth()
+function WindowSelectable:getItemWidth()
     local columns = self:_getColumns()
     local viewportWidth = self._scrollBox ~= nil and self._scrollBox:getSize().x or self.content:getSize().x
     return math.floor((viewportWidth - 32) / columns)
@@ -471,7 +471,7 @@ end
 
 ---@param item Engine.ControlBase
 ---@diagnostic disable-next-line: unused
-function WindowSelectable:_applyItem(item)
+function WindowSelectable:applyItem(item)
     if Class.isInstance(item, ControlBase) then
         local bounds = item:getLocalBounds()
         local origin = sf.Vector2f.new(bounds.position.x + bounds.size.x / 2, 0)
@@ -769,6 +769,15 @@ function WindowSelectable:_confirmSelectionIndex(index)
     ---@cast child Engine.ControlBase & Engine.FunctionalBase
     child:onConfirm(Engine.UiInputEventArguments.new({}))
     return true
+end
+
+function WindowSelectable:hideSelectionCursor()
+    self._rect:setVisible(false)
+end
+
+function WindowSelectable:selectIndex(index)
+    self.index = index
+    self._oldIndex = index
 end
 
 return class(WindowSelectable, WindowBase)

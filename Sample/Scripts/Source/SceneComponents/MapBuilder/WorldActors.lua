@@ -5,14 +5,14 @@ local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorR
 ---@diagnostic disable-next-line: cast-type-mismatch, inherited constructor type does not retain the derived init signature
 ---@cast WorldGameMap Class.ClassType<Global.WorldGameMap.WorldGameMap>
 
----@type SceneMapBuilderImplState
 local MapBuilderWorldActors = {}
 
 ---@param records      Source.GameInstance.WorldMovedActorRecord[]
 ---@param targetRegion Source.SceneComponents.WorldRegionData | nil
 ---@return Source.GameInstance.WorldMovedActorRecord[]
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldActors:_selectWorldMovedActors(records, targetRegion)
+---@param self         Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldActors.SelectWorldMovedActors(self, records, targetRegion)
     local targetPath = targetRegion ~= nil and targetRegion.path or ""
     local selected = {}
     for _, record in ipairs(records) do
@@ -26,12 +26,13 @@ end
 ---@param actor           Engine.Actor
 ---@param destroyedActors table<string, boolean>
 ---@return boolean
-function MapBuilderWorldActors:_pruneDestroyedActorTree(actor, destroyedActors)
+---@param self            Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldActors.PruneDestroyedActorTree(self, actor, destroyedActors)
     if destroyedActors[actor:getMapTag()] then
         return false
     end
     for _, child in ipairs(actor:getChildren()) do
-        if not self:_pruneDestroyedActorTree(child, destroyedActors) then
+        if not self:pruneDestroyedActorTree(child, destroyedActors) then
             actor:removeChild(child)
         end
     end
@@ -43,11 +44,12 @@ end
 ---@param destroyedActors      table<string, boolean>
 ---@param preserveRootPosition boolean
 ---@return Engine.Actor | nil
-function MapBuilderWorldActors:_generatePersistedActor(
-    actorRecord, actorPositions, destroyedActors, preserveRootPosition
+---@param self                 Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldActors.GeneratePersistedActor(
+    self, actorRecord, actorPositions, destroyedActors, preserveRootPosition
 )
     local actor = Data.GenActorFromClassPath(actorRecord.bp, actorRecord.tag, actorRecord.classVarChanges)
-    if actor == nil or not self:_pruneDestroyedActorTree(actor, destroyedActors) then
+    if actor == nil or not self:pruneDestroyedActorTree(actor, destroyedActors) then
         return nil
     end
     actor:setMapPosition(actorRecord.position)
@@ -66,14 +68,15 @@ end
 ---@param movedActors     Source.GameInstance.WorldMovedActorRecord[]
 ---@param actorPositions  table<string, sf.Vector2i>
 ---@param destroyedActors table<string, boolean>
-function MapBuilderWorldActors:_applyHoleWorldMovedActors(gameMap, movedActors, actorPositions, destroyedActors)
+---@param self            Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldActors.ApplyHoleWorldMovedActors(self, gameMap, movedActors, actorPositions, destroyedActors)
     local addedAny = false
     gameMap:beginActorBatch()
     for _, actorRecord in ipairs(movedActors) do
         assert(gameMap:getActorByTag(actorRecord.tag) == nil, "Duplicate restored world MapTag: " .. actorRecord.tag)
         ---@diagnostic disable-next-line: assign-type-mismatch
         local actor = assert(
-            MapBuilderWorldActors._generatePersistedActor(self, actorRecord, actorPositions, destroyedActors, true),
+            MapBuilderWorldActors.GeneratePersistedActor(self, actorRecord, actorPositions, destroyedActors, true),
             "Failed to restore moved world Actor: " .. actorRecord.tag
         )
         ---@diagnostic disable-next-line: param-type-mismatch
@@ -86,10 +89,11 @@ function MapBuilderWorldActors:_applyHoleWorldMovedActors(gameMap, movedActors, 
     end
 end
 
-function MapBuilderWorldActors:generateWorldGameMap(worldPath, worldData, inst, initialPosition)
+---@param self Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldActors.GenerateWorldGameMap(self, worldPath, worldData, inst, initialPosition)
     local holeAddedActors = WorldActorRecords.SelectAdded(worldData, inst, worldPath, nil)
     local initialMovedActors = WorldActorRecords.CollectMoved(worldData, inst, worldPath)
-    local holeMovedActors = self:_selectWorldMovedActors(initialMovedActors, nil)
+    local holeMovedActors = self:selectWorldMovedActors(initialMovedActors, nil)
     ---@param region       Source.SceneComponents.WorldRegionData
     ---@param data         Source.SceneComponents.SerializedMapData
     ---@param priorityRect Global.WorldGeometry.CellRect | nil
@@ -144,7 +148,8 @@ end
 ---@param actorsByTag table<string, Engine.Actor>
 ---@param root        Engine.Actor
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldActors:_indexActorTreeByTag(actorsByTag, root)
+---@param self        Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldActors.IndexActorTreeByTag(self, actorsByTag, root)
     for _, actor in ipairs(root:collectTree()) do
         local actorTag = actor:getMapTag()
         if actorTag ~= nil then

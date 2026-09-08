@@ -2,16 +2,16 @@ local _METADATA = {
     Scene = {
         attrs = {},
         bases = {
-            { "GlobalCore", "SceneBase" },
+            { "Source.Gameplay.GameplayScene", "GameplayScene" }
         },
         getGameMap = {
             type = "function",
             parameters = {},
             ["return"] = {
                 "gameMap",
-                gameMap = { "Global.GameMap", "GameMap" },
+                gameMap = { "Global.GameMap", "GameMap" }
             },
-            Pure = true,
+            Pure = true
         },
         showMessage = {
             type = "function",
@@ -23,19 +23,19 @@ local _METADATA = {
                 name = "string",
                 message = "string",
                 refActor = { "Engine", "Actor" },
-                localeArgs = "Dict[string, any]",
+                localeArgs = "Dict[string, any]"
             },
             default = {
-                [4] = {},
+                [4] = {}
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "FinishedDialogue",
-                FinishedDialogue = { true },
-            },
+                FinishedDialogue = { true }
+            }
         },
         showSelection = {
             type = "function",
@@ -49,15 +49,15 @@ local _METADATA = {
                 options = "string[]",
                 refActor = { "Engine", "Actor" },
                 allowCancel = "bool",
-                localeArgs = "Dict[string, any]",
+                localeArgs = "Dict[string, any]"
             },
             default = {
                 [4] = true,
-                [5] = {},
+                [5] = {}
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
             Latent = {
                 "Selected0",
@@ -69,20 +69,20 @@ local _METADATA = {
                 Selected1 = { 1 },
                 Selected2 = { 2 },
                 Selected3 = { 3 },
-                Cancelled = { -1 },
-            },
+                Cancelled = { -1 }
+            }
         },
         applyLoadedGame = {
             type = "function",
             parameters = {
                 "inst",
-                inst = { "Source.GameInstance", "GameInstance" },
+                inst = { "Source.GameInstance", "GameInstance" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         showEnemyBook = {
             type = "function",
@@ -90,8 +90,8 @@ local _METADATA = {
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         showFloorTeleporter = {
             type = "function",
@@ -99,8 +99,8 @@ local _METADATA = {
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         openMenu = {
             type = "function",
@@ -108,46 +108,46 @@ local _METADATA = {
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         recordAddedActor = {
             type = "function",
             parameters = {
                 "actor",
-                actor = { "Engine", "Actor" },
+                actor = { "Engine", "Actor" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         recordActorPosition = {
             type = "function",
             parameters = {
                 "actor",
-                actor = { "Engine", "Actor" },
+                actor = { "Engine", "Actor" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         recordDestroyedActor = {
             type = "function",
             parameters = {
                 "actor",
-                actor = { "Engine", "Actor" },
+                actor = { "Engine", "Actor" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
-        },
-    },
+                default = "nil"
+            }
+        }
+    }
 }
 
 return _METADATA

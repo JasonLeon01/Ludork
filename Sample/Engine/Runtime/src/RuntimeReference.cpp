@@ -1,8 +1,8 @@
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeObject.hpp>
 
-#include "RuntimeBindingTraits.hpp"
-#include "RuntimeServiceInternals.hpp"
+#include "LuaServices/RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeReferenceConversion.hpp"
 #include <Runtime/Detail/RuntimeServices.hpp>
 #include <Runtime/RuntimeSession.hpp>
 #include <Runtime/ScriptStore.hpp>
@@ -18,22 +18,6 @@ extern "C" {
 
 ludork::runtime::binding::LuaRegistryReferenceOwner::
     ~LuaRegistryReferenceOwner() = default;
-
-RuntimeValue ludork::runtime::detail::readRuntimeReference(
-    const sol::object& value) {
-    switch (value.get_type()) {
-        case sol::type::none:
-        case sol::type::lua_nil:
-            return {};
-        case sol::type::boolean:
-        case sol::type::number:
-        case sol::type::string:
-            return binding::readLuaValue<RuntimeValue>(value);
-        default:
-            return RuntimeValue(
-                binding::readOpaqueIdentity<RuntimeIdentityPtr>(value));
-    }
-}
 
 namespace ludork::runtime::reference {
 namespace {

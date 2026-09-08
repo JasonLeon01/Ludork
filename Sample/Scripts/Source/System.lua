@@ -11,30 +11,32 @@ local RuntimeProviders = Engine.RuntimeProviders
 local extractConfigValues
 local System = {}
 
-System._title = ""
-System._fonts = {}
-System._fontSize = 32
-System._windowskinName = ""
-System._titleBackgroundFile = "/Game/Assets/System/GrassBackground.png"
-System._coverOpaqueAlpha = 0
-System._startMap = ""
-System._startPlayerClassPath = ""
-System._startRegion = ""
-System._startPos = sf.Vector2u.new(0, 0)
-System._cursorSE = ""
-System._decisionSE = ""
-System._cancelSE = ""
-System._buzzerSE = ""
-System._shopSE = ""
-System._saveSE = ""
-System._loadSE = ""
-System._gateSE = ""
-System._stairSE = ""
-System._getSE = ""
-System._equipSE = ""
-System._titleBGM = ""
-System._audioConfigValues = {}
-System._savedScreenImage = nil
+local systemState = {
+    title = "",
+    fonts = {},
+    fontSize = 32,
+    windowskinName = "",
+    titleBackgroundFile = "/Game/Assets/System/GrassBackground.png",
+    coverOpaqueAlpha = 0,
+    startMap = "",
+    startPlayerClassPath = "",
+    startRegion = "",
+    startPos = sf.Vector2u.new(0, 0),
+    cursorSE = "",
+    decisionSE = "",
+    cancelSE = "",
+    buzzerSE = "",
+    shopSE = "",
+    saveSE = "",
+    loadSE = "",
+    gateSE = "",
+    stairSE = "",
+    getSE = "",
+    equipSE = "",
+    titleBGM = "",
+    audioConfigValues = {},
+    savedScreenImage = nil
+}
 
 ---@param relativePath string
 ---@return string
@@ -55,56 +57,56 @@ end
 
 function System.Init()
     local systemData = Engine.getJSONData("./Data/Configs/System.json")
-    System._title = systemData.title.value
+    systemState.title = systemData.title.value
     local size = systemData.gameSize.value
     local gameSize = sf.Vector2u.new(size[1], size[2])
     ---@cast gameSize sf.Vector2u
-    System._fonts = {}
+    systemState.fonts = {}
     for _, font in ipairs(systemData.fonts.value) do
-        System._fonts[#System._fonts + 1] = FontManager.load(font)
+        systemState.fonts[#systemState.fonts + 1] = FontManager.load(font)
     end
-    System._fontSize = systemData.fontSize.value
+    systemState.fontSize = systemData.fontSize.value
     local iconPath = systemData.icon.value
     local cursorPath = systemData.cursor.value
-    System._windowskinName = systemData.windowskinName.value
-    System._titleBackgroundFile = systemData.titleBackgroundFile.value
+    systemState.windowskinName = systemData.windowskinName.value
+    systemState.titleBackgroundFile = systemData.titleBackgroundFile.value
     Engine.CellSize = systemData.cellSize.value
     local coverOpaqueAlpha = systemData.coverOpaqueAlpha.value
-    System._coverOpaqueAlpha = coverOpaqueAlpha
-    System._startMap = systemData.startMap.value
-    System._startPlayerClassPath = blueprintRelativePathToClassPath(systemData.startPlayerBlueprint.value)
-    System._startRegion = systemData.startRegion.value
+    systemState.coverOpaqueAlpha = coverOpaqueAlpha
+    systemState.startMap = systemData.startMap.value
+    systemState.startPlayerClassPath = blueprintRelativePathToClassPath(systemData.startPlayerBlueprint.value)
+    systemState.startRegion = systemData.startRegion.value
     assert(
-        Class.isInstance(System._startRegion, "string") and bool(System._startRegion),
+        Class.isInstance(systemState.startRegion, "string") and bool(systemState.startRegion),
         "Start region must be a non-empty string"
     )
     local startPos = systemData.startPos.value
-    System._startPos = sf.Vector2u.new(startPos[1], startPos[2])
+    systemState.startPos = sf.Vector2u.new(startPos[1], startPos[2])
     local configuredScale = GlobalSystem.getConfiguredScale()
     local maximumScale = GlobalSystem.getMaximumWindowedScale(gameSize)
     local _, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
     if maximumScale ~= nil and effectiveScale ~= configuredScale then
         GlobalSystem.setScale(effectiveScale)
     end
-    GlobalSystem.initializeDisplay(System._title, gameSize, iconPath, cursorPath)
-    Engine.DefaultFont = System._fonts[1]
-    Engine.DefaultFontSize = System._fontSize
-    Engine.DefaultWindowskinName = System._windowskinName
+    GlobalSystem.initializeDisplay(systemState.title, gameSize, iconPath, cursorPath)
+    Engine.DefaultFont = systemState.fonts[1]
+    Engine.DefaultFontSize = systemState.fontSize
+    Engine.DefaultWindowskinName = systemState.windowskinName
     GameMap.DefaultCoverAlpha = coverOpaqueAlpha
     local audioData = Engine.getJSONData("./Data/Configs/Audio.json")
-    System._audioConfigValues = extractConfigValues(audioData)
-    System._cursorSE = tostring(System._audioConfigValues.cursorSE or "")
-    System._decisionSE = tostring(System._audioConfigValues.decisionSE or "")
-    System._cancelSE = tostring(System._audioConfigValues.cancelSE or "")
-    System._buzzerSE = tostring(System._audioConfigValues.buzzerSE or "")
-    System._shopSE = tostring(System._audioConfigValues.shopSE or "")
-    System._saveSE = tostring(System._audioConfigValues.saveSE or "")
-    System._loadSE = tostring(System._audioConfigValues.loadSE or "")
-    System._gateSE = tostring(System._audioConfigValues.gateSE or "")
-    System._stairSE = tostring(System._audioConfigValues.stairSE or "")
-    System._getSE = tostring(System._audioConfigValues.getSE or "")
-    System._equipSE = tostring(System._audioConfigValues.equipSE or "")
-    System._titleBGM = tostring(System._audioConfigValues.titleBGM or "")
+    systemState.audioConfigValues = extractConfigValues(audioData)
+    systemState.cursorSE = tostring(systemState.audioConfigValues.cursorSE or "")
+    systemState.decisionSE = tostring(systemState.audioConfigValues.decisionSE or "")
+    systemState.cancelSE = tostring(systemState.audioConfigValues.cancelSE or "")
+    systemState.buzzerSE = tostring(systemState.audioConfigValues.buzzerSE or "")
+    systemState.shopSE = tostring(systemState.audioConfigValues.shopSE or "")
+    systemState.saveSE = tostring(systemState.audioConfigValues.saveSE or "")
+    systemState.loadSE = tostring(systemState.audioConfigValues.loadSE or "")
+    systemState.gateSE = tostring(systemState.audioConfigValues.gateSE or "")
+    systemState.stairSE = tostring(systemState.audioConfigValues.stairSE or "")
+    systemState.getSE = tostring(systemState.audioConfigValues.getSE or "")
+    systemState.equipSE = tostring(systemState.audioConfigValues.equipSE or "")
+    systemState.titleBGM = tostring(systemState.audioConfigValues.titleBGM or "")
 end
 
 ---@param configData table<string, string | { value: string }>
@@ -121,7 +123,7 @@ end
 
 function System.GetConfigValue(configName, settingName)
     if configName == "Audio" then
-        return System._audioConfigValues[settingName] or ""
+        return systemState.audioConfigValues[settingName] or ""
     end
     return ""
 end
@@ -134,99 +136,99 @@ function System.InstallRuntimeProviders()
 end
 
 function System.GetTitle()
-    return System._title
+    return systemState.title
 end
 
 function System.GetFonts()
-    return System._fonts
+    return systemState.fonts
 end
 
 function System.GetFontSize()
-    return System._fontSize
+    return systemState.fontSize
 end
 
 function System.GetWindowskinName()
-    return System._windowskinName
+    return systemState.windowskinName
 end
 
 function System.GetTitleBackgroundFile()
-    return System._titleBackgroundFile
+    return systemState.titleBackgroundFile
 end
 
 function System.SetWindowskinName(name)
-    System._windowskinName = name
+    systemState.windowskinName = name
 end
 
 function System.GetStartMap()
-    return System._startMap
+    return systemState.startMap
 end
 
 function System.GetStartPlayerClassPath()
-    return System._startPlayerClassPath
+    return systemState.startPlayerClassPath
 end
 
 function System.GetStartRegion()
-    return System._startRegion
+    return systemState.startRegion
 end
 
 function System.GetStartPos()
-    return System._startPos
+    return systemState.startPos
 end
 
 function System.GetCursorSE()
-    return System._cursorSE
+    return systemState.cursorSE
 end
 
 function System.GetDecisionSE()
-    return System._decisionSE
+    return systemState.decisionSE
 end
 
 function System.GetCancelSE()
-    return System._cancelSE
+    return systemState.cancelSE
 end
 
 function System.GetBuzzerSE()
-    return System._buzzerSE
+    return systemState.buzzerSE
 end
 
 function System.GetShopSE()
-    return System._shopSE
+    return systemState.shopSE
 end
 
 function System.GetSaveSE()
-    return System._saveSE
+    return systemState.saveSE
 end
 
 function System.GetLoadSE()
-    return System._loadSE
+    return systemState.loadSE
 end
 
 function System.GetGateSE()
-    return System._gateSE
+    return systemState.gateSE
 end
 
 function System.GetStairSE()
-    return System._stairSE
+    return systemState.stairSE
 end
 
 function System.GetGetSE()
-    return System._getSE
+    return systemState.getSE
 end
 
 function System.GetEquipSE()
-    return System._equipSE
+    return systemState.equipSE
 end
 
 function System.GetTitleBGM()
-    return System._titleBGM
+    return systemState.titleBGM
 end
 
 function System.GetSavedScreenImage()
-    return System._savedScreenImage
+    return systemState.savedScreenImage
 end
 
 function System.SetSavedScreenImage(image)
-    System._savedScreenImage = image
+    systemState.savedScreenImage = image
 end
 
 return System

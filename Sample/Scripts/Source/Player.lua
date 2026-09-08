@@ -48,7 +48,7 @@ local function onMAXHPChange(_old, _new, change, player)
     if abilitySystem:getNumericAttributeBase("HP") > player.attributes.MAXHP then
         abilitySystem:setNumericAttributeBase("HP", player.attributes.MAXHP)
     end
-    if not player._loading then
+    if not player:getLoading() then
         local oldBase = change.oldBase == Class.MISSING and 0 or change.oldBase
         local newBase = change.newBase
         ---@cast oldBase integer
@@ -124,7 +124,7 @@ function Player:init(texture, tag)
     self._loading = false
 end
 
-function Player:_applyInitialEquipment()
+function Player:applyInitialEquipment()
     local classData = Data.GetGeneralClassData(self.attributes.CLASS)
     for _, slot in ipairs(table.orderedStringKeys(classData.slot or {})) do
         local equipID = classData.slot[slot]
@@ -217,9 +217,9 @@ function Player:asDict()
             EXP = bases.EXP,
             GOLD = bases.GOLD
         },
-        items = self._items,
-        equips = self._equips,
-        equipInfo = self._equipInfo,
+        items = copy(self._items),
+        equips = copy(self._equips),
+        equipInfo = copy(self._equipInfo),
         states = Effects.GetStateStacks(self)
     }
 end
@@ -232,44 +232,71 @@ function Player.InitPlayer(playerPath, applyInitialEquipment)
     actor:setCollisionEnabled(true)
     assert(actor:hasGraph(), "Player blueprint graph is missing")
     if applyInitialEquipment ~= false then
-        actor:_applyInitialEquipment()
+        actor:applyInitialEquipment()
     end
     return actor
 end
 
 function Player.FromDict(data)
     local player = Player.InitPlayer(data.playerClass, false)
-    player.tag = data.tag
+    player:restoreFromData(data)
+    return player
+end
+
+function Player:restoreFromData(data)
+    assert(data.playerClass == self._classPath, "Saved player class does not match this player")
+    self.tag = data.tag
     local positionX = data.position[1]
     local positionY = data.position[2]
     ---@cast positionX integer
     ---@cast positionY integer
     local position = sf.Vector2u.new(positionX, positionY)
     ---@cast position sf.Vector2u
-    player:setMapPosition(position)
-    player._loading = true
-    player:_clearEquipmentEffects()
-    Effects.ClearStates(player)
-    player:getAbilitySystemComponent():setNumericAttributeBases(data.attr)
-    player._items = deepcopy(data.items)
-    player._equips = deepcopy(data.equips)
-    player._equipInfo = {}
-    player._equipEffectHandles = {}
-    for _, itemID in ipairs(table.orderedStringKeys(player._items)) do
-        player:_syncItemAbility(itemID)
+    self:setMapPosition(position)
+    self._loading = true
+    self:_clearEquipmentEffects()
+    Effects.ClearStates(self)
+    self:getAbilitySystemComponent():setNumericAttributeBases(data.attr)
+    for itemID in pairs(self._items) do
+        self:getAbilitySystemComponent():removeAbilitiesBySource("Item." .. itemID)
+    end
+    self._items = deepcopy(data.items)
+    self._equips = deepcopy(data.equips)
+    self._equipInfo = {}
+    self._equipEffectHandles = {}
+    for _, itemID in ipairs(table.orderedStringKeys(self._items)) do
+        self:_syncItemAbility(itemID)
     end
     for _, slot in ipairs(table.orderedStringKeys(data.equipInfo)) do
         local equipID = data.equipInfo[slot]
         if bool(equipID) then
-            player:_setEquippedItem(slot, equipID, false)
+            self:_setEquippedItem(slot, equipID, false)
         end
     end
     for _, stateID in ipairs(table.orderedStringKeys(data.states)) do
         local stacks = data.states[stateID]
-        Effects.ApplyState(player, stateID, stacks, createPlayerEvent(player, "Event.State.Restore"))
+        Effects.ApplyState(self, stateID, stacks, createPlayerEvent(self, "Event.State.Restore"))
     end
-    player._loading = false
-    return player
+    self._loading = false
+end
+
+function Player:getLoading()
+    return self._loading
+end
+
+function Player:getItems()
+    return copy(self._items)
+end
+
+function Player:getEquips()
+    return copy(self._equips)
+end
+
+function Player.MeetPlayer(actors, player)
+    if player ~= nil and table.contains(actors, player) then
+        return player
+    end
+    return nil
 end
 
 function Player:_syncItemAbility(itemID)

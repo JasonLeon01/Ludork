@@ -190,11 +190,4 @@ function MapAudioState.BuildFilter(data)
     return Engine.MusicFilter.new(values)
 end
 
-function MapAudioState.SyncController(controller)
-    controller._currentBgmMusic = controller._bgmState.music
-    controller._currentBgmFile = controller._bgmState.file
-    controller._currentBgsMusic = controller._bgsState.music
-    controller._currentBgsFile = controller._bgsState.file
-end
-
 return MapAudioState

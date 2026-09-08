@@ -28,7 +28,4 @@ function MapAudioState.SetFilterAttribute(music, attr, value) end
 ---@return Engine.MusicFilter | nil
 function MapAudioState.BuildFilter(data) end
 
----@param controller Source.SceneComponents.SceneMapAudioController
-function MapAudioState.SyncController(controller) end
-
 return MapAudioState

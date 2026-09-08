@@ -6,7 +6,6 @@ local WorldMapConstants = require("Global.WorldMapConstants")
 local WORLD_REGION_BUILD_CHUNK_SIZE = WorldMapConstants.REGION_BUILD_CHUNK_SIZE
 local WORLD_TILE_GRAPHICS_CHUNK_SIZE = WorldMapConstants.SPATIAL_CHUNK_SIZE
 
----@type SceneMapBuilderImplState
 local MapBuilderWorldTiles = {}
 
 ---@param region       Source.SceneComponents.WorldRegionData
@@ -15,7 +14,8 @@ local MapBuilderWorldTiles = {}
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
 ---@return Global.WorldGeometry.CellRect[], Global.WorldGeometry.CellRect[], integer
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldTiles:_createWorldRegionChunks(region, width, height, priorityRect)
+---@param self         Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.CreateWorldRegionChunks(self, region, width, height, priorityRect)
     ---@type Global.WorldGeometry.CellRect[]
     local rowMajor = {}
     for y = 0, height - 1, WORLD_REGION_BUILD_CHUNK_SIZE do
@@ -109,7 +109,8 @@ end
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
 ---@return Global.WorldGeometry.CellRect[], integer
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldTiles:_createWorldTileGraphicsChunks(region, width, height, priorityRect)
+---@param self         Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.CreateWorldTileGraphicsChunks(self, region, width, height, priorityRect)
     ---@type Global.WorldGeometry.CellRect[]
     local chunks = {}
     ---@type Global.WorldGeometry.CellRect[]
@@ -148,7 +149,8 @@ end
 ---@return table<string, table<integer, table<integer, Source.SceneComponents.WorldTerrainOverride>>>
 ---@async
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldTiles:_createWorldTerrainOverrides(data, terrainDestructions, yieldStep)
+---@param self                Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.CreateWorldTerrainOverrides(self, data, terrainDestructions, yieldStep)
     local result = {}
     local mapBounds = { x = 0, y = 0, width = data.width, height = data.height }
     for layerName, changes in pairs(terrainDestructions) do
@@ -177,7 +179,8 @@ end
 ---@param actorData Source.Data.SerializedActorData
 ---@return Source.Data.ActorData
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldTiles:_normaliseActorData(actorData)
+---@param self      Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.NormaliseActorData(self, actorData)
     local position = actorData.position or { 0, 0 }
     local x = position[1] or 0
     local y = position[2] or 0
@@ -188,7 +191,8 @@ end
 
 ---@param data Source.SceneComponents.SerializedMapData
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldTiles:_validateIncrementalMapData(data)
+---@param self Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.ValidateIncrementalMapData(self, data)
     assert(Class.isInstance(data.layerOrder, "table"), "Map layerOrder must be an array")
     assert(Class.isInstance(data.layers, "table"), "Map layers must be an object")
     local seenLayers = {}
@@ -208,7 +212,8 @@ end
 ---@param layerState Source.SceneComponents.WorldLayerBuildState
 ---@param chunk      Global.WorldGeometry.CellRect
 ---@diagnostic disable-next-line: unused
-function MapBuilderWorldTiles:_writeWorldLayerDataChunk(layerState, chunk)
+---@param self       Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.WriteWorldLayerDataChunk(self, layerState, chunk)
     local chunkKey = WorldGeometry.GridKey(chunk.x, chunk.y)
     if layerState.writtenDataChunks[chunkKey] then
         return
@@ -278,7 +283,8 @@ end
 ---@param chunk      Global.WorldGeometry.CellRect
 ---@param deadline   number
 ---@return boolean
-function MapBuilderWorldTiles:_prepareWorldLayerNativeChunk(layerState, chunk, deadline)
+---@param self       Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldTiles.PrepareWorldLayerNativeChunk(self, layerState, chunk, deadline)
     local firstX = math.max(
         0,
         math.floor(chunk.x / WORLD_REGION_BUILD_CHUNK_SIZE) * WORLD_REGION_BUILD_CHUNK_SIZE - WORLD_REGION_BUILD_CHUNK_SIZE
@@ -297,7 +303,7 @@ function MapBuilderWorldTiles:_prepareWorldLayerNativeChunk(layerState, chunk, d
                 if perfCounter() >= deadline then
                     return false
                 end
-                self:_writeWorldLayerDataChunk(layerState, dataChunk)
+                self:writeWorldLayerDataChunk(layerState, dataChunk)
             end
         end
     end

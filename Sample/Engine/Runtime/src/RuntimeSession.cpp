@@ -1,6 +1,6 @@
 #include <Runtime/RuntimeSession.hpp>
 
-#include "RuntimeServiceInternals.hpp"
+#include <Runtime/Detail/RuntimeServices.hpp>
 #include "HotReload.hpp"
 #include "Blueprint/BlueprintRuntime/BlueprintRuntimeInternal.hpp"
 #include "Blueprint/ClassRuntime/ClassRuntimeInternal.hpp"

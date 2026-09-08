@@ -1,4 +1,4 @@
-#include "RuntimeServiceInternals.hpp"
+#include <Runtime/Detail/RuntimeServices.hpp>
 
 #include <ClassServices.hpp>
 #include <LuaError.hpp>
@@ -260,10 +260,6 @@ std::vector<sol::object> runtimeKeys(sol::state_view lua,
         control = key;
     }
     return keys;
-}
-
-void clearRuntimeCommonCaches(sol::state_view lua) {
-    lua.registry().raw_set("Ludork.Runtime.componentCaches", sol::lua_nil);
 }
 
 }  // namespace ludork::runtime::detail

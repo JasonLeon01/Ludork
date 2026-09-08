@@ -76,7 +76,7 @@ function Scene:onDestroy()
 end
 
 ---@diagnostic disable-next-line: unused
-function Scene:_startGame()
+function Scene:startGame()
     local SceneMap = require("Source.Scenes.SceneMap")
 
     AudioManager.playSound(SourceSystem.GetDecisionSE())
@@ -86,7 +86,7 @@ function Scene:_startGame()
     GlobalSystem.setScene(nextScene)
 end
 
-function Scene:_onLoadCommand()
+function Scene:openLoad()
     AudioManager.playSound(SourceSystem.GetDecisionSE())
     self._windowCommand:setActive(false)
     self._windowSaveLoad:open()
@@ -112,7 +112,7 @@ function Scene:_onSaveLoadLoaded(inst)
     GlobalSystem.setScene(nextScene)
 end
 
-function Scene:_onConfigCommand()
+function Scene:toggleConfig()
     AudioManager.playSound(SourceSystem.GetDecisionSE())
     if self._configWindow:isOpen() then
         self._configWindow:close()
@@ -128,7 +128,7 @@ function Scene:_onConfigClose()
 end
 
 ---@diagnostic disable-next-line: unused
-function Scene:_exitGame()
+function Scene:exitGame()
     AudioManager.playSound(SourceSystem.GetDecisionSE())
     GlobalSystem.exit()
 end

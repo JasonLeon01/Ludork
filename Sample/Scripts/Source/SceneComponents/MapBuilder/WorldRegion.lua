@@ -1,6 +1,5 @@
 local WorldRegionBuildState = require("Source.SceneComponents.MapBuilder.WorldRegionBuildState")
 
----@type SceneMapBuilderImplState
 local MapBuilderWorldRegion = {}
 
 ---@param worldData    Source.SceneComponents.WorldMapData
@@ -12,8 +11,9 @@ local MapBuilderWorldRegion = {}
 ---@param movedActors  Source.GameInstance.WorldMovedActorRecord[]
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
 ---@return Global.WorldGameMap.RegionBuildState
-function MapBuilderWorldRegion:createWorldRegionBuildState(
-    worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
+---@param self         Source.SceneComponents.SceneMapBuilder
+function MapBuilderWorldRegion.CreateWorldRegionBuildState(
+    self, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
 )
     return WorldRegionBuildState.Create(
         self, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect

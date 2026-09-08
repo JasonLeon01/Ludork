@@ -2,10 +2,12 @@
 
 local RenderSupport = {}
 
----@param world        Global.WorldGameMap.WorldGameMap
+---@param visible      Global.WorldGeometry.CellRect
+---@param limit        Global.WorldGeometry.CellRect
+---@param worldSize    sf.Vector2u
 ---@param activeLights Global.GameMap.ActiveLight[]
 ---@return Global.WorldGeometry.CellRect
-function RenderSupport.GetLightingCellRect(world, activeLights) end
+function RenderSupport.GetLightingCellRect(visible, limit, worldSize, activeLights) end
 
 ---@param target       sf.RenderTexture
 ---@param viewPosition sf.Vector2f

@@ -46,6 +46,7 @@
 ---@field _scrollBox       Engine.ScrollBox
 ---@field _listView        Engine.ListView
 ---@field new              fun(model: Source.Windows.WindowEnemyBook, size: sf.Vector2i): Source.UI.WindowEnemyBook
+---@field _enemies         Source.UI.WindowEnemyBook.Entry[]
 local WindowEnemyBookUI = {}
 
 ---@param text string | nil

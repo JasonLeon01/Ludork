@@ -92,6 +92,20 @@
 ---@field setCurrentRegion            fun(self: Source.GameInstance.GameInstance, region: string)
 local GameInstance = {}
 
+---@param mapKey string
+---@return Source.GameInstance.TelepointRecord[]
+function GameInstance:getTelepointsForMap(mapKey) end
+
+---@param data Source.GameInstance.SaveData
+function GameInstance:restoreFromData(data) end
+
+---@return string | nil
+function GameInstance:getCurrentMapPath() end
+
+---@brief Get an independent, ordered list of maps with recorded telepoints.
+---@return string[]
+function GameInstance:getVisitedMapPaths() end
+
 ---@brief Construct a new game instance with a default player.
 ---@param skipDefaultPlayer boolean | nil
 function GameInstance:init(skipDefaultPlayer) end

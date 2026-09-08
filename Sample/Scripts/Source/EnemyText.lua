@@ -1,5 +1,5 @@
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
-local NodeUtils = require("Source.NodeFunctions.Utils")
+local NumberFormat = require("Source.Utils.NumberFormat")
 
 local EnemyText = {}
 
@@ -16,7 +16,7 @@ function EnemyText.FormatCritical(result)
     )
     local criticalValue = result.data.value
     ---@cast criticalValue integer
-    return tostring(NodeUtils.ToShortNumber(criticalValue))
+    return tostring(NumberFormat.ToShortNumber(criticalValue))
 end
 
 return EnemyText

@@ -1,15 +1,19 @@
 ---@meta Source.Windows.WindowFloorTeleporter.Controller
 
 ---@class Source.Windows.WindowFloorTeleporter.Controller
----@field model Source.Windows.WindowFloorTeleporter
----@field new   fun(model: Source.Windows.WindowFloorTeleporter): Source.Windows.WindowFloorTeleporter.Controller
+---@field model                  Source.Windows.WindowFloorTeleporter
+---@field new                    fun(model: Source.Windows.WindowFloorTeleporter, transition: Source.UI.WindowTransition): Source.Windows.WindowFloorTeleporter.Controller
+---@field _telepointEntriesCache dict<tuple<any>, { [1]: sf.Vector2u, [2]: string } []>
+---@field _transition            Source.UI.WindowTransition
+---@field _lastMapKey            string | nil
+---@field _telepointIndexes      table<string, integer>
 local WindowFloorTeleporterController = {}
 
----@param model Source.Windows.WindowFloorTeleporter
-function WindowFloorTeleporterController:init(model) end
+---@param model      Source.Windows.WindowFloorTeleporter
+---@param transition Source.UI.WindowTransition
+function WindowFloorTeleporterController:init(model, transition) end
 
----@param inst Source.GameInstance.GameInstance | nil
-function WindowFloorTeleporterController:open(inst) end
+function WindowFloorTeleporterController:open() end
 
 ---@param onHidden function | nil
 function WindowFloorTeleporterController:close(onHidden) end
@@ -56,5 +60,8 @@ function WindowFloorTeleporterController:getVisitedMapNames() end
 ---@param mapKey string
 ---@return string
 function WindowFloorTeleporterController:getMapDisplayName(mapKey) end
+
+---@return boolean
+function WindowFloorTeleporterController:isBlocking() end
 
 return WindowFloorTeleporterController

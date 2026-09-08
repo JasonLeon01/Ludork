@@ -3,22 +3,25 @@ local TerrainOperations = require("Global.GameMap.TerrainOperations")
 
 local GameMapBase = GlobalCore.GameMapBase
 
----@type GameMapImplState
 local GameMapTerrain = {}
 
-function GameMapTerrain:getTerrainTile(layerName, position)
+---@param self GameMapImplState
+function GameMapTerrain.GetTerrainTile(self, layerName, position)
     return TerrainOperations.GetTile(self._tilemap, layerName, position)
 end
 
-function GameMapTerrain:getTerrainTilePositions(layerName, tileID)
+---@param self GameMapImplState
+function GameMapTerrain.GetTerrainTilePositions(self, layerName, tileID)
     return TerrainOperations.GetTilePositions(self._tilemap, layerName, tileID)
 end
 
-function GameMapTerrain:setTerrainTile(layerName, position, tileID)
+---@param self GameMapImplState
+function GameMapTerrain.SetTerrainTile(self, layerName, position, tileID)
     return bool(self:setTerrainTiles(layerName, { position }, tileID))
 end
 
-function GameMapTerrain:setTerrainTiles(layerName, positions, tileID)
+---@param self GameMapImplState
+function GameMapTerrain.SetTerrainTiles(self, layerName, positions, tileID)
     local changedPositions, layer, layerData, autoTileTextures, autoTileFrameCounts = TerrainOperations.SetTiles(
         self._tilemap, self._autoTileResolver, layerName, positions, tileID
     )
@@ -34,7 +37,8 @@ function GameMapTerrain:setTerrainTiles(layerName, positions, tileID)
     return changedPositions
 end
 
-function GameMapTerrain:applyTerrainDestructions(terrainDestructions)
+---@param self GameMapImplState
+function GameMapTerrain.ApplyTerrainDestructions(self, terrainDestructions)
     for layerName, changes in pairs(terrainDestructions) do
         for _, change in pairs(changes) do
             self:setTerrainTile(layerName, change.position, change.tileID)
@@ -42,13 +46,15 @@ function GameMapTerrain:applyTerrainDestructions(terrainDestructions)
     end
 end
 
-function GameMapTerrain:markPassabilityDirty()
+---@param self GameMapImplState
+function GameMapTerrain.MarkPassabilityDirty(self)
     self._materialDirty = true
     self._materialRevision = self._materialRevision + 1
     self:invalidatePassabilityCache()
 end
 
-function GameMapTerrain:updateActorOccupancy(actor)
+---@param self GameMapImplState
+function GameMapTerrain.UpdateActorOccupancy(self, actor)
     if self._tilePassableGrid == nil or self._materialDirty then
         self:_rebuildPassabilityCache()
         self._materialDirty = false
@@ -63,7 +69,8 @@ end
 ---@param layerData           Engine.TileLayerData
 ---@param autoTileTextures    sf.Texture[]
 ---@param autoTileFrameCounts integer[]
-function GameMapTerrain:_replaceTerrainLayer(_layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
+---@param self                GameMapImplState
+function GameMapTerrain.ReplaceTerrainLayer(self, _layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
     self:_resetTransparentTiles()
     local newLayer = layer:rebuild(layerData, autoTileTextures, autoTileFrameCounts)
     self._tilemap:addLayer(newLayer)
@@ -77,14 +84,16 @@ end
 ---@param invalidValue number | boolean
 ---@param smooth       boolean
 ---@return sf.Texture
-function GameMapTerrain:_getMaterialPropertyTexture(functionName, invalidValue, smooth)
+---@param self         GameMapImplState
+function GameMapTerrain.GetMaterialPropertyTexture(self, functionName, invalidValue, smooth)
     ---@diagnostic disable-next-line: return-type-mismatch
     return self:generateDataFromMap(
         self._tilemap:getSize(), self:getMaterialPropertyMap(functionName, invalidValue), smooth == true
     )
 end
 
-function GameMapTerrain:_rebuildPassabilityCache()
+---@param self GameMapImplState
+function GameMapTerrain.RebuildPassabilityCache(self)
     local size = self._tilemap:getSize()
     self:_syncActorsForMapCache()
     self._tilePassableGrid = self:rebuildPassabilityCache(size)

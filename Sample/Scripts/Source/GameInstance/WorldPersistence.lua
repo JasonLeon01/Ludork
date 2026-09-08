@@ -1,13 +1,14 @@
 local MapPath = require("Source.MapPath")
 
----@type GameInstanceImplState
 local GameInstanceWorldPersistence = {}
 
-function GameInstanceWorldPersistence:getAddedActors(mapPath)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.GetAddedActors(self, mapPath)
     return self._cachedAddedActors[MapPath.Normalise(mapPath)] or {}
 end
 
-function GameInstanceWorldPersistence:recordAddedActorPosition(mapPath, actor, actorPosition)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.RecordAddedActorPosition(self, mapPath, actor, actorPosition)
     mapPath = MapPath.Normalise(mapPath)
     local actorTag = actor:getMapTag()
     if not bool(actorTag) then
@@ -21,7 +22,8 @@ function GameInstanceWorldPersistence:recordAddedActorPosition(mapPath, actor, a
     end
 end
 
-function GameInstanceWorldPersistence:recordActorPosition(mapPath, actor, actorPosition)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.RecordActorPosition(self, mapPath, actor, actorPosition)
     mapPath = MapPath.Normalise(mapPath)
     local actorTag = actor:getMapTag()
     if not bool(actorTag) then
@@ -34,12 +36,14 @@ function GameInstanceWorldPersistence:recordActorPosition(mapPath, actor, actorP
     self._cachedActorPositions[mapPath][actorTag] = copy(actorPosition)
 end
 
-function GameInstanceWorldPersistence:getActorPositions(mapPath)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.GetActorPositions(self, mapPath)
     return self._cachedActorPositions[MapPath.Normalise(mapPath)] or {}
 end
 
-function GameInstanceWorldPersistence:recordWorldMovedActor(
-    worldPath, actor, definitionRegion, currentRegion, layerName, actorPosition
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.RecordWorldMovedActor(
+    self, worldPath, actor, definitionRegion, currentRegion, layerName, actorPosition
 )
     assert(bool(layerName), "Moved world Actor layer must be a non-empty string")
     worldPath = MapPath.Normalise(worldPath)
@@ -82,7 +86,8 @@ function GameInstanceWorldPersistence:recordWorldMovedActor(
     records[#records + 1] = actorRecord
 end
 
-function GameInstanceWorldPersistence:removeWorldMovedActor(worldPath, actorTag)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.RemoveWorldMovedActor(self, worldPath, actorTag)
     worldPath = MapPath.Normalise(worldPath)
     local records = self._cachedWorldMovedActors[worldPath]
     ---@cast records Source.GameInstance.WorldMovedActorRecord[] | nil
@@ -100,14 +105,15 @@ function GameInstanceWorldPersistence:removeWorldMovedActor(worldPath, actorTag)
     end
 end
 
-function GameInstanceWorldPersistence:getWorldMovedActors(worldPath)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.GetWorldMovedActors(self, worldPath)
     return self._cachedWorldMovedActors[MapPath.Normalise(worldPath)] or {}
 end
 
-function GameInstanceWorldPersistence:_validateWorldActorRecordTags()
-    for worldPath, movedActors in pairs(self._cachedWorldMovedActors) do
+function GameInstanceWorldPersistence.ValidateWorldActorRecordTags(addedActors, worldMovedActors)
+    for worldPath, movedActors in pairs(worldMovedActors) do
         local addedTags = {}
-        for _, record in ipairs(self._cachedAddedActors[worldPath] or {}) do
+        for _, record in ipairs(addedActors[worldPath] or {}) do
             addedTags[record.tag] = true
         end
         for _, record in ipairs(movedActors) do
@@ -120,7 +126,8 @@ function GameInstanceWorldPersistence:_validateWorldActorRecordTags()
     end
 end
 
-function GameInstanceWorldPersistence:recordDestroyedActorTag(mapPath, actorTag)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.RecordDestroyedActorTag(self, mapPath, actorTag)
     mapPath = MapPath.Normalise(mapPath)
     if not bool(actorTag) then
         return
@@ -133,11 +140,13 @@ function GameInstanceWorldPersistence:recordDestroyedActorTag(mapPath, actorTag)
     self:removeWorldMovedActor(mapPath, actorTag)
 end
 
-function GameInstanceWorldPersistence:recordDestroyedActor(mapPath, actor)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.RecordDestroyedActor(self, mapPath, actor)
     self:recordDestroyedActorTag(mapPath, actor:getMapTag())
 end
 
-function GameInstanceWorldPersistence:getDestroyedActors(mapPath)
+---@param self Source.GameInstance.GameInstance
+function GameInstanceWorldPersistence.GetDestroyedActors(self, mapPath)
     return self._cachedDestroyedActors[MapPath.Normalise(mapPath)] or {}
 end
 

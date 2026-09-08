@@ -5,6 +5,7 @@ local WindowShopCellUI = require("Source.UI.Parts.WindowShop.WindowShopCell")
 
 local _SHOP_ITEM_ROW_HEIGHT = 32
 
+---@class Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI
 local WindowShopItemUI = {}
 
 function WindowShopItemUI:init(model, size, instance)
@@ -18,6 +19,7 @@ function WindowShopItemUI:bind()
     self._content = self:requireControl("Content")
     self._scrollBox = self:requireControl("ItemScrollBox")
     self._listView = self:requireControl("ItemList")
+    ---@cast self._listView Engine.ListView
 end
 
 function WindowShopItemUI:prepare()
@@ -51,8 +53,8 @@ end
 function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap, showValues)
     self._listView:clearChildren()
     self._cellControllers = {}
-    self.model._cellAvailable = {}
-    local cellWidth = self.model:_getRectWidth()
+    self._cellAvailable = {}
+    local cellWidth = self.model:getItemWidth()
     local itemData = Data.GetAllGeneralItemData()
     for _, itemID in ipairs(itemIDs) do
         local member = itemData[itemID] or {}
@@ -60,20 +62,24 @@ function WindowShopItemUI:refreshItems(itemIDs, availableMap, valueMap, showValu
         if available == nil then
             available = true
         end
-        self.model._cellAvailable[#self.model._cellAvailable + 1] = available
+        self._cellAvailable[#self._cellAvailable + 1] = available
         local cellController = WindowShopCellUI.new({
             iconTexture = IconTexture.Load(member.icon or ""),
             value = valueMap[itemID] or 0,
             showValue = showValues,
             available = available,
             callback = function (_obj, _kwargs)
-                self.model._owner:confirmItem()
+                self.model:confirmItem()
             end
         })
         local cell = cellController:prepare(sf.Vector2u.new(cellWidth, _SHOP_ITEM_ROW_HEIGHT))
         self._cellControllers[#self._cellControllers + 1] = cellController
         self._listView:addChild(cell)
     end
+end
+
+function WindowShopItemUI:isItemAvailable(index)
+    return index ~= nil and index >= 0 and self._cellAvailable[index + 1] == true
 end
 
 return Ui.Define("Parts/WindowShop/WindowShopItem", WindowShopItemUI)

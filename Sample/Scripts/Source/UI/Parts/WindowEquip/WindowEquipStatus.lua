@@ -22,8 +22,14 @@ local WindowEquipStatusUI = {}
 ---@type function
 local wrapDescription
 
-function WindowEquipStatusUI:init(model, instance)
-    super(WindowEquipStatusUI, self).init(model, instance)
+function WindowEquipStatusUI:init(model, instance, player)
+    self._player = player
+    self._slotKey = ""
+    self._changeTexts = {}
+    super(WindowEquipStatusUI, self).init(model, instance, player)
+    self._player = player
+    self._slotKey = ""
+    self._changeTexts = {}
     self._changeRowControllers = {}
     self._descriptionName = ""
     self._descriptionText = ""
@@ -37,9 +43,9 @@ function WindowEquipStatusUI:bind()
     ---@cast changeList Engine.ListView
     changeList:clearChildren()
     self._changeList = changeList
-    self.model._descNameText = self:requireControl("ItemName")
-    self.model._descText = self:requireControl("Description")
-    self._descriptionControl = self.model._descText
+    self._descNameText = self:requireControl("ItemName")
+    self._descText = self:requireControl("Description")
+    self._descriptionControl = self._descText
     ---@cast self._descriptionControl Engine.PlainText
 end
 
@@ -59,7 +65,7 @@ function WindowEquipStatusUI:attach(nested)
 end
 
 function WindowEquipStatusUI:setPlayer(player)
-    self.model._player = player
+    self._player = player
 end
 
 function WindowEquipStatusUI:openForSlot(slotKey)
@@ -78,8 +84,8 @@ function WindowEquipStatusUI:refreshForEquip(slotKey, candidateEquipID, showUneq
         showUnequip = false
     end
     self:_refreshLogicalSize()
-    self.model._slotKey = slotKey
-    local currentEquipID = self.model._player:getEquipInfo(slotKey)
+    self._slotKey = slotKey
+    local currentEquipID = self._player:getEquipInfo(slotKey)
     local currentAttrs = self:getAttrPlus(currentEquipID)
     local candidateAttrs = showUnequip and {} or self:getAttrPlus(candidateEquipID)
     self:refreshChangeRows(currentAttrs, candidateAttrs)
@@ -90,11 +96,11 @@ end
 
 function WindowEquipStatusUI:refreshForSlot(slotKey)
     self:_refreshLogicalSize()
-    self.model._slotKey = slotKey
+    self._slotKey = slotKey
     self:clearChangeTexts()
     self._descriptionNameY = _SLOT_DESC_NAME_Y
     self._descriptionTextY = _SLOT_DESC_TEXT_Y
-    local currentEquipID = self.model._player:getEquipInfo(slotKey)
+    local currentEquipID = self._player:getEquipInfo(slotKey)
     self:refreshDescription(bool(currentEquipID) and currentEquipID or nil, false)
 end
 
@@ -124,8 +130,8 @@ function WindowEquipStatusUI:addChangeRow(attrKey, delta, _rowIndex)
     self._changeList:addChild(rowRoot)
     self._changeList:applyPositions()
     self._changeRowControllers[#self._changeRowControllers + 1] = controller
-    self.model._changeTexts[#self.model._changeTexts + 1] = controller:requireControl("Label")
-    self.model._changeTexts[#self.model._changeTexts + 1] = controller:requireControl("Delta")
+    self._changeTexts[#self._changeTexts + 1] = controller:requireControl("Label")
+    self._changeTexts[#self._changeTexts + 1] = controller:requireControl("Delta")
 end
 
 function WindowEquipStatusUI:refreshDescription(candidateEquipID, showUnequip)
@@ -156,7 +162,7 @@ function WindowEquipStatusUI:clearChangeTexts()
         end
     end
     self._changeRowControllers = {}
-    self.model._changeTexts = {}
+    self._changeTexts = {}
 end
 
 function WindowEquipStatusUI:setDescriptionPosition(nameY, descY)
@@ -166,8 +172,8 @@ function WindowEquipStatusUI:setDescriptionPosition(nameY, descY)
 end
 
 function WindowEquipStatusUI:_applyDescriptionPosition()
-    self.model._descNameText:setPosition(sf.Vector2f.new(0.0, self._descriptionNameY))
-    self.model._descText:setPosition(sf.Vector2f.new(0.0, self._descriptionTextY))
+    self._descNameText:setPosition(sf.Vector2f.new(0.0, self._descriptionNameY))
+    self._descText:setPosition(sf.Vector2f.new(0.0, self._descriptionTextY))
 end
 
 ---@diagnostic disable-next-line: unused

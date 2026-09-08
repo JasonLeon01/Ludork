@@ -7,25 +7,12 @@ local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Data = require("Source.Data")
 local EnemyText = require("Source.EnemyText")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
-local Utils = require("Source.NodeFunctions.Utils")
+local NumberFormat = require("Source.Utils.NumberFormat")
 
 local Actor = Engine.Actor
 local PlainText = Engine.PlainText
 local UIFunctions = GlobalFunctions.UI
 local Item = GeneralEnum.Item
-
----@param self Source.EnemyDamageText
-local function syncTextDisplayScale(self)
-    local displayScale = math.max(Engine.Scale, 0.000001)
-    if self._textDisplayScale == displayScale then
-        return
-    end
-    self._textDisplayScale = displayScale
-    self._textRenderStates = sf.RenderStates.new()
-    local inverseScale = 1.0 / displayScale
-    self._textRenderStates.transform:scale(sf.Vector2f.new(inverseScale, inverseScale))
-    self._renderDirty = true
-end
 
 ---@type function
 local getParentSize
@@ -45,10 +32,22 @@ EnemyDamageText.collisionEnabled = false
 EnemyDamageText.requiredItemID = Item.EnemyBook
 EnemyDamageText.textConfig = "Enemy/DamageReadout"
 EnemyDamageText.damageTextOffset = sf.Vector2f.new(0.0, 0.0)
-EnemyDamageText._blankTexture = nil
-EnemyDamageText._scratchRenderTexture = nil
-EnemyDamageText._scratchWidth = 0
-EnemyDamageText._scratchHeight = 0
+local blankTexture = nil
+local scratchRenderTexture = nil
+local scratchWidth = 0
+local scratchHeight = 0
+
+function EnemyDamageText:_syncTextDisplayScale()
+    local displayScale = math.max(Engine.Scale, 0.000001)
+    if self._textDisplayScale == displayScale then
+        return
+    end
+    self._textDisplayScale = displayScale
+    self._textRenderStates = sf.RenderStates.new()
+    local inverseScale = 1.0 / displayScale
+    self._textRenderStates.transform:scale(sf.Vector2f.new(inverseScale, inverseScale))
+    self._renderDirty = true
+end
 
 function EnemyDamageText:init(_texture, _rect, tag)
     super(EnemyDamageText, self).init(getBlankTexture(), nil, tag)
@@ -76,12 +75,12 @@ function EnemyDamageText:init(_texture, _rect, tag)
     self._fillColor = sf.Color.White
     self._textDisplayScale = nil
     self._textRenderStates = sf.RenderStates.new()
-    syncTextDisplayScale(self)
+    self:_syncTextDisplayScale()
     self:setVisible(false, false)
 end
 
 function EnemyDamageText:onTick(_deltaTime)
-    syncTextDisplayScale(self)
+    self:_syncTextDisplayScale()
     local player = getPlayer()
     if player == nil then
         self:_setOverlayVisible(false)
@@ -116,7 +115,7 @@ function EnemyDamageText:onTick(_deltaTime)
     if battleResult.code ~= MotaBattleAbility.BattleResult.CANNOT_DAMAGE then
         damage = battleResult.data.damage
     end
-    local damageText = damage == nil and "???" or tostring(Utils.ToShortNumber(damage))
+    local damageText = damage == nil and "???" or tostring(NumberFormat.ToShortNumber(damage))
     local criticalText = EnemyText.FormatCritical(MotaBattleAbility.CalculateCriticalValue(parent, player))
     local playerHP = player.attributes.HP
     ---@cast playerHP integer
@@ -236,7 +235,7 @@ function EnemyDamageText:_drawText(renderTexture, text, fillColor, width, height
 end
 
 function EnemyDamageText:_clearRenderedTexture()
-    if self:getTexture() ~= EnemyDamageText._blankTexture then
+    if self:getTexture() ~= blankTexture then
         self:setTexture(getBlankTexture(), true)
         self:setOrigin(sf.Vector2f.new(0.0, 0.0))
     end
@@ -333,12 +332,11 @@ end
 
 ---@return sf.Texture
 function getBlankTexture()
-    if EnemyDamageText._blankTexture == nil then
+    if blankTexture == nil then
         local size = sf.Vector2u.new(1, 1)
         ---@cast size sf.Vector2u
-        EnemyDamageText._blankTexture = sf.Texture.new(sf.Image.new(size, sf.Color.Transparent))
+        blankTexture = sf.Texture.new(sf.Image.new(size, sf.Color.Transparent))
     end
-    local blankTexture = EnemyDamageText._blankTexture
     ---@cast blankTexture sf.Texture
     return blankTexture
 end
@@ -348,12 +346,12 @@ end
 ---@param height integer
 ---@return sf.RenderTexture | nil
 function getScratchRenderTexture(size, width, height)
-    local renderTexture = EnemyDamageText._scratchRenderTexture
-    if renderTexture == nil or width ~= EnemyDamageText._scratchWidth or height ~= EnemyDamageText._scratchHeight then
+    local renderTexture = scratchRenderTexture
+    if renderTexture == nil or width ~= scratchWidth or height ~= scratchHeight then
         renderTexture = sf.RenderTexture.new(size)
-        EnemyDamageText._scratchRenderTexture = renderTexture
-        EnemyDamageText._scratchWidth = width
-        EnemyDamageText._scratchHeight = height
+        scratchRenderTexture = renderTexture
+        scratchWidth = width
+        scratchHeight = height
     end
     return renderTexture
 end

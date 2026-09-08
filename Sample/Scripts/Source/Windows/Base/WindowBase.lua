@@ -43,14 +43,13 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     if deferView == true then
         self:_createDeclarativeChrome()
     else
-        self._windowBaseUI = WindowBaseUI.new(self, windowSkin, repeated)
+        self._windowBaseUI = WindowBaseUI.new(
+            self, windowSkin, repeated, self._PAUSE_MARK_ATLAS_RECT, assert(self._PAUSE_MARK_FRAME_RECTS[1])
+        )
         local size = self:getSize()
-        self._windowBaseUI:attachTo(self, sf.Vector2u.new(size.x, size.y))
-        self._window = self._windowBaseUI:getWindow()
-        self.content = self._windowBaseUI:getContent()
-        self._returnButton = self._windowBaseUI:getReturnButton()
-        self._pauseMark = self._windowBaseUI:getPauseMark()
-        self._pauseMarkTexture = self._windowBaseUI:getPauseMarkTexture()
+        local logicalSize = sf.Vector2u.new(size.x, size.y)
+        ---@cast logicalSize sf.Vector2u
+        self._windowBaseUI:attachTo(self, logicalSize)
     end
     ---@cast self._returnButton Engine.Button
     ---@cast self._pauseMark Engine.Image
@@ -105,10 +104,27 @@ function WindowBase:setVisible(visible)
     self:_refreshReturnButtonState()
 end
 
-function WindowBase:_setUiController(controller, target)
+function WindowBase:attachPreparedView(controller, viewParts)
+    assert(self._window == nil and self.content == nil, "Window host already has a prepared view")
+    if viewParts.nested then
+        assert(viewParts.root:getParent() ~= nil, "Nested declarative root must already belong to its asset")
+    else
+        self:addChild(viewParts.root)
+    end
+    self._window = viewParts.windowFrame
+    self.content = viewParts.content
+    self._visualRoot = viewParts.root
+    self._window:setWindowSkin(self._windowSkin, self._repeated)
+    if viewParts.returnButton ~= nil then
+        self._returnButton = viewParts.returnButton
+        self._pauseMark = assert(viewParts.pauseMark)
+        self._pauseMarkTexture = assert(viewParts.pauseMarkTexture)
+    else
+        self.content:addChild(self._pauseMark)
+        viewParts.chromeRoot:addChild(self._returnButton)
+    end
     self._uiController = controller
-    self._visualRoot = controller:getRoot()
-    self._transition = controller:createTransition(self, target)
+    self._transition = controller:createTransition(self, viewParts.transitionTarget)
 end
 
 function WindowBase:showWithAnimation(animationName, onReady)
@@ -138,12 +154,12 @@ function WindowBase:isTransitionOpen()
     return self._transition ~= nil and self._transition:isOpen()
 end
 
-function WindowBase:_setReturnButtonSuppressed(suppressed)
+function WindowBase:setReturnButtonSuppressed(suppressed)
     self._returnButtonSuppressed = suppressed == true
     self:_refreshReturnButtonState()
 end
 
-function WindowBase:_canUseReturnButton()
+function WindowBase:isReturnButtonEnabled()
     return self._hasReturnBtn and not self._returnButtonSuppressed and self:getVisible() and self:getActive()
 end
 
@@ -151,7 +167,7 @@ function WindowBase:_refreshReturnButtonState()
     if self._returnButton == nil then
         return
     end
-    local enabled = self:_canUseReturnButton()
+    local enabled = self:isReturnButtonEnabled()
     ---@cast enabled boolean
     self._returnButton:setActive(enabled)
     self._returnButton:setVisible(enabled)
@@ -164,14 +180,14 @@ function WindowBase:_bindReturnButton()
     })
     self._returnButton:addConfirmCallback(function ()
         local model = modelRef[1]
-        if model ~= nil and model:_canUseReturnButton() then
+        if model ~= nil and model:isReturnButtonEnabled() then
             model:onReturn()
         end
     end)
     self._returnButton:addMouseButtonDownCallback(function (button, kwargs)
         local model = modelRef[1]
         ---@cast button Engine.Button
-        if model == nil or not model:_canUseReturnButton() or kwargs.button ~= sf.Mouse.Button.Left then
+        if model == nil or not model:isReturnButtonEnabled() or kwargs.button ~= sf.Mouse.Button.Left then
             return false
         end
         if kwargs.position == nil then
@@ -262,6 +278,14 @@ function WindowBase:_updatePauseMarkAnimation(deltaTime)
     self._pauseMarkFrameIndex = self._pauseMarkFrameIndex % #self._PAUSE_MARK_FRAME_RECTS + 1
     ---@diagnostic disable-next-line: need-check-nil, param-type-mismatch
     self._pauseMark:setTextureRect(self._PAUSE_MARK_FRAME_RECTS[self._pauseMarkFrameIndex])
+end
+
+function WindowBase:applyWindowSkin(windowFrame)
+    windowFrame:setWindowSkin(self._windowSkin, self._repeated)
+end
+
+function WindowBase:getPauseMarkSize()
+    return self._PAUSE_MARK_SIZE
 end
 
 return class(WindowBase, Canvas)

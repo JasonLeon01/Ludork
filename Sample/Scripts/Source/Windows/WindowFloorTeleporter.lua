@@ -34,7 +34,6 @@ function WindowFloorTeleporter:init(
     self._clearPreviewCacheCallback = clearPreviewCache
     self._ui = WindowFloorTeleporterUI.new(self)
     self._ui:attach()
-    self._transition = self._ui:createTransition(self)
     self._commandWindow = WindowFloorMapCommand.new(
         Engine.ToIntRect(0, 0, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT), self, self._ui:getCommandAsset()
     )
@@ -44,10 +43,7 @@ function WindowFloorTeleporter:init(
     )
     self:addChild(self._previewWindow)
     self:addChild(self._commandWindow)
-    self._lastMapKey = nil
-    self._telepointIndexes = {}
-    self._telepointEntriesCache = dict()
-    self._teleporterController = self.controllerClass.new(self)
+    self._teleporterController = self.controllerClass.new(self, self._ui:createTransition(self))
     self._teleporterController:hideImmediate()
 end
 
@@ -60,11 +56,14 @@ function WindowFloorTeleporter:getPreviewWindow()
 end
 
 function WindowFloorTeleporter:getVisible()
-    return self._transition:isBlocking()
+    return self._teleporterController:isBlocking()
 end
 
 function WindowFloorTeleporter:open(inst)
-    self._teleporterController:open(inst)
+    if inst ~= nil then
+        self._inst = inst
+    end
+    self._teleporterController:open()
 end
 
 function WindowFloorTeleporter:close(onHidden)
@@ -119,6 +118,28 @@ function WindowFloorTeleporter:dispose()
     self._onConfirmCallback = nil
     self._onCloseCallback = nil
     self._clearPreviewCacheCallback = nil
+end
+
+function WindowFloorTeleporter:getGameInstance()
+    return self._inst
+end
+
+function WindowFloorTeleporter:clearPreviewCache()
+    if self._clearPreviewCacheCallback ~= nil then
+        self._clearPreviewCacheCallback()
+    end
+end
+
+function WindowFloorTeleporter:notifyClosed()
+    if self._onCloseCallback ~= nil then
+        self._onCloseCallback()
+    end
+end
+
+function WindowFloorTeleporter:confirmTelepoint(mapKey, telepoint)
+    if self._onConfirmCallback ~= nil then
+        self._onConfirmCallback(mapKey, telepoint)
+    end
 end
 
 return class(WindowFloorTeleporter, Canvas)

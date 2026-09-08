@@ -188,7 +188,7 @@ function ConfigWindowUI:bind()
     self._tabView:setWindowSkin(self._windowSkin)
     self._tabView:setCursorSound(tostring(GameSystem.GetCursorSE()))
     self._tabView:setOnSelectedIndexChanged(function (index)
-        self.model:_onTabSelected(index)
+        self.model:selectTab(index)
     end)
     self._tabView:setKeyHint(
         Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.Q, Joystick = Engine.JoystickButton.getLB() }),
@@ -468,10 +468,10 @@ function ConfigWindowUI:_bindDropBoxRow(rowUI)
     rowUI:addConfirmCallback(self.model.MakeSettingRowConfirmCallback(rowUI))
     local dropBox = rowUI:getDropBox()
     dropBox:setOnExpandedChanged(function (expanded)
-        self.model:_onDropBoxExpandedChanged(expanded)
+        self.model:onDropBoxExpandedChanged(expanded)
     end)
     dropBox:addKeyDownCallback(function ()
-        self.model:_handleTabNavigation()
+        self.model:handleTabNavigation()
     end)
 end
 
@@ -549,63 +549,36 @@ function ConfigWindowUI:_createGraphicsRows()
 end
 
 function ConfigWindowUI:_createAudioRows()
-    self._musicOnRow = ConfigCheckBoxRowUI.new(
-        LOC("musicon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getMusicOn(),
-        function (checked)
-            onMusicOnCheckedChanged(checked)
-        end
+    self._musicOnRow = ConfigCheckBoxRowUI.new(LOC("musicon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getMusicOn(), function (
+        checked
     )
-    self._musicVolumeRow = ConfigSliderRowUI.new(
-        LOC("musicvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        math.round(System.getMusicVolume()),
-        function (value)
-            onMusicVolumeChanged(value)
-        end
+        onMusicOnCheckedChanged(checked)
+    end)
+    self._musicVolumeRow = ConfigSliderRowUI.new(LOC("musicvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
+        System.getMusicVolume()
+    ), function (value)
+        onMusicVolumeChanged(value)
+    end)
+    self._soundOnRow = ConfigCheckBoxRowUI.new(LOC("soundon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getSoundOn(), function (
+        checked
     )
-    self._soundOnRow = ConfigCheckBoxRowUI.new(
-        LOC("soundon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getSoundOn(),
-        function (checked)
-            onSoundOnCheckedChanged(checked)
-        end
+        onSoundOnCheckedChanged(checked)
+    end)
+    self._soundVolumeRow = ConfigSliderRowUI.new(LOC("soundvolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
+        System.getSoundVolume()
+    ), function (value)
+        onSoundVolumeChanged(value)
+    end)
+    self._voiceOnRow = ConfigCheckBoxRowUI.new(LOC("voiceon"), _CONTENT_WIDTH, _CHECKBOX_SIZE, self._windowSkin, System.getVoiceOn(), function (
+        checked
     )
-    self._soundVolumeRow = ConfigSliderRowUI.new(
-        LOC("soundvolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        math.round(System.getSoundVolume()),
-        function (value)
-            onSoundVolumeChanged(value)
-        end
-    )
-    self._voiceOnRow = ConfigCheckBoxRowUI.new(
-        LOC("voiceon"),
-        _CONTENT_WIDTH,
-        _CHECKBOX_SIZE,
-        self._windowSkin,
-        System.getVoiceOn(),
-        function (checked)
-            onVoiceOnCheckedChanged(checked)
-        end
-    )
-    self._voiceVolumeRow = ConfigSliderRowUI.new(
-        LOC("voicevolume"),
-        _CONTENT_WIDTH,
-        _SLIDER_WIDTH,
-        math.round(System.getVoiceVolume()),
-        function (value)
-            onVoiceVolumeChanged(value)
-        end
-    )
+        onVoiceOnCheckedChanged(checked)
+    end)
+    self._voiceVolumeRow = ConfigSliderRowUI.new(LOC("voicevolume"), _CONTENT_WIDTH, _SLIDER_WIDTH, math.round(
+        System.getVoiceVolume()
+    ), function (value)
+        onVoiceVolumeChanged(value)
+    end)
     self._pages[_AUDIO_PAGE_INDEX + 1] = {
         list = self._audioList,
         rows = {

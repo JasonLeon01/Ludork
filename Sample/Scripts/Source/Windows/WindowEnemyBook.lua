@@ -5,7 +5,6 @@ local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
 local AudioManager = GlobalCore.AudioManager
 
-local _WINDOW_SIZE = 352
 local _CELL_WIDTH = 320
 local _CELL_HEIGHT = 64
 
@@ -20,7 +19,6 @@ function WindowEnemyBook:init(rect, player, onClose, onConfirm)
     self._player = player
     self._onCloseCallback = onClose
     self._onConfirmCallback = onConfirm
-    self._enemies = {}
     self._ui = self.uiClass.new(self, rect.size)
     self._ui:attach()
     self:setScrollBox(self._ui:getScrollBox())
@@ -93,7 +91,7 @@ end
 
 ---@return integer
 ---@diagnostic disable-next-line: unused
-function WindowEnemyBook:_getRectWidth()
+function WindowEnemyBook:getItemWidth()
     return _CELL_WIDTH
 end
 
@@ -107,7 +105,7 @@ function WindowEnemyBook:onReturn()
 end
 
 ---@param entry table
-function WindowEnemyBook:_confirmEnemy(entry)
+function WindowEnemyBook:confirmEnemy(entry)
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:close()
     if self._onConfirmCallback ~= nil then
@@ -115,7 +113,9 @@ function WindowEnemyBook:_confirmEnemy(entry)
     end
 end
 
-WindowEnemyBook._WINDOW_SIZE = _WINDOW_SIZE
+function WindowEnemyBook:getPlayer()
+    return self._player
+end
 
 local FinalWindowEnemyBook = class(WindowEnemyBook, WindowSelectable)
 

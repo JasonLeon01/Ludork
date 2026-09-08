@@ -27,10 +27,12 @@
 
 ---@alias Source.Scenes.SceneMap.BlockingWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowEnemyBook | Source.Windows.WindowEnemyEncyclopedia | Source.Windows.WindowFloorTeleporter
 
----@class Source.Scenes.SceneMap.SceneMap: GlobalCore.SceneBase
+---@class Source.Scenes.SceneMap.SceneMap: Source.Gameplay.GameplayScene
 ---@field new                                   fun(): Source.Scenes.SceneMap.SceneMap
 ---@field inst                                  Source.GameInstance.GameInstance
 ---@field player                                Source.Player.Player
+---@field _gameplayRequestsActive               boolean
+---@field _gameOverRequest                      { player: Source.Player.Player, gameMap: GameMap } | nil
 ---@field _mapBuilder                           Source.SceneComponents.SceneMapBuilder
 ---@field _mapAudio                             Source.SceneComponents.SceneMapAudioController
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
@@ -139,6 +141,20 @@ function Scene:loadMap(mapPath, initialPosition) end
 
 ---@return GameMap
 function Scene:getGameMap() end
+
+---@return Source.GameInstance.GameInstance
+function Scene:getGameInstance() end
+
+function Scene:refreshLocale() end
+
+---@param teleporter Source.Teleporter.Teleporter
+---@param step       integer
+---@return boolean
+function Scene:requestFloorStep(teleporter, step) end
+
+---@param player Source.Player.Player
+---@param delay  number
+function Scene:requestGameOver(player, delay) end
 
 ---@brief Show a dialogue message window.
 ---

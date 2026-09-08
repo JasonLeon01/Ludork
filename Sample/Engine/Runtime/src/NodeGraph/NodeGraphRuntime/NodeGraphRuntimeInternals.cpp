@@ -1,6 +1,7 @@
 #include "NodeGraphRuntimeInternal.hpp"
-#include "RuntimeBindingTraits.hpp"
-#include "RuntimeServiceInternals.hpp"
+#include "StackRestore.hpp"
+#include "LuaServices/RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeReferenceConversion.hpp"
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Runtime/NodeGraph/Node.hpp>
 #include <Runtime/Detail/RuntimeServices.hpp>
@@ -13,19 +14,16 @@
 #include <stdexcept>
 
 namespace ludork::runtime::node_graph_detail {
+
+StackRestore::~StackRestore() {
+    lua_settop(state, top);
+}
+
 namespace {
 constexpr const char* NODEGRAPH_REF_LOCALS_KEY =
     "Ludork.Runtime.NodeGraph.refLocals";
 constexpr const char* NODEGRAPH_CONTEXTS_KEY =
     "Ludork.Runtime.NodeGraph.contexts";
-
-struct StackRestore {
-    lua_State* state;
-    int top;
-    ~StackRestore() {
-        lua_settop(state, top);
-    }
-};
 
 sol::object write(sol::state_view lua, const RuntimeValue& value) {
     return binding::writeLuaValue(lua, value);

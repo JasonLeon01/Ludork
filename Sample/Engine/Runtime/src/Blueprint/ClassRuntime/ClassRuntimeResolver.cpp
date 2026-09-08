@@ -2,8 +2,9 @@
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
-#include "RuntimeServiceInternals.hpp"
-#include "RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeReferenceConversion.hpp"
+#include "LuaServices/RuntimeServiceInternals.hpp"
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
 #include <Runtime/Components/ComponentRuntime.hpp>
