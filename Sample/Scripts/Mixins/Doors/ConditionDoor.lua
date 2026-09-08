@@ -19,6 +19,7 @@ local function getGameInstance()
 end
 
 function ConditionDoor:onCreate()
+    super().onCreate()
     self._conditionDoorPending = true
     if not bool(self.openConditionName) then
         return

@@ -81,11 +81,6 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
         return;
     }
     sol::table entry = rawEntry.as<sol::table>();
-    const sol::object rawRunning = entry.raw_get<sol::object>("running");
-    if (rawRunning.is<bool>() && rawRunning.as<bool>()) {
-        assignValue();
-        return;
-    }
     if (!value.valid() || value.get_type() == sol::type::lua_nil) {
         throw std::invalid_argument("Monitored fields cannot be assigned nil");
     }
@@ -94,7 +89,7 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
         oldValue = entry.raw_get<sol::object>("missing");
     }
     assignValue();
-    invokeMonitorCallback(lua, entry, oldValue, value);
+    invokeMonitorCallbacks(lua, entry, oldValue, value);
 }
 
 }  // namespace
@@ -115,16 +110,14 @@ int compositeNewIndex(lua_State* state) {
                 return luaL_error(state, "Class instance construction failed");
             }
 
-            // Skip fast path when there is an active (non-running) monitor
+            // Monitored writes need per-subscription dispatch and validation.
             bool activeMonitor = false;
             lua_getfield(state, fieldsIndex, "__monitorCallbacks");
             if (lua_istable(state, -1)) {
                 lua_pushvalue(state, 2);
                 lua_rawget(state, -2);
                 if (lua_istable(state, -1)) {
-                    lua_getfield(state, -1, "running");
-                    activeMonitor = !lua_toboolean(state, -1);
-                    lua_pop(state, 1);
+                    activeMonitor = true;
                 }
                 lua_pop(state, 1);
             }

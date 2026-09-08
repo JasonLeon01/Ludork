@@ -19,12 +19,7 @@ namespace Ludork.Controls;
 public sealed class BlueprintVariableForm : UserControl, IDisposable
 {
     private const double CompactDictionaryEntryWidth = 300;
-    private readonly Grid form = new()
-    {
-        ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-        ColumnSpacing = 4,
-        RowSpacing = 4,
-    };
+    private readonly Grid form = createFormGrid();
     private readonly List<BlueprintVariableField> fields = [];
     private readonly Dictionary<string, JsonNode?> values = new(StringComparer.Ordinal);
     private readonly Dictionary<string, JsonNode?> contextValues = new(StringComparer.Ordinal);
@@ -156,6 +151,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         set => showFieldNames = value;
     }
 
+    public bool ShowSourceGroups { get; set; }
+
     public void SetFields(IEnumerable<BlueprintVariableField> nextFields)
     {
         if (disposed)
@@ -195,10 +192,21 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (componentFields.Count > 0)
             addComponentRow(componentFields);
 
-        foreach (BlueprintVariableField field in fields)
+        IEnumerable<BlueprintVariableField> variableFields = fields.Where(field => !field.IsComponent);
+        if (ShowSourceGroups)
         {
-            if (!field.IsComponent)
-                addFieldRow(field);
+            foreach (IGrouping<string?, BlueprintVariableField> group in variableFields.GroupBy(
+                field => field.SourceClass, StringComparer.Ordinal))
+            {
+                Grid target = string.IsNullOrWhiteSpace(group.Key) ? form : addSourceGroup(group.Key);
+                foreach (BlueprintVariableField field in group)
+                    addFieldRow(field, target);
+            }
+        }
+        else
+        {
+            foreach (BlueprintVariableField field in variableFields)
+                addFieldRow(field, form);
         }
 
         building = false;
@@ -361,7 +369,59 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             container);
     }
 
-    private void addFieldRow(BlueprintVariableField field)
+    private static Grid createFormGrid()
+    {
+        return new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 4,
+            RowSpacing = 4,
+        };
+    }
+
+    private Grid addSourceGroup(string sourceClass)
+    {
+        TextBlock title = new()
+        {
+            Text = LuaTypeReference.Parse(sourceClass).TypeName,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.Parse("#909090")),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        ToolTip.SetTip(title, sourceClass);
+        Grid groupForm = createFormGrid();
+        Grid content = new()
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            RowSpacing = 6,
+            Margin = new Thickness(8),
+            Children = { title, groupForm },
+        };
+        Grid.SetRow(groupForm, 1);
+        Grid container = new()
+        {
+            Margin = new Thickness(0, form.RowDefinitions.Count == 0 ? 0 : 4, 0, 0),
+            Children =
+            {
+                new Avalonia.Controls.Shapes.Rectangle
+                {
+                    Stroke = new SolidColorBrush(Color.Parse("#666666")),
+                    StrokeThickness = 1,
+                    StrokeDashArray = [4, 3],
+                    IsHitTestVisible = false,
+                },
+                content,
+            },
+        };
+        int row = form.RowDefinitions.Count;
+        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        Grid.SetRow(container, row);
+        Grid.SetColumnSpan(container, 3);
+        form.Children.Add(container);
+        return groupForm;
+    }
+
+    private void addFieldRow(BlueprintVariableField field, Grid target)
     {
         BlueprintVariableNameLabel label = new(getDisplayName(field), field.Name);
         Control editor = createValueEditor(
@@ -377,19 +437,20 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             ToolTip.SetTip(editor, tooltip);
         }
         rows[field.Name] = new BlueprintVariableRow(field, label, editor, description, dependency);
-        addGridRow(label, editor, FieldActionFactory?.Invoke(field));
+        addGridRow(label, editor, FieldActionFactory?.Invoke(field), target);
     }
 
-    private void addGridRow(Control label, Control editor, Control? action = null)
+    private void addGridRow(Control label, Control editor, Control? action = null, Grid? target = null)
     {
-        int row = form.RowDefinitions.Count;
-        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        target ??= form;
+        int row = target.RowDefinitions.Count;
+        target.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         Grid.SetRow(editor, row);
         if (showFieldNames)
         {
             label.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetRow(label, row);
-            form.Children.Add(label);
+            target.Children.Add(label);
             Grid.SetColumn(editor, 1);
         }
         else
@@ -397,12 +458,12 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             Grid.SetColumn(editor, 0);
             Grid.SetColumnSpan(editor, action is null ? 3 : 2);
         }
-        form.Children.Add(editor);
+        target.Children.Add(editor);
         if (action is not null)
         {
             Grid.SetRow(action, row);
             Grid.SetColumn(action, 2);
-            form.Children.Add(action);
+            target.Children.Add(action);
         }
     }
 

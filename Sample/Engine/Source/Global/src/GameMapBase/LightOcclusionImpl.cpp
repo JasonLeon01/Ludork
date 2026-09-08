@@ -104,7 +104,8 @@ std::shared_ptr<sf::Texture> LightOcclusionImpl::rebuildStaticLightOccupancy(
     }
     const double cellPixels = static_cast<double>(cellSize);
     for (const std::shared_ptr<Actor>& actor : actors) {
-        if (!actor || actor->isDestroyed() || actor->getLightBlock() <= 0.0f) {
+        if (!actor || actor->isDestroyed() || !actor->isVisibleInHierarchy() ||
+            actor->getLightBlock() <= 0.0f) {
             continue;
         }
         const sf::FloatRect bounds = actor->getGlobalBounds();
@@ -234,7 +235,8 @@ std::vector<LightOcclusionResult> LightOcclusionImpl::analyseLightOcclusion(
         for (Actor* actor : actors) {
             const auto visibleActor = visibleActorOwners.find(actor);
             if (visibleActor == visibleActorOwners.end() ||
-                actor->isDestroyed() || actor->getLightBlock() <= 0.0f) {
+                actor->isDestroyed() || !actor->isVisibleInHierarchy() ||
+                actor->getLightBlock() <= 0.0f) {
                 continue;
             }
             const sf::FloatRect bounds = actor->getGlobalBounds();

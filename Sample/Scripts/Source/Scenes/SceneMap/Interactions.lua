@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local ConditionalActor = require("Source.ConditionalActor")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
@@ -621,6 +622,15 @@ function Scene.RecordDestroyedActorTag(self, actorTag)
     end
     local worldMap = gameMap
     ---@cast worldMap Global.WorldGameMap.WorldGameMap
+    local actor = worldMap:getActorByTag(actorTag)
+    if actor ~= nil then
+        for _, listed in ipairs(actor:collectTree()) do
+            if Class.isInstance(listed, ConditionalActor) then
+                ---@cast listed Source.ConditionalActor
+                listed:releaseConditionMonitor()
+            end
+        end
+    end
     worldMap:suppressActorTag(actorTag)
 end
 

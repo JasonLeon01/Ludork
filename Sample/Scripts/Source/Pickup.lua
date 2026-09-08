@@ -26,7 +26,7 @@ local function showNewItemMessage(actor, inst, scene)
 end
 
 function Pickup.HandleCollision(actor, other, parentCollision, applyPickup)
-    if actor:isDestroyed() then
+    if actor:isDestroyed() or not actor:isVisibleInHierarchy() then
         return
     end
     local gameMap = actor:getMap()

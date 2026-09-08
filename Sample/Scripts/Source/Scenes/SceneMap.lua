@@ -6,6 +6,7 @@ local GameSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
 local RegionDict = require("Source.Configs.RegionDict")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
+local ConditionalActor = require("Source.ConditionalActor")
 local Teleporter = require("Source.Teleporter")
 local MapPath = require("Source.MapPath")
 local SceneMapInteractions = require("Source.Scenes.SceneMap.Interactions")
@@ -247,6 +248,7 @@ function Scene:onDestroy()
     self._gameplayRequestsActive = false
     self._gameOverRequest = nil
     if self._gameMap ~= nil then
+        ConditionalActor.ReleaseMapMonitors(self._gameMap)
         self._gameMap:disposeStreaming()
     end
     ManagerFunctions.stopVoice()
@@ -369,27 +371,25 @@ function Scene:loadMap(mapPath, initialPosition)
         gameMap = self._mapBuilder:generateWorldGameMap(mapFile, mapData, self.inst, initialPosition)
     else
         ---@cast mapData Source.SceneComponents.MapData
-        gameMap = self._mapBuilder:generateGameMap(mapData)
+        gameMap = self._mapBuilder:generateGameMap(mapData, nil, false)
     end
     if self._gameMap ~= nil then
+        ConditionalActor.ReleaseMapMonitors(self._gameMap)
         self._gameMap:disposeStreaming()
     end
     self._gameOverRequest = nil
     self._gameMap = gameMap
+    self._cachedMapFile = mapFile
     gameMap:setScene(self)
+    self.inst:applyMapInfo(mapFile, initialPosition)
     if not gameMap:isWorldMap() then
         gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
-        self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile))
+        self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile), false)
         gameMap:applyActorPositions(self.inst:getActorPositions(mapFile))
         gameMap:removeActorsByTags(self.inst:getDestroyedActors(mapFile))
     end
-    if gameMap:isWorldMap() then
-        gameMap:setPlayer(self.player)
-        gameMap:spawnActor(self.player, "default")
-    else
-        gameMap:spawnActor(self.player, "default")
-        gameMap:setPlayer(self.player)
-    end
+    gameMap:setPlayer(self.player)
+    gameMap:spawnActor(self.player, "default")
     self._worldEnvironmentKey = nil
     self._worldAmbientStartColour = nil
     self._worldAmbientTargetColour = nil
@@ -634,7 +634,7 @@ function Scene:requestFloorStep(teleporter, step)
     assert(step == 1 or step == -1, "Floor transfer step must be 1 or -1")
     if not self._gameplayRequestsActive or GlobalSystem.getScene() ~= self or self._mapTransferInProgress
         or self._pendingFloorTransfer ~= nil or self._pendingWorldTransfer ~= nil or self._gameMap == nil
-        or teleporter:isDestroyed() or teleporter:getMap() ~= self._gameMap then
+        or teleporter:isDestroyed() or not teleporter:isVisibleInHierarchy() or teleporter:getMap() ~= self._gameMap then
         return false
     end
     local player = self._gameMap:getPlayer()

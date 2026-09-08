@@ -56,12 +56,12 @@ public sealed class BlueprintVariableFieldBuilder
             if (generalDataFields is not null
                 && string.Equals(field.Name, "ID", StringComparison.Ordinal))
             {
-                result.Add(createGeneralDataAttributesField(generalDataFields));
+                result.Add(createGeneralDataAttributesField(generalDataFields, field.SourceClass));
                 addedGeneralDataPreview = true;
             }
         }
         if (generalDataFields is not null && !addedGeneralDataPreview)
-            result.Add(createGeneralDataAttributesField(generalDataFields));
+            result.Add(createGeneralDataAttributesField(generalDataFields, resolved.GetField("ID")?.SourceClass));
         return result;
     }
 
@@ -203,6 +203,7 @@ public sealed class BlueprintVariableFieldBuilder
         {
             Module = displayType.ModuleName,
             TypeName = displayType.TypeName,
+            SourceClass = field.SourceClass,
             DefaultValue = hasDefault ? cloneNode(defaultValue) : null,
             DisplayValue = getConfigDisplayValue(field.Name, field.Value, meta),
             Meta = meta,
@@ -307,7 +308,8 @@ public sealed class BlueprintVariableFieldBuilder
     }
 
     private static BlueprintVariableField createGeneralDataAttributesField(
-        GeneralDataFieldSource source)
+        GeneralDataFieldSource source,
+        string? sourceClass)
     {
         List<BlueprintVariableField> fields = [];
         foreach (GeneralDataPreviewField preview in source.Fields)
@@ -331,6 +333,7 @@ public sealed class BlueprintVariableFieldBuilder
         {
             Module = "Global.Gameplay",
             TypeName = "AttributeSet",
+            SourceClass = sourceClass,
             DefaultValue = source.Values.DeepClone(),
             DisplayValue = source.Values.DeepClone(),
             IsReadOnly = true,

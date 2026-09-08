@@ -5,7 +5,7 @@ local _METADATA = {
             "getSE"
         },
         bases = {
-            { "Engine", "Actor" }
+            { "Source.ConditionalActor", "ConditionalActor" }
         },
         ID = {
             type = "string",

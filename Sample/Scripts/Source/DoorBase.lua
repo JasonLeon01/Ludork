@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local ConditionalActor = require("Source.ConditionalActor")
 
-local Actor = Engine.Actor
 local SoundFilter = Engine.SoundFilter
 local AudioManager = GlobalCore.AudioManager
 
@@ -37,7 +37,7 @@ local function newDoorAnimationCondition(isComplete)
     })
 end
 
----@class Source.DoorBase.DoorBase: Engine.Actor
+---@class Source.DoorBase.DoorBase: Source.ConditionalActor
 local DoorBase = {}
 
 DoorBase.collisionEnabled = true
@@ -279,4 +279,4 @@ function DoorBase:_advanceToFrame(index)
     self:setTextureRect(sf.IntRect.new(position, rect.size))
 end
 
-return class(DoorBase, Actor)
+return class(DoorBase, ConditionalActor)

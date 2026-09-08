@@ -67,7 +67,7 @@ end
 ---@return integer
 ---@param self      WorldGameMapImplState
 function GameMapRendering.GetPlayerLayerIndex(self, layerKeys)
-    if self._player == nil then
+    if self._player == nil or not self._player:isVisibleInHierarchy() then
         return -1
     end
     for index, name in ipairs(layerKeys) do
@@ -160,6 +160,9 @@ end
 ---@param actorAlpha integer
 ---@param self       WorldGameMapImplState
 function GameMapRendering.DrawActor(self, target, states, actor, actorAlpha)
+    if not actor:isVisibleInHierarchy() then
+        return
+    end
     local hue = Render.NormaliseActorHue(actor.hue or 0.0)
     local hasHue = self._actorHueShader ~= nil and not Render.IsNeutralActorHue(hue)
     local hasShaderError = actor:hasShaderError()

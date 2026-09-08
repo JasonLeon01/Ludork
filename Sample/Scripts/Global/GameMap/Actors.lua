@@ -106,7 +106,7 @@ end
 ---@param self GameMapImplState
 function GameMapActors.GetActorByLayerAndPosition(self, layer, position)
     for _, actor in ipairs(self._actors[layer] or {}) do
-        if actor:getPosition() == position then
+        if not actor:isDestroyed() and actor:isVisibleInHierarchy() and actor:getPosition() == position then
             return actor
         end
     end

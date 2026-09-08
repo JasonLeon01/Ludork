@@ -1,6 +1,6 @@
 ---@meta Source.Enemy
 
----@class Source.Enemy: Engine.Actor, Source.Battler.Battler
+---@class Source.Enemy: Source.ConditionalActor, Source.Battler.Battler
 ---@field ID                         string
 ---@field DefeatShatterEffectEnabled boolean
 ---@field attributes                 Source.Configs.GeneralDataTypes.EnemyAttributeSet

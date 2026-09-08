@@ -85,8 +85,10 @@ function GameMapLighting.GetActorLayerLightBlockMap(self, layerName, size)
         end
     end
     for _, actor in ipairs(self._actors[layerName]) do
-        local position = actor:getMapPosition()
-        result[position.y + 1][position.x + 1] = actor:getLightBlock()
+        if not actor:isDestroyed() and actor:isVisibleInHierarchy() then
+            local position = actor:getMapPosition()
+            result[position.y + 1][position.x + 1] = actor:getLightBlock()
+        end
     end
     return result
 end

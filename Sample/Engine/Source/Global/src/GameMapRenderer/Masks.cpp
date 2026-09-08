@@ -160,6 +160,7 @@ std::vector<std::shared_ptr<Actor>> GameMapRendererImpl::renderSurfaceMask(
         }
         for (const std::shared_ptr<Actor>& actor : layerIt->second) {
             if (actor && !actor->isDestroyed() &&
+                actor->isVisibleInHierarchy() &&
                 visibleActorSet.insert(actor.get()).second) {
                 visibleActors.push_back(actor);
             }
@@ -184,7 +185,8 @@ std::vector<std::shared_ptr<Actor>> GameMapRendererImpl::renderSurfaceMask(
             continue;
         }
         for (const std::shared_ptr<Actor>& actor : layerIt->second) {
-            if (!actor || actor->isDestroyed()) {
+            if (!actor || actor->isDestroyed() ||
+                !actor->isVisibleInHierarchy()) {
                 continue;
             }
             setActorMaskUniforms(*actor);

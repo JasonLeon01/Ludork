@@ -9,7 +9,7 @@ local _METADATA = {
             "afterBattleVarChanges"
         },
         bases = {
-            { "Engine", "Actor" },
+            { "Source.ConditionalActor", "ConditionalActor" },
             { "Source.Battler", "Battler" }
         },
         ID = {

@@ -7,7 +7,7 @@ local MapClickAutoPathRuntime = {}
 
 function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal)
     for _, actor in ipairs(gameMap:getActorsAt(goal.x, goal.y)) do
-        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() then
+        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
             return true
         end
     end

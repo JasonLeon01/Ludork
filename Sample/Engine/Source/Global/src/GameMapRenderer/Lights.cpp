@@ -65,7 +65,8 @@ GameMapRendererImpl::collectActiveLights(
     const ActorDict& actors = map.getMaterialActorsForRenderer();
     for (const auto& [_, actorList] : actors) {
         for (const std::shared_ptr<Actor>& actor : actorList) {
-            if (!actor || actor->isDestroyed() || !actor->lightComp ||
+            if (!actor || actor->isDestroyed() ||
+                !actor->isVisibleInHierarchy() || !actor->lightComp ||
                 actor->lightComp->lightRadius <= 0.0f) {
                 continue;
             }

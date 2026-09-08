@@ -43,6 +43,9 @@ local function doBlockadeRetreat(enemy, playerPosition, scene)
 end
 
 local function queryEnemy(enemy, player, playerPosition, previewContext)
+    if enemy:isDestroyed() or not enemy:isVisibleInHierarchy() then
+        return {}
+    end
     local enemyPosition = enemy:getMapPosition()
     local damage
     if previewContext == nil then
@@ -146,7 +149,7 @@ local function collectEnemies(player)
     ---@cast gameMap GameMap
     local enemies = {}
     for _, actor in ipairs(gameMap:getAllActors()) do
-        if Class.isInstance(actor, Enemy) and not actor:isDestroyed() then
+        if Class.isInstance(actor, Enemy) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
             ---@cast actor Source.Enemy
             local abilitySystem = actor:getAbilitySystemComponent()
             if abilitySystem:hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG) then

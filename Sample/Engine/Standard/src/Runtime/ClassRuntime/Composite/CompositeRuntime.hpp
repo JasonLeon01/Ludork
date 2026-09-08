@@ -17,15 +17,15 @@ int compositeIndex(lua_State* state);
 int compositeNewIndex(lua_State* state);
 sol::table compositeMetatable(sol::state_view lua);
 sol::table constructingCompositeMetatable(sol::state_view lua);
-void invokeMonitorCallback(sol::state_view lua, sol::table entry,
-                           const sol::object& oldValue,
-                           const sol::object& newValue);
+void invokeMonitorCallbacks(sol::state_view lua, const sol::table& entry,
+                            const sol::object& oldValue,
+                            const sol::object& newValue);
 void registerMonitor(sol::this_state state, const sol::object& target,
                      const std::string& name,
                      const sol::protected_function& callback,
-                     sol::optional<sol::table> params,
-                     sol::optional<bool> notifyEqualWrites);
+                     sol::variadic_args options);
 void unregisterMonitor(sol::this_state state, const sol::object& target,
-                       const std::string& name);
+                       const std::string& name,
+                       sol::optional<std::string> identifier);
 
 }  // namespace ludork::standard::class_runtime::detail

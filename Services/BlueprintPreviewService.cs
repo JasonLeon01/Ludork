@@ -234,6 +234,7 @@ public sealed class BlueprintPreviewService : IDisposable
             new Vector(scale.x, scale.y),
             new Vector(origin.x, origin.y),
             getDouble(getResolvedValue(resolved, "defaultRotation"), 0),
+            getBool(getResolvedValue(resolved, "visible"), true),
             isCharacter,
             animated,
             interval,

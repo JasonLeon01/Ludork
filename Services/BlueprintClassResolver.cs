@@ -145,9 +145,9 @@ public sealed class BlueprintClassResolver : IDisposable
                 null,
                 null,
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<BlueprintCompatibilityType>(),
+                Array.Empty<(string Reference, BlueprintCompatibilityType Type)>(),
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<JsonObject>());
+                Array.Empty<(string Reference, JsonObject Blueprint)>());
         }
 
         BlueprintRootResolution root = resolveRoot(reference);
@@ -158,7 +158,7 @@ public sealed class BlueprintClassResolver : IDisposable
             root.MetadataBases,
             root.CompatibilityTypes,
             root.ProbedMetadataTypes,
-            Array.Empty<JsonObject>());
+            Array.Empty<(string Reference, JsonObject Blueprint)>());
     }
 
     private ResolvedBlueprintTemplate createBlueprintTemplate(
@@ -167,7 +167,7 @@ public sealed class BlueprintClassResolver : IDisposable
         string? blueprintKey
     )
     {
-        List<JsonObject> chain = [blueprint];
+        List<(string Reference, JsonObject Blueprint)> chain = [(classReference, blueprint)];
         HashSet<string> visited = new(StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(blueprintKey))
             visited.Add(blueprintKey);
@@ -180,7 +180,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 parent = null;
                 break;
             }
-            chain.Add(parentBlueprint);
+            chain.Add((parent, parentBlueprint));
             parent = getParent(parentBlueprint);
         }
 
@@ -205,7 +205,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 null,
                 null,
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<BlueprintCompatibilityType>(),
+                Array.Empty<(string Reference, BlueprintCompatibilityType Type)>(),
                 probedMetadataTypes.ToArray()
             );
         LuaTypeReference originalType = LuaTypeReference.Parse(reference);
@@ -215,18 +215,18 @@ public sealed class BlueprintClassResolver : IDisposable
                 reference,
                 metadataType,
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<BlueprintCompatibilityType>(),
+                Array.Empty<(string Reference, BlueprintCompatibilityType Type)>(),
                 probedMetadataTypes.ToArray()
             );
 
-        List<BlueprintCompatibilityType> compatibilityTypes = [];
+        List<(string Reference, BlueprintCompatibilityType Type)> compatibilityTypes = [];
         HashSet<string> visited = new(StringComparer.Ordinal);
         string? current = originalType.QualifiedName;
         while (!string.IsNullOrWhiteSpace(current) && visited.Add(current)
             && BlueprintCompatibilityCatalog.TryGet(current, out BlueprintCompatibilityType? compatibilityType)
             && compatibilityType is not null)
         {
-            compatibilityTypes.Add(compatibilityType);
+            compatibilityTypes.Add((current, compatibilityType));
             current = compatibilityType.Parent;
             if (string.IsNullOrWhiteSpace(current))
                 break;
@@ -254,13 +254,13 @@ public sealed class BlueprintClassResolver : IDisposable
     }
 
     private IReadOnlyList<LuaTypeReference> getCompatibilityMetadataBases(
-        IReadOnlyList<BlueprintCompatibilityType> compatibilityTypes,
+        IReadOnlyList<(string Reference, BlueprintCompatibilityType Type)> compatibilityTypes,
         ISet<LuaTypeReference> probedMetadataTypes
     )
     {
         List<LuaTypeReference> result = [];
         HashSet<string> added = new(StringComparer.Ordinal);
-        foreach (BlueprintCompatibilityType compatibilityType in compatibilityTypes)
+        foreach ((string _, BlueprintCompatibilityType compatibilityType) in compatibilityTypes)
         {
             foreach (string reference in compatibilityType.MetadataBases)
             {
@@ -290,13 +290,14 @@ public sealed class BlueprintClassResolver : IDisposable
         string? terminalReference,
         LuaTypeReference? rootType,
         IReadOnlyList<LuaTypeReference> metadataBases,
-        IReadOnlyList<BlueprintCompatibilityType> compatibilityTypes,
+        IReadOnlyList<(string Reference, BlueprintCompatibilityType Type)> compatibilityTypes,
         IReadOnlyList<LuaTypeReference> probedMetadataTypes,
-        IReadOnlyList<JsonObject> blueprintChain
+        IReadOnlyList<(string Reference, JsonObject Blueprint)> blueprintChain
     )
     {
         List<string> metadataOrder = [];
         Dictionary<string, BlueprintFieldMetadata> schema = new(StringComparer.Ordinal);
+        Dictionary<string, string?> fieldSources = new(StringComparer.Ordinal);
         Dictionary<string, JsonNode?> metadataDefaults = new(StringComparer.Ordinal);
         Dictionary<string, JsonNode?> structuralDefaults = new(StringComparer.Ordinal);
         HashSet<string> fieldsWithMetadataDefaults = new(StringComparer.Ordinal);
@@ -318,6 +319,7 @@ public sealed class BlueprintClassResolver : IDisposable
                         type,
                         metadataOrder,
                         schema,
+                        fieldSources,
                         metadataDefaults,
                         fieldsWithMetadataDefaults,
                         classMeta,
@@ -337,6 +339,7 @@ public sealed class BlueprintClassResolver : IDisposable
                         type,
                         metadataOrder,
                         schema,
+                        fieldSources,
                         metadataDefaults,
                         fieldsWithMetadataDefaults,
                         classMeta,
@@ -356,7 +359,7 @@ public sealed class BlueprintClassResolver : IDisposable
         string? scriptMixinError = null;
         for (int index = 0; index < blueprintChain.Count; index++)
         {
-            JsonObject blueprint = blueprintChain[index];
+            JsonObject blueprint = blueprintChain[index].Blueprint;
             JsonObject? attrs = blueprint["attrs"] as JsonObject;
             if (index == blueprintChain.Count - 1)
                 parentScriptMixin = scriptMixin;
@@ -402,6 +405,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 mixinMetadata,
                 metadataOrder,
                 schema,
+                fieldSources,
                 metadataDefaults,
                 fieldsWithMetadataDefaults,
                 classMeta,
@@ -428,7 +432,7 @@ public sealed class BlueprintClassResolver : IDisposable
         Dictionary<string, JsonNode?> blueprintValues = new(StringComparer.Ordinal);
         List<string> blueprintOrder = [];
         HashSet<string> blueprintFieldSet = new(StringComparer.Ordinal);
-        foreach (BlueprintCompatibilityType compatibilityType in compatibilityTypes)
+        foreach ((string reference, BlueprintCompatibilityType compatibilityType) in compatibilityTypes)
         {
             applyBlueprintValues(
                 compatibilityType.Attrs,
@@ -437,10 +441,12 @@ public sealed class BlueprintClassResolver : IDisposable
                 blueprintValues,
                 blueprintOrder,
                 blueprintFieldSet,
-                schema
+                schema,
+                fieldSources,
+                reference
             );
         }
-        foreach (JsonObject blueprint in blueprintChain)
+        foreach ((string reference, JsonObject blueprint) in blueprintChain)
         {
             if (blueprint["attrs"] is not JsonObject attrs)
                 continue;
@@ -451,7 +457,9 @@ public sealed class BlueprintClassResolver : IDisposable
                 blueprintValues,
                 blueprintOrder,
                 blueprintFieldSet,
-                schema
+                schema,
+                fieldSources,
+                reference
             );
         }
 
@@ -464,6 +472,7 @@ public sealed class BlueprintClassResolver : IDisposable
             rootType,
             metadataOrder,
             schema,
+            fieldSources,
             metadataDefaults,
             fieldsWithMetadataDefaults,
             blueprintOrder,
@@ -505,6 +514,7 @@ public sealed class BlueprintClassResolver : IDisposable
         LuaTypeMetadata type,
         ICollection<string> metadataOrder,
         IDictionary<string, BlueprintFieldMetadata> schema,
+        IDictionary<string, string?> fieldSources,
         IDictionary<string, JsonNode?> metadataDefaults,
         ISet<string> fieldsWithMetadataDefaults,
         JsonObject classMeta,
@@ -525,7 +535,10 @@ public sealed class BlueprintClassResolver : IDisposable
             if (!type.Fields.TryGetValue(attr, out BlueprintFieldMetadata? field))
                 continue;
             if (!schema.ContainsKey(attr))
+            {
                 metadataOrder.Add(attr);
+                fieldSources[attr] = type.Type.QualifiedName;
+            }
             schema[attr] = schema.TryGetValue(attr, out BlueprintFieldMetadata? inheritedField)
                 ? mergeFieldMetadata(inheritedField, field)
                 : field;
@@ -544,13 +557,16 @@ public sealed class BlueprintClassResolver : IDisposable
         IDictionary<string, JsonNode?> blueprintValues,
         ICollection<string> blueprintOrder,
         ISet<string> blueprintFieldSet,
-        IReadOnlyDictionary<string, BlueprintFieldMetadata> schema
+        IReadOnlyDictionary<string, BlueprintFieldMetadata> schema,
+        IDictionary<string, string?> fieldSources,
+        string? sourceClass
     )
     {
         foreach (KeyValuePair<string, JsonNode?> pair in attrs)
         {
             if (blueprintFieldSet.Add(pair.Key))
                 blueprintOrder.Add(pair.Key);
+            fieldSources.TryAdd(pair.Key, string.IsNullOrWhiteSpace(sourceClass) ? null : sourceClass);
             JsonNode? structureDefault = metadataDefaults.TryGetValue(pair.Key, out JsonNode? metadataDefault)
                 ? metadataDefault
                 : structuralDefaults.GetValueOrDefault(pair.Key);
@@ -573,7 +589,8 @@ public sealed class BlueprintClassResolver : IDisposable
         string name,
         JsonNode? value,
         JsonNode? blueprintDefaultValue,
-        bool hasBlueprintDefaultValue
+        bool hasBlueprintDefaultValue,
+        string? sourceClass
     )
     {
         LuaTypeReference inferredType = inferType(value ?? blueprintDefaultValue);
@@ -584,7 +601,8 @@ public sealed class BlueprintClassResolver : IDisposable
             blueprintDefaultValue,
             null,
             true,
-            hasBlueprintDefaultValue
+            hasBlueprintDefaultValue,
+            sourceClass
         );
     }
 
@@ -770,7 +788,7 @@ public sealed class BlueprintClassResolver : IDisposable
         string? TerminalReference,
         LuaTypeReference? RootType,
         IReadOnlyList<LuaTypeReference> MetadataBases,
-        IReadOnlyList<BlueprintCompatibilityType> CompatibilityTypes,
+        IReadOnlyList<(string Reference, BlueprintCompatibilityType Type)> CompatibilityTypes,
         IReadOnlyList<LuaTypeReference> ProbedMetadataTypes
     );
 
@@ -781,6 +799,7 @@ public sealed class BlueprintClassResolver : IDisposable
         private readonly LuaTypeReference? rootType;
         private readonly IReadOnlyList<string> metadataOrder;
         private readonly IReadOnlyDictionary<string, BlueprintFieldMetadata> schema;
+        private readonly IReadOnlyDictionary<string, string?> fieldSources;
         private readonly IReadOnlyDictionary<string, JsonNode?> metadataDefaults;
         private readonly IReadOnlySet<string> fieldsWithMetadataDefaults;
         private readonly IReadOnlyList<string> blueprintOrder;
@@ -802,6 +821,7 @@ public sealed class BlueprintClassResolver : IDisposable
             LuaTypeReference? rootType,
             IReadOnlyList<string> metadataOrder,
             IReadOnlyDictionary<string, BlueprintFieldMetadata> schema,
+            IReadOnlyDictionary<string, string?> fieldSources,
             IReadOnlyDictionary<string, JsonNode?> metadataDefaults,
             IReadOnlySet<string> fieldsWithMetadataDefaults,
             IReadOnlyList<string> blueprintOrder,
@@ -824,6 +844,7 @@ public sealed class BlueprintClassResolver : IDisposable
             this.rootType = rootType;
             this.metadataOrder = metadataOrder.ToArray();
             this.schema = schema;
+            this.fieldSources = fieldSources;
             this.metadataDefaults = metadataDefaults;
             this.fieldsWithMetadataDefaults = new HashSet<string>(fieldsWithMetadataDefaults, StringComparer.Ordinal);
             this.blueprintOrder = blueprintOrder.ToArray();
@@ -877,7 +898,8 @@ public sealed class BlueprintClassResolver : IDisposable
                     blueprintDefaultValue,
                     fieldMetadata,
                     false,
-                    hasBlueprintValue || hasDefault));
+                    hasBlueprintValue || hasDefault,
+                    fieldSources.GetValueOrDefault(name)));
                 added.Add(name);
             }
 
@@ -898,11 +920,12 @@ public sealed class BlueprintClassResolver : IDisposable
                         blueprintDefaultValue,
                         fieldMetadata,
                         false,
-                        true));
+                        true,
+                        fieldSources.GetValueOrDefault(name)));
                 }
                 else
                 {
-                    fields.Add(createUnknownField(name, value, blueprintDefaultValue, true));
+                    fields.Add(createUnknownField(name, value, blueprintDefaultValue, true, fieldSources.GetValueOrDefault(name)));
                 }
                 added.Add(name);
             }
@@ -922,11 +945,12 @@ public sealed class BlueprintClassResolver : IDisposable
                             null,
                             fieldMetadata,
                             false,
-                            false));
+                            false,
+                            fieldSources.GetValueOrDefault(pair.Key)));
                     }
                     else
                     {
-                        fields.Add(createUnknownField(pair.Key, pair.Value, null, false));
+                        fields.Add(createUnknownField(pair.Key, pair.Value, null, false, null));
                     }
                     added.Add(pair.Key);
                 }

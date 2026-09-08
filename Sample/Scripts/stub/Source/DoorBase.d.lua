@@ -21,7 +21,7 @@
 --- enables it only until the animation completes or the Actor is destroyed.
 --- Calling `openDoor()` or `closeDoor()` while the same animation is already
 --- running is a safe no-op.
----@class Source.DoorBase.DoorBase: Engine.Actor
+---@class Source.DoorBase.DoorBase: Source.ConditionalActor
 ---@field opening          boolean
 ---@field closing          boolean
 ---@field collisionEnabled boolean

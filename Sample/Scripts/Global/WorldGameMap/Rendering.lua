@@ -173,7 +173,8 @@ function WorldGameMapRendering.RenderSurfaceMask(self)
             end
         end
         for _, actor in ipairs(self._actors[layerName] or {}) do
-            if not actor:isDestroyed() and self:_isWorldActorLayerVisible(actor, layerName, visibleRect) then
+            if not actor:isDestroyed() and actor:isVisibleInHierarchy()
+                and self:_isWorldActorLayerVisible(actor, layerName, visibleRect) then
                 if not visibleActorSet[actor] then
                     visibleActorSet[actor] = true
                     visibleActors[#visibleActors + 1] = actor
@@ -458,7 +459,7 @@ function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayer
             end
         end
         for _, actor in ipairs(self._actors[layerName] or {}) do
-            if self:_isWorldActorLayerVisible(actor, layerName, visibleRect)
+            if actor:isVisibleInHierarchy() and self:_isWorldActorLayerVisible(actor, layerName, visibleRect)
                 and self._actorPixelShatterByActor[actor] == nil then
                 self:_drawActor(target, states, actor, 255)
             end

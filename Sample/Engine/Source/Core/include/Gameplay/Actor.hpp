@@ -49,6 +49,9 @@ public:
     BIND_PROPERTY()
     bool animatable = false;
 
+    BIND_PROPERTY()
+    bool visible = true;
+
     BIND_PROPERTY(default = {})
     Material material;
 
@@ -227,6 +230,11 @@ public:
 
     BIND_METHOD(Pure = true, returns = "visible")
     virtual bool getVisible() const;
+
+    /// Whether this Actor and every parent are visible. Hidden Actors keep
+    /// updating, but do not render or participate in map interactions.
+    BIND_METHOD(Pure = true)
+    bool isVisibleInHierarchy() const;
 
     BIND_METHOD(outpins(default = nil), defaults = {nil, true})
     virtual void setVisible(bool visible, bool applyToChildren = true);
@@ -545,7 +553,6 @@ private:
     sf::Vector2f relativeScale_{1.0f, 1.0f};
     std::shared_ptr<sf::Texture> texture_;
     std::shared_ptr<sf::Texture> spriteTexture_;
-    bool visible_ = true;
     std::shared_ptr<Graph> graph_;
     std::string mapTag_;
     bool destroyed_ = false;

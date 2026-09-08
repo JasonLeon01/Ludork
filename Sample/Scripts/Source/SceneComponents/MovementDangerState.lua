@@ -7,6 +7,20 @@ local MovementDangerGrid = require("Source.SceneComponents.MovementDangerGrid")
 ---@class (partial) Source.SceneComponents.MovementDangerState
 local MovementDangerState = {}
 
+---@param self Source.SceneComponents.MovementDangerState
+local function refreshVisibility(self)
+    if self._enemyScanRevision == 0 then
+        self:onTick(0.0)
+        return
+    end
+    for enemy, snapshot in pairs(self._enemySnapshots) do
+        if snapshot.visible ~= enemy:isVisibleInHierarchy() then
+            self:onTick(0.0)
+            return
+        end
+    end
+end
+
 function MovementDangerState:init(gameMap)
     super(MovementDangerState, self).init(gameMap)
     self._player = nil
@@ -64,10 +78,12 @@ function MovementDangerState:onTick(_deltaTime)
                 ---@cast actor Source.Enemy
                 local position = actor:getMapPosition()
                 local abilityRevision = actor:getAbilitySystemComponent():getRevision()
+                local visible = actor:isVisibleInHierarchy()
                 if self._enemySnapshots[actor] == nil then
                     self._enemySnapshots[actor] = {
                         x = position.x,
                         y = position.y,
+                        visible = visible,
                         abilityRevision = abilityRevision,
                         attributes = actor.attributes,
                         scanRevision = enemyScanRevision
@@ -75,6 +91,7 @@ function MovementDangerState:onTick(_deltaTime)
                     dangerChanged = true
                     pathfindingChanged = true
                 elseif self._enemySnapshots[actor].x ~= position.x or self._enemySnapshots[actor].y ~= position.y
+                    or self._enemySnapshots[actor].visible ~= visible
                     or self._enemySnapshots[actor].abilityRevision ~= abilityRevision
                     or self._enemySnapshots[actor].attributes ~= actor.attributes then
                     dangerChanged = true
@@ -82,14 +99,17 @@ function MovementDangerState:onTick(_deltaTime)
                 end
                 self._enemySnapshots[actor].x = position.x
                 self._enemySnapshots[actor].y = position.y
+                self._enemySnapshots[actor].visible = visible
                 self._enemySnapshots[actor].abilityRevision = abilityRevision
                 self._enemySnapshots[actor].attributes = actor.attributes
                 self._enemySnapshots[actor].scanRevision = enemyScanRevision
-                enemyCount = enemyCount + 1
-                if self._enemies[enemyCount] ~= actor then
-                    self._enemies[enemyCount] = actor
-                    dangerChanged = true
-                    pathfindingChanged = true
+                if visible then
+                    enemyCount = enemyCount + 1
+                    if self._enemies[enemyCount] ~= actor then
+                        self._enemies[enemyCount] = actor
+                        dangerChanged = true
+                        pathfindingChanged = true
+                    end
                 end
             end
         end
@@ -141,6 +161,7 @@ function MovementDangerState:_getPreviewContext()
 end
 
 function MovementDangerState:_ensureEntries()
+    refreshVisibility(self)
     if self._entriesValid then
         return
     end
@@ -179,10 +200,12 @@ function MovementDangerState:_ensureEntries()
 end
 
 function MovementDangerState:getPathfindingRevision()
+    refreshVisibility(self)
     return self._pathfindingRevision
 end
 
 function MovementDangerState:getPreviewRevision()
+    refreshVisibility(self)
     return self._previewRevision
 end
 
@@ -192,6 +215,7 @@ function MovementDangerState:getEntries()
 end
 
 function MovementDangerState:getDamageAt(position, ignoredEnemies)
+    refreshVisibility(self)
     if not self._entriesValid then
         if self._player == nil or not bool(self._enemies) then
             return 0

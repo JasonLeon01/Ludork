@@ -1,8 +1,7 @@
 local Engine = require("Engine")
+local ConditionalActor = require("Source.ConditionalActor")
 local MapPath = require("Source.MapPath")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
-
-local Actor = Engine.Actor
 
 local Teleporter = {}
 
@@ -54,7 +53,7 @@ function Teleporter.FindNearestTeleporter(actors, position)
     local nearest = nil
     local nearestDistance = nil
     for _, actor in ipairs(actors) do
-        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() then
+        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
             local actorPosition = actor:getMapPosition()
             local dx = actorPosition.x - position.x
             local dy = actorPosition.y - position.y
@@ -90,4 +89,4 @@ function Teleporter.FindCurrentMapIndex(regionMaps, currentMap)
     return nil
 end
 
-return class(Teleporter, Actor)
+return class(Teleporter, ConditionalActor)

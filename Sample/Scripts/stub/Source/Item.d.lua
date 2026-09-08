@@ -1,5 +1,5 @@
 ---@meta Source.Item
----@class Source.Item: Engine.Actor
+---@class Source.Item: Source.ConditionalActor
 ---@field ID         string
 ---@field attributes Source.Configs.GeneralDataTypes.ItemAttributeSet
 ---@field count      integer

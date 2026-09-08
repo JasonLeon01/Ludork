@@ -1,5 +1,5 @@
 ---@meta Source.Equip
----@class Source.Equip: Engine.Actor
+---@class Source.Equip: Source.ConditionalActor
 ---@field ID         string
 ---@field attributes Source.Configs.GeneralDataTypes.EquipAttributeSet
 ---@field getSE      string

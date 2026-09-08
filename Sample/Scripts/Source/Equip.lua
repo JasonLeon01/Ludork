@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local ConditionalActor = require("Source.ConditionalActor")
 local Data = require("Source.Data")
 local Pickup = require("Source.Pickup")
 
@@ -23,4 +24,4 @@ function Equip:onCollision(other)
     end)
 end
 
-return class(Equip, Actor)
+return class(Equip, ConditionalActor)

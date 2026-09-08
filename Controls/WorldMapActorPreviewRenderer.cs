@@ -100,7 +100,8 @@ internal sealed class WorldMapActorPreviewRenderer : IDisposable
                 source.Height);
             using (context.PushTransform(transform))
             {
-                context.DrawImage(image, source, destination);
+                using (context.PushOpacity(descriptor.MapPreviewOpacity))
+                    context.DrawImage(image, source, destination);
                 if (lease.ShaderError is not null)
                     context.DrawRectangle(null, ActorErrorPen, destination);
             }

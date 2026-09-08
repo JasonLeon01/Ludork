@@ -38,6 +38,11 @@ public sealed class BlueprintEditorWindow : Window
     private BlueprintVariableForm variableForm = null!;
     private TextBox parentField = null!;
     private ListBox graphList = null!;
+    private Grid rightPanel = null!;
+    private Grid? splitLayout;
+    private GridSplitter? contentSplitter;
+    private GridLength leftColumnWidth;
+    private GridLength rightColumnWidth;
     private Grid contentHost = null!;
     private Grid previewPanel = null!;
     private Image previewImage = null!;
@@ -115,6 +120,7 @@ public sealed class BlueprintEditorWindow : Window
             CellSize = gameData.getCellSize(),
             GameVariables = projectSave.GameVariables,
             IsReadOnly = !document.CanEditAttributes,
+            ShowSourceGroups = document.Kind == BlueprintEditorDocumentKind.Blueprint,
             HistoryGameData = gameData,
             FieldActionFactory = createAttributeAction,
             CanRemoveComponent = field => document.Data["attrs"] is JsonObject attrs
@@ -209,7 +215,7 @@ public sealed class BlueprintEditorWindow : Window
         };
         previewPanel.IsVisible = false;
 
-        Grid rightPanel = new()
+        rightPanel = new Grid
         {
             RowDefinitions = new RowDefinitions("50,*"),
         };
@@ -219,23 +225,24 @@ public sealed class BlueprintEditorWindow : Window
         if (document.IsGraphOnly)
             return rightPanel;
 
-        GridSplitter splitter = new()
+        contentSplitter = new GridSplitter
         {
             Width = 4,
             Background = new SolidColorBrush(Color.Parse("#323232")),
             VerticalAlignment = VerticalAlignment.Stretch,
             ResizeDirection = GridResizeDirection.Columns,
         };
-        Grid root = new()
+        splitLayout = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("5*,4,6*"),
         };
-        root.Children.Add(leftScroll);
-        Grid.SetColumn(splitter, 1);
-        root.Children.Add(splitter);
+        splitLayout.ColumnDefinitions[0].MinWidth = leftScroll.MinWidth;
+        splitLayout.Children.Add(leftScroll);
+        Grid.SetColumn(contentSplitter, 1);
+        splitLayout.Children.Add(contentSplitter);
         Grid.SetColumn(rightPanel, 2);
-        root.Children.Add(rightPanel);
-        return root;
+        splitLayout.Children.Add(rightPanel);
+        return splitLayout;
     }
 
     public event EventHandler<BlueprintGraphRequestedEventArgs>? GraphRequested;
@@ -706,8 +713,10 @@ public sealed class BlueprintEditorWindow : Window
         variableForm.SetFields(fieldBuilder.Build(
             resolved,
             document.Kind == BlueprintEditorDocumentKind.Blueprint));
-        updateGraphMode();
+        bool graphModeChanged = updateGraphMode();
         refreshing = false;
+        if (graphModeChanged)
+            refreshGraphList(null, false);
     }
 
     private ResolvedBlueprintClass? resolveParentClass()
@@ -724,6 +733,12 @@ public sealed class BlueprintEditorWindow : Window
             resolved,
             resolved.ClassReference);
         publishVisualDescriptor(descriptor);
+        if (isGraphReadOnly())
+        {
+            if (previewLease is not null)
+                previewLease.IsActive = false;
+            return;
+        }
         if (descriptor is not { RequiresPreviewService: true })
         {
             releasePreviewLease();
@@ -844,6 +859,11 @@ public sealed class BlueprintEditorWindow : Window
             previewLease.IsActive = false;
         foreach (Control graphView in graphViews.Values)
             graphView.IsVisible = false;
+        if (isGraphReadOnly())
+        {
+            refreshPreview(resolvedClass);
+            return;
+        }
         if (graphList.SelectedItem is not BlueprintEditorTabItem selected)
             return;
         if (selected.IsPreview)
@@ -1236,7 +1256,7 @@ public sealed class BlueprintEditorWindow : Window
             && resolvedClass?.ScriptMixin == true;
     }
 
-    private void updateGraphMode()
+    private bool updateGraphMode()
     {
         bool readOnly = isGraphReadOnly();
         ToolTip.SetTip(
@@ -1247,6 +1267,26 @@ public sealed class BlueprintEditorWindow : Window
             if (content is BlueprintGraphControl graphControl)
                 graphControl.SetReadOnly(readOnly);
         }
+        if (splitLayout is null || contentSplitter is null || rightPanel.IsVisible == !readOnly)
+            return false;
+        if (readOnly)
+        {
+            leftColumnWidth = splitLayout.ColumnDefinitions[0].Width;
+            rightColumnWidth = splitLayout.ColumnDefinitions[2].Width;
+            splitLayout.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+            splitLayout.ColumnDefinitions[1].Width = new GridLength(0);
+            splitLayout.ColumnDefinitions[2].Width = new GridLength(0);
+            showSelectedContent();
+        }
+        else
+        {
+            splitLayout.ColumnDefinitions[0].Width = leftColumnWidth;
+            splitLayout.ColumnDefinitions[1].Width = new GridLength(4);
+            splitLayout.ColumnDefinitions[2].Width = rightColumnWidth;
+        }
+        rightPanel.IsVisible = !readOnly;
+        contentSplitter.IsVisible = !readOnly;
+        return true;
     }
 
     private static string getString(JsonNode? value)

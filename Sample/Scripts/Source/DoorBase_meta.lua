@@ -8,7 +8,7 @@ local _METADATA = {
             "closing"
         },
         bases = {
-            { "Engine", "Actor" }
+            { "Source.ConditionalActor", "ConditionalActor" }
         },
         collisionEnabled = {
             type = "bool",

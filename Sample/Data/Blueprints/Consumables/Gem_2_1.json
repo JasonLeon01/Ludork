@@ -1,5 +1,5 @@
 {
-  "parent": "Engine.Actor",
+  "parent": "Source.ConditionalActor.ConditionalActor",
   "attrs": {
     "scriptMixin": true,
     "scriptPath": "Consumables/Gem.lua",

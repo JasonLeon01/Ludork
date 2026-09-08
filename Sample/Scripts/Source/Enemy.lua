@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local ConditionalActor = require("Source.ConditionalActor")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
 ---@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
@@ -219,4 +220,4 @@ end
 ---@diagnostic disable-next-line: unused, Blueprint event implementations use colon dispatch
 function Enemy:onDefeat() end
 
-return class(Enemy, Actor, Battler)
+return class(Enemy, ConditionalActor, Battler)

@@ -58,7 +58,7 @@ void GameMapRendererImpl::drawContent(
 
 int GameMapRendererImpl::playerLayerIndex() const {
     const std::shared_ptr<Actor>& player = map.getPlayerActorForRenderer();
-    if (!player) {
+    if (!player || !player->isVisibleInHierarchy()) {
         return -1;
     }
     const ActorDict& actors = map.getMaterialActorsForRenderer();
@@ -83,7 +83,7 @@ bool GameMapRendererImpl::preparePlayerCover(int layerIndex,
                                              int materialRevision,
                                              sf::Vector2i& playerPosition) {
     const std::shared_ptr<Actor>& player = map.getPlayerActorForRenderer();
-    if (!player || layerIndex < 0) {
+    if (!player || !player->isVisibleInHierarchy() || layerIndex < 0) {
         resetTransparentTiles();
         return false;
     }
@@ -164,7 +164,8 @@ void GameMapRendererImpl::drawLayerActors(sf::RenderTarget& target,
     }
     const std::shared_ptr<Actor>& player = map.getPlayerActorForRenderer();
     for (const std::shared_ptr<Actor>& actor : layerIt->second) {
-        if (!actor || effectHiddenActors.contains(actor.get())) {
+        if (!actor || actor->isDestroyed() || !actor->isVisibleInHierarchy() ||
+            effectHiddenActors.contains(actor.get())) {
             continue;
         }
         int alpha = 255;
@@ -181,7 +182,7 @@ void GameMapRendererImpl::drawActor(sf::RenderTarget& target,
                                     const sf::RenderStates& states,
                                     const std::shared_ptr<Actor>& actor,
                                     int actorAlpha, float shaderTime) {
-    if (!actor) {
+    if (!actor || !actor->isVisibleInHierarchy()) {
         return;
     }
     const std::uint8_t alpha =

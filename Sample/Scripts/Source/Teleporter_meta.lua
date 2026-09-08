@@ -7,7 +7,7 @@ local _METADATA = {
             "transitionTime"
         },
         bases = {
-            { "Engine", "Actor" }
+            { "Source.ConditionalActor", "ConditionalActor" }
         },
         Offset = {
             type = "sf.Vector2i",

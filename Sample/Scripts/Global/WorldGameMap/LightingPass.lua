@@ -462,7 +462,7 @@ function GameMapLighting.GetActiveLights(self)
     local position = nil
     for _, actor in ipairs(self:getAllActors()) do
         local lightComp = actor.lightComp
-        if lightComp ~= nil and not actor:isDestroyed() then
+        if lightComp ~= nil and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
             local radius = lightComp.lightRadius
             if radius > 0.0 then
                 if position == nil then

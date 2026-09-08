@@ -127,6 +127,69 @@ void invokeMonitorCallback(sol::state_view lua, sol::table entry,
     }
 }
 
+void invokeMonitorCallbacks(sol::state_view lua, const sol::table& entry,
+                            const sol::object& oldValue,
+                            const sol::object& newValue) {
+    const sol::table callbacks = entry.raw_get<sol::table>("callbacks");
+    std::vector<sol::table> snapshot;
+    snapshot.reserve(callbacks.size());
+    for (std::size_t index = 1; index <= callbacks.size(); ++index) {
+        snapshot.push_back(callbacks.raw_get<sol::table>(index));
+    }
+    for (const sol::table& callback : snapshot) {
+        if (rawBool(callback, "active")) {
+            invokeMonitorCallback(lua, callback, oldValue, newValue);
+        }
+    }
+}
+
+void registerMonitorCallback(sol::state_view lua, sol::table entry,
+                             const sol::protected_function& callback,
+                             const sol::table& params, bool notifyEqualWrites,
+                             const std::string& identifier) {
+    const sol::object rawCallbacks = entry.raw_get<sol::object>("callbacks");
+    sol::table callbacks = rawCallbacks.is<sol::table>()
+                               ? rawCallbacks.as<sol::table>()
+                               : lua.create_table();
+    entry.raw_set("callbacks", callbacks);
+    std::size_t position = callbacks.size() + 1;
+    for (std::size_t index = 1; index <= callbacks.size(); ++index) {
+        sol::table existing = callbacks.raw_get<sol::table>(index);
+        if (existing.raw_get<std::string>("identifier") == identifier) {
+            existing.raw_set("active", false);
+            position = index;
+            break;
+        }
+    }
+    sol::table subscription = lua.create_table();
+    subscription.raw_set("identifier", identifier);
+    subscription.raw_set("callback", callback);
+    subscription.raw_set("params", params);
+    subscription.raw_set("notifyEqualWrites", notifyEqualWrites);
+    subscription.raw_set("running", false);
+    subscription.raw_set("active", true);
+    callbacks.raw_set(position, subscription);
+}
+
+bool unregisterMonitorCallback(const sol::table& entry,
+                               const std::string& identifier) {
+    sol::table callbacks = entry.raw_get<sol::table>("callbacks");
+    const std::size_t count = callbacks.size();
+    for (std::size_t index = 1; index <= count; ++index) {
+        sol::table existing = callbacks.raw_get<sol::table>(index);
+        if (existing.raw_get<std::string>("identifier") != identifier) {
+            continue;
+        }
+        existing.raw_set("active", false);
+        for (std::size_t next = index + 1; next <= count; ++next) {
+            callbacks.raw_set(next - 1, callbacks.raw_get<sol::table>(next));
+        }
+        callbacks.raw_set(count, sol::lua_nil);
+        return count == 1;
+    }
+    return false;
+}
+
 sol::object monitoredTableIndex(sol::object target, sol::object key,
                                 sol::this_state state) {
     sol::state_view lua(state);
@@ -175,7 +238,7 @@ void monitoredTableNewIndex(sol::object target, sol::object key,
     entry.raw_set("hasValue", true);
     entry.raw_set("assigned", true);
     clearExplicitNilField(lua, target, key);
-    invokeMonitorCallback(lua, entry, oldValue, value);
+    invokeMonitorCallbacks(lua, entry, oldValue, value);
 }
 
 sol::table createTableMonitorState(sol::state_view lua, sol::table target) {
@@ -220,9 +283,25 @@ sol::table createTableMonitorState(sol::state_view lua, sol::table target) {
 void registerMonitor(sol::this_state state, const sol::object& target,
                      const std::string& name,
                      const sol::protected_function& callback,
-                     sol::optional<sol::table> params,
-                     sol::optional<bool> notifyEqualWrites) {
+                     sol::variadic_args) {
     sol::state_view lua(state);
+    if (!lua_isnoneornil(state, 4) && !lua_istable(state, 4)) {
+        throw std::invalid_argument("Monitor params must be a table or nil");
+    }
+    if (!lua_isnoneornil(state, 5) && !lua_isboolean(state, 5)) {
+        throw std::invalid_argument(
+            "Monitor notifyEqualWrites must be a boolean or nil");
+    }
+    if (!lua_isnoneornil(state, 6) && lua_type(state, 6) != LUA_TSTRING) {
+        throw std::invalid_argument(
+            "Monitor identifier must be a string or nil");
+    }
+    const sol::table params = lua_isnoneornil(state, 4)
+                                  ? lua.create_table()
+                                  : sol::stack::get<sol::table>(state, 4);
+    const bool notifyEqualWrites = lua_toboolean(state, 5) != 0;
+    const std::string identifier =
+        lua_isnoneornil(state, 6) ? "" : sol::stack::get<std::string>(state, 6);
     if (name.empty()) {
         throw std::invalid_argument("Monitor field name must not be empty");
     }
@@ -235,11 +314,8 @@ void registerMonitor(sol::this_state state, const sol::object& target,
         sol::table fields = monitor.raw_get<sol::table>("fields");
         const sol::object rawEntry = fields.raw_get<sol::object>(name);
         if (rawEntry.is<sol::table>()) {
-            sol::table entry = rawEntry.as<sol::table>();
-            entry.raw_set("callback", callback);
-            entry.raw_set("params", params.value_or(lua.create_table()));
-            entry.raw_set("notifyEqualWrites",
-                          notifyEqualWrites.value_or(false));
+            registerMonitorCallback(lua, rawEntry.as<sol::table>(), callback,
+                                    params, notifyEqualWrites, identifier);
             return;
         }
         const sol::object rawValue = object.raw_get<sol::object>(name);
@@ -255,10 +331,8 @@ void registerMonitor(sol::this_state state, const sol::object& target,
         if (hasValue) {
             entry.raw_set("value", value);
         }
-        entry.raw_set("callback", callback);
-        entry.raw_set("params", params.value_or(lua.create_table()));
-        entry.raw_set("notifyEqualWrites", notifyEqualWrites.value_or(false));
-        entry.raw_set("running", false);
+        registerMonitorCallback(lua, entry, callback, params, notifyEqualWrites,
+                                identifier);
         entry.raw_set("raw", rawValue.valid() &&
                                  rawValue.get_type() != sol::type::lua_nil);
         entry.raw_set("assigned", false);
@@ -272,25 +346,26 @@ void registerMonitor(sol::this_state state, const sol::object& target,
             "Monitors require a table or userdata target");
     }
     sol::table fields = class_native::getUserFields(lua, target, true);
-    const sol::object rawCallbacks =
+    const sol::object rawMonitors =
         fields.raw_get<sol::object>("__monitorCallbacks");
-    sol::table callbacks = rawCallbacks.is<sol::table>()
-                               ? rawCallbacks.as<sol::table>()
-                               : lua.create_table();
-    if (!rawCallbacks.is<sol::table>()) {
-        fields.raw_set("__monitorCallbacks", callbacks);
+    sol::table monitors = rawMonitors.is<sol::table>()
+                              ? rawMonitors.as<sol::table>()
+                              : lua.create_table();
+    if (!rawMonitors.is<sol::table>()) {
+        fields.raw_set("__monitorCallbacks", monitors);
     }
-    sol::table entry = lua.create_table();
-    entry.raw_set("callback", callback);
-    entry.raw_set("params", params.value_or(lua.create_table()));
-    entry.raw_set("notifyEqualWrites", notifyEqualWrites.value_or(false));
-    entry.raw_set("running", false);
+    const sol::object rawEntry = monitors.raw_get<sol::object>(name);
+    sol::table entry = rawEntry.is<sol::table>() ? rawEntry.as<sol::table>()
+                                                 : lua.create_table();
+    registerMonitorCallback(lua, entry, callback, params, notifyEqualWrites,
+                            identifier);
     entry.raw_set("missing", monitorMissing(lua));
-    callbacks.raw_set(name, entry);
+    monitors.raw_set(name, entry);
 }
 
 void unregisterMonitor(sol::this_state state, const sol::object& target,
-                       const std::string& name) {
+                       const std::string& name,
+                       sol::optional<std::string> identifier) {
     sol::state_view lua(state);
     if (target.get_type() == sol::type::table) {
         sol::table object = target.as<sol::table>();
@@ -305,6 +380,9 @@ void unregisterMonitor(sol::this_state state, const sol::object& target,
             return;
         }
         sol::table entry = rawEntry.as<sol::table>();
+        if (!unregisterMonitorCallback(entry, identifier.value_or(""))) {
+            return;
+        }
         fields.raw_set(name, sol::lua_nil);
         const bool restore =
             rawBool(entry, "raw") || rawBool(entry, "assigned");
@@ -341,6 +419,12 @@ void unregisterMonitor(sol::this_state state, const sol::object& target,
         return;
     }
     sol::table callbacks = rawCallbacks.as<sol::table>();
+    const sol::object rawEntry = callbacks.raw_get<sol::object>(name);
+    if (!rawEntry.is<sol::table>() ||
+        !unregisterMonitorCallback(rawEntry.as<sol::table>(),
+                                   identifier.value_or(""))) {
+        return;
+    }
     callbacks.raw_set(name, sol::lua_nil);
     if (tableIsEmpty(callbacks)) {
         fields.raw_set("__monitorCallbacks", sol::lua_nil);

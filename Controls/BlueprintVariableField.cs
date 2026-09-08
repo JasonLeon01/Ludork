@@ -18,6 +18,7 @@ public sealed class BlueprintVariableField
     public string Type { get; init; }
     public string? Module { get; init; }
     public string? TypeName { get; init; }
+    public string? SourceClass { get; init; }
     public JsonNode? Value { get; set; }
     public JsonNode? DefaultValue { get; init; }
     public JsonNode? DisplayValue { get; init; }
@@ -42,6 +43,7 @@ public sealed class BlueprintVariableField
             Description = Description,
             Module = Module,
             TypeName = TypeName,
+            SourceClass = SourceClass,
             DefaultValue = DefaultValue?.DeepClone(),
             DisplayValue = DisplayValue?.DeepClone(),
             Meta = Meta.DeepClone() as JsonObject ?? [],

@@ -8,6 +8,7 @@
 ---@class Source.SceneComponents.MovementDangerEnemySnapshot
 ---@field x               integer
 ---@field y               integer
+---@field visible         boolean
 ---@field abilityRevision integer
 ---@field attributes      Source.Configs.GeneralDataTypes.EnemyAttributeSet
 ---@field scanRevision    integer

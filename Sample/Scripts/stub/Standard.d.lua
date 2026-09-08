@@ -21,6 +21,7 @@ function bool(value) end
 --- Shallow-copy a Lua table or supported native value.
 --- Lua table metatables are preserved. Native resources without an explicit
 --- value-copy strategy retain their identity.
+--- Monitored tables copy their current logical fields and original metatable, without subscriptions.
 ---@generic T
 ---@param value T
 ---@return T
@@ -29,6 +30,7 @@ function copy(value) end
 --- Recursively copy Lua table keys and values, preserving aliases and cycles.
 --- Supported native values are copied; native resources without an explicit
 --- value-copy strategy retain their identity.
+--- Monitored tables copy their current logical fields and original metatable, without subscriptions.
 ---@generic T
 ---@param value T
 ---@return T

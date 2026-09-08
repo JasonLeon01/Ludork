@@ -24,11 +24,13 @@ public sealed record ActorVisualDescriptor(
     Vector Scale,
     Vector Origin,
     double Rotation,
+    bool Visible,
     bool IsCharacter,
     bool Animated,
     double SwitchInterval,
     int FrameCount)
 {
+    public double MapPreviewOpacity => Visible ? 1.0 : 0.25;
     public bool RequiresRealtimePreview => Animated || ShaderPath.Length != 0;
     public bool RequiresNativePreview => ShaderPath.Length != 0 || Math.Abs(Hue % 360) > 0.001;
     public bool RequiresPreviewService => Animated || RequiresNativePreview;

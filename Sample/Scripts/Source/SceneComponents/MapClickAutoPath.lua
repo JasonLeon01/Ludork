@@ -358,7 +358,8 @@ function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
         if Class.isInstance(actor, Enemy) then
             ---@cast actor Source.Enemy
             local abilitySystem = actor:getAbilitySystemComponent()
-            if not actor:isDestroyed() and abilitySystem:hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG) then
+            if not actor:isDestroyed() and actor:isVisibleInHierarchy()
+                and abilitySystem:hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG) then
                 if table.contains(actor:getOccupiedMapCells(), goal) then
                     enemies[#enemies + 1] = actor
                 end

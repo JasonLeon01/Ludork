@@ -333,17 +333,20 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
         if (!collisions.empty()) {
             BPBase::BlueprintEventNative(
                 *this, "onCollision", {{"other", actorListValue(collisions)}});
-            if (isDestroyed()) {
+            if (isDestroyed() || !isVisibleInHierarchy()) {
                 return false;
             }
             const std::vector<Actor*> self{this};
             for (Actor* collision : collisions) {
-                if (collision == nullptr || collision->isDestroyed()) {
+                if (collision == nullptr || collision->isDestroyed() ||
+                    !collision->isVisibleInHierarchy()) {
                     continue;
                 }
                 BPBase::BlueprintEventNative(*collision, "onCollision",
                                              {{"other", actorListValue(self)}});
-                if (isDestroyed() || collision->isDestroyed()) {
+                if (isDestroyed() || !isVisibleInHierarchy() ||
+                    collision->isDestroyed() ||
+                    !collision->isVisibleInHierarchy()) {
                     break;
                 }
             }
@@ -440,7 +443,11 @@ float Actor::processMoving(float deltaTime) {
                                      {{"other", actorListValue(overlaps)}});
         const std::vector<Actor*> self{this};
         for (Actor* overlap : overlaps) {
-            if (overlap != nullptr) {
+            if (isDestroyed() || !isVisibleInHierarchy()) {
+                break;
+            }
+            if (overlap != nullptr && !overlap->isDestroyed() &&
+                overlap->isVisibleInHierarchy()) {
                 BPBase::BlueprintEventNative(*overlap, "onOverlap",
                                              {{"other", actorListValue(self)}});
             }
@@ -847,7 +854,8 @@ const std::unordered_set<Actor*>& Actor::getDescendantActors() const {
 }
 
 bool Actor::blocksPassability() const {
-    return getCollisionEnabled() || getPathfindingBlocks();
+    return isVisibleInHierarchy() &&
+           (getCollisionEnabled() || getPathfindingBlocks());
 }
 
 const sf::Texture& Actor::textureOrBlank(
@@ -880,11 +888,24 @@ bool Actor::hasShaderError() const {
 }
 
 bool Actor::getVisible() const {
-    return visible_;
+    return visible;
+}
+
+bool Actor::isVisibleInHierarchy() const {
+    if (!getVisible()) {
+        return false;
+    }
+    for (std::shared_ptr<Actor> parent = getParent(); parent;
+         parent = parent->getParent()) {
+        if (!parent->getVisible()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void Actor::setVisible(bool visible, bool applyToChildren) {
-    visible_ = visible;
+    this->visible = visible;
     if (applyToChildren) {
         for (const std::shared_ptr<Actor>& child : children_) {
             child->setVisible(visible, true);

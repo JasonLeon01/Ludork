@@ -11,7 +11,8 @@ public sealed class ResolvedBlueprintField
         JsonNode? blueprintDefaultValue,
         BlueprintFieldMetadata? metadata,
         bool isUnknown,
-        bool hasBlueprintDefaultValue = true
+        bool hasBlueprintDefaultValue = true,
+        string? sourceClass = null
     )
     {
         Name = name;
@@ -21,6 +22,7 @@ public sealed class ResolvedBlueprintField
         Metadata = metadata;
         IsUnknown = isUnknown;
         HasBlueprintDefaultValue = hasBlueprintDefaultValue;
+        SourceClass = sourceClass;
     }
 
     public string Name { get; }
@@ -30,4 +32,5 @@ public sealed class ResolvedBlueprintField
     public BlueprintFieldMetadata? Metadata { get; }
     public bool IsUnknown { get; }
     public bool HasBlueprintDefaultValue { get; }
+    public string? SourceClass { get; }
 }

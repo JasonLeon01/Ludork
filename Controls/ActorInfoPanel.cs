@@ -200,7 +200,7 @@ public sealed class ActorInfoPanel : UserControl
         classTitleContainer.Children.Add(classTitleLabel);
         Grid.SetColumn(resetAllButton, 1);
         classTitleContainer.Children.Add(resetAllButton);
-        classForm = new BlueprintVariableForm();
+        classForm = new BlueprintVariableForm { ShowSourceGroups = true };
         classForm.FieldActionFactory = createResetAction;
         classForm.ValueChanged += onClassVariableChanged;
 
@@ -225,8 +225,11 @@ public sealed class ActorInfoPanel : UserControl
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         };
-        scrollArea.SizeChanged += (_, args) =>
-            content.Width = Math.Max(ClassContentMinimumWidth, args.NewSize.Width);
+        scrollArea.ScrollChanged += (_, args) =>
+        {
+            if (args.ViewportDelta.X != 0)
+                content.Width = Math.Max(ClassContentMinimumWidth, scrollArea.Viewport.Width);
+        };
 
         noSelectionLabel = new TextBlock
         {

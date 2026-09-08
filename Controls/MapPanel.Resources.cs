@@ -625,6 +625,7 @@ public sealed partial class MapPanel
         Vector scale,
         Vector origin,
         double rotation,
+        double mapPreviewOpacity,
         bool animated,
         double interval,
         int frameCount,
@@ -637,6 +638,7 @@ public sealed partial class MapPanel
         public Vector Scale { get; } = scale;
         public Vector Origin { get; } = origin;
         public double Rotation { get; } = rotation;
+        public double MapPreviewOpacity { get; } = mapPreviewOpacity;
         public bool Animated { get; } = animated;
         public double Interval { get; } = interval;
         public int FrameCount { get; } = frameCount;
@@ -652,6 +654,7 @@ public sealed partial class MapPanel
                 new Vector(1, 1),
                 Vector.Zero,
                 0,
+                1,
                 false,
                 0.2,
                 1,

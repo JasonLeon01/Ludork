@@ -57,7 +57,8 @@ std::vector<Actor*> OccupancyIndexImpl::getActorsInRangeImpl(
     std::unordered_set<Actor*> seen;
     const auto appendActors = [&](const std::vector<Actor*>& actors) {
         for (Actor* actor : actors) {
-            if (actor == excludedActor) {
+            if (actor == excludedActor || actor->isDestroyed() ||
+                !actor->isVisibleInHierarchy()) {
                 continue;
             }
             if (seen.insert(actor).second) {

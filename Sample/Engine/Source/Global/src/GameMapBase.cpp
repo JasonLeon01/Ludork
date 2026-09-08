@@ -507,7 +507,7 @@ sf::Vector2u GameMapBase::getSize() const {
 
 bool GameMapBase::isPassable(const Actor& actor,
                              const sf::Vector2i& position) const {
-    if (!actor.getCollisionEnabled()) {
+    if (!actor.getCollisionEnabled() || !actor.isVisibleInHierarchy()) {
         return true;
     }
     ensurePassabilityCache();
@@ -544,7 +544,7 @@ bool GameMapBase::isPassable(const Actor& actor,
 
 std::vector<Actor*> GameMapBase::getCollision(Actor& actor,
                                               const sf::Vector2i& position) {
-    if (!actor.getCollisionEnabled()) {
+    if (!actor.getCollisionEnabled() || !actor.isVisibleInHierarchy()) {
         return {};
     }
     ensurePassabilityCache();
@@ -562,6 +562,9 @@ std::vector<Actor*> GameMapBase::getCollision(Actor& actor,
 }
 
 std::vector<Actor*> GameMapBase::getOverlaps(Actor& actor) {
+    if (!actor.isVisibleInHierarchy()) {
+        return {};
+    }
     ensurePassabilityCache();
     std::vector<Actor*> result;
     std::unordered_set<Actor*> seen;
@@ -589,7 +592,8 @@ std::optional<Material> GameMapBase::getTopMaterial(
         auto actorLayerIt = actorRegistry_->materialActors().find(layerName);
         if (actorLayerIt != actorRegistry_->materialActors().end()) {
             for (const ActorPtr& actor : actorLayerIt->second) {
-                if (actor &&
+                if (actor && !actor->isDestroyed() &&
+                    actor->isVisibleInHierarchy() &&
                     actor.get() != actorRegistry_->playerActor().get() &&
                     actor->getMapPosition() == position) {
                     return actor->getMaterial();
@@ -605,12 +609,19 @@ std::optional<Material> GameMapBase::getTopMaterial(
 }
 
 std::vector<Actor*> GameMapBase::getActorsAt(int x, int y) {
+    ensurePassabilityCache();
     const std::vector<Actor*>* actors =
         occupancy_->findActorsAtCell(x, y, sparseWorld_->size());
     if (actors == nullptr) {
         return {};
     }
-    return *actors;
+    std::vector<Actor*> result;
+    for (Actor* actor : *actors) {
+        if (!actor->isDestroyed() && actor->isVisibleInHierarchy()) {
+            result.push_back(actor);
+        }
+    }
+    return result;
 }
 
 std::vector<Actor*> GameMapBase::getActorsInRange(int x, int y, int radius) {
@@ -624,13 +635,14 @@ std::vector<Actor*> GameMapBase::getActorsInRangeExcluding(
 
 std::vector<Actor*> GameMapBase::getActorsInRangeImpl(
     int x, int y, int radius, const Actor* excludedActor) {
+    ensurePassabilityCache();
     return occupancy_->getActorsInRangeImpl(x, y, radius, excludedActor,
                                             sparseWorld_->size());
 }
 
 std::vector<Actor*> GameMapBase::getCollisionAt(int x, int y,
                                                 Actor& selfActor) {
-    if (!selfActor.getCollisionEnabled()) {
+    if (!selfActor.getCollisionEnabled() || !selfActor.isVisibleInHierarchy()) {
         return {};
     }
     const std::vector<Actor*>* actorsAtCell =
@@ -654,7 +666,7 @@ std::vector<Actor*> GameMapBase::getCollisionAt(int x, int y,
         if (descendantActors.find(otherActor) != descendantActors.end()) {
             continue;
         }
-        if (otherActor->isDestroyed()) {
+        if (otherActor->isDestroyed() || !otherActor->isVisibleInHierarchy()) {
             continue;
         }
         if (getActorLayerIndex(otherActor) != topmostLayerIndex) {
@@ -669,6 +681,9 @@ std::vector<Actor*> GameMapBase::getCollisionAt(int x, int y,
 }
 
 std::vector<Actor*> GameMapBase::getOverlapsAt(int x, int y, Actor& selfActor) {
+    if (!selfActor.isVisibleInHierarchy()) {
+        return {};
+    }
     const std::vector<Actor*>* actorsAtCell =
         occupancy_->findActorsAtCell(x, y, sparseWorld_->size());
     if (actorsAtCell == nullptr) {
@@ -688,7 +703,7 @@ std::vector<Actor*> GameMapBase::getOverlapsAt(int x, int y, Actor& selfActor) {
         if (descendantActors.find(otherActor) != descendantActors.end()) {
             continue;
         }
-        if (otherActor->isDestroyed()) {
+        if (otherActor->isDestroyed() || !otherActor->isVisibleInHierarchy()) {
             continue;
         }
         if (getActorLayerIndex(otherActor) != topmostLayerIndex) {
@@ -726,7 +741,7 @@ bool GameMapBase::passableForActor(int x, int y, int sx, int sy, int gx, int gy,
                     descendantActors->find(actor) != descendantActors->end()) {
                     continue;
                 }
-                if (actor->isDestroyed()) {
+                if (actor->isDestroyed() || !actor->isVisibleInHierarchy()) {
                     continue;
                 }
                 if (getActorLayerIndex(actor) != topmostLayerIndex) {
@@ -785,7 +800,7 @@ int GameMapBase::getTopmostOccupantLayerIndex(
             descendantActors->find(actor) != descendantActors->end()) {
             continue;
         }
-        if (actor->isDestroyed()) {
+        if (actor->isDestroyed() || !actor->isVisibleInHierarchy()) {
             continue;
         }
         const int layerIndex = getActorLayerIndex(actor);

@@ -307,7 +307,7 @@ std::optional<Material> SparseWorldImpl::getSparseWorldTopMaterial(
         if (actorLayerIt != actors.materialActors().end()) {
             for (const std::shared_ptr<Actor>& actor : actorLayerIt->second) {
                 if (actor && actor.get() != actors.playerActor().get() &&
-                    !actor->isDestroyed() &&
+                    !actor->isDestroyed() && actor->isVisibleInHierarchy() &&
                     actor->getMapPosition() == position) {
                     return actor->getMaterial();
                 }

@@ -107,7 +107,7 @@ function WindowEnemyBookUI:refreshEnemies(gameMap)
     local seen = dict()
     if gameMap ~= nil then
         for _, actor in ipairs(gameMap:getAllActors()) do
-            if Class.isInstance(actor, Enemy) and not actor:isDestroyed() then
+            if Class.isInstance(actor, Enemy) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
                 local enemyID = actor.ID
                 local visual = Render.CaptureActorVisual(actor)
                 local signature = Render.GetActorVisualSignature(enemyID, visual)

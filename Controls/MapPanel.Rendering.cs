@@ -58,7 +58,8 @@ public sealed partial class MapPanel
             using (context.PushTransform(transform))
             {
                 Rect destination = new Rect(-actor.Origin.X, -actor.Origin.Y, source.Width, source.Height);
-                context.DrawImage(image, source, destination);
+                using (context.PushOpacity(actor.MapPreviewOpacity))
+                    context.DrawImage(image, source, destination);
                 if (selectedActorLayer == layerName && selectedActorIndex == index)
                     context.DrawRectangle(null, SelectedActorPen, destination);
             }
@@ -348,6 +349,7 @@ public sealed partial class MapPanel
             descriptor.Scale,
             descriptor.Origin,
             descriptor.Rotation,
+            descriptor.MapPreviewOpacity,
             descriptor.Animated,
             descriptor.SwitchInterval,
             descriptor.FrameCount,

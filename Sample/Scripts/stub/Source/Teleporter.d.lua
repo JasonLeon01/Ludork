@@ -1,7 +1,7 @@
 ---@meta Source.Teleporter
 
 ---@brief Actor used to move between neighbouring maps in the current region.
----@class Source.Teleporter.Teleporter: Engine.Actor
+---@class Source.Teleporter.Teleporter: Source.ConditionalActor
 ---@field Offset                sf.Vector2i
 ---@field stairSE               string
 ---@field transitionName        string

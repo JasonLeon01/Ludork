@@ -54,6 +54,34 @@ void copyTableMetatable(const sol::table& source, const sol::table& target) {
     lua_pop(state, 3);
 }
 
+sol::table tableCopySource(sol::state_view lua, const sol::table& source) {
+    const sol::object rawMonitor = registryTable(lua, MONITOR_STATES_KEY, "k")
+                                       .raw_get<sol::object>(source);
+    if (!rawMonitor.is<sol::table>()) {
+        return source;
+    }
+    const sol::table monitor = rawMonitor.as<sol::table>();
+    sol::table snapshot = lua.create_table();
+    for (const auto& entry : source) {
+        snapshot.raw_set(entry.first, entry.second);
+    }
+    const sol::table fields = monitor.raw_get<sol::table>("fields");
+    for (const auto& field : fields) {
+        const sol::table entry = field.second.as<sol::table>();
+        if (rawBool(entry, "hasValue")) {
+            snapshot.raw_set(field.first, entry.raw_get<sol::object>("value"));
+        }
+    }
+    const sol::object originalMetatable = monitor.raw_get<sol::object>("meta");
+    if (originalMetatable.is<sol::table>()) {
+        snapshot.push();
+        originalMetatable.push();
+        lua_setmetatable(lua.lua_state(), -2);
+        lua_pop(lua.lua_state(), 1);
+    }
+    return snapshot;
+}
+
 sol::object deepCopyImpl(sol::state_view lua, const sol::object& value,
                          std::unordered_map<const void*, sol::object>& visited);
 
@@ -139,10 +167,11 @@ sol::object deepCopyImpl(
     }
     sol::table result = lua.create_table();
     visited.emplace(identity, sol::make_object(lua, result));
-    for (const auto& entry : source) {
+    const sol::table copySource = tableCopySource(lua, source);
+    for (const auto& entry : copySource) {
         result.raw_set(entry.first, deepCopyImpl(lua, entry.second, visited));
     }
-    copyTableMetatable(source, result);
+    copyTableMetatable(copySource, result);
     copyExplicitNilFields(lua, value, sol::make_object(lua, result));
     return sol::make_object(lua, result);
 }
@@ -156,10 +185,11 @@ sol::object clonePlainDataImpl(sol::state_view lua, const sol::object& value) {
         return value;
     }
     sol::table result = lua.create_table();
-    for (const auto& entry : source) {
+    const sol::table copySource = tableCopySource(lua, source);
+    for (const auto& entry : copySource) {
         result.raw_set(entry.first, clonePlainDataImpl(lua, entry.second));
     }
-    copyTableMetatable(source, result);
+    copyTableMetatable(copySource, result);
     copyExplicitNilFields(lua, value, sol::make_object(lua, result));
     return sol::make_object(lua, result);
 }
@@ -201,10 +231,11 @@ sol::object shallowCopyImpl(sol::state_view lua, const sol::object& value) {
         return value;
     }
     sol::table result = lua.create_table();
-    for (const auto& entry : source) {
+    const sol::table copySource = tableCopySource(lua, source);
+    for (const auto& entry : copySource) {
         result.raw_set(entry.first, entry.second);
     }
-    copyTableMetatable(source, result);
+    copyTableMetatable(copySource, result);
     copyExplicitNilFields(lua, value, sol::make_object(lua, result));
     return sol::make_object(lua, result);
 }

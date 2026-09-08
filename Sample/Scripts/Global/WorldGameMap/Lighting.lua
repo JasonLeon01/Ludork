@@ -537,7 +537,7 @@ function GameMapLighting.RenderSurfaceMask(self)
         ---@cast layer Engine.TileLayer
         if layer.visible then
             for _, actor in ipairs(self._actors[layerName] or {}) do
-                if not actor:isDestroyed() and not visibleActorSet[actor] then
+                if not actor:isDestroyed() and actor:isVisibleInHierarchy() and not visibleActorSet[actor] then
                     visibleActorSet[actor] = true
                     visibleActors[#visibleActors + 1] = actor
                 end
@@ -564,7 +564,7 @@ function GameMapLighting.RenderSurfaceMask(self)
             ---@cast drawable sf.Drawable
             self._surfaceMask:draw(drawable, self._surfaceTileRenderStates)
             for _, actor in ipairs(self._actors[layerName] or {}) do
-                if not actor:isDestroyed() then
+                if not actor:isDestroyed() and actor:isVisibleInHierarchy() then
                     self:_setActorMaskUniforms(actor)
                     self._surfaceMask:draw(actor, self._surfaceActorRenderStates)
                 end

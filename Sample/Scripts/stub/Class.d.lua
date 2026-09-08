@@ -74,17 +74,24 @@ function Class.constructNamed(type, arguments) end
 ---@return any
 function Class.super(cls, self) end
 
+--- Subscribe to a field; different identifiers run in registration order.
+--- Reusing an identifier replaces that subscription without changing its order.
+--- Assignments reject nil; unchanged values notify only with notifyEqualWrites.
+--- Callback errors propagate after assignment, and each subscription suppresses its own recursion.
 ---@generic V
 ---@param target             table | userdata
 ---@param name               string
 ---@param callback           fun(oldValue: V | Class.MissingValue, newValue: V, ...)
 ---@param params             table | nil
 ---@param notifyEqualWrites? boolean
-function Class.monitor(target, name, callback, params, notifyEqualWrites) end
+---@param identifier?        string                                                  Defaults to the empty string.
+function Class.monitor(target, name, callback, params, notifyEqualWrites, identifier) end
 
----@param target table | userdata
----@param name   string
-function Class.unmonitor(target, name) end
+--- Remove only the subscription with the given identifier; missing subscriptions are ignored.
+---@param target      table | userdata
+---@param name        string
+---@param identifier? string           Defaults to the empty string.
+function Class.unmonitor(target, name, identifier) end
 
 ---@type Class.MissingValue
 Class.MISSING = {}
