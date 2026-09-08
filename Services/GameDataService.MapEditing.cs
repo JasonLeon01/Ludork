@@ -726,10 +726,7 @@ public sealed partial class GameDataService
 
     public int getCellSize()
     {
-        int? value = SystemConfigData.TryGetValue("System", out JsonObject? system)
-            ? system["cellSize"]?["value"]?.GetValue<int?>()
-            : null;
-        return value is > 0 ? value.Value : 32;
+        return EngineConstants.CellSize;
     }
 
     public (int Width, int Height) getGameSize()

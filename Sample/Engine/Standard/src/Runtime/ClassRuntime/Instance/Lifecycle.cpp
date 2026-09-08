@@ -1,11 +1,11 @@
 #include "Instance/InstanceRuntime.hpp"
 #include "Instance/LifecycleInternal.hpp"
 
-#include "Composite/CompositeRuntime.hpp"
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 

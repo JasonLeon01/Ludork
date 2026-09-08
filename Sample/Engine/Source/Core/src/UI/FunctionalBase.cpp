@@ -122,8 +122,9 @@ std::optional<sf::FloatRect> FunctionalBase::getAbsoluteTouchHitBounds() const {
     if (!touchHitBounds_.has_value()) {
         return control->getAbsoluteInteractionBounds();
     }
-    const sf::FloatRect scaledBounds(touchHitBounds_->position * Scale,
-                                     touchHitBounds_->size * Scale);
+    const sf::FloatRect scaledBounds(
+        touchHitBounds_->position * engineState().getScale(),
+        touchHitBounds_->size * engineState().getScale());
     return control->clipAbsoluteInteractionBounds(
         control->screenRenderTransform().transformRect(scaledBounds));
 }

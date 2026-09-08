@@ -72,6 +72,7 @@ public interface IPluginSecretStore
 public interface IMapEditorHost
 {
     string ProjectPath { get; }
+    int CellSize { get; }
     string? SuggestedMapKey { get; }
     IReadOnlyList<PluginMapSummary> ListMaps();
     PluginMapSnapshot ReadMap(string mapKey);

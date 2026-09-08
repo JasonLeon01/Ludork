@@ -4,6 +4,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 

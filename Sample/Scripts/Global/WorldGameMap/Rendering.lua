@@ -56,7 +56,7 @@ function WorldGameMapRendering.DrawWorldTileMaskLayer(
     regionStates.transform = copy(baseStates.transform)
     regionStates.texture = baseStates.texture
     regionStates.shader = self._tilemapLightMaskShader
-    regionStates.transform:translate(sf.Vector2f.new(region.x * Engine.CellSize, region.y * Engine.CellSize))
+    regionStates.transform:translate(sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize()))
     target:draw(layer, regionStates)
 end
 
@@ -100,8 +100,10 @@ function WorldGameMapRendering.RebuildStaticTransmission(self, activeLights, _st
     if self._staticTransmissionRevision == self._materialRevision and self._staticTransmissionSignature == signature then
         return
     end
-    local viewPosition = sf.Vector2f.new(lightingRect.x * Engine.CellSize, lightingRect.y * Engine.CellSize)
-    local viewSize = sf.Vector2f.new(lightingRect.width * Engine.CellSize, lightingRect.height * Engine.CellSize)
+    local viewPosition = sf.Vector2f.new(lightingRect.x * Engine.GetCellSize(), lightingRect.y * Engine.GetCellSize())
+    local viewSize = sf.Vector2f.new(
+        lightingRect.width * Engine.GetCellSize(), lightingRect.height * Engine.GetCellSize()
+    )
     local viewCentre = sf.Vector2f.new(viewPosition.x + viewSize.x * 0.5, viewPosition.y + viewSize.y * 0.5)
     ---@cast viewPosition sf.Vector2f
     ---@cast viewSize sf.Vector2f
@@ -449,7 +451,7 @@ function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayer
                     regionStates.texture = states.texture
                     regionStates.shader = layer.shader
                     regionStates.transform:translate(
-                        sf.Vector2f.new(region.x * Engine.CellSize, region.y * Engine.CellSize)
+                        sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize())
                     )
                     target:draw(layer, regionStates)
                 end

@@ -418,9 +418,9 @@ local function createWorldRegionBuildCoroutine(
         for _, lightData in ipairs(serializedLights) do
             local rawPosition = lightData.position or { 0.0, 0.0 }
             local radius = tonumber(lightData.radius) or 0.0
-            local worldX = region.x + (tonumber(rawPosition[1]) or 0.0) / Engine.CellSize
-            local worldY = region.y + (tonumber(rawPosition[2]) or 0.0) / Engine.CellSize
-            local cellRadius = radius / Engine.CellSize
+            local worldX = region.x + (tonumber(rawPosition[1]) or 0.0) / Engine.GetCellSize()
+            local worldY = region.y + (tonumber(rawPosition[2]) or 0.0) / Engine.GetCellSize()
+            local cellRadius = radius / Engine.GetCellSize()
             local priority = priorityRect == nil
                 or worldX + cellRadius >= priorityRect.x and worldY + cellRadius >= priorityRect.y
                     and worldX - cellRadius < priorityRect.x + priorityRect.width
@@ -449,7 +449,7 @@ local function createWorldRegionBuildCoroutine(
             local light = GlobalCore.Light.fromDict(values)
             local translated = copy(light)
             translated.position = sf.Vector2f.new(
-                light.position.x + region.x * Engine.CellSize, light.position.y + region.y * Engine.CellSize
+                light.position.x + region.x * Engine.GetCellSize(), light.position.y + region.y * Engine.GetCellSize()
             )
             lights[#lights + 1] = translated
             if background then

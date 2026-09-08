@@ -48,13 +48,13 @@ function WorldGameMapStreaming.GetVisibleCellRect(self)
     local minimumY = math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y)
     local maximumX = math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x)
     local maximumY = math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y)
-    local cellX = math.floor(minimumX / Engine.CellSize)
-    local cellY = math.floor(minimumY / Engine.CellSize)
+    local cellX = math.floor(minimumX / Engine.GetCellSize())
+    local cellY = math.floor(minimumY / Engine.GetCellSize())
     return {
         x = cellX,
         y = cellY,
-        width = math.max(1, math.ceil(maximumX / Engine.CellSize) - cellX),
-        height = math.max(1, math.ceil(maximumY / Engine.CellSize) - cellY)
+        width = math.max(1, math.ceil(maximumX / Engine.GetCellSize()) - cellX),
+        height = math.max(1, math.ceil(maximumY / Engine.GetCellSize()) - cellY)
     }
 end
 
@@ -101,8 +101,8 @@ function WorldGameMapStreaming.RefreshStreamingStates(self)
     ---@cast prepared Global.WorldGeometry.CellRect
     local viewport = assert(self._camera):getViewport()
     ---@cast viewport sf.FloatRect
-    local centerX = (viewport.position.x + viewport.size.x / 2) / Engine.CellSize
-    local centerY = (viewport.position.y + viewport.size.y / 2) / Engine.CellSize
+    local centerX = (viewport.position.x + viewport.size.x / 2) / Engine.GetCellSize()
+    local centerY = (viewport.position.y + viewport.size.y / 2) / Engine.GetCellSize()
     local center = sf.Vector2f.new(centerX, centerY)
     ---@cast center sf.Vector2f
     local movement = self._worldStreamingState:updateCameraCenter(center)

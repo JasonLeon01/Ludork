@@ -232,8 +232,8 @@ void Camera::fixViewPosition() {
     }
     const sf::Vector2u mapSize = map->getSize();
     const sf::Vector2f mapPixelSize{
-        static_cast<float>(mapSize.x * CellSize),
-        static_cast<float>(mapSize.y * CellSize),
+        static_cast<float>(mapSize.x * EngineState::CellSize),
+        static_cast<float>(mapSize.y * EngineState::CellSize),
     };
     const auto fixAxis = [](float position, float mapLength, float viewLength) {
         if (mapLength < viewLength) {

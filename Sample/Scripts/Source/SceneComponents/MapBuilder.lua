@@ -327,15 +327,15 @@ function SceneMapBuilder:buildFloorMapPreview(
     target:clear(sf.Color.Transparent)
     local viewSize = sf.Vector2f.new(previewSize / scale, previewSize / scale)
     local mapPixelSize = sf.Vector2f.new(
-        self._floorMapPreviewGameMaps[mapPath].mapData.width * Engine.CellSize,
-        self._floorMapPreviewGameMaps[mapPath].mapData.height * Engine.CellSize
+        self._floorMapPreviewGameMaps[mapPath].mapData.width * Engine.GetCellSize(),
+        self._floorMapPreviewGameMaps[mapPath].mapData.height * Engine.GetCellSize()
     )
     local centre = sf.Vector2f.new(
         mapPixelSize.x >= viewSize.x and viewSize.x / 2.0 or mapPixelSize.x / 2.0,
         mapPixelSize.y >= viewSize.y and viewSize.y / 2.0 or mapPixelSize.y / 2.0
     )
     local telepointCentre = sf.Vector2f.new(
-        (telepoint.x + 0.5) * Engine.CellSize, (telepoint.y + 0.5) * Engine.CellSize
+        (telepoint.x + 0.5) * Engine.GetCellSize(), (telepoint.y + 0.5) * Engine.GetCellSize()
     )
     local halfView = viewSize / 2.0
     if telepointCentre.x < centre.x - halfView.x or telepointCentre.x > centre.x + halfView.x
@@ -351,10 +351,10 @@ function SceneMapBuilder:buildFloorMapPreview(
     local preview = self._floorMapPreviewGameMaps[mapPath]
     if preview.mapData.type == "worldMap" then
         ---@cast preview Source.SceneComponents.WorldFloorMapPreview
-        local visibleLeft = math.floor((centre.x - halfView.x) / Engine.CellSize)
-        local visibleTop = math.floor((centre.y - halfView.y) / Engine.CellSize)
-        local visibleRight = math.ceil((centre.x + halfView.x) / Engine.CellSize)
-        local visibleBottom = math.ceil((centre.y + halfView.y) / Engine.CellSize)
+        local visibleLeft = math.floor((centre.x - halfView.x) / Engine.GetCellSize())
+        local visibleTop = math.floor((centre.y - halfView.y) / Engine.GetCellSize())
+        local visibleRight = math.ceil((centre.x + halfView.x) / Engine.GetCellSize())
+        local visibleBottom = math.ceil((centre.y + halfView.y) / Engine.GetCellSize())
         local visibleRect = {
             x = visibleLeft,
             y = visibleTop,
@@ -417,7 +417,7 @@ function SceneMapBuilder:buildFloorMapPreview(
                 end
                 local regionStates = Engine.CanvasRenderStates()
                 regionStates.transform:translate(
-                    sf.Vector2f.new(region.x * Engine.CellSize, region.y * Engine.CellSize)
+                    sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize())
                 )
                 preview.regions[region.path]:drawMapContent(target, regionStates)
             end
@@ -427,8 +427,8 @@ function SceneMapBuilder:buildFloorMapPreview(
         preview.gameMap:drawMapContent(target, states)
     end
     if showTelepointMarker then
-        local marker = sf.RectangleShape.new(sf.Vector2f.new(Engine.CellSize, Engine.CellSize))
-        marker:setPosition(sf.Vector2f.new(telepoint.x * Engine.CellSize, telepoint.y * Engine.CellSize))
+        local marker = sf.RectangleShape.new(sf.Vector2f.new(Engine.GetCellSize(), Engine.GetCellSize()))
+        marker:setPosition(sf.Vector2f.new(telepoint.x * Engine.GetCellSize(), telepoint.y * Engine.GetCellSize()))
         marker:setFillColor(sf.Color.new(0, 255, 0, 64))
         marker:setOutlineColor(sf.Color.new(0, 255, 0, 255))
         marker:setOutlineThickness(2.0)

@@ -33,7 +33,7 @@ UIManager* UIManager::activeManager_ = nullptr;
 UIManager::UIManager()
     : focusManager_(std::make_shared<FocusManager>()),
       callbackRegistry_(std::make_shared<RuntimeCallbackRegistry>()),
-      displayScale_(Scale) {
+      displayScale_(engineState().getScale()) {
     activateFocusResolvers();
 }
 
@@ -131,10 +131,10 @@ void UIManager::logicHandle(float deltaTime) {
 }
 
 void UIManager::refreshDisplayScale() {
-    if (displayScale_ == Scale) {
+    if (displayScale_ == engineState().getScale()) {
         return;
     }
-    displayScale_ = Scale;
+    displayScale_ = engineState().getScale();
     for (const std::shared_ptr<ControlBase>& ui : getUIs()) {
         if (ui != nullptr) {
             ui->refreshDisplayScale();

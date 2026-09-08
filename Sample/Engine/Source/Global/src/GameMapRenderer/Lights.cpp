@@ -194,7 +194,7 @@ bool GameMapRendererImpl::ensureDirectLight() {
 void GameMapRendererImpl::ensureStaticDirectLight() {
     const sf::Vector2u mapSize = tilemap->getSize();
     const unsigned int cellSize =
-        static_cast<unsigned int>(std::max(CellSize, 1));
+        static_cast<unsigned int>(std::max(EngineState::CellSize, 1));
     const sf::Vector2u logicalSize{
         std::max(1u, mapSize.x * cellSize),
         std::max(1u, mapSize.y * cellSize),

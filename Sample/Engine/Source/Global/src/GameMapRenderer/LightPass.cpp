@@ -99,8 +99,8 @@ void GameMapRendererImpl::renderCachedLighting(
     }
     const sf::Vector2u mapSize = tilemap->getSize();
     const sf::Vector2f worldSize{
-        static_cast<float>(mapSize.x * std::max(CellSize, 1)),
-        static_cast<float>(mapSize.y * std::max(CellSize, 1)),
+        static_cast<float>(mapSize.x * std::max(EngineState::CellSize, 1)),
+        static_cast<float>(mapSize.y * std::max(EngineState::CellSize, 1)),
     };
     staticDirectLight->setView(sf::View(worldSize * 0.5f, worldSize));
     staticDirectLight->clear(sf::Color::Black);
@@ -203,8 +203,8 @@ void GameMapRendererImpl::setLightPassCommonUniforms() {
 void GameMapRendererImpl::setLightPassWorldUniforms() {
     const sf::Vector2u mapSize = tilemap->getSize();
     const sf::Vector2f screenSize{
-        static_cast<float>(mapSize.x * std::max(CellSize, 1)),
-        static_cast<float>(mapSize.y * std::max(CellSize, 1)),
+        static_cast<float>(mapSize.x * std::max(EngineState::CellSize, 1)),
+        static_cast<float>(mapSize.y * std::max(EngineState::CellSize, 1)),
     };
     const sf::Vector2u targetSize = staticDirectLight->getSize();
     setLightPassTextureUniforms();
@@ -220,7 +220,8 @@ void GameMapRendererImpl::setLightPassWorldUniforms() {
     lightPassShader->setUniform("gridSize",
                                 sf::Vector2f{static_cast<float>(mapSize.x),
                                              static_cast<float>(mapSize.y)});
-    lightPassShader->setUniform("cellSize", static_cast<float>(CellSize));
+    lightPassShader->setUniform("cellSize",
+                                static_cast<float>(EngineState::CellSize));
 }
 
 void GameMapRendererImpl::setLightPassCacheUniforms(sf::RenderTexture& target,
@@ -241,7 +242,8 @@ void GameMapRendererImpl::setLightPassCacheUniforms(sf::RenderTexture& target,
     lightPassShader->setUniform("gridSize",
                                 sf::Vector2f{static_cast<float>(mapSize.x),
                                              static_cast<float>(mapSize.y)});
-    lightPassShader->setUniform("cellSize", static_cast<float>(CellSize));
+    lightPassShader->setUniform("cellSize",
+                                static_cast<float>(EngineState::CellSize));
 }
 
 void GameMapRendererImpl::setViewShaderUniforms(
@@ -258,7 +260,7 @@ void GameMapRendererImpl::setViewShaderUniforms(
     const sf::Vector2u mapSize = tilemap->getSize();
     shader.setUniform("gridSize", sf::Vector2f{static_cast<float>(mapSize.x),
                                                static_cast<float>(mapSize.y)});
-    shader.setUniform("cellSize", static_cast<float>(CellSize));
+    shader.setUniform("cellSize", static_cast<float>(EngineState::CellSize));
 }
 
 void GameMapRendererImpl::renderLight(const ActiveLight& entry,

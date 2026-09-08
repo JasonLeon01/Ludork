@@ -123,7 +123,7 @@ end
 ---@param self WorldGameMapImplState
 function GameMapLighting.EnsureStaticDirectLight(self)
     local tilemapSize = self._tilemap:getSize()
-    local mapPixelSize = sf.Vector2u.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    local mapPixelSize = sf.Vector2u.new(tilemapSize.x * Engine.GetCellSize(), tilemapSize.y * Engine.GetCellSize())
     ---@cast mapPixelSize sf.Vector2u
     local lightingRenderScale = System.getLightingRenderScale()
     local requiredSize = getLightingTargetSize(mapPixelSize, lightingRenderScale)
@@ -155,7 +155,7 @@ end
 function GameMapLighting.SetLightPassWorldUniforms(self)
     ---@cast self._staticDirectLight sf.RenderTexture
     local tilemapSize = self._tilemap:getSize()
-    local screenSize = sf.Vector2f.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    local screenSize = sf.Vector2f.new(tilemapSize.x * Engine.GetCellSize(), tilemapSize.y * Engine.GetCellSize())
     local targetSize = self._staticDirectLight:getSize()
     self:_setLightPassTextureUniforms()
     self._lightPassShader:setUniform(
@@ -167,7 +167,7 @@ function GameMapLighting.SetLightPassWorldUniforms(self)
     self._lightPassShader:setUniform("viewSinCos", self._identityShaderRotation)
     self._lightPassShader:setUniform("useCachedStaticLight", 0.0)
     self._lightPassShader:setUniform("gridSize", self._shaderMapSize)
-    self._lightPassShader:setUniform("cellSize", Engine.CellSize)
+    self._lightPassShader:setUniform("cellSize", Engine.GetCellSize())
 end
 
 ---@param target sf.RenderTexture
@@ -188,7 +188,7 @@ function GameMapLighting.SetLightPassCacheUniforms(self, target, light)
     )
     self._lightPassShader:setUniform("viewSinCos", self._identityShaderRotation)
     self._lightPassShader:setUniform("gridSize", self._shaderMapSize)
-    self._lightPassShader:setUniform("cellSize", Engine.CellSize)
+    self._lightPassShader:setUniform("cellSize", Engine.GetCellSize())
 end
 
 ---@param index integer
@@ -265,7 +265,7 @@ function GameMapLighting.SetViewShaderUniforms(self, shader, screenSize, mapView
     self._shaderViewSinCos.y = math.cos(viewRadians)
     shader:setUniform("viewSinCos", self._shaderViewSinCos)
     shader:setUniform("gridSize", self._shaderMapSize)
-    shader:setUniform("cellSize", Engine.CellSize)
+    shader:setUniform("cellSize", Engine.GetCellSize())
 end
 
 ---@param entry         Global.GameMap.ActiveLight

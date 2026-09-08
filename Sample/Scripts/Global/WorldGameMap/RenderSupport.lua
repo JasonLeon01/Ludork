@@ -9,10 +9,10 @@ function RenderSupport.GetLightingCellRect(visible, limit, worldSize, activeLigh
     local maximumY = visible.y + visible.height
     for _, entry in ipairs(activeLights) do
         local light = entry.light
-        minimumX = math.min(minimumX, math.floor((light.position.x - light.radius) / Engine.CellSize) - 1)
-        minimumY = math.min(minimumY, math.floor((light.position.y - light.radius) / Engine.CellSize) - 1)
-        maximumX = math.max(maximumX, math.ceil((light.position.x + light.radius) / Engine.CellSize) + 1)
-        maximumY = math.max(maximumY, math.ceil((light.position.y + light.radius) / Engine.CellSize) + 1)
+        minimumX = math.min(minimumX, math.floor((light.position.x - light.radius) / Engine.GetCellSize()) - 1)
+        minimumY = math.min(minimumY, math.floor((light.position.y - light.radius) / Engine.GetCellSize()) - 1)
+        maximumX = math.max(maximumX, math.ceil((light.position.x + light.radius) / Engine.GetCellSize()) + 1)
+        maximumY = math.max(maximumY, math.ceil((light.position.y + light.radius) / Engine.GetCellSize()) + 1)
     end
     local left = math.max(0, limit.x, minimumX)
     local top = math.max(0, limit.y, minimumY)
@@ -35,7 +35,7 @@ function RenderSupport.CreateTileMaskConfig(target, viewPosition, viewSize, view
     local targetSize = target:getSize()
     local targetSizeFloat = sf.Vector2f.new(targetSize.x, targetSize.y)
     local regionSize = sf.Vector2f.new(region.width, region.height)
-    local regionPosition = sf.Vector2f.new(region.x * Engine.CellSize, region.y * Engine.CellSize)
+    local regionPosition = sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize())
     ---@cast targetSizeFloat sf.Vector2f
     ---@cast regionSize sf.Vector2f
     ---@cast regionPosition sf.Vector2f

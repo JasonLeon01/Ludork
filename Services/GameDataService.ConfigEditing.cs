@@ -5,9 +5,15 @@ namespace Ludork.Services;
 
 public sealed partial class GameDataService
 {
+    internal static bool CanEditConfigField(string fileKey, string name)
+    {
+        return fileKey != "System" || name != "cellSize";
+    }
+
     public bool UpdateConfigValue(string fileKey, string name, JsonNode? value)
     {
-        if (!sections["Configs"].Data.TryGetValue(fileKey, out JsonObject? data)
+        if (!CanEditConfigField(fileKey, name)
+            || !sections["Configs"].Data.TryGetValue(fileKey, out JsonObject? data)
             || data[name] is not JsonObject field || JsonNode.DeepEquals(field["value"], value))
         {
             return false;
@@ -49,7 +55,8 @@ public sealed partial class GameDataService
     private JsonArray? getConfigArrayForEdit(string fileKey, string name, out bool variableLength)
     {
         variableLength = false;
-        if (!sections["Configs"].Data.TryGetValue(fileKey, out JsonObject? data)
+        if (!CanEditConfigField(fileKey, name)
+            || !sections["Configs"].Data.TryGetValue(fileKey, out JsonObject? data)
             || data[name] is not JsonObject field)
         {
             return null;

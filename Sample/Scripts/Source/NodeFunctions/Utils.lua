@@ -262,7 +262,10 @@ function Utils.AddAnimOn(animName, actorTag, rotation, scale)
     if actor == nil then
         error("Actor with tag '" .. tostring(actorTag) .. "' not found")
     end
-    spawnAnim(animName, actor:getPosition() + sf.Vector2f.new(Engine.CellSize, Engine.CellSize) * 0.5, rotation, scale)
+    spawnAnim(
+        animName, actor:getPosition() + sf.Vector2f.new(Engine.GetCellSize(), Engine.GetCellSize()) * 0.5, rotation,
+        scale
+    )
 end
 
 function Utils.GetAnimLength(animName)

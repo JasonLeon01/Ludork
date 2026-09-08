@@ -16,7 +16,7 @@ public sealed class AutoTilePreview : Control
         AvaloniaProperty.Register<AutoTilePreview, string?>(nameof(AssetPath));
 
     public static readonly StyledProperty<int> CellSizeProperty =
-        AvaloniaProperty.Register<AutoTilePreview, int>(nameof(CellSize), 32);
+        AvaloniaProperty.Register<AutoTilePreview, int>(nameof(CellSize), EngineConstants.CellSize);
 
     private static readonly IBrush EmptyBrush = new SolidColorBrush(Color.FromRgb(60, 60, 60));
     private Bitmap? bitmap;

@@ -42,7 +42,7 @@ void TextStyle::enableStyle(sf::Text& text) const {
         text.setOutlineColor(*outlineColor);
     }
     if (outlineThickness.has_value()) {
-        text.setOutlineThickness(*outlineThickness * Scale);
+        text.setOutlineThickness(*outlineThickness * engineState().getScale());
     }
 }
 

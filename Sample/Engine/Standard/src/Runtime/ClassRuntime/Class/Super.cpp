@@ -1,10 +1,12 @@
-#include "Native/NativeRuntime.hpp"
+#include "Class/ClassRuntimeInternals.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Instance/InstanceRuntime.hpp"
+#include "Native/NativeRuntime.hpp"
 
 #include <sol2/sol.hpp>
 
@@ -17,14 +19,6 @@ extern "C" {
 #include <stdexcept>
 
 namespace ludork::standard::class_runtime::detail {
-
-bool isNativeInitializer(const sol::table& nativeType,
-                         const sol::object& member) {
-    const sol::object initializer =
-        nativeType.raw_get<sol::object>(NATIVE_INITIALIZER_FIELD);
-    return initializer.is<sol::function>() && member.is<sol::function>() &&
-           objectsRawEqual(initializer, member);
-}
 
 namespace {
 

@@ -277,12 +277,12 @@ void Slider::updateGeometry() {
         static_cast<float>(std::max(1u, lineTextureSize.y));
     const float lineHeight = std::min(size_.y, lineTextureHeight);
     line_->setScale({
-        size_.x * Scale / lineTextureWidth,
-        lineHeight * Scale / lineTextureHeight,
+        size_.x * engineState().getScale() / lineTextureWidth,
+        lineHeight * engineState().getScale() / lineTextureHeight,
     });
     line_->setPosition({
         0.0f,
-        (size_.y - lineHeight) * 0.5f * Scale,
+        (size_.y - lineHeight) * 0.5f * engineState().getScale(),
     });
 
     const sf::Vector2u handleTextureSize = handleTexture_->getSize();
@@ -292,10 +292,10 @@ void Slider::updateGeometry() {
         static_cast<float>(std::max(1u, handleTextureSize.y));
     const float logicalHandleWidth = handleWidth();
     handle_->setScale({
-        logicalHandleWidth * Scale / handleTextureWidth,
-        size_.y * Scale / handleTextureHeight,
+        logicalHandleWidth * engineState().getScale() / handleTextureWidth,
+        size_.y * engineState().getScale() / handleTextureHeight,
     });
-    handle_->setPosition({handleOffset() * Scale, 0.0f});
+    handle_->setPosition({handleOffset() * engineState().getScale(), 0.0f});
 }
 
 void Slider::refreshDisplayScale() {

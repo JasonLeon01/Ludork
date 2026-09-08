@@ -13,7 +13,7 @@ ListView::ListView(const sf::IntRect& rect, int defaultItemHeight,
       fixItemHeight_(fixItemHeight),
       columns_(columns),
       renderStates_(canvasRenderStates()),
-      displayScale_(Scale) {
+      displayScale_(engineState().getScale()) {
     if (columns_ <= 0) {
         throw std::invalid_argument("ListView columns must be positive");
     }
@@ -22,11 +22,11 @@ ListView::ListView(const sf::IntRect& rect, int defaultItemHeight,
 }
 
 sf::Vector2f ListView::getOrigin() const {
-    return ControlBase::getOrigin() / Scale;
+    return ControlBase::getOrigin() / engineState().getScale();
 }
 
 void ListView::setOrigin(const sf::Vector2f& origin) {
-    ControlBase::setOrigin(origin * Scale);
+    ControlBase::setOrigin(origin * engineState().getScale());
 }
 
 int ListView::getColumns() const {
@@ -192,10 +192,10 @@ void ListView::applyPositions() {
 }
 
 void ListView::refreshDisplayScale() {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         const sf::Vector2f logicalOrigin =
             ControlBase::getOrigin() / displayScale_;
-        displayScale_ = Scale;
+        displayScale_ = engineState().getScale();
         setOrigin(logicalOrigin);
         invalidatePositions();
     }

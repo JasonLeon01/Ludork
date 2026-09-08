@@ -37,6 +37,8 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     public string ProjectPath => gameData.ProjectPath;
 
+    public int CellSize => gameData.getCellSize();
+
     public string? SuggestedMapKey { get; }
 
     public IReadOnlyList<PluginMapSummary> ListMaps()

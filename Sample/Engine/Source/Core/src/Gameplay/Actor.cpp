@@ -353,7 +353,7 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
     impl.moving = true;
     impl.moveOriginMapPosition = getMapPosition();
     impl.departure = getPosition();
-    impl.setDestination(offset, CellSize);
+    impl.setDestination(offset, EngineState::CellSize);
     return true;
 }
 
@@ -461,8 +461,8 @@ void Actor::tryStartNextRouteStep() {
 void Actor::autoFixMapPosition() {
     const sf::Vector2f position = getPosition();
     impl_.get().movement.moveOriginMapPosition.reset();
-    setMapPosition(
-        ludork::engine::actor_impl::snappedMapPosition(position, CellSize));
+    setMapPosition(ludork::engine::actor_impl::snappedMapPosition(
+        position, EngineState::CellSize));
     const std::shared_ptr<ActorMapService> map = getMap();
     if (map) {
         map->updateActorOccupancy(*this);
@@ -499,24 +499,26 @@ std::vector<sf::Vector2i> Actor::getOccupiedMapCells(
         return impl_.get().spatial.occupiedCells;
     }
     const sf::Vector2f delta = *worldPosition - getPosition();
-    const sf::Vector2i mapDelta(ludork::engine::actor_impl::roundHalfToEven(
-                                    delta.x / static_cast<float>(CellSize)),
-                                ludork::engine::actor_impl::roundHalfToEven(
-                                    delta.y / static_cast<float>(CellSize)));
+    const sf::Vector2i mapDelta(
+        ludork::engine::actor_impl::roundHalfToEven(
+            delta.x / static_cast<float>(EngineState::CellSize)),
+        ludork::engine::actor_impl::roundHalfToEven(
+            delta.y / static_cast<float>(EngineState::CellSize)));
     return getOccupiedMapCellsAtMapPosition(getMapPosition() + mapDelta);
 }
 
 std::vector<sf::Vector2i> Actor::getOccupiedMapCellsAtMapPosition(
     const sf::Vector2i& mapPosition) const {
     syncMapCache();
-    return impl_.get().spatial.occupiedCellsAtMapPosition(mapPosition,
-                                                          CellSize);
+    return impl_.get().spatial.occupiedCellsAtMapPosition(
+        mapPosition, EngineState::CellSize);
 }
 
 sf::Vector2i Actor::getRelativeMapPosition() const {
-    return {
-        static_cast<int>(relativePosition_.x / static_cast<float>(CellSize)),
-        static_cast<int>(relativePosition_.y / static_cast<float>(CellSize))};
+    return {static_cast<int>(relativePosition_.x /
+                             static_cast<float>(EngineState::CellSize)),
+            static_cast<int>(relativePosition_.y /
+                             static_cast<float>(EngineState::CellSize))};
 }
 
 sf::FloatRect Actor::getLocalBounds() const {
@@ -549,8 +551,8 @@ void Actor::setRelativePosition(const sf::Vector2f& position) {
 }
 
 void Actor::setMapPosition(const sf::Vector2u& position) {
-    setPosition({static_cast<float>(position.x * CellSize),
-                 static_cast<float>(position.y * CellSize)});
+    setPosition({static_cast<float>(position.x * EngineState::CellSize),
+                 static_cast<float>(position.y * EngineState::CellSize)});
 }
 
 void Actor::setMapPosition(const sf::Vector2i& position) {
@@ -566,8 +568,9 @@ void Actor::setMapPositionSigned(const sf::Vector2i& position) {
 }
 
 void Actor::setRelativeMapPosition(const sf::Vector2u& position) {
-    setRelativePosition({static_cast<float>(position.x * CellSize),
-                         static_cast<float>(position.y * CellSize)});
+    setRelativePosition(
+        {static_cast<float>(position.x * EngineState::CellSize),
+         static_cast<float>(position.y * EngineState::CellSize)});
 }
 
 void Actor::move(const sf::Vector2f& offset) {
@@ -769,7 +772,7 @@ void Actor::removeChild(const std::shared_ptr<Actor>& child) {
 void Actor::syncMapCache() const {
     ludork::engine::actor_impl::SpatialImpl& spatial = impl_.get().spatial;
     spatial.position = getPosition();
-    spatial.syncBounds(sf::Sprite::getGlobalBounds(), CellSize);
+    spatial.syncBounds(sf::Sprite::getGlobalBounds(), EngineState::CellSize);
 }
 
 void Actor::_superMove(const sf::Vector2f& offset) {

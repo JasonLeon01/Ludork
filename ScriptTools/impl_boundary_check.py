@@ -47,16 +47,78 @@ def _cpp_files(directory: pathlib.Path) -> list[pathlib.Path]:
 
 
 def _cpp_source_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
-    roots = [project_root / "Engine" / "Source", project_root / "Engine" / "Runtime"]
+    roots = [
+        project_root / "Engine" / module
+        for module in ("Source", "Runtime", "Standard")
+    ]
     return [root for root in roots if root.is_dir()]
 
 
 def _cpp_include_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
     roots = sorted((project_root / "Engine" / "Source").glob("*/include"))
-    runtime_include = project_root / "Engine" / "Runtime" / "include"
-    if runtime_include.is_dir():
-        roots.append(runtime_include)
+    for module in ("Runtime", "Standard"):
+        include_root = project_root / "Engine" / module / "include"
+        if include_root.is_dir():
+            roots.append(include_root)
     return roots
+
+
+def _check_standard_layers(project_root: pathlib.Path) -> list[str]:
+    standard = project_root / "Engine" / "Standard"
+    runtime = standard / "src" / "Runtime" / "ClassRuntime"
+    if not runtime.is_dir():
+        return []
+    layers = {name: rank for rank, name in enumerate(
+        ("Detail", "Native", "Instance", "Composite", "Class")
+    )}
+    include_roots = (runtime, standard / "src", standard / "include")
+    include_pattern = re.compile(
+        r'^[ \t]*#[ \t]*include[ \t]*[<"]([^>"]+)[>"]', re.MULTILINE
+    )
+    comment_pattern = re.compile(
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+    diagnostics: list[str] = []
+    for path in _cpp_files(runtime):
+        relative = path.relative_to(runtime)
+        source_layer = relative.parts[0]
+        if source_layer not in layers:
+            continue
+        text = path.read_text(encoding="utf-8")
+        uncommented = comment_pattern.sub(
+            lambda match: "".join("\n" if ch == "\n" else " " for ch in match[0])
+            if match[0].startswith(("//", "/*")) else match[0],
+            text,
+        )
+        for match in include_pattern.finditer(uncommented):
+            name = match[1]
+            if ".." in pathlib.PurePosixPath(name).parts:
+                diagnostics.append(_diagnostic(
+                    path, text, match.start(), "Standard impl must not include through ../"
+                ))
+                continue
+            target = next(
+                (candidate.resolve() for directory in (path.parent, *include_roots)
+                 if (candidate := directory / name).is_file()),
+                None,
+            )
+            if target is None or not target.is_relative_to(standard / "src"):
+                continue
+            if not target.is_relative_to(runtime):
+                diagnostics.append(_diagnostic(
+                    path, text, match.start(),
+                    f"ClassRuntime layer must not include parent implementation header {name}",
+                ))
+                continue
+            target_layer = target.relative_to(runtime).parts[0]
+            if target_layer not in layers or layers[target_layer] > layers[source_layer]:
+                diagnostics.append(_diagnostic(
+                    path, text, match.start(),
+                    f"ClassRuntime dependency {source_layer} -> {target_layer} violates "
+                    "Class -> Composite -> Instance -> Native -> Detail",
+                ))
+    return diagnostics
 
 
 def _without_cpp_comments_and_literals(text: str) -> str:
@@ -465,6 +527,7 @@ def verify_impl_boundaries(project_root: pathlib.Path) -> None:
     cpp = _discover_cpp_boundaries(root)
     lua = _discover_lua_boundaries(root)
     diagnostics = _check_core_sol(root)
+    diagnostics.extend(_check_standard_layers(root))
     for boundary in cpp:
         diagnostics.extend(_check_cpp(boundary, root))
     for boundary in lua:

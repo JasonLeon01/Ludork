@@ -19,7 +19,6 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private const int MinimumCellSize = 12;
     private const int MaximumCellSize = 96;
     private const int CellSizeStep = 4;
-    private const int SourceCellSize = 32;
     private const int CharacterSheetColumns = 4;
     private const int CharacterSheetRows = 4;
     private static readonly IBrush BackgroundBrush =
@@ -386,7 +385,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
             }
         }
         int sourceCellSize = tileset is null
-            ? SourceCellSize
+            ? host.CellSize
             : Math.Max(1, tileset.TileWidth);
         drawActors(
             context,
@@ -515,7 +514,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         return new Rect(left, top, right - left, bottom - top);
     }
 
-    private static PluginMapActorRectSnapshot getActorSourceRect(
+    private PluginMapActorRectSnapshot getActorSourceRect(
         PluginMapActorSnapshot actor,
         Bitmap? bitmap)
     {
@@ -541,8 +540,8 @@ internal sealed class RandomMapCanvas : Control, IDisposable
             ?? new PluginMapActorRectSnapshot(
                 0,
                 0,
-                SourceCellSize,
-                SourceCellSize);
+                host.CellSize,
+                host.CellSize);
     }
 
     private static bool isValidSourceRect(

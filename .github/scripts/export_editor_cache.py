@@ -52,6 +52,8 @@ MANAGED_INPUTS = (
     "packages.lock.json",
     "*/packages.lock.json",
     "tools/pack_editor.*",
+    "Sample/Engine/Source/Core/include/EngineState.hpp",
+    "ScriptTools/engine_constants.py",
 )
 LAUNCHER_INPUTS = (
     "tools/editor_launcher/*",

@@ -66,7 +66,7 @@ RichText::RichText(std::shared_ptr<RichText::RichTextConfig> config,
     : config_(snapshotConfig(config)),
       localBounds_({0.0f, 0.0f}, {0.0f, 0.0f}),
       effects_(std::make_unique<EffectCache>()),
-      displayScale_(Scale) {
+      displayScale_(engineState().getScale()) {
     setString(text);
 }
 
@@ -104,7 +104,8 @@ sf::FloatRect RichText::getPixelBounds() const {
 
 sf::FloatRect RichText::getLocalBounds() const {
     const sf::FloatRect bounds = getPixelBounds();
-    return {bounds.position / Scale, bounds.size / Scale};
+    return {bounds.position / engineState().getScale(),
+            bounds.size / engineState().getScale()};
 }
 
 sf::FloatRect RichText::getGlobalBounds() const {
@@ -112,24 +113,24 @@ sf::FloatRect RichText::getGlobalBounds() const {
 }
 
 sf::Vector2f RichText::getSize() const {
-    return getPixelBounds().size / Scale;
+    return getPixelBounds().size / engineState().getScale();
 }
 
 sf::Vector2f RichText::getOrigin() const {
     syncDisplayScale();
-    return ControlBase::getOrigin() / Scale;
+    return ControlBase::getOrigin() / engineState().getScale();
 }
 
 void RichText::setOrigin(const sf::Vector2f& origin) {
     syncDisplayScale();
-    ControlBase::setOrigin(origin * Scale);
+    ControlBase::setOrigin(origin * engineState().getScale());
 }
 
 void RichText::refreshDisplayScale() {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         const sf::Vector2f logicalOrigin =
             ControlBase::getOrigin() / displayScale_;
-        displayScale_ = Scale;
+        displayScale_ = engineState().getScale();
         renderText(string_);
         refreshSegmentColours();
         invalidateEffects();
@@ -477,7 +478,7 @@ void RichText::invalidateEffects() {
 }
 
 void RichText::syncDisplayScale() const {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         const_cast<RichText*>(this)->refreshDisplayScale();
     }
 }

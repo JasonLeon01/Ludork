@@ -33,7 +33,7 @@ function GameMapLighting.InitialiseWorldRendering(self)
     self._unobstructedLightPassShader = unobstructedLightPassShader
     self._materialShader = materialShader
     self._actorHueShader = actorHueShader
-    self._lightBlockSize = sf.Vector2f.new(Engine.CellSize, Engine.CellSize)
+    self._lightBlockSize = sf.Vector2f.new(Engine.GetCellSize(), Engine.GetCellSize())
     local tilemapSize = self:getSize()
     self._shaderMapSize = sf.Vector2f.new(tilemapSize.x, tilemapSize.y)
     self._playerCoverColour = sf.Color.new(255, 255, 255, self.DefaultCoverAlpha)
@@ -440,7 +440,7 @@ function GameMapLighting.RenderCachedLighting(self, activeLights, analyses)
         end
     end
     local tilemapSize = self._tilemap:getSize()
-    local worldSize = sf.Vector2f.new(tilemapSize.x * Engine.CellSize, tilemapSize.y * Engine.CellSize)
+    local worldSize = sf.Vector2f.new(tilemapSize.x * Engine.GetCellSize(), tilemapSize.y * Engine.GetCellSize())
     local worldCentre = sf.Vector2f.new(worldSize.x * 0.5, worldSize.y * 0.5)
     self._staticDirectLight:setView(sf.View.new(worldCentre, worldSize))
     self._staticDirectLight:clear(sf.Color.Black)

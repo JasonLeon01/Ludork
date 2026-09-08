@@ -83,6 +83,30 @@
   </ItemGroup>
 
   <Target
+      Name="GenerateEngineConstants"
+      Inputs="$(MSBuildProjectDirectory)/Sample/Engine/Source/Core/include/EngineState.hpp;$(MSBuildProjectDirectory)/ScriptTools/engine_constants.py;$(MSBuildProjectFullPath)"
+      Outputs="$(IntermediateOutputPath)EngineConstants.g.cs">
+    <PropertyGroup>
+      <LudorkScriptTools>$(MSBuildProjectDirectory)/.tools/ScriptTools/ScriptTools</LudorkScriptTools>
+      <LudorkScriptTools Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(LudorkScriptTools).exe</LudorkScriptTools>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(LudorkScriptTools)')" Text="ScriptTools was not found. Run tools/init for this platform first." />
+    <Exec Command="&quot;$(LudorkScriptTools)&quot; engine-constants &quot;$(MSBuildProjectDirectory)/Sample/Engine/Source/Core/include/EngineState.hpp&quot; &quot;$(IntermediateOutputPath)EngineConstants.g.cs&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(IntermediateOutputPath)EngineConstants.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target
+      Name="IncludeEngineConstants"
+      BeforeTargets="BeforeCompile"
+      DependsOnTargets="GenerateEngineConstants">
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)EngineConstants.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target
       Name="CleanPublicDocumentationOutput"
       BeforeTargets="GetCopyToOutputDirectoryItems"
       Condition="'$(DesignTimeBuild)' != 'true'">

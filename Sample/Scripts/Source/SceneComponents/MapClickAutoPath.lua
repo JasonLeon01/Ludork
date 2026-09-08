@@ -407,7 +407,7 @@ function MapClickAutoPath:_getInputMapPosition(positionX, positionY)
     local worldPos = camera:mapPixelToCoords(mapViewPixel)
     Pool.Put("sf.Vector2i", mapViewPixel)
     local mapPosition = sf.Vector2i.new(
-        math.floor(worldPos.x / Engine.CellSize), math.floor(worldPos.y / Engine.CellSize)
+        math.floor(worldPos.x / Engine.GetCellSize()), math.floor(worldPos.y / Engine.GetCellSize())
     )
     ---@cast mapPosition sf.Vector2i
     return mapPosition

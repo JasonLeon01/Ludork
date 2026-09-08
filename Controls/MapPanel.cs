@@ -28,7 +28,7 @@ public interface IMapLayerShaderRenderer
 
 public sealed partial class MapPanel : Control
 {
-    private const int SourceTileSize = 32;
+    private const int SourceTileSize = EngineConstants.CellSize;
     private const int MinTileSize = 8;
     private const int MaxTileSize = 128;
     private const int TileSizeStep = 4;

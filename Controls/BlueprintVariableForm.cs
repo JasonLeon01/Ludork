@@ -37,7 +37,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private string projectDirectory = string.Empty;
     private GameDataService? historyGameData;
     private IGameVariableCatalog? gameVariables;
-    private int cellSize = 32;
+    private int cellSize = EngineConstants.CellSize;
     private bool isReadOnly;
     private bool showFieldNames = true;
     private bool building;

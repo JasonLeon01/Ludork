@@ -70,7 +70,6 @@ function System.Init()
     local cursorPath = systemData.cursor.value
     systemState.windowskinName = systemData.windowskinName.value
     systemState.titleBackgroundFile = systemData.titleBackgroundFile.value
-    Engine.CellSize = systemData.cellSize.value
     local coverOpaqueAlpha = systemData.coverOpaqueAlpha.value
     systemState.coverOpaqueAlpha = coverOpaqueAlpha
     systemState.startMap = systemData.startMap.value

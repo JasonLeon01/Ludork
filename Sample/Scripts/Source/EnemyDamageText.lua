@@ -38,7 +38,7 @@ local scratchWidth = 0
 local scratchHeight = 0
 
 function EnemyDamageText:_syncTextDisplayScale()
-    local displayScale = math.max(Engine.Scale, 0.000001)
+    local displayScale = math.max(Engine.GetScale(), 0.000001)
     if self._textDisplayScale == displayScale then
         return
     end
@@ -282,11 +282,11 @@ end
 ---@return integer, integer
 function getParentSize(parent)
     if parent == nil then
-        return Engine.CellSize, Engine.CellSize
+        return Engine.GetCellSize(), Engine.GetCellSize()
     end
     local rect = parent:getTextureRect()
     if rect == nil then
-        return Engine.CellSize, Engine.CellSize
+        return Engine.GetCellSize(), Engine.GetCellSize()
     end
     return math.trunc(math.max(1, rect.size.x)), math.trunc(math.max(1, rect.size.y))
 end

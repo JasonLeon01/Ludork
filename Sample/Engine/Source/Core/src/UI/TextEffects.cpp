@@ -31,7 +31,9 @@ bool glowEnabled(const TextGlowConfig& glow) {
 }
 
 float glowRadiusPixels(const TextGlowConfig& glow) {
-    return glowEnabled(glow) ? std::max(0.0f, glow.radius * Scale) : 0.0f;
+    return glowEnabled(glow)
+               ? std::max(0.0f, glow.radius * engineState().getScale())
+               : 0.0f;
 }
 
 std::uint8_t curveTextureChannel(float value) {

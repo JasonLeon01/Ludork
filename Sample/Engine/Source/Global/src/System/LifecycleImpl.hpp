@@ -1,24 +1,26 @@
 #pragma once
 
-#include <ConfigParser.hpp>
-
+#include <atomic>
 #include <functional>
-#include <memory>
-#include <string>
+#include <mutex>
 
-namespace ludork::global::system_lifecycle_impl {
+namespace ludork::global::system_impl {
 
-void init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
-          const std::string& dataFilePath);
-bool isDebugMode();
-void setDebugMode(bool debugMode);
-bool isActive();
-bool shouldLoop();
-void run();
-void setStandardUpdate(std::function<void()> update);
-void updateRuntime();
-void initializeRuntimeSession() noexcept;
-void shutdownRuntime() noexcept;
-void onConfigChanged(const std::string& key);
+class LifecycleImpl {
+public:
+    bool isDebugMode() const;
+    void setDebugMode(bool debugMode);
+    void setStandardUpdate(std::function<void()> update);
+    void updateRuntime();
+    void initializeRuntimeSession() noexcept;
+    bool isShuttingDown() const noexcept;
+    void shutdownRuntime(const std::function<void()>& cleanup) noexcept;
 
-}  // namespace ludork::global::system_lifecycle_impl
+private:
+    std::function<void()> standardUpdate_;
+    std::atomic_bool shuttingDown_ = false;
+    std::mutex lifecycleMutex_;
+    bool debugMode_ = false;
+};
+
+}  // namespace ludork::global::system_impl

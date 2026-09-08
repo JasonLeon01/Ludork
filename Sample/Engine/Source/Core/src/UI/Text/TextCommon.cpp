@@ -16,7 +16,8 @@ sf::String toSfString(const std::string& value) {
 
 unsigned int scaledCharacterSize(unsigned int characterSize) {
     return static_cast<unsigned int>(
-        std::max(1.0f, std::floor(static_cast<float>(characterSize) * Scale)));
+        std::max(1.0f, std::floor(static_cast<float>(characterSize) *
+                                  engineState().getScale())));
 }
 
 void validateGradient(const TextGradientConfig& gradient) {

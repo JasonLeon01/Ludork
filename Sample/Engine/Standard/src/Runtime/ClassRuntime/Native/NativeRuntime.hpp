@@ -11,6 +11,10 @@ struct lua_State;
 
 namespace ludork::standard::class_runtime::detail {
 
+sol::object rawMember(sol::state_view lua, const sol::table& type,
+                      const sol::object& key);
+sol::object findInClass(sol::state_view lua, const sol::table& classTable,
+                        const sol::object& key, bool includeClass = true);
 bool nativeTypeAccepts(sol::state_view lua, const sol::table& nativeType,
                        const sol::object& value);
 void registerMethodOwner(sol::state_view lua, const sol::table& classTable,
@@ -27,10 +31,8 @@ sol::object bindMethod(sol::state_view lua, const sol::object& method,
                        const sol::object& self);
 sol::object wrapNativeMethod(sol::state_view lua, const sol::object& method,
                              const sol::object& nativeObject);
-int superFunction(lua_State* state);
 bool isNativeInitializer(const sol::table& nativeType,
                          const sol::object& member);
-bool isNativeType(sol::state_view lua, const sol::table& value);
 std::string nativeTypeName(sol::state_view lua, const sol::table& nativeType);
 sol::object nativeTypeDefinition(sol::state_view lua,
                                  const sol::table& nativeType,
@@ -59,5 +61,25 @@ void cacheFastIndex(sol::state_view lua, sol::table fields,
 void cacheFastClassOwner(sol::state_view lua, sol::table fields,
                          const sol::table& classTable, const sol::object& key,
                          const char* category, FastIndexKind kind);
+
+bool setNativeMember(sol::state_view lua, const sol::table& fields,
+                     const sol::table& classTable, const sol::object& key,
+                     const sol::object& value,
+                     sol::object* assignedObject = nullptr);
+void markNativePropertyDirty(sol::state_view lua, sol::table fields,
+                             const sol::object& nativeObject,
+                             const sol::object& key);
+void syncNativeRootDefaults(sol::state_view lua, const sol::table& classTable,
+                            const sol::object& instance, const sol::table& root,
+                            const sol::object& nativeObject,
+                            NativeShadowSnapshot& shadowSnapshot);
+void replayNativeDirtyProperties(sol::state_view lua, const sol::table& fields,
+                                 const sol::table& root,
+                                 const sol::object& source,
+                                 const sol::object& destination);
+void syncNativeClassDefaults(sol::state_view lua, const sol::table& classTable,
+                             const sol::object& instance);
+void restoreNativeShadows(sol::table fields,
+                          const NativeShadowSnapshot& snapshot);
 
 }  // namespace ludork::standard::class_runtime::detail

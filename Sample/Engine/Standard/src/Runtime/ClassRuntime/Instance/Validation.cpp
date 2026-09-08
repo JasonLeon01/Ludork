@@ -1,9 +1,9 @@
 #include "Instance/InstanceRuntime.hpp"
 
-#include "Composite/CompositeRuntime.hpp"
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <sol2/sol.hpp>

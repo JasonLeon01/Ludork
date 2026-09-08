@@ -28,8 +28,10 @@ sf::Vector2f Window::getSize() const {
 
 void Window::resize(const sf::Vector2u& size) {
     const sf::Vector2u logicalTextureSize{
-        static_cast<unsigned int>(static_cast<float>(size.x) * Scale),
-        static_cast<unsigned int>(static_cast<float>(size.y) * Scale),
+        static_cast<unsigned int>(static_cast<float>(size.x) *
+                                  engineState().getScale()),
+        static_cast<unsigned int>(static_cast<float>(size.y) *
+                                  engineState().getScale()),
     };
     const sf::Vector2u backingTextureSize =
         nonZeroRenderTextureSize(logicalTextureSize);
@@ -69,10 +71,10 @@ sf::Vector2u Window::logicalSize(const sf::Vector2i& size) {
 
 sf::Vector2u Window::scaledSize(const sf::Vector2i& size) {
     return {
-        static_cast<unsigned int>(
-            std::max(0.0f, static_cast<float>(size.x) * Scale)),
-        static_cast<unsigned int>(
-            std::max(0.0f, static_cast<float>(size.y) * Scale)),
+        static_cast<unsigned int>(std::max(
+            0.0f, static_cast<float>(size.x) * engineState().getScale())),
+        static_cast<unsigned int>(std::max(
+            0.0f, static_cast<float>(size.y) * engineState().getScale())),
     };
 }
 
@@ -84,10 +86,12 @@ void Window::initUi() {
     windowBackTexture_->setRepeated(repeated_);
     windowBackSprite_ = std::make_unique<sf::Sprite>(*windowBackTexture_);
     if (repeated_) {
-        windowBackSprite_->setScale({Scale, Scale});
-        windowBackSprite_->setTextureRect(
-            sf::IntRect({0, 0}, {static_cast<int>(canvasSize.x / Scale),
-                                 static_cast<int>(canvasSize.y / Scale)}));
+        windowBackSprite_->setScale(
+            {engineState().getScale(), engineState().getScale()});
+        windowBackSprite_->setTextureRect(sf::IntRect(
+            {0, 0},
+            {static_cast<int>(canvasSize.x / engineState().getScale()),
+             static_cast<int>(canvasSize.y / engineState().getScale())}));
     } else {
         windowBackSprite_->setScale(
             {static_cast<float>(canvasSize.x) / 128.0f,

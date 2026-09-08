@@ -4,6 +4,7 @@ set(LUDORK_CLASS_RUNTIME_DETAIL_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/TypedFields.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/LuaSupport.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Hierarchy.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/TypeQueries.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/RuntimeBridge.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Copy.cpp")
 
@@ -15,5 +16,6 @@ ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/TypedFields.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/LuaSupport.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Hierarchy.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/TypeQueries.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/RuntimeBridge.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Copy.cpp")

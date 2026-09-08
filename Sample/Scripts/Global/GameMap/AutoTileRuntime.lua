@@ -9,7 +9,7 @@ function AutoTileRuntime.GetFrameCount(texture)
         return 1
     end
     local size = texture:getSize()
-    local frames = Engine.CellSize > 0 and math.floor(size.x / (3 * Engine.CellSize)) or 1
+    local frames = Engine.GetCellSize() > 0 and math.floor(size.x / (3 * Engine.GetCellSize())) or 1
     return math.max(frames, 1)
 end
 

@@ -163,7 +163,9 @@ packaging commands consume the initialized executable; rerun `init` or
 `build_script_tools` explicitly after changing ScriptTools. Python is not
 required by an installed editor.
 
-Validate convention-based C++ and Lua host-to-implementation boundaries with:
+`dotnet build` and `dotnet publish` generate `obj/.../EngineConstants.g.cs` with `ScriptTools engine-constants <EngineState.hpp> <output.cs>`. The C++ declaration is authoritative for the editor cell size; rebuild ScriptTools after changing the generator. The managed Actions cache includes this header and generator so changed constants cannot reuse stale editor binaries.
+
+Validate convention-based C++ and Lua host-to-implementation boundaries, including the Standard ClassRuntime layer order, with:
 
 ```sh
 .tools/ScriptTools/ScriptTools impl-boundary-check Sample

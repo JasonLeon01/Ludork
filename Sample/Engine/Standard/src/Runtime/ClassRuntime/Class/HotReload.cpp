@@ -3,6 +3,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <sol2/sol.hpp>

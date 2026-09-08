@@ -73,12 +73,12 @@ sf::Vector2f SpriteBase::getSize() const {
 
 sf::FloatRect SpriteBase::getLocalBounds() const {
     const sf::FloatRect bounds = sprite_->getLocalBounds();
-    return {bounds.position, bounds.size / Scale};
+    return {bounds.position, bounds.size / engineState().getScale()};
 }
 
 sf::FloatRect SpriteBase::getGlobalBounds() const {
     const sf::FloatRect bounds = sprite_->getGlobalBounds();
-    return {bounds.position, bounds.size / Scale};
+    return {bounds.position, bounds.size / engineState().getScale()};
 }
 
 sf::RenderStates SpriteBase::getRenderStates() const {

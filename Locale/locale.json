@@ -1527,10 +1527,6 @@
     "zh_CN": "标题背景",
     "en_GB": "Title Background"
   },
-  "cellSize": {
-    "zh_CN": "单元格尺寸",
-    "en_GB": "Cell Size"
-  },
   "coverOpaqueAlpha": {
     "zh_CN": "遮挡时不透明度",
     "en_GB": "Alpha when covered"

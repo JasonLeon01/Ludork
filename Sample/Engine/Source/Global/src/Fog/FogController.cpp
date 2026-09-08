@@ -108,10 +108,13 @@ std::optional<sf::FloatRect> worldFogRect(const WorldFogLayer& layer,
         return viewBounds;
     }
     const sf::FloatRect worldRect(
-        sf::Vector2f(static_cast<float>(layer.cellRect.position.x * CellSize),
-                     static_cast<float>(layer.cellRect.position.y * CellSize)),
-        sf::Vector2f(static_cast<float>(layer.cellRect.size.x * CellSize),
-                     static_cast<float>(layer.cellRect.size.y * CellSize)));
+        sf::Vector2f(static_cast<float>(layer.cellRect.position.x *
+                                        EngineState::CellSize),
+                     static_cast<float>(layer.cellRect.position.y *
+                                        EngineState::CellSize)),
+        sf::Vector2f(
+            static_cast<float>(layer.cellRect.size.x * EngineState::CellSize),
+            static_cast<float>(layer.cellRect.size.y * EngineState::CellSize)));
     const float left = std::max(worldRect.position.x, viewBounds.position.x);
     const float top = std::max(worldRect.position.y, viewBounds.position.y);
     const float right = std::min(worldRect.position.x + worldRect.size.x,

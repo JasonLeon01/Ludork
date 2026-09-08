@@ -1,10 +1,10 @@
-#include "Composite/CompositeRuntime.hpp"
+#include "Native/NativeRuntime.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
-#include "Native/NativeRuntime.hpp"
+#include "Detail/TypeQueries.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
 #include <sol2/sol.hpp>

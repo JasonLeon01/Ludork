@@ -38,10 +38,11 @@ Rect::Rect(const sf::IntRect& rect, const sf::Image& windowSkin,
     : SpriteBase(placeholderTexture()),
       size_(static_cast<float>(std::max(0, rect.size.x)),
             static_cast<float>(std::max(0, rect.size.y))),
-      canvas_(std::make_shared<sf::RenderTexture>(
-          nonZeroRenderTextureSize(sf::Vector2u(
-              static_cast<unsigned int>(std::round(size_.x * Scale)),
-              static_cast<unsigned int>(std::round(size_.y * Scale)))))),
+      canvas_(std::make_shared<sf::RenderTexture>(nonZeroRenderTextureSize(
+          sf::Vector2u(static_cast<unsigned int>(
+                           std::round(size_.x * engineState().getScale())),
+                       static_cast<unsigned int>(
+                           std::round(size_.y * engineState().getScale())))))),
       windowSkin_(windowSkin),
       opacityCurveKey_(opacityCurveKey.value_or(SelectionRectOpacityCurveKey)) {
     setPremultipliedTexture(true);
@@ -62,8 +63,10 @@ void Rect::resize(const sf::Vector2f& size) {
         std::max(0.0f, size.y),
     };
     const sf::Vector2u logicalTextureSize{
-        static_cast<unsigned int>(std::round(logicalSize.x * Scale)),
-        static_cast<unsigned int>(std::round(logicalSize.y * Scale)),
+        static_cast<unsigned int>(
+            std::round(logicalSize.x * engineState().getScale())),
+        static_cast<unsigned int>(
+            std::round(logicalSize.y * engineState().getScale())),
     };
     const sf::Vector2u backingTextureSize =
         nonZeroRenderTextureSize(logicalTextureSize);
@@ -136,8 +139,10 @@ void Rect::bindCanvasTexture() {
         canvas_, const_cast<sf::Texture*>(&canvas_->getTexture()));
     setTexture(std::move(texture), true);
     const sf::Vector2u textureSize{
-        static_cast<unsigned int>(std::round(size_.x * Scale)),
-        static_cast<unsigned int>(std::round(size_.y * Scale)),
+        static_cast<unsigned int>(
+            std::round(size_.x * engineState().getScale())),
+        static_cast<unsigned int>(
+            std::round(size_.y * engineState().getScale())),
     };
     setTextureRect(
         {{0, 0},

@@ -13,7 +13,6 @@ namespace Ludork.Services;
 
 public sealed class BlueprintPreviewService : IDisposable
 {
-    private const int DefaultTileSize = 32;
     private readonly string projectPath;
     private readonly GameDataService gameData;
     private readonly BlueprintClassResolver classResolver;
@@ -301,7 +300,7 @@ public sealed class BlueprintPreviewService : IDisposable
             return null;
         if (isCharacter)
             return (0, 0, Math.Max(1, imageWidth / 4), Math.Max(1, imageHeight / 4));
-        int tile = DefaultTileSize;
+        int tile = EngineConstants.CellSize;
         return (0, 0, Math.Min(tile, imageWidth), Math.Min(tile, imageHeight));
     }
 

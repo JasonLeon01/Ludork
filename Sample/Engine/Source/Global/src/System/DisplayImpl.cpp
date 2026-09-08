@@ -1,44 +1,34 @@
 #include "DisplayImpl.hpp"
-#include "SystemImpl.hpp"
-#include "LifecycleImpl.hpp"
-#include "FramePipelineImpl.hpp"
 #include "Platform/NativeDisplay.hpp"
 #include "Platform/NativeInputMethod.hpp"
+#include "Diagnostics/PerformanceProfiler.hpp"
 #include <EngineState.hpp>
 #include <GlobalRuntimeApi.hpp>
 #include <Input/InputService.hpp>
 #include <LudorkPlatform.hpp>
-#include <Manager/ShaderManager.hpp>
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/AssetStore.hpp>
 #include <System/NativeDisplayHost.hpp>
 #include <SystemConfigBase.hpp>
-#include <Utils/Inner.hpp>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
-namespace ludork::global::system_display_impl {
+namespace ludork::global::system_impl {
 
-bool viewsEqual(const sf::View& left, const sf::View& right) {
-    return left.getCenter() == right.getCenter() &&
-           left.getSize() == right.getSize() &&
-           left.getRotation() == right.getRotation() &&
-           left.getViewport() == right.getViewport() &&
-           left.getScissor() == right.getScissor();
-}
-
-float windowFitScale(const sf::Vector2u& surfaceSize,
-                     const sf::Vector2u& gameSize) {
+float DisplayImpl::windowFitScale(const sf::Vector2u& surfaceSize,
+                                  const sf::Vector2u& gameSize) {
     const float scale = std::min(
         static_cast<float>(surfaceSize.x) / static_cast<float>(gameSize.x),
         static_cast<float>(surfaceSize.y) / static_cast<float>(gameSize.y));
     return std::max(0.01f, scale);
 }
 
-float effectiveRenderScale(float surfaceFitScale, float maximumRenderScale) {
+float DisplayImpl::effectiveRenderScale(float surfaceFitScale,
+                                        float maximumRenderScale) {
     const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
     const float effectiveScale =
         maximumRenderScale > 0.0f
@@ -47,7 +37,8 @@ float effectiveRenderScale(float surfaceFitScale, float maximumRenderScale) {
     return std::max(0.01f, effectiveScale);
 }
 
-sf::Vector2u scaledSize(const sf::Vector2u& gameSize, float scale) {
+sf::Vector2u DisplayImpl::scaledSize(const sf::Vector2u& gameSize,
+                                     float scale) {
     const float normalizedScale = std::max(0.01f, scale);
     return {
         static_cast<unsigned int>(std::max(
@@ -59,23 +50,20 @@ sf::Vector2u scaledSize(const sf::Vector2u& gameSize, float scale) {
     };
 }
 
-std::optional<float> getMaximumWindowedScale(const sf::Vector2u& gameSize) {
-    if (gameSize.x == 0 || gameSize.y == 0 ||
-        ludork::global::system_display_impl::isEmbeddedDisplay()) {
+std::optional<float> DisplayImpl::getMaximumWindowedScale(
+    const sf::Vector2u& gameSize) {
+    if (gameSize.x == 0 || gameSize.y == 0 || isEmbeddedDisplay()) {
         return std::nullopt;
     }
     std::optional<sf::Vector2u> maximumSize;
-    if (ludork::global::system_display_impl::isMobileDisplay()) {
+    if (isMobileDisplay()) {
         maximumSize =
             ludork::global::native_display_host::getMaximumWindowedSize();
     } else {
-        ludork::global::system_impl::DisplayImpl& display =
-            ludork::global::system_impl::impl().display;
-        const std::lock_guard<std::mutex> lock(display.windowMutex_);
+        const std::lock_guard<std::mutex> lock(windowMutex_);
         const sf::WindowHandle windowHandle =
-            display.window_ != nullptr && display.window_->isOpen()
-                ? display.window_->getNativeHandle()
-                : sf::WindowHandle{};
+            window_ != nullptr && window_->isOpen() ? window_->getNativeHandle()
+                                                    : sf::WindowHandle{};
         maximumSize =
             ludork::global::getMaximumWindowedClientSize(windowHandle);
     }
@@ -88,48 +76,58 @@ std::optional<float> getMaximumWindowedScale(const sf::Vector2u& gameSize) {
         static_cast<float>(maximumSize->y) / static_cast<float>(gameSize.y));
 }
 
-sf::Vector2u getGameSize() {
+sf::Vector2u DisplayImpl::getGameSize() {
     return engineState().getGameSize();
 }
 
-void setGameSize(const sf::Vector2u& gameSize) {
+void DisplayImpl::setGameSize(const sf::Vector2u& gameSize) {
     engineState().setGameSize(gameSize);
 }
 
-void initializeDisplay(const std::string& title, const sf::Vector2u& gameSize,
-                       const std::string& iconPath,
-                       const std::string& cursorPath) {
+void DisplayImpl::finishInitialization(const sf::Vector2u& renderSize) {
+    observedWindowSize_ = window_->getSize();
+    observedWindowClientSize_ =
+        desktopFullscreen_
+            ? std::nullopt
+            : ludork::global::getWindowedClientSize(window_->getNativeHandle());
+    updateWindowViewport(renderSize);
+    if (isMobileDisplay() && isDisplayScaleConfigurable()) {
+        ludork::global::native_display_host::requestDisplayScale(
+            SystemConfigBase::getConfiguredScale(), getGameSize());
+    }
+}
+
+void DisplayImpl::prepareInitialization(const std::string& title,
+                                        const sf::Vector2u& gameSize,
+                                        const std::string& iconPath,
+                                        const std::string& cursorPath) {
     if (gameSize.x == 0 || gameSize.y == 0) {
         throw std::invalid_argument("Game size must be non-zero");
     }
-    ludork::global::system_impl::SystemImpl& systemImpl =
-        ludork::global::system_impl::impl();
-    ludork::global::system_impl::DisplayImpl& display = systemImpl.display;
-    ludork::global::system_impl::FramePipelineImpl& framePipeline =
-        systemImpl.framePipeline;
-    if (display.window_ != nullptr) {
+    if (window_ != nullptr) {
         throw std::logic_error("Display has already been initialized");
     }
-    const ludork::global::RuntimeLaunchOptions& launchOptions =
-        ludork::global::runtimeLaunchOptions();
-    display.windowTitle_ = title;
-    display.windowIconPath_ = iconPath;
-    display.windowCursorPath_ = cursorPath;
-    display.windowContextSettings_ = {};
-    display.windowContextSettings_.antiAliasingLevel =
+    windowTitle_ = title;
+    windowIconPath_ = iconPath;
+    windowCursorPath_ = cursorPath;
+    windowContextSettings_ = {};
+    windowContextSettings_.antiAliasingLevel =
         static_cast<unsigned int>(SystemConfigBase::getAntiAliasingLevel());
 #if defined(SFML_SYSTEM_IOS)
-    display.windowContextSettings_.majorVersion = 3;
-    display.windowContextSettings_.minorVersion = 0;
+    windowContextSettings_.majorVersion = 3;
+    windowContextSettings_.minorVersion = 0;
 #endif
+    setGameSize(gameSize);
+}
+
+void DisplayImpl::createDisplayWindow() {
+    const ludork::global::RuntimeLaunchOptions& launchOptions =
+        ludork::global::runtimeLaunchOptions();
     std::shared_ptr<sf::RenderWindow> window;
     float surfaceFitScale = 1.0f;
-
-    ludork::global::system_display_impl::setGameSize(gameSize);
-    ludork::global::system_lifecycle_impl::setDebugMode(launchOptions.editor);
     inputService().setUseInjectedMouseOnly(false);
 
-    if (ludork::global::system_display_impl::isEmbeddedDisplay()) {
+    if (isEmbeddedDisplay()) {
 #if defined(_WIN32)
         if (!launchOptions.hostWindowHandle.has_value()) {
             throw std::invalid_argument("Embedded window handle is required");
@@ -137,44 +135,38 @@ void initializeDisplay(const std::string& title, const sf::Vector2u& gameSize,
         window = std::make_shared<sf::RenderWindow>(
             reinterpret_cast<sf::WindowHandle>(
                 launchOptions.hostWindowHandle.value()),
-            display.windowContextSettings_);
-        surfaceFitScale = ludork::global::system_display_impl::windowFitScale(
-            window->getSize());
+            windowContextSettings_);
+        surfaceFitScale = windowFitScale(window->getSize());
         inputService().setUseInjectedMouseOnly(true);
 #else
         throw std::runtime_error(
             "Embedded window mode is only supported on Windows");
 #endif
-    } else if (ludork::global::system_display_impl::isMobileDisplay()) {
+    } else if (isMobileDisplay()) {
         window = std::make_shared<sf::RenderWindow>(
-            sf::VideoMode::getDesktopMode(), title, sf::Style::Default,
-            sf::State::Fullscreen, display.windowContextSettings_);
-        surfaceFitScale = ludork::global::system_display_impl::windowFitScale(
-            window->getSize());
+            sf::VideoMode::getDesktopMode(), windowTitle_, sf::Style::Default,
+            sf::State::Fullscreen, windowContextSettings_);
+        surfaceFitScale = windowFitScale(window->getSize());
     } else {
         const float configuredScale = SystemConfigBase::getConfiguredScale();
-        display.desktopFullscreen_ = configuredScale == 0.0f;
+        desktopFullscreen_ = configuredScale == 0.0f;
         const sf::Vector2u windowSize =
-            display.desktopFullscreen_
-                ? sf::VideoMode::getDesktopMode().size
-                : ludork::global::system_display_impl::windowSizeForScale(
-                      configuredScale);
+            desktopFullscreen_ ? sf::VideoMode::getDesktopMode().size
+                               : windowSizeForScale(configuredScale);
         window = std::make_shared<sf::RenderWindow>(
-            sf::VideoMode(windowSize), title,
-            display.desktopFullscreen_ ? sf::Style::None : sf::Style::Default,
-            sf::State::Windowed, display.windowContextSettings_);
+            sf::VideoMode(windowSize), windowTitle_,
+            desktopFullscreen_ ? sf::Style::None : sf::Style::Default,
+            sf::State::Windowed, windowContextSettings_);
         const std::optional<sf::Vector2u> clientSize =
-            display.desktopFullscreen_ ? std::nullopt
-                                       : ludork::global::getWindowedClientSize(
-                                             window->getNativeHandle());
-        surfaceFitScale = ludork::global::system_display_impl::windowFitScale(
-            clientSize.value_or(window->getSize()));
+            desktopFullscreen_ ? std::nullopt
+                               : ludork::global::getWindowedClientSize(
+                                     window->getNativeHandle());
+        surfaceFitScale =
+            windowFitScale(clientSize.value_or(window->getSize()));
     }
 
-    display.surfaceFitScale_ = surfaceFitScale;
-    engineState().setScale(
-        ludork::global::system_display_impl::effectiveRenderScale(
-            surfaceFitScale));
+    surfaceFitScale_ = surfaceFitScale;
+    engineState().setScale(effectiveRenderScale(surfaceFitScale));
 #if defined(SFML_SYSTEM_IOS)
     if (window->getSettings().majorVersion < 3) {
         throw std::runtime_error(
@@ -184,60 +176,36 @@ void initializeDisplay(const std::string& title, const sf::Vector2u& gameSize,
             " was created");
     }
 #endif
-    ludork::global::system_display_impl::initWindow(window);
-    if (ludork::global::system_frame_pipeline_impl::shadersAvailable()) {
-        framePipeline.transitionShader_ =
-            ShaderManager::load("/Game/Assets/Shaders/Global/Transition.frag",
-                                sf::Shader::Type::Fragment);
-    } else {
-        framePipeline.transitionShader_.reset();
-        warnOnce("System.transitionShader",
-                 "Shaders are unavailable; skipped loading transition shader");
-    }
-    ludork::global::system_display_impl::setInputMethodDisabled(true);
-    inputService().initializeNativePolling();
-    ludork::global::system_frame_pipeline_impl::initCanvas(
-        ludork::global::system_display_impl::renderSizeForScale(
-            SystemConfigBase::getScale()));
-    display.observedWindowSize_ = display.window_->getSize();
-    display.observedWindowClientSize_ =
-        display.desktopFullscreen_ ? std::nullopt
-                                   : ludork::global::getWindowedClientSize(
-                                         display.window_->getNativeHandle());
-    ludork::global::system_display_impl::updateWindowViewport();
-    if (ludork::global::system_display_impl::isMobileDisplay() &&
-        ludork::global::system_display_impl::isDisplayScaleConfigurable()) {
-        ludork::global::native_display_host::requestDisplayScale(
-            SystemConfigBase::getConfiguredScale(), gameSize);
-    }
+    initWindow(window);
 }
 
-void initWindow(const std::shared_ptr<sf::RenderWindow>& window) {
+void DisplayImpl::initializeInput() {
+    setInputMethodDisabled(true);
+    inputService().initializeNativePolling();
+}
+
+void DisplayImpl::initWindow(const std::shared_ptr<sf::RenderWindow>& window) {
     if (window == nullptr) {
         throw std::invalid_argument("System window cannot be nil");
     }
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
     {
-        const std::lock_guard<std::mutex> lock(display.windowMutex_);
-        display.window_ = window;
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        window_ = window;
     }
-    ludork::global::system_display_impl::applyWindowPresentationSettings();
+    applyWindowPresentationSettings();
 }
 
-std::shared_ptr<sf::RenderWindow> getWindow() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    const std::lock_guard<std::mutex> lock(display.windowMutex_);
-    return display.window_;
+std::shared_ptr<sf::RenderWindow> DisplayImpl::getWindow() {
+    const std::lock_guard<std::mutex> lock(windowMutex_);
+    return window_;
 }
 
-bool isEmbeddedDisplay() {
+bool DisplayImpl::isEmbeddedDisplay() {
     return ludork::global::runtimeLaunchOptions().windowMode ==
            ludork::global::RuntimeWindowMode::Embedded;
 }
 
-bool isMobileDisplay() {
+bool DisplayImpl::isMobileDisplay() {
 #if defined(LUDORK_MOBILE)
     return true;
 #else
@@ -245,151 +213,127 @@ bool isMobileDisplay() {
 #endif
 }
 
-bool isDisplayScaleConfigurable() {
-    if (ludork::global::system_display_impl::isEmbeddedDisplay()) {
+bool DisplayImpl::isDisplayScaleConfigurable() {
+    if (isEmbeddedDisplay()) {
         return false;
     }
-    if (!ludork::global::system_display_impl::isMobileDisplay()) {
+    if (!isMobileDisplay()) {
         return true;
     }
     return ludork::global::native_display_host::isDisplayScaleConfigurable();
 }
 
-float windowFitScale(const sf::Vector2u& size) {
-    return ludork::global::system_display_impl::windowFitScale(
-        size, ludork::global::system_display_impl::getGameSize());
+float DisplayImpl::windowFitScale(const sf::Vector2u& size) {
+    return windowFitScale(size, getGameSize());
 }
 
-float effectiveRenderScale(float surfaceFitScale) {
-    return ludork::global::system_display_impl::effectiveRenderScale(
-        surfaceFitScale, SystemConfigBase::getMaximumRenderScale());
+float DisplayImpl::effectiveRenderScale(float surfaceFitScale) {
+    return effectiveRenderScale(surfaceFitScale,
+                                SystemConfigBase::getMaximumRenderScale());
 }
 
-sf::Vector2u windowSizeForScale(float scale) {
-    return ludork::global::system_display_impl::scaledSize(
-        ludork::global::system_display_impl::getGameSize(), scale);
+sf::Vector2u DisplayImpl::windowSizeForScale(float scale) {
+    return scaledSize(getGameSize(), scale);
 }
 
-sf::Vector2u renderSizeForScale(float scale) {
-    return ludork::global::system_display_impl::windowSizeForScale(scale);
+sf::Vector2u DisplayImpl::renderSizeForScale(float scale) {
+    return windowSizeForScale(scale);
 }
 
-void applyWindowPresentationSettings() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.window_ == nullptr) {
+void DisplayImpl::applyWindowPresentationSettings() {
+    if (window_ == nullptr) {
         return;
     }
-    display.window_->setFramerateLimit(static_cast<unsigned int>(
+    window_->setFramerateLimit(static_cast<unsigned int>(
         std::max(0, SystemConfigBase::getFrameRate())));
-    display.window_->setVerticalSyncEnabled(
-        SystemConfigBase::getVerticalSync());
-    display.window_->clear(
-        ludork::global::system_display_impl::isEmbeddedDisplay()
-            ? sf::Color::Transparent
-            : sf::Color::Black);
-    if (!ludork::global::system_display_impl::isMobileDisplay() &&
-        !display.windowIconPath_.empty()) {
+    window_->setVerticalSyncEnabled(SystemConfigBase::getVerticalSync());
+    window_->clear(isEmbeddedDisplay() ? sf::Color::Transparent
+                                       : sf::Color::Black);
+    if (!isMobileDisplay() && !windowIconPath_.empty()) {
         std::unique_ptr<ludork::runtime::AssetInputStream> iconStream =
-            ludork::runtime::assetStore().open(display.windowIconPath_);
+            ludork::runtime::assetStore().open(windowIconPath_);
         sf::Image icon;
         if (!icon.loadFromStream(*iconStream)) {
             throw std::runtime_error("Failed to load window icon: " +
-                                     display.windowIconPath_);
+                                     windowIconPath_);
         }
-        display.window_->setIcon(icon);
+        window_->setIcon(icon);
     }
-    display.cursor_.reset();
-    if (ludork::global::system_display_impl::isMobileDisplay() ||
-        display.windowCursorPath_.empty()) {
+    cursor_.reset();
+    if (isMobileDisplay() || windowCursorPath_.empty()) {
         return;
     }
-    if (!ludork::runtime::assetStore().exists(display.windowCursorPath_)) {
+    if (!ludork::runtime::assetStore().exists(windowCursorPath_)) {
         return;
     }
     try {
         std::unique_ptr<ludork::runtime::AssetInputStream> cursorStream =
-            ludork::runtime::assetStore().open(display.windowCursorPath_);
+            ludork::runtime::assetStore().open(windowCursorPath_);
         sf::Image cursorImage;
         if (!cursorImage.loadFromStream(*cursorStream)) {
             throw std::runtime_error("Failed to load cursor image");
         }
-        display.cursor_ = std::make_unique<sf::Cursor>(
+        cursor_ = std::make_unique<sf::Cursor>(
             cursorImage.getPixelsPtr(), cursorImage.getSize(), sf::Vector2u{});
-        display.window_->setMouseCursor(*display.cursor_);
+        window_->setMouseCursor(*cursor_);
     } catch (const std::exception& exception) {
-        std::cerr << "Failed to create cursor from "
-                  << display.windowCursorPath_ << ": " << exception.what()
-                  << '\n';
+        std::cerr << "Failed to create cursor from " << windowCursorPath_
+                  << ": " << exception.what() << '\n';
     }
 }
 
-void recreateDesktopWindow(bool fullscreen, const sf::Vector2u& size) {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    const std::lock_guard<std::mutex> lock(display.windowMutex_);
-    if (display.window_ == nullptr ||
-        ludork::global::system_display_impl::isEmbeddedDisplay() ||
-        ludork::global::system_display_impl::isMobileDisplay()) {
+void DisplayImpl::recreateDesktopWindow(bool fullscreen,
+                                        const sf::Vector2u& size) {
+    const std::lock_guard<std::mutex> lock(windowMutex_);
+    if (window_ == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
     ludork::global::restoreNativeInputMethod();
-    display.window_->create(sf::VideoMode(size), display.windowTitle_,
-                            fullscreen ? sf::Style::None : sf::Style::Default,
-                            sf::State::Windowed,
-                            display.windowContextSettings_);
-    display.desktopFullscreen_ = fullscreen;
+    window_->create(sf::VideoMode(size), windowTitle_,
+                    fullscreen ? sf::Style::None : sf::Style::Default,
+                    sf::State::Windowed, windowContextSettings_);
+    desktopFullscreen_ = fullscreen;
     if (fullscreen) {
-        display.window_->setPosition({0, 0});
+        window_->setPosition({0, 0});
     }
-    ludork::global::system_display_impl::applyWindowPresentationSettings();
-    ludork::global::system_display_impl::setInputMethodDisabled(
-        display.inputMethodDisabled_);
-    inputService().onWindowRecreated(*display.window_);
+    applyWindowPresentationSettings();
+    setInputMethodDisabled(inputMethodDisabled_);
+    inputService().onWindowRecreated(*window_);
     inputService().initializeNativePolling();
 }
 
-void replaceWindowedDesktopWindow(
+void DisplayImpl::replaceWindowedDesktopWindow(
     const sf::Vector2u& size,
     const ludork::global::WindowedFramePlacement* placement) {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    const std::shared_ptr<sf::RenderWindow> previousWindow =
-        ludork::global::system_display_impl::getWindow();
-    if (previousWindow == nullptr ||
-        ludork::global::system_display_impl::isEmbeddedDisplay() ||
-        ludork::global::system_display_impl::isMobileDisplay()) {
+    const std::shared_ptr<sf::RenderWindow> previousWindow = getWindow();
+    if (previousWindow == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
     ludork::global::restoreNativeInputMethod();
     const std::shared_ptr<sf::RenderWindow> replacement =
         std::make_shared<sf::RenderWindow>(
-            sf::VideoMode(size), display.windowTitle_, sf::Style::Default,
-            sf::State::Windowed, display.windowContextSettings_);
+            sf::VideoMode(size), windowTitle_, sf::Style::Default,
+            sf::State::Windowed, windowContextSettings_);
     {
-        const std::lock_guard<std::mutex> lock(display.windowMutex_);
-        display.window_ = replacement;
-        display.desktopFullscreen_ = false;
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        window_ = replacement;
+        desktopFullscreen_ = false;
         if (placement != nullptr) {
             ludork::global::setWindowedFramePlacement(
-                display.window_->getNativeHandle(), *placement);
+                window_->getNativeHandle(), *placement);
         }
-        ludork::global::system_display_impl::applyWindowPresentationSettings();
-        ludork::global::system_display_impl::setInputMethodDisabled(
-            display.inputMethodDisabled_);
-        inputService().onWindowRecreated(*display.window_);
+        applyWindowPresentationSettings();
+        setInputMethodDisabled(inputMethodDisabled_);
+        inputService().onWindowRecreated(*window_);
         inputService().initializeNativePolling();
     }
 }
 
-void updateWindowViewport() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.window_ == nullptr || display.canvas_ == nullptr) {
+void DisplayImpl::updateWindowViewport(const sf::Vector2u& renderSize) {
+    if (window_ == nullptr) {
         return;
     }
-    const sf::Vector2u windowSize = display.window_->getSize();
-    const sf::Vector2u renderSize = display.canvas_->getSize();
+    const sf::Vector2u windowSize = window_->getSize();
     if (windowSize.x == 0 || windowSize.y == 0 || renderSize.x == 0 ||
         renderSize.y == 0) {
         return;
@@ -409,7 +353,7 @@ void updateWindowViewport() {
         {offset.x / windowSizeFloat.x, offset.y / windowSizeFloat.y},
         {contentSize.x / windowSizeFloat.x,
          contentSize.y / windowSizeFloat.y}));
-    display.window_->setView(view);
+    window_->setView(view);
     const sf::Vector2i viewportPosition{
         static_cast<int>(std::ceil(offset.x)),
         static_cast<int>(std::ceil(offset.y)),
@@ -422,247 +366,230 @@ void updateWindowViewport() {
         sf::IntRect(viewportPosition, viewportSize));
 }
 
-void rebuildDisplayTargets(float surfaceFitScale) {
-    const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
-    const float renderScale =
-        ludork::global::system_display_impl::effectiveRenderScale(
-            normalizedSurfaceFitScale);
-    const sf::Vector2u size =
-        ludork::global::system_display_impl::renderSizeForScale(renderScale);
-    ludork::global::system_impl::SystemImpl& systemImpl =
-        ludork::global::system_impl::impl();
-    ludork::global::system_impl::DisplayImpl& display = systemImpl.display;
-    ludork::global::system_impl::FramePipelineImpl& framePipeline =
-        systemImpl.framePipeline;
-    display.surfaceFitScale_ = normalizedSurfaceFitScale;
-    if (display.canvas_ != nullptr && display.canvas_->getSize() == size &&
-        engineState().getScale() == renderScale) {
-        ludork::global::system_display_impl::updateWindowViewport();
-        return;
+std::optional<float> DisplayImpl::applyConfiguredScale(float scale) {
+    if (window_ == nullptr || isEmbeddedDisplay()) {
+        return std::nullopt;
     }
-    std::optional<sf::Image> transitionImage;
-    if (framePipeline.transition_ != nullptr) {
-        framePipeline.transition_->display();
-        transitionImage = framePipeline.transition_->getTexture().copyToImage();
-    }
-    engineState().setScale(renderScale);
-    ludork::global::system_frame_pipeline_impl::initCanvas(size);
-    if (transitionImage.has_value() && framePipeline.transition_ != nullptr) {
-        const sf::Texture texture(*transitionImage);
-        sf::Sprite sprite(texture);
-        const sf::Vector2u sourceSize = texture.getSize();
-        if (sourceSize.x > 0 && sourceSize.y > 0) {
-            sprite.setScale(
-                {static_cast<float>(size.x) / static_cast<float>(sourceSize.x),
-                 static_cast<float>(size.y) /
-                     static_cast<float>(sourceSize.y)});
-            framePipeline.transition_->clear(sf::Color::Transparent);
-            framePipeline.transition_->draw(sprite, sf::BlendNone);
-            framePipeline.transition_->display();
-        }
-    }
-    if (framePipeline.transitionResource_ != nullptr &&
-        framePipeline.transitionMaskTexture_ != nullptr) {
-        const sf::Vector2u sourceSize =
-            framePipeline.transitionResource_->getSize();
-        if (sourceSize.x > 0 && sourceSize.y > 0) {
-            sf::Sprite maskSprite(*framePipeline.transitionResource_);
-            maskSprite.setScale(
-                {static_cast<float>(size.x) / static_cast<float>(sourceSize.x),
-                 static_cast<float>(size.y) /
-                     static_cast<float>(sourceSize.y)});
-            framePipeline.transitionMaskTexture_->clear(sf::Color::Transparent);
-            framePipeline.transitionMaskTexture_->draw(maskSprite,
-                                                       sf::BlendNone);
-            framePipeline.transitionMaskTexture_->display();
-        }
-    }
-    ludork::global::system_display_impl::updateWindowViewport();
-}
-
-void applyConfiguredScale(float scale) {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.window_ == nullptr ||
-        ludork::global::system_display_impl::isEmbeddedDisplay()) {
-        return;
-    }
-    if (ludork::global::system_display_impl::isMobileDisplay()) {
-        if (ludork::global::system_display_impl::isDisplayScaleConfigurable()) {
+    if (isMobileDisplay()) {
+        if (isDisplayScaleConfigurable()) {
             ludork::global::native_display_host::requestDisplayScale(
-                scale, ludork::global::system_display_impl::getGameSize());
+                scale, getGameSize());
         }
-        return;
+        return std::nullopt;
     }
     const bool fullscreen = scale == 0.0f;
-    sf::Vector2u targetSize =
-        fullscreen
-            ? sf::VideoMode::getDesktopMode().size
-            : ludork::global::system_display_impl::windowSizeForScale(scale);
+    sf::Vector2u targetSize = fullscreen ? sf::VideoMode::getDesktopMode().size
+                                         : windowSizeForScale(scale);
     std::optional<sf::Vector2u> clientSize;
-    if (fullscreen != display.desktopFullscreen_) {
-        ludork::global::system_display_impl::recreateDesktopWindow(fullscreen,
-                                                                   targetSize);
+    if (fullscreen != desktopFullscreen_) {
+        recreateDesktopWindow(fullscreen, targetSize);
         if (!fullscreen) {
             clientSize = ludork::global::getWindowedClientSize(
-                display.window_->getNativeHandle());
+                window_->getNativeHandle());
         }
     } else if (!fullscreen) {
 #if defined(__APPLE__) && !defined(LUDORK_MOBILE)
         const std::optional<ludork::global::WindowedFramePlacement> placement =
             ludork::global::getWindowedFramePlacement(
-                display.window_->getNativeHandle());
-        ludork::global::system_display_impl::replaceWindowedDesktopWindow(
+                window_->getNativeHandle());
+        replaceWindowedDesktopWindow(
             targetSize, placement.has_value() ? &*placement : nullptr);
 #else
-        display.window_->setSize(targetSize);
+        window_->setSize(targetSize);
 #endif
-        clientSize = ludork::global::getWindowedClientSize(
-            display.window_->getNativeHandle());
+        clientSize =
+            ludork::global::getWindowedClientSize(window_->getNativeHandle());
     }
-    display.observedWindowSize_ = display.window_->getSize();
-    display.observedWindowClientSize_ = clientSize;
-    display.pendingResizeScale_.reset();
-    ludork::global::system_display_impl::rebuildDisplayTargets(
-        ludork::global::system_display_impl::windowFitScale(
-            clientSize.value_or(display.observedWindowSize_)));
+    observedWindowSize_ = window_->getSize();
+    observedWindowClientSize_ = clientSize;
+    pendingResizeScale_.reset();
+    return windowFitScale(clientSize.value_or(observedWindowSize_));
 }
 
-void observeWindowResize() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.window_ == nullptr) {
-        return;
+std::optional<float> DisplayImpl::observeWindowResize(
+    const sf::Vector2u& renderSize) {
+    if (window_ == nullptr) {
+        return std::nullopt;
     }
-    const sf::Vector2u size = display.window_->getSize();
+    const sf::Vector2u size = window_->getSize();
     const auto now = std::chrono::steady_clock::now();
-    if (size != display.observedWindowSize_) {
+    if (size != observedWindowSize_) {
         const std::optional<sf::Vector2u> clientSize =
-            display.desktopFullscreen_
-                ? std::nullopt
-                : ludork::global::getWindowedClientSize(
-                      display.window_->getNativeHandle());
+            desktopFullscreen_ ? std::nullopt
+                               : ludork::global::getWindowedClientSize(
+                                     window_->getNativeHandle());
         const bool clientSizeChanged =
-            !clientSize.has_value() ||
-            clientSize != display.observedWindowClientSize_;
-        display.observedWindowSize_ = size;
-        display.observedWindowClientSize_ = clientSize;
+            !clientSize.has_value() || clientSize != observedWindowClientSize_;
+        observedWindowSize_ = size;
+        observedWindowClientSize_ = clientSize;
         if (clientSizeChanged) {
-            display.pendingResizeScale_ =
-                ludork::global::system_display_impl::windowFitScale(
-                    clientSize.value_or(display.observedWindowSize_));
-            display.lastResizeTime_ = now;
+            pendingResizeScale_ =
+                windowFitScale(clientSize.value_or(observedWindowSize_));
+            lastResizeTime_ = now;
         }
-        ludork::global::system_display_impl::updateWindowViewport();
+        updateWindowViewport(renderSize);
     }
-    if (!display.pendingResizeScale_.has_value() ||
-        now - display.lastResizeTime_ < std::chrono::milliseconds(150)) {
-        return;
+    if (!pendingResizeScale_.has_value() ||
+        now - lastResizeTime_ < std::chrono::milliseconds(150)) {
+        return std::nullopt;
     }
-    float scale = *display.pendingResizeScale_;
-    display.pendingResizeScale_.reset();
+    float scale = *pendingResizeScale_;
+    pendingResizeScale_.reset();
 #if defined(__APPLE__) && !defined(LUDORK_MOBILE)
-    if (!ludork::global::system_display_impl::isEmbeddedDisplay() &&
-        !display.desktopFullscreen_) {
+    if (!isEmbeddedDisplay() && !desktopFullscreen_) {
         const std::optional<sf::Vector2u> clientSize =
-            ludork::global::getWindowedClientSize(
-                display.window_->getNativeHandle());
+            ludork::global::getWindowedClientSize(window_->getNativeHandle());
         if (clientSize.has_value()) {
             const std::optional<ludork::global::WindowedFramePlacement>
                 placement = ludork::global::getWindowedFramePlacement(
-                    display.window_->getNativeHandle());
-            ludork::global::system_display_impl::replaceWindowedDesktopWindow(
+                    window_->getNativeHandle());
+            replaceWindowedDesktopWindow(
                 *clientSize, placement.has_value() ? &*placement : nullptr);
-            display.observedWindowSize_ = display.window_->getSize();
+            observedWindowSize_ = window_->getSize();
             const std::optional<sf::Vector2u> replacedClientSize =
                 ludork::global::getWindowedClientSize(
-                    display.window_->getNativeHandle());
-            display.observedWindowClientSize_ = replacedClientSize;
-            scale = ludork::global::system_display_impl::windowFitScale(
-                replacedClientSize.value_or(*clientSize));
+                    window_->getNativeHandle());
+            observedWindowClientSize_ = replacedClientSize;
+            scale = windowFitScale(replacedClientSize.value_or(*clientSize));
         }
     }
 #endif
-    ludork::global::system_display_impl::rebuildDisplayTargets(scale);
+    return scale;
 }
 
-void applyPendingDisplayChanges() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.pendingConfiguredScale_.has_value()) {
-        const float scale = *display.pendingConfiguredScale_;
-        display.pendingConfiguredScale_.reset();
-        ludork::global::system_display_impl::applyConfiguredScale(scale);
-    }
-    if (display.pendingRenderTargetRebuild_) {
-        display.pendingRenderTargetRebuild_ = false;
-        ludork::global::system_display_impl::rebuildDisplayTargets(
-            display.surfaceFitScale_);
-    }
-    ludork::global::system_display_impl::observeWindowResize();
-}
-
-void setInputMethodDisabled(bool disabled) {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    display.inputMethodDisabled_ = disabled;
-    if (display.window_ == nullptr ||
+void DisplayImpl::setInputMethodDisabled(bool disabled) {
+    inputMethodDisabled_ = disabled;
+    if (window_ == nullptr ||
         ludork::global::runtimeLaunchOptions().windowMode ==
             ludork::global::RuntimeWindowMode::Embedded) {
         return;
     }
-    ludork::global::setNativeInputMethodDisabled(
-        display.window_->getNativeHandle(), disabled);
+    ludork::global::setNativeInputMethodDisabled(window_->getNativeHandle(),
+                                                 disabled);
 }
 
-void clearCanvas() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.window_ != nullptr) {
-        display.window_->clear(
-            ludork::global::system_display_impl::isEmbeddedDisplay()
-                ? sf::Color::Transparent
-                : sf::Color::Black);
-    }
-    if (display.canvas_ != nullptr) {
-        display.canvas_->clear(sf::Color::Transparent);
-    }
-}
-
-void setWindowMapView(const sf::IntRect& rect) {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.canvas_ == nullptr) {
+void DisplayImpl::present() {
+    if (window_ == nullptr) {
         return;
     }
-    const sf::Vector2u gameSize =
-        ludork::global::system_display_impl::getGameSize();
-    const sf::Vector2f gameSizeFloat{static_cast<float>(gameSize.x),
-                                     static_cast<float>(gameSize.y)};
-    const sf::Vector2f position{static_cast<float>(rect.position.x),
-                                static_cast<float>(rect.position.y)};
-    const sf::Vector2f size{static_cast<float>(rect.size.x),
-                            static_cast<float>(rect.size.y)};
-    sf::View view(size / 2.0f, size);
-    view.setViewport(sf::FloatRect(position.componentWiseDiv(gameSizeFloat),
-                                   size.componentWiseDiv(gameSizeFloat)));
-    display.canvas_->setView(view);
-    display.canvasDefaultViewActive_ = false;
-}
-
-void setWindowDefaultView() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    if (display.canvas_ != nullptr) {
-        display.canvas_->setView(display.canvas_->getDefaultView());
-        display.canvasDefaultViewActive_ = true;
+#if defined(__APPLE__) && !defined(LUDORK_MOBILE)
+    if (!isEmbeddedDisplay() && !desktopFullscreen_) {
+        const sf::Vector2u windowSize = window_->getSize();
+        const bool liveResizing = ludork::global::isNativeWindowLiveResizing(
+            window_->getNativeHandle());
+        if (liveResizing || windowSize != observedWindowSize_) {
+            const std::optional<sf::Vector2u> clientSize =
+                ludork::global::getWindowedClientSize(
+                    window_->getNativeHandle());
+            if (liveResizing || !clientSize.has_value() ||
+                clientSize != observedWindowClientSize_) {
+                pendingResizeScale_ =
+                    windowFitScale(clientSize.value_or(windowSize));
+                lastResizeTime_ = std::chrono::steady_clock::now();
+            }
+            return;
+        }
+        if (pendingResizeScale_.has_value()) {
+            return;
+        }
+    }
+#endif
+    if (PerformanceProfiler::isEnabled()) {
+        const auto presentStart = std::chrono::steady_clock::now();
+        window_->display();
+        PerformanceProfiler::addPresentWait(
+            std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - presentStart)
+                .count());
+    } else {
+        window_->display();
     }
 }
 
-sf::RenderTexture* getCanvas() {
-    ludork::global::system_impl::DisplayImpl& display =
-        ludork::global::system_impl::impl().display;
-    return display.canvas_.get();
+void DisplayImpl::clearWindow() {
+    if (window_ != nullptr) {
+        window_->clear(isEmbeddedDisplay() ? sf::Color::Transparent
+                                           : sf::Color::Black);
+    }
 }
 
-}  // namespace ludork::global::system_display_impl
+bool DisplayImpl::isOpen() const {
+    const std::lock_guard<std::mutex> lock(windowMutex_);
+    return window_ != nullptr && window_->isOpen();
+}
+
+void DisplayImpl::requestConfiguredScale(float scale) {
+    const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
+    pendingConfiguredScale_ = scale;
+}
+
+std::optional<float> DisplayImpl::takeConfiguredScale() {
+    const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
+    return std::exchange(pendingConfiguredScale_, std::nullopt);
+}
+
+void DisplayImpl::requestRenderTargetRebuild() {
+    const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
+    pendingRenderTargetRebuild_ = true;
+}
+
+bool DisplayImpl::takeRenderTargetRebuild() {
+    const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
+    return std::exchange(pendingRenderTargetRebuild_, false);
+}
+
+float DisplayImpl::getSurfaceFitScale() const {
+    return surfaceFitScale_;
+}
+
+void DisplayImpl::setSurfaceFitScale(float scale) {
+    surfaceFitScale_ = scale;
+}
+
+void DisplayImpl::applyFrameRate() {
+    const std::shared_ptr<sf::RenderWindow> window = getWindow();
+    if (window != nullptr) {
+        window->setFramerateLimit(static_cast<unsigned int>(
+            std::max(0, SystemConfigBase::getFrameRate())));
+    }
+}
+
+void DisplayImpl::applyVerticalSync() {
+    const std::shared_ptr<sf::RenderWindow> window = getWindow();
+    if (window != nullptr) {
+        window->setVerticalSyncEnabled(SystemConfigBase::getVerticalSync());
+    }
+}
+
+void DisplayImpl::reset() {
+    {
+        const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
+        pendingConfiguredScale_.reset();
+        pendingRenderTargetRebuild_ = false;
+    }
+    pendingResizeScale_.reset();
+    surfaceFitScale_ = 1.0f;
+    observedWindowSize_ = {};
+    observedWindowClientSize_.reset();
+    desktopFullscreen_ = false;
+    inputMethodDisabled_ = true;
+}
+
+void DisplayImpl::shutdown() noexcept {
+    ludork::global::restoreNativeInputMethod();
+    std::shared_ptr<sf::RenderWindow> previousWindow;
+    {
+        const std::lock_guard<std::mutex> lock(windowMutex_);
+        previousWindow = std::move(window_);
+    }
+    previousWindow.reset();
+    cursor_.reset();
+    windowTitle_.clear();
+    windowIconPath_.clear();
+    windowCursorPath_.clear();
+    windowContextSettings_ = {};
+    lastResizeTime_ = {};
+    reset();
+}
+
+}  // namespace ludork::global::system_impl

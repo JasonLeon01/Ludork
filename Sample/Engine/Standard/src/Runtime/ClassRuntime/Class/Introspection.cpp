@@ -3,6 +3,7 @@
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 

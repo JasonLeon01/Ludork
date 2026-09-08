@@ -53,13 +53,13 @@ sf::FloatRect canvasContentScreenBounds(const Canvas& canvas) {
     sf::Transform transform = canvas.screenRenderTransform();
     const sf::Vector2f scrollOffset =
         canvas.getDefaultView().getCenter() - canvas.getView().getCenter();
-    transform.translate(-scrollOffset * Scale);
+    transform.translate(-scrollOffset * engineState().getScale());
     const sf::IntRect contentRect = canvas.getContentRect();
     const sf::FloatRect scaledContent(
-        sf::Vector2f(contentRect.position) * Scale,
+        sf::Vector2f(contentRect.position) * engineState().getScale(),
         sf::Vector2f(std::max(0, contentRect.size.x),
                      std::max(0, contentRect.size.y)) *
-            Scale);
+            engineState().getScale());
     return transform.transformRect(scaledContent);
 }
 
@@ -327,8 +327,10 @@ void DropBox::onMouseWheelScrolled(const UiInputEventArguments& arguments) {
             syncPopupGeometry(false);
             if (inputService().isMouseWheelPrecise()) {
                 scrollTargetOffset_.reset();
-                setScrollOffset(scrollOffset_ - static_cast<float>(*delta) /
-                                                    std::max(Scale, 0.000001f));
+                setScrollOffset(
+                    scrollOffset_ -
+                    static_cast<float>(*delta) /
+                        std::max(engineState().getScale(), 0.000001f));
             } else {
                 const float target =
                     scrollTargetOffset_.value_or(scrollOffset_) -
@@ -433,8 +435,9 @@ float DropBox::expandedHeight() const {
 }
 
 DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
-    const sf::FloatRect screenBounds({0.0f, 0.0f},
-                                     toVector2f(GameSize) * Scale);
+    const sf::FloatRect screenBounds(
+        {0.0f, 0.0f},
+        toVector2f(engineState().getGameSize()) * engineState().getScale());
     sf::FloatRect constraint = screenBounds;
     std::shared_ptr<ControlBase> parent = getParent();
     std::shared_ptr<Canvas> host;
@@ -456,7 +459,7 @@ DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
     }
     const sf::FloatRect collapsedScreenBounds =
         screenRenderTransform().transformRect(
-            {{0.0f, 0.0f}, collapsedSize_ * Scale});
+            {{0.0f, 0.0f}, collapsedSize_ * engineState().getScale()});
     const sf::FloatRect visibleAnchor =
         ludork::engine::drop_box_impl::intersectRects(collapsedScreenBounds,
                                                       constraint);
@@ -468,8 +471,8 @@ DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
         screenRenderTransform().getInverse().transformRect(constraint);
     const float naturalHeight = expandedHeight();
     const auto geometry = ludork::engine::drop_box_impl::calculatePopupGeometry(
-        collapsedSize_, localConstraint, naturalHeight, items_.size(), Scale,
-        ExpandedBorderHeight, RowHeight);
+        collapsedSize_, localConstraint, naturalHeight, items_.size(),
+        engineState().getScale(), ExpandedBorderHeight, RowHeight);
     result.positionY = geometry.positionY;
     result.height = geometry.height;
     result.contentHeight = geometry.contentHeight;
@@ -672,7 +675,7 @@ std::optional<int> DropBox::itemIndexAt(
 sf::Vector2f DropBox::toLocalPosition(
     const sf::Vector2f& screenPosition) const {
     return screenRenderTransform().getInverse().transformPoint(screenPosition) /
-           Scale;
+           engineState().getScale();
 }
 
 bool DropBox::hasCanvasAncestor() const {
@@ -734,7 +737,8 @@ void DropBox::_drawOverlay(sf::RenderTarget& target,
     renderPopupContent();
     states.blendMode = premultipliedRenderStates().blendMode;
     states.transform.translate(
-        {0.0f, (popupGeometry_.positionY + ExpandedContentTop) * Scale});
+        {0.0f, (popupGeometry_.positionY + ExpandedContentTop) *
+                   engineState().getScale()});
     target.draw(*popupContentSprite_, states);
 }
 
@@ -804,7 +808,8 @@ void DropBox::ensurePopupVisuals() const {
 
     const sf::Vector2u contentTextureSize =
         ludork::engine::drop_box_impl::popupTextureSize(
-            collapsedSize_.x, popupGeometry_.contentHeight, Scale);
+            collapsedSize_.x, popupGeometry_.contentHeight,
+            engineState().getScale());
     if (contentTextureSize.x == 0U || contentTextureSize.y == 0U) {
         popupContentCanvas_.reset();
         popupContentSprite_.reset();
@@ -828,7 +833,8 @@ void DropBox::ensurePopupVisuals() const {
 void DropBox::renderPopupContent() const {
     popupContentCanvas_->clear(sf::Color::Transparent);
     sf::RenderStates states = canvasRenderStates();
-    states.transform.translate({0.0f, -scrollOffset_ * Scale});
+    states.transform.translate(
+        {0.0f, -scrollOffset_ * engineState().getScale()});
 
     if (!items_.empty()) {
         if (ludork::engine::drop_box_impl::selectionIntersectsViewport(

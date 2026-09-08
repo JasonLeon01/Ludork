@@ -17,10 +17,6 @@ sol::object instanceDisposeMethod(sol::state_view lua,
                                   const sol::object& key);
 bool disposeInstanceCore(sol::state_view lua, const sol::object& instance,
                          bool invokeDispose);
-sol::object allocateInstance(
-    sol::state_view lua, const sol::table& classTable,
-    const sol::object& constructorArguments = sol::object(),
-    bool allowDeferredRoots = false);
 std::optional<sol::table> tryManagedInstanceFields(sol::state_view lua,
                                                    const sol::object& instance);
 sol::table managedInstanceFields(sol::state_view lua,
@@ -33,8 +29,6 @@ void clearNativeMethodCaches(sol::state_view lua, const sol::object& instance,
 void ensureNativeInitializer(sol::state_view lua, sol::table nativeType);
 void failNativeConstruction(sol::state_view lua, const sol::table& classTable,
                             const sol::object& instance);
-void finishNativeConstruction(sol::state_view lua, const sol::table& classTable,
-                              const sol::object& instance);
 bool compositeBelongsToClass(sol::state_view lua, const sol::object& instance,
                              const sol::table& classTable);
 sol::object constructNativeRoot(sol::state_view lua,

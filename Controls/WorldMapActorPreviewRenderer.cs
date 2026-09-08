@@ -13,7 +13,6 @@ namespace Ludork.Controls;
 
 internal sealed class WorldMapActorPreviewRenderer : IDisposable
 {
-    private const double SourceCellSize = 32;
     private const int MaximumVisuals = 256;
     private const int MaximumResolvedActors = 2048;
     private const int MaximumResourceStamps = 512;
@@ -250,7 +249,7 @@ internal sealed class WorldMapActorPreviewRenderer : IDisposable
         int gridY,
         ActorVisualDescriptor descriptor)
     {
-        double displayScale = cellSize / SourceCellSize;
+        double displayScale = cellSize / EngineConstants.CellSize;
         double radians = descriptor.Rotation * Math.PI / 180.0;
         double cos = Math.Cos(radians);
         double sin = Math.Sin(radians);

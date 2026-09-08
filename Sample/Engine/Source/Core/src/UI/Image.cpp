@@ -10,11 +10,12 @@ Image::Image(std::shared_ptr<sf::Texture> texture,
 
 void Image::_applyRenderStates(sf::RenderStates& states) const {
     SpriteBase::_applyRenderStates(states);
-    states.transform.scale({Scale, Scale});
+    states.transform.scale(
+        {engineState().getScale(), engineState().getScale()});
 }
 
 sf::Transform Image::_getRenderTransform() const {
     sf::Transform transform = SpriteBase::_getRenderTransform();
-    transform.scale({Scale, Scale});
+    transform.scale({engineState().getScale(), engineState().getScale()});
     return transform;
 }

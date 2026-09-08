@@ -115,8 +115,8 @@ sf::FloatRect ControlBase::getLocalBounds() const {
 
 sf::FloatRect ControlBase::getAbsoluteBounds() const {
     const sf::FloatRect bounds = getLocalBounds();
-    const sf::FloatRect scaledBounds(bounds.position * Scale,
-                                     bounds.size * Scale);
+    const sf::FloatRect scaledBounds(bounds.position * engineState().getScale(),
+                                     bounds.size * engineState().getScale());
     return _getScreenRenderTransform().transformRect(scaledBounds);
 }
 
@@ -364,14 +364,15 @@ sf::Transform ControlBase::_getScreenTransform() const {
 }
 
 void ControlBase::_applyRenderStates(sf::RenderStates& states) const {
-    states.transform.translate(getPosition() * (Scale - 1.0f));
+    states.transform.translate(getPosition() *
+                               (engineState().getScale() - 1.0f));
     states.transform.combine(getTransform());
     states.transform.combine(presentationTransform());
 }
 
 sf::Transform ControlBase::_getRenderTransform() const {
     sf::Transform transform;
-    transform.translate(getPosition() * (Scale - 1.0f));
+    transform.translate(getPosition() * (engineState().getScale() - 1.0f));
     transform.combine(getTransform());
     transform.combine(presentationTransform());
     return transform;
@@ -415,12 +416,12 @@ sf::Color ControlBase::modulatePresentationColour(
 
 sf::Transform ControlBase::presentationTransform() const {
     sf::Transform result;
-    result.translate(presentationTranslation_ * Scale);
+    result.translate(presentationTranslation_ * engineState().getScale());
     const sf::FloatRect bounds = getPresentationBounds();
     const sf::Vector2f pivot =
         (bounds.position + sf::Vector2f(bounds.size.x * presentationPivot_.x,
                                         bounds.size.y * presentationPivot_.y)) *
-        Scale;
+        engineState().getScale();
     result.translate(pivot);
     result.rotate(sf::degrees(presentationRotation_));
     result.scale(presentationScale_);

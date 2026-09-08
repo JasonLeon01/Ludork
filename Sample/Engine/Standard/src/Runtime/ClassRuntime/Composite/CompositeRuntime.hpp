@@ -17,26 +17,6 @@ int compositeIndex(lua_State* state);
 int compositeNewIndex(lua_State* state);
 sol::table compositeMetatable(sol::state_view lua);
 sol::table constructingCompositeMetatable(sol::state_view lua);
-bool isCompositeInstance(sol::state_view lua, const sol::object& instance);
-bool setNativeMember(sol::state_view lua, const sol::table& fields,
-                     const sol::table& classTable, const sol::object& key,
-                     const sol::object& value,
-                     sol::object* assignedObject = nullptr);
-void markNativePropertyDirty(sol::state_view lua, sol::table fields,
-                             const sol::object& nativeObject,
-                             const sol::object& key);
-void syncNativeRootDefaults(sol::state_view lua, const sol::table& classTable,
-                            const sol::object& instance, const sol::table& root,
-                            const sol::object& nativeObject,
-                            NativeShadowSnapshot& shadowSnapshot);
-void replayNativeDirtyProperties(sol::state_view lua, const sol::table& fields,
-                                 const sol::table& root,
-                                 const sol::object& source,
-                                 const sol::object& destination);
-void syncNativeClassDefaults(sol::state_view lua, const sol::table& classTable,
-                             const sol::object& instance);
-void restoreNativeShadows(sol::table fields,
-                          const NativeShadowSnapshot& snapshot);
 void invokeMonitorCallback(sol::state_view lua, sol::table entry,
                            const sol::object& oldValue,
                            const sol::object& newValue);

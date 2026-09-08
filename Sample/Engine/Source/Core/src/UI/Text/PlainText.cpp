@@ -45,7 +45,7 @@ PlainText::PlainText(std::shared_ptr<PlainTextConfig> config,
             ludork::engine::text_detail::scaledCharacterSize(
                 std::max(1u, config_->characterSize))),
       effects_(std::make_unique<EffectCache>()),
-      displayScale_(Scale) {
+      displayScale_(engineState().getScale()) {
     applyConfig();
 }
 
@@ -77,7 +77,8 @@ sf::FloatRect PlainText::getPixelBounds() const {
 
 sf::FloatRect PlainText::getLocalBounds() const {
     const sf::FloatRect bounds = getPixelBounds();
-    return {bounds.position / Scale, bounds.size / Scale};
+    return {bounds.position / engineState().getScale(),
+            bounds.size / engineState().getScale()};
 }
 
 sf::FloatRect PlainText::getGlobalBounds() const {
@@ -85,17 +86,17 @@ sf::FloatRect PlainText::getGlobalBounds() const {
 }
 
 sf::Vector2f PlainText::getSize() const {
-    return getPixelBounds().size / Scale;
+    return getPixelBounds().size / engineState().getScale();
 }
 
 sf::Vector2f PlainText::getOrigin() const {
     syncDisplayScale();
-    return ControlBase::getOrigin() / Scale;
+    return ControlBase::getOrigin() / engineState().getScale();
 }
 
 void PlainText::setOrigin(const sf::Vector2f& origin) {
     syncDisplayScale();
-    ControlBase::setOrigin(origin * Scale);
+    ControlBase::setOrigin(origin * engineState().getScale());
 }
 
 sf::Color PlainText::getColour() const {
@@ -108,10 +109,10 @@ void PlainText::setColour(const sf::Color& colour) {
 }
 
 void PlainText::refreshDisplayScale() {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         const sf::Vector2f logicalOrigin =
             ControlBase::getOrigin() / displayScale_;
-        displayScale_ = Scale;
+        displayScale_ = engineState().getScale();
         applyConfig();
         setOrigin(logicalOrigin);
     }
@@ -180,7 +181,7 @@ void PlainText::applyConfig() {
     text_.setLineSpacing(config_->lineSpacing);
     text_.setLineAlignment(config_->lineAlignment);
     text_.setOutlineThickness(std::max(0.0f, config_->outline.thickness) *
-                              Scale);
+                              engineState().getScale());
     refreshDirectColours();
     invalidateEffects();
 }
@@ -207,7 +208,7 @@ void PlainText::invalidateEffects() {
 }
 
 void PlainText::syncDisplayScale() const {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         const_cast<PlainText*>(this)->refreshDisplayScale();
     }
 }

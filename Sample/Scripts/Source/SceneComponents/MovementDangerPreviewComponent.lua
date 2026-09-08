@@ -24,7 +24,7 @@ function MovementDangerPreviewComponent:onRender(camera)
         return
     end
     local revision = self._dangerState:getPreviewRevision()
-    local displayScale = Engine.Scale
+    local displayScale = Engine.GetScale()
     if revision ~= self._cachedRevision or displayScale ~= self._cachedDisplayScale then
         self:_refreshEntries(player)
         self._cachedRevision = revision
@@ -41,8 +41,8 @@ end
 ---@param player Source.Player.Player
 function MovementDangerPreviewComponent:_refreshEntries(player)
     self._cachedEntries = self._dangerState:getEntries()
-    local cellSize = Engine.CellSize
-    local displayScale = math.max(Engine.Scale, 0.000001)
+    local cellSize = Engine.GetCellSize()
+    local displayScale = math.max(Engine.GetScale(), 0.000001)
     local inverseScale = 1.0 / displayScale
     for index, entry in ipairs(self._cachedEntries) do
         if self._texts[index] == nil then

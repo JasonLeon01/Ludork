@@ -376,7 +376,7 @@ std::optional<int> TabView::tabIndexAt(
 sf::Vector2f TabView::toLocalPosition(
     const sf::Vector2f& screenPosition) const {
     return screenRenderTransform().getInverse().transformPoint(screenPosition) /
-           Scale;
+           engineState().getScale();
 }
 
 void TabView::rebuildVisuals() {

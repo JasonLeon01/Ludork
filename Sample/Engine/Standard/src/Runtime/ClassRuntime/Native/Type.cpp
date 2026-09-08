@@ -4,6 +4,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypeQueries.hpp"
 
 #include <ClassServices.hpp>
 #include <sol2/sol.hpp>
@@ -15,8 +16,12 @@
 
 namespace ludork::standard::class_runtime::detail {
 
-bool isNativeType(sol::state_view lua, const sol::table& value) {
-    return !isClass(value) && typeInfoOf(lua, value).is<sol::table>();
+bool isNativeInitializer(const sol::table& nativeType,
+                         const sol::object& member) {
+    const sol::object initializer =
+        nativeType.raw_get<sol::object>(NATIVE_INITIALIZER_FIELD);
+    return initializer.is<sol::function>() && member.is<sol::function>() &&
+           objectsRawEqual(initializer, member);
 }
 
 std::string nativeTypeName(sol::state_view lua, const sol::table& nativeType) {

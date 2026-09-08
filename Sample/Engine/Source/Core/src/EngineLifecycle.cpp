@@ -76,7 +76,7 @@ void shutdown(lua_State* state) noexcept {
     }
     ludork::standard::clearFileBatchJson(state);
     unregisterEditorCommands(state);
-    GameRunning = false;
+    engineState().setGameRunning(false);
     shutdownEngineRuntimeServices(state);
     inputService().shutdown();
     shutdownEventBus();

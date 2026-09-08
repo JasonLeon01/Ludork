@@ -35,4 +35,12 @@ sol::table mroCopy(sol::state_view lua, const sol::object& value);
 int classNew(lua_State* state);
 int classCall(lua_State* state);
 
+sol::object allocateInstance(
+    sol::state_view lua, const sol::table& classTable,
+    const sol::object& constructorArguments = sol::object(),
+    bool allowDeferredRoots = false);
+void finishNativeConstruction(sol::state_view lua, const sol::table& classTable,
+                              const sol::object& instance);
+int superFunction(lua_State* state);
+
 }  // namespace ludork::standard::class_runtime::detail

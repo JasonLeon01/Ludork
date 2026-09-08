@@ -212,7 +212,7 @@ function WindowMessageUI:updateWindowPosition(refPosition)
         local posY = (gameHeight - self._panelSize.y) / 2.0
         self:setPanelPosition(sf.Vector2f.new(posX, posY))
     else
-        local cellSize = Engine.CellSize + 0.0
+        local cellSize = Engine.GetCellSize() + 0.0
         local anchorX = refPosition.x + cellSize * 0.5
         local halfScreenY = gameHeight * 0.5
         local posY = nil

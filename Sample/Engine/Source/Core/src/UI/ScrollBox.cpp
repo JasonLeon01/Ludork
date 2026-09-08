@@ -88,7 +88,7 @@ void ScrollBox::scrollDescendantIntoView(
     const sf::FloatRect viewport = getAbsoluteBounds();
     const sf::FloatRect bounds = descendant->getAbsoluteBounds();
     sf::Vector2f offset = scrollOffset_;
-    const float scale = std::max(Scale, 0.000001f);
+    const float scale = std::max(engineState().getScale(), 0.000001f);
     if (bounds.position.x < viewport.position.x) {
         offset.x -= (viewport.position.x - bounds.position.x) / scale;
     } else if (bounds.position.x + bounds.size.x >
@@ -156,7 +156,8 @@ void ScrollBox::onMouseWheelScrolled(const UiInputEventArguments& arguments) {
     sf::Vector2f offset = scrollTargetOffset_.value_or(scrollOffset_);
     const float distance =
         input.isMouseWheelPrecise()
-            ? static_cast<float>(delta) / std::max(Scale, 0.000001f)
+            ? static_cast<float>(delta) /
+                  std::max(engineState().getScale(), 0.000001f)
             : static_cast<float>(delta) * WheelStep;
     if (horizontal) {
         offset.x -= distance;
@@ -198,8 +199,8 @@ std::optional<sf::FloatRect> ScrollBox::_getAbsoluteChildInteractionClipBounds()
 
 sf::FloatRect ScrollBox::getAbsoluteBounds() const {
     const sf::FloatRect bounds = getLocalBounds();
-    const sf::FloatRect scaledBounds(bounds.position * Scale,
-                                     bounds.size * Scale);
+    const sf::FloatRect scaledBounds(bounds.position * engineState().getScale(),
+                                     bounds.size * engineState().getScale());
     return ControlBase::_getScreenRenderTransform().transformRect(scaledBounds);
 }
 
@@ -359,7 +360,7 @@ void ScrollBox::updateTouchArbitration() {
 }
 
 void ScrollBox::applyTouchScroll(const sf::Vector2f& position) {
-    const float scale = std::max(Scale, 0.000001f);
+    const float scale = std::max(engineState().getScale(), 0.000001f);
     const sf::Vector2f delta = (position - touchStartPosition_) / scale;
     const sf::Vector2f maximum = getMaxScrollOffset();
     sf::Vector2f offset = touchStartOffset_;
@@ -425,7 +426,8 @@ void ScrollBox::drawIndicators() {
     const sf::View savedView = target.getView();
     target.setView(target.getDefaultView());
     sf::RenderStates states = canvasRenderStates();
-    states.transform.scale({Scale, Scale});
+    states.transform.scale(
+        {engineState().getScale(), engineState().getScale()});
     if (scrollOffset_.y > 0.0f) {
         target.draw(*indicatorSprites_[indicatorIndex(Indicator::Up)], states);
     }

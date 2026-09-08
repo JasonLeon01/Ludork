@@ -652,10 +652,10 @@ function WorldGameMapActors.IsWorldActorLayerVisible(self, actor, layerName, vis
         return true
     end
     local bounds = actor:getGlobalBounds()
-    local left = visibleRect.x * Engine.CellSize
-    local top = visibleRect.y * Engine.CellSize
-    local right = (visibleRect.x + visibleRect.width) * Engine.CellSize
-    local bottom = (visibleRect.y + visibleRect.height) * Engine.CellSize
+    local left = visibleRect.x * Engine.GetCellSize()
+    local top = visibleRect.y * Engine.GetCellSize()
+    local right = (visibleRect.x + visibleRect.width) * Engine.GetCellSize()
+    local bottom = (visibleRect.y + visibleRect.height) * Engine.GetCellSize()
     return bounds.position.x + bounds.size.x >= left and bounds.position.x <= right
         and bounds.position.y + bounds.size.y >= top and bounds.position.y <= bottom
 end

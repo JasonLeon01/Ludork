@@ -12,7 +12,7 @@ local LOC = Locale.ApplyStringLocaleFormat
 local TextLayout = Engine.TextLayout
 local ToShortNumber = NumberFormat.ToShortNumber
 
-local _PORTRAIT_AREA_HEIGHT = Engine.CellSize
+local _PORTRAIT_AREA_HEIGHT = Engine.GetCellSize()
 local _NAME_TOP_MARGIN = 8
 local _INFO_TOP_MARGIN = 8
 local _INFO_PAIR_WIDTH = 200

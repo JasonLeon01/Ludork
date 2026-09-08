@@ -38,7 +38,7 @@ function Battler:playAttackAnimationAt(scene, targetPosition)
     local animationData = Data.GetAnimation(self.attributes.ANIMATION_KEY)
     local Animation = GlobalCore.Animation
     local animation = Animation.new(animationData, true)
-    local halfCell = Engine.CellSize * 0.5
+    local halfCell = Engine.GetCellSize() * 0.5
     animation:setPosition(sf.Vector2f.new(targetPosition.x + halfCell, targetPosition.y + halfCell))
     scene:addAnim(animation)
     return animation:getVisualDuration()

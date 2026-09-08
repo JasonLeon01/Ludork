@@ -537,7 +537,7 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
                         std::hypot(static_cast<float>(delta.x),
                                    static_cast<float>(delta.y));
                     if (pointer_.touchTravelDistance_ >
-                        TouchDragThreshold * Scale) {
+                        TouchDragThreshold * engineState().getScale()) {
                         pointer_.touchDragged_ = true;
                         pointer_.touchTrigger_.handled = true;
                     }
@@ -569,7 +569,7 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
                         std::hypot(static_cast<float>(delta.x),
                                    static_cast<float>(delta.y));
                     if (pointer_.touchTravelDistance_ >
-                        TouchDragThreshold * Scale) {
+                        TouchDragThreshold * engineState().getScale()) {
                         pointer_.touchDragged_ = true;
                         pointer_.touchTrigger_.handled = true;
                     }

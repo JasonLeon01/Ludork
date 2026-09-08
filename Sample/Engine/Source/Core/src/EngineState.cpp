@@ -3,10 +3,6 @@
 #include <algorithm>
 #include <stdexcept>
 
-bool GameRunning = true;
-int CellSize = 32;
-sf::Vector2u GameSize = {640u, 480u};
-float Scale = 1.0f;
 const sf::Vector2f ZeroVector2f = {0.0f, 0.0f};
 const sf::Vector2i ZeroVector2i = {0, 0};
 const sf::Vector2u ZeroVector2u = {0u, 0u};
@@ -21,35 +17,33 @@ const std::unordered_map<std::string, int> Direction = {
 };
 
 float EngineState::getScale() const {
-    return Scale;
+    return scale_;
 }
 
 void EngineState::setScale(float scale) {
-    Scale = std::max(0.01f, scale);
+    scale_ = std::max(0.01f, scale);
 }
 
 sf::Vector2u EngineState::getGameSize() const {
-    return GameSize;
+    return gameSize_;
 }
 
 void EngineState::setGameSize(const sf::Vector2u& size) {
-    GameSize = size;
+    gameSize_ = size;
 }
 
 bool EngineState::getGameRunning() const {
-    return GameRunning;
+    return gameRunning_;
 }
 
 void EngineState::setGameRunning(bool running) {
-    GameRunning = running;
+    gameRunning_ = running;
 }
 
-int EngineState::getCellSize() const {
-    return CellSize;
-}
-
-void EngineState::setCellSize(int cellSize) {
-    CellSize = std::max(1, cellSize);
+void EngineState::reset() noexcept {
+    gameRunning_ = true;
+    gameSize_ = {640u, 480u};
+    scale_ = 1.0f;
 }
 
 EngineState& engineState() {
@@ -58,10 +52,23 @@ EngineState& engineState() {
 }
 
 void resetEngineState() noexcept {
-    GameRunning = true;
-    CellSize = 32;
-    GameSize = {640u, 480u};
-    Scale = 1.0f;
+    engineState().reset();
+}
+
+int getCellSize() {
+    return EngineState::CellSize;
+}
+
+sf::Vector2u getGameSize() {
+    return engineState().getGameSize();
+}
+
+float getScale() {
+    return engineState().getScale();
+}
+
+bool isGameRunning() {
+    return engineState().getGameRunning();
 }
 
 int oppositeDirection(int direction) {

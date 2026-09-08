@@ -1,5 +1,7 @@
 set(LUDORK_CLASS_RUNTIME_CLASS_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/Construction.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Allocation.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Super.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Definition.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/Introspection.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/HotReload.cpp"

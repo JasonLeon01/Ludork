@@ -10,8 +10,8 @@ function PathPreviewComponent:init(gameMap, routeState)
     self._routeState = routeState
     self._fillColour = sf.Color.new(80, 180, 255, 110)
     self._outlineColour = sf.Color.new(120, 220, 255, 180)
-    self._padding = math.max(1.0, Engine.CellSize * 0.12)
-    local size = math.max(1.0, Engine.CellSize - self._padding * 2.0)
+    self._padding = math.max(1.0, Engine.GetCellSize() * 0.12)
+    local size = math.max(1.0, Engine.GetCellSize() - self._padding * 2.0)
     self._rectangleSize = sf.Vector2f.new(size, size)
     self._rectangle = sf.RectangleShape.new(self._rectangleSize)
     self._rectangle:setFillColor(self._fillColour)
@@ -31,7 +31,7 @@ function PathPreviewComponent:onRender(camera)
     if not bool(self._cachedRoute) then
         return
     end
-    local cellSize = Engine.CellSize
+    local cellSize = Engine.GetCellSize()
     ---@diagnostic disable: need-check-nil
     local position = Pool.Get("sf.Vector2f", sf.Vector2f, {
         x = self._cachedRoute[1].x * cellSize + self._padding,

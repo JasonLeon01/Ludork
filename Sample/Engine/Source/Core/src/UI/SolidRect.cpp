@@ -7,11 +7,13 @@
 
 SolidRect::SolidRect(const sf::Vector2f& size, const sf::Color& fillColor,
                      const sf::Color& outlineColor, float outlineThickness)
-    : size_(size), shape_(size * Scale), outlineThickness_(outlineThickness) {
+    : size_(size),
+      shape_(size * engineState().getScale()),
+      outlineThickness_(outlineThickness) {
     fillColor_ = fillColor;
     outlineColor_ = outlineColor;
     applyColours();
-    shape_.setOutlineThickness(outlineThickness * Scale);
+    shape_.setOutlineThickness(outlineThickness * engineState().getScale());
 }
 
 sf::Vector2f SolidRect::getSize() const {
@@ -20,7 +22,7 @@ sf::Vector2f SolidRect::getSize() const {
 
 void SolidRect::setSize(const sf::Vector2f& size) {
     size_ = size;
-    shape_.setSize(size_ * Scale);
+    shape_.setSize(size_ * engineState().getScale());
 }
 
 sf::Color SolidRect::getFillColor() const {
@@ -47,22 +49,22 @@ float SolidRect::getOutlineThickness() const {
 
 void SolidRect::setOutlineThickness(float thickness) {
     outlineThickness_ = thickness;
-    shape_.setOutlineThickness(thickness * Scale);
+    shape_.setOutlineThickness(thickness * engineState().getScale());
 }
 
 sf::FloatRect SolidRect::getLocalBounds() const {
     const sf::FloatRect bounds = shape_.getLocalBounds();
-    return {bounds.position, bounds.size / Scale};
+    return {bounds.position, bounds.size / engineState().getScale()};
 }
 
 sf::FloatRect SolidRect::getGlobalBounds() const {
     const sf::FloatRect bounds = shape_.getGlobalBounds();
-    return {bounds.position, bounds.size / Scale};
+    return {bounds.position, bounds.size / engineState().getScale()};
 }
 
 void SolidRect::refreshDisplayScale() {
-    shape_.setSize(size_ * Scale);
-    shape_.setOutlineThickness(outlineThickness_ * Scale);
+    shape_.setSize(size_ * engineState().getScale());
+    shape_.setOutlineThickness(outlineThickness_ * engineState().getScale());
     ControlBase::refreshDisplayScale();
 }
 

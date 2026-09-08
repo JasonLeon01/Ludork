@@ -9,7 +9,7 @@ namespace Ludork.Services;
 
 public sealed class AutoTileRenderer : IDisposable
 {
-    private const int SourceTileSize = 32;
+    private const int SourceTileSize = EngineConstants.CellSize;
     private const int Top = 0x01;
     private const int Right = 0x02;
     private const int Bottom = 0x04;

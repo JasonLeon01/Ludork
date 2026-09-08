@@ -61,7 +61,8 @@ public sealed class ConfigDictPanel : Border
         int row = 0;
         foreach (KeyValuePair<string, JsonNode?> entry in data)
         {
-            if (entry.Value is not JsonObject value)
+            if (!GameDataService.CanEditConfigField(fileName, entry.Key)
+                || entry.Value is not JsonObject value)
                 continue;
             fieldNames[value] = entry.Key;
             (string type, int? length) = parseType(value["type"]?.GetValue<string>() ?? string.Empty);

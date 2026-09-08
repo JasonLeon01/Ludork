@@ -227,9 +227,10 @@ void GameMapRendererImpl::setTileMaskUniforms(const std::string& cacheKey,
                                *cache.reflectionTexture);
     tileMaskShader->setUniform("ignoreLightingTex",
                                *cache.ignoreLightingTexture);
-    tileMaskShader->setUniform("lightBlockSize",
-                               sf::Vector2f{static_cast<float>(CellSize),
-                                            static_cast<float>(CellSize)});
+    tileMaskShader->setUniform(
+        "lightBlockSize",
+        sf::Vector2f{static_cast<float>(EngineState::CellSize),
+                     static_cast<float>(EngineState::CellSize)});
     tileMaskShader->setUniform("worldMode", 0.0f);
     const sf::Vector2u size = tilemap->getSize();
     tileMaskShader->setUniform(

@@ -13,20 +13,20 @@ Canvas::Canvas(const sf::IntRect& rect)
     : SpriteBase(placeholderTexture()),
       inRect_(rect),
       size_(toVector2u(toVector2f(rect.size))),
-      canvas_(std::make_shared<sf::RenderTexture>(
-          nonZeroRenderTextureSize(toVector2u(toVector2f(rect.size) * Scale)))),
-      displayScale_(Scale) {
+      canvas_(std::make_shared<sf::RenderTexture>(nonZeroRenderTextureSize(
+          toVector2u(toVector2f(rect.size) * engineState().getScale())))),
+      displayScale_(engineState().getScale()) {
     setPremultipliedTexture(true);
     bindCanvasTexture();
     setPosition(toVector2f(rect.position));
 }
 
 sf::Vector2f Canvas::getOrigin() const {
-    return SpriteBase::getOrigin() / Scale;
+    return SpriteBase::getOrigin() / engineState().getScale();
 }
 
 void Canvas::setOrigin(const sf::Vector2f& origin) {
-    SpriteBase::setOrigin(origin * Scale);
+    SpriteBase::setOrigin(origin * engineState().getScale());
 }
 
 sf::Vector2f Canvas::getSize() const {
@@ -36,8 +36,8 @@ sf::Vector2f Canvas::getSize() const {
 void Canvas::resize(const sf::Vector2u& size) {
     size_ = size;
     inRect_.size = {static_cast<int>(size.x), static_cast<int>(size.y)};
-    if (!canvas_->resize(
-            nonZeroRenderTextureSize(toVector2u(toVector2f(size) * Scale)))) {
+    if (!canvas_->resize(nonZeroRenderTextureSize(
+            toVector2u(toVector2f(size) * engineState().getScale())))) {
         throw std::runtime_error("Failed to resize canvas render texture");
     }
     bindCanvasTexture();
@@ -56,17 +56,19 @@ sf::IntRect Canvas::getContentRect() const {
 
 sf::View Canvas::getView() const {
     const sf::View view = canvas_->getView();
-    return sf::View(view.getCenter() / Scale, view.getSize() / Scale);
+    return sf::View(view.getCenter() / engineState().getScale(),
+                    view.getSize() / engineState().getScale());
 }
 
 sf::View Canvas::getDefaultView() const {
     const sf::View view = canvas_->getDefaultView();
-    return sf::View(view.getCenter() / Scale, view.getSize() / Scale);
+    return sf::View(view.getCenter() / engineState().getScale(),
+                    view.getSize() / engineState().getScale());
 }
 
 void Canvas::setView(const sf::View& view) {
-    canvas_->setView(
-        sf::View(view.getCenter() * Scale, view.getSize() * Scale));
+    canvas_->setView(sf::View(view.getCenter() * engineState().getScale(),
+                              view.getSize() * engineState().getScale()));
 }
 
 std::vector<std::shared_ptr<ControlBase>> Canvas::getChildren() const {
@@ -151,7 +153,7 @@ void Canvas::update(float deltaTime) {
 }
 
 void Canvas::render() {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         refreshDisplayScale();
     }
     _buildRenderQueue();
@@ -212,13 +214,13 @@ const sf::RenderTexture& Canvas::getRenderTexture() const {
 }
 
 void Canvas::refreshDisplayScale() {
-    if (displayScale_ != Scale) {
+    if (displayScale_ != engineState().getScale()) {
         const sf::View pixelView = canvas_->getView();
         const sf::View logicalView(pixelView.getCenter() / displayScale_,
                                    pixelView.getSize() / displayScale_);
         const sf::Vector2f logicalOrigin =
             SpriteBase::getOrigin() / displayScale_;
-        displayScale_ = Scale;
+        displayScale_ = engineState().getScale();
         resize(size_);
         setView(logicalView);
         setOrigin(logicalOrigin);
@@ -237,7 +239,7 @@ sf::Transform Canvas::_getScreenRenderTransform() const {
     const sf::Vector2f scrollOffset =
         getDefaultView().getCenter() - getView().getCenter();
     if (scrollOffset.x != 0.0f || scrollOffset.y != 0.0f) {
-        transform.translate(scrollOffset * Scale);
+        transform.translate(scrollOffset * engineState().getScale());
     }
     return transform;
 }
@@ -280,7 +282,8 @@ void Canvas::_buildRenderQueue() {
 
 sf::RenderStates Canvas::_getAnimRenderStates() const {
     sf::RenderStates states = canvasRenderStates();
-    states.transform.scale({Scale, Scale});
+    states.transform.scale(
+        {engineState().getScale(), engineState().getScale()});
     return states;
 }
 
@@ -338,7 +341,8 @@ void Canvas::bindCanvasTexture() {
     std::shared_ptr<sf::Texture> texture(
         canvas_, const_cast<sf::Texture*>(&canvas_->getTexture()));
     setTexture(std::move(texture), true);
-    const sf::Vector2u textureSize = toVector2u(toVector2f(size_) * Scale);
+    const sf::Vector2u textureSize =
+        toVector2u(toVector2f(size_) * engineState().getScale());
     setTextureRect(
         {{0, 0},
          {static_cast<int>(textureSize.x), static_cast<int>(textureSize.y)}});

@@ -14,8 +14,8 @@ TileLayer::TileLayer(
     const TileLayerData& data, std::shared_ptr<sf::Texture> texture,
     const std::vector<std::shared_ptr<sf::Texture>>& autoTileTextures,
     const std::vector<int>& autoTileFrameCounts, bool visible, bool deferred)
-    : TileLayerGraphics(layerWidth(data), layerHeight(data), CellSize,
-                        requireTexture(texture), data,
+    : TileLayerGraphics(layerWidth(data), layerHeight(data),
+                        EngineState::CellSize, requireTexture(texture), data,
                         normalizeAutoTileTextures(data, autoTileTextures),
                         normalizeFrameCounts(data, autoTileFrameCounts),
                         deferred),

@@ -4,6 +4,7 @@
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
+#include "Detail/TypeQueries.hpp"
 #include "Detail/TypedFields.hpp"
 #include "Instance/InstanceRuntime.hpp"
 #include "Native/NativeRuntime.hpp"
@@ -347,16 +348,6 @@ sol::table compositeMetatable(sol::state_view lua) {
 sol::table constructingCompositeMetatable(sol::state_view lua) {
     return createCompositeMetatable(lua, CONSTRUCTING_COMPOSITE_METATABLE_KEY,
                                     false);
-}
-
-bool isCompositeInstance(sol::state_view lua, const sol::object& instance) {
-    if (!instance.is<sol::userdata>()) {
-        return false;
-    }
-    const sol::object marker =
-        class_native::getObjectMetatable(lua, instance)
-            .raw_get<sol::object>(protocol::COMPOSITE_MARKER_FIELD);
-    return marker.is<bool>() && marker.as<bool>();
 }
 
 }  // namespace ludork::standard::class_runtime::detail

@@ -221,7 +221,7 @@ std::shared_ptr<sf::Texture> GameMapBase::rebuildStaticLightOccupancy(
     const sf::Vector2i& origin, const sf::Vector2u& size,
     const std::vector<std::shared_ptr<Actor>>& actors) {
     return lightOcclusion_->rebuildStaticLightOccupancy(
-        origin, size, actors, *sparseWorld_, tilemap_, CellSize);
+        origin, size, actors, *sparseWorld_, tilemap_, EngineState::CellSize);
 }
 
 std::vector<LightOcclusionResult> GameMapBase::analyseLightOcclusion(
@@ -229,7 +229,8 @@ std::vector<LightOcclusionResult> GameMapBase::analyseLightOcclusion(
     const std::vector<std::shared_ptr<Actor>>& visibleActors) {
     ensurePassabilityCache();
     return lightOcclusion_->analyseLightOcclusion(
-        inputs, visibleActors, *occupancy_, sparseWorld_->size(), CellSize);
+        inputs, visibleActors, *occupancy_, sparseWorld_->size(),
+        EngineState::CellSize);
 }
 
 GameMapBase::PathResult GameMapBase::findPathExt(

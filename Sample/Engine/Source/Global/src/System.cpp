@@ -1,11 +1,7 @@
 #include <System.hpp>
 
-#include "System/LifecycleImpl.hpp"
-#include "System/DisplayImpl.hpp"
-#include "System/FramePipelineImpl.hpp"
-#include "System/ScreenEffectsImpl.hpp"
-#include "System/TransitionImpl.hpp"
-#include "System/SceneStackImpl.hpp"
+#include "System/SystemImpl.hpp"
+
 #include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <Fog/FogController.hpp>
@@ -16,7 +12,7 @@
 
 void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
                   const std::string& dataFilePath) {
-    ludork::global::system_lifecycle_impl::init(data, dataFilePath);
+    ludork::global::system_impl::impl().init(data, dataFilePath);
 }
 
 std::string System::getScript() {
@@ -53,7 +49,7 @@ float System::getConfiguredScale() {
 
 std::optional<float> System::getMaximumWindowedScale(
     const sf::Vector2u& gameSize) {
-    return ludork::global::system_display_impl::getMaximumWindowedScale(
+    return ludork::global::system_impl::impl().getMaximumWindowedScale(
         gameSize);
 }
 
@@ -202,91 +198,91 @@ void System::saveVoiceVolume(float value) {
 }
 
 bool System::isDebugMode() {
-    return ludork::global::system_lifecycle_impl::isDebugMode();
+    return ludork::global::system_impl::impl().isDebugMode();
 }
 
 void System::setDebugMode(bool debugMode) {
-    ludork::global::system_lifecycle_impl::setDebugMode(debugMode);
+    ludork::global::system_impl::impl().setDebugMode(debugMode);
 }
 
 sf::Vector2u System::getGameSize() {
-    return ludork::global::system_display_impl::getGameSize();
+    return ludork::global::system_impl::impl().getGameSize();
 }
 
 void System::setGameSize(const sf::Vector2u& gameSize) {
-    ludork::global::system_display_impl::setGameSize(gameSize);
+    ludork::global::system_impl::impl().setGameSize(gameSize);
 }
 
 bool System::isActive() {
-    return ludork::global::system_lifecycle_impl::isActive();
+    return ludork::global::system_impl::impl().isActive();
 }
 
 bool System::shouldLoop() {
-    return ludork::global::system_lifecycle_impl::shouldLoop();
+    return ludork::global::system_impl::impl().shouldLoop();
 }
 
 void System::run() {
-    ludork::global::system_lifecycle_impl::run();
+    ludork::global::system_impl::impl().run();
 }
 
 void System::setStandardUpdate(std::function<void()> update) {
-    ludork::global::system_lifecycle_impl::setStandardUpdate(std::move(update));
+    ludork::global::system_impl::impl().setStandardUpdate(std::move(update));
 }
 
 void System::updateRuntime() {
-    ludork::global::system_lifecycle_impl::updateRuntime();
+    ludork::global::system_impl::impl().updateRuntime();
 }
 
 void System::initializeRuntimeSession() noexcept {
-    ludork::global::system_lifecycle_impl::initializeRuntimeSession();
+    ludork::global::system_impl::impl().initializeRuntimeSession();
 }
 
 void System::shutdownRuntime() noexcept {
-    ludork::global::system_lifecycle_impl::shutdownRuntime();
+    ludork::global::system_impl::impl().shutdownRuntime();
 }
 
 void System::initializeDisplay(const std::string& title,
                                const sf::Vector2u& gameSize,
                                const std::string& iconPath,
                                const std::string& cursorPath) {
-    ludork::global::system_display_impl::initializeDisplay(
-        title, gameSize, iconPath, cursorPath);
+    ludork::global::system_impl::impl().initializeDisplay(title, gameSize,
+                                                          iconPath, cursorPath);
 }
 
 void System::initWindow(const std::shared_ptr<sf::RenderWindow>& window) {
-    ludork::global::system_display_impl::initWindow(window);
+    ludork::global::system_impl::impl().initWindow(window);
 }
 
 std::shared_ptr<sf::RenderWindow> System::getWindow() {
-    return ludork::global::system_display_impl::getWindow();
+    return ludork::global::system_impl::impl().getWindow();
 }
 
 bool System::isDisplayScaleConfigurable() {
-    return ludork::global::system_display_impl::isDisplayScaleConfigurable();
+    return ludork::global::system_impl::impl().isDisplayScaleConfigurable();
 }
 
 void System::setInputMethodDisabled(bool disabled) {
-    ludork::global::system_display_impl::setInputMethodDisabled(disabled);
+    ludork::global::system_impl::impl().setInputMethodDisabled(disabled);
 }
 
 void System::initCanvas(const sf::Vector2u& size) {
-    ludork::global::system_frame_pipeline_impl::initCanvas(size);
+    ludork::global::system_impl::impl().initCanvas(size);
 }
 
 void System::clearCanvas() {
-    ludork::global::system_display_impl::clearCanvas();
+    ludork::global::system_impl::impl().clearCanvas();
 }
 
 void System::setWindowMapView(const sf::IntRect& rect) {
-    ludork::global::system_display_impl::setWindowMapView(rect);
+    ludork::global::system_impl::impl().setWindowMapView(rect);
 }
 
 void System::setWindowDefaultView() {
-    ludork::global::system_display_impl::setWindowDefaultView();
+    ludork::global::system_impl::impl().setWindowDefaultView();
 }
 
 sf::RenderTexture* System::getCanvas() {
-    return ludork::global::system_display_impl::getCanvas();
+    return ludork::global::system_impl::impl().getCanvas();
 }
 
 void System::setWeather(WeatherType weatherType, float power, int maxCount) {
@@ -314,181 +310,177 @@ void System::applyFogFromMapData(const MapFogSettings& mapData) {
 }
 
 void System::draw(const sf::Drawable& drawable, sf::Shader* shader) {
-    ludork::global::system_frame_pipeline_impl::draw(drawable, shader);
+    ludork::global::system_impl::impl().draw(drawable, shader);
 }
 
 void System::applyScreenTonePass() {
-    ludork::global::system_screen_effects_impl::applyScreenTonePass();
+    ludork::global::system_impl::impl().applyScreenTonePass();
 }
 
 void System::composeFrame(float deltaTime) {
-    ludork::global::system_frame_pipeline_impl::composeFrame(deltaTime);
+    ludork::global::system_impl::impl().composeFrame(deltaTime);
 }
 
 void System::present() {
-    ludork::global::system_frame_pipeline_impl::present();
+    ludork::global::system_impl::impl().present();
 }
 
 void System::completeFrame() {
-    ludork::global::system_frame_pipeline_impl::completeFrame();
+    ludork::global::system_impl::impl().completeFrame();
 }
 
 void System::addGraphicsShader(const std::shared_ptr<sf::Shader>& shader,
                                std::optional<ShaderUniforms> uniforms) {
-    ludork::global::system_frame_pipeline_impl::addGraphicsShader(
-        shader, std::move(uniforms));
+    ludork::global::system_impl::impl().addGraphicsShader(shader,
+                                                          std::move(uniforms));
 }
 
 void System::removeGraphicsShader(const std::shared_ptr<sf::Shader>& shader) {
-    ludork::global::system_frame_pipeline_impl::removeGraphicsShader(shader);
+    ludork::global::system_impl::impl().removeGraphicsShader(shader);
 }
 
 void System::removeAllGraphicsShaders() {
-    ludork::global::system_frame_pipeline_impl::removeAllGraphicsShaders();
+    ludork::global::system_impl::impl().removeAllGraphicsShaders();
 }
 
 void System::removeGraphicsShaderAt(int index) {
-    ludork::global::system_frame_pipeline_impl::removeGraphicsShaderAt(index);
+    ludork::global::system_impl::impl().removeGraphicsShaderAt(index);
 }
 
 void System::flashScreen(std::optional<sf::Color> color, float duration) {
-    ludork::global::system_screen_effects_impl::flashScreen(std::move(color),
-                                                            duration);
+    ludork::global::system_impl::impl().flashScreen(std::move(color), duration);
 }
 
 void System::stopFlash() {
-    ludork::global::system_screen_effects_impl::stopFlash();
+    ludork::global::system_impl::impl().stopFlash();
 }
 
 bool System::isFlashing() {
-    return ludork::global::system_screen_effects_impl::isFlashing();
+    return ludork::global::system_impl::impl().isFlashing();
 }
 
 void System::changeScreenTone(float red, float green, float blue, float gray,
                               float duration) {
-    ludork::global::system_screen_effects_impl::changeScreenTone(
-        red, green, blue, gray, duration);
+    ludork::global::system_impl::impl().changeScreenTone(red, green, blue, gray,
+                                                         duration);
 }
 
 void System::clearScreenTone(float duration) {
-    ludork::global::system_screen_effects_impl::clearScreenTone(duration);
+    ludork::global::system_impl::impl().clearScreenTone(duration);
 }
 
 void System::stopScreenTone() {
-    ludork::global::system_screen_effects_impl::stopScreenTone();
+    ludork::global::system_impl::impl().stopScreenTone();
 }
 
 bool System::isScreenToneActive() {
-    return ludork::global::system_screen_effects_impl::isScreenToneActive();
+    return ludork::global::system_impl::impl().isScreenToneActive();
 }
 
 bool System::isScreenToneTransitionComplete() {
-    return ludork::global::system_screen_effects_impl::
-        isScreenToneTransitionComplete();
+    return ludork::global::system_impl::impl().isScreenToneTransitionComplete();
 }
 
 void System::startShake(float power, float speed, float duration) {
-    ludork::global::system_screen_effects_impl::startShake(power, speed,
-                                                           duration);
+    ludork::global::system_impl::impl().startShake(power, speed, duration);
 }
 
 void System::stopShake() {
-    ludork::global::system_screen_effects_impl::stopShake();
+    ludork::global::system_impl::impl().stopShake();
 }
 
 bool System::isShaking() {
-    return ludork::global::system_screen_effects_impl::isShaking();
+    return ludork::global::system_impl::impl().isShaking();
 }
 
 void System::setTransition(
     const std::shared_ptr<sf::Texture>& transitionResource,
     float transitionTime) {
-    ludork::global::system_transition_impl::setTransition(transitionResource,
-                                                          transitionTime);
+    ludork::global::system_impl::impl().setTransition(transitionResource,
+                                                      transitionTime);
 }
 
 void System::freezeTransitionBackground() {
-    ludork::global::system_transition_impl::freezeTransitionBackground();
+    ludork::global::system_impl::impl().freezeTransitionBackground();
 }
 
 bool System::isTransitionBackgroundFrozen() {
-    return ludork::global::system_transition_impl::
-        isTransitionBackgroundFrozen();
+    return ludork::global::system_impl::impl().isTransitionBackgroundFrozen();
 }
 
 bool System::isTransitionBackgroundFreezePending() {
-    return ludork::global::system_transition_impl::
-        isTransitionBackgroundFreezePending();
+    return ludork::global::system_impl::impl()
+        .isTransitionBackgroundFreezePending();
 }
 
 void System::cancelTransitionBackgroundFreeze() {
-    ludork::global::system_transition_impl::cancelTransitionBackgroundFreeze();
+    ludork::global::system_impl::impl().cancelTransitionBackgroundFreeze();
 }
 
 void System::requestTransition(std::optional<std::string> transitionName,
                                float transitionTime) {
-    ludork::global::system_transition_impl::requestTransition(
+    ludork::global::system_impl::impl().requestTransition(
         std::move(transitionName), transitionTime);
 }
 
 void System::cancelPendingTransition() {
-    ludork::global::system_transition_impl::cancelPendingTransition();
+    ludork::global::system_impl::impl().cancelPendingTransition();
 }
 
 bool System::isTransitionPending() {
-    return ludork::global::system_transition_impl::isTransitionPending();
+    return ludork::global::system_impl::impl().isTransitionPending();
 }
 
 bool System::isInTransition() {
-    return ludork::global::system_transition_impl::isInTransition();
+    return ludork::global::system_impl::impl().isInTransition();
 }
 
 void System::applyPendingTransition() {
-    ludork::global::system_transition_impl::applyPendingTransition();
+    ludork::global::system_impl::impl().applyPendingTransition();
 }
 
 std::shared_ptr<SceneRuntime> System::getScene() {
-    return ludork::global::system_scene_stack_impl::getScene();
+    return ludork::global::system_impl::impl().getScene();
 }
 
 std::shared_ptr<SceneRuntime> System::requireScene() {
-    return ludork::global::system_scene_stack_impl::requireScene();
+    return ludork::global::system_impl::impl().requireScene();
 }
 
 std::vector<std::shared_ptr<SceneRuntime>> System::getSceneList() {
-    return ludork::global::system_scene_stack_impl::getSceneList();
+    return ludork::global::system_impl::impl().getSceneList();
 }
 
 void System::bindSceneOperationThread() {
-    ludork::global::system_scene_stack_impl::bindSceneOperationThread();
+    ludork::global::system_impl::impl().bindSceneOperationThread();
 }
 
 bool System::hasPendingSceneOperations() {
-    return ludork::global::system_scene_stack_impl::hasPendingSceneOperations();
+    return ludork::global::system_impl::impl().hasPendingSceneOperations();
 }
 
 void System::applyPendingSceneReplace() {
-    ludork::global::system_scene_stack_impl::applyPendingSceneReplace();
+    ludork::global::system_impl::impl().applyPendingSceneReplace();
 }
 
 void System::setScene(const std::shared_ptr<SceneRuntime>& scene) {
-    ludork::global::system_scene_stack_impl::setScene(scene);
+    ludork::global::system_impl::impl().setScene(scene);
 }
 
 void System::pushScene(const std::shared_ptr<SceneRuntime>& scene) {
-    ludork::global::system_scene_stack_impl::pushScene(scene);
+    ludork::global::system_impl::impl().pushScene(scene);
 }
 
 void System::popScene() {
-    ludork::global::system_scene_stack_impl::popScene();
+    ludork::global::system_impl::impl().popScene();
 }
 
 void System::exit() {
-    ludork::global::system_scene_stack_impl::exit();
+    ludork::global::system_impl::impl().exit();
 }
 
 void System::drainRetiredScenes() {
-    ludork::global::system_scene_stack_impl::drainRetiredScenes();
+    ludork::global::system_impl::impl().drainRetiredScenes();
 }
 
 bool System::isPerformanceProfilerEnabled() {

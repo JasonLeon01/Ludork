@@ -86,8 +86,9 @@ float ProgressBar::normalizedProgress(float progress) {
 }
 
 void ProgressBar::updateGeometry() {
-    background_.setSize(size_ * Scale);
-    fill_.setSize({size_.x * progress_ * Scale, size_.y * Scale});
+    background_.setSize(size_ * engineState().getScale());
+    fill_.setSize({size_.x * progress_ * engineState().getScale(),
+                   size_.y * engineState().getScale()});
 }
 
 void ProgressBar::refreshDisplayScale() {
