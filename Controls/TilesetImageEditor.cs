@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Ludork.Services;
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
@@ -23,8 +24,6 @@ public sealed class TilesetImageEditor : Control, IDisposable
     private JsonObject? data;
     private bool isAutoTile;
     private bool batchPainting;
-    private bool batchChanged;
-    private bool batchSnapshotRecorded;
     private int batchColumns;
     private int batchRows;
     private int batchCount;
@@ -39,8 +38,11 @@ public sealed class TilesetImageEditor : Control, IDisposable
     }
 
     public TilesetEditMode Mode { get; set; }
-    public Action? BeforeDataChanged { get; set; }
-    public Action? DataChanged { get; set; }
+    public Func<string, JsonNode, IReadOnlyList<int>, int, bool>? EditRequested { get; set; }
+    public Func<int, int, int, bool, bool>? DirectionEditRequested { get; set; }
+    public Func<int, int, JsonObject, JsonObject, bool>? MaterialCommitRequested { get; set; }
+    public Action? GestureStarted { get; set; }
+    public Action? GestureCompleted { get; set; }
     public Action<JsonObject, Action<JsonObject>>? MaterialEditRequested { get; set; }
 
     public void setData(
@@ -168,6 +170,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
 
     public void Dispose()
     {
+        completeBatchPaint();
         image?.Dispose();
         image = null;
     }
@@ -267,25 +270,24 @@ public sealed class TilesetImageEditor : Control, IDisposable
         switch (Mode)
         {
             case TilesetEditMode.Passable:
-                BeforeDataChanged?.Invoke();
-                JsonArray passable = ensureArray("passable", count, false);
-                passable[index] = !(passable[index]?.GetValue<bool?>() ?? false);
+                submitEdit("passable", JsonValue.Create(!getBool(getArray("passable"), index, false))!, [index], count);
                 break;
             case TilesetEditMode.Material:
-                requestTilesetMaterialEdit(data, index, count);
+                requestMaterialEdit(data, "materials", index, count);
                 return;
             case TilesetEditMode.Dir4:
-                BeforeDataChanged?.Invoke();
-                JsonArray dir4 = ensureArray("dir4", count, createDefaultDir4);
-                JsonArray value = getArray(dir4[index]) ?? createAndAssignDir4(dir4, index);
+                JsonArray value = (JsonArray)TilesetMetadata.Read(data, "dir4", index, false);
                 int localX = (int)position.X - x * cellSize;
                 int localY = (int)position.Y - y * cellSize;
                 int edge = getDirIndex(localX, localY);
                 value[edge] = !(value[edge]?.GetValue<bool?>() ?? true);
+                if (DirectionEditRequested?.Invoke(index, count, edge, value[edge]!.GetValue<bool>()) == true)
+                {
+                    TilesetMetadata.Apply(data, "dir4", value, [index], count, false);
+                    InvalidateVisual();
+                }
                 break;
         }
-        DataChanged?.Invoke();
-        InvalidateVisual();
     }
 
     private void editAutoTile()
@@ -294,15 +296,10 @@ public sealed class TilesetImageEditor : Control, IDisposable
             return;
         if (Mode == TilesetEditMode.Passable)
         {
-            BeforeDataChanged?.Invoke();
-            data["passable"] = !(data["passable"]?.GetValue<bool?>() ?? true);
-            DataChanged?.Invoke();
-            InvalidateVisual();
+            submitEdit("passable", JsonValue.Create(!(data["passable"]?.GetValue<bool?>() ?? true))!, [], 0);
             return;
         }
-        JsonObject target = data;
-        JsonObject material = (JsonObject)(target["material"] as JsonObject ?? createDefaultMaterial()).DeepClone();
-        MaterialEditRequested?.Invoke(material, edited => applyAutoTileMaterial(target, edited));
+        requestMaterialEdit(data, "material", 0, 0);
     }
 
     private void beginBatchPaint(int x, int y, int columns, int rows)
@@ -310,14 +307,13 @@ public sealed class TilesetImageEditor : Control, IDisposable
         if (data is null)
             return;
         batchPainting = true;
-        batchChanged = false;
-        batchSnapshotRecorded = false;
+        GestureStarted?.Invoke();
         batchColumns = columns;
         batchRows = rows;
         batchCount = columns * rows;
         batchMode = Mode;
         batchLastCell = (x, y);
-        batchSourceValue = getModeValue(data, y * columns + x, batchMode);
+        batchSourceValue = TilesetMetadata.Read(data, getProperty(batchMode), y * columns + x, false);
     }
 
     private void paintBatchLine((int X, int Y) start, (int X, int Y) end)
@@ -329,10 +325,10 @@ public sealed class TilesetImageEditor : Control, IDisposable
         int dy = -Math.Abs(end.Y - start.Y);
         int sy = start.Y < end.Y ? 1 : -1;
         int error = dx + dy;
-        bool changed = false;
+        List<int> indices = [];
         while (true)
         {
-            changed |= paintBatchCell(y * batchColumns + x);
+            indices.Add(y * batchColumns + x);
             if (x == end.X && y == end.Y)
                 break;
             int doubled = error * 2;
@@ -347,35 +343,21 @@ public sealed class TilesetImageEditor : Control, IDisposable
                 y += sy;
             }
         }
-        if (changed)
-            InvalidateVisual();
+        if (data is null || batchSourceValue is null)
+            return;
+        string property = getProperty(batchMode);
+        indices.RemoveAll(index => JsonNode.DeepEquals(TilesetMetadata.Read(data, property, index, false), batchSourceValue));
+        if (indices.Count != 0)
+            submitEdit(property, batchSourceValue, indices, batchCount);
     }
 
-    private bool paintBatchCell(int index)
+    private bool submitEdit(string property, JsonNode value, IReadOnlyList<int> indices, int count)
     {
-        if (data is null || batchSourceValue is null || index < 0 || index >= batchCount)
+        JsonObject? target = data;
+        if (target is null || EditRequested?.Invoke(property, value, indices, count) != true)
             return false;
-        JsonNode current = getModeValue(data, index, batchMode);
-        if (JsonNode.DeepEquals(current, batchSourceValue))
-            return false;
-        if (!batchSnapshotRecorded)
-        {
-            BeforeDataChanged?.Invoke();
-            batchSnapshotRecorded = true;
-        }
-        switch (batchMode)
-        {
-            case TilesetEditMode.Passable:
-                ensureArray("passable", batchCount, false)[index] = batchSourceValue.GetValue<bool>();
-                break;
-            case TilesetEditMode.Material:
-                ensureArray("materials", batchCount, createDefaultMaterial)[index] = batchSourceValue.DeepClone();
-                break;
-            case TilesetEditMode.Dir4:
-                ensureArray("dir4", batchCount, createDefaultDir4)[index] = batchSourceValue.DeepClone();
-                break;
-        }
-        batchChanged = true;
+        TilesetMetadata.Apply(target, property, value, indices, count, isAutoTile);
+        InvalidateVisual();
         return true;
     }
 
@@ -385,88 +367,37 @@ public sealed class TilesetImageEditor : Control, IDisposable
             return;
         batchPainting = false;
         batchSourceValue = null;
-        if (!batchChanged)
-            return;
-        batchChanged = false;
-        DataChanged?.Invoke();
+        GestureCompleted?.Invoke();
         InvalidateVisual();
     }
 
-    private void requestTilesetMaterialEdit(JsonObject target, int index, int count)
+    private void requestMaterialEdit(JsonObject target, string property, int index, int count)
     {
-        JsonObject material = (JsonObject)(getObject(target["materials"] as JsonArray, index) ?? createDefaultMaterial()).DeepClone();
-        MaterialEditRequested?.Invoke(material, edited => applyTilesetMaterial(target, index, count, edited));
-    }
-
-    private void applyTilesetMaterial(JsonObject target, int index, int count, JsonObject edited)
-    {
-        JsonObject current = getObject(target["materials"] as JsonArray, index) ?? createDefaultMaterial();
-        if (JsonNode.DeepEquals(current, edited))
-            return;
-        BeforeDataChanged?.Invoke();
-        ensureArray(target, "materials", count, createDefaultMaterial)[index] = edited.DeepClone();
-        DataChanged?.Invoke();
-        InvalidateVisual();
-    }
-
-    private void applyAutoTileMaterial(JsonObject target, JsonObject edited)
-    {
-        JsonObject current = target["material"] as JsonObject ?? createDefaultMaterial();
-        if (JsonNode.DeepEquals(current, edited))
-            return;
-        BeforeDataChanged?.Invoke();
-        target["material"] = edited.DeepClone();
-        DataChanged?.Invoke();
-        InvalidateVisual();
-    }
-
-    private static JsonNode getModeValue(JsonObject source, int index, TilesetEditMode mode)
-    {
-        return mode switch
+        JsonObject material = (JsonObject)TilesetMetadata.Read(target, property, index, isAutoTile);
+        MaterialEditRequested?.Invoke(material, edited =>
         {
-            TilesetEditMode.Passable => JsonValue.Create(getBool(source["passable"] as JsonArray, index, false))!,
-            TilesetEditMode.Material => (getObject(source["materials"] as JsonArray, index) ?? createDefaultMaterial()).DeepClone(),
-            TilesetEditMode.Dir4 => createDir4Value(source, index),
-            _ => throw new InvalidOperationException(),
-        };
+            if (!ReferenceEquals(data, target) || MaterialCommitRequested?.Invoke(index, count, material, edited) != true)
+                return;
+            JsonObject current = (JsonObject)TilesetMetadata.Read(target, property, index, isAutoTile);
+            JsonObject merged = TilesetMetadata.MergeMaterial(current, material, edited);
+            TilesetMetadata.Apply(target, property, merged, isAutoTile ? [] : [index], count, isAutoTile);
+            InvalidateVisual();
+        });
     }
 
-    private static JsonArray createDir4Value(JsonObject source, int index)
+    private static string getProperty(TilesetEditMode mode) => mode switch
     {
-        JsonArray? value = getArray(source["dir4"] is JsonArray values && index < values.Count ? values[index] : null);
-        return new JsonArray(
-            value?[0]?.GetValue<bool?>() ?? true,
-            value?[1]?.GetValue<bool?>() ?? true,
-            value?[2]?.GetValue<bool?>() ?? true,
-            value?[3]?.GetValue<bool?>() ?? true);
-    }
+        TilesetEditMode.Passable => "passable",
+        TilesetEditMode.Material => "materials",
+        TilesetEditMode.Dir4 => "dir4",
+        _ => throw new InvalidOperationException(),
+    };
 
     private bool tryGetCell(Point position, int columns, int rows, out int x, out int y)
     {
         x = (int)(position.X / cellSize);
         y = (int)(position.Y / cellSize);
         return x >= 0 && y >= 0 && x < columns && y < rows;
-    }
-
-    private JsonArray ensureArray(string name, int count, Func<JsonNode?> createValue)
-    {
-        return ensureArray(data!, name, count, createValue);
-    }
-
-    private static JsonArray ensureArray(JsonObject target, string name, int count, Func<JsonNode?> createValue)
-    {
-        JsonArray value = target[name] as JsonArray ?? new JsonArray();
-        while (value.Count < count)
-            value.Add(createValue());
-        while (value.Count > count)
-            value.RemoveAt(value.Count - 1);
-        target[name] = value;
-        return value;
-    }
-
-    private JsonArray ensureArray(string name, int count, bool defaultValue)
-    {
-        return ensureArray(name, count, () => defaultValue);
     }
 
     private JsonArray? getArray(string name) => data?[name] as JsonArray;
@@ -494,30 +425,6 @@ public sealed class TilesetImageEditor : Control, IDisposable
             if (distances[index] < distances[edge])
                 edge = index;
         return edge switch { 0 => 3, 1 => 2, 2 => 0, _ => 1 };
-    }
-
-    private static JsonObject createDefaultMaterial() => new()
-    {
-        ["lightBlock"] = 0.0,
-        ["mirror"] = false,
-        ["reflectionStrength"] = 0.5,
-        ["opacity"] = 1.0,
-        ["speedRate"] = 1.0,
-    };
-
-    private static JsonArray createDefaultDir4() => new(true, true, true, true);
-    private static JsonObject createAndAssign(JsonArray array, int index)
-    {
-        JsonObject value = createDefaultMaterial();
-        array[index] = value;
-        return value;
-    }
-
-    private static JsonArray createAndAssignDir4(JsonArray array, int index)
-    {
-        JsonArray value = createDefaultDir4();
-        array[index] = value;
-        return value;
     }
 
     private static bool isDefaultMaterial(JsonObject? value)

@@ -8,12 +8,44 @@ namespace Ludork.ViewModels;
 
 public partial class MainViewModel
 {
-    public JsonObject? SelectedMapData => SelectedMap is { IsMap: true } map ? GameData.getMap(map.Key) : null;
-    public JsonObject? SelectedWorldMapData => SelectedMap is { IsWorld: true } world ? GameData.getWorldMap(world.Key) : null;
+    private string? selectedSnapshotKey;
+    private JsonObject? selectedMapSnapshot;
+
+    public JsonObject? SelectedMapData
+    {
+        get
+        {
+            if (SelectedMap is not { IsMap: true } map)
+                return null;
+            if (selectedMapSnapshot is null || !string.Equals(selectedSnapshotKey, map.Key, StringComparison.Ordinal))
+            {
+                selectedSnapshotKey = map.Key;
+                selectedMapSnapshot = GameData.ReadMapSnapshot(map.Key);
+            }
+            return selectedMapSnapshot;
+        }
+    }
+
+    private void onMapPreviewChanged(object? sender, MapPreviewChangedEventArgs args)
+    {
+        if (!args.ReloadData || args.MapKey is not null && !string.Equals(args.MapKey, selectedSnapshotKey, StringComparison.Ordinal))
+            return;
+        if (args.Edit is not null && selectedMapSnapshot is not null)
+            args.Edit.ApplyTo(selectedMapSnapshot);
+        else
+        {
+            selectedSnapshotKey = null;
+            selectedMapSnapshot = null;
+        }
+    }
+
+    public JsonObject? SelectedWorldMapData => SelectedMap is { IsWorld: true } world ? GameData.ReadWorldMapSnapshot(world.Key) : null;
     public bool IsWorldMapSelected => SelectedMap?.IsWorld == true;
 
     public void refreshMaps(string? selectedMapKey = null)
     {
+        selectedSnapshotKey = null;
+        selectedMapSnapshot = null;
         selectedMapKey ??= SelectedMap?.Key;
         HashSet<string> expandedWorlds = Maps
             .Where(item => item.IsWorld && item.IsExpanded)

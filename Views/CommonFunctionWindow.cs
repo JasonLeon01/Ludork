@@ -69,7 +69,7 @@ public sealed class CommonFunctionWindow : Window
         HistoryMergeBehavior.AttachBoundary(this, gameData);
         initializer = new DeferredWindowInitializer(this, () =>
         {
-            nodeDefinitionCatalog = BlueprintNodeDefinitionCatalog.CreateGlobal(
+            nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
                 metadataService,
                 classResolver);
             Content = createEditorContent();

@@ -439,7 +439,7 @@ public sealed partial class GameDataService
         return new SaveResult(true, string.Empty);
     }
 
-    public void refreshModifiedState()
+    private void refreshModifiedState()
     {
         DataChanged?.Invoke(this, EventArgs.Empty);
         bool modified = generalDataGenerationPending
@@ -450,7 +450,7 @@ public sealed partial class GameDataService
         ModifiedChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void RecordSnapshot()
+    private void RecordSnapshot()
     {
         recordSnapshot(null);
     }

@@ -270,7 +270,7 @@ internal sealed class MapTargetPickerWindow : Window
     private HashSet<string> getPlacedChildren(string worldKey)
     {
         HashSet<string> result = new(StringComparer.Ordinal);
-        if (gameData.getWorldMap(worldKey)?["placements"] is not JsonArray placements)
+        if (gameData.ReadWorldMapSnapshot(worldKey)?["placements"] is not JsonArray placements)
             return result;
         foreach (JsonNode? node in placements)
         {
@@ -318,7 +318,7 @@ internal sealed class MapTargetPickerWindow : Window
                     entry.DisplayName,
                     entry.Width,
                     entry.Height,
-                    () => gameData.getMap(entry.Key),
+                    () => gameData.ReadMapSnapshot(entry.Key),
                     entry.LayerOrder,
                     () => gameData.LoadedMapData.ContainsKey(entry.Key),
                     () => gameData.ReadWorldChildMapSnapshotAsync(entry.Key),
@@ -326,7 +326,7 @@ internal sealed class MapTargetPickerWindow : Window
                 .ToArray();
             worldView.SetWorld(
                 selectedTarget.WorldKey,
-                gameData.getWorldMap(selectedTarget.WorldKey ?? string.Empty),
+                gameData.ReadWorldMapSnapshot(selectedTarget.WorldKey ?? string.Empty),
                 children);
             worldView.SetSelectedWorldCell(position);
             worldScroll.IsVisible = true;
@@ -334,7 +334,7 @@ internal sealed class MapTargetPickerWindow : Window
         }
         else
         {
-            mapView.SetMap(selectedTarget.Key, gameData.getMap(selectedTarget.Key));
+            mapView.SetMap(selectedTarget.Key, gameData.ReadMapSnapshot(selectedTarget.Key));
             mapView.SetPosition(position);
             mapView.IsVisible = true;
             worldScroll.IsVisible = false;
@@ -389,7 +389,7 @@ internal sealed class MapTargetPickerWindow : Window
     {
         rect = default;
         if (target.WorldKey is null
-            || gameData.getWorldMap(target.WorldKey)?["placements"] is not JsonArray placements)
+            || gameData.ReadWorldMapSnapshot(target.WorldKey)?["placements"] is not JsonArray placements)
         {
             return false;
         }

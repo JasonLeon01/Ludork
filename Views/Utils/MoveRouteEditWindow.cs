@@ -113,7 +113,7 @@ internal sealed class MoveRouteEditWindow : Window
             mapView.SetMap(null, null);
             return;
         }
-        mapView.SetMap(key, gameData.getMap(key));
+        mapView.SetMap(key, gameData.ReadMapSnapshot(key));
     }
 
     private void refreshRouteLabel()

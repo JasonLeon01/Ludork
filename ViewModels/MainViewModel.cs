@@ -88,6 +88,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameVariables.Saved += onGameVariablesSaved;
         GameData.UndoRedoStateChanged += onUndoRedoStateChanged;
         GameData.DataRestored += onDataRestored;
+        GameData.MapPreviewChanged += onMapPreviewChanged;
         rebuildMapTree();
         SelectedMap = Maps.FirstOrDefault();
     }
@@ -386,6 +387,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         PreviewService.Dispose();
         ReferenceIndex.Dispose();
         BlueprintClasses.Dispose();
+        GameData.MapPreviewChanged -= onMapPreviewChanged;
         GameData.Dispose();
     }
 

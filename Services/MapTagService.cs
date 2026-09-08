@@ -79,11 +79,10 @@ public static class MapTagService
                 ignoredLayerName,
                 ignoredActorIndex ?? -1);
         }
-        return gameData.getMap(mapKey) is JsonObject map
-            && containsTag(map, tag, ignoredLayerName, ignoredActorIndex);
+        return gameData.MapActorTagExists(mapKey, tag, ignoredLayerName, ignoredActorIndex);
     }
 
-    private static bool containsTag(
+    internal static bool ContainsTag(
         JsonObject map,
         string tag,
         string? ignoredLayerName,

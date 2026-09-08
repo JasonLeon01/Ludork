@@ -110,7 +110,7 @@ public partial class MainWindow
                 entry.DisplayName,
                 entry.Width,
                 entry.Height,
-                () => viewModel.GameData.getMap(entry.Key),
+                () => viewModel.GameData.ReadMapSnapshot(entry.Key),
                 entry.LayerOrder,
                 () => viewModel.GameData.LoadedMapData.ContainsKey(entry.Key),
                 () => viewModel.GameData.ReadWorldChildMapSnapshotAsync(entry.Key),
@@ -118,7 +118,7 @@ public partial class MainWindow
             .ToArray();
         WorldEditorPanel.SetWorld(
             world.Key,
-            viewModel.GameData.getWorldMap(world.Key),
+            viewModel.GameData.ReadWorldMapSnapshot(world.Key),
             children);
     }
 
@@ -361,18 +361,10 @@ public partial class MainWindow
             replacements[viewModel.GameData.GetMapRuntimePath(childKey)] =
                 viewModel.GameData.GetMapRuntimePath(result + "/" + childName);
         }
-        long historyGesture = viewModel.GameData.BeginHistoryGesture();
-        bool renamed;
-        try
-        {
-            renamed = viewModel.GameData.RenameWorldMap(worldKey, result);
-            if (renamed)
-                viewModel.ReferenceIndex.RewriteMapReferences(replacements);
-        }
-        finally
-        {
-            viewModel.GameData.EndHistoryGesture(historyGesture);
-        }
+        bool renamed = viewModel.GameData.RenameWorldMap(
+            worldKey,
+            result,
+            () => viewModel.ReferenceIndex.PrepareMapReferenceRewrites(replacements));
         if (!renamed)
         {
             await AlertDialog.ShowAsync(
@@ -451,18 +443,10 @@ public partial class MainWindow
             replacements[viewModel.GameData.GetMapRuntimePath(key)] =
                 viewModel.GameData.GetMapRuntimePath(nextKey);
         }
-        long historyGesture = viewModel.GameData.BeginHistoryGesture();
-        bool updated;
-        try
-        {
-            updated = viewModel.GameData.UpdateMap(key, result);
-            if (updated)
-                viewModel.ReferenceIndex.RewriteMapReferences(replacements);
-        }
-        finally
-        {
-            viewModel.GameData.EndHistoryGesture(historyGesture);
-        }
+        bool updated = viewModel.GameData.UpdateMap(
+            key,
+            result,
+            replacements.Count == 0 ? null : () => viewModel.ReferenceIndex.PrepareMapReferenceRewrites(replacements));
         if (!updated)
         {
             if (worldKey is not null)
@@ -479,7 +463,7 @@ public partial class MainWindow
 
     private void copyMap(string key)
     {
-        if (viewModel?.GameData.getMap(key) is JsonObject map)
+        if (viewModel?.GameData.ReadMapSnapshot(key) is JsonObject map)
             mapClipboard = new MapClipboard(key, (JsonObject)map.DeepClone());
     }
 

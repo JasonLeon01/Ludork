@@ -32,6 +32,11 @@ public sealed partial class MapPanel
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        if (gameData is not null)
+        {
+            gameData.MapPreviewChanged -= onMapDataChanged;
+            gameData.MapPreviewChanged += onMapDataChanged;
+        }
         LayoutUpdated += onLayoutUpdated;
         bindHostScrollViewer(this.FindAncestorOfType<ScrollViewer>());
     }
@@ -85,11 +90,13 @@ public sealed partial class MapPanel
     {
         base.OnPointerPressed(args);
         Focus();
-        mapEditSnapshotRecorded = false;
+        endMapGesture();
         if (CurrentMapData is null || gameData is null || !tryGetMapSize(out int width, out int height))
             return;
 
         PointerPoint point = args.GetCurrentPoint(this);
+        if (point.Properties.IsLeftButtonPressed)
+            mapEditGesture = gameData.BeginHistoryGesture();
         Point position = point.Position;
         if (EditMode == MapEditMode.Light)
         {
@@ -176,9 +183,21 @@ public sealed partial class MapPanel
         lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
-        mapEditSnapshotRecorded = false;
+        endMapGesture();
         args.Pointer.Capture(null);
         InvalidateVisual();
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)
+    {
+        endMapGesture();
+        tileBrushDragging = false;
+        lightMoveDragging = false;
+        lightRadiusDragging = false;
+        actorMoveIndex = null;
+        actorMoveLayer = null;
+        rectangleStart = null;
+        base.OnPointerCaptureLost(args);
     }
 
     protected override void OnPointerExited(PointerEventArgs args)

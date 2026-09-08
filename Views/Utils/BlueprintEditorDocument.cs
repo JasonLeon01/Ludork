@@ -160,17 +160,9 @@ public sealed class BlueprintEditorDocument
 
     public IReadOnlyList<string> GetGraphNames()
     {
-        List<string> result = [];
-        if (Kind == BlueprintEditorDocumentKind.Blueprint)
-            collectInheritedGraphNames(data["parent"]?.GetValue<string>(), result, new HashSet<string>(StringComparer.Ordinal));
-        else
-        {
-            addUnique(result, requiredEvents);
-            return result;
-        }
-        if (getNodeGraph(data) is JsonObject nodeGraph)
-            addUnique(result, nodeGraph.Select(entry => entry.Key));
-        return result;
+        return Kind == BlueprintEditorDocumentKind.Blueprint
+            ? gameData.GetBlueprintGraphNames(blueprintKey ?? string.Empty)
+            : requiredEvents.ToArray();
     }
 
     public JsonObject GetEventGraph(string eventName)
@@ -187,159 +179,109 @@ public sealed class BlueprintEditorDocument
         {
             return false;
         }
+        bool changed = Kind == BlueprintEditorDocumentKind.Blueprint
+            ? blueprintKey is not null && gameData.UpdateBlueprintEventGraph(blueprintKey, eventName, result)
+            : generalTypeKey is not null && generalMemberId is not null
+                && gameData.UpdateGeneralMemberEventGraph(generalTypeKey, generalMemberId, eventName, result);
+        if (!changed)
+            return false;
         JsonObject graph = ensureGraph(data);
         ensureObject(graph, "nodeGraph")[eventName] = result.EventGraph.DeepClone();
         ensureObject(graph, "startNodes")[eventName] = result.StartNode?.DeepClone();
-        return CommitGraph();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     public bool CommitAttribute(string name, JsonNode? value)
     {
-        if (!CanEditAttributes || getStoredBlueprint() is not JsonObject stored)
-            return false;
-        JsonObject storedAttrs = ensureObject(stored, "attrs");
-        bool exists = storedAttrs.TryGetPropertyValue(name, out JsonNode? current);
-        if (exists && JsonNode.DeepEquals(current, value))
-            return false;
-        gameData.RecordSnapshot();
-        storedAttrs[name] = value?.DeepClone();
-        JsonObject workingAttrs = ensureObject(data, "attrs");
-        workingAttrs[name] = value?.DeepClone();
-        gameData.refreshModifiedState();
-        Changed?.Invoke(this, EventArgs.Empty);
-        return true;
+        return CommitAttributes(new Dictionary<string, JsonNode?> { [name] = value }, []);
     }
 
     public bool CommitAttributes(
         IReadOnlyDictionary<string, JsonNode?> updates,
         IEnumerable<string> removals)
     {
-        if (!CanEditAttributes || getStoredBlueprint() is not JsonObject stored)
+        string[] removedNames = removals.ToArray();
+        if (!CanEditAttributes || blueprintKey is null
+            || !gameData.UpdateBlueprintAttributes(blueprintKey, updates, removedNames))
+        {
             return false;
-        JsonObject storedAttrs = ensureObject(stored, "attrs");
-        List<string> removedNames = removals
-            .Where(storedAttrs.ContainsKey)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        List<KeyValuePair<string, JsonNode?>> changedValues = updates
-            .Where(pair => !storedAttrs.TryGetPropertyValue(pair.Key, out JsonNode? current)
-                || !JsonNode.DeepEquals(current, pair.Value))
-            .ToList();
-        if (removedNames.Count == 0 && changedValues.Count == 0)
-            return false;
-
-        gameData.RecordSnapshot();
+        }
         JsonObject workingAttrs = ensureObject(data, "attrs");
         foreach (string name in removedNames)
-        {
-            storedAttrs.Remove(name);
             workingAttrs.Remove(name);
-        }
-        foreach (KeyValuePair<string, JsonNode?> pair in changedValues)
-        {
-            storedAttrs[pair.Key] = pair.Value?.DeepClone();
+        foreach (KeyValuePair<string, JsonNode?> pair in updates)
             workingAttrs[pair.Key] = pair.Value?.DeepClone();
-        }
-        gameData.refreshModifiedState();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
     public bool CommitParent(string parent)
     {
-        string value = parent.Trim();
-        if (!CanEditAttributes || value.Length == 0 || getStoredBlueprint() is not JsonObject stored)
+        if (!CanEditAttributes || blueprintKey is null || !gameData.UpdateBlueprintParent(blueprintKey, parent))
             return false;
-        string current = stored["parent"]?.GetValue<string>() ?? string.Empty;
-        if (string.Equals(current, value, StringComparison.Ordinal))
-            return false;
-        gameData.RecordSnapshot();
-        stored["parent"] = value;
-        data["parent"] = value;
-        gameData.refreshModifiedState();
+        data["parent"] = parent.Trim();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
     public bool RemoveAttribute(string name)
     {
-        if (!CanEditAttributes || getStoredBlueprint() is not JsonObject stored
-            || stored["attrs"] is not JsonObject storedAttrs || !storedAttrs.ContainsKey(name))
-        {
-            return false;
-        }
-        gameData.RecordSnapshot();
-        storedAttrs.Remove(name);
-        if (data["attrs"] is JsonObject workingAttrs)
-            workingAttrs.Remove(name);
-        gameData.refreshModifiedState();
-        Changed?.Invoke(this, EventArgs.Empty);
-        return true;
-    }
-
-    public bool CommitGraph()
-    {
-        JsonNode? graph = data["graph"];
-        JsonObject? target = Kind == BlueprintEditorDocumentKind.Blueprint
-            ? getStoredBlueprint()
-            : getGeneralMember();
-        if (target is null)
-            return false;
-        string propertyName = Kind == BlueprintEditorDocumentKind.Blueprint ? "graph" : "_graph";
-        if (JsonNode.DeepEquals(target[propertyName], graph))
-            return false;
-        gameData.RecordSnapshot();
-        target[propertyName] = graph?.DeepClone();
-        gameData.refreshModifiedState();
-        Changed?.Invoke(this, EventArgs.Empty);
-        return true;
+        return CommitAttributes(new Dictionary<string, JsonNode?>(), [name]);
     }
 
     public bool AddEvent(string name)
     {
-        if (!CanEditGraphEvents)
-            return false;
-        string eventName = name.Trim();
-        if (eventName.Length == 0 || char.IsDigit(eventName[0])
-            || GetGraphNames().Contains(eventName, StringComparer.Ordinal))
+        if (!CanEditGraphEvents || blueprintKey is null || !gameData.AddBlueprintEvent(blueprintKey, name))
         {
             return false;
         }
+        string eventName = name.Trim();
         JsonObject graph = ensureGraph(data);
         ensureObject(graph, "nodeGraph")[eventName] = createEmptyEventGraph();
         ensureObject(graph, "startNodes")[eventName] = null;
-        return CommitGraph();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     public bool RenameEvent(string oldName, string newName)
     {
-        if (!CanEditGraphEvents)
-            return false;
-        string eventName = newName.Trim();
-        if (eventName.Length == 0 || char.IsDigit(eventName[0])
-            || string.Equals(oldName, eventName, StringComparison.Ordinal)
-            || GetGraphNames().Contains(eventName, StringComparer.Ordinal))
+        if (!CanEditGraphEvents || blueprintKey is null
+            || !gameData.RenameBlueprintEvent(blueprintKey, oldName, newName))
         {
             return false;
         }
+        string eventName = newName.Trim();
         JsonObject graph = ensureGraph(data);
-        if (graph["nodeGraph"] is not JsonObject nodeGraph || !nodeGraph.ContainsKey(oldName))
-            return false;
-        graph["nodeGraph"] = renameObjectKey(nodeGraph, oldName, eventName);
+        graph["nodeGraph"] = renameObjectKey(ensureObject(graph, "nodeGraph"), oldName, eventName);
         if (graph["startNodes"] is JsonObject startNodes)
             graph["startNodes"] = renameObjectKey(startNodes, oldName, eventName);
-        return CommitGraph();
+        JsonObject? storedGraph = getStoredBlueprint()?["graph"] as JsonObject;
+        ensureObject(graph, "nodeGraph")[eventName] = storedGraph?["nodeGraph"]?[eventName]?.DeepClone();
+        if (storedGraph?["startNodes"] is JsonObject storedStartNodes
+            && storedStartNodes.TryGetPropertyValue(eventName, out JsonNode? startNode))
+        {
+            ensureObject(graph, "startNodes")[eventName] = startNode?.DeepClone();
+        }
+        else
+        {
+            (graph["startNodes"] as JsonObject)?.Remove(eventName);
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     public bool DeleteEvent(string name)
     {
-        if (!CanEditGraphEvents)
+        if (!CanEditGraphEvents || blueprintKey is null || !gameData.DeleteBlueprintEvent(blueprintKey, name))
             return false;
-        JsonObject graph = ensureGraph(data);
-        bool removed = graph["nodeGraph"] is JsonObject nodeGraph && nodeGraph.Remove(name);
-        if (graph["startNodes"] is JsonObject startNodes)
-            removed |= startNodes.Remove(name);
-        return removed && CommitGraph();
+        if (data["graph"] is JsonObject graph)
+        {
+            (graph["nodeGraph"] as JsonObject)?.Remove(name);
+            (graph["startNodes"] as JsonObject)?.Remove(name);
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     private JsonObject? getStoredBlueprint()
@@ -364,24 +306,6 @@ public sealed class BlueprintEditorDocument
             && getGeneralTypeData()?["members"]?[generalMemberId] is JsonObject member
             ? member
             : null;
-    }
-
-    private void collectInheritedGraphNames(
-        string? reference,
-        ICollection<string> result,
-        ISet<string> visited)
-    {
-        if (string.IsNullOrWhiteSpace(reference)
-            || !reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
-        {
-            return;
-        }
-        string key = NormalizeBlueprintKey(reference);
-        if (!visited.Add(key) || !gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
-            return;
-        collectInheritedGraphNames(blueprint["parent"]?.GetValue<string>(), result, visited);
-        if (getNodeGraph(blueprint) is JsonObject nodeGraph)
-            addUnique(result, nodeGraph.Select(entry => entry.Key));
     }
 
     private static JsonObject ensureGraph(JsonObject blueprint)
@@ -422,15 +346,6 @@ public sealed class BlueprintEditorDocument
         foreach (KeyValuePair<string, JsonNode?> entry in source)
             result[entry.Key == oldName ? newName : entry.Key] = entry.Value?.DeepClone();
         return result;
-    }
-
-    private static void addUnique(ICollection<string> target, IEnumerable<string> values)
-    {
-        foreach (string value in values)
-        {
-            if (!target.Contains(value, StringComparer.Ordinal))
-                target.Add(value);
-        }
     }
 
     private static string? getString(JsonNode? value)

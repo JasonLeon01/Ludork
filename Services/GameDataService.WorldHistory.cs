@@ -558,19 +558,23 @@ public sealed partial class GameDataService
         cleanupUnreferencedWorldHistoryDirectories();
     }
 
-    public void RecordMapSnapshot(string mapKey)
+    private void RecordMapSnapshot(string mapKey)
     {
         recordSnapshot(new HashSet<string>([normaliseMapKey(mapKey)], StringComparer.Ordinal));
     }
 
-    public void RecordWorldSnapshot(string worldKey)
+    private void RecordWorldSnapshot(string worldKey)
     {
+        if (activeHistoryGestureId != 0 && activeHistoryGestureHasSnapshot)
+            return;
         worldKey = normalizeWorldKey(worldKey);
         pushHistorySnapshot(cloneWorldHistory(worldKey));
     }
 
     private void recordSnapshot(IReadOnlySet<string>? retainedMapKeys)
     {
+        if (activeHistoryGestureId != 0 && activeHistoryGestureHasSnapshot)
+            return;
         pushHistorySnapshot(cloneAllData(retainedMapKeys));
     }
 

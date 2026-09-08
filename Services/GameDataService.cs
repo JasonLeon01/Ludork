@@ -88,23 +88,23 @@ public sealed partial class GameDataService : IDisposable
     public bool CanUndo => undoStack.Count != 0;
     public bool CanRedo => redoStack.Count != 0;
     public IReadOnlyList<string> InvalidLoadPaths => invalidLoadPaths;
-    public IReadOnlyDictionary<string, JsonObject> SystemConfigData => sections["Configs"].Data;
-    public IReadOnlyDictionary<string, JsonObject> TilesetData => sections["Tilesets"].Data;
-    public IReadOnlyDictionary<string, JsonObject> AutoTileData => sections["AutoTiles"].Data;
+    public IReadOnlyDictionary<string, JsonObject> SystemConfigData => sections["Configs"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> TilesetData => sections["Tilesets"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> AutoTileData => sections["AutoTiles"].Snapshots;
     public IReadOnlyDictionary<string, JsonObject> MapData => mapData;
-    public IReadOnlyDictionary<string, JsonObject> LoadedMapData => sections["Maps"].Data;
-    public IReadOnlyDictionary<string, JsonObject> WorldMapData => sections["WorldMaps"].Data;
+    public IReadOnlyDictionary<string, JsonObject> LoadedMapData => sections["Maps"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> WorldMapData => sections["WorldMaps"].Snapshots;
     public IReadOnlyList<MapCatalogEntry> MapCatalog => getMapCatalogEntries();
     public WorldMapPathPolicy MapPathPolicy { get; }
-    public IReadOnlyDictionary<string, JsonObject> CommonFunctionsData => sections["CommonFunctions"].Data;
-    public IReadOnlyDictionary<string, JsonObject> BlueprintsData => sections["Blueprints"].Data;
-    public IReadOnlyDictionary<string, JsonObject> AnimationsData => sections["Animations"].Data;
-    public IReadOnlyDictionary<string, JsonObject> CurvesData => sections["Curves"].Data;
-    public IReadOnlyDictionary<string, JsonObject> TextConfigsData => sections["TextConfigs"].Data;
-    public IReadOnlyDictionary<string, JsonObject> UiAssetsData => sections["UI"].Data
+    public IReadOnlyDictionary<string, JsonObject> CommonFunctionsData => sections["CommonFunctions"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> BlueprintsData => sections["Blueprints"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> AnimationsData => sections["Animations"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> CurvesData => sections["Curves"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> TextConfigsData => sections["TextConfigs"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> UiAssetsData => new JsonSnapshotDictionary(sections["UI"].Data
         .Where(pair => isUiDataType(pair.Value, UiAssetSchema.UiAssetType))
-        .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-    public IReadOnlyDictionary<string, JsonObject> GeneralData => sections["General"].Data;
+        .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal));
+    public IReadOnlyDictionary<string, JsonObject> GeneralData => sections["General"].Snapshots;
 
 }
 

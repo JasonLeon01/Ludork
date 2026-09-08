@@ -13,7 +13,7 @@ namespace Ludork.Services;
 
 public sealed partial class GameDataService
 {
-    public JsonObject? getMap(string key)
+    private JsonObject? getMap(string key)
     {
         key = normaliseMapKey(key);
         if (sections["Maps"].Data.TryGetValue(key, out JsonObject? value))
@@ -121,7 +121,7 @@ public sealed partial class GameDataService
         return true;
     }
 
-    public bool UpdateMap(string currentKey, MapInfo info)
+    public bool UpdateMap(string currentKey, MapInfo info, Func<IReadOnlyList<ReferenceRewrite>>? prepareReferences = null)
     {
         currentKey = normaliseMapKey(currentKey);
         if (info is null || getMap(currentKey) is not JsonObject current)
@@ -227,21 +227,31 @@ public sealed partial class GameDataService
         {
             return true;
         }
-        recordSnapshot(new HashSet<string>([currentKey], StringComparer.Ordinal));
-        sections["Maps"].Data.Remove(currentKey);
-        sections["Maps"].Data[newKey] = candidate;
-        if (!string.Equals(currentKey, newKey, StringComparison.Ordinal))
-            rekeyLoadedMapMetadata(currentKey, newKey);
-        updateLoadedMapMetadata(newKey, candidate);
-        MapCatalogEntryKind kind = childMap
-            ? MapCatalogEntryKind.WorldChildMap
-            : MapCatalogEntryKind.StandaloneMap;
-        removeMapCatalogEntry(kind, currentKey);
-        setMapCatalogEntry(createMapCatalogEntry(newKey, kind, childMap ? worldKey : null, candidate));
-        if (worldCandidate is not null)
+        void applyChange()
         {
-            sections["WorldMaps"].Data[worldKey] = worldCandidate;
-            setWorldCatalogLayerOrder(worldKey, readStringArray(worldCandidate["layerOrder"]));
+            sections["Maps"].Data.Remove(currentKey);
+            sections["Maps"].Data[newKey] = candidate;
+            if (!string.Equals(currentKey, newKey, StringComparison.Ordinal))
+                rekeyLoadedMapMetadata(currentKey, newKey);
+            updateLoadedMapMetadata(newKey, candidate);
+            MapCatalogEntryKind kind = childMap
+                ? MapCatalogEntryKind.WorldChildMap
+                : MapCatalogEntryKind.StandaloneMap;
+            removeMapCatalogEntry(kind, currentKey);
+            setMapCatalogEntry(createMapCatalogEntry(newKey, kind, childMap ? worldKey : null, candidate));
+            if (worldCandidate is not null)
+            {
+                sections["WorldMaps"].Data[worldKey] = worldCandidate;
+                setWorldCatalogLayerOrder(worldKey, readStringArray(worldCandidate["layerOrder"]));
+            }
+        }
+        HashSet<string> retainedMapKeys = new([currentKey], StringComparer.Ordinal);
+        if (prepareReferences is not null)
+            applyMutationWithReferences(applyChange, prepareReferences, retainedMapKeys);
+        else
+        {
+            recordSnapshot(retainedMapKeys);
+            applyChange();
         }
         NotifyMapContentChanged(currentKey);
         if (!string.Equals(currentKey, newKey, StringComparison.Ordinal))
@@ -493,7 +503,7 @@ public sealed partial class GameDataService
             }
             NotifyMapContentChanged(mapKey);
         }
-        NotifyAllMapPreviewsChanged();
+        NotifyAllMapPreviewsChanged(false);
         refreshModifiedState();
         return true;
     }
@@ -512,7 +522,7 @@ public sealed partial class GameDataService
             ["materials"] = new JsonArray(),
             ["dir4"] = new JsonArray(),
         };
-        NotifyAllMapPreviewsChanged();
+        NotifyAllMapPreviewsChanged(false);
         refreshModifiedState();
         return true;
     }
@@ -530,7 +540,7 @@ public sealed partial class GameDataService
             ["passable"] = true,
             ["material"] = createDefaultMaterial(),
         };
-        NotifyAllMapPreviewsChanged();
+        NotifyAllMapPreviewsChanged(false);
         refreshModifiedState();
         return true;
     }

@@ -338,7 +338,9 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 copiedNode.RawData,
                 copiedNode.Parameters,
                 nextLocation,
-                copiedNode.IsResolved);
+                copiedNode.IsResolved,
+                copiedNode.Title,
+                copiedNode.Description);
             document.Nodes.Add(node);
             addNodeViewModel(node);
             pasted.Add(node);
@@ -539,7 +541,9 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         JsonObject rawData,
         JsonArray parameters,
         Point location,
-        bool isResolved)
+        bool isResolved,
+        string? title = null,
+        string? description = null)
     {
         Guid nodeId = Guid.NewGuid();
         JsonObject raw = rawData.DeepClone() as JsonObject ?? [];
@@ -550,7 +554,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             nodeId,
             null,
             definition.RuntimePath,
-            definition.Title,
+            title ?? BlueprintNodeDisplayText.GetTitle(definition),
             location.X,
             location.Y,
             isResolved,
@@ -558,7 +562,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             null,
             raw,
             parameters,
-            definition.Description);
+            description);
         foreach (BlueprintGraphPortDefinition portDefinition in definition.Ports)
         {
             JsonNode? value = portDefinition.ParameterIndex is int parameterIndex

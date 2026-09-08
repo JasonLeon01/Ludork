@@ -14,6 +14,9 @@
                              PendingConnection="{Binding PendingConnection}"
                              DisconnectConnectorCommand="{Binding DisconnectConnectorCommand}"
                              Background="Transparent">
+            <nodify:NodifyEditor.ViewTranslateTransform>
+                <TranslateTransform />
+            </nodify:NodifyEditor.ViewTranslateTransform>
             <nodify:NodifyEditor.Resources>
                 <converters:FlowToDirectionConverter x:Key="FlowToDirectionConverter" />
             </nodify:NodifyEditor.Resources>

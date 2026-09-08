@@ -46,6 +46,7 @@ public sealed class ActorInfoPanel : UserControl
     private string? mapKey;
     private string? layerName;
     private int? actorIndex;
+    private string? actorTag;
     private bool loading;
     private bool layerEditable = true;
     private string? blueprintReference;
@@ -291,6 +292,7 @@ public sealed class ActorInfoPanel : UserControl
             mapKey = null;
             layerName = null;
             actorIndex = null;
+            actorTag = null;
             blueprintReference = null;
             showSelection(false);
             clearClassDetail();
@@ -299,7 +301,8 @@ public sealed class ActorInfoPanel : UserControl
 
         showSelection(true);
         loading = true;
-        tagEdit.Text = actorData["tag"]?.GetValue<string>() ?? string.Empty;
+        actorTag = actorData["tag"]?.GetValue<string>() ?? string.Empty;
+        tagEdit.Text = actorTag;
         blueprintReference = actorData["bp"]?.GetValue<string>();
         blueprintPath.Text = blueprintReference ?? string.Empty;
         updatePositionEditors(actorData);
@@ -425,32 +428,36 @@ public sealed class ActorInfoPanel : UserControl
 
     private void resetOverride(string name)
     {
-        if (!layerEditable || gameData is null || editorPanel is null || getActorData() is not JsonObject actorData
-            || getClassVarChanges(actorData, false) is not JsonObject changes
+        if (!layerEditable || gameData is null || editorPanel is null || getEditableActorData() is not JsonObject actorData
+            || getClassVarChanges(actorData) is not JsonObject changes
             || !changes.ContainsKey(name))
         {
             return;
         }
-        recordMapSnapshot();
-        changes.Remove(name);
-        cleanupClassVarChanges(actorData);
-        markMapModified();
+        if (mapKey is null || layerName is null || actorIndex is not int index || actorTag is null
+            || !gameData.RemoveMapActorOverrides(mapKey, layerName, index, actorTag, name))
+        {
+            refreshActorInfo();
+            return;
+        }
         editorPanel.refreshSelectedActor();
         refreshClassDetail();
     }
 
     private void resetAllOverrides()
     {
-        if (!layerEditable || gameData is null || editorPanel is null || getActorData() is not JsonObject actorData
-            || getClassVarChanges(actorData, false) is not JsonObject changes
+        if (!layerEditable || gameData is null || editorPanel is null || getEditableActorData() is not JsonObject actorData
+            || getClassVarChanges(actorData) is not JsonObject changes
             || changes.Count == 0)
         {
             return;
         }
-        recordMapSnapshot();
-        changes.Clear();
-        cleanupClassVarChanges(actorData);
-        markMapModified();
+        if (mapKey is null || layerName is null || actorIndex is not int index || actorTag is null
+            || !gameData.RemoveMapActorOverrides(mapKey, layerName, index, actorTag))
+        {
+            refreshActorInfo();
+            return;
+        }
         editorPanel.refreshSelectedActor();
         refreshClassDetail();
     }
@@ -466,7 +473,7 @@ public sealed class ActorInfoPanel : UserControl
             return;
         }
 
-        JsonObject? overrides = getClassVarChanges(actorData, false);
+        JsonObject? overrides = getClassVarChanges(actorData);
         ResolvedBlueprintClass resolved = classResolver.Resolve(reference, overrides);
         bool knownClass = resolved.Fields.Count != 0
             || resolved.RootType is not null && metadataService.GetType(resolved.RootType) is not null;
@@ -515,13 +522,17 @@ public sealed class ActorInfoPanel : UserControl
 
     private void onTagChanged(object? sender, TextChangedEventArgs args)
     {
-        if (loading || !layerEditable || gameData is null || editorPanel is null)
+        if (loading || !layerEditable || gameData is null || editorPanel is null
+            || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
             return;
-        JsonObject? actorData = getActorData();
-        if (actorData is null)
+        string oldTag = actorTag;
+        string? tag = gameData.RenameMapActorTag(mapKey, layerName, index, oldTag, tagEdit.Text ?? string.Empty);
+        if (tag is null)
+        {
+            refreshActorInfo();
             return;
-        string oldTag = actorData["tag"]?.GetValue<string>() ?? string.Empty;
-        string tag = editorPanel.makeUniqueActorTag(tagEdit.Text ?? string.Empty, layerName, actorIndex);
+        }
+        actorTag = tag;
         if (!string.Equals(tagEdit.Text, tag, StringComparison.Ordinal))
         {
             loading = true;
@@ -530,99 +541,87 @@ public sealed class ActorInfoPanel : UserControl
         }
         if (string.Equals(oldTag, tag, StringComparison.Ordinal))
             return;
-        recordMapSnapshot();
-        actorData["tag"] = tag;
-        moveClassVarChanges(oldTag, tag);
-        if (mapKey is not null)
-            gameData.NotifyMapActorsChanged(mapKey);
-        if (mapKey is not null)
-            gameData.NotifyMapContentChanged(mapKey);
-        gameData.refreshModifiedState();
         editorPanel.refreshSelectedActor();
         ActorTagChanged?.Invoke(this, new ActorSelectionChangedEventArgs(
-            mapKey ?? string.Empty,
+            mapKey,
             layerName,
             actorIndex,
-            actorData));
+            getActorData()));
     }
 
     private void onClassVariableChanged(
         object? sender,
         BlueprintVariableValueChangedEventArgs args)
     {
-        if (loading || !layerEditable || gameData is null || editorPanel is null)
+        if (loading || !layerEditable || gameData is null || editorPanel is null
+            || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
             return;
-        JsonObject? actorData = getActorData();
+        JsonObject? actorData = getEditableActorData();
         if (actorData is null)
             return;
         JsonNode? value = cloneNode(args.Value);
         bool isDefault = fieldsWithDefaults.Contains(args.Name)
             && blueprintValuesEqual(value, defaultValues.GetValueOrDefault(args.Name));
-        JsonObject? changes = getClassVarChanges(actorData, false);
+        JsonObject? changes = getClassVarChanges(actorData);
         bool currentExists = changes?.ContainsKey(args.Name) == true;
         if (isDefault && !currentExists)
             return;
         if (!isDefault && currentExists
-            && blueprintValuesEqual(displayValues.GetValueOrDefault(args.Name), value))
+            && blueprintValuesEqual(changes![args.Name], value))
         {
             return;
         }
 
-        recordMapSnapshot();
+        bool updated = isDefault
+            ? gameData.RemoveMapActorOverrides(mapKey, layerName, index, actorTag, args.Name)
+            : gameData.SetMapActorOverride(mapKey, layerName, index, actorTag, args.Name, value);
+        if (!updated)
+        {
+            refreshActorInfo();
+            return;
+        }
         if (isDefault)
         {
-            changes!.Remove(args.Name);
-            cleanupClassVarChanges(actorData);
             displayValues[args.Name] = cloneNode(defaultValues.GetValueOrDefault(args.Name));
             overriddenFields.Remove(args.Name);
         }
         else
         {
-            changes ??= getClassVarChanges(actorData, true)!;
-            changes[args.Name] = cloneNode(value);
             displayValues[args.Name] = cloneNode(value);
             overriddenFields.Add(args.Name);
         }
-        markMapModified();
         editorPanel.refreshSelectedActor();
         updateResetActions();
         if (args.RequiresRefresh)
             Dispatcher.UIThread.Post(refreshClassDetail);
     }
 
-    private void recordMapSnapshot()
-    {
-        if (gameData is null)
-            return;
-        if (mapKey is null)
-            gameData.RecordSnapshot();
-        else
-            gameData.RecordMapSnapshot(mapKey);
-    }
-
-    private void markMapModified()
-    {
-        if (gameData is null)
-            return;
-        if (mapKey is not null)
-            gameData.NotifyMapContentChanged(mapKey);
-        gameData.refreshModifiedState();
-    }
-
     private void onPositionChanged(object? sender, NumericUpDownValueChangedEventArgs args)
     {
-        if (loading || !layerEditable || editorPanel is null)
+        if (loading || !layerEditable || gameData is null || editorPanel is null
+            || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
+            return;
+        JsonObject? actorData = getEditableActorData();
+        if (actorData is null)
             return;
         int x = decimal.ToInt32(positionX.Value ?? 0);
         int y = decimal.ToInt32(positionY.Value ?? 0);
-        editorPanel.updateSelectedActorPosition(x, y);
+        if (actorData["position"] is JsonArray position && position.Count >= 2
+            && getInt(position[0], -1) == x && getInt(position[1], -1) == y)
+        {
+            return;
+        }
+        if (!gameData.MoveMapActor(mapKey, layerName, index, actorTag, x, y))
+            refreshActorInfo();
+        else
+            editorPanel.refreshSelectedActor();
     }
 
     private JsonObject? getActorData()
     {
         if (gameData is null || mapKey is null || layerName is null || actorIndex is not int index)
             return null;
-        JsonObject? map = gameData.getMap(mapKey);
+        JsonObject? map = getMapData();
         if (map?["actors"]?[layerName] is not JsonArray actors
             || index < 0 || index >= actors.Count)
         {
@@ -633,65 +632,36 @@ public sealed class ActorInfoPanel : UserControl
 
     private JsonObject? getMapData()
     {
-        return gameData is not null && mapKey is not null ? gameData.getMap(mapKey) : null;
+        return editorPanel is not null && mapKey is not null
+            && string.Equals(editorPanel.CurrentMapKey, mapKey, StringComparison.Ordinal)
+            ? editorPanel.CurrentMapData
+            : null;
     }
 
-    private JsonObject? getClassVarChanges(JsonObject actorData, bool create)
+    private JsonObject? getEditableActorData()
+    {
+        JsonObject? actor = getActorData();
+        if (actor is not null && actorTag is not null
+            && string.Equals(actor["tag"]?.GetValue<string>() ?? string.Empty, actorTag, StringComparison.Ordinal))
+        {
+            return actor;
+        }
+        refreshActorInfo();
+        return null;
+    }
+
+    private JsonObject? getClassVarChanges(JsonObject actorData)
     {
         JsonObject? map = getMapData();
         if (map is null)
             return null;
         string tag = actorData["tag"]?.GetValue<string>() ?? string.Empty;
-        if (map["BPClassVarChanged"] is not JsonObject root)
-        {
-            if (!create)
-                return null;
-            root = [];
-            map["BPClassVarChanged"] = root;
-        }
-        if (root[tag] is JsonObject changes)
-            return changes;
-        if (!create)
-            return null;
-        changes = [];
-        root[tag] = changes;
-        return changes;
+        return map["BPClassVarChanged"] is JsonObject root ? root[tag] as JsonObject : null;
     }
 
-    private void cleanupClassVarChanges(JsonObject actorData)
+    private void refreshActorInfo()
     {
-        JsonObject? map = getMapData();
-        if (map?["BPClassVarChanged"] is not JsonObject root)
-            return;
-        string tag = actorData["tag"]?.GetValue<string>() ?? string.Empty;
-        if (root[tag] is JsonObject changes && changes.Count == 0)
-            root.Remove(tag);
-        if (root.Count == 0)
-            map.Remove("BPClassVarChanged");
-    }
-
-    private void moveClassVarChanges(string oldTag, string newTag)
-    {
-        if (string.Equals(oldTag, newTag, StringComparison.Ordinal))
-            return;
-        JsonObject? map = getMapData();
-        if (map?["BPClassVarChanged"] is not JsonObject root
-            || root[oldTag] is not JsonObject oldChanges)
-        {
-            return;
-        }
-        root.Remove(oldTag);
-        if (root[newTag] is JsonObject newChanges)
-        {
-            foreach (KeyValuePair<string, JsonNode?> pair in oldChanges)
-                newChanges[pair.Key] = cloneNode(pair.Value);
-        }
-        else
-        {
-            root[newTag] = oldChanges;
-        }
-        if (root.Count == 0)
-            map.Remove("BPClassVarChanged");
+        setActor(mapKey ?? string.Empty, layerName, actorIndex, getActorData());
     }
 
     private static bool blueprintValuesEqual(JsonNode? left, JsonNode? right)

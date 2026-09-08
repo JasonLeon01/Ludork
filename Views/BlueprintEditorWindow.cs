@@ -98,8 +98,7 @@ public sealed class BlueprintEditorWindow : Window
         {
             nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
                 metadataService,
-                classResolver,
-                document);
+                classResolver);
             Content = createEditorContent();
             toast = new Toast(this);
             refreshAll();
@@ -875,7 +874,9 @@ public sealed class BlueprintEditorWindow : Window
         IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters;
         using (IDisposable metadataBatch = classResolver.BeginBatch())
         {
-            definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet(resolvedClass);
+            definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet(
+                new BlueprintGraphContext(document.Data, document.BlueprintKey),
+                resolvedClass);
             eventParameters = definitionSet.EventParameters.TryGetValue(
                 eventName,
                 out IReadOnlyList<BlueprintGraphEventParameterDefinition>? parameters)

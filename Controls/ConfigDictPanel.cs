@@ -20,6 +20,7 @@ public sealed class ConfigDictPanel : Border
     private readonly GameDataService gameData;
     private readonly string fileName;
     private readonly JsonObject data;
+    private readonly Dictionary<JsonObject, string> fieldNames = [];
     private readonly StackPanel content = new() { Spacing = 8 };
 
     public ConfigDictPanel(Window owner, GameDataService gameData, string fileName, JsonObject data)
@@ -41,6 +42,7 @@ public sealed class ConfigDictPanel : Border
     private void rebuild()
     {
         content.Children.Clear();
+        fieldNames.Clear();
         content.Children.Add(new TextBlock
         {
             Text = fileName,
@@ -61,6 +63,7 @@ public sealed class ConfigDictPanel : Border
         {
             if (entry.Value is not JsonObject value)
                 continue;
+            fieldNames[value] = entry.Key;
             (string type, int? length) = parseType(value["type"]?.GetValue<string>() ?? string.Empty);
             string baseType = type;
             if (length is null && baseType.EndsWith("[]", StringComparison.Ordinal))
@@ -131,10 +134,11 @@ public sealed class ConfigDictPanel : Border
                 };
                 add.Click += (_, _) =>
                 {
-                    gameData.RecordSnapshot();
-                    values.Add(defaultValue(type));
+                    JsonNode next = defaultValue(type);
+                    if (!gameData.InsertConfigArrayValue(fileName, fieldNames[value], values.Count, next))
+                        return;
+                    values.Add(next);
                     value["value"] = values;
-                    markModified();
                     refreshRows();
                 };
                 rows.Children.Add(add);
@@ -161,10 +165,7 @@ public sealed class ConfigDictPanel : Border
                 JsonNode? next = toJsonNumber(type, edit.Value);
                 if (next is null || JsonNode.DeepEquals(values[captured], next))
                     return;
-                gameData.RecordSnapshot();
-                values[captured] = next;
-                value["value"] = values;
-                markModified();
+                updateArrayValue(value, values, captured, next);
             };
             Grid.SetColumn(edit, index);
             row.Children.Add(edit);
@@ -182,10 +183,10 @@ public sealed class ConfigDictPanel : Border
     {
         void removeAt()
         {
-            gameData.RecordSnapshot();
+            if (!gameData.RemoveConfigArrayValue(fileName, fieldNames[value], index))
+                return;
             values.RemoveAt(index);
             value["value"] = values;
-            markModified();
             refreshRows();
         }
 
@@ -223,10 +224,7 @@ public sealed class ConfigDictPanel : Border
                 JsonNode? next = toJsonNumber(type, edit.Value);
                 if (next is null || JsonNode.DeepEquals(values[index], next))
                     return;
-                gameData.RecordSnapshot();
-                values[index] = next;
-                value["value"] = values;
-                markModified();
+                updateArrayValue(value, values, index, next);
             };
             return edit;
         }
@@ -238,10 +236,7 @@ public sealed class ConfigDictPanel : Border
             JsonNode next = JsonValue.Create(editText.Text ?? string.Empty)!;
             if (JsonNode.DeepEquals(values[index], next))
                 return;
-            gameData.RecordSnapshot();
-            values[index] = next;
-            value["value"] = values;
-            markModified();
+            updateArrayValue(value, values, index, next);
         };
         return editText;
     }
@@ -271,13 +266,18 @@ public sealed class ConfigDictPanel : Border
                 : !string.Equals(value["value"]?.GetValue<string>(), selected, StringComparison.Ordinal);
             if (!changed)
                 return;
-            gameData.RecordSnapshot();
-            edit.Text = selected;
             if (values is not null && index is int targetIndex)
-                values[targetIndex] = selected;
+            {
+                if (!updateArrayValue(value, values, targetIndex, JsonValue.Create(selected)))
+                    return;
+            }
             else
+            {
+                if (!gameData.UpdateConfigValue(fileName, fieldNames[value], JsonValue.Create(selected)))
+                    return;
                 value["value"] = selected;
-            markModified();
+            }
+            edit.Text = selected;
         };
         Grid.SetColumn(edit, 0);
         row.Children.Add(edit);
@@ -376,9 +376,9 @@ public sealed class ConfigDictPanel : Border
         JsonNode? next = toJsonNumber(type, number);
         if (next is null || JsonNode.DeepEquals(value["value"], next))
             return;
-        gameData.RecordSnapshot();
+        if (!gameData.UpdateConfigValue(fileName, fieldNames[value], next))
+            return;
         value["value"] = next;
-        markModified();
     }
 
     private void updateScalar(string? text, JsonObject value)
@@ -386,9 +386,18 @@ public sealed class ConfigDictPanel : Border
         JsonNode next = JsonValue.Create(text ?? string.Empty)!;
         if (JsonNode.DeepEquals(value["value"], next))
             return;
-        gameData.RecordSnapshot();
+        if (!gameData.UpdateConfigValue(fileName, fieldNames[value], next))
+            return;
         value["value"] = next;
-        markModified();
+    }
+
+    private bool updateArrayValue(JsonObject value, JsonArray values, int index, JsonNode? next)
+    {
+        if (!gameData.UpdateConfigArrayValue(fileName, fieldNames[value], index, next))
+            return false;
+        values[index] = next?.DeepClone();
+        value["value"] = values;
+        return true;
     }
 
     private static NumericUpDown createNumericUpDown(string type, JsonNode? initialValue)
@@ -462,6 +471,4 @@ public sealed class ConfigDictPanel : Border
             return [];
         return values.Select(item => item?.GetValue<string>()).Where(item => !string.IsNullOrWhiteSpace(item)).Cast<string>().ToArray();
     }
-
-    private void markModified() => gameData.refreshModifiedState();
 }

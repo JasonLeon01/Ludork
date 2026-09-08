@@ -18,7 +18,7 @@ namespace Ludork.Views.Utils.BlueprintGraph;
 
 public sealed class BlueprintNodePickerWindow : Window
 {
-    private readonly IReadOnlyList<BlueprintGraphNodeDefinition> definitions;
+    private readonly IReadOnlyList<PickerDefinition> definitions;
     private readonly TextBox searchBox;
     private readonly ListBox itemList;
     private readonly CheckBox contextSensitiveBox;
@@ -33,7 +33,12 @@ public sealed class BlueprintNodePickerWindow : Window
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         PixelPoint position)
     {
-        this.definitions = definitions;
+        this.definitions = definitions
+            .Select(definition => new PickerDefinition(
+                definition,
+                BlueprintNodeDisplayText.GetTitle(definition),
+                getPickerPath(definition)))
+            .ToArray();
         Position = position;
         Width = 320;
         Height = 420;
@@ -151,17 +156,17 @@ public sealed class BlueprintNodePickerWindow : Window
     {
         string search = searchBox.Text?.Trim() ?? string.Empty;
         bool contextSensitive = contextSensitiveBox.IsChecked == true;
-        BlueprintGraphNodeDefinition[] filtered = definitions
-            .Where(definition => !contextSensitive || definition.IsContextRelevant)
+        PickerDefinition[] filtered = definitions
+            .Where(definition => !contextSensitive || definition.Definition.IsContextRelevant)
             .ToArray();
         rows.Clear();
         if (!string.IsNullOrWhiteSpace(search))
         {
-            foreach (BlueprintGraphNodeDefinition definition in filtered
-                .Where(definition => definition.MemberName.Contains(search, StringComparison.OrdinalIgnoreCase)
+            foreach (PickerDefinition definition in filtered
+                .Where(definition => definition.Definition.MemberName.Contains(search, StringComparison.OrdinalIgnoreCase)
                     || definition.Title.Contains(search, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(definition => definition.Title, StringComparer.Ordinal)
-                .ThenBy(definition => definition.RuntimePath, StringComparer.Ordinal))
+                .ThenBy(definition => definition.Definition.RuntimePath, StringComparer.Ordinal))
             {
                 string hierarchy = string.Join(
                     '.',
@@ -169,7 +174,7 @@ public sealed class BlueprintNodePickerWindow : Window
                 string display = string.IsNullOrWhiteSpace(hierarchy)
                     ? definition.Title
                     : $"{definition.Title} ({hierarchy})";
-                rows.Add(new BlueprintNodePickerRow(display, 0, definition));
+                rows.Add(new BlueprintNodePickerRow(display, 0, definition.Definition));
             }
             itemList.SelectedItem = rows.FirstOrDefault();
             return;
@@ -181,10 +186,10 @@ public sealed class BlueprintNodePickerWindow : Window
     }
 
     private static IReadOnlyList<BlueprintNodePickerTreeItem> buildTree(
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions)
+        IReadOnlyList<PickerDefinition> definitions)
     {
         List<BlueprintNodePickerTreeItem> roots = [];
-        foreach (BlueprintGraphNodeDefinition definition in definitions)
+        foreach (PickerDefinition definition in definitions)
         {
             List<BlueprintNodePickerTreeItem> children = roots;
             string groupPath = string.Empty;
@@ -208,11 +213,19 @@ public sealed class BlueprintNodePickerWindow : Window
             }
             children.Add(new BlueprintNodePickerTreeItem(
                 definition.Title,
-                definition.RuntimePath,
-                definition));
+                definition.Definition.RuntimePath,
+                definition.Definition));
         }
         sortTree(roots);
         return roots;
+    }
+
+    private static IReadOnlyList<string> getPickerPath(BlueprintGraphNodeDefinition definition)
+    {
+        if (definition.IsParent)
+            return [LocaleService.Get("PARENT")];
+        string[] parts = definition.MetadataPath.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length <= 1 ? [] : parts[..^1];
     }
 
     private static void sortTree(List<BlueprintNodePickerTreeItem> items)
@@ -320,6 +333,11 @@ public sealed class BlueprintNodePickerWindow : Window
         deactivateTimer.Stop();
         completion?.TrySetResult(result);
     }
+
+    private sealed record PickerDefinition(
+        BlueprintGraphNodeDefinition Definition,
+        string Title,
+        IReadOnlyList<string> PickerPath);
 }
 
 internal sealed class BlueprintNodePickerRow

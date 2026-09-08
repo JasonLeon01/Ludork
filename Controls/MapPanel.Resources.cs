@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -24,9 +25,14 @@ public sealed partial class MapPanel
 {
     private Bitmap? getTileset(string? key)
     {
-        if (gameData is null || string.IsNullOrWhiteSpace(key) || !gameData.TilesetData.TryGetValue(key, out JsonObject? data))
+        if (gameData is null || string.IsNullOrWhiteSpace(key))
             return null;
-        string? fileName = data["fileName"]?.GetValue<string>();
+        if (!tilesetPaths.TryGetValue(key, out string? fileName))
+        {
+            fileName = gameData.TilesetData.TryGetValue(key, out JsonObject? data)
+                ? data["fileName"]?.GetValue<string>() : null;
+            tilesetPaths[key] = fileName;
+        }
         return loadBitmap(fileName);
     }
 
@@ -141,17 +147,11 @@ public sealed partial class MapPanel
         MenuItem add = new() { Header = LocaleService.Get("NEW_LIGHT_SOURCE") };
         add.Click += (_, _) =>
         {
-            recordMapHistorySnapshot();
-            JsonArray lights = ensureLights();
-            lights.Add(new JsonObject
-            {
-                ["position"] = new JsonArray(basePosition.X, basePosition.Y),
-                ["color"] = new JsonArray(255, 255, 255, 255),
-                ["radius"] = 256.0,
-                ["intensity"] = 1.0,
-            });
-            setSelectedLightIndex(lights.Count - 1);
-            markMapModified();
+            if (gameData is null || CurrentMapKey is null)
+                return;
+            int? index = gameData.AddMapLight(CurrentMapKey, basePosition.X, basePosition.Y);
+            if (index is not null)
+                setSelectedLightIndex(index);
             InvalidateVisual();
         };
         MenuItem delete = new() { Header = LocaleService.Get("DELETE"), IsEnabled = selectedLightIndex is not null };
@@ -168,10 +168,10 @@ public sealed partial class MapPanel
         {
             return;
         }
-        recordMapHistorySnapshot();
-        lights.RemoveAt(index);
+        if (gameData is null || CurrentMapKey is null || lights[index] is not JsonObject light
+            || !gameData.DeleteMapLight(CurrentMapKey, index, light))
+            return;
         setSelectedLightIndex(null);
-        markMapModified();
         InvalidateVisual();
     }
 
@@ -238,7 +238,7 @@ public sealed partial class MapPanel
 
     private bool hasActorAt(string layerName, (int X, int Y) grid)
     {
-        if (getActorList(layerName, false) is not JsonArray actors)
+        if (getActorList(layerName) is not JsonArray actors)
             return false;
         foreach (JsonNode? node in actors)
         {
@@ -250,74 +250,20 @@ public sealed partial class MapPanel
 
     private JsonObject? getSelectedActor()
     {
-        return selectedActorLayer is not null && selectedActorIndex is int index && getActorList(selectedActorLayer, false) is JsonArray actors && index >= 0 && index < actors.Count
+        return selectedActorLayer is not null && selectedActorIndex is int index && getActorList(selectedActorLayer) is JsonArray actors && index >= 0 && index < actors.Count
             ? actors[index] as JsonObject
             : null;
     }
 
-    private JsonArray? getActorList(string layerName, bool create)
+    private JsonArray? getActorList(string layerName)
     {
-        if (CurrentMapData is null)
-            return null;
-        if (CurrentMapData["actors"] is not JsonObject groups)
-        {
-            if (!create)
-                return null;
-            groups = new JsonObject();
-            CurrentMapData["actors"] = groups;
-        }
-        if (groups[layerName] is JsonArray actors)
-            return actors;
-        if (!create)
-            return null;
-        actors = new JsonArray();
-        groups[layerName] = actors;
-        return actors;
-    }
-
-    private string makeActorTag(string reference, string layerName, (int X, int Y) grid)
-    {
-        return gameData is null || CurrentMapKey is null
-            ? string.Empty
-            : MapTagService.CreateDefault(gameData, CurrentMapKey, reference, grid.X, grid.Y);
+        return CurrentMapData?["actors"]?[layerName] as JsonArray;
     }
 
     private int getTilesetColumnCount(JsonObject layer)
     {
         Bitmap? tileset = getTileset(layer["layerTileset"]?.GetValue<string>());
         return tileset is null ? 1 : Math.Max(1, tileset.PixelSize.Width / SourceTileSize);
-    }
-
-    private static JsonArray ensureGrid(JsonObject layer, string name, int width, int height)
-    {
-        if (layer[name] is not JsonArray grid)
-        {
-            grid = new JsonArray();
-            layer[name] = grid;
-        }
-        while (grid.Count < height)
-            grid.Add(new JsonArray());
-        for (int y = 0; y < height; y++)
-        {
-            if (grid[y] is not JsonArray row)
-            {
-                row = new JsonArray();
-                grid[y] = row;
-            }
-            while (row.Count < width)
-                row.Add(null);
-        }
-        return grid;
-    }
-
-    private JsonArray ensureLights()
-    {
-        if (CurrentMapData?["lights"] is JsonArray lights)
-            return lights;
-        JsonArray result = new();
-        if (CurrentMapData is not null)
-            CurrentMapData["lights"] = result;
-        return result;
     }
 
     private bool tryGetMapSize(out int width, out int height)
@@ -524,39 +470,56 @@ public sealed partial class MapPanel
         return double.TryParse(node?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double value) ? value : fallback;
     }
 
-    private void recordMapEditSnapshot()
+    private void endMapGesture()
     {
-        if (mapEditSnapshotRecorded || gameData is null)
-            return;
-        recordMapHistorySnapshot();
-        mapEditSnapshotRecorded = true;
+        gameData?.EndHistoryGesture(mapEditGesture);
+        mapEditGesture = 0;
     }
 
-    private void recordMapHistorySnapshot()
+    private void cancelMapGesture()
     {
-        if (gameData is null)
+        endMapGesture();
+        rectangleStart = null;
+        tileBrushDragging = false;
+        lightMoveDragging = false;
+        lightRadiusDragging = false;
+        actorMoveIndex = null;
+        actorMoveLayer = null;
+    }
+
+    private void onMapDataChanged(object? sender, MapPreviewChangedEventArgs args)
+    {
+        if (gameData is null || CurrentMapKey is null || args.MapKey is not null
+            && !string.Equals(CurrentMapKey, args.MapKey, StringComparison.Ordinal))
             return;
-        if (CurrentMapKey is null)
-            gameData.RecordSnapshot();
+        if (args.Edit is not null && CurrentMapData is not null)
+        {
+            args.Edit.ApplyTo(CurrentMapData);
+            if (args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors" or "lights"))
+                cancelMapGesture();
+            foreach (string layer in args.Edit.Layers)
+                scheduleBrushLayerRefresh(layer);
+            if (args.Edit.ChangesActors)
+            {
+                invalidateActorRenderStates();
+                ActorDataChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
         else
-            gameData.RecordMapSnapshot(CurrentMapKey);
-    }
-
-    private void markActorDataModified()
-    {
-        if (gameData is not null && CurrentMapKey is not null)
-            gameData.NotifyMapActorsChanged(CurrentMapKey);
-        markMapModified();
-        ActorDataChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void markMapModified()
-    {
-        if (gameData is null)
-            return;
-        if (CurrentMapKey is not null)
-            gameData.NotifyMapContentChanged(CurrentMapKey);
-        gameData.refreshModifiedState();
+        {
+            if (args.ReloadData)
+            {
+                cancelMapGesture();
+                CurrentMapData = gameData.ReadMapSnapshot(CurrentMapKey);
+            }
+            disposeMapRenderCaches();
+            invalidateActorRenderStates();
+            tilesetPaths.Clear();
+            autoTileRenderer?.Dispose();
+            autoTileRenderer = new AutoTileRenderer(gameData);
+            InvalidateMeasure();
+        }
+        InvalidateVisual();
     }
 
     private void invalidateActorRenderStates()
@@ -599,6 +562,9 @@ public sealed partial class MapPanel
 
     private void disposeRenderResources()
     {
+        cancelMapGesture();
+        if (gameData is not null)
+            gameData.MapPreviewChanged -= onMapDataChanged;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();

@@ -9,6 +9,8 @@ internal sealed class BlueprintGraphClipboardNode
 {
     private BlueprintGraphClipboardNode(
         BlueprintGraphNodeDefinition definition,
+        string title,
+        string description,
         JsonObject rawData,
         JsonArray parameters,
         double x,
@@ -16,6 +18,8 @@ internal sealed class BlueprintGraphClipboardNode
         bool isResolved)
     {
         Definition = definition;
+        Title = title;
+        Description = description;
         RawData = rawData;
         Parameters = parameters;
         X = x;
@@ -24,6 +28,8 @@ internal sealed class BlueprintGraphClipboardNode
     }
 
     public BlueprintGraphNodeDefinition Definition { get; }
+    public string Title { get; }
+    public string Description { get; }
     public JsonObject RawData { get; }
     public JsonArray Parameters { get; }
     public double X { get; }
@@ -47,9 +53,7 @@ internal sealed class BlueprintGraphClipboardNode
             .ToArray();
         BlueprintGraphNodeDefinition definition = new(
             node.NodeFunction,
-            node.Title,
-            ports,
-            description: node.Description);
+            ports);
         JsonArray parameters = node.Parameters.DeepClone() as JsonArray ?? [];
         foreach (BlueprintGraphPort port in node.Inputs)
         {
@@ -64,6 +68,8 @@ internal sealed class BlueprintGraphClipboardNode
         }
         return new BlueprintGraphClipboardNode(
             definition,
+            node.Title,
+            node.Description,
             node.RawData.DeepClone() as JsonObject ?? [],
             parameters,
             node.X,

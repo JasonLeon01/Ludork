@@ -1,5 +1,4 @@
 using Ludork.Models;
-using Ludork.Views.Utils.BlueprintGraph;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -213,7 +212,7 @@ public sealed partial class ReferenceIndexService
         {
             BlueprintGraphContext context = new(data, key);
             BlueprintNodeDefinitionSet definitions =
-                new BlueprintNodeDefinitionCatalog(metadataService, classResolver, context).GetNodeDefinitionSet();
+                new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet(context);
             scanNodeGraphReferences(sourceId, graph, $"Blueprints/{key}.graph", definitions);
             scanGenericReferences(sourceId, graph, $"Blueprints/{key}.graph");
         }

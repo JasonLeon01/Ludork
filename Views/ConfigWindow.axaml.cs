@@ -28,7 +28,12 @@ public partial class ConfigWindow : Window
         toast = new Toast(this);
         populate(gameData);
         gameData.DataRestored += onDataRestored;
-        Closed += (_, _) => gameData.DataRestored -= onDataRestored;
+        gameData.DataReloaded += onDataRestored;
+        Closed += (_, _) =>
+        {
+            gameData.DataRestored -= onDataRestored;
+            gameData.DataReloaded -= onDataRestored;
+        };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
 

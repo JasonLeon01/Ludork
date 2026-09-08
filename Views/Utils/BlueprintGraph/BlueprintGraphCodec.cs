@@ -1,5 +1,5 @@
 using Ludork.Models;
-using Ludork.Views.Utils;
+using Ludork.Services;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -46,15 +46,14 @@ public static class BlueprintGraphCodec
                 nodeId,
                 index,
                 nodeFunction,
-                getNodeTitle(nodeFunction, definition),
+                BlueprintNodeDisplayText.GetGraphTitle(nodeFunction, definition),
                 getNumber(position.ElementAtOrDefault(0)),
                 getNumber(position.ElementAtOrDefault(1)),
                 definition is not null,
                 false,
                 null,
                 rawNode,
-                parameters,
-                definition?.Description);
+                parameters);
             if (definition is not null)
                 addDefinitionPorts(node, definition, parameters);
             addParameterPorts(node, parameters.Count);
@@ -479,25 +478,6 @@ public static class BlueprintGraphCodec
         return direction == BlueprintGraphPortDirection.Input
             ? $"Param {pinIndex + 1}"
             : $"Result {pinIndex + 1}";
-    }
-
-    private static string getNodeTitle(
-        string nodeFunction,
-        BlueprintGraphNodeDefinition? definition)
-    {
-        if (definition?.HasExplicitDisplayName == true)
-            return definition.Title;
-        int separator = nodeFunction.LastIndexOf('.');
-        string memberName = separator >= 0 && separator < nodeFunction.Length - 1
-            ? nodeFunction[(separator + 1)..]
-            : nodeFunction;
-        string displayName = EditorDisplayName.Format(memberName);
-        if (!nodeFunction.Contains('.', StringComparison.Ordinal)
-            && !string.IsNullOrWhiteSpace(memberName))
-        {
-            return $"(parent){displayName}";
-        }
-        return displayName;
     }
 
     private static string? getString(JsonNode? value)

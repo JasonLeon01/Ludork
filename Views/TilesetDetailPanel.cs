@@ -6,6 +6,7 @@ using Ludork.Controls;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json.Nodes;
 
@@ -29,6 +30,7 @@ internal sealed class TilesetDetailPanel : Grid
     private JsonObject? data;
     private string? key;
     private bool populating;
+    private long brushGestureId;
 
     public TilesetDetailPanel(Window owner, GameDataService gameData, bool isAutoTile, Action dataChanged)
     {
@@ -40,8 +42,11 @@ internal sealed class TilesetDetailPanel : Grid
         RowSpacing = 5;
         imageEditor = new TilesetImageEditor(gameData.getCellSize())
         {
-            BeforeDataChanged = gameData.RecordSnapshot,
-            DataChanged = onImageDataChanged,
+            EditRequested = updateMetadata,
+            DirectionEditRequested = updateDirection,
+            MaterialCommitRequested = updateMaterial,
+            GestureStarted = () => brushGestureId = gameData.BeginHistoryGesture(),
+            GestureCompleted = () => gameData.EndHistoryGesture(brushGestureId),
             MaterialEditRequested = editMaterial,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
@@ -122,14 +127,18 @@ internal sealed class TilesetDetailPanel : Grid
 
     private void updateName()
     {
-        if (populating || data is null)
+        if (populating || data is null || key is null)
             return;
         string value = nameBox.Text ?? string.Empty;
         if ((data["name"]?.GetValue<string>() ?? string.Empty) == value)
             return;
-        gameData.RecordSnapshot();
-        data["name"] = value;
-        dataChanged();
+        if (gameData.UpdateTilesetName(key, isAutoTile, value))
+        {
+            data["name"] = value;
+            dataChanged();
+        }
+        else
+            refreshCurrent();
     }
 
     private void updateMode()
@@ -140,8 +149,9 @@ internal sealed class TilesetDetailPanel : Grid
 
     private async void browseFileAsync()
     {
-        if (data is null)
+        if (data is null || key is null)
             return;
+        string selectedKey = key;
         string root = Path.Combine(gameData.ProjectPath, "Assets", isAutoTile ? "Autotiles" : "Tilesets");
         Directory.CreateDirectory(root);
         string current = data["fileName"]?.GetValue<string>() ?? string.Empty;
@@ -164,49 +174,56 @@ internal sealed class TilesetDetailPanel : Grid
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), string.Format(LocaleService.Get("AUTOTILE_FILE_SIZE_INVALID"), bitmap.PixelSize.Width, bitmap.PixelSize.Height));
             return;
         }
-        gameData.RecordSnapshot();
-        data["fileName"] = GameAssetPath.FromProjectFile(gameData.ProjectPath, path);
-        if (isAutoTile)
-            data["material"] ??= createDefaultMaterial();
-        else
-            resizeTilesetMetadata(bitmap.PixelSize.Width / gameData.getCellSize() * (bitmap.PixelSize.Height / gameData.getCellSize()));
-        dataChanged();
-        setData(key, data);
+        if (gameData.UpdateTilesetImage(selectedKey, isAutoTile, GameAssetPath.FromProjectFile(gameData.ProjectPath, path), bitmap.PixelSize.Width, bitmap.PixelSize.Height))
+            dataChanged();
+        if (key == selectedKey)
+            refreshCurrent();
     }
 
-    private void resizeTilesetMetadata(int count)
+    private bool updateMetadata(string property, JsonNode value, IReadOnlyList<int> indices, int count)
     {
-        if (data is null)
-            return;
-        resize(data, "passable", count, () => true);
-        resize(data, "materials", count, createDefaultMaterial);
-        resize(data, "dir4", count, () => new JsonArray(true, true, true, true));
+        if (key is null || data is null)
+            return false;
+        string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
+        return completeMetadataEdit(gameData.UpdateTilesetMetadata(key, isAutoTile, assetPath, property, value, indices, count));
     }
 
-    private static void resize(JsonObject data, string name, int count, Func<JsonNode?> createValue)
+    private bool updateDirection(int index, int count, int direction, bool value)
     {
-        JsonArray values = data[name] as JsonArray ?? new JsonArray();
-        while (values.Count < count)
-            values.Add(createValue());
-        while (values.Count > count)
-            values.RemoveAt(values.Count - 1);
-        data[name] = values;
+        if (key is null || data is null)
+            return false;
+        string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
+        return completeMetadataEdit(gameData.UpdateTilesetDirection(key, assetPath, index, count, direction, value));
     }
 
-    private void onImageDataChanged() => dataChanged();
+    private bool updateMaterial(int index, int count, JsonObject initial, JsonObject edited)
+    {
+        if (key is null || data is null)
+            return false;
+        string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
+        return completeMetadataEdit(gameData.UpdateTilesetMaterial(key, isAutoTile, assetPath, index, count, initial, edited));
+    }
+
+    private bool completeMetadataEdit(bool changed)
+    {
+        if (changed)
+        {
+            dataChanged();
+            return true;
+        }
+        refreshCurrent();
+        return false;
+    }
+
+    private void refreshCurrent()
+    {
+        IReadOnlyDictionary<string, JsonObject> entries = isAutoTile ? gameData.AutoTileData : gameData.TilesetData;
+        setData(key, key is not null && entries.TryGetValue(key, out JsonObject? value) ? value : null);
+    }
 
     private void editMaterial(JsonObject material, Action<JsonObject> apply)
     {
         MaterialEditorWindow window = new(material, apply);
         window.ShowDialog(owner);
     }
-
-    private static JsonObject createDefaultMaterial() => new()
-    {
-        ["lightBlock"] = 0.0,
-        ["mirror"] = false,
-        ["reflectionStrength"] = 0.5,
-        ["opacity"] = 1.0,
-        ["speedRate"] = 1.0,
-    };
 }

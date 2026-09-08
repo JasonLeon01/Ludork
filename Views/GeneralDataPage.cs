@@ -27,7 +27,8 @@ internal sealed class GeneralDataPage : Grid
     private readonly GeneralDataEditorWindow owner;
     private readonly GameDataService gameData;
     private readonly string typeKey;
-    private readonly JsonObject typeData;
+    private JsonObject typeData;
+    private readonly Dictionary<JsonObject, string> memberKeys = [];
     private readonly GeneralDataPageSessionState sessionState;
     private readonly TextBox searchBox;
     private readonly ListBox memberList;
@@ -57,6 +58,7 @@ internal sealed class GeneralDataPage : Grid
         this.gameData = gameData;
         this.typeKey = typeKey;
         this.typeData = typeData;
+        rebuildMemberKeys();
         this.sessionState = sessionState;
 
         ColumnDefinitions = new ColumnDefinitions("240,4,*");
@@ -408,9 +410,7 @@ internal sealed class GeneralDataPage : Grid
                 bool next = check.IsChecked ?? false;
                 if ((row.Member[column.Name]?.GetValue<bool?>() ?? false) == next)
                     return;
-                gameData.RecordSnapshot();
-                row.Member[column.Name] = next;
-                gameData.refreshModifiedState();
+                updateMemberValue(row.Member, column.Name, JsonValue.Create(next));
             };
             return check;
         }
@@ -431,9 +431,7 @@ internal sealed class GeneralDataPage : Grid
                     string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
                         return;
-                    gameData.RecordSnapshot();
-                    row.Member[column.Name] = next;
-                    gameData.refreshModifiedState();
+                    updateMemberValue(row.Member, column.Name, JsonValue.Create(next));
                 };
                 return combo;
             }
@@ -444,9 +442,7 @@ internal sealed class GeneralDataPage : Grid
                 string next = text.Text ?? string.Empty;
                 if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
                     return;
-                gameData.RecordSnapshot();
-                row.Member[column.Name] = next;
-                gameData.refreshModifiedState();
+                updateMemberValue(row.Member, column.Name, JsonValue.Create(next));
             };
             return text;
         }
@@ -632,11 +628,9 @@ internal sealed class GeneralDataPage : Grid
             members.Select(e => e.Key));
         if (string.IsNullOrWhiteSpace(id))
             return;
-        gameData.RecordSnapshot();
-        JsonObject newMember = buildDefaultMember();
-        members[id] = newMember;
-        typeData["members"] = members;
-        gameData.refreshModifiedState();
+        if (!gameData.CreateGeneralMember(typeKey, id))
+            return;
+        reloadTypeData();
         revealMember(id);
     }
 
@@ -654,16 +648,16 @@ internal sealed class GeneralDataPage : Grid
         if (string.IsNullOrWhiteSpace(newId) || newId == oldId)
             return;
         owner.closeBlueprintEditor(typeKey, oldId);
-        gameData.RecordSnapshot();
-        reorderMemberKey(members, oldId, newId);
-        gameData.refreshModifiedState();
+        if (!gameData.RenameGeneralMember(typeKey, oldId, newId))
+            return;
+        reloadTypeData();
         revealMember(newId);
     }
 
     private async Task onDuplicateMemberAsync(string sourceId)
     {
         JsonObject? members = typeData["members"] as JsonObject;
-        if (members is null || members[sourceId] is not JsonObject source)
+        if (members is null || members[sourceId] is not JsonObject)
             return;
         string newId = sourceId + "_copy";
         int counter = 2;
@@ -677,9 +671,9 @@ internal sealed class GeneralDataPage : Grid
             newId);
         if (string.IsNullOrWhiteSpace(confirmedId))
             return;
-        gameData.RecordSnapshot();
-        members[confirmedId] = (JsonObject)source.DeepClone();
-        gameData.refreshModifiedState();
+        if (!gameData.DuplicateGeneralMember(typeKey, sourceId, confirmedId))
+            return;
+        reloadTypeData();
         revealMember(confirmedId);
     }
 
@@ -689,9 +683,9 @@ internal sealed class GeneralDataPage : Grid
         if (members is null)
             return;
         owner.closeBlueprintEditor(typeKey, memberId);
-        gameData.RecordSnapshot();
-        members.Remove(memberId);
-        gameData.refreshModifiedState();
+        if (!gameData.DeleteGeneralMember(typeKey, memberId))
+            return;
+        reloadTypeData();
         populateMemberList();
     }
 
@@ -856,12 +850,11 @@ internal sealed class GeneralDataPage : Grid
     {
         if (JsonNode.DeepEquals(paramDef["reference"], reference))
             return;
-        gameData.RecordSnapshot();
-        if (reference is null)
-            paramDef.Remove("reference");
-        else
-            paramDef["reference"] = reference;
-        gameData.refreshModifiedState();
+        string? name = (typeData["params"] as JsonObject)?.FirstOrDefault(
+            entry => ReferenceEquals(entry.Value, paramDef)).Key;
+        if (name is null || !gameData.UpdateGeneralParameterReference(typeKey, name, reference))
+            return;
+        reloadTypeData();
         buildForm(selectedMemberId);
     }
 
@@ -905,18 +898,9 @@ internal sealed class GeneralDataPage : Grid
         if (result is null)
             return;
         JsonObject paramDef = buildParamDefinition(result);
-        gameData.RecordSnapshot();
-        paramsObj[result.Name] = paramDef;
-        typeData["params"] = paramsObj;
-        if (typeData["members"] is JsonObject members)
-        {
-            foreach (KeyValuePair<string, JsonNode?> mEntry in members)
-            {
-                if (mEntry.Value is JsonObject member && !member.ContainsKey(result.Name))
-                    member[result.Name] = buildMemberDefaultValue(paramDef);
-            }
-        }
-        gameData.refreshModifiedState();
+        if (!gameData.AddGeneralParameter(typeKey, result.Name, paramDef))
+            return;
+        reloadTypeData();
         buildForm(memberId);
     }
 
@@ -951,21 +935,9 @@ internal sealed class GeneralDataPage : Grid
                 return;
         }
 
-        gameData.RecordSnapshot();
-        replaceObjectKey(paramsObj, paramName, result.Name, nextDefinition);
-        if (typeData["members"] is JsonObject members)
-        {
-            foreach (KeyValuePair<string, JsonNode?> memberEntry in members)
-            {
-                if (memberEntry.Value is not JsonObject member)
-                    continue;
-                JsonNode? nextValue = resetMemberValues
-                    ? buildMemberDefaultValue(nextDefinition)
-                    : member[paramName];
-                replaceObjectKey(member, paramName, result.Name, nextValue);
-            }
-        }
-        gameData.refreshModifiedState();
+        if (!gameData.UpdateGeneralParameter(typeKey, paramName, result.Name, nextDefinition, resetMemberValues))
+            return;
+        reloadTypeData();
         populateMemberList(selectedMemberId);
     }
 
@@ -975,18 +947,9 @@ internal sealed class GeneralDataPage : Grid
         bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("ADD_PARAM"), msg);
         if (!confirmed)
             return;
-        gameData.RecordSnapshot();
-        if (typeData["params"] is JsonObject paramsObj)
-            paramsObj.Remove(paramName);
-        if (typeData["members"] is JsonObject members)
-        {
-            foreach (KeyValuePair<string, JsonNode?> mEntry in members)
-            {
-                if (mEntry.Value is JsonObject member)
-                    member.Remove(paramName);
-            }
-        }
-        gameData.refreshModifiedState();
+        if (!gameData.DeleteGeneralParameter(typeKey, paramName))
+            return;
+        reloadTypeData();
         buildForm(selectedMemberId);
     }
 
@@ -1012,10 +975,9 @@ internal sealed class GeneralDataPage : Grid
                 bool next = check.IsChecked ?? false;
                 if ((member[paramName]?.GetValue<bool?>() ?? false) == next)
                     return;
-                gameData.RecordSnapshot();
-                member[paramName] = next;
+                if (!updateMemberValue(member, paramName, JsonValue.Create(next)))
+                    return;
                 rawValue = member[paramName];
-                gameData.refreshModifiedState();
             };
             return check;
         }
@@ -1064,10 +1026,9 @@ internal sealed class GeneralDataPage : Grid
                 {
                     return;
                 }
-                gameData.RecordSnapshot();
-                member[paramName] = assetPath;
+                if (!updateMemberValue(member, paramName, JsonValue.Create(assetPath)))
+                    return;
                 rawValue = member[paramName];
-                gameData.refreshModifiedState();
                 pathBox.Text = assetPath;
             };
             Grid fileRow = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 4 };
@@ -1110,12 +1071,10 @@ internal sealed class GeneralDataPage : Grid
                 HistoryMergeBehavior.Attach(box, gameData);
                 box.TextChanged += (_, _) =>
                 {
-                    gameData.RecordSnapshot();
                     while (tupleVal.Count <= captured)
                         tupleVal.Add(string.Empty);
                     tupleVal[captured] = box.Text ?? string.Empty;
-                    member[paramName] = tupleVal;
-                    gameData.refreshModifiedState();
+                    updateMemberValue(member, paramName, tupleVal);
                 };
                 Grid.SetColumn(box, captured);
                 tupleRow.Children.Add(box);
@@ -1137,10 +1096,9 @@ internal sealed class GeneralDataPage : Grid
                     string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
                         return;
-                    gameData.RecordSnapshot();
-                    member[paramName] = next;
+                    if (!updateMemberValue(member, paramName, JsonValue.Create(next)))
+                        return;
                     rawValue = member[paramName];
-                    gameData.refreshModifiedState();
                 };
                 return combo;
             }
@@ -1151,10 +1109,9 @@ internal sealed class GeneralDataPage : Grid
                 string next = box.Text ?? string.Empty;
                 if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
                     return;
-                gameData.RecordSnapshot();
-                member[paramName] = next;
+                if (!updateMemberValue(member, paramName, JsonValue.Create(next)))
+                    return;
                 rawValue = member[paramName];
-                gameData.refreshModifiedState();
             };
             return box;
         }
@@ -1193,9 +1150,7 @@ internal sealed class GeneralDataPage : Grid
         {
             if (JsonNode.DeepEquals(member[paramName], args.Value))
                 return;
-            gameData.RecordSnapshot();
-            member[paramName] = args.Value?.DeepClone();
-            gameData.refreshModifiedState();
+            updateMemberValue(member, paramName, args.Value);
         };
         return form;
     }
@@ -1294,40 +1249,31 @@ internal sealed class GeneralDataPage : Grid
         return null;
     }
 
-    private JsonObject buildDefaultMember()
+    private bool updateMemberValue(JsonObject member, string name, JsonNode? value)
     {
-        JsonObject member = new();
-        if (typeData["params"] is JsonObject paramsObj)
-        {
-            foreach (KeyValuePair<string, JsonNode?> entry in paramsObj)
-            {
-                if (entry.Value is not JsonObject paramDef)
-                    continue;
-                member[entry.Key] = buildMemberDefaultValue(paramDef);
-            }
-        }
-        return member;
+        if (!memberKeys.TryGetValue(member, out string? memberId)
+            || !gameData.UpdateGeneralMemberValue(typeKey, memberId, name, value))
+            return false;
+        member[name] = value?.DeepClone();
+        return true;
     }
 
-    private static JsonNode? buildMemberDefaultValue(JsonObject paramDef)
+    private void reloadTypeData()
     {
-        string type = readTypeName(paramDef["type"]);
-        JsonNode? defaultDef = paramDef["defaultValue"];
-        LuaMetadataType schema = LuaMetadataType.Parse(type);
-        if (schema.Kind == LuaMetadataTypeKind.Union || type.StartsWith("Tuple[", StringComparison.Ordinal)
-            || paramDef["type"] is JsonObject)
-            return defaultDef?.DeepClone() ?? LuaMetadataValueDefaults.Create(schema, _ => null);
-        return type switch
+        typeData = gameData.GeneralData.TryGetValue(typeKey, out JsonObject? current) ? current : [];
+        rebuildMemberKeys();
+    }
+
+    private void rebuildMemberKeys()
+    {
+        memberKeys.Clear();
+        if (typeData["members"] is not JsonObject members)
+            return;
+        foreach (KeyValuePair<string, JsonNode?> entry in members)
         {
-            "int" => defaultDef?.GetValue<long?>() ?? 0,
-            "float" => defaultDef?.GetValue<double?>() ?? 0.0,
-            "bool" => defaultDef?.GetValue<bool?>() ?? false,
-            "list" => defaultDef is JsonArray arr ? (JsonArray)arr.DeepClone() : new JsonArray(),
-            "dict" => defaultDef is JsonObject obj ? (JsonObject)obj.DeepClone() : new JsonObject(),
-            "file" => JsonValue.Create(string.Empty),
-            _ when isSfType(type) => defaultDef?.DeepClone() ?? createTypedDefault(type),
-            _ => JsonValue.Create(defaultDef?.GetValue<string>() ?? string.Empty),
-        };
+            if (entry.Value is JsonObject member)
+                memberKeys[member] = entry.Key;
+        }
     }
 
     private static JsonNode createTypedDefault(string type)
@@ -1447,23 +1393,6 @@ internal sealed class GeneralDataPage : Grid
             _ when LuaMetadataType.Parse(type).Kind != LuaMetadataTypeKind.Named => value?.ToJsonString() ?? "null",
             _ => value?.GetValue<string>() ?? string.Empty,
         };
-    }
-
-    private static void reorderMemberKey(JsonObject members, string oldKey, string newKey)
-    {
-        replaceObjectKey(members, oldKey, newKey, members[oldKey]);
-    }
-
-    private static void replaceObjectKey(
-        JsonObject obj,
-        string oldKey,
-        string newKey,
-        JsonNode? newValue)
-    {
-        List<KeyValuePair<string, JsonNode?>> entries = obj.Select(entry => entry).ToList();
-        obj.Clear();
-        foreach (KeyValuePair<string, JsonNode?> entry in entries)
-            obj.Add(entry.Key == oldKey ? newKey : entry.Key, entry.Key == oldKey ? newValue : entry.Value);
     }
 
     private static JsonNode parseDefaultValue(string type, string text)

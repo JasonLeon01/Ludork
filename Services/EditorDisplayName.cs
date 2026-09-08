@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Text;
 
-namespace Ludork.Views.Utils;
+namespace Ludork.Services;
 
 public static class EditorDisplayName
 {

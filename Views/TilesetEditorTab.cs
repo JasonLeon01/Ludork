@@ -122,14 +122,8 @@ internal sealed class TilesetEditorTab : Grid
             refreshAll(nextKey);
             return;
         }
-        JsonObject value = data[oldKey];
-        gameData.RecordSnapshot();
-        Dictionary<string, JsonObject> target = (Dictionary<string, JsonObject>)gameData.AutoTileData;
-        target.Remove(oldKey);
-        target[nextKey] = value;
-        gameData.NotifyAllMapPreviewsChanged();
-        gameData.refreshModifiedState();
-        refreshAll(nextKey);
+        if (gameData.RenameAutoTile(oldKey, nextKey))
+            refreshAll(nextKey);
     }
 
     private void copy()
@@ -146,16 +140,8 @@ internal sealed class TilesetEditorTab : Grid
             return;
         string baseName = clipboardName ?? (isAutoTile ? "AutoTile" : "Tileset");
         string key = getCopyName(baseName);
-        Dictionary<string, JsonObject> target = isAutoTile
-            ? (Dictionary<string, JsonObject>)gameData.AutoTileData
-            : (Dictionary<string, JsonObject>)gameData.TilesetData;
-        JsonObject copy = (JsonObject)clipboard.DeepClone();
-        copy["name"] = key;
-        gameData.RecordSnapshot();
-        target[key] = copy;
-        gameData.NotifyAllMapPreviewsChanged();
-        gameData.refreshModifiedState();
-        refreshAll(key);
+        if (gameData.PasteTileset(key, isAutoTile, clipboard))
+            refreshAll(key);
     }
 
     private async void deleteAsync()
@@ -165,16 +151,8 @@ internal sealed class TilesetEditorTab : Grid
         bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_CONFIRMATION"));
         if (!confirmed)
             return;
-        if (!data.ContainsKey(key))
-            return;
-        gameData.RecordSnapshot();
-        Dictionary<string, JsonObject> target = isAutoTile
-            ? (Dictionary<string, JsonObject>)gameData.AutoTileData
-            : (Dictionary<string, JsonObject>)gameData.TilesetData;
-        target.Remove(key);
-        gameData.NotifyAllMapPreviewsChanged();
-        gameData.refreshModifiedState();
-        refreshAll();
+        if (gameData.DeleteTileset(key, isAutoTile))
+            refreshAll();
     }
 
     private void onListKeyDown(object? sender, KeyEventArgs args)
@@ -250,8 +228,6 @@ internal sealed class TilesetEditorTab : Grid
 
     private void onDataChanged()
     {
-        gameData.NotifyAllMapPreviewsChanged();
-        gameData.refreshModifiedState();
         tileSelect.RefreshData();
     }
 

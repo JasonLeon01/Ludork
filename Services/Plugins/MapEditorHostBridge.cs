@@ -88,7 +88,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     private PluginMapSnapshot readMap(string mapKey)
     {
-        if (gameData.getMap(mapKey) is not JsonObject map)
+        if (gameData.ReadMapSnapshot(mapKey) is not JsonObject map)
             throw new KeyNotFoundException($"Map '{mapKey}' does not exist.");
         int width = Math.Max(1, readInt(map["width"], 13));
         int height = Math.Max(1, readInt(map["height"], 13));

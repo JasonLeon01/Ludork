@@ -293,13 +293,15 @@ public sealed partial class GameDataService
     public void ApplyExternalFileChanges(
         IReadOnlyList<string> addedPaths,
         IReadOnlyList<(string OldPath, string NewPath)> movedPaths,
-        IReadOnlyList<string> deletedPaths)
+        IReadOnlyList<string> deletedPaths,
+        Func<IReadOnlyList<ReferenceRewrite>>? prepareReferenceChanges = null)
     {
         Dictionary<string, string> uiAssetMoves = createUiAssetMoveMap(movedPaths);
-        Dictionary<string, Dictionary<string, JsonObject>> currentBefore = cloneAllData();
+        Dictionary<string, Dictionary<string, JsonObject>> currentBefore = cloneAllData(sections["Maps"].Data.Keys.ToHashSet(StringComparer.Ordinal));
         Dictionary<string, Dictionary<string, JsonObject>> originBefore = cloneData(originData);
         IReadOnlyList<Dictionary<string, Dictionary<string, JsonObject>>> undoBefore = cloneHistory(undoStack);
         IReadOnlyList<Dictionary<string, Dictionary<string, JsonObject>>> redoBefore = cloneHistory(redoStack);
+        bool modifiedBefore = isModified;
         Dictionary<string, string> uiFilesBefore =
             new Dictionary<string, string>(StringComparer.Ordinal);
         try
@@ -317,8 +319,12 @@ public sealed partial class GameDataService
                 changed |= applyExternalDelete(deletedPath);
             foreach (string addedPath in addedPaths)
                 changed |= applyExternalAdd(addedPath);
+            IReadOnlyList<ReferenceRewrite> referenceChanges = prepareReferenceRewrites(prepareReferenceChanges?.Invoke() ?? []);
+            applyPreparedReferenceRewrites(referenceChanges);
+            changed |= referenceChanges.Count != 0;
             if (!changed)
                 return;
+            notifyReferenceRewrites(referenceChanges);
             refreshModifiedState();
             if (!sectionEqual(currentBefore["UI"], sections["UI"].Data))
                 UiAssetsChanged?.Invoke(this, EventArgs.Empty);
@@ -329,7 +335,8 @@ public sealed partial class GameDataService
             originData = cloneData(originBefore);
             restoreHistory(undoStack, undoBefore);
             restoreHistory(redoStack, redoBefore);
-            restoreSnapshot(currentBefore, false);
+            restoreSnapshot(currentBefore, false, false);
+            isModified = modifiedBefore;
             if (uiFilesBefore.Count != 0)
             {
                 try

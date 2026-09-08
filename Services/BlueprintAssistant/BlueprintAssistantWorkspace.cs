@@ -1,6 +1,5 @@
 using Ludork.Models;
 using Ludork.Plugin.Abstractions;
-using Ludork.Views.Utils.BlueprintGraph;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -172,12 +171,11 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         BlueprintGraphContext context = new((JsonObject)blueprint.DeepClone(), key);
         BlueprintNodeDefinitionCatalog catalog = new(
             metadataService,
-            classResolver,
-            context);
+            classResolver);
         string filter = query?.Trim() ?? string.Empty;
         int limit = Math.Clamp(maximumResults, 1, 5000);
         JsonArray result = [];
-        foreach (BlueprintGraphNodeDefinition definition in catalog.GetNodeDefinitionSet().Definitions
+        foreach (BlueprintGraphNodeDefinition definition in catalog.GetNodeDefinitionSet(context).Definitions
                      .Where(definition => matchesDefinition(definition, filter))
                      .OrderByDescending(definition => definition.IsContextRelevant)
                      .ThenBy(definition => definition.RuntimePath, StringComparer.Ordinal)
@@ -202,9 +200,9 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
             result.Add(new JsonObject
             {
                 ["runtimePath"] = definition.RuntimePath,
-                ["title"] = definition.Title,
+                ["title"] = BlueprintNodeDisplayText.GetTitle(definition),
                 ["memberName"] = definition.MemberName,
-                ["description"] = definition.Description,
+                ["description"] = string.Empty,
                 ["declaringType"] = definition.DeclaringType?.QualifiedName,
                 ["isParent"] = definition.IsParent,
                 ["isContextRelevant"] = definition.IsContextRelevant,
@@ -1225,9 +1223,8 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         if (query.Length == 0)
             return true;
         return definition.RuntimePath.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || definition.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || BlueprintNodeDisplayText.GetTitle(definition).Contains(query, StringComparison.OrdinalIgnoreCase)
             || definition.MemberName.Contains(query, StringComparison.OrdinalIgnoreCase)
-            || definition.Description.Contains(query, StringComparison.OrdinalIgnoreCase)
             || definition.Ports.Any(port =>
                 port.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                 || port.TypeName.Contains(query, StringComparison.OrdinalIgnoreCase));

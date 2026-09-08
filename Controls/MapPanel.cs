@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Ludork.Plugin.Avalonia;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -68,7 +69,8 @@ public sealed partial class MapPanel : Control
     private int tileSize = SourceTileSize;
     private double continuousTileSize = SourceTileSize;
     private bool tileBrushDragging;
-    private bool mapEditSnapshotRecorded;
+    private long mapEditGesture;
+    private readonly Dictionary<string, string?> tilesetPaths = new(StringComparer.Ordinal);
     private int? selectedLightIndex;
     private int? selectedActorIndex;
     private string? selectedActorLayer;
@@ -131,7 +133,12 @@ public sealed partial class MapPanel : Control
         invalidatePendingActorRenderState();
         disposeCachedBitmaps();
         autoTileRenderer?.Dispose();
+        if (gameData is not null)
+            gameData.MapPreviewChanged -= onMapDataChanged;
+        endMapGesture();
         gameData = nextGameData;
+        gameData.MapPreviewChanged += onMapDataChanged;
+        tilesetPaths.Clear();
         previewService = nextPreviewService;
         previewService.VisualsInvalidated += onActorVisualsInvalidated;
         autoTileRenderer = new AutoTileRenderer(nextGameData);
@@ -149,8 +156,9 @@ public sealed partial class MapPanel : Control
 
     public void refreshMap(string? mapKey, JsonObject? mapData)
     {
+        cancelMapGesture();
         CurrentMapKey = mapKey;
-        CurrentMapData = mapData;
+        CurrentMapData = mapData?.DeepClone() as JsonObject;
         RefreshCount += 1;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
@@ -189,6 +197,7 @@ public sealed partial class MapPanel : Control
 
     public void setEditMode(MapEditMode mode)
     {
+        cancelMapGesture();
         EditMode = mode;
         rectangleStart = null;
         tileBrushDragging = false;
@@ -216,7 +225,7 @@ public sealed partial class MapPanel : Control
         }
         if (selectedActorLayer is not string layerName
             || selectedActorIndex is not int index
-            || getActorList(layerName, false) is not JsonArray actors
+            || getActorList(layerName) is not JsonArray actors
             || !actorRenderStates.TryGetValue(layerName, out List<ActorRenderState>? states)
             || actors.Count != states.Count
             || index < 0
@@ -235,30 +244,6 @@ public sealed partial class MapPanel : Control
         InvalidateVisual();
     }
 
-    public bool updateSelectedActorPosition(int x, int y)
-    {
-        if (!selectedLayerEditable
-            || getSelectedActor() is not JsonObject actor
-            || !tryGetMapSize(out int width, out int height))
-        {
-            return false;
-        }
-        int nextX = Math.Clamp(x, 0, width - 1);
-        int nextY = Math.Clamp(y, 0, height - 1);
-        if (tryGetActorPosition(actor, out int currentX, out int currentY)
-            && currentX == nextX
-            && currentY == nextY)
-        {
-            return false;
-        }
-        recordMapHistorySnapshot();
-        actor["position"] = new JsonArray(nextX, nextY);
-        markActorDataModified();
-        scheduleActorPreviewActivityUpdate();
-        InvalidateVisual();
-        return true;
-    }
-
     public void selectActor(string layerName, int? actorIndex)
     {
         if (EditMode != MapEditMode.Actor
@@ -270,13 +255,6 @@ public sealed partial class MapPanel : Control
         InvalidateVisual();
     }
 
-    public string makeUniqueActorTag(string tag, string? ignoreLayerName = null, int? ignoreIndex = null)
-    {
-        return gameData is null || CurrentMapKey is null
-            ? tag.Trim()
-            : MapTagService.MakeUnique(gameData, CurrentMapKey, tag, ignoreLayerName, ignoreIndex);
-    }
-
     public void updateSelectedLight(JsonObject lightData)
     {
         if (selectedLightIndex is not int index || CurrentMapData?["lights"] is not JsonArray lights || index < 0 || index >= lights.Count || lights[index] is not JsonObject light)
@@ -284,9 +262,8 @@ public sealed partial class MapPanel : Control
         JsonObject next = (JsonObject)lightData.DeepClone();
         if (JsonNode.DeepEquals(light, next))
             return;
-        recordMapEditSnapshot();
-        lights[index] = next;
-        markMapModified();
+        if (gameData is null || CurrentMapKey is null || !gameData.UpdateMapLight(CurrentMapKey, index, light, next))
+            return;
         LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey ?? string.Empty, index, next));
         InvalidateVisual();
     }

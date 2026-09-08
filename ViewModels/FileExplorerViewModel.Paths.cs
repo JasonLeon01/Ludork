@@ -223,8 +223,11 @@ public sealed partial class FileExplorerViewModel
             return null;
         IReadOnlyDictionary<string, string> mapReplacements =
             referenceIndex.CreateMapMoveReplacements(moved);
-        gameData.ApplyExternalFileChanges(added, moved, deleted);
-        referenceIndex.RewriteMapReferences(mapReplacements, false);
+        gameData.ApplyExternalFileChanges(
+            added,
+            moved,
+            deleted,
+            () => referenceIndex.PrepareMapReferenceRewrites(mapReplacements));
         try
         {
             changed(new FileExplorerFilesChangedEventArgs(

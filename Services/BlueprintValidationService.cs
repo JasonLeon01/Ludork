@@ -1,5 +1,4 @@
 using Ludork.Models;
-using Ludork.Views.Utils.BlueprintGraph;
 using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
@@ -198,8 +197,7 @@ public sealed class BlueprintValidationService
             results.Add(new BlueprintValidationResult("GeneralData", false, schemaErrors));
 
         using IDisposable metadataBatch = classResolver.BeginBatch();
-        BlueprintNodeDefinitionSet definitionSet = BlueprintNodeDefinitionCatalog
-            .CreateGlobal(metadataService, classResolver)
+        BlueprintNodeDefinitionSet definitionSet = new BlueprintNodeDefinitionCatalog(metadataService, classResolver)
             .GetNodeDefinitionSet();
         foreach (KeyValuePair<string, JsonObject> typeEntry in gameData.GeneralData
             .OrderBy(entry => entry.Key, StringComparer.Ordinal))
@@ -437,8 +435,8 @@ public sealed class BlueprintValidationService
     {
         using IDisposable metadataBatch = classResolver.BeginBatch();
         BlueprintGraphContext context = new(data, key);
-        BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver, context);
-        BlueprintNodeDefinitionSet definitionSet = catalog.GetNodeDefinitionSet();
+        BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver);
+        BlueprintNodeDefinitionSet definitionSet = catalog.GetNodeDefinitionSet(context);
         IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> lookup = definitionSet.RuntimeLookup;
         JsonObject nodeGraph = (JsonObject)graph["nodeGraph"]!;
         foreach (KeyValuePair<string, JsonNode?> pair in nodeGraph)

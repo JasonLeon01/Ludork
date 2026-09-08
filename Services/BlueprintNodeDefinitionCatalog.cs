@@ -1,18 +1,15 @@
 using Ludork.Models;
-using Ludork.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 
-namespace Ludork.Views.Utils.BlueprintGraph;
+namespace Ludork.Services;
 
 public sealed class BlueprintNodeDefinitionCatalog
 {
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
-    private readonly BlueprintGraphContext? context;
-    private readonly BlueprintEditorDocument? document;
     private readonly Dictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> eventParameters =
         new(StringComparer.Ordinal);
     private long cachedMetadataRevision = -1;
@@ -25,29 +22,10 @@ public sealed class BlueprintNodeDefinitionCatalog
 
     public BlueprintNodeDefinitionCatalog(
         LuaMetadataService metadataService,
-        BlueprintClassResolver classResolver,
-        BlueprintEditorDocument document)
-    {
-        this.metadataService = metadataService;
-        this.classResolver = classResolver;
-        this.document = document;
-    }
-
-    public BlueprintNodeDefinitionCatalog(
-        LuaMetadataService metadataService,
-        BlueprintClassResolver classResolver,
-        BlueprintGraphContext? context)
-    {
-        this.metadataService = metadataService;
-        this.classResolver = classResolver;
-        this.context = context;
-    }
-
-    public static BlueprintNodeDefinitionCatalog CreateGlobal(
-        LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
     {
-        return new BlueprintNodeDefinitionCatalog(metadataService, classResolver, (BlueprintGraphContext?)null);
+        this.metadataService = metadataService;
+        this.classResolver = classResolver;
     }
 
     public void Invalidate()
@@ -63,10 +41,11 @@ public sealed class BlueprintNodeDefinitionCatalog
     }
 
     public BlueprintNodeDefinitionSet GetNodeDefinitionSet(
+        BlueprintGraphContext? context = null,
         ResolvedBlueprintClass? resolvedContext = null)
     {
         using IDisposable metadataRead = metadataService.BeginRead();
-        ResolvedBlueprintClass? resolved = ensureContextCache(resolvedContext);
+        ResolvedBlueprintClass? resolved = ensureContextCache(context, resolvedContext);
         if (cachedDefinitionSet is not null)
             return cachedDefinitionSet;
 
@@ -83,14 +62,12 @@ public sealed class BlueprintNodeDefinitionCatalog
         {
             string runtimePath = getGlobalRuntimePath(member.RuntimePath);
             IReadOnlyList<string> aliases = getGlobalRuntimeAliases(member, runtimePath);
-            IReadOnlyList<string> pickerPath = getGlobalPickerPath(member.RuntimePath);
             addDefinition(
                 result,
                 definitionKeys,
                 member,
                 runtimePath,
                 aliases,
-                pickerPath,
                 false,
                 isContextRelevant(member, contextTypes));
         }
@@ -107,7 +84,6 @@ public sealed class BlueprintNodeDefinitionCatalog
                     member,
                     member.Name,
                     getParentRuntimeAliases(member),
-                    [LocaleService.Get("PARENT")],
                     true,
                     true);
             }
@@ -179,12 +155,13 @@ public sealed class BlueprintNodeDefinitionCatalog
     }
 
     private ResolvedBlueprintClass? ensureContextCache(
+        BlueprintGraphContext? context,
         ResolvedBlueprintClass? resolvedContext)
     {
         long metadataRevision = metadataService.Revision;
         long resolverRevision = classResolver.Revision;
-        JsonObject? data = document?.Data ?? context?.Data;
-        string key = document?.BlueprintKey ?? context?.BlueprintKey ?? string.Empty;
+        JsonObject? data = context?.Data;
+        string key = context?.BlueprintKey ?? string.Empty;
         string parent = data?["parent"]?.ToJsonString() ?? string.Empty;
         bool suppliedContextIsCurrent = resolvedContext is not null
             && resolvedContext.ResolverRevision == resolverRevision
@@ -199,7 +176,11 @@ public sealed class BlueprintNodeDefinitionCatalog
             return cachedContextClass;
         }
 
-        cachedContextClass = suppliedContextIsCurrent ? resolvedContext : resolveContextClass();
+        cachedContextClass = suppliedContextIsCurrent
+            ? resolvedContext
+            : context is null
+                ? null
+                : classResolver.ResolveBlueprint(context.Data, context.BlueprintKey);
         cachedContextData = data;
         cachedContextKey = key;
         cachedContextParent = parent;
@@ -210,26 +191,12 @@ public sealed class BlueprintNodeDefinitionCatalog
         return cachedContextClass;
     }
 
-    private ResolvedBlueprintClass? resolveContextClass()
-    {
-        if (document is not null)
-        {
-            return classResolver.ResolveBlueprint(
-                document.Data,
-                document.BlueprintKey);
-        }
-        return context is null
-            ? null
-            : classResolver.ResolveBlueprint(context.Data, context.BlueprintKey);
-    }
-
     private static void addDefinition(
         ICollection<BlueprintGraphNodeDefinition> target,
         ISet<string> definitionKeys,
         LuaNodeMemberMetadata member,
         string runtimePath,
         IReadOnlyList<string> runtimeAliases,
-        IReadOnlyList<string> pickerPath,
         bool isParent,
         bool isContextRelevant)
     {
@@ -240,7 +207,6 @@ public sealed class BlueprintNodeDefinitionCatalog
             member,
             runtimePath,
             runtimeAliases,
-            pickerPath,
             isParent,
             isContextRelevant));
     }
@@ -249,7 +215,6 @@ public sealed class BlueprintNodeDefinitionCatalog
         LuaNodeMemberMetadata member,
         string runtimePath,
         IReadOnlyList<string> runtimeAliases,
-        IReadOnlyList<string> pickerPath,
         bool isParent,
         bool isContextRelevant)
     {
@@ -307,22 +272,16 @@ public sealed class BlueprintNodeDefinitionCatalog
             returnPinIndex++;
         }
 
-        string? displayName = getString(member.Meta["DisplayName"]);
-        string memberTitle = EditorDisplayName.Format(member.Name);
-        string title = displayName ?? (isParent ? $"(parent){memberTitle}" : memberTitle);
         return new BlueprintGraphNodeDefinition(
             runtimePath,
-            title,
             ports,
             member.Meta,
             runtimeAliases,
-            pickerPath,
+            member.RuntimePath,
             member.Name,
-            string.Empty,
             member.DeclaringType,
             isParent,
             isContextRelevant,
-            displayName is not null,
             member.IsLatent);
     }
 
@@ -370,14 +329,6 @@ public sealed class BlueprintNodeDefinitionCatalog
         string moduleMemberPath = moduleName + "." + member.Name;
         aliases.Add(moduleMemberPath);
         aliases.Add(getGlobalRuntimePath(moduleMemberPath));
-    }
-
-    private static IReadOnlyList<string> getGlobalPickerPath(string runtimePath)
-    {
-        string[] parts = runtimePath.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length <= 1)
-            return [];
-        return parts[..^1];
     }
 
     private static bool isProjectRoot(string name)
@@ -573,4 +524,3 @@ public sealed class BlueprintNodeDefinitionCatalog
     }
 }
 
-public sealed record BlueprintGraphContext(JsonObject Data, string? BlueprintKey);

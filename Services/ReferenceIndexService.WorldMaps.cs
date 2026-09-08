@@ -1,5 +1,4 @@
 using Ludork.Models;
-using Ludork.Views.Utils.BlueprintGraph;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,44 +33,38 @@ public sealed partial class ReferenceIndexService
             .ToArray();
     }
 
-    public bool RewriteMapReferences(
-        IReadOnlyDictionary<string, string> replacements,
-        bool recordSnapshot = true)
+    public bool RewriteMapReferences(IReadOnlyDictionary<string, string> replacements)
+    {
+        return gameData.ApplyReferenceRewrites(PrepareMapReferenceRewrites(replacements));
+    }
+
+    public IReadOnlyList<ReferenceRewrite> PrepareMapReferenceRewrites(IReadOnlyDictionary<string, string> replacements)
     {
         Dictionary<string, string> normalized = replacements.ToDictionary(
             item => normalizeMapRuntimePath(item.Key, true),
             item => item.Value.Replace('\\', '/').Trim('/'),
             StringComparer.Ordinal);
         if (normalized.Count == 0)
-            return false;
-        ensureBuilt();
-        ensureAllWorldChildMapReferences();
-        IReadOnlyList<MapReferenceRewrite> mapRewrites = prepareMapReferenceRewrites(normalized);
-        bool nonMapChanged = rewriteRecognizedMapReferences(normalized, false);
-        if (!nonMapChanged && mapRewrites.Count == 0)
-            return false;
-        foreach (MapReferenceRewrite rewrite in mapRewrites.Where(item => !item.WasLoaded))
-        {
-            if (gameData.InstallWorldChildMapSnapshot(rewrite.MapKey, rewrite.Original) is null)
-                return false;
-        }
-        if (recordSnapshot)
-            gameData.RecordSnapshot();
-        if (nonMapChanged)
-            rewriteRecognizedMapReferences(normalized, true);
-        foreach (MapReferenceRewrite rewrite in mapRewrites)
-        {
-            if (!gameData.LoadedMapData.TryGetValue(rewrite.MapKey, out JsonObject? map))
-                return false;
-            rewriteKnownMapNodeReferences(map, normalized, true);
-            gameData.NotifyMapContentChanged(rewrite.MapKey);
-        }
-        gameData.refreshModifiedState();
+            return [];
         MarkDirty();
-        return true;
+        try
+        {
+            ensureBuilt();
+            ensureAllWorldChildMapReferences();
+            List<ReferenceRewrite> result = prepareMapReferenceRewrites(normalized);
+            appendReferenceRewrites(result, "Configs", gameData.SystemConfigData, normalized, true);
+            appendReferenceRewrites(result, "CommonFunctions", gameData.CommonFunctionsData, normalized, false);
+            appendReferenceRewrites(result, "Blueprints", gameData.BlueprintsData, normalized, false);
+            appendReferenceRewrites(result, "General", gameData.GeneralData, normalized, false);
+            return result;
+        }
+        finally
+        {
+            MarkDirty();
+        }
     }
 
-    private IReadOnlyList<MapReferenceRewrite> prepareMapReferenceRewrites(
+    private List<ReferenceRewrite> prepareMapReferenceRewrites(
         IReadOnlyDictionary<string, string> replacements)
     {
         HashSet<string> targetIds = replacements.Keys
@@ -85,16 +78,19 @@ public sealed partial class ReferenceIndexService
             .Where(item => item is not null)
             .Select(item => item!)
             .ToHashSet(StringComparer.Ordinal);
-        List<MapReferenceRewrite> result = [];
+        mapKeys.UnionWith(targetIds
+            .Select(tryGetMapKeyFromNodeId)
+            .Where(key => key is not null && gameData.MapData.ContainsKey(key))
+            .Select(key => key!));
+        List<ReferenceRewrite> result = [];
         foreach (string mapKey in mapKeys.OrderBy(item => item, StringComparer.Ordinal))
         {
-            bool wasLoaded = gameData.LoadedMapData.ContainsKey(mapKey);
             JsonObject? original = gameData.ReadMapSnapshotWithoutCaching(mapKey);
             if (original is null)
                 throw new InvalidDataException($"The indexed map could not be read: {mapKey}.");
             JsonObject candidate = (JsonObject)original.DeepClone();
-            if (rewriteKnownMapNodeReferences(candidate, replacements, false))
-                result.Add(new MapReferenceRewrite(mapKey, original, wasLoaded));
+            if (rewriteKnownMapNodeReferences(candidate, replacements))
+                result.Add(new ReferenceRewrite("Maps", mapKey, original, candidate));
         }
         return result;
     }
@@ -146,26 +142,27 @@ public sealed partial class ReferenceIndexService
         return result;
     }
 
-    private bool rewriteRecognizedMapReferences(
+    private static void appendReferenceRewrites(
+        List<ReferenceRewrite> rewrites,
+        string section,
+        IReadOnlyDictionary<string, JsonObject> data,
         IReadOnlyDictionary<string, string> replacements,
-        bool apply)
+        bool config)
     {
-        bool changed = false;
-        foreach (JsonObject config in gameData.SystemConfigData.Values)
-            changed |= rewriteConfigMapReferences(config, replacements, apply);
-        foreach (JsonObject commonFunction in gameData.CommonFunctionsData.Values)
-            changed |= rewriteKnownMapNodeReferences(commonFunction, replacements, apply);
-        foreach (JsonObject blueprint in gameData.BlueprintsData.Values)
-            changed |= rewriteKnownMapNodeReferences(blueprint, replacements, apply);
-        foreach (JsonObject general in gameData.GeneralData.Values)
-            changed |= rewriteKnownMapNodeReferences(general, replacements, apply);
-        return changed;
+        foreach (KeyValuePair<string, JsonObject> entry in data)
+        {
+            JsonObject candidate = (JsonObject)entry.Value.DeepClone();
+            bool changed = config
+                ? rewriteConfigMapReferences(candidate, replacements)
+                : rewriteKnownMapNodeReferences(candidate, replacements);
+            if (changed)
+                rewrites.Add(new ReferenceRewrite(section, entry.Key, entry.Value, candidate));
+        }
     }
 
     private static bool rewriteConfigMapReferences(
         JsonObject config,
-        IReadOnlyDictionary<string, string> replacements,
-        bool apply)
+        IReadOnlyDictionary<string, string> replacements)
     {
         bool changed = false;
         foreach (JsonObject setting in config.Select(item => item.Value).OfType<JsonObject>())
@@ -185,15 +182,13 @@ public sealed partial class ReferenceIndexService
                     if (!tryGetMapReplacement(values[index], replacements, out string replacement))
                         continue;
                     changed = true;
-                    if (apply)
-                        values[index] = replacement;
+                    values[index] = replacement;
                 }
             }
             else if (tryGetMapReplacement(setting["value"], replacements, out string replacement))
             {
                 changed = true;
-                if (apply)
-                    setting["value"] = replacement;
+                setting["value"] = replacement;
             }
         }
         return changed;
@@ -201,8 +196,7 @@ public sealed partial class ReferenceIndexService
 
     private static bool rewriteKnownMapNodeReferences(
         JsonNode node,
-        IReadOnlyDictionary<string, string> replacements,
-        bool apply)
+        IReadOnlyDictionary<string, string> replacements)
     {
         bool changed = false;
         if (node is JsonObject objectValue)
@@ -214,13 +208,12 @@ public sealed partial class ReferenceIndexService
                 && tryGetMapReplacement(parameters[0], replacements, out string replacement))
             {
                 changed = true;
-                if (apply)
-                    parameters[0] = replacement;
+                parameters[0] = replacement;
             }
             foreach (JsonNode? child in objectValue.Select(item => item.Value).ToArray())
             {
                 if (child is not null)
-                    changed |= rewriteKnownMapNodeReferences(child, replacements, apply);
+                    changed |= rewriteKnownMapNodeReferences(child, replacements);
             }
         }
         else if (node is JsonArray arrayValue)
@@ -228,7 +221,7 @@ public sealed partial class ReferenceIndexService
             foreach (JsonNode? child in arrayValue.ToArray())
             {
                 if (child is not null)
-                    changed |= rewriteKnownMapNodeReferences(child, replacements, apply);
+                    changed |= rewriteKnownMapNodeReferences(child, replacements);
             }
         }
         return changed;

@@ -27,7 +27,7 @@ public sealed partial class GameDataService
         return snapshot is not null && mapMatchesCatalogEntry(snapshot, entry) ? snapshot : null;
     }
 
-    public void NotifyMapActorsChanged(string mapKey)
+    private void NotifyMapActorsChanged(string mapKey)
     {
         mapKey = normaliseMapKey(mapKey);
         mapActorTagIndexes.Remove(mapKey);
@@ -38,16 +38,16 @@ public sealed partial class GameDataService
         }
     }
 
-    public void NotifyMapContentChanged(string mapKey)
+    private void NotifyMapContentChanged(string mapKey, MapDataEditedEventArgs? edit = null)
     {
         mapKey = normaliseMapKey(mapKey);
         if (mapKey.Length != 0)
-            MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(mapKey));
+            MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(mapKey, edit));
     }
 
-    public void NotifyAllMapPreviewsChanged()
+    private void NotifyAllMapPreviewsChanged(bool reloadData = true)
     {
-        MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(null));
+        MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(null, reloadData: reloadData));
     }
 
     public string GetMapRuntimePath(string mapKey)

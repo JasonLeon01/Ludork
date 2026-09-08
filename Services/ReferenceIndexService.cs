@@ -1,5 +1,4 @@
 using Ludork.Models;
-using Ludork.Views.Utils.BlueprintGraph;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -361,7 +360,7 @@ public sealed partial class ReferenceIndexService : IDisposable
     private void buildEdges()
     {
         BlueprintNodeDefinitionSet globalDefinitions =
-            BlueprintNodeDefinitionCatalog.CreateGlobal(metadataService, classResolver).GetNodeDefinitionSet();
+            new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet();
         foreach (KeyValuePair<string, JsonObject> pair in gameData.SystemConfigData)
             scanConfigReferences(nodeId("config", pair.Key), pair.Key, pair.Value);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.TilesetData)
@@ -646,5 +645,4 @@ public sealed partial class ReferenceIndexService : IDisposable
         return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
     }
 
-    private sealed record MapReferenceRewrite(string MapKey, JsonObject Original, bool WasLoaded);
 }

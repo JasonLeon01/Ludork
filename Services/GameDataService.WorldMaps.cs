@@ -31,7 +31,7 @@ public sealed partial class GameDataService
         if (sections["Maps"].Data.TryGetValue(key, out JsonObject? loaded))
         {
             touchMap(key);
-            return loaded;
+            return (JsonObject)loaded.DeepClone();
         }
         if (!tryGetMapCatalogEntry(key, out MapCatalogEntry entry)
             || entry.Kind != MapCatalogEntryKind.WorldChildMap
@@ -42,11 +42,11 @@ public sealed partial class GameDataService
         string path = getReadableMapDataPath(key);
         if (!File.Exists(path))
             return null;
-        sections["Maps"].Data[key] = snapshot;
+        sections["Maps"].Data[key] = (JsonObject)snapshot.DeepClone();
         originData["Maps"][key] = (JsonObject)snapshot.DeepClone();
         mapLoadedBytes[key] = new FileInfo(path).Length;
         touchMap(key);
-        return snapshot;
+        return (JsonObject)snapshot.DeepClone();
     }
 
     public int TrimWorldChildCache(
@@ -87,7 +87,7 @@ public sealed partial class GameDataService
         return removed;
     }
 
-    public JsonObject? getWorldMap(string worldKey)
+    private JsonObject? getWorldMap(string worldKey)
     {
         worldKey = normalizeWorldKey(worldKey);
         return sections["WorldMaps"].Data.TryGetValue(worldKey, out JsonObject? value) ? value : null;
@@ -132,7 +132,7 @@ public sealed partial class GameDataService
         foreach (string key in getWorldChildren(worldKey))
         {
             if (getMap(key) is JsonObject map)
-                result[key] = map;
+                result[key] = (JsonObject)map.DeepClone();
         }
         return result;
     }
@@ -349,7 +349,7 @@ public sealed partial class GameDataService
         return WorldMapMutationResult.Succeeded;
     }
 
-    public bool RenameWorldMap(string currentKey, string newKey)
+    public bool RenameWorldMap(string currentKey, string newKey, Func<IReadOnlyList<ReferenceRewrite>>? prepareReferences = null)
     {
         currentKey = normalizeWorldKey(currentKey);
         newKey = normalizeWorldKey(newKey);
@@ -368,41 +368,50 @@ public sealed partial class GameDataService
             return false;
         MapCatalogEntry[] childEntries = getWorldChildCatalog(currentKey).Values.ToArray();
         string[] children = childEntries.Select(entry => entry.Key).ToArray();
-        RecordSnapshot();
-        string? sourceDirectory = pendingWorldDirectoryMoves.Remove(currentKey, out string? source)
-            ? source
-            : originData["WorldMaps"].ContainsKey(currentKey) ? getWorldDirectory(currentKey) : null;
-        if (sourceDirectory is not null && !pathsEqual(sourceDirectory, destinationDirectory))
-            pendingWorldDirectoryMoves[newKey] = sourceDirectory;
-        sections["WorldMaps"].Data.Remove(currentKey);
-        sections["WorldMaps"].Data[newKey] = world;
-        Dictionary<string, JsonObject> maps = sections["Maps"].Data;
-        foreach (string child in children.Where(maps.ContainsKey))
+        void applyChange()
         {
-            JsonObject childMap = maps[child];
-            maps.Remove(child);
-            string childName = child[(currentKey.Length + 1)..];
-            string renamedKey = newKey + "/" + childName;
-            maps[renamedKey] = childMap;
-            rekeyLoadedMapMetadata(child, renamedKey);
+            string? sourceDirectory = pendingWorldDirectoryMoves.Remove(currentKey, out string? source)
+                ? source
+                : originData["WorldMaps"].ContainsKey(currentKey) ? getWorldDirectory(currentKey) : null;
+            if (sourceDirectory is not null && !pathsEqual(sourceDirectory, destinationDirectory))
+                pendingWorldDirectoryMoves[newKey] = sourceDirectory;
+            sections["WorldMaps"].Data.Remove(currentKey);
+            sections["WorldMaps"].Data[newKey] = world;
+            Dictionary<string, JsonObject> maps = sections["Maps"].Data;
+            foreach (string child in children.Where(maps.ContainsKey))
+            {
+                JsonObject childMap = maps[child];
+                maps.Remove(child);
+                string childName = child[(currentKey.Length + 1)..];
+                string renamedKey = newKey + "/" + childName;
+                maps[renamedKey] = childMap;
+                rekeyLoadedMapMetadata(child, renamedKey);
+            }
+            removeMapCatalogEntry(MapCatalogEntryKind.WorldMap, currentKey);
+            foreach (string child in children)
+                removeMapCatalogEntry(MapCatalogEntryKind.WorldChildMap, child);
+            setMapCatalogEntry(new MapCatalogEntry(
+                newKey,
+                world["worldName"]!.GetValue<string>(),
+                MapCatalogEntryKind.WorldMap,
+                null,
+                world["width"]?.GetValue<int?>() ?? 0,
+                world["height"]?.GetValue<int?>() ?? 0,
+                readStringArray(world["layerOrder"]),
+                []));
+            foreach (MapCatalogEntry child in childEntries)
+            {
+                string childName = child.Key[(currentKey.Length + 1)..];
+                string renamedKey = newKey + "/" + childName;
+                setMapCatalogEntry(child with { Key = renamedKey, WorldKey = newKey });
+            }
         }
-        removeMapCatalogEntry(MapCatalogEntryKind.WorldMap, currentKey);
-        foreach (string child in children)
-            removeMapCatalogEntry(MapCatalogEntryKind.WorldChildMap, child);
-        setMapCatalogEntry(new MapCatalogEntry(
-            newKey,
-            world["worldName"]!.GetValue<string>(),
-            MapCatalogEntryKind.WorldMap,
-            null,
-            world["width"]?.GetValue<int?>() ?? 0,
-            world["height"]?.GetValue<int?>() ?? 0,
-            readStringArray(world["layerOrder"]),
-            []));
-        foreach (MapCatalogEntry child in childEntries)
+        if (prepareReferences is not null)
+            applyMutationWithReferences(applyChange, prepareReferences, new HashSet<string>(StringComparer.Ordinal));
+        else
         {
-            string childName = child.Key[(currentKey.Length + 1)..];
-            string renamedKey = newKey + "/" + childName;
-            setMapCatalogEntry(child with { Key = renamedKey, WorldKey = newKey });
+            RecordSnapshot();
+            applyChange();
         }
         refreshModifiedState();
         return true;

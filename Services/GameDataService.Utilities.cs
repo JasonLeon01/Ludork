@@ -199,14 +199,7 @@ public sealed partial class GameDataService
 
     private static JsonObject createDefaultMaterial()
     {
-        return new JsonObject
-        {
-            ["lightBlock"] = 0.0,
-            ["mirror"] = false,
-            ["reflectionStrength"] = 0.5,
-            ["opacity"] = 1.0,
-            ["speedRate"] = 1.0,
-        };
+        return TilesetMetadata.CreateDefaultMaterial();
     }
 
     private static JsonObject createCurveKey(double time, JsonNode value)
@@ -433,7 +426,8 @@ public sealed partial class GameDataService
 
     private void restoreSnapshot(
         Dictionary<string, Dictionary<string, JsonObject>> snapshot,
-        bool notifyUiAssets = true)
+        bool notifyUiAssets = true,
+        bool notifyChanges = true)
     {
         if (tryGetWorldHistoryKey(snapshot, out string worldKey))
         {
@@ -454,6 +448,8 @@ public sealed partial class GameDataService
                 if (!string.IsNullOrWhiteSpace(sourceDirectory))
                     pendingWorldDirectoryMoves[worldKey] = sourceDirectory;
             }
+            if (!notifyChanges)
+                return;
             refreshModifiedState();
             DataRestored?.Invoke(this, EventArgs.Empty);
             UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
@@ -484,6 +480,8 @@ public sealed partial class GameDataService
                 section.Value.Data[item.Key] = (JsonObject)item.Value.DeepClone();
         }
         rebuildLoadedMapMetadata();
+        if (!notifyChanges)
+            return;
         NotifyAllMapPreviewsChanged();
         refreshModifiedState();
         if (notifyUiAssets && uiAssetsChanged)
@@ -588,7 +586,7 @@ public sealed partial class GameDataService
             this.owner = owner;
         }
 
-        public JsonObject this[string key] => owner.getMap(key)
+        public JsonObject this[string key] => owner.ReadMapSnapshot(key)
             ?? throw new KeyNotFoundException(key);
         public IEnumerable<string> Keys => owner.getAllMapKeys();
         public IEnumerable<JsonObject> Values => Keys.Select(key => this[key]);
@@ -601,7 +599,7 @@ public sealed partial class GameDataService
 
         public bool TryGetValue(string key, out JsonObject value)
         {
-            JsonObject? result = owner.getMap(key);
+            JsonObject? result = owner.ReadMapSnapshot(key);
             value = result!;
             return result is not null;
         }
@@ -655,6 +653,8 @@ public sealed partial class GameDataService
         public bool PreserveType { get; }
         public bool Persist { get; } = true;
         public Dictionary<string, JsonObject> Data { get; } = new(StringComparer.Ordinal);
+        private JsonSnapshotDictionary? snapshots;
+        public JsonSnapshotDictionary Snapshots => snapshots ??= new JsonSnapshotDictionary(Data);
 
         public bool AcceptsType(string? type)
         {

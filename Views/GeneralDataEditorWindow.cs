@@ -344,11 +344,8 @@ public sealed class GeneralDataEditorWindow : Window
         if (!isValidEventName(eventName))
             return;
         closeBlueprintEditors(typeKey);
-        gameData.RecordSnapshot();
-        JsonArray events = typeData["events"] as JsonArray ?? new JsonArray();
-        events.Add(eventName!.Trim());
-        typeData["events"] = events;
-        gameData.refreshModifiedState();
+        if (!gameData.AddGeneralEvent(typeKey, eventName!))
+            return;
         buildTabs(typeKey);
     }
 
@@ -372,15 +369,8 @@ public sealed class GeneralDataEditorWindow : Window
         if (!isValidEventName(newName) || string.Equals(currentName, newName!.Trim(), StringComparison.Ordinal))
             return;
         closeBlueprintEditors(typeKey);
-        gameData.RecordSnapshot();
-        JsonArray events = (JsonArray)typeData["events"]!;
-        for (int index = 0; index < events.Count; index++)
-        {
-            if (string.Equals(events[index]?.GetValue<string>(), currentName, StringComparison.Ordinal))
-                events[index] = newName.Trim();
-        }
-        foreachGeneralMember(typeData, member => renameGraphEvent(member, currentName, newName.Trim()));
-        gameData.refreshModifiedState();
+        if (!gameData.RenameGeneralEvent(typeKey, currentName, newName!))
+            return;
         buildTabs(typeKey);
     }
 
@@ -404,17 +394,8 @@ public sealed class GeneralDataEditorWindow : Window
         if (!confirmed)
             return;
         closeBlueprintEditors(typeKey);
-        gameData.RecordSnapshot();
-        JsonArray events = (JsonArray)typeData["events"]!;
-        for (int index = events.Count - 1; index >= 0; index--)
-        {
-            if (string.Equals(events[index]?.GetValue<string>(), eventName, StringComparison.Ordinal))
-                events.RemoveAt(index);
-        }
-        if (events.Count == 0)
-            typeData.Remove("events");
-        foreachGeneralMember(typeData, member => removeGraphEvent(member, eventName));
-        gameData.refreshModifiedState();
+        if (!gameData.DeleteGeneralEvent(typeKey, eventName))
+            return;
         buildTabs(typeKey);
     }
 
@@ -441,42 +422,6 @@ public sealed class GeneralDataEditorWindow : Window
     {
         string value = eventName?.Trim() ?? string.Empty;
         return value.Length != 0 && !char.IsDigit(value[0]);
-    }
-
-    private static void foreachGeneralMember(JsonObject typeData, Action<JsonObject> action)
-    {
-        if (typeData["members"] is not JsonObject members)
-            return;
-        foreach (JsonObject member in members.Select(entry => entry.Value).OfType<JsonObject>())
-            action(member);
-    }
-
-    private static void renameGraphEvent(JsonObject member, string oldName, string newName)
-    {
-        if (member["_graph"] is not JsonObject graph)
-            return;
-        if (graph["nodeGraph"] is JsonObject nodeGraph && nodeGraph.ContainsKey(oldName))
-            graph["nodeGraph"] = renameObjectKey(nodeGraph, oldName, newName);
-        if (graph["startNodes"] is JsonObject startNodes && startNodes.ContainsKey(oldName))
-            graph["startNodes"] = renameObjectKey(startNodes, oldName, newName);
-    }
-
-    private static void removeGraphEvent(JsonObject member, string eventName)
-    {
-        if (member["_graph"] is not JsonObject graph)
-            return;
-        if (graph["nodeGraph"] is JsonObject nodeGraph)
-            nodeGraph.Remove(eventName);
-        if (graph["startNodes"] is JsonObject startNodes)
-            startNodes.Remove(eventName);
-    }
-
-    private static JsonObject renameObjectKey(JsonObject source, string oldName, string newName)
-    {
-        JsonObject result = [];
-        foreach (KeyValuePair<string, JsonNode?> entry in source)
-            result[entry.Key == oldName ? newName : entry.Key] = entry.Value?.DeepClone();
-        return result;
     }
 }
 
