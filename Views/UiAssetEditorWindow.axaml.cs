@@ -10,6 +10,7 @@ using Avalonia.VisualTree;
 using Ludork.Controls;
 using Ludork.Models;
 using Ludork.Services;
+using Ludork.Services.UiAssets;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
@@ -17,8 +18,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
@@ -53,7 +52,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private readonly UiControlRegistryService controlRegistry = null!;
     private readonly UiAssetValidationService validationService = null!;
     private readonly ProjectSaveService projectSave = null!;
-    private UiPreviewClient previewClient = null!;
+    private UiAssetPreviewSession previewSession = null!;
     private UiPreviewSurface previewSurface = null!;
     private UiAnimationTimelineEditor timelineEditor = null!;
     private readonly DeferredWindowInitializer initializer = null!;
@@ -61,18 +60,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         new Dictionary<string, UiControlDescriptor>(StringComparer.Ordinal);
     private string? selectedNodeName;
     private Action? pendingFieldCommit;
-    private readonly CancellationTokenSource previewLifetime = new();
     private PointerPressedEventArgs? hierarchyDragPress;
     private Point? hierarchyDragStart;
     private string? hierarchyDragNodeName;
     private JsonObject? transformStartSlot;
     private bool startingHierarchyDrag;
-    private bool previewWorkerRunning;
-    private bool previewScheduled;
-    private bool previewImmediate;
-    private long previewScheduleVersion;
     private bool refreshing;
     private bool contentInitialized;
+    private bool closed;
 
     public UiAssetEditorWindow()
     {
@@ -100,16 +95,17 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         document.Changed += onDocumentChanged;
         controlRegistry.Runtime.Changed += onRegistryChanged;
         Closing += onClosing;
+        Closed += onClosed;
         projectSave.RegisterParticipant(this);
         initializer = new DeferredWindowInitializer(this, () =>
         {
             InitializeComponent();
             contentInitialized = true;
-            previewClient = new UiPreviewClient(controlRegistry.Runtime);
+            previewSession = new UiAssetPreviewSession(document, gameData, controlRegistry.Runtime);
             previewSurface = new UiPreviewSurface
             {
                 HitTestResolver = (generation, x, y) =>
-                    previewClient.HitTestAsync(generation, x, y),
+                    previewSession.HitTestAsync(generation, x, y),
             };
             PreviewContainer.Content = previewSurface;
             timelineEditor = new UiAnimationTimelineEditor(document, gameData);
@@ -117,24 +113,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             EditorInputs.ApplyEditable(PaletteSearch);
             configureHierarchyDragDrop();
             applyLocale();
-            previewClient.StateChanged += onPreviewStateChanged;
+            previewSession.StateChanged += onPreviewStateChanged;
+            previewSession.FrameReady += onPreviewFrameReady;
             previewSurface.NodeSelected += onPreviewNodeSelected;
             previewSurface.TransformStarted += onPreviewTransformStarted;
             previewSurface.TransformChanged += onPreviewTransformChanged;
             previewSurface.TransformCompleted += onPreviewTransformCompleted;
             previewSurface.TransformCancelled += onPreviewTransformCancelled;
-            previewSurface.ZoomChanged += (_, _) =>
-            {
-                updateZoomText();
-                schedulePreview();
-            };
-            timelineEditor.PreviewChanged += (_, _) =>
-            {
-                previewSurface.TransformEnabled = controlRegistry.IsReady && timelineEditor.CurrentSample is null;
-                updateAnchorGuides();
-                schedulePreview(true);
-            };
-            ScalingChanged += (_, _) => schedulePreview();
+            previewSurface.ZoomChanged += onPreviewZoomChanged;
+            timelineEditor.PreviewChanged += onTimelinePreviewChanged;
+            ScalingChanged += onScalingChanged;
             refreshAll();
         });
     }
@@ -158,6 +146,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (!document.Rekey(key))
             return false;
         updateTitle();
+        requestPreview();
         return true;
     }
 
@@ -174,17 +163,55 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             refreshAll();
     }
 
-    private async void onClosing(object? sender, WindowClosingEventArgs args)
+    private void onClosing(object? sender, WindowClosingEventArgs args)
     {
         FlushPendingChanges();
+    }
+
+    private async void onClosed(object? sender, EventArgs args)
+    {
+        closed = true;
         document.Changed -= onDocumentChanged;
         controlRegistry.Runtime.Changed -= onRegistryChanged;
         projectSave.UnregisterParticipant(this);
-        if (!initializer.IsInitialized)
+        Closing -= onClosing;
+        Closed -= onClosed;
+        if (!contentInitialized)
             return;
-        previewLifetime.Cancel();
+        ScalingChanged -= onScalingChanged;
+        timelineEditor.PreviewChanged -= onTimelinePreviewChanged;
         timelineEditor.StopPlayback();
-        await previewClient.DisposeAsync();
+        previewSurface.NodeSelected -= onPreviewNodeSelected;
+        previewSurface.TransformStarted -= onPreviewTransformStarted;
+        previewSurface.TransformChanged -= onPreviewTransformChanged;
+        previewSurface.TransformCompleted -= onPreviewTransformCompleted;
+        previewSurface.TransformCancelled -= onPreviewTransformCancelled;
+        previewSurface.ZoomChanged -= onPreviewZoomChanged;
+        previewSurface.HitTestResolver = null;
+        previewSurface.SetUnavailable(string.Empty);
+        previewSession.StateChanged -= onPreviewStateChanged;
+        previewSession.FrameReady -= onPreviewFrameReady;
+        await previewSession.DisposeAsync();
+    }
+
+    private void onPreviewZoomChanged(object? sender, EventArgs args)
+    {
+        updateZoomText();
+        requestPreview();
+    }
+
+    private void onScalingChanged(object? sender, EventArgs args)
+    {
+        requestPreview();
+    }
+
+    private void onTimelinePreviewChanged(object? sender, EventArgs args)
+    {
+        if (closed || refreshing)
+            return;
+        previewSurface.TransformEnabled = controlRegistry.IsReady && timelineEditor.CurrentSample is null;
+        updateAnchorGuides();
+        previewSession.RequestAnimationSample(previewSurface.RenderScale, timelineEditor.CurrentSample);
     }
 
     private void applyLocale()
@@ -213,11 +240,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (refreshing || !initializer.IsInitialized)
+        if (closed || refreshing || !initializer.IsInitialized)
             return;
         if (timelineEditor.IsCommitting)
         {
-            schedulePreview();
+            requestPreview();
             return;
         }
         refreshAll();
@@ -227,7 +254,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (previewLifetime.IsCancellationRequested || !contentInitialized)
+            if (closed || !contentInitialized)
                 return;
             flushPendingField();
             if (!controlRegistry.IsReady)
@@ -263,7 +290,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         {
             refreshing = false;
         }
-        schedulePreview();
+        requestPreview();
     }
 
     private void refreshPalette()
@@ -405,124 +432,24 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void addControl(UiControlDescriptor descriptor)
     {
-        JsonObject? parent = getAddParent();
-        if (parent is null)
-        {
-            setStatus(LocaleService.Get("UI_SELECT_CONTAINER"));
-            return;
-        }
-        string parentName = getString(parent, "name");
-        if (!canAcceptChild(parent, null))
-        {
-            setStatus(LocaleService.Get("UI_CONTAINER_REJECTS_CHILD"));
-            return;
-        }
-        if (wouldCreateAssetCycle(descriptor))
-        {
-            setStatus(LocaleService.Get("UI_ASSET_CYCLE"));
-            return;
-        }
-        JsonObject defaults = new();
-        foreach (UiControlPropertyDescriptor property in descriptor.Properties)
-        {
-            if (!property.EditorOnly && property.Default is not null)
-                defaults[property.Id] = property.Default.DeepClone();
-        }
-        JsonObject slot = createSlot(parent);
-        string? nodeName = document.AddNode(
-            parentName,
+        string? nodeName = document.AddControl(
+            selectedNodeName,
             descriptor.ControlId,
-            descriptor.DisplayName,
-            defaults,
-            slot);
+            out UiAssetEditingService.Failure failure);
         if (nodeName is null)
+        {
+            string messageKey = failure switch
+            {
+                UiAssetEditingService.Failure.SelectContainer => "UI_SELECT_CONTAINER",
+                UiAssetEditingService.Failure.AssetCycle => "UI_ASSET_CYCLE",
+                UiAssetEditingService.Failure.UnknownControl => "UI_PREVIEW_UNAVAILABLE",
+                _ => "UI_CONTAINER_REJECTS_CHILD",
+            };
+            setStatus(LocaleService.Get(messageKey));
             return;
+        }
         selectedNodeName = nodeName;
         refreshAll();
-    }
-
-    private JsonObject? getAddParent()
-    {
-        JsonObject? selected = selectedNodeName is null
-            ? null
-            : document.FindNode(selectedNodeName);
-        if (selected is not null && canAcceptChild(selected, null))
-            return selected;
-        if (selectedNodeName is not null)
-        {
-            JsonObject? parent = document.FindParent(selectedNodeName);
-            if (parent is not null && canAcceptChild(parent, null))
-                return parent;
-        }
-        return document.Data["root"] as JsonObject;
-    }
-
-    private bool canAcceptChild(JsonObject parent, string? movingNodeName)
-    {
-        string controlId = getString(parent, "controlId");
-        if (!controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor))
-            return false;
-        if (string.Equals(descriptor.ChildPolicy, "multiple", StringComparison.Ordinal))
-            return true;
-        if (!string.Equals(descriptor.ChildPolicy, "single", StringComparison.Ordinal))
-            return false;
-        int childCount = parent["children"] is JsonArray children
-            ? children.OfType<JsonObject>()
-                .Count(child => !string.Equals(
-                    getString(child, "name"),
-                    movingNodeName,
-                    StringComparison.Ordinal))
-            : 0;
-        return childCount == 0;
-    }
-
-    private JsonObject createSlot(JsonObject parent)
-    {
-        string controlId = getString(parent, "controlId");
-        if (controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor)
-            && string.Equals(descriptor.SlotType, "canvas", StringComparison.Ordinal))
-        {
-            return UiAssetEditorDocument.CreateDefaultCanvasSlot();
-        }
-        return new JsonObject();
-    }
-
-    private bool wouldCreateAssetCycle(UiControlDescriptor descriptor)
-    {
-        if (descriptor.AssetKey is null)
-            return false;
-        string currentAssetKey = document.AssetKey;
-        if (string.Equals(currentAssetKey, descriptor.AssetKey, StringComparison.Ordinal))
-            return true;
-        return assetReferences(
-            descriptor.AssetKey,
-            currentAssetKey,
-            new HashSet<string>(StringComparer.Ordinal));
-    }
-
-    private bool assetReferences(
-        string assetKey,
-        string targetAssetKey,
-        ISet<string> visited)
-    {
-        if (!visited.Add(assetKey))
-            return false;
-        string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-        if (!gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? asset))
-            return false;
-        foreach (JsonObject node in UiAssetSchema.EnumerateNodes(asset))
-        {
-            string controlId = getString(node, "controlId");
-            if (!UiAssetSchema.TryGetProjectAssetKey(controlId, out string nestedDataKey))
-                continue;
-            string nestedAssetKey = nestedDataKey;
-            if (string.Equals(nestedAssetKey, targetAssetKey, StringComparison.Ordinal)
-                || assetReferences(nestedAssetKey, targetAssetKey, visited))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void onHierarchySelectionChanged(
@@ -588,9 +515,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         if (selectedNodeName is null)
             return;
-        JsonObject? parent = document.FindParent(selectedNodeName);
-        if (parent is null || !canAcceptChild(parent, null))
-            return;
         string? copyName = document.DuplicateNode(selectedNodeName);
         if (copyName is not null)
         {
@@ -611,98 +535,20 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void moveWithinParent(int direction)
     {
-        if (!tryGetNodeLocation(
-                selectedNodeName,
-                out JsonObject? parent,
-                out JsonArray? siblings,
-                out int index)
-            || parent is null
-            || siblings is null)
-        {
-            return;
-        }
-        int target = index + direction;
-        if (target < 0 || target >= siblings.Count)
-            return;
-        document.MoveNode(selectedNodeName!, getString(parent, "name"), target);
+        if (selectedNodeName is not null)
+            document.MoveWithinParent(selectedNodeName, direction);
     }
 
     private void onIndent(object? sender, RoutedEventArgs args)
     {
-        if (!tryGetNodeLocation(
-                selectedNodeName,
-                out JsonObject? parent,
-                out JsonArray? siblings,
-                out int index)
-            || parent is null
-            || siblings is null
-            || index <= 0
-            || siblings[index - 1] is not JsonObject destination
-            || !canAcceptChild(destination, selectedNodeName))
-        {
-            return;
-        }
-        int childCount = destination["children"] is JsonArray children
-            ? children.Count
-            : 0;
-        document.MoveNode(
-            selectedNodeName!,
-            getString(destination, "name"),
-            childCount,
-            createSlot(destination));
+        if (selectedNodeName is not null)
+            document.IndentNode(selectedNodeName);
     }
 
     private void onOutdent(object? sender, RoutedEventArgs args)
     {
-        if (!tryGetNodeLocation(
-                selectedNodeName,
-                out JsonObject? parent,
-                out _,
-                out _)
-            || parent is null)
-        {
-            return;
-        }
-        string parentName = getString(parent, "name");
-        if (!tryGetNodeLocation(
-                parentName,
-                out JsonObject? grandParent,
-                out JsonArray? parentSiblings,
-                out int parentIndex)
-            || grandParent is null
-            || parentSiblings is null
-            || !canAcceptChild(grandParent, selectedNodeName))
-        {
-            return;
-        }
-        document.MoveNode(
-            selectedNodeName!,
-            getString(grandParent, "name"),
-            parentIndex + 1,
-            createSlot(grandParent));
-    }
-
-    private bool tryGetNodeLocation(
-        string? nodeName,
-        out JsonObject? parent,
-        out JsonArray? siblings,
-        out int index)
-    {
-        parent = nodeName is null ? null : document.FindParent(nodeName);
-        siblings = parent?["children"] as JsonArray;
-        index = -1;
-        if (siblings is null)
-            return false;
-        for (int candidateIndex = 0; candidateIndex < siblings.Count; candidateIndex++)
-        {
-            if (siblings[candidateIndex] is JsonObject child
-                && string.Equals(getString(child, "name"), nodeName, StringComparison.Ordinal))
-            {
-                index = candidateIndex;
-                return true;
-            }
-        }
-        return false;
+        if (selectedNodeName is not null)
+            document.OutdentNode(selectedNodeName);
     }
 
     private void showHierarchyContextMenu(UiHierarchyItem item)
@@ -720,9 +566,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         MenuItem duplicate = new()
         {
             Header = LocaleService.Get("DUPLICATE"),
-            IsEnabled = canModify
-                && parent is not null
-                && canAcceptChild(parent, null),
+            IsEnabled = document.CanDuplicateNode(item.NodeName),
         };
         duplicate.Click += onDuplicateNode;
         MenuItem moveUp = new()
@@ -1063,7 +907,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (!string.Equals(parentDescriptor.SlotType, "canvas", StringComparison.Ordinal))
             return;
         JsonObject slot = node["slot"] as JsonObject
-            ?? UiAssetEditorDocument.CreateDefaultCanvasSlot();
+            ?? UiAssetEditingService.CreateDefaultCanvasSlot();
         addCanvasSlotFields(getString(node, "name"), slot);
     }
 
@@ -1223,7 +1067,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         JsonObject? node = document.FindNode(nodeName);
         return node?["slot"] is JsonObject slot
             ? (JsonObject)slot.DeepClone()
-            : UiAssetEditorDocument.CreateDefaultCanvasSlot();
+            : UiAssetEditingService.CreateDefaultCanvasSlot();
     }
 
     private void addSection(string label)
@@ -1688,108 +1532,32 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             message);
     }
 
-    private async void onRefreshPreview(object? sender, RoutedEventArgs args)
+    private void onRefreshPreview(object? sender, RoutedEventArgs args)
     {
-        await refreshPreviewAsync();
+        flushPendingField();
+        requestPreview(true);
     }
 
-    private void schedulePreview(bool immediate = false)
+    private void requestPreview(bool immediate = false)
     {
-        previewScheduleVersion++;
-        previewScheduled = true;
-        previewImmediate |= immediate;
-        if (!previewWorkerRunning)
-            _ = runPreviewWorkerAsync();
+        if (!closed && contentInitialized)
+            previewSession.RequestRefresh(previewSurface.RenderScale, timelineEditor.CurrentSample, immediate);
     }
 
-    private async Task runPreviewWorkerAsync()
+    private void onPreviewFrameReady(object? sender, UiPreviewFrame frame)
     {
-        previewWorkerRunning = true;
-        try
-        {
-            while (previewScheduled && !previewLifetime.IsCancellationRequested)
-            {
-                long version = previewScheduleVersion;
-                bool immediate = previewImmediate;
-                previewScheduled = false;
-                previewImmediate = false;
-                if (!immediate)
-                {
-                    await Task.Delay(140, previewLifetime.Token);
-                    if (version != previewScheduleVersion)
-                        continue;
-                }
-                await refreshPreviewAsync(previewLifetime.Token);
-            }
-        }
-        catch (OperationCanceledException) when (previewLifetime.IsCancellationRequested)
-        {
-        }
-        finally
-        {
-            previewWorkerRunning = false;
-            if (previewScheduled && !previewLifetime.IsCancellationRequested)
-                _ = runPreviewWorkerAsync();
-        }
-    }
-
-    private async Task refreshPreviewAsync(CancellationToken cancellationToken = default)
-    {
-        if (!controlRegistry.IsReady)
-        {
-            updatePreviewState();
+        if (closed)
             return;
-        }
-        IReadOnlyDictionary<string, JsonObject> dependencies = collectDependencies();
-        UiPreviewFrame? frame = await previewClient.RenderAsync(
-            document.AssetKey,
-            document.Data,
-            dependencies,
-            previewSurface.RenderScale,
-            timelineEditor.CurrentSample,
-            cancellationToken);
-        if (frame is null || cancellationToken.IsCancellationRequested)
-        {
-            updatePreviewState();
-            return;
-        }
         previewSurface.SetFrame(frame);
         previewSurface.SetSelectedNode(selectedNodeName);
         updateAnchorGuides();
         updatePreviewState();
     }
 
-    private IReadOnlyDictionary<string, JsonObject> collectDependencies()
-    {
-        Dictionary<string, JsonObject> result = new(StringComparer.Ordinal);
-        HashSet<string> visited = new(StringComparer.Ordinal);
-        collectDependencies(document.Data, result, visited);
-        return result;
-    }
-
-    private void collectDependencies(
-        JsonObject asset,
-        IDictionary<string, JsonObject> result,
-        ISet<string> visited)
-    {
-        foreach (JsonObject node in UiAssetSchema.EnumerateNodes(asset))
-        {
-            string controlId = getString(node, "controlId");
-            if (!UiAssetSchema.TryGetProjectAssetKey(controlId, out string assetKey))
-                continue;
-            if (!visited.Add(assetKey))
-                continue;
-            string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-            if (!gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? dependency))
-                continue;
-            result[assetKey] = dependency;
-            collectDependencies(dependency, result, visited);
-        }
-    }
-
     private void onPreviewStateChanged(object? sender, EventArgs args)
     {
-        Dispatcher.UIThread.Post(updatePreviewState);
+        if (!closed)
+            updatePreviewState();
     }
 
     private void updatePreviewState()
@@ -1800,7 +1568,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             previewSurface.SetUnavailable(controlRegistry.Runtime.StatusMessage);
             return;
         }
-        PreviewStateText.Text = previewClient.State switch
+        PreviewStateText.Text = previewSession.State switch
         {
             UiPreviewClientState.Ready => LocaleService.Get("UI_PREVIEW_READY"),
             UiPreviewClientState.Rendering => LocaleService.Get("UI_PREVIEW_RENDERING"),
@@ -1808,12 +1576,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             UiPreviewClientState.Faulted => LocaleService.Get("UI_PREVIEW_FAILED"),
             _ => LocaleService.Get("UI_PREVIEW_UNAVAILABLE"),
         };
-        if (previewClient.State is UiPreviewClientState.Unavailable
+        if (previewSession.State is UiPreviewClientState.Unavailable
             or UiPreviewClientState.Faulted)
         {
-            string message = previewClient.StatusMessage.Length == 0
+            string message = previewSession.StatusMessage.Length == 0
                 ? LocaleService.Get("UI_PREVIEW_COMPILE_REQUIRED")
-                : previewClient.StatusMessage;
+                : previewSession.StatusMessage;
             previewSurface.SetUnavailable(message);
         }
     }
@@ -2069,17 +1837,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        JsonObject? destination = document.FindNode(parentName);
-        JsonObject? sourceParent = document.FindParent(nodeName);
-        JsonObject? slot = destination is not null
-            && sourceParent is not null
-            && !string.Equals(
-                getString(destination, "name"),
-                getString(sourceParent, "name"),
-                StringComparison.Ordinal)
-                ? createSlot(destination)
-                : null;
-        if (document.MoveNode(nodeName, parentName, index, slot))
+        if (document.MoveNode(nodeName, parentName, index))
             selectedNodeName = nodeName;
         args.Handled = true;
     }
@@ -2099,88 +1857,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         out string parentName,
         out int index)
     {
-        parentName = string.Empty;
-        index = 0;
-        JsonObject? node = document.FindNode(nodeName);
-        JsonObject? targetNode = document.FindNode(target.NodeName);
-        if (node is null
-            || targetNode is null
-            || string.Equals(nodeName, target.NodeName, StringComparison.Ordinal)
-            || isDescendant(node, target.NodeName))
-        {
-            return false;
-        }
         TreeViewItem? container = getHierarchyContainer(args.Source);
         double relativeY = container is null
             ? 0.5
             : args.GetPosition(container).Y / Math.Max(1, container.Bounds.Height);
-        if (relativeY >= 0.25
-            && relativeY <= 0.75
-            && canAcceptChild(targetNode, nodeName))
-        {
-            parentName = target.NodeName;
-            index = targetNode["children"] is JsonArray targetChildren
-                ? targetChildren.Count
-                : 0;
-            return normalizeHierarchyDropIndex(
-                nodeName,
-                parentName,
-                ref index);
-        }
-        if (!tryGetNodeLocation(
-                target.NodeName,
-                out JsonObject? targetParent,
-                out _,
-                out int targetIndex)
-            || targetParent is null
-            || !canAcceptChild(targetParent, nodeName))
-        {
-            return false;
-        }
-        parentName = getString(targetParent, "name");
-        index = targetIndex + (relativeY > 0.75 ? 1 : 0);
-        return normalizeHierarchyDropIndex(
-            nodeName,
-            parentName,
-            ref index);
-    }
-
-    private bool normalizeHierarchyDropIndex(
-        string nodeName,
-        string parentName,
-        ref int index)
-    {
-        if (!tryGetNodeLocation(
-                nodeName,
-                out JsonObject? sourceParent,
-                out _,
-                out int sourceIndex)
-            || sourceParent is null
-            || !string.Equals(
-                getString(sourceParent, "name"),
-                parentName,
-                StringComparison.Ordinal))
-        {
-            return true;
-        }
-        if (sourceIndex < index)
-            index--;
-        return sourceIndex != index;
-    }
-
-    private static bool isDescendant(JsonObject node, string nodeName)
-    {
-        if (node["children"] is not JsonArray children)
-            return false;
-        foreach (JsonObject child in children.OfType<JsonObject>())
-        {
-            if (string.Equals(getString(child, "name"), nodeName, StringComparison.Ordinal)
-                || isDescendant(child, nodeName))
-            {
-                return true;
-            }
-        }
-        return false;
+        UiAssetEditingService.DropPosition position = relativeY < 0.25
+            ? UiAssetEditingService.DropPosition.Before
+            : relativeY > 0.75
+                ? UiAssetEditingService.DropPosition.After
+                : UiAssetEditingService.DropPosition.Inside;
+        return document.TryGetDropLocation(nodeName, target.NodeName, position, out parentName, out index);
     }
 
     private static UiHierarchyItem? getHierarchyItem(object? source)

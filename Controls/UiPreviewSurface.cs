@@ -175,6 +175,9 @@ public sealed class UiPreviewSurface : UserControl
 
     public void SetUnavailable(string message)
     {
+        image.Source = null;
+        bitmap?.Dispose();
+        bitmap = null;
         nodes.Clear();
         frameGeneration = 0;
         statusText.Text = message;

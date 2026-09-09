@@ -41,6 +41,7 @@ public partial class StartWindow : Window
                 null,
                 (PluginMenuLocation.Plugins, pluginsMenu));
         }
+        AddHandler(DragDrop.DragEnterEvent, onDragOver);
         AddHandler(DragDrop.DragOverEvent, onDragOver);
         AddHandler(DragDrop.DropEvent, onDrop);
     }

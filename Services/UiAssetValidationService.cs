@@ -1,4 +1,5 @@
 using Ludork.Models;
+using Ludork.Services.UiAssets;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -64,16 +65,25 @@ public sealed class UiAssetValidationService
             add(issues, "assetKey", string.Empty, "UI asset key must be under Assets");
             return new UiAssetValidationResult(assetKey, issues);
         }
-        if (data is null && !gameData.UiAssetsData.TryGetValue(dataKey, out data))
+        IReadOnlyDictionary<string, JsonObject> assets = gameData.UiAssetsData;
+        if (data is null && !assets.TryGetValue(dataKey, out data))
         {
             add(issues, "missingAsset", string.Empty, $"UI asset \"{normalizedKey}\" was not found");
             return new UiAssetValidationResult(normalizedKey, issues);
         }
         IReadOnlyDictionary<string, UiControlDescriptor> controls =
-            controlRegistry.CreateControlLookup();
+            createNativeControlLookup();
         if (!controlRegistry.IsReady)
             add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
-        validateAssetStructure(normalizedKey, data, controls, issues, !controlRegistry.IsReady);
+        UiAssetDependencyGraph dependencies = new UiAssetDependencyGraph(assets, normalizedKey, data);
+        validateAssetStructure(normalizedKey, data, controls, issues, !controlRegistry.IsReady, dependencies);
+        foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles(normalizedKey))
+        {
+            string path = string.Equals(cycle.AssetKey, normalizedKey, StringComparison.Ordinal)
+                ? cycle.Path
+                : cycle.AssetKey + ":" + cycle.Path;
+            add(issues, "assetCycle", path, cycle.Message);
+        }
         return new UiAssetValidationResult(normalizedKey, issues);
     }
 
@@ -82,8 +92,10 @@ public sealed class UiAssetValidationService
         Dictionary<string, List<UiValidationIssue>> issuesByKey =
             new Dictionary<string, List<UiValidationIssue>>(StringComparer.Ordinal);
         IReadOnlyDictionary<string, UiControlDescriptor> controls =
-            controlRegistry.CreateControlLookup();
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.UiAssetsData
+            createNativeControlLookup();
+        IReadOnlyDictionary<string, JsonObject> assets = gameData.UiAssetsData;
+        UiAssetDependencyGraph dependencies = new UiAssetDependencyGraph(assets);
+        foreach (KeyValuePair<string, JsonObject> pair in assets
                      .OrderBy(item => item.Key, StringComparer.Ordinal))
         {
             List<UiValidationIssue> issues = [];
@@ -98,10 +110,11 @@ public sealed class UiAssetValidationService
             }
             if (!structuralOnly && !controlRegistry.IsReady)
                 add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
-            validateAssetStructure(logicalKey, pair.Value, controls, issues, structuralOnly || !controlRegistry.IsReady);
+            validateAssetStructure(logicalKey, pair.Value, controls, issues, structuralOnly || !controlRegistry.IsReady, dependencies);
             issuesByKey[logicalKey.Length == 0 ? pair.Key : logicalKey] = issues;
         }
-        validateProjectCycles(issuesByKey);
+        foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles())
+            add(issuesByKey[cycle.AssetKey], "assetCycle", cycle.Path, cycle.Message);
         foreach (string invalidPath in gameData.InvalidLoadPaths
                      .Where(isUiPath)
                      .OrderBy(path => path, StringComparer.Ordinal))
@@ -121,12 +134,20 @@ public sealed class UiAssetValidationService
             .ToArray();
     }
 
+    private IReadOnlyDictionary<string, UiControlDescriptor> createNativeControlLookup()
+    {
+        return controlRegistry.SystemDescriptors
+            .GroupBy(descriptor => descriptor.ControlId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+    }
+
     private void validateAssetStructure(
         string assetKey,
         JsonObject data,
         IReadOnlyDictionary<string, UiControlDescriptor> controls,
         ICollection<UiValidationIssue> issues,
-        bool structuralOnly)
+        bool structuralOnly,
+        UiAssetDependencyGraph dependencies)
     {
         rejectUnknownFields(data, AssetFields, string.Empty, issues);
         if (getString(data["type"]) != UiAssetSchema.UiAssetType)
@@ -139,7 +160,7 @@ public sealed class UiAssetValidationService
             return;
         }
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
-        validateNode(assetKey, root, "root", true, null, controls, names, issues, structuralOnly);
+        validateNode(assetKey, root, "root", true, null, controls, names, issues, structuralOnly, dependencies);
         validateAnimations(data["animations"], names, issues);
     }
 
@@ -152,7 +173,8 @@ public sealed class UiAssetValidationService
         IReadOnlyDictionary<string, UiControlDescriptor> controls,
         ISet<string> names,
         ICollection<UiValidationIssue> issues,
-        bool structuralOnly)
+        bool structuralOnly,
+        UiAssetDependencyGraph dependencies)
     {
         rejectUnknownFields(node, NodeFields, path, issues);
         string? name = getString(node["name"]);
@@ -212,6 +234,7 @@ public sealed class UiAssetValidationService
             add(issues, "controlId", path + ".controlId", "Node controlId must be a canonical native class path");
             return;
         }
+        UiControlDescriptor? descriptor = null;
         if (controlId.StartsWith(UiAssetSchema.ProjectControlPrefix, StringComparison.Ordinal))
         {
             if (!UiAssetSchema.TryGetProjectAssetKey(controlId, out string targetKey))
@@ -219,8 +242,7 @@ public sealed class UiAssetValidationService
                 add(issues, "assetKey", path + ".controlId", $"Invalid nested UI asset key \"{controlId}\"");
                 return;
             }
-            string targetDataKey = UiAssetSchema.ToAssetDataKey(targetKey);
-            if (!gameData.UiAssetsData.TryGetValue(targetDataKey, out JsonObject? targetAsset))
+            if (!dependencies.TryGetAsset(targetKey, out JsonObject? targetAsset) || targetAsset is null)
             {
                 add(issues, "missingAsset", path + ".controlId", $"Missing nested UI asset: {assetKey} -> {targetKey}");
                 return;
@@ -233,8 +255,20 @@ public sealed class UiAssetValidationService
                 add(issues, "assetNotExposed", path + ".controlId", $"Nested UI asset is not exposed: {assetKey} -> {targetKey}");
                 return;
             }
+            descriptor = new UiControlDescriptor(
+                controlId,
+                "project",
+                targetKey,
+                "Project",
+                null,
+                "none",
+                null,
+                []);
         }
-        controls.TryGetValue(controlId, out UiControlDescriptor? descriptor);
+        else
+        {
+            controls.TryGetValue(controlId, out descriptor);
+        }
         if (structuralOnly && descriptor?.Source != "project")
         {
             descriptor = null;
@@ -290,7 +324,8 @@ public sealed class UiAssetValidationService
                 controls,
                 names,
                 issues,
-                structuralOnly);
+                structuralOnly,
+                dependencies);
         }
     }
 
@@ -630,86 +665,6 @@ public sealed class UiAssetValidationService
             && getString(textConfig["type"]) != expectedType)
         {
             add(issues, "textConfigType", path, $"Text config must have type {expectedType}");
-        }
-    }
-
-    private void validateProjectCycles(
-        IDictionary<string, List<UiValidationIssue>> issuesByKey)
-    {
-        Dictionary<string, List<(string Target, string Path)>> edges =
-            new Dictionary<string, List<(string Target, string Path)>>(StringComparer.Ordinal);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.UiAssetsData)
-        {
-            string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
-            if (logicalKey.Length != 0)
-                edges[logicalKey] = collectNestedReferences(pair.Value);
-        }
-        Dictionary<string, int> states = new Dictionary<string, int>(StringComparer.Ordinal);
-        List<string> stack = [];
-        foreach (string assetKey in edges.Keys.OrderBy(value => value, StringComparer.Ordinal))
-            visitCycle(assetKey, edges, states, stack, issuesByKey);
-    }
-
-    private static void visitCycle(
-        string assetKey,
-        IReadOnlyDictionary<string, List<(string Target, string Path)>> edges,
-        IDictionary<string, int> states,
-        IList<string> stack,
-        IDictionary<string, List<UiValidationIssue>> issuesByKey)
-    {
-        if (states.TryGetValue(assetKey, out int state) && state == 2)
-            return;
-        if (state == 1)
-            return;
-        states[assetKey] = 1;
-        stack.Add(assetKey);
-        foreach ((string target, string path) in edges[assetKey])
-        {
-            if (!edges.ContainsKey(target))
-                continue;
-            if (states.TryGetValue(target, out int targetState) && targetState == 1)
-            {
-                int start = stack.IndexOf(target);
-                string cycle = string.Join(
-                    " -> ",
-                    stack.Skip(start)
-                        .Append(target));
-                add(
-                    issuesByKey[assetKey],
-                    "assetCycle",
-                    path,
-                    $"Nested UI asset cycle: {cycle}");
-                continue;
-            }
-            visitCycle(target, edges, states, stack, issuesByKey);
-        }
-        stack.RemoveAt(stack.Count - 1);
-        states[assetKey] = 2;
-    }
-
-    private static List<(string Target, string Path)> collectNestedReferences(JsonObject asset)
-    {
-        List<(string Target, string Path)> references = [];
-        if (asset["root"] is JsonObject root)
-            collectNestedReferences(root, "root", references);
-        return references;
-    }
-
-    private static void collectNestedReferences(
-        JsonObject node,
-        string path,
-        ICollection<(string Target, string Path)> references)
-    {
-        string? controlId = getString(node["controlId"]);
-        if (controlId is not null
-            && UiAssetSchema.TryGetProjectAssetKey(controlId, out string assetKey))
-            references.Add((assetKey, path + ".controlId"));
-        if (node["children"] is not JsonArray children)
-            return;
-        for (int index = 0; index < children.Count; index++)
-        {
-            if (children[index] is JsonObject child)
-                collectNestedReferences(child, $"{path}.children[{index}]", references);
         }
     }
 

@@ -10,6 +10,7 @@ using Ludork.Controls;
 using Ludork.Models;
 using Ludork.Plugin.Abstractions;
 using Ludork.Services;
+using Ludork.Services.UiAssets;
 using Ludork.Services.BlueprintAssistant;
 using Ludork.Services.Plugins;
 using Ludork.ViewModels;
@@ -567,6 +568,7 @@ public partial class MainWindow
     {
         UiAssetEditorDocument? document = UiAssetEditorDocument.Create(
             mainViewModel.GameData,
+            mainViewModel.UiControlRegistry,
             key);
         if (document is null)
             return;

@@ -18,6 +18,7 @@
         WindowDecorations="None"
         WindowStartupLocation="CenterScreen"
         Background="#111315"
+        DragDrop.AllowDrop="True"
         FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
         Icon="/Assets/icon.ico"
         Title="Ludork">
