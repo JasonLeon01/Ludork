@@ -35,12 +35,13 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             GameData,
             GameConfig,
             GameVariables,
-            BlueprintValidation);
+            BlueprintValidation,
+            ProjectConfig);
         ReferenceIndex = new ReferenceIndexService(GameData, Metadata, BlueprintClasses);
         UiControlRegistry = ProjectSave.UiControlRegistry;
         UiAssetValidation = ProjectSave.UiAssetValidation;
         BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
-        PreviewService = new BlueprintPreviewService(projectPath, GameData, BlueprintClasses);
+        PreviewService = new BlueprintPreviewService(projectPath, GameData, BlueprintClasses, UiControlRegistry.Runtime);
         IconService = new FileIconService();
         ActorQueue = new ActorQueueViewModel(
             GameData,
@@ -385,6 +386,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         ActorQueue.Dispose();
         FileExplorerPanel.Dispose();
         PreviewService.Dispose();
+        UiControlRegistry.Dispose();
         ReferenceIndex.Dispose();
         BlueprintClasses.Dispose();
         GameData.MapPreviewChanged -= onMapPreviewChanged;

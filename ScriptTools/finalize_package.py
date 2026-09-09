@@ -17,6 +17,8 @@ from .ldpak import (
     validate_runtime_ldpak_layout,
 )
 from .ui_assets import validate_assets
+from .ui_control_registry import UiControlRegistry, load_registry
+from .ui_preview import PREVIEW_DIRECTORY, ensure_preview, is_preview_development_file
 
 
 SHADER_MAGIC = b"LDSC"
@@ -37,10 +39,6 @@ SHADER_EXTENSIONS = {
     ".vert": ".vertc",
     ".geom": ".geomc",
 }
-UI_PREVIEW_HOST_PREFIXES = (
-    "uipreviewhost",
-    "uipreviewcurveresolver",
-)
 
 
 class ShaderCodecError(RuntimeError):
@@ -95,15 +93,18 @@ def _encode_bytes(
     nonce = _content_nonce(relative_path, source)
     compressed = zlib.compress(source, level=9)
     payload = _apply_stream(compressed, nonce)
-    return HEADER.pack(
-        magic,
-        VERSION,
-        FLAG_ZLIB,
-        0,
-        len(source),
-        zlib.crc32(source) & 0xFFFFFFFF,
-        nonce,
-    ) + payload
+    return (
+        HEADER.pack(
+            magic,
+            VERSION,
+            FLAG_ZLIB,
+            0,
+            len(source),
+            zlib.crc32(source) & 0xFFFFFFFF,
+            nonce,
+        )
+        + payload
+    )
 
 
 def encode_shader_bytes(relative_path: pathlib.PurePath, source: bytes) -> bytes:
@@ -120,8 +121,8 @@ def encode_shader_bytes(relative_path: pathlib.PurePath, source: bytes) -> bytes
 def decode_shader_bytes(encoded: bytes) -> bytes:
     if len(encoded) < HEADER.size:
         raise ShaderCodecError("Encrypted shader header is truncated")
-    magic, version, flags, reserved, source_size, checksum, nonce = (
-        HEADER.unpack_from(encoded)
+    magic, version, flags, reserved, source_size, checksum, nonce = HEADER.unpack_from(
+        encoded
     )
     if magic != SHADER_MAGIC:
         raise ShaderCodecError("Encrypted shader magic is invalid")
@@ -140,9 +141,7 @@ def decode_shader_bytes(encoded: bytes) -> bytes:
             or decompressor.unconsumed_tail
             or decompressor.unused_data
         ):
-            raise ShaderCodecError(
-                "Encrypted shader payload could not be decompressed"
-            )
+            raise ShaderCodecError("Encrypted shader payload could not be decompressed")
         source += decompressor.flush()
     except zlib.error as exception:
         raise ShaderCodecError(
@@ -233,16 +232,12 @@ def encrypt_data(data_root: pathlib.Path) -> int:
     if not data_root.is_dir():
         return 0
     jobs: list[tuple[pathlib.Path, pathlib.Path, bytes]] = []
-    for source_path in sorted(
-        path for path in data_root.rglob("*") if path.is_file()
-    ):
+    for source_path in sorted(path for path in data_root.rglob("*") if path.is_file()):
         if source_path.suffix.lower() != ".json":
             continue
         target_path = source_path.with_suffix(".ldc")
         if target_path.exists():
-            raise DataCodecError(
-                f"Encrypted data target already exists: {target_path}"
-            )
+            raise DataCodecError(f"Encrypted data target already exists: {target_path}")
         relative_path = source_path.relative_to(data_root)
         compact = _compact_json(source_path, source_path.read_bytes())
         jobs.append(
@@ -358,23 +353,21 @@ def prune_package(
     excluded_files: tuple[pathlib.PurePosixPath, ...] = (),
 ) -> int:
     removed = 0
-    for relative_path in (pathlib.Path("Scripts") / "stub",):
+    for relative_path in (
+        pathlib.Path("Temp"),
+        pathlib.Path("Cache"),
+        pathlib.Path("Scripts") / "stub",
+    ):
         target = resource_root / relative_path
         if _remove_path(target):
             removed += 1
-
-    preview_host_entries = sorted(
-        (
-            path
-            for path in resource_root.rglob("*")
-            if path.name.casefold().startswith(UI_PREVIEW_HOST_PREFIXES)
-        ),
-        key=lambda path: len(path.parts),
-        reverse=True,
-    )
-    for path in preview_host_entries:
-        if _remove_path(path):
-            removed += 1
+    binaries = resource_root / PREVIEW_DIRECTORY
+    if binaries.is_symlink():
+        raise RuntimeError(f"Package Binaries must not be a link: {binaries}")
+    if binaries.is_dir():
+        for path in binaries.iterdir():
+            if is_preview_development_file(path.name) and _remove_path(path):
+                removed += 1
 
     vscode_directories = sorted(
         (
@@ -420,8 +413,7 @@ def reject_declaration_files(resource_root: pathlib.Path) -> None:
     declaration_files = sorted(resource_root.rglob("*.d.lua"))
     if declaration_files:
         relative_paths = ", ".join(
-            path.relative_to(resource_root).as_posix()
-            for path in declaration_files
+            path.relative_to(resource_root).as_posix() for path in declaration_files
         )
         raise RuntimeError(
             f"Lua declaration files remain in the game package: {relative_paths}"
@@ -436,8 +428,9 @@ def _finalize_package_in_place(
     excluded_files: tuple[pathlib.PurePosixPath, ...],
     compile_lua_enabled: bool = False,
     use_ldpak: bool = False,
+    registry: UiControlRegistry | None = None,
 ) -> tuple[int, int, int, int, int]:
-    validate_assets(root)
+    validate_assets(root, registry)
     if use_ldpak:
         validate_ldpak_source(root)
     removed = prune_package(root, excluded_files)
@@ -448,15 +441,23 @@ def _finalize_package_in_place(
     scripts_compiled = scripts_directory in lua_directories
     compiled_lua = compile_package_lua(root, tuple(lua_directories))
     encrypted_shaders = (
-        encrypt_shaders(root / "Assets" / "Shaders")
-        if encrypt_shaders_enabled
-        else 0
+        encrypt_shaders(root / "Assets" / "Shaders") if encrypt_shaders_enabled else 0
     )
     removed += strip_ui_editor_data(root / "Data")
-    encrypted_data = (
-        encrypt_data(root / "Data") if encrypt_data_enabled else 0
-    )
+    encrypted_data = encrypt_data(root / "Data") if encrypt_data_enabled else 0
     reject_declaration_files(root)
+    for directory in ("Temp", "Cache"):
+        if os.path.lexists(root / directory):
+            raise RuntimeError(
+                f"The project root {directory} directory remains in the game package"
+            )
+    binaries = root / PREVIEW_DIRECTORY
+    if binaries.is_dir() and any(
+        is_preview_development_file(path.name) for path in binaries.iterdir()
+    ):
+        raise RuntimeError(
+            "UI preview development files remain in the game package Binaries"
+        )
     packed_groups = pack_ldpak(root) if use_ldpak else 0
     expected_entry = "Entry.luac" if scripts_compiled else "Entry.lua"
     validate_runtime_ldpak_layout(root, use_ldpak, expected_entry)
@@ -471,10 +472,15 @@ def finalize_package(
     excluded_files: tuple[pathlib.PurePosixPath, ...] | None = None,
     compile_lua_enabled: bool = False,
     use_ldpak: bool = False,
+    registry: UiControlRegistry | pathlib.Path | None = None,
 ) -> tuple[int, int, int, int, int]:
     root = resource_root.expanduser().resolve()
     if not root.is_dir():
         raise RuntimeError(f"Package resource root was not found: {root}")
+    if registry is None:
+        registry = ensure_preview(root).registry
+    elif isinstance(registry, pathlib.Path):
+        registry = load_registry(registry)
     if compile_lua_directories is None:
         compile_lua_directories = _environment_relative_paths(
             COMPILE_LUA_DIRECTORIES_ENVIRONMENT
@@ -501,6 +507,7 @@ def finalize_package(
             excluded_files,
             compile_lua_enabled,
             use_ldpak,
+            registry,
         )
         root.replace(original_backup)
         try:
@@ -527,6 +534,7 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
     parser.add_argument("--use-ldpak", action="store_true")
+    parser.add_argument("--registry", type=pathlib.Path)
     parser.add_argument("resource_root", type=pathlib.Path)
     parsed = parser.parse_args(arguments)
     (
@@ -541,6 +549,7 @@ def main(arguments: list[str] | None = None) -> int:
         parsed.encrypt_data,
         compile_lua_enabled=parsed.compile_lua,
         use_ldpak=parsed.use_ldpak,
+        registry=parsed.registry,
     )
     print(f"Removed {removed} development-only package entries")
     if compiled_lua:
@@ -550,7 +559,5 @@ def main(arguments: list[str] | None = None) -> int:
     if parsed.encrypt_data:
         print(f"Encrypted {encrypted_data} JSON data files")
     if parsed.use_ldpak:
-        print(
-            f"Packed {packed_groups} Assets/Data directories and Scripts into .ldpak archives"
-        )
+        print("Packed Assets.ldpak, Data.ldpak and Scripts.ldpak")
     return 0

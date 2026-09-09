@@ -10,9 +10,11 @@ public static class EditorSaveWorkflow
     public static async Task<bool> TrySaveAsync(
         Window owner,
         ProjectSaveService saveService,
-        bool showSuccess = true)
+        bool showSuccess = true,
+        bool beforeNativeBuild = false)
     {
-        ProjectSaveAttempt attempt = saveService.TrySave();
+        await saveService.UiControlRegistry.Runtime.RefreshAsync();
+        ProjectSaveAttempt attempt = saveService.TrySave(beforeNativeBuild: beforeNativeBuild);
         if (attempt.UiValidationResults.Any(result => !result.IsValid))
         {
             await EditorFeedback.ShowSaveResultAsync(owner, attempt.Result);
@@ -25,7 +27,7 @@ public static class EditorSaveWorkflow
                 attempt.ValidationResults);
             if (!continueSave)
                 return false;
-            attempt = saveService.TrySave(true);
+            attempt = saveService.TrySave(true, beforeNativeBuild);
         }
         if (showSuccess || !attempt.Success)
             await EditorFeedback.ShowSaveResultAsync(owner, attempt.Result);

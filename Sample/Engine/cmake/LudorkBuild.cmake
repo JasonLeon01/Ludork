@@ -201,32 +201,6 @@ function(ludork_configure_visual_studio_play target)
             "LUDORK_EDITOR=1\nLUDORK_WINDOW_MODE=individual")
 endfunction()
 
-function(ludork_add_ui_validation_target target project_root)
-    set(options VALIDATE_ASSETS)
-    cmake_parse_arguments(UI_VALIDATION
-        "${options}"
-        ""
-        ""
-        ${ARGN})
-
-    set(validation_commands
-        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
-            ui-adapter-check
-            "${project_root}")
-    if(UI_VALIDATION_VALIDATE_ASSETS)
-        list(APPEND validation_commands
-            COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
-                ui-assets
-                validate
-                "${project_root}")
-    endif()
-
-    add_custom_target(${target}
-        ${validation_commands}
-        WORKING_DIRECTORY "${project_root}"
-        VERBATIM)
-endfunction()
-
 function(ludork_add_impl_boundary_validation_target target project_root)
     add_custom_target(${target}
         COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"

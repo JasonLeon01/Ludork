@@ -69,35 +69,16 @@ fi
 
 PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
 TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
-UI_PREVIEW_ENTRY_NAMES="UiPreviewHost UiPreviewCurveResolver"
 
 cleanup_temporary() {
     rm -rf "$TEMPORARY_DIR"
-}
-
-remove_ui_preview_host_entries() {
-    package_dir=$1
-    for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
-        find "$package_dir" -depth -name "$entry_name*" -exec rm -rf {} +
-    done
-}
-
-validate_no_ui_preview_host() {
-    package_dir=$1
-    for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
-        forbidden_path=$(find "$package_dir" -name "$entry_name*" -print -quit)
-        if [ -n "$forbidden_path" ]; then
-            echo "UI preview host entry was found in a game package: $forbidden_path" >&2
-            exit 1
-        fi
-    done
 }
 
 trap cleanup_temporary EXIT HUP INT TERM
 
 if [ "$PROJECT_MODE" = "standalone" ]; then
     if [ "$ENCRYPT_SAVES" -eq 1 ]; then
-        echo "--encrypt-saves requires a C++ Source project because the setting is compiled into the runtime." >&2
+        echo "The --encrypt-saves packaging option requires a C++ Source project. Standalone projects can set SAVE_AS_LDC = true globally before all require calls in Scripts/Entry.lua." >&2
         exit 1
     fi
     RUNTIME_DIR="$PROJECT_DIR"
@@ -118,7 +99,6 @@ if [ "$USE_LDPAK" -eq 1 ]; then
 fi
 "$SCRIPT_TOOLS" macos-bundle \
     "$PROJECT_DIR" "$RUNTIME_DIR" "$DIST_DIR/Main.app"
-remove_ui_preview_host_entries "$DIST_DIR/Main.app"
 set --
 if [ "$USE_LUAC" -eq 1 ]; then
     set -- "$@" --compile-lua
@@ -132,8 +112,8 @@ fi
 if [ "$USE_LDPAK" -eq 1 ]; then
     set -- "$@" --use-ldpak
 fi
-"$SCRIPT_TOOLS" finalize-package "$@" \
+UI_REGISTRY=$("$SCRIPT_TOOLS" ui-preview registry "$PROJECT_DIR")
+"$SCRIPT_TOOLS" finalize-package "$@" --registry "$UI_REGISTRY" \
     "$DIST_DIR/Main.app/Contents/Resources"
-validate_no_ui_preview_host "$DIST_DIR/Main.app"
 plutil -lint "$DIST_DIR/Main.app/Contents/Info.plist"
 echo "Pack complete: $DIST_DIR/Main.app"

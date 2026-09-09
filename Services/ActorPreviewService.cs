@@ -81,10 +81,10 @@ public sealed partial class ActorPreviewService : IDisposable
     private Task? renderTask;
     private DateTime nextConnectionAttempt = DateTime.MinValue;
 
-    public ActorPreviewService(string projectPath)
+    public ActorPreviewService(UiPreviewRuntimeService runtime)
     {
-        this.projectPath = Path.GetFullPath(projectPath);
-        connection = new PreviewHostConnection(this.projectPath);
+        projectPath = runtime.ProjectPath;
+        connection = new PreviewHostConnection(runtime);
         connection.StateChanged += onConnectionStateChanged;
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 30.0) };
         timer.Tick += onTimerTick;
@@ -277,7 +277,7 @@ public sealed partial class ActorPreviewService : IDisposable
                     staticNative,
                     TimeSpan.Zero,
                     cancellationToken);
-                if (!disposed && !cancellationToken.IsCancellationRequested && staticFrame is not null)
+                if (!disposed && !cancellationToken.IsCancellationRequested && IsAvailable && staticFrame is not null)
                     publishFrame(staticFrame, staticNative, TimeSpan.Zero);
             }
             if (realtimeNative.Count != 0)
@@ -286,7 +286,7 @@ public sealed partial class ActorPreviewService : IDisposable
                     realtimeNative,
                     elapsed,
                     cancellationToken);
-                if (!disposed && !cancellationToken.IsCancellationRequested && realtimeFrame is not null)
+                if (!disposed && !cancellationToken.IsCancellationRequested && IsAvailable && realtimeFrame is not null)
                     publishFrame(realtimeFrame, realtimeNative, elapsed);
             }
         }
@@ -402,10 +402,12 @@ public sealed partial class ActorPreviewService : IDisposable
         }
         if (!IsAvailable)
         {
+            nextConnectionAttempt = DateTime.MinValue;
             TimeSpan elapsed = clock.Elapsed;
             foreach (ActorPreviewLease lease in leases.Where(lease => lease.IsActive && !lease.IsDisposed
                 && lease.Descriptor.RequiresNativePreview))
             {
+                lease.markNativeRenderDirty();
                 publishUnavailableFallback(lease, elapsed);
             }
         }

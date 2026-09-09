@@ -15,15 +15,17 @@ import tempfile
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
+from ScriptTools.ui_preview import prepare_registry
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.finalize_package import finalize_package
 from ScriptTools.ldpak import (
     LdPakError,
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
+    validate_runtime_resource_paths,
 )
 
 
@@ -163,6 +165,13 @@ class PackContext:
     encrypt_data: bool
     encrypt_saves: bool
     use_ldpak: bool
+    ui_registry: pathlib.Path | None = None
+
+    @property
+    def registry(self) -> pathlib.Path:
+        if self.ui_registry is None:
+            raise PackError("Build the project UI preview before preparing package resources.", EXIT_PROJECT)
+        return self.ui_registry
 
     @property
     def environment(self) -> dict[str, str]:
@@ -771,6 +780,7 @@ def copy_runtime_resources(context: PackContext) -> None:
         context.encrypt_data,
         compile_lua_enabled=context.use_luac,
         use_ldpak=context.use_ldpak,
+        registry=context.registry,
     )
 
 
@@ -808,10 +818,7 @@ def create_runtime_manifest(
                 "sha256": sha256,
             }
         )
-    required_prefixes = ("Assets/", "Data/")
-    for prefix in required_prefixes:
-        if not any(str(entry["path"]).startswith(prefix) for entry in entries):
-            raise PackError(f"Android runtime contains no files under {prefix.rstrip('/')}.", EXIT_PROJECT)
+    validate_runtime_resource_paths(str(entry["path"]) for entry in entries)
     digest = runtime_manifest_digest(entries)
     return RuntimeManifest(digest, tuple(entries))
 
@@ -1009,6 +1016,8 @@ def native_configure_command(
         f"-DLUDORK_RUNTIME_OUTPUT_DIRECTORY={context.native_output_dir}",
         f"-DLUDORK_ANDROID_RUNTIME_HASH={runtime_hash}",
         f"-DLUDORK_SCRIPT_TOOLS_EXECUTABLE={context.script_tools}",
+        "-DLUDORK_BUILD_UI_PREVIEW_HOST=OFF",
+        f"-DLUDORK_UI_REGISTRY_PATH={context.registry}",
         f"-DLUDORK_SAVE_AS_LDC={'ON' if context.encrypt_saves else 'OFF'}",
     ]
     command.extend(cached_dependency_arguments(context.project_dir))
@@ -1231,40 +1240,12 @@ def validate_apk_archive(
                 if unbundled:
                     detail.append("Missing APK assets:\n" + "\n".join(unbundled))
                 raise PackError("\n".join(detail))
-            for prefix in ("Assets/", "Data/"):
-                if not any(name.startswith(prefix) for name in runtime_names):
-                    raise PackError(f"The APK runtime manifest contains no {prefix.rstrip('/')} files.")
-            has_loose_scripts = any(
-                name.startswith("Scripts/") for name in runtime_names
-            )
-            has_packed_scripts = "Scripts.ldpak" in runtime_names
-            if has_loose_scripts == has_packed_scripts:
+            try:
+                validate_runtime_resource_paths(runtime_names)
+            except LdPakError as exception:
                 raise PackError(
-                    "The APK runtime manifest must contain exactly one of Scripts or Scripts.ldpak."
-                )
-            if has_loose_scripts and not (
-                {"Scripts/Entry.lua", "Scripts/Entry.luac"} & runtime_names
-            ):
-                raise PackError("The APK runtime manifest has no Lua entry script.")
-            for prefix in ("Assets/", "Data/"):
-                resource_names = {
-                    name for name in runtime_names if name.startswith(prefix)
-                }
-                package_names = {
-                    name
-                    for name in resource_names
-                    if "/" not in name[len(prefix) :]
-                    and name.casefold().endswith(".ldpak")
-                    and len(name) > len(prefix) + len(".ldpak")
-                }
-                if has_packed_scripts and package_names != resource_names:
-                    raise PackError(
-                        f"The APK packed runtime contains loose {prefix.rstrip('/')} files."
-                    )
-                if not has_packed_scripts and package_names:
-                    raise PackError(
-                        f"The APK loose runtime contains packed {prefix.rstrip('/')} groups."
-                    )
+                    f"The APK runtime layout is invalid: {exception}"
+                ) from exception
             for entry in manifest_files:
                 relative = str(entry["path"])
                 archive_path = "assets/" + relative
@@ -1974,6 +1955,7 @@ def main(arguments: list[str] | None = None) -> int:
             packaging_kind = "signed" if signing is not None else "unsigned"
             print(f"Android {packaging_kind} APK packaging check passed.")
             return 0
+        context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         copy_runtime_resources(context)
         manifest = create_runtime_manifest(
             context.runtime_dir,

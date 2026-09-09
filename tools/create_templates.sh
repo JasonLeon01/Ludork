@@ -117,6 +117,7 @@ validate_native_cache() (
         echo "Native cache contains no runtime libraries: $cache_entry" >&2
         exit 1
     fi
+    "$SCRIPT_TOOLS" ui-preview validate "$cache_entry"
 )
 
 copy_native_outputs() (
@@ -127,6 +128,7 @@ copy_native_outputs() (
     for generated_script in $GENERATED_SCRIPTS; do
         cp -p "$native_source/Scripts/$generated_script" "$native_target/Scripts/$generated_script"
     done
+    "$SCRIPT_TOOLS" ui-preview copy --runtime-directory "bin/$CONFIG" "$native_source" "$native_target"
 )
 
 if [ -n "$NATIVE_CACHE" ]; then
@@ -137,17 +139,6 @@ if [ -n "$NATIVE_CACHE" ]; then
         fi
     done
 fi
-
-validate_no_ui_preview_host() {
-    template_dir=$1
-    forbidden_path=$(find "$template_dir" \
-        \( -name 'UiPreviewHost*' -o -name 'UiPreviewCurveResolver*' \) \
-        -print -quit)
-    if [ -n "$forbidden_path" ]; then
-        echo "UI preview host entry was found in a project template: $forbidden_path" >&2
-        exit 1
-    fi
-}
 
 copy_runtime_legal_files() {
     template_dir=$1
@@ -190,7 +181,8 @@ copy_cpp_template() {
         --exclude '.venv/' \
         --exclude 'build/' \
         --exclude 'Intermediate/' \
-        --exclude 'Temp/' \
+        --exclude '/Temp/' \
+        --exclude '/Cache/' \
         --exclude 'bin/' \
         --exclude 'Log/' \
         --exclude 'Save/' \
@@ -210,8 +202,7 @@ copy_cpp_template() {
         --exclude 'generate_vs2022.bat' \
         --exclude 'generate_clion.bat' \
         --exclude 'ThirdPartySource/' \
-        --exclude 'UiPreviewHost*' \
-        --exclude 'UiPreviewCurveResolver*'
+        --exclude '/Binaries/'
     if [ "$include_ffmpeg" -ne 1 ]; then
         set -- "$@" --exclude 'ffmpeg/'
     fi
@@ -292,9 +283,9 @@ finalize_template_pair() {
         fi
     fi
     rm -rf "$source_template_dir/build" "$source_template_dir/bin" \
-        "$source_template_dir/Intermediate"
-    validate_no_ui_preview_host "$source_template_dir"
-    validate_no_ui_preview_host "$standalone_template_dir"
+        "$source_template_dir/Intermediate" "$source_template_dir/Temp" "$source_template_dir/Cache"
+    rm -rf "$source_template_dir/Binaries"
+    "$SCRIPT_TOOLS" ui-preview validate "$standalone_template_dir"
     if [ "$include_ffmpeg" -eq 1 ]; then
         echo "C++ FFmpeg source template is ready: $source_template_dir"
         echo "Standalone FFmpeg template is ready: $standalone_template_dir/Main"

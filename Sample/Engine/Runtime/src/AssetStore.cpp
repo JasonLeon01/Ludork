@@ -3,6 +3,7 @@
 
 #include "AssetStoreImpl.hpp"
 #include "LdPakArchive.hpp"
+#include "ResourceStorePaths.hpp"
 #include <Runtime/AssetPath.hpp>
 #include <Utf8Path.hpp>
 
@@ -219,24 +220,15 @@ std::optional<StoreEntry> findLooseEntry(
     return std::nullopt;
 }
 
-void loadLooseGroup(const std::filesystem::path& assetsRoot,
-                    const std::filesystem::directory_entry& groupEntry,
-                    std::unordered_map<std::string, StoreEntry>& entries,
-                    std::unordered_map<std::string, std::string>& foldedPaths) {
-    const std::string group =
-        ludork::standard::pathToUtf8(groupEntry.path().filename());
-    static_cast<void>(makeAssetPath(group, "validation"));
-    const std::string groupKey = "/Game/Assets/" + group;
-    addEntry(entries, foldedPaths, groupKey,
-             {groupEntry.path(), 0, 0, 0, modificationTime(groupEntry.path()),
-              true, false});
-
+void loadLooseTree(const std::filesystem::path& assetsRoot,
+                   std::unordered_map<std::string, StoreEntry>& entries,
+                   std::unordered_map<std::string, std::string>& foldedPaths) {
     std::error_code error;
     std::filesystem::recursive_directory_iterator iterator(
-        groupEntry.path(), std::filesystem::directory_options::none, error);
+        assetsRoot, std::filesystem::directory_options::none, error);
     if (error) {
-        throw std::runtime_error("Failed to enumerate asset group " + group +
-                                 ": " + error.message());
+        throw std::runtime_error("Failed to enumerate Assets: " +
+                                 error.message());
     }
     const std::filesystem::recursive_directory_iterator end;
     while (iterator != end) {
@@ -271,8 +263,8 @@ void loadLooseGroup(const std::filesystem::path& assetsRoot,
         }
         iterator.increment(error);
         if (error) {
-            throw std::runtime_error("Failed to enumerate asset group " +
-                                     group + ": " + error.message());
+            throw std::runtime_error("Failed to enumerate Assets: " +
+                                     error.message());
         }
     }
 }
@@ -281,13 +273,13 @@ void loadPackage(const std::filesystem::path& packagePath,
                  std::unordered_map<std::string, StoreEntry>& entries,
                  std::unordered_map<std::string, std::string>& foldedPaths) {
     detail::LdPakArchive archive(packagePath);
-    const std::string& group = archive.group();
-    static_cast<void>(makeAssetPath(group, "validation"));
-    const std::string groupKey = "/Game/Assets/" + group;
-    addEntry(entries, foldedPaths, groupKey,
-             {archive.path(), 0, 0, 0, archive.modificationTime(), true, true});
+    if (archive.group() != "Assets") {
+        throw std::runtime_error("Assets.ldpak must use the Assets group");
+    }
     for (const detail::LdPakEntry& archiveEntry : archive.entries()) {
-        addEntry(entries, foldedPaths, makeAssetPath(group, archiveEntry.path),
+        const std::string key = "/Game/Assets/" + archiveEntry.path;
+        static_cast<void>(AssetPath::parse(key));
+        addEntry(entries, foldedPaths, key,
                  {archive.path(), archiveEntry.offset, archiveEntry.size,
                   archiveEntry.crc, archive.modificationTime(),
                   archiveEntry.directory, true});
@@ -301,90 +293,19 @@ AssetStore::~AssetStore() = default;
 
 void AssetStore::configure(const std::filesystem::path& runtimeRoot,
                            const AssetStoreMode mode) {
-    std::error_code error;
-    const std::filesystem::path normalized =
-        std::filesystem::weakly_canonical(runtimeRoot, error);
-    if (error || normalized.empty()) {
-        throw std::invalid_argument("Invalid runtime root for AssetStore");
-    }
-    const std::filesystem::path assetsRoot = normalized / "Assets";
-    const std::filesystem::file_status assetsStatus =
-        std::filesystem::symlink_status(assetsRoot, error);
-    if (error || !std::filesystem::is_directory(assetsStatus) ||
-        isLinkLike(assetsRoot, assetsStatus)) {
-        throw std::invalid_argument(
-            "AssetStore runtime root must contain Assets");
-    }
-
-    std::vector<std::filesystem::directory_entry> groups;
-    std::vector<std::filesystem::path> packages;
-    std::filesystem::directory_iterator iterator(assetsRoot, error);
-    if (error) {
-        throw std::runtime_error("Failed to enumerate Assets: " +
-                                 error.message());
-    }
-    const std::filesystem::directory_iterator end;
-    while (iterator != end) {
-        const std::filesystem::directory_entry entry = *iterator;
-        const std::filesystem::file_status status = entry.symlink_status(error);
-        if (error) {
-            throw std::runtime_error("Failed to inspect Assets entry: " +
-                                     error.message());
-        }
-        if (isLinkLike(entry.path(), status)) {
-            throw std::runtime_error(
-                "Asset symlinks are not supported: " +
-                ludork::standard::pathToUtf8(entry.path()));
-        }
-        if (std::filesystem::is_directory(status)) {
-            groups.push_back(entry);
-        } else if (std::filesystem::is_regular_file(status) &&
-                   asciiFold(ludork::standard::pathToUtf8(
-                       entry.path().extension())) == ".ldpak") {
-            packages.push_back(entry.path());
-        } else if (!isIgnoredAssetMetadata(entry.path(), status)) {
-            throw std::runtime_error(
-                "Unsupported Assets root entry: " +
-                ludork::standard::pathToUtf8(entry.path()));
-        }
-        iterator.increment(error);
-        if (error) {
-            throw std::runtime_error("Failed to enumerate Assets: " +
-                                     error.message());
-        }
-    }
-    if (mode == AssetStoreMode::Packed && !groups.empty()) {
-        throw std::runtime_error(
-            "Packed Assets may contain only .ldpak group files");
-    }
-    if (mode == AssetStoreMode::Loose && !packages.empty()) {
-        throw std::runtime_error(
-            "Loose Assets may contain only first-level group directories");
-    }
-
+    const std::filesystem::path normalized = detail::resourceStoreRoot(
+        runtimeRoot, "Assets", mode == AssetStoreMode::Packed);
     std::unordered_map<std::string, StoreEntry> loadedEntries;
     std::unordered_map<std::string, std::string> foldedPaths;
-    const AssetStoreMode loadedMode = mode;
-    if (loadedMode == AssetStoreMode::Loose) {
-        std::sort(
-            groups.begin(), groups.end(),
-            [](const auto& left, const auto& right) {
-                return ludork::standard::pathToUtf8(left.path().filename()) <
-                       ludork::standard::pathToUtf8(right.path().filename());
-            });
-        for (const std::filesystem::directory_entry& group : groups) {
-            loadLooseGroup(assetsRoot, group, loadedEntries, foldedPaths);
-        }
+    if (mode == AssetStoreMode::Loose) {
+        loadLooseTree(normalized / "Assets", loadedEntries, foldedPaths);
     } else {
-        std::sort(packages.begin(), packages.end());
-        for (const std::filesystem::path& package : packages) {
-            loadPackage(package, loadedEntries, foldedPaths);
-        }
+        loadPackage(normalized / "Assets.ldpak", loadedEntries, foldedPaths);
     }
 
     std::unique_lock lock(impl_->mutex);
     impl_->runtimeRoot = normalized;
-    impl_->mode = loadedMode;
+    impl_->mode = mode;
     impl_->entries = std::move(loadedEntries);
     {
         std::lock_guard validationLock(impl_->validationMutex);

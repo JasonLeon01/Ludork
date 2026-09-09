@@ -1,5 +1,6 @@
-target_sources(UiPreviewHost PRIVATE
+target_sources(UiPreviewHostExecutable PRIVATE
     Actor/ActorBatchRenderer.cpp
+    PreviewBuildInfo.cpp
     PreviewHostSession.cpp
     Protocol/FrameFiles.cpp
     Protocol/PreviewProtocol.cpp
@@ -9,5 +10,5 @@ target_sources(UiPreviewHost PRIVATE
     UI/UiPreviewSession.cpp
     UiPreviewHost.cpp)
 
-target_include_directories(UiPreviewHost PRIVATE
+target_include_directories(UiPreviewHostExecutable PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}")

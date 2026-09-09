@@ -1,49 +1,34 @@
 @echo off
 setlocal EnableExtensions
 chcp 65001>nul
-cd /d "%~dp0.."
-if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
-
-set "CONFIG=%~1"
+for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
+for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
+if "%~1"=="" goto usage
+if not "%~3"=="" goto usage
+for %%I in ("%~1") do set "PROJECT_DIR=%%~fI"
+set "CONFIG=%~2"
 if "%CONFIG%"=="" set "CONFIG=Release"
-if not "%~2"=="" goto usage
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto usage
-
-set "PROJECT_DIR=%CD%\UiPreviewHost"
-set "BUILD_DIR=%CD%\.tools\UiPreviewHost\build"
-set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
-set "GNU_MAKE=%CD%\.tools\gnu-make\gnumake.exe"
-
+if not exist "%PROJECT_DIR%\CMakeLists.txt" (
+    echo CMakeLists.txt was not found: %PROJECT_DIR%
+    exit /b 1
+)
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
+set "GNU_MAKE=%TOOLS_DIR%\gnu-make\gnumake.exe"
+if not exist "%GNU_MAKE%" set "GNU_MAKE=%ROOT_DIR%\.tools\gnu-make\gnumake.exe"
 if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Run tools\init.bat first.
+    echo ScriptTools was not found. Prepare the editor tools first.
     exit /b 1
 )
-if not exist "%GNU_MAKE%" (
-    echo GNU Make was not found. Run tools\init.bat first.
-    exit /b 1
-)
-
-cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%"
+if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
+cmake -S "%PROJECT_DIR%" -B "%PROJECT_DIR%\build" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%" -DLUDORK_BUILD_UI_PREVIEW_HOST=ON
 if errorlevel 1 exit /b %errorlevel%
-
-echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
-cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target UiPreviewHost --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
+cmake --build "%PROJECT_DIR%\build" --config "%CONFIG%" --target UiPreviewHost --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
 if errorlevel 1 exit /b %errorlevel%
-
-set "OUTPUT=%CD%\.tools\UiPreviewHost\bin\%CONFIG%\UiPreviewHost.exe"
-if not exist "%OUTPUT%" (
-    echo Build finished without producing %OUTPUT%
-    exit /b 1
-)
-set "RUNTIME=%CD%\.tools\UiPreviewHost\bin\%CONFIG%\UiPreviewHostRuntime.dll"
-if not exist "%RUNTIME%" (
-    echo Build finished without producing %RUNTIME%
-    exit /b 1
-)
-
-echo UI preview host ready: %OUTPUT%
-exit /b 0
+"%SCRIPT_TOOLS%" ui-preview validate "%PROJECT_DIR%"
+exit /b %errorlevel%
 
 :usage
-echo Usage: tools\build_ui_preview_host.bat [Debug^|Release]
+echo Usage: tools\build_ui_preview_host.bat ^<project-folder^> [Debug^|Release]
 exit /b 1

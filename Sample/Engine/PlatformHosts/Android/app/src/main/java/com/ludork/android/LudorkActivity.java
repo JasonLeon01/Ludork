@@ -109,12 +109,10 @@ public final class LudorkActivity extends NativeActivity {
         }
         List<RuntimeFile> files = new ArrayList<>(values.length());
         String previousPath = "";
-        boolean hasAssets = false;
-        boolean hasData = false;
-        boolean assetsOnlyContainPackages = true;
-        boolean dataOnlyContainsPackages = true;
-        boolean hasAssetPackages = false;
-        boolean hasDataPackages = false;
+        boolean hasLooseAssets = false;
+        boolean hasLooseData = false;
+        boolean hasPackedAssets = false;
+        boolean hasPackedData = false;
         boolean hasLooseScripts = false;
         boolean hasPackedScripts = false;
         boolean hasEntry = false;
@@ -128,32 +126,26 @@ public final class LudorkActivity extends NativeActivity {
             if (size < 0 || (!previousPath.isEmpty() && path.compareTo(previousPath) <= 0)) {
                 throw new IOException("Invalid or unsorted runtime manifest entry: " + path);
             }
-            if (path.startsWith("Assets/")) {
-                hasAssets = true;
-                boolean isPackage = isGroupPackagePath(path, "Assets/");
-                assetsOnlyContainPackages &= isPackage;
-                hasAssetPackages |= isPackage;
+            if (isGroupPackagePath(path, "Assets/") || isGroupPackagePath(path, "Data/")) {
+                throw new IOException("Legacy grouped runtime archives are unsupported: " + path);
             }
-            if (path.startsWith("Data/")) {
-                hasData = true;
-                boolean isPackage = isGroupPackagePath(path, "Data/");
-                dataOnlyContainsPackages &= isPackage;
-                hasDataPackages |= isPackage;
-            }
+            hasLooseAssets |= path.startsWith("Assets/");
+            hasLooseData |= path.startsWith("Data/");
+            hasPackedAssets |= path.equals("Assets.ldpak");
+            hasPackedData |= path.equals("Data.ldpak");
             hasLooseScripts |= path.startsWith("Scripts/");
             hasPackedScripts |= path.equals("Scripts.ldpak");
             hasEntry |= path.equals("Scripts/Entry.lua") || path.equals("Scripts/Entry.luac");
             files.add(new RuntimeFile(path, size, sha256));
             previousPath = path;
         }
-        if (!hasAssets
-                || !hasData
-                || hasLooseScripts == hasPackedScripts
-                || (hasLooseScripts && !hasEntry)
-                || (hasPackedScripts
-                        && (!assetsOnlyContainPackages || !dataOnlyContainsPackages))
-                || (hasLooseScripts && (hasAssetPackages || hasDataPackages))) {
-            throw new IOException("The Ludork runtime manifest is incomplete");
+        boolean loose = hasLooseAssets && hasLooseData && hasLooseScripts && hasEntry
+                && !hasPackedAssets && !hasPackedData && !hasPackedScripts;
+        boolean packed = hasPackedAssets && hasPackedData && hasPackedScripts
+                && !hasLooseAssets && !hasLooseData && !hasLooseScripts;
+        if (!loose && !packed) {
+            throw new IOException("The Ludork runtime manifest requires loose Assets, Data, and Scripts"
+                    + " or root Assets.ldpak, Data.ldpak, and Scripts.ldpak");
         }
         if (!runtimeHash.equals(runtimeManifestDigest(files))) {
             throw new IOException("The Ludork runtime manifest hash is invalid");
@@ -279,10 +271,12 @@ public final class LudorkActivity extends NativeActivity {
     }
 
     private static boolean isGroupPackagePath(String path, String prefix) {
+        if (!path.startsWith(prefix)) {
+            return false;
+        }
         String relative = path.substring(prefix.length());
-        return relative.length() > ".ldpak".length()
-                && relative.indexOf('/') < 0
-                && relative.endsWith(".ldpak");
+        return relative.indexOf('/') < 0
+                && relative.toLowerCase(Locale.ROOT).endsWith(".ldpak");
     }
 
     private static void requireSha256(String value, String description) throws IOException {

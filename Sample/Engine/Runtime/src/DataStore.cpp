@@ -2,6 +2,7 @@
 
 #include "DataStoreImpl.hpp"
 #include "LdPakArchive.hpp"
+#include "ResourceStorePaths.hpp"
 #include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
 
@@ -137,25 +138,18 @@ void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
     }
 }
 
-void loadLooseGroup(const std::filesystem::path& dataRoot,
-                    const std::filesystem::directory_entry& groupEntry,
-                    std::unordered_map<std::string, StoreEntry>& entries,
-                    std::unordered_map<std::string, std::string>& foldedPaths) {
-    const std::string group =
-        ludork::standard::pathToUtf8(groupEntry.path().filename());
-    validateGroup(group);
-    addEntry(entries, foldedPaths, "Data/" + group,
-             {groupEntry.path(),
-              nullptr,
-              {},
-              {true, 0, modificationTime(groupEntry.path())}});
+void loadLooseTree(const std::filesystem::path& dataRoot,
+                   std::unordered_map<std::string, StoreEntry>& entries,
+                   std::unordered_map<std::string, std::string>& foldedPaths) {
+    addEntry(entries, foldedPaths, "Data",
+             {dataRoot, nullptr, {}, {true, 0, modificationTime(dataRoot)}});
 
     std::error_code error;
     std::filesystem::recursive_directory_iterator iterator(
-        groupEntry.path(), std::filesystem::directory_options::none, error);
+        dataRoot, std::filesystem::directory_options::none, error);
     if (error) {
-        throw std::runtime_error("Failed to enumerate Data group " + group +
-                                 ": " + error.message());
+        throw std::runtime_error("Failed to enumerate Data: " +
+                                 error.message());
     }
     const std::filesystem::recursive_directory_iterator end;
     while (iterator != end) {
@@ -179,6 +173,7 @@ void loadLooseGroup(const std::filesystem::path& dataRoot,
             }
             const std::filesystem::path relative =
                 entry.path().lexically_relative(dataRoot);
+            validateGroup(ludork::standard::pathToUtf8(*relative.begin()));
             const std::string key =
                 "Data/" + ludork::standard::pathToGenericUtf8(relative);
             addEntry(entries, foldedPaths, key,
@@ -190,8 +185,8 @@ void loadLooseGroup(const std::filesystem::path& dataRoot,
         }
         iterator.increment(error);
         if (error) {
-            throw std::runtime_error("Failed to enumerate Data group " + group +
-                                     ": " + error.message());
+            throw std::runtime_error("Failed to enumerate Data: " +
+                                     error.message());
         }
     }
 }
@@ -201,14 +196,15 @@ void loadPackage(const std::filesystem::path& packagePath,
                  std::unordered_map<std::string, std::string>& foldedPaths) {
     std::shared_ptr<detail::LdPakArchive> archive =
         std::make_shared<detail::LdPakArchive>(packagePath);
-    const std::string& group = archive->group();
-    validateGroup(group);
+    if (archive->group() != "Data") {
+        throw std::runtime_error("Data.ldpak must use the Data group");
+    }
     addEntry(
-        entries, foldedPaths, "Data/" + group,
+        entries, foldedPaths, "Data",
         {archive->path(), archive, {}, {true, 0, archive->modificationTime()}});
     for (const detail::LdPakEntry& archiveEntry : archive->entries()) {
-        addEntry(entries, foldedPaths,
-                 "Data/" + group + "/" + archiveEntry.path,
+        validateGroup(archiveEntry.path.substr(0, archiveEntry.path.find('/')));
+        addEntry(entries, foldedPaths, "Data/" + archiveEntry.path,
                  {archive->path(),
                   archive,
                   archiveEntry.path,
@@ -274,99 +270,27 @@ DataStore::~DataStore() = default;
 
 void DataStore::configure(const std::filesystem::path& runtimeRoot,
                           const DataStoreMode mode) {
-    std::error_code error;
-    const std::filesystem::path normalized =
-        std::filesystem::weakly_canonical(runtimeRoot, error);
-    if (error || normalized.empty()) {
-        throw std::invalid_argument("Invalid runtime root for DataStore");
-    }
-    const std::filesystem::path dataRoot = normalized / "Data";
-    const std::filesystem::file_status dataStatus =
-        std::filesystem::symlink_status(dataRoot, error);
-    if (error || !std::filesystem::is_directory(dataStatus) ||
-        isLinkLike(dataRoot, dataStatus)) {
-        throw std::invalid_argument("DataStore runtime root must contain Data");
-    }
-
-    std::vector<std::filesystem::directory_entry> groups;
-    std::vector<std::filesystem::path> packages;
-    std::filesystem::directory_iterator iterator(dataRoot, error);
-    if (error) {
-        throw std::runtime_error("Failed to enumerate Data: " +
-                                 error.message());
-    }
-    const std::filesystem::directory_iterator end;
-    while (iterator != end) {
-        const std::filesystem::directory_entry entry = *iterator;
-        const std::filesystem::file_status status = entry.symlink_status(error);
-        if (error) {
-            throw std::runtime_error("Failed to inspect Data entry: " +
-                                     error.message());
-        }
-        if (isLinkLike(entry.path(), status)) {
-            throw std::runtime_error(
-                "Data symlinks are not supported: " +
-                ludork::standard::pathToUtf8(entry.path()));
-        }
-        if (std::filesystem::is_directory(status)) {
-            groups.push_back(entry);
-        } else if (std::filesystem::is_regular_file(status) &&
-                   asciiFold(ludork::standard::pathToUtf8(
-                       entry.path().extension())) == ".ldpak") {
-            packages.push_back(entry.path());
-        } else if (!isIgnoredMetadata(entry.path(), status)) {
-            throw std::runtime_error(
-                "Unsupported Data root entry: " +
-                ludork::standard::pathToUtf8(entry.path()));
-        }
-        iterator.increment(error);
-        if (error) {
-            throw std::runtime_error("Failed to enumerate Data: " +
-                                     error.message());
-        }
-    }
-    if (mode == DataStoreMode::Packed && !groups.empty()) {
-        throw std::runtime_error(
-            "Packed Data may contain only .ldpak group files");
-    }
-    if (mode == DataStoreMode::Loose && !packages.empty()) {
-        throw std::runtime_error(
-            "Loose Data may contain only first-level group directories");
-    }
-
+    const std::filesystem::path normalized = detail::resourceStoreRoot(
+        runtimeRoot, "Data", mode == DataStoreMode::Packed);
     std::unordered_map<std::string, StoreEntry> loadedEntries;
     std::unordered_map<std::string, std::string> foldedPaths;
-    addEntry(loadedEntries, foldedPaths, "Data",
-             {dataRoot, nullptr, {}, {true, 0, modificationTime(dataRoot)}});
-    const DataStoreMode loadedMode = mode;
-    if (loadedMode == DataStoreMode::Loose) {
-        std::sort(
-            groups.begin(), groups.end(),
-            [](const auto& left, const auto& right) {
-                return ludork::standard::pathToUtf8(left.path().filename()) <
-                       ludork::standard::pathToUtf8(right.path().filename());
-            });
-        for (const std::filesystem::directory_entry& group : groups) {
-            loadLooseGroup(dataRoot, group, loadedEntries, foldedPaths);
-        }
+    if (mode == DataStoreMode::Loose) {
+        loadLooseTree(normalized / "Data", loadedEntries, foldedPaths);
     } else {
-        std::sort(packages.begin(), packages.end());
-        for (const std::filesystem::path& package : packages) {
-            loadPackage(package, loadedEntries, foldedPaths);
-        }
+        loadPackage(normalized / "Data.ldpak", loadedEntries, foldedPaths);
     }
     auto loadedDirectoryEntries = buildDirectoryEntries(loadedEntries);
 
     {
         std::unique_lock lock(impl_->mutex);
         impl_->runtimeRoot = normalized;
-        impl_->mode = loadedMode;
+        impl_->mode = mode;
         impl_->entries = std::move(loadedEntries);
         impl_->directoryEntries = std::move(loadedDirectoryEntries);
         impl_->configured = true;
     }
 
-    if (loadedMode == DataStoreMode::Packed) {
+    if (mode == DataStoreMode::Packed) {
         ludork::standard::configureReadOnlyFileProvider({
             [this](const std::filesystem::path& path) {
                 ludork::standard::ReadOnlyFileStatus result;

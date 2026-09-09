@@ -57,9 +57,10 @@ public sealed class UiPreviewClient : IAsyncDisposable
     private bool disposed;
     private bool rendering;
 
-    public UiPreviewClient(string projectPath)
+    public UiPreviewClient(UiPreviewRuntimeService runtime)
     {
-        connection = new PreviewHostConnection(projectPath);
+        connection = new PreviewHostConnection(runtime);
+        StatusMessage = runtime.StatusMessage;
         connection.StateChanged += onConnectionStateChanged;
     }
 
@@ -67,7 +68,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
 
     public UiPreviewClientState State { get; private set; } = UiPreviewClientState.Unavailable;
     public string StatusMessage { get; private set; } = string.Empty;
-    public bool IsReady => State == UiPreviewClientState.Ready;
+    public bool IsReady => State == UiPreviewClientState.Ready && connection.IsReady;
 
     public async Task<bool> StartAsync(CancellationToken cancellationToken = default)
     {
@@ -138,7 +139,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
         try
         {
             JsonObject response = await connection.ExchangeAsync(request, CancellationToken.None);
-            if (cancellationToken.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested || !connection.IsReady)
                 return null;
             if (!string.Equals(getString(response, "type"), "frame", StringComparison.Ordinal))
             {
@@ -186,7 +187,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
         try
         {
             JsonObject response = await connection.ExchangeAsync(request, CancellationToken.None);
-            if (cancellationToken.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested || !connection.IsReady)
                 return null;
             if (!string.Equals(getString(response, "type"), "hitTest", StringComparison.Ordinal)
                 || response["generation"]?.GetValue<long>() != frameGeneration)

@@ -28,7 +28,6 @@ NATIVE_INPUTS = (
     "Sample/CMakeLists.txt",
     "Sample/Main.*",
     "Sample/Assets/System/icon.ico",
-    "UiPreviewHost/*",
     "tools/build_cpp.*",
     "tools/build_standalone.*",
     "tools/build_ui_preview_host.*",

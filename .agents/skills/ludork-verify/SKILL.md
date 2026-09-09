@@ -24,7 +24,7 @@ Commands below run from the repository root on macOS. Use matching `.bat` entry 
 | Shell/build/CI wiring | Syntax-check changed `.sh` with `sh -n`; validate workflow YAML with `actionlint` when available; exercise the affected local entry point or report platform limitations. |
 | Packaging/templates | Run the affected platform/variant entry point from `tools/README.md` and inspect its package. Check that templates retain stubs and game packages exclude them when Lua packaging changes. |
 
-Useful targeted entry points are `sh tools/build_script_tools.sh`, `sh tools/build_ui_preview_host.sh Debug`, `sh tools/run_editor.sh` and `sh tools/run_cpp.sh Sample Debug`. The C++ build already validates UI assets; avoid repeating the same successful check without an intervening relevant change. Shared `.tools`, `Sample/build`, `bin`, `obj` and packaging outputs must not be mutated concurrently by multiple builds or agents.
+Useful targeted entry points are `sh tools/build_script_tools.sh`, `sh tools/build_ui_preview_host.sh Sample Debug`, `sh tools/run_editor.sh` and `sh tools/run_cpp.sh Sample Debug`. The C++ build already validates UI assets; avoid repeating the same successful check without an intervening relevant change. Shared `.tools`, `Sample/build`, `bin`, `obj` and packaging outputs must not be mutated concurrently by multiple builds or agents.
 
 ## EmmyLua
 

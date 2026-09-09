@@ -13,9 +13,12 @@ import unicodedata
 import zipfile
 
 from .compile_lua import resolve_luac
+from .ui_control_registry import UiRegistryError
+from .ui_preview import prepare_registry
 from .finalize_package import finalize_package
 from .ldpak import (
     LdPakError,
+    RESOURCE_GROUPS,
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
 )
@@ -412,7 +415,6 @@ def configure_and_build(
     info_plist = generated_dir / "Info.plist"
     app_icon = generated_dir / "AppIcon.png"
     resources_dir = generated_dir / "Resources"
-    scripts_dir = resources_dir / "Scripts"
     write_info_plist(context, info_plist)
     create_app_icon(context, app_icon)
 
@@ -422,6 +424,10 @@ def configure_and_build(
             f"LuaSF dependency was not found: {luasf_cmake}. Run tools/init.sh first.",
             EXIT_PROJECT,
         )
+    script_tools = pathlib.Path(
+        os.environ.get("LUDORK_SCRIPT_TOOLS_EXECUTABLE", sys.argv[0])
+    ).expanduser().resolve()
+    ui_registry = prepare_registry(context.project_dir, script_tools)
     copy_runtime_resources(context, resources_dir)
     finalize_package(
         resources_dir,
@@ -429,10 +435,18 @@ def configure_and_build(
         context.encrypt_data,
         compile_lua_enabled=context.use_luac,
         use_ldpak=context.use_ldpak,
+        registry=ui_registry,
     )
-    script_tools = pathlib.Path(
-        os.environ.get("LUDORK_SCRIPT_TOOLS_EXECUTABLE", sys.argv[0])
-    ).expanduser().resolve()
+    resource_options: list[str] = []
+    for name in RESOURCE_GROUPS:
+        source_dir = "" if context.use_ldpak else str(resources_dir / name)
+        package_file = (
+            str(resources_dir / f"{name}.ldpak") if context.use_ldpak else ""
+        )
+        resource_options.extend((
+            f"-DLUDORK_{name.upper()}_SOURCE_DIR={source_dir}",
+            f"-DLUDORK_{name.upper()}_PACKAGE_FILE={package_file}",
+        ))
     if not script_tools.is_file():
         raise PackError(
             f"ScriptTools executable was not found: {script_tools}. Run tools/init.sh first.",
@@ -452,12 +466,9 @@ def configure_and_build(
         "-DCMAKE_OSX_ARCHITECTURES=arm64",
         "-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0",
         f"-DLUDORK_SCRIPT_TOOLS_EXECUTABLE={script_tools}",
-        f"-DLUDORK_ASSETS_SOURCE_DIR={resources_dir / 'Assets'}",
-        f"-DLUDORK_DATA_SOURCE_DIR={resources_dir / 'Data'}",
-        f"-DLUDORK_SCRIPTS_SOURCE_DIR={scripts_dir}",
-        "-DLUDORK_SCRIPTS_PACKAGE_FILE=" + (
-            str(resources_dir / "Scripts.ldpak") if context.use_ldpak else ""
-        ),
+        "-DLUDORK_BUILD_UI_PREVIEW_HOST=OFF",
+        f"-DLUDORK_UI_REGISTRY_PATH={ui_registry}",
+        *resource_options,
         "-DLUASF_BUILD_SHARED_SFML=OFF",
         "-DLUASF_GENERATE_LUA_STUB=OFF",
         f"-DLUDORK_SAVE_AS_LDC={'ON' if context.encrypt_saves else 'OFF'}",
@@ -518,20 +529,12 @@ def verify_app(context: PackContext, app_path: pathlib.Path) -> None:
     if info.get("CFBundleIdentifier") != context.bundle_identifier:
         raise PackError("The built app does not contain the configured bundle identifier.")
     try:
-        is_packed = validate_runtime_ldpak_layout(
+        validate_runtime_ldpak_layout(
             app_path,
             context.use_ldpak,
         )
     except LdPakError as exception:
         raise PackError(str(exception), EXIT_PROJECT) from exception
-    if is_packed != context.use_ldpak:
-        raise PackError("The built app contains the wrong Scripts runtime layout.")
-    for relative in (
-        pathlib.Path("Assets"),
-        pathlib.Path("Data"),
-    ):
-        if not (app_path / relative).exists():
-            raise PackError(f"The built app is missing runtime resource: {relative}")
 
 
 def create_ipa(context: PackContext, app_path: pathlib.Path) -> pathlib.Path:
@@ -615,7 +618,7 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return exception.exit_code
-    except LdPakError as exception:
+    except (LdPakError, UiRegistryError) as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return EXIT_PROJECT
     except KeyboardInterrupt:

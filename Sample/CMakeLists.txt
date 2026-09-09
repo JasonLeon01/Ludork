@@ -17,15 +17,24 @@ option(
     LUDORK_BUILD_SAMPLE_APPLICATION
     "Build the Sample application and its project-specific runtime"
     ON)
-option(
-    LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME
-    "Build the editor-owned native UI preview runtime"
-    OFF)
+set(LUDORK_DESKTOP_PREVIEW_AVAILABLE ON)
+if(CMAKE_CROSSCOMPILING OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "iOS"
+   OR CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+    set(LUDORK_DESKTOP_PREVIEW_AVAILABLE OFF)
+endif()
+option(LUDORK_BUILD_UI_PREVIEW_HOST
+    "Build the project's desktop UI preview host"
+    ${LUDORK_DESKTOP_PREVIEW_AVAILABLE})
+if(NOT LUDORK_DESKTOP_PREVIEW_AVAILABLE)
+    set(LUDORK_BUILD_UI_PREVIEW_HOST OFF CACHE BOOL
+        "Build the project's desktop UI preview host" FORCE)
+endif()
+set(LUDORK_UI_REGISTRY_PATH "" CACHE FILEPATH
+    "Desktop UI registry JSON used to validate cross-compiled project assets")
 option(
     LUDORK_SAVE_AS_LDC
     "Encrypt standard save slots as LDC files"
     OFF)
-mark_as_advanced(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkBuild.cmake")
 
@@ -84,6 +93,10 @@ add_subdirectory(Engine/Standard)
 add_subdirectory(Engine/Runtime)
 
 add_subdirectory(Engine/Source)
+
+if(LUDORK_BUILD_UI_PREVIEW_HOST)
+    add_subdirectory(Engine/UiPreviewHost)
+endif()
 
 if(LUDORK_BUILD_SAMPLE_APPLICATION)
     include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkApplication.cmake")

@@ -148,7 +148,7 @@ function Data.GetDataKinds() end
 ---@return integer
 function Data.CountLoadableFiles(dataRoot, needExt, defaultType, recursive) end
 
----@brief Load all animation data from the Data/Animations directory.
+---@brief Load all animation caches from Engine.getAnimationCacheRoot().
 ---
 --- - @param onFileLoaded Optional callback invoked after each file is loaded.
 ---@param onFileLoaded function | nil

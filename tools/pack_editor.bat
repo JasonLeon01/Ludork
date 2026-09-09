@@ -4,7 +4,6 @@ chcp 65001>nul
 
 for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
 set "PREBUILT_TEMPLATES_DIR="
-set "USE_CURRENT_UI_PREVIEW_HOST=0"
 set "EDITOR_PUBLISH_OPTIONS="
 set "PREBUILT_LAUNCHER="
 
@@ -14,11 +13,6 @@ if /I "%~1"=="--templates" (
     if "%~2"=="" goto usage
     for %%I in ("%~2") do set "PREBUILT_TEMPLATES_DIR=%%~fI"
     shift
-    shift
-    goto parse_arguments
-)
-if /I "%~1"=="--use-current-ui-preview-host" (
-    set "USE_CURRENT_UI_PREVIEW_HOST=1"
     shift
     goto parse_arguments
 )
@@ -147,16 +141,6 @@ for %%D in (
     if errorlevel 1 exit /b 1
 )
 
-if "%USE_CURRENT_UI_PREVIEW_HOST%"=="1" (
-    echo Using current native UI preview host...
-) else (
-    echo Building native UI preview host...
-    call "%ROOT_DIR%\tools\build_ui_preview_host.bat" Release
-    if errorlevel 1 exit /b 1
-)
-call :resolve_vc_runtime
-if errorlevel 1 exit /b 1
-
 if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 mkdir "%STAGE_DIR%"
 if errorlevel 1 goto failed
@@ -229,7 +213,7 @@ if errorlevel 1 goto failed
 mkdir "%STAGE_DIR%\tools" >nul 2>nul
 copy /Y "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat" "%STAGE_DIR%\tools\build_cpp.bat" >nul
 if errorlevel 1 goto failed
-for %%F in (build_standalone.bat pack_project.bat) do (
+for %%F in (build_standalone.bat build_ui_preview_host.bat pack_project.bat) do (
     copy /Y "%ROOT_DIR%\tools\%%F" "%STAGE_DIR%\tools\%%F" >nul
     if errorlevel 1 goto failed
 )
@@ -241,11 +225,6 @@ copy /Y "%SCRIPT_TOOLS_VERSION_REPORT%" "%STAGE_DIR%\tools\ScriptTools-runtime-v
 if errorlevel 1 goto failed
 copy /Y "%ROOT_DIR%\.tools\Lua\luac.exe" "%STAGE_DIR%\tools\luac.exe" >nul
 if errorlevel 1 goto failed
-call :copy_ui_preview_host "%ROOT_DIR%\.tools\UiPreviewHost\bin\Release" "%STAGE_DIR%\tools\UiPreviewHost"
-if errorlevel 1 goto failed
-call :copy_vc_runtime "%VC_RUNTIME_DIR%" "%STAGE_DIR%\tools\UiPreviewHost"
-if errorlevel 1 goto failed
-
 mkdir "%STAGE_DIR%\tools\gnu-make" >nul 2>nul
 copy /Y "%GNU_MAKE_EXE%" "%STAGE_DIR%\tools\gnu-make\gnumake.exe" >nul
 if errorlevel 1 goto failed
@@ -297,77 +276,9 @@ if exist "%~1\" exit /b 0
 echo Required directory was not found: %~1
 exit /b 1
 
-:resolve_vc_runtime
-set "VC_VS_PATH="
-set "CMAKE_CACHE=%ROOT_DIR%\.tools\UiPreviewHost\build\CMakeCache.txt"
-set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-if exist "%CMAKE_CACHE%" (
-    for /f "usebackq tokens=1,* delims==" %%A in ("%CMAKE_CACHE%") do (
-        if /I "%%A"=="CMAKE_GENERATOR_INSTANCE:INTERNAL" set "VC_VS_PATH=%%B"
-    )
-)
-if not defined VC_VS_PATH (
-    call :require_file "%VSWHERE%"
-    if errorlevel 1 exit /b 1
-    for /f "usebackq tokens=*" %%I in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Redist.14.Latest -property installationPath`) do set "VC_VS_PATH=%%I"
-)
-if not defined VC_VS_PATH (
-    echo Visual Studio C++ redistributable tools were not found.
-    exit /b 1
-)
-set "VC_REDIST_VERSION_FILE=%VC_VS_PATH%\VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
-call :require_file "%VC_REDIST_VERSION_FILE%"
-if errorlevel 1 exit /b 1
-set "VC_REDIST_VERSION="
-set /p VC_REDIST_VERSION=<"%VC_REDIST_VERSION_FILE%"
-if not defined VC_REDIST_VERSION (
-    echo Visual C++ redistributable version file was empty: %VC_REDIST_VERSION_FILE%
-    exit /b 1
-)
-set "VC_RUNTIME_DIR=%VC_VS_PATH%\VC\Redist\MSVC\%VC_REDIST_VERSION%\x64\Microsoft.VC143.CRT"
-call :require_directory "%VC_RUNTIME_DIR%"
-if errorlevel 1 exit /b 1
-exit /b 0
-
 :copy_directory
 robocopy "%~1" "%~2" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b 1
-exit /b 0
-
-:copy_ui_preview_host
-set "PREVIEW_SOURCE=%~1"
-set "PREVIEW_TARGET=%~2"
-if not exist "%PREVIEW_TARGET%" mkdir "%PREVIEW_TARGET%"
-for %%F in (
-    UiPreviewHost.exe
-    UiPreviewHostRuntime.dll
-    LudorkRuntime.dll
-    LudorkStandard.dll
-    sfml-system-3.dll
-    sfml-window-3.dll
-    sfml-graphics-3.dll
-) do (
-    call :require_file "%PREVIEW_SOURCE%\%%F"
-    if errorlevel 1 exit /b 1
-    copy /Y "%PREVIEW_SOURCE%\%%F" "%PREVIEW_TARGET%\%%F" >nul
-    if errorlevel 1 exit /b 1
-)
-exit /b 0
-
-:copy_vc_runtime
-set "VC_RUNTIME_SOURCE=%~1"
-set "VC_RUNTIME_TARGET=%~2"
-for %%F in (
-    MSVCP140.dll
-    MSVCP140_ATOMIC_WAIT.dll
-    VCRUNTIME140.dll
-    VCRUNTIME140_1.dll
-) do (
-    call :require_file "%VC_RUNTIME_SOURCE%\%%F"
-    if errorlevel 1 exit /b 1
-    copy /Y "%VC_RUNTIME_SOURCE%\%%F" "%VC_RUNTIME_TARGET%\%%F" >nul
-    if errorlevel 1 exit /b 1
-)
 exit /b 0
 
 :purge_python_cache
@@ -424,37 +335,8 @@ call :require_file "%PACKAGE_DIR%\tools\ScriptTools-runtime-versions.txt"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\luac.exe"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\UiPreviewHost.exe"
+call :require_file "%PACKAGE_DIR%\tools\build_ui_preview_host.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\UiPreviewHostRuntime.dll"
-if errorlevel 1 exit /b 1
-for %%F in (
-    LudorkRuntime.dll
-    LudorkStandard.dll
-    sfml-system-3.dll
-    sfml-window-3.dll
-    sfml-graphics-3.dll
-) do (
-    call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\%%F"
-    if errorlevel 1 exit /b 1
-)
-for %%F in (LuaSF.dll lua.dll sfml-audio-3.dll sfml-network-3.dll) do (
-    if exist "%PACKAGE_DIR%\tools\UiPreviewHost\%%F" (
-        echo Unexpected Lua or non-visual dependency in UI preview package: %%F
-        exit /b 1
-    )
-)
-call :validate_ui_preview_host_ownership "%PACKAGE_DIR%"
-if errorlevel 1 exit /b 1
-for %%F in (
-    MSVCP140.dll
-    MSVCP140_ATOMIC_WAIT.dll
-    VCRUNTIME140.dll
-    VCRUNTIME140_1.dll
-) do (
-    call :require_file "%PACKAGE_DIR%\tools\UiPreviewHost\%%F"
-    if errorlevel 1 exit /b 1
-)
 call :require_file "%PACKAGE_DIR%\tools\gnu-make\gnumake.exe"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz"
@@ -701,8 +583,6 @@ for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
         echo Non-runtime licence directory was found in a project template: %PACKAGE_DIR%\Templates\%%T\Licenses\%%L
         exit /b 1
     )
-    call :validate_no_ui_preview_host "%PACKAGE_DIR%\Templates\%%T"
-    if errorlevel 1 exit /b 1
 )
 for %%T in (Cpp Standalone) do if exist "%PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg" (
     echo FFmpeg licence material was found in a non-FFmpeg template: %PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg
@@ -720,6 +600,10 @@ for %%T in (Cpp-ffmpeg Standalone-ffmpeg) do for %%F in (
     if errorlevel 1 exit /b 1
 )
 for %%T in (Cpp Cpp-ffmpeg) do (
+    if exist "%PACKAGE_DIR%\Templates\%%T\Binaries" exit /b 1
+    if exist "%PACKAGE_DIR%\Templates\%%T\Temp" exit /b 1
+    call :require_file "%PACKAGE_DIR%\Templates\%%T\Engine\UiPreviewHost\CMakeLists.txt"
+    if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\generate_vs2022.bat"
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\generate_clion.bat"
@@ -782,54 +666,16 @@ if "%STANDALONE_RUNTIME_LIBRARY_FOUND%"=="0" (
     echo Standalone template contains no runtime libraries in Binaries: %~1
     exit /b 1
 )
-exit /b 0
-
-:validate_ui_preview_host_ownership
-set "PREVIEW_PACKAGE_ROOT=%~f1"
-set "PREVIEW_CANONICAL_DIRECTORY=%~f1\tools\UiPreviewHost"
-set "PREVIEW_CANONICAL_EXECUTABLE=%~f1\tools\UiPreviewHost\UiPreviewHost.exe"
-set "PREVIEW_CANONICAL_RUNTIME=%~f1\tools\UiPreviewHost\UiPreviewHostRuntime.dll"
-for /r "%PREVIEW_PACKAGE_ROOT%" %%F in (UiPreviewHost*) do if exist "%%~fF" (
-    if /I not "%%~fF"=="%PREVIEW_CANONICAL_EXECUTABLE%" (
-        if /I not "%%~fF"=="%PREVIEW_CANONICAL_RUNTIME%" (
-            echo UI preview host exists outside its canonical editor tool path: %%~fF
-            exit /b 1
-        )
-    )
-)
-for /d /r "%PREVIEW_PACKAGE_ROOT%" %%D in (UiPreviewHost*) do if exist "%%~fD" (
-    if /I not "%%~fD"=="%PREVIEW_CANONICAL_DIRECTORY%" (
-        echo UI preview host exists outside its canonical editor tool path: %%~fD
-        exit /b 1
-    )
-)
-call :validate_absent_ui_preview_curve_resolver "%PREVIEW_PACKAGE_ROOT%"
-exit /b %errorlevel%
-
-:validate_no_ui_preview_host
-for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" (
-    echo UI preview host entry was found in a project template: %%~fF
-    exit /b 1
-)
-for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" (
-    echo UI preview host entry was found in a project template: %%~fD
-    exit /b 1
-)
-exit /b 0
-
-:validate_absent_ui_preview_curve_resolver
-for /r "%~1" %%F in (UiPreviewCurveResolver*) do if exist "%%~fF" (
-    echo UI preview host source entry was found in the editor package: %%~fF
-    exit /b 1
-)
-for /d /r "%~1" %%D in (UiPreviewCurveResolver*) do if exist "%%~fD" (
-    echo UI preview host source entry was found in the editor package: %%~fD
+"%SCRIPT_TOOLS%" ui-preview validate "%~1"
+if errorlevel 1 exit /b %errorlevel%
+for /f "delims=" %%F in ('dir /B /A "%~1\Temp"') do if not "%%F"=="UiPreview.json" if not "%%F"=="UiPreview.registry.json" (
+    echo Unexpected template Temp entry: %~1\Temp\%%F
     exit /b 1
 )
 exit /b 0
 
 :usage
-echo Usage: tools\pack_editor.bat [--templates ^<folder^>] [--use-current-ui-preview-host] [--use-current-editor-build] [--launcher ^<file^>]
+echo Usage: tools\pack_editor.bat [--templates ^<folder^>] [--use-current-editor-build] [--launcher ^<file^>]
 exit /b 1
 
 :failed

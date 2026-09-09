@@ -25,59 +25,87 @@ public enum PreviewHostConnectionState
 
 public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 {
-    public const int ProtocolVersion = 7;
+    public const int ProtocolVersion = 8;
 
     private readonly string projectPath;
+    private readonly UiPreviewRuntimeService runtime;
+    private readonly SemaphoreSlim startLock = new(1, 1);
+    private UiPreviewRuntimeSnapshot? activeSnapshot;
     private readonly SemaphoreSlim protocolLock = new(1, 1);
+    private readonly object processSync = new();
+    private readonly TaskCompletionSource shutdownCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object sharedMemorySync = new();
     private readonly HashSet<string> sharedMemoryFiles = new(StringComparer.OrdinalIgnoreCase);
     private Process? process;
     private Stream? input;
     private Stream? output;
     private string? lastStandardError;
-    private bool disposed;
+    private volatile bool disposed;
 
-    public PreviewHostConnection(string projectPath)
+    public PreviewHostConnection(UiPreviewRuntimeService runtime)
     {
-        this.projectPath = Path.GetFullPath(projectPath);
+        this.runtime = runtime;
+        projectPath = runtime.ProjectPath;
+        StatusMessage = runtime.StatusMessage;
+        runtime.RegisterConnection(this);
+        runtime.Changed += onRuntimeChanged;
     }
 
     public event EventHandler? StateChanged;
 
     public PreviewHostConnectionState State { get; private set; } = PreviewHostConnectionState.Unavailable;
     public string StatusMessage { get; private set; } = string.Empty;
-    public bool IsReady => State == PreviewHostConnectionState.Ready;
+    public bool IsReady => State == PreviewHostConnectionState.Ready
+        && matchesCurrentSnapshot();
     public IReadOnlySet<string> Capabilities { get; private set; } = new HashSet<string>(StringComparer.Ordinal);
+    internal Task Shutdown => shutdownCompletion.Task;
 
     public async Task<bool> StartAsync(CancellationToken cancellationToken = default)
+    {
+        await startLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await startAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            startLock.Release();
+        }
+    }
+
+    private async Task<bool> startAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (disposed)
             return false;
-        if (process is { HasExited: false } && input is not null && output is not null)
+        await runtime.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        if (disposed)
+            return false;
+        lock (processSync)
         {
-            if (State == PreviewHostConnectionState.Ready)
+            if (process is { HasExited: false } && input is not null && output is not null && IsReady)
                 return true;
-            if (State == PreviewHostConnectionState.Starting)
-                return false;
-            await stopProcessAsync();
         }
-        else if (process is not null || input is not null || output is not null)
+        UiPreviewRuntimeSnapshot? snapshot = runtime.Current;
+        if (snapshot is null || !runtime.IsReady)
         {
-            await stopProcessAsync();
-        }
-        string? hostPath = findHostPath();
-        if (hostPath is null)
-        {
-            setState(PreviewHostConnectionState.Unavailable, "UiPreviewHost was not found.");
+            await stopConnectedProcessAsync(cancellationToken).ConfigureAwait(false);
+            setState(PreviewHostConnectionState.Unavailable, runtime.StatusMessage);
             return false;
         }
-
+        await stopConnectedProcessAsync(cancellationToken).ConfigureAwait(false);
+        if (disposed || !runtime.IsReady
+            || snapshot.BuildId != runtime.Current?.BuildId
+            || snapshot.RegistryHash != runtime.Current?.RegistryHash
+            || snapshot.HostPath != runtime.Current?.HostPath)
+            return false;
+        cancellationToken.ThrowIfCancellationRequested();
+        activeSnapshot = snapshot;
         setState(PreviewHostConnectionState.Starting, string.Empty);
         lastStandardError = null;
         ProcessStartInfo startInfo = new()
         {
-            FileName = hostPath,
+            FileName = snapshot.HostPath,
             Arguments = "--stdio",
             WorkingDirectory = projectPath,
             UseShellExecute = false,
@@ -88,7 +116,23 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         };
         try
         {
-            process = Process.Start(startInfo);
+            lock (processSync)
+            {
+                if (disposed || !matchesCurrentSnapshot())
+                    return false;
+                process = Process.Start(startInfo);
+                if (process is null)
+                {
+                    setState(PreviewHostConnectionState.Unavailable, "UiPreviewHost could not be started.");
+                    return false;
+                }
+                process.EnableRaisingEvents = true;
+                process.Exited += onProcessExited;
+                process.ErrorDataReceived += onErrorDataReceived;
+                process.BeginErrorReadLine();
+                input = process.StandardInput.BaseStream;
+                output = process.StandardOutput.BaseStream;
+            }
         }
         catch (Win32Exception exception)
         {
@@ -100,37 +144,30 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             setState(PreviewHostConnectionState.Unavailable, exception.Message);
             return false;
         }
-        if (process is null)
-        {
-            setState(PreviewHostConnectionState.Unavailable, "UiPreviewHost could not be started.");
-            return false;
-        }
-        process.EnableRaisingEvents = true;
-        process.Exited += onProcessExited;
-        process.ErrorDataReceived += onErrorDataReceived;
-        process.BeginErrorReadLine();
-        input = process.StandardInput.BaseStream;
-        output = process.StandardOutput.BaseStream;
-
         JsonObject request = new()
         {
             ["type"] = "handshake",
             ["protocolVersion"] = ProtocolVersion,
-            ["adapterFingerprint"] = UiControlRegistryService.AdapterFingerprint,
+            ["adapterFingerprint"] = snapshot.AdapterFingerprint,
+            ["registryHash"] = snapshot.RegistryHash,
             ["projectPath"] = projectPath,
         };
         try
         {
-            JsonObject response = await ExchangeAsync(request, cancellationToken);
+            JsonObject response = await ExchangeAsync(request, cancellationToken).ConfigureAwait(false);
             if (!string.Equals(getString(response, "type"), "handshake", StringComparison.Ordinal)
                 || response["accepted"]?.GetValue<bool>() != true
                 || response["protocolVersion"]?.GetValue<int>() != ProtocolVersion
                 || !string.Equals(
                     getString(response, "adapterFingerprint"),
-                    UiControlRegistryService.AdapterFingerprint,
+                    snapshot.AdapterFingerprint,
+                    StringComparison.Ordinal)
+                || !string.Equals(
+                    getString(response, "registryHash"),
+                    snapshot.RegistryHash,
                     StringComparison.Ordinal))
             {
-                await stopProcessAsync();
+                await stopProcessAsync().ConfigureAwait(false);
                 setState(
                     PreviewHostConnectionState.Faulted,
                     getString(response, "message", "UiPreviewHost protocol is incompatible."));
@@ -146,42 +183,55 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await stopProcessAsync();
+            await stopProcessAsync().ConfigureAwait(false);
             setState(PreviewHostConnectionState.Unavailable, string.Empty);
             throw;
         }
         catch (Exception exception) when (IsProtocolException(exception))
         {
-            await stopProcessAsync();
+            await stopProcessAsync().ConfigureAwait(false);
             setState(PreviewHostConnectionState.Faulted, exception.Message);
             return false;
         }
-        setState(PreviewHostConnectionState.Ready, string.Empty);
-        return true;
+        if (!runtime.IsReady || snapshot.BuildId != runtime.Current?.BuildId
+            || snapshot.RegistryHash != runtime.Current?.RegistryHash
+            || snapshot.HostPath != runtime.Current?.HostPath)
+        {
+            await stopConnectedProcessAsync(cancellationToken).ConfigureAwait(false);
+            setState(PreviewHostConnectionState.Unavailable, runtime.StatusMessage);
+            return false;
+        }
+        setState(PreviewHostConnectionState.Ready, runtime.StatusMessage);
+        return !disposed && IsReady;
     }
 
     public async Task<JsonObject> ExchangeAsync(
         JsonObject request,
         CancellationToken cancellationToken = default)
     {
-        await protocolLock.WaitAsync(cancellationToken);
+        await protocolLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (input is null || output is null)
-                throw new IOException("UiPreviewHost is not connected.");
+            Stream currentInput;
+            Stream currentOutput;
+            lock (processSync)
+            {
+                currentInput = input ?? throw new IOException("UiPreviewHost is not connected.");
+                currentOutput = output ?? throw new IOException("UiPreviewHost is not connected.");
+            }
             byte[] payload = Encoding.UTF8.GetBytes(request.ToJsonString());
             byte[] length = new byte[sizeof(int)];
             BinaryPrimitives.WriteInt32LittleEndian(length, payload.Length);
-            await input.WriteAsync(length, cancellationToken);
-            await input.WriteAsync(payload, cancellationToken);
-            await input.FlushAsync(cancellationToken);
+            await currentInput.WriteAsync(length, cancellationToken).ConfigureAwait(false);
+            await currentInput.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+            await currentInput.FlushAsync(cancellationToken).ConfigureAwait(false);
 
-            await readExactlyAsync(output, length, cancellationToken);
+            await readExactlyAsync(currentOutput, length, cancellationToken).ConfigureAwait(false);
             int responseLength = BinaryPrimitives.ReadInt32LittleEndian(length);
             if (responseLength <= 0 || responseLength > 64 * 1024 * 1024)
                 throw new InvalidDataException("UiPreviewHost returned an invalid message length.");
             byte[] responsePayload = new byte[responseLength];
-            await readExactlyAsync(output, responsePayload, cancellationToken);
+            await readExactlyAsync(currentOutput, responsePayload, cancellationToken).ConfigureAwait(false);
             return JsonNode.Parse(responsePayload) as JsonObject
                 ?? throw new InvalidDataException("UiPreviewHost returned invalid JSON.");
         }
@@ -248,14 +298,21 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 
     public void Dispose()
     {
-        if (disposed)
-            return;
-        disposed = true;
-        Stream? currentInput = input;
-        Process? currentProcess = process;
-        input = null;
-        output = null;
-        process = null;
+        Stream? currentInput;
+        Process? currentProcess;
+        lock (processSync)
+        {
+            if (disposed)
+                return;
+            disposed = true;
+            currentInput = input;
+            currentProcess = process;
+            input = null;
+            output = null;
+            process = null;
+            activeSnapshot = null;
+        }
+        runtime.Changed -= onRuntimeChanged;
         currentInput?.Dispose();
         if (currentProcess is not null)
         {
@@ -269,12 +326,21 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         cleanupSharedMemoryFiles();
         Capabilities = new HashSet<string>(StringComparer.Ordinal);
         setState(PreviewHostConnectionState.Unavailable, string.Empty);
+        _ = finishDisposalAsync();
     }
 
     public ValueTask DisposeAsync()
     {
         Dispose();
-        return ValueTask.CompletedTask;
+        return new ValueTask(Shutdown);
+    }
+
+    private async Task finishDisposalAsync()
+    {
+        await startLock.WaitAsync().ConfigureAwait(false);
+        startLock.Release();
+        runtime.UnregisterConnection(this);
+        shutdownCompletion.TrySetResult();
     }
 
     public static bool IsProtocolException(Exception exception)
@@ -284,6 +350,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             or JsonException
             or FormatException
             or OverflowException
+            or ObjectDisposedException
             or EndOfStreamException;
     }
 
@@ -295,7 +362,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         int offset = 0;
         while (offset < target.Length)
         {
-            int count = await stream.ReadAsync(target[offset..], cancellationToken);
+            int count = await stream.ReadAsync(target[offset..], cancellationToken).ConfigureAwait(false);
             if (count == 0)
                 throw new EndOfStreamException("UiPreviewHost closed the protocol stream.");
             offset += count;
@@ -304,24 +371,28 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 
     private async Task stopProcessAsync()
     {
-        Stream? currentInput = input;
-        Process? currentProcess = process;
-        input = null;
-        output = null;
-        process = null;
-        if (currentInput is not null)
-            await currentInput.DisposeAsync();
-        if (currentProcess is null)
+        Stream? currentInput;
+        Process? currentProcess;
+        lock (processSync)
         {
-            cleanupSharedMemoryFiles();
-            return;
+            currentInput = input;
+            currentProcess = process;
+            input = null;
+            output = null;
+            process = null;
+            activeSnapshot = null;
         }
-        currentProcess.Exited -= onProcessExited;
-        currentProcess.ErrorDataReceived -= onErrorDataReceived;
-        if (!currentProcess.HasExited)
-            currentProcess.Kill(true);
-        currentProcess.WaitForExit();
-        currentProcess.Dispose();
+        if (currentProcess is not null)
+        {
+            currentProcess.Exited -= onProcessExited;
+            currentProcess.ErrorDataReceived -= onErrorDataReceived;
+            if (!currentProcess.HasExited)
+                currentProcess.Kill(true);
+            currentProcess.WaitForExit();
+            currentProcess.Dispose();
+        }
+        if (currentInput is not null)
+            await currentInput.DisposeAsync().ConfigureAwait(false);
         cleanupSharedMemoryFiles();
     }
 
@@ -349,30 +420,51 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private static string? findHostPath()
+    private void onRuntimeChanged(object? sender, EventArgs args)
     {
-        string fileName = OperatingSystem.IsWindows() ? "UiPreviewHost.exe" : "UiPreviewHost";
-        string packagedPath = Path.GetFullPath(Path.Combine(
-            EditorRuntimePaths.ContentRoot,
-            "tools",
-            "UiPreviewHost",
-            fileName));
-        if (File.Exists(packagedPath))
-            return packagedPath;
-        string developmentOutput = Path.Combine(
-            EditorRuntimePaths.DevelopmentRoot,
-            ".tools",
-            "UiPreviewHost",
-            "bin");
-        string[] developmentPaths =
-        [
-            Path.GetFullPath(Path.Combine(developmentOutput, "Debug", fileName)),
-            Path.GetFullPath(Path.Combine(developmentOutput, "Release", fileName)),
-        ];
-        return developmentPaths
-            .Where(File.Exists)
-            .OrderByDescending(File.GetLastWriteTimeUtc)
-            .FirstOrDefault();
+        bool sameSnapshot = matchesCurrentSnapshot();
+        setState(sameSnapshot && State is PreviewHostConnectionState.Ready or PreviewHostConnectionState.Starting
+            ? State : PreviewHostConnectionState.Unavailable, runtime.StatusMessage);
+        if (!sameSnapshot)
+            _ = stopForSnapshotChangeAsync();
+    }
+
+    private bool matchesCurrentSnapshot() => runtime.IsReady
+        && activeSnapshot is not null
+        && activeSnapshot.BuildId == runtime.Current?.BuildId
+        && activeSnapshot.RegistryHash == runtime.Current?.RegistryHash
+        && activeSnapshot.HostPath == runtime.Current?.HostPath;
+
+    private async Task stopForSnapshotChangeAsync()
+    {
+        Task stopping = stopProcessAsync();
+        await startLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await stopping.ConfigureAwait(false);
+            if (disposed || matchesCurrentSnapshot())
+                return;
+            await stopConnectedProcessAsync(CancellationToken.None).ConfigureAwait(false);
+            Capabilities = new HashSet<string>(StringComparer.Ordinal);
+            setState(PreviewHostConnectionState.Unavailable, runtime.StatusMessage);
+        }
+        finally
+        {
+            startLock.Release();
+        }
+    }
+
+    private async Task stopConnectedProcessAsync(CancellationToken cancellationToken)
+    {
+        await protocolLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await stopProcessAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            protocolLock.Release();
+        }
     }
 
     private static string getString(JsonObject value, string propertyName, string fallback = "")

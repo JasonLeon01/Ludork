@@ -6,3 +6,5 @@
 /cmake-build-ludork-debug/
 /CMakeUserPresets.json
 /Intermediate/
+/Cache/
+/Binaries/

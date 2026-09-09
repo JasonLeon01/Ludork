@@ -25,6 +25,7 @@ if ! "$PYTHON" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] == (3,
 fi
 
 mkdir -p "$OUTPUT_DIR"
+rm -f "$SOURCE_DIR/_generated_ui_control_registry.py"
 PYTHON_VERSION=$("$PYTHON" -c "import platform; print(platform.python_version())")
 NUITKA_VERSION=$("$PYTHON" -c "import importlib.metadata; print(importlib.metadata.version('Nuitka'))")
 OPENSSL_VERSION=$("$PYTHON" -c "import ssl; print(ssl.OPENSSL_VERSION)")

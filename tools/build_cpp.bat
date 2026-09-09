@@ -42,8 +42,6 @@ if not exist "%SCRIPT_TOOLS%" (
 echo Project: %CPP_DIR%
 echo Configuration: %CONFIG%
 echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
-"%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
-if errorlevel 1 exit /b %errorlevel%
 
 set "GNU_MAKE=%CD%\.tools\gnu-make\gnumake.exe"
 findstr /R /C:"\"ffmpeg\"[ ]*:[ ]*true" "%CPP_DIR%\Main.proj" >nul 2>nul

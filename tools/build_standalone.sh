@@ -41,7 +41,7 @@ case "$CPP_DIR" in
         exit 1
         ;;
 esac
-for protected_name in Assets Data Scripts bin build Licenses ThirdPartySource Engine Intermediate; do
+for protected_name in Assets Data Scripts Binaries Temp Cache bin build Licenses ThirdPartySource Engine Intermediate; do
     protected_source="$CPP_DIR/$protected_name"
     case "$STANDALONE_DIR" in
         "$protected_source" | "$protected_source"/*)
@@ -51,8 +51,8 @@ for protected_name in Assets Data Scripts bin build Licenses ThirdPartySource En
     esac
 done
 
+SCRIPT_TOOLS=$(resolve_script_tools)
 if [ "$USE_CURRENT_BUILD" -eq 1 ]; then
-    SCRIPT_TOOLS=$(resolve_script_tools)
     "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 else
     sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"
@@ -74,7 +74,10 @@ rm -rf \
     "$STANDALONE_DIR/Assets" \
     "$STANDALONE_DIR/Data" \
     "$STANDALONE_DIR/Scripts"
-rm -f "$STANDALONE_DIR/Scripts.ldpak"
+rm -f \
+    "$STANDALONE_DIR/Assets.ldpak" \
+    "$STANDALONE_DIR/Data.ldpak" \
+    "$STANDALONE_DIR/Scripts.ldpak"
 rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/Assets/" "$STANDALONE_DIR/Assets/"
 rsync -a --delete --exclude '.DS_Store' --exclude '*.anim.json' "$CPP_DIR/Data/" "$STANDALONE_DIR/Data/"
 rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/Scripts/" "$STANDALONE_DIR/Scripts/"
@@ -84,8 +87,6 @@ rsync -a \
     --delete \
     --exclude '.DS_Store' \
     --exclude '*.pdb' \
-    --exclude 'UiPreviewHost*' \
-    --exclude 'UiPreviewCurveResolver*' \
     "$CPP_DIR/bin/$CONFIG/" "$STANDALONE_DIR/Binaries/"
 if [ ! -f "$STANDALONE_DIR/Binaries/Main" ]; then
     echo "Standalone output is missing Binaries/Main." >&2
@@ -137,17 +138,9 @@ for legal_name in LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md
     fi
 done
 
-UI_PREVIEW_ENTRY_NAMES="UiPreviewHost UiPreviewCurveResolver"
-for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
-    find "$STANDALONE_DIR" -depth -name "$entry_name*" -exec rm -rf {} +
-done
-for entry_name in $UI_PREVIEW_ENTRY_NAMES; do
-    forbidden_path=$(find "$STANDALONE_DIR" -name "$entry_name*" -print -quit)
-    if [ -n "$forbidden_path" ]; then
-        echo "UI preview host entry was found in a standalone build: $forbidden_path" >&2
-        exit 1
-    fi
-done
+rm -rf "$STANDALONE_DIR/Temp"
+"$SCRIPT_TOOLS" ui-preview copy "$CPP_DIR" "$STANDALONE_DIR"
+rm -rf "$STANDALONE_DIR/Cache"
 
 unexpected_runtime=$(find "$STANDALONE_DIR" \
     -maxdepth 1 \

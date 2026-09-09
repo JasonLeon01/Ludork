@@ -115,10 +115,6 @@ jobs:
         run: |
           .tools\ScriptTools\ScriptTools.exe impl-boundary-check Sample
           if errorlevel 1 exit /b 1
-          .tools\ScriptTools\ScriptTools.exe ui-adapter-check "%CD%"
-          if errorlevel 1 exit /b 1
-          .tools\ScriptTools\ScriptTools.exe ui-assets validate Sample
-          if errorlevel 1 exit /b 1
 
       - name: Archive prepared environment
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -149,7 +145,6 @@ jobs:
     strategy:
       matrix:
         component:
-          - ui-preview-host
           - templates-plain
           - templates-ffmpeg
     env:
@@ -166,7 +161,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            obj/template-native-cache
             .tools/Lua
           key: export-v1-windows-2022-${{ runner.arch }}-native-${{ matrix.component }}-Release-${{ needs.build_inputs.outputs.native }}
 
@@ -186,11 +181,6 @@ jobs:
         shell: cmd
         run: tar.exe -xf obj\native-environment\windows-native-environment.tar -C .
 
-      - name: Build native UI preview host
-        if: matrix.component == 'ui-preview-host' && steps.native-cache.outputs.cache-hit != 'true'
-        shell: cmd
-        run: tools\build_ui_preview_host.bat Release
-
       - name: Build templates without FFmpeg
         if: matrix.component == 'templates-plain'
         shell: cmd
@@ -200,11 +190,6 @@ jobs:
         if: matrix.component == 'templates-ffmpeg'
         shell: cmd
         run: tools\create_templates_ffmpeg.bat --native-cache "%CD%\obj\template-native-cache" Release obj\export-editor-inputs\Templates
-
-      - name: Archive native UI preview host
-        if: matrix.component == 'ui-preview-host'
-        shell: cmd
-        run: tar.exe -cf windows-ui-preview-host.tar -C .tools\UiPreviewHost\bin\Release .
 
       - name: Archive templates without FFmpeg
         if: matrix.component == 'templates-plain'
@@ -226,7 +211,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: |
-            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            obj/template-native-cache
             .tools/Lua
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
@@ -325,12 +310,6 @@ jobs:
           name: windows-native-environment.tar
           path: obj/editor-inputs/artifacts
 
-      - name: Download native UI preview host
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-ui-preview-host.tar
-          path: obj/editor-inputs/artifacts
-
       - name: Download templates without FFmpeg
         uses: actions/download-artifact@v8
         with:
@@ -355,11 +334,8 @@ jobs:
           tar.exe -xf "obj\editor-inputs\artifacts\windows-native-environment.tar" -C .
           if errorlevel 1 exit /b 1
           if not exist ".tools\Lua" mkdir ".tools\Lua"
-          if not exist ".tools\UiPreviewHost\bin\Release" mkdir ".tools\UiPreviewHost\bin\Release"
           if not exist "obj\editor-inputs\Templates" mkdir "obj\editor-inputs\Templates"
           tar.exe -xf "obj\editor-inputs\artifacts\windows-luac.tar" -C ".tools\Lua"
-          if errorlevel 1 exit /b 1
-          tar.exe -xf "obj\editor-inputs\artifacts\windows-ui-preview-host.tar" -C ".tools\UiPreviewHost\bin\Release"
           if errorlevel 1 exit /b 1
           tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-plain.tar" -C "obj\editor-inputs\Templates"
           if errorlevel 1 exit /b 1
@@ -370,7 +346,7 @@ jobs:
         env:
           EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
         shell: cmd
-        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --use-current-ui-preview-host --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_BUILD_OPTION%
+        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_BUILD_OPTION%
 
       - name: Save C# build outputs
         if: steps.managed-cache.outputs.cache-hit != 'true'
@@ -462,8 +438,6 @@ jobs:
         timeout-minutes: 10
         run: |
           .tools/ScriptTools/ScriptTools impl-boundary-check Sample
-          .tools/ScriptTools/ScriptTools ui-adapter-check "$PWD"
-          .tools/ScriptTools/ScriptTools ui-assets validate Sample
 
       - name: Archive prepared environment
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -493,7 +467,6 @@ jobs:
     strategy:
       matrix:
         component:
-          - ui-preview-host
           - templates-plain
           - templates-ffmpeg
     env:
@@ -510,7 +483,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            obj/template-native-cache
             .tools/Lua
           key: export-v1-macos-15-${{ runner.arch }}-native-${{ matrix.component }}-Release-${{ needs.build_inputs.outputs.native }}
 
@@ -523,10 +496,6 @@ jobs:
       - name: Restore prepared environment
         run: tar -xf obj/native-environment/macos-native-environment.tar -C .
 
-      - name: Build native UI preview host
-        if: matrix.component == 'ui-preview-host' && steps.native-cache.outputs.cache-hit != 'true'
-        run: sh tools/build_ui_preview_host.sh Release
-
       - name: Build templates without FFmpeg
         if: matrix.component == 'templates-plain'
         run: |
@@ -538,10 +507,6 @@ jobs:
         run: |
           mkdir -p obj/export-editor-inputs
           sh tools/create_templates_ffmpeg.sh --native-cache "$PWD/obj/template-native-cache" Release obj/export-editor-inputs/Templates
-
-      - name: Archive native UI preview host
-        if: matrix.component == 'ui-preview-host'
-        run: tar -cf macos-ui-preview-host.tar -C .tools/UiPreviewHost/bin/Release .
 
       - name: Archive templates without FFmpeg
         if: matrix.component == 'templates-plain'
@@ -560,7 +525,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: |
-            ${{ matrix.component == 'ui-preview-host' && '.tools/UiPreviewHost/bin/Release' || 'obj/template-native-cache' }}
+            obj/template-native-cache
             .tools/Lua
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
 
@@ -627,12 +592,6 @@ jobs:
           name: macos-native-environment.tar
           path: obj/editor-inputs/artifacts
 
-      - name: Download native UI preview host
-        uses: actions/download-artifact@v8
-        with:
-          name: macos-ui-preview-host.tar
-          path: obj/editor-inputs/artifacts
-
       - name: Download templates without FFmpeg
         uses: actions/download-artifact@v8
         with:
@@ -654,16 +613,15 @@ jobs:
       - name: Restore editor inputs
         run: |
           tar -xf obj/editor-inputs/artifacts/macos-native-environment.tar -C .
-          mkdir -p .tools/Lua .tools/UiPreviewHost/bin/Release obj/editor-inputs/Templates
+          mkdir -p .tools/Lua obj/editor-inputs/Templates
           tar -xf obj/editor-inputs/artifacts/macos-luac.tar -C .tools/Lua
-          tar -xf obj/editor-inputs/artifacts/macos-ui-preview-host.tar -C .tools/UiPreviewHost/bin/Release
           tar -xf obj/editor-inputs/artifacts/macos-templates-plain.tar -C obj/editor-inputs/Templates
           tar -xf obj/editor-inputs/artifacts/macos-templates-ffmpeg.tar -C obj/editor-inputs/Templates
 
       - name: Package unsigned editor DMG
         env:
           EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
-        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" --use-current-ui-preview-host ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
+        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
 
       - name: Save C# build outputs
         if: steps.managed-cache.outputs.cache-hit != 'true'

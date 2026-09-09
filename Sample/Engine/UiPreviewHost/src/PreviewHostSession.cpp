@@ -17,8 +17,9 @@
 
 namespace ludork::preview_host {
 
-PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint)
-    : adapterFingerprint_(adapterFingerprint) {}
+PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint,
+                                       std::string_view registryHash)
+    : adapterFingerprint_(adapterFingerprint), registryHash_(registryHash) {}
 
 PreviewHostSession::~PreviewHostSession() noexcept {
     uiSession_.reset();
@@ -69,11 +70,16 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
                 request, "adapterFingerprint", "Handshake"),
             "Handshake.adapterFingerprint");
     const bool accepted = requestedProtocol == protocolVersion &&
-                          requestedFingerprint == adapterFingerprint_;
+                          requestedFingerprint == adapterFingerprint_ &&
+                          ludork::runtime::value_reader::requireString(
+                              ludork::runtime::value_reader::requireValue(
+                                  request, "registryHash", "Handshake"),
+                              "Handshake.registryHash") == registryHash_;
     std::string message;
     if (!accepted) {
         message =
-            "UiPreviewHost protocol or adapter fingerprint is incompatible.";
+            "UiPreviewHost protocol, adapter fingerprint or registry hash is "
+            "incompatible.";
     } else {
         const std::string& projectPath =
             ludork::runtime::value_reader::requireString(
@@ -100,6 +106,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
         {"accepted", RuntimeData(accepted)},
         {"protocolVersion", RuntimeData(protocolVersion)},
         {"adapterFingerprint", RuntimeData(adapterFingerprint_)},
+        {"registryHash", RuntimeData(registryHash_)},
         {"capabilities", RuntimeData(std::move(capabilities))},
         {"message", RuntimeData(std::move(message))},
     }));

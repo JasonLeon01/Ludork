@@ -45,12 +45,8 @@ public partial class PackSelectionDialog : Window
         ConfirmButton.Content = LocaleService.Get("CONFIRM");
         CancelButton.Content = LocaleService.Get("CANCEL");
         EncryptSavesOption.IsEnabled = !isStandalone;
-        if (isStandalone)
-        {
-            ToolTip.SetTip(
-                EncryptSavesOption,
-                LocaleService.Get("PACK_ENCRYPT_SAVES_CPP_REQUIRED"));
-        }
+        EncryptSavesHintText.Text = LocaleService.Get("PACK_ENCRYPT_SAVES_STANDALONE_HINT");
+        EncryptSavesHintText.IsVisible = isStandalone;
         MacOSOption.IsCheckedChanged += (_, _) => updateIosDetailsVisibility();
         IosOption.IsCheckedChanged += (_, _) => updateIosDetailsVisibility();
         HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();

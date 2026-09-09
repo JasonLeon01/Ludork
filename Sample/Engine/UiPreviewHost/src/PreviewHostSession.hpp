@@ -13,7 +13,8 @@ namespace ludork::preview_host {
 
 class PreviewHostSession {
 public:
-    explicit PreviewHostSession(std::string_view adapterFingerprint);
+    PreviewHostSession(std::string_view adapterFingerprint,
+                       std::string_view registryHash);
     ~PreviewHostSession() noexcept;
 
     PreviewHostSession(const PreviewHostSession&) = delete;
@@ -27,6 +28,7 @@ private:
     RuntimeData handshake(const RuntimeData::Map& request);
 
     std::string adapterFingerprint_;
+    std::string registryHash_;
     FrameFiles frameFiles_;
     ActorBatchRenderer actorRenderer_;
     UiPreviewSession uiSession_;

@@ -71,11 +71,13 @@ public sealed class UiAssetValidationService
         }
         IReadOnlyDictionary<string, UiControlDescriptor> controls =
             controlRegistry.CreateControlLookup();
-        validateAssetStructure(normalizedKey, data, controls, issues);
+        if (!controlRegistry.IsReady)
+            add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
+        validateAssetStructure(normalizedKey, data, controls, issues, !controlRegistry.IsReady);
         return new UiAssetValidationResult(normalizedKey, issues);
     }
 
-    public IReadOnlyList<UiAssetValidationResult> ValidateAll()
+    public IReadOnlyList<UiAssetValidationResult> ValidateAll(bool structuralOnly = false)
     {
         Dictionary<string, List<UiValidationIssue>> issuesByKey =
             new Dictionary<string, List<UiValidationIssue>>(StringComparer.Ordinal);
@@ -94,7 +96,9 @@ public sealed class UiAssetValidationService
                     string.Empty,
                     "UI assets must be stored under Data/UI/Assets");
             }
-            validateAssetStructure(logicalKey, pair.Value, controls, issues);
+            if (!structuralOnly && !controlRegistry.IsReady)
+                add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
+            validateAssetStructure(logicalKey, pair.Value, controls, issues, structuralOnly || !controlRegistry.IsReady);
             issuesByKey[logicalKey.Length == 0 ? pair.Key : logicalKey] = issues;
         }
         validateProjectCycles(issuesByKey);
@@ -121,7 +125,8 @@ public sealed class UiAssetValidationService
         string assetKey,
         JsonObject data,
         IReadOnlyDictionary<string, UiControlDescriptor> controls,
-        ICollection<UiValidationIssue> issues)
+        ICollection<UiValidationIssue> issues,
+        bool structuralOnly)
     {
         rejectUnknownFields(data, AssetFields, string.Empty, issues);
         if (getString(data["type"]) != UiAssetSchema.UiAssetType)
@@ -134,7 +139,7 @@ public sealed class UiAssetValidationService
             return;
         }
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
-        validateNode(assetKey, root, "root", true, null, controls, names, issues);
+        validateNode(assetKey, root, "root", true, null, controls, names, issues, structuralOnly);
         validateAnimations(data["animations"], names, issues);
     }
 
@@ -146,7 +151,8 @@ public sealed class UiAssetValidationService
         UiControlDescriptor? parent,
         IReadOnlyDictionary<string, UiControlDescriptor> controls,
         ISet<string> names,
-        ICollection<UiValidationIssue> issues)
+        ICollection<UiValidationIssue> issues,
+        bool structuralOnly)
     {
         rejectUnknownFields(node, NodeFields, path, issues);
         string? name = getString(node["name"]);
@@ -166,7 +172,15 @@ public sealed class UiAssetValidationService
         }
         else
         {
-            validateSlot(node["slot"], parent, path + ".slot", issues);
+            if (structuralOnly && node["slot"] is JsonObject slot)
+            {
+                if (slot.Count != 0)
+                    validateCanvasSlot(slot, path + ".slot", issues);
+            }
+            else
+            {
+                validateSlot(node["slot"], parent, path + ".slot", issues);
+            }
         }
 
         JsonObject? properties = node["properties"] as JsonObject;
@@ -192,6 +206,12 @@ public sealed class UiAssetValidationService
             add(issues, "controlId", path + ".controlId", "Node controlId must be a non-empty string");
             return;
         }
+        if (!controlId.StartsWith(UiAssetSchema.ProjectControlPrefix, StringComparison.Ordinal)
+            && !UiControlRegistryService.IsCanonicalControlId(controlId))
+        {
+            add(issues, "controlId", path + ".controlId", "Node controlId must be a canonical native class path");
+            return;
+        }
         if (controlId.StartsWith(UiAssetSchema.ProjectControlPrefix, StringComparison.Ordinal))
         {
             if (!UiAssetSchema.TryGetProjectAssetKey(controlId, out string targetKey))
@@ -214,13 +234,18 @@ public sealed class UiAssetValidationService
                 return;
             }
         }
-        if (!controls.TryGetValue(controlId, out UiControlDescriptor? descriptor))
+        controls.TryGetValue(controlId, out UiControlDescriptor? descriptor);
+        if (structuralOnly && descriptor?.Source != "project")
+        {
+            descriptor = null;
+        }
+        else if (descriptor is null)
         {
             add(issues, "unknownControl", path + ".controlId", $"Unknown UI control \"{controlId}\"");
             return;
         }
 
-        bool projectControl = descriptor.Source == "project";
+        bool projectControl = descriptor?.Source == "project";
         if (projectControl)
         {
             if (properties.Count != 0)
@@ -230,17 +255,23 @@ public sealed class UiAssetValidationService
             if (children.Count != 0)
                 add(issues, "nestedChildren", path + ".children", "Nested UI assets cannot override children");
         }
-        else
+        else if (descriptor is not null)
         {
             validateProperties(properties, descriptor, path + ".properties", issues);
             validateEditor(editor, descriptor, path + ".editor", issues);
         }
+        else
+        {
+            rejectUnknownFields(editor, EditorFields, path + ".editor", issues);
+            if (editor.ContainsKey("previewText"))
+                validatePropertyType(editor["previewText"], "string", path + ".editor.previewText", issues);
+        }
 
-        if (descriptor.ChildPolicy == "none" && children.Count != 0)
+        if (descriptor?.ChildPolicy == "none" && children.Count != 0)
             add(issues, "childPolicy", path + ".children", $"{controlId} cannot contain child nodes");
-        if (descriptor.ChildPolicy == "single" && children.Count > 1)
+        if (descriptor?.ChildPolicy == "single" && children.Count > 1)
             add(issues, "childPolicy", path + ".children", $"{controlId} can contain only one child node");
-        if (descriptor.ChildPolicy is not ("none" or "single" or "multiple"))
+        if (descriptor is not null && descriptor.ChildPolicy is not ("none" or "single" or "multiple"))
             add(issues, "childPolicy", path + ".controlId", $"{controlId} declares an invalid child policy");
 
         for (int index = 0; index < children.Count; index++)
@@ -258,7 +289,8 @@ public sealed class UiAssetValidationService
                 descriptor,
                 controls,
                 names,
-                issues);
+                issues,
+                structuralOnly);
         }
     }
 
@@ -426,7 +458,13 @@ public sealed class UiAssetValidationService
         string path,
         ICollection<UiValidationIssue> issues)
     {
-        bool valid = type switch
+        if (!IsPropertyValueValid(value, type))
+            add(issues, "propertyType", path, $"Value must match declared type {type}");
+    }
+
+    internal static bool IsPropertyValueValid(JsonNode? value, string type)
+    {
+        return type switch
         {
             "bool" => tryGetBoolean(value, out bool _),
             "int" => tryGetInteger(value, out long integer)
@@ -438,14 +476,12 @@ public sealed class UiAssetValidationService
             "Engine.TextGradientDirection" => getString(value) is "vertical" or "horizontal",
             "string[]" => value is JsonArray strings
                 && strings.All(item => getString(item) is not null),
-            "sf.Vector2f" => validatePair(value, path, false, null) is not null,
-            "sf.Vector2u" => validatePair(value, path, true, null) is not null,
+            "sf.Vector2f" => validatePair(value, string.Empty, false, null) is not null,
+            "sf.Vector2u" => validatePair(value, string.Empty, true, null) is not null,
             "sf.IntRect" => value is null || validateIntegerArray(value, 4, false),
             "sf.Color" => validateIntegerArray(value, 4, true),
             _ => false,
         };
-        if (!valid)
-            add(issues, "propertyType", path, $"Value must match declared type {type}");
     }
 
     private static void validatePropertySemantics(
@@ -521,6 +557,11 @@ public sealed class UiAssetValidationService
         string? text = getString(value);
         if (text is null || text.Length == 0)
             return;
+        if (propertyId is not ("texture" or "windowSkin" or "lineTexture" or "handleTexture"
+            or "font" or "shader" or "textConfig" or "opacityCurve" or "gradientCurve"))
+        {
+            return;
+        }
         if (text != text.Trim() || text.Contains('\\'))
         {
             add(issues, "resourcePath", path, "UI resources must use a canonical project-relative path");
@@ -578,23 +619,13 @@ public sealed class UiAssetValidationService
         }
     }
 
-    private static void validateTextConfigType(
+    private void validateTextConfigType(
         string controlId,
         JsonObject textConfig,
         string path,
         ICollection<UiValidationIssue> issues)
     {
-        string? expectedType = controlId switch
-        {
-            "Engine.CheckBox" => "plainTextConfig",
-            "Engine.DropBox" => "plainTextConfig",
-            "Engine.TabView" => "plainTextConfig",
-            "Engine.PlainText" => "plainTextConfig",
-            "Engine.FunctionalPlainText" => "plainTextConfig",
-            "Engine.RichText" => "richTextConfig",
-            "Engine.FunctionalRichText" => "richTextConfig",
-            _ => null,
-        };
+        string? expectedType = controlRegistry.ExpectedTextConfigType(controlId);
         if (expectedType is not null
             && getString(textConfig["type"]) != expectedType)
         {

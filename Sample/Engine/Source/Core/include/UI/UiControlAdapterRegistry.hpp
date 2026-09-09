@@ -23,6 +23,10 @@ uiControlAdapterDescriptors();
 
 LUDORK_ENGINE_API std::string_view uiControlAdapterFingerprint();
 
+LUDORK_ENGINE_API void validateUiControlAdapterDescriptors();
+LUDORK_ENGINE_API std::string_view uiControlRegistryDescription();
+LUDORK_ENGINE_API std::string_view uiControlRegistryHash();
+
 LUDORK_ENGINE_API void clearUiControlAdapterResourceCache() noexcept;
 
 class LUDORK_ENGINE_API UiControlAdapterRegistry {
@@ -90,9 +94,10 @@ private:
                 adapter.properties.emplace(property.id);
             }
         }
-        adapters_.emplace(std::string(descriptor.controlId),
-                          std::move(adapter));
+        registerAdapter(std::string(descriptor.controlId), std::move(adapter));
     }
+
+    void registerAdapter(const std::string& controlId, Adapter adapter);
 
     const Adapter& requireAdapter(const std::string& controlId) const;
 

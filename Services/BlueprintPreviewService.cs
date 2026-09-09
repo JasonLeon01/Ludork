@@ -21,12 +21,13 @@ public sealed class BlueprintPreviewService : IDisposable
     public BlueprintPreviewService(
         string projectPath,
         GameDataService gameData,
-        BlueprintClassResolver classResolver)
+        BlueprintClassResolver classResolver,
+        UiPreviewRuntimeService runtime)
     {
         this.projectPath = Path.GetFullPath(projectPath);
         this.gameData = gameData;
         this.classResolver = classResolver;
-        ActorPreviews = new ActorPreviewService(this.projectPath);
+        ActorPreviews = new ActorPreviewService(runtime);
         gameData.DataReloaded += onVisualSourceDataChanged;
         gameData.DataRestored += onVisualSourceDataChanged;
     }

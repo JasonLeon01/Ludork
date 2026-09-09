@@ -177,3 +177,8 @@ std::string_view uiControlAdapterFingerprint() {
     static const std::string fingerprint = sha256(adapterFingerprintSource());
     return fingerprint;
 }
+
+std::string_view uiControlRegistryHash() {
+    static const std::string hash = sha256(uiControlRegistryDescription());
+    return hash;
+}

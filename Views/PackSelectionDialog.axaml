@@ -87,6 +87,11 @@
                           IsChecked="False" />
                 <CheckBox x:Name="EncryptSavesOption"
                           IsChecked="False" />
+                <TextBlock x:Name="EncryptSavesHintText"
+                           Margin="28,0,0,0"
+                           Foreground="#888888"
+                           IsVisible="False"
+                           TextWrapping="Wrap" />
             </StackPanel>
             <CheckBox x:Name="UseLdPakOption"
                       IsChecked="False" />

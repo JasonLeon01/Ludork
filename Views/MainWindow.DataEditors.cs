@@ -501,6 +501,19 @@ public partial class MainWindow
         MainViewModel mainViewModel,
         string? destinationPath)
     {
+        await mainViewModel.UiControlRegistry.Runtime.RefreshAsync();
+        if (!mainViewModel.UiControlRegistry.IsReady)
+        {
+            await AlertDialog.ShowAsync(this, LocaleService.Get("UI_ASSET_EDITOR"),
+                mainViewModel.UiControlRegistry.Runtime.StatusMessage);
+            return;
+        }
+        if (!mainViewModel.UiControlRegistry.SystemDescriptors.Any(control => control.ControlId == "Engine.Canvas"))
+        {
+            await AlertDialog.ShowAsync(this, LocaleService.Get("UI_ASSET_EDITOR"),
+                LocaleService.Get("UI_REGISTRY_CANVAS_REQUIRED"));
+            return;
+        }
         string uiRoot = Path.Combine(
             mainViewModel.GameData.ProjectPath,
             "Data",

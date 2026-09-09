@@ -31,7 +31,6 @@ BUILD_JOBS=$(resolve_parallel_jobs)
 echo "Project: $CPP_DIR"
 echo "Configuration: $CONFIG"
 echo "Parallel jobs: $BUILD_JOBS"
-"$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 
 set -- \
     -S "$CPP_DIR" \

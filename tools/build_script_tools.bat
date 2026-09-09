@@ -24,6 +24,8 @@ if errorlevel 1 (
 )
 
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
+if exist "%SOURCE_DIR%\_generated_ui_control_registry.py" del /Q "%SOURCE_DIR%\_generated_ui_control_registry.py"
+if exist "%SOURCE_DIR%\_generated_ui_control_registry.py" exit /b 1
 set "PYTHON_VERSION="
 set "NUITKA_VERSION="
 set "OPENSSL_VERSION="

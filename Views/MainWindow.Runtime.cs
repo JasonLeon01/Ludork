@@ -123,7 +123,8 @@ public partial class MainWindow
         if (!await EditorSaveWorkflow.TrySaveAsync(
                 this,
                 viewModel.ProjectSave,
-                false))
+                false,
+                !viewModel.ProjectConfig.IsStandalone))
         {
             return;
         }

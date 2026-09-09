@@ -114,6 +114,6 @@ add_dependencies(LudorkCoreModules
 function(ludork_copy_core_runtime target)
     add_dependencies(${target} LudorkCoreModules)
 endfunction()
-elseif(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
+elseif(LUDORK_BUILD_UI_PREVIEW_HOST)
     add_subdirectory(Core)
 endif()

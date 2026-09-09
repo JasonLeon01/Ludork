@@ -94,11 +94,33 @@ void UiControlAdapterRegistry::reflowChildren(const std::string& controlId,
 }
 
 UiControlAdapterRegistry::UiControlAdapterRegistry() {
+    validateUiControlAdapterDescriptors();
     BuilderImpl::registerLayoutAdapters(*this);
     BuilderImpl::registerVisualAdapters(*this);
     BuilderImpl::registerInputAdapters(*this);
     BuilderImpl::registerSkinnedAdapters(*this);
     BuilderImpl::registerTextAdapters(*this);
+    for (const UiControlAdapterDescriptor& descriptor :
+         uiControlAdapterDescriptors()) {
+        static_cast<void>(requireAdapter(std::string(descriptor.controlId)));
+    }
+    if (adapters_.size() != uiControlAdapterDescriptors().size()) {
+        throw std::logic_error(
+            "Registered UI adapters differ from the descriptor table");
+    }
+}
+
+void UiControlAdapterRegistry::registerAdapter(const std::string& controlId,
+                                               Adapter adapter) {
+    if (!adapter.factory || !adapter.setter || !adapter.arranger ||
+        (adapter.childPolicy != UiChildPolicy::None &&
+         !adapter.childAttacher)) {
+        throw std::logic_error("UI adapter is missing required operations: " +
+                               controlId);
+    }
+    if (!adapters_.emplace(controlId, std::move(adapter)).second) {
+        throw std::logic_error("Duplicate UI adapter factory: " + controlId);
+    }
 }
 
 const UiControlAdapterRegistry::Adapter&

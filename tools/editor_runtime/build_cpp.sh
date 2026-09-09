@@ -31,7 +31,6 @@ BUILD_JOBS=$(resolve_parallel_jobs)
 echo "Project: $CPP_DIR"
 echo "Configuration: $CONFIG"
 echo "Parallel jobs: $BUILD_JOBS"
-"$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 "$CMAKE_BIN" \
     -S "$CPP_DIR" \
     -B "$CPP_DIR/build" \

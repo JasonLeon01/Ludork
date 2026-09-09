@@ -270,7 +270,7 @@ end
 function DataLoading:loadAnimations(onFileLoaded)
     self:_loadOneCategory({
         category = "animations",
-        root = "./Data/Animations",
+        root = Engine.getAnimationCacheRoot(),
         suffix = ".anim.json",
         recursive = true,
         required = false

@@ -46,7 +46,7 @@ ludork_configure_core_library(
     "${LUDORK_ENGINE_BINDINGS_TRAITS}")
 endif()
 
-if(LUDORK_BUILD_UI_PREVIEW_HOST_RUNTIME)
+if(LUDORK_BUILD_UI_PREVIEW_HOST)
     include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkUiPreviewHostRuntime.cmake")
     ludork_add_ui_preview_host_runtime(UiPreviewHostRuntime)
 endif()

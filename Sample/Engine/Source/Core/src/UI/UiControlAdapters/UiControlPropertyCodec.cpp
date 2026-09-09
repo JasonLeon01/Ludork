@@ -1,6 +1,7 @@
 #include "UiControlPropertyCodec.hpp"
 
 #include <Runtime/RuntimeDataReader.hpp>
+#include <Runtime/Json.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -102,6 +103,38 @@ UiControlPropertyValue propertyValue(const RuntimeData& value,
 }
 
 }  // namespace
+
+RuntimeData parsePropertyDefault(const UiControlPropertyDescriptor& property,
+                                 const std::string& source) {
+    RuntimeData value;
+    try {
+        value = parseJSONText(std::string(property.defaultJson));
+        static_cast<void>(propertyValue(value, property.type, source));
+    } catch (const std::exception& error) {
+        throw std::invalid_argument(source + ": " + error.what());
+    }
+    if (property.type == "sf.Color" &&
+        value.getIf<RuntimeData::Array>()->size() != 4) {
+        throw std::invalid_argument(source +
+                                    " must contain four color channels");
+    }
+    if (property.type == "sf.Text.LineAlignment") {
+        const std::string& text = *value.getIf<std::string>();
+        if (text != "default" && text != "left" && text != "center" &&
+            text != "right") {
+            throw std::invalid_argument(source +
+                                        " has an unknown text alignment");
+        }
+    }
+    if (property.type == "Engine.TextGradientDirection") {
+        const std::string& text = *value.getIf<std::string>();
+        if (text != "vertical" && text != "horizontal") {
+            throw std::invalid_argument(source +
+                                        " has an unknown gradient direction");
+        }
+    }
+    return value;
+}
 
 UiControlProperties parseProperties(
     const UiControlAdapterDescriptor& descriptor,

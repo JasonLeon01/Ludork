@@ -13,15 +13,17 @@ import tempfile
 import time
 import unicodedata
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ScriptTools.compile_lua import resolve_luac
+from ScriptTools.ui_preview import prepare_registry
 from ScriptTools.finalize_package import finalize_package
 from ScriptTools.ldpak import (
     LdPakError,
+    RESOURCE_PACKAGES,
     validate_ldpak_source,
-    validate_ldpak,
     validate_runtime_ldpak_layout,
+    validate_runtime_resource_paths,
 )
 
 
@@ -149,6 +151,13 @@ class PackContext:
     encrypt_data: bool
     encrypt_saves: bool
     use_ldpak: bool
+    ui_registry: pathlib.Path | None = None
+
+    @property
+    def registry(self) -> pathlib.Path:
+        if self.ui_registry is None:
+            raise PackError("Build the project UI preview before preparing package resources.", EXIT_PROJECT)
+        return self.ui_registry
 
 
 def resolve_deveco_tools() -> DevEcoTools:
@@ -581,6 +590,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
         context.encrypt_data,
         compile_lua_enabled=context.use_luac,
         use_ldpak=context.use_ldpak,
+        registry=context.registry,
     )
     validate_runtime_ldpak_layout(destination, context.use_ldpak)
 
@@ -654,10 +664,9 @@ def validate_runtime_zip(
                 1,
             )
         file_infos = [info for info in infos if not info.is_dir()]
-        file_names = {info.filename for info in file_infos}
         forbidden = sorted(
             name
-            for name in file_names
+            for name in names
             if pathlib.PurePosixPath(name).name == ".DS_Store"
             or name.casefold().endswith(".d.lua")
             or name.endswith(".anim.json")
@@ -669,56 +678,12 @@ def validate_runtime_zip(
                 + "\n".join(forbidden),
                 1,
             )
-        has_loose_scripts = any(name.startswith("Scripts/") for name in names)
-        has_packed_scripts = "Scripts.ldpak" in file_names
-        if has_loose_scripts == has_packed_scripts:
+        try:
+            validate_runtime_resource_paths(names, expected_use_ldpak)
+        except LdPakError as exception:
             raise PackError(
-                "The HarmonyOS runtime ZIP must contain exactly one of Scripts or Scripts.ldpak.",
-                1,
-            )
-        if has_packed_scripts != expected_use_ldpak:
-            raise PackError("The HarmonyOS runtime ZIP has the wrong Scripts layout.", 1)
-        if has_loose_scripts and not (
-            {"Scripts/Entry.lua", "Scripts/Entry.luac"} & file_names
-        ):
-            raise PackError(
-                "The HarmonyOS runtime ZIP is missing a Lua entry script.",
-                1,
-            )
-        for prefix in ("Assets/", "Data/"):
-            resource_entries = {
-                name
-                for name in names
-                if name.startswith(prefix) and name != prefix
-            }
-            resource_files = {
-                name for name in file_names if name.startswith(prefix)
-            }
-            if not resource_files:
-                raise PackError(
-                    f"The HarmonyOS runtime ZIP contains no {prefix.rstrip('/')} files.",
-                    1,
-                )
-            package_files = {
-                name
-                for name in resource_files
-                if "/" not in name[len(prefix) :]
-                and name.casefold().endswith(".ldpak")
-                and len(name) > len(prefix) + len(".ldpak")
-            }
-            if expected_use_ldpak and (
-                package_files != resource_files
-                or resource_entries != resource_files
-            ):
-                raise PackError(
-                    f"The HarmonyOS packed runtime ZIP contains loose {prefix.rstrip('/')} entries.",
-                    1,
-                )
-            if not expected_use_ldpak and package_files:
-                raise PackError(
-                    f"The HarmonyOS loose runtime ZIP contains packed {prefix.rstrip('/')} groups.",
-                    1,
-                )
+                f"The HarmonyOS runtime ZIP layout is invalid: {exception}", 1
+            ) from exception
         compressed_ldpak = sorted(
             info.filename
             for info in file_infos
@@ -734,15 +699,7 @@ def validate_runtime_zip(
         with tempfile.TemporaryDirectory(prefix="ludork-harmony-runtime-") as temporary:
             temporary_root = pathlib.Path(temporary)
             for info in file_infos:
-                is_group_package = (
-                    info.filename == "Scripts.ldpak"
-                    or any(
-                        info.filename.startswith(prefix)
-                        and "/" not in info.filename[len(prefix) :]
-                        and info.filename.endswith(".ldpak")
-                        for prefix in ("Assets/", "Data/")
-                    )
-                )
+                is_group_package = info.filename in RESOURCE_PACKAGES
                 if not is_group_package:
                     with archive.open(info) as stream:
                         while stream.read(FILE_BUFFER_SIZE):
@@ -752,8 +709,8 @@ def validate_runtime_zip(
                 extracted.parent.mkdir(parents=True, exist_ok=True)
                 with archive.open(info) as source, extracted.open("wb") as destination:
                     shutil.copyfileobj(source, destination, FILE_BUFFER_SIZE)
-                group = extracted.name[: -len(".ldpak")]
-                validate_ldpak(extracted, expected_group=group)
+            if expected_use_ldpak:
+                validate_runtime_ldpak_layout(temporary_root, True)
 
 
 def json5_argument_text(values: list[str]) -> str:
@@ -789,6 +746,9 @@ def cmake_configuration(context: PackContext) -> str:
         f"set(LUDORK_PROJECT_DIR {cmake_bracket_literal(str(context.project_dir))})",
         "set(LUDORK_SCRIPT_TOOLS_EXECUTABLE "
         f"{cmake_bracket_literal(str(context.script_tools))} CACHE FILEPATH \"\" FORCE)",
+        "set(LUDORK_BUILD_UI_PREVIEW_HOST OFF CACHE BOOL \"\" FORCE)",
+        "set(LUDORK_UI_REGISTRY_PATH "
+        f"{cmake_bracket_literal(str(context.registry))} CACHE FILEPATH \"\" FORCE)",
         "set(LUDORK_SAVE_AS_LDC "
         f"{'ON' if context.encrypt_saves else 'OFF'} CACHE BOOL \"\" FORCE)",
     ]
@@ -2462,6 +2422,7 @@ def main(arguments: list[str] | None = None) -> int:
                 f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed."
             )
             return 0
+        context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         if parsed.export_to_device:
             if device is None:
                 raise PackError("A HarmonyOS device is required for device export.", EXIT_DEVICE)

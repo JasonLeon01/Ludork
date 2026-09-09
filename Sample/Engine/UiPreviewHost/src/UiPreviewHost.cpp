@@ -1,3 +1,4 @@
+#include "PreviewBuildInfo.hpp"
 #include "PreviewHostSession.hpp"
 #include "Protocol/PreviewProtocol.hpp"
 
@@ -10,14 +11,26 @@
 #include <string>
 
 int main(int argc, char** argv) {
-    if (argc != 2 || std::string(argv[1]) != "--stdio") {
-        std::cerr << "Usage: UiPreviewHost --stdio\n";
+    if (argc != 2 || (std::string(argv[1]) != "--stdio" &&
+                      std::string(argv[1]) != "--describe" &&
+                      std::string(argv[1]) != "--build-info")) {
+        std::cerr << "Usage: UiPreviewHost --stdio|--describe|--build-info\n";
         return 2;
     }
     try {
         ludork::preview_host::configureProtocolStreams();
+        if (std::string(argv[1]) != "--stdio") {
+            const std::string_view description =
+                std::string(argv[1]) == "--describe"
+                    ? uiControlRegistryDescription()
+                    : ludork::preview_host::previewBuildInfo();
+            std::cout.write(description.data(),
+                            static_cast<std::streamsize>(description.size()));
+            std::cout.flush();
+            return std::cout ? 0 : 1;
+        }
         ludork::preview_host::PreviewHostSession host(
-            uiControlAdapterFingerprint());
+            uiControlAdapterFingerprint(), uiControlRegistryHash());
         while (true) {
             const std::optional<std::string> message =
                 ludork::preview_host::readMessage();

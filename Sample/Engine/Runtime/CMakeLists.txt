@@ -17,6 +17,7 @@ else()
         src/AssetPath.cpp
         src/AssetStore.cpp
         src/AssetInputStream.cpp
+        src/ResourceStorePaths.cpp
         src/LdPakArchive.cpp)
 endif()
 

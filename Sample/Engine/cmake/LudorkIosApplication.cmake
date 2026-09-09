@@ -63,77 +63,78 @@ function(ludork_configure_ios_application target)
     target_link_libraries(${target} PRIVATE
         SFML::Main)
     find_program(LUDORK_RSYNC_EXECUTABLE rsync REQUIRED)
+    set(ludork_resource_layout "")
     foreach(resource_directory IN ITEMS Assets Data Scripts)
         string(TOUPPER "${resource_directory}" resource_directory_upper)
         set(resource_source_variable
             "LUDORK_${resource_directory_upper}_SOURCE_DIR")
+        set(resource_package_variable
+            "LUDORK_${resource_directory_upper}_PACKAGE_FILE")
         if(NOT DEFINED ${resource_source_variable})
             set(${resource_source_variable}
                 "${CMAKE_CURRENT_SOURCE_DIR}/${resource_directory}")
         endif()
+        set(${resource_package_variable} "" CACHE FILEPATH
+            "Packaged ${resource_directory}.ldpak resource used by the iOS application")
+        set(ludork_has_loose_resource OFF)
+        if(IS_DIRECTORY "${${resource_source_variable}}")
+            set(ludork_has_loose_resource ON)
+        endif()
+        set(ludork_has_packed_resource OFF)
+        if(NOT "${${resource_package_variable}}" STREQUAL "")
+            if(NOT EXISTS "${${resource_package_variable}}"
+               OR IS_DIRECTORY "${${resource_package_variable}}")
+                message(FATAL_ERROR
+                    "The iOS resource package is not a file: ${${resource_package_variable}}")
+            endif()
+            get_filename_component(ludork_resource_package_name
+                "${${resource_package_variable}}" NAME)
+            if(NOT ludork_resource_package_name STREQUAL "${resource_directory}.ldpak")
+                message(FATAL_ERROR
+                    "The iOS resource package must be named ${resource_directory}.ldpak: ${${resource_package_variable}}")
+            endif()
+            set(ludork_has_packed_resource ON)
+        endif()
+        if((ludork_has_loose_resource AND ludork_has_packed_resource)
+           OR (NOT ludork_has_loose_resource AND NOT ludork_has_packed_resource))
+            message(FATAL_ERROR
+                "The iOS application requires exactly one loose ${resource_directory} directory or ${resource_directory}.ldpak file.")
+        endif()
+        if(ludork_has_loose_resource)
+            set(ludork_current_resource_layout Loose)
+        else()
+            set(ludork_current_resource_layout Packed)
+        endif()
+        if(NOT ludork_resource_layout STREQUAL ""
+           AND NOT ludork_resource_layout STREQUAL ludork_current_resource_layout)
+            message(FATAL_ERROR
+                "The iOS Assets, Data, and Scripts resources must use the same loose or packed layout.")
+        endif()
+        set(ludork_resource_layout "${ludork_current_resource_layout}")
+        if(ludork_has_loose_resource)
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E rm -f
+                    "$<TARGET_BUNDLE_DIR:${target}>/${resource_directory}.ldpak"
+                VERBATIM)
+            set(resource_excludes "")
+            if(NOT resource_directory STREQUAL "Scripts")
+                set(resource_excludes "*.anim.json")
+            endif()
+            ludork_add_ios_bundle_directory_sync(
+                ${target}
+                "${${resource_source_variable}}"
+                "${resource_directory}"
+                EXCLUDES ${resource_excludes})
+        else()
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E rm -rf
+                    "$<TARGET_BUNDLE_DIR:${target}>/${resource_directory}"
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${${resource_package_variable}}"
+                    "$<TARGET_BUNDLE_DIR:${target}>/${resource_directory}.ldpak"
+                VERBATIM)
+        endif()
     endforeach()
-    foreach(resource_directory IN ITEMS Assets Data)
-        string(TOUPPER "${resource_directory}" resource_directory_upper)
-        set(resource_source_variable
-            "LUDORK_${resource_directory_upper}_SOURCE_DIR")
-        ludork_add_ios_bundle_directory_sync(
-            ${target}
-            "${${resource_source_variable}}"
-            "${resource_directory}"
-            EXCLUDES "*.anim.json")
-    endforeach()
-    set(
-        LUDORK_SCRIPTS_PACKAGE_FILE
-        ""
-        CACHE FILEPATH
-        "Packaged Scripts.ldpak resource used by the iOS application")
-    set(ludork_has_loose_scripts OFF)
-    if(IS_DIRECTORY "${LUDORK_SCRIPTS_SOURCE_DIR}")
-        set(ludork_has_loose_scripts ON)
-    endif()
-    set(ludork_has_packed_scripts OFF)
-    if(NOT LUDORK_SCRIPTS_PACKAGE_FILE STREQUAL "")
-        if(NOT EXISTS "${LUDORK_SCRIPTS_PACKAGE_FILE}")
-            message(FATAL_ERROR
-                "The iOS script package was not found: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
-        endif()
-        if(IS_DIRECTORY "${LUDORK_SCRIPTS_PACKAGE_FILE}")
-            message(FATAL_ERROR
-                "The iOS script package is not a file: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
-        endif()
-        get_filename_component(
-            ludork_scripts_package_name
-            "${LUDORK_SCRIPTS_PACKAGE_FILE}"
-            NAME)
-        if(NOT ludork_scripts_package_name STREQUAL "Scripts.ldpak")
-            message(FATAL_ERROR
-                "The iOS script package must be named Scripts.ldpak: ${LUDORK_SCRIPTS_PACKAGE_FILE}")
-        endif()
-        set(ludork_has_packed_scripts ON)
-    endif()
-    if((ludork_has_loose_scripts AND ludork_has_packed_scripts)
-       OR (NOT ludork_has_loose_scripts AND NOT ludork_has_packed_scripts))
-        message(FATAL_ERROR
-            "The iOS application requires exactly one loose Scripts directory or Scripts.ldpak file.")
-    endif()
-    if(ludork_has_loose_scripts)
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E rm -f
-                "$<TARGET_BUNDLE_DIR:${target}>/Scripts.ldpak"
-            VERBATIM)
-        ludork_add_ios_bundle_directory_sync(
-            ${target}
-            "${LUDORK_SCRIPTS_SOURCE_DIR}"
-            Scripts)
-    else()
-        add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E rm -rf
-                "$<TARGET_BUNDLE_DIR:${target}>/Scripts"
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                "${LUDORK_SCRIPTS_PACKAGE_FILE}"
-                "$<TARGET_BUNDLE_DIR:${target}>/Scripts.ldpak"
-            VERBATIM)
-    endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Licenses")
         ludork_add_ios_bundle_directory_sync(
             ${target}

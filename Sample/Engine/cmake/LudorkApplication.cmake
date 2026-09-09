@@ -2,11 +2,20 @@ ludork_add_impl_boundary_validation_target(
     ImplBoundaryValidate
     "${CMAKE_CURRENT_SOURCE_DIR}")
 add_dependencies(Engine ImplBoundaryValidate)
-ludork_add_ui_validation_target(
-    UiAssetValidate
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    VALIDATE_ASSETS)
-add_dependencies(Engine UiAssetValidate)
+if(LUDORK_BUILD_UI_PREVIEW_HOST)
+    add_dependencies(Engine UiPreviewHost)
+else()
+    if(NOT LUDORK_UI_REGISTRY_PATH OR NOT EXISTS "${LUDORK_UI_REGISTRY_PATH}")
+        message(FATAL_ERROR "LUDORK_UI_REGISTRY_PATH must identify the desktop project's UI registry JSON")
+    endif()
+    add_custom_target(UiAssetValidate
+        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+            ui-assets validate "${LUDORK_PROJECT_SOURCE_DIR}"
+            --registry "${LUDORK_UI_REGISTRY_PATH}"
+        WORKING_DIRECTORY "${LUDORK_PROJECT_SOURCE_DIR}"
+        VERBATIM)
+    add_dependencies(Engine UiAssetValidate)
+endif()
 
 set(LUA_CJSON_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThirdParty/lua-cjson")
 if(NOT EXISTS "${LUA_CJSON_SOURCE_DIR}/lua_cjson.c")
@@ -172,7 +181,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "OHOS")
 endif()
 
 add_dependencies(${LUDORK_APPLICATION_TARGET} lua_cjson)
-if(NOT LUDORK_STATIC_LUA_MODULES)
+if(NOT LUDORK_STATIC_LUA_MODULES AND NOT LUDORK_BUILD_UI_PREVIEW_HOST)
     ludork_copy_runtime_libraries(${LUDORK_APPLICATION_TARGET})
     ludork_add_macos_runtime_symlinks(${LUDORK_APPLICATION_TARGET})
 endif()

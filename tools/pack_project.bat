@@ -1,5 +1,7 @@
 @echo off
 setlocal EnableExtensions
+chcp 65001>nul
+set "PYTHONIOENCODING=utf-8"
 for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
 cd /d "%ROOT_DIR%"
@@ -80,14 +82,14 @@ goto pack_standalone
 
 :pack_standalone
 if "%ENCRYPT_SAVES%"=="1" (
-    echo --encrypt-saves requires a C++ Source project because the setting is compiled into the runtime.
+    echo The --encrypt-saves packaging option requires a C++ Source project. Standalone projects can set SAVE_AS_LDC = true globally before all require calls in Scripts/Entry.lua.
     exit /b 1
 )
 if "%USE_LDPAK%"=="1" (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
 )
-robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo UiPreviewHost* UiPreviewCurveResolver* /XD build bin dist dist-luac .venv __pycache__ UiPreviewHost UiPreviewCurveResolver /NFL /NDL /NJH /NJS /NP
+robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%PROJECT_DIR%\Temp" "%PROJECT_DIR%\Cache" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
 if not exist "%DIST_DIR%\Main.exe" (
@@ -128,26 +130,19 @@ echo Pack complete: %DIST_DIR%
 exit /b 0
 
 :finalize_package
+set "UI_REGISTRY="
+for /f "usebackq delims=" %%R in (`call "%SCRIPT_TOOLS%" ui-preview registry "%PROJECT_DIR%"`) do set "UI_REGISTRY=%%R"
+if not defined UI_REGISTRY exit /b 1
 set "FINALIZE_OPTIONS="
 if "%USE_LUAC%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --compile-lua"
 if "%ENCRYPT_SHADERS%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-shaders"
 if "%ENCRYPT_DATA%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-data"
 if "%USE_LDPAK%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --use-ldpak"
-"%SCRIPT_TOOLS%" finalize-package %FINALIZE_OPTIONS% "%DIST_DIR%"
+"%SCRIPT_TOOLS%" finalize-package %FINALIZE_OPTIONS% --registry "%UI_REGISTRY%" "%DIST_DIR%"
 if errorlevel 1 exit /b %errorlevel%
-call :validate_no_ui_preview_host "%DIST_DIR%"
+for %%F in (UiPreviewHost.exe UiPreviewHostRuntime.dll) do if exist "%DIST_DIR%\Binaries\%%F" exit /b 1
+if exist "%DIST_DIR%\Temp" exit /b 1
 exit /b %errorlevel%
-
-:validate_no_ui_preview_host
-for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" (
-    echo UI preview host entry was found in a game package: %%~fF
-    exit /b 1
-)
-for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" (
-    echo UI preview host entry was found in a game package: %%~fD
-    exit /b 1
-)
-exit /b 0
 
 :validate_runtime_layout
 if not exist "%~1\Main.exe" (

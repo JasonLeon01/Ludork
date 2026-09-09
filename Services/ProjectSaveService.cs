@@ -37,6 +37,7 @@ public interface IProjectSaveParticipant
 public sealed class ProjectSaveService
 {
     private readonly GameDataService gameData;
+    private readonly ProjectConfigService projectConfig;
     private readonly GameConfigService gameConfig;
     private readonly GameVariableService gameVariables;
     private readonly BlueprintValidationService blueprintValidation;
@@ -48,9 +49,11 @@ public sealed class ProjectSaveService
         GameDataService gameData,
         GameConfigService gameConfig,
         GameVariableService gameVariables,
-        BlueprintValidationService blueprintValidation)
+        BlueprintValidationService blueprintValidation,
+        ProjectConfigService projectConfig)
     {
         this.gameData = gameData;
+        this.projectConfig = projectConfig;
         this.gameConfig = gameConfig;
         this.gameVariables = gameVariables;
         this.blueprintValidation = blueprintValidation;
@@ -74,7 +77,7 @@ public sealed class ProjectSaveService
         participants.Remove(participant);
     }
 
-    public ProjectSaveAttempt TrySave(bool allowInvalidBlueprints = false)
+    public ProjectSaveAttempt TrySave(bool allowInvalidBlueprints = false, bool beforeNativeBuild = false)
     {
         foreach (IProjectSaveParticipant participant in participants.ToArray())
             participant.FlushPendingChanges();
@@ -93,7 +96,8 @@ public sealed class ProjectSaveService
                 GameVariableResult = gameVariableResult,
             };
         }
-        IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll();
+        bool structuralOnly = beforeNativeBuild || !uiControlRegistry.IsReady && !projectConfig.IsStandalone;
+        IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll(structuralOnly);
         bool hasUiValidationErrors = uiValidationResults.Any(result => !result.IsValid);
         if (hasUiValidationErrors)
         {
@@ -152,6 +156,15 @@ public sealed class ProjectSaveService
         }
 
         GameConfigSaveResult configResult = gameConfig.SavePending();
+        if (structuralOnly && uiValidationResults.Count != 0)
+        {
+            dataResult = dataResult with
+            {
+                Details = string.Join(Environment.NewLine,
+                    new[] { dataResult.Details, LocaleService.Get("UI_SAVE_NATIVE_VALIDATION_PENDING") }
+                        .Where(value => !string.IsNullOrWhiteSpace(value))),
+            };
+        }
         return new ProjectSaveAttempt(
             configResult.Success,
             false,

@@ -98,13 +98,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         document.Changed += onDocumentChanged;
+        controlRegistry.Runtime.Changed += onRegistryChanged;
         Closing += onClosing;
         projectSave.RegisterParticipant(this);
         initializer = new DeferredWindowInitializer(this, () =>
         {
             InitializeComponent();
             contentInitialized = true;
-            previewClient = new UiPreviewClient(gameData.ProjectPath);
+            previewClient = new UiPreviewClient(controlRegistry.Runtime);
             previewSurface = new UiPreviewSurface
             {
                 HitTestResolver = (generation, x, y) =>
@@ -129,7 +130,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             };
             timelineEditor.PreviewChanged += (_, _) =>
             {
-                previewSurface.TransformEnabled = timelineEditor.CurrentSample is null;
+                previewSurface.TransformEnabled = controlRegistry.IsReady && timelineEditor.CurrentSample is null;
                 updateAnchorGuides();
                 schedulePreview(true);
             };
@@ -177,6 +178,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         FlushPendingChanges();
         document.Changed -= onDocumentChanged;
+        controlRegistry.Runtime.Changed -= onRegistryChanged;
         projectSave.UnregisterParticipant(this);
         if (!initializer.IsInitialized)
             return;
@@ -221,6 +223,23 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         refreshAll();
     }
 
+    private void onRegistryChanged(object? sender, EventArgs args)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (previewLifetime.IsCancellationRequested || !contentInitialized)
+                return;
+            flushPendingField();
+            if (!controlRegistry.IsReady)
+                timelineEditor.StopPlayback();
+            refreshAll();
+            updatePreviewState();
+            UiAssetValidationResult result = validationService.ValidateAsset(document.AssetKey, document.Data);
+            setStatus(result.IsValid ? LocaleService.Get("UI_VALIDATION_SUCCEEDED")
+                : result.Errors.FirstOrDefault() ?? LocaleService.Get("UI_VALIDATION_FAILED"));
+        });
+    }
+
     private void refreshAll()
     {
         refreshing = true;
@@ -233,6 +252,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             updateAnchorGuides();
             updateZoomText();
             timelineEditor.Refresh();
+            PaletteSearch.IsEnabled = controlRegistry.IsReady;
+            PaletteCategories.IsEnabled = controlRegistry.IsReady;
+            HierarchyTree.IsEnabled = controlRegistry.IsReady;
+            DetailsPanel.IsEnabled = controlRegistry.IsReady;
+            TimelineContainer.IsEnabled = controlRegistry.IsReady;
+            previewSurface.TransformEnabled = controlRegistry.IsReady && timelineEditor.CurrentSample is null;
         }
         finally
         {
@@ -244,6 +269,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void refreshPalette()
     {
         PaletteCategories.Children.Clear();
+        if (!controlRegistry.IsReady)
+        {
+            PaletteCategories.Children.Add(new TextBlock
+            {
+                Text = controlRegistry.Runtime.StatusMessage,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(4),
+            });
+            return;
+        }
         string search = PaletteSearch.Text?.Trim() ?? string.Empty;
         IEnumerable<UiControlDescriptor> descriptors = controlRegistry
             .GetDescriptors()
@@ -1700,6 +1735,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private async Task refreshPreviewAsync(CancellationToken cancellationToken = default)
     {
+        if (!controlRegistry.IsReady)
+        {
+            updatePreviewState();
+            return;
+        }
         IReadOnlyDictionary<string, JsonObject> dependencies = collectDependencies();
         UiPreviewFrame? frame = await previewClient.RenderAsync(
             document.AssetKey,
@@ -1754,6 +1794,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void updatePreviewState()
     {
+        if (!controlRegistry.IsReady)
+        {
+            PreviewStateText.Text = LocaleService.Get("UI_PREVIEW_UNAVAILABLE");
+            previewSurface.SetUnavailable(controlRegistry.Runtime.StatusMessage);
+            return;
+        }
         PreviewStateText.Text = previewClient.State switch
         {
             UiPreviewClientState.Ready => LocaleService.Get("UI_PREVIEW_READY"),
@@ -1766,7 +1812,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             or UiPreviewClientState.Faulted)
         {
             string message = previewClient.StatusMessage.Length == 0
-                ? LocaleService.Get("UI_PREVIEW_HOST_REQUIRED")
+                ? LocaleService.Get("UI_PREVIEW_COMPILE_REQUIRED")
                 : previewClient.StatusMessage;
             previewSurface.SetUnavailable(message);
         }

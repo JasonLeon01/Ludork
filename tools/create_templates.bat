@@ -166,9 +166,13 @@ if defined CACHE_ENTRY if not defined CURRENT_BUILD_OPTION (
 if exist "%CPP_TARGET%\build" rmdir /S /Q "%CPP_TARGET%\build"
 if exist "%CPP_TARGET%\bin" rmdir /S /Q "%CPP_TARGET%\bin"
 if exist "%CPP_TARGET%\Intermediate" rmdir /S /Q "%CPP_TARGET%\Intermediate"
-call :validate_no_ui_preview_host "%CPP_TARGET%"
-if errorlevel 1 exit /b 1
-call :validate_no_ui_preview_host "%STANDALONE_TARGET%"
+if exist "%CPP_TARGET%\Temp" rmdir /S /Q "%CPP_TARGET%\Temp"
+if exist "%CPP_TARGET%\Temp" exit /b 1
+if exist "%CPP_TARGET%\Cache" rmdir /S /Q "%CPP_TARGET%\Cache"
+if exist "%CPP_TARGET%\Cache" exit /b 1
+if exist "%CPP_TARGET%\Binaries" rmdir /S /Q "%CPP_TARGET%\Binaries"
+if exist "%CPP_TARGET%\Binaries" exit /b 1
+"%SCRIPT_TOOLS%" ui-preview validate "%STANDALONE_TARGET%"
 if errorlevel 1 exit /b 1
 if "%INCLUDE_FFMPEG%"=="1" (
     echo C++ FFmpeg source template is ready: %CPP_TARGET%
@@ -217,7 +221,8 @@ for %%F in (%GENERATED_SCRIPTS%) do (
     copy /Y "%~1\Scripts\%%F" "%~2\Scripts\%%F" >nul
     if errorlevel 1 exit /b 1
 )
-exit /b 0
+"%SCRIPT_TOOLS%" ui-preview copy --runtime-directory "bin/%CONFIG%" "%~1" "%~2"
+exit /b %errorlevel%
 
 :validate_native_cache
 for %%F in (Main.exe Engine.dll GlobalCore.dll GlobalFunctions.dll LuaSF.dll lua.dll) do (
@@ -230,7 +235,8 @@ for %%F in (%GENERATED_SCRIPTS%) do (
     call :require_native_file "%~1\Scripts\%%F"
     if errorlevel 1 exit /b 1
 )
-exit /b 0
+"%SCRIPT_TOOLS%" ui-preview validate "%~1"
+exit /b %errorlevel%
 
 :require_native_file
 if not exist "%~1" (
@@ -244,9 +250,9 @@ for %%F in ("%~1") do if "%%~zF"=="0" (
 exit /b 0
 
 :copy_cpp_template
-set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\Temp" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__ UiPreviewHost UiPreviewCurveResolver
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\Temp" "%SOURCE_DIR%\Cache" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__
 if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
-robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 if "%~2"=="1" (
     if not exist "%~1\ThirdPartySource" mkdir "%~1\ThirdPartySource"
@@ -290,14 +296,3 @@ copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICE
 if errorlevel 1 exit /b %errorlevel%
 copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES_zh_CN.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES_zh_CN.md" >nul
 exit /b %errorlevel%
-
-:validate_no_ui_preview_host
-for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" (
-    echo UI preview host entry was found in a project template: %%~fF
-    exit /b 1
-)
-for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" (
-    echo UI preview host entry was found in a project template: %%~fD
-    exit /b 1
-)
-exit /b 0

@@ -6,28 +6,23 @@ set -eu
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 
 PREBUILT_TEMPLATES_DIR=
-USE_CURRENT_UI_PREVIEW_HOST=0
 USE_CURRENT_EDITOR_BUILD=0
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --templates)
             if [ "$#" -lt 2 ]; then
-                echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host] [--use-current-editor-build]" >&2
+                echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-editor-build]" >&2
                 exit 1
             fi
             PREBUILT_TEMPLATES_DIR=$2
             shift 2
-            ;;
-        --use-current-ui-preview-host)
-            USE_CURRENT_UI_PREVIEW_HOST=1
-            shift
             ;;
         --use-current-editor-build)
             USE_CURRENT_EDITOR_BUILD=1
             shift
             ;;
         *)
-            echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-ui-preview-host] [--use-current-editor-build]" >&2
+            echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-editor-build]" >&2
             exit 1
             ;;
     esac
@@ -294,24 +289,6 @@ validate_absent_pattern() {
     fi
 }
 
-validate_ui_preview_host_ownership() {
-    package_dir=$1
-    canonical_directory="$package_dir/Contents/Resources/tools/UiPreviewHost"
-    canonical_executable="$canonical_directory/UiPreviewHost"
-    canonical_runtime="$canonical_directory/UiPreviewHostRuntime.*"
-    unexpected_path=$(find "$package_dir" \
-        -name 'UiPreviewHost*' \
-        ! -path "$canonical_directory" \
-        ! -path "$canonical_executable" \
-        ! -path "$canonical_runtime" \
-        -print -quit)
-    if [ -n "$unexpected_path" ]; then
-        echo "UI preview host exists outside its canonical editor tool path: $unexpected_path" >&2
-        exit 1
-    fi
-    validate_absent_pattern "$package_dir" 'UiPreviewCurveResolver*'
-}
-
 validate_dmg_root() {
     dmg_validation_root=$1
     dmg_layout_required=$2
@@ -576,35 +553,24 @@ validate_package() {
     require_package_executable "$package_resources/tools/ScriptTools"
     require_package_file "$package_resources/tools/ScriptTools-runtime-versions.txt"
     require_package_executable "$package_resources/tools/luac"
-    require_package_executable "$package_resources/tools/UiPreviewHost/UiPreviewHost"
-    preview_runtime=$(find \
-        "$package_resources/tools/UiPreviewHost" \
-        -maxdepth 1 \
-        -type f \
-        -name 'UiPreviewHostRuntime.*' \
-        -print \
-        -quit)
-    if [ -z "$preview_runtime" ]; then
-        echo "UiPreviewHost native runtime was not found." >&2
-        exit 1
-    fi
-    for preview_runtime_pattern in \
-        '*LudorkRuntime*.dylib' '*LudorkStandard*.dylib' \
-        '*sfml-system*.dylib*' '*sfml-window*.dylib*' '*sfml-graphics*.dylib*'; do
-        preview_runtime=$(find \
-            "$package_resources/tools/UiPreviewHost" \
-            -maxdepth 1 -type f -name "$preview_runtime_pattern" -print -quit)
-        if [ -z "$preview_runtime" ]; then
-            echo "UI preview package dependency was not found: $preview_runtime_pattern" >&2
+    require_package_executable "$package_resources/tools/build_ui_preview_host.sh"
+    for template_name in Standalone Standalone-ffmpeg; do
+        "$SCRIPT_TOOLS" ui-preview validate "$package_resources/Templates/$template_name"
+        unexpected_temp=$(find "$package_resources/Templates/$template_name/Temp" \
+            -mindepth 1 -maxdepth 1 ! -name UiPreview.json ! -name UiPreview.registry.json -print -quit)
+        if [ -n "$unexpected_temp" ]; then
+            echo "Unexpected template Temp entry: $unexpected_temp" >&2
             exit 1
         fi
     done
-    for preview_obsolete_pattern in \
-        'LuaSF.*' 'liblua.*' '*sfml-audio*' '*sfml-network*'; do
-        validate_absent_pattern \
-            "$package_resources/tools/UiPreviewHost" "$preview_obsolete_pattern"
+    for template_name in Cpp Cpp-ffmpeg; do
+        require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
+        if [ -e "$package_resources/Templates/$template_name/Binaries" ] \
+            || [ -e "$package_resources/Templates/$template_name/Temp" ]; then
+            echo "Source template contains a prebuilt UI preview snapshot." >&2
+            exit 1
+        fi
     done
-    validate_ui_preview_host_ownership "$package_app"
     require_package_file "$package_resources/LICENSE.md"
     require_package_file "$package_resources/README.md"
     require_package_file "$package_resources/README_zh_CN.md"
@@ -872,8 +838,6 @@ validate_package() {
                 exit 1
             fi
         done
-        validate_absent_pattern "$template_dir" 'UiPreviewHost*'
-        validate_absent_pattern "$template_dir" 'UiPreviewCurveResolver*'
         for runtime_path in \
             "$template_dir/Log" \
             "$template_dir/Save" \
@@ -1058,13 +1022,6 @@ DMG_FILE_NAME="Ludork-$product_version-macos-arm64.dmg"
 DMG_VOLUME_NAME="Ludork $product_version"
 STAGE_DMG="$STAGE_DIR/$DMG_FILE_NAME"
 
-if [ "$USE_CURRENT_UI_PREVIEW_HOST" -eq 1 ]; then
-    echo "Using current native UI preview host..."
-else
-    echo "Building native UI preview host..."
-    sh "$PROJECT_ROOT/tools/build_ui_preview_host.sh" Release
-fi
-
 if [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
 fi
@@ -1133,6 +1090,7 @@ mkdir -p "$RESOURCES_DIR/tools"
 cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/tools/common.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh" "$RESOURCES_DIR/tools/build_cpp.sh"
 cp "$PROJECT_ROOT/tools/build_standalone.sh" "$RESOURCES_DIR/tools/build_standalone.sh"
+cp "$PROJECT_ROOT/tools/build_ui_preview_host.sh" "$RESOURCES_DIR/tools/build_ui_preview_host.sh"
 cp "$PROJECT_ROOT/tools/pack_project.sh" "$RESOURCES_DIR/tools/pack_project.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh" "$RESOURCES_DIR/tools/pack_ios.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh" "$RESOURCES_DIR/tools/pack_harmony.sh"
@@ -1142,35 +1100,17 @@ require_file "$LUAC"
 cp "$SCRIPT_TOOLS" "$RESOURCES_DIR/tools/ScriptTools"
 cp "$SCRIPT_TOOLS_VERSION_REPORT" "$RESOURCES_DIR/tools/ScriptTools-runtime-versions.txt"
 cp "$LUAC" "$RESOURCES_DIR/tools/luac"
-preview_source="$PROJECT_ROOT/.tools/UiPreviewHost/bin/Release"
-preview_target="$RESOURCES_DIR/tools/UiPreviewHost"
-mkdir -p "$preview_target"
-preview_patterns='UiPreviewHost UiPreviewHostRuntime.* *LudorkRuntime*.dylib *LudorkStandard*.dylib *sfml-system*.dylib* *sfml-window*.dylib* *sfml-graphics*.dylib*'
-for preview_pattern in $preview_patterns; do
-    preview_found=0
-    for source_path in "$preview_source"/$preview_pattern; do
-        if [ ! -f "$source_path" ] && [ ! -L "$source_path" ]; then
-            continue
-        fi
-        cp -P "$source_path" "$preview_target/"
-        preview_found=1
-    done
-    if [ "$preview_found" -ne 1 ]; then
-        echo "UI preview host runtime was not found: $preview_pattern" >&2
-        exit 1
-    fi
-done
 chmod +x \
     "$RESOURCES_DIR/tools/build_cpp.sh" \
     "$RESOURCES_DIR/tools/build_standalone.sh" \
+    "$RESOURCES_DIR/tools/build_ui_preview_host.sh" \
     "$RESOURCES_DIR/tools/pack_project.sh" \
     "$RESOURCES_DIR/tools/pack_ios.sh" \
     "$RESOURCES_DIR/tools/pack_harmony.sh" \
     "$RESOURCES_DIR/tools/pack_android.sh" \
     "$RESOURCES_DIR/tools/unregister_editor.sh" \
     "$RESOURCES_DIR/tools/ScriptTools" \
-    "$RESOURCES_DIR/tools/luac" \
-    "$preview_target/UiPreviewHost"
+    "$RESOURCES_DIR/tools/luac"
 
 "$SCRIPT_TOOLS" editor-macos-metadata generate \
     "$PROJECT_FILE" \

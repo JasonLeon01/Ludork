@@ -19,19 +19,31 @@ bool isRegularFile(const std::filesystem::path& path) {
 }
 
 bool isRuntimeRoot(const std::filesystem::path& path) {
-    std::error_code error;
-    if (!std::filesystem::is_directory(path / "Assets", error) || error) {
-        return false;
+    bool loose = true;
+    bool packed = true;
+    const std::filesystem::path resourceNames[]{"Assets", "Data", "Scripts"};
+    for (const std::filesystem::path& name : resourceNames) {
+        const std::filesystem::path directory = path / name;
+        std::filesystem::path package = directory;
+        package += ".ldpak";
+        std::error_code error;
+        const std::filesystem::file_status directoryStatus =
+            std::filesystem::symlink_status(directory, error);
+        if (error && error != std::errc::no_such_file_or_directory) {
+            return false;
+        }
+        error.clear();
+        const std::filesystem::file_status packageStatus =
+            std::filesystem::symlink_status(package, error);
+        if (error && error != std::errc::no_such_file_or_directory) {
+            return false;
+        }
+        loose = loose && std::filesystem::is_directory(directoryStatus) &&
+                !std::filesystem::exists(packageStatus);
+        packed = packed && std::filesystem::is_regular_file(packageStatus) &&
+                 !std::filesystem::exists(directoryStatus);
     }
-    error.clear();
-    if (!std::filesystem::is_directory(path / "Data", error) || error) {
-        return false;
-    }
-    error.clear();
-    const bool scriptsDirectory =
-        std::filesystem::is_directory(path / "Scripts", error) && !error;
-    error.clear();
-    return scriptsDirectory || isRegularFile(path / "Scripts.ldpak");
+    return loose || packed;
 }
 
 std::filesystem::path tryRuntimeRoot(
@@ -137,8 +149,9 @@ bool useRuntimeRoot(const std::filesystem::path& executablePath,
     runtimeRoot = findRuntimeRoot(executablePath, searchedRoots);
     if (runtimeRoot.empty()) {
         std::string message =
-            "Unable to locate the runtime resource root. Expected Assets, "
-            "Data, and Scripts or Scripts.ldpak in one of:";
+            "Unable to locate the runtime resource root. Expected loose "
+            "Assets, Data, and Scripts directories or root Assets.ldpak, "
+            "Data.ldpak, and Scripts.ldpak in one of:";
         for (const std::filesystem::path& searched : searchedRoots) {
             message += "\n  " + searched.generic_string();
         }
@@ -166,7 +179,8 @@ void configureRuntimePaths(const std::filesystem::path& runtimeRoot,
         detail::normalizedAbsolutePath(runtimeRoot);
     if (!isRuntimeRoot(normalizedRuntimeRoot)) {
         throw std::invalid_argument(
-            "Runtime root must contain Assets, Data, and Scripts or "
+            "Runtime root must contain loose Assets, Data, and Scripts "
+            "directories or root Assets.ldpak, Data.ldpak, and "
             "Scripts.ldpak: " +
             normalizedRuntimeRoot.generic_string());
     }

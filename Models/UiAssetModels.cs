@@ -19,7 +19,8 @@ public sealed record UiControlPropertyDescriptor(
     string Type,
     bool Required,
     JsonNode? Default,
-    bool EditorOnly = false
+    bool EditorOnly = false,
+    bool AdapterProperty = false
 );
 
 public sealed record UiControlDescriptor(
@@ -32,7 +33,8 @@ public sealed record UiControlDescriptor(
     string? SlotType,
     IReadOnlyList<UiControlPropertyDescriptor> Properties,
     string? AssetKey = null,
-    UiDesignSize? DesignSize = null
+    UiDesignSize? DesignSize = null,
+    string? TextKind = null
 );
 
 public sealed record UiValidationIssue(

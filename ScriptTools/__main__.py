@@ -21,6 +21,7 @@ from ScriptTools import prune_editor_macos_publish
 from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
 from ScriptTools import ui_assets
+from ScriptTools import ui_preview
 from ScriptTools.core_bindgen import generate
 from ScriptTools.core_bindgen import layout
 
@@ -47,6 +48,7 @@ COMMANDS: dict[str, Command] = {
     "prune-editor-windows-publish": prune_editor_windows_publish.main,
     "ui-adapter-check": ui_adapter_check.main,
     "ui-assets": ui_assets.main,
+    "ui-preview": ui_preview.main,
     "validate-ldpak-source": ldpak.main,
 }
 
@@ -54,7 +56,10 @@ COMMANDS: dict[str, Command] = {
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
         commands = ", ".join(sorted(COMMANDS))
-        print(f"Usage: ScriptTools <command> [arguments]\nCommands: {commands}", file=sys.stderr)
+        print(
+            f"Usage: ScriptTools <command> [arguments]\nCommands: {commands}",
+            file=sys.stderr,
+        )
         return 2
     return COMMANDS[sys.argv[1]](sys.argv[2:])
 

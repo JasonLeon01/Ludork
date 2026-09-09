@@ -647,17 +647,17 @@
     "zh_CN": "加密存档内容",
     "en_GB": "Encrypt save contents"
   },
-  "PACK_ENCRYPT_SAVES_CPP_REQUIRED": {
-    "zh_CN": "加密存档内容需要 C++ Source 项目，以便将设置编译进运行时",
-    "en_GB": "Encrypting save contents requires a C++ Source project so the setting can be compiled into the runtime"
+  "PACK_ENCRYPT_SAVES_STANDALONE_HINT": {
+    "zh_CN": "Standalone 项目请在 Scripts/Entry.lua 顶部、所有 require 之前添加 SAVE_AS_LDC = true，以启用存档加密。",
+    "en_GB": "For Standalone projects, add SAVE_AS_LDC = true at the top of Scripts/Entry.lua, before all require calls, to enable save encryption."
   },
   "PACK_ENCRYPT_SAVES_PROJECT_UNSUPPORTED": {
-    "zh_CN": "加密存档内容只支持 C++ Source 项目，因为该设置需要编译进运行时",
-    "en_GB": "Encrypting save contents requires a C++ Source project because the setting is compiled into the runtime"
+    "zh_CN": "此打包选项需要 C++ Source 项目。Standalone 项目请在 Scripts/Entry.lua 顶部、所有 require 之前添加 SAVE_AS_LDC = true。",
+    "en_GB": "This packaging option requires a C++ Source project. For Standalone projects, add SAVE_AS_LDC = true at the top of Scripts/Entry.lua, before all require calls."
   },
   "PACK_USE_LDPAK": {
-    "zh_CN": "使用 .ldpak 打包 Assets、Data 和 Scripts",
-    "en_GB": "Pack Assets, Data and Scripts with .ldpak"
+    "zh_CN": "将 Assets、Data 和 Scripts 打包为 .ldpak",
+    "en_GB": "Archive Assets, Data and Scripts (.ldpak)"
   },
   "PACK_MODE_DESC": {
     "zh_CN": "选择目标平台和打包选项。",
@@ -3135,9 +3135,25 @@
     "zh_CN": "原生预览不可用",
     "en_GB": "Native preview unavailable"
   },
-  "UI_PREVIEW_HOST_REQUIRED": {
-    "zh_CN": "编辑器发行包中未找到 UiPreviewHost。层级与细节编辑仍然可用。",
-    "en_GB": "UiPreviewHost was not found in the editor distribution. Hierarchy and Details editing remain available."
+  "UI_PREVIEW_COMPILE_REQUIRED": {
+    "zh_CN": "UI 预览产物尚未就绪。源码工程请先编译；Standalone 工程会从 Binaries 恢复缺失的预览 JSON，恢复失败时请更新配套程序。",
+    "en_GB": "UI preview artifacts are not ready. Compile source projects first. Standalone projects restore missing preview JSON from Binaries; update the matching runtime if recovery fails."
+  },
+  "UI_PREVIEW_BUILD_REQUIRED": {
+    "zh_CN": "此项目正在编译，或上次编译尚未成功。请完成一次成功编译后再编辑或预览 UI。",
+    "en_GB": "This project is building, or its last build did not succeed. Complete a successful build before editing or previewing UI."
+  },
+  "UI_SAVE_NATIVE_VALIDATION_PENDING": {
+    "zh_CN": "UI 资产仅通过结构检查，尚未执行原生控件校验。请编译 C++ 工程完成校验。",
+    "en_GB": "UI assets passed structural checks only. Native control validation has not run; build the C++ project to complete validation."
+  },
+  "UI_PREVIEW_SNAPSHOT_INVALID": {
+    "zh_CN": "此项目的 UI 注册表与原生预览程序无效或不匹配。源码工程请重新编译；Standalone 工程请更新 Temp 中的预览 JSON 和 Binaries 中配套的预览程序。",
+    "en_GB": "This project's UI registry and native preview runtime are invalid or do not match. Rebuild source projects; update the preview JSON in Temp and the matching preview runtime in Binaries for Standalone projects."
+  },
+  "UI_REGISTRY_CANVAS_REQUIRED": {
+    "zh_CN": "此项目的 UI 注册表缺少 Engine.Canvas，无法创建默认 UI 根节点。请恢复该原生控件并重新编译。",
+    "en_GB": "This project's UI registry does not contain Engine.Canvas, which is required to create the default UI root. Restore the native control and rebuild."
   },
   "ACTOR_PREVIEW_HOST_UNAVAILABLE": {
     "zh_CN": "Actor Shader 实时预览不可用，已回退到本地纹理：{0}",

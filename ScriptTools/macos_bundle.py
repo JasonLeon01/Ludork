@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 
+from .ui_preview import is_preview_development_file
+
 
 def is_runtime_library(path: pathlib.Path) -> bool:
     return path.suffix in {".dylib", ".so"} or ".so." in path.name
@@ -57,6 +59,8 @@ def copy_runtime(
     runtime_files: list[pathlib.Path] = []
     runtime_symlinks: list[tuple[pathlib.Path, pathlib.Path]] = []
     for source in sorted(binaries_dir.iterdir(), key=lambda path: path.name):
+        if is_preview_development_file(source.name):
+            continue
         if source.is_symlink():
             if not is_runtime_library(source):
                 raise RuntimeError(f"Unsupported Binaries symlink: {source}")

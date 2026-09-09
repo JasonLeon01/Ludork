@@ -22,7 +22,7 @@ set "CONFIG=%~3"
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto :usage
 set "LUDORK_STANDALONE_SOURCE_PATH=%CPP_DIR%"
 set "LUDORK_STANDALONE_TARGET_PATH=%STANDALONE_DIR%"
-powershell -NoProfile -Command "function Test-ReparseAncestor([string] $value) { $current = $value; while (-not [string]::IsNullOrEmpty($current)) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; while ($null -ne $item) { if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }; $item = $item.Parent }; return $false }; $parent = [IO.Path]::GetDirectoryName($current); if ($parent -eq $current) { return $false }; $current = $parent }; return $false }; $source = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_SOURCE_PATH).TrimEnd('\') + '\'; $target = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_TARGET_PATH).TrimEnd('\') + '\'; if ((Test-ReparseAncestor $source) -or (Test-ReparseAncestor $target) -or $source.StartsWith($target, [StringComparison]::OrdinalIgnoreCase)) { exit 1 }; foreach ($name in @('Assets', 'Data', 'Scripts', 'bin', 'build', 'Licenses', 'ThirdPartySource', 'Engine', 'Intermediate')) { $protected = [IO.Path]::Combine($source, $name).TrimEnd('\') + '\'; if ($target.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase)) { exit 1 } }"
+powershell -NoProfile -Command "function Test-ReparseAncestor([string] $value) { $current = $value; while (-not [string]::IsNullOrEmpty($current)) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; while ($null -ne $item) { if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }; $item = $item.Parent }; return $false }; $parent = [IO.Path]::GetDirectoryName($current); if ($parent -eq $current) { return $false }; $current = $parent }; return $false }; $source = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_SOURCE_PATH).TrimEnd('\') + '\'; $target = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_TARGET_PATH).TrimEnd('\') + '\'; if ((Test-ReparseAncestor $source) -or (Test-ReparseAncestor $target) -or $source.StartsWith($target, [StringComparison]::OrdinalIgnoreCase)) { exit 1 }; foreach ($name in @('Assets', 'Data', 'Scripts', 'Binaries', 'Temp', 'Cache', 'bin', 'build', 'Licenses', 'ThirdPartySource', 'Engine', 'Intermediate')) { $protected = [IO.Path]::Combine($source, $name).TrimEnd('\') + '\'; if ($target.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase)) { exit 1 } }"
 set "LUDORK_STANDALONE_SOURCE_PATH="
 set "LUDORK_STANDALONE_TARGET_PATH="
 if errorlevel 1 (
@@ -72,8 +72,10 @@ if exist "%STANDALONE_DIR%\Data" rmdir /S /Q "%STANDALONE_DIR%\Data"
 if exist "%STANDALONE_DIR%\Data" exit /b 1
 if exist "%STANDALONE_DIR%\Scripts" rmdir /S /Q "%STANDALONE_DIR%\Scripts"
 if exist "%STANDALONE_DIR%\Scripts" exit /b 1
-if exist "%STANDALONE_DIR%\Scripts.ldpak" del /Q "%STANDALONE_DIR%\Scripts.ldpak"
-if exist "%STANDALONE_DIR%\Scripts.ldpak" exit /b 1
+for %%R in (Assets Data Scripts) do (
+    if exist "%STANDALONE_DIR%\%%R.ldpak" del /Q "%STANDALONE_DIR%\%%R.ldpak"
+    if exist "%STANDALONE_DIR%\%%R.ldpak" exit /b 1
+)
 robocopy "%CPP_DIR%\Assets" "%STANDALONE_DIR%\Assets" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 robocopy "%CPP_DIR%\Data" "%STANDALONE_DIR%\Data" /E /XF *.anim.json /NFL /NDL /NJH /NJS /NP
@@ -83,7 +85,7 @@ if errorlevel 8 exit /b %errorlevel%
 if exist "%STANDALONE_DIR%\Binaries" rmdir /S /Q "%STANDALONE_DIR%\Binaries"
 mkdir "%STANDALONE_DIR%\Binaries"
 if errorlevel 1 exit /b %errorlevel%
-robocopy "%CPP_DIR%\bin\%CONFIG%" "%STANDALONE_DIR%\Binaries" /E /XF *.pdb UiPreviewHost* UiPreviewCurveResolver* /NFL /NDL /NJH /NJS /NP
+robocopy "%CPP_DIR%\bin\%CONFIG%" "%STANDALONE_DIR%\Binaries" /E /XF *.pdb /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 if not exist "%STANDALONE_DIR%\Binaries\Main.exe" (
     echo Standalone output is missing Binaries\Main.exe.
@@ -113,8 +115,12 @@ for %%F in (LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md) do i
     if errorlevel 1 exit /b %errorlevel%
 )
 
-call :remove_ui_preview_host_entries "%STANDALONE_DIR%"
+if exist "%STANDALONE_DIR%\Temp" rmdir /S /Q "%STANDALONE_DIR%\Temp"
+if exist "%STANDALONE_DIR%\Temp" exit /b 1
+"%SCRIPT_TOOLS%" ui-preview copy "%CPP_DIR%" "%STANDALONE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
+if exist "%STANDALONE_DIR%\Cache" rmdir /S /Q "%STANDALONE_DIR%\Cache"
+if exist "%STANDALONE_DIR%\Cache" exit /b 1
 call :validate_runtime_layout "%STANDALONE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 
@@ -129,19 +135,6 @@ exit /b 0
 :usage
 echo Usage: tools\build_standalone.bat [--use-current-build] ^<cpp-folder^> ^<standalone-folder^> ^<Debug^|Release^>
 exit /b 1
-
-:remove_ui_preview_host_entries
-for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" (
-    del /F /Q "%%~fF"
-    if errorlevel 1 exit /b 1
-)
-for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" (
-    rmdir /S /Q "%%~fD"
-    if errorlevel 1 exit /b 1
-)
-for /r "%~1" %%F in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fF" exit /b 1
-for /d /r "%~1" %%D in (UiPreviewHost* UiPreviewCurveResolver*) do if exist "%%~fD" exit /b 1
-exit /b 0
 
 :validate_runtime_layout
 if not exist "%~1\Binaries\Main.exe" (
