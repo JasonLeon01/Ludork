@@ -587,6 +587,13 @@ local _METADATA = {
                 default = "nil"
             }
         },
+        OpenPlayerName = {
+            type = "function",
+            parameters = {},
+            ["return"] = { "return", ["return"] = "function" },
+            Latent = true,
+            LatentStates = { "Closed", Closed = { true } }
+        },
         OpenShop = {
             type = "function",
             parameters = {

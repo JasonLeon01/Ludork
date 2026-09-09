@@ -1,31 +1,32 @@
----@meta Source.Windows.WindowSaveLoad.Slot
+---@meta
 
 ---@brief Save-file slot list (1..MAX_SAVE_SLOTS) for load/save selection.
----@class Source.Windows.WindowSaveSlot: Source.Windows.Base.WindowSelectable
----@field new            fun(rect: sf.IntRect, owner: Source.Windows.WindowSaveLoad, instance?: Engine.AssetInstance): Source.Windows.WindowSaveSlot
+---@class Source.Windows.WindowSaveSlot.Controller: Source.UIBase.UiController
+---@field host           Source.Windows.WindowSaveSlot
 ---@field MAX_SAVE_SLOTS integer
----@field new            fun(rect: sf.IntRect, owner: Source.Windows.WindowSaveLoad): Source.Windows.WindowSaveSlot
-local WindowSaveSlot = {}
+---@field ui             Source.UI.Parts.WindowSaveLoad.WindowSaveSlot
+---@field _rows          Source.UIBase.UiCollection<Source.Windows.WindowSaveLoad.WindowSaveSlotRow.Controller>
+local Controller = {}
 
 ---@brief Construct the save slot list window.
 ---
---- - @param rect The window rectangle.
 --- - @param owner The parent save/load UI coordinator.
----@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowSaveLoad
-function WindowSaveSlot:init(rect, owner, instance) end
+function Controller:init(owner) end
 
 ---@param deltaTime number
-function WindowSaveSlot:onTick(deltaTime) end
+function Controller:onTick(deltaTime) end
 
 ---@param kwargs Engine.UiInputEventArguments
-function WindowSaveSlot:onKeyDown(kwargs) end
+function Controller:onKeyDown(kwargs) end
 
-function WindowSaveSlot:onReturn() end
+function Controller:onReturn() end
 
-function WindowSaveSlot:dispose() end
+function Controller:dispose() end
 
 ---@param slot integer
-function WindowSaveSlot:confirmSlot(slot) end
+function Controller:confirmSlot(slot) end
 
-return WindowSaveSlot
+function Controller:bind() end
+
+function Controller:refresh() end

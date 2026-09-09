@@ -6,6 +6,7 @@ import { KeyCode, pointer } from '@kit.InputKit';
 import { i18n, resourceManager } from '@kit.LocalizationKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
+import { TextInputDialog } from './TextInputDialog';
 
 const DOMAIN = 0x4C44;
 const TAG = 'Ludork-Harmony';
@@ -174,6 +175,12 @@ interface SfmlNativeContext {
     callback: (scale: number, gameWidth: number, gameHeight: number) => void
   ): boolean;
   clearDisplayScaleHost(): void;
+  configureTextInputHost(callback: (
+    sessionId: string, visible: boolean, text: string, title: string, prompt: string,
+    placeholder: string, confirmText: string, cancelText: string
+  ) => void): void;
+  clearTextInputHost(): void;
+  completeTextInput(sessionId: string, accepted: boolean, text: string): void;
   submitKeyEvent(
     keyCode: number,
     pressed: boolean,
@@ -370,6 +377,68 @@ struct Index {
   private displayScaleConfigurable: boolean = false;
   private displayScaleHostConfigured: boolean = false;
   private keepScreenOn: boolean = true;
+  private textInputDialog?: CustomDialogController;
+  private textInputSession: string = '';
+  private textInputContext?: SfmlNativeContext;
+
+  private finishTextInput(accepted: boolean, text: string, notify: boolean = true): void {
+    const sessionId = this.textInputSession;
+    const context = this.textInputContext;
+    const dialog = this.textInputDialog;
+    this.textInputSession = '';
+    this.textInputContext = undefined;
+    this.textInputDialog = undefined;
+    dialog?.close();
+    if (notify && sessionId.length > 0) {
+      context?.completeTextInput(sessionId, accepted, text);
+    }
+    if (this.lifecycle === 'foreground') {
+      this.activeSurfaceBinding?.requestFocus?.();
+    }
+  }
+
+  private showTextInput(
+    context: SfmlNativeContext, sessionId: string, visible: boolean, text: string,
+    title: string, prompt: string, placeholder: string, confirmText: string, cancelText: string
+  ): void {
+    if (!visible) {
+      if (this.textInputSession === sessionId) {
+        this.finishTextInput(false, '', false);
+      }
+      return;
+    }
+    this.finishTextInput(false, '');
+    if (this.nativeHostDestroyed || this.lifecycle === 'background' || context !== this.nativeContext) {
+      context.completeTextInput(sessionId, false, '');
+      return;
+    }
+    this.releaseHeldSurfaceKeys(context);
+    this.textInputSession = sessionId;
+    this.textInputContext = context;
+    this.textInputDialog = new CustomDialogController({
+      builder: TextInputDialog({
+        initialText: text,
+        title: title,
+        prompt: prompt,
+        placeholder: placeholder,
+        confirmText: confirmText,
+        cancelText: cancelText,
+        complete: (accepted: boolean, value: string): void => {
+          if (this.textInputSession === sessionId) {
+            this.finishTextInput(accepted, value);
+          }
+        }
+      }),
+      autoCancel: false,
+      cancel: (): void => {
+        if (this.textInputSession === sessionId) {
+          this.finishTextInput(false, '');
+        }
+      },
+      alignment: DialogAlignment.Center
+    });
+    this.textInputDialog.open();
+  }
 
   private describeError(error: Error): string {
     const code = (error as BusinessError).code;
@@ -1617,6 +1686,8 @@ struct Index {
   }
 
   private invalidateNativeBridges(context?: SfmlNativeContext): void {
+    this.finishTextInput(false, '');
+    context?.clearTextInputHost();
     ++this.windowHostGeneration;
     ++this.displayScaleRequest;
     this.displayScaleHostConfigured = false;
@@ -1779,6 +1850,7 @@ struct Index {
         this.publishWindowState(this.mainWindow);
       }
     } else if (this.lifecycle === 'background') {
+      this.finishTextInput(false, '');
       this.releaseHeldSurfaceKeys(context);
       context.onBackground();
     }
@@ -1837,6 +1909,13 @@ struct Index {
     this.trackFreeWindowMode(mainWindow);
     const hostGeneration = ++this.windowHostGeneration;
     this.configureNativeDisplayScaleHost(nativeContext, abilityContext, hostGeneration);
+    nativeContext.configureTextInputHost((
+      sessionId: string, visible: boolean, text: string, title: string, prompt: string,
+      placeholder: string, confirmText: string, cancelText: string
+    ): void => {
+      this.showTextInput(nativeContext, sessionId, visible, text, title, prompt,
+        placeholder, confirmText, cancelText);
+    });
     const initialized = nativeContext.initializeHost(
       abilityContext.resourceManager,
       this.windowId,
@@ -1844,6 +1923,7 @@ struct Index {
       this.createHostCallbacks(abilityContext)
     );
     if (!initialized) {
+      nativeContext.clearTextInputHost();
       this.displayScaleHostConfigured = false;
       nativeContext.clearDisplayScaleHost();
     }
@@ -2044,6 +2124,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.textInputSession.length > 0) {
+      this.finishTextInput(false, '');
+      return true;
+    }
     this.nativeContext?.submitSystemBack();
     return true;
   }

@@ -2,7 +2,7 @@
   "type": "uiAsset",
   "designSize": {
     "width": 144,
-    "height": 356
+    "height": 388
   },
   "palette": {
     "exposed": true,
@@ -15,7 +15,7 @@
     "properties": {
       "size": [
         144,
-        356
+        388
       ]
     },
     "editor": {},
@@ -104,6 +104,42 @@
         "children": []
       },
       {
+        "name": "PlayerName",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "text": "",
+          "characterSize": 18
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 32,
+            "right": 144,
+            "bottom": 24
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 22
+        },
+        "editor": {
+          "previewText": "Player Name"
+        },
+        "children": []
+      },
+      {
         "name": "Level",
         "controlId": "Engine.PlainText",
         "properties": {
@@ -123,7 +159,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 32.0,
+            "top": 64.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -161,7 +197,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 64.0,
+            "top": 96.0,
             "right": 0.0,
             "bottom": 24.0
           },
@@ -226,7 +262,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 108.0,
+            "top": 140.0,
             "right": 0.0,
             "bottom": 8.0
           },
@@ -268,7 +304,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 108.0,
+            "top": 140.0,
             "right": 0.0,
             "bottom": 8.0
           },
@@ -302,7 +338,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 100.0,
+            "top": 132.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -338,7 +374,7 @@
           },
           "offsets": {
             "left": 128.0,
-            "top": 100.0,
+            "top": 132.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -375,7 +411,7 @@
           },
           "offsets": {
             "left": 130.0,
-            "top": 100.0,
+            "top": 132.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -411,7 +447,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 128.0,
+            "top": 160.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -448,7 +484,7 @@
           },
           "offsets": {
             "left": 128.0,
-            "top": 128.0,
+            "top": 160.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -485,7 +521,7 @@
           },
           "offsets": {
             "left": 130.0,
-            "top": 128.0,
+            "top": 160.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -521,7 +557,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 160.0,
+            "top": 192.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -558,7 +594,7 @@
           },
           "offsets": {
             "left": 128.0,
-            "top": 160.0,
+            "top": 192.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -595,7 +631,7 @@
           },
           "offsets": {
             "left": 130.0,
-            "top": 160.0,
+            "top": 192.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -631,7 +667,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 224.0,
+            "top": 256.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -668,7 +704,7 @@
           },
           "offsets": {
             "left": 128.0,
-            "top": 224.0,
+            "top": 256.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -704,7 +740,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 256.0,
+            "top": 288.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -741,7 +777,7 @@
           },
           "offsets": {
             "left": 128.0,
-            "top": 256.0,
+            "top": 288.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -776,7 +812,7 @@
           },
           "offsets": {
             "left": 0.0,
-            "top": 320.0,
+            "top": 352.0,
             "right": 0.0,
             "bottom": 0.0
           },
@@ -810,7 +846,7 @@
           },
           "offsets": {
             "left": 128.0,
-            "top": 320.0,
+            "top": 352.0,
             "right": 0.0,
             "bottom": 0.0
           },

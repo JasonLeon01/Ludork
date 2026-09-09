@@ -25,7 +25,7 @@
 ---@field context Source.Scenes.SceneMap.DialogueLocaleContext
 ---@field content string[]
 
----@alias Source.Scenes.SceneMap.BlockingWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowEnemyBook | Source.Windows.WindowEnemyEncyclopedia | Source.Windows.WindowFloorTeleporter
+---@alias Source.Scenes.SceneMap.BlockingWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowEnemyBook | Source.Windows.WindowEnemyEncyclopedia | Source.Windows.WindowFloorTeleporter | Source.Windows.WindowPlayerName
 
 ---@class Source.Scenes.SceneMap.SceneMap: Source.Gameplay.GameplayScene
 ---@field new                                   fun(): Source.Scenes.SceneMap.SceneMap
@@ -37,6 +37,8 @@
 ---@field _mapAudio                             Source.SceneComponents.SceneMapAudioController
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
 ---@field _messageWindow                        Source.Windows.WindowMessage
+---@field _windowPlayerName                     Source.Windows.WindowPlayerName
+---@field _playerNameMoveEnabledBeforeOpen      boolean
 ---@field _windowItem                           Source.Windows.WindowItem
 ---@field _windowEquip                          Source.Windows.WindowEquip
 ---@field _windowShop                           Source.Windows.WindowShop
@@ -48,7 +50,7 @@
 ---@field _windowMenu                           Source.Windows.WindowMenu
 ---@field _configWindow                         Source.Windows.ConfigWindow
 ---@field _blockingWindows                      Source.Scenes.SceneMap.BlockingWindow[]
----@field _regionTitleUI                        Source.UI.RegionTitle
+---@field _regionTitleUI                        Source.Scenes.SceneMap.RegionTitle.Controller
 ---@field _regionTitleText                      Engine.PlainText
 ---@field _localeChangedToken                   integer | nil
 ---@field _dialogueLocaleSource                 Source.Scenes.SceneMap.DialogueMessageLocaleSource | Source.Scenes.SceneMap.DialogueSelectionLocaleSource | nil
@@ -71,17 +73,8 @@
 ---@field _floorTeleporterMoveEnabledBeforeOpen boolean
 local Scene = {}
 
----@return sf.IntRect, sf.IntRect, sf.IntRect
-function Scene.GetShopRects() end
-
----@return sf.IntRect
-function Scene.GetAttrShopRect() end
-
----@return sf.IntRect
-function Scene.GetEnemyBookRect() end
-
----@return sf.IntRect
-function Scene.GetEnemyEncyclopediaRect() end
+---@return fun(): boolean
+function Scene:openPlayerName() end
 
 ---@param source Source.Scenes.SceneMap.DialogueMessageLocaleSource
 ---@return string, string

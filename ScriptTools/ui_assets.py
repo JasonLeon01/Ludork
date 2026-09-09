@@ -745,12 +745,31 @@ def validate_assets(
 
 def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ScriptTools ui-assets")
-    parser.add_argument("operation", choices=("validate",))
-    parser.add_argument("project_root", type=pathlib.Path)
-    parser.add_argument("--registry", type=pathlib.Path)
-    parser.add_argument("--structure-only", action="store_true")
+    operations = parser.add_subparsers(dest="operation", required=True)
+    validate_parser = operations.add_parser("validate")
+    validate_parser.add_argument("project_root", type=pathlib.Path)
+    validate_parser.add_argument("--registry", type=pathlib.Path)
+    validate_parser.add_argument("--structure-only", action="store_true")
+    generate_parser = operations.add_parser("generate")
+    generate_parser.add_argument("project_root", type=pathlib.Path)
+    generate_parser.add_argument("--check", action="store_true")
     parsed = parser.parse_args(arguments)
     try:
+        if parsed.operation == "generate":
+            from .ui_asset_generation import generate_assets
+
+            changes = generate_assets(parsed.project_root, check=parsed.check)
+            if parsed.check and changes:
+                print("Generated UI code is out of date:")
+                for path in changes:
+                    print(path)
+                return 1
+            print(
+                f"Generated UI code updated ({len(changes)} files)"
+                if changes
+                else "Generated UI code is up to date"
+            )
+            return 0
         validate_assets(
             parsed.project_root, parsed.registry, structure_only=parsed.structure_only
         )

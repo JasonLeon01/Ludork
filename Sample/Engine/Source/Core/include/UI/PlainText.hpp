@@ -53,6 +53,8 @@ public:
 
     void refreshDisplayScale() override;
 
+    sf::Vector2f getInsertionPosition(std::size_t codepointIndex) const;
+
 protected:
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,

@@ -27,18 +27,28 @@ import java.util.List;
 import java.util.Locale;
 
 public final class LudorkActivity extends NativeActivity {
+    static {
+        System.loadLibrary("ludork");
+    }
+
     private static final String TAG = "Ludork";
     private static final String MANIFEST_ASSET = "ludork-runtime-manifest.json";
     private static final String COMPLETE_MARKER = ".complete";
     private static final int BUFFER_SIZE = 64 * 1024;
     private Api33BackHandler api33BackHandler;
+    private final LudorkTextInputDialog textInputDialog = new LudorkTextInputDialog(this);
+    private boolean textInputAvailable;
 
     @TargetApi(Build.VERSION_CODES.TIRAMISU)
     private static final class Api33BackHandler {
         private final OnBackInvokedCallback callback;
 
         Api33BackHandler(LudorkActivity activity) {
-            callback = LudorkActivity::submitSystemBack;
+            callback = () -> {
+                if (!activity.textInputDialog.cancel()) {
+                    submitSystemBack();
+                }
+            };
             activity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                     OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                     callback);
@@ -81,12 +91,28 @@ public final class LudorkActivity extends NativeActivity {
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            submitSystemBack();
+            if (!textInputDialog.cancel()) {
+                submitSystemBack();
+            }
         }
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        textInputAvailable = true;
+    }
+
+    @Override
+    protected void onPause() {
+        textInputAvailable = false;
+        textInputDialog.cancel();
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
+        textInputDialog.cancel();
         if (api33BackHandler != null) {
             api33BackHandler.unregister(this);
             api33BackHandler = null;
@@ -95,6 +121,22 @@ public final class LudorkActivity extends NativeActivity {
     }
 
     private static native void submitSystemBack();
+
+    static native void completeTextInput(long sessionId, boolean accepted, String text);
+
+    boolean isTextInputAvailable() {
+        return textInputAvailable && !isFinishing() && !isDestroyed();
+    }
+
+    public void showTextInput(long sessionId, String text, String title, String prompt,
+                              String placeholder, String confirmText, String cancelText) {
+        runOnUiThread(() -> textInputDialog.show(sessionId, text, title, prompt,
+                placeholder, confirmText, cancelText));
+    }
+
+    public void dismissTextInput(long sessionId) {
+        runOnUiThread(() -> textInputDialog.dismiss(sessionId));
+    }
 
     private void prepareRuntime() throws Exception {
         JSONObject manifest = new JSONObject(readAssetText(MANIFEST_ASSET));

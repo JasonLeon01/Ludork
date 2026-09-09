@@ -1,42 +1,43 @@
----@meta Source.Windows.WindowEquip
+---@meta
 
----@class Source.Windows.WindowEquip: Engine.Canvas
+---@class Source.Windows.WindowEquip.Controller: Source.UIBase.UiController
+---@field host          Source.Windows.WindowEquip
 ---@field _slotWindow   Source.Windows.WindowEquipSlot
 ---@field _selectWindow Source.Windows.WindowEquipSelect
 ---@field _statusWindow Source.Windows.WindowEquipStatus
----@field new           fun(player: Source.Player.Player): Source.Windows.WindowEquip
-local WindowEquip = {}
+---@field ui            Source.UI.WindowEquip
+local Controller = {}
 
 ---@param player Source.Player.Player
-function WindowEquip:init(player) end
+function Controller:init(player) end
 
 ---@param player Source.Player.Player
-function WindowEquip:setPlayer(player) end
+function Controller:setPlayer(player) end
 
 ---@param callback function | nil
-function WindowEquip:setOnCloseCallback(callback) end
+function Controller:setOnCloseCallback(callback) end
 
-function WindowEquip:open() end
+function Controller:open() end
 
 ---@param onHidden function | nil
-function WindowEquip:close(onHidden) end
+function Controller:close(onHidden) end
 
-function WindowEquip:hideImmediate() end
+function Controller:hideImmediate() end
 
-function WindowEquip:refreshLocale() end
+function Controller:refreshLocale() end
 
 ---@return boolean
-function WindowEquip:getVisible() end
+function Controller:getVisible() end
 
-function WindowEquip:requestSlotFocus() end
+function Controller:requestSlotFocus() end
 
 ---@return Source.Windows.WindowEquipSlot
-function WindowEquip:getSlotFocusTarget() end
+function Controller:getSlotFocusTarget() end
 
 ---@return Source.Windows.WindowEquipSlot, Source.Windows.WindowEquipSelect
-function WindowEquip:getFocusControls() end
+function Controller:getFocusControls() end
 
 ---@return boolean
-function WindowEquip:returnSelectToSlot() end
+function Controller:returnSelectToSlot() end
 
-return WindowEquip
+function Controller:dispose() end

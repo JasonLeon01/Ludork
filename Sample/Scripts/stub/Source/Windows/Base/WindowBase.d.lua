@@ -4,7 +4,7 @@
 ---@class Source.Windows.Base.WindowBase: Engine.Canvas
 ---@field _windowSkin                sf.Image
 ---@field _repeated                  boolean
----@field _windowBaseUI              Source.UI.Parts.Shared.WindowBase | nil
+---@field _windowBaseUI              Source.Windows.Base.WindowBase.Controller | nil
 ---@field _window                    Engine.Window
 ---@field content                    Engine.Canvas
 ---@field _visualRoot                Engine.ControlBase | nil
@@ -18,8 +18,9 @@
 ---@field _pauseMarkFrameTimer       number
 ---@field _pauseMark                 Engine.Image
 ---@field _pauseMarkTexture          sf.Texture
----@field _uiController              Source.UI.UiController | nil
----@field _transition                Source.UI.WindowTransition | nil
+---@field _uiController              Source.UIBase.UiController | Source.UIBase.UiView | nil
+---@field _uiDispose                 function | nil
+---@field _transition                Source.UIBase.WindowTransition | nil
 local WindowBase = {}
 
 ---@brief Construct a window with a skin and content area.
@@ -54,7 +55,7 @@ function WindowBase:setActive(active) end
 
 ---@brief Show or hide this window and its declarative visual root.
 ---
---- Nested panes bound with `attachNestedWindowView` keep their visual root in the parent asset. `setVisible` applies to that root as well as the input host.
+--- Nested panes created through `createChild` or `FromView` keep their visual root in the parent asset. `setVisible` applies to that root as well as the input host.
 --- - @param visible Whether the window and its visual root are shown.
 ---@param visible boolean
 function WindowBase:setVisible(visible) end
@@ -71,7 +72,7 @@ function WindowBase:setVisible(visible) end
 ---@field pauseMarkTexture sf.Texture | nil
 
 ---@brief Attach a prepared controller view while retaining ownership of host chrome and transitions.
----@param controller Source.UI.UiController
+---@param controller Source.UIBase.UiController | Source.UIBase.UiView
 ---@param viewParts  Source.Windows.Base.WindowBase.PreparedView
 function WindowBase:attachPreparedView(controller, viewParts) end
 
@@ -129,5 +130,13 @@ function WindowBase:applyWindowSkin(windowFrame) end
 
 ---@return integer
 function WindowBase:getPauseMarkSize() end
+
+function WindowBase:dispose() end
+
+---@return boolean
+function WindowBase:isReturnButtonSuppressed() end
+
+---@return Source.UIBase.WindowTransition
+function WindowBase:getTransition() end
 
 return WindowBase

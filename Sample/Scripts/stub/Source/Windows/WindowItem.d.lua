@@ -1,59 +1,79 @@
----@meta Source.Windows.WindowItem
+---@meta
+
 ---
 --- Shows player inventory items in a grid with icons and counts.
 --- Uses WindowSelectable for keyboard/mouse navigation.
----@class Source.Windows.WindowItem: Source.Windows.Base.WindowSelectable
+---@class Source.Windows.WindowItem.Controller: Source.UIBase.UiController
+---@field host             Source.Windows.WindowItem
 ---@field _onCloseCallback function | nil
 ---@field _onUseCallback   function | nil
----@field new              fun(rect: sf.IntRect, player: Source.Player.Player, onClose?: function): Source.Windows.WindowItem
 ---@field _player          Source.Player.Player
----@field _itemUI          Source.UI.WindowItem
-local WindowItem = {}
+---@field ui               Source.UI.WindowItem
+---@field _itemList        { [1]: string, [2]: integer } []
+---@field _lastDescIndex   integer | nil
+---@field _descMaxWidth    integer
+---@field _logicalSize     sf.Vector2u | nil
+---@field _rows            Source.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
+local Controller = {}
 
 ---@brief Construct the item window.
 ---
---- - @param rect The window rectangle.
 --- - @param player The player instance with inventory.
 --- - @param onClose Optional callback invoked when the window is closed.
----@param rect    sf.IntRect
 ---@param player  Source.Player.Player
 ---@param onClose function | nil
-function WindowItem:init(rect, player, onClose) end
+function Controller:init(player, onClose) end
 
 ---@brief Rebind the player whose inventory is displayed.
 ---@param player Source.Player.Player
-function WindowItem:setPlayer(player) end
+function Controller:setPlayer(player) end
 
 ---@brief Update item window and render item cells.
 ---
 --- - @param deltaTime Elapsed time in seconds.
 ---@param deltaTime number
-function WindowItem:onTick(deltaTime) end
+function Controller:onTick(deltaTime) end
 
 ---@brief Open the item window, refreshing inventory and selecting its first item.
-function WindowItem:open() end
+function Controller:open() end
 
 ---@brief Refresh the currently selected item's localised name and description.
-function WindowItem:refreshLocale() end
+function Controller:refreshLocale() end
 
 ---@brief Close the item window.
 ---@param onHidden function | nil
-function WindowItem:close(onHidden) end
+function Controller:close(onHidden) end
 
 ---@brief Close the item window through its cancel path.
-function WindowItem:onReturn() end
+function Controller:onReturn() end
 
 ---@return Source.Player.Player
-function WindowItem:getPlayer() end
+function Controller:getPlayer() end
 
 ---@param callback function | nil
-function WindowItem:setOnCloseCallback(callback) end
+function Controller:setOnCloseCallback(callback) end
 
 ---@param callback function | nil
-function WindowItem:setOnUseCallback(callback) end
+function Controller:setOnUseCallback(callback) end
 
-function WindowItem:onItemUsed() end
+function Controller:onItemUsed() end
 
-function WindowItem:notifyClosed() end
+function Controller:notifyClosed() end
 
-return WindowItem
+function Controller:refresh() end
+
+function Controller:refreshItems() end
+
+function Controller:tick() end
+
+---@param text string
+---@return string
+function Controller:wrapDescription(text) end
+
+function Controller:updateDescription() end
+
+function Controller:useSelectedItem() end
+
+function Controller:closeByCancel() end
+
+function Controller:ready() end

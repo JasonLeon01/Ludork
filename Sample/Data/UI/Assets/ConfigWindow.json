@@ -287,7 +287,7 @@
                   },
                   {
                     "name": "GraphicsItem2",
-                    "controlId": "Project:Parts/ConfigWindow/ConfigSliderRow",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
@@ -311,7 +311,7 @@
                   },
                   {
                     "name": "GraphicsItem5",
-                    "controlId": "Project:Parts/ConfigWindow/ConfigCheckBoxRow",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
@@ -319,7 +319,7 @@
                   },
                   {
                     "name": "GraphicsItem6",
-                    "controlId": "Project:Parts/ConfigWindow/ConfigSettingRow",
+                    "controlId": "Project:Parts/ConfigWindow/ConfigCheckBoxRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},

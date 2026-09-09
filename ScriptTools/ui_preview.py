@@ -63,7 +63,7 @@ def is_preview_development_file(name: str) -> bool:
             "UiPreviewHostRuntime.dll",
         }
         or re.fullmatch(
-            r"libUiPreviewHostRuntime(?:\.\d+)*\.dylib|libUiPreviewHostRuntime\.so(?:\.\d+)*",
+            r"(?:lib)?UiPreviewHostRuntime(?:\.\d+)*\.dylib|(?:lib)?UiPreviewHostRuntime\.so(?:\.\d+)*",
             name,
         )
         is not None

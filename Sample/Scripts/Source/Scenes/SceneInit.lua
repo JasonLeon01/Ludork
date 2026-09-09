@@ -1,11 +1,11 @@
-local cjson = require("cjson")
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local cjson = require("cjson")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
 local Data = require("Source.Data")
 local SceneInitAnimationCache = require("Source.Scenes.SceneInitAnimationCache")
-local SceneInitUI = require("Source.UI.Init")
+local SceneInitController = require("Source.Scenes.SceneInit.Controller")
 
 local GlobalSystem = GlobalCore.System
 local SceneBase = GlobalCore.SceneBase
@@ -21,7 +21,7 @@ local Scene = {}
 
 function Scene:onCreate()
     local gameSize = GlobalSystem.getGameSize()
-    self._ui = SceneInitUI.new(self, gameSize)
+    self._ui = SceneInitController.new(self, gameSize)
     self._ui:mount(self:getUIManager(), gameSize)
     self._bg = self._ui:getBackground()
     self.progressValue = 0.0
@@ -53,7 +53,7 @@ function Scene:onLateTick(_)
     local target = self.progressDone and 1.0 or self.progressValue
     if target ~= self._displayProgress then
         self._displayProgress = target
-        SceneInitUI.Publish({
+        SceneInitController.Publish({
             progress = target
         })
     end

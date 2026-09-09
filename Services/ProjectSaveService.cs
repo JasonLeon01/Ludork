@@ -153,6 +153,22 @@ public sealed class ProjectSaveService
             };
         }
 
+        SaveResult generationResult = UiAssetGenerationService.Generate(gameData.ProjectPath);
+        if (!generationResult.Success)
+        {
+            return new ProjectSaveAttempt(
+                false,
+                false,
+                validationResults,
+                new SaveResult(false, string.Join(Environment.NewLine,
+                    new[] { dataResult.Details, generationResult.Details }
+                        .Where(value => !string.IsNullOrWhiteSpace(value)))))
+            {
+                UiValidationResults = uiValidationResults,
+                GameVariableResult = gameVariableResult,
+            };
+        }
+
         if (structuralOnly && uiValidationResults.Count != 0)
         {
             dataResult = dataResult with

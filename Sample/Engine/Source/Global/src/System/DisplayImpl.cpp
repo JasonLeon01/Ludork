@@ -1,6 +1,11 @@
 #include "DisplayImpl.hpp"
 #include "Platform/NativeDisplay.hpp"
 #include "Platform/NativeInputMethod.hpp"
+#include "Platform/DesktopTextInputHost.hpp"
+#if defined(SFML_SYSTEM_IOS)
+#include "Platform/TextInputHostIOS.hpp"
+#endif
+#include <Input/TextInputService.hpp>
 #include "Diagnostics/PerformanceProfiler.hpp"
 #include <EngineState.hpp>
 #include <GlobalRuntimeApi.hpp>
@@ -181,6 +186,13 @@ void DisplayImpl::createDisplayWindow() {
 
 void DisplayImpl::initializeInput() {
     setInputMethodDisabled(true);
+#if defined(SFML_SYSTEM_IOS)
+    ludork::engine::text_input::service().setHost(
+        ludork::global::createIosTextInputHost(window_->getNativeHandle()));
+#elif defined(_WIN32) || (defined(__APPLE__) && !defined(LUDORK_MOBILE))
+    ludork::engine::text_input::service().setHost(
+        ludork::global::createDesktopTextInputHost(*window_));
+#endif
     inputService().initializeNativePolling();
 }
 
@@ -288,6 +300,7 @@ void DisplayImpl::recreateDesktopWindow(bool fullscreen,
     if (window_ == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
+    ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     window_->create(sf::VideoMode(size), windowTitle_,
                     fullscreen ? sf::Style::None : sf::Style::Default,
@@ -299,7 +312,7 @@ void DisplayImpl::recreateDesktopWindow(bool fullscreen,
     applyWindowPresentationSettings();
     setInputMethodDisabled(inputMethodDisabled_);
     inputService().onWindowRecreated(*window_);
-    inputService().initializeNativePolling();
+    initializeInput();
 }
 
 void DisplayImpl::replaceWindowedDesktopWindow(
@@ -309,6 +322,7 @@ void DisplayImpl::replaceWindowedDesktopWindow(
     if (previousWindow == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
+    ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     const std::shared_ptr<sf::RenderWindow> replacement =
         std::make_shared<sf::RenderWindow>(
@@ -325,7 +339,7 @@ void DisplayImpl::replaceWindowedDesktopWindow(
         applyWindowPresentationSettings();
         setInputMethodDisabled(inputMethodDisabled_);
         inputService().onWindowRecreated(*window_);
-        inputService().initializeNativePolling();
+        initializeInput();
     }
 }
 
@@ -464,8 +478,9 @@ void DisplayImpl::setInputMethodDisabled(bool disabled) {
             ludork::global::RuntimeWindowMode::Embedded) {
         return;
     }
-    ludork::global::setNativeInputMethodDisabled(window_->getNativeHandle(),
-                                                 disabled);
+    ludork::global::setNativeInputMethodDisabled(
+        window_->getNativeHandle(),
+        disabled && !ludork::engine::text_input::service().isEditing());
 }
 
 void DisplayImpl::present() {
@@ -576,6 +591,7 @@ void DisplayImpl::reset() {
 }
 
 void DisplayImpl::shutdown() noexcept {
+    ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     std::shared_ptr<sf::RenderWindow> previousWindow;
     {

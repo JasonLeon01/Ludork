@@ -1,7 +1,7 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 320,
+    "width": 448,
     "height": 32
   },
   "palette": {
@@ -14,7 +14,7 @@
     "controlId": "Engine.Canvas",
     "properties": {
       "size": [
-        320,
+        448,
         32
       ]
     },
@@ -116,7 +116,7 @@
             ]
           },
           "offsets": {
-            "left": 80.0,
+            "left": 176.0,
             "top": 0.0,
             "right": 0.0,
             "bottom": 0.0

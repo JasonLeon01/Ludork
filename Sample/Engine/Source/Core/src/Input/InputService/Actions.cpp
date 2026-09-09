@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include <Input/TextInputService.hpp>
 #include <Input/InputActionKey.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/JoystickButton.hpp>
@@ -81,6 +82,9 @@ bool InputImpl::axisMatches(float position, const InputActionKey& key) {
 }
 
 void InputImpl::dispatchActionMappings() {
+    if (ludork::engine::text_input::service().blocksGameplay()) {
+        return;
+    }
     struct MoveAction {
         float position = 0.0f;
         InputActionCallback callback;
@@ -93,8 +97,11 @@ void InputImpl::dispatchActionMappings() {
             continue;
         }
         for (const InputActionKey& key : mapping.actionKeys) {
+            if (ludork::engine::text_input::service().blocksGameplay()) {
+                return;
+            }
             if (key.kind == InputActionKind::JoystickButton) {
-                if (joystick_.blocked_) {
+                if (isJoystickBlocked()) {
                     continue;
                 }
                 bool triggered = false;
@@ -116,7 +123,7 @@ void InputImpl::dispatchActionMappings() {
                     mapping.callback(mapping.object, std::nullopt);
                 }
             } else if (key.kind == InputActionKind::JoystickAxis) {
-                if (joystick_.blocked_) {
+                if (isJoystickBlocked()) {
                     continue;
                 }
                 const sf::Joystick::Axis axis =
@@ -145,7 +152,7 @@ void InputImpl::dispatchActionMappings() {
                 if (isTouchTap(false)) {
                     mapping.callback(mapping.object, std::nullopt);
                 }
-            } else if (eventPump_.focused_ && !keyboard_.blocked_) {
+            } else if (eventPump_.focused_ && !isKeyboardBlocked()) {
                 bool triggered = false;
                 const InputModifiers modifiers{};
                 if (key.kind == InputActionKind::Scan) {
@@ -248,7 +255,7 @@ bool InputImpl::triggerFromMap(
 bool InputImpl::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
                                bool shift, bool system, bool handled,
                                float repeatDelay, float repeatInterval) {
-    if (!eventPump_.focused_ || keyboard_.blocked_) {
+    if (!eventPump_.focused_ || isKeyboardBlocked()) {
         return false;
     }
     return triggerFromMap(
@@ -260,7 +267,7 @@ bool InputImpl::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
 bool InputImpl::isAnyJoystickButtonTriggered(unsigned int button, bool handled,
                                              float repeatDelay,
                                              float repeatInterval) {
-    if (joystick_.blocked_) {
+    if (isJoystickBlocked()) {
         return false;
     }
     const auto iterator = joystick_.buttonTriggers_.find(button);
@@ -312,7 +319,7 @@ bool InputImpl::actionTriggered(const InputActionKey& key, bool handled,
             isKeyTriggered(static_cast<Key>(key.code), false, false, false,
                            false, handled, repeatDelay, repeatInterval);
         bool scanTriggered = false;
-        if (eventPump_.focused_ && !keyboard_.blocked_) {
+        if (eventPump_.focused_ && !isKeyboardBlocked()) {
             const sf::Keyboard::Scancode scan =
                 static_cast<sf::Keyboard::Scancode>(key.code);
             scanTriggered = triggerFromMap(
@@ -326,7 +333,7 @@ bool InputImpl::actionTriggered(const InputActionKey& key, bool handled,
                               false, handled, repeatDelay, repeatInterval);
     }
     if (key.kind == InputActionKind::Scan) {
-        if (!eventPump_.focused_ || keyboard_.blocked_) {
+        if (!eventPump_.focused_ || isKeyboardBlocked()) {
             return false;
         }
         const sf::Keyboard::Scancode scan =
@@ -347,7 +354,7 @@ bool InputImpl::actionTriggered(const InputActionKey& key, bool handled,
     if (key.kind == InputActionKind::TouchTap) {
         return isTouchTap(handled);
     }
-    if (joystick_.blocked_) {
+    if (isJoystickBlocked()) {
         return false;
     }
     const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);
@@ -399,22 +406,22 @@ bool InputImpl::isActionTriggered(const std::vector<InputActionKey>& actionKeys,
 
 bool InputImpl::actionHeld(const InputActionKey& key) const {
     if (key.kind == InputActionKind::KeyOrScan) {
-        return eventPump_.focused_ && !keyboard_.blocked_ &&
+        return eventPump_.focused_ && !isKeyboardBlocked() &&
                (isKeyboardKeyDown(static_cast<Key>(key.code)) ||
                 isKeyboardScanDown(
                     static_cast<sf::Keyboard::Scancode>(key.code)));
     }
     if (key.kind == InputActionKind::Key) {
-        return eventPump_.focused_ && !keyboard_.blocked_ &&
+        return eventPump_.focused_ && !isKeyboardBlocked() &&
                isKeyboardKeyDown(static_cast<Key>(key.code));
     }
     if (key.kind == InputActionKind::Scan) {
-        return eventPump_.focused_ && !keyboard_.blocked_ &&
+        return eventPump_.focused_ && !isKeyboardBlocked() &&
                isKeyboardScanDown(
                    static_cast<sf::Keyboard::Scancode>(key.code));
     }
     if (key.kind == InputActionKind::JoystickButton) {
-        return !joystick_.blocked_ &&
+        return !isJoystickBlocked() &&
                isAnyJoystickButtonDown(static_cast<unsigned int>(key.code));
     }
     if (key.kind == InputActionKind::MouseButton) {
@@ -423,7 +430,7 @@ bool InputImpl::actionHeld(const InputActionKey& key) const {
     if (key.kind == InputActionKind::TouchTap) {
         return false;
     }
-    if (joystick_.blocked_) {
+    if (isJoystickBlocked()) {
         return false;
     }
     const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);

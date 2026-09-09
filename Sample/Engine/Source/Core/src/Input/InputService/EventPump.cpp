@@ -4,6 +4,7 @@
 #include "Platform/PlatformInputBridge.hpp"
 
 #include <EngineState.hpp>
+#include <Input/TextInputService.hpp>
 
 #include <SFML/Window/Mouse.hpp>
 
@@ -151,28 +152,18 @@ std::string InputImpl::toUtf8(char32_t codepoint) {
     if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
         codepoint = 0xFFFD;
     }
-    std::string result;
-    if (codepoint <= 0x7F) {
-        result.push_back(static_cast<char>(codepoint));
-    } else if (codepoint <= 0x7FF) {
-        result.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
-        result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    } else if (codepoint <= 0xFFFF) {
-        result.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
-        result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-        result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    } else {
-        result.push_back(static_cast<char>(0xF0 | (codepoint >> 18)));
-        result.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
-        result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-        result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    }
-    return result;
+    const sf::U8String bytes = sf::String(codepoint).toUtf8();
+    return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
 }
 
 void InputImpl::consumePendingSystemCancel() {
     if (!InputEventPumpImpl::pendingSystemCancel_.exchange(
             false, std::memory_order_acq_rel)) {
+        return;
+    }
+    if (ludork::engine::text_input::service().blocksGameplay()) {
+        ludork::engine::text_input::service().execute(
+            ludork::engine::text_input::Command::Cancel);
         return;
     }
     abortTwoFingerCancel();
@@ -190,6 +181,9 @@ void InputImpl::setFocused(bool focused) {
         return;
     }
     eventPump_.focusLost_ = true;
+    if (!ludork::engine::text_input::service().isModal()) {
+        ludork::engine::text_input::service().close();
+    }
     abortTwoFingerCancel();
     pointer_.touchTravelDistance_ = 0.0f;
     pointer_.touchDragged_ = false;
@@ -235,6 +229,7 @@ void InputImpl::setPointerViewport(std::optional<sf::IntRect> viewport) {
 }
 
 void InputImpl::onWindowRecreated(sf::WindowBase& window) {
+    ludork::engine::text_input::service().close();
     resetFrameState();
     clearKeyboardState();
     pointer_.mouseButtonPressed_ = false;
@@ -339,7 +334,11 @@ void InputImpl::processInjectedEvents() {
                 scan = sf::Keyboard::delocalize(key);
             }
             key = resolveKeyCode(key, scan);
-            setKeyPressed(key, scan, modifiers);
+            if (!ludork::engine::text_input::service().processEvent(
+                    sf::Event::KeyPressed{key, scan, event.alt, event.control,
+                                          event.shift, event.system})) {
+                setKeyPressed(key, scan, modifiers);
+            }
         } else if (event.type == "KeyReleased") {
             setFocused(true);
             sf::Keyboard::Key key = keyFromName(event.key);
@@ -349,7 +348,11 @@ void InputImpl::processInjectedEvents() {
                 scan = sf::Keyboard::delocalize(key);
             }
             key = resolveKeyCode(key, scan);
-            setKeyReleased(key, scan, modifiers);
+            if (!ludork::engine::text_input::service().processEvent(
+                    sf::Event::KeyReleased{key, scan, event.alt, event.control,
+                                           event.shift, event.system})) {
+                setKeyReleased(key, scan, modifiers);
+            }
         } else if (event.type == "MouseMoved") {
             updatePointerViewportState(pixel);
             if (acceptsPointerPixel(pixel) ||
@@ -413,6 +416,10 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
     if (!eventPump_.useInjectedMouseOnly_ &&
         event.is<sf::Event::FocusGained>()) {
         setFocused(true);
+    }
+    if (!eventPump_.useInjectedMouseOnly_ &&
+        ludork::engine::text_input::service().processEvent(event)) {
+        return true;
     }
     if (!eventPump_.useInjectedMouseOnly_ && !window.hasFocus()) {
         return false;

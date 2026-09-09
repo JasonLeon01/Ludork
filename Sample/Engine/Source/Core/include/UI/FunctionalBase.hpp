@@ -187,6 +187,7 @@ protected:
     BIND_METHOD(metadata = false)
     virtual void onPointerInteractionReset();
     virtual void onInteractionStateChanged();
+    virtual void onInteractionInvalidated();
 
 private:
     friend class ControlBase;

@@ -53,6 +53,7 @@ done
 
 SCRIPT_TOOLS=$(resolve_script_tools)
 if [ "$USE_CURRENT_BUILD" -eq 1 ]; then
+    "$SCRIPT_TOOLS" ui-assets generate "$CPP_DIR"
     "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 else
     sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"

@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local WindowBaseUI = require("Source.UI.Parts.Shared.WindowBase")
+local WindowBaseController = require("Source.Windows.Base.WindowBase.Controller")
 
 local Canvas = Engine.Canvas
 local ManagerFunctions = GlobalFunctions.Manager
@@ -39,11 +39,12 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     self._pauseMark = nil
     self._pauseMarkTexture = nil
     self._uiController = nil
+    self._uiDispose = nil
     self._transition = nil
     if deferView == true then
         self:_createDeclarativeChrome()
     else
-        self._windowBaseUI = WindowBaseUI.new(
+        self._windowBaseUI = WindowBaseController.new(
             self, windowSkin, repeated, self._PAUSE_MARK_ATLAS_RECT, assert(self._PAUSE_MARK_FRAME_RECTS[1])
         )
         local size = self:getSize()
@@ -124,7 +125,12 @@ function WindowBase:attachPreparedView(controller, viewParts)
         viewParts.chromeRoot:addChild(self._returnButton)
     end
     self._uiController = controller
+    self._uiDispose = controller.dispose
     self._transition = controller:createTransition(self, viewParts.transitionTarget)
+end
+
+function WindowBase:getTransition()
+    return self._transition
 end
 
 function WindowBase:showWithAnimation(animationName, onReady)
@@ -152,6 +158,10 @@ end
 
 function WindowBase:isTransitionOpen()
     return self._transition ~= nil and self._transition:isOpen()
+end
+
+function WindowBase:isReturnButtonSuppressed()
+    return self._returnButtonSuppressed
 end
 
 function WindowBase:setReturnButtonSuppressed(suppressed)
@@ -286,6 +296,12 @@ end
 
 function WindowBase:getPauseMarkSize()
     return self._PAUSE_MARK_SIZE
+end
+
+function WindowBase:dispose()
+    if self._uiDispose ~= nil then
+        self._uiDispose(self._uiController)
+    end
 end
 
 return class(WindowBase, Canvas)

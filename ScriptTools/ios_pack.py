@@ -13,7 +13,8 @@ import unicodedata
 import zipfile
 
 from .compile_lua import resolve_luac
-from .ui_control_registry import UiRegistryError
+from .ui_asset_generation import generate_assets
+from .ui_property_values import UiAssetError
 from .ui_preview import prepare_registry
 from .finalize_package import finalize_package
 from .ldpak import (
@@ -606,6 +607,8 @@ def main(arguments: list[str] | None = None) -> int:
         if arguments.check:
             print("iOS packaging prerequisites are ready.", flush=True)
             return 0
+        for path in generate_assets(context.project_dir):
+            print(f"Generated UI: {path}", flush=True)
         app_path = configure_and_build(context, device)
         verify_app(context, app_path)
         create_ipa(context, app_path)
@@ -618,7 +621,7 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return exception.exit_code
-    except (LdPakError, UiRegistryError) as exception:
+    except (LdPakError, UiAssetError) as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return EXIT_PROJECT
     except KeyboardInterrupt:

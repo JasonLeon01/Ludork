@@ -12,7 +12,7 @@ local MapPath = require("Source.MapPath")
 local SceneMapInteractions = require("Source.Scenes.SceneMap.Interactions")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
-local RegionTitleUI = require("Source.UI.RegionTitle")
+local RegionTitleController = require("Source.Scenes.SceneMap.RegionTitle.Controller")
 local PlayerAttrHUD = require("Source.Windows.HUDPlayerAttr")
 local WindowEquip = require("Source.Windows.WindowEquip")
 local WindowAttrShop = require("Source.Windows.WindowAttrShop")
@@ -25,6 +25,7 @@ local WindowMenu = require("Source.Windows.WindowMenu")
 local WindowMessage = require("Source.Windows.WindowMessage")
 local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
 local WindowShop = require("Source.Windows.WindowShop")
+local WindowPlayerName = require("Source.Windows.WindowPlayerName")
 
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
@@ -94,12 +95,16 @@ function Scene:onCreate()
         end
     end)
     self._messageWindow = WindowMessage.new()
+    self._playerNameMoveEnabledBeforeOpen = true
+    self._windowPlayerName = WindowPlayerName.new(self.player, function ()
+        self.player:setMoveEnabled(self._playerNameMoveEnabledBeforeOpen)
+        self:_blockMapInput(2)
+    end)
     self._dialogueLocaleSource = nil
-    self._windowItem = WindowItem.new(Engine.ToIntRect(192, 0, 256, 256), self.player)
+    self._windowItem = WindowItem.new(self.player)
     self._windowEquip = WindowEquip.new(self.player)
-    local shopTabRect, shopItemRect, shopDetailRect = Scene.GetShopRects()
     self._shopMoveEnabledBeforeOpen = true
-    self._windowShop = WindowShop.new(self.player, shopTabRect, shopItemRect, shopDetailRect, function ()
+    self._windowShop = WindowShop.new(self.player, function ()
         self:_onShopClose()
     end)
     self._attrShopMoveEnabledBeforeOpen = true
@@ -108,7 +113,7 @@ function Scene:onCreate()
     end)
     self._enemyBookMoveEnabledBeforeOpen = true
     self._windowEnemyBook = WindowEnemyBook.new(
-        Scene.GetEnemyBookRect(), self.player,
+        self.player,
         function ()
             self:_onEnemyBookClose()
         end,
@@ -116,13 +121,12 @@ function Scene:onCreate()
             self:_onEnemyBookConfirm(entry)
         end
     )
-    self._windowEnemyEncyclopedia = WindowEnemyEncyclopedia.new(Scene.GetEnemyEncyclopediaRect(), function ()
+    self._windowEnemyEncyclopedia = WindowEnemyEncyclopedia.new(function ()
         self:_onEnemyEncyclopediaClose()
     end)
     self._floorTeleporterMoveEnabledBeforeOpen = true
-    local floorListRect, floorPreviewRect = WindowFloorTeleporter.GetDefaultFloorTeleporterRects()
     self._windowFloorTeleporter = WindowFloorTeleporter.new(
-        self.inst, floorListRect, floorPreviewRect,
+        self.inst,
         function (mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
             return self:_buildFloorMapPreview(mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
         end,
@@ -140,7 +144,7 @@ function Scene:onCreate()
         end
     )
     self._windowSaveLoad = WindowSaveLoad.new(
-        nil, nil, nil, false,
+        false,
         function ()
             return self:_getSaveSource()
         end,
@@ -162,19 +166,19 @@ function Scene:onCreate()
     })
     self._blockingWindows = {
         self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
-        self._windowFloorTeleporter
+        self._windowFloorTeleporter, self._windowPlayerName
     }
     self._windowMenu:setMoveRestoreGuard(function ()
         return self:_canRestoreMoveAfterMenuClose()
     end)
     self:_registerFocusGroups()
-    self._regionTitleUI = RegionTitleUI.new(GlobalSystem.getGameSize())
+    self._regionTitleUI = RegionTitleController.new(GlobalSystem.getGameSize())
     self._regionTitleUI:prepare()
     self._regionTitleText = self._regionTitleUI:getText()
     loadUiControls(
         uiManager, self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquip,
-        self._windowShop, self._windowAttrShop:getSelectable(), self._windowEnemyBook, self._windowEnemyEncyclopedia,
-        self._windowFloorTeleporter, self._windowSaveLoad, self._configWindow
+        self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
+        self._windowFloorTeleporter, self._windowSaveLoad, self._configWindow, self._windowPlayerName
     )
     self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
         local scene = sceneRef[1]
@@ -228,9 +232,13 @@ function Scene:_registerFocusGroups()
     local saveSlotGroup = createSingleControlFocusGroup("save-slot", saveSlotWindow)
     saveSlotGroup:setNeighbor(Direction.LEFT, menuGroup)
 
+    local playerNameGroup = FocusGroup.new(
+        "player-name", self._windowPlayerName:getFocusControls(), self._windowPlayerName
+    )
+
     local groups = {
         menuGroup, itemGroup, equipSlotGroup, equipSelectGroup, shopItemGroup, floorCommandGroup, floorPreviewGroup,
-        saveSlotGroup
+        saveSlotGroup, playerNameGroup
     }
     for _, group in ipairs(groups) do
         uiManager:registerFocusGroup(group)
@@ -262,13 +270,22 @@ function Scene:onDestroy()
     self._windowMenu:hideImmediate()
     self._windowItem:hideImmediate()
     self._windowEquip:hideImmediate()
-    self._windowAttrShop:getSelectable():hideImmediate()
+    self._windowAttrShop:hideImmediate()
     self._windowEnemyBook:hideImmediate()
     self._windowEnemyEncyclopedia:hideImmediate()
+    self._messageWindow:dispose()
+    self._windowMenu:dispose()
+    self._windowItem:dispose()
+    self._windowEquip:dispose()
+    self._windowAttrShop:dispose()
+    self._windowEnemyBook:dispose()
+    self._windowEnemyEncyclopedia:dispose()
+    self._playerHUD:dispose()
     self._windowSaveLoad:dispose()
     self._windowShop:dispose()
     self._windowFloorTeleporter:dispose()
     self._configWindow:dispose()
+    self._windowPlayerName:dispose()
     self._regionTitleUI:dispose()
 end
 
@@ -292,6 +309,7 @@ function Scene:refreshLocale()
     self._windowEnemyBook:refreshLocale()
     self._windowEnemyEncyclopedia:refreshLocale()
     self._windowFloorTeleporter:refreshLocale()
+    self._windowPlayerName:refreshLocale()
 end
 
 function Scene:onFixedTick(fixedDelta)
@@ -612,7 +630,7 @@ end
 
 ---@param region string
 function Scene.ShowRegionTitle(region)
-    RegionTitleUI.Publish({
+    RegionTitleController.Publish({
         region = region
     })
 end
@@ -764,14 +782,6 @@ function Scene:_onFloorTeleporterConfirm(mapKey, telepoint)
     return SceneMapInteractions.OnFloorTeleporterConfirm(self, mapKey, telepoint)
 end
 
-function Scene.GetShopRects()
-    return SceneMapInteractions.GetShopRects()
-end
-
-function Scene.GetAttrShopRect()
-    return SceneMapInteractions.GetAttrShopRect()
-end
-
 function Scene.GetDialogueLocalVars(nodeFunction)
     return SceneMapInteractions.GetDialogueLocalVars(nodeFunction)
 end
@@ -784,16 +794,12 @@ function Scene.FormatDialogueSelectionSource(source)
     return SceneMapInteractions.FormatDialogueSelectionSource(source)
 end
 
-function Scene.GetEnemyBookRect()
-    return SceneMapInteractions.GetEnemyBookRect()
-end
-
-function Scene.GetEnemyEncyclopediaRect()
-    return SceneMapInteractions.GetEnemyEncyclopediaRect()
-end
-
 function Scene:_canRestoreMoveAfterMenuClose()
     return SceneMapInteractions.CanRestoreMoveAfterMenuClose(self)
+end
+
+function Scene:openPlayerName()
+    return SceneMapInteractions.OpenPlayerName(self)
 end
 
 function Scene:_hasVisibleBlockingWindow()

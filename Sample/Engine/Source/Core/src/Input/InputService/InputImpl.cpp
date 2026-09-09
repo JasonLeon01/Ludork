@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include <Input/TextInputService.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
 
@@ -97,6 +98,7 @@ void InputImpl::updateInputType(sf::WindowBase& window) {
 void InputImpl::update(sf::WindowBase& window) {
     eventPump_.activeWindow_ = &window;
     resetFrameState();
+    ludork::engine::text_input::service().beginFrame();
     consumePendingSystemCancel();
     if (pointer_.injectedTransitionPending_.has_value()) {
         if (*pointer_.injectedTransitionPending_) {
@@ -142,6 +144,13 @@ void InputImpl::update(sf::WindowBase& window) {
             reinterpret_cast<const char*>(clipboard.data()), clipboard.size());
     }
 
+    ludork::engine::text_input::service().pump();
+    if (ludork::engine::text_input::service().blocksGameplay()) {
+        clearKeyboardState();
+        keyboard_.enteredText_.clear();
+        joystick_.buttonTriggers_.clear();
+        joystick_.axisTriggers_.clear();
+    }
     updateJoystickDominantAxes();
     updateInputType(window);
     dispatchActionMappings();
@@ -173,6 +182,7 @@ void InputImpl::setFrameCompletionCallback(std::function<void()> callback) {
 }
 
 void InputImpl::shutdown() noexcept {
+    ludork::engine::text_input::service().shutdown();
     InputEventPumpImpl::pendingSystemCancel_.store(false,
                                                    std::memory_order_release);
     ludork::engine::platform_input::shutdown();

@@ -1,24 +1,22 @@
----@meta Source.Windows.WindowSaveLoad.Tabs
+---@meta
 
 ---@brief Non-focusable load/save tab window.
----@class Source.Windows.WindowSaveTabs: Source.Windows.Base.WindowBase
----@field new fun(rect: sf.IntRect, owner: Source.Windows.WindowSaveLoad, instance?: Engine.AssetInstance): Source.Windows.WindowSaveTabs
----@field new fun(rect: sf.IntRect, owner: Source.Windows.WindowSaveLoad): Source.Windows.WindowSaveTabs
-local WindowSaveTabs = {}
+---@class Source.Windows.WindowSaveTabs.Controller: Source.UIBase.UiController
+---@field host Source.Windows.WindowSaveTabs
+---@field ui   Source.UI.Parts.WindowSaveLoad.WindowSaveTabs
+local Controller = {}
 
----@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowSaveLoad
-function WindowSaveTabs:init(rect, owner, instance) end
-
----@return Engine.TabView
-function WindowSaveTabs:getTabView() end
+function Controller:init(owner) end
 
 ---@param index integer
-function WindowSaveTabs:onSelectedIndexChanged(index) end
+function Controller:onSelectedIndexChanged(index) end
 
 ---@return boolean
-function WindowSaveTabs:handleNavigationInput() end
+function Controller:handleNavigationInput() end
 
-function WindowSaveTabs:dispose() end
+function Controller:dispose() end
 
-return WindowSaveTabs
+function Controller:bind() end
+
+function Controller:refresh() end

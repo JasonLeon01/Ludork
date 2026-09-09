@@ -227,6 +227,10 @@ function Scene.SelfRecordAndDestroy() end
 ---@return function
 function Scene.OpenShop(items, canSell) end
 
+---@brief Open the primary player name window. Completion occurs after confirmation or cancellation closes the window.
+---@return fun(): boolean
+function Scene.OpenPlayerName() end
+
 ---@brief Open an attribute shop on the current map scene.
 ---
 --- - @param actor The actor whose avatar is shown.

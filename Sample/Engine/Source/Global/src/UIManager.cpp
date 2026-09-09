@@ -89,6 +89,9 @@ std::vector<std::shared_ptr<ControlBase>> UIManager::getUIs() const {
 }
 
 void UIManager::removeUI(const std::shared_ptr<ControlBase>& ui) {
+    if (ui != nullptr) {
+        ui->invalidateInteraction();
+    }
     const std::lock_guard<std::mutex> lock(mutex_);
     const auto iterator = std::find(uis_.begin(), uis_.end(), ui);
     if (iterator == uis_.end()) {

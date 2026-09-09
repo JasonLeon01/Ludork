@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkStandard LANGUAGES CXX)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/LudorkUnicode.cmake")
+
 if(LUDORK_WITH_LUA)
     file(GLOB_RECURSE LUDORK_STANDARD_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -15,6 +17,7 @@ else()
         src/Core/EncryptedPayload.cpp
         src/Core/Math.cpp
         src/Core/ReadOnlyFileProvider.cpp
+        src/Core/UnicodeText.cpp
         src/Core/Utf8Path.cpp)
 endif()
 
@@ -38,7 +41,7 @@ target_compile_definitions(LudorkStandard
 target_include_directories(LudorkStandard
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(LudorkStandard PRIVATE Threads::Threads zlibstatic)
+target_link_libraries(LudorkStandard PRIVATE Threads::Threads zlibstatic utf8proc)
 if(LUDORK_WITH_LUA)
     target_include_directories(LudorkStandard
         PUBLIC ${LUDORK_LUASF_CONSUMER_INCLUDES})

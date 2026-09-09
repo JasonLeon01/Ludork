@@ -1,6 +1,7 @@
 #include "AssetBuilder.hpp"
 
 #include <Runtime/RuntimeDataReader.hpp>
+#include <UI/UiControlAdapterRegistry.hpp>
 
 #include <stdexcept>
 
@@ -71,15 +72,16 @@ RuntimeData::Map effectiveProperties(const RuntimeData::Map& node,
     if (!previewText) {
         return result;
     }
-    if (controlId == "Engine.DropBox") {
+    const UiControlAdapterRegistry& registry =
+        UiControlAdapterRegistry::instance();
+    if (!registry.supportsProperty(controlId, "text") &&
+        registry.supportsProperty(controlId, "previewText")) {
         result.insert_or_assign(
             "previewText", RuntimeData(requireString(
                                *previewText, source + ".editor.previewText")));
         return result;
     }
-    if (controlId != "Engine.PlainText" && controlId != "Engine.RichText" &&
-        controlId != "Engine.FunctionalPlainText" &&
-        controlId != "Engine.FunctionalRichText") {
+    if (!registry.supportsProperty(controlId, "text")) {
         throw std::invalid_argument(
             source + ".editor.previewText is only valid on text controls");
     }

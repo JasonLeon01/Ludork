@@ -1,49 +1,58 @@
----@meta Source.Windows.WindowEnemyEncyclopedia
----@class Source.Windows.WindowEnemyEncyclopedia: Source.Windows.Base.WindowBase
----@field new              fun(rect: sf.IntRect, onClose?: function): Source.Windows.WindowEnemyEncyclopedia
----@field uiClass          Source.UI.WindowEnemyEncyclopedia
+---@meta
+
+---@class Source.Windows.WindowEnemyEncyclopedia.Controller: Source.UIBase.UiController
 ---@field _onCloseCallback function | nil
----@field _ui              Source.UI.WindowEnemyEncyclopedia
-local WindowEnemyEncyclopedia = {}
+---@field ui               Source.UI.WindowEnemyEncyclopedia
+---@field _logicalSize     sf.Vector2u
+---@field _entry           Source.Windows.WindowEnemyBook.Entry | nil
+---@field _infoRows        Source.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair.Controller>
+---@field _specialRows     Source.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller>
+---@field host             Source.Windows.WindowEnemyEncyclopedia
+local Controller = {}
 
 ---@brief Construct the enemy encyclopedia window.
 ---
---- - @param rect Window rectangle.
 --- - @param onClose Optional callback invoked when the window closes.
----@param rect    sf.IntRect
 ---@param onClose function | nil
-function WindowEnemyEncyclopedia:init(rect, onClose) end
+function Controller:init(onClose) end
 
 ---@brief Open the detail window for an enemy-book entry.
 ---
 --- - @param entry Prepared enemy display data.
----@param entry table
-function WindowEnemyEncyclopedia:open(entry) end
+---@param entry Source.Windows.WindowEnemyBook.Entry
+function Controller:open(entry) end
 
 ---@brief Close the enemy encyclopedia window.
-function WindowEnemyEncyclopedia:close() end
+function Controller:close() end
 
 ---@brief Refresh localised detail text without resetting the portrait animation or window focus.
-function WindowEnemyEncyclopedia:refreshLocale() end
+function Controller:refreshLocale() end
 
 ---@brief Close on confirm or cancel.
 ---
 --- - @param kwargs Event data.
 ---@param kwargs Engine.UiInputEventArguments
-function WindowEnemyEncyclopedia:onKeyDown(kwargs) end
+function Controller:onKeyDown(kwargs) end
 
 ---@brief Close on right click.
 ---@param kwargs Engine.UiInputEventArguments
 ---@return boolean
-function WindowEnemyEncyclopedia:onMouseButtonDown(kwargs) end
+function Controller:onMouseButtonDown(kwargs) end
 
 ---@brief Close the enemy detail through its cancel path.
-function WindowEnemyEncyclopedia:onReturn() end
+function Controller:onReturn() end
 
----@brief Update the animated portrait.
----
---- - @param deltaTime Elapsed time in seconds.
----@param deltaTime number
-function WindowEnemyEncyclopedia:onTick(deltaTime) end
+function Controller:refresh() end
 
-return WindowEnemyEncyclopedia
+---@param entry Source.Windows.WindowEnemyBook.Entry
+function Controller:buildInfo(entry) end
+
+---@param label string
+---@param value string
+function Controller:addInfoPair(label, value) end
+
+---@param entry Source.Windows.WindowEnemyBook.Entry
+---@param y     number
+function Controller:buildSpecials(entry, y) end
+
+function Controller:clearEnemyControls() end

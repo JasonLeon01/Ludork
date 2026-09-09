@@ -3,6 +3,8 @@
 
 #include "Core/Utf8.hpp"
 
+#include <UnicodeText.hpp>
+
 #include <sol2/sol.hpp>
 
 #include <stdexcept>
@@ -380,6 +382,12 @@ void registerString(sol::state_view lua) {
             return sol::as_table(splitLiteral(value, separator));
         });
     stringTable.set_function("utf8Length", &utf8Length);
+    stringTable.set_function("graphemeLength", [](const std::string& value) {
+        return ludork::standard::unicode::graphemeLength(value);
+    });
+    stringTable.set_function("stripUnicode", [](const std::string& value) {
+        return ludork::standard::unicode::stripWhitespace(value);
+    });
     stringTable.set_function("utf8Slice", &utf8Slice);
 }
 

@@ -63,6 +63,7 @@ if grep -Eq "$DEFAULT_APP_NAME_PATTERN" "$ENTRY_FILE"; then
     echo "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging." >&2
     exit 24
 fi
+"$SCRIPT_TOOLS" ui-assets generate "$PROJECT_DIR"
 if [ "$USE_LDPAK" -eq 1 ]; then
     "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi

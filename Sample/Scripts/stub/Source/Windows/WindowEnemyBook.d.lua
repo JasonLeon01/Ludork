@@ -1,47 +1,124 @@
----@meta Source.Windows.WindowEnemyBook
----@brief Selectable monster handbook for enemies on the current map.
----@class Source.Windows.WindowEnemyBook: Source.Windows.Base.WindowSelectable
----@field new fun(rect: sf.IntRect, player: Source.Player.Player, onClose?: function, onConfirm?: function): Source.Windows.WindowEnemyBook
-local WindowEnemyBook = {}
+---@meta
+
+---@class Source.Windows.WindowEnemyBook.SpecialDisplay
+---@field texture    sf.Texture | nil
+---@field nameSource string
+---@field name       string
+
+---@class Source.Windows.WindowEnemyBook.SpecialDetail
+---@field specialID  string
+---@field value      any
+---@field nameSource string
+---@field descSource string
+---@field name       string
+---@field desc       string
+
+---@class Source.Windows.WindowEnemyBook.Entry
+---@field nameSource      string
+---@field descSource      string | nil
+---@field name            string
+---@field desc            string
+---@field MAXHP           integer
+---@field ATK             integer
+---@field DEF             integer
+---@field EXP             integer
+---@field GOLD            integer
+---@field damage          integer | string
+---@field critical        GlobalCore.GameplayAbilityResult
+---@field hitCount        integer | nil
+---@field specialDisplays Source.Windows.WindowEnemyBook.SpecialDisplay[]
+---@field specialDetails  Source.Windows.WindowEnemyBook.SpecialDetail[]
+---@field texture         sf.Texture
+---@field texturePath     string
+---@field rect            sf.IntRect
+---@field scale           sf.Vector2f
+---@field animatable      boolean
+---@field switchInterval  number
+---@field shaderPath      string
+---@field hue             number
+
+---@class Source.Windows.WindowEnemyBook.Controller: Source.UIBase.UiController
+---@field ui                 Source.UI.WindowEnemyBook
+---@field _player            Source.Player.Player
+---@field _onCloseCallback   function | nil
+---@field _onConfirmCallback function | nil
+---@field _enemies           Source.Windows.WindowEnemyBook.Entry[]
+---@field _cells             Source.UIBase.UiCollection<Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller>
+---@field host               Source.Windows.WindowEnemyBook
+local Controller = {}
 
 ---@brief Construct the enemy handbook window.
 ---
---- - @param rect Window rectangle.
 --- - @param player Player used to calculate displayed damage.
 --- - @param onClose Optional callback invoked when the window closes.
 --- - @param onConfirm Optional callback invoked when an enemy is confirmed.
----@param rect      sf.IntRect
 ---@param player    Source.Player.Player
 ---@param onClose   function | nil
 ---@param onConfirm function | nil
-function WindowEnemyBook:init(rect, player, onClose, onConfirm) end
+function Controller:init(player, onClose, onConfirm) end
 
 ---@brief Rebind the player used for damage preview.
 ---
 --- - @param player The current player instance.
 ---@param player Source.Player.Player
-function WindowEnemyBook:setPlayer(player) end
+function Controller:setPlayer(player) end
 
 ---@brief Open the handbook, rescan current-map enemies, and select the first entry.
 ---
 --- - @param gameMap Current map to scan.
 ---@param gameMap GameMap | nil
-function WindowEnemyBook:open(gameMap) end
+function Controller:open(gameMap) end
 
 ---@brief Close the handbook.
 ---@param onHidden function | nil
-function WindowEnemyBook:close(onHidden) end
+function Controller:close(onHidden) end
 
 ---@brief Refresh localised enemy, stat, and special text without rebuilding rows or previews.
-function WindowEnemyBook:refreshLocale() end
+function Controller:refreshLocale() end
 
 ---@brief Close the handbook through its cancel path.
-function WindowEnemyBook:onReturn() end
+function Controller:onReturn() end
 
 ---@return Source.Player.Player
-function WindowEnemyBook:getPlayer() end
+function Controller:getPlayer() end
 
----@param entry Source.UI.WindowEnemyBook.Entry
-function WindowEnemyBook:confirmEnemy(entry) end
+---@param entry Source.Windows.WindowEnemyBook.Entry
+function Controller:confirmEnemy(entry) end
 
-return WindowEnemyBook
+---@param gameMap GameMap | nil
+function Controller:refreshEnemies(gameMap) end
+
+---@param enemy  Source.Enemy
+---@param visual Global.Utils.Render.ActorVisual | nil
+---@return Source.Windows.WindowEnemyBook.Entry
+function Controller:buildEntry(enemy, visual) end
+
+---@param special table
+---@return Source.Windows.WindowEnemyBook.SpecialDisplay[]
+function Controller:buildSpecialDisplays(special) end
+
+---@param special table
+---@return Source.Windows.WindowEnemyBook.SpecialDetail[]
+function Controller:buildSpecialDetails(special) end
+
+---@param name string
+---@return string
+function Controller:formatName(name) end
+
+---@param text string | nil
+---@return string
+function Controller:formatText(text) end
+
+---@param index integer
+---@return sf.Vector2f
+function Controller:_getRectPositionForIndex(index) end
+
+---@return integer
+function Controller:getItemWidth() end
+
+---@param text string | nil
+---@return string
+function Controller.FormatLocaleText(text) end
+
+---@param entry Source.Windows.WindowEnemyBook.Entry
+function Controller.RefreshEntryLocale(entry) end

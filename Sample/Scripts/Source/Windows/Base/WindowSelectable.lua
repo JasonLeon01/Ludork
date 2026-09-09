@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
-local UiControlFactory = require("Source.UI.UiControlFactory")
+local UiControlFactory = require("Source.UIBase.UiControlFactory")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 
 local Input = Engine.Input
@@ -115,7 +115,18 @@ function WindowSelectable:_ensureScrollBox()
     return self._scrollBox
 end
 
-function WindowSelectable:setListView(listView)
+function WindowSelectable:setListView(listView, directContent)
+    if directContent then
+        if self._listView ~= nil and self._listView:getParent() == self.content then
+            self.content:removeChild(self._listView)
+        end
+        if listView ~= nil and listView:getParent() ~= self.content then
+            self.content:addChild(listView)
+        end
+        self._listView = listView
+        self._ensureSelectionVisibleRequested = true
+        return
+    end
     if self._ownsScrollBox and self._listView ~= nil and self._scrollBox ~= nil
         and self._listView:getParent() == self._scrollBox then
         self._scrollBox:removeChild(self._listView)
@@ -775,9 +786,40 @@ function WindowSelectable:hideSelectionCursor()
     self._rect:setVisible(false)
 end
 
-function WindowSelectable:selectIndex(index)
+function WindowSelectable:selectIndex(index, ensureVisible)
     self.index = index
     self._oldIndex = index
+    if ensureVisible ~= nil then
+        self._ensureSelectionVisibleRequested = ensureVisible
+    end
+end
+
+function WindowSelectable:setSelectionInputPaused(paused)
+    self:_setSelectionInputPaused(paused)
+end
+
+function WindowSelectable:isSelectionInputPaused()
+    return self._selectionInputPaused
+end
+
+function WindowSelectable:getSelectionRowHeight()
+    return self._rectHeight
+end
+
+function WindowSelectable:setPointerIndex(index)
+    WindowSelectable._setPointerIndex(self, index)
+end
+
+function WindowSelectable:shouldCaptureTouch(position)
+    return WindowSelectable._shouldCaptureTouch(self, position)
+end
+
+function WindowSelectable:getSelectionPositionForIndex(index)
+    return WindowSelectable._getRectPositionForIndex(self, index)
+end
+
+function WindowSelectable:changeSelection(index)
+    return self:_setIndexIfChanged(index)
 end
 
 return class(WindowSelectable, WindowBase)

@@ -1,18 +1,117 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
-local ConfigWindowUI = require("Source.UI.ConfigWindow")
+local View = require("Source.UI.ConfigWindow")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
-local ConfigSliderRowUI = require("Source.UI.Parts.ConfigWindow.ConfigSliderRow")
+local ConfigSliderRowController = require("Source.Windows.ConfigWindow.ConfigSliderRow.Controller")
+local MainConfig = require("Source.Configs.Main")
+local EventKeys = require("Source.Configs.EventKeys")
+local Locale = require("Source.Locale.Core")
+local ConfigCheckBoxRowController = require("Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller")
+local ConfigSettingRowController = require("Source.Windows.ConfigWindow.ConfigSettingRow.Controller")
+local Ui = require("Source.UIBase.Ui")
 
+local System = GlobalCore.System
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
 local AudioManager = GlobalCore.AudioManager
-local TextureManager = GlobalCore.TextureManager
+---@type fun(value: string): string
+local LOC = Locale.ApplyStringLocaleFormat
 
-local _DEFAULT_RECT = Engine.ToIntRect(80, 48, 480, 384)
-local _ROW_HEIGHT = 32
 local _GRAPHICS_PAGE_INDEX = 0
+local _AUDIO_PAGE_INDEX = 1
+local _LANGUAGE_PAGE_INDEX = 2
+local _TAB_LOCALE_KEYS = { "graphics", "audio", "other" }
+local _LANGUAGE_VALUES = MainConfig.SupportedLanguages
+local _FRAMERATE_ITEMS = { "30", "60", "90", "120", "0" }
+---@type string[]
+local _ANTI_ALIASING_LEVEL_ITEMS = { "0", "2", "4", "8" }
+local _LIGHTING_RENDER_SCALE_VALUES = { 0.5, 0.75, 1.0 }
+local _LIGHTING_RENDER_SCALE_ITEMS = { "50%", "75%", "100%" }
+local _GRAPHICS_PRESET_LOCALE_KEYS = { "low", "medium", "high", "extrahigh", "original" }
+local _GRAPHICS_PRESETS = {
+    { 0.75, 30, 0, 0.5 }, { 1.0, 60, 2, 0.75 }, { 2.0, 60, 8, 1.0 }, { 3.0, 90, 8, 1.0 }, { 0.0, 120, 8, 1.0 }
+}
+
+local function getFrameRateLabels()
+    local labels = copy(_FRAMERATE_ITEMS)
+    labels[#labels] = LOC("unlimited")
+    return labels
+end
+
+local function getGraphicsPresetLabels(selectedIndex)
+    local labels = Locale.ApplyListLocaleFormat(_GRAPHICS_PRESET_LOCALE_KEYS)
+    if selectedIndex == #_GRAPHICS_PRESETS then
+        labels[#labels + 1] = LOC("custom")
+    end
+    return labels
+end
+
+local function getScaleLabels(scaleValues, zeroLabelKey)
+    local labels = {}
+    for index, value in ipairs(scaleValues) do
+        if value == 0.0 then
+            labels[index] = LOC(zeroLabelKey)
+        else
+            labels[index] = string.format("%.8g", value)
+        end
+    end
+    return labels
+end
+
+---@param scaleValues number[]
+---@param scale       number
+---@return integer
+local function findScaleIndex(scaleValues, scale)
+    return (table.index(scaleValues, scale) or 1) - 1
+end
+
+local function getAntiAliasingLevelItems(level)
+    local items = copy(_ANTI_ALIASING_LEVEL_ITEMS)
+    local value = tostring(level)
+    if table.contains(items, value) then
+        return items
+    end
+    items[#items + 1] = value
+    table.sort(items, function (left, right)
+        return assert(tonumber(left)) < assert(tonumber(right))
+    end)
+    return items
+end
+
+local function resetRows(listView, rows)
+    listView:clearChildren()
+    for _, rowUI in ipairs(rows) do
+        listView:addChild(rowUI.root)
+    end
+    listView:applyPositions()
+end
+
+local function setRowsActive(rows, active)
+    for _, rowUI in ipairs(rows) do
+        rowUI:setActive(active)
+    end
+end
+
+local function refreshRowLabels(rows, localeKeys)
+    for index, rowUI in ipairs(rows) do
+        rowUI:setLabelText(LOC(assert(localeKeys[index])))
+    end
+end
+
+local function getGraphicsPresetIndex()
+    local maximumRenderScale = System.getMaximumRenderScale()
+    local frameRate = System.getFrameRate()
+    local antiAliasingLevel = System.getAntiAliasingLevel()
+    local lightingRenderScale = System.getLightingRenderScale()
+    for index, preset in ipairs(_GRAPHICS_PRESETS) do
+        if maximumRenderScale == preset[1] and frameRate == preset[2]
+            and antiAliasingLevel == preset[3] and lightingRenderScale == preset[4] then
+            return index - 1
+        end
+    end
+    return #_GRAPHICS_PRESETS
+end
 
 ---@param index          integer
 ---@param scaleRowChange integer
@@ -27,222 +126,192 @@ local function adjustGraphicsSettingIndex(index, scaleRowChange)
     return index
 end
 
----@class Source.Windows.ConfigWindow
-local ConfigWindow = {}
+---@class Source.Windows.ConfigWindow.Controller
+local Controller = {}
 
-function ConfigWindow:init(onClose)
+Controller.windowOptions = {
+    centered = true,
+    hidden = true,
+    returnButton = true,
+    content = "SettingsContent",
+    list = "GraphicsList",
+    scroll = "SettingsScrollBox",
+    itemHeight = 32
+}
+
+Controller.refreshEvents = { EventKeys.LocaleChanged }
+
+function Controller:init(onClose)
     self._activePageIndex = _GRAPHICS_PAGE_INDEX
     self._pageSessions = {
         { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }, { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) },
         { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }
     }
-    local windowSkin = assert(TextureManager.load(
-        assert(Engine.DefaultWindowskinName, "Default windowskin path is unavailable"), false, nil, true
-    ), "Default windowskin texture is unavailable"):copyToImage()
-    local contentWidth = _DEFAULT_RECT.size.x - 32
-    super(ConfigWindow, self).init(_DEFAULT_RECT, nil, contentWidth, _ROW_HEIGHT, windowSkin, nil, nil, nil, true)
-    self:setHasReturnBtn(true)
-    self._ui = ConfigWindowUI.new(self, windowSkin)
-    self._ui:attach()
-    self._windowContent = self.content
-    self._settingsContent = self._ui:getSettingsContent()
-    self._tabView = self._ui:getTabView()
-    self.content = self._settingsContent
-    self:setScrollBox(self._ui:getSettingsScrollBox())
-    self:setListView(self._ui:getPage(self._activePageIndex).list)
-    self._languageRow = self._ui:getLanguageRow()
-    self._graphicsPresetRow = self._ui:getGraphicsPresetRow()
-    self._maximumRenderScaleRow = self._ui:getMaximumRenderScaleRow()
-    self._framerateRow = self._ui:getFramerateRow()
-    self._antiAliasingLevelRow = self._ui:getAntiAliasingLevelRow()
-    self._lightingRenderScaleRow = self._ui:getLightingRenderScaleRow()
-    self._verticalSyncRow = self._ui:getVerticalSyncRow()
-    self._musicOnRow = self._ui:getMusicOnRow()
-    self._musicVolumeRow = self._ui:getMusicVolumeRow()
-    self._soundOnRow = self._ui:getSoundOnRow()
-    self._soundVolumeRow = self._ui:getSoundVolumeRow()
-    self._voiceOnRow = self._ui:getVoiceOnRow()
-    self._voiceVolumeRow = self._ui:getVoiceVolumeRow()
+    self._scaleAvailable = System.isDisplayScaleConfigurable()
+    self._scaleValues = {}
+    self._maximumRenderScaleValues = {}
+    self._pages = {}
+    self._applyingGraphicsPreset = false
     self._onClose = onClose
     self._open = false
     self._tabNavigationHandledThisFrame = false
-    self._ui:setActivePage(self._activePageIndex)
+end
+
+function Controller:ready()
+    self:setActivePage(self._activePageIndex)
     self:_refreshControlActivity()
-    self:hideImmediate()
 end
 
-function ConfigWindow:getLanguageDropBox()
-    return self._languageRow:getDropBox()
+function Controller:getLanguageDropBox()
+    return self._languageRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getGraphicsPresetDropBox()
-    return self._graphicsPresetRow:getDropBox()
+function Controller:getGraphicsPresetDropBox()
+    return self._graphicsPresetRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getScaleDropBox()
-    local scaleRow = self._ui:getScaleRow()
-    if scaleRow == nil then
+function Controller:getScaleDropBox()
+    if not self._scaleAvailable then
         return nil
     end
-    return scaleRow:getDropBox()
+    return self._scaleRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getMaximumRenderScaleDropBox()
-    return self._maximumRenderScaleRow:getDropBox()
+function Controller:getMaximumRenderScaleDropBox()
+    return self._maximumRenderScaleRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getFramerateDropBox()
-    return self._framerateRow:getDropBox()
+function Controller:getFramerateDropBox()
+    return self._framerateRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getAntiAliasingLevelDropBox()
-    return self._antiAliasingLevelRow:getDropBox()
+function Controller:getAntiAliasingLevelDropBox()
+    return self._antiAliasingLevelRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getLightingRenderScaleDropBox()
-    return self._lightingRenderScaleRow:getDropBox()
+function Controller:getLightingRenderScaleDropBox()
+    return self._lightingRenderScaleRow.ui.controls["DropBox"]
 end
 
-function ConfigWindow:getVerticalSyncCheckBox()
-    return self._verticalSyncRow:getCheckBox()
+function Controller:getVerticalSyncCheckBox()
+    return self._verticalSyncRow.ui.controls["CheckBox"]
 end
 
-function ConfigWindow:getMusicOnCheckBox()
-    return self._musicOnRow:getCheckBox()
+function Controller:getMusicOnCheckBox()
+    return self._musicOnRow.ui.controls["CheckBox"]
 end
 
-function ConfigWindow:getMusicVolumeSlider()
-    return self._musicVolumeRow:getSlider()
+function Controller:getMusicVolumeSlider()
+    return self._musicVolumeRow.ui.controls["Slider"]
 end
 
-function ConfigWindow:getSoundOnCheckBox()
-    return self._soundOnRow:getCheckBox()
+function Controller:getSoundOnCheckBox()
+    return self._soundOnRow.ui.controls["CheckBox"]
 end
 
-function ConfigWindow:getSoundVolumeSlider()
-    return self._soundVolumeRow:getSlider()
+function Controller:getSoundVolumeSlider()
+    return self._soundVolumeRow.ui.controls["Slider"]
 end
 
-function ConfigWindow:getVoiceOnCheckBox()
-    return self._voiceOnRow:getCheckBox()
+function Controller:getVoiceOnCheckBox()
+    return self._voiceOnRow.ui.controls["CheckBox"]
 end
 
-function ConfigWindow:getVoiceVolumeSlider()
-    return self._voiceVolumeRow:getSlider()
+function Controller:getVoiceVolumeSlider()
+    return self._voiceVolumeRow.ui.controls["Slider"]
 end
 
-function ConfigWindow:isOpen()
+function Controller:isOpen()
     return self._open
 end
 
-function ConfigWindow:open()
-    self:_applyScaleRowChange(self._ui:refreshDisplayScaleOptions())
+function Controller:open()
+    self:_applyScaleRowChange(self:refreshDisplayScaleOptions())
     for _, session in ipairs(self._pageSessions) do
         session.index = 0
         session.scrollOffset = sf.Vector2f.new(0.0, 0.0)
     end
-    self:_setSelectionInputPaused(false)
+    self.host:setSelectionInputPaused(false)
     self._activePageIndex = _GRAPHICS_PAGE_INDEX
-    self._ui:setActivePage(self._activePageIndex)
-    self._tabView:setSelectedIndex(self._activePageIndex)
-    self:setListView(self:_getActivePage().list)
+    self:setActivePage(self._activePageIndex)
+    self.ui.controls["TabView"]:setSelectedIndex(self._activePageIndex)
+    self.host:setListView(self:_getActivePage().list)
     self._open = true
     self:_restorePageScroll()
-    self:resetSelection()
+    self.host:resetSelection()
     self:_refreshControlActivity()
-    self:showWithAnimation("FadeIn", function ()
-        self:setActive(true)
+    self.host:showWithAnimation("FadeIn", function ()
+        self.host:setActive(true)
         self:_refreshControlActivity()
-        self:requestKeyboardFocusAtCursor()
+        self.host:requestKeyboardFocusAtCursor()
     end)
 end
 
-function ConfigWindow:close()
+function Controller:close()
     self._open = false
     self:_collapseAllDropBoxes()
-    self:_setSelectionInputPaused(false)
-    self:setActive(false)
+    self.host:setSelectionInputPaused(false)
+    self.host:setActive(false)
     self:_refreshControlActivity()
-    self:hideWithAnimation("FadeOut", function ()
+    self.host:hideWithAnimation("FadeOut", function ()
         if self._onClose ~= nil then
             self._onClose()
         end
     end)
 end
 
-function ConfigWindow:dispose()
-    self:hideImmediate()
-    self:detachSelectionRect()
-    self.content = self._windowContent
-    if self._ui ~= nil then
-        self._ui:dispose()
-        self._ui = nil
-    end
-    self._windowContent = nil
-    self._settingsContent = nil
-    self._tabView = nil
-    self:setListView(nil)
-    self._languageRow = nil
-    self._graphicsPresetRow = nil
-    self._maximumRenderScaleRow = nil
-    self._framerateRow = nil
-    self._antiAliasingLevelRow = nil
-    self._lightingRenderScaleRow = nil
-    self._verticalSyncRow = nil
-    self._musicOnRow = nil
-    self._musicVolumeRow = nil
-    self._soundOnRow = nil
-    self._soundVolumeRow = nil
-    self._voiceOnRow = nil
-    self._voiceVolumeRow = nil
-    self._pageSessions = nil
+function Controller:dispose()
+    self.host:hideImmediate()
+    self.host:detachSelectionRect()
+    self.host.content = self.ui.controls["Content"]
+    self.host:setListView(nil)
     self._onClose = nil
-    self._tabNavigationHandledThisFrame = nil
+    super(Controller, self).dispose()
 end
 
-function ConfigWindow:_closeByCancel()
+function Controller:_closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
     self:close()
 end
 
-function ConfigWindow:onReturn()
+function Controller:onReturn()
     local expandedRow = self:_getExpandedSettingRow()
     if expandedRow ~= nil then
-        expandedRow:getDropBox():cancel()
+        expandedRow.ui.controls["DropBox"]:cancel()
         return
     end
     self:_closeByCancel()
 end
 
-function ConfigWindow:update(deltaTime)
+function Controller:update(deltaTime)
     self._tabNavigationHandledThisFrame = false
-    super(ConfigWindow, self).update(deltaTime)
+    WindowSelectable.update(self.host, deltaTime)
 end
 
-function ConfigWindow:onTick(deltaTime)
+function Controller:onTick(deltaTime)
     if self._open then
-        self:_applyScaleRowChange(self._ui:syncDisplayScaleAvailability())
+        self:_applyScaleRowChange(self:syncDisplayScaleAvailability())
     end
-    self._ui:tick(deltaTime)
-    super(ConfigWindow, self).onTick(deltaTime)
+    for _, rowUI in ipairs(self:_getActivePage().rows) do
+        rowUI:onTick(deltaTime)
+    end
+    WindowSelectable.onTick(self.host, deltaTime)
 end
 
 ---@param scaleRowChange integer
-function ConfigWindow:_applyScaleRowChange(scaleRowChange)
+function Controller:_applyScaleRowChange(scaleRowChange)
     if scaleRowChange == 0 then
         return
     end
     local session = self:_getPageSession(_GRAPHICS_PAGE_INDEX)
     session.index = adjustGraphicsSettingIndex(session.index, scaleRowChange)
     if self._activePageIndex == _GRAPHICS_PAGE_INDEX then
-        self.index = adjustGraphicsSettingIndex(self.index or 0, scaleRowChange)
-        self._oldIndex = self.index
-        self._ensureSelectionVisibleRequested = true
+        self.host:selectIndex(adjustGraphicsSettingIndex(self.host.index or 0, scaleRowChange))
     end
     self:_refreshControlActivity()
 end
 
-function ConfigWindow:onKeyDown(kwargs)
+function Controller:onKeyDown(kwargs)
     if self._tabNavigationHandledThisFrame then
         return
     end
@@ -251,7 +320,7 @@ function ConfigWindow:onKeyDown(kwargs)
         Input.isActionTriggered(Input.getCancelKeys(), true)
         return
     end
-    if self._selectionInputPaused then
+    if self.host:isSelectionInputPaused() then
         return
     end
     if self:handleTabNavigation() then
@@ -260,40 +329,37 @@ function ConfigWindow:onKeyDown(kwargs)
     if self:_handleSelectedSliderKeyDown() then
         return
     end
-    super(ConfigWindow, self).onKeyDown(kwargs)
+    WindowSelectable.onKeyDown(self.host, kwargs)
 end
 
-function ConfigWindow:onDirectionalKey(direction)
+function Controller:onDirectionalKey(direction)
+    if self.host.index == nil then
+        return false
+    end
     if direction == Direction.UP then
-        if self.index == 0 then
+        if self.host.index == 0 then
             return false
         end
-        return self:_setIndexIfChanged(self.index - 1)
+        return self.host:changeSelection(self.host.index - 1)
     end
     if direction == Direction.DOWN then
-        if self.index + 1 >= self:_itemCount() then
+        if self.host.index + 1 >= #self:_getActivePage().rows then
             return false
         end
-        return self:_setIndexIfChanged(self.index + 1)
+        return self.host:changeSelection(self.host.index + 1)
     end
     return false
 end
 
----@param index integer
-function ConfigWindow:_setPointerIndex(index)
-    self.index = index
-    self:_synchronizeSelectionScrollState()
-end
-
 ---@return boolean
-function ConfigWindow:handleTabNavigation()
+function Controller:handleTabNavigation()
     if self._tabNavigationHandledThisFrame then
         return true
     end
     if not self._open then
         return false
     end
-    local handled = self._tabView:handleNavigationInput()
+    local handled = self.ui.controls["TabView"]:handleNavigationInput()
     if handled then
         self._tabNavigationHandledThisFrame = true
     end
@@ -301,7 +367,7 @@ function ConfigWindow:handleTabNavigation()
 end
 
 ---@param tabIndex integer
-function ConfigWindow:selectTab(tabIndex)
+function Controller:selectTab(tabIndex)
     self._tabNavigationHandledThisFrame = true
     if tabIndex == self._activePageIndex then
         return
@@ -309,81 +375,71 @@ function ConfigWindow:selectTab(tabIndex)
     self:_savePageSession()
     local expandedRow = self:_getExpandedSettingRow()
     if expandedRow ~= nil then
-        expandedRow:getDropBox():setExpanded(false)
+        expandedRow.ui.controls["DropBox"]:setExpanded(false)
     end
     self._activePageIndex = tabIndex
-    self._ui:setActivePage(tabIndex)
-    self:setListView(self:_getActivePage().list)
+    self:setActivePage(tabIndex)
+    self.host:setListView(self:_getActivePage().list)
     local session = self:_getPageSession(tabIndex)
     session.index = math.trunc(math.clamp(session.index, 0, math.max(0, #self:_getActivePage().rows - 1)))
-    local scrollBox = assert(self:getScrollBox())
+    local scrollBox = assert(self.host:getScrollBox())
     local maximum = scrollBox:getMaxScrollOffset()
     session.scrollOffset = sf.Vector2f.new(
         math.clamp(session.scrollOffset.x, 0.0, maximum.x), math.clamp(session.scrollOffset.y, 0.0, maximum.y)
     )
-    self.index = session.index
-    self._oldIndex = self.index
-    self._ensureSelectionVisibleRequested = true
+    self.host:selectIndex(session.index)
     self:_restorePageScroll()
     self:_refreshControlActivity()
     if self._open then
-        self:requestKeyboardFocus()
-    end
-end
-
----@param row Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@return function
-function ConfigWindow.MakeSettingRowConfirmCallback(row)
-    return function (_obj, _kwargs)
-        row:getDropBox():open()
+        self.host:requestKeyboardFocus()
     end
 end
 
 ---@param expanded boolean
-function ConfigWindow:onDropBoxExpandedChanged(expanded)
+function Controller:onDropBoxExpandedChanged(expanded)
     if expanded then
-        self:_setSelectionInputPaused(true)
+        self.host:setSelectionInputPaused(true)
         local expandedRow = self:_getExpandedSettingRow()
         local page = self:_getActivePage()
         for _, row in ipairs(page.rows) do
             row:setActive(row == expandedRow)
         end
     else
-        self:_setSelectionInputPaused(false)
+        self.host:setSelectionInputPaused(false)
         self:_refreshControlActivity()
         if self._open then
-            self:requestKeyboardFocus()
+            self.host:requestKeyboardFocus()
         end
     end
 end
 
----@return Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI | nil
-function ConfigWindow:_getExpandedSettingRow()
+---@return Source.Windows.ConfigWindow.ConfigSettingRow.Controller | nil
+function Controller:_getExpandedSettingRow()
     local page = self:_getActivePage()
     for _, row in ipairs(page.dropBoxRows) do
-        if row:getDropBox():isExpanded() then
+        if row.ui.controls["DropBox"]:isExpanded() then
             return row
         end
     end
     return nil
 end
 
-function ConfigWindow:_collapseAllDropBoxes()
-    for pageIndex = 0, self._ui:getPageCount() - 1 do
-        local page = self._ui:getPage(pageIndex)
+function Controller:_collapseAllDropBoxes()
+    for pageIndex = 0, self:getPageCount() - 1 do
+        local page = self:getPage(pageIndex)
         for _, row in ipairs(page.dropBoxRows) do
-            row:getDropBox():setExpanded(false)
+            row.ui.controls["DropBox"]:setExpanded(false)
         end
     end
 end
 
 ---@return boolean
-function ConfigWindow:_handleSelectedSliderKeyDown()
+function Controller:_handleSelectedSliderKeyDown()
     local row = self:_getSelectedSettingRow()
-    if not Class.isInstance(row, ConfigSliderRowUI) then
+    if not Class.isInstance(row, ConfigSliderRowController) then
         return false
     end
-    ---@cast row Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+    ---@cast row Source.Windows.ConfigWindow.ConfigSliderRow.Controller
     local repeatDelay = 0.4
     local repeatInterval = 0.05
     if Input.isActionTriggered(Input.getLeftKeys(), false, repeatDelay, repeatInterval) then
@@ -401,11 +457,11 @@ end
 
 ---@param position sf.Vector2f
 ---@return Engine.Slider | nil, integer | nil
-function ConfigWindow:_getSliderAt(position)
+function Controller:_getSliderAt(position)
     local page = self:_getActivePage()
     for luaIndex, row in ipairs(page.rows) do
-        if Class.isInstance(row, ConfigSliderRowUI) then
-            local slider = row:getSlider()
+        if Class.isInstance(row, ConfigSliderRowController) then
+            local slider = row.ui.controls["Slider"]
             if slider:getVisible() and slider:getActive() and slider:getAbsoluteTouchHitBounds():contains(position) then
                 return slider, luaIndex - 1
             end
@@ -415,23 +471,23 @@ function ConfigWindow:_getSliderAt(position)
 end
 
 ---@param position sf.Vector2f
-function ConfigWindow:_shouldCaptureTouch(position)
+function Controller:_shouldCaptureTouch(position)
     local slider, sliderIndex = self:_getSliderAt(position)
     if slider == nil or sliderIndex == nil then
-        return super(ConfigWindow, self)._shouldCaptureTouch(position)
+        return self.host:shouldCaptureTouch(position)
     end
-    self:_setPointerIndex(sliderIndex)
+    self.host:setPointerIndex(sliderIndex)
     return false
 end
 
----@return Source.UI.Parts.ConfigWindow.ConfigRow.ConfigRowControllerBase | nil
-function ConfigWindow:_getSelectedSettingRow()
-    if self.index == nil then
+---@return Source.Windows.ConfigWindow.ConfigRow | nil
+function Controller:_getSelectedSettingRow()
+    if self.host.index == nil then
         return nil
     end
     local page = self:_getActivePage()
-    if self.index >= 0 and self.index < #page.rows then
-        return page.rows[self.index + 1]
+    if self.host.index >= 0 and self.host.index < #page.rows then
+        return page.rows[self.host.index + 1]
     end
     return nil
 end
@@ -439,7 +495,7 @@ end
 ---@param items table
 ---@param value string | number
 ---@return integer
-function ConfigWindow.FindSelectedIndex(items, value)
+local function findSelectedIndex(items, value)
     local textValue = tostring(value)
     local exactIndex = table.index(items, textValue)
     if exactIndex ~= nil then
@@ -459,56 +515,440 @@ function ConfigWindow.FindSelectedIndex(items, value)
 end
 
 ---@return integer
-function ConfigWindow:getItemWidth()
-    return self.content:getSize().x
+function Controller:getItemWidth()
+    return self.host.content:getSize().x
 end
 
 ---@param index integer
 ---@return sf.Vector2f
-function ConfigWindow:_getRectPositionForIndex(index)
-    if self._ui == nil then
-        return sf.Vector2f.new(0.0, index * self._rectHeight)
+function Controller:_getRectPositionForIndex(index)
+    if self.ui == nil then
+        return sf.Vector2f.new(0.0, index * self.host:getSelectionRowHeight())
     end
     local page = self:_getActivePage()
     page.list:applyPositions()
     local child = page.list:getChildren()[index + 1]
     if child == nil then
-        return sf.Vector2f.new(0.0, index * self._rectHeight)
+        return sf.Vector2f.new(0.0, index * self.host:getSelectionRowHeight())
     end
     return sf.Vector2f.new(0.0, child:getPosition().y)
 end
 
----@return Source.UI.ConfigWindow.Page
-function ConfigWindow:_getActivePage()
-    return self._ui:getPage(self._activePageIndex)
+---@return Source.Windows.ConfigWindow.Page
+function Controller:_getActivePage()
+    return self:getPage(self._activePageIndex)
 end
 
 ---@param pageIndex integer
 ---@return Source.Windows.ConfigWindow.PageSession
-function ConfigWindow:_getPageSession(pageIndex)
+function Controller:_getPageSession(pageIndex)
     return assert(self._pageSessions[pageIndex + 1])
 end
 
-function ConfigWindow:_savePageSession()
+function Controller:_savePageSession()
     local session = self:_getPageSession(self._activePageIndex)
-    session.index = self.index or 0
-    session.scrollOffset = assert(self:getScrollBox()):getScrollOffset()
+    session.index = self.host.index or 0
+    session.scrollOffset = assert(self.host:getScrollBox()):getScrollOffset()
 end
 
-function ConfigWindow:_restorePageScroll()
+function Controller:_restorePageScroll()
     local session = self:_getPageSession(self._activePageIndex)
-    assert(self:getScrollBox()):setScrollOffset(session.scrollOffset)
+    assert(self.host:getScrollBox()):setScrollOffset(session.scrollOffset)
 end
 
-function ConfigWindow:_refreshControlActivity()
-    local windowActive = self._open and self:getActive()
-    self._tabView:setActive(windowActive)
-    for pageIndex = 0, self._ui:getPageCount() - 1 do
-        local page = self._ui:getPage(pageIndex)
+function Controller:_refreshControlActivity()
+    local windowActive = self._open and self.host:getActive()
+    self.ui.controls["TabView"]:setActive(windowActive)
+    for pageIndex = 0, self:getPageCount() - 1 do
+        local page = self:getPage(pageIndex)
         local active = windowActive and pageIndex == self._activePageIndex
         page.list:setActive(active)
-        self._ui:setPageRowsActive(pageIndex, active)
+        self:setPageRowsActive(pageIndex, active)
     end
 end
 
-return class(ConfigWindow, WindowSelectable)
+function Controller:bind()
+    self.ui.controls["TabView"]:setCursorSound(tostring(GameSystem.GetCursorSE()))
+    self.ui.controls["TabView"]:setOnSelectedIndexChanged(self:bindCallback(Controller.selectTab))
+    self.ui.controls["TabView"]:setKeyHint(
+        Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.Q, Joystick = Engine.JoystickButton.getLB() }),
+        Engine.KeyHint.new({ Keyboard = sf.Keyboard.Key.E, Joystick = Engine.JoystickButton.getRB() })
+    )
+    self:_createRows()
+    self:setActivePage(_GRAPHICS_PAGE_INDEX)
+end
+
+function Controller:refresh()
+    for index = 0, self:getPageCount() - 1 do
+        local page = self:getPage(index)
+        refreshRowLabels(page.rows, page.localeKeys)
+    end
+    self.ui.controls["TabView"]:setItems(Locale.ApplyListLocaleFormat(_TAB_LOCALE_KEYS))
+    self._framerateRow:setItems(getFrameRateLabels())
+    self._languageRow:setItems(Locale.ApplyListLocaleFormat(_LANGUAGE_VALUES))
+    if self._scaleAvailable then
+        self._scaleRow:setItems(getScaleLabels(self._scaleValues, "fullscreen"))
+    end
+    self._maximumRenderScaleRow:setItems(getScaleLabels(self._maximumRenderScaleValues, "unlimited"))
+    self:_syncGraphicsPresetSelection()
+end
+
+function Controller:refreshDisplayScaleOptions()
+    local scaleRowChange = self:syncDisplayScaleAvailability()
+    if self._scaleAvailable then
+        local scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
+        self:_setScaleOptions(scaleValues, effectiveScale)
+    end
+    local maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(
+        System.getMaximumRenderScale()
+    )
+    self:_setMaximumRenderScaleOptions(maximumRenderScaleValues, effectiveMaximumRenderScale)
+    self:_syncGraphicsPresetSelection()
+    return scaleRowChange
+end
+
+function Controller:syncDisplayScaleAvailability()
+    local configurable = System.isDisplayScaleConfigurable()
+    if configurable == self._scaleAvailable then
+        return 0
+    end
+    local page = self:getPage(_GRAPHICS_PAGE_INDEX)
+    for _, rowUI in ipairs(page.dropBoxRows) do
+        rowUI.ui.controls["DropBox"]:setExpanded(false)
+    end
+    self._scaleAvailable = configurable
+    self._scaleRow.root:setVisible(configurable)
+    if configurable then
+        local scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
+        self:_setScaleOptions(scaleValues, effectiveScale)
+        self._scaleRow:setLabelText(LOC("scale"))
+        table.insert(page.rows, 2, self._scaleRow)
+        table.insert(page.dropBoxRows, 2, self._scaleRow)
+        table.insert(page.localeKeys, 2, "scale")
+        resetRows(page.list, page.rows)
+        return 1
+    end
+    self._scaleRow:setActive(false)
+    table.remove(page.rows, 2)
+    table.remove(page.dropBoxRows, 2)
+    table.remove(page.localeKeys, 2)
+    page.list:removeChild(self._scaleRow.root)
+    page.list:applyPositions()
+    self._scaleValues = {}
+    return -1
+end
+
+function Controller:getPageCount()
+    return #self._pages
+end
+
+function Controller:getPage(index)
+    return assert(self._pages[index + 1])
+end
+
+function Controller:setActivePage(index)
+    assert(index >= 0 and index < self:getPageCount(), "Config page index is out of range")
+    self._activePageIndex = index
+    for pageIndex = 0, self:getPageCount() - 1 do
+        local page = self:getPage(pageIndex)
+        local visible = pageIndex == index
+        page.list:setVisible(visible)
+        page.list:setActive(visible)
+        if not visible then
+            setRowsActive(page.rows, false)
+        end
+    end
+end
+
+local function onLanguageSelectedIndexChanged(index)
+    local language = _LANGUAGE_VALUES[index + 1]
+    ---@cast language string
+    System.setLanguage(language)
+    Locale.SetLanguage(language)
+end
+
+function Controller:onFrameRateSelectedIndexChanged(index)
+    if self._applyingGraphicsPreset then
+        return
+    end
+    System.setFrameRate(math.trunc(assert(tonumber(_FRAMERATE_ITEMS[index + 1]))))
+    self:_syncGraphicsPresetSelection()
+end
+
+function Controller:onAntiAliasingLevelSelectedIndexChanged(index)
+    if self._applyingGraphicsPreset then
+        return
+    end
+    local value = assert(self._antiAliasingLevelItems[index + 1])
+    System.setAntiAliasingLevel(math.trunc(assert(tonumber(value))))
+    self:_syncGraphicsPresetSelection()
+end
+
+function Controller:onLightingRenderScaleSelectedIndexChanged(index)
+    if self._applyingGraphicsPreset then
+        return
+    end
+    System.setLightingRenderScale(assert(_LIGHTING_RENDER_SCALE_VALUES[index + 1]))
+    self:_syncGraphicsPresetSelection()
+end
+
+function Controller:_createRows()
+    self:_createGraphicsRows()
+    self:_createAudioRows()
+    self:_createLanguageRows()
+    for pageIndex = 0, self:getPageCount() - 1 do
+        local page = self:getPage(pageIndex)
+        for _, rowUI in ipairs(page.allRows) do
+            rowUI:prepare()
+            if Class.isInstance(rowUI, ConfigSettingRowController) then
+                ---@cast rowUI Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+                self:_bindDropBoxRow(rowUI)
+            end
+        end
+    end
+    if not self._scaleAvailable then
+        self._scaleRow:setActive(false)
+        self._scaleRow.root:setVisible(false)
+        self.ui.controls["GraphicsList"]:removeChild(self._scaleRow.root)
+    end
+    self:_bindGraphicsRows()
+    self:_bindLanguageRows()
+end
+
+function Controller:_bindDropBoxRow(rowUI)
+    local dropBox = rowUI.ui.controls["DropBox"]
+    dropBox:setOnExpandedChanged(self:bindCallback(Controller.onDropBoxExpandedChanged))
+    dropBox:addKeyDownCallback(self:bindCallback(Controller.handleTabNavigation))
+end
+
+function Controller:_createScaleRow()
+    local effectiveScale
+    if self._scaleAvailable then
+        self._scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
+    else
+        self._scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(nil, System.getConfiguredScale())
+    end
+    self._scaleRow = ConfigSettingRowController.new(
+        self.ui.assets["GraphicsItem2"], LOC("scale"), getScaleLabels(self._scaleValues, "fullscreen"),
+        findScaleIndex(self._scaleValues, effectiveScale)
+    )
+end
+
+function Controller:_createGraphicsRows()
+    local graphicsPresetIndex = getGraphicsPresetIndex()
+    self._graphicsPresetRow = ConfigSettingRowController.new(
+        self.ui.assets["GraphicsItem1"], LOC("graphicspreset"), getGraphicsPresetLabels(graphicsPresetIndex),
+        graphicsPresetIndex
+    )
+    self:_createScaleRow()
+    local effectiveMaximumRenderScale
+    self._maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(
+        System.getMaximumRenderScale()
+    )
+    self._maximumRenderScaleRow = ConfigSettingRowController.new(
+        self.ui.assets["GraphicsItem3"], LOC("maxrenderscale"),
+        getScaleLabels(self._maximumRenderScaleValues, "unlimited"),
+        findScaleIndex(self._maximumRenderScaleValues, effectiveMaximumRenderScale)
+    )
+    self._framerateRow = ConfigSettingRowController.new(
+        self.ui.assets["GraphicsItem4"], LOC("framerate"), getFrameRateLabels(),
+        findSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
+    )
+    self._antiAliasingLevelItems = getAntiAliasingLevelItems(System.getAntiAliasingLevel())
+    self._antiAliasingLevelRow = ConfigSettingRowController.new(
+        self.ui.assets["GraphicsItem5"], LOC("antialiasinglevel"), self._antiAliasingLevelItems,
+        findSelectedIndex(self._antiAliasingLevelItems, System.getAntiAliasingLevel())
+    )
+    self._verticalSyncRow = ConfigCheckBoxRowController.new(
+        self.ui.assets["GraphicsItem6"], LOC("verticalsync"), System.getVerticalSync(), System.setVerticalSync
+    )
+    self._lightingRenderScaleRow = ConfigSettingRowController.new(
+        self.ui.assets["GraphicsItem7"], LOC("lightingrenderscale"), _LIGHTING_RENDER_SCALE_ITEMS,
+        findScaleIndex(_LIGHTING_RENDER_SCALE_VALUES, System.getLightingRenderScale())
+    )
+    local allRows = {
+        self._graphicsPresetRow, self._scaleRow, self._maximumRenderScaleRow, self._framerateRow,
+        self._antiAliasingLevelRow, self._verticalSyncRow, self._lightingRenderScaleRow
+    }
+    local rows = copy(allRows)
+    local dropBoxRows = {
+        self._graphicsPresetRow, self._scaleRow, self._maximumRenderScaleRow, self._framerateRow,
+        self._antiAliasingLevelRow, self._lightingRenderScaleRow
+    }
+    local localeKeys = {
+        "graphicspreset", "scale", "maxrenderscale", "framerate", "antialiasinglevel", "verticalsync",
+        "lightingrenderscale"
+    }
+    if not self._scaleAvailable then
+        table.remove(rows, 2)
+        table.remove(dropBoxRows, 2)
+        table.remove(localeKeys, 2)
+    end
+    self._pages[_GRAPHICS_PAGE_INDEX + 1] = {
+        list = self.ui.controls["GraphicsList"],
+        allRows = allRows,
+        rows = rows,
+        dropBoxRows = dropBoxRows,
+        localeKeys = localeKeys
+    }
+end
+
+function Controller:_createAudioRows()
+    self._musicOnRow = ConfigCheckBoxRowController.new(
+        self.ui.assets["AudioItem1"], LOC("musicon"), System.getMusicOn(), System.setMusicOn
+    )
+    self._musicVolumeRow = ConfigSliderRowController.new(
+        self.ui.assets["AudioItem2"], LOC("musicvolume"), math.round(System.getMusicVolume()), System.setMusicVolume
+    )
+    self._soundOnRow = ConfigCheckBoxRowController.new(
+        self.ui.assets["AudioItem3"], LOC("soundon"), System.getSoundOn(), System.setSoundOn
+    )
+    self._soundVolumeRow = ConfigSliderRowController.new(
+        self.ui.assets["AudioItem4"], LOC("soundvolume"), math.round(System.getSoundVolume()), System.setSoundVolume
+    )
+    self._voiceOnRow = ConfigCheckBoxRowController.new(
+        self.ui.assets["AudioItem5"], LOC("voiceon"), System.getVoiceOn(), System.setVoiceOn
+    )
+    self._voiceVolumeRow = ConfigSliderRowController.new(
+        self.ui.assets["AudioItem6"], LOC("voicevolume"), math.round(System.getVoiceVolume()), System.setVoiceVolume
+    )
+    local rows = {
+        self._musicOnRow, self._musicVolumeRow, self._soundOnRow, self._soundVolumeRow, self._voiceOnRow,
+        self._voiceVolumeRow
+    }
+    self._pages[_AUDIO_PAGE_INDEX + 1] = {
+        list = self.ui.controls["AudioList"],
+        allRows = rows,
+        rows = rows,
+        dropBoxRows = {},
+        localeKeys = { "musicon", "musicvolume", "soundon", "soundvolume", "voiceon", "voicevolume" }
+    }
+end
+
+function Controller:_createLanguageRows()
+    self._languageRow = ConfigSettingRowController.new(
+        self.ui.assets["LanguageItem1"], LOC("language"), Locale.ApplyListLocaleFormat(_LANGUAGE_VALUES),
+        findSelectedIndex(_LANGUAGE_VALUES, System.getLanguage())
+    )
+    local rows = { self._languageRow }
+    self._pages[_LANGUAGE_PAGE_INDEX + 1] = {
+        list = self.ui.controls["LanguageList"],
+        allRows = rows,
+        rows = rows,
+        dropBoxRows = rows,
+        localeKeys = { "language" }
+    }
+end
+
+function Controller:_bindGraphicsRows()
+    self._graphicsPresetRow.ui.controls["DropBox"]:setOnSelectionConfirmed(
+        self:bindCallback(Controller._onGraphicsPresetSelectionConfirmed)
+    )
+    self:_bindScaleRow()
+    self._maximumRenderScaleRow.ui.controls["DropBox"]:setOnSelectionConfirmed(
+        self:bindCallback(Controller._onMaximumRenderScaleSelectionConfirmed)
+    )
+    self._framerateRow.ui.controls["DropBox"]:setOnSelectedIndexChanged(
+        self:bindCallback(Controller.onFrameRateSelectedIndexChanged)
+    )
+    self._antiAliasingLevelRow.ui.controls["DropBox"]:setOnSelectedIndexChanged(
+        self:bindCallback(Controller.onAntiAliasingLevelSelectedIndexChanged)
+    )
+    self._lightingRenderScaleRow.ui.controls["DropBox"]:setOnSelectedIndexChanged(
+        self:bindCallback(Controller.onLightingRenderScaleSelectedIndexChanged)
+    )
+end
+
+function Controller:_bindScaleRow()
+    self._scaleRow.ui.controls["DropBox"]:setOnSelectionConfirmed(
+        self:bindCallback(Controller._onScaleSelectionConfirmed)
+    )
+end
+
+function Controller:_bindLanguageRows()
+    self._languageRow.ui.controls["DropBox"]:setOnSelectedIndexChanged(onLanguageSelectedIndexChanged)
+end
+
+function Controller:_syncGraphicsPresetSelection()
+    if self._applyingGraphicsPreset then
+        return
+    end
+    local index = getGraphicsPresetIndex()
+    self._graphicsPresetRow:setItems(getGraphicsPresetLabels(index))
+    self._graphicsPresetRow.ui.controls["DropBox"]:setSelectedIndex(index)
+end
+
+function Controller:_onGraphicsPresetSelectionConfirmed(index)
+    if index < 0 or index >= #_GRAPHICS_PRESETS then
+        self:_syncGraphicsPresetSelection()
+        return
+    end
+    local preset = _GRAPHICS_PRESETS[index + 1]
+    self._applyingGraphicsPreset = true
+    System.setMaximumRenderScale(preset[1])
+    System.setFrameRate(preset[2])
+    System.setAntiAliasingLevel(preset[3])
+    System.setLightingRenderScale(preset[4])
+    local maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(preset[1])
+    self:_setMaximumRenderScaleOptions(maximumRenderScaleValues, effectiveMaximumRenderScale)
+    self._framerateRow.ui.controls["DropBox"]:setSelectedIndex(findSelectedIndex(_FRAMERATE_ITEMS, preset[2]))
+    self
+        ._antiAliasingLevelRow
+        .ui.controls["DropBox"]
+        :setSelectedIndex(findSelectedIndex(self._antiAliasingLevelItems, preset[3]))
+    self._lightingRenderScaleRow.ui.controls["DropBox"]:setSelectedIndex(
+        findScaleIndex(_LIGHTING_RENDER_SCALE_VALUES, preset[4])
+    )
+    self._applyingGraphicsPreset = false
+    self:_syncGraphicsPresetSelection()
+end
+
+---@diagnostic disable-next-line: unused
+function Controller:_getCurrentDisplayScaleOptions()
+    local configuredScale = System.getConfiguredScale()
+    local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
+    local scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
+    if maximumScale ~= nil and effectiveScale ~= configuredScale then
+        System.setScale(effectiveScale)
+    end
+    return scaleValues, effectiveScale
+end
+
+function Controller:_setScaleOptions(scaleValues, selectedScale)
+    self._scaleValues = scaleValues
+    self._scaleRow:setItems(getScaleLabels(scaleValues, "fullscreen"))
+    self._scaleRow.ui.controls["DropBox"]:setSelectedIndex(findScaleIndex(scaleValues, selectedScale))
+end
+
+function Controller:_setMaximumRenderScaleOptions(scaleValues, selectedScale)
+    self._maximumRenderScaleValues = scaleValues
+    self._maximumRenderScaleRow:setItems(getScaleLabels(scaleValues, "unlimited"))
+    self._maximumRenderScaleRow.ui.controls["DropBox"]:setSelectedIndex(findScaleIndex(scaleValues, selectedScale))
+end
+
+function Controller:_onScaleSelectionConfirmed(index)
+    if not System.isDisplayScaleConfigurable() then
+        local scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
+        self:_setScaleOptions(scaleValues, effectiveScale)
+        return
+    end
+    local selectedScale = assert(self._scaleValues[index + 1])
+    local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
+    local scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, selectedScale)
+    self:_setScaleOptions(scaleValues, effectiveScale)
+    System.setScale(effectiveScale)
+end
+
+function Controller:_onMaximumRenderScaleSelectionConfirmed(index)
+    local selectedScale = assert(self._maximumRenderScaleValues[index + 1])
+    local scaleValues, effectiveScale = MainConfig.GetMaximumRenderScaleOptions(selectedScale)
+    self:_setMaximumRenderScaleOptions(scaleValues, effectiveScale)
+    System.setMaximumRenderScale(effectiveScale)
+    self:_syncGraphicsPresetSelection()
+end
+
+function Controller:setPageRowsActive(index, active)
+    setRowsActive(self:getPage(index).rows, active)
+end
+
+return Ui.DefineWindow(View, Controller, WindowSelectable)

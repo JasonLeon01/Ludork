@@ -1,6 +1,7 @@
 ---@meta Source.Player
 ---@class Source.Player.SaveData
 ---@field playerClass string
+---@field customName  string
 ---@field tag         string
 ---@field position    integer[]
 ---@field attr        table<string, number>
@@ -17,6 +18,7 @@
 ---@field _equipInfo                table<string, string>
 ---@field _equipEffectHandles       table<string, integer>
 ---@field _classPath                string
+---@field _customName               string
 ---@field _forbiddenMoving          boolean
 ---@field _wasMovingOnLastFixedTick boolean
 ---@field _movementSpecialPath      sf.Vector2i[]
@@ -25,6 +27,21 @@ local Player = {}
 
 ---@return boolean
 function Player:getLoading() end
+
+---@brief Return the literal custom name, or the localised General Data default name.
+---@return string
+function Player:getDisplayName() end
+
+---@brief Trim Unicode whitespace and set a non-empty name of at most 32 graphemes. Invalid input leaves the name unchanged.
+---@param name string
+---@return boolean
+function Player:setName(name) end
+
+---@brief Validate a proposed name and return its Unicode-trimmed form and any failure reason.
+---@param name string
+---@return string
+---@return "empty" | "tooLong" | nil
+function Player.ValidateName(name) end
 
 ---@brief Get an independent inventory count snapshot.
 ---@return table<string, integer>

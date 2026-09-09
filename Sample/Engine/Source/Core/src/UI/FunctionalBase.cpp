@@ -505,6 +505,8 @@ void FunctionalBase::resetPointerInteraction() {
 
 void FunctionalBase::onInteractionStateChanged() {}
 
+void FunctionalBase::onInteractionInvalidated() {}
+
 UiInputEventArguments FunctionalBase::pointerArguments(
     const sf::Vector2f& position) {
     return ludork::engine::functional_base_impl::pointerArguments(position);

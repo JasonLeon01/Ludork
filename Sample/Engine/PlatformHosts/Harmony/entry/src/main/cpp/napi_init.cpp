@@ -5,6 +5,7 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <System/NativeDisplayHost.hpp>
 #include <Input/InjectedInputEvent.hpp>
+#include "TextInputHostHarmony.hpp"
 
 #include <array>
 #include <cstdint>
@@ -329,6 +330,12 @@ extern "C" napi_value initializeModule(napi_env env, napi_value exports) {
     napi_value initializedExports =
         sf::priv::Harmony::initializeNativeApp(env, exports);
     if (initializedExports == nullptr) {
+        return nullptr;
+    }
+    if (!ludork::application::registerHarmonyTextInputHost(
+            env, initializedExports)) {
+        napi_throw_error(env, nullptr,
+                         "Failed to register the text input host");
         return nullptr;
     }
 

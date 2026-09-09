@@ -6,6 +6,7 @@ local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local GameplayEventData = GlobalCore.GameplayEventData
 local Effects = require("Source.Gameplay.Effects")
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
+local LocaleCore = require("Source.Locale.Core")
 
 local Character = Engine.Character
 local Input = Engine.Input
@@ -118,6 +119,7 @@ function Player:init(texture, tag)
     self._equipInfo = {}
     self._equipEffectHandles = {}
     self._classPath = ""
+    self._customName = ""
     self._forbiddenMoving = false
     self._wasMovingOnLastFixedTick = false
     self._movementSpecialPath = {}
@@ -147,6 +149,33 @@ end
 
 function Player:getClassPath()
     return self._classPath
+end
+
+function Player:getDisplayName()
+    if self._customName ~= "" then
+        return self._customName
+    end
+    return LocaleCore.ApplyStringLocaleFormat(self.attributes.name)
+end
+
+function Player.ValidateName(name)
+    local trimmedName = string.stripUnicode(name)
+    if trimmedName == "" then
+        return trimmedName, "empty"
+    end
+    if string.graphemeLength(trimmedName) > 32 then
+        return trimmedName, "tooLong"
+    end
+    return trimmedName, nil
+end
+
+function Player:setName(name)
+    local trimmedName, reason = Player.ValidateName(name)
+    if reason ~= nil then
+        return false
+    end
+    self._customName = trimmedName
+    return true
 end
 
 function Player:setClassPath(classPath)
@@ -206,6 +235,7 @@ function Player:asDict()
     local bases = self:getAbilitySystemComponent():getNumericAttributeBases()
     return {
         playerClass = self._classPath,
+        customName = self._customName,
         tag = self.tag,
         position = { position.x, position.y },
         attr = {
@@ -245,6 +275,13 @@ end
 
 function Player:restoreFromData(data)
     assert(data.playerClass == self._classPath, "Saved player class does not match this player")
+    assert(Class.isInstance(data.customName, "string"), "Saved player customName must be a string")
+    assert(
+        data.customName == ""
+            or (string.stripUnicode(data.customName) == data.customName and string.graphemeLength(data.customName) <= 32),
+        "Saved player customName must be trimmed and contain at most 32 graphemes"
+    )
+    self._customName = data.customName
     self.tag = data.tag
     local positionX = data.position[1]
     local positionY = data.position[2]

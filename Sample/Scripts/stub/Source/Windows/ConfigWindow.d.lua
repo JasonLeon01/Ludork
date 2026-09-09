@@ -1,199 +1,227 @@
----@meta Source.Windows.ConfigWindow
+---@meta
+
+---@class Source.Windows.ConfigWindow.Page
+---@field list        Engine.ListView
+---@field allRows     Source.Windows.ConfigWindow.ConfigRow[]
+---@field rows        Source.Windows.ConfigWindow.ConfigRow[]
+---@field dropBoxRows Source.Windows.ConfigWindow.ConfigSettingRow.Controller[]
+---@field localeKeys  string[]
 
 ---@class Source.Windows.ConfigWindow.PageSession
 ---@field index        integer
 ---@field scrollOffset sf.Vector2f
 
 --- Each setting row combines a label and an interactive control.
----@class Source.Windows.ConfigWindow: Source.Windows.Base.WindowSelectable
+---@class Source.Windows.ConfigWindow.Controller: Source.UIBase.UiController
+---@field host                           Source.Windows.ConfigWindow
 ---@field _activePageIndex               integer
 ---@field _pageSessions                  Source.Windows.ConfigWindow.PageSession[]
----@field _ui                            Source.UI.ConfigWindow
----@field _windowContent                 Engine.Canvas
----@field _settingsContent               Engine.Canvas
----@field _tabView                       Engine.TabView
----@field _languageRow                   Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _graphicsPresetRow             Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _maximumRenderScaleRow         Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _framerateRow                  Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _antiAliasingLevelRow          Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _lightingRenderScaleRow        Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@field _verticalSyncRow               Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _musicOnRow                    Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _musicVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _soundOnRow                    Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _soundVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
----@field _voiceOnRow                    Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow.ConfigCheckBoxRowUI
----@field _voiceVolumeRow                Source.UI.Parts.ConfigWindow.ConfigSliderRow.ConfigSliderRowUI
+---@field _languageRow                   Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _graphicsPresetRow             Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _maximumRenderScaleRow         Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _framerateRow                  Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _antiAliasingLevelRow          Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _lightingRenderScaleRow        Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _verticalSyncRow               Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _musicOnRow                    Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _musicVolumeRow                Source.Windows.ConfigWindow.ConfigSliderRow.Controller
+---@field _soundOnRow                    Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _soundVolumeRow                Source.Windows.ConfigWindow.ConfigSliderRow.Controller
+---@field _voiceOnRow                    Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _voiceVolumeRow                Source.Windows.ConfigWindow.ConfigSliderRow.Controller
 ---@field _onClose                       function | nil
 ---@field _open                          boolean
 ---@field _tabNavigationHandledThisFrame boolean
-local ConfigWindow = {}
-
----@param onClose function | nil
----@return Source.Windows.ConfigWindow
-function ConfigWindow.new(onClose) end
-
----@param row Source.UI.Parts.ConfigWindow.ConfigSettingRow.ConfigSettingRowUI
----@return function
-function ConfigWindow.MakeSettingRowConfirmCallback(row) end
-
----@param items table
----@param value string | number
----@return integer
-function ConfigWindow.FindSelectedIndex(items, value) end
+---@field ui                             Source.UI.ConfigWindow
+---@field _scaleAvailable                boolean
+---@field _scaleValues                   number[]
+---@field _maximumRenderScaleValues      number[]
+---@field _pages                         Source.Windows.ConfigWindow.Page[]
+---@field _applyingGraphicsPreset        boolean
+---@field _scaleRow                      Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _antiAliasingLevelItems        string[]
+local Controller = {}
 
 ---@brief Construct the configuration window.
 ---
 --- - @param onClose Optional callback when the window is closed
 ---@param onClose function | nil
-function ConfigWindow:init(onClose) end
+function Controller:init(onClose) end
 
 ---@brief Get the language DropBox.
 ---
 --- - @return Language DropBox coordinator
 ---@return Engine.DropBox
-function ConfigWindow:getLanguageDropBox() end
+function Controller:getLanguageDropBox() end
 
 ---@brief Get the graphics-quality preset DropBox.
 ---
 --- - @return Graphics-quality preset DropBox coordinator
 ---@return Engine.DropBox
-function ConfigWindow:getGraphicsPresetDropBox() end
+function Controller:getGraphicsPresetDropBox() end
 
 ---@brief Get the scale DropBox on the scale settings row.
 ---
---- Displays without configurable scaling do not create this row.
+--- Displays without configurable scaling hide this generated row.
 ---
 --- - @return Scale DropBox coordinator, or nil when display scaling is unavailable
 ---@return Engine.DropBox | nil
-function ConfigWindow:getScaleDropBox() end
+function Controller:getScaleDropBox() end
 
 ---@brief Get the maximum render scale DropBox on the settings row.
 ---
 --- - @return Maximum render scale DropBox coordinator
 ---@return Engine.DropBox
-function ConfigWindow:getMaximumRenderScaleDropBox() end
+function Controller:getMaximumRenderScaleDropBox() end
 
 ---@brief Get the framerate DropBox on the framerate settings row.
 ---
 --- - @return Framerate DropBox coordinator
 ---@return Engine.DropBox
-function ConfigWindow:getFramerateDropBox() end
+function Controller:getFramerateDropBox() end
 
 ---@brief Get the anti-aliasing level DropBox on the settings list.
 ---
 --- - @return Anti-aliasing level DropBox coordinator
 ---@return Engine.DropBox
-function ConfigWindow:getAntiAliasingLevelDropBox() end
+function Controller:getAntiAliasingLevelDropBox() end
 
 ---@brief Get the lighting resolution DropBox on the settings list.
 ---
 --- - @return Lighting resolution DropBox coordinator
 ---@return Engine.DropBox
-function ConfigWindow:getLightingRenderScaleDropBox() end
+function Controller:getLightingRenderScaleDropBox() end
 
 ---@brief Get the vertical-sync CheckBox on the settings list.
 ---
 --- - @return Vertical-sync CheckBox coordinator
 ---@return Engine.CheckBox
-function ConfigWindow:getVerticalSyncCheckBox() end
+function Controller:getVerticalSyncCheckBox() end
 
 ---@brief Get the music-enabled CheckBox on the settings list.
 ---
 --- - @return Music-enabled CheckBox coordinator
 ---@return Engine.CheckBox
-function ConfigWindow:getMusicOnCheckBox() end
+function Controller:getMusicOnCheckBox() end
 
 ---@brief Get the music-volume Slider on the settings list.
 ---
 --- - @return Music-volume Slider coordinator
 ---@return Engine.Slider
-function ConfigWindow:getMusicVolumeSlider() end
+function Controller:getMusicVolumeSlider() end
 
 ---@brief Get the sound-enabled CheckBox on the settings list.
 ---
 --- - @return Sound-enabled CheckBox coordinator
 ---@return Engine.CheckBox
-function ConfigWindow:getSoundOnCheckBox() end
+function Controller:getSoundOnCheckBox() end
 
 ---@brief Get the sound-volume Slider on the settings list.
 ---
 --- - @return Sound-volume Slider coordinator
 ---@return Engine.Slider
-function ConfigWindow:getSoundVolumeSlider() end
+function Controller:getSoundVolumeSlider() end
 
 ---@brief Get the voice-enabled CheckBox on the settings list.
 ---
 --- - @return Voice-enabled CheckBox coordinator
 ---@return Engine.CheckBox
-function ConfigWindow:getVoiceOnCheckBox() end
+function Controller:getVoiceOnCheckBox() end
 
 ---@brief Get the voice-volume Slider on the settings list.
 ---
 --- - @return Voice-volume Slider coordinator
 ---@return Engine.Slider
-function ConfigWindow:getVoiceVolumeSlider() end
+function Controller:getVoiceVolumeSlider() end
 
 ---@param position sf.Vector2f
 ---@return Engine.Slider | nil, integer | nil
-function ConfigWindow:_getSliderAt(position) end
+function Controller:_getSliderAt(position) end
 
 ---@brief Check whether this window is currently open.
 ---
 --- - @return True if open, False otherwise
 ---@return boolean
-function ConfigWindow:isOpen() end
+function Controller:isOpen() end
 
 ---@brief Show the configuration window at the Graphics tab and reset every page cursor and scroll position.
-function ConfigWindow:open() end
+function Controller:open() end
 
 ---@brief Hide and deactivate the configuration window.
-function ConfigWindow:close() end
+function Controller:close() end
 
-function ConfigWindow:dispose() end
+function Controller:dispose() end
 
 ---@brief Collapse an expanded DropBox or close the window.
-function ConfigWindow:onReturn() end
+function Controller:onReturn() end
 
 ---@param deltaTime number
-function ConfigWindow:update(deltaTime) end
+function Controller:update(deltaTime) end
 
 ---@brief Update the active configuration page and selection input.
 ---
 --- - @param deltaTime Elapsed time in seconds
 ---@param deltaTime number
-function ConfigWindow:onTick(deltaTime) end
+function Controller:onTick(deltaTime) end
 
 ---@param scaleRowChange integer
-function ConfigWindow:_applyScaleRowChange(scaleRowChange) end
+function Controller:_applyScaleRowChange(scaleRowChange) end
 
 ---@brief Handle configuration input, giving an expanded DropBox priority.
 ---
 --- - @param kwargs Event arguments
 ---@param kwargs Engine.UiInputEventArguments
-function ConfigWindow:onKeyDown(kwargs) end
+function Controller:onKeyDown(kwargs) end
 
 ---@brief Move the selection within the active settings page.
 ---@param direction string
 ---@return boolean
-function ConfigWindow:onDirectionalKey(direction) end
+function Controller:onDirectionalKey(direction) end
 
 ---@return boolean
-function ConfigWindow:handleTabNavigation() end
+function Controller:handleTabNavigation() end
 
 ---@param tabIndex integer
-function ConfigWindow:selectTab(tabIndex) end
+function Controller:selectTab(tabIndex) end
 
 ---@param expanded boolean
-function ConfigWindow:onDropBoxExpandedChanged(expanded) end
+function Controller:onDropBoxExpandedChanged(expanded) end
 
----@return number
-function ConfigWindow:_getMaxScrollOriginY() end
+function Controller:bind() end
 
----@param position sf.Vector2f
-function ConfigWindow:_onCapturedTouchBegan(position) end
+function Controller:refresh() end
 
-function ConfigWindow:_onCapturedTouchReset() end
+---@return integer
+function Controller:refreshDisplayScaleOptions() end
 
-return ConfigWindow
+---@return integer
+function Controller:syncDisplayScaleAvailability() end
+
+---@return integer
+function Controller:getPageCount() end
+
+---@param index integer
+---@return Source.Windows.ConfigWindow.Page
+function Controller:getPage(index) end
+
+---@param index integer
+function Controller:setActivePage(index) end
+
+---@param index integer
+function Controller:onFrameRateSelectedIndexChanged(index) end
+
+---@param index integer
+function Controller:onAntiAliasingLevelSelectedIndexChanged(index) end
+
+---@param index integer
+function Controller:onLightingRenderScaleSelectedIndexChanged(index) end
+
+---@param index  integer
+---@param active boolean
+function Controller:setPageRowsActive(index, active) end
+
+---@param onClose function | nil
+---@return Source.Windows.ConfigWindow
+function Controller.new(onClose) end
+
+function Controller:ready() end

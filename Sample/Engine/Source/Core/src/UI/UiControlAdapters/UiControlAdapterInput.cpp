@@ -7,19 +7,69 @@
 #include <UI/DropBox.hpp>
 #include <UI/Slider.hpp>
 #include <UI/TabView.hpp>
+#include <UI/TextBox.hpp>
 
 #include <memory>
 #include <utility>
 #include <vector>
 
+namespace {
+
+std::shared_ptr<sf::Texture> buttonTexture(const std::string& assetKey) {
+    if (!assetKey.empty()) {
+        return ui_control_adapter_detail::loadTexture(assetKey);
+    }
+    return std::make_shared<sf::Texture>(
+        ui_control_adapter_detail::loadWindowSkin(""), false,
+        sf::IntRect({128, 64}, {32, 32}));
+}
+
+}  // namespace
+
 void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
     UiControlAdapterRegistry& registry) {
     using namespace ui_control_adapter_detail;
 
+    UiControlAdapterRegistry::Adapter textBox;
+    textBox.factory = [](const UiControlProperties& properties) {
+        const std::string value = stringProperty(properties, "text");
+        return std::make_shared<TextBox>(
+            vector2fProperty(properties, "size", {240.0f, 40.0f}),
+            loadWindowSkin(stringProperty(properties, "windowSkin")),
+            plainTextControlConfig(properties),
+            value.empty() ? stringProperty(properties, "previewText") : value);
+    };
+    textBox.setter = [](ControlBase& control, const std::string& propertyId,
+                        const UiControlPropertyValue& value) {
+        TextBox& field = requireControlType<TextBox>(control, "Engine.TextBox");
+        if (propertyId == "size") {
+            field.resize(requireVector2f(value, "size"));
+        } else if (propertyId == "windowSkin") {
+            field.setWindowSkin(
+                loadWindowSkin(requireString(value, "windowSkin")));
+        } else if (propertyId == "textConfig") {
+            field.setTextConfig(
+                plainTextConfig(requireString(value, "textConfig")));
+        } else if (propertyId == "text" || propertyId == "previewText") {
+            field.setString(requireString(value, propertyId));
+        } else {
+            throw std::invalid_argument(
+                propertyId + " is a construction-only TextBox property");
+        }
+    };
+    textBox.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                          const sf::Vector2f& renderScale) {
+        TextBox& field = requireControlType<TextBox>(control, "Engine.TextBox");
+        field.resize(size);
+        field.setScale(renderScale);
+    };
+    textBox.properties.emplace("previewText");
+    registry.registerAdapter<TextBoxUiControlAdapterTag>(std::move(textBox));
+
     UiControlAdapterRegistry::Adapter button;
     button.factory = [](const UiControlProperties& properties) {
         std::shared_ptr<Button> result = std::make_shared<Button>(
-            loadTexture(stringProperty(properties, "texture")),
+            buttonTexture(stringProperty(properties, "texture")),
             optionalIntRectProperty(properties, "textureRect"),
             colorProperty(properties, "hoverColour", sf::Color::White),
             colorProperty(properties, "pressedColour", sf::Color::White));
@@ -31,7 +81,7 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
                        const UiControlPropertyValue& value) {
         Button& button = requireControlType<Button>(control, "Engine.Button");
         if (propertyId == "texture") {
-            button.setTexture(loadTexture(requireString(value, "texture")),
+            button.setTexture(buttonTexture(requireString(value, "texture")),
                               true);
         } else if (propertyId == "textureRect") {
             if (isNil(value)) {

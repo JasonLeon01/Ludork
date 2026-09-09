@@ -5,9 +5,6 @@ local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local UiLayout = require("Source.UI.UiLayout")
-local WindowAttrShop = require("Source.Windows.WindowAttrShop")
-local WindowShop = require("Source.Windows.WindowShop")
 local Teleporter = require("Source.Teleporter")
 local RegionDict = require("Source.Configs.RegionDict")
 
@@ -16,9 +13,6 @@ local GlobalSystem = GlobalCore.System
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
-local ENEMY_BOOK_SIZE = 352
-local ENEMY_ENCYCLOPEDIA_WIDTH = 640
-local ENEMY_ENCYCLOPEDIA_HEIGHT = 480
 local MAP_TRANSITION_NAME = ""
 local MAP_TRANSITION_TIME = 0.5
 local ENEMY_BOOK_ITEM_ID = GeneralEnum.Item.EnemyBook
@@ -168,6 +162,7 @@ function Scene.RebindPlayerToUI(self)
     self._windowAttrShop:setPlayer(self.player)
     self._windowEnemyBook:setPlayer(self.player)
     self._playerHUD:setPlayer(self.player)
+    self._windowPlayerName:setPlayer(self.player)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -204,6 +199,19 @@ function Scene.OpenMenu(self)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OpenPlayerName(self)
+    if not self._windowPlayerName:getVisible() then
+        self._playerNameMoveEnabledBeforeOpen = self.player:getMoveEnabled()
+        self.player:setMoveEnabled(false)
+        self._windowPlayerName:open()
+        self:_blockMapInput(2)
+    end
+    return function ()
+        return not self._windowPlayerName:getVisible()
+    end
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenShop(self, buyItemIDs, canSell)
     self._shopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
     self.player:setMoveEnabled(false)
@@ -217,9 +225,7 @@ end
 function Scene.OpenAttrShop(self, actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
     self._attrShopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
     self.player:setMoveEnabled(false)
-    self._windowAttrShop:open(
-        actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName, Scene.GetAttrShopRect()
-    )
+    self._windowAttrShop:open(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
     return function ()
         return not self._windowAttrShop:getVisible()
     end
@@ -242,7 +248,7 @@ function Scene.OnEnemyBookClose(self)
     self:_blockMapInput(1)
 end
 
----@param entry Source.UI.WindowEnemyBook.Entry
+---@param entry Source.Windows.WindowEnemyBook.Entry
 ---@param self  Source.Scenes.SceneMap.SceneMap
 function Scene.OnEnemyBookConfirm(self, entry)
     self._windowEnemyEncyclopedia:open(entry)
@@ -274,17 +280,6 @@ function Scene.OnFloorTeleporterConfirm(self, mapKey, telepoint)
     self:_blockMapInput(2)
 end
 
----@return sf.IntRect, sf.IntRect, sf.IntRect
-function Scene.GetShopRects()
-    local tabRect, itemRect, detailRect = WindowShop.GetDefaultRects()
-    return tabRect, itemRect, detailRect
-end
-
----@return sf.IntRect
-function Scene.GetAttrShopRect()
-    return WindowAttrShop.GetDefaultRect()
-end
-
 ---@param nodeFunction function
 ---@return table<string, any>
 function Scene.GetDialogueLocalVars(nodeFunction)
@@ -311,16 +306,6 @@ function Scene.FormatDialogueSelectionSource(source)
         formattedOptions[#formattedOptions + 1] = formatDialogueText(option, source.context)
     end
     return formatDialogueText(source.context.name, source.context), formattedOptions
-end
-
----@return sf.IntRect
-function Scene.GetEnemyBookRect()
-    return UiLayout.GetCenteredRect(ENEMY_BOOK_SIZE, ENEMY_BOOK_SIZE)
-end
-
----@return sf.IntRect
-function Scene.GetEnemyEncyclopediaRect()
-    return UiLayout.GetCenteredRect(ENEMY_ENCYCLOPEDIA_WIDTH, ENEMY_ENCYCLOPEDIA_HEIGHT)
 end
 
 ---@return boolean

@@ -145,7 +145,19 @@ public sealed partial class ProjectRunnerService : IDisposable
                     preparation.Error);
             }
 
-            if (!options.IsStandaloneProject)
+            if (options.IsStandaloneProject)
+            {
+                ProcessStartInfo? generationStartInfo = UiAssetGenerationService.CreateStartInfo(projectPath);
+                if (generationStartInfo is null)
+                    return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "ScriptTools");
+                writeOutput($"> {generationStartInfo.FileName} ui-assets generate \"{projectPath}\"");
+                int generationExitCode = await runProcessAsync(generationStartInfo, cancellation.Token);
+                if (cancellation.IsCancellationRequested)
+                    return ProjectRunResult.CancelledResult();
+                if (generationExitCode != 0)
+                    return ProjectRunResult.Failed(ProjectRunFailure.BuildFailed, generationExitCode.ToString());
+            }
+            else
             {
                 string buildScriptName = OperatingSystem.IsWindows()
                     ? "build_cpp.bat"

@@ -1,6 +1,12 @@
 ludork_add_impl_boundary_validation_target(
     ImplBoundaryValidate
     "${CMAKE_CURRENT_SOURCE_DIR}")
+add_custom_target(UiAssetGenerate
+    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+        ui-assets generate "${LUDORK_PROJECT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${LUDORK_PROJECT_SOURCE_DIR}"
+    VERBATIM)
+add_dependencies(ImplBoundaryValidate UiAssetGenerate)
 add_dependencies(Engine ImplBoundaryValidate)
 if(LUDORK_BUILD_UI_PREVIEW_HOST)
     add_dependencies(Engine UiPreviewHost)
@@ -115,6 +121,8 @@ if(LUDORK_STATIC_LUA_MODULES)
         GlobalFunctions)
 endif()
 if(ANDROID)
+    target_sources(Main PRIVATE
+        src/Platform/Android/TextInputHostAndroid.cpp)
     if(NOT DEFINED LUDORK_ANDROID_RUNTIME_HASH
        OR LUDORK_ANDROID_RUNTIME_HASH STREQUAL "")
         message(FATAL_ERROR

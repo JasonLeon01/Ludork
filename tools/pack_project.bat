@@ -68,6 +68,8 @@ if not errorlevel 1 (
     echo Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.
     exit /b 24
 )
+"%SCRIPT_TOOLS%" ui-assets generate "%PROJECT_DIR%"
+if errorlevel 1 exit /b %errorlevel%
 if "%USE_LDPAK%"=="1" (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1

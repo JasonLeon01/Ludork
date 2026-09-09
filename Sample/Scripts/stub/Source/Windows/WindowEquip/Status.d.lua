@@ -1,32 +1,39 @@
----@meta Source.Windows.WindowEquip.Status
+---@meta
 
----@class Source.Windows.WindowEquipStatus: Source.Windows.Base.WindowBase
----@field new       fun(rect: sf.IntRect, player: Source.Player.Player, instance?: Engine.AssetInstance): Source.Windows.WindowEquipStatus
----@field _statusUI Source.UI.Parts.WindowEquip.WindowEquipStatus
-local WindowEquipStatus = {}
+---@brief Equipped-slot list window ordered by class slot keys.
+---
+--- Shows currently equipped item names per slot, or unequipped placeholder text.
+
+---@class Source.Windows.WindowEquipStatus.Controller: Source.UIBase.UiController
+---@field host         Source.Windows.WindowEquipStatus
+---@field ui           Source.UI.Parts.WindowEquip.WindowEquipStatusPane
+---@field _logicalSize sf.Vector2u | nil
+---@field _player      Source.Player.Player
+---@field _changeRows  Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipStatusRow.Controller>
+local Controller = {}
 
 ---@brief Construct the equipment status window.
 ---
---- - @param rect The window rectangle.
 --- - @param player The player instance.
----@param rect   sf.IntRect
 ---@param player Source.Player.Player
-function WindowEquipStatus:init(rect, player, instance) end
+function Controller:init(player) end
+
+function Controller:ready() end
 
 ---@brief Rebind the player instance used for equipment comparisons.
 ---
 --- - @param player The player instance.
 ---@param player Source.Player.Player
-function WindowEquipStatus:setPlayer(player) end
+function Controller:setPlayer(player) end
 
 ---@brief Open the detail window for the current equipment slot.
 ---
 --- - @param slotKey Equipment slot identifier.
 ---@param slotKey string
-function WindowEquipStatus:openForSlot(slotKey) end
+function Controller:openForSlot(slotKey) end
 
 ---@brief Close the detail window.
-function WindowEquipStatus:close() end
+function Controller:close() end
 
 ---@brief Refresh stat changes and description for a selected equipment candidate.
 ---
@@ -36,16 +43,36 @@ function WindowEquipStatus:close() end
 ---@param slotKey          string
 ---@param candidateEquipID string | nil
 ---@param showUnequip      boolean | nil
-function WindowEquipStatus:refreshForEquip(slotKey, candidateEquipID, showUnequip) end
+function Controller:refreshForEquip(slotKey, candidateEquipID, showUnequip) end
 
 ---@brief Refresh description for the current equipped item in a slot.
 ---
 --- - @param slotKey Equipment slot identifier.
 ---@param slotKey string
-function WindowEquipStatus:refreshForSlot(slotKey) end
+function Controller:refreshForSlot(slotKey) end
 
----@brief Equipped-slot list window ordered by class slot keys.
----
---- Shows currently equipped item names per slot, or unequipped placeholder text.
+function Controller:refresh() end
 
-return WindowEquipStatus
+---@param currentAttrs   table<string, integer>
+---@param candidateAttrs table<string, integer>
+function Controller:refreshChangeRows(currentAttrs, candidateAttrs) end
+
+---@param attrKey  string
+---@param delta    integer
+---@param rowIndex integer
+function Controller:addChangeRow(attrKey, delta, rowIndex) end
+
+---@param candidateEquipID string | nil
+---@param showUnequip      boolean
+function Controller:refreshDescription(candidateEquipID, showUnequip) end
+
+function Controller:clearChangeTexts() end
+
+---@param equipID string | nil
+---@return table<string, integer>
+function Controller:getAttrPlus(equipID) end
+
+---@param firstAttrs  table
+---@param secondAttrs table
+---@return table
+function Controller:getAttrKeys(firstAttrs, secondAttrs) end

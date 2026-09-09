@@ -338,6 +338,7 @@ void ControlBase::resetActiveRuntimeCallbackRegistry() noexcept {
 
 void ControlBase::resetFunctionalInteractions(ControlBase& control) {
     if (FunctionalBase* functional = dynamic_cast<FunctionalBase*>(&control)) {
+        functional->onInteractionInvalidated();
         functional->resetPointerInteraction();
     }
     for (const std::shared_ptr<ControlBase>& child : control.getChildren()) {
@@ -345,6 +346,10 @@ void ControlBase::resetFunctionalInteractions(ControlBase& control) {
             resetFunctionalInteractions(*child);
         }
     }
+}
+
+void ControlBase::invalidateInteraction() {
+    resetFunctionalInteractions(*this);
 }
 
 bool ControlBase::_hasOverlay() const {

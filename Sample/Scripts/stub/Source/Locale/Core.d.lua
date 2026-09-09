@@ -61,6 +61,11 @@ function Core.GetLocaleDict() end
 ---@return string
 function Core.ApplyStringLocaleFormat(value) end
 
+--- Localise each string into a new array, preserving order and the source array.
+---@param values string[]
+---@return string[]
+function Core.ApplyListLocaleFormat(values) end
+
 ---@param language string
 function Core.SetLanguage(language) end
 

@@ -1,6 +1,6 @@
 ---@meta Source.Scenes.SceneGameOver
 ---@class Source.Scenes.SceneGameOver: GlobalCore.SceneBase
----@field _ui    Source.UI.GameOver
+---@field _ui    Source.Scenes.SceneGameOver.Controller
 ---@field _phase string
 ---@field new    fun(): Source.Scenes.SceneGameOver
 local Scene = {}

@@ -1,9 +1,8 @@
-local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local SourceSystem = require("Source.System")
 local GameInstance = require("Source.GameInstance")
-local SceneTitleUI = require("Source.UI.Title")
+local SceneTitleController = require("Source.Scenes.SceneTitle.Controller")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local AudioManager = GlobalCore.AudioManager
@@ -25,11 +24,11 @@ function Scene:onCreate()
     local uiManager = self:getUIManager()
     ---@cast uiManager GlobalCore.UIManager
     uiManager:setFocusNavigationEnabled(true)
-    self._ui = SceneTitleUI.new(self)
+    self._ui = SceneTitleController.new(self)
     self._ui:mount(self:getUIManager(), GlobalSystem.getGameSize())
     self._windowCommand = self._ui:getCommandWindow()
     self._windowSaveLoad = WindowSaveLoad.new(
-        nil, Engine.ToIntRect(112, 112, 160, 256), Engine.ToIntRect(272, 112, 256, 256), true, nil,
+        true, nil,
         function (reason)
             self:_onSaveLoadClose(reason)
         end,

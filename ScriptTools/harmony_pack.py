@@ -15,6 +15,8 @@ import unicodedata
 import zipfile
 from dataclasses import dataclass, replace
 
+from .ui_asset_generation import generate_assets
+from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.ui_preview import prepare_registry
 from ScriptTools.finalize_package import finalize_package
@@ -2422,6 +2424,8 @@ def main(arguments: list[str] | None = None) -> int:
                 f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed."
             )
             return 0
+        for path in generate_assets(context.project_dir):
+            print(f"Generated UI: {path}")
         context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         if parsed.export_to_device:
             if device is None:
@@ -2452,7 +2456,7 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(str(exception), file=sys.stderr)
         return exception.exit_code
-    except LdPakError as exception:
+    except (LdPakError, UiAssetError) as exception:
         print(str(exception), file=sys.stderr)
         return EXIT_PROJECT
     except (OSError, RuntimeError, zipfile.BadZipFile) as exception:

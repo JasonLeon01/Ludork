@@ -1,6 +1,7 @@
 #include <UI/TextLayout.hpp>
 #include <UI/PlainText.hpp>
 #include <UI/RichText.hpp>
+#include <UnicodeText.hpp>
 
 #include "Text/TextConfigCodec.hpp"
 
@@ -320,25 +321,26 @@ std::string fitPlainText(const std::string& text, float maxWidth,
     if (text.empty()) {
         return {};
     }
-    const std::vector<TextUnit> units = plainUnits(text);
+    const std::vector<std::size_t> offsets =
+        ludork::standard::unicode::graphemeOffsets(text);
     PlainTextMeasurement measurement(control);
+    if (measurement(text) <= maxWidth) {
+        return text;
+    }
+    if (measurement(".") > maxWidth) {
+        return {};
+    }
     std::size_t low = 0;
-    std::size_t high = units.size();
+    std::size_t high = offsets.size() - 2;
     while (low < high) {
         const std::size_t middle = low + (high - low + 1) / 2;
-        if (measurement(concatenate(units, 0, middle)) <= maxWidth) {
+        if (measurement(text.substr(0, offsets[middle]) + ".") <= maxWidth) {
             low = middle;
         } else {
             high = middle - 1;
         }
     }
-    if (low == units.size()) {
-        return text;
-    }
-    if (low > 1) {
-        return concatenate(units, 0, low - 1) + ".";
-    }
-    return concatenate(units, 0, low);
+    return text.substr(0, offsets[low]) + ".";
 }
 
 std::string wrapPlainText(const std::string& text, float maxWidth,

@@ -13,6 +13,13 @@ local _METADATA = {
             },
             Pure = true
         },
+        openPlayerName = {
+            type = "function",
+            parameters = {},
+            ["return"] = { "return", ["return"] = "function" },
+            Latent = true,
+            LatentStates = { "Closed", Closed = { true } }
+        },
         showMessage = {
             type = "function",
             parameters = {

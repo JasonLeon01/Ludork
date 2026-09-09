@@ -147,6 +147,8 @@ public:
 
     void releaseRuntimeCallbacks() noexcept override;
 
+    void invalidateInteraction();
+
     void adoptRuntimeCallbackRegistry(
         const std::shared_ptr<RuntimeCallbackRegistry>& registry);
 

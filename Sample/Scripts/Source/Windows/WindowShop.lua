@@ -2,8 +2,9 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local GameSystem = require("Source.System")
-local WindowShopUI = require("Source.UI.WindowShop")
-local UiLayout = require("Source.UI.UiLayout")
+local Ui = require("Source.UIBase.Ui")
+local View = require("Source.UI.WindowShop")
+local UiLayout = require("Source.UIBase.UiLayout")
 local WindowShopDetail = require("Source.Windows.WindowShopDetail")
 local WindowShopItem = require("Source.Windows.WindowShopItem")
 local WindowShopTabs = require("Source.Windows.WindowShopTabs")
@@ -11,117 +12,77 @@ local WindowShopTabs = require("Source.Windows.WindowShopTabs")
 local AudioManager = GlobalCore.AudioManager
 local Canvas = Engine.Canvas
 
-local _SHOP_TAB_HEIGHT = 64
-local _SHOP_ITEM_HEIGHT = 256
-local _SHOP_DETAIL_HEIGHT = 96
-local _SHOP_WIDTH = 352
+---@class Source.Windows.WindowShop.Controller
+local Controller = {}
 
----@class Source.Windows.WindowShop
-local WindowShop = {}
+Controller.windowOptions = { centered = true, hidden = true }
 
-WindowShop.SHOP_MODE_BUY = "buy"
-WindowShop.SHOP_MODE_SELL = "sell"
+Controller.SHOP_MODE_BUY = "buy"
+Controller.SHOP_MODE_SELL = "sell"
 
-function WindowShop.GetDefaultRects()
-    local totalHeight = _SHOP_TAB_HEIGHT + _SHOP_ITEM_HEIGHT + _SHOP_DETAIL_HEIGHT
-    local bounds = UiLayout.GetCenteredRect(_SHOP_WIDTH, totalHeight)
-    return Engine.ToIntRect(bounds.position.x, bounds.position.y, _SHOP_WIDTH, _SHOP_TAB_HEIGHT),
-        Engine.ToIntRect(bounds.position.x, bounds.position.y + _SHOP_TAB_HEIGHT, _SHOP_WIDTH, _SHOP_ITEM_HEIGHT),
-        Engine.ToIntRect(
-            bounds.position.x, bounds.position.y + _SHOP_TAB_HEIGHT + _SHOP_ITEM_HEIGHT, _SHOP_WIDTH,
-            _SHOP_DETAIL_HEIGHT
-        )
-end
-
-function WindowShop:init(player, tabRect, itemRect, detailRect, onClose)
-    if tabRect == nil or itemRect == nil or detailRect == nil then
-        local defaultTabRect, defaultItemRect, defaultDetailRect = WindowShop.GetDefaultRects()
-        tabRect = tabRect or defaultTabRect
-        itemRect = itemRect or defaultItemRect
-        detailRect = detailRect or defaultDetailRect
-    end
-    local totalHeight = _SHOP_TAB_HEIGHT + _SHOP_ITEM_HEIGHT + _SHOP_DETAIL_HEIGHT
-    super(WindowShop, self).init(Engine.ToIntRect(tabRect.position.x, tabRect.position.y, _SHOP_WIDTH, totalHeight))
+function Controller:init(player, onClose)
     self._player = player
     self._onCloseCallback = onClose
-    self._ui = WindowShopUI.new(self)
-    self._ui:attach()
-    self._transition = self._ui:createTransition(self)
-    self._tabWindow = WindowShopTabs.new(
-        Engine.ToIntRect(0, 0, _SHOP_WIDTH, _SHOP_TAB_HEIGHT), self, self._ui:getTabsAsset()
-    )
-    self._itemWindow = WindowShopItem.new(
-        Engine.ToIntRect(0, _SHOP_TAB_HEIGHT, _SHOP_WIDTH, _SHOP_ITEM_HEIGHT), self, self._ui:getItemAsset()
-    )
-    self._detailWindow = WindowShopDetail.new(
-        Engine.ToIntRect(0, _SHOP_TAB_HEIGHT + _SHOP_ITEM_HEIGHT, _SHOP_WIDTH, _SHOP_DETAIL_HEIGHT),
-        self._ui:getDetailAsset()
-    )
-    self:addChild(self._tabWindow)
-    self:addChild(self._itemWindow)
-    self:addChild(self._detailWindow)
-    self._topLeft = sf.Vector2f.new(tabRect.position.x, tabRect.position.y)
-    self._tabTopLeft = sf.Vector2f.new(0.0, 0.0)
-    self._itemTopLeft = sf.Vector2f.new(0.0, _SHOP_TAB_HEIGHT)
-    self._detailTopLeft = sf.Vector2f.new(0.0, _SHOP_TAB_HEIGHT + _SHOP_ITEM_HEIGHT)
+    self._tabWindow = self:createChild("TabsAsset", WindowShopTabs, self.host)
+    self._itemWindow = self:createChild("ItemAsset", WindowShopItem, self.host)
+    self._detailWindow = self:createChild("DetailAsset", WindowShopDetail)
+    self._topLeft = self.host:getPosition()
+    self._tabTopLeft = self._tabWindow:getPosition()
+    self._itemTopLeft = self._itemWindow:getPosition()
+    self._detailTopLeft = self._detailWindow:getPosition()
     self._buyItemIDs = {}
     self._canSell = true
     self._mode = self.SHOP_MODE_BUY
     self._closed = true
-    self._tabWindow:setVisible(false)
-    self._tabWindow:setActive(false)
-    self._itemWindow:setVisible(false)
-    self._itemWindow:setActive(false)
-    self._detailWindow:setVisible(false)
-    self._detailWindow:setActive(false)
-    self._transition:hideImmediate()
 end
 
-function WindowShop:getTabWindow()
+function Controller:getTabWindow()
     return self._tabWindow
 end
 
-function WindowShop:getItemWindow()
+function Controller:getItemWindow()
     return self._itemWindow
 end
 
-function WindowShop:getDetailWindow()
+function Controller:getDetailWindow()
     return self._detailWindow
 end
 
-function WindowShop:setPlayer(player)
+function Controller:setPlayer(player)
     self._player = player
 end
 
-function WindowShop:getVisible()
+function Controller:getVisible()
     return self._transition:isBlocking()
 end
 
-function WindowShop:isClosed()
+function Controller:isClosed()
     return self._closed
 end
 
-function WindowShop:open(buyItemIDs, canSell)
-    self._buyItemIDs = WindowShop.NormalizeBuyItems(buyItemIDs)
+function Controller:open(buyItemIDs, canSell)
+    self._buyItemIDs = Controller.NormalizeBuyItems(buyItemIDs)
     self._canSell = bool(canSell)
     self._mode = self.SHOP_MODE_BUY
     self._closed = false
-    self._tabWindow:getTabView():setSelectedIndex(0)
+    self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(0)
     self:_refreshItems()
     self._itemWindow:resetSelection()
     self:_refreshDetail()
     if self._canSell then
-        self:setPosition(self._topLeft)
+        self.host:setPosition(self._topLeft)
         self._tabWindow:setPosition(self._tabTopLeft)
         self._itemWindow:setPosition(self._itemTopLeft)
         self._detailWindow:setPosition(self._detailTopLeft)
         self._tabWindow:setVisible(true)
         self._tabWindow:setActive(true)
     else
-        local bounds = UiLayout.GetCenteredRect(_SHOP_WIDTH, _SHOP_ITEM_HEIGHT + _SHOP_DETAIL_HEIGHT)
-        self:setPosition(sf.Vector2f.new(bounds.position.x, bounds.position.y))
+        local itemSize = self._itemWindow:getSize()
+        local detailSize = self._detailWindow:getSize()
+        local bounds = UiLayout.GetCenteredRect(itemSize.x, itemSize.y + detailSize.y)
+        self.host:setPosition(sf.Vector2f.new(bounds.position.x, bounds.position.y))
         self._itemWindow:setPosition(sf.Vector2f.new(0.0, 0.0))
-        self._detailWindow:setPosition(sf.Vector2f.new(0.0, _SHOP_ITEM_HEIGHT))
+        self._detailWindow:setPosition(sf.Vector2f.new(0.0, itemSize.y))
         self._tabWindow:setVisible(false)
         self._tabWindow:setActive(false)
     end
@@ -130,7 +91,7 @@ function WindowShop:open(buyItemIDs, canSell)
     self._detailWindow:setVisible(true)
     self._detailWindow:setActive(false)
     self._transition:show("FadeIn", function ()
-        self:setActive(true)
+        self.host:setActive(true)
         if self._canSell then
             self._tabWindow:setActive(true)
         end
@@ -139,11 +100,11 @@ function WindowShop:open(buyItemIDs, canSell)
     end)
 end
 
-function WindowShop:close(onHidden)
+function Controller:close(onHidden)
     self._tabWindow:setActive(false)
     self._itemWindow:setActive(false)
     self._detailWindow:setActive(false)
-    self:setActive(false)
+    self.host:setActive(false)
     self._transition:hide("FadeOut", function ()
         self._tabWindow:setVisible(false)
         self._itemWindow:setVisible(false)
@@ -155,12 +116,12 @@ function WindowShop:close(onHidden)
     end)
 end
 
-function WindowShop:closeByCancel()
+function Controller:closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
     self:_closeAndNotify()
 end
 
-function WindowShop:handleTabNavigationInput()
+function Controller:handleTabNavigationInput()
     if not self._tabWindow:getVisible() then
         return false
     end
@@ -168,11 +129,11 @@ function WindowShop:handleTabNavigationInput()
 end
 
 ---@param index integer
-function WindowShop:onTabSelected(index)
+function Controller:onTabSelected(index)
     self:setMode(index == 1 and self.SHOP_MODE_SELL or self.SHOP_MODE_BUY)
 end
 
-function WindowShop:setMode(mode)
+function Controller:setMode(mode)
     if mode ~= self.SHOP_MODE_BUY and mode ~= self.SHOP_MODE_SELL then
         return
     end
@@ -189,16 +150,16 @@ function WindowShop:setMode(mode)
     self._itemWindow:requestKeyboardFocus()
 end
 
-function WindowShop:notifyItemIndexMaybeChanged()
+function Controller:notifyItemIndexMaybeChanged()
     self:_refreshDetail()
 end
 
-function WindowShop:refreshLocale()
+function Controller:refreshLocale()
     self._tabWindow:refresh()
     self._detailWindow:refresh()
 end
 
-function WindowShop:confirmItem()
+function Controller:confirmItem()
     local itemID = self._itemWindow:getCurrentItemID()
     if itemID == nil then
         AudioManager.playSound(GameSystem.GetBuzzerSE())
@@ -213,7 +174,7 @@ end
 
 ---@param buyItemIDs table
 ---@return table
-function WindowShop.NormalizeBuyItems(buyItemIDs)
+function Controller.NormalizeBuyItems(buyItemIDs)
     local itemData = Data.GetAllGeneralItemData()
     local result = {}
     local included = {}
@@ -227,7 +188,7 @@ function WindowShop.NormalizeBuyItems(buyItemIDs)
     return result
 end
 
-function WindowShop:_refreshItems()
+function Controller:_refreshItems()
     local itemIDs = nil
     local availableMap = {}
     local valueMap = {}
@@ -248,24 +209,24 @@ function WindowShop:_refreshItems()
     self:_refreshDetail()
 end
 
-function WindowShop:_refreshDetail()
+function Controller:_refreshDetail()
     local itemID = self._itemWindow:getCurrentItemID()
     if itemID == nil then
         self._detailWindow:setItem(nil, nil)
         return
     end
-    local price = self._mode == self.SHOP_MODE_BUY and WindowShop.GetItemPrice(itemID)
-        or WindowShop.GetSellPrice(itemID)
+    local price = self._mode == self.SHOP_MODE_BUY and Controller.GetItemPrice(itemID)
+        or Controller.GetSellPrice(itemID)
     self._detailWindow:setItem(Data.GetGeneralItemData(itemID), price)
 end
 
 ---@return table
-function WindowShop:_getSellableItems()
+function Controller:_getSellableItems()
     local itemData = Data.GetAllGeneralItemData()
     local playerItems = self._player:getItems()
     local result = {}
     for _, itemID in ipairs(table.orderedStringKeys(itemData)) do
-        if (playerItems[itemID] or 0) > 0 and WindowShop.GetSellPrice(itemID) > 0 then
+        if (playerItems[itemID] or 0) > 0 and Controller.GetSellPrice(itemID) > 0 then
             result[#result + 1] = itemID
         end
     end
@@ -274,26 +235,26 @@ end
 
 ---@param itemID string
 ---@return integer
-function WindowShop.GetItemPrice(itemID)
+function Controller.GetItemPrice(itemID)
     local itemInfo = Data.GetGeneralItemData(itemID)
     return itemInfo.price
 end
 
 ---@param itemID string
 ---@return integer
-function WindowShop.GetSellPrice(itemID)
-    return math.floor(WindowShop.GetItemPrice(itemID) / 2)
+function Controller.GetSellPrice(itemID)
+    return math.floor(Controller.GetItemPrice(itemID) / 2)
 end
 
 ---@param itemID string
 ---@return boolean
-function WindowShop:_canBuy(itemID)
-    return self._player.attributes.GOLD >= WindowShop.GetItemPrice(itemID)
+function Controller:_canBuy(itemID)
+    return self._player.attributes.GOLD >= Controller.GetItemPrice(itemID)
 end
 
 ---@param itemID string
-function WindowShop:_buyItem(itemID)
-    local price = WindowShop.GetItemPrice(itemID)
+function Controller:_buyItem(itemID)
+    local price = Controller.GetItemPrice(itemID)
     if not self._itemWindow:isCurrentAvailable() or self._player.attributes.GOLD < price then
         AudioManager.playSound(GameSystem.GetBuzzerSE())
         self:_refreshItems()
@@ -307,8 +268,8 @@ function WindowShop:_buyItem(itemID)
 end
 
 ---@param itemID string
-function WindowShop:_sellItem(itemID)
-    local price = WindowShop.GetSellPrice(itemID)
+function Controller:_sellItem(itemID)
+    local price = Controller.GetSellPrice(itemID)
     if price <= 0 or not self._player:removeItem(itemID, 1) then
         AudioManager.playSound(GameSystem.GetBuzzerSE())
         self:_refreshItems()
@@ -320,7 +281,7 @@ function WindowShop:_sellItem(itemID)
     self:_refreshItems()
 end
 
-function WindowShop:_closeAndNotify()
+function Controller:_closeAndNotify()
     self:close(function ()
         if self._onCloseCallback ~= nil then
             self._onCloseCallback()
@@ -328,17 +289,14 @@ function WindowShop:_closeAndNotify()
     end)
 end
 
-function WindowShop:dispose()
+function Controller:dispose()
     self._transition:hideImmediate()
     self._tabWindow:setVisible(false)
     self._itemWindow:setVisible(false)
     self._detailWindow:setVisible(false)
-    self._tabWindow:dispose()
-    self._itemWindow:dispose()
-    self._detailWindow:dispose()
-    self._ui:dispose()
     self._player = nil
     self._onCloseCallback = nil
+    super(Controller, self).dispose()
 end
 
-return class(WindowShop, Canvas)
+return Ui.DefineWindow(View, Controller, Canvas)

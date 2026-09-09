@@ -144,7 +144,7 @@ UiControlProperties parseProperties(
     for (const auto& [name, value] : properties) {
         const auto property = std::find_if(
             descriptor.properties.begin(), descriptor.properties.end(),
-            [&name](const UiControlPropertyDescriptor& candidate) {
+            [&name = name](const UiControlPropertyDescriptor& candidate) {
                 return candidate.id == name;
             });
         if (property == descriptor.properties.end()) {

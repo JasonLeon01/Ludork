@@ -89,6 +89,14 @@ function Core.ApplyStringLocaleFormat(value)
     return (table.concat(result):gsub("}}", "}"))
 end
 
+function Core.ApplyListLocaleFormat(values)
+    local result = {}
+    for index, value in ipairs(values) do
+        result[index] = Core.ApplyStringLocaleFormat(value)
+    end
+    return result
+end
+
 function Core.SetLanguage(language)
     local resolved = bool(language) and language or "en_GB"
     if resolved == Core.LANGUAGE then

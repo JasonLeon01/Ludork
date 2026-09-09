@@ -1,118 +1,125 @@
----@meta Source.Windows.WindowFloorTeleporter
+---@meta
 
 ---@brief Integrated floor teleporter window with visited-map list and preview.
----@class Source.Windows.WindowFloorTeleporter: Engine.Canvas
----@field controllerClass            Source.Windows.WindowFloorTeleporter.Controller
----@field _teleporterController      Source.Windows.WindowFloorTeleporter.Controller
----@field new                        fun(inst: Source.GameInstance.GameInstance, listRect: sf.IntRect, previewRect: sf.IntRect, loadPreview: function, onConfirm?: function, onClose?: function, resolvePreviewMapPath?: function, clearPreviewCache?: function): Source.Windows.WindowFloorTeleporter
+---@class Source.Windows.WindowFloorTeleporter.Controller: Source.UIBase.UiController
+---@field host                       Source.Windows.WindowFloorTeleporter
 ---@field _inst                      Source.GameInstance.GameInstance | nil
 ---@field _onCloseCallback           function | nil
 ---@field _onConfirmCallback         fun(mapKey: string, telepoint: sf.Vector2u) | nil
 ---@field _clearPreviewCacheCallback function | nil
-local WindowFloorTeleporter = {}
+---@field ui                         Source.UI.WindowFloorTeleporter
+---@field _telepointEntriesCache     dict<tuple<any>, { [1]: sf.Vector2u, [2]: string } []>
+---@field _transition                Source.UIBase.WindowTransition
+---@field _lastMapKey                string | nil
+---@field _telepointIndexes          table<string, integer>
+local Controller = {}
 
----@brief Construct the floor teleporter coordinator.
----
---- - @param inst Game instance used for region and visited-map state.
---- - @param listRect Rectangle for the command list.
---- - @param previewRect Rectangle for the map preview.
---- - @param loadPreview Callback that builds preview textures.
---- - @param onConfirm Callback invoked when the selected map and telepoint are confirmed.
---- - @param onClose Callback invoked after the window closes.
---- - @param resolvePreviewMapPath Callback that resolves a map key for caching.
---- - @param clearPreviewCache Callback that clears cached preview maps.
 ---@param inst                  Source.GameInstance.GameInstance
----@param listRect              sf.IntRect
----@param previewRect           sf.IntRect
 ---@param loadPreview           function
 ---@param onConfirm             function | nil
 ---@param onClose               function | nil
 ---@param resolvePreviewMapPath function | nil
 ---@param clearPreviewCache     function | nil
-function WindowFloorTeleporter:init(
-    inst, listRect, previewRect, loadPreview, onConfirm, onClose, resolvePreviewMapPath, clearPreviewCache
-) end
+function Controller:init(inst, loadPreview, onConfirm, onClose, resolvePreviewMapPath, clearPreviewCache) end
 
 ---@brief Get the floor map command window.
 ---
 --- - @return The command window.
 ---@return Source.Windows.WindowFloorMapCommand
-function WindowFloorTeleporter:getCommandWindow() end
+function Controller:getCommandWindow() end
 
 ---@brief Get the floor map preview window.
 ---
 --- - @return The preview window.
 ---@return Source.Windows.WindowFloorMapPreview
-function WindowFloorTeleporter:getPreviewWindow() end
+function Controller:getPreviewWindow() end
 
 ---@brief Return whether the floor teleporter coordinator is visible.
 ---
 --- - @return True while either selector stage is open.
 ---@return boolean
-function WindowFloorTeleporter:getVisible() end
+function Controller:getVisible() end
 
 ---@brief Open the floor teleporter with the floor list visible and the overlapping telepoint list hidden.
 --- Select the current map's floor entry, falling back to the first entry if absent; reset the telepoint selector to its first entry.
 ---
 --- - @param inst Optional current game instance to bind before opening.
 ---@param inst Source.GameInstance.GameInstance | nil
-function WindowFloorTeleporter:open(inst) end
+function Controller:open(inst) end
 
 ---@brief Close and deactivate both child windows.
 ---@param onHidden function | nil
-function WindowFloorTeleporter:close(onHidden) end
+function Controller:close(onHidden) end
 
 ---@brief Close the window via cancel input.
-function WindowFloorTeleporter:closeByCancel() end
+function Controller:closeByCancel() end
 
 ---@brief Refresh localised map and telepoint labels while preserving both selections and the active child window.
-function WindowFloorTeleporter:refreshLocale() end
+function Controller:refreshLocale() end
 
 ---@brief Hide the floor list and show the overlapping telepoint selector before moving input focus to it.
-function WindowFloorTeleporter:activateTelepointSelector() end
+function Controller:activateTelepointSelector() end
 
 ---@brief Hide the telepoint selector and restore the overlapping visited-map list before moving input focus back to it.
 ---
 --- - @param playCancelSE Whether to play the cancel sound.
 ---@param playCancelSE boolean | nil
-function WindowFloorTeleporter:activateMapList(playCancelSE) end
+function Controller:activateMapList(playCancelSE) end
 
 ---@brief Confirm the selected map telepoint.
-function WindowFloorTeleporter:confirmSelectedTelepoint() end
+function Controller:confirmSelectedTelepoint() end
 
 ---@brief Update selected telepoint index from the preview selector.
 ---
 --- - @param index Current telepoint selector index, or nil.
 ---@param index integer | nil
-function WindowFloorTeleporter:notifyTelepointIndexMaybeChanged(index) end
+function Controller:notifyTelepointIndexMaybeChanged(index) end
 
 ---@brief Get the selected telepoint for the selected map.
 ---
 --- - @return Selected telepoint, or nil.
 ---@return sf.Vector2u | nil
-function WindowFloorTeleporter:getCurrentTelepoint() end
+function Controller:getCurrentTelepoint() end
 
 ---@brief Update the preview for the current command selection.
 ---
 --- - @param index Current selected index, or nil.
 ---@param index integer | nil
-function WindowFloorTeleporter:notifyMapIndexMaybeChanged(index) end
-
----@brief Calculate centred default rectangles for the floor teleporter UI.
----
---- - @return A pair containing the floor-list rectangle and the overlapping telepoint-plus-preview host rectangle.
----@return sf.IntRect, sf.IntRect
-function WindowFloorTeleporter.GetDefaultFloorTeleporterRects() end
+function Controller:notifyMapIndexMaybeChanged(index) end
 
 ---@return Source.GameInstance.GameInstance
-function WindowFloorTeleporter:getGameInstance() end
+function Controller:getGameInstance() end
 
-function WindowFloorTeleporter:clearPreviewCache() end
+function Controller:clearPreviewCache() end
 
-function WindowFloorTeleporter:notifyClosed() end
+function Controller:notifyClosed() end
 
 ---@param mapKey    string
 ---@param telepoint sf.Vector2u
-function WindowFloorTeleporter:confirmTelepoint(mapKey, telepoint) end
+function Controller:confirmTelepoint(mapKey, telepoint) end
 
-return WindowFloorTeleporter
+function Controller:hideImmediate() end
+
+function Controller:refreshPreview() end
+
+---@return { [1]: string, [2]: string } []
+function Controller:getVisitedRegionEntries() end
+
+---@param mapKey string
+---@return Source.GameInstance.TelepointRecord[]
+function Controller:getTelepointsForMap(mapKey) end
+
+---@param mapKey     string | nil
+---@param telepoints Source.GameInstance.TelepointRecord[]
+---@return { [1]: sf.Vector2u, [2]: string } []
+function Controller:getTelepointEntries(mapKey, telepoints) end
+
+---@return table<string, boolean>
+function Controller:getVisitedMapNames() end
+
+---@param mapKey string
+---@return string
+function Controller:getMapDisplayName(mapKey) end
+
+---@return boolean
+function Controller:isBlocking() end

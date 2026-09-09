@@ -1843,6 +1843,14 @@
           12,
           7
         ]
+      },
+      {
+        "tag": "RenamePlayer",
+        "bp": "Data.Blueprints.Actors.BP_Actor_RenamePlayer",
+        "position": [
+          8,
+          12
+        ]
       }
     ]
   },

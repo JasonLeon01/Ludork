@@ -46,6 +46,18 @@ local _METADATA = {
                 default = "nil"
             }
         },
+        getDisplayName = {
+            type = "function",
+            parameters = {},
+            ["return"] = { "name", name = "string" },
+            Pure = true
+        },
+        setName = {
+            type = "function",
+            parameters = { "name", name = "string" },
+            ["return"] = { "success", success = "bool" },
+            ExecSplit = { "Success", "Invalid", Success = true, Invalid = false }
+        },
         addItem = {
             type = "function",
             parameters = {

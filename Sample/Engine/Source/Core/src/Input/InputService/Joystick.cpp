@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include <Input/TextInputService.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/JoystickAxisEvent.hpp>
 
@@ -72,11 +73,11 @@ bool InputImpl::isAnyJoystickButtonDown(unsigned int button) const {
 }
 
 bool InputImpl::isJoystickButtonPressed() const {
-    return joystick_.buttonPressed_ && !joystick_.blocked_;
+    return joystick_.buttonPressed_ && !isJoystickBlocked();
 }
 
 bool InputImpl::isJoystickButtonReleased() const {
-    return joystick_.buttonReleased_ && !joystick_.blocked_;
+    return joystick_.buttonReleased_ && !isJoystickBlocked();
 }
 
 bool InputImpl::getJoystickButtonPressed(unsigned int joystickId,
@@ -134,7 +135,7 @@ bool InputImpl::getJoystickButtonValueReleased(unsigned int joystickId,
 }
 
 bool InputImpl::isJoystickAxisMoved() const {
-    return joystick_.axisMoved_ && !joystick_.blocked_;
+    return joystick_.axisMoved_ && !isJoystickBlocked();
 }
 
 std::optional<JoystickAxisEvent> InputImpl::getJoystickAxisMoved(
@@ -158,15 +159,16 @@ std::optional<JoystickAxisEvent> InputImpl::getJoystickAxisMoved(
 }
 
 bool InputImpl::isJoystickConnected() const {
-    return joystick_.connected_ && !joystick_.blocked_;
+    return joystick_.connected_ && !isJoystickBlocked();
 }
 
 bool InputImpl::isJoystickDisconnected() const {
-    return joystick_.disconnected_ && !joystick_.blocked_;
+    return joystick_.disconnected_ && !isJoystickBlocked();
 }
 
 bool InputImpl::isJoystickBlocked() const {
-    return joystick_.blocked_;
+    return joystick_.blocked_ ||
+           ludork::engine::text_input::service().blocksGameplay();
 }
 
 void InputImpl::blockJoystick() {

@@ -64,6 +64,58 @@ void PlainText::setString(const std::string& text) {
     invalidateEffects();
 }
 
+sf::Vector2f PlainText::getInsertionPosition(std::size_t codepointIndex) const {
+    syncDisplayScale();
+    const std::vector<sf::Text::ShapedGlyph>& glyphs = text_.getShapedGlyphs();
+    if (glyphs.empty()) {
+        return {};
+    }
+    codepointIndex = std::min(codepointIndex, text_.getString().getSize());
+    const auto next = std::lower_bound(
+        glyphs.begin(), glyphs.end(), codepointIndex,
+        [](const sf::Text::ShapedGlyph& glyph, std::size_t index) {
+            return glyph.cluster < index;
+        });
+    const auto leadingEdge = [](const sf::Text::ShapedGlyph& glyph) {
+        return glyph.position.x +
+               (glyph.textDirection == sf::Text::TextDirection::RightToLeft
+                    ? glyph.glyph.advance
+                    : 0.0f);
+    };
+    if (next != glyphs.end() && next->cluster == codepointIndex) {
+        return {leadingEdge(*next) / displayScale_, 0.0f};
+    }
+    if (next == glyphs.begin()) {
+        return {leadingEdge(*next) / displayScale_, 0.0f};
+    }
+    const std::uint32_t cluster = std::prev(next)->cluster;
+    const auto first = std::lower_bound(
+        glyphs.begin(), next, cluster,
+        [](const sf::Text::ShapedGlyph& glyph, std::uint32_t value) {
+            return glyph.cluster < value;
+        });
+    const bool rightToLeft =
+        first->textDirection == sf::Text::TextDirection::RightToLeft;
+    float end = leadingEdge(*first);
+    for (auto glyph = first; glyph != next; ++glyph) {
+        end = rightToLeft
+                  ? std::min(end, glyph->position.x)
+                  : std::max(end, glyph->position.x + glyph->glyph.advance);
+    }
+    if (next != glyphs.end() && next->textDirection == first->textDirection) {
+        end = leadingEdge(*next);
+    }
+    const std::size_t nextIndex =
+        next == glyphs.end() ? text_.getString().getSize() : next->cluster;
+    const float fraction = nextIndex == cluster
+                               ? 1.0f
+                               : static_cast<float>(codepointIndex - cluster) /
+                                     static_cast<float>(nextIndex - cluster);
+    return {(leadingEdge(*first) + (end - leadingEdge(*first)) * fraction) /
+                displayScale_,
+            0.0f};
+}
+
 std::string PlainText::getString() const {
     return toUtf8String(text_.getString());
 }

@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
-local GameOverUI = require("Source.UI.GameOver")
+local GameOverController = require("Source.Scenes.SceneGameOver.Controller")
 
 local Input = Engine.Input
 local AudioManager = GlobalCore.AudioManager
@@ -17,7 +17,7 @@ end
 
 function Scene:onCreate()
     self._phase = "entering"
-    self._ui = GameOverUI.new()
+    self._ui = GameOverController.new()
     self._ui:mount(self:getUIManager(), GlobalSystem.getGameSize())
     self._ui:playAnimation("FadeIn", nil, function ()
         self._phase = "open"

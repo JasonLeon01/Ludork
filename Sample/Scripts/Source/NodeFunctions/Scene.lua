@@ -302,6 +302,10 @@ function Scene.SelfRecordAndDestroy()
     end
 end
 
+function Scene.OpenPlayerName()
+    return Context.RequireSceneMap():openPlayerName()
+end
+
 function Scene.OpenShop(items, canSell)
     items = copy(items or {})
     if canSell == nil then

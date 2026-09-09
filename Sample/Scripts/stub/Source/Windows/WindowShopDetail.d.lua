@@ -1,23 +1,18 @@
----@meta Source.Windows.WindowShopDetail
+---@meta
 
----@class Source.Windows.WindowShopDetail: Source.Windows.Base.WindowBase
----@field new fun(rect: sf.IntRect, instance?: Engine.AssetInstance): Source.Windows.WindowShopDetail
----@field _ui Source.UI.Parts.WindowShop.WindowShopDetail.WindowShopDetailUI
-local WindowShopDetail = {}
+---@class Source.Windows.WindowShopDetail.Controller: Source.UIBase.UiController
+---@field host      Source.Windows.WindowShopDetail
+---@field ui        Source.UI.Parts.WindowShop.WindowShopDetail
+---@field _itemInfo Source.Data.GeneralItemData | nil
+---@field _price    integer | nil
+local Controller = {}
 
----@param rect sf.IntRect
----@return Source.Windows.WindowShopDetail
-function WindowShopDetail.new(rect) end
-
----@param rect sf.IntRect
-function WindowShopDetail:init(rect, instance) end
+function Controller:init() end
 
 ---@param itemInfo Source.Data.GeneralItemData | nil
 ---@param price    integer | nil
-function WindowShopDetail:setItem(itemInfo, price) end
+function Controller:setItem(itemInfo, price) end
 
-function WindowShopDetail:refresh() end
+function Controller:refresh() end
 
-function WindowShopDetail:dispose() end
-
-return WindowShopDetail
+function Controller:dispose() end

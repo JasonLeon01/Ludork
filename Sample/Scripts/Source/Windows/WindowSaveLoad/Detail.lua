@@ -1,26 +1,23 @@
 local Save = require("Source.Save")
-local WindowSaveDetailUI = require("Source.UI.Parts.WindowSaveLoad.WindowSaveDetail")
+local Ui = require("Source.UIBase.Ui")
+local View = require("Source.UI.Parts.WindowSaveLoad.WindowSaveDetail")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 
 local _DETAIL_THUMB_WIDTH = 224
 local _DETAIL_THUMB_HEIGHT = 168
-local WindowSaveDetail = {}
+---@class Source.Windows.WindowSaveDetail.Controller
+local Controller = {}
 
-function WindowSaveDetail:init(rect, instance)
-    super(WindowSaveDetail, self).init(rect, nil, nil, true)
+Controller.windowOptions = { focusable = false, hidden = true }
+
+function Controller:init()
     self._currentSlot = nil
     self._cachedFilePath = ""
     self._cachedFileMTime = -1.0
     self._thumbTexture = nil
-    self._ui = WindowSaveDetailUI.new(self, rect.size, instance)
-    self._ui:attach(instance ~= nil)
-    self._thumbnail = self._ui:getThumbnail()
-    self._timestampText = self._ui:getTimestampText()
-    self._thumbnail:setVisible(false)
-    self._timestampText:setVisible(false)
 end
 
-function WindowSaveDetail:setSlot(slot)
+function Controller:setSlot(slot)
     if slot == self._currentSlot then
         self:_refreshIfFileChanged()
         return
@@ -31,18 +28,18 @@ function WindowSaveDetail:setSlot(slot)
     self:_refreshContent()
 end
 
-function WindowSaveDetail:refresh()
+function Controller:refresh()
     self._cachedFilePath = ""
     self._cachedFileMTime = -1.0
     self:_refreshContent()
 end
 
-function WindowSaveDetail:onTick(deltaTime)
-    super(WindowSaveDetail, self).onTick(deltaTime)
+function Controller:onTick(deltaTime)
+    WindowBase.onTick(self.host, deltaTime)
     self:_refreshIfFileChanged()
 end
 
-function WindowSaveDetail:_refreshIfFileChanged()
+function Controller:_refreshIfFileChanged()
     if self._currentSlot == nil then
         return
     end
@@ -50,7 +47,7 @@ function WindowSaveDetail:_refreshIfFileChanged()
     ---@cast slotNumber integer
     local filePath = Save.GetSavePath(slotNumber)
     if not os.path.isfile(filePath) then
-        if bool(self._cachedFilePath) or self._thumbnail:getVisible() then
+        if bool(self._cachedFilePath) or self.ui.controls["Thumbnail"]:getVisible() then
             self._cachedFilePath = ""
             self._cachedFileMTime = -1.0
             self:_hideContent()
@@ -66,7 +63,7 @@ function WindowSaveDetail:_refreshIfFileChanged()
     self:_loadAndDisplay(filePath, modificationTime)
 end
 
-function WindowSaveDetail:_refreshContent()
+function Controller:_refreshContent()
     if self._currentSlot == nil then
         self:_hideContent()
         return
@@ -86,7 +83,7 @@ end
 
 ---@param filePath         string
 ---@param modificationTime number
-function WindowSaveDetail:_loadAndDisplay(filePath, modificationTime)
+function Controller:_loadAndDisplay(filePath, modificationTime)
     local instance = Save.LoadGame(filePath)
     if instance == nil then
         self:_hideContent()
@@ -94,15 +91,15 @@ function WindowSaveDetail:_loadAndDisplay(filePath, modificationTime)
     end
     local screenshot = instance:getScreenshot()
     if not self:_applyScreenshot(screenshot) then
-        self._thumbnail:setVisible(false)
+        self.ui.controls["Thumbnail"]:setVisible(false)
     end
-    self._ui:setModificationTime(modificationTime)
-    self._timestampText:setVisible(true)
+    self:setModificationTime(modificationTime)
+    self.ui.controls["TimestampText"]:setVisible(true)
 end
 
 ---@param screenshot integer[] | nil
 ---@return boolean
-function WindowSaveDetail:_applyScreenshot(screenshot)
+function Controller:_applyScreenshot(screenshot)
     if not bool(screenshot) then
         return false
     end
@@ -112,27 +109,33 @@ function WindowSaveDetail:_applyScreenshot(screenshot)
     local texture = sf.Texture.new(image)
     texture:setSmooth(true)
     self._thumbTexture = texture
-    self._thumbnail:setTexture(texture, true)
+    self.ui.controls["Thumbnail"]:setTexture(texture, true)
     local scaleX = _DETAIL_THUMB_WIDTH / imageSize.x
     local scaleY = _DETAIL_THUMB_HEIGHT / imageSize.y
-    self._thumbnail:setScale(sf.Vector2f.new(scaleX, scaleY))
-    self._thumbnail:setPosition(sf.Vector2f.new(0.0, 0.0))
-    self._thumbnail:setVisible(true)
+    self.ui.controls["Thumbnail"]:setScale(sf.Vector2f.new(scaleX, scaleY))
+    self.ui.controls["Thumbnail"]:setPosition(sf.Vector2f.new(0.0, 0.0))
+    self.ui.controls["Thumbnail"]:setVisible(true)
     return true
 end
 
-function WindowSaveDetail:_hideContent()
-    self._thumbnail:setVisible(false)
-    self._timestampText:setVisible(false)
-    self._ui:setTimestamp("")
+function Controller:_hideContent()
+    self.ui.controls["Thumbnail"]:setVisible(false)
+    self.ui.controls["TimestampText"]:setVisible(false)
+    self:setTimestamp("")
 end
 
-function WindowSaveDetail:dispose()
-    self._ui:dispose()
-    self._ui = nil
+function Controller:dispose()
     self._thumbTexture = nil
-    self._thumbnail = nil
-    self._timestampText = nil
+    super(Controller, self).dispose()
 end
 
-return class(WindowSaveDetail, WindowBase)
+function Controller:setTimestamp(text)
+    self:setText("TimestampText", text)
+    self.ui:prepare()
+end
+
+function Controller:setModificationTime(modificationTime)
+    self:setTimestamp(os.date("%Y-%m-%d %H:%M:%S", math.floor(modificationTime)))
+end
+
+return Ui.DefineWindow(View, Controller, WindowBase)

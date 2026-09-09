@@ -1,87 +1,213 @@
-local WindowEquipSelectUI = require("Source.UI.Parts.WindowEquip.WindowEquipSelect")
+local GlobalCore = require("GlobalCore")
+local Data = require("Source.Data")
+local GameSystem = require("Source.System")
+local IconTexture = require("Source.UIBase.IconTexture")
+local EquipItemRowController = require("Source.Windows.WindowEquip.EquipItemRow.Controller")
+local Ui = require("Source.UIBase.Ui")
+local UiLayout = require("Source.UIBase.UiLayout")
+local View = require("Source.UI.Parts.WindowEquip.WindowEquipSelect")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
-local WindowEquipSelectController = require("Source.Windows.WindowEquip.Select.Controller")
 
----@class (partial) Source.Windows.WindowEquipSelect
-local WindowEquipSelect = {}
+local AudioManager = GlobalCore.AudioManager
 
-WindowEquipSelect.controllerClass = WindowEquipSelectController
+---@class Source.Windows.WindowEquipSelect.Controller
+local Controller = {}
 
-function WindowEquipSelect:init(rect, player, windowEquipSlot, windowEquipStatus, onEquip, instance)
-    super
-        (WindowEquipSelect, self)
-        .init(rect, nil, WindowEquipSelectController.CELL_SIZE, WindowEquipSelectController.CELL_SIZE, nil, nil, nil, nil, instance
-            ~= nil)
-    self:setHasReturnBtn(true)
-    if instance ~= nil then
-        local ui = WindowEquipSelectUI.new(self, instance)
-        self._ui = ui
-        ui:attach()
-        self:setScrollBox(ui:getScrollBox())
-        self:setListView(ui:getListView())
+Controller.windowOptions = {
+    returnButton = true,
+    hidden = true,
+    itemWidth = 32,
+    itemHeight = 32,
+    list = "SelectList",
+    scroll = "SelectScrollBox"
+}
+
+Controller.CELL_SIZE = 32
+
+Controller.UNEQUIP = {}
+
+function Controller:init(player, windowEquipSlot, windowEquipStatus, onEquip)
+    self._player = player
+    self._windowEquipSlot = windowEquipSlot
+    self._windowEquipStatus = windowEquipStatus
+    self._onEquipCallback = onEquip
+    self._slotKey = ""
+    self._equipList = {}
+    self._equipCounts = {}
+    self._lastStatusIndex = nil
+    self._rows = self:createCollection(self.ui.controls["SelectList"], EquipItemRowController)
+end
+
+function Controller:ready()
+    self:_updateLayout()
+    self:refreshListLayout()
+end
+
+function Controller:refreshForSlot(slotKey)
+    self._slotKey = slotKey
+    self:_updateLayout()
+    self._rows:clear()
+    local equipData = Data.GetAllGeneralEquipData()
+    local playerEquips = self._player:getEquips()
+    local currentEquipped = self._player:getEquipInfo(slotKey)
+    local orderedEquips = {}
+    if bool(currentEquipped) then
+        orderedEquips[#orderedEquips + 1] = self.UNEQUIP
     end
-    self._selectController = self.controllerClass.new(self, player, windowEquipSlot, windowEquipStatus, onEquip)
-    self._selectController:attach(self:getListView())
-    self:setActive(false)
-    self:setVisible(false)
+    self._equipCounts = {}
+    for _, equipID in ipairs(table.orderedStringKeys(equipData)) do
+        local equip = equipData[equipID] or {}
+        if playerEquips[equipID] ~= nil and equip.slot == slotKey then
+            orderedEquips[#orderedEquips + 1] = equipID
+            self._equipCounts[equipID] = playerEquips[equipID]
+        end
+    end
+    self._equipList = orderedEquips
+    for _, entry in ipairs(orderedEquips) do
+        local iconTexture = nil
+        local count = 0
+        if entry ~= self.UNEQUIP then
+            local member = equipData[entry] or {}
+            iconTexture = IconTexture.Load(member.icon or "")
+            count = self._equipCounts[entry] or 1
+        end
+        local rowSize = sf.Vector2u.new(Controller.CELL_SIZE, Controller.CELL_SIZE)
+        ---@cast rowSize sf.Vector2u
+        local rowUI = self._rows:add({
+            iconTexture = iconTexture,
+            count = count
+        }, rowSize)
+        local cell = rowUI.ui.root
+        cell:addConfirmCallback(self:bindCallback(Controller.onConfirmAction))
+        self.host:applyItem(cell)
+    end
+    self:refreshListLayout()
+    self.host:setListView(self.ui.controls["SelectList"])
+    self.host:resetSelection()
+    self._lastStatusIndex = nil
+    if self.host:getActive() then
+        self:updateStatus()
+    end
 end
 
-function WindowEquipSelect:setEquipSlotWindow(windowEquipSlot)
-    self._selectController:setEquipSlotWindow(windowEquipSlot)
+function Controller:onTick(deltaTime)
+    WindowSelectable.onTick(self.host, deltaTime)
+    if self._lastStatusIndex == self.host.index then
+        return
+    end
+    self._lastStatusIndex = self.host.index
+    if self.host:getActive() then
+        self:updateStatus()
+    end
 end
 
-function WindowEquipSelect:setPlayer(player)
-    self._selectController:setPlayer(player)
+function Controller:updateStatus()
+    if self._windowEquipStatus == nil then
+        return
+    end
+    if self.host.index == nil or self.host.index < 0 or self.host.index >= #self._equipList then
+        self._windowEquipStatus:refreshForEquip(self._slotKey, nil)
+        return
+    end
+    local showUnequip = self._equipList[self.host.index + 1] == self.UNEQUIP
+    if showUnequip then
+        self._windowEquipStatus:refreshForEquip(self._slotKey, nil, true)
+    else
+        self._windowEquipStatus:refreshForEquip(self._slotKey, self._equipList[self.host.index + 1], false)
+    end
 end
 
-function WindowEquipSelect:setEquipStatusWindow(windowEquipStatus)
-    self._selectController:setEquipStatusWindow(windowEquipStatus)
+---@diagnostic disable-next-line: unused
+function Controller:getGridColumns(contentWidth)
+    return math.max(1, math.floor(contentWidth / Controller.CELL_SIZE))
 end
 
----@param target Engine.Canvas
----@param width  integer
----@param height integer
-function WindowEquipSelect:_resizeCanvas(target, width, height)
-    self._selectController:resizeCanvas(target, width, height)
+function Controller:returnToSlotWindow(playSE)
+    if playSE == nil then
+        playSE = true
+    end
+    if playSE then
+        AudioManager.playSound(GameSystem.GetCancelSE())
+    end
+    self.host:setActive(false)
+    self.host:setVisible(true)
+    if self._windowEquipSlot ~= nil then
+        self._windowEquipSlot:setActive(true)
+        self._windowEquipSlot:requestKeyboardFocus()
+    end
+    if self._windowEquipStatus ~= nil and bool(self._slotKey) then
+        self._windowEquipStatus:refreshForSlot(self._slotKey)
+    end
 end
 
-function WindowEquipSelect:refreshForSlot(slotKey)
-    self._selectController:refreshForSlot(slotKey)
+function Controller:onReturn()
+    self:returnToSlotWindow()
 end
 
-function WindowEquipSelect:onTick(deltaTime)
-    super(WindowEquipSelect, self).onTick(deltaTime)
-    self._selectController:tick()
+function Controller:open()
+    self.host:setVisible(true)
+    self.host:setActive(false)
 end
 
-function WindowEquipSelect:updateStatus()
-    self._selectController:updateStatus()
+function Controller:close()
+    self.host:setVisible(false)
+    self.host:setActive(false)
 end
 
----@param contentWidth integer
----@return integer
-function WindowEquipSelect:_getGridColumns(contentWidth)
-    return self._selectController:getGridColumns(contentWidth)
+function Controller:onConfirmAction()
+    if self.host.index == nil or self.host.index < 0 or self.host.index >= #self._equipList then
+        return
+    end
+    local equipID = assert(self._equipList[self.host.index + 1])
+    local currentEquipped = self._player:getEquipInfo(self._slotKey)
+    AudioManager.playSound(GameSystem.GetEquipSE())
+    if equipID == self.UNEQUIP or equipID == currentEquipped then
+        if bool(currentEquipped) then
+            self._player:unequip(self._slotKey)
+        end
+    else
+        ---@cast equipID string
+        self._player:equip(equipID)
+    end
+    if self._windowEquipSlot ~= nil then
+        self._windowEquipSlot:refreshSlots()
+    end
+    self:refreshForSlot(self._slotKey)
+    if self._onEquipCallback ~= nil then
+        self._onEquipCallback()
+    end
 end
 
-function WindowEquipSelect:returnToSlotWindow(playSE)
-    self._selectController:returnToSlotWindow(playSE)
+function Controller:_updateLayout()
+    local windowSize = self.host:getSize()
+    local contentWidth = math.max(1, math.floor(windowSize.x - 32))
+    local contentHeight = math.max(1, math.floor(windowSize.y - 32))
+    UiLayout.ResizeCanvas(self.host.content, contentWidth, contentHeight)
+    local logicalSize = sf.Vector2u.new(contentWidth, contentHeight)
+    ---@cast logicalSize sf.Vector2u
+    self._logicalSize = logicalSize
+    self._columns = self:getGridColumns(contentWidth)
+    self.ui.controls["SelectList"]:setColumns(self._columns)
 end
 
-function WindowEquipSelect:onReturn()
-    self._selectController:closeByCancel()
+function Controller:setPlayer(player)
+    self._player = player
 end
 
-function WindowEquipSelect:open()
-    self._selectController:open()
+function Controller:setEquipStatusWindow(windowEquipStatus)
+    self._windowEquipStatus = windowEquipStatus
 end
 
-function WindowEquipSelect:close()
-    self._selectController:close()
+function Controller:setEquipSlotWindow(windowEquipSlot)
+    self._windowEquipSlot = windowEquipSlot
 end
 
-function WindowEquipSelect:_onConfirmAction()
-    self._selectController:onConfirmAction()
+function Controller:refreshListLayout()
+    local size = sf.Vector2i.new(math.floor(self._logicalSize.x), math.floor(self._logicalSize.y))
+    ---@cast size sf.Vector2i
+    self.ui.controls["SelectList"]:setSize(size)
+    self.ui.controls["SelectList"]:setColumns(self._columns or 1)
+    self._rows:layout()
 end
 
-return class(WindowEquipSelect, WindowSelectable)
+return Ui.DefineWindow(View, Controller, WindowSelectable)

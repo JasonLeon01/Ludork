@@ -278,6 +278,16 @@ function string.split(value, separator) end
 ---@return integer
 function string.utf8Length(value) end
 
+--- Counts extended grapheme clusters (user-perceived characters) in valid UTF-8 text.
+---@param value string
+---@return integer
+function string.graphemeLength(value) end
+
+--- Removes Unicode White_Space characters from both ends without changing interior text.
+---@param value string
+---@return string
+function string.stripUnicode(value) end
+
 ---@param value  string
 ---@param start  integer
 ---@param finish integer

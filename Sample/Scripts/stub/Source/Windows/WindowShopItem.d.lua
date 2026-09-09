@@ -1,27 +1,22 @@
----@meta Source.Windows.WindowShopItem
+---@meta
 
 ---@brief Two-column shop item list.
----@class Source.Windows.WindowShopItem: Source.Windows.Base.WindowSelectable
----@field new              fun(rect: sf.IntRect, owner: Source.Windows.WindowShop, instance?: Engine.AssetInstance): Source.Windows.WindowShopItem
+---@class Source.Windows.WindowShopItem.Controller: Source.UIBase.UiController
+---@field host             Source.Windows.WindowShopItem
 ---@field _owner           Source.Windows.WindowShop
 ---@field _itemIDs         string[]
 ---@field _lastDetailIndex integer | nil
----@field _ui              Source.UI.Parts.WindowShop.WindowShopItem.WindowShopItemUI
 ---@field _listView        Engine.ListView
-local WindowShopItem = {}
-
----@param rect  sf.IntRect
----@param owner Source.Windows.WindowShop
----@return Source.Windows.WindowShopItem
-function WindowShopItem.new(rect, owner) end
+---@field ui               Source.UI.Parts.WindowShop.WindowShopItem
+---@field _cellAvailable   boolean[]
+---@field _cells           Source.UIBase.UiCollection<Source.Windows.WindowShop.WindowShopCell.Controller>
+local Controller = {}
 
 ---@brief Construct the shop item list.
 ---
---- - @param rect The item window rectangle.
 --- - @param owner The shop coordinator.
----@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowShop
-function WindowShopItem:init(rect, owner, instance) end
+function Controller:init(owner) end
 
 ---@brief Rebuild the displayed shop item list.
 ---
@@ -33,26 +28,24 @@ function WindowShopItem:init(rect, owner, instance) end
 ---@param availableMap table
 ---@param valueMap     table
 ---@param showValues   boolean
-function WindowShopItem:refreshItems(itemIDs, availableMap, valueMap, showValues) end
+function Controller:refreshItems(itemIDs, availableMap, valueMap, showValues) end
 
 ---@param deltaTime number
-function WindowShopItem:onTick(deltaTime) end
+function Controller:onTick(deltaTime) end
 
 ---@param kwargs Engine.UiInputEventArguments
-function WindowShopItem:onKeyDown(kwargs) end
+function Controller:onKeyDown(kwargs) end
 
-function WindowShopItem:resetSelection() end
+function Controller:resetSelection() end
 
 ---@return string | nil
-function WindowShopItem:getCurrentItemID() end
+function Controller:getCurrentItemID() end
 
 ---@return boolean
-function WindowShopItem:isCurrentAvailable() end
+function Controller:isCurrentAvailable() end
 
-function WindowShopItem:onReturn() end
+function Controller:onReturn() end
 
-function WindowShopItem:dispose() end
+function Controller:dispose() end
 
-function WindowShopItem:confirmItem() end
-
-return WindowShopItem
+function Controller:confirmItem() end

@@ -1,46 +1,89 @@
-local WindowCommand = require("Source.Windows.WindowCommand")
-local WindowFloorMapCommandUI = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand")
-local WindowFloorMapCommandController = require("Source.Windows.WindowFloorTeleporter.Command.Controller")
+local CommandRowController = require("Source.UIBase.CommandRow.Controller")
+local Ui = require("Source.UIBase.Ui")
+local View = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand")
+local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
 local _LIST_ROW_HEIGHT = 32
 
----@class Source.Windows.WindowFloorMapCommand: Source.Windows.WindowCommand
-local WindowFloorMapCommand = {}
+---@class Source.Windows.WindowFloorMapCommand.Controller
+local Controller = {}
 
-WindowFloorMapCommand.controllerClass = WindowFloorMapCommandController
+Controller.windowOptions = {
+    returnButton = true,
+    hidden = true,
+    list = "CommandList",
+    scroll = "CommandScrollBox",
+    itemHeight = _LIST_ROW_HEIGHT
+}
 
-function WindowFloorMapCommand:init(rect, owner, instance)
+function Controller:init(owner)
     self._owner = owner
-    self._ui = WindowFloorMapCommandUI.new(self, instance)
-    super(WindowFloorMapCommand, self).init(rect, {}, nil, _LIST_ROW_HEIGHT, nil, nil, nil, { uiController = self._ui })
-    self:setHasReturnBtn(true)
-    ---@cast self._commandController Source.Windows.WindowFloorTeleporter.Command.Controller
-    self._mapController = self._commandController
+    self._mapKeys = {}
+    self._commands = self:createCollection(self.ui.controls["CommandList"], CommandRowController)
 end
 
-function WindowFloorMapCommand:refreshMaps(entries)
-    self._mapController:refreshMaps(entries)
+function Controller:refreshMaps(entries)
+    local previousMapKey = self:getCurrentMapKey()
+    self._mapKeys = {}
+    self._commands:clear()
+    local rowSize = sf.Vector2u.new(math.max(1, math.floor(self.ui.controls["Content"]:getSize().x - 32)), 32)
+    ---@cast rowSize sf.Vector2u
+    for index, entry in ipairs(entries) do
+        self._mapKeys[index] = entry[1]
+        local row = self._commands:add({
+            text = entry[2],
+            callback = self:bindCallback(Controller.activateTelepointSelector)
+        }, rowSize)
+        self.host:applyItem(row.ui.root)
+    end
+    self._commands:layout()
+    if not bool(self._mapKeys) then
+        self.host.index = nil
+    else
+        local previousIndex = nil
+        if previousMapKey ~= nil then
+            local index = table.index(self._mapKeys, previousMapKey)
+            if index ~= nil then
+                previousIndex = index - 1
+            end
+        end
+        self.host.index = previousIndex or 0
+    end
+    self:notifyMapIndexMaybeChanged(self.host.index)
 end
 
-function WindowFloorMapCommand:getCurrentMapKey()
-    return self._mapController:getCurrentMapKey()
+function Controller:getCurrentMapKey()
+    if self.host.index == nil or self.host.index >= #self._mapKeys then
+        return nil
+    end
+    return self._mapKeys[self.host.index + 1]
 end
 
-function WindowFloorMapCommand:onTick(deltaTime)
-    super(WindowFloorMapCommand, self).onTick(deltaTime)
-    self._mapController:afterTick()
+function Controller:onTick(deltaTime)
+    WindowSelectable.onTick(self.host, deltaTime)
+    self:afterTick()
 end
 
-function WindowFloorMapCommand:onReturn()
+function Controller:onReturn()
     self._owner:closeByCancel()
 end
 
-function WindowFloorMapCommand:activateTelepointSelector()
+function Controller:activateTelepointSelector()
     self._owner:activateTelepointSelector()
 end
 
-function WindowFloorMapCommand:notifyMapIndexMaybeChanged(index)
+function Controller:notifyMapIndexMaybeChanged(index)
     self._owner:notifyMapIndexMaybeChanged(index)
 end
 
-return class(WindowFloorMapCommand, WindowCommand)
+function Controller:refreshRows()
+    for _, row in ipairs(self._commands.items) do
+        row:refresh()
+    end
+end
+
+function Controller:afterTick()
+    self:notifyMapIndexMaybeChanged(self.host.index)
+end
+
+return Ui.DefineWindow(View, Controller, WindowSelectable)

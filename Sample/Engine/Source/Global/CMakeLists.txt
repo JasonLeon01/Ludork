@@ -4,11 +4,17 @@ project(LudorkGlobal LANGUAGES CXX)
 
 file(GLOB_RECURSE LUDORK_GLOBAL_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
-if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(APPLE)
     enable_language(OBJCXX)
+endif()
+if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     list(APPEND LUDORK_GLOBAL_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/NativeDisplayMac.mm"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/NativeInputMethodMac.mm")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/NativeInputMethodMac.mm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/DesktopTextInputHostMac.mm")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    list(APPEND LUDORK_GLOBAL_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/TextInputHostIOS.mm")
 endif()
 
 ludork_generate_lua_bindings(
@@ -41,6 +47,9 @@ target_link_libraries(GlobalCore
         LuaSF::Lua)
 if(WIN32)
     target_link_libraries(GlobalCore PRIVATE Imm32 User32)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    find_library(UIKIT_FRAMEWORK UIKit REQUIRED)
+    target_link_libraries(GlobalCore PRIVATE "${UIKIT_FRAMEWORK}")
 elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
     target_include_directories(GlobalCore PRIVATE

@@ -172,6 +172,42 @@ ScriptTools load the resulting project JSON; neither embeds a generated control
 table, and adding controls with supported property types does not require
 rebuilding those tools.
 
+`ScriptTools ui-assets generate <project-root>` generates all Lua Views under
+`Scripts/Source/UI` and their typed declarations under `Scripts/stub/Source/UI`
+from `Data/UI/Assets`. It also generates public window declarations under
+`Scripts/stub/Source/UIWindows`, mirroring window modules below `Scripts/Source`.
+Each window module returns `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`;
+its ordinary mirrored stub declares only the private Controller and business
+types, with bare `---@meta` and no return. The generated declaration uses the
+window's real module name and derives `new`, `FromView`, methods and constants
+from that Controller contract. An empty Controller needs no handwritten stub.
+Handwritten foundations live in `Source.UIBase`; independent row and Scene
+Controllers use `Ui.Define(ViewClass, definition, base?)`.
+
+Generation reads asset structure, canonical `controlId` values and window
+declarations without executing Lua or requiring a Preview Host or registry.
+Declare window modules with direct `require` imports and one final
+`return Ui.DefineWindow(...)`; the optional native base defaults to
+`Engine.Canvas`. `--check` reports missing, stale or obsolete output and exits
+nonzero without writing. All inputs and output conflicts are checked before
+updating either Views or window declarations.
+
+Project saves generate after writing JSON. Native builds depend on the
+`UiAssetGenerate` target, so repository and installed-editor `build_cpp` tools
+and direct CMake builds synchronise Views. `run_cpp` generates before launching
+an existing binary; editor Standalone Run generates after before-run hooks.
+Desktop and mobile pack entry points generate before copying runtime resources.
+Mobile `--check` only performs preflight and does not generate. Generation errors
+stop saving, building, running or packaging.
+
+`build_standalone --use-current-build` also regenerates before validation and
+copying. Template generation therefore uses current JSON even when
+`create_templates --native-cache` reuses native binaries. Unchanged generated
+files retain their contents and timestamps; only obsolete files bearing the
+generation marker are removed from the generated trees. Handwritten file
+conflicts stop generation. Templates retain the generated stub tree, while game
+packaging removes it before optional Lua compilation.
+
 Desktop `build_cpp` builds the project preview before full UI validation.
 `build_ui_preview_host <project-folder> <Debug|Release>` builds that target
 without launching the game. Both repository and installed-editor tools support
@@ -306,6 +342,8 @@ the game Main's root-launcher or app-Frameworks relocation rules.
 Mobile packaging first prepares the local desktop preview registry and passes
 it explicitly to resource validation and cross-CMake; it never executes a
 mobile Host or includes desktop preview artifacts in the device package.
+A desktop Preview build in the mobile packaging log is this registry preparation
+step; Lua View generation does not replace it.
 Control descriptors must be platform-independent; platform differences belong
 in their native implementations.
 

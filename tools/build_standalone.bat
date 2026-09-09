@@ -35,6 +35,8 @@ if "%USE_CURRENT_BUILD%"=="1" (
         echo ScriptTools was not found. Run tools\init.bat first.
         exit /b 1
     )
+    "%SCRIPT_TOOLS%" ui-assets generate "%CPP_DIR%"
+    if errorlevel 1 exit /b 1
     "%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
     if errorlevel 1 exit /b 1
 ) else (

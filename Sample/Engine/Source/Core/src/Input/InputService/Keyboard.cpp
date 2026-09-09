@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include <Input/TextInputService.hpp>
 
 #include <algorithm>
 
@@ -290,7 +291,7 @@ void InputImpl::restoreKeyPulses() {
 }
 
 bool InputImpl::isKeyboardKeyDown(sf::Keyboard::Key key) const {
-    if (!isKnownKey(key)) {
+    if (isKeyboardBlocked() || !isKnownKey(key)) {
         return false;
     }
     if (keyboard_.heldKeys_.contains(static_cast<int>(key))) {
@@ -300,7 +301,7 @@ bool InputImpl::isKeyboardKeyDown(sf::Keyboard::Key key) const {
 }
 
 bool InputImpl::isKeyboardScanDown(sf::Keyboard::Scancode scan) const {
-    if (!isKnownScan(scan)) {
+    if (isKeyboardBlocked() || !isKnownScan(scan)) {
         return false;
     }
     if (keyboard_.heldScans_.contains(static_cast<int>(scan))) {
@@ -311,11 +312,12 @@ bool InputImpl::isKeyboardScanDown(sf::Keyboard::Scancode scan) const {
 }
 
 bool InputImpl::isKeyPressed() const {
-    return keyboard_.keyPressed_ && eventPump_.focused_ && !keyboard_.blocked_;
+    return keyboard_.keyPressed_ && eventPump_.focused_ && !isKeyboardBlocked();
 }
 
 bool InputImpl::isKeyReleased() const {
-    return keyboard_.keyReleased_ && eventPump_.focused_ && !keyboard_.blocked_;
+    return keyboard_.keyReleased_ && eventPump_.focused_ &&
+           !isKeyboardBlocked();
 }
 
 bool InputImpl::consume(std::unordered_map<std::string, bool>& events,
@@ -416,15 +418,16 @@ bool InputImpl::getScanReleased(sf::Keyboard::Scancode scan, bool handled,
 }
 
 std::string InputImpl::getEnteredText() const {
-    return keyboard_.enteredText_;
+    return isKeyboardBlocked() ? std::string{} : keyboard_.enteredText_;
 }
 
 bool InputImpl::isTextEntered() const {
-    return !keyboard_.enteredText_.empty() && !keyboard_.blocked_;
+    return !keyboard_.enteredText_.empty() && !isKeyboardBlocked();
 }
 
 bool InputImpl::isKeyboardBlocked() const {
-    return keyboard_.blocked_;
+    return keyboard_.blocked_ ||
+           ludork::engine::text_input::service().blocksGameplay();
 }
 
 void InputImpl::blockKeyboard() {

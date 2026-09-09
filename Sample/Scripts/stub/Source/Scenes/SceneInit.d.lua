@@ -5,7 +5,7 @@
 
 ---@brief Initial loading scene that bootstraps game data.
 ---@class Source.Scenes.SceneInit.SceneInit: GlobalCore.SceneBase
----@field _ui                  Source.UI.Init.SceneInitUI
+---@field _ui                  Source.Scenes.SceneInit.Controller
 ---@field _bg                  Engine.Image
 ---@field progressValue        number
 ---@field _displayProgress     number

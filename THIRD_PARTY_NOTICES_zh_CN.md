@@ -54,6 +54,7 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | zlib | 1.3.1 | 游戏运行时压缩支持 | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
 | FreeType | 2.14.3 | 静态链接的 SFML 字体依赖 | FreeType License 或 GPLv2；Ludork 选用 FreeType License | `Licenses/NativeDependencies/FreeType-LICENSE.txt`、`Licenses/NativeDependencies/FreeType-FTL.txt` | [freetype/freetype](https://gitlab.freedesktop.org/freetype/freetype) |
 | HarfBuzz | 14.1.0 | 静态链接的 SFML 文本塑形依赖 | Old MIT | `Licenses/NativeDependencies/HarfBuzz-COPYING.txt` | [harfbuzz/harfbuzz](https://github.com/harfbuzz/harfbuzz) |
+| utf8proc | 2.11.3 | 静态链接到 Standard 与 UI 输入的 Unicode 字素分段和文字校验 | MIT 及 Unicode 数据条款 | `Licenses/NativeDependencies/utf8proc-LICENSE.md` | [JuliaStrings/utf8proc](https://github.com/JuliaStrings/utf8proc/tree/v2.11.3) |
 | SheenBidi | 3.0.0 | 静态链接的 SFML 双向文字依赖 | Apache License 2.0 | `Licenses/NativeDependencies/SheenBidi-LICENSE.txt` | [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) |
 | Ogg | 1.3.6 | 静态链接的 SFML 音频容器依赖 | BSD 3-Clause | `Licenses/NativeDependencies/Ogg-COPYING.txt` | [xiph/ogg](https://github.com/xiph/ogg) |
 | Vorbis | 1.3.7 | 静态链接的 SFML 音频编解码依赖 | BSD 3-Clause | `Licenses/NativeDependencies/Vorbis-COPYING.txt` | [xiph/vorbis](https://github.com/xiph/vorbis) |

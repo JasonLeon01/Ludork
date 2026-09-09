@@ -1,145 +1,328 @@
 local Engine = require("Engine")
-local WindowFloorTeleporterUI = require("Source.UI.WindowFloorTeleporter")
-local UiLayout = require("Source.UI.UiLayout")
+local GlobalCore = require("GlobalCore")
+local RegionDict = require("Source.Configs.RegionDict")
+local LocaleCore = require("Source.Locale.Core")
+local MapPath = require("Source.MapPath")
+local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
+local GameSystem = require("Source.System")
+local TelepointKey = require("Source.UIBase.Helpers.TelepointKey")
+local Ui = require("Source.UIBase.Ui")
+local View = require("Source.UI.WindowFloorTeleporter")
 local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
 local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
-local WindowFloorTeleporterController = require("Source.Windows.WindowFloorTeleporter.Controller")
+
+local AudioManager = GlobalCore.AudioManager
+---@type fun(value: string): string
+local LOC = LocaleCore.ApplyStringLocaleFormat
+
+---@param tag   string
+---@param index integer
+---@return string
+local function formatTelepointName(tag, index)
+    local isDefaultTag = bool(
+        tag:match("^.+_default_%-?%d+_%-?%d+$") or tag:match("^.+_default_%-?%d+_%-?%d+_%d+$")
+            or tag:match("^.+%.runtime_default_%d+$")
+    )
+    if bool(tag) and not isDefaultTag then
+        return LOC(tag)
+    end
+    local fallback = "Point_" .. tostring(index + 1)
+    local pointFormat = LOC("POINT")
+    if pointFormat == "POINT" then
+        return fallback
+    end
+    local pointNumber = tostring(index + 1)
+    local formatted = string.replace(pointFormat, "{index}", pointNumber)
+    formatted = string.replace(formatted, "{0}", pointNumber)
+    if formatted == pointFormat then
+        return fallback
+    end
+    return formatted
+end
 
 local Canvas = Engine.Canvas
 
-local _LIST_WIDTH = 176
-local _TELEPOINT_PREVIEW_WIDTH = 416
-local _PREVIEW_WINDOW_HEIGHT = 240
+---@class Source.Windows.WindowFloorTeleporter.Controller
+local Controller = {}
 
-local function getDefaultRects()
-    local bounds = UiLayout.GetCenteredRect(_TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT)
-    return Engine.ToIntRect(bounds.position.x, bounds.position.y, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT),
-        Engine.ToIntRect(bounds.position.x, bounds.position.y, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT)
-end
+Controller.windowOptions = { centered = true, hidden = true }
 
----@class Source.Windows.WindowFloorTeleporter
-local WindowFloorTeleporter = {}
-
-WindowFloorTeleporter.controllerClass = WindowFloorTeleporterController
-
-function WindowFloorTeleporter:init(
-    inst, _listRect, previewRect, loadPreview, onConfirm, onClose, resolvePreviewMapPath, clearPreviewCache
-)
-    super(WindowFloorTeleporter, self).init(Engine.ToIntRect(
-        previewRect.position.x, previewRect.position.y, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT
-    ))
+function Controller:init(inst, loadPreview, onConfirm, onClose, resolvePreviewMapPath, clearPreviewCache)
     self._inst = inst
     self._onConfirmCallback = onConfirm
     self._onCloseCallback = onClose
     self._clearPreviewCacheCallback = clearPreviewCache
-    self._ui = WindowFloorTeleporterUI.new(self)
-    self._ui:attach()
-    self._commandWindow = WindowFloorMapCommand.new(
-        Engine.ToIntRect(0, 0, _LIST_WIDTH, _PREVIEW_WINDOW_HEIGHT), self, self._ui:getCommandAsset()
+    self._lastMapKey = nil
+    self._telepointIndexes = {}
+    self._telepointEntriesCache = dict()
+    self._previewWindow = self:createChild(
+        "PreviewAsset", WindowFloorMapPreview, self.host, loadPreview, resolvePreviewMapPath
     )
-    self._previewWindow = WindowFloorMapPreview.new(
-        Engine.ToIntRect(0, 0, _TELEPOINT_PREVIEW_WIDTH, _PREVIEW_WINDOW_HEIGHT), self, loadPreview,
-        resolvePreviewMapPath, self._ui:getPreviewAsset()
-    )
-    self:addChild(self._previewWindow)
-    self:addChild(self._commandWindow)
-    self._teleporterController = self.controllerClass.new(self, self._ui:createTransition(self))
-    self._teleporterController:hideImmediate()
+    self._commandWindow = self:createChild("CommandAsset", WindowFloorMapCommand, self.host)
 end
 
-function WindowFloorTeleporter:getCommandWindow()
+function Controller:getCommandWindow()
     return self._commandWindow
 end
 
-function WindowFloorTeleporter:getPreviewWindow()
+function Controller:getPreviewWindow()
     return self._previewWindow
 end
 
-function WindowFloorTeleporter:getVisible()
-    return self._teleporterController:isBlocking()
+function Controller:getVisible()
+    return self:isBlocking()
 end
 
-function WindowFloorTeleporter:open(inst)
+function Controller:open(inst)
     if inst ~= nil then
         self._inst = inst
     end
-    self._teleporterController:open()
+    self:clearPreviewCache()
+    self:getPreviewWindow():clearPreviewCache()
+    self._telepointEntriesCache = dict()
+    self._telepointIndexes = {}
+    self._lastMapKey = nil
+    self:getCommandWindow().index = nil
+    local entries = self:getVisitedRegionEntries()
+    self:getCommandWindow():refreshMaps(entries)
+    self:getCommandWindow():resetSelection()
+    local currentMapKey = self:getGameInstance():getCurrentMapPath() ~= nil
+        and MapPath.WithoutExtension(self:getGameInstance():getCurrentMapPath())
+        or nil
+    for index, entry in ipairs(entries) do
+        if MapPath.WithoutExtension(entry[1]) == currentMapKey then
+            self:getCommandWindow():selectIndex(index - 1)
+            break
+        end
+    end
+    self:notifyMapIndexMaybeChanged(self:getCommandWindow().index)
+    if self:getCommandWindow().index == nil then
+        self:refreshPreview()
+    end
+    self:getPreviewWindow():resetSelection()
+    self:getCommandWindow():setVisible(true)
+    self:getCommandWindow():setActive(false)
+    self:getPreviewWindow():setVisible(true)
+    self:getPreviewWindow():setActive(false)
+    self._transition:show("FadeIn", function ()
+        self.host:setActive(true)
+        self:getCommandWindow():setActive(true)
+        self:getCommandWindow():requestKeyboardFocus()
+    end)
 end
 
-function WindowFloorTeleporter:close(onHidden)
-    self._teleporterController:close(onHidden)
+function Controller:close(onHidden)
+    self:getCommandWindow():setActive(false)
+    self:getPreviewWindow():setActive(false)
+    self.host:setActive(false)
+    self._transition:hide("FadeOut", function ()
+        self:getCommandWindow():setVisible(false)
+        self:getPreviewWindow():setVisible(false)
+        if onHidden ~= nil then
+            onHidden()
+        end
+    end)
 end
 
-function WindowFloorTeleporter:closeByCancel()
-    self._teleporterController:closeByCancel()
+function Controller:closeByCancel()
+    AudioManager.playSound(GameSystem.GetCancelSE())
+    self:close(self:bindCallback(Controller.notifyClosed))
 end
 
-function WindowFloorTeleporter:refreshLocale()
-    self._teleporterController:refreshLocale()
+function Controller:refreshLocale()
+    if not self:getPreviewWindow():getVisible() then
+        return
+    end
+    self._telepointEntriesCache = dict()
+    self:getCommandWindow():refreshMaps(self:getVisitedRegionEntries())
+    self:refreshPreview()
 end
 
-function WindowFloorTeleporter:activateTelepointSelector()
-    self._teleporterController
-        :activateTelepointSelector()
+function Controller:activateTelepointSelector()
+    local mapKey = self:getCommandWindow():getCurrentMapKey()
+    if mapKey == nil or not bool(mapKey) or not bool(self:getTelepointsForMap(mapKey)) then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self:getCommandWindow():setActive(false)
+    self:getCommandWindow():setVisible(false)
+    self:getPreviewWindow():setActive(true)
+    self:getPreviewWindow():requestKeyboardFocusAtCursor()
 end
 
-function WindowFloorTeleporter:activateMapList(playCancelSE)
-    self._teleporterController:activateMapList(playCancelSE)
+function Controller:activateMapList(playCancelSE)
+    if bool(playCancelSE) then
+        AudioManager.playSound(GameSystem.GetCancelSE())
+    end
+    self:getPreviewWindow():setActive(false)
+    self.host:setVisible(true)
+    self:getCommandWindow():setVisible(true)
+    self:getCommandWindow():setActive(true)
+    self:getCommandWindow():requestKeyboardFocus()
 end
 
-function WindowFloorTeleporter:confirmSelectedTelepoint()
-    self._teleporterController
-        :confirmSelectedTelepoint()
+function Controller:confirmSelectedTelepoint()
+    local mapKey = self:getCommandWindow():getCurrentMapKey()
+    local telepoint = self:getCurrentTelepoint()
+    if mapKey == nil or telepoint == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self:close(function ()
+        self:confirmTelepoint(mapKey, telepoint)
+    end)
 end
 
-function WindowFloorTeleporter:notifyTelepointIndexMaybeChanged(index)
-    self._teleporterController
-        :notifyTelepointIndexMaybeChanged(index)
+function Controller:notifyTelepointIndexMaybeChanged(index)
+    local mapKey = self:getCommandWindow():getCurrentMapKey()
+    if mapKey == nil or index == nil then
+        return
+    end
+    local telepoints = self:getTelepointsForMap(mapKey)
+    if not bool(telepoints) then
+        return
+    end
+    self._telepointIndexes[mapKey] = math.trunc(math.clamp(index, 0, #telepoints - 1))
 end
 
-function WindowFloorTeleporter:getCurrentTelepoint()
-    return self._teleporterController
-        :getCurrentTelepoint()
+function Controller:getCurrentTelepoint()
+    local mapKey = self:getCommandWindow():getCurrentMapKey()
+    if mapKey == nil then
+        return nil
+    end
+    local telepoints = self:getTelepointsForMap(mapKey)
+    if not bool(telepoints) then
+        return nil
+    end
+    local index = self._telepointIndexes[mapKey] or 0
+    local clampedIndex = math.clamp(index, 0, #telepoints - 1)
+    ---@cast clampedIndex integer
+    self._telepointIndexes[mapKey] = clampedIndex
+    return assert(telepoints[clampedIndex + 1]).position
 end
 
-function WindowFloorTeleporter:notifyMapIndexMaybeChanged(index)
-    self._teleporterController
-        :notifyMapIndexMaybeChanged(index)
+function Controller:notifyMapIndexMaybeChanged(index)
+    local mapKey = index ~= nil and self:getCommandWindow():getCurrentMapKey() or nil
+    if mapKey == self._lastMapKey then
+        return
+    end
+    self._lastMapKey = mapKey
+    if mapKey ~= nil and self._telepointIndexes[mapKey] == nil then
+        self._telepointIndexes[mapKey] = 0
+    end
+    self:refreshPreview()
 end
 
-function WindowFloorTeleporter.GetDefaultFloorTeleporterRects()
-    return getDefaultRects()
-end
-
-function WindowFloorTeleporter:dispose()
-    self._teleporterController:hideImmediate()
-    self._ui:dispose()
+function Controller:dispose()
+    self:hideImmediate()
+    super(Controller, self).dispose()
     self._inst = nil
     self._onConfirmCallback = nil
     self._onCloseCallback = nil
     self._clearPreviewCacheCallback = nil
 end
 
-function WindowFloorTeleporter:getGameInstance()
+function Controller:getGameInstance()
     return self._inst
 end
 
-function WindowFloorTeleporter:clearPreviewCache()
+function Controller:clearPreviewCache()
     if self._clearPreviewCacheCallback ~= nil then
         self._clearPreviewCacheCallback()
     end
 end
 
-function WindowFloorTeleporter:notifyClosed()
+function Controller:notifyClosed()
     if self._onCloseCallback ~= nil then
         self._onCloseCallback()
     end
 end
 
-function WindowFloorTeleporter:confirmTelepoint(mapKey, telepoint)
+function Controller:confirmTelepoint(mapKey, telepoint)
     if self._onConfirmCallback ~= nil then
         self._onConfirmCallback(mapKey, telepoint)
     end
 end
 
-return class(WindowFloorTeleporter, Canvas)
+function Controller:hideImmediate()
+    self:getCommandWindow():setVisible(false)
+    self:getCommandWindow():setActive(false)
+    self:getPreviewWindow():setVisible(false)
+    self:getPreviewWindow():setActive(false)
+    self._transition:hideImmediate()
+end
+
+function Controller:refreshPreview()
+    local mapKey = self:getCommandWindow():getCurrentMapKey()
+    local telepoints = mapKey ~= nil and self:getTelepointsForMap(mapKey) or {}
+    local selectedIndex = mapKey ~= nil and (self._telepointIndexes[mapKey] or 0) or 0
+    local entries = self:getTelepointEntries(mapKey, telepoints)
+    self:getPreviewWindow():setMapKeyAndTelepoints(mapKey, entries, selectedIndex)
+end
+
+function Controller:getVisitedRegionEntries()
+    local regionMaps = RegionDict[self:getGameInstance():getCurrentRegion()] or {}
+    local visited = self:getVisitedMapNames()
+    local result = {}
+    for _, mapKey in ipairs(regionMaps) do
+        if visited[MapPath.WithoutExtension(mapKey)] and bool(self:getTelepointsForMap(mapKey)) then
+            result[#result + 1] = { mapKey, self:getMapDisplayName(mapKey) }
+        end
+    end
+    return result
+end
+
+function Controller:getTelepointsForMap(mapKey)
+    return self:getGameInstance():getTelepointsForMap(mapKey)
+end
+
+function Controller:getTelepointEntries(mapKey, telepoints)
+    if mapKey == nil then
+        return {}
+    end
+    local telepointKeys = {}
+    for index, telepoint in ipairs(telepoints) do
+        telepointKeys[index] = tuple { TelepointKey.FromPoint(telepoint.position), telepoint.tag }
+    end
+    local cacheKey = tuple { mapKey, tuple(telepointKeys) }
+    local cached = self._telepointEntriesCache:get(cacheKey)
+    if cached ~= nil then
+        return cached
+    end
+    local result = {}
+    for index, telepoint in ipairs(telepoints) do
+        result[#result + 1] = { telepoint.position, formatTelepointName(telepoint.tag, index - 1) }
+    end
+    self._telepointEntriesCache[cacheKey] = result
+    return result
+end
+
+function Controller:getVisitedMapNames()
+    local visited = {}
+    if bool(self:getGameInstance():getCurrentMapPath()) then
+        visited[MapPath.WithoutExtension(self:getGameInstance():getCurrentMapPath())] = true
+    end
+    for _, mapPath in ipairs(self:getGameInstance():getVisitedMapPaths()) do
+        visited[MapPath.WithoutExtension(tostring(mapPath))] = true
+    end
+    return visited
+end
+
+function Controller:getMapDisplayName(mapKey)
+    local _, mapData = SceneMapBuilder
+        .new()
+        :loadMapData(mapKey, self:getGameInstance():getCurrentMapPath() or GameSystem.GetStartMap())
+    local mapName = mapData.type == "worldMap" and mapData.worldName or mapData.mapName
+    if not bool(mapName) then
+        return LOC(tostring(mapKey))
+    end
+    return LOC(tostring(mapName))
+end
+
+function Controller:isBlocking()
+    return self._transition:isBlocking()
+end
+
+return Ui.DefineWindow(View, Controller, Canvas)

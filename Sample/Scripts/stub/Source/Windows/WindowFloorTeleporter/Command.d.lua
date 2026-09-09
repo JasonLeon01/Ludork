@@ -1,43 +1,42 @@
----@meta Source.Windows.WindowFloorTeleporter.Command
+---@meta
 
 ---@brief Command list displaying visited maps in the current region.
----@class Source.Windows.WindowFloorMapCommand: Source.Windows.WindowCommand
----@field controllerClass Source.Windows.WindowFloorTeleporter.Command.Controller
----@field new             fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter, instance?: Engine.AssetInstance): Source.Windows.WindowFloorMapCommand
----@field _owner          Source.Windows.WindowFloorTeleporter
----@field _mapController  Source.Windows.WindowFloorTeleporter.Command.Controller
----@field _mapKeys        string[]
----@field new             fun(rect: sf.IntRect, owner: Source.Windows.WindowFloorTeleporter): Source.Windows.WindowFloorMapCommand
-local WindowFloorMapCommand = {}
+---@class Source.Windows.WindowFloorMapCommand.Controller: Source.UIBase.UiController
+---@field host      Source.Windows.WindowFloorMapCommand
+---@field _owner    Source.Windows.WindowFloorTeleporter
+---@field _mapKeys  string[]
+---@field ui        Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand
+---@field _commands Source.UIBase.UiCollection<Source.UIBase.CommandRow.Controller>
+local Controller = {}
 
 ---@brief Construct the floor map command list.
 ---
---- - @param rect The command list window rectangle.
 --- - @param owner The parent floor teleporter coordinator.
----@param rect  sf.IntRect
 ---@param owner Source.Windows.WindowFloorTeleporter
-function WindowFloorMapCommand:init(rect, owner, instance) end
+function Controller:init(owner) end
 
 ---@brief Rebuild the list from map key/name pairs.
 ---
 --- - @param entries Region map entries to display.
 ---@param entries table
-function WindowFloorMapCommand:refreshMaps(entries) end
+function Controller:refreshMaps(entries) end
 
 ---@brief Get the selected region map key.
 ---
 --- - @return The selected map key, or nil when no map is selected.
 ---@return string | nil
-function WindowFloorMapCommand:getCurrentMapKey() end
+function Controller:getCurrentMapKey() end
 
 ---@param deltaTime number
-function WindowFloorMapCommand:onTick(deltaTime) end
+function Controller:onTick(deltaTime) end
 
-function WindowFloorMapCommand:onReturn() end
+function Controller:onReturn() end
 
-function WindowFloorMapCommand:activateTelepointSelector() end
+function Controller:activateTelepointSelector() end
 
 ---@param index integer | nil
-function WindowFloorMapCommand:notifyMapIndexMaybeChanged(index) end
+function Controller:notifyMapIndexMaybeChanged(index) end
 
-return WindowFloorMapCommand
+function Controller:refreshRows() end
+
+function Controller:afterTick() end

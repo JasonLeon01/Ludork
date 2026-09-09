@@ -245,6 +245,17 @@ struct UiControlAdapterTraits;
                     UI_CONTROL_PLAIN_TEXT_PROPERTIES("20"),                    \
                     UI_CONTROL_EDITOR_PROPERTY("previewText", "Preview Text",  \
                                                "string", false, "\"Option\"")) \
+    BIND_UI_CONTROL(                                                           \
+        TextBoxUiControlAdapterTag, "Engine.TextBox", "Engine.TextBox",        \
+        "Text Box", "Input", UiChildPolicy::None, UiControlSlotType::None,     \
+        UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2f", false,              \
+                            "[240.0,40.0]"),                                   \
+        UI_CONTROL_PROPERTY("windowSkin", "Window Skin", "string", false,      \
+                            "\"\""),                                           \
+        UI_CONTROL_PLAIN_TEXT_PROPERTIES("22"),                                \
+        UI_CONTROL_PROPERTY("text", "Text", "string", false, "\"\""),          \
+        UI_CONTROL_EDITOR_PROPERTY("previewText", "Preview Text", "string",    \
+                                   false, "\"\""))                             \
     BIND_UI_CONTROL(TabViewUiControlAdapterTag, "Engine.TabView",              \
                     "Engine.TabView", "Tab View", "Input",                     \
                     UiChildPolicy::None, UiControlSlotType::None,              \

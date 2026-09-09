@@ -71,8 +71,9 @@ function WindowSelectable:setScrollBox(scrollBox) end
 ---@brief Set the list view for selectable items.
 ---
 --- - @param listView The ListView to use, or nil to clear.
----@param listView Engine.ListView | nil
-function WindowSelectable:setListView(listView) end
+---@param listView      Engine.ListView | nil
+---@param directContent boolean | nil
+function WindowSelectable:setListView(listView, directContent) end
 
 ---@brief Reset selection to the first item and scroll to the top without playing CursorSE.
 ---
@@ -170,7 +171,32 @@ function WindowSelectable:_setSelectionInputPaused(paused) end
 
 function WindowSelectable:hideSelectionCursor() end
 
----@param index integer | nil
-function WindowSelectable:selectIndex(index) end
+---@param index         integer | nil
+---@param ensureVisible boolean | nil
+function WindowSelectable:selectIndex(index, ensureVisible) end
+
+---@param paused boolean
+function WindowSelectable:setSelectionInputPaused(paused) end
+
+---@return boolean
+function WindowSelectable:isSelectionInputPaused() end
+
+---@return integer
+function WindowSelectable:getSelectionRowHeight() end
+
+---@param index integer
+function WindowSelectable:setPointerIndex(index) end
+
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:shouldCaptureTouch(position) end
+
+---@param index integer
+---@return sf.Vector2f
+function WindowSelectable:getSelectionPositionForIndex(index) end
+
+---@param index integer
+---@return boolean
+function WindowSelectable:changeSelection(index) end
 
 return WindowSelectable

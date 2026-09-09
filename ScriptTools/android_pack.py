@@ -18,6 +18,8 @@ import zipfile
 from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
+from .ui_asset_generation import generate_assets
+from .ui_property_values import UiAssetError
 from ScriptTools.ui_preview import prepare_registry
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.finalize_package import finalize_package
@@ -1955,6 +1957,8 @@ def main(arguments: list[str] | None = None) -> int:
             packaging_kind = "signed" if signing is not None else "unsigned"
             print(f"Android {packaging_kind} APK packaging check passed.")
             return 0
+        for path in generate_assets(context.project_dir):
+            print(f"Generated UI: {path}")
         context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         copy_runtime_resources(context)
         manifest = create_runtime_manifest(
@@ -1979,7 +1983,7 @@ def main(arguments: list[str] | None = None) -> int:
             message = redact_signing_diagnostic(message, signing)
         print(message, file=sys.stderr)
         return exception.exit_code
-    except LdPakError as exception:
+    except (LdPakError, UiAssetError) as exception:
         print(str(exception), file=sys.stderr)
         return EXIT_PROJECT
     except (OSError, RuntimeError, zipfile.BadZipFile) as exception:
