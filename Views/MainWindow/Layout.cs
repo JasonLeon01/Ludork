@@ -127,7 +127,7 @@ public partial class MainWindow
             viewModel.FileExplorerPanel.FilesChanging -= onFileChangesStarting;
             viewModel.FileExplorerPanel.FilesChanged -= onFileChangesApplied;
             viewModel.GameData.UiAssetsChanged -= onUiAssetsChanged;
-            viewModel.GameData.Documents.Changed -= onDocumentPathsChanged;
+            viewModel.GameData.Documents.ContentChanged -= onDocumentPathsChanged;
             viewModel.FileOpenFailed -= onFileOpenFailed;
 
             viewModel.NewProjectRequested -= onNewProjectRequested;
@@ -172,7 +172,7 @@ public partial class MainWindow
         viewModel.FileExplorerPanel.FilesChanging += onFileChangesStarting;
         viewModel.FileExplorerPanel.FilesChanged += onFileChangesApplied;
         viewModel.GameData.UiAssetsChanged += onUiAssetsChanged;
-        viewModel.GameData.Documents.Changed += onDocumentPathsChanged;
+        viewModel.GameData.Documents.ContentChanged += onDocumentPathsChanged;
         viewModel.FileOpenFailed += onFileOpenFailed;
 
         viewModel.NewProjectRequested += onNewProjectRequested;

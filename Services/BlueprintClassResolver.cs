@@ -22,9 +22,7 @@ public sealed class BlueprintClassResolver : IDisposable
     {
         this.gameData = gameData;
         this.metadataService = metadataService;
-        gameData.DataChanged += onDataChanged;
-        gameData.DataRestored += onDataChanged;
-        gameData.DataReloaded += onDataReloaded;
+        gameData.Documents.ContentInvalidated += onContentInvalidated;
     }
 
     public ResolvedBlueprintClass Resolve(string classReference, JsonObject? overrides = null)
@@ -33,7 +31,7 @@ public sealed class BlueprintClassResolver : IDisposable
         if (templateCache.TryGetValue(reference, out ResolvedBlueprintTemplate? cached))
         {
             if (cached.IsCurrent(metadataService))
-                return cached.Materialize(overrides);
+                return cached.Materialize(overrides, revision);
             if (cached.MetadataRevision == metadataService.CacheRevision)
                 metadataService.ClearCache();
             clearResolutionCaches();
@@ -54,7 +52,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 throw new IOException("Metadata changed while resolving blueprint class");
         }
         templateCache[reference] = template;
-        return template.Materialize(overrides);
+        return template.Materialize(overrides, revision);
     }
 
     public ResolvedBlueprintClass ResolveBlueprint(
@@ -86,7 +84,7 @@ public sealed class BlueprintClassResolver : IDisposable
             if (!template.IsCaptureConsistent)
                 throw new IOException("Metadata changed while resolving blueprint class");
         }
-        return template.Materialize(overrides);
+        return template.Materialize(overrides, revision);
     }
 
     public JsonNode? GetValue(string classReference, string fieldName)
@@ -123,9 +121,7 @@ public sealed class BlueprintClassResolver : IDisposable
         if (disposed)
             return;
         disposed = true;
-        gameData.DataChanged -= onDataChanged;
-        gameData.DataRestored -= onDataChanged;
-        gameData.DataReloaded -= onDataReloaded;
+        gameData.Documents.ContentInvalidated -= onContentInvalidated;
     }
 
     public IDisposable BeginBatch()
@@ -147,7 +143,8 @@ public sealed class BlueprintClassResolver : IDisposable
                 Array.Empty<LuaTypeReference>(),
                 Array.Empty<(string Reference, BlueprintCompatibilityType Type)>(),
                 Array.Empty<LuaTypeReference>(),
-                Array.Empty<(string Reference, JsonObject Blueprint)>());
+                Array.Empty<(string Reference, JsonObject Blueprint)>(),
+                new HashSet<string>(StringComparer.Ordinal) { key });
         }
 
         BlueprintRootResolution root = resolveRoot(reference);
@@ -158,7 +155,8 @@ public sealed class BlueprintClassResolver : IDisposable
             root.MetadataBases,
             root.CompatibilityTypes,
             root.ProbedMetadataTypes,
-            Array.Empty<(string Reference, JsonObject Blueprint)>());
+            Array.Empty<(string Reference, JsonObject Blueprint)>(),
+            new HashSet<string>(StringComparer.Ordinal));
     }
 
     private ResolvedBlueprintTemplate createBlueprintTemplate(
@@ -193,7 +191,8 @@ public sealed class BlueprintClassResolver : IDisposable
             root.MetadataBases,
             root.CompatibilityTypes,
             root.ProbedMetadataTypes,
-            chain
+            chain,
+            visited
         );
     }
 
@@ -292,7 +291,8 @@ public sealed class BlueprintClassResolver : IDisposable
         IReadOnlyList<LuaTypeReference> metadataBases,
         IReadOnlyList<(string Reference, BlueprintCompatibilityType Type)> compatibilityTypes,
         IReadOnlyList<LuaTypeReference> probedMetadataTypes,
-        IReadOnlyList<(string Reference, JsonObject Blueprint)> blueprintChain
+        IReadOnlyList<(string Reference, JsonObject Blueprint)> blueprintChain,
+        IReadOnlySet<string> blueprintDependencies
     )
     {
         List<string> metadataOrder = [];
@@ -486,9 +486,9 @@ public sealed class BlueprintClassResolver : IDisposable
             parentScriptMixin,
             localMixinFieldNames,
             scriptMixinError,
-            revision,
             metadataService.CacheRevision,
-            dependencies
+            dependencies,
+            blueprintDependencies
         );
     }
 
@@ -772,16 +772,31 @@ public sealed class BlueprintClassResolver : IDisposable
         revision++;
     }
 
-    private void onDataChanged(object? sender, EventArgs e)
+    private void onContentInvalidated(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        clearResolutionCaches();
-    }
-
-    private void onDataReloaded(object? sender, EventArgs e)
-    {
-        metadataService.ClearCache();
-        clearResolutionCaches();
-        metadataRevision = metadataService.CacheRevision;
+        if (args.Reset)
+        {
+            metadataService.ClearCache();
+            clearResolutionCaches();
+            metadataRevision = metadataService.CacheRevision;
+            return;
+        }
+        HashSet<string> changedKeys = new(StringComparer.Ordinal);
+        foreach (EditorDocumentChange change in args.Changes)
+        {
+            if (change.Section != "Blueprints" || !change.ContentChanged && !change.IdentityChanged)
+                continue;
+            if (change.PreviousKey is string previousKey)
+                changedKeys.Add(previousKey);
+            if (change.Key is string key)
+                changedKeys.Add(key);
+        }
+        if (changedKeys.Count == 0)
+            return;
+        foreach (string reference in templateCache.Where(pair => pair.Value.DependsOn(changedKeys))
+                     .Select(pair => pair.Key).ToArray())
+            templateCache.Remove(reference);
+        revision++;
     }
 
     private sealed record BlueprintRootResolution(
@@ -814,6 +829,7 @@ public sealed class BlueprintClassResolver : IDisposable
         private readonly IReadOnlyList<string> localMixinFieldNames;
         private readonly string? scriptMixinError;
         private readonly LuaMetadataService.DependencySet dependencies;
+        private readonly IReadOnlySet<string> blueprintDependencies;
 
         public ResolvedBlueprintTemplate(
             string classReference,
@@ -835,9 +851,9 @@ public sealed class BlueprintClassResolver : IDisposable
             bool parentScriptMixin,
             IReadOnlyList<string> localMixinFieldNames,
             string? scriptMixinError,
-            long resolverRevision,
             long metadataRevision,
-            LuaMetadataService.DependencySet dependencies)
+            LuaMetadataService.DependencySet dependencies,
+            IReadOnlySet<string> blueprintDependencies)
         {
             this.classReference = classReference;
             this.terminalReference = terminalReference;
@@ -858,14 +874,15 @@ public sealed class BlueprintClassResolver : IDisposable
             this.parentScriptMixin = parentScriptMixin;
             this.localMixinFieldNames = localMixinFieldNames.ToArray();
             this.scriptMixinError = scriptMixinError;
-            ResolverRevision = resolverRevision;
             MetadataRevision = metadataRevision;
             this.dependencies = dependencies;
+            this.blueprintDependencies = new HashSet<string>(blueprintDependencies, StringComparer.Ordinal);
         }
 
-        public long ResolverRevision { get; }
         public long MetadataRevision { get; }
         public bool IsCaptureConsistent => dependencies.IsConsistent;
+
+        public bool DependsOn(IReadOnlySet<string> keys) => blueprintDependencies.Any(keys.Contains);
 
         public bool IsCurrent(LuaMetadataService metadataService)
         {
@@ -873,7 +890,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 && metadataService.AreDependenciesCurrent(dependencies);
         }
 
-        public ResolvedBlueprintClass Materialize(JsonObject? overrides)
+        public ResolvedBlueprintClass Materialize(JsonObject? overrides, long resolverRevision)
         {
             List<ResolvedBlueprintField> fields = [];
             HashSet<string> added = new(StringComparer.Ordinal);
@@ -970,7 +987,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 metadataOrder,
                 localMixinFieldNames,
                 scriptMixinError,
-                ResolverRevision,
+                resolverRevision,
                 MetadataRevision);
         }
 

@@ -276,8 +276,8 @@ public sealed partial class GameDataService
         originData["Maps"][mapKey] = (JsonObject)candidate.DeepClone();
         MarkDocumentSaved("Maps", mapKey);
         transaction.Commit();
-        NotifyMapContentChanged(mapKey);
         refreshModifiedState();
+        NotifyMapContentChanged(mapKey);
         DataSaved?.Invoke(this, EventArgs.Empty);
         return result;
     }

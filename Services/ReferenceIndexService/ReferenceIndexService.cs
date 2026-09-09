@@ -35,6 +35,9 @@ public sealed partial class ReferenceIndexService : IDisposable
     private readonly Dictionary<string, List<ReferenceRecord>> referencedByTarget = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<ReferenceRecord>> mapReferenceCache = new(StringComparer.Ordinal);
     private readonly HashSet<ReferenceRecord> seen = [];
+    private readonly HashSet<string> declaredNodes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Section, string Key)> pendingDocuments = new(StringComparer.Ordinal);
+    private long metadataRevision = -1;
     private bool allWorldChildMapReferencesBuilt;
     private bool dirty = true;
     private bool disposed;
@@ -47,10 +50,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         this.gameData = gameData;
         this.metadataService = metadataService;
         this.classResolver = classResolver;
-        gameData.DataChanged += onDataChanged;
-        gameData.DataReloaded += onDataChanged;
-        gameData.DataRestored += onDataChanged;
-        gameData.MapPreviewChanged += onMapPreviewChanged;
+        gameData.Documents.ContentInvalidated += onContentInvalidated;
     }
 
     public void MarkDirty()
@@ -60,16 +60,11 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     public void Rebuild()
     {
-        HashSet<string> worldChildKeys = gameData.MapCatalog
-            .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap)
-            .Select(entry => entry.Key)
-            .ToHashSet(StringComparer.Ordinal);
-        foreach (string staleKey in mapReferenceCache.Keys
-                     .Where(key => !worldChildKeys.Contains(key))
-                     .ToArray())
-        {
-            mapReferenceCache.Remove(staleKey);
-        }
+        using IDisposable metadataRead = metadataService.BeginRead();
+        dirty = true;
+        mapReferenceCache.Clear();
+        pendingDocuments.Clear();
+        declaredNodes.Clear();
         nodes.Clear();
         generalMemberTypes.Clear();
         referencesBySource.Clear();
@@ -77,6 +72,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         seen.Clear();
         buildNodes();
         buildEdges();
+        metadataRevision = metadataService.Revision;
         dirty = false;
     }
 
@@ -212,6 +208,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     public IReadOnlyList<ReferenceRecord> GetIncoming(string nodeIdValue)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         return referencedByTarget.TryGetValue(nodeIdValue, out List<ReferenceRecord>? records)
@@ -221,6 +218,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     public IReadOnlyList<ReferenceRecord> GetOutgoing(string nodeIdValue)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         return referencesBySource.TryGetValue(nodeIdValue, out List<ReferenceRecord>? records)
@@ -230,6 +228,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     public IReadOnlyList<ReferenceRecord> GetOutgoingForDocumentPath(string path)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         return sortRecords(
@@ -244,6 +243,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         ReferenceDirection direction,
         int maxDepth = 5)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         ensureNode(nodeIdValue);
@@ -256,6 +256,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     public ReferenceImpact GetImpactForPaths(IEnumerable<string> paths)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         HashSet<string> nodeIds = new(StringComparer.Ordinal);
@@ -304,31 +305,17 @@ public sealed partial class ReferenceIndexService : IDisposable
         if (disposed)
             return;
         disposed = true;
-        gameData.DataChanged -= onDataChanged;
-        gameData.DataReloaded -= onDataChanged;
-        gameData.DataRestored -= onDataChanged;
-        gameData.MapPreviewChanged -= onMapPreviewChanged;
+        gameData.Documents.ContentInvalidated -= onContentInvalidated;
     }
 
     private void ensureBuilt()
     {
+        if (metadataRevision != metadataService.Revision)
+            MarkDirty();
         if (dirty)
             Rebuild();
-    }
-
-    private void onDataChanged(object? sender, EventArgs args)
-    {
-        MarkDirty();
-    }
-
-    private void onMapPreviewChanged(object? sender, MapPreviewChangedEventArgs args)
-    {
-        if (args.MapKey is null)
-            mapReferenceCache.Clear();
         else
-            mapReferenceCache.Remove(args.MapKey);
-        allWorldChildMapReferencesBuilt = false;
-        MarkDirty();
+            updatePendingDocuments();
     }
 
     private void buildNodes()
@@ -355,7 +342,11 @@ public sealed partial class ReferenceIndexService : IDisposable
             if (pair.Value["members"] is not JsonObject members)
                 continue;
             foreach (string memberKey in members.Select(entry => entry.Key))
-                ensureNode(generalMemberNodeId(pair.Key, memberKey));
+            {
+                string memberId = generalMemberNodeId(pair.Key, memberKey);
+                declaredNodes.Add(memberId);
+                ensureNode(memberId);
+            }
         }
     }
 
@@ -368,6 +359,7 @@ public sealed partial class ReferenceIndexService : IDisposable
     private string addNode(string type, string key)
     {
         string id = nodeId(type, key);
+        declaredNodes.Add(id);
         nodes[id] = new ReferenceNode(id, type, key.Replace('\\', '/'));
         return id;
     }
@@ -390,11 +382,11 @@ public sealed partial class ReferenceIndexService : IDisposable
         BlueprintNodeDefinitionSet globalDefinitions =
             new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet();
         foreach (KeyValuePair<string, JsonObject> pair in gameData.SystemConfigData)
-            scanConfigReferences(nodeId("config", pair.Key), pair.Key, pair.Value);
+            scanDocumentReferences("Configs", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.TilesetData)
-            addAssetReference(nodeId("tileset", pair.Key), pair.Value["fileName"], "asset", "fileName");
+            scanDocumentReferences("Tilesets", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.AutoTileData)
-            addAssetReference(nodeId("autoTile", pair.Key), pair.Value["fileName"], "asset", "fileName");
+            scanDocumentReferences("AutoTiles", pair.Key, pair.Value, globalDefinitions);
         foreach (MapCatalogEntry entry in gameData.MapCatalog
                      .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap))
         {
@@ -411,30 +403,21 @@ public sealed partial class ReferenceIndexService : IDisposable
             .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap)
             .All(entry => mapReferenceCache.ContainsKey(entry.Key));
         foreach (KeyValuePair<string, JsonObject> pair in gameData.WorldMapData)
-            scanWorldMapReferences(nodeId("worldMap", pair.Key), pair.Key, pair.Value);
+            scanDocumentReferences("WorldMaps", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.CommonFunctionsData)
-        {
-            string sourceId = nodeId("commonFunction", pair.Key);
-            scanNodeGraphReferences(sourceId, pair.Value, $"CommonFunctions/{pair.Key}", globalDefinitions);
-            scanGenericReferences(sourceId, pair.Value, $"CommonFunctions/{pair.Key}");
-        }
+            scanDocumentReferences("CommonFunctions", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.BlueprintsData)
-            scanBlueprintReferences(pair.Key, pair.Value);
+            scanDocumentReferences("Blueprints", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.AnimationsData)
-            scanAnimationReferences(nodeId("animation", pair.Key), pair.Value, pair.Key);
+            scanDocumentReferences("Animations", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.CurvesData)
-            scanGenericReferences(nodeId("curve", pair.Key), pair.Value, $"Curves/{pair.Key}");
+            scanDocumentReferences("Curves", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.TextConfigsData)
-            scanTextConfigReferences(nodeId("textConfig", pair.Key), pair.Key, pair.Value);
+            scanDocumentReferences("TextConfigs", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.UiAssetsData)
-        {
-            scanUiAssetReferences(
-                nodeId("uiAsset", pair.Key),
-                pair.Key,
-                pair.Value);
-        }
+            scanDocumentReferences("UI", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.GeneralData)
-            scanGeneralReferences(pair.Key, pair.Value, globalDefinitions);
+            scanDocumentReferences("General", pair.Key, pair.Value, globalDefinitions);
     }
 
     private void addAssetReference(
@@ -501,8 +484,8 @@ public sealed partial class ReferenceIndexService : IDisposable
         Func<ReferenceRecord, string> nodeSelector)
     {
         return records
-            .OrderBy(record => GetNode(nodeSelector(record))?.Type, StringComparer.Ordinal)
-            .ThenBy(record => GetNode(nodeSelector(record))?.Key, StringComparer.Ordinal)
+            .OrderBy(record => nodes.GetValueOrDefault(nodeSelector(record))?.Type, StringComparer.Ordinal)
+            .ThenBy(record => nodes.GetValueOrDefault(nodeSelector(record))?.Key, StringComparer.Ordinal)
             .ThenBy(record => record.Path, StringComparer.Ordinal)
             .ToArray();
     }
@@ -517,6 +500,8 @@ public sealed partial class ReferenceIndexService : IDisposable
             return ("autoTile", gameData.AutoTileData);
         if (section.Equals("Maps", StringComparison.OrdinalIgnoreCase))
             return ("map", gameData.MapData);
+        if (section.Equals("WorldMaps", StringComparison.OrdinalIgnoreCase))
+            return ("worldMap", gameData.WorldMapData);
         if (section.Equals("CommonFunctions", StringComparison.OrdinalIgnoreCase))
             return ("commonFunction", gameData.CommonFunctionsData);
         if (section.Equals("Animations", StringComparison.OrdinalIgnoreCase))

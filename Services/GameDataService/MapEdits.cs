@@ -166,8 +166,8 @@ public sealed partial class GameDataService
         change.ApplyTo(map);
         if (change.ChangesActors)
             NotifyMapActorsChanged(mapKey);
-        NotifyMapContentChanged(mapKey, change);
         refreshModifiedState();
+        NotifyMapContentChanged(mapKey, change);
         return true;
     }
 

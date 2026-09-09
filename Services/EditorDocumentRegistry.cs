@@ -12,7 +12,7 @@ public sealed class EditorDocumentRegistry
     private readonly Dictionary<string, EditorDocument> additionalPaths = new(OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     private long nextGestureId;
-    private readonly Stack<(EditorDocumentTransaction Transaction, HashSet<EditorDocument> Changed)> transactions = [];
+    private readonly Stack<NotificationScope> notificationScopes = [];
     private readonly StringComparison pathComparison = OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
@@ -20,6 +20,8 @@ public sealed class EditorDocumentRegistry
     public IReadOnlyList<EditorDocument> ModifiedDocuments => documents.Where(document => document.IsModified).ToArray();
     public bool IsModified => documents.Any(document => document.IsModified);
     public event EventHandler? Changed;
+    internal event EventHandler<EditorDocumentsChangedEventArgs>? ContentInvalidated;
+    public event EventHandler<EditorDocumentsChangedEventArgs>? ContentChanged;
 
     public EditorDocument? Find(string section, string key)
     {
@@ -43,6 +45,8 @@ public sealed class EditorDocumentRegistry
 
     internal void Remove(EditorDocument document)
     {
+        TrackDocument(document);
+        EditorDocumentState before = document.CaptureState();
         if (!documents.Remove(document))
             return;
         foreach (string path in additionalPaths.Where(pair => ReferenceEquals(pair.Value, document))
@@ -54,16 +58,18 @@ public sealed class EditorDocumentRegistry
         document.RedoEntries.Clear();
         ClearPending(document);
         document.UpdateModified();
-        Notify(document);
+        Notify(document, before, document.CaptureState());
     }
 
     internal string[] GetAdditionalPaths(EditorDocument document) => additionalPaths
         .Where(pair => ReferenceEquals(pair.Value, document)).Select(pair => pair.Key).ToArray();
 
-    internal void RestoreRegistration(EditorDocument document, IReadOnlyList<string> aliases)
+    internal void RestoreRegistration(EditorDocument document, IReadOnlyList<string> aliases, bool registered)
     {
-        if (!documents.Contains(document))
+        if (registered && !documents.Contains(document))
             documents.Add(document);
+        else if (!registered)
+            documents.Remove(document);
         foreach (string alias in GetAdditionalPaths(document))
             additionalPaths.Remove(alias);
         foreach (string alias in aliases)
@@ -71,6 +77,8 @@ public sealed class EditorDocumentRegistry
     }
 
     internal long CreateGestureId() => ++nextGestureId;
+
+    internal bool IsRegistered(EditorDocument document) => documents.Contains(document);
 
     internal IEnumerable<EditorDocument> PendingDocuments => documents.Where(document => document.PendingState is not null);
 
@@ -80,6 +88,7 @@ public sealed class EditorDocumentRegistry
         if (existing is not null)
             return existing;
         EditorDocument document = new(section, key, Path.GetFullPath(path), data, isNew);
+        TrackDocument(document);
         documents.Add(document);
         Notify(document);
         return document;
@@ -89,7 +98,9 @@ public sealed class EditorDocumentRegistry
     {
         if (document.PendingState is not null)
             return;
+        TrackDocument(document);
         document.PendingState = document.CaptureState();
+        document.CurrentState = null;
         document.PendingDescription = description ?? "Edit " + document.Key;
         document.PendingMarker = marker;
         document.PendingGestureId = marker is null ? gestureId : 0;
@@ -98,24 +109,33 @@ public sealed class EditorDocumentRegistry
     internal bool Commit(EditorDocument document, JsonObject? data, string? key = null, string? path = null)
     {
         EditorDocumentState? before = document.PendingState;
+        TrackDocument(document);
+        document.CurrentState = null;
         document.InternalData = data;
         document.Key = key ?? document.Key;
         document.Path = path is null ? document.Path : Path.GetFullPath(path);
-        document.UpdateModified();
         if (before is null)
+        {
+            document.UpdateModified();
             return false;
+        }
         EditorDocumentState after = document.CaptureState();
         HistoryMarker? marker = document.PendingMarker;
         string? description = document.PendingDescription;
         long gestureId = document.PendingGestureId;
         ClearPending(document);
+        document.CurrentState = after;
+        document.UpdateModified();
         if (EditorDocument.StatesEqual(before, after))
+        {
+            document.CurrentState = before;
             return false;
+        }
         if (before.InternalData is null && after.InternalData is not null
             && document.SavedState.InternalData is null && document.UndoEntries.Count == 0)
         {
             document.RedoEntries.Clear();
-            Notify(document);
+            Notify(document, before, after);
             return true;
         }
         DocumentHistoryEntry entry = new(before, after, description, marker) { GestureId = gestureId };
@@ -134,12 +154,13 @@ public sealed class EditorDocumentRegistry
                 document.UndoEntries.RemoveAt(0);
         }
         document.RedoEntries.Clear();
-        Notify(document);
+        Notify(document, before, after);
         return true;
     }
 
     internal void MarkSaved(EditorDocument document)
     {
+        TrackDocument(document);
         if (document.UndoEntries.Count != 0)
             document.UndoEntries[^1] = document.UndoEntries[^1] with { GestureId = 0 };
         document.SavedState = document.CaptureState();
@@ -149,8 +170,12 @@ public sealed class EditorDocumentRegistry
 
     internal void Restore(EditorDocument document, EditorDocumentState state)
     {
+        TrackDocument(document);
+        EditorDocumentState before = document.CaptureState();
         document.RestoreState(state);
         ClearPending(document);
+        if (!EditorDocument.StatesEqual(before, state))
+            Notify(document, before, state);
     }
 
     internal HistoryResult Undo(EditorDocument document) => Replay(document, true);
@@ -158,40 +183,112 @@ public sealed class EditorDocumentRegistry
 
     internal EditorDocumentTransaction BeginTransaction(IEnumerable<EditorDocument> affectedDocuments)
     {
-        EditorDocumentTransaction transaction = new(this, affectedDocuments);
-        transactions.Push((transaction, []));
+        EditorDocument[] affected = affectedDocuments.Distinct().ToArray();
+        foreach (EditorDocument document in affected)
+            TrackDocument(document);
+        EditorDocumentTransaction transaction = new(this, affected);
+        notificationScopes.Push(new NotificationScope(transaction));
         return transaction;
     }
 
-    internal void Notify(EditorDocument document)
+    internal EditorDocumentNotificationBatch BeginNotificationBatch()
     {
-        if (transactions.TryPeek(out (EditorDocumentTransaction Transaction, HashSet<EditorDocument> Changed) pending))
-        {
-            pending.Changed.Add(document);
-            return;
-        }
-        document.Revision++;
-        document.NotifyChanged();
-        Changed?.Invoke(this, EventArgs.Empty);
+        EditorDocumentNotificationBatch batch = new(this);
+        notificationScopes.Push(new NotificationScope(batch));
+        return batch;
     }
 
-    internal void CompleteTransaction(EditorDocumentTransaction transaction, bool committed)
+    internal void AfterChangeNotifications(Action action)
     {
-        if (!transactions.TryPeek(out (EditorDocumentTransaction Transaction, HashSet<EditorDocument> Changed) current)
-            || !ReferenceEquals(current.Transaction, transaction))
-            throw new InvalidOperationException("Document transactions must complete in reverse opening order.");
-        transactions.Pop();
+        if (notificationScopes.TryPeek(out NotificationScope? scope))
+        {
+            scope.AfterNotifications.Add(action);
+            return;
+        }
+        action();
+    }
+
+    internal void Notify(EditorDocument document, EditorDocumentState? before = null, EditorDocumentState? after = null)
+    {
+        NotificationScope scope = notificationScopes.TryPeek(out NotificationScope? current)
+            ? current : new NotificationScope(document);
+        scope.Changed.Add(document);
+        if (before is not null && after is not null)
+            scope.AddContent(document, before, after);
+        if (notificationScopes.Count == 0)
+            Publish(scope);
+    }
+
+    internal void ValidateNotificationScope(object owner)
+    {
+        if (!notificationScopes.TryPeek(out NotificationScope? scope) || !ReferenceEquals(scope.Owner, owner))
+            throw new InvalidOperationException("Document scopes must complete in reverse opening order.");
+    }
+
+    internal void CompleteNotificationScope(object owner, bool committed)
+    {
+        ValidateNotificationScope(owner);
+        NotificationScope scope = notificationScopes.Pop();
         if (!committed)
             return;
-        foreach (EditorDocument document in current.Changed)
-            Notify(document);
+        if (!notificationScopes.TryPeek(out NotificationScope? parent))
+        {
+            Publish(scope);
+            return;
+        }
+        parent.Changed.UnionWith(scope.Changed);
+        foreach (KeyValuePair<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> pair in scope.Content)
+            parent.AddContent(pair.Key, pair.Value.Before, pair.Value.After);
+        parent.Reset |= scope.Reset;
+        parent.AfterNotifications.AddRange(scope.AfterNotifications);
+    }
+
+    internal void PublishReset()
+    {
+        if (notificationScopes.TryPeek(out NotificationScope? scope))
+            scope.Reset = true;
+        else
+            Publish(new NotificationScope(this) { Reset = true });
+    }
+
+    private void TrackDocument(EditorDocument document)
+    {
+        foreach (NotificationScope scope in notificationScopes)
+            if (scope.Owner is EditorDocumentTransaction transaction)
+                transaction.Capture(document);
+    }
+
+    private void Publish(NotificationScope scope)
+    {
+        EditorDocumentChange[] changes = scope.Content.Select(pair => new EditorDocumentChange(
+                pair.Key.Id, pair.Value.After.Section,
+                pair.Value.Before.InternalData is null ? null : pair.Value.Before.Key,
+                pair.Value.After.InternalData is null ? null : pair.Value.After.Key,
+                pair.Value.Before.InternalData is null ? null : pair.Value.Before.Path,
+                pair.Value.After.InternalData is null ? null : pair.Value.After.Path,
+                !JsonNode.DeepEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData)))
+            .Where(change => change.ContentChanged || change.IdentityChanged).ToArray();
+        EditorDocumentsChangedEventArgs? content = scope.Reset || changes.Length != 0
+            ? new EditorDocumentsChangedEventArgs(changes, scope.Reset) : null;
+        if (content is not null)
+            ContentInvalidated?.Invoke(this, content);
+        foreach (EditorDocument document in scope.Changed)
+            document.Revision++;
+        foreach (EditorDocument document in scope.Changed)
+            document.NotifyChanged();
+        if (scope.Changed.Count != 0 || scope.Reset)
+            Changed?.Invoke(this, EventArgs.Empty);
+        if (content is not null)
+            ContentChanged?.Invoke(this, content);
+        foreach (Action action in scope.AfterNotifications)
+            action();
     }
 
     internal void Clear()
     {
         documents.Clear();
         additionalPaths.Clear();
-        Changed?.Invoke(this, EventArgs.Empty);
+        PublishReset();
     }
 
     private HistoryResult Replay(EditorDocument document, bool undo)
@@ -203,6 +300,7 @@ public sealed class EditorDocumentRegistry
         DocumentHistoryEntry entry = source[^1];
         if (entry.Marker?.IsBarrier == true)
             return new HistoryResult(false, entry.Marker.Reason) { IsBlocked = true };
+        using EditorDocumentTransaction transaction = BeginTransaction([document]);
         HistoryResult result;
         if (document.HistoryRestorer is not null)
         {
@@ -218,6 +316,7 @@ public sealed class EditorDocumentRegistry
         source.RemoveAt(source.Count - 1);
         target.Add(entry with { GestureId = 0 });
         Notify(document);
+        transaction.Commit();
         return result;
     }
 
@@ -227,5 +326,20 @@ public sealed class EditorDocumentRegistry
         document.PendingDescription = null;
         document.PendingMarker = null;
         document.PendingGestureId = 0;
+    }
+
+    private sealed class NotificationScope(object owner)
+    {
+        public object Owner { get; } = owner;
+        public HashSet<EditorDocument> Changed { get; } = [];
+        public Dictionary<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> Content { get; } = [];
+        public List<Action> AfterNotifications { get; } = [];
+        public bool Reset { get; set; }
+
+        public void AddContent(EditorDocument document, EditorDocumentState before, EditorDocumentState after)
+        {
+            Content[document] = (Content.TryGetValue(document, out (EditorDocumentState Before, EditorDocumentState After) current)
+                ? current.Before : before, after);
+        }
     }
 }

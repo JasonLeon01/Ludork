@@ -15,6 +15,7 @@ public sealed class EditorDocument
     internal HistoryMarker? PendingMarker;
     internal string? PendingDescription;
     internal long PendingGestureId;
+    internal EditorDocumentState? CurrentState;
     internal Func<DocumentHistoryEntry, bool, HistoryResult>? HistoryRestorer;
     internal Action<EditorDocument>? StateRestored;
     internal Action<EditorDocument>? StateRestoring;
@@ -28,7 +29,8 @@ public sealed class EditorDocument
         Key = key;
         Path = path;
         InternalData = data;
-        SavedState = new EditorDocumentState(section, key, path, isNew ? null : data);
+        CurrentState = new EditorDocumentState(section, key, path, data);
+        SavedState = isNew ? new EditorDocumentState(section, key, path, null) : CurrentState;
         UpdateModified();
     }
 
@@ -50,7 +52,12 @@ public sealed class EditorDocument
     public IReadOnlyList<DocumentHistoryEntry> History => UndoEntries.ToArray();
     public event EventHandler? Changed;
 
-    internal EditorDocumentState CaptureState() => new(Section, Key, Path, InternalData);
+    internal EditorDocumentState CaptureState()
+    {
+        if (PendingState is not null)
+            return new EditorDocumentState(Section, Key, Path, InternalData);
+        return CurrentState ??= new EditorDocumentState(Section, Key, Path, InternalData);
+    }
 
     internal IReadOnlyDictionary<string, byte[]> PrepareSave()
     {
@@ -65,6 +72,7 @@ public sealed class EditorDocument
         Key = state.Key;
         Path = state.Path;
         InternalData = state.Data;
+        CurrentState = state;
         UpdateModified();
         StateRestored?.Invoke(this);
     }
@@ -73,13 +81,18 @@ public sealed class EditorDocument
 
     internal void UpdateModified()
     {
+        if (ReferenceEquals(CurrentState, SavedState))
+        {
+            modified = false;
+            return;
+        }
         modified = Section != SavedState.Section || Key != SavedState.Key || Path != SavedState.Path
             || !JsonNode.DeepEquals(InternalData, SavedState.InternalData);
     }
 
     internal static bool StatesEqual(EditorDocumentState left, EditorDocumentState right)
     {
-        return left.Section == right.Section && left.Key == right.Key
+        return ReferenceEquals(left, right) || left.Section == right.Section && left.Key == right.Key
             && left.Path == right.Path && JsonNode.DeepEquals(left.InternalData, right.InternalData);
     }
 }

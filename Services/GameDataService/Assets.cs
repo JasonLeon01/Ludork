@@ -15,10 +15,12 @@ public sealed partial class GameDataService
 {
     public void Reload()
     {
+        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
         loadAll();
+        Documents.PublishReset();
+        notifications.Commit();
         NotifyAllMapPreviewsChanged();
-        DataChanged?.Invoke(this, EventArgs.Empty);
-        UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+        NotifyUiAssetsChanged();
         DataReloaded?.Invoke(this, EventArgs.Empty);
     }
 
@@ -66,7 +68,7 @@ public sealed partial class GameDataService
         RecordDocumentSnapshot("UI", dataKey);
         data[dataKey] = value;
         refreshModifiedState();
-        UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+        NotifyUiAssetsChanged();
         return true;
     }
 
@@ -87,7 +89,7 @@ public sealed partial class GameDataService
         RecordDocumentSnapshot("UI", dataKey);
         data[dataKey] = value;
         refreshModifiedState();
-        UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+        NotifyUiAssetsChanged();
         return true;
     }
 
@@ -271,26 +273,21 @@ public sealed partial class GameDataService
         IReadOnlyList<string> deletedPaths,
         Func<IReadOnlyList<ReferenceRewrite>>? prepareReferenceChanges = null)
     {
+        if (addedPaths.Count == 0 && movedPaths.Count == 0 && deletedPaths.Count == 0
+            && prepareReferenceChanges is null)
+            return;
         foreach ((string oldPath, string newPath) in movedPaths)
         {
             if (IsManagedPath(oldPath))
                 throw new InvalidOperationException("Managed resource moves must use the document rename command.");
         }
-        foreach (string deleted in deletedPaths)
-            applyExternalDelete(deleted);
-        foreach ((string oldPath, string newPath) in movedPaths)
-        {
-            applyExternalDelete(oldPath);
-            applyExternalAdd(newPath);
-        }
-        foreach (string added in addedPaths)
-            applyExternalAdd(added);
-        if (prepareReferenceChanges is not null)
-            ApplyReferenceRewrites(prepareReferenceChanges());
-        refreshModifiedState();
+        bool externalChanges = addedPaths.Count != 0 || movedPaths.Count != 0 || deletedPaths.Count != 0;
+        Dictionary<(string Section, string Key), JsonObject?> changes = prepareExternalChanges(addedPaths, movedPaths, deletedPaths);
+        applyExternalChanges(changes, externalChanges, prepareReferenceChanges);
         if (addedPaths.Concat(deletedPaths).Any(path => path.Contains("UI", StringComparison.Ordinal)))
-            UiAssetsChanged?.Invoke(this, EventArgs.Empty);
-        DataReloaded?.Invoke(this, EventArgs.Empty);
+            NotifyUiAssetsChanged();
+        if (externalChanges)
+            DataReloaded?.Invoke(this, EventArgs.Empty);
     }
 
     public bool ContainsDataPath(string absolutePath, bool directory)
@@ -381,4 +378,3 @@ public sealed partial class GameDataService
     }
 
 }
-

@@ -414,8 +414,8 @@ public sealed partial class GameDataService
             ["materials"] = new JsonArray(),
             ["dir4"] = new JsonArray(),
         };
-        NotifyAllMapPreviewsChanged(false);
         refreshModifiedState();
+        NotifyAllMapPreviewsChanged(false);
         return true;
     }
 
@@ -432,8 +432,8 @@ public sealed partial class GameDataService
             ["passable"] = true,
             ["material"] = createDefaultMaterial(),
         };
-        NotifyAllMapPreviewsChanged(false);
         refreshModifiedState();
+        NotifyAllMapPreviewsChanged(false);
         return true;
     }
 
@@ -477,8 +477,8 @@ public sealed partial class GameDataService
             return false;
         RecordMapSnapshot(mapKey);
         layer["layerTileset"] = tilesetKey;
-        NotifyMapContentChanged(mapKey);
         refreshModifiedState();
+        NotifyMapContentChanged(mapKey);
         return true;
     }
 
@@ -516,8 +516,8 @@ public sealed partial class GameDataService
             layer.Remove("visible");
         else
             layer["visible"] = false;
-        NotifyMapContentChanged(mapKey);
         refreshModifiedState();
+        NotifyMapContentChanged(mapKey);
         return true;
     }
 

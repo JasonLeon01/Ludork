@@ -67,14 +67,15 @@ public sealed partial class GameDataService
             using EditorDocumentTransaction transaction = Documents.BeginTransaction([]);
             foreach ((string copySection, string copyKey, JsonObject data) in copies)
             {
+                RecordDocumentSnapshot(copySection, copyKey);
                 sections[copySection].Data[copyKey] = data;
-                RegisterLoadedDocument(copySection, copyKey);
                 updateDocumentCatalog(copySection, copyKey, copyKey, data);
             }
+            CompleteDocumentChanges();
             transaction.Commit();
             refreshModifiedState();
             if (source.Section == "UI")
-                UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+                NotifyUiAssetsChanged();
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or ArgumentException)
         {
@@ -193,6 +194,7 @@ public sealed partial class GameDataService
         SaveResult result = batch.Execute();
         if (!result.Success)
             throw new IOException(result.Details);
+        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
         foreach (EditorDocument target in targets)
         {
             deletedDocumentPaths.Add(target.Path);
@@ -203,9 +205,10 @@ public sealed partial class GameDataService
             Documents.Remove(target);
         }
         refreshModifiedState();
-        DataRestored?.Invoke(this, EventArgs.Empty);
+        notifications.Commit();
+        NotifyDataRestored();
         if (section == "UI")
-            UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+            NotifyUiAssetsChanged();
         return true;
     }
 

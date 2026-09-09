@@ -113,7 +113,7 @@ public sealed partial class GameDataService
 
     private void completeTilesetEdit()
     {
-        NotifyAllMapPreviewsChanged(false);
         refreshModifiedState();
+        NotifyAllMapPreviewsChanged(false);
     }
 }

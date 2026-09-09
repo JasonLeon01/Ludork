@@ -73,12 +73,12 @@ public sealed class TextConfigEditorWindow : Window
         displayBaseline = (JsonObject)this.data.DeepClone();
         refreshPreview();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        gameData.DataChanged += onDataChanged;
+        gameData.Documents.ContentChanged += onDataChanged;
         documentBinding = new EditorDocumentBinding(this, gameData, () => resourceDocument,
             () => $"{LocaleService.Get("TEXT_CONFIG_EDITOR")} - {this.key}", synchronizeDocument, closeWhenDeleted: true);
         Closed += (_, _) =>
         {
-            gameData.DataChanged -= onDataChanged;
+            gameData.Documents.ContentChanged -= onDataChanged;
 
         };
     }
@@ -1005,8 +1005,12 @@ public sealed class TextConfigEditorWindow : Window
         args.Handled = true;
     }
 
-    private void onDataChanged(object? sender, EventArgs args)
+    private void onDataChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
+        string curve = stringValue(data["gradient"]?["curve"]);
+        if (!args.Reset && !args.Changes.Any(change => change.Section == "Curves"
+                && (change.PreviousKey == curve || change.Key == curve)))
+            return;
         if (!gameData.TextConfigsData.ContainsKey(key))
         {
             Close();

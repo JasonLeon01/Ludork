@@ -128,6 +128,7 @@ public sealed partial class GameDataService
 
     private void CompleteDocumentChanges()
     {
+        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
         foreach (EditorDocument document in Documents.PendingDocuments.ToArray())
         {
             if (!sections.TryGetValue(document.Section, out DataSection? section))
@@ -135,6 +136,7 @@ public sealed partial class GameDataService
             section.Data.TryGetValue(document.Key, out JsonObject? data);
             Documents.Commit(document, data);
         }
+        notifications.Commit();
     }
 
     private void RestoreDocumentState(EditorDocument document, EditorDocumentState state)
@@ -167,7 +169,11 @@ public sealed partial class GameDataService
     private void refreshModifiedState()
     {
         CompleteDocumentChanges();
-        DataChanged?.Invoke(this, EventArgs.Empty);
+        Documents.AfterChangeNotifications(refreshDocumentStatus);
+    }
+
+    private void refreshDocumentStatus()
+    {
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
         bool modified = generalDataGenerationPending || Documents.IsModified;
         if (modified == isModified)

@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Ludork.Services;
 using System;
+using System.Linq;
 
 namespace Ludork.Views.Utils;
 
@@ -32,7 +33,7 @@ public sealed class EditorDocumentBinding : IDisposable
         this.title = title;
         this.refresh = refresh;
         this.closeWhenDeleted = closeWhenDeleted;
-        gameData.Documents.Changed += onRegistryChanged;
+        gameData.Documents.ContentChanged += onRegistryChanged;
         owner.Closed += onClosed;
         owner.Activated += onWindowActivated;
         owner.Deactivated += onWindowActivityChanged;
@@ -75,7 +76,7 @@ public sealed class EditorDocumentBinding : IDisposable
         if (disposed)
             return;
         disposed = true;
-        gameData.Documents.Changed -= onRegistryChanged;
+        gameData.Documents.ContentChanged -= onRegistryChanged;
         owner.Closed -= onClosed;
         owner.Activated -= onWindowActivated;
         owner.Deactivated -= onWindowActivityChanged;
@@ -97,10 +98,18 @@ public sealed class EditorDocumentBinding : IDisposable
             return;
         }
         updateTitle();
-        refresh?.Invoke();
     }
 
-    private void onRegistryChanged(object? sender, EventArgs args) => Refresh();
+    private void onRegistryChanged(object? sender, EditorDocumentsChangedEventArgs args)
+    {
+        if (disposed)
+            return;
+        if (args.Reset || document is null || args.Changes.Any(change =>
+                change.DocumentId == document.Id && change.IdentityChanged))
+            Refresh();
+        if (args.Reset || document is not null && args.Changes.Any(change => change.DocumentId == document.Id))
+            refresh?.Invoke();
+    }
 
     private void onWindowActivityChanged(object? sender, EventArgs args) => gameData.BreakHistoryGesture();
 

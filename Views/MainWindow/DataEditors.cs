@@ -167,8 +167,11 @@ public partial class MainWindow
         new ReferenceTreeWindow(viewModel.ReferenceIndex, nodeId).Show(this);
     }
 
-    private void onDocumentPathsChanged(object? sender, EventArgs args)
+    private void onDocumentPathsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
+        if (!args.Reset && !args.Changes.Any(change => change.IdentityChanged
+                && change.Section is "Blueprints" or "UI"))
+            return;
         BlueprintEditorWindow[] blueprints = blueprintWindows.Values.Distinct().ToArray();
         blueprintWindows.Clear();
         foreach (BlueprintEditorWindow window in blueprints)

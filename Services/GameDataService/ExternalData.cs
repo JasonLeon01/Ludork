@@ -98,46 +98,6 @@ public sealed partial class GameDataService
         return null;
     }
 
-    private bool applyExternalDelete(string path)
-    {
-        if (!tryGetDataLocation(path, out string sectionName, out string relativePath))
-            return false;
-        if (hasDataFileExtension(sectionName, path))
-        {
-            string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
-            bool removed = removeDataKey(sectionName, key);
-            return removeDataPrefix(sectionName, normalizeDataKey(relativePath)) || removed;
-        }
-        return removeDataPrefix(sectionName, normalizeDataKey(relativePath));
-    }
-
-    private bool applyExternalAdd(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            bool changed = false;
-            foreach (string filePath in Directory.EnumerateFiles(path, "*.json", SearchOption.AllDirectories)
-                         .Where(filePath => !DataConfig.isAnimationCache(filePath)))
-            {
-                changed |= applyExternalAdd(filePath);
-            }
-            return changed;
-        }
-        if (!File.Exists(path)
-            || DataConfig.isAnimationCache(path)
-            || !tryGetDataLocation(path, out string sectionName, out string relativePath)
-            || !hasDataFileExtension(sectionName, path))
-        {
-            return false;
-        }
-        JsonObject? data = readExternalDataFile(path, sections[sectionName]);
-        if (data is null)
-            return false;
-        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
-        installExternalDocument(sectionName, key, data);
-        return true;
-    }
-
     private JsonObject? readExternalDataFile(string path, DataSection section)
     {
         try
@@ -172,39 +132,20 @@ public sealed partial class GameDataService
     {
         if (Documents.Find(sectionName, key) is EditorDocument document)
             Documents.Remove(document);
+        else
+            updateDocumentCatalog(sectionName, key, key, null);
         bool changed = sections[sectionName].Data.Remove(key);
         changed |= originData[sectionName].Remove(key);
         return changed;
     }
 
-    private bool removeDataPrefix(string sectionName, string prefix)
-    {
-        foreach (EditorDocument document in Documents.All.Where(document => document.Section == sectionName
-                     && keyMatchesPrefix(document.Key, prefix)).ToArray())
-            Documents.Remove(document);
-        bool changed = removeDataPrefix(sections[sectionName].Data, prefix);
-        changed |= removeDataPrefix(originData[sectionName], prefix);
-        return changed;
-    }
-
-    private static bool removeDataPrefix(Dictionary<string, JsonObject> data, string prefix)
-    {
-        string[] keys = data.Keys.Where(key => keyMatchesPrefix(key, prefix)).ToArray();
-        foreach (string key in keys)
-            data.Remove(key);
-        return keys.Length != 0;
-    }
-
     private void installExternalDocument(string sectionName, string key, JsonObject data)
     {
-        EditorDocument? existing = Documents.Find(sectionName, key);
-        if (existing?.IsModified == true)
-            throw new InvalidOperationException($"The file has unsaved editor changes: {existing.Path}");
-        if (existing is not null)
-            Documents.Remove(existing);
-        sections[sectionName].Data[key] = data;
+        removeDataKey(sectionName, key);
+        EditorDocument document = RegisterLoadedDocument(sectionName, key);
+        Documents.Restore(document, new EditorDocumentState(sectionName, key, document.Path, data));
+        Documents.MarkSaved(document);
         originData[sectionName][key] = (JsonObject)data.DeepClone();
-        RegisterLoadedDocument(sectionName, key);
     }
 
     private bool tryGetDataLocation(string path, out string sectionName, out string relativePath)

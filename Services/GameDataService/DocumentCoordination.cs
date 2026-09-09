@@ -22,7 +22,7 @@ public sealed partial class GameDataService
             validateRestoredReferences(document, candidate);
             if (!commitResourceChange(document.Section, document.Key, state.Key, candidate, recordSource: false))
                 return new HistoryResult(false, "The document could not be restored because its name or references changed.");
-            DataRestored?.Invoke(this, EventArgs.Empty);
+            NotifyDataRestored();
             return new HistoryResult(true) { Changes = [document.Path] };
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or IOException)
@@ -117,7 +117,7 @@ public sealed partial class GameDataService
         transaction.Commit();
         refreshModifiedState();
         if (changes.Keys.Any(document => document.Section == "UI"))
-            UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+            NotifyUiAssetsChanged();
         foreach (EditorDocument document in changes.Keys.Where(document => document.Section == "Maps"))
             NotifyMapContentChanged(document.Key);
         return true;

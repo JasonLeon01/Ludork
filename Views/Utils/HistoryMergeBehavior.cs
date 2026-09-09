@@ -65,6 +65,10 @@ public static class HistoryMergeBehavior
         attachedControls.Add(control, attachment);
         control.GotFocus += (_, _) => attachment.HandleGotFocus();
         control.LostFocus += (_, _) => attachment.HandleLostFocus();
+        control.AddHandler(InputElement.TextInputEvent, (_, _) => attachment.StartIfFocused(), RoutingStrategies.Tunnel);
+        control.AddHandler(InputElement.KeyDownEvent, (_, _) => attachment.StartIfFocused(), RoutingStrategies.Tunnel);
+        control.AddHandler(InputElement.PointerPressedEvent, (_, _) => attachment.HandleGotFocus(), RoutingStrategies.Tunnel);
+        control.AddHandler(InputElement.PointerWheelChangedEvent, (_, _) => attachment.StartIfFocused(), RoutingStrategies.Tunnel);
         subscribeChange(attachment.HandleChanged);
         attachment.StartIfFocused();
     }

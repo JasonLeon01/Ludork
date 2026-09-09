@@ -61,7 +61,6 @@ public sealed partial class GameDataService : IDisposable
     }
 
     public event EventHandler? ModifiedChanged;
-    public event EventHandler? DataChanged;
     public event EventHandler? DataReloaded;
     public event EventHandler? DataRestored;
     public event EventHandler? DataSaved;

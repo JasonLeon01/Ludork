@@ -20,7 +20,7 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
     {
         GameData = gameData;
         CellSize = gameData.getCellSize();
-        gameData.DataChanged += onDataChanged;
+        gameData.Documents.ContentChanged += onDataChanged;
         RefreshData();
     }
 
@@ -108,7 +108,7 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
         if (disposed)
             return;
         disposed = true;
-        GameData.DataChanged -= onDataChanged;
+        GameData.Documents.ContentChanged -= onDataChanged;
     }
 
     public void selectTiles(int originTileNumber, int width, int height)
@@ -143,9 +143,10 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
         SetProperty(ref selectedTiles, null, nameof(SelectedTiles));
     }
 
-    private void onDataChanged(object? sender, EventArgs args)
+    private void onDataChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        RefreshData();
+        if (args.Reset || args.Changes.Any(change => change.Section is "Tilesets" or "AutoTiles"))
+            RefreshData();
     }
 
     private void syncTilesets()

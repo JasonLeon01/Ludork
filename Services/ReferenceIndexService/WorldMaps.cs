@@ -13,6 +13,7 @@ public sealed partial class ReferenceIndexService
         IEnumerable<string> runtimePaths,
         IReadOnlyCollection<string>? ignoredMapKeys = null)
     {
+        using IDisposable metadataRead = metadataService.BeginRead();
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         HashSet<string> ignoredSources = ignoredMapKeys is null

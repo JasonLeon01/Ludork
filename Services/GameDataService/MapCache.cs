@@ -42,12 +42,14 @@ public sealed partial class GameDataService
     {
         mapKey = normaliseMapKey(mapKey);
         if (mapKey.Length != 0)
-            MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(mapKey, edit));
+            Documents.AfterChangeNotifications(() =>
+                MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(mapKey, edit)));
     }
 
     private void NotifyAllMapPreviewsChanged(bool reloadData = true)
     {
-        MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(null, reloadData: reloadData));
+        Documents.AfterChangeNotifications(() =>
+            MapPreviewChanged?.Invoke(this, new MapPreviewChangedEventArgs(null, reloadData: reloadData)));
     }
 
     public string GetMapRuntimePath(string mapKey)

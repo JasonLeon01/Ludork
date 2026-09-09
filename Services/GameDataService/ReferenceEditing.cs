@@ -39,7 +39,7 @@ public sealed partial class GameDataService
         foreach ((EditorDocument document, _) in prepared.Where(item => item.Document.Section == "Maps"))
             NotifyMapContentChanged(document.Key);
         if (prepared.Any(item => item.Document.Section == "UI"))
-            UiAssetsChanged?.Invoke(this, EventArgs.Empty);
+            NotifyUiAssetsChanged();
         return true;
     }
 }
