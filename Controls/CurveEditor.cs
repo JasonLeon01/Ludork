@@ -16,7 +16,9 @@ namespace Ludork.Controls;
 public sealed class CurveEditor : UserControl
 {
     private readonly GameDataService gameData;
-    private readonly string key;
+    private readonly EditorDocument? resourceDocument;
+    private readonly string initialKey;
+    private string key => resourceDocument?.Key ?? initialKey;
     private JsonObject data;
     private readonly CurveCanvas canvas = new();
     private readonly TextBox nameBox = EditorInputs.CreateEditableTextBox();
@@ -39,7 +41,8 @@ public sealed class CurveEditor : UserControl
     public CurveEditor(GameDataService gameData, string key, JsonObject data)
     {
         this.gameData = gameData;
-        this.key = key;
+        initialKey = key;
+        resourceDocument = gameData.GetDocument("Curves", key);
         this.data = (JsonObject)data.DeepClone();
         curveType = normalizeCurveType(this.data["type"]?.GetValue<string>());
         componentCount = curveComponentCount(curveType);
@@ -54,6 +57,29 @@ public sealed class CurveEditor : UserControl
         canvas.DataChanged += onCanvasChanged;
         buildLayout();
         refreshEditor(true);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onDocumentChanged;
+        onDocumentChanged(this, EventArgs.Empty);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onDocumentChanged;
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onDocumentChanged(object? sender, EventArgs args)
+    {
+        if (resourceDocument?.Data is not JsonObject current || JsonNode.DeepEquals(current, data))
+            return;
+        data = current;
+        refreshEditor(false);
     }
 
     public event EventHandler? Modified;

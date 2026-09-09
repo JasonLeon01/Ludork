@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
@@ -19,7 +20,10 @@ public sealed class ConfigDictPanel : Border
     private readonly Window owner;
     private readonly GameDataService gameData;
     private readonly string fileName;
-    private readonly JsonObject data;
+    private JsonObject data;
+    private readonly EditorDocument? resourceDocument;
+    private bool attached;
+    private bool refreshPending;
     private readonly Dictionary<JsonObject, string> fieldNames = [];
     private readonly StackPanel content = new() { Spacing = 8 };
 
@@ -29,6 +33,7 @@ public sealed class ConfigDictPanel : Border
         this.gameData = gameData;
         this.fileName = fileName;
         this.data = data;
+        resourceDocument = gameData.GetDocument("Configs", fileName);
         Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
         BorderBrush = new SolidColorBrush(Color.FromRgb(96, 96, 96));
         BorderThickness = new Thickness(1);
@@ -39,18 +44,43 @@ public sealed class ConfigDictPanel : Border
         rebuild();
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        attached = true;
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onDocumentChanged;
+        onDocumentChanged(this, EventArgs.Empty);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        attached = false;
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onDocumentChanged;
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onDocumentChanged(object? sender, EventArgs args)
+    {
+        if (refreshPending)
+            return;
+        refreshPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            refreshPending = false;
+            if (!attached || resourceDocument?.Data is not JsonObject current || JsonNode.DeepEquals(current, data))
+                return;
+            data = current;
+            rebuild();
+        });
+    }
+
     private void rebuild()
     {
         content.Children.Clear();
         fieldNames.Clear();
-        content.Children.Add(new TextBlock
-        {
-            Text = fileName,
-            FontSize = 16,
-            FontWeight = FontWeight.Bold,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        });
+        content.Children.Add(new DocumentStatusPresenter(gameData, "Configs", fileName));
 
         Grid form = new()
         {

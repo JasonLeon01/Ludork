@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Controls;
 using Ludork.Models;
@@ -26,7 +27,11 @@ internal sealed class GeneralDataPage : Grid
     private const double TableFieldColumnWidth = 200;
     private readonly GeneralDataEditorWindow owner;
     private readonly GameDataService gameData;
-    private readonly string typeKey;
+    private readonly EditorDocument? resourceDocument;
+    private readonly string initialTypeKey;
+    private string typeKey => resourceDocument?.Key ?? initialTypeKey;
+    private bool attached;
+    private bool refreshPending;
     private JsonObject typeData;
     private readonly Dictionary<JsonObject, string> memberKeys = [];
     private readonly GeneralDataPageSessionState sessionState;
@@ -56,7 +61,8 @@ internal sealed class GeneralDataPage : Grid
     {
         this.owner = owner;
         this.gameData = gameData;
-        this.typeKey = typeKey;
+        initialTypeKey = typeKey;
+        resourceDocument = gameData.GetDocument("General", typeKey);
         this.typeData = typeData;
         rebuildMemberKeys();
         this.sessionState = sessionState;
@@ -189,6 +195,44 @@ internal sealed class GeneralDataPage : Grid
         populateMemberList(sessionState.SelectedMemberId);
         updateActionBar();
         updateViewMode();
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        attached = true;
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onDocumentChanged;
+        onDocumentChanged(this, EventArgs.Empty);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        attached = false;
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onDocumentChanged;
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onDocumentChanged(object? sender, EventArgs args)
+    {
+        if (refreshPending)
+            return;
+        refreshPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            refreshPending = false;
+            if (!attached || resourceDocument?.Data is not JsonObject current || JsonNode.DeepEquals(typeData, current))
+                return;
+            typeData = current;
+            rebuildMemberKeys();
+            Vector formOffset = formScroll.Offset;
+            Vector tableOffset = tableScroll.Offset;
+            populateMemberList(sessionState.SelectedMemberId);
+            updateActionBar();
+            formScroll.Offset = formOffset;
+            tableScroll.Offset = tableOffset;
+        });
     }
 
     private void populateMemberList(string? preferredMemberId = null)

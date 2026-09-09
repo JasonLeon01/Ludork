@@ -1,6 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Ludork.Services;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace Ludork.Views;
 
@@ -13,9 +16,14 @@ public enum UnsavedChangesResult
 
 public partial class UnsavedChangesDialog : Window
 {
-    public UnsavedChangesDialog()
+    public UnsavedChangesDialog() : this([], string.Empty)
+    {
+    }
+
+    public UnsavedChangesDialog(IReadOnlyList<string> paths, string projectPath)
     {
         InitializeComponent();
+        DocumentList.ItemsSource = paths.Select(path => "* " + Path.GetRelativePath(projectPath, path)).OrderBy(path => path).ToArray();
         Title = LocaleService.Get("EXIT");
         MessageText.Text = LocaleService.Get("CONFIRM_EXIT_WITH_UNSAVED_CHANGES");
         SaveButton.Content = LocaleService.Get("SAVE_AND_EXIT");

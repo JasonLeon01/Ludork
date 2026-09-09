@@ -23,9 +23,10 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public sealed class BlueprintEditorWindow : Window
+public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 {
     private readonly BlueprintEditorDocument document;
+    private readonly EditorDocumentBinding documentBinding;
     private readonly GameDataService gameData;
     private readonly ProjectSaveService projectSave;
     private readonly LuaMetadataService metadataService;
@@ -48,6 +49,7 @@ public sealed class BlueprintEditorWindow : Window
     private Image previewImage = null!;
     private TextBlock previewPlaceholder = null!;
     private readonly Dictionary<string, Control> graphViews = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, BlueprintGraphControl.ViewState> graphViewStates = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (Button Button, JsonNode? ParentValue)> revertActions = new(StringComparer.Ordinal);
     private Toast toast = null!;
     private readonly DeferredWindowInitializer initializer;
@@ -94,7 +96,9 @@ public sealed class BlueprintEditorWindow : Window
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
 
-        gameData.DataRestored += onDataRestored;
+        document.ExternalChanged += onDataRestored;
+        documentBinding = new EditorDocumentBinding(this, gameData, () => document.ResourceDocument, () => document.Title, closeWhenDeleted: true);
+        projectSave.RegisterParticipant(this);
         gameData.DataReloaded += onDataReloaded;
         Closed += onClosed;
         Deactivated += (_, _) => flushGraphViews();
@@ -265,7 +269,7 @@ public sealed class BlueprintEditorWindow : Window
         if (!document.RekeyBlueprint(key))
             return false;
         FlushPendingChanges();
-        Title = document.Title;
+        documentBinding.Refresh();
         if (initializer.IsInitialized)
             refreshAll();
         return true;
@@ -922,6 +926,8 @@ public sealed class BlueprintEditorWindow : Window
             Path.Combine(gameData.ProjectPath, "Assets"),
             gameData.getCellSize(),
             isGraphReadOnly());
+        if (graphViewStates.TryGetValue(eventName, out BlueprintGraphControl.ViewState? state))
+            control.RestoreViewState(state);
         control.GraphChanged += (_, _) =>
         {
             document.CommitEventGraph(eventName, BlueprintGraphCodec.Save(control.Document));
@@ -1192,9 +1198,9 @@ public sealed class BlueprintEditorWindow : Window
         if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;
         args.Handled = true;
@@ -1202,7 +1208,9 @@ public sealed class BlueprintEditorWindow : Window
 
     private void onClosed(object? sender, EventArgs args)
     {
-        gameData.DataRestored -= onDataRestored;
+        document.ExternalChanged -= onDataRestored;
+        document.Dispose();
+        projectSave.UnregisterParticipant(this);
         gameData.DataReloaded -= onDataReloaded;
         clearGraphViews();
         releasePreviewLease();
@@ -1221,8 +1229,11 @@ public sealed class BlueprintEditorWindow : Window
 
     private void clearGraphViews(bool discardPendingChanges = false)
     {
-        foreach (Control content in graphViews.Values)
+        foreach (KeyValuePair<string, Control> entry in graphViews)
         {
+            Control content = entry.Value;
+            if (content is BlueprintGraphControl graph)
+                graphViewStates[entry.Key] = graph.CaptureViewState();
             if (discardPendingChanges && content is BlueprintGraphControl graphControl)
                 graphControl.DiscardPendingChanges();
             contentHost.Children.Remove(content);

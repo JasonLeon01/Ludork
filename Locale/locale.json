@@ -899,13 +899,21 @@
     "zh_CN": "确认删除变量 '{name}' 吗？",
     "en_GB": "Delete variable '{name}'?"
   },
-  "GAME_VARIABLE_SAVE_FAILED": {
-    "zh_CN": "保存游戏变量失败",
-    "en_GB": "Failed to save game variables"
+  "GAME_VARIABLE_EDIT_FAILED": {
+    "zh_CN": "修改游戏变量失败",
+    "en_GB": "Failed to edit game variables"
   },
-  "RETRY_SAVE": {
-    "zh_CN": "重试保存",
-    "en_GB": "Retry Save"
+  "DELETE_DOCUMENT_CONFIRMATION": {
+    "zh_CN": "立即删除所选文件？此操作无法撤销。",
+    "en_GB": "Delete the selected file(s) immediately? This cannot be undone."
+  },
+  "DOCUMENT_HISTORY_REFERENCE_BARRIER": {
+    "zh_CN": "此处为 {source} 触发的自动引用更新，不能撤销该记录及更早的操作。",
+    "en_GB": "This automatic reference update was triggered by {source}. This entry and earlier operations cannot be undone."
+  },
+  "DOCUMENT_DELETE_REFERENCED": {
+    "zh_CN": "该文件仍被引用，不能删除；如果已修改相关引用，请先保存全部后重试。",
+    "en_GB": "This file is still referenced and cannot be deleted. If you have changed those references, save all files and try again."
   },
   "SELECT_GAME_VARIABLE": {
     "zh_CN": "选择游戏变量",

@@ -14,7 +14,9 @@ public sealed class AnimationWindow : Window
     private readonly AnimationEditor editor;
     private readonly GameDataService gameData;
     private readonly ProjectSaveService projectSave;
-    private readonly string key;
+    private readonly EditorDocument? resourceDocument;
+    private readonly EditorDocumentBinding documentBinding;
+    private string key => resourceDocument?.Key ?? string.Empty;
     private readonly Toast toast;
 
     public AnimationWindow(
@@ -25,7 +27,7 @@ public sealed class AnimationWindow : Window
     {
         this.gameData = gameData;
         this.projectSave = projectSave;
-        this.key = key;
+        resourceDocument = gameData.GetDocument("Animations", key);
         Title = $"{LocaleService.Get("ANIMATION_WINDOW")} - {key}";
         Width = 1200;
         Height = 900;
@@ -38,14 +40,8 @@ public sealed class AnimationWindow : Window
         Content = editor;
         toast = new Toast(this);
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        gameData.DataRestored += onDataRestored;
-        Closed += (_, _) => gameData.DataRestored -= onDataRestored;
-    }
-
-    private void onDataRestored(object? sender, System.EventArgs args)
-    {
-        if (gameData.AnimationsData.TryGetValue(key, out JsonObject? data))
-            editor.Reload(data);
+        documentBinding = new EditorDocumentBinding(this, gameData, () => resourceDocument,
+            () => $"{LocaleService.Get("ANIMATION_WINDOW")} - {this.key}", closeWhenDeleted: true);
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
@@ -57,9 +53,9 @@ public sealed class AnimationWindow : Window
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         }
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;
         args.Handled = true;

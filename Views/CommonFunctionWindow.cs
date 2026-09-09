@@ -18,12 +18,13 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public sealed class CommonFunctionWindow : Window
+public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
 {
     private static string? clipboardName;
     private static JsonObject? clipboardData;
     private readonly GameDataService gameData;
     private readonly ProjectSaveService projectSave;
+    private readonly EditorDocumentBinding documentBinding;
     private readonly BlueprintVariableFieldBuilder fieldBuilder;
     private readonly BlueprintNodeParameterEditorFactory parameterEditorFactory;
     private BlueprintNodeDefinitionCatalog? nodeDefinitionCatalog;
@@ -35,6 +36,7 @@ public sealed class CommonFunctionWindow : Window
     private BlueprintGraphControl? graphControl;
     private string? pendingFunctionName;
     private bool refreshing;
+    private readonly Dictionary<Guid, BlueprintGraphControl.ViewState> graphViewStates = [];
 
     public CommonFunctionWindow(
         GameDataService gameData,
@@ -61,7 +63,11 @@ public sealed class CommonFunctionWindow : Window
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
 
-        gameData.DataRestored += onDataRestored;
+        documentBinding = new EditorDocumentBinding(this, gameData,
+            () => currentDocument?.ResourceDocument,
+            () => LocaleService.Get("COMMON_FUNCTIONS"));
+        projectSave.RegisterParticipant(this);
+        gameData.Documents.Changed += onDocumentsChanged;
         gameData.DataReloaded += onDataReloaded;
         Closed += onClosed;
         Deactivated += (_, _) => flushGraph();
@@ -90,7 +96,7 @@ public sealed class CommonFunctionWindow : Window
             SelectionMode = SelectionMode.Single,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
-            ItemTemplate = HintedTextPresenter.StringItemTemplate,
+            ItemTemplate = DocumentStatusPresenter.CreateTemplate(gameData, "CommonFunctions"),
         };
         functionList.SelectionChanged += onSelectionChanged;
         functionList.AddHandler(
@@ -140,8 +146,10 @@ public sealed class CommonFunctionWindow : Window
         if (functionList.SelectedItem is not string name)
             return;
         currentDocument = CommonFunctionEditorDocument.Create(gameData, name);
+        documentBinding.Refresh();
         if (currentDocument is null)
             return;
+        currentDocument.ExternalChanged += onDataRestored;
         JsonObject eventGraph = currentDocument.GetEventGraph();
         JsonObject startNodes = currentDocument.GetStartNodes();
         BlueprintNodeDefinitionSet definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet();
@@ -160,6 +168,9 @@ public sealed class CommonFunctionWindow : Window
             projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
             gameData.getCellSize());
+        if (currentDocument.ResourceDocument is EditorDocument resource
+            && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
+            graphControl.RestoreViewState(state);
         graphControl.GraphChanged += onGraphChanged;
         graphHost.Child = graphControl;
     }
@@ -306,7 +317,7 @@ public sealed class CommonFunctionWindow : Window
         if (functionList.SelectedItem is not string name)
             return;
         string message = LocaleService.Get("CONFIRM_DELETE_FUNC")
-            .Replace("{name}", name, StringComparison.Ordinal);
+            .Replace("{name}", name, StringComparison.Ordinal) + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION");
         bool confirmed = await ConfirmationDialog.ShowAsync(
             this,
             LocaleService.Get("CONFIRM_DELETE"),
@@ -314,7 +325,7 @@ public sealed class CommonFunctionWindow : Window
         if (!confirmed)
             return;
         flushGraph();
-        if (gameData.DeleteCommonFunction(name))
+        if (await EditorResourceOperations.DeleteAsync(this, () => gameData.DeleteCommonFunction(name)))
             refreshList(null);
     }
 
@@ -366,9 +377,9 @@ public sealed class CommonFunctionWindow : Window
         if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;
         args.Handled = true;
@@ -390,20 +401,31 @@ public sealed class CommonFunctionWindow : Window
         showSelectedFunction();
     }
 
+    private void onDocumentsChanged(object? sender, EventArgs args)
+    {
+        if (!initializer.IsInitialized)
+            return;
+        string[] keys = gameData.CommonFunctionsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        if (!keys.SequenceEqual(functionList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
+            refreshList(currentDocument?.Name);
+    }
+
     private void onDataRestored(object? sender, EventArgs args)
     {
         if (!initializer.IsInitialized)
             return;
+        string? name = currentDocument?.Name ?? functionList.SelectedItem as string;
         disposeGraph(true);
-        refreshList(functionList.SelectedItem as string);
+        refreshList(name);
     }
 
     private void onDataReloaded(object? sender, EventArgs args)
     {
         if (!initializer.IsInitialized)
             return;
+        string? name = currentDocument?.Name ?? functionList.SelectedItem as string;
         disposeGraph(true);
-        refreshList(functionList.SelectedItem as string);
+        refreshList(name);
     }
 
     private void flushGraph()
@@ -413,27 +435,33 @@ public sealed class CommonFunctionWindow : Window
 
     private void disposeGraph(bool discardPendingChanges)
     {
-        if (graphControl is null)
+        if (graphControl is not null)
         {
-            currentDocument = null;
-            if (initializer.IsInitialized)
-                graphHost.Child = null;
-            return;
+            if (currentDocument?.ResourceDocument is EditorDocument resource)
+                graphViewStates[resource.Id] = graphControl.CaptureViewState();
+            if (discardPendingChanges)
+                graphControl.DiscardPendingChanges();
+            else
+                graphControl.FlushPendingChanges();
+            graphControl.GraphChanged -= onGraphChanged;
+            graphHost.Child = null;
+            graphControl.Dispose();
+            graphControl = null;
         }
-        if (discardPendingChanges)
-            graphControl.DiscardPendingChanges();
-        else
-            graphControl.FlushPendingChanges();
-        graphControl.GraphChanged -= onGraphChanged;
-        graphHost.Child = null;
-        graphControl.Dispose();
-        graphControl = null;
+        if (currentDocument is not null)
+        {
+            currentDocument.ExternalChanged -= onDataRestored;
+            currentDocument.Dispose();
+        }
         currentDocument = null;
+        if (initializer.IsInitialized)
+            graphHost.Child = null;
     }
 
     private void onClosed(object? sender, EventArgs args)
     {
-        gameData.DataRestored -= onDataRestored;
+        projectSave.UnregisterParticipant(this);
+        gameData.Documents.Changed -= onDocumentsChanged;
         gameData.DataReloaded -= onDataReloaded;
         disposeGraph(false);
     }

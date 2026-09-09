@@ -135,12 +135,18 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <StackPanel Width="150" Margin="6" Spacing="3">
-                            <controls:FrameRevisionImage Source="{Binding Icon}"
+                            <Grid Width="80" Height="80" HorizontalAlignment="Center">
+                                <controls:FrameRevisionImage Source="{Binding Icon}"
                                                          FrameRevision="{Binding PreviewFrameRevision}"
                                                          Width="80"
                                                          Height="80"
                                                          Stretch="Uniform"
                                                          HorizontalAlignment="Center" />
+                                <TextBlock Text="*" IsVisible="{Binding IsModified}"
+                                           HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                           FontSize="18" FontWeight="Bold" Foreground="#FFD166"
+                                           IsHitTestVisible="False" />
+                            </Grid>
                             <TextBlock Text="{Binding Name}"
                                        TextAlignment="Center"
                                        TextWrapping="Wrap"
@@ -161,11 +167,17 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
-                            <controls:FrameRevisionImage Source="{Binding Icon}"
+                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                                <controls:FrameRevisionImage Source="{Binding Icon}"
                                                          FrameRevision="{Binding PreviewFrameRevision}"
                                                          Width="28"
                                                          Height="28"
                                                          Stretch="Uniform" />
+                                <TextBlock Text="*" IsVisible="{Binding IsModified}"
+                                           HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                           FontSize="18" FontWeight="Bold" Foreground="#FFD166"
+                                           IsHitTestVisible="False" />
+                            </Grid>
                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                         </StackPanel>
                     </DataTemplate>

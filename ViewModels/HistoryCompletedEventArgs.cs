@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+using Ludork.Services;
 using System;
 
 namespace Ludork.ViewModels;
 
-public sealed class HistoryCompletedEventArgs(string action, IReadOnlyList<string> differences) : EventArgs
+public sealed class HistoryCompletedEventArgs(string action, HistoryResult result) : EventArgs
 {
     public string Action { get; } = action;
-    public IReadOnlyList<string> Differences { get; } = differences;
+    public HistoryResult Result { get; } = result;
 }

@@ -51,7 +51,6 @@ public sealed class GameConfigService
     private readonly string projectPath;
     private readonly string iniPath;
     private GameConfigData savedData;
-    private GameConfigData? pendingData;
     private string? loadError;
 
     public GameConfigService(string projectPath)
@@ -65,10 +64,8 @@ public sealed class GameConfigService
 
     public string IniPath => iniPath;
     public GameConfigData SavedData => savedData;
-    public GameConfigData CurrentData => pendingData ?? savedData;
-    public GameConfigData? PendingData => pendingData;
+    public GameConfigData CurrentData => savedData;
     public string? LoadError => loadError;
-    public bool IsModified => pendingData is not null;
     public event EventHandler? Changed;
 
     public IReadOnlyList<string> GetLanguageOptions()
@@ -88,21 +85,12 @@ public sealed class GameConfigService
         return languages.ToArray();
     }
 
-    public void SetPending(GameConfigData data)
-    {
-        GameConfigData normalized = normalize(data);
-        if (normalized == CurrentData)
-            return;
-        pendingData = normalized == savedData ? null : normalized;
-        Changed?.Invoke(this, EventArgs.Empty);
-    }
-
-    public void SetPending(GameConfigData data, GameConfigData baseline)
+    public GameConfigSaveResult Confirm(GameConfigData data, GameConfigData baseline)
     {
         GameConfigData normalized = normalize(data);
         GameConfigData normalizedBaseline = normalize(baseline);
         GameConfigData current = CurrentData;
-        SetPending(current with
+        GameConfigData confirmed = current with
         {
             Script = normalized.Script == normalizedBaseline.Script
                 ? current.Script
@@ -147,49 +135,57 @@ public sealed class GameConfigService
             VoiceVolume = normalized.VoiceVolume == normalizedBaseline.VoiceVolume
                 ? current.VoiceVolume
                 : normalized.VoiceVolume,
-        });
-    }
+        };
+        if (confirmed == savedData && File.Exists(iniPath))
+            return GameConfigSaveResult.Completed(string.Empty);
 
-    public void DiscardPending()
-    {
-        if (pendingData is null)
-            return;
-        pendingData = null;
+        string temporaryPath = iniPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        string? failure = null;
+        try
+        {
+            IniDocument document = loadDocument();
+            setKnownValues(document, confirmed);
+            File.WriteAllText(temporaryPath, document.ToText(), new UTF8Encoding(false));
+            File.Move(temporaryPath, iniPath, true);
+        }
+        catch (IOException exception)
+        {
+            failure = exception.Message;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            failure = exception.Message;
+        }
+
+        finally
+        {
+            try
+            {
+                if (File.Exists(temporaryPath))
+                    File.Delete(temporaryPath);
+            }
+            catch (IOException exception)
+            {
+                failure = failure + "; temporary file cleanup failed: " + exception.Message;
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                failure = failure + "; temporary file cleanup failed: " + exception.Message;
+            }
+        }
+
+        if (failure is not null)
+            return GameConfigSaveResult.Failed($"Main.ini({failure})");
+        savedData = confirmed;
+        loadError = null;
         Changed?.Invoke(this, EventArgs.Empty);
+        return GameConfigSaveResult.Completed("Main.ini");
     }
 
     public void Reload()
     {
         savedData = loadData();
-        pendingData = null;
         Changed?.Invoke(this, EventArgs.Empty);
-    }
-
-    public GameConfigSaveResult SavePending()
-    {
-        if (pendingData is null)
-            return GameConfigSaveResult.Completed(string.Empty);
-
-        try
-        {
-            IniDocument document = loadDocument();
-            setKnownValues(document, pendingData);
-            File.WriteAllText(iniPath, document.ToText(), new UTF8Encoding(false));
-        }
-        catch (IOException exception)
-        {
-            return GameConfigSaveResult.Failed($"Main.ini({exception.Message})");
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            return GameConfigSaveResult.Failed($"Main.ini({exception.Message})");
-        }
-
-        savedData = pendingData;
-        pendingData = null;
-        loadError = null;
-        Changed?.Invoke(this, EventArgs.Empty);
-        return GameConfigSaveResult.Completed("Main.ini");
     }
 
     private GameConfigData loadData()

@@ -48,6 +48,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         "gradientCurve",
     };
     private readonly UiAssetEditorDocument document = null!;
+    private readonly EditorDocumentBinding documentBinding = null!;
+    private Toast? toast;
     private readonly GameDataService gameData = null!;
     private readonly UiControlRegistryService controlRegistry = null!;
     private readonly UiAssetValidationService validationService = null!;
@@ -97,10 +99,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         Closing += onClosing;
         Closed += onClosed;
         projectSave.RegisterParticipant(this);
+        documentBinding = new EditorDocumentBinding(this, gameData, () => document.ResourceDocument,
+            () => document.Title + " - " + LocaleService.Get("UI_ASSET_EDITOR"), updateTitle, closeWhenDeleted: true);
+        Deactivated += onDeactivated;
+        AddHandler(KeyDownEvent, onDocumentKeyDown, RoutingStrategies.Tunnel);
         initializer = new DeferredWindowInitializer(this, () =>
         {
             InitializeComponent();
             contentInitialized = true;
+            toast = new Toast(this);
             previewSession = new UiAssetPreviewSession(document, gameData, controlRegistry.Runtime);
             previewSurface = new UiPreviewSurface
             {
@@ -172,6 +179,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         closed = true;
         document.Changed -= onDocumentChanged;
+        document.Dispose();
+        Deactivated -= onDeactivated;
         controlRegistry.Runtime.Changed -= onRegistryChanged;
         projectSave.UnregisterParticipant(this);
         Closing -= onClosing;
@@ -192,6 +201,21 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         previewSession.StateChanged -= onPreviewStateChanged;
         previewSession.FrameReady -= onPreviewFrameReady;
         await previewSession.DisposeAsync();
+    }
+
+    private void onDeactivated(object? sender, EventArgs args) => FlushPendingChanges();
+
+    private async void onDocumentKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) || args.Key is not (Key.S or Key.Z or Key.Y))
+            return;
+        FlushPendingChanges();
+        if (args.Key == Key.S)
+            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
+        else if (toast is not null)
+            EditorFeedback.ShowHistory(toast, args.Key == Key.Z ? "Undo" : "Redo",
+                args.Key == Key.Z ? documentBinding.Undo() : documentBinding.Redo());
+        args.Handled = true;
     }
 
     private void onPreviewZoomChanged(object? sender, EventArgs args)
@@ -233,13 +257,19 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void updateTitle()
     {
         string title = document.Title;
-        Title = title + " - " + LocaleService.Get("UI_ASSET_EDITOR");
+        documentBinding?.Refresh();
         if (contentInitialized)
-            DocumentTitle.Text = title;
+            DocumentTitle.Text = (document.ResourceDocument?.IsModified == true ? "* " : string.Empty) + title;
     }
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
+        if (document.ResourceDocument?.Exists != true)
+        {
+            Close();
+            return;
+        }
+        updateTitle();
         if (closed || refreshing || !initializer.IsInitialized)
             return;
         if (timelineEditor.IsCommitting)

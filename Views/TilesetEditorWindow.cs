@@ -25,6 +25,7 @@ public sealed class TilesetEditorWindow : Window
     private readonly HashSet<TabItem> pendingTabs = [];
     private readonly DeferredWindowInitializer initializer;
     private readonly Toast toast;
+    private readonly EditorDocumentBinding documentBinding;
     private TabControl? tabControl;
     private TabItem? tilesetItem;
     private TabItem? autoTileItem;
@@ -57,11 +58,14 @@ public sealed class TilesetEditorWindow : Window
         Content = DeferredWindowInitializer.CreateLoadingContent();
         initializer = new DeferredWindowInitializer(this, initializeContent);
         toast = new Toast(this);
-        gameData.DataRestored += onDataRestored;
+        documentBinding = new EditorDocumentBinding(this, gameData,
+            () => ReferenceEquals(tabControl?.SelectedItem, autoTileItem) ? autoTileTab?.Document : tilesetTab?.Document,
+            () => LocaleService.Get("TILESETS_DATA"));
+        gameData.Documents.Changed += onDataRestored;
         Closed += (_, _) =>
         {
             closed = true;
-            gameData.DataRestored -= onDataRestored;
+            gameData.Documents.Changed -= onDataRestored;
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
@@ -98,7 +102,11 @@ public sealed class TilesetEditorWindow : Window
         };
         tabControl.Items.Add(tilesetItem);
         tabControl.Items.Add(autoTileItem);
-        tabControl.SelectionChanged += (_, _) => initializeTab(tabControl.SelectedItem as TabItem);
+        tabControl.SelectionChanged += (_, _) =>
+        {
+            initializeTab(tabControl.SelectedItem as TabItem);
+            documentBinding.Refresh();
+        };
         Content = new Border { Padding = new Thickness(5), Child = tabControl };
         navigateToPendingPage();
     }
@@ -124,6 +132,7 @@ public sealed class TilesetEditorWindow : Window
                 return;
             bool isAutoTile = ReferenceEquals(item, autoTileItem);
             TilesetEditorTab tab = new(this, gameData, tileSelect, isAutoTile);
+            tab.SelectionChanged += (_, _) => documentBinding.Refresh();
             if (isAutoTile)
                 autoTileTab = tab;
             else
@@ -132,6 +141,7 @@ public sealed class TilesetEditorWindow : Window
             initializedTabs.Add(item);
             item.Content = tab;
             applyPendingSelection(isAutoTile);
+            documentBinding.Refresh();
         }, DispatcherPriority.Background);
     }
 
@@ -150,9 +160,8 @@ public sealed class TilesetEditorWindow : Window
 
     private void onDataRestored(object? sender, EventArgs args)
     {
-        tileSelect.RefreshData();
         foreach (TilesetEditorTab tab in editorTabs)
-            tab.RefreshAfterDataRestore();
+            tab.RefreshDocumentList();
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
@@ -160,9 +169,9 @@ public sealed class TilesetEditorWindow : Window
         if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
             return;
         if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         else

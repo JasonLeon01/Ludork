@@ -13,24 +13,24 @@
     {
       "name": "FadeIn",
       "target": null,
-      "duration": 0.2,
+      "duration": 0.5,
       "pivot": [0.5, 0.5],
       "tracks": {
         "colour": [
           { "time": 0.0, "value": [255, 255, 255, 0] },
-          { "time": 0.2, "value": [255, 255, 255, 255] }
+          { "time": 0.5, "value": [255, 255, 255, 255] }
         ]
       }
     },
     {
       "name": "FadeOut",
       "target": null,
-      "duration": 0.2,
+      "duration": 1.0,
       "pivot": [0.5, 0.5],
       "tracks": {
         "colour": [
           { "time": 0.0, "value": [255, 255, 255, 255] },
-          { "time": 0.2, "value": [255, 255, 255, 0] }
+          { "time": 1.0, "value": [255, 255, 255, 0] }
         ]
       }
     }

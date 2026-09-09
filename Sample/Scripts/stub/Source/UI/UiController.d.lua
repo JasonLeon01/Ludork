@@ -59,12 +59,17 @@ function UiController:createTransition(host, target) end
 ---@return boolean
 function UiController:hasAnimation(name, target) end
 
+--- Natural completion holds the final frame and invokes onFinished once; no stopAnimation call is needed.
+--- The native layer replaces an animation on the same target and cancels its old callback; different targets run independently.
+--- A missing animation returns false and invokes onFinished synchronously.
 ---@param name       string
 ---@param target     string | nil
 ---@param onFinished function | nil
 ---@return boolean
 function UiController:playAnimation(name, target, onFinished) end
 
+--- Clears the matching animation's presentation effect, including a held final frame, and cancels its pending callback.
+--- An old or non-current name leaves the target's current animation and callback intact.
 ---@param name   string
 ---@param target string | nil
 function UiController:stopAnimation(name, target) end

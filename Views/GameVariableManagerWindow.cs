@@ -24,6 +24,7 @@ public sealed class GameVariableManagerWindow : Window
             .ToArray();
 
     private readonly GameVariableService gameVariables;
+    private readonly ProjectSaveService projectSave;
     private readonly TextBox variableSearchBox;
     private readonly ListBox variableList;
     private readonly StackPanel detailPanel;
@@ -36,11 +37,13 @@ public sealed class GameVariableManagerWindow : Window
     private readonly Button deleteButton;
     private bool loading;
     private bool applyingServiceChange;
+    private long gestureId;
 
-    public GameVariableManagerWindow(GameVariableService gameVariables)
+    public GameVariableManagerWindow(GameVariableService gameVariables, ProjectSaveService projectSave)
     {
         this.gameVariables = gameVariables;
-        Title = LocaleService.Get("GAME_VARIABLES");
+        this.projectSave = projectSave;
+        updateTitle();
         Width = 900;
         Height = 620;
         MinWidth = 700;
@@ -174,24 +177,11 @@ public sealed class GameVariableManagerWindow : Window
             TextWrapping = TextWrapping.Wrap,
             Foreground = new SolidColorBrush(Color.Parse("#ffdddd")),
         };
-        Button retryButton = new()
-        {
-            Content = LocaleService.Get("RETRY_SAVE"),
-            MinWidth = 88,
-        };
-        retryButton.Click += (_, _) => retrySave();
-        Grid errorContent = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,12,Auto"),
-        };
-        errorContent.Children.Add(errorText);
-        Grid.SetColumn(retryButton, 2);
-        errorContent.Children.Add(retryButton);
         errorBar = new Border
         {
             Background = new SolidColorBrush(Color.Parse("#6b2929")),
             Padding = new Thickness(12, 8),
-            Child = errorContent,
+            Child = errorText,
             IsVisible = false,
         };
         Grid root = new()
@@ -205,12 +195,13 @@ public sealed class GameVariableManagerWindow : Window
 
         gameVariables.Changed += onVariablesChanged;
         gameVariables.Saved += onVariablesSaved;
+        projectSave.SavePreparing += onSavePreparing;
         Closed += onClosed;
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(GotFocusEvent, onGotFocus, RoutingStrategies.Bubble);
+        AddHandler(LostFocusEvent, onLostFocus, RoutingStrategies.Bubble);
 
-        GameVariableSaveResult ensureResult = applyChange(gameVariables.EnsureGeneratedFiles);
         rebuildVariableList(null);
-        showSaveResult(ensureResult);
     }
 
     private static void addDetailRow(Grid form, int row, string label, Control editor)
@@ -364,7 +355,7 @@ public sealed class GameVariableManagerWindow : Window
         if (loading)
             return;
         GameVariableSaveResult result = applyChange(() =>
-            gameVariables.SetInitialValue(name, value));
+            gameVariables.SetInitialValue(name, value, gestureId));
         showSaveResult(result);
     }
 
@@ -373,7 +364,7 @@ public sealed class GameVariableManagerWindow : Window
         if (loading || variableList.SelectedItem is not string name)
             return;
         GameVariableSaveResult result = applyChange(() =>
-            gameVariables.SetRemark(name, remarkBox.Text));
+            gameVariables.SetRemark(name, remarkBox.Text, gestureId));
         showSaveResult(result);
     }
 
@@ -390,9 +381,9 @@ public sealed class GameVariableManagerWindow : Window
         }
     }
 
-    private void retrySave()
+    private async Task saveAsync()
     {
-        showSaveResult(applyChange(gameVariables.SavePending));
+        await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
     }
 
     private void showSaveResult(GameVariableSaveResult result)
@@ -403,12 +394,13 @@ public sealed class GameVariableManagerWindow : Window
             errorBar.IsVisible = false;
             return;
         }
-        errorText.Text = LocaleService.Get("GAME_VARIABLE_SAVE_FAILED") + ": " + result.Detail;
+        errorText.Text = LocaleService.Get("GAME_VARIABLE_EDIT_FAILED") + ": " + result.Detail;
         errorBar.IsVisible = true;
     }
 
     private void onVariablesChanged(object? sender, EventArgs args)
     {
+        updateTitle();
         if (!applyingServiceChange)
             rebuildVariableList(null);
     }
@@ -426,16 +418,51 @@ public sealed class GameVariableManagerWindow : Window
     {
         gameVariables.Changed -= onVariablesChanged;
         gameVariables.Saved -= onVariablesSaved;
+        projectSave.SavePreparing -= onSavePreparing;
         clearInitialValueEditor();
     }
 
-    private void onKeyDown(object? sender, KeyEventArgs args)
+    private async void onKeyDown(object? sender, KeyEventArgs args)
     {
         if (EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.S)
         {
-            retrySave();
             args.Handled = true;
+            await saveAsync();
+            return;
         }
+        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers)
+            || args.Key is not (Key.Z or Key.Y))
+            return;
+        args.Handled = true;
+        gestureId = gameVariables.BeginHistoryGesture();
+        HistoryResult result = args.Key == Key.Z
+            ? gameVariables.Undo()
+            : gameVariables.Redo();
+        if (!result.Success && !string.IsNullOrEmpty(result.Message))
+            await AlertDialog.ShowAsync(this, LocaleService.Get("HINT"), result.Message);
+    }
+
+    private void updateTitle()
+    {
+        Title = (gameVariables.IsModified ? "* " : string.Empty)
+            + LocaleService.Get("GAME_VARIABLES");
+    }
+
+    private void onGotFocus(object? sender, FocusChangedEventArgs args)
+    {
+        gestureId = args.Source is TextBox or NumericUpDown
+            ? gameVariables.BeginHistoryGesture()
+            : 0;
+    }
+
+    private void onLostFocus(object? sender, RoutedEventArgs args)
+    {
+        gestureId = 0;
+    }
+
+    private void onSavePreparing(object? sender, EventArgs args)
+    {
+        gestureId = gameVariables.BeginHistoryGesture();
     }
 
     private static string getTypeName(GameVariableType type)

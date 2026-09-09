@@ -34,7 +34,6 @@ function WindowTransition:show(animationName, onReady)
         if not self:_isCurrent(requestGeneration) then
             return
         end
-        self._ui:stopAnimation(animationName, self._target)
         self._animationName = nil
         self._phase = "open"
         if onReady ~= nil then
@@ -59,7 +58,6 @@ function WindowTransition:hide(animationName, onHidden)
         if not self:_isCurrent(requestGeneration) then
             return
         end
-        self._ui:stopAnimation(animationName, self._target)
         self._animationName = nil
         self._host:setVisible(false)
         self._phase = "hidden"

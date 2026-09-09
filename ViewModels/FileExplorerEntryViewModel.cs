@@ -13,6 +13,7 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
     private IImage? icon;
     private long previewFrameRevision;
     private bool disposed;
+    private bool isModified;
 
     public FileExplorerEntryViewModel(string fullPath, bool isDirectory, IImage? icon)
         : this(fullPath, isDirectory, icon, null)
@@ -51,6 +52,11 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         private set => SetProperty(ref previewFrameRevision, value);
     }
     public string Name { get; }
+    public bool IsModified
+    {
+        get => isModified;
+        set => SetProperty(ref isModified, value);
+    }
 
     public bool IsPreviewActive
     {

@@ -241,7 +241,7 @@
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate x:DataType="vm:MapListItemViewModel"
                                               ItemsSource="{Binding Children}">
-                                <Grid ColumnDefinitions="18,*">
+                                <Grid ColumnDefinitions="18,*,Auto">
                                     <TextBlock Grid.Column="0"
                                                Text="▣"
                                                Foreground="{DynamicResource LudorkPrimaryBrush}"
@@ -254,6 +254,7 @@
                                     <utils:HintedTextPresenter Grid.Column="1"
                                                                Text="{Binding DisplayName}"
                                                                ToolTip.Tip="{Binding Key}" />
+                                    <TextBlock Grid.Column="2" Text="*" IsVisible="{Binding IsModified}" Margin="4,0" VerticalAlignment="Center" />
                                 </Grid>
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>

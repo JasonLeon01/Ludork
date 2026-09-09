@@ -34,6 +34,7 @@ internal sealed class TilesetEditorTab : Grid
         this.gameData = gameData;
         this.tileSelect = tileSelect;
         this.isAutoTile = isAutoTile;
+        dataList.ItemTemplate = DocumentStatusPresenter.CreateTemplate(gameData, isAutoTile ? "AutoTiles" : "Tilesets");
         ColumnDefinitions = new ColumnDefinitions("120,*");
         detail = new TilesetDetailPanel(owner, gameData, isAutoTile, onDataChanged);
         dataList.Width = 120;
@@ -46,6 +47,9 @@ internal sealed class TilesetEditorTab : Grid
         Children.Add(detail);
         refreshList();
     }
+
+    public event EventHandler? SelectionChanged;
+    public EditorDocument? Document => dataList.SelectedItem is string key ? gameData.GetDocument(isAutoTile ? "AutoTiles" : "Tilesets", key) : null;
 
     private IReadOnlyDictionary<string, JsonObject> data => isAutoTile ? gameData.AutoTileData : gameData.TilesetData;
     private string title => LocaleService.Get(isAutoTile ? "AUTOTILES_DATA" : "TILESETS_DATA");
@@ -70,6 +74,7 @@ internal sealed class TilesetEditorTab : Grid
             return;
         string? key = dataList.SelectedItem as string;
         detail.setData(key, key is not null && data.TryGetValue(key, out JsonObject? value) ? value : null);
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async void addAsync()
@@ -92,25 +97,7 @@ internal sealed class TilesetEditorTab : Grid
             return;
         if (!isAutoTile)
         {
-            IReadOnlyList<string> referencingMaps = gameData.GetMapsReferencingTileset(oldKey);
-            bool updateReferences = referencingMaps.Count != 0;
-            if (updateReferences)
-            {
-                string mapFiles = string.Join(
-                    Environment.NewLine,
-                    referencingMaps.Select(gameData.GetMapRuntimePath));
-                bool confirmed = await ConfirmationDialog.ShowAsync(
-                    owner,
-                    renameTitle,
-                    string.Format(
-                        LocaleService.Get("TILESET_REFERENCED_WARNING"),
-                        mapFiles,
-                        oldKey,
-                        nextKey));
-                if (!confirmed)
-                    return;
-            }
-            if (!gameData.RenameTileset(oldKey, nextKey, updateReferences))
+            if (!gameData.RenameTileset(oldKey, nextKey))
             {
                 await AlertDialog.ShowAsync(
                     owner,
@@ -148,10 +135,10 @@ internal sealed class TilesetEditorTab : Grid
     {
         if (dataList.SelectedItem is not string key)
             return;
-        bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_CONFIRMATION"));
+        bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
         if (!confirmed)
             return;
-        if (gameData.DeleteTileset(key, isAutoTile))
+        if (await EditorResourceOperations.DeleteAsync(owner, () => gameData.DeleteTileset(key, isAutoTile)))
             refreshAll();
     }
 
@@ -239,5 +226,10 @@ internal sealed class TilesetEditorTab : Grid
 
     public void SelectData(string key) => refreshList(key);
 
-    public void RefreshAfterDataRestore() => refreshAll();
+    public void RefreshDocumentList()
+    {
+        string[] keys = data.Keys.ToArray();
+        if (!keys.SequenceEqual(dataList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
+            refreshList(detail.Document?.Key);
+    }
 }

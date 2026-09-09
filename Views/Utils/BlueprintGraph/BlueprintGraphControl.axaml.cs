@@ -82,6 +82,32 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     public BlueprintGraphDocument Document => viewModel.Document;
 
+    public sealed record ViewState(double Zoom, double OffsetX, double OffsetY,
+        IReadOnlyList<(int? Index, string NodeFunction, string? ExternalKey)> Selection);
+
+    public ViewState CaptureViewState()
+    {
+        return new ViewState(editor.Zoom, editor.OffsetX, editor.OffsetY,
+            viewModel.SelectedNodes.OfType<BlueprintGraphNodeViewModel>()
+                .Select(node => (node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)).ToArray());
+    }
+
+    public void RestoreViewState(ViewState state)
+    {
+        viewportInitialized = true;
+        editor.Zoom = state.Zoom;
+        editor.OffsetX = state.OffsetX;
+        editor.OffsetY = state.OffsetY;
+        editor.ViewTranslateTransform.X = state.OffsetX;
+        editor.ViewTranslateTransform.Y = state.OffsetY;
+        viewModel.SelectedNodes.Clear();
+        foreach (BlueprintGraphNodeViewModel node in viewModel.Nodes.OfType<BlueprintGraphNodeViewModel>())
+        {
+            if (state.Selection.Contains((node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)))
+                viewModel.SelectedNodes.Add(node);
+        }
+    }
+
     public void OrganizeLayout()
     {
         if (viewModel.IsReadOnly)

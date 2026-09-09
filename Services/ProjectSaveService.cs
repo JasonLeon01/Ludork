@@ -9,8 +9,7 @@ public sealed record ProjectSaveAttempt(
     bool Success,
     bool ValidationBlocked,
     IReadOnlyList<BlueprintValidationResult> ValidationResults,
-    SaveResult DataResult,
-    GameConfigSaveResult GameConfigResult)
+    SaveResult DataResult)
 {
     public IReadOnlyList<UiAssetValidationResult> UiValidationResults { get; init; } = [];
     public GameVariableSaveResult GameVariableResult { get; init; } =
@@ -20,7 +19,7 @@ public sealed record ProjectSaveAttempt(
     {
         get
         {
-            string[] details = [DataResult.Details, GameConfigResult.Detail, GameVariableResult.Detail];
+            string[] details = [DataResult.Details, GameVariableResult.Detail];
             string detail = string.Join(
                 Environment.NewLine,
                 details.Where(value => !string.IsNullOrWhiteSpace(value)));
@@ -38,7 +37,6 @@ public sealed class ProjectSaveService
 {
     private readonly GameDataService gameData;
     private readonly ProjectConfigService projectConfig;
-    private readonly GameConfigService gameConfig;
     private readonly GameVariableService gameVariables;
     private readonly BlueprintValidationService blueprintValidation;
     private readonly UiControlRegistryService uiControlRegistry;
@@ -47,14 +45,12 @@ public sealed class ProjectSaveService
 
     public ProjectSaveService(
         GameDataService gameData,
-        GameConfigService gameConfig,
         GameVariableService gameVariables,
         BlueprintValidationService blueprintValidation,
         ProjectConfigService projectConfig)
     {
         this.gameData = gameData;
         this.projectConfig = projectConfig;
-        this.gameConfig = gameConfig;
         this.gameVariables = gameVariables;
         this.blueprintValidation = blueprintValidation;
         uiControlRegistry = new UiControlRegistryService(gameData);
@@ -77,25 +73,18 @@ public sealed class ProjectSaveService
         participants.Remove(participant);
     }
 
-    public ProjectSaveAttempt TrySave(bool allowInvalidBlueprints = false, bool beforeNativeBuild = false)
+    public void FlushPendingChanges()
     {
         foreach (IProjectSaveParticipant participant in participants.ToArray())
             participant.FlushPendingChanges();
         SavePreparing?.Invoke(this, EventArgs.Empty);
         gameData.BreakHistoryGesture();
-        GameVariableSaveResult gameVariableResult = gameVariables.SavePending();
-        if (!gameVariableResult.Success)
-        {
-            return new ProjectSaveAttempt(
-                false,
-                false,
-                [],
-                new SaveResult(false, string.Empty),
-                GameConfigSaveResult.Completed(string.Empty))
-            {
-                GameVariableResult = gameVariableResult,
-            };
-        }
+    }
+
+    public ProjectSaveAttempt TrySave(bool allowInvalidBlueprints = false, bool beforeNativeBuild = false)
+    {
+        FlushPendingChanges();
+        GameVariableSaveResult gameVariableResult = GameVariableSaveResult.Completed(string.Empty);
         bool structuralOnly = beforeNativeBuild || !uiControlRegistry.IsReady && !projectConfig.IsStandalone;
         IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll(structuralOnly);
         bool hasUiValidationErrors = uiValidationResults.Any(result => !result.IsValid);
@@ -110,8 +99,7 @@ public sealed class ProjectSaveService
                 false,
                 true,
                 [],
-                new SaveResult(false, detail),
-                GameConfigSaveResult.Completed(string.Empty))
+                new SaveResult(false, detail))
             {
                 UiValidationResults = uiValidationResults,
                 GameVariableResult = gameVariableResult,
@@ -132,14 +120,25 @@ public sealed class ProjectSaveService
                 false,
                 true,
                 validationResults,
-                new SaveResult(false, string.Empty),
-                GameConfigSaveResult.Completed(string.Empty))
+                new SaveResult(false, string.Empty))
             {
                 UiValidationResults = uiValidationResults,
                 GameVariableResult = gameVariableResult,
             };
         }
 
+        gameVariableResult = gameVariables.SavePending();
+        if (!gameVariableResult.Success)
+        {
+            return new ProjectSaveAttempt(
+                false,
+                false,
+                [],
+                new SaveResult(false, string.Empty))
+            {
+                GameVariableResult = gameVariableResult,
+            };
+        }
         SaveResult dataResult = gameData.SaveAllModified();
         if (!dataResult.Success)
         {
@@ -147,15 +146,13 @@ public sealed class ProjectSaveService
                 false,
                 false,
                 validationResults,
-                dataResult,
-                GameConfigSaveResult.Completed(string.Empty))
+                dataResult)
             {
                 UiValidationResults = uiValidationResults,
                 GameVariableResult = gameVariableResult,
             };
         }
 
-        GameConfigSaveResult configResult = gameConfig.SavePending();
         if (structuralOnly && uiValidationResults.Count != 0)
         {
             dataResult = dataResult with
@@ -166,11 +163,10 @@ public sealed class ProjectSaveService
             };
         }
         return new ProjectSaveAttempt(
-            configResult.Success,
+            true,
             false,
             validationResults,
-            dataResult,
-            configResult)
+            dataResult)
         {
             UiValidationResults = uiValidationResults,
             GameVariableResult = gameVariableResult,

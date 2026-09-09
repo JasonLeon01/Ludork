@@ -2,17 +2,24 @@ using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services.UiAssets;
 
-public sealed class UiAssetEditorDocument
+public sealed class UiAssetEditorDocument : IDisposable
 {
+    private static readonly ConditionalWeakTable<EditorDocument, GestureOwnership> gestureOwners = new();
     private readonly GameDataService gameData;
     private readonly UiAssetEditingService editing;
     private JsonObject data;
     private JsonObject? gestureStart;
-    private string assetKey;
+    private long gestureId;
+    private readonly EditorDocument? resourceDocument;
+    private readonly string initialAssetKey;
+    private string assetKey => resourceDocument is null ? initialAssetKey : UiAssetSchema.ToLogicalAssetKey(resourceDocument.Key);
+    private JsonObject sourceData;
+    private bool committing;
 
     private UiAssetEditorDocument(
         GameDataService gameData,
@@ -22,17 +29,23 @@ public sealed class UiAssetEditorDocument
     {
         this.gameData = gameData;
         editing = new UiAssetEditingService(gameData, controlRegistry);
-        this.assetKey = assetKey;
+        initialAssetKey = assetKey;
+        resourceDocument = gameData.GetDocument("UI", UiAssetSchema.ToAssetDataKey(assetKey));
         this.data = (JsonObject)data.DeepClone();
+        sourceData = (JsonObject)data.DeepClone();
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onResourceChanged;
+        gameData.Documents.Changed += onRegistryChanged;
     }
 
     public event EventHandler? Changed;
 
+    public EditorDocument? ResourceDocument => resourceDocument;
     public string AssetKey => assetKey;
     public string DocumentKey => "UiAsset:" + assetKey;
     public string Title => assetKey;
     public JsonObject Data => data;
-    public bool IsGestureActive => gestureStart is not null;
+    public bool IsGestureActive => gestureStart is not null && gameData.IsHistoryGestureActive(gestureId);
 
     public static UiAssetEditorDocument? Create(
         GameDataService gameData,
@@ -60,16 +73,17 @@ public sealed class UiAssetEditorDocument
         {
             return false;
         }
-        assetKey = normalizedKey;
-        return true;
+        return string.Equals(assetKey, normalizedKey, StringComparison.Ordinal);
     }
 
     public bool Reload()
     {
+        endGesture();
         string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
         if (!gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? stored))
             return false;
         data = (JsonObject)stored.DeepClone();
+        sourceData = (JsonObject)stored.DeepClone();
         gestureStart = null;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -77,35 +91,58 @@ public sealed class UiAssetEditorDocument
 
     public void BeginGesture()
     {
-        if (gestureStart is null)
-            gestureStart = (JsonObject)data.DeepClone();
+        finishOtherGesture();
+        if (IsGestureActive)
+            return;
+        gestureStart = (JsonObject)data.DeepClone();
+        gestureId = gameData.BeginHistoryGesture();
+        if (resourceDocument is not null)
+            gestureOwners.GetOrCreateValue(resourceDocument).Owner = this;
     }
 
     public bool CommitGesture()
     {
-        if (gestureStart is null)
-            return false;
-        JsonObject start = gestureStart;
-        gestureStart = null;
-        if (JsonNode.DeepEquals(start, data))
-            return false;
-        return commitWorking();
+        bool changed = gestureStart is not null && !JsonNode.DeepEquals(gestureStart, data);
+        endGesture();
+        return changed;
     }
 
     public void CancelGesture()
     {
-        if (gestureStart is null)
-            return;
-        data = gestureStart;
-        gestureStart = null;
-        Changed?.Invoke(this, EventArgs.Empty);
+        if (IsGestureActive && gestureStart is JsonObject start)
+        {
+            data = start;
+            commitWorking();
+        }
+        endGesture();
     }
 
     public bool Flush()
     {
-        if (gestureStart is not null)
-            return CommitGesture();
-        return commitWorking();
+        bool changed = commitWorking();
+        return CommitGesture() || changed;
+    }
+
+    private void finishOtherGesture()
+    {
+        if (resourceDocument is not null
+            && gestureOwners.TryGetValue(resourceDocument, out GestureOwnership? ownership)
+            && ownership.Owner is UiAssetEditorDocument owner && !ReferenceEquals(owner, this))
+        {
+            owner.CommitGesture();
+        }
+    }
+
+    private void endGesture()
+    {
+        gameData.EndHistoryGesture(gestureId);
+        gestureId = 0;
+        gestureStart = null;
+        if (resourceDocument is not null && gestureOwners.TryGetValue(resourceDocument, out GestureOwnership? ownership)
+            && ReferenceEquals(ownership.Owner, this))
+        {
+            ownership.Owner = null;
+        }
     }
 
     public JsonObject? FindNode(string nodeName)
@@ -365,10 +402,8 @@ public sealed class UiAssetEditorDocument
     {
         if (JsonNode.DeepEquals(before, data))
             return;
-        if (gestureStart is not null)
-            Changed?.Invoke(this, EventArgs.Empty);
-        else
-            commitWorking();
+        finishOtherGesture();
+        commitWorking();
     }
 
     private bool commitWorking()
@@ -379,9 +414,49 @@ public sealed class UiAssetEditorDocument
         {
             return false;
         }
-        gameData.UpdateUiAsset(assetKey, (JsonObject)data.DeepClone());
+        committing = true;
+        try
+        {
+            gameData.UpdateUiAsset(assetKey, (JsonObject)data.DeepClone());
+            sourceData = resourceDocument?.Data ?? (JsonObject)data.DeepClone();
+        }
+        finally
+        {
+            committing = false;
+        }
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
+    }
+
+    public void Dispose()
+    {
+        endGesture();
+        gameData.Documents.Changed -= onRegistryChanged;
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onResourceChanged;
+    }
+
+    private void onResourceChanged(object? sender, EventArgs args)
+    {
+        if (committing || JsonNode.DeepEquals(sourceData, resourceDocument?.Data))
+            return;
+        if (!Reload())
+        {
+            data = [];
+            sourceData = [];
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void onRegistryChanged(object? sender, EventArgs args)
+    {
+        if (!committing && gestureStart is not null)
+            endGesture();
+    }
+
+    private sealed class GestureOwnership
+    {
+        public UiAssetEditorDocument? Owner { get; set; }
     }
 
     private JsonObject? getRoot()

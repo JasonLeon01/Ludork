@@ -15,6 +15,8 @@ public partial class ConfigWindow : Window
     private GameDataService? gameData;
     private ProjectSaveService? projectSave;
     private Toast? toast;
+    private string? activeConfigKey;
+    private EditorDocumentBinding? documentBinding;
     public ConfigWindow()
     {
         InitializeComponent();
@@ -27,11 +29,14 @@ public partial class ConfigWindow : Window
         this.projectSave = projectSave;
         toast = new Toast(this);
         populate(gameData);
-        gameData.DataRestored += onDataRestored;
+        documentBinding = new EditorDocumentBinding(this, gameData,
+            () => activeConfigKey is null ? null : gameData.GetDocument("Configs", activeConfigKey),
+            () => LocaleService.Get("SYSTEM_CONFIG") + (activeConfigKey is null ? string.Empty : " - " + activeConfigKey));
+
         gameData.DataReloaded += onDataRestored;
         Closed += (_, _) =>
         {
-            gameData.DataRestored -= onDataRestored;
+
             gameData.DataReloaded -= onDataRestored;
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
@@ -54,9 +59,9 @@ public partial class ConfigWindow : Window
         if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast!, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast!, "Undo", documentBinding!.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast!, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast!, "Redo", documentBinding!.Redo());
         else
             return;
         args.Handled = true;
@@ -71,6 +76,17 @@ public partial class ConfigWindow : Window
             {
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
+            };
+            activeConfigKey ??= entry.Key;
+            panel.GotFocus += (_, _) =>
+            {
+                activeConfigKey = entry.Key;
+                documentBinding?.Refresh();
+            };
+            panel.PointerPressed += (_, _) =>
+            {
+                activeConfigKey = entry.Key;
+                documentBinding?.Refresh();
             };
             int row = index / 2;
             int column = index % 2;

@@ -20,7 +20,6 @@ function Scene:onCreate()
     self._ui = GameOverUI.new()
     self._ui:mount(self:getUIManager(), GlobalSystem.getGameSize())
     self._ui:playAnimation("FadeIn", nil, function ()
-        self._ui:stopAnimation("FadeIn")
         self._phase = "open"
     end)
 end
@@ -47,7 +46,6 @@ function Scene:_backToTitle()
     self._phase = "exiting"
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self._ui:playAnimation("FadeOut", nil, function ()
-        self._ui:stopAnimation("FadeOut")
         GlobalSystem.setScene(SceneTitle.new())
     end)
 end

@@ -2,19 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Ludork.Views.UnsavedChangesDialog"
         Width="520"
-        Height="190"
-        CanResize="False"
+        Height="370"
+        CanResize="True"
+        MinWidth="420"
+        MinHeight="260"
         WindowStartupLocation="CenterOwner"
         Background="#121212"
         FontFamily="avares://Ludork/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
         Icon="/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="*,Auto">
+    <Grid Margin="24" RowDefinitions="Auto,*,Auto">
         <TextBlock x:Name="MessageText"
                    Grid.Row="0"
                    TextWrapping="Wrap"
                    VerticalAlignment="Center"
                    FontSize="16" />
-        <StackPanel Grid.Row="1"
+        <ListBox x:Name="DocumentList" Grid.Row="1" Margin="0,16" />
+        <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="8">

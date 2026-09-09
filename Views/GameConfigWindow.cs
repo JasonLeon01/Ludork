@@ -21,6 +21,7 @@ public sealed class GameConfigWindow : Window
     private static readonly int[] frameRateValues = [30, 60, 90, 120, 0];
     private static readonly int[] antiAliasingLevelValues = [0, 2, 4, 8];
     private readonly GameConfigData initialData;
+    private readonly GameConfigService service;
     private readonly ComboBox languageBox;
     private readonly ComboBox scaleBox;
     private readonly double[] maximumRenderScaleOptions;
@@ -37,8 +38,9 @@ public sealed class GameConfigWindow : Window
     private readonly NumericUpDown voiceVolumeBox;
     private readonly Button confirmButton;
 
-    private GameConfigWindow(GameConfigData initialData, IReadOnlyList<string> languages)
+    private GameConfigWindow(GameConfigService service, GameConfigData initialData, IReadOnlyList<string> languages)
     {
+        this.service = service;
         Title = LocaleService.Get("GAME_CONFIG");
         Width = 560;
         Height = 616;
@@ -138,7 +140,7 @@ public sealed class GameConfigWindow : Window
             Content = LocaleService.Get("CONFIRM"),
             MinWidth = 80,
         };
-        confirmButton.Click += (_, _) => confirm();
+        confirmButton.Click += async (_, _) => await confirmAsync();
         Button cancelButton = new()
         {
             Content = LocaleService.Get("CANCEL"),
@@ -178,14 +180,11 @@ public sealed class GameConfigWindow : Window
                 LocaleService.Get("ERROR"),
                 LocaleService.Get("GAME_CONFIG_LOAD_FAILED") + Environment.NewLine + loadError);
         }
-        GameConfigWindow window = new(service.CurrentData, service.GetLanguageOptions());
-        GameConfigData? result = await window.ShowDialog<GameConfigData?>(owner);
-        if (result is not null)
-            service.SetPending(result, window.initialData);
-        return result;
+        GameConfigWindow window = new(service, service.CurrentData, service.GetLanguageOptions());
+        return await window.ShowDialog<GameConfigData?>(owner);
     }
 
-    private void confirm()
+    private async Task confirmAsync()
     {
         string language = languageBox.SelectedItem?.ToString()?.Trim() ?? string.Empty;
         if (language.Length == 0)
@@ -206,7 +205,7 @@ public sealed class GameConfigWindow : Window
             antiAliasingLevelBox.SelectedItem?.ToString() ?? "0",
             NumberStyles.Integer,
             CultureInfo.InvariantCulture);
-        Close(initialData with
+        GameConfigData data = initialData with
         {
             Language = language,
             Scale = scale,
@@ -221,7 +220,17 @@ public sealed class GameConfigWindow : Window
             MusicVolume = decimal.ToDouble(musicVolumeBox.Value ?? 100),
             SoundVolume = decimal.ToDouble(soundVolumeBox.Value ?? 100),
             VoiceVolume = decimal.ToDouble(voiceVolumeBox.Value ?? 100),
-        });
+        };
+        GameConfigSaveResult result = service.Confirm(data, initialData);
+        if (!result.Success)
+        {
+            await AlertDialog.ShowAsync(
+                this,
+                LocaleService.Get("ERROR"),
+                LocaleService.Get("GAME_CONFIG_SAVE_FAILED") + Environment.NewLine + result.Detail);
+            return;
+        }
+        Close(service.CurrentData);
     }
 
     private void updateConfirmEnabled()

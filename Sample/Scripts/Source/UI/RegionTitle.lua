@@ -50,7 +50,6 @@ function RegionTitleUI:onViewUpdate(payload)
     self:playAnimation("Display", "RegionTitle", function ()
         self._showing = false
         self:setProperty("RegionTitle", "visible", false)
-        self:stopAnimation("Display", "RegionTitle")
     end)
 end
 

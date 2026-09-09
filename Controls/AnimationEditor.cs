@@ -26,7 +26,9 @@ public sealed class AnimationEditor : UserControl
 {
     private const double AssetMarqueeThreshold = 4;
     private readonly GameDataService gameData;
-    private readonly string key;
+    private readonly EditorDocument? resourceDocument;
+    private readonly string initialKey;
+    private string key => resourceDocument?.Key ?? initialKey;
     private readonly TextBox nameBox = EditorInputs.CreateEditableTextBox();
     private readonly ComboBox fpsBox = new();
     private readonly Grid assetGrid = new();
@@ -77,7 +79,8 @@ public sealed class AnimationEditor : UserControl
     public AnimationEditor(GameDataService gameData, string key, JsonObject data)
     {
         this.gameData = gameData;
-        this.key = key;
+        initialKey = key;
+        resourceDocument = gameData.GetDocument("Animations", key);
         this.data = (JsonObject)data.DeepClone();
 
         preview = new AnimationPreview(gameData.ProjectPath, () => this.data);
@@ -99,6 +102,29 @@ public sealed class AnimationEditor : UserControl
         AddHandler(KeyDownEvent, onEditorKeyDown, RoutingStrategies.Tunnel);
 
         buildLayout();
+        refreshEditor();
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onDocumentChanged;
+        onDocumentChanged(this, EventArgs.Empty);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onDocumentChanged;
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onDocumentChanged(object? sender, EventArgs args)
+    {
+        if (resourceDocument?.Data is not JsonObject current || JsonNode.DeepEquals(current, data))
+            return;
+        data = current;
         refreshEditor();
     }
 

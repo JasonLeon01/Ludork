@@ -8,6 +8,14 @@ namespace Ludork.Views.Utils;
 
 public static class EditorFeedback
 {
+    public static void ShowHistory(Toast toast, string action, HistoryResult result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.Message))
+            toast.ShowMessage(result.Message);
+        else
+            ShowHistory(toast, action, result.Changes);
+    }
+
     public static Task ShowSaveResultAsync(Window owner, SaveResult result)
     {
         string prefix = LocaleService.Get(result.Success ? "SAVE_SUCCESS" : "SAVE_FAILED");

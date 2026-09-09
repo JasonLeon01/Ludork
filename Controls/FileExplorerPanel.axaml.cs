@@ -569,7 +569,7 @@ public partial class FileExplorerPanel : UserControl
         bool confirmed = await ConfirmationDialog.ShowAsync(
             owner,
             LocaleService.Get("CONFIRM_DELETE"),
-            LocaleService.Get("DELETE_CONFIRMATION"));
+            LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
         if (!confirmed)
             return;
         await showOperationErrors(

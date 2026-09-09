@@ -48,7 +48,6 @@ function Scene:onCreate()
     end
     self._windowCommand:setActive(false)
     self._ui:playAnimation("FadeIn", "CommandPanel", function ()
-        self._ui:stopAnimation("FadeIn", "CommandPanel")
         self._windowCommand:setActive(true)
         self._windowCommand:requestKeyboardFocus()
     end)

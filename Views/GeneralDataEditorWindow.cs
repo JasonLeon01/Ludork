@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public sealed class GeneralDataEditorWindow : Window
+public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 {
     private readonly GameDataService gameData;
     private readonly ProjectSaveService projectSave;
@@ -23,6 +23,7 @@ public sealed class GeneralDataEditorWindow : Window
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintPreviewService previewService;
     private readonly Toast toast;
+    private readonly EditorDocumentBinding documentBinding;
     private readonly TabControl tabControl;
     private readonly DeferredWindowInitializer initializer;
     private readonly Dictionary<string, BlueprintEditorWindow> blueprintWindows = new(StringComparer.Ordinal);
@@ -60,12 +61,19 @@ public sealed class GeneralDataEditorWindow : Window
         tabControl.SelectionChanged += (_, _) =>
         {
             if (!buildingTabs)
+            {
                 ensureSelectedPage();
+                documentBinding?.Refresh();
+            }
         };
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
         HistoryMergeBehavior.AttachBoundary(this, gameData);
         toast = new Toast(this);
+        documentBinding = new EditorDocumentBinding(this, gameData,
+            () => (tabControl.SelectedItem as TabItem)?.Tag is string key ? gameData.GetDocument("General", key) : null,
+            () => LocaleService.Get("GENERAL_DATA_EDITOR"));
+        projectSave.RegisterParticipant(this);
         initializer = new DeferredWindowInitializer(this, () =>
         {
             Content = tabControl;
@@ -73,12 +81,15 @@ public sealed class GeneralDataEditorWindow : Window
             pendingTypeKey = null;
         });
 
-        gameData.DataRestored += onDataRestored;
+
         gameData.DataReloaded += onDataReloaded;
+        gameData.Documents.Changed += onDocumentsChanged;
         Closed += (_, _) =>
         {
-            gameData.DataRestored -= onDataRestored;
+            projectSave.UnregisterParticipant(this);
+
             gameData.DataReloaded -= onDataReloaded;
+            gameData.Documents.Changed -= onDocumentsChanged;
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
@@ -121,7 +132,7 @@ public sealed class GeneralDataEditorWindow : Window
         {
             TabItem tab = new()
             {
-                Header = entry.Key,
+                Header = new DocumentStatusPresenter(gameData, "General", entry.Key),
                 Tag = entry.Key,
             };
             tabControl.Items.Add(tab);
@@ -132,6 +143,7 @@ public sealed class GeneralDataEditorWindow : Window
             tabControl.SelectedItem = tabControl.Items[0];
         buildingTabs = false;
         ensureSelectedPage();
+        documentBinding.Refresh();
         foreach (string staleKey in pageStates.Keys.Except(gameData.GeneralData.Keys, StringComparer.Ordinal).ToArray())
             pageStates.Remove(staleKey);
     }
@@ -162,6 +174,19 @@ public sealed class GeneralDataEditorWindow : Window
         return state;
     }
 
+    private void onDocumentsChanged(object? sender, EventArgs args)
+    {
+        BlueprintEditorWindow[] windows = blueprintWindows.Values.Distinct().ToArray();
+        blueprintWindows.Clear();
+        foreach (BlueprintEditorWindow window in windows)
+            blueprintWindows[window.Document.DocumentKey] = window;
+        if (!initializer.IsInitialized)
+            return;
+        string[] keys = gameData.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        if (!keys.SequenceEqual(tabControl.Items.OfType<TabItem>().Select(tab => tab.Tag as string), StringComparer.Ordinal))
+            buildTabs(documentBinding.Document?.Key);
+    }
+
     private void onDataRestored(object? sender, EventArgs args)
     {
         if (!initializer.IsInitialized)
@@ -177,6 +202,8 @@ public sealed class GeneralDataEditorWindow : Window
         string? selectedKey = (tabControl.SelectedItem as TabItem)?.Tag as string;
         buildTabs(selectedKey);
     }
+
+    public void FlushPendingChanges() => FlushBlueprintEditors();
 
     internal void FlushBlueprintEditors()
     {
@@ -212,6 +239,7 @@ public sealed class GeneralDataEditorWindow : Window
             return;
         if (blueprintWindows.TryGetValue(document.DocumentKey, out BlueprintEditorWindow? existing))
         {
+            document.Dispose();
             if (!existing.Reload())
                 return;
             existing.Show();
@@ -240,9 +268,9 @@ public sealed class GeneralDataEditorWindow : Window
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         }
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;
         args.Handled = true;
@@ -325,7 +353,6 @@ public sealed class GeneralDataEditorWindow : Window
             typeKey);
         if (string.IsNullOrWhiteSpace(newName) || newName == typeKey)
             return;
-        closeBlueprintEditors(typeKey);
         gameData.RenameGeneralType(typeKey, newName);
         if (pageStates.Remove(typeKey, out GeneralDataPageSessionState? state))
             pageStates[newName] = state;
@@ -401,12 +428,13 @@ public sealed class GeneralDataEditorWindow : Window
 
     private async Task onDeleteDataTypeAsync(string typeKey)
     {
-        string msg = LocaleService.Get("CONFIRM_DELETE_DATA_TYPE").Replace("{}", typeKey);
+        string msg = LocaleService.Get("CONFIRM_DELETE_DATA_TYPE").Replace("{}", typeKey) + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION");
         bool confirmed = await ConfirmationDialog.ShowAsync(this, LocaleService.Get("DELETE_DATA_TYPE"), msg);
         if (!confirmed)
             return;
+        if (!await EditorResourceOperations.DeleteAsync(this, () => gameData.DeleteGeneralType(typeKey)))
+            return;
         closeBlueprintEditors(typeKey);
-        gameData.DeleteGeneralType(typeKey);
         pageStates.Remove(typeKey);
         buildTabs(null);
     }

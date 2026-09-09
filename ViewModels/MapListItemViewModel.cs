@@ -6,6 +6,7 @@ namespace Ludork.ViewModels;
 public sealed class MapListItemViewModel : ViewModelBase
 {
     private bool isExpanded;
+    private bool isModified;
 
     public MapListItemViewModel(
         string key,
@@ -27,6 +28,11 @@ public sealed class MapListItemViewModel : ViewModelBase
     public bool IsMap => Kind is MapCatalogEntryKind.StandaloneMap or MapCatalogEntryKind.WorldChildMap;
     public bool IsWorldChild => Kind == MapCatalogEntryKind.WorldChildMap;
     public ObservableCollection<MapListItemViewModel> Children { get; } = [];
+    public bool IsModified
+    {
+        get => isModified;
+        set => SetProperty(ref isModified, value);
+    }
     public bool IsExpanded
     {
         get => isExpanded;

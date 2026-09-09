@@ -25,6 +25,16 @@ public static class HistoryMergeBehavior
         attach(control, gameData, changed => control.ValueChanged += (_, _) => changed());
     }
 
+    public static void AttachFocused(Control control, GameDataService gameData)
+    {
+        if (control is NumericUpDown number)
+            Attach(number, gameData);
+        else if (control is TextBox text)
+            Attach(text, gameData);
+        if (attachedControls.TryGetValue(control, out ControlAttachment? attachment))
+            attachment.HandleGotFocus();
+    }
+
     public static void AttachBoundary(Control boundary, GameDataService gameData)
     {
         if (attachedBoundaries.TryGetValue(boundary, out BoundaryAttachment? existing))

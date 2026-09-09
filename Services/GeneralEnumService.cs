@@ -4,17 +4,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace Ludork.Services;
-
-internal sealed record GeneralEnumSaveResult(
-    bool Success,
-    IReadOnlyList<string> ChangedPaths,
-    string Detail);
 
 internal sealed class GeneralEnumService
 {
@@ -48,35 +42,16 @@ internal sealed class GeneralEnumService
     public string TypesRuntimePath { get; }
     public string TypesStubPath { get; }
 
-    public GeneralEnumSaveResult Save(IReadOnlyDictionary<string, JsonObject> generalData)
+    internal IReadOnlyDictionary<string, byte[]> PrepareOutputs(IReadOnlyDictionary<string, JsonObject> generalData)
     {
-        try
+        IReadOnlyList<GeneralEnumType> types = buildTypes(generalData);
+        return new Dictionary<string, byte[]>(StringComparer.Ordinal)
         {
-            IReadOnlyList<GeneralEnumType> types = buildTypes(generalData);
-            string runtimeText = renderRuntime(types);
-            string stubText = renderStub(types);
-            string typesRuntimeText = renderTypesRuntime(types);
-            string typesStubText = renderTypesStub(types);
-            GeneratedOutput[] outputs =
-            [
-                new GeneratedOutput(RuntimeRelativePath, RuntimePath, runtimeText),
-                new GeneratedOutput(StubRelativePath, StubPath, stubText),
-                new GeneratedOutput(TypesRuntimeRelativePath, TypesRuntimePath, typesRuntimeText),
-                new GeneratedOutput(TypesStubRelativePath, TypesStubPath, typesStubText),
-            ];
-            string[] changedPaths = outputs
-                .Where(output => !contentEquals(output.Path, output.Content))
-                .Select(output => output.RelativePath)
-                .ToArray();
-            if (changedPaths.Length == 0)
-                return new GeneralEnumSaveResult(true, [], string.Empty);
-            writeOutputs(outputs);
-            return new GeneralEnumSaveResult(true, changedPaths, string.Empty);
-        }
-        catch (Exception exception) when (isSaveException(exception))
-        {
-            return new GeneralEnumSaveResult(false, [], exception.Message);
-        }
+            [RuntimePath] = utf8.GetBytes(renderRuntime(types)),
+            [StubPath] = utf8.GetBytes(renderStub(types)),
+            [TypesRuntimePath] = utf8.GetBytes(renderTypesRuntime(types)),
+            [TypesStubPath] = utf8.GetBytes(renderTypesStub(types)),
+        };
     }
 
     private static IReadOnlyList<GeneralEnumType> buildTypes(IReadOnlyDictionary<string, JsonObject> generalData)
@@ -622,109 +597,6 @@ internal sealed class GeneralEnumService
         return builder.ToString();
     }
 
-    private static bool contentEquals(string path, string expected)
-    {
-        return File.Exists(path)
-            && string.Equals(File.ReadAllText(path, utf8), expected, StringComparison.Ordinal);
-    }
-
-    private static void writeOutputs(IReadOnlyList<GeneratedOutput> outputs)
-    {
-        Dictionary<string, byte[]?> originals = new(StringComparer.Ordinal);
-        Dictionary<string, string> temporaryPaths = new(StringComparer.Ordinal);
-        foreach (GeneratedOutput output in outputs)
-        {
-            string directory = Path.GetDirectoryName(output.Path)
-                ?? throw new InvalidOperationException(output.Path);
-            Directory.CreateDirectory(directory);
-            originals[output.Path] = File.Exists(output.Path) ? File.ReadAllBytes(output.Path) : null;
-            temporaryPaths[output.Path] = createTemporaryPath(output.Path);
-        }
-        try
-        {
-            foreach (GeneratedOutput output in outputs)
-                writeDurable(temporaryPaths[output.Path], utf8.GetBytes(output.Content));
-            foreach (GeneratedOutput output in outputs)
-                File.Move(temporaryPaths[output.Path], output.Path, true);
-        }
-        catch (Exception exception) when (isFileException(exception))
-        {
-            try
-            {
-                foreach (GeneratedOutput output in outputs)
-                    restore(output.Path, originals[output.Path]);
-            }
-            catch (Exception rollbackException) when (isFileException(rollbackException))
-            {
-                throw new IOException(
-                    exception.Message + "; rollback failed: " + rollbackException.Message,
-                    exception);
-            }
-            throw;
-        }
-        finally
-        {
-            foreach (string temporaryPath in temporaryPaths.Values)
-                deleteTemporary(temporaryPath);
-        }
-    }
-
-    private static void restore(string path, byte[]? content)
-    {
-        if (content is null)
-        {
-            File.Delete(path);
-            return;
-        }
-        string temporary = createTemporaryPath(path);
-        try
-        {
-            writeDurable(temporary, content);
-            File.Move(temporary, path, true);
-        }
-        finally
-        {
-            deleteTemporary(temporary);
-        }
-    }
-
-    private static void writeDurable(string path, byte[] content)
-    {
-        using FileStream stream = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        stream.Write(content);
-        stream.Flush(true);
-    }
-
-    private static string createTemporaryPath(string path)
-    {
-        string directory = Path.GetDirectoryName(path) ?? throw new InvalidOperationException(path);
-        return Path.Combine(directory, "." + Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
-    }
-
-    private static void deleteTemporary(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
-
-    private static bool isSaveException(Exception exception)
-    {
-        return isFileException(exception) || exception is InvalidDataException or InvalidOperationException;
-    }
-
-    private static bool isFileException(Exception exception)
-    {
-        return exception is IOException or UnauthorizedAccessException or SecurityException or DecoderFallbackException;
-    }
-
     private sealed record GeneralEnumType(
         string SourceKey,
         string TypeName,
@@ -743,5 +615,4 @@ internal sealed class GeneralEnumService
 
     private sealed record LuaDocField(string Name, string Type);
 
-    private sealed record GeneratedOutput(string RelativePath, string Path, string Content);
 }

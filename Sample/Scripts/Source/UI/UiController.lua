@@ -175,8 +175,10 @@ end
 
 function UiController:stopAnimation(name, target)
     local key = target or ""
-    self._animationGenerations[key] = (self._animationGenerations[key] or 0) + 1
-    self._animationBindings[key] = nil
+    if self._animationBindings[key] ~= nil and self._animationBindings[key].name == name then
+        self._animationGenerations[key] = (self._animationGenerations[key] or 0) + 1
+        self._animationBindings[key] = nil
+    end
     self.view:stopAnimation(name, target)
 end
 

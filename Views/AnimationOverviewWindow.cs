@@ -23,11 +23,13 @@ public sealed class AnimationOverviewWindow : Window
     private readonly DeferredWindowInitializer initializer;
     private string currentKey = string.Empty;
     private readonly Toast toast;
+    private readonly EditorDocumentBinding documentBinding;
 
     public AnimationOverviewWindow(GameDataService gameData, ProjectSaveService projectSave)
     {
         this.gameData = gameData;
         this.projectSave = projectSave;
+        animationList.ItemTemplate = DocumentStatusPresenter.CreateTemplate(gameData, "Animations");
         Title = LocaleService.Get("ANIMATION_OVERVIEW");
         Width = 1200;
         Height = 800;
@@ -45,8 +47,11 @@ public sealed class AnimationOverviewWindow : Window
         Content = DeferredWindowInitializer.CreateLoadingContent();
         toast = new Toast(this);
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        gameData.DataRestored += onDataRestored;
-        Closed += (_, _) => gameData.DataRestored -= onDataRestored;
+        documentBinding = new EditorDocumentBinding(this, gameData,
+            () => gameData.GetDocument("Animations", currentKey),
+            () => LocaleService.Get("ANIMATION_OVERVIEW") + (currentKey.Length == 0 ? string.Empty : " - " + currentKey));
+        gameData.Documents.Changed += onDocumentsChanged;
+        Closed += (_, _) => gameData.Documents.Changed -= onDocumentsChanged;
         initializer = new DeferredWindowInitializer(this, () =>
         {
             Content = root;
@@ -54,10 +59,16 @@ public sealed class AnimationOverviewWindow : Window
         });
     }
 
-    private void onDataRestored(object? sender, EventArgs args)
+    private void onDocumentsChanged(object? sender, EventArgs args)
     {
-        currentKey = string.Empty;
-        refresh();
+        if (!initializer.IsInitialized)
+            return;
+        string[] keys = gameData.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        if (!keys.SequenceEqual(animationList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
+        {
+            currentKey = (editorHost.Content as AnimationEditor)?.Key ?? currentKey;
+            refreshCore();
+        }
     }
 
     public void refresh()
@@ -80,14 +91,16 @@ public sealed class AnimationOverviewWindow : Window
     private void select(string? key)
     {
         if (string.IsNullOrWhiteSpace(key) || !gameData.AnimationsData.TryGetValue(key, out JsonObject? data))
-{
+        {
             currentKey = string.Empty;
             editorHost.Content = null;
+            documentBinding.Refresh();
             return;
         }
         if (currentKey == key && editorHost.Content is AnimationEditor)
             return;
         currentKey = key;
+        documentBinding.Refresh();
         editorHost.Content = new AnimationEditor(gameData, key, data);
     }
 
@@ -98,9 +111,9 @@ public sealed class AnimationOverviewWindow : Window
         if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;
         args.Handled = true;

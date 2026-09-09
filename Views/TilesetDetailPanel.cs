@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Controls.Templates;
@@ -30,6 +32,9 @@ internal sealed class TilesetDetailPanel : Grid
     private JsonObject? data;
     private string? key;
     private bool populating;
+    private EditorDocument? resourceDocument;
+    private bool attached;
+    private bool refreshPending;
     private long brushGestureId;
 
     public TilesetDetailPanel(Window owner, GameDataService gameData, bool isAutoTile, Action dataChanged)
@@ -91,9 +96,49 @@ internal sealed class TilesetDetailPanel : Grid
         Children.Add(scroll);
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        attached = true;
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onDocumentChanged;
+        onDocumentChanged(this, EventArgs.Empty);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        attached = false;
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onDocumentChanged;
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onDocumentChanged(object? sender, EventArgs args)
+    {
+        if (refreshPending)
+            return;
+        refreshPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            refreshPending = false;
+            if (!attached || resourceDocument is null)
+                return;
+            JsonObject? current = resourceDocument.Data;
+            if (!JsonNode.DeepEquals(current, data) || key != resourceDocument.Key)
+                setData(resourceDocument.Key, current);
+        });
+    }
+
+    public EditorDocument? Document => resourceDocument;
+
     public void setData(string? nextKey, JsonObject? nextData)
     {
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onDocumentChanged;
         key = nextKey;
+        resourceDocument = nextKey is null ? null : gameData.GetDocument(isAutoTile ? "AutoTiles" : "Tilesets", nextKey);
+        if (attached && resourceDocument is not null)
+            resourceDocument.Changed += onDocumentChanged;
         data = nextData;
         populating = true;
         nameBox.Text = data?["name"]?.GetValue<string>() ?? string.Empty;

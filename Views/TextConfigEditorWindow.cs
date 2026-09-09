@@ -21,7 +21,9 @@ public sealed class TextConfigEditorWindow : Window
 {
     private readonly GameDataService gameData;
     private readonly ProjectSaveService projectSave;
-    private readonly string key;
+    private readonly EditorDocument? resourceDocument;
+    private readonly EditorDocumentBinding documentBinding;
+    private string key => resourceDocument?.Key ?? string.Empty;
     private readonly StackPanel inspector = new() { Spacing = 10 };
     private readonly TextConfigPreview preview;
     private readonly TextBox previewText = EditorInputs.CreateEditableTextBox();
@@ -44,7 +46,7 @@ public sealed class TextConfigEditorWindow : Window
     {
         this.gameData = gameData;
         this.projectSave = projectSave;
-        this.key = key;
+        resourceDocument = gameData.GetDocument("TextConfigs", key);
         sourceData = (JsonObject)data.DeepClone();
         this.data = (JsonObject)data.DeepClone();
         normalizeData();
@@ -72,11 +74,12 @@ public sealed class TextConfigEditorWindow : Window
         refreshPreview();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         gameData.DataChanged += onDataChanged;
-        gameData.DataRestored += onDataRestored;
+        documentBinding = new EditorDocumentBinding(this, gameData, () => resourceDocument,
+            () => $"{LocaleService.Get("TEXT_CONFIG_EDITOR")} - {this.key}", synchronizeDocument, closeWhenDeleted: true);
         Closed += (_, _) =>
         {
             gameData.DataChanged -= onDataChanged;
-            gameData.DataRestored -= onDataRestored;
+
         };
     }
 
@@ -886,7 +889,7 @@ public sealed class TextConfigEditorWindow : Window
             Close();
             return;
         }
-        JsonObject changed = (JsonObject)sourceData.DeepClone();
+        JsonObject changed = resourceDocument?.Data ?? (JsonObject)sourceData.DeepClone();
         applyEditedFields(changed, displayBaseline, data);
         if (JsonNode.DeepEquals(sourceData, changed))
             return;
@@ -989,14 +992,14 @@ public sealed class TextConfigEditorWindow : Window
                     args.Handled = true;
                     return;
                 }
-                gameData.UpdateTextConfig(key, data);
+                applyChanges();
                 await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
             }
         }
         else if (args.Key == Key.Z)
-            EditorFeedback.ShowHistory(toast, "Undo", gameData.Undo());
+            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
         else if (args.Key == Key.Y)
-            EditorFeedback.ShowHistory(toast, "Redo", gameData.Redo());
+            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;
         args.Handled = true;
@@ -1013,12 +1016,15 @@ public sealed class TextConfigEditorWindow : Window
         refreshPreview();
     }
 
-    private void onDataRestored(object? sender, EventArgs args)
+    private void synchronizeDocument()
     {
-        if (gameData.TextConfigsData.TryGetValue(key, out JsonObject? restored))
-            Reload(restored);
-        else
+        if (resourceDocument?.Data is not JsonObject current)
+        {
             Close();
+            return;
+        }
+        if (!JsonNode.DeepEquals(current, sourceData))
+            Reload(current);
     }
 
     private bool isRich()

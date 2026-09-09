@@ -13,12 +13,17 @@ public enum BlueprintEditorDocumentKind
     GeneralDataAbility,
 }
 
-public sealed class BlueprintEditorDocument
+public sealed class BlueprintEditorDocument : IDisposable
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly GameDataService gameData;
-    private string? blueprintKey;
-    private readonly string? generalTypeKey;
+    private readonly EditorDocument? resourceDocument;
+    private readonly string? initialBlueprintKey;
+    private readonly string? initialGeneralTypeKey;
+    private string? blueprintKey => Kind == BlueprintEditorDocumentKind.Blueprint ? resourceDocument?.Key ?? initialBlueprintKey : null;
+    private string? generalTypeKey => Kind == BlueprintEditorDocumentKind.GeneralDataAbility ? resourceDocument?.Key ?? initialGeneralTypeKey : null;
+    private JsonObject? sourceData;
+    private bool committing;
     private readonly string? generalMemberId;
     private readonly List<string> requiredEvents = [];
     private JsonObject data = [];
@@ -32,13 +37,19 @@ public sealed class BlueprintEditorDocument
     {
         this.gameData = gameData;
         Kind = kind;
-        this.blueprintKey = blueprintKey;
-        this.generalTypeKey = generalTypeKey;
+        initialBlueprintKey = blueprintKey;
+        initialGeneralTypeKey = generalTypeKey;
+        resourceDocument = gameData.GetDocument(kind == BlueprintEditorDocumentKind.Blueprint ? "Blueprints" : "General",
+            blueprintKey ?? generalTypeKey ?? string.Empty);
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onResourceChanged;
         this.generalMemberId = generalMemberId;
         Reload();
     }
 
     public event EventHandler? Changed;
+    public event EventHandler? ExternalChanged;
+    public EditorDocument? ResourceDocument => resourceDocument;
 
     public BlueprintEditorDocumentKind Kind { get; }
     public JsonObject Data => data;
@@ -115,12 +126,12 @@ public sealed class BlueprintEditorDocument
         string key = NormalizeBlueprintKey(reference);
         if (key.Length == 0 || !gameData.BlueprintsData.ContainsKey(key))
             return false;
-        blueprintKey = key;
-        return true;
+        return string.Equals(resourceDocument?.Key, key, StringComparison.Ordinal);
     }
 
     public bool Reload()
     {
+        sourceData = resourceDocument?.Data;
         requiredEvents.Clear();
         if (Kind == BlueprintEditorDocumentKind.Blueprint)
         {
@@ -180,9 +191,9 @@ public sealed class BlueprintEditorDocument
             return false;
         }
         bool changed = Kind == BlueprintEditorDocumentKind.Blueprint
-            ? blueprintKey is not null && gameData.UpdateBlueprintEventGraph(blueprintKey, eventName, result)
+            ? blueprintKey is not null && mutate(() => gameData.UpdateBlueprintEventGraph(blueprintKey, eventName, result))
             : generalTypeKey is not null && generalMemberId is not null
-                && gameData.UpdateGeneralMemberEventGraph(generalTypeKey, generalMemberId, eventName, result);
+                && mutate(() => gameData.UpdateGeneralMemberEventGraph(generalTypeKey, generalMemberId, eventName, result));
         if (!changed)
             return false;
         JsonObject graph = ensureGraph(data);
@@ -203,7 +214,7 @@ public sealed class BlueprintEditorDocument
     {
         string[] removedNames = removals.ToArray();
         if (!CanEditAttributes || blueprintKey is null
-            || !gameData.UpdateBlueprintAttributes(blueprintKey, updates, removedNames))
+            || !mutate(() => gameData.UpdateBlueprintAttributes(blueprintKey, updates, removedNames)))
         {
             return false;
         }
@@ -218,7 +229,7 @@ public sealed class BlueprintEditorDocument
 
     public bool CommitParent(string parent)
     {
-        if (!CanEditAttributes || blueprintKey is null || !gameData.UpdateBlueprintParent(blueprintKey, parent))
+        if (!CanEditAttributes || blueprintKey is null || !mutate(() => gameData.UpdateBlueprintParent(blueprintKey, parent)))
             return false;
         data["parent"] = parent.Trim();
         Changed?.Invoke(this, EventArgs.Empty);
@@ -232,7 +243,7 @@ public sealed class BlueprintEditorDocument
 
     public bool AddEvent(string name)
     {
-        if (!CanEditGraphEvents || blueprintKey is null || !gameData.AddBlueprintEvent(blueprintKey, name))
+        if (!CanEditGraphEvents || blueprintKey is null || !mutate(() => gameData.AddBlueprintEvent(blueprintKey, name)))
         {
             return false;
         }
@@ -247,7 +258,7 @@ public sealed class BlueprintEditorDocument
     public bool RenameEvent(string oldName, string newName)
     {
         if (!CanEditGraphEvents || blueprintKey is null
-            || !gameData.RenameBlueprintEvent(blueprintKey, oldName, newName))
+            || !mutate(() => gameData.RenameBlueprintEvent(blueprintKey, oldName, newName)))
         {
             return false;
         }
@@ -273,7 +284,7 @@ public sealed class BlueprintEditorDocument
 
     public bool DeleteEvent(string name)
     {
-        if (!CanEditGraphEvents || blueprintKey is null || !gameData.DeleteBlueprintEvent(blueprintKey, name))
+        if (!CanEditGraphEvents || blueprintKey is null || !mutate(() => gameData.DeleteBlueprintEvent(blueprintKey, name)))
             return false;
         if (data["graph"] is JsonObject graph)
         {
@@ -282,6 +293,35 @@ public sealed class BlueprintEditorDocument
         }
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
+    }
+
+    public void Dispose()
+    {
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onResourceChanged;
+    }
+
+    private bool mutate(Func<bool> operation)
+    {
+        committing = true;
+        try
+        {
+            return operation();
+        }
+        finally
+        {
+            committing = false;
+            sourceData = resourceDocument?.Data;
+        }
+    }
+
+    private void onResourceChanged(object? sender, EventArgs args)
+    {
+        if (committing || JsonNode.DeepEquals(sourceData, resourceDocument?.Data))
+            return;
+        Reload();
+        Changed?.Invoke(this, EventArgs.Empty);
+        ExternalChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private JsonObject? getStoredBlueprint()

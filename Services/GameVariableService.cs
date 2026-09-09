@@ -21,16 +21,19 @@ public sealed class GameVariableService : IGameVariableCatalog
     private const string MetadataRelativePath = "Scripts/Source/Configs/GameVariables_meta.lua";
     private static readonly UTF8Encoding utf8 = new(false, true);
     private readonly LuaMetadataService metadataService;
+    private readonly EditorDocumentRegistry documents;
     private readonly List<GameVariableDefinition> variables = [];
     private readonly ReadOnlyCollection<GameVariableDefinition> readonlyVariables;
-    private bool isModified;
-    private long revision;
 
-    public GameVariableService(string projectPath, LuaMetadataService metadataService)
+    public GameVariableService(
+        string projectPath,
+        LuaMetadataService metadataService,
+        EditorDocumentRegistry documents)
     {
         if (!Path.IsPathFullyQualified(projectPath))
             throw new ArgumentException(nameof(projectPath));
         ArgumentNullException.ThrowIfNull(metadataService);
+        ArgumentNullException.ThrowIfNull(documents);
         string normalizedProjectPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
         if (!string.Equals(
             normalizedProjectPath,
@@ -41,23 +44,43 @@ public sealed class GameVariableService : IGameVariableCatalog
         }
 
         this.metadataService = metadataService;
+        this.documents = documents;
         readonlyVariables = variables.AsReadOnly();
         RuntimePath = Path.Combine(normalizedProjectPath, RuntimeRelativePath.Replace('/', Path.DirectorySeparatorChar));
         MetadataPath = Path.Combine(normalizedProjectPath, MetadataRelativePath.Replace('/', Path.DirectorySeparatorChar));
 
-        bool runtimeExists = File.Exists(RuntimePath);
-        bool metadataExists = File.Exists(MetadataPath);
-        if (runtimeExists != metadataExists)
-            throw new InvalidDataException("The generated game variable file pair is incomplete");
-        if (runtimeExists)
-            variables.AddRange(loadExisting().OrderBy(value => value.Name, StringComparer.Ordinal));
+        EditorDocument? existing = documents.FindByPath(RuntimePath);
+        if (existing is null)
+        {
+            bool runtimeExists = File.Exists(RuntimePath);
+            bool metadataExists = File.Exists(MetadataPath);
+            if (runtimeExists != metadataExists)
+                throw new InvalidDataException("The generated game variable file pair is incomplete");
+            if (runtimeExists)
+                variables.AddRange(loadExisting().OrderBy(value => value.Name, StringComparer.Ordinal));
+            Document = documents.Register(
+                "GameVariables",
+                "GameVariables",
+                RuntimePath,
+                serializeVariables(),
+                isNew: !runtimeExists);
+        }
+        else
+        {
+            Document = existing;
+            readDocument();
+        }
+        documents.BindPath(Document, MetadataPath);
+        Document.SaveAdapter = prepareSaveOutputs;
+        Document.Changed += onDocumentChanged;
     }
 
     public string RuntimePath { get; }
     public string MetadataPath { get; }
+    public EditorDocument Document { get; }
     public IReadOnlyList<GameVariableDefinition> Variables => readonlyVariables;
-    public long Revision => revision;
-    public bool IsModified => isModified;
+    public long Revision => Document.Revision;
+    public bool IsModified => Document.IsModified;
     public event EventHandler? Changed;
     public event EventHandler? Saved;
 
@@ -80,30 +103,11 @@ public sealed class GameVariableService : IGameVariableCatalog
         return definition is not null;
     }
 
-    public GameVariableSaveResult EnsureGeneratedFiles()
-    {
-        try
-        {
-            bool runtimeExists = File.Exists(RuntimePath);
-            bool metadataExists = File.Exists(MetadataPath);
-            if (runtimeExists != metadataExists)
-                throw new InvalidDataException("The generated game variable file pair is incomplete");
-            if (runtimeExists)
-                ensureOwned(RuntimePath);
-            if (metadataExists)
-                ensureOwned(MetadataPath);
-            if (!runtimeExists)
-                isModified = true;
-        }
-        catch (Exception exception) when (isSaveException(exception))
-        {
-            return GameVariableSaveResult.Failed(formatFailure(exception));
-        }
-        GameVariableSaveResult result = SavePending();
-        if (!result.Success && isModified)
-            Changed?.Invoke(this, EventArgs.Empty);
-        return result;
-    }
+    public long BeginHistoryGesture() => documents.CreateGestureId();
+
+    public HistoryResult Undo() => documents.Undo(Document);
+
+    public HistoryResult Redo() => documents.Redo(Document);
 
     public GameVariableSaveResult Create(string name, GameVariableType type)
     {
@@ -113,9 +117,10 @@ public sealed class GameVariableService : IGameVariableCatalog
             return GameVariableSaveResult.Failed("Game variable type is invalid");
         if (variables.Any(value => string.Equals(value.Name, name, StringComparison.Ordinal)))
             return GameVariableSaveResult.Failed($"Game variable {name} already exists");
+        documents.Capture(Document, "Create game variable");
         variables.Add(new GameVariableDefinition(name, type, createDefault(type)));
         variables.Sort((left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
-        return saveMutation(true);
+        return commitMutation();
     }
 
     public GameVariableSaveResult Delete(string name)
@@ -123,8 +128,9 @@ public sealed class GameVariableService : IGameVariableCatalog
         int index = findIndex(name);
         if (index < 0)
             return GameVariableSaveResult.Failed($"Game variable {name} does not exist");
+        documents.Capture(Document, "Delete game variable");
         variables.RemoveAt(index);
-        return saveMutation(true);
+        return commitMutation();
     }
 
     public GameVariableSaveResult ChangeType(string name, GameVariableType type)
@@ -137,15 +143,16 @@ public sealed class GameVariableService : IGameVariableCatalog
         GameVariableDefinition current = variables[index];
         if (current.Type == type)
             return GameVariableSaveResult.Completed(string.Empty);
+        documents.Capture(Document, "Change game variable type");
         variables[index] = new GameVariableDefinition(
             current.Name,
             type,
             createDefault(type),
             current.Remark);
-        return saveMutation(true);
+        return commitMutation();
     }
 
-    public GameVariableSaveResult SetInitialValue(string name, JsonNode? initialValue)
+    public GameVariableSaveResult SetInitialValue(string name, JsonNode? initialValue, long gestureId = 0)
     {
         int index = findIndex(name);
         if (index < 0)
@@ -161,15 +168,16 @@ public sealed class GameVariableService : IGameVariableCatalog
         }
         if (JsonNode.DeepEquals(current.InitialValue, initialValue))
             return GameVariableSaveResult.Completed(string.Empty);
+        documents.Capture(Document, "Edit game variable initial value", gestureId: gestureId);
         variables[index] = new GameVariableDefinition(
             current.Name,
             current.Type,
             initialValue,
             current.Remark);
-        return saveMutation(false);
+        return commitMutation();
     }
 
-    public GameVariableSaveResult SetRemark(string name, string? remark)
+    public GameVariableSaveResult SetRemark(string name, string? remark, long gestureId = 0)
     {
         int index = findIndex(name);
         if (index < 0)
@@ -178,40 +186,30 @@ public sealed class GameVariableService : IGameVariableCatalog
         GameVariableDefinition current = variables[index];
         if (string.Equals(current.Remark, normalized, StringComparison.Ordinal))
             return GameVariableSaveResult.Completed(string.Empty);
+        documents.Capture(Document, "Edit game variable remark", gestureId: gestureId);
         variables[index] = new GameVariableDefinition(
             current.Name,
             current.Type,
             current.InitialValue,
             normalized);
-        return saveMutation(false);
+        return commitMutation();
     }
 
     public GameVariableSaveResult SavePending()
     {
         try
         {
-            bool runtimeExists = File.Exists(RuntimePath);
-            bool metadataExists = File.Exists(MetadataPath);
-            if (runtimeExists != metadataExists)
-                throw new InvalidDataException("The generated game variable file pair is incomplete");
-            if (!isModified)
+            if (!IsModified)
                 return GameVariableSaveResult.Completed(string.Empty);
-            string runtimeText = renderRuntime();
-            string metadataText = renderMetadata();
-            IReadOnlyList<GameVariableDefinition> parsed = parseDocuments(
-                runtimeText,
-                metadataText,
-                RuntimePath,
-                MetadataPath);
-            ensureEquivalent(parsed);
-            writePair(runtimeText, metadataText);
+            IReadOnlyDictionary<string, byte[]> outputs = Document.PrepareSave();
+            writePair(outputs[RuntimePath], outputs[MetadataPath]);
         }
         catch (Exception exception) when (isSaveException(exception))
         {
             return GameVariableSaveResult.Failed(formatFailure(exception));
         }
 
-        isModified = false;
+        documents.MarkSaved(Document);
         metadataService.ClearCache();
         Saved?.Invoke(this, EventArgs.Empty);
         Changed?.Invoke(this, EventArgs.Empty);
@@ -219,15 +217,67 @@ public sealed class GameVariableService : IGameVariableCatalog
             RuntimeRelativePath + Environment.NewLine + MetadataRelativePath);
     }
 
-    private GameVariableSaveResult saveMutation(bool catalogChanged)
+    private IReadOnlyDictionary<string, byte[]> prepareSaveOutputs()
     {
-        if (catalogChanged)
-            revision++;
-        isModified = true;
-        GameVariableSaveResult result = SavePending();
-        if (!result.Success)
-            Changed?.Invoke(this, EventArgs.Empty);
-        return result;
+        string runtimeText = renderRuntime();
+        string metadataText = renderMetadata();
+        IReadOnlyList<GameVariableDefinition> parsed = parseDocuments(
+            runtimeText,
+            metadataText,
+            RuntimePath,
+            MetadataPath);
+        ensureEquivalent(parsed);
+        return new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        {
+            [RuntimePath] = utf8.GetBytes(runtimeText),
+            [MetadataPath] = utf8.GetBytes(metadataText),
+        };
+    }
+
+    private GameVariableSaveResult commitMutation()
+    {
+        documents.Commit(Document, serializeVariables());
+        return GameVariableSaveResult.Completed(string.Empty);
+    }
+
+    private JsonObject serializeVariables()
+    {
+        JsonArray definitions = [];
+        foreach (GameVariableDefinition definition in variables)
+        {
+            definitions.Add(new JsonObject
+            {
+                ["name"] = definition.Name,
+                ["type"] = (int)definition.Type,
+                ["initialValue"] = definition.InitialValue,
+                ["remark"] = definition.Remark,
+            });
+        }
+        return new JsonObject { ["variables"] = definitions };
+    }
+
+    private void onDocumentChanged(object? sender, EventArgs args)
+    {
+        readDocument();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void readDocument()
+    {
+        variables.Clear();
+        if (Document.Data?["variables"] is JsonArray definitions)
+        {
+            foreach (JsonNode? value in definitions)
+            {
+                if (value is not JsonObject definition)
+                    continue;
+                variables.Add(new GameVariableDefinition(
+                    definition["name"]!.GetValue<string>(),
+                    (GameVariableType)definition["type"]!.GetValue<int>(),
+                    definition["initialValue"],
+                    definition["remark"]!.GetValue<string>()));
+            }
+        }
     }
 
     private int findIndex(string name)
@@ -766,7 +816,7 @@ public sealed class GameVariableService : IGameVariableCatalog
         return builder.ToString();
     }
 
-    private void writePair(string runtimeText, string metadataText)
+    private void writePair(byte[] runtimeContent, byte[] metadataContent)
     {
         string directory = Path.GetDirectoryName(RuntimePath)
             ?? throw new InvalidOperationException(RuntimePath);
@@ -779,8 +829,8 @@ public sealed class GameVariableService : IGameVariableCatalog
         bool runtimeReplaced = false;
         try
         {
-            writeDurable(runtimeTemp, runtimeText);
-            writeDurable(metadataTemp, metadataText);
+            writeDurable(runtimeTemp, runtimeContent);
+            writeDurable(metadataTemp, metadataContent);
             File.Move(runtimeTemp, RuntimePath, true);
             runtimeReplaced = true;
             File.Move(metadataTemp, MetadataPath, true);
@@ -826,11 +876,6 @@ public sealed class GameVariableService : IGameVariableCatalog
         {
             deleteTemp(temp);
         }
-    }
-
-    private static void writeDurable(string path, string text)
-    {
-        writeDurable(path, utf8.GetBytes(text));
     }
 
     private static void writeDurable(string path, byte[] bytes)

@@ -1,22 +1,29 @@
 using Ludork.Models;
 using Ludork.Services;
 using System.Text.Json.Nodes;
+using System;
 
 namespace Ludork.Views.Utils;
 
-public sealed class CommonFunctionEditorDocument
+public sealed class CommonFunctionEditorDocument : IDisposable
 {
     private readonly GameDataService gameData;
     private JsonObject data = [];
+    private readonly EditorDocument? resourceDocument;
+    private bool committing;
 
     private CommonFunctionEditorDocument(GameDataService gameData, string name)
     {
         this.gameData = gameData;
-        Name = name;
+        resourceDocument = gameData.GetDocument("CommonFunctions", name);
+        if (resourceDocument is not null)
+            resourceDocument.Changed += onResourceChanged;
         Reload();
     }
 
-    public string Name { get; }
+    public string Name => resourceDocument?.Key ?? string.Empty;
+    public EditorDocument? ResourceDocument => resourceDocument;
+    public event EventHandler? ExternalChanged;
     public JsonObject Data => data;
 
     public static CommonFunctionEditorDocument? Create(
@@ -58,9 +65,32 @@ public sealed class CommonFunctionEditorDocument
         {
             return false;
         }
+        data = resourceDocument?.Data ?? data;
         ensureObject(data, "nodeGraph")["common"] = result.EventGraph.DeepClone();
         ensureObject(data, "startNodes")["common"] = result.StartNode?.DeepClone();
-        return gameData.UpdateCommonFunction(Name, data);
+        committing = true;
+        try
+        {
+            return gameData.UpdateCommonFunction(Name, data);
+        }
+        finally
+        {
+            committing = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (resourceDocument is not null)
+            resourceDocument.Changed -= onResourceChanged;
+    }
+
+    private void onResourceChanged(object? sender, EventArgs args)
+    {
+        if (committing || JsonNode.DeepEquals(data, resourceDocument?.Data))
+            return;
+        Reload();
+        ExternalChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private static JsonObject ensureObject(JsonObject parent, string name)
