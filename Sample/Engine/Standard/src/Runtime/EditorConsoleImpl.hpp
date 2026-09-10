@@ -9,6 +9,7 @@ extern "C" {
 }
 
 #include <string>
+#include <deque>
 #include <unordered_map>
 
 namespace ludork::standard::runtime {
@@ -18,6 +19,10 @@ struct EditorConsoleImpl {
     sf::TcpListener listener;
     sf::TcpSocket client;
     std::string input;
+    std::deque<std::string> output;
+    std::size_t outputOffset{};
+    std::size_t outputSize{};
+    std::uint64_t connectionId{};
     int environmentReference{LUA_NOREF};
     int jsonDecodeReference{LUA_NOREF};
     int inputInjectReference{LUA_NOREF};

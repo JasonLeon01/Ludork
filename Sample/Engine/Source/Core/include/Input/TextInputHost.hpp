@@ -67,6 +67,9 @@ class LUDORK_ENGINE_API TextInputHost {
 public:
     using Sink = std::function<void(SessionId, Event)>;
     virtual ~TextInputHost() = default;
+    virtual bool isAvailable() const {
+        return true;
+    }
     virtual bool isModal() const = 0;
     virtual bool handlesKeyboard() const = 0;
     virtual bool begin(SessionId id, const Request& request, Sink sink) = 0;

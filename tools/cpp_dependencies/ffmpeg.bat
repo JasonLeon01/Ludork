@@ -1,9 +1,9 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-cd /d "%~dp0.."
+cd /d "%~dp0..\.."
 
 if "%~1"=="" (
-    echo Usage: tools\init_ffmpeg_source.bat ^<cpp-folder^>
+    echo Usage: tools\cpp_dependencies\ffmpeg.bat ^<cpp-folder^>
     exit /b 1
 )
 

@@ -2,6 +2,7 @@
 #include "Platform/NativeDisplay.hpp"
 #include "Platform/NativeInputMethod.hpp"
 #include "Platform/DesktopTextInputHost.hpp"
+#include "Platform/EmbeddedTextInputHostImpl.hpp"
 #if defined(SFML_SYSTEM_IOS)
 #include "Platform/TextInputHostIOS.hpp"
 #endif
@@ -190,8 +191,13 @@ void DisplayImpl::initializeInput() {
     ludork::engine::text_input::service().setHost(
         ludork::global::createIosTextInputHost(window_->getNativeHandle()));
 #elif defined(_WIN32) || (defined(__APPLE__) && !defined(LUDORK_MOBILE))
-    ludork::engine::text_input::service().setHost(
-        ludork::global::createDesktopTextInputHost(*window_));
+    if (isEmbeddedDisplay()) {
+        ludork::engine::text_input::service().setHost(
+            std::make_shared<ludork::global::EmbeddedTextInputHostImpl>());
+    } else {
+        ludork::engine::text_input::service().setHost(
+            ludork::global::createDesktopTextInputHost(*window_));
+    }
 #endif
     inputService().initializeNativePolling();
 }

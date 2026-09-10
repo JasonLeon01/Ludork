@@ -45,7 +45,7 @@ HARMONY_SDK_VERSION = "6.0.2(22)"
 HARMONY_COMPATIBLE_API = 22
 HARMONY_COMPILER_TARGET = "aarch64-linux-ohos22.0.0"
 HARMONY_MOBILE_DEVICE_TYPES = frozenset(("default", "phone", "tablet"))
-HARMONY_SIGNING_CONTRACT_VERSION = 2
+HARMONY_SIGNING_CONTRACT_VERSION = 1
 BUNDLE_NAME_PATTERN = re.compile(
     r"^[A-Za-z](?:[A-Za-z0-9_]*[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9_]*[A-Za-z0-9])?){2,}$"

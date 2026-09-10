@@ -206,8 +206,17 @@ public partial class MainWindow
 
     private void onCommandAvailabilityChanged(object? sender, bool available)
     {
+        if (sender is not ProjectRunnerService runner)
+            return;
+        long generation = runner.RunGeneration;
+        long connection = runner.ConnectionGeneration;
         Dispatcher.UIThread.Post(() =>
         {
+            if (!ReferenceEquals(projectRunner, runner)
+                || runner.RunGeneration != generation
+                || runner.ConnectionGeneration != connection)
+                return;
+            GamePanel.ResetTextInput();
             updateConsoleInputState();
             GamePanel.SetInputEnabled(
                 available
@@ -247,6 +256,21 @@ public partial class MainWindow
             _ = projectRunner.SetPerformanceMonitoringAsync(false, projectRunner.RunGeneration);
     }
 
+    private void onRuntimeTextInputReceived(object? sender, RuntimeTextInputMessage message)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (sender is ProjectRunnerService runner
+                && ReferenceEquals(projectRunner, runner)
+                && runner.State == ProjectRunState.Running
+                && activeWindowMode == ProjectWindowMode.Embedded
+                && runner.IsCurrentConnection(message.RunGeneration, message.ConnectionGeneration))
+            {
+                GamePanel.ApplyTextInput(message);
+            }
+        });
+    }
+
     private void onGameInputBatchReady(object? sender, GameInputBatchEventArgs args)
     {
         if (projectRunner?.State != ProjectRunState.Running
@@ -255,21 +279,27 @@ public partial class MainWindow
         {
             return;
         }
-        gameInputSendTail = sendGameInputBatchAsync(gameInputSendTail, args.Events);
+        gameInputSendTail = sendGameInputBatchAsync(
+            gameInputSendTail, args.Events, projectRunner,
+            projectRunner.RunGeneration, projectRunner.ConnectionGeneration);
     }
 
     private async Task sendGameInputBatchAsync(
         Task previousBatch,
-        IReadOnlyList<RuntimeInputEvent> events)
+        IReadOnlyList<RuntimeInputEvent> events,
+        ProjectRunnerService runner,
+        long generation,
+        long connection)
     {
         await previousBatch;
-        if (projectRunner?.State != ProjectRunState.Running
-            || !projectRunner.CanSendCommand
+        if (!ReferenceEquals(projectRunner, runner)
+            || runner.State != ProjectRunState.Running
+            || !runner.IsCurrentConnection(generation, connection)
             || activeWindowMode != ProjectWindowMode.Embedded)
         {
             return;
         }
-        await projectRunner.SendInputBatchAsync(events);
+        await runner.SendInputBatchAsync(events, generation, connection);
     }
 
     private async void onConsoleSendClick(object? sender, RoutedEventArgs args)

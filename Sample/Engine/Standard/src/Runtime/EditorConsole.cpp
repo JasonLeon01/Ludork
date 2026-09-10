@@ -30,8 +30,10 @@ namespace ludork::standard::runtime {
 namespace {
 
 std::unique_ptr<EditorConsoleImpl> editorConsole;
-constexpr lua_Integer protocolVersion = 2;
+constexpr lua_Integer protocolVersion = 1;
 constexpr std::size_t maximumMessageSize = 64 * 1024;
+constexpr std::size_t maximumOutputSize = 1024 * 1024;
+std::uint64_t nextConnectionId = 0;
 
 std::optional<unsigned short> readCommandPort() {
     const char* rawPort = std::getenv("LUDORK_COMMAND_PORT");
@@ -354,12 +356,52 @@ void disconnectClient(EditorConsoleImpl& runtime) {
     runtime.client.disconnect();
     runtime.connected = false;
     runtime.input.clear();
+    runtime.output.clear();
+    runtime.outputOffset = 0;
+    runtime.outputSize = 0;
+    runtime.connectionId = 0;
 }
 
-bool sendReady(EditorConsoleImpl& runtime) {
-    static constexpr std::string_view ready = "{\"v\":2,\"type\":\"ready\"}\n";
-    return runtime.client.send(ready.data(), ready.size()) ==
-           sf::Socket::Status::Done;
+bool flushOutput(EditorConsoleImpl& runtime) {
+    while (!runtime.output.empty()) {
+        const std::string& message = runtime.output.front();
+        std::size_t sent = 0;
+        const sf::Socket::Status status =
+            runtime.client.send(message.data() + runtime.outputOffset,
+                                message.size() - runtime.outputOffset, sent);
+        runtime.outputOffset += sent;
+        runtime.outputSize -= sent;
+        if (runtime.outputOffset == message.size()) {
+            runtime.output.pop_front();
+            runtime.outputOffset = 0;
+        }
+        if (status == sf::Socket::Status::NotReady ||
+            status == sf::Socket::Status::Partial) {
+            return true;
+        }
+        if (status != sf::Socket::Status::Done) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool queueMessage(EditorConsoleImpl& runtime, std::string_view message) {
+    if (!runtime.connected || message.empty() ||
+        message.size() > maximumMessageSize ||
+        message.find_first_of("\r\n") != std::string_view::npos) {
+        return false;
+    }
+    if (runtime.outputSize + message.size() + 1 > maximumOutputSize) {
+        std::cerr << "[EditorBridge] Output exceeds the size limit."
+                  << std::endl;
+        disconnectClient(runtime);
+        return false;
+    }
+    runtime.output.emplace_back(message);
+    runtime.output.back().push_back('\n');
+    runtime.outputSize += message.size() + 1;
+    return true;
 }
 
 }  // namespace
@@ -400,7 +442,9 @@ void initializeEditorConsole(lua_State* state, int jsonDecodeIndex) {
 }
 
 void updateEditorConsole(lua_State* state) {
-    if (!editorConsole) {
+    LuaExecutionScope execution(state);
+    if (!execution.active() || !editorConsole ||
+        editorConsole->state != state) {
         return;
     }
     EditorConsoleImpl& runtime = *editorConsole;
@@ -412,12 +456,10 @@ void updateEditorConsole(lua_State* state) {
             return;
         }
         runtime.connected = true;
+        runtime.connectionId = ++nextConnectionId;
         runtime.input.clear();
-        if (!sendReady(runtime)) {
-            disconnectClient(runtime);
-            return;
-        }
         runtime.client.setBlocking(false);
+        queueMessage(runtime, "{\"v\":1,\"type\":\"ready\"}");
     }
 
     std::array<char, 4096> buffer{};
@@ -439,6 +481,9 @@ void updateEditorConsole(lua_State* state) {
         if (status == sf::Socket::Status::NotReady) {
             break;
         }
+        disconnectClient(runtime);
+    }
+    if (runtime.connected && !flushOutput(runtime)) {
         disconnectClient(runtime);
     }
 }
@@ -571,6 +616,25 @@ void clearEditorCommandBoolControlHandler(lua_State* state,
 }  // namespace ludork::standard::runtime
 
 namespace ludork::standard {
+
+std::uint64_t editorConnectionId() {
+    LuaExecutionScope execution;
+    if (!execution.active() || !runtime::editorConsole ||
+        runtime::editorConsole->state != execution.state()) {
+        return 0;
+    }
+    return runtime::editorConsole->connectionId;
+}
+
+bool sendEditorMessage(std::uint64_t connectionId, std::string_view message) {
+    LuaExecutionScope execution;
+    if (!execution.active() || !runtime::editorConsole || connectionId == 0 ||
+        runtime::editorConsole->state != execution.state() ||
+        runtime::editorConsole->connectionId != connectionId) {
+        return false;
+    }
+    return runtime::queueMessage(*runtime::editorConsole, message);
+}
 
 void registerEditorCommandEnvironment(lua_State* state, const char* name,
                                       int valueIndex) {

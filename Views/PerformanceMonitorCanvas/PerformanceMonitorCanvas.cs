@@ -76,7 +76,7 @@ internal sealed partial class PerformanceMonitorCanvas : Control
 
     public void AddSample(PerformanceSample sample)
     {
-        if (sample.ProtocolVersion != 2)
+        if (sample.ProtocolVersion != PerformanceSample.CurrentProtocolVersion)
             return;
         double memory = double.IsFinite(sample.MemoryMegabytes)
             ? Math.Max(0.0, sample.MemoryMegabytes)

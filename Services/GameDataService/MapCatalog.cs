@@ -22,7 +22,7 @@ public sealed partial class GameDataService
         try
         {
             if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject root
-                || root["version"]?.GetValue<int?>() != 4
+                || root["version"]?.GetValue<int?>() != 1
                 || root["entries"] is not JsonObject entries)
             {
                 return;
@@ -52,7 +52,7 @@ public sealed partial class GameDataService
                 entries[entry.Key] = entry.Value.DeepClone();
             JsonObject root = new()
             {
-                ["version"] = 4,
+                ["version"] = 1,
                 ["entries"] = entries,
             };
             File.WriteAllText(path, root.ToJsonString(WriteOptions) + Environment.NewLine);

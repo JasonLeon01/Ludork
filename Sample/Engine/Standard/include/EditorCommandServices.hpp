@@ -1,10 +1,16 @@
 #pragma once
 
 #include <StandardApi.hpp>
+#include <cstdint>
+#include <string_view>
 
 struct lua_State;
 
 namespace ludork::standard {
+
+LUDORK_STANDARD_API std::uint64_t editorConnectionId();
+LUDORK_STANDARD_API bool sendEditorMessage(std::uint64_t connectionId,
+                                           std::string_view message);
 
 using EditorCommandBoolControlHandler = void (*)(bool enabled);
 using EditorCommandReloadHandler = void (*)(lua_State* state);

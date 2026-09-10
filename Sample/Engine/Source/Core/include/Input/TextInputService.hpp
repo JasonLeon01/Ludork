@@ -16,6 +16,8 @@ public:
     void finish(SessionId id, bool accepted = true);
     void setText(SessionId id, const std::string& text);
     void setSelection(SessionId id, std::size_t anchor, std::size_t caret);
+    void setPreedit(SessionId id, const std::string& text, std::size_t caret);
+    void setComposing(SessionId id, bool composing);
     void setCaretRect(SessionId id, const sf::FloatRect& rect);
     const State* getState(SessionId id) const;
     bool isEditing() const;

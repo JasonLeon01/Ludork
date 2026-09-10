@@ -23,6 +23,7 @@ struct TextInputService::Impl {
     Callback callback;
     bool blocked = false;
     bool compositionInFrame = false;
+    bool composing = false;
     unsigned int releaseFrames = 0;
     std::set<sf::Keyboard::Key> heldKeys;
     std::set<sf::Keyboard::Key> activationKeys;

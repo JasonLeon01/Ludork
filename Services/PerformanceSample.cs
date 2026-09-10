@@ -39,7 +39,8 @@ public sealed record WorldStreamingTiming(
 
 public sealed record PerformanceSample(double Fps, double MemoryMegabytes)
 {
-    public int ProtocolVersion { get; init; } = 2;
+    public const int CurrentProtocolVersion = 1;
+    public int ProtocolVersion { get; init; } = CurrentProtocolVersion;
     public int SampleFrames { get; init; } = 30;
     public double? TargetFps { get; init; }
     public IReadOnlyList<MainFrameTiming> MainFrames { get; init; } = Array.Empty<MainFrameTiming>();

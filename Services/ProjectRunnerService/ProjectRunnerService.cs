@@ -57,7 +57,12 @@ public sealed record RuntimeInputEvent(
     bool? Alt = null,
     bool? Control = null,
     bool? Shift = null,
-    bool? System = null);
+    bool? System = null,
+    string? Session = null,
+    int? Unicode = null,
+    string? Text = null,
+    int? PreeditCaret = null,
+    bool? Composing = null);
 
 public sealed record ProjectRunResult(
     bool Success,
@@ -72,7 +77,7 @@ public sealed record ProjectRunResult(
 
 public sealed partial class ProjectRunnerService : IDisposable
 {
-    private const int BridgeProtocolVersion = 2;
+    private const int BridgeProtocolVersion = 1;
     private const int MaximumBridgeMessageSize = 64 * 1024;
     private const int MaximumInputEventsPerBatch = 128;
     private const string PerformanceSamplePrefix = "__LUDORK_PERF__:";
@@ -90,6 +95,7 @@ public sealed partial class ProjectRunnerService : IDisposable
     private CancellationTokenSource? runCancellation;
     private TcpClient? commandClient;
     private long runGeneration;
+    private long connectionGeneration;
     private bool disposed;
 
     public ProjectRunnerService(string projectPath, IEditorPluginRuntime? pluginRuntime = null)
@@ -103,6 +109,7 @@ public sealed partial class ProjectRunnerService : IDisposable
     public ProjectRunState State { get; private set; }
     public bool CanSendCommand { get; private set; }
     public long RunGeneration => Interlocked.Read(ref runGeneration);
+    public long ConnectionGeneration => Interlocked.Read(ref connectionGeneration);
     public event EventHandler<string>? OutputReceived;
     public event EventHandler<PerformanceSample>? PerformanceSampleReceived;
     public event EventHandler<ProjectRunState>? StateChanged;
@@ -253,7 +260,10 @@ public sealed partial class ProjectRunnerService : IDisposable
         return await sendBridgeMessageAsync(message, expectedRunGeneration);
     }
 
-    public async Task<bool> SendInputBatchAsync(IReadOnlyList<RuntimeInputEvent> events)
+    public async Task<bool> SendInputBatchAsync(
+        IReadOnlyList<RuntimeInputEvent> events,
+        long expectedRunGeneration,
+        long expectedConnectionGeneration)
     {
         if (events.Count == 0)
             return true;
@@ -264,7 +274,7 @@ public sealed partial class ProjectRunnerService : IDisposable
             for (int index = 0; index < count; index++)
                 batch[index] = events[offset + index];
             BridgeMessage message = new(BridgeProtocolVersion, "input", Events: batch);
-            if (!await sendBridgeMessageAsync(message))
+            if (!await sendBridgeMessageAsync(message, expectedRunGeneration, expectedConnectionGeneration))
                 return false;
         }
         return true;
@@ -331,12 +341,8 @@ public sealed partial class ProjectRunnerService : IDisposable
         }
     }
 
-    private async Task<bool> sendBridgeMessageAsync(BridgeMessage message)
-    {
-        return await sendBridgeMessageAsync(message, null);
-    }
-
-    private async Task<bool> sendBridgeMessageAsync(BridgeMessage message, long? expectedRunGeneration)
+    private async Task<bool> sendBridgeMessageAsync(
+        BridgeMessage message, long expectedRunGeneration, long? expectedConnectionGeneration = null)
     {
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(message, bridgeJsonOptions);
         if (json.Length > MaximumBridgeMessageSize)
@@ -345,31 +351,29 @@ public sealed partial class ProjectRunnerService : IDisposable
         json.CopyTo(payload, 0);
         payload[^1] = (byte)'\n';
         await commandWriteLock.WaitAsync();
+        TcpClient? client = null;
         try
         {
-            if (expectedRunGeneration is long generation && generation != RunGeneration)
+            if (expectedRunGeneration != RunGeneration)
                 return false;
-            TcpClient? client;
             lock (processLock)
+            {
+                if (expectedConnectionGeneration is long connection && connection != connectionGeneration)
+                    return false;
                 client = commandClient;
+            }
             if (client is null || !CanSendCommand)
                 return false;
             await client.GetStream().WriteAsync(payload.AsMemory());
             return true;
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException)
         {
-            closeCommandConnection();
-            return false;
-        }
-        catch (SocketException)
-        {
-            closeCommandConnection();
-            return false;
-        }
-        catch (ObjectDisposedException)
-        {
-            closeCommandConnection();
+            if (client is not null)
+            {
+                clearCommandConnection(client);
+                client.Dispose();
+            }
             return false;
         }
         finally
@@ -584,7 +588,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                TcpClient client = new(AddressFamily.InterNetwork);
+                using TcpClient client = new(AddressFamily.InterNetwork);
                 try
                 {
                     await client.ConnectAsync(IPAddress.Loopback, port, cancellationToken);
@@ -598,10 +602,11 @@ public sealed partial class ProjectRunnerService : IDisposable
 
                 client.NoDelay = true;
                 NetworkStream stream = client.GetStream();
-                ReadyMessageResult readyMessage;
+                RuntimeBridgeReader reader = new(stream, MaximumBridgeMessageSize);
+                (string? Line, string? Error) readyMessage;
                 try
                 {
-                    readyMessage = await readReadyMessageAsync(stream, cancellationToken);
+                    readyMessage = await reader.ReadAsync(cancellationToken);
                 }
                 catch (IOException)
                 {
@@ -627,13 +632,21 @@ public sealed partial class ProjectRunnerService : IDisposable
                     return;
                 }
                 setCommandConnection(client);
+                long generation = RunGeneration;
+                long connection = ConnectionGeneration;
                 try
                 {
-                    byte[] probe = new byte[1];
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        int read = await stream.ReadAsync(probe.AsMemory(), cancellationToken);
-                        if (read == 0)
+                        (string? line, string? error) = await reader.ReadAsync(cancellationToken);
+                        if (error is null && line is not null)
+                            error = receiveRuntimeMessage(line, generation, connection);
+                        if (error is not null)
+                        {
+                            protocolFailure.TrySetResult(error);
+                            return;
+                        }
+                        if (line is null)
                             break;
                     }
                 }
@@ -661,30 +674,6 @@ public sealed partial class ProjectRunnerService : IDisposable
         }
     }
 
-    private static async Task<ReadyMessageResult> readReadyMessageAsync(
-        NetworkStream stream,
-        CancellationToken cancellationToken)
-    {
-        List<byte> bytes = new();
-        byte[] buffer = new byte[1];
-        while (true)
-        {
-            int read = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
-            if (read == 0)
-                return new(null, null);
-            if (buffer[0] == (byte)'\n')
-            {
-                int length = bytes.Count;
-                if (length > 0 && bytes[^1] == (byte)'\r')
-                    length--;
-                return new(utf8.GetString(bytes.ToArray(), 0, length), null);
-            }
-            if (bytes.Count >= MaximumBridgeMessageSize)
-                return new(null, "ready message exceeds the size limit");
-            bytes.Add(buffer[0]);
-        }
-    }
-
     private static string? validateReadyMessage(string line)
     {
         if (utf8.GetByteCount(line) > MaximumBridgeMessageSize)
@@ -692,23 +681,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         try
         {
             using JsonDocument document = JsonDocument.Parse(line);
-            JsonElement root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-                return "ready message must be a JSON object";
-            if (!root.TryGetProperty("v", out JsonElement version)
-                || version.ValueKind != JsonValueKind.Number
-                || !version.TryGetInt32(out int parsedVersion)
-                || parsedVersion != BridgeProtocolVersion)
-            {
-                return $"expected protocol {BridgeProtocolVersion}";
-            }
-            if (!root.TryGetProperty("type", out JsonElement type)
-                || type.ValueKind != JsonValueKind.String
-                || type.GetString() != "ready")
-            {
-                return "runtime did not send a ready message";
-            }
-            return null;
+            return validateBridgeEnvelope(document.RootElement, "ready");
         }
         catch (JsonException exception)
         {
@@ -743,7 +716,10 @@ public sealed partial class ProjectRunnerService : IDisposable
     private void setCommandConnection(TcpClient client)
     {
         lock (processLock)
+        {
             commandClient = client;
+            Interlocked.Increment(ref connectionGeneration);
+        }
         setCanSendCommand(true);
     }
 
@@ -755,6 +731,7 @@ public sealed partial class ProjectRunnerService : IDisposable
             if (ReferenceEquals(commandClient, client))
             {
                 commandClient = null;
+                Interlocked.Increment(ref connectionGeneration);
                 changed = true;
             }
         }
@@ -769,6 +746,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         {
             client = commandClient;
             commandClient = null;
+            Interlocked.Increment(ref connectionGeneration);
         }
         client?.Dispose();
         setCanSendCommand(false);
@@ -799,5 +777,4 @@ public sealed partial class ProjectRunnerService : IDisposable
 
     private sealed record GameProcessResult(int ExitCode, string? ProtocolFailure);
 
-    private sealed record ReadyMessageResult(string? Line, string? Error);
 }

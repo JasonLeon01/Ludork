@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <limits>
 #include <string_view>
@@ -55,6 +56,15 @@ int parseDecimal(std::string_view value) {
 }
 
 constexpr float TouchDragThreshold = 8.0f;
+
+ludork::engine::text_input::SessionId parseSession(const std::string& value) {
+    ludork::engine::text_input::SessionId id = 0;
+    const auto result =
+        std::from_chars(value.data(), value.data() + value.size(), id);
+    return result.ec == std::errc{} && result.ptr == value.data() + value.size()
+               ? id
+               : 0;
+}
 
 }  // namespace
 
@@ -325,7 +335,37 @@ void InputImpl::processInjectedEvents() {
             event.type == "MouseEntered") {
             pointer_.injectedPixel_ = pixel;
         }
-        if (event.type == "KeyPressed") {
+        if (event.type == "TextEntered" || event.type == "TextPreedit" ||
+            event.type == "TextComposition") {
+            ludork::engine::text_input::TextInputService& service =
+                ludork::engine::text_input::service();
+            service.pump();
+            const ludork::engine::text_input::SessionId id =
+                parseSession(event.session);
+            if (event.type == "TextEntered") {
+                const bool validScalar =
+                    event.unicode >= 32 && event.unicode != 127 &&
+                    event.unicode <= 0x10FFFF &&
+                    !(event.unicode >= 0xD800 && event.unicode <= 0xDFFF);
+                if (!validScalar) {
+                    continue;
+                }
+                if (service.getState(id) != nullptr) {
+                    service.processEvent(sf::Event::TextEntered{
+                        static_cast<char32_t>(event.unicode)});
+                } else if (event.session.empty() && eventPump_.focused_ &&
+                           !service.blocksGameplay()) {
+                    keyboard_.enteredText_ +=
+                        toUtf8(static_cast<char32_t>(event.unicode));
+                }
+            } else if (event.type == "TextPreedit" && event.preeditCaret >= 0) {
+                service.setPreedit(
+                    id, event.text,
+                    static_cast<std::size_t>(event.preeditCaret));
+            } else if (event.type == "TextComposition") {
+                service.setComposing(id, event.composing);
+            }
+        } else if (event.type == "KeyPressed") {
             setFocused(true);
             sf::Keyboard::Key key = keyFromName(event.key);
             sf::Keyboard::Scancode scan = scanFromCode(event.scan);

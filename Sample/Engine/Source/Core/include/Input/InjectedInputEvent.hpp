@@ -37,4 +37,19 @@ struct InjectedInputEvent {
 
     BIND_PROPERTY()
     bool system = false;
+
+    BIND_PROPERTY()
+    std::string session;
+
+    BIND_PROPERTY()
+    int unicode = 0;
+
+    BIND_PROPERTY()
+    std::string text;
+
+    BIND_PROPERTY()
+    int preeditCaret = 0;
+
+    BIND_PROPERTY()
+    bool composing = false;
 };

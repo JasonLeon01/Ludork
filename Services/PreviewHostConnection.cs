@@ -25,7 +25,7 @@ public enum PreviewHostConnectionState
 
 public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 {
-    public const int ProtocolVersion = 8;
+    public const int ProtocolVersion = 1;
 
     private readonly string projectPath;
     private readonly UiPreviewRuntimeService runtime;

@@ -39,7 +39,7 @@ public sealed partial class ProjectRunnerService
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object
                 || !tryReadInteger(root, "v", out int version)
-                || version != BridgeProtocolVersion
+                || version != PerformanceSample.CurrentProtocolVersion
                 || !tryReadDouble(root, "fps", out double fps)
                 || !tryReadDouble(root, "memory", out double memory)
                 || !tryReadMainFrames(root, out IReadOnlyList<MainFrameTiming> mainFrames)

@@ -290,7 +290,7 @@ def _read_snapshot(
     require_host_platform: bool = True,
 ) -> UiPreviewSnapshot:
     root = _artifact_root(project, METADATA_DIRECTORY)
-    if type(manifest["formatVersion"]) is not int or manifest["formatVersion"] != 3:
+    if type(manifest["formatVersion"]) is not int or manifest["formatVersion"] != 1:
         raise UiRegistryError(
             "Unsupported preview manifest format; rebuild the project preview"
         )
@@ -733,7 +733,7 @@ def _describe_snapshot(
         registry_file = temporary / REGISTRY_NAME
         registry_file.write_bytes(registry.raw)
         manifest = {
-            "formatVersion": 3,
+            "formatVersion": 1,
             "buildId": runtime_digest(runtime_directory, info["files"], registry_file),
             "platform": info["platform"],
             "architecture": info["architecture"],
@@ -821,7 +821,7 @@ def ensure_preview(project: pathlib.Path) -> UiPreviewSnapshot:
             )
             if (
                 type(existing["formatVersion"]) is not int
-                or existing["formatVersion"] != 3
+                or existing["formatVersion"] != 1
             ):
                 raise UiRegistryError(
                     "Unsupported preview manifest format; update the project preview"

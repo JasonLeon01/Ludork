@@ -104,6 +104,7 @@ public partial class MainWindow
             projectRunner.StateChanged += onProjectRunStateChanged;
             projectRunner.CommandAvailabilityChanged += onCommandAvailabilityChanged;
             projectRunner.PerformanceSampleReceived += onPerformanceSampleReceived;
+            projectRunner.TextInputReceived += onRuntimeTextInputReceived;
         }
     }
 

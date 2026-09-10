@@ -3,7 +3,7 @@ set -eu
 
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 if [ "$#" -ne 1 ]; then
-    echo "Usage: tools/init_ffmpeg_source.sh <cpp-folder>" >&2
+    echo "Usage: tools/cpp_dependencies/ffmpeg.sh <cpp-folder>" >&2
     exit 1
 fi
 

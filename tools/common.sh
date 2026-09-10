@@ -2,8 +2,7 @@
 set -eu
 
 TOOLS_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ "$(basename -- "$TOOLS_DIR")" = "editor_runtime" ] \
-    && [ -f "$TOOLS_DIR/../common.sh" ]; then
+if [ -f "$TOOLS_DIR/../common.sh" ]; then
     PROJECT_ROOT=$(CDPATH= cd -- "$TOOLS_DIR/../.." && pwd)
 else
     PROJECT_ROOT=$(CDPATH= cd -- "$TOOLS_DIR/.." && pwd)

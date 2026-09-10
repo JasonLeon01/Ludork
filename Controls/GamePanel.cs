@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 namespace Ludork.Controls;
 
-public sealed class GamePanel : NativeControlHost
+public sealed partial class GamePanel : NativeControlHost
 {
     private const int WindowProcedureIndex = -4;
     private const uint GetRoot = 2;
@@ -59,6 +59,7 @@ public sealed class GamePanel : NativeControlHost
         {
             bool wasEnabled = inputEnabled;
             inputEnabled = false;
+            pendingEvents.Clear();
             if (wasEnabled)
                 enqueue(new("FocusLost"), true);
             releaseNativeInputOwnership(true);
@@ -95,6 +96,10 @@ public sealed class GamePanel : NativeControlHost
                 NativeHandle = nint.Zero;
                 windowProcedure = null;
             }
+            else
+            {
+                initializeTextInput();
+            }
         }
         NativeHandleReady?.Invoke(this, EventArgs.Empty);
         return control;
@@ -111,6 +116,7 @@ public sealed class GamePanel : NativeControlHost
             && control.HandleDescriptor == "HWND"
             && previousWindowProcedure != nint.Zero)
         {
+            destroyTextInput();
             SetWindowLongPtrW(control.Handle, WindowProcedureIndex, previousWindowProcedure);
         }
         previousWindowProcedure = nint.Zero;
@@ -121,9 +127,11 @@ public sealed class GamePanel : NativeControlHost
 
     private nint processWindowMessage(nint handle, uint message, nint wParam, nint lParam)
     {
+        if (processTextInputMessage(handle, message, wParam, lParam, out nint textResult))
+            return textResult;
         if (message == CancelModeMessage)
         {
-            releaseNativeInputOwnership(false);
+            NotifyHostFocusLost();
         }
         else if (message == CaptureChangedMessage)
         {
@@ -131,6 +139,7 @@ public sealed class GamePanel : NativeControlHost
         }
         else if (message == FocusLostMessage && inputEnabled)
         {
+            resetTextInputSession();
             pressedMouseButtons = 0;
             enqueue(new("FocusLost"), true);
         }
@@ -141,11 +150,13 @@ public sealed class GamePanel : NativeControlHost
         else if ((message == KeyDownMessage || message == SystemKeyDownMessage)
             && canForwardOrdinaryInput(handle))
         {
-            enqueueKey("KeyPressed", wParam, lParam);
+            if (!consumeTextInputKeyDown(wParam, lParam))
+                enqueueKey("KeyPressed", wParam, lParam);
         }
         else if ((message == KeyUpMessage || message == SystemKeyUpMessage)
             && canForwardOrdinaryInput(handle))
         {
+            releaseTextInputKey(lParam);
             enqueueKey("KeyReleased", wParam, lParam);
         }
         else if (message == MouseMoveMessage && canForwardOrdinaryInput(handle))
@@ -188,6 +199,7 @@ public sealed class GamePanel : NativeControlHost
 
     private void releaseNativeInputOwnership(bool restoreRootFocus)
     {
+        resetTextInputSession();
         pressedMouseButtons = 0;
         nint handle = NativeHandle;
         if (!OperatingSystem.IsWindows() || handle == nint.Zero)

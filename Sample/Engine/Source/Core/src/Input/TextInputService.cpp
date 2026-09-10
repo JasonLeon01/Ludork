@@ -78,6 +78,8 @@ SessionId TextInputService::begin(const Request& request, Callback callback) {
     impl_->caretRect = request.caretRect;
     impl_->callback = std::move(callback);
     impl_->blocked = true;
+    impl_->composing = false;
+    impl_->compositionInFrame = false;
     impl_->activationKeys.clear();
     for (sf::Keyboard::Key key :
          {sf::Keyboard::Key::Enter, sf::Keyboard::Key::Space}) {
@@ -114,6 +116,7 @@ void TextInputService::finish(SessionId id, bool accepted) {
     result.preedit.clear();
     result.preeditCaret = 0;
     impl_->id = 0;
+    impl_->composing = false;
     impl_->blocked = true;
     impl_->releaseFrames = 1;
     for (int code = 0; code < static_cast<int>(sf::Keyboard::KeyCount);
@@ -163,6 +166,29 @@ void TextInputService::setCaretRect(SessionId id, const sf::FloatRect& rect) {
     impl_->syncHost();
 }
 
+void TextInputService::setPreedit(SessionId id, const std::string& text,
+                                  std::size_t caret) {
+    if (id == 0 || id != impl_->id) {
+        return;
+    }
+    impl_->compositionInFrame = impl_->compositionInFrame || !text.empty();
+    impl_->state.preedit = text;
+    impl_->state.preeditCaret = caret;
+    impl_->normalize();
+    impl_->notify();
+}
+
+void TextInputService::setComposing(SessionId id, bool composing) {
+    if (id == 0 || id != impl_->id) {
+        return;
+    }
+    impl_->composing = composing;
+    impl_->compositionInFrame = impl_->compositionInFrame || composing;
+    if (!composing) {
+        setPreedit(id, {}, 0);
+    }
+}
+
 const State* TextInputService::getState(SessionId id) const {
     return id != 0 && id == impl_->id ? &impl_->state : nullptr;
 }
@@ -178,7 +204,8 @@ bool TextInputService::blocksGameplay() const {
 }
 
 void TextInputService::beginFrame() {
-    impl_->compositionInFrame = !impl_->state.preedit.empty();
+    impl_->compositionInFrame =
+        impl_->composing || !impl_->state.preedit.empty();
     std::erase_if(impl_->releaseKeys, [](sf::Keyboard::Key key) {
         return !sf::Keyboard::isKeyPressed(key);
     });
@@ -191,6 +218,9 @@ void TextInputService::beginFrame() {
 }
 
 void TextInputService::pump() {
+    if (isEditing() && impl_->host != nullptr && !impl_->host->isAvailable()) {
+        close();
+    }
     std::deque<std::pair<SessionId, Event>> events;
     {
         const std::lock_guard<std::mutex> lock(impl_->queue->mutex);
@@ -223,12 +253,7 @@ void TextInputService::pump() {
                 impl_->insert(event.text);
                 break;
             case Event::Kind::Preedit:
-                impl_->compositionInFrame =
-                    impl_->compositionInFrame || !event.state.preedit.empty();
-                impl_->state.preedit = event.state.preedit;
-                impl_->state.preeditCaret = event.state.preeditCaret;
-                impl_->normalize();
-                impl_->notify();
+                setPreedit(id, event.state.preedit, event.state.preeditCaret);
                 break;
             case Event::Kind::Command:
                 execute(event.command, event.extendSelection);

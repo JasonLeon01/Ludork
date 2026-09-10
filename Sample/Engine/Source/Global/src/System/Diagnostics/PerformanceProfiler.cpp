@@ -201,7 +201,7 @@ void PerformanceProfiler::emit(Batch batch) {
     };
     std::ostringstream output;
     output << std::setprecision(10)
-           << "__LUDORK_PERF__:{\"v\":2,\"fps\":" << finite(batch.fps)
+           << "__LUDORK_PERF__:{\"v\":1,\"fps\":" << finite(batch.fps)
            << ",\"memory\":" << finite(batch.memoryMegabytes)
            << ",\"sampleFrames\":" << sampleFrameCount_ << ",\"targetFps\":";
     if (batch.targetFps > 0) {

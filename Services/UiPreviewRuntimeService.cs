@@ -179,7 +179,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
         JsonObject manifestData = readObject(manifestBytes);
         requireFields(manifestData, ["formatVersion", "buildId", "platform", "architecture", "configuration",
             "files", "registryHash", "adapterFingerprint", "runtimeDirectory"]);
-        require(manifestData["formatVersion"]?.GetValue<int>() == 3, "Unsupported UI preview manifest version.");
+        require(manifestData["formatVersion"]?.GetValue<int>() == 1, "Unsupported UI preview manifest version.");
         string root = resolveRuntimeDirectory(readString(manifestData, "runtimeDirectory"));
         if (Current is not null && nextHash == manifestHash)
         {

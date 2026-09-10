@@ -42,7 +42,7 @@ public sealed class PerformanceMonitorWindow : Window
             Dispatcher.UIThread.Post(() => AddSample(sample));
             return;
         }
-        if (sample.ProtocolVersion != 2 || sample.Fps <= 0 || !double.IsFinite(sample.Fps))
+        if (sample.ProtocolVersion != PerformanceSample.CurrentProtocolVersion || sample.Fps <= 0 || !double.IsFinite(sample.Fps))
             return;
         if (lastMainFrameTime is double previousTime
             && sample.MainFrames.Count != 0

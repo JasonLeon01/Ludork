@@ -8,7 +8,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `setup_python` | Create `.venv` and install build-time Python requirements |
 | `build_script_tools` | Build the repository-owned ScriptTools executable under `.tools` |
 | `build_ui_preview_host` | Build and publish a project's native preview snapshot |
-| `init_cpp_dependencies` | Download dependencies for a C++ project folder |
+| `init_cpp_dependencies` | Download dependencies for a C++ project folder; per-package scripts live under `tools/cpp_dependencies` |
 | `run_editor` | Start the editor from the repository root |
 | `build_cpp` | Configure/build a C++ project, its preview and registry; regenerate Core bindings, stubs and metadata |
 | `run_cpp` | Run a built native project with its source folder as working directory |
