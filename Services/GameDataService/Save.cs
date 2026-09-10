@@ -153,7 +153,10 @@ public sealed partial class GameDataService
         foreach (KeyValuePair<string, JsonObject> entry in sections["Maps"].Data)
             validateMapAssetPaths(entry.Key, entry.Value, errors);
         foreach (KeyValuePair<string, JsonObject> entry in sections["WorldMaps"].Data)
+        {
             validateAssetPath(entry.Value["fog"], $"Maps/{entry.Key}/_world.fog", errors);
+            validateAssetPath(entry.Value["panorama"], $"Maps/{entry.Key}/_world.panorama", errors);
+        }
         foreach (KeyValuePair<string, JsonObject> entry in sections["TextConfigs"].Data)
             validateAssetPath(entry.Value["font"], $"TextConfigs/{entry.Key}.font", errors);
         return errors;
@@ -197,6 +200,7 @@ public sealed partial class GameDataService
         validateAssetPath(map["bgm"], $"Maps/{key}.bgm", errors);
         validateAssetPath(map["bgs"], $"Maps/{key}.bgs", errors);
         validateAssetPath(map["fog"], $"Maps/{key}.fog", errors);
+        validateAssetPath(map["panorama"], $"Maps/{key}.panorama", errors);
         if (map["layers"] is not JsonObject layers)
             return;
         foreach (KeyValuePair<string, JsonNode?> entry in layers)

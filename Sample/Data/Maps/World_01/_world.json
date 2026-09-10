@@ -8,6 +8,7 @@
   "fogOx": 0,
   "fogOy": 0,
   "fogDistort": 0,
+  "panorama": "",
   "layerOrder": [
     "floor",
     "default"

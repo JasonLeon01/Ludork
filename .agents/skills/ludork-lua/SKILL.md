@@ -11,10 +11,10 @@ Paths in commands and inline code are repository-relative. For Lua/runtime chang
 
 Read additional pages only for the affected behaviour:
 
-- Script Mixins: [Runtime Contract](<../../../docs/en_GB/03.Lua and Blueprint Scripting/03.Script Mixins/02.Runtime Contract.md>) and [Metadata](<../../../docs/en_GB/03.Lua and Blueprint Scripting/03.Script Mixins/04.Metadata.md>).
-- Sample actors, combat, equipment or movement: [Actors, Enemies, Items and Equipment](<../../../docs/en_GB/03.Lua and Blueprint Scripting/06.Sample Gameplay/03.Actors Enemies Items and Equipment.md>) and the affected type's API page.
-- Attributes, abilities or Effects: [Gameplay API](<../../../docs/en_GB/03.Lua and Blueprint Scripting/07.API Reference/03.Global APIs/02.Gameplay.md>). The ability system is native `GlobalCore`; do not recreate `Global.Gameplay` modules.
-- General Data or saves: [General Data and Text Config](<../../../docs/en_GB/02.Editor User Guide/05.General Data and Text Config.md>) and [Runtime Data, Configuration and Saves](<../../../docs/en_GB/03.Lua and Blueprint Scripting/06.Sample Gameplay/06.Runtime Data Configuration and Saves.md>).
+- Script Mixins: [Runtime Contract](<../../../docs/en_GB/03.Lua and Blueprint Scripting/02.Script Mixins/02.Runtime Contract.md>) and [Metadata](<../../../docs/en_GB/03.Lua and Blueprint Scripting/02.Script Mixins/04.Metadata.md>).
+- Sample actors, combat, equipment or movement: [Actors, Enemies, Items and Equipment](<../../../docs/en_GB/03.Lua and Blueprint Scripting/05.Sample Gameplay/03.Actors Enemies Items and Equipment.md>) and the affected type's API page.
+- Attributes, abilities or Effects: [Gameplay API](<../../../docs/en_GB/03.Lua and Blueprint Scripting/08.Global and Core Modules/01.Global APIs/02.Gameplay.md>). The ability system is native `GlobalCore`; do not recreate `Global.Gameplay` modules.
+- General Data or saves: [General Data and Text Config](<../../../docs/en_GB/02.Editor User Guide/05.General Data and Text Config.md>) and [Runtime Data, Configuration and Saves](<../../../docs/en_GB/03.Lua and Blueprint Scripting/05.Sample Gameplay/06.Runtime Data Configuration and Saves.md>).
 - Graph execution or `_meta.lua`: [ludork-bindings](../ludork-bindings/SKILL.md). UI controllers/assets: [ludork-ui](../ludork-ui/SKILL.md).
 
 ## Implement against Native APIs

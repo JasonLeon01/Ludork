@@ -18,6 +18,7 @@ uniform vec2 gridSize;
 uniform float cellSize;
 
 uniform vec3 ambientColor;
+uniform float preserveSourceAlpha;
 
 
 vec2 rotate2D(vec2 v, vec2 sinCos) {
@@ -129,5 +130,5 @@ void main() {
     float ignoreLighting = clamp(surface.b, 0.0, 1.0);
     vec3 finalColor = mix(reflectedColor, pixel.rgb, ignoreLighting);
 
-    gl_FragColor = vec4(finalColor, 1.0);
+    gl_FragColor = vec4(finalColor, mix(1.0, pixel.a, preserveSourceAlpha));
 }

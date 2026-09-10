@@ -3,6 +3,7 @@
 #include <LightOcclusionResult.hpp>
 
 #include <EngineState.hpp>
+#include <Panorama/PanoramaController.hpp>
 #include <System.hpp>
 
 #include <algorithm>
@@ -288,4 +289,6 @@ void GameMapRendererImpl::refreshMaterialShader(const sf::Color& ambientLight) {
     setViewShaderUniforms(*materialShader, *screenSize, {0.0f, 0.0f}, false);
     materialShader->setUniform("ambientColor",
                                shaderColour(ambientLight, true));
+    materialShader->setUniform("preserveSourceAlpha",
+                               PanoramaController::isActive() ? 1.0f : 0.0f);
 }

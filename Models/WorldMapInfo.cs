@@ -13,6 +13,7 @@ public sealed class WorldMapInfo
     public double FogOx { get; set; }
     public double FogOy { get; set; }
     public int FogDistort { get; set; }
+    public string Panorama { get; set; } = string.Empty;
     public IReadOnlyList<string> LayerOrder { get; set; } = [];
     public IReadOnlyList<WorldMapPlacement> Placements { get; set; } = [];
 }

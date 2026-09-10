@@ -70,6 +70,7 @@ public sealed partial class GameDataService
             ["fogOx"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOx,
             ["fogOy"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOy,
             ["fogDistort"] = string.IsNullOrWhiteSpace(info.Fog) ? 0 : info.FogDistort,
+            ["panorama"] = info.Panorama.Trim(),
             ["layerOrder"] = new JsonArray("floor", "default"),
             ["layers"] = new JsonObject
             {

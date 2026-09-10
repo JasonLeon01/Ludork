@@ -11,6 +11,7 @@ local ShaderManager = GlobalCore.ShaderManager
 local System = GlobalCore.System
 local WeatherController = GlobalCore.WeatherController
 local FogController = GlobalCore.FogController
+local PanoramaController = GlobalCore.PanoramaController
 
 local Actor = Engine.Actor
 local Camera = GlobalCore.Camera
@@ -335,6 +336,9 @@ function GameMap:show()
         if self._camera ~= nil then
             WeatherController.drawShaderOverlay(self._camera)
         end
+    end
+    if self._camera ~= nil then
+        PanoramaController.drawUnderlay(self._camera, self._ambientLight)
     end
     ---@diagnostic disable-next-line: param-type-mismatch
     System.draw(self._camera, self:_getMaterialShader())

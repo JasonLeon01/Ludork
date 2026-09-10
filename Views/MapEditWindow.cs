@@ -35,6 +35,7 @@ public sealed class MapEditWindow : Window
     private readonly NumericUpDown fogOxBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
     private readonly NumericUpDown fogOyBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
     private readonly NumericUpDown fogDistortBox = EditorInputs.CreateNumericUpDown(0, 0, 100, 1);
+    private readonly TextBox panoramaBox = EditorInputs.CreateReadOnlyTextBox();
     private readonly TextBlock errorText = new() { Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap };
     private readonly StackPanel fogOptions = new() { Spacing = 8 };
     private readonly Button ambientButton = new();
@@ -80,6 +81,7 @@ public sealed class MapEditWindow : Window
         displayedFogOx = fogOxBox.Value;
         displayedFogOy = fogOyBox.Value;
         fogDistortBox.Value = initial.FogDistort;
+        panoramaBox.Text = initial.Panorama;
         updateAmbientButton();
 
         Grid form = new() { RowSpacing = 8 };
@@ -91,6 +93,7 @@ public sealed class MapEditWindow : Window
         addRow(form, LocaleService.Get("AMBIENT_LIGHT"), ambientButton);
         addRow(form, LocaleService.Get("MAP_BGM"), createFileRow(bgmBox, "Musics", true));
         addRow(form, LocaleService.Get("MAP_BGS"), createFileRow(bgsBox, "Musics", false));
+        addRow(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(panoramaBox, "Panoramas", null));
         addRow(form, LocaleService.Get("MAP_FOG"), createFileRow(fogBox, "Fogs", null));
         fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_POWER"), fogPowerBox));
         fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OX"), fogOxBox));
@@ -133,7 +136,12 @@ public sealed class MapEditWindow : Window
     private Control createFileRow(TextBox textBox, string rootName, bool? isBgm)
     {
         Button browse = new() { Content = "...", MinWidth = 36 };
-        browse.Click += async (_, _) => await selectFileAsync(textBox, rootName, rootName == "Fogs" ? FileSelectorDialog.ImageFilesFilter() : FileSelectorDialog.AudioFilesFilter());
+        browse.Click += async (_, _) => await selectFileAsync(
+            textBox,
+            rootName,
+            rootName is "Fogs" or "Panoramas"
+                ? FileSelectorDialog.ImageFilesFilter()
+                : FileSelectorDialog.AudioFilesFilter());
         Button clear = new() { Content = LocaleService.Get("CLEAR") };
         clear.Click += (_, _) => textBox.Text = string.Empty;
         Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6 };
@@ -221,6 +229,7 @@ public sealed class MapEditWindow : Window
                      bgmBox.Text ?? string.Empty,
                      bgsBox.Text ?? string.Empty,
                      fogBox.Text ?? string.Empty,
+                     panoramaBox.Text ?? string.Empty,
                  })
         {
             if (assetPath.Length != 0 && !GameAssetPath.IsCanonical(assetPath))
@@ -249,6 +258,7 @@ public sealed class MapEditWindow : Window
             FogOx = fogOxBox.Value == displayedFogOx ? initialFogOx : getDoubleValue(fogOxBox),
             FogOy = fogOyBox.Value == displayedFogOy ? initialFogOy : getDoubleValue(fogOyBox),
             FogDistort = getIntValue(fogDistortBox),
+            Panorama = panoramaBox.Text?.Trim() ?? string.Empty,
         });
     }
 

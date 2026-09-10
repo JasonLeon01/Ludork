@@ -31,6 +31,7 @@ public sealed class WorldMapEditWindow : Window
     private readonly NumericUpDown fogOxBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
     private readonly NumericUpDown fogOyBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
     private readonly NumericUpDown fogDistortBox = EditorInputs.CreateNumericUpDown(0, 0, 100, 1);
+    private readonly TextBox panoramaBox = EditorInputs.CreateReadOnlyTextBox();
     private readonly TextBlock errorText = new()
     {
         Foreground = Brushes.IndianRed,
@@ -66,6 +67,7 @@ public sealed class WorldMapEditWindow : Window
         displayedFogOx = fogOxBox.Value;
         displayedFogOy = fogOyBox.Value;
         fogDistortBox.Value = initial.FogDistort;
+        panoramaBox.Text = initial.Panorama;
 
         Grid form = new() { RowSpacing = 8 };
         if (isNew)
@@ -73,7 +75,8 @@ public sealed class WorldMapEditWindow : Window
         addRow(form, LocaleService.Get("WORLD_NAME"), worldNameBox);
         addRow(form, LocaleService.Get("MAP_WIDTH"), widthBox);
         addRow(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
-        addRow(form, LocaleService.Get("MAP_FOG"), createFileRow());
+        addRow(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(panoramaBox, "Panoramas"));
+        addRow(form, LocaleService.Get("MAP_FOG"), createFileRow(fogBox, "Fogs"));
         fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_POWER"), fogPowerBox));
         fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OX"), fogOxBox));
         fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OY"), fogOyBox));
@@ -120,18 +123,18 @@ public sealed class WorldMapEditWindow : Window
         return new WorldMapEditWindow(gameData, initial, isNew).ShowDialog<WorldMapInfo?>(owner);
     }
 
-    private Control createFileRow()
+    private Control createFileRow(TextBox textBox, string rootName)
     {
         Button browse = new() { Content = "...", MinWidth = 36 };
-        browse.Click += async (_, _) => await selectFogAsync();
+        browse.Click += async (_, _) => await selectFileAsync(textBox, rootName);
         Button clear = new() { Content = LocaleService.Get("CLEAR") };
-        clear.Click += (_, _) => fogBox.Text = string.Empty;
+        clear.Click += (_, _) => textBox.Text = string.Empty;
         Grid row = new()
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
             ColumnSpacing = 6,
         };
-        row.Children.Add(fogBox);
+        row.Children.Add(textBox);
         Grid.SetColumn(browse, 1);
         row.Children.Add(browse);
         Grid.SetColumn(clear, 2);
@@ -139,11 +142,11 @@ public sealed class WorldMapEditWindow : Window
         return row;
     }
 
-    private async Task selectFogAsync()
+    private async Task selectFileAsync(TextBox target, string rootName)
     {
-        string root = Path.Combine(gameData.ProjectPath, "Assets", "Fogs");
+        string root = Path.Combine(gameData.ProjectPath, "Assets", rootName);
         Directory.CreateDirectory(root);
-        string current = fogBox.Text ?? string.Empty;
+        string current = target.Text ?? string.Empty;
         string? initialFilePath = GameAssetPath.TryResolveExistingFile(
             gameData.ProjectPath,
             current,
@@ -158,7 +161,7 @@ public sealed class WorldMapEditWindow : Window
         if (path is not null
             && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath))
         {
-            fogBox.Text = assetPath;
+            target.Text = assetPath;
         }
     }
 
@@ -186,9 +189,15 @@ public sealed class WorldMapEditWindow : Window
             return;
         }
         string fog = fogBox.Text?.Trim() ?? string.Empty;
+        string panorama = panoramaBox.Text?.Trim() ?? string.Empty;
         if (fog.Length != 0 && !GameAssetPath.IsCanonical(fog))
         {
             errorText.Text = $"Invalid game asset path: {fog}";
+            return;
+        }
+        if (panorama.Length != 0 && !GameAssetPath.IsCanonical(panorama))
+        {
+            errorText.Text = $"Invalid game asset path: {panorama}";
             return;
         }
         Close(new WorldMapInfo
@@ -202,6 +211,7 @@ public sealed class WorldMapEditWindow : Window
             FogOx = fogOxBox.Value == displayedFogOx ? initialFogOx : (double)(fogOxBox.Value ?? 0),
             FogOy = fogOyBox.Value == displayedFogOy ? initialFogOy : (double)(fogOyBox.Value ?? 0),
             FogDistort = decimal.ToInt32(fogDistortBox.Value ?? 0),
+            Panorama = panorama,
         });
     }
 

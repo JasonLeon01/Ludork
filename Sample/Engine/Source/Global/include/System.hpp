@@ -4,6 +4,7 @@
 
 #include <ConfigParser.hpp>
 #include <Fog/MapFogSettings.hpp>
+#include <Panorama/MapPanoramaSettings.hpp>
 #include <System/GraphicsTypes.hpp>
 #include <System/SceneRuntime.hpp>
 #include <Weather/WeatherController.hpp>
@@ -281,6 +282,12 @@ public:
 
     BIND_METHOD()
     static void applyFogFromMapData(const MapFogSettings& mapData);
+
+    BIND_METHOD()
+    static void clearPanorama();
+
+    BIND_METHOD()
+    static void applyPanoramaFromMapData(const MapPanoramaSettings& mapData);
 
     BIND_METHOD(metadata = false)
     static bool isPerformanceProfilerEnabled();

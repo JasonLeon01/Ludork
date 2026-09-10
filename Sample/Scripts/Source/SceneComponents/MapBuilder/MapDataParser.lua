@@ -14,6 +14,7 @@ local WORLD_MANIFEST_FIELDS = {
     fogOx = true,
     fogOy = true,
     fogDistort = true,
+    panorama = true,
     layerOrder = true,
     placements = true
 }
@@ -113,6 +114,11 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
     data.fogOx = requireFiniteNumber(data.fogOx, "worldMap.fogOx")
     data.fogOy = requireFiniteNumber(data.fogOy, "worldMap.fogOy")
     data.fogDistort = requireInteger(data.fogDistort, "worldMap.fogDistort", 0)
+    if data.panorama == nil then
+        data.panorama = ""
+    else
+        assert(Class.isInstance(data.panorama, "string"), "worldMap.panorama must be a string")
+    end
     requireArray(data.layerOrder, "worldMap.layerOrder")
     local seenLayers = {}
     for index, layerName in ipairs(data.layerOrder) do
@@ -235,7 +241,8 @@ function MapDataParser.NormaliseMap(data, buildAmbientLight)
         fogPower = data.fogPower,
         fogOx = data.fogOx,
         fogOy = data.fogOy,
-        fogDistort = data.fogDistort
+        fogDistort = data.fogDistort,
+        panorama = data.panorama
     }
     for key, value in pairs(data) do
         if rawget(mapData, key) == nil then

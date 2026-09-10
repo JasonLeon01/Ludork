@@ -1343,6 +1343,10 @@
     "zh_CN": "雾效贴图",
     "en_GB": "Fog Texture"
   },
+  "MAP_PANORAMA": {
+    "zh_CN": "远景",
+    "en_GB": "Panorama"
+  },
   "MAP_FOG_POWER": {
     "zh_CN": "雾强度",
     "en_GB": "Fog Strength"

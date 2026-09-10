@@ -7,8 +7,8 @@ description: Change or review Ludork Core bindings, bindgen, Blueprint metadata,
 
 ## Select the owning contract
 
-- For metadata and its editor consumers, read [Metadata Schema and Decorators](<../../../docs/en_GB/03.Lua and Blueprint Scripting/04.Blueprint Scripting/02.Metadata Schema and Decorators.md>).
-- For graph execution, read [Execution Flow, Events and Variables](<../../../docs/en_GB/03.Lua and Blueprint Scripting/04.Blueprint Scripting/01.Execution Flow Events and Variables.md>).
+- For metadata and its editor consumers, read [Metadata Schema and Decorators](<../../../docs/en_GB/03.Lua and Blueprint Scripting/03.Blueprint Scripting/02.Metadata Schema and Decorators.md>).
+- For graph execution, read [Events, Common Functions and Blueprint Flow](<../../../docs/en_GB/03.Lua and Blueprint Scripting/03.Blueprint Scripting/01.Execution Flow Events and Variables.md>).
 - For native bindings or bindgen, read [Macro Reference](<../../../docs/en_GB/04.Native C++ Development/04.Macro Reference.md>) and [Generated Metadata and Stubs](<../../../docs/en_GB/04.Native C++ Development/05.Generated Metadata and Stubs.md>), then the relevant [class/property](<../../../docs/en_GB/04.Native C++ Development/02.Binding a Class.md>) or [function/execution](<../../../docs/en_GB/04.Native C++ Development/03.Functions Events and Execution.md>) section.
 - For native runtime architecture, read [Build and Module Layout](<../../../docs/en_GB/04.Native C++ Development/01.Build and Module Layout.md>); for Standard/native Lua semantics, also use [ludork-lua](../ludork-lua/SKILL.md).
 

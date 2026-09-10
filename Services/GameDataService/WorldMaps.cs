@@ -113,6 +113,7 @@ public sealed partial class GameDataService
             FogOx = world["fogOx"]?.GetValue<double?>() ?? 0.0,
             FogOy = world["fogOy"]?.GetValue<double?>() ?? 0.0,
             FogDistort = world["fogDistort"]?.GetValue<int?>() ?? 0,
+            Panorama = world["panorama"]?.GetValue<string>() ?? string.Empty,
             LayerOrder = validation.LayerOrder,
             Placements = validation.Placements,
         };
@@ -329,6 +330,8 @@ public sealed partial class GameDataService
             candidate["fogOy"] = clearFog ? 0.0 : info.FogOy;
         if (clearFog || info.FogDistort != baseline.FogDistort)
             candidate["fogDistort"] = clearFog ? 0 : info.FogDistort;
+        if (info.Panorama.Trim() != baseline.Panorama.Trim())
+            candidate["panorama"] = info.Panorama.Trim();
         WorldMapValidationResult validation = worldMapValidation.Validate(
             worldKey,
             candidate,

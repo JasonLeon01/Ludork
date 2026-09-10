@@ -14,6 +14,7 @@ local WorldGameMapStreaming = require("Global.WorldGameMap.Streaming")
 local Logging = require("Global.Utils.Logging")
 local ActorMapService = Engine.ActorMapService
 local FogController = GlobalCore.FogController
+local PanoramaController = GlobalCore.PanoramaController
 local WorldRegionState = GlobalCore.WorldRegionState
 local WorldStreamingState = GlobalCore.WorldStreamingState
 
@@ -107,6 +108,7 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldLastReadyCameraPosition = nil
     self._worldRuntimeLights = {}
     FogController.applyWorldFromMapData(GlobalCore.MapFogSettings.new(config))
+    PanoramaController.applyWorldFromMapData(GlobalCore.MapPanoramaSettings.new(config))
 end
 
 ---@diagnostic disable-next-line: unused

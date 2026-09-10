@@ -382,6 +382,7 @@ public sealed partial class ReferenceIndexService
         addAssetReference(sourceId, data["bgm"], "asset", $"Maps/{key}.bgm");
         addAssetReference(sourceId, data["bgs"], "asset", $"Maps/{key}.bgs");
         addAssetReference(sourceId, data["fog"], "asset", $"Maps/{key}.fog");
+        addAssetReference(sourceId, data["panorama"], "asset", $"Maps/{key}.panorama");
         scanGenericReferences(sourceId, data["BPClassVarChanged"], $"Maps/{key}.BPClassVarChanged");
         scanKnownMapNodeReferences(
             sourceId,
@@ -419,6 +420,7 @@ public sealed partial class ReferenceIndexService
     private void scanWorldMapReferences(string sourceId, string key, JsonObject data)
     {
         addAssetReference(sourceId, data["fog"], "asset", $"Maps/{key}/_world.fog");
+        addAssetReference(sourceId, data["panorama"], "asset", $"Maps/{key}/_world.panorama");
         if (data["placements"] is not JsonArray placements)
             return;
         for (int index = 0; index < placements.Count; index += 1)

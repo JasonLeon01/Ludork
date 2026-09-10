@@ -4,6 +4,7 @@ local GlobalCore = require("GlobalCore")
 ---@diagnostic disable: need-check-nil, param-type-mismatch, duplicate-set-field
 
 local ShaderManager = GlobalCore.ShaderManager
+local PanoramaController = GlobalCore.PanoramaController
 
 local GameMapLighting = {}
 
@@ -202,6 +203,9 @@ function GameMapLighting.RefreshShader(self)
     self._materialShader:setUniform("useStaticDirectLight", self._useStaticDirectLight and 1.0 or 0.0)
     self:_setViewShaderUniforms(self._materialShader, screenSize, self._zeroShaderOffset, false)
     self._materialShader:setUniform("ambientColor", self:_toShaderColour(self._ambientLight, true))
+    self._materialShader:setUniform(
+        "preserveSourceAlpha", PanoramaController.isActive() and 1.0 or 0.0
+    )
 end
 
 ---@return boolean

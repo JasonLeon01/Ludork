@@ -250,6 +250,7 @@ function Scene:onQuit()
     self._mapAudio:stopMapAudio()
     GlobalSystem.clearWeather()
     GlobalSystem.clearFog()
+    GlobalSystem.clearPanorama()
 end
 
 function Scene:onDestroy()
@@ -422,6 +423,10 @@ function Scene:loadMap(mapPath, initialPosition)
                 fogOx = mapData.fogOx,
                 fogOy = mapData.fogOy,
                 fogDistort = mapData.fogDistort
+            }))
+        GlobalSystem.clearPanorama()
+        GlobalSystem.applyPanoramaFromMapData(GlobalCore.MapPanoramaSettings.new({
+                panorama = mapData.panorama
             }))
     end
     self:_updateCurrentRegion(mapFile)

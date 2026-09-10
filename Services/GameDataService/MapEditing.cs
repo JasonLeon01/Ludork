@@ -64,6 +64,7 @@ public sealed partial class GameDataService
             FogOx = map["fogOx"]?.GetValue<double?>() ?? 0.0,
             FogOy = map["fogOy"]?.GetValue<double?>() ?? 0.0,
             FogDistort = map["fogDistort"]?.GetValue<int?>() ?? 0,
+            Panorama = map["panorama"]?.GetValue<string>() ?? string.Empty,
         };
     }
 
@@ -187,6 +188,8 @@ public sealed partial class GameDataService
             candidate["fogOy"] = clearFog ? 0.0 : info.FogOy;
         if (clearFog || info.FogDistort != baseline.FogDistort)
             candidate["fogDistort"] = clearFog ? 0 : info.FogDistort;
+        if (info.Panorama.Trim() != baseline.Panorama.Trim())
+            candidate["panorama"] = info.Panorama.Trim();
         JsonObject? worldCandidate = null;
         if (childMap && (sizeChanged || currentKey != newKey) && getWorldMap(worldKey) is JsonObject world)
         {

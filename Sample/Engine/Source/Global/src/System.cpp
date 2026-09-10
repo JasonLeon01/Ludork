@@ -5,6 +5,7 @@
 #include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <Fog/FogController.hpp>
+#include <Panorama/PanoramaController.hpp>
 #include <SystemConfigBase.hpp>
 #include <Weather/WeatherController.hpp>
 
@@ -307,6 +308,14 @@ void System::clearFog() {
 
 void System::applyFogFromMapData(const MapFogSettings& mapData) {
     FogController::applyFromMapData(mapData);
+}
+
+void System::clearPanorama() {
+    PanoramaController::clear();
+}
+
+void System::applyPanoramaFromMapData(const MapPanoramaSettings& mapData) {
+    PanoramaController::applyFromMapData(mapData);
 }
 
 void System::draw(const sf::Drawable& drawable, sf::Shader* shader) {

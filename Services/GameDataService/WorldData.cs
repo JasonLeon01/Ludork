@@ -197,6 +197,7 @@ public sealed partial class GameDataService
             ["fogOx"] = fog.Length == 0 ? 0.0 : info.FogOx,
             ["fogOy"] = fog.Length == 0 ? 0.0 : info.FogOy,
             ["fogDistort"] = fog.Length == 0 ? 0 : info.FogDistort,
+            ["panorama"] = info.Panorama.Trim(),
             ["layerOrder"] = layerOrderData,
             ["placements"] = placementData,
         };

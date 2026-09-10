@@ -11,6 +11,7 @@
 ---@field fogOx      number | nil
 ---@field fogOy      number | nil
 ---@field fogDistort number | nil
+---@field panorama   string | nil
 
 ---@alias Source.SceneComponents.SerializedTileCell integer | lightuserdata
 ---@alias Source.SceneComponents.SerializedAutoTileCell integer | string | lightuserdata
@@ -134,6 +135,7 @@
 ---@field fogOx        number
 ---@field fogOy        number
 ---@field fogDistort   integer
+---@field panorama     string
 
 ---@class Source.SceneComponents.SingleFloorMapPreview
 ---@field gameMap GameMap

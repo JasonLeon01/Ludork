@@ -20,6 +20,7 @@ public sealed class WorldMapValidationService
         "fogOx",
         "fogOy",
         "fogDistort",
+        "panorama",
         "layerOrder",
         "placements",
     };
@@ -44,6 +45,7 @@ public sealed class WorldMapValidationService
         int width = readPositiveInt(manifest["width"], "width", issues);
         int height = readPositiveInt(manifest["height"], "height", issues);
         validateFog(manifest, issues);
+        validatePanorama(manifest, issues);
         IReadOnlyList<string> storedLayerOrder = readLayerOrder(manifest["layerOrder"], issues);
         readPlacements(worldKey, manifest["placements"], childMaps, width, height, placements, issues);
         IReadOnlyList<string> mergedLayerOrder = mergeLayerOrder(worldKey, placements, childMaps, issues);
@@ -119,6 +121,14 @@ public sealed class WorldMapValidationService
         readFiniteDouble(manifest["fogOx"], "fogOx", issues);
         readFiniteDouble(manifest["fogOy"], "fogOy", issues);
         readInt(manifest["fogDistort"], "fogDistort", issues);
+    }
+
+    private static void validatePanorama(JsonObject manifest, ICollection<WorldMapValidationIssue> issues)
+    {
+        if (manifest["panorama"] is null)
+            return;
+        if (manifest["panorama"] is not JsonValue panorama || !panorama.TryGetValue(out string? _))
+            issues.Add(new WorldMapValidationIssue("invalidPanorama", "panorama must be a string."));
     }
 
     private static IReadOnlyList<string> readLayerOrder(
