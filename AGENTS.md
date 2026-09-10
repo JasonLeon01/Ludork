@@ -8,17 +8,18 @@ Ludork is a 2D RPG engine with an Avalonia/.NET 9 editor, a native C++ runtime a
 - Preserve the user's staged and unstaged changes. Do not stage, unstage, commit, reset, discard or publish changes without explicit authorization. Leave your changes unstaged for review.
 - Prefer the simplest design that satisfies the settled contract. Replace superseded APIs, paths and data shapes directly; do not add compatibility reads, migrations, fallbacks or aliases unless the task or documented contract explicitly requires them.
 - Edit first-party sources and build wiring. Do not hand-edit ignored third-party code, generated files or build/session artifacts, or add patches/overlays for them. Regenerate outputs through their owning tools. Do not force-add ignored paths.
-- Remove test code and scaffolding created for the task after verification. Do not delete existing tests, Sample assets or other people's artifacts. Keep temporary probes outside the repository when practical.
+- Remove test code and scaffolding created for the task after verification. Do not delete existing tests, Game project assets or other people's artifacts. Keep temporary probes outside the repository when practical.
 - Report the result, relevant verification and any remaining limitation concisely in the user's language. If a repository instruction or skill blocks progress, identify the exact file and rule rather than requesting unexplained confirmation.
 
 ## Repository map and task context
 
 | Area | Source of truth |
 |---|---|
-| Editor | `Views/`, `ViewModels/`, `Models/`, `Controls/`, `Utils/`, `Ludork.csproj` |
-| Native runtime and bindings | `Sample/Engine/Runtime/`, `Sample/Engine/Standard/`, `Sample/Engine/Source/Core/` |
-| Lua implementation, public declarations, editor metadata | `Sample/Scripts/**/*.lua`, mirrored `Sample/Scripts/stub/**/*.d.lua`, sibling `*_meta.lua` |
-| Game data and UI | `Sample/Data/`; declarative assets under `Sample/Data/UI/Assets/` |
+| Editor | `Editor/Views/`, `Editor/ViewModels/`, `Editor/Models/`, `Editor/Controls/`, `Editor/Services/`, `Plugins/`, `Ludork.csproj` |
+| Game application host | `Game/Application/` |
+| Native runtime and bindings | `Game/Engine/Runtime/`, `Game/Engine/Standard/`, `Game/Engine/Source/Core/` |
+| Lua implementation, public declarations, editor metadata | `Game/Scripts/**/*.lua`, mirrored `Game/Scripts/stub/**/*.d.lua`, sibling `*_meta.lua` |
+| Game data and UI | `Game/Data/`; declarative assets under `Game/Data/UI/Assets/` |
 | Generators and build/pack entry points | `ScriptTools/`, [tools/README.md](tools/README.md) |
 | Architecture and runtime behaviour | [English docs](docs/en_GB/00.Ludork%20Documentation.md); other locale trees under `docs/` |
 
@@ -26,7 +27,7 @@ Before changing behaviour, read the matching English documentation. Load only th
 
 | Task | Read before editing |
 |---|---|
-| Lua, Standard globals, classes, Script Mixins or Sample gameplay | [ludork-lua](.agents/skills/ludork-lua/SKILL.md) |
+| Lua, Standard globals, classes, Script Mixins or Default Gameplay | [ludork-lua](.agents/skills/ludork-lua/SKILL.md) |
 | Core bindings, bindgen, Blueprint metadata or execution | [ludork-bindings](.agents/skills/ludork-bindings/SKILL.md) |
 | Avalonia form inputs, declarative UI assets/controllers or native UI adapters | [ludork-ui](.agents/skills/ludork-ui/SKILL.md) |
 | Choosing/running checks, build tools or CI changes | [ludork-verify](.agents/skills/ludork-verify/SKILL.md) |
@@ -38,12 +39,12 @@ Before changing behaviour, read the matching English documentation. Load only th
 - C++ type ownership: nest an external struct or enum under its sole direct class/struct consumer when dependency direction permits. Count host and Impl separately; merge a consuming base with its derived consumers, but not siblings solely through a common ancestor. Include declaration and implementation uses, aliases, inferred values and member lambdas; ignore includes, forward declarations and transitive dependencies. Free functions do not add consumers and name the nested type through its owner. Keep shared, unused, function-local and already nested types in place. Do not introduce parent includes or reverse implementation/module dependencies to force ownership. Use the least access required; nested bound types must be publicly accessible, while Lua root names stay unchanged.
 - Include or require direct dependencies after splitting; do not retain superseded aggregate headers or module aliases. Public C++ headers must compile independently, with complete definitions for inheritance and by-value members; use forward declarations only where C++ and binding requirements permit.
 - Editor C#: no comments/docstrings or unnecessary `try/catch`; use explicit types unless the full type name is excessively long.
-- First-party C++: run `clang-format -i` on each changed source/header using `Sample/.clang-format`; for files outside Sample, pass `--style=file:Sample/.clang-format` from the repository root. Exclude third-party and generated code.
+- First-party C++: run `clang-format -i` on each changed source/header using `Game/.clang-format`; for files outside Game, pass `--style=file:Game/.clang-format` from the repository root. Exclude third-party and generated code.
 - C++ implementation layout: keep file-local helpers in at most one continuous anonymous namespace per `.cpp`; remove `using`-only anonymous blocks together with their `using` declarations/directives, and fully qualify every affected use. Put complete file-level private `struct`/`class` definitions, including `Host::Impl`, in private `.hpp` files under `src`, with explicit non-template method bodies in `.cpp`. Preserve field initialisers and the semantic placement of `= default`/`= delete`; small function-local types may stay local, and templates follow definition-visibility requirements.
 - Private C++ headers use named namespaces, with no anonymous namespaces or global `using namespace`. Public `include` headers must not include private `src` headers. A host-dependent companion header defining `Host::Impl` stays beside the host source; independent implementation layers must not include it.
 - C++ implementation dependencies point down: child implementation directories must not include headers in parent source directories, whether through `../` or an include-root shortcut. Shared neutral types and interfaces belong to their implementation layer and are included by the parent. Add implementation directories and child `CMakeLists.txt` when needed to organise responsibilities; `target_sources` may contribute to an existing target without introducing another target.
 - Lua: format each changed `.lua`/`.d.lua` with EmmyLua and run full-workspace EmmyLua diagnostics. Keep authoritative types exact; fix control flow or callers instead of widening contracts or adding broad ignores.
-- When behaviour, APIs, paths or conventions described in docs change, update every locale in the same task, including `en_GB` and `zh_CN`. Sample changes also require checking the relevant Sample Gameplay and API pages. Re-read edited pages, remove repetition, and document settled behaviour rather than implementation history or agent instructions.
+- When behaviour, APIs, paths or conventions described in docs change, update every locale in the same task, including `en_GB` and `zh_CN`. Game project changes also require checking the relevant Default Gameplay and API pages. Re-read edited pages, remove repetition, and document settled behaviour rather than implementation history or agent instructions.
 
 ## Execution and completion
 

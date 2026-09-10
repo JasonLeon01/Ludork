@@ -26,7 +26,7 @@ foreach(component MAJOR MINOR PATCH TWEAK)
 endforeach()
 
 get_filename_component(LUDORK_ICON
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../Assets/icon.ico" ABSOLUTE)
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../Editor/Assets/icon.ico" ABSOLUTE)
 configure_file(Launcher.rc.in Launcher.rc @ONLY)
 
 add_executable(LudorkEditorLauncher WIN32

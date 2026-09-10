@@ -9,7 +9,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://Ludork/Resources/EditorIcons.axaml" />
+                <ResourceInclude Source="avares://Ludork/Editor/Resources/EditorIcons.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <SolidColorBrush x:Key="LudorkPrimaryBrush" Color="#ffd740" />
             <SolidColorBrush x:Key="LudorkPrimaryMutedBrush" Color="#33ffd740" />
@@ -33,7 +33,7 @@
         <material:MaterialTheme BaseTheme="Dark"
                                 PrimaryColor="Amber"
                                 SecondaryColor="Lime" />
-        <StyleInclude Source="avares://Ludork/Styles/NativeMenuItems.axaml" />
+        <StyleInclude Source="avares://Ludork/Editor/Styles/NativeMenuItems.axaml" />
         <StyleInclude Source="avares://NodifyM.Avalonia/Styles/ControlStyles.axaml" />
         <Style Selector="NumericUpDown.ludork-editable /template/ Border#PART_RootBorder">
             <Setter Property="Margin" Value="0" />

@@ -45,7 +45,7 @@ FINAL_DIR="$PROJECT_ROOT/dist"
 BACKUP_DIR="$WORK_DIR/previous-dist"
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
 SCRIPT_TOOLS_VERSION_REPORT="$PROJECT_ROOT/.tools/ScriptTools/runtime-versions.txt"
-FFMPEG_SOURCE_ARCHIVE="$PROJECT_ROOT/Sample/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
+FFMPEG_SOURCE_ARCHIVE="$PROJECT_ROOT/Game/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
 LUAC="$PROJECT_ROOT/.tools/Lua/luac"
 DIST_BACKED_UP=0
 DMG_MOUNTED=0
@@ -184,8 +184,8 @@ create_icns() {
 }
 
 create_bundle_icons() {
-    create_icns "$PROJECT_ROOT/Assets/icon.ico" AppIcon
-    create_icns "$PROJECT_ROOT/Assets/project-icon.png" ProjectIcon
+    create_icns "$PROJECT_ROOT/Editor/Assets/icon.ico" AppIcon
+    create_icns "$PROJECT_ROOT/Editor/Assets/project-icon.png" ProjectIcon
 }
 
 create_dmg_assets() {
@@ -705,7 +705,7 @@ validate_package() {
     "$SCRIPT_TOOLS" editor-macos-metadata validate "$PROJECT_FILE" "$info_plist"
 
     for forbidden_path in \
-        "$package_macos/Sample" \
+        "$package_macos/Game" \
         "$package_macos/.ludork-development" \
         "$package_macos/requirements.txt" \
         "$package_macos/versions.conf" \
@@ -989,11 +989,11 @@ if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
             ;;
     esac
 fi
-require_file "$PROJECT_ROOT/Sample/CMakeLists.txt"
-require_directory "$PROJECT_ROOT/Sample/Engine/ThirdParty/LuaSF"
-require_directory "$PROJECT_ROOT/Sample/Engine/ThirdParty/lua-cjson"
-require_directory "$PROJECT_ROOT/Sample/Engine/ThirdParty/zlib"
-require_file "$PROJECT_ROOT/Sample/Engine/ThirdParty/ffmpeg/configure"
+require_file "$PROJECT_ROOT/Game/CMakeLists.txt"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaSF"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/lua-cjson"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/zlib"
+require_file "$PROJECT_ROOT/Game/Engine/ThirdParty/ffmpeg/configure"
 require_file "$FFMPEG_SOURCE_ARCHIVE"
 require_file "$PROJECT_ROOT/Locale/locale.json"
 require_file "$PROJECT_ROOT/LICENSE.md"
@@ -1003,8 +1003,8 @@ require_file "$PROJECT_ROOT/THIRD_PARTY_NOTICES.md"
 require_file "$PROJECT_ROOT/THIRD_PARTY_NOTICES_zh_CN.md"
 require_file "$PROJECT_ROOT/About_en_GB.md"
 require_file "$PROJECT_ROOT/About_zh_CN.md"
-require_file "$PROJECT_ROOT/Assets/icon.ico"
-require_file "$PROJECT_ROOT/Assets/project-icon.png"
+require_file "$PROJECT_ROOT/Editor/Assets/icon.ico"
+require_file "$PROJECT_ROOT/Editor/Assets/project-icon.png"
 require_directory "$PROJECT_ROOT/docs/_images"
 require_directory "$PROJECT_ROOT/docs/en_GB"
 require_directory "$PROJECT_ROOT/docs/zh_CN"

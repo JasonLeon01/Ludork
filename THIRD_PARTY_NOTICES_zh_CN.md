@@ -70,10 +70,10 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | FFmpeg | 8.1.2 | 仅限启用 FFmpeg 的模板；Windows/macOS 使用精简动态库，iOS、HarmonyOS 与 Android C++ Source 构建使用静态库，并随附完整源码包、补丁和构建配置 | Ludork 当前配置适用 LGPL 2.1 或更高版本；完整源码包还保留 FFmpeg 的 GPL/LGPL 许可证族，分发静态链接的 iOS、HarmonyOS 或 Android 应用还必须提供许可证要求的重新链接材料 | `Licenses/FFmpeg/README.md`、`Licenses/FFmpeg/UPSTREAM-LICENSE.md`、`Licenses/FFmpeg/COPYING.LGPLv2.1.txt`、`Licenses/FFmpeg/COPYING.LGPLv3.txt`、`Licenses/FFmpeg/COPYING.GPLv2.txt`、`Licenses/FFmpeg/COPYING.GPLv3.txt` | [FFmpeg](https://ffmpeg.org/) |
 | GNU Make | 4.4.1 | Windows 编辑器内用于构建随附 FFmpeg 源码的工具 | GPL 3.0 或更高版本 | `Licenses/GNUMake/COPYING.txt`；`tools/gnu-make/COPYING` 会在工具旁另存一份 | [GNU Make](https://www.gnu.org/software/make/) |
 | Microsoft Visual C++ Runtime | 打包时从 Visual Studio 2022 redistributable 安装中选取的版本 | Windows 编辑器 UI preview host 中未经修改的 app-local runtime 文件 | Microsoft Visual C++ Runtime 2015–2022 Software 许可证及打包者适用的 Visual Studio 再分发条款 | `Licenses/MicrosoftVisualCppRuntime/Visual-C-Runtime-2015-2022-License.docx`、`Licenses/MicrosoftVisualCppRuntime/README.md` | [Microsoft Runtime 许可证](https://visualstudio.microsoft.com/license-terms/vs2022-cruntime/)、[Visual Studio 2022 再分发](https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution) |
-| HarmonyOS Sans SC | 字体版权为 Copyright 2021 Huawei Device Co., Ltd. | 编辑器中的 `Assets/HarmonyOS_Sans_SC_Regular.ttf`，以及 Sample 和工程模板中的 `HarmonyOS_SansSC_Medium.ttf` | HarmonyOS Sans Fonts License Agreement | `Licenses/HarmonyOSSans/LICENSE.txt`；Sample 字体旁保留另一份副本 | [HarmonyOS 设计资源](https://developer.huawei.com/consumer/en/design/resource/) |
-| “To Walk the Unseen Path” | Sample 资产 | Sample 中当前存在的 MP3 音乐 | Suno Free/Basic 条款将使用限制为个人非商业用途；没有可核验的原始模板再分发授权 | `Licenses/SampleMusic/NOTICE.md`；曲目旁保留声明副本 | [Suno 服务条款](https://suno.com/terms/) |
+| HarmonyOS Sans SC | 字体版权为 Copyright 2021 Huawei Device Co., Ltd. | 编辑器中的 `Assets/HarmonyOS_Sans_SC_Regular.ttf`，以及 Game 和工程模板中的 `HarmonyOS_SansSC_Medium.ttf` | HarmonyOS Sans Fonts License Agreement | `Licenses/HarmonyOSSans/LICENSE.txt`；Game 字体旁保留另一份副本 | [HarmonyOS 设计资源](https://developer.huawei.com/consumer/en/design/resource/) |
+| “To Walk the Unseen Path” | Game 资产 | Game 项目中当前存在的 MP3 音乐 | Suno Free/Basic 条款将使用限制为个人非商业用途；没有可核验的原始模板再分发授权 | `Licenses/SampleMusic/NOTICE.md`；曲目旁保留声明副本 | [Suno 服务条款](https://suno.com/terms/) |
 
-Sample 音乐的限制只适用于该音乐资产，Ludork 软件仍使用 Zlib 许可证。当前 Suno 条款不能证明可在编辑器或工程模板中再分发原始曲目，即使发行本身不商用也一样。发布包含该曲目的任何包前，必须移除或替换曲目，或取得明确的再分发权。
+Game 音乐的限制只适用于该音乐资产，Ludork 软件仍使用 Zlib 许可证。当前 Suno 条款不能证明可在编辑器或工程模板中再分发原始曲目，即使发行本身不商用也一样。发布包含该曲目的任何包前，必须移除或替换曲目，或取得明确的再分发权。
 
 ## 来源与商标
 

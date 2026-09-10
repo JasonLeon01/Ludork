@@ -9,8 +9,8 @@ from .ui_property_values import UiAssetError
 
 def verify_ui_adapters(project_root: pathlib.Path) -> str:
     root = project_root.expanduser().resolve()
-    if not (root / "Main.proj").is_file() and (root / "Sample" / "Main.proj").is_file():
-        root /= "Sample"
+    if not (root / "Main.proj").is_file() and (root / "Game" / "Main.proj").is_file():
+        root /= "Game"
     snapshot = load_preview(root)
     compiled = describe_host(snapshot.host_path, root)
     if compiled.raw != snapshot.registry.raw:

@@ -254,12 +254,11 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         "Engine/Source",
         "Engine/Runtime",
         "Data",
-        "include",
+        "Application",
         "Engine/ThirdParty/LuaSF",
         "Engine/ThirdParty/lua-cjson",
         "Scripts",
         "Engine/Standard",
-        "src",
         "Engine/ThirdParty/zlib",
     )
     for name in required_directories:

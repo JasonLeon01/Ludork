@@ -23,11 +23,11 @@ ENVIRONMENT_INPUTS = (
     "tools/common.sh",
 )
 NATIVE_INPUTS = (
-    "Sample/Engine/*",
-    "Sample/src/*",
-    "Sample/CMakeLists.txt",
-    "Sample/Main.*",
-    "Sample/Assets/System/icon.ico",
+    "Game/Engine/*",
+    "Game/Application/*",
+    "Game/CMakeLists.txt",
+    "Game/Main.*",
+    "Game/Assets/System/icon.ico",
     "tools/build_cpp.*",
     "tools/build_standalone.*",
     "tools/build_ui_preview_host.*",
@@ -44,20 +44,20 @@ MANAGED_INPUTS = (
     "*.ruleset",
     "*.editorconfig",
     "*.manifest",
-    "Assets/*",
+    "Editor/Assets/*",
     "global.json",
     "*NuGet.Config",
     "*nuget.config",
     "packages.lock.json",
     "*/packages.lock.json",
     "tools/pack_editor.*",
-    "Sample/Engine/Source/Core/include/EngineState.hpp",
+    "Game/Engine/Source/Core/include/EngineState.hpp",
     "ScriptTools/engine_constants.py",
 )
 LAUNCHER_INPUTS = (
     "tools/editor_launcher/*",
     "tools/pack_editor.bat",
-    "Assets/icon.ico",
+    "Editor/Assets/icon.ico",
     "Ludork.csproj",
 )
 
@@ -80,7 +80,7 @@ def fingerprints(entries: list[tuple[str, bytes]]) -> dict[str, str]:
         for path, record in sorted(entries):
             if group == "managed":
                 if path.endswith(".cs") and path.startswith(
-                    ("Plugins/", "Templates/", "Sample/Engine/ThirdParty/zlib/")
+                    ("Plugins/", "Templates/", "Game/Engine/ThirdParty/zlib/")
                 ):
                     continue
                 if path.endswith(".csproj") and path.startswith("Plugins/"):

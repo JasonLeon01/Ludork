@@ -97,7 +97,7 @@ macOS:
 ./tools/run_editor.sh
 ```
 
-The initialisation script prepares the native dependencies and the editor-owned UI preview host. It does not build the Sample game. Build the Sample separately with `tools\build_cpp.bat Sample Debug` or `./tools/build_cpp.sh Sample Debug`.
+The initialisation script prepares the native dependencies and the editor-owned UI preview host. It does not build the Game project game. Build the Game project separately with `tools\build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`.
 
 ## Documentation and support
 
@@ -117,4 +117,4 @@ Ludork itself is distributed under the [Zlib License](LICENSE.md), including com
 
 Project templates carry the Ludork licence together with the applicable game-runtime, optional video-runtime and bundled-asset notices and complete local licence texts. Editor, managed-runtime, preview-host and build-tool notices remain in the editor distribution and are not copied into projects. Packaging preserves project legal materials when they are present, but Android APK and HarmonyOS HAP packaging do not treat them as format prerequisites or verify legal completeness. Preserve the applicable materials, add notices for your own dependencies and assets, and review the result before distribution.
 
-The Sample project's bundled music is not covered by the Ludork Zlib License. Its Suno Free Tier terms restrict use to personal, non-commercial purposes and do not establish permission to redistribute the raw track in a project template. Remove or replace the track, or obtain express redistribution rights, before publishing any package that contains it. The Sample font retains its supplied terms.
+The Game project's bundled music is not covered by the Ludork Zlib License. Its Suno Free Tier terms restrict use to personal, non-commercial purposes and do not establish permission to redistribute the raw track in a project template. Remove or replace the track, or obtain express redistribution rights, before publishing any package that contains it. The Game project font retains its supplied terms.

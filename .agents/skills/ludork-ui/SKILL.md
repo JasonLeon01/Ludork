@@ -9,7 +9,7 @@ Choose the relevant section; an editor form change does not need the declarative
 
 ## Editor form inputs
 
-Use [Views/Utils/EditorInputs.cs](../../../Views/Utils/EditorInputs.cs) as the styling source of truth, matching Map Edit:
+Use [Editor/Views/Utils/EditorInputs.cs](../../../Editor/Views/Utils/EditorInputs.cs) as the styling source of truth, matching Map Edit:
 
 | Control | Factory or application API |
 |---|---|

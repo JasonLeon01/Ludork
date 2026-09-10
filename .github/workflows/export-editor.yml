@@ -81,7 +81,7 @@ jobs:
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
         with:
-          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
 
       - name: Set up project Python environment
@@ -100,26 +100,26 @@ jobs:
         if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 20
-        run: tools\init_cpp_dependencies.bat Sample
+        run: tools\init_cpp_dependencies.bat Game
 
       - name: Save FFmpeg source archive
         if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
-          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
 
       - name: Validate native build inputs
         shell: cmd
         timeout-minutes: 10
         run: |
-          .tools\ScriptTools\ScriptTools.exe impl-boundary-check Sample
+          .tools\ScriptTools\ScriptTools.exe impl-boundary-check Game
           if errorlevel 1 exit /b 1
 
       - name: Archive prepared environment
         if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Sample\Engine\ThirdParty\LuaSF Sample\Engine\ThirdParty\lua-cjson Sample\Engine\ThirdParty\zlib Sample\Engine\ThirdParty\ffmpeg Sample\ThirdPartySource
+        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
 
       - name: Save prepared environment cache
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -268,10 +268,10 @@ jobs:
           path: |
             bin/Release
             obj/Release
-            Ludork.Plugin.Abstractions/bin/Release
-            Ludork.Plugin.Abstractions/obj/Release
-            Ludork.Plugin.Avalonia/bin/Release
-            Ludork.Plugin.Avalonia/obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
           key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.build_inputs.outputs.managed }}
 
       - name: Set up MSVC command-line environment
@@ -355,10 +355,10 @@ jobs:
           path: |
             bin/Release
             obj/Release
-            Ludork.Plugin.Abstractions/bin/Release
-            Ludork.Plugin.Abstractions/obj/Release
-            Ludork.Plugin.Avalonia/bin/Release
-            Ludork.Plugin.Avalonia/obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
           key: ${{ steps.managed-cache.outputs.cache-primary-key }}
 
       - name: Upload editor package
@@ -407,7 +407,7 @@ jobs:
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
         with:
-          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
 
       - name: Set up project Python environment
@@ -425,23 +425,23 @@ jobs:
       - name: Initialize C++ dependencies
         if: steps.environment-cache.outputs.cache-hit != 'true'
         timeout-minutes: 20
-        run: sh tools/init_cpp_dependencies.sh Sample
+        run: sh tools/init_cpp_dependencies.sh Game
 
       - name: Save FFmpeg source archive
         if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
-          path: Sample/ThirdPartySource/ffmpeg-*.tar.gz
+          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
 
       - name: Validate native build inputs
         timeout-minutes: 10
         run: |
-          .tools/ScriptTools/ScriptTools impl-boundary-check Sample
+          .tools/ScriptTools/ScriptTools impl-boundary-check Game
 
       - name: Archive prepared environment
         if: steps.environment-cache.outputs.cache-hit != 'true'
-        run: tar -cf macos-native-environment.tar .tools/ScriptTools Sample/Engine/ThirdParty/LuaSF Sample/Engine/ThirdParty/lua-cjson Sample/Engine/ThirdParty/zlib Sample/Engine/ThirdParty/ffmpeg Sample/ThirdPartySource
+        run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
 
       - name: Save prepared environment cache
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -580,10 +580,10 @@ jobs:
           path: |
             bin/Release
             obj/Release
-            Ludork.Plugin.Abstractions/bin/Release
-            Ludork.Plugin.Abstractions/obj/Release
-            Ludork.Plugin.Avalonia/bin/Release
-            Ludork.Plugin.Avalonia/obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
           key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.build_inputs.outputs.managed }}
 
       - name: Download prepared environment
@@ -630,10 +630,10 @@ jobs:
           path: |
             bin/Release
             obj/Release
-            Ludork.Plugin.Abstractions/bin/Release
-            Ludork.Plugin.Abstractions/obj/Release
-            Ludork.Plugin.Avalonia/bin/Release
-            Ludork.Plugin.Avalonia/obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
           key: ${{ steps.managed-cache.outputs.cache-primary-key }}
 
       - name: Upload unsigned editor DMG

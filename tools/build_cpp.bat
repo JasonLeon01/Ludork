@@ -8,11 +8,11 @@ if "%~1"=="" goto usage
 
 if /I "%~1"=="Debug" (
     if not "%~2"=="" goto usage
-    set "CPP_DIR=%CD%\Sample"
+    set "CPP_DIR=%CD%\Game"
     set "CONFIG=%~1"
 ) else if /I "%~1"=="Release" (
     if not "%~2"=="" goto usage
-    set "CPP_DIR=%CD%\Sample"
+    set "CPP_DIR=%CD%\Game"
     set "CONFIG=%~1"
 ) else (
     if "%~2"=="" goto usage

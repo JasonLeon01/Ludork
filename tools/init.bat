@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0.."
 
 set "CPP_DIR=%~1"
-if "%CPP_DIR%"=="" set "CPP_DIR=%CD%\Sample"
+if "%CPP_DIR%"=="" set "CPP_DIR=%CD%\Game"
 for %%I in ("%CPP_DIR%") do set "CPP_DIR=%%~fI"
 
 call "%CD%\tools\setup_python.bat"

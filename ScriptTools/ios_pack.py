@@ -131,11 +131,10 @@ def resolve_project(project_folder: str) -> pathlib.Path:
         "Engine/Source",
         "Engine/Runtime",
         "Data",
-        "include",
+        "Application",
         "Engine/ThirdParty/LuaSF",
         "Engine/ThirdParty/lua-cjson",
         "Scripts",
-        "src",
         "Engine/Standard",
         "Engine/ThirdParty/zlib",
     ):

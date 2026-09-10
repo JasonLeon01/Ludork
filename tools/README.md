@@ -28,20 +28,20 @@ Typical commands:
 ```sh
 ./tools/init.sh
 ./tools/run_editor.sh
-./tools/build_cpp.sh Sample Debug
-./tools/run_cpp.sh Sample Debug
-./tools/pack_project.sh Sample Sample/dist
-./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Sample
-./tools/pack_android.sh Sample
+./tools/build_cpp.sh Game Debug
+./tools/run_cpp.sh Game Debug
+./tools/pack_project.sh Game Game/dist
+./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Game
+./tools/pack_android.sh Game
 ./tools/pack_editor.sh
 ```
 
 ```bat
 tools\init.bat
 tools\run_editor.bat
-tools\build_cpp.bat Sample Debug
-tools\run_cpp.bat Sample Debug
-tools\pack_project.bat Sample
+tools\build_cpp.bat Game Debug
+tools\run_cpp.bat Game Debug
+tools\pack_project.bat Game
 tools\pack_editor.bat
 ```
 
@@ -60,8 +60,8 @@ recreated during packaging.
 `create_templates --native-cache <folder>` stores native outputs separately by
 `plain`/`ffmpeg` and `Debug`/`Release`. A matching entry supplies runtime binaries,
 the Windows game launcher, and the seven generated Lua stub/metadata files;
-templates still copy current Sample content and run the packaging validations.
-Keep this folder outside both Sample and the template output. The caller must
+templates still copy current Game project content and run the packaging validations.
+Keep this folder outside both Game and the template output. The caller must
 invalidate it when native sources, bindings, dependencies or build options
 change. `build_standalone --use-current-build` packages the matching existing
 `bin/<configuration>` output and Windows `build/launcher/<configuration>`.
@@ -80,7 +80,7 @@ SDK version. Source additions, deletions and renames invalidate the affected key
 Only successful results are saved, with no prefix-key fallback. A missing or
 evicted cache rebuilds that component. Workflow or cache-rule changes invalidate
 all groups. Delete the relevant Actions cache to force a rebuild with unchanged
-sources. Every run packages the current Sample, Lua, plug-ins, locale and docs.
+sources. Every run packages the current Game project, Lua, plug-ins, locale and docs.
 
 Both editor packaging scripts use the shared ScriptTools command
 `editor-official-plugins prepare <source> <output-root>` to clean-copy the fixed
@@ -123,12 +123,12 @@ below the root `Plugins` directory, with `plugins.json` generated beside it from
 their manifests. The published editor resolves its resources, plug-ins and
 configuration against the installation root even when started directly from
 `Binaries`. Runtime settings use root `Ludork.ini`; writable plug-in data uses
-`Plugins/.data`. Repository development builds keep their existing layout and
-development-marker behaviour. Desktop game Standalone packages retain their
+`Plugins/.data`. Repository development builds use `Plugins` and
+`plugins.json` with the development marker. Desktop game Standalone packages retain their
 own packaging layout.
 
 `pack_editor.sh` requires macOS on Apple Silicon with a logged-in Finder session,
-the .NET 9 SDK, CMake, ScriptTools built by `init.sh`, and initialized Sample
+the .NET 9 SDK, CMake, ScriptTools built by `init.sh`, and initialized Game project
 dependencies. It produces `dist/Ludork-<version>-macos-arm64.dmg` for macOS 13.3
 or newer. The mounted
 volume visibly contains `Ludork.app`, an `Applications` link, and **Install
@@ -266,11 +266,11 @@ looking for development data in the final game package.
 Validate convention-based C++ and Lua host-to-implementation boundaries, including the Standard ClassRuntime layer order, with:
 
 ```sh
-.tools/ScriptTools/ScriptTools impl-boundary-check Sample
+.tools/ScriptTools/ScriptTools impl-boundary-check Game
 ```
 
 ```bat
-.tools\ScriptTools\ScriptTools.exe impl-boundary-check Sample
+.tools\ScriptTools\ScriptTools.exe impl-boundary-check Game
 ```
 
 The command discovers C++ host/same-name-directory pairs from the source tree. For Lua it discovers the equivalent host/module directory pairs and excludes child modules that have their own mirrored `.d.lua` contract. It reports source locations for reverse dependencies, host member definitions in implementation folders, and Lua partial-class or mixin reuse. CMake exposes the same check through the `ImplBoundaryValidate` target.
@@ -280,9 +280,9 @@ Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`. The Of
 `pack_harmony.sh` produces an arm64-v8a HAP for HarmonyOS 6.0.2 / API 22 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK. Its form/backend matrix is fixed: Mobile uses OpenGL ES, while 2in1 uses OpenGL by default and can instead use OpenGL ES. The editor passes both choices explicitly; direct commands use `--device-form mobile|2in1` and `--graphics-api opengl|opengl-es`. Omitting the graphics option selects OpenGL ES for Mobile and OpenGL for 2in1; explicitly selecting OpenGL for Mobile is rejected.
 
 ```sh
-./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Sample
-./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl Sample
-./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Sample
+./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Game
+./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl Game
+./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Game
 ```
 
 The three unsigned outputs are `dist/<game>-harmony-mobile-unsigned.hap`, `dist/<game>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-harmony-2in1-opengl-es-unsigned.hap`. Add `--export-to-device` to build the corresponding `-signed.hap`, install it and launch it. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check` validates the same selected form/backend and, when combined with `--export-to-device`, the matching-device requirement without building or publishing a HAP.
@@ -295,7 +295,7 @@ The 2in1 OpenGL HAP requires the target image to provide HarmonyOS desktop OpenG
 
 Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
 
-`pack_project` refuses a project whose `Scripts/Entry.lua` still uses the Sample `APP_NAME = "LudorkSample"`; set a unique application name first.
+`pack_project` refuses a project whose `Scripts/Entry.lua` still uses the Game project `APP_NAME = "LudorkSample"`; set a unique application name first.
 With `--compile-lua`, every packaged `Scripts/**/*.lua` file is compiled with
 `luac -s`, renamed to `.luac`, and written to `dist`.
 With `--encrypt-saves`, a C++ Source package rebuilds Standard with
@@ -359,7 +359,7 @@ There is no editor-global Host distribution or compatibility fallback. Existing
 source projects need updated project build files and a rebuild; Standalone
 projects must be regenerated.
 
-`Sample` carries the Ludork licence and game-runtime legal materials, including
+`Game` carries the Ludork licence and game-runtime legal materials, including
 native dependencies, optional FFmpeg and bundled assets. Template generation
 refreshes those materials in C++ templates and derives Standalone templates
 from them. Editor, managed-runtime and build-tool notices remain in the editor

@@ -6,7 +6,7 @@
     <Version>1.0.0</Version>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <ApplicationIcon>Editor\Assets\icon.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <DefaultItemExcludes>$(DefaultItemExcludes);dist\**;**\bin\**;**\obj\**</DefaultItemExcludes>
   </PropertyGroup>
@@ -36,16 +36,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Models\" />
-    <Compile Remove="Controls\MacOSAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'macOS'" />
-    <Compile Remove="Controls\WindowsAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'Windows'" />
-    <Compile Remove="Ludork.Plugin.Abstractions\**\*.cs" />
-    <Compile Remove="Ludork.Plugin.Avalonia\**\*.cs" />
+    <Compile Remove="Editor\Controls\MacOSAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'macOS'" />
+    <Compile Remove="Editor\Controls\WindowsAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'Windows'" />
+    <Compile Remove="Editor\Ludork.Plugin.Abstractions\**\*.cs" />
+    <Compile Remove="Editor\Ludork.Plugin.Avalonia\**\*.cs" />
     <Compile Remove="Plugins\**\*.cs" />
-    <Compile Remove="Sample\Engine\ThirdParty\zlib\**\*.cs" />
+    <Compile Remove="Game\**\*.cs" />
     <Compile Remove="Templates\**\*.cs" />
     <None Include="Plugins\**\*.cs" />
-    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Editor\Assets\**" />
     <Content Include="Locale\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\_images\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\en_GB\**" CopyToOutputDirectory="PreserveNewest" />
@@ -60,8 +59,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="Ludork.Plugin.Abstractions\Ludork.Plugin.Abstractions.csproj" />
-    <ProjectReference Include="Ludork.Plugin.Avalonia\Ludork.Plugin.Avalonia.csproj" />
+    <ProjectReference Include="Editor\Ludork.Plugin.Abstractions\Ludork.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="Editor\Ludork.Plugin.Avalonia\Ludork.Plugin.Avalonia.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.0" />
     <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.0" />
@@ -84,14 +83,14 @@
 
   <Target
       Name="GenerateEngineConstants"
-      Inputs="$(MSBuildProjectDirectory)/Sample/Engine/Source/Core/include/EngineState.hpp;$(MSBuildProjectDirectory)/ScriptTools/engine_constants.py;$(MSBuildProjectFullPath)"
+      Inputs="$(MSBuildProjectDirectory)/Game/Engine/Source/Core/include/EngineState.hpp;$(MSBuildProjectDirectory)/ScriptTools/engine_constants.py;$(MSBuildProjectFullPath)"
       Outputs="$(IntermediateOutputPath)EngineConstants.g.cs">
     <PropertyGroup>
       <LudorkScriptTools>$(MSBuildProjectDirectory)/.tools/ScriptTools/ScriptTools</LudorkScriptTools>
       <LudorkScriptTools Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(LudorkScriptTools).exe</LudorkScriptTools>
     </PropertyGroup>
     <Error Condition="!Exists('$(LudorkScriptTools)')" Text="ScriptTools was not found. Run tools/init for this platform first." />
-    <Exec Command="&quot;$(LudorkScriptTools)&quot; engine-constants &quot;$(MSBuildProjectDirectory)/Sample/Engine/Source/Core/include/EngineState.hpp&quot; &quot;$(IntermediateOutputPath)EngineConstants.g.cs&quot;" />
+    <Exec Command="&quot;$(LudorkScriptTools)&quot; engine-constants &quot;$(MSBuildProjectDirectory)/Game/Engine/Source/Core/include/EngineState.hpp&quot; &quot;$(IntermediateOutputPath)EngineConstants.g.cs&quot;" />
     <ItemGroup>
       <FileWrites Include="$(IntermediateOutputPath)EngineConstants.g.cs" />
     </ItemGroup>

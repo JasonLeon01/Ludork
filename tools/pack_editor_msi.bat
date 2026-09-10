@@ -7,7 +7,7 @@ set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "DIST_DIR=%ROOT_DIR%\dist"
 set "WIX_SOURCE=%ROOT_DIR%\tools\installer\Ludork.wxs"
 set "PAYLOAD_GENERATOR=%ROOT_DIR%\tools\installer\generate_installer_payload.ps1"
-set "PROJECT_ICON=%ROOT_DIR%\Assets\project-icon.ico"
+set "PROJECT_ICON=%ROOT_DIR%\Editor\Assets\project-icon.ico"
 set "WIX_DIR=%ROOT_DIR%\.tools\wix"
 set "WIX_EXE=%WIX_DIR%\wix.exe"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-msi"
@@ -121,7 +121,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PAYLOAD_GENERATOR%" -D
 if errorlevel 1 goto failed
 
 echo Building Ludork %PRODUCT_VERSION% Windows x64 MSI...
-"%WIX_EXE%" build "%WIX_SOURCE%" "%PAYLOAD_SOURCE%" -arch x64 -define ProductVersion="%PRODUCT_VERSION%" -bindpath dist="%DIST_DIR%" -bindpath assets="%ROOT_DIR%\Assets" -intermediateFolder "%WORK_DIR%\intermediate" -pdbtype none -out "%WORK_MSI%"
+"%WIX_EXE%" build "%WIX_SOURCE%" "%PAYLOAD_SOURCE%" -arch x64 -define ProductVersion="%PRODUCT_VERSION%" -bindpath dist="%DIST_DIR%" -bindpath assets="%ROOT_DIR%\Editor\Assets" -intermediateFolder "%WORK_DIR%\intermediate" -pdbtype none -out "%WORK_MSI%"
 if errorlevel 1 goto failed
 
 echo Validating MSI database...

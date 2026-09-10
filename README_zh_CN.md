@@ -97,7 +97,7 @@ macOS：
 ./tools/run_editor.sh
 ```
 
-初始化脚本会准备原生依赖和编辑器专用的 UI preview host，但不会构建 Sample 游戏。请另外使用 `tools\build_cpp.bat Sample Debug` 或 `./tools/build_cpp.sh Sample Debug` 构建 Sample。
+初始化脚本会准备原生依赖和编辑器专用的 UI preview host，但不会构建 Game 游戏。请另外使用 `tools\build_cpp.bat Game Debug` 或 `./tools/build_cpp.sh Game Debug` 构建 Game。
 
 ## 文档与支持
 
@@ -117,4 +117,4 @@ Ludork 软件本体使用 [Zlib 许可证](LICENSE.md)，允许商业使用。�
 
 工程模板会把 Ludork 许可证，以及适用于游戏运行时、可选视频运行时和随包资产的声明与本地许可证完整正文带入新建工程。编辑器、托管运行时、预览宿主与构建工具声明只保留在编辑器发行包中，不会复制进工程。打包时会保留工程已有材料，但 Android APK 与 HarmonyOS HAP 打包不会把它们视为格式前置条件，也不校验法律材料是否完整。分发时应保留适用材料，为工程自行增加的依赖与资产补充声明，并重新审查最终包内容。
 
-Sample 工程随附的音乐不适用 Ludork 的 Zlib 许可证。其 Suno Free Tier 条款将使用限制为个人非商业用途，不能据此证明可在工程模板中再分发原始曲目。发布任何包含该曲目的包之前，必须移除或替换曲目，或取得明确的再分发权。Sample 字体继续适用其随附条款。
+Game 工程随附的音乐不适用 Ludork 的 Zlib 许可证。其 Suno Free Tier 条款将使用限制为个人非商业用途，不能据此证明可在工程模板中再分发原始曲目。发布任何包含该曲目的包之前，必须移除或替换曲目，或取得明确的再分发权。Game 字体继续适用其随附条款。

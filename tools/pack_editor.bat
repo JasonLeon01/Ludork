@@ -89,7 +89,7 @@ set "GNU_MAKE_SOURCE=%ROOT_DIR%\.tools\sources\make-%GNU_MAKE_VERSION%.tar.gz"
 set "GNU_MAKE_LICENSE=%ROOT_DIR%\.tools\build\make-%GNU_MAKE_VERSION%\COPYING"
 set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 set "SCRIPT_TOOLS_VERSION_REPORT=%ROOT_DIR%\.tools\ScriptTools\runtime-versions.txt"
-set "FFMPEG_SOURCE_ARCHIVE=%ROOT_DIR%\Sample\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
+set "FFMPEG_SOURCE_ARCHIVE=%ROOT_DIR%\Game\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 for %%F in (
     "%ROOT_DIR%\tools\create_templates.bat"
@@ -101,21 +101,21 @@ for %%F in (
     "%ROOT_DIR%\tools\editor_launcher\CMakeLists.txt"
     "%SCRIPT_TOOLS%"
     "%SCRIPT_TOOLS_VERSION_REPORT%"
-    "%ROOT_DIR%\Sample\CMakeLists.txt"
+    "%ROOT_DIR%\Game\CMakeLists.txt"
 ) do (
     call :require_file "%%~F"
     if errorlevel 1 exit /b 1
 )
 for %%D in (
-    "%ROOT_DIR%\Sample\Engine\ThirdParty\LuaSF"
-    "%ROOT_DIR%\Sample\Engine\ThirdParty\lua-cjson"
-    "%ROOT_DIR%\Sample\Engine\ThirdParty\zlib"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\LuaSF"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\lua-cjson"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\zlib"
 ) do (
     call :require_directory "%%~D"
     if errorlevel 1 exit /b 1
 )
 for %%F in (
-    "%ROOT_DIR%\Sample\Engine\ThirdParty\ffmpeg\configure"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\ffmpeg\configure"
     "%FFMPEG_SOURCE_ARCHIVE%"
     "%GNU_MAKE_EXE%"
     "%GNU_MAKE_SOURCE%"
@@ -490,7 +490,7 @@ for /f "delims=" %%D in ('dir /B /A "%PACKAGE_DIR%\docs"') do (
 )
 
 for %%P in (
-    "%PACKAGE_DIR%\Sample"
+    "%PACKAGE_DIR%\Game"
     "%PACKAGE_DIR%\.ludork-development"
     "%PACKAGE_DIR%\requirements.txt"
     "%PACKAGE_DIR%\versions.conf"

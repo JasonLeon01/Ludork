@@ -39,7 +39,7 @@ case "$VARIANT" in
     *) usage ;;
 esac
 
-SOURCE_DIR="$PROJECT_ROOT/Sample"
+SOURCE_DIR="$PROJECT_ROOT/Game"
 LICENSES_DIR="$PROJECT_ROOT/Licenses"
 FFMPEG_SOURCE_ARCHIVE="$SOURCE_DIR/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
 if [ -n "$OUTPUT_FOLDER" ]; then
@@ -52,7 +52,7 @@ STANDALONE_TEMPLATE_DIR="$TEMPLATES_DIR/Standalone"
 CPP_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/Cpp-ffmpeg"
 STANDALONE_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/Standalone-ffmpeg"
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
-# CMake publishes these seven files; all other Scripts content comes from Sample.
+# CMake publishes these seven files; all other Scripts content comes from Game.
 GENERATED_SCRIPTS="stub/Engine.d.lua stub/GlobalCore.d.lua stub/GlobalFunctions.d.lua stub/LuaSF.d.lua Engine_meta.lua GlobalCore_meta.lua GlobalFunctions_meta.lua"
 
 physical_path() (
@@ -74,11 +74,11 @@ if [ -n "$NATIVE_CACHE" ]; then
     for protected_dir in "$TEMPLATES_DIR" "$SOURCE_DIR"; do
         protected_dir=$(physical_path "$protected_dir")
         case "${NATIVE_CACHE%/}/" in "${protected_dir%/}/"*)
-            echo "Native cache overlaps templates or Sample: $NATIVE_CACHE" >&2
+            echo "Native cache overlaps templates or Game: $NATIVE_CACHE" >&2
             exit 1 ;;
         esac
         case "${protected_dir%/}/" in "${NATIVE_CACHE%/}/"*)
-            echo "Native cache overlaps templates or Sample: $NATIVE_CACHE" >&2
+            echo "Native cache overlaps templates or Game: $NATIVE_CACHE" >&2
             exit 1 ;;
         esac
     done
@@ -300,7 +300,7 @@ if [ ! -x "$SCRIPT_TOOLS" ]; then
     exit 1
 fi
 if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/LuaSF" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/lua-cjson" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/zlib" ]; then
-    echo "Sample dependencies were not found. Prepare the C++ dependencies before creating templates." >&2
+    echo "Game dependencies were not found. Prepare the C++ dependencies before creating templates." >&2
     exit 1
 fi
 for licence_path in \

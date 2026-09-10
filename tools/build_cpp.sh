@@ -4,7 +4,7 @@ set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
 if [ "$#" -eq 1 ] && { [ "$1" = "Debug" ] || [ "$1" = "Release" ]; }; then
-    CPP_DIR="$PROJECT_ROOT/Sample"
+    CPP_DIR="$PROJECT_ROOT/Game"
     CONFIG=$1
 elif [ "$#" -eq 2 ]; then
     CPP_DIR=$(absolute_path "$1")
@@ -53,15 +53,15 @@ dependency_cache_is_ready() {
 dependency_cache=
 for cache_candidate in \
     "${LUDORK_DEPENDENCY_CACHE:-}" \
-    "$PROJECT_ROOT/Sample/build/_deps" \
-    "$PROJECT_ROOT/Sample/build/$CONFIG/_deps"
+    "$PROJECT_ROOT/Game/build/_deps" \
+    "$PROJECT_ROOT/Game/build/$CONFIG/_deps"
 do
     if [ -n "$cache_candidate" ] && dependency_cache_is_ready "$cache_candidate"; then
         dependency_cache=$cache_candidate
         break
     fi
 done
-if [ "$CPP_DIR" != "$PROJECT_ROOT/Sample" ] && [ -n "$dependency_cache" ]; then
+if [ "$CPP_DIR" != "$PROJECT_ROOT/Game" ] && [ -n "$dependency_cache" ]; then
     mkdir -p "$CPP_DIR/build/_deps"
     for dependency_name in $DEPENDENCY_NAMES; do
         dependency_link="$CPP_DIR/build/_deps/$dependency_name-src"

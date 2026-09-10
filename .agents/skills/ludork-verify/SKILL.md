@@ -15,20 +15,20 @@ Commands below run from the repository root on macOS. Use matching `.bat` entry 
 |---|---|
 | Markdown or agent instructions only | Re-read changed content; check local links, paths, conflicting rules and locale parity. Validate skill frontmatter when changing skills. No editor/native build is needed. |
 | Editor C# | `dotnet build Ludork.csproj -c Debug`; inspect affected UI behaviour for visible/input changes. |
-| First-party C++ | Format changed headers/sources, then `sh tools/build_cpp.sh Sample Debug` or the existing configured build's affected target. |
-| C++/Lua host and implementation boundaries | `.tools/ScriptTools/ScriptTools impl-boundary-check Sample` |
+| First-party C++ | Format changed headers/sources, then `sh tools/build_cpp.sh Game Debug` or the existing configured build's affected target. |
+| C++/Lua host and implementation boundaries | `.tools/ScriptTools/ScriptTools impl-boundary-check Game` |
 | Core bindings or bindgen | Rebuild ScriptTools if changed, then the native build to regenerate/compile bindings; inspect affected stubs/metadata and exercise the changed Lua boundary. |
-| Lua, handwritten metadata or stubs | EmmyLua formatting and full-workspace diagnostics for `Sample`, then a focused runtime/editor check when behaviour changed. |
-| Declarative UI JSON or asset moves | `.tools/ScriptTools/ScriptTools ui-assets validate Sample`; inspect the affected UI and its references. |
+| Lua, handwritten metadata or stubs | EmmyLua formatting and full-workspace diagnostics for `Game`, then a focused runtime/editor check when behaviour changed. |
+| Declarative UI JSON or asset moves | `.tools/ScriptTools/ScriptTools ui-assets validate Game`; inspect the affected UI and its references. |
 | Native UI registry/adapters or editor UI registration | `.tools/ScriptTools/ScriptTools ui-adapter-check .`; build the affected editor/runtime/preview host. |
 | Shell/build/CI wiring | Syntax-check changed `.sh` with `sh -n`; validate workflow YAML with `actionlint` when available; exercise the affected local entry point or report platform limitations. |
 | Packaging/templates | Run the affected platform/variant entry point from `tools/README.md` and inspect its package. Check that templates retain stubs and game packages exclude them when Lua packaging changes. |
 
-Useful targeted entry points are `sh tools/build_script_tools.sh`, `sh tools/build_ui_preview_host.sh Sample Debug`, `sh tools/run_editor.sh` and `sh tools/run_cpp.sh Sample Debug`. The C++ build already validates UI assets; avoid repeating the same successful check without an intervening relevant change. Shared `.tools`, `Sample/build`, `bin`, `obj` and packaging outputs must not be mutated concurrently by multiple builds or agents.
+Useful targeted entry points are `sh tools/build_script_tools.sh`, `sh tools/build_ui_preview_host.sh Game Debug`, `sh tools/run_editor.sh` and `sh tools/run_cpp.sh Game Debug`. The C++ build already validates UI assets; avoid repeating the same successful check without an intervening relevant change. Shared `.tools`, `Game/build`, `bin`, `obj` and packaging outputs must not be mutated concurrently by multiple builds or agents.
 
 ## EmmyLua
 
-Use the installed EmmyLua editor integration or language server, with `Sample/.emmyrc.json` and `Sample` as the workspace. Format every changed `.lua`/`.d.lua` using the built-in formatter or `textDocument/formatting`, apply those edits, then run full-workspace diagnostics. Include errors, warnings and hints; keep all three at zero whenever reasonably possible.
+Use the installed EmmyLua editor integration or language server, with `Game/.emmyrc.json` and `Game` as the workspace. Format every changed `.lua`/`.d.lua` using the built-in formatter or `textDocument/formatting`, apply those edits, then run full-workspace diagnostics. Include errors, warnings and hints; keep all three at zero whenever reasonably possible.
 
 Preserve authoritative native/schema types. Fix control flow and callers; a narrow suppression is appropriate only for a confirmed analyser limitation. If the server, generated stubs or dependencies are unavailable, identify the missing prerequisite, complete independent checks and report diagnostics as unrun. Do not substitute a different formatter or claim a syntax check is full EmmyLua validation.
 

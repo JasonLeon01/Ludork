@@ -43,7 +43,7 @@ if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
 if /I "%CONFIG%"=="Release" set "CONFIG=Release"
 if /I not "%VARIANT%"=="all" if /I not "%VARIANT%"=="plain" if /I not "%VARIANT%"=="ffmpeg" goto usage
 
-set "SOURCE_DIR=%CD%\Sample"
+set "SOURCE_DIR=%CD%\Game"
 set "LICENSES_DIR=%CD%\Licenses"
 if not defined OUTPUT_FOLDER (
     set "TEMPLATES_DIR=%CD%\Templates"
@@ -55,7 +55,7 @@ set "STANDALONE_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone"
 set "CPP_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Cpp-ffmpeg"
 set "STANDALONE_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone-ffmpeg"
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
-rem CMake publishes these seven files; all other Scripts content comes from Sample.
+rem CMake publishes these seven files; all other Scripts content comes from Game.
 set "GENERATED_SCRIPTS=stub\Engine.d.lua stub\GlobalCore.d.lua stub\GlobalFunctions.d.lua stub\LuaSF.d.lua Engine_meta.lua GlobalCore_meta.lua GlobalFunctions_meta.lua"
 if defined NATIVE_CACHE (
     call :validate_native_cache_paths
@@ -78,7 +78,7 @@ if not defined FFMPEG_VERSION (
 set "FFMPEG_SOURCE_ARCHIVE=%SOURCE_DIR%\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 if not exist "%SOURCE_DIR%\CMakeLists.txt" (
-    echo Sample C++ project was not found: %SOURCE_DIR%
+    echo Game C++ project was not found: %SOURCE_DIR%
     exit /b 1
 )
 if not exist "%SCRIPT_TOOLS%" (
@@ -89,7 +89,7 @@ if not exist "%SOURCE_DIR%\Engine\ThirdParty\LuaSF" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\lua-cjson" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\zlib" set "MISSING_DEPENDENCIES=1"
 if defined MISSING_DEPENDENCIES (
-    echo Sample dependencies were not found. Run tools\init.bat first.
+    echo Game dependencies were not found. Run tools\init.bat first.
     exit /b 1
 )
 if /I not "%VARIANT%"=="plain" (
@@ -189,7 +189,7 @@ powershell -NoProfile -Command ^
     "function Check-Path($path) { $path = [IO.Path]::GetFullPath($path); $current = $path; while ($current) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw ('Unsafe cache/template path: ' + $current) } }; $current = [IO.Path]::GetDirectoryName($current.TrimEnd('\')) }; return $path.TrimEnd('\') + '\' };" ^
     "$cache = Check-Path $env:NATIVE_CACHE;" ^
     "foreach ($variant in @('plain', 'ffmpeg')) { [void](Check-Path ($cache + $variant + '\' + $env:CONFIG)) };" ^
-    "foreach ($path in @($env:TEMPLATES_DIR, $env:SOURCE_DIR)) { $protected = Check-Path $path; if ($cache.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase) -or $protected.StartsWith($cache, [StringComparison]::OrdinalIgnoreCase)) { throw ('Native cache overlaps templates or Sample: ' + $cache) } }"
+    "foreach ($path in @($env:TEMPLATES_DIR, $env:SOURCE_DIR)) { $protected = Check-Path $path; if ($cache.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase) -or $protected.StartsWith($cache, [StringComparison]::OrdinalIgnoreCase)) { throw ('Native cache overlaps templates or Game: ' + $cache) } }"
 exit /b %errorlevel%
 
 :check_native_cache
