@@ -242,7 +242,6 @@ void DropBox::update(float deltaTime) {
         selectionRect_->update(deltaTime);
     }
     FunctionalBase::update(deltaTime);
-    suppressNextClick_ = false;
 }
 
 void DropBox::onConfirm(const UiInputEventArguments& arguments) {
@@ -405,6 +404,7 @@ void DropBox::onTouchCaptureBegan(const sf::Vector2f& position) {
     touchStartPosition_ = position;
     touchStartScrollOffset_ = scrollOffset_;
     scrollTargetOffset_.reset();
+    suppressNextClick_ = false;
 }
 
 sf::Vector2f DropBox::normalizedSize(const sf::Vector2f& size) {

@@ -157,6 +157,8 @@ function Controller:handleKeyDown(control)
         self:moveFocus(-1)
     elseif Input.isActionTriggered(Input.getCancelKeys(), true) then
         self:cancel()
+    elseif Input.isAnyJoystickButtonTriggered(Engine.JoystickButton.getA(), true) then
+        self:beginEditing()
     elseif Input.isActionTriggered(Input.getConfirmKeys(), true) then
         if control == self.ui.controls["ConfirmButton"] then
             self:confirm()

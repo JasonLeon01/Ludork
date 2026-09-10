@@ -115,6 +115,7 @@ protected:
                       sf::RenderStates states) const override;
 
     bool acceptsTouchCapture() const override;
+    void onTouchCaptureBegan(const sf::Vector2f& position) override;
 
 private:
     struct KeyHintText {

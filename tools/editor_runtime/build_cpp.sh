@@ -31,6 +31,7 @@ BUILD_JOBS=$(resolve_parallel_jobs)
 echo "Project: $CPP_DIR"
 echo "Configuration: $CONFIG"
 echo "Parallel jobs: $BUILD_JOBS"
+"$SCRIPT_TOOLS" native-build-state begin "$CPP_DIR" "$CONFIG"
 "$CMAKE_BIN" \
     -S "$CPP_DIR" \
     -B "$CPP_DIR/build" \
@@ -46,4 +47,5 @@ if [ ! -x "$OUTPUT" ]; then
     exit 1
 fi
 
+"$SCRIPT_TOOLS" native-build-state complete "$CPP_DIR" "$CONFIG"
 echo "Build complete: $OUTPUT"

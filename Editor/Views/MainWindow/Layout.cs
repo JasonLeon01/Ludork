@@ -71,6 +71,7 @@ public partial class MainWindow
         AddHandler(GotFocusEvent, onHistoryContextFocus, RoutingStrategies.Bubble);
         AddHandler(PointerPressedEvent, onHistoryContextPointer, RoutingStrategies.Tunnel);
         Deactivated += (_, _) => viewModel?.GameData.BreakHistoryGesture();
+        Activated += onMainWindowActivated;
         Closing += onClosing;
         Opened += onOpened;
         SizeChanged += (_, _) => onWindowSizeChanged();
@@ -112,6 +113,8 @@ public partial class MainWindow
     {
         if (viewModel is not null)
         {
+            if (!viewModel.ProjectConfig.IsStandalone && projectRunner is not null)
+                projectRunner.NativeBuildState.Changed -= onNativeBuildStateChanged;
             if (actorPreviewService is not null)
                 actorPreviewService.StatusChanged -= onActorPreviewStatusChanged;
             viewModel.PropertyChanged -= onViewModelPropertyChanged;
@@ -182,9 +185,15 @@ public partial class MainWindow
         viewModel.PreviewModeRequested += onPreviewModeRequested;
         viewModel.ActorOutlinerChanged += onActorOutlinerChanged;
         viewModel.LayerDisplayStateChanged += onLayerDisplayStateChanged;
+        if (!viewModel.ProjectConfig.IsStandalone && projectRunner is not null)
+        {
+            projectRunner.NativeBuildState.Changed += onNativeBuildStateChanged;
+            onMainWindowActivated(this, EventArgs.Empty);
+        }
         Title = viewModel.WindowTitle;
         refreshMapPanel();
         selectPreviewMode(MapEditMode.Tile);
+        setProjectRunState(projectRunner?.State ?? ProjectRunState.Idle);
     }
 
     private void onActorPreviewStatusChanged(object? sender, EventArgs args)
@@ -392,7 +401,7 @@ public partial class MainWindow
 
     private async void onSaveRequested(object? sender, EventArgs args)
     {
-        if (viewModel is not null)
+        if (viewModel?.CanEdit == true)
             await EditorSaveWorkflow.TrySaveAsync(this, viewModel.ProjectSave);
     }
 

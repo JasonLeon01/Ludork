@@ -137,7 +137,7 @@ end
 
 function UiController:attachTo(parent, logicalSize)
     self:prepare(logicalSize)
-    return self.ui:attachTo(parent)
+    return self.ui:attachPreparedTo(parent)
 end
 
 function UiController:getWindowFrame()
@@ -184,7 +184,7 @@ end
 
 function UiController:mount(uiManager, logicalSize)
     self:prepare(logicalSize)
-    self.ui:mount(uiManager)
+    self.ui:mountPrepared(uiManager)
 end
 
 function UiController:unmount()

@@ -1,6 +1,7 @@
 #include <Input/TextInputService.hpp>
 #include "TextInputServiceImpl.hpp"
 
+#include <Input/JoystickButton.hpp>
 #include <UnicodeText.hpp>
 #include <SFML/System/String.hpp>
 #include <SFML/Window/Clipboard.hpp>
@@ -284,6 +285,12 @@ bool TextInputService::processEvent(const sf::Event& event) {
                          event.is<sf::Event::JoystickMoved>();
     if (!blocksGameplay()) {
         return false;
+    }
+    if (const auto* joystick = event.getIf<sf::Event::JoystickButtonPressed>();
+        joystick != nullptr && isEditing() && !isModal() &&
+        static_cast<int>(joystick->button) == JoystickButton::getB().value) {
+        execute(Command::Cancel);
+        return true;
     }
     if (!isEditing() || isModal() ||
         (impl_->host != nullptr && impl_->host->handlesKeyboard())) {

@@ -1,4 +1,10 @@
 #include <UI/Button.hpp>
+#include "ButtonImpl.hpp"
+#include "Interaction/JoystickState.hpp"
+#include "Text/TextConfigCodec.hpp"
+
+#include <Input/InputService.hpp>
+#include <UI/PlainTextConfig.hpp>
 
 #include <cstdint>
 #include <utility>
@@ -9,8 +15,91 @@ Button::Button(std::shared_ptr<sf::Texture> texture,
     : Image(std::move(texture), rect),
       FunctionalBase(),
       hoverColour_(hoverColour),
-      pressedColour_(pressedColour) {
+      pressedColour_(pressedColour),
+      impl_(std::make_unique<Impl>()) {
     applyInteractionColour();
+}
+
+Button::~Button() = default;
+
+void Button::setTexture(std::shared_ptr<sf::Texture> texture, bool resetRect) {
+    SpriteBase::setTexture(std::move(texture), resetRect);
+    impl_->defaultBackground = false;
+}
+
+void Button::setDefaultBackgroundTexture(std::shared_ptr<sf::Texture> texture,
+                                         bool resetRect) {
+    SpriteBase::setTexture(std::move(texture), resetRect);
+    impl_->defaultBackground = true;
+}
+
+void Button::setGamepadButton(const std::optional<InputNamedValue>& button) {
+    if (button.has_value()) {
+        std::shared_ptr<PlainTextConfig> config =
+            std::make_shared<PlainTextConfig>();
+        config->font =
+            ludork::engine::text_config::loadFont("", "Button gamepad hint");
+        std::unique_ptr<ludork::engine::ui_interaction::GamepadKeyHintImpl>
+            hint = std::make_unique<
+                ludork::engine::ui_interaction::GamepadKeyHintImpl>(
+                *button, impl_->gamepadLongPress, config);
+        impl_->keyHint = std::move(hint);
+    } else {
+        impl_->keyHint.reset();
+    }
+    impl_->gamepadButton = button;
+}
+
+std::optional<InputNamedValue> Button::getGamepadButton() const {
+    return impl_->gamepadButton;
+}
+
+void Button::setGamepadLongPress(bool longPress) {
+    if (impl_->gamepadLongPress == longPress) {
+        return;
+    }
+    impl_->gamepadLongPress = longPress;
+    if (impl_->keyHint != nullptr) {
+        impl_->keyHint->setLongPress(longPress);
+    }
+}
+
+bool Button::getGamepadLongPress() const {
+    return impl_->gamepadLongPress;
+}
+
+void Button::update(float deltaTime) {
+    FunctionalBase::update(deltaTime);
+    if (impl_->keyHint == nullptr) {
+        return;
+    }
+    const bool enabled = isInteractionEnabled() && inputService().isFocused() &&
+                         ludork::engine::ui_interaction::anyJoystickConnected();
+    const int button = impl_->gamepadButton->value;
+    bool triggered = false;
+    if (impl_->gamepadLongPress) {
+        triggered = impl_->keyHint->updateHold(
+            ludork::engine::ui_interaction::anyJoystickButtonDown(button),
+            enabled, deltaTime);
+    } else if (enabled) {
+        triggered = inputService().isAnyJoystickButtonTriggered(
+            static_cast<unsigned int>(button), true);
+    }
+    if (triggered) {
+        onConfirm({});
+    }
+}
+
+void Button::refreshDisplayScale() {
+    if (impl_->keyHint != nullptr) {
+        impl_->keyHint->refreshDisplayScale();
+    }
+    ControlBase::refreshDisplayScale();
+}
+
+void Button::releaseRuntimeCallbacks() noexcept {
+    onInteractionInvalidated();
+    ControlBase::releaseRuntimeCallbacks();
 }
 
 void Button::setVisible(bool visible) {
@@ -51,6 +140,37 @@ sf::Color Button::getPressedColour() const {
 
 void Button::onInteractionStateChanged() {
     applyInteractionColour();
+}
+
+void Button::onInteractionInvalidated() {
+    if (impl_->keyHint != nullptr) {
+        impl_->keyHint->resetProgress();
+    }
+}
+
+void Button::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    if (!getVisible()) {
+        return;
+    }
+    const bool gamepad = ludork::engine::ui_interaction::anyJoystickConnected();
+    if (!gamepad || !impl_->defaultBackground) {
+        Image::draw(target, states);
+    }
+    const sf::Vector2f scale = getScale();
+    if (!gamepad || impl_->keyHint == nullptr || scale.x <= 0.0f ||
+        scale.y <= 0.0f) {
+        return;
+    }
+    constexpr float diameter =
+        ludork::engine::ui_interaction::GamepadKeyHintImpl::Diameter;
+    const sf::Vector2f size = getSize().componentWiseMul(scale);
+    impl_->keyHint->layout({size.x - diameter, (size.y - diameter) * 0.5f});
+    impl_->keyHint->setColour(
+        isInteractionEnabled(),
+        multiplyColour(getColour(), presentationColour()));
+    ControlBase::_applyRenderStates(states);
+    states.transform.scale({1.0f / scale.x, 1.0f / scale.y});
+    impl_->keyHint->draw(target, states);
 }
 
 sf::Color Button::multiplyColour(const sf::Color& base, const sf::Color& tint) {

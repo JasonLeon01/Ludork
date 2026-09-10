@@ -12,6 +12,8 @@ for %%I in ("%~1") do set "CPP_DIR=%%~fI"
 set "CONFIG=%~2"
 
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto usage
+if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
+if /I "%CONFIG%"=="Release" set "CONFIG=Release"
 if not exist "%CPP_DIR%\CMakeLists.txt" (
     echo CMakeLists.txt was not found: %CPP_DIR%
     exit /b 1
@@ -58,6 +60,8 @@ echo Project: %CPP_DIR%
 echo Configuration: %CONFIG%
 echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
 set "BUILD_DIR=%CPP_DIR%\build"
+"%SCRIPT_TOOLS%" native-build-state begin "%CPP_DIR%" "%CONFIG%"
+if errorlevel 1 exit /b %errorlevel%
 if defined GNU_MAKE (
     cmake -S "%CPP_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%"
 ) else (
@@ -74,6 +78,8 @@ if not exist "%OUTPUT_DIR%\Main.exe" (
     exit /b 1
 )
 
+"%SCRIPT_TOOLS%" native-build-state complete "%CPP_DIR%" "%CONFIG%"
+if errorlevel 1 exit /b %errorlevel%
 echo Build complete: %OUTPUT_DIR%\Main.exe
 exit /b 0
 

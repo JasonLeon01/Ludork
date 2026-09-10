@@ -20,6 +20,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private string selectedLanguage = LocaleService.CurrentLanguage;
     private bool disposed;
     private EditorDocument? activeDocument;
+    private bool canEdit = true;
+    private readonly IRelayCommand[] editingCommands;
 
     public MainViewModel(string projectPath)
     {
@@ -57,28 +59,35 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             IconService,
             ReferenceIndex);
         Actions = new EditorActionRouter(projectPath);
-        SaveCommand = new RelayCommand(() => SaveRequested?.Invoke(this, EventArgs.Empty), () => IsModified);
+        SaveCommand = new RelayCommand(() => SaveRequested?.Invoke(this, EventArgs.Empty), () => CanEdit && IsModified);
         NewProjectCommand = new RelayCommand(() => NewProjectRequested?.Invoke(this, EventArgs.Empty));
         OpenProjectCommand = new RelayCommand(() => OpenProjectRequested?.Invoke(this, EventArgs.Empty));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
-        TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0));
-        LightModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 1));
-        ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2));
+        TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => CanEdit);
+        LightModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 1), () => CanEdit);
+        ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => CanEdit);
         HelpCommand = new RelayCommand(Actions.OpenHelp);
-        NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint());
-        NewAnimationCommand = new RelayCommand(Actions.NewAnimation);
-        NewCurveCommand = new RelayCommand(Actions.NewCurve);
-        NewTextConfigCommand = new RelayCommand(() => Actions.NewTextConfig());
-        NewUiAssetCommand = new RelayCommand(() => Actions.NewUiAsset());
-        GameConfigCommand = new RelayCommand(Actions.OpenGameConfig);
-        SystemConfigCommand = new RelayCommand(Actions.OpenSystemConfig);
-        AnimationOverviewCommand = new RelayCommand(Actions.OpenAnimationOverview);
-        TilesetsDataCommand = new RelayCommand(() => Actions.OpenTilesets());
-        CommonFunctionsCommand = new RelayCommand(() => Actions.OpenCommonFunctions());
-        GameVariablesCommand = new RelayCommand(Actions.OpenGameVariables);
-        GeneralDataCommand = new RelayCommand(() => Actions.OpenGeneralData());
-        UndoCommand = new RelayCommand(executeUndo, () => ActiveDocument?.CanAttemptUndo == true);
-        RedoCommand = new RelayCommand(executeRedo, () => ActiveDocument?.CanRedo == true);
+        NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
+        NewAnimationCommand = new RelayCommand(Actions.NewAnimation, () => CanEdit);
+        NewCurveCommand = new RelayCommand(Actions.NewCurve, () => CanEdit);
+        NewTextConfigCommand = new RelayCommand(() => Actions.NewTextConfig(), () => CanEdit);
+        NewUiAssetCommand = new RelayCommand(() => Actions.NewUiAsset(), () => CanEdit);
+        GameConfigCommand = new RelayCommand(Actions.OpenGameConfig, () => CanEdit);
+        SystemConfigCommand = new RelayCommand(Actions.OpenSystemConfig, () => CanEdit);
+        AnimationOverviewCommand = new RelayCommand(Actions.OpenAnimationOverview, () => CanEdit);
+        TilesetsDataCommand = new RelayCommand(() => Actions.OpenTilesets(), () => CanEdit);
+        CommonFunctionsCommand = new RelayCommand(() => Actions.OpenCommonFunctions(), () => CanEdit);
+        GameVariablesCommand = new RelayCommand(Actions.OpenGameVariables, () => CanEdit);
+        GeneralDataCommand = new RelayCommand(() => Actions.OpenGeneralData(), () => CanEdit);
+        UndoCommand = new RelayCommand(executeUndo, () => CanEdit && ActiveDocument?.CanAttemptUndo == true);
+        RedoCommand = new RelayCommand(executeRedo, () => CanEdit && ActiveDocument?.CanRedo == true);
+        editingCommands =
+        [
+            SaveCommand, UndoCommand, RedoCommand, TileModeCommand, LightModeCommand, ActorModeCommand,
+            NewBlueprintCommand, NewAnimationCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
+            GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, TilesetsDataCommand,
+            CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
+        ];
         ChangeLanguageCommand = new RelayCommand<string>(changeLanguage);
         FileExplorerPanel.FileClicked += onExplorerFileClicked;
         FileExplorerPanel.FileOpened += onExplorerFileOpened;
@@ -175,7 +184,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
         }
     }
-    public bool CanConfigureIndividualWindow => ProjectConfig.CanConfigureIndividualWindow;
+    public bool CanEdit
+    {
+        get => canEdit;
+        set
+        {
+            if (!SetProperty(ref canEdit, value))
+                return;
+            OnPropertyChanged(nameof(CanConfigureIndividualWindow));
+            foreach (IRelayCommand command in editingCommands)
+                command.NotifyCanExecuteChanged();
+        }
+    }
+    public bool CanConfigureIndividualWindow => CanEdit && ProjectConfig.CanConfigureIndividualWindow;
     public event EventHandler? LanguageChangeRequested;
     public bool IsModified => GameData.IsModified || GameData.Documents.IsModified;
     public EditorDocument? ActiveDocument => activeDocument is { Exists: true } ? activeDocument : null;
@@ -371,6 +392,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public HistoryResult UndoChanges()
     {
+        if (!CanEdit)
+            return new HistoryResult(false);
         EditorDocument? document = ActiveDocument;
         HistoryResult result = document is null ? new HistoryResult(false) : GameData.Undo(document.Section, document.Key);
         HistoryCompleted?.Invoke(this, new HistoryCompletedEventArgs("Undo", result));
@@ -379,6 +402,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public HistoryResult RedoChanges()
     {
+        if (!CanEdit)
+            return new HistoryResult(false);
         EditorDocument? document = ActiveDocument;
         HistoryResult result = document is null ? new HistoryResult(false) : GameData.Redo(document.Section, document.Key);
         HistoryCompleted?.Invoke(this, new HistoryCompletedEventArgs("Redo", result));

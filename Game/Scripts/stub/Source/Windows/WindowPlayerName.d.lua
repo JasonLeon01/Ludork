@@ -65,6 +65,7 @@ function Controller:setConfirmEnabled(enabled) end
 ---@param delta integer
 function Controller:moveFocus(delta) end
 
+---@brief Navigate with keyboard or gamepad; A activates editing even while Confirm has focus.
 ---@param control Engine.FunctionalBase
 function Controller:handleKeyDown(control) end
 

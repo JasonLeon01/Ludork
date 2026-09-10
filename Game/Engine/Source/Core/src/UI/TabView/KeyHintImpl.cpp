@@ -5,7 +5,6 @@
 #include <Input/InputService.hpp>
 #include <LudorkPlatform.hpp>
 
-#include <SFML/Window/Joystick.hpp>
 #include <SFML/Window/Keyboard.hpp>
 
 #if defined(SFML_SYSTEM_HARMONY) && defined(SFML_HARMONY_MOBILE)
@@ -44,16 +43,6 @@ std::string handleKeyText(const InputNamedValue& button,
             source + " must match a registered Engine.JoystickButton value");
     }
     return button.name;
-}
-
-bool anyJoystickConnected() {
-    for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
-         ++joystickId) {
-        if (sf::Joystick::isConnected(joystickId)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 bool keyboardHintsAvailableWithoutJoystick() {

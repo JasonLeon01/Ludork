@@ -35,4 +35,7 @@ function WindowBaseController:getPauseMark() end
 ---@return sf.Texture
 function WindowBaseController:getPauseMarkTexture() end
 
+---@return Engine.GamepadHintBar
+function WindowBaseController:getGamepadHintBar() end
+
 return WindowBaseController

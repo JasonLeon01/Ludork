@@ -825,6 +825,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                     ["vertical", "horizontal"],
                     next => commit(JsonValue.Create(next)));
                 break;
+            case "string" when controlId == "Engine.Button" && property.Id == "gamepadButton":
+                addChoiceField(
+                    property.DisplayName,
+                    getString(value),
+                    ["", "A", "B", "X", "Y", "LB", "RB", "View", "Menu", "LS", "RS", "XBox", "Share"],
+                    next => commit(JsonValue.Create(next)));
+                break;
             case "string" when property.Id == "font":
                 addFontField(
                     property.DisplayName,
@@ -1163,15 +1170,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         ComboBox input = new()
         {
-            ItemsSource = choices,
-            SelectedItem = choices.Contains(value) ? value : choices[0],
+            ItemsSource = choices.Select(choice => choice.Length == 0
+                ? LocaleService.Get("UI_GAMEPAD_UNBOUND") : choice).ToArray(),
+            SelectedIndex = Math.Max(0, choices.ToList().IndexOf(value)),
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         input.SelectionChanged += (_, _) =>
         {
-            if (refreshing || input.SelectedItem is not string selected)
+            if (refreshing || input.SelectedIndex < 0 || input.SelectedIndex >= choices.Count)
                 return;
-            commit(selected);
+            commit(choices[input.SelectedIndex]);
         };
         DetailsPanel.Children.Add(createField(label, input));
     }

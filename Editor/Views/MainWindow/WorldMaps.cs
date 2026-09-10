@@ -78,7 +78,8 @@ public partial class MainWindow
     private void refreshMapPanel()
     {
         bool worldMode = viewModel?.SelectedMap is { IsWorld: true };
-        MapEditToolbar.IsVisible = !worldMode;
+        LayerTabsScroll.IsVisible = !worldMode;
+        EditModeToggles.IsVisible = !worldMode;
         EditorScroll.IsVisible = !worldMode;
         WorldEditorPanel.IsVisible = worldMode;
         RightModePanel.IsVisible = !worldMode;

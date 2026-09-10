@@ -9,7 +9,6 @@ namespace ludork::engine::tab_view_impl {
 std::string keyboardKeyText(sf::Keyboard::Key key, const std::string& source);
 std::string handleKeyText(const InputNamedValue& button,
                           const std::string& source);
-bool anyJoystickConnected();
 bool keyboardHintsAvailableWithoutJoystick();
 
 }  // namespace ludork::engine::tab_view_impl

@@ -59,7 +59,7 @@ public partial class MainWindow
 
     private void onIndividualWindowClicked(object? sender, EventArgs args)
     {
-        if (viewModel is not null)
+        if (viewModel?.CanConfigureIndividualWindow == true)
             viewModel.IndividualWindow = !viewModel.IndividualWindow;
     }
 
@@ -83,6 +83,8 @@ public partial class MainWindow
 
     private async void onPackProject(object? sender, EventArgs args)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (packLogDialog is not null)
         {
             packLogDialog.Activate();

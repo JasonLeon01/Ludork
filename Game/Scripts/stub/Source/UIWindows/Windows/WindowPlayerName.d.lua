@@ -44,6 +44,7 @@ function Window:getFocusControls() end
 ---@return Source.Player.Player
 function Window:getPlayer() end
 
+---@brief Navigate with keyboard or gamepad; A activates editing even while Confirm has focus.
 ---@param control Engine.FunctionalBase
 function Window:handleKeyDown(control) end
 

@@ -30,6 +30,8 @@ public partial class MainWindow
 {
     private async void onActionRequested(object? sender, string action)
     {
+        if (action != "Help" && viewModel?.CanEdit != true)
+            return;
         if (action == "Help")
             showHelp();
         else if (action == "GameConfig" && viewModel is not null)
@@ -84,7 +86,7 @@ public partial class MainWindow
 
     private async void onDataCreationRequested(object? sender, EditorDataCreationRequest request)
     {
-        if (viewModel is null)
+        if (viewModel?.CanEdit != true)
             return;
         if (request.Kind == EditorDataKind.Blueprint)
             await createBlueprintAsync(viewModel, request);

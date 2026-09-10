@@ -28,7 +28,7 @@
                     <NativeMenuItem Header="{Binding NewProject}" Command="{Binding NewProjectCommand}" Gesture="{OnPlatform Default=Ctrl+N, macOS=Meta+N}" />
                     <NativeMenuItem Header="{Binding OpenProject}" Command="{Binding OpenProjectCommand}" Gesture="{OnPlatform Default=Ctrl+O, macOS=Meta+O}" />
                     <NativeMenuItem Header="{Binding Save}" Command="{Binding SaveCommand}" Gesture="{OnPlatform Default=Ctrl+S, macOS=Meta+S}" />
-                    <NativeMenuItem Header="{Binding PackProject}" Click="onPackProject" />
+                    <NativeMenuItem Header="{Binding PackProject}" IsEnabled="{Binding CanEdit}" Click="onPackProject" />
                     <NativeMenuItemSeparator />
                     <NativeMenuItem Header="{Binding Exit}" Command="{Binding ExitCommand}" Gesture="{OnPlatform Default=Ctrl+W, macOS=Meta+W}" />
                 </NativeMenu>
@@ -50,7 +50,7 @@
                     <NativeMenuItem Header="{Binding Redo}" Command="{Binding RedoCommand}" Gesture="{OnPlatform Default=Ctrl+Y, macOS=Meta+Y}" />
                 </NativeMenu>
             </NativeMenuItem>
-            <NativeMenuItem Header="{Binding Game}">
+            <NativeMenuItem Header="{Binding Game}" IsEnabled="{Binding CanEdit}">
                 <NativeMenu>
                     <NativeMenuItem Header="{Binding GameConfigLabel}" Command="{Binding GameConfigCommand}" Gesture="F3" />
                     <NativeMenuItemSeparator />
@@ -61,7 +61,7 @@
                     <NativeMenuItem Header="{Binding NewUiAsset}" Command="{Binding NewUiAssetCommand}" />
                 </NativeMenu>
             </NativeMenuItem>
-            <NativeMenuItem Header="{Binding Database}">
+            <NativeMenuItem Header="{Binding Database}" IsEnabled="{Binding CanEdit}">
                 <NativeMenu>
                     <NativeMenuItem Header="{Binding SystemConfig}" Command="{Binding SystemConfigCommand}" Gesture="F4" />
                     <NativeMenuItem Header="{Binding AnimationOverview}" Command="{Binding AnimationOverviewCommand}" Gesture="F5" />
@@ -71,7 +71,7 @@
                     <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F9" />
                 </NativeMenu>
             </NativeMenuItem>
-            <NativeMenuItem Header="{Binding Plugins}">
+            <NativeMenuItem Header="{Binding Plugins}" IsEnabled="{Binding CanEdit}">
                 <NativeMenu>
                     <NativeMenuItem Header="{Binding ImportPlugin}" Click="onImportPlugin" />
                     <NativeMenuItem Header="{Binding ManagePlugins}" Click="onManagePlugins" />
@@ -152,6 +152,20 @@
             <Setter Property="Background" Value="#4f5b62" />
             <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
             <Setter Property="BorderThickness" Value="0,0,0,2" />
+        </Style>
+        <Style Selector="Button.runAction">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Background" Value="#282828" />
+            <Setter Property="BorderBrush" Value="#1c1c1c" />
+            <Setter Property="BorderThickness" Value="1,0,0,0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.runAction:disabled">
+            <Setter Property="Opacity" Value="0.4" />
         </Style>
         <Style Selector="TabStrip.layerTabs">
             <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
@@ -266,9 +280,9 @@
                 <Grid x:Name="CenterArea" Grid.Column="2" RowDefinitions="Auto,*">
                     <Grid x:Name="MapEditToolbar"
                           Grid.Row="0"
-                          ColumnDefinitions="*,192,128"
+                          ColumnDefinitions="*,Auto,Auto"
                           Background="{DynamicResource LudorkSurfaceBrush}">
-                        <ScrollViewer Grid.Column="0"
+                        <ScrollViewer x:Name="LayerTabsScroll" Grid.Column="0"
                                       Classes="no-auto-hide"
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Disabled">
@@ -334,18 +348,20 @@
                             </ToggleButton>
                         </Grid>
 
-                        <Grid x:Name="RunModeToggles"
-                              Grid.Column="2"
-                              ColumnDefinitions="64,64"
-                              Height="32"
-                              VerticalAlignment="Top">
-                            <ToggleButton x:Name="EditRunModeToggle" Grid.Column="0" Classes="mode" IsChecked="True" Click="onEditRunModeClick">
-                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.ModeEditor}" />
-                            </ToggleButton>
-                            <ToggleButton x:Name="PlayRunModeToggle" Grid.Column="1" Classes="mode" Click="onPlayRunModeClick">
-                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.ModePlay}" />
-                            </ToggleButton>
-                        </Grid>
+                        <StackPanel x:Name="RunButtons"
+                                    Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    Height="32"
+                                    VerticalAlignment="Top">
+                            <Button x:Name="ConstructButton" Classes="runAction" IsVisible="False" Click="onConstructClick">
+                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.Construct}" />
+                            </Button>
+                            <Border x:Name="PlayButtonHint" Background="Transparent">
+                                <Button x:Name="PlayButton" Classes="runAction" Click="onPlayClick">
+                                    <Image x:Name="PlayIcon" Width="22" Height="22" Source="{StaticResource EditorImage.Play}" />
+                                </Button>
+                            </Border>
+                        </StackPanel>
                     </Grid>
 
                     <Grid Grid.Row="1">

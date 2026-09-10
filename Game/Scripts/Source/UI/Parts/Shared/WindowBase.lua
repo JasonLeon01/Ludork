@@ -11,6 +11,7 @@ function View:init(instance)
     UiView.init(self, instance)
     local controls = {
         Content = assert(self.instance:requireControl("Content")),
+        HintBar = assert(self.instance:requireControl("HintBar")),
         PauseMark = assert(self.instance:requireControl("PauseMark")),
         ReturnButton = assert(self.instance:requireControl("ReturnButton")),
         Root = assert(self.instance:requireControl("Root")),

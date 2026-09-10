@@ -27,16 +27,16 @@
         },
         "slot": {
           "anchors": {
-            "min": [0.5, 0.0],
-            "max": [0.5, 0.0]
+            "min": [0.5, 0.5],
+            "max": [0.5, 0.5]
           },
           "offsets": {
             "left": 0.0,
-            "top": 8.0,
+            "top": 0.0,
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [0.5, 0.5],
           "autoSize": true,
           "zOrder": 0
         },

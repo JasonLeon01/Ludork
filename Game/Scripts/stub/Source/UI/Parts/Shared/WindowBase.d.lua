@@ -3,6 +3,7 @@
 
 ---@class Source.UIBase.GeneratedControls.Parts.Shared.WindowBase
 ---@field Content      Engine.Canvas
+---@field HintBar      Engine.GamepadHintBar
 ---@field PauseMark    Engine.Image
 ---@field ReturnButton Engine.Button
 ---@field Root         Engine.Canvas

@@ -12,6 +12,8 @@ local WindowBase = {}
 
 WindowBase._PAUSE_MARK_SIZE = 16
 WindowBase._PAUSE_MARK_Y_OFFSET = 4
+WindowBase._GAMEPAD_HINT_BAR_HEIGHT = 16
+WindowBase._GAMEPAD_HINT_CHARACTER_SIZE = 12
 WindowBase._PAUSE_MARK_FRAME_INTERVAL = 0.125
 WindowBase._PAUSE_MARK_ATLAS_RECT = Engine.ToIntRect(160, 64, 32, 32)
 ---@type sf.IntRect[]
@@ -38,6 +40,8 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     self._returnButton = nil
     self._pauseMark = nil
     self._pauseMarkTexture = nil
+    self._gamepadHintBar = nil
+    self._gamepadHintTriggered = nil
     self._uiController = nil
     self._uiDispose = nil
     self._transition = nil
@@ -55,7 +59,9 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     ---@cast self._returnButton Engine.Button
     ---@cast self._pauseMark Engine.Image
     ---@cast self._pauseMarkTexture sf.Texture
+    ---@cast self._gamepadHintBar Engine.GamepadHintBar
     self:_bindReturnButton()
+    self:_bindGamepadHintBar()
     self._pauseMarkShowRequested = false
     self._pauseMarkEnabled = true
     self._pauseMarkVisiblePredicate = nil
@@ -77,6 +83,11 @@ function WindowBase:_createDeclarativeChrome()
     self._pauseMarkTexture:setSmooth(false)
     self._pauseMark = Engine.Image.new(self._pauseMarkTexture, self._PAUSE_MARK_FRAME_RECTS[1])
     self._pauseMark:setVisible(false)
+    local size = self:getSize()
+    self._gamepadHintBar = Engine.GamepadHintBar.new(
+        sf.Vector2f.new(size.x, self._GAMEPAD_HINT_BAR_HEIGHT),
+        Engine.PlainTextConfig.new({ font = Engine.DefaultFont, characterSize = self._GAMEPAD_HINT_CHARACTER_SIZE })
+    )
 end
 
 ---@diagnostic disable-next-line: unused
@@ -120,13 +131,16 @@ function WindowBase:attachPreparedView(controller, viewParts)
         self._returnButton = viewParts.returnButton
         self._pauseMark = assert(viewParts.pauseMark)
         self._pauseMarkTexture = assert(viewParts.pauseMarkTexture)
+        self._gamepadHintBar = assert(viewParts.gamepadHintBar)
     else
         self.content:addChild(self._pauseMark)
         viewParts.chromeRoot:addChild(self._returnButton)
+        viewParts.chromeRoot:addChild(self._gamepadHintBar)
     end
     self._uiController = controller
     self._uiDispose = controller.dispose
     self._transition = controller:createTransition(self, viewParts.transitionTarget)
+    self:_refreshHintBarLayout()
 end
 
 function WindowBase:getTransition()
@@ -188,30 +202,66 @@ function WindowBase:_bindReturnButton()
     local modelRef = setmetatable({ self }, {
         __mode = "v"
     })
-    self._returnButton:addConfirmCallback(function ()
+    self._returnButton:addClickCallback(function (_button, kwargs)
+        local model = modelRef[1]
+        if model == nil or not model:isReturnButtonEnabled() then
+            return
+        end
+        if kwargs.button ~= nil and kwargs.button ~= sf.Mouse.Button.Left then
+            return
+        end
+        model:onReturn()
+    end)
+    self._returnButton:addCancelCallback(function ()
         local model = modelRef[1]
         if model ~= nil and model:isReturnButtonEnabled() then
             model:onReturn()
         end
     end)
-    self._returnButton:addMouseButtonDownCallback(function (button, kwargs)
+end
+
+function WindowBase:_bindGamepadHintBar()
+    ---@type Source.Windows.Base.WindowBase[]
+    local modelRef = setmetatable({ self }, {
+        __mode = "v"
+    })
+    self._gamepadHintBar:setOnHintTriggered(function (index)
         local model = modelRef[1]
-        ---@cast button Engine.Button
-        if model == nil or not model:isReturnButtonEnabled() or kwargs.button ~= sf.Mouse.Button.Left then
-            return false
+        if model ~= nil and model._gamepadHintTriggered ~= nil then
+            model._gamepadHintTriggered(index)
         end
-        if kwargs.position == nil then
-            return false
-        end
-        local position = kwargs.position
-        local bounds = button:getAbsoluteBounds()
-        ---@cast bounds sf.FloatRect
-        if not sf.FloatRect.contains(bounds, position) then
-            return false
-        end
-        model:onReturn()
-        return true
     end)
+end
+
+function WindowBase:_refreshHintBarLayout()
+    if self._gamepadHintBar == nil then
+        return
+    end
+    local size = self:getSize()
+    local height = self._GAMEPAD_HINT_BAR_HEIGHT
+    self._gamepadHintBar:resize(sf.Vector2f.new(size.x, height))
+    self._gamepadHintBar:setPosition(sf.Vector2f.new(0.0, size.y - height))
+end
+
+function WindowBase:setGamepadHints(hints)
+    self._gamepadHintBar:setHints(hints)
+    self:_refreshHintBarLayout()
+end
+
+function WindowBase:setGamepadHintEnabled(index, enabled)
+    self._gamepadHintBar:setHintEnabled(index, enabled)
+end
+
+function WindowBase:getGamepadHintCount()
+    return self._gamepadHintBar:getHintCount()
+end
+
+function WindowBase:isGamepadConnected()
+    return self._gamepadHintBar:isGamepadConnected()
+end
+
+function WindowBase:setOnGamepadHintTriggered(callback)
+    self._gamepadHintTriggered = callback
 end
 
 function WindowBase:setPauseMarkEnabled(enabled)
@@ -252,6 +302,7 @@ end
 function WindowBase:onTick(deltaTime)
     super(WindowBase, self).onTick(deltaTime)
     self:_refreshReturnButtonState()
+    self:_refreshHintBarLayout()
     self:_updatePauseMarkAnimation(deltaTime)
 end
 

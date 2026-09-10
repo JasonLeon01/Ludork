@@ -44,6 +44,7 @@ public:
     static std::optional<InputNamedValue> getShare();
 
     static bool isValid(const InputNamedValue& button);
+    static std::optional<InputNamedValue> fromName(const std::string& name);
 
 private:
     static std::optional<InputNamedValue> get(const std::string& name);

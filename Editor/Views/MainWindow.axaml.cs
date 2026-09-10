@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views;
@@ -64,8 +65,9 @@ public partial class MainWindow : Window
     private ActorPreviewService? actorPreviewService;
     private bool actorPreviewFallbackNotified;
     private Task gameInputSendTail = Task.CompletedTask;
+    private ProjectRunState projectOperationState;
     private bool projectLaunchPending;
-    private bool projectLaunchCancelled;
+    private CancellationTokenSource? projectLaunchCancellation;
     private bool projectRunReachedRunning;
     private bool gameLayoutLocked;
     private bool uiAssetRefreshPending;

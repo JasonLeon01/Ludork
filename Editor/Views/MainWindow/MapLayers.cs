@@ -29,6 +29,8 @@ public partial class MainWindow
 {
     private void onPreviewModeRequested(object? sender, int modeIndex)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         MapEditMode mode = modeIndex switch
         {
             1 => MapEditMode.Light,
@@ -115,7 +117,7 @@ public partial class MainWindow
         bool tileMode = mode == MapEditMode.Tile;
         bool lightMode = mode == MapEditMode.Light;
         bool actorMode = mode == MapEditMode.Actor;
-        LayerTabs.IsEnabled = !lightMode;
+        LayerTabs.IsEnabled = !lightMode && viewModel?.CanEdit == true;
         if (lightMode && viewModel is not null)
             viewModel.SelectedLayerTab = null;
         TileModeToggle.IsChecked = tileMode;
@@ -408,7 +410,7 @@ public partial class MainWindow
         if (closeConfirmed)
             return;
         if (projectLaunchPending)
-            projectLaunchCancelled = true;
+            projectLaunchCancellation?.Cancel();
         bool hasRunningProject = projectRunner is not null
             && projectRunner.State != ProjectRunState.Idle;
         if (viewModel?.IsModified != true && !hasRunningProject)
@@ -457,6 +459,8 @@ public partial class MainWindow
         }
         if (projectRunner is not null)
         {
+            if (viewModel?.ProjectConfig.IsStandalone == false)
+                projectRunner.NativeBuildState.Changed -= onNativeBuildStateChanged;
             projectRunner.OutputReceived -= onProjectOutputReceived;
             projectRunner.StateChanged -= onProjectRunStateChanged;
             projectRunner.CommandAvailabilityChanged -= onCommandAvailabilityChanged;

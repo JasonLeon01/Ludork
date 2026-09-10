@@ -25,6 +25,8 @@ if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" (
     echo Configuration must be Debug or Release.
     goto usage
 )
+if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
+if /I "%CONFIG%"=="Release" set "CONFIG=Release"
 
 for %%I in ("%CPP_DIR%") do set "CPP_DIR=%%~fI"
 
@@ -52,6 +54,8 @@ if not errorlevel 1 if not exist "%GNU_MAKE%" (
 
 set "BUILD_DIR=%CPP_DIR%\build"
 if not defined LUDORK_SAVE_AS_LDC set "LUDORK_SAVE_AS_LDC=0"
+"%SCRIPT_TOOLS%" native-build-state begin "%CPP_DIR%" "%CONFIG%"
+if errorlevel 1 exit /b %errorlevel%
 cmake -S "%CPP_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_LUAC_CACHE_FILE=%LUAC_CACHE%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%" "-DLUDORK_SAVE_AS_LDC=%LUDORK_SAVE_AS_LDC%"
 if errorlevel 1 exit /b %errorlevel%
 
@@ -64,6 +68,8 @@ if not exist "%OUTPUT_DIR%\Main.exe" (
     exit /b 1
 )
 
+"%SCRIPT_TOOLS%" native-build-state complete "%CPP_DIR%" "%CONFIG%"
+if errorlevel 1 exit /b %errorlevel%
 echo Build complete: %OUTPUT_DIR%\Main.exe
 exit /b 0
 

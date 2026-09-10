@@ -79,6 +79,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     set -- "$@" -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 fi
 
+"$SCRIPT_TOOLS" native-build-state begin "$CPP_DIR" "$CONFIG"
 "$CMAKE_BIN" "$@"
 "$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel "$BUILD_JOBS"
 
@@ -87,4 +88,5 @@ if [ ! -x "$OUTPUT" ]; then
     echo "Build finished without producing $OUTPUT" >&2
     exit 1
 fi
+"$SCRIPT_TOOLS" native-build-state complete "$CPP_DIR" "$CONFIG"
 echo "Build complete: $OUTPUT"

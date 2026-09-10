@@ -212,7 +212,11 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("hoverColour", "Hover Colour", "sf.Color", false,  \
                             "[255,255,255,255]"),                              \
         UI_CONTROL_PROPERTY("pressedColour", "Pressed Colour", "sf.Color",     \
-                            false, "[255,255,255,255]"))                       \
+                            false, "[255,255,255,255]"),                       \
+        UI_CONTROL_PROPERTY("gamepadButton", "Gamepad Button", "string",       \
+                            false, "\"\""),                                    \
+        UI_CONTROL_PROPERTY("gamepadLongPress", "Gamepad Long Press", "bool",  \
+                            false, "false"))                                   \
     BIND_UI_CONTROL(                                                           \
         CheckBoxUiControlAdapterTag, "Engine.CheckBox", "Engine.CheckBox",     \
         "Check Box", "Input", UiChildPolicy::None, UiControlSlotType::None,    \
@@ -266,6 +270,13 @@ struct UiControlAdapterTraits;
                     UI_CONTROL_PLAIN_TEXT_PROPERTIES("22"),                    \
                     UI_CONTROL_PROPERTY("items", "Items", "string[]", false,   \
                                         "[\"#TAB\"]"))                         \
+    BIND_UI_CONTROL(GamepadHintBarUiControlAdapterTag,                         \
+                    "Engine.GamepadHintBar", "Engine.GamepadHintBar",          \
+                    "Gamepad Hint Bar", "Input", UiChildPolicy::None,          \
+                    UiControlSlotType::None,                                   \
+                    UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2f", false,  \
+                                        "[200.0,16.0]"),                       \
+                    UI_CONTROL_PLAIN_TEXT_PROPERTIES("12"))                    \
     BIND_UI_CONTROL(                                                           \
         FunctionalImageUiControlAdapterTag, "Engine.FunctionalImage",          \
         "Engine.FunctionalImage", "Functional Image", "Input",                 \

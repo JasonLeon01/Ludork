@@ -35,6 +35,7 @@ function WindowBaseController:attachTo(parent, logicalSize)
         returnButton = self.ui.controls["ReturnButton"],
         pauseMark = self.ui.controls["PauseMark"],
         pauseMarkTexture = self._pauseMarkTexture,
+        gamepadHintBar = self.ui.controls["HintBar"],
         nested = false
     })
 end
@@ -57,6 +58,10 @@ end
 
 function WindowBaseController:getPauseMarkTexture()
     return self._pauseMarkTexture
+end
+
+function WindowBaseController:getGamepadHintBar()
+    return self.ui.controls["HintBar"]
 end
 
 return Ui.Define(View, WindowBaseController)

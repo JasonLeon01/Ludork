@@ -45,6 +45,11 @@ function UiView:prepare(logicalSize) end
 ---@return Engine.ControlBase
 function UiView:attachTo(parent, logicalSize) end
 
+--- Attach the prepared root without reflowing or replacing Controller layout adjustments.
+---@param parent Engine.Canvas | Engine.ListView
+---@return Engine.ControlBase
+function UiView:attachPreparedTo(parent) end
+
 ---@return Engine.Window
 function UiView:getWindowFrame() end
 
@@ -103,6 +108,10 @@ function UiView:detachControl(control) end
 ---@param uiManager   GlobalCore.UIManager
 ---@param logicalSize sf.Vector2u | nil
 function UiView:mount(uiManager, logicalSize) end
+
+--- Register the prepared root without reflowing or replacing Controller layout adjustments.
+---@param uiManager GlobalCore.UIManager
+function UiView:mountPrepared(uiManager) end
 
 function UiView:unmount() end
 

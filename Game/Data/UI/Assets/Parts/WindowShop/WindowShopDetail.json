@@ -156,7 +156,7 @@
                 "bottom": 0.0
               },
               "alignment": [
-                0.0,
+                1.0,
                 0.0
               ],
               "autoSize": true,

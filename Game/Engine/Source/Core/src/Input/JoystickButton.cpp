@@ -5,6 +5,7 @@
 
 #include <array>
 #include <string_view>
+#include <stdexcept>
 #include <utility>
 
 namespace {
@@ -108,4 +109,17 @@ std::optional<InputNamedValue> JoystickButton::getShare() {
 bool JoystickButton::isValid(const InputNamedValue& button) {
     const std::optional<InputNamedValue> expected = get(button.name);
     return expected.has_value() && expected->value == button.value;
+}
+
+std::optional<InputNamedValue> JoystickButton::fromName(
+    const std::string& name) {
+    if (name.empty()) {
+        return std::nullopt;
+    }
+    for (const auto& [buttonName, value] : PlatformButtons) {
+        if (buttonName == name) {
+            return get(name);
+        }
+    }
+    throw std::invalid_argument("Unknown gamepad button: " + name);
 }

@@ -18,6 +18,8 @@
 ---@field _pauseMarkFrameTimer       number
 ---@field _pauseMark                 Engine.Image
 ---@field _pauseMarkTexture          sf.Texture
+---@field _gamepadHintBar            Engine.GamepadHintBar
+---@field _gamepadHintTriggered      fun(index: integer) | nil
 ---@field _uiController              Source.UIBase.UiController | Source.UIBase.UiView | nil
 ---@field _uiDispose                 function | nil
 ---@field _transition                Source.UIBase.WindowTransition | nil
@@ -70,6 +72,7 @@ function WindowBase:setVisible(visible) end
 ---@field returnButton     Engine.Button | nil
 ---@field pauseMark        Engine.Image | nil
 ---@field pauseMarkTexture sf.Texture | nil
+---@field gamepadHintBar   Engine.GamepadHintBar | nil
 
 ---@brief Attach a prepared controller view while retaining ownership of host chrome and transitions.
 ---@param controller Source.UIBase.UiController | Source.UIBase.UiView
@@ -138,5 +141,33 @@ function WindowBase:isReturnButtonSuppressed() end
 
 ---@return Source.UIBase.WindowTransition
 function WindowBase:getTransition() end
+
+---@brief Set the gamepad hint entries rendered along the bottom of the window.
+---
+--- Hints only display while a gamepad is connected. The bar is embedded in the window chrome like the return button.
+--- - @param hints The ordered hint descriptors (maximum three).
+---@param hints Engine.GamepadHint[]
+function WindowBase:setGamepadHints(hints) end
+
+---@brief Enable or disable a single gamepad hint by index.
+---
+--- - @param index Zero-based hint index.
+--- - @param enabled Whether the hint accepts input and renders at full opacity.
+---@param index   integer
+---@param enabled boolean
+function WindowBase:setGamepadHintEnabled(index, enabled) end
+
+---@return integer
+function WindowBase:getGamepadHintCount() end
+
+---@brief Return whether any gamepad is currently connected.
+---@return boolean
+function WindowBase:isGamepadConnected() end
+
+---@brief Set the callback invoked when a gamepad hint completes its trigger.
+---
+--- - @param callback Receives the zero-based hint index, or nil to clear.
+---@param callback fun(index: integer) | nil
+function WindowBase:setOnGamepadHintTriggered(callback) end
 
 return WindowBase

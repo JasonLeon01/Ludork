@@ -99,12 +99,16 @@ function UiView:prepare(logicalSize)
 end
 
 function UiView:attachTo(parent, logicalSize)
-    local root = self:prepare(logicalSize)
-    if root:getParent() ~= parent then
-        self:detachControl(root)
-        parent:addChild(root)
+    self:prepare(logicalSize)
+    return self:attachPreparedTo(parent)
+end
+
+function UiView:attachPreparedTo(parent)
+    if self.root:getParent() ~= parent then
+        self:detachControl(self.root)
+        parent:addChild(self.root)
     end
-    return root
+    return self.root
 end
 
 function UiView:getWindowFrame()
@@ -199,6 +203,10 @@ end
 
 function UiView:mount(uiManager, logicalSize)
     self:prepare(logicalSize)
+    self:mountPrepared(uiManager)
+end
+
+function UiView:mountPrepared(uiManager)
     if not self._mounted then
         uiManager:loadUI(self.root)
         self._uiManager = uiManager

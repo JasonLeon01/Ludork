@@ -125,7 +125,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 3
         },
@@ -179,7 +179,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 5
         },
@@ -233,7 +233,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 7
         },
@@ -292,7 +292,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 9
         },
@@ -351,7 +351,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 11
         },
@@ -410,7 +410,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 13
         },
@@ -469,7 +469,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 15
         },
@@ -528,7 +528,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 17
         },
@@ -587,7 +587,7 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [1.0, 0.0],
           "autoSize": true,
           "zOrder": 19
         },

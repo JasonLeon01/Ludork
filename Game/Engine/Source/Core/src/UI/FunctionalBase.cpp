@@ -225,7 +225,6 @@ void FunctionalBase::update(float deltaTime) {
             sf::Mouse::Button::Middle,
         };
         std::array<bool, buttons.size()> mousePressed = {};
-        bool mousePressReceived = false;
         if (inputProvider_->isMouseButtonPressed()) {
             for (std::size_t index = 0; index < buttons.size(); ++index) {
                 if (!isInteractionEnabled()) {
@@ -234,7 +233,6 @@ void FunctionalBase::update(float deltaTime) {
                 const sf::Mouse::Button button = buttons[index];
                 mousePressed[index] =
                     inputProvider_->getMouseButtonPressed(button, false);
-                mousePressReceived = mousePressReceived || mousePressed[index];
                 if (mousePressed[index] &&
                     onMouseButtonDown(
                         mouseButtonArguments(mousePosition, button))) {
@@ -279,13 +277,6 @@ void FunctionalBase::update(float deltaTime) {
                 resetPointerInteraction();
                 return;
             }
-            if (mousePressReceived) {
-                onClick(pointerArguments(mousePosition));
-            }
-            if (!isInteractionEnabled()) {
-                resetPointerInteraction();
-                return;
-            }
             if (inputProvider_->isMouseWheelScrolled()) {
                 onMouseWheelScrolled(mouseWheelArguments(
                     mousePosition,
@@ -302,9 +293,17 @@ void FunctionalBase::update(float deltaTime) {
             const bool released =
                 inputProvider_->isMouseButtonReleased() &&
                 inputProvider_->getMouseButtonReleased(button, false);
+            const bool clicked = released && hovered && isInteractionEnabled();
             if (!isInteractionEnabled() || !hovered || released ||
                 !inputProvider_->isMouseButtonDown(button)) {
                 endPointerPress();
+            }
+            if (clicked) {
+                onClick(mouseButtonArguments(mousePosition, button));
+            }
+            if (!isInteractionEnabled()) {
+                resetPointerInteraction();
+                return;
             }
         }
     } else {

@@ -210,6 +210,43 @@
         },
         "editor": {},
         "children": []
+      },
+      {
+        "name": "HintBar",
+        "controlId": "Engine.GamepadHintBar",
+        "properties": {
+          "size": [
+            160,
+            16
+          ],
+          "characterSize": 12
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              1.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 16.0
+          },
+          "alignment": [
+            0.0,
+            1.0
+          ],
+          "autoSize": false,
+          "zOrder": 3
+        },
+        "editor": {},
+        "children": []
       }
     ]
   }

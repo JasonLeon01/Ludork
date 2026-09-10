@@ -19,6 +19,7 @@ public enum ProjectRunState
 {
     Idle,
     Building,
+    Preparing,
     Running,
 }
 
@@ -29,6 +30,8 @@ public enum ProjectRunFailure
     PluginPreparationFailed,
     BuildToolMissing,
     BuildFailed,
+    BuildRequired,
+    UiGenerationFailed,
     ExecutableMissing,
     LaunchFailed,
     GameFailed,
@@ -97,6 +100,7 @@ public sealed partial class ProjectRunnerService : IDisposable
     private long runGeneration;
     private long connectionGeneration;
     private bool disposed;
+    private NativeBuildStateService? nativeBuildState;
 
     public ProjectRunnerService(string projectPath, IEditorPluginRuntime? pluginRuntime = null)
     {
@@ -108,6 +112,7 @@ public sealed partial class ProjectRunnerService : IDisposable
 
     public ProjectRunState State { get; private set; }
     public bool CanSendCommand { get; private set; }
+    public NativeBuildStateService NativeBuildState => nativeBuildState ??= new(projectPath);
     public long RunGeneration => Interlocked.Read(ref runGeneration);
     public long ConnectionGeneration => Interlocked.Read(ref connectionGeneration);
     public event EventHandler<string>? OutputReceived;
@@ -140,7 +145,9 @@ public sealed partial class ProjectRunnerService : IDisposable
 
         try
         {
-            setState(ProjectRunState.Building);
+            setState(ProjectRunState.Preparing);
+            if (!options.IsStandaloneProject && !await NativeBuildState.CheckAsync(cancellation.Token))
+                return ProjectRunResult.Failed(ProjectRunFailure.BuildRequired, NativeBuildState.Detail);
             PluginResult preparation = await operationPipeline.ExecuteAsync(
                 ProjectOperationKind.Run,
                 writeOutput,
@@ -152,35 +159,17 @@ public sealed partial class ProjectRunnerService : IDisposable
                     preparation.Error);
             }
 
-            if (options.IsStandaloneProject)
-            {
-                ProcessStartInfo? generationStartInfo = UiAssetGenerationService.CreateStartInfo(projectPath);
-                if (generationStartInfo is null)
-                    return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "ScriptTools");
-                writeOutput($"> {generationStartInfo.FileName} ui-assets generate \"{projectPath}\"");
-                int generationExitCode = await runProcessAsync(generationStartInfo, cancellation.Token);
-                if (cancellation.IsCancellationRequested)
-                    return ProjectRunResult.CancelledResult();
-                if (generationExitCode != 0)
-                    return ProjectRunResult.Failed(ProjectRunFailure.BuildFailed, generationExitCode.ToString());
-            }
-            else
-            {
-                string buildScriptName = OperatingSystem.IsWindows()
-                    ? "build_cpp.bat"
-                    : "build_cpp.sh";
-                string? buildScript = EditorRuntimePaths.FindFile("tools", buildScriptName);
-                if (buildScript is null)
-                    return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "tools/" + buildScriptName);
-
-                writeOutput($"> {buildScript} \"{projectPath}\" Debug");
-                ProcessStartInfo buildStartInfo = createBuildStartInfo(buildScript);
-                int buildExitCode = await runProcessAsync(buildStartInfo, cancellation.Token);
-                if (cancellation.IsCancellationRequested)
-                    return ProjectRunResult.CancelledResult();
-                if (buildExitCode != 0)
-                    return ProjectRunResult.Failed(ProjectRunFailure.BuildFailed, buildExitCode.ToString());
-            }
+            ProcessStartInfo? generationStartInfo = UiAssetGenerationService.CreateStartInfo(projectPath);
+            if (generationStartInfo is null)
+                return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "ScriptTools");
+            writeOutput($"> {generationStartInfo.FileName} ui-assets generate \"{projectPath}\"");
+            int generationExitCode = await runProcessAsync(generationStartInfo, cancellation.Token);
+            if (cancellation.IsCancellationRequested)
+                return ProjectRunResult.CancelledResult();
+            if (generationExitCode != 0)
+                return ProjectRunResult.Failed(ProjectRunFailure.UiGenerationFailed, generationExitCode.ToString());
+            if (!options.IsStandaloneProject && !await NativeBuildState.CheckAsync(cancellation.Token))
+                return ProjectRunResult.Failed(ProjectRunFailure.BuildRequired, NativeBuildState.Detail);
 
             string executableName = OperatingSystem.IsWindows() ? "Main.exe" : "Main";
             string executablePath = options.IsStandaloneProject
@@ -220,6 +209,54 @@ public sealed partial class ProjectRunnerService : IDisposable
         finally
         {
             closeCommandConnection();
+            lock (processLock)
+            {
+                if (ReferenceEquals(runCancellation, cancellation))
+                    runCancellation = null;
+            }
+            cancellation.Dispose();
+            setState(ProjectRunState.Idle);
+        }
+    }
+
+    public async Task<ProjectRunResult> BuildAsync()
+    {
+        if (disposed || State != ProjectRunState.Idle)
+            return ProjectRunResult.CancelledResult();
+        string? projectError = validateProject(false);
+        if (projectError is not null)
+            return ProjectRunResult.Failed(ProjectRunFailure.ProjectInvalid, projectError);
+        Interlocked.Increment(ref runGeneration);
+        CancellationTokenSource cancellation = new();
+        lock (processLock)
+            runCancellation = cancellation;
+        try
+        {
+            setState(ProjectRunState.Building);
+            string buildScriptName = OperatingSystem.IsWindows() ? "build_cpp.bat" : "build_cpp.sh";
+            string? buildScript = EditorRuntimePaths.FindFile("tools", buildScriptName);
+            if (buildScript is null)
+                return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "tools/" + buildScriptName);
+            writeOutput($"> {buildScript} \"{projectPath}\" Debug");
+            int exitCode = await runProcessAsync(createBuildStartInfo(buildScript), cancellation.Token);
+            if (cancellation.IsCancellationRequested)
+                return ProjectRunResult.CancelledResult();
+            if (exitCode != 0)
+                return ProjectRunResult.Failed(ProjectRunFailure.BuildFailed, exitCode.ToString());
+            if (!await NativeBuildState.CheckAsync(cancellation.Token))
+                return ProjectRunResult.Failed(ProjectRunFailure.BuildRequired, NativeBuildState.Detail);
+            return ProjectRunResult.Completed();
+        }
+        catch (OperationCanceledException)
+        {
+            return ProjectRunResult.CancelledResult();
+        }
+        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
+        {
+            return ProjectRunResult.Failed(ProjectRunFailure.BuildFailed, exception.Message);
+        }
+        finally
+        {
             lock (processLock)
             {
                 if (ReferenceEquals(runCancellation, cancellation))
@@ -403,6 +440,7 @@ public sealed partial class ProjectRunnerService : IDisposable
             return;
         disposed = true;
         Stop();
+        nativeBuildState?.Dispose();
     }
 
     private string? validateProject(bool standalone)

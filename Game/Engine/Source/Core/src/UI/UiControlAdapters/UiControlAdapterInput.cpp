@@ -3,8 +3,10 @@
 #include "UiControlAdapterSupport.hpp"
 
 #include <UI/Button.hpp>
+#include <Input/JoystickButton.hpp>
 #include <UI/CheckBox.hpp>
 #include <UI/DropBox.hpp>
+#include <UI/GamepadHintBar.hpp>
 #include <UI/Slider.hpp>
 #include <UI/TabView.hpp>
 #include <UI/TextBox.hpp>
@@ -68,21 +70,34 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
 
     UiControlAdapterRegistry::Adapter button;
     button.factory = [](const UiControlProperties& properties) {
+        const std::string textureKey = stringProperty(properties, "texture");
+        const std::shared_ptr<sf::Texture> texture = buttonTexture(textureKey);
         std::shared_ptr<Button> result = std::make_shared<Button>(
-            buttonTexture(stringProperty(properties, "texture")),
-            optionalIntRectProperty(properties, "textureRect"),
+            texture, optionalIntRectProperty(properties, "textureRect"),
             colorProperty(properties, "hoverColour", sf::Color::White),
             colorProperty(properties, "pressedColour", sf::Color::White));
+        if (textureKey.empty()) {
+            result->setDefaultBackgroundTexture(texture);
+        }
         result->setColour(
             colorProperty(properties, "colour", sf::Color::White));
+        result->setGamepadLongPress(
+            boolProperty(properties, "gamepadLongPress", false));
+        result->setGamepadButton(JoystickButton::fromName(
+            stringProperty(properties, "gamepadButton")));
         return result;
     };
     button.setter = [](ControlBase& control, const std::string& propertyId,
                        const UiControlPropertyValue& value) {
         Button& button = requireControlType<Button>(control, "Engine.Button");
         if (propertyId == "texture") {
-            button.setTexture(buttonTexture(requireString(value, "texture")),
-                              true);
+            const std::string textureKey = requireString(value, "texture");
+            if (textureKey.empty()) {
+                button.setDefaultBackgroundTexture(buttonTexture(textureKey),
+                                                   true);
+            } else {
+                button.setTexture(buttonTexture(textureKey), true);
+            }
         } else if (propertyId == "textureRect") {
             if (isNil(value)) {
                 button.setTextureRect(
@@ -98,6 +113,11 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
             button.setHoverColour(requireColor(value, "hoverColour"));
         } else if (propertyId == "pressedColour") {
             button.setPressedColour(requireColor(value, "pressedColour"));
+        } else if (propertyId == "gamepadButton") {
+            button.setGamepadButton(
+                JoystickButton::fromName(requireString(value, propertyId)));
+        } else if (propertyId == "gamepadLongPress") {
+            button.setGamepadLongPress(requireBool(value, propertyId));
         } else {
             throw std::invalid_argument("Unknown Button property " +
                                         propertyId);
@@ -266,4 +286,35 @@ void UiControlAdapterRegistry::BuilderImpl::registerInputAdapters(
         tabs.setScale(renderScale);
     };
     registry.registerAdapter<TabViewUiControlAdapterTag>(std::move(tabView));
+
+    UiControlAdapterRegistry::Adapter gamepadHintBar;
+    gamepadHintBar.factory = [](const UiControlProperties& properties) {
+        return std::make_shared<GamepadHintBar>(
+            vector2fProperty(properties, "size", {200.0f, 24.0f}),
+            plainTextControlConfig(properties));
+    };
+    gamepadHintBar.setter = [](ControlBase& control,
+                               const std::string& propertyId,
+                               const UiControlPropertyValue& value) {
+        GamepadHintBar& hints = requireControlType<GamepadHintBar>(
+            control, "Engine.GamepadHintBar");
+        if (propertyId == "size") {
+            hints.resize(requireVector2f(value, "size"));
+        } else if (propertyId == "textConfig") {
+            hints.setTextConfig(
+                plainTextConfig(requireString(value, "textConfig")));
+        } else {
+            throw std::invalid_argument(
+                propertyId + " is a construction-only GamepadHintBar property");
+        }
+    };
+    gamepadHintBar.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                                 const sf::Vector2f& renderScale) {
+        GamepadHintBar& hints = requireControlType<GamepadHintBar>(
+            control, "Engine.GamepadHintBar");
+        hints.resize(size);
+        hints.setScale(renderScale);
+    };
+    registry.registerAdapter<GamepadHintBarUiControlAdapterTag>(
+        std::move(gamepadHintBar));
 }

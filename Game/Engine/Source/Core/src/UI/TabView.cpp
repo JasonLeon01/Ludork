@@ -5,6 +5,7 @@
 #include <UI/PlainTextConfig.hpp>
 
 #include "Interaction/InputArguments.hpp"
+#include "Interaction/JoystickState.hpp"
 #include "TabView/KeyHintImpl.hpp"
 #include "TabView/NavigationImpl.hpp"
 #include "TabView/VisualLayout.hpp"
@@ -222,7 +223,6 @@ void TabView::update(float deltaTime) {
     selectionRect_->update(deltaTime);
     updateHintVisibility();
     FunctionalBase::update(deltaTime);
-    suppressNextClick_ = false;
 }
 
 void TabView::onClick(const UiInputEventArguments& arguments) {
@@ -299,6 +299,10 @@ bool TabView::acceptsTouchCapture() const {
     return true;
 }
 
+void TabView::onTouchCaptureBegan(const sf::Vector2f&) {
+    suppressNextClick_ = false;
+}
+
 sf::Vector2f TabView::normalizedSize(const sf::Vector2f& size) {
     return ludork::engine::tab_view_impl::normalizedSize(size);
 }
@@ -322,7 +326,7 @@ TabView::KeyHintText TabView::parseKeyHint(const KeyHint& values,
 }
 
 bool TabView::anyJoystickConnected() {
-    return ludork::engine::tab_view_impl::anyJoystickConnected();
+    return ludork::engine::ui_interaction::anyJoystickConnected();
 }
 
 bool TabView::keyboardHintsAvailableWithoutJoystick() {

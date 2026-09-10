@@ -295,6 +295,8 @@
             "controlId": "Engine.Button",
             "properties": {
               "texture": "",
+              "gamepadButton": "X",
+              "gamepadLongPress": true,
               "hoverColour": [
                 220,
                 235,
@@ -355,13 +357,13 @@
               },
               "offsets": {
                 "left": 184,
-                "top": 154,
+                "top": 164,
                 "right": 0,
                 "bottom": 0
               },
               "alignment": [
                 0.5,
-                0.0
+                0.5
               ],
               "autoSize": true,
               "zOrder": 5

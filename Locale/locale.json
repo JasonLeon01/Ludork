@@ -448,8 +448,8 @@
     "en_GB": "A plugin failed while preparing to run the project."
   },
   "RUN_BUILD_TOOL_MISSING": {
-    "zh_CN": "未找到 C++ Debug 构建脚本。",
-    "en_GB": "The C++ Debug build script was not found."
+    "zh_CN": "未找到所需的构建或生成工具。",
+    "en_GB": "A required build or generation tool was not found."
   },
   "RUN_BUILD_FAILED": {
     "zh_CN": "C++ Debug 构建失败。",
@@ -470,6 +470,42 @@
   "RUN_FAILED_TITLE": {
     "zh_CN": "运行失败",
     "en_GB": "Run Failed"
+  },
+  "RUN_PLAY": {
+    "zh_CN": "运行",
+    "en_GB": "Play"
+  },
+  "RUN_STOP": {
+    "zh_CN": "停止",
+    "en_GB": "Stop"
+  },
+  "CONSTRUCT": {
+    "zh_CN": "编译",
+    "en_GB": "Construct"
+  },
+  "RUN_BUILD_REQUIRED": {
+    "zh_CN": "需要先编译 C++ Debug 工程。",
+    "en_GB": "Compile the C++ Debug project before playing."
+  },
+  "RUN_REBUILD_TITLE": {
+    "zh_CN": "编译后运行",
+    "en_GB": "Build and Play"
+  },
+  "RUN_REBUILD_CONFIRM": {
+    "zh_CN": "源码或构建产物已变化，需要重新编译。是否编译后运行？",
+    "en_GB": "Native sources or build outputs have changed. Build the project and then play?"
+  },
+  "BUILD_FAILED_TITLE": {
+    "zh_CN": "编译失败",
+    "en_GB": "Build Failed"
+  },
+  "RUN_UI_GENERATION_FAILED": {
+    "zh_CN": "UI 自动代码生成失败。",
+    "en_GB": "UI code generation failed."
+  },
+  "UI_GAMEPAD_UNBOUND": {
+    "zh_CN": "无绑定",
+    "en_GB": "Unbound"
   },
   "RUN_EMBED_HANDLE_UNAVAILABLE": {
     "zh_CN": "无法取得游戏投射面板的原生窗口句柄。",

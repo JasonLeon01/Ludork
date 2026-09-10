@@ -45,6 +45,38 @@ tools\pack_project.bat Game
 tools\pack_editor.bat
 ```
 
+The editor **Construct** button runs `build_cpp` for C++ Source projects.
+**Play** uses the same Debug build record: it stays unavailable until the
+first successful Debug build, then asks to build and play when the record
+is not current. The editor workflow is in
+[Running, Testing and Packaging](<../docs/en_GB/02.Editor User Guide/08.Run Debug and Package.md>).
+
+Both repository and installed-editor `build_cpp` scripts record the latest
+successful native build with `ScriptTools native-build-state`, in
+`build/NativeBuild-<configuration>.json`. Starting another build preserves that
+record and writes a pending marker. A failed or cancelled build, or inputs
+changed during compilation, leaves the marker in place and makes `check` report
+that compilation is required. Only a successful build with unchanged inputs
+replaces the successful record and clears the marker. A first build that fails
+does not create a successful record.
+
+`native-build-state check <project> <Debug|Release>` prints
+`{"current":true,"detail":""}` for a current build, or `current:false` with a
+reason. Both are normal checks with exit code 0; invalid input or an unreadable
+state returns 2. `begin` and `complete` are the build scripts' paired operations;
+`complete` returns 1 if inputs changed during compilation.
+
+The check compares the paths and contents of first-party native source/header,
+CMake and resource files, the `Main.proj` FFmpeg switch, and the compiled Windows
+icon. It also checks the identity of the executable and dynamic libraries.
+Lua, UI, locale, generated files and third-party trees do not make Play require
+compilation. When no build is pending, restore the previous source contents to
+reuse an unchanged successful build. Build records are specific to configuration,
+platform and architecture; the editor requires Debug. Use `build_cpp` after
+changing third-party dependencies or external CMake cache options. Direct
+`cmake --build` does not publish this record; a subsequent incremental
+`build_cpp` makes its result available to editor Play.
+
 `create_templates` accepts `--variant plain` or `--variant ffmpeg` to build one
 source/Standalone pair; the matching `create_templates_plain` and
 `create_templates_ffmpeg` scripts are thin entry points for automation. Without
@@ -195,7 +227,7 @@ updating either Views or window declarations.
 Project saves generate after writing JSON. Native builds depend on the
 `UiAssetGenerate` target, so repository and installed-editor `build_cpp` tools
 and direct CMake builds synchronise Views. `run_cpp` generates before launching
-an existing binary; editor Standalone Run generates after before-run hooks.
+an existing binary; editor Standalone Play generates after before-run hooks.
 Desktop and mobile pack entry points generate before copying runtime resources.
 Mobile `--check` only performs preflight and does not generate. Generation errors
 stop saving, building, running or packaging.
