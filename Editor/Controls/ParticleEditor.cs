@@ -1,7 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
@@ -40,6 +44,7 @@ public sealed partial class ParticleEditor : UserControl
             if (solo.IsChecked == true)
                 requestLoad();
         };
+        trackList.AddHandler(InputElement.ContextRequestedEvent, onTrackContextRequested, RoutingStrategies.Tunnel);
         solo.IsCheckedChanged += (_, _) => requestLoad();
         buildLayout();
         refreshTracks(0);
@@ -75,46 +80,10 @@ public sealed partial class ParticleEditor : UserControl
 
     private void buildLayout()
     {
-        Grid root = new() { ColumnDefinitions = new ColumnDefinitions("170,5,*,5,350") };
+        Grid root = new() { ColumnDefinitions = new ColumnDefinitions("170,5,*,5,Auto") };
         DockPanel trackPanel = new() { Margin = new Thickness(6) };
-        StackPanel trackButtons = new() { Spacing = 5 };
-        trackButtons.Children.Add(button("PARTICLE_ADD_TRACK", () =>
-        {
-            if (data["tracks"] is not JsonArray)
-                data["tracks"] = new JsonArray();
-            JsonObject created = ParticleAssetSchema.CreateTrack(uniqueTrackName(LocaleService.Get("PARTICLE_TRACK")));
-            string glow = "/Game/Assets/Particles/Glow.png";
-            if (GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, glow, out _))
-                created["texture"] = glow;
-            tracks.Add(created);
-            commit();
-            refreshTracks(tracks.Count - 1);
-        }));
-        trackButtons.Children.Add(button("PARTICLE_DUPLICATE_TRACK", () =>
-        {
-            if (track is not JsonObject current)
-                return;
-            JsonObject copy = (JsonObject)current.DeepClone();
-            copy["name"] = uniqueTrackName(text(current, "name") + " (copy)");
-            tracks.Insert(selectedTrack + 1, copy);
-            commit();
-            refreshTracks(selectedTrack + 1);
-        }));
-        trackButtons.Children.Add(button("PARTICLE_REMOVE_TRACK", () =>
-        {
-            if (track is null)
-                return;
-            tracks.RemoveAt(selectedTrack);
-            commit();
-            refreshTracks(selectedTrack);
-        }));
-        StackPanel reorder = new() { Orientation = Orientation.Horizontal, Spacing = 5 };
-        reorder.Children.Add(button("PARTICLE_MOVE_UP", () => moveTrack(-1)));
-        reorder.Children.Add(button("PARTICLE_MOVE_DOWN", () => moveTrack(1)));
-        trackButtons.Children.Add(reorder);
-        trackButtons.Children.Add(solo);
-        DockPanel.SetDock(trackButtons, Dock.Bottom);
-        trackPanel.Children.Add(trackButtons);
+        DockPanel.SetDock(solo, Dock.Bottom);
+        trackPanel.Children.Add(solo);
         trackPanel.Children.Add(trackList);
         root.Children.Add(trackPanel);
         Grid preview = new() { RowDefinitions = new RowDefinitions("*,Auto,260") };
@@ -126,7 +95,18 @@ public sealed partial class ParticleEditor : UserControl
         preview.Children.Add(curveHost);
         Grid.SetColumn(preview, 2);
         root.Children.Add(preview);
-        ScrollViewer inspector = new() { Content = properties, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        ContentWidthScrollViewer inspector = new() { Content = properties, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+        void updateInspectorWidth()
+        {
+            double available = root.Bounds.Width > 0
+                ? Math.Max(0, root.Bounds.Width - root.ColumnDefinitions[0].ActualWidth - 10)
+                : double.PositiveInfinity;
+            root.ColumnDefinitions[4].MinWidth = Math.Min(inspector.RequiredWidth, available);
+            root.ColumnDefinitions[4].MaxWidth = available;
+            inspector.MaxWidth = available;
+        }
+        inspector.RequiredWidthChanged += (_, _) => updateInspectorWidth();
+        root.LayoutUpdated += (_, _) => updateInspectorWidth();
         Grid.SetColumn(inspector, 4);
         root.Children.Add(inspector);
         foreach (int column in new[] { 1, 3 })
@@ -149,16 +129,83 @@ public sealed partial class ParticleEditor : UserControl
         buildProperties();
     }
 
-    private void moveTrack(int direction)
+    private void onTrackContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        int destination = selectedTrack + direction;
-        if (track is null || destination < 0 || destination >= tracks.Count)
-            return;
-        JsonNode? current = tracks[selectedTrack];
-        tracks.RemoveAt(selectedTrack);
-        tracks.Insert(destination, current);
+        bool requestedByPointer = args.TryGetPosition(trackList, out Point position);
+        int index = requestedByPointer ? getTrackIndexAt(position) : selectedTrack;
+        JsonObject? current = index >= 0 && index < tracks.Count ? tracks[index] as JsonObject : null;
+        if (current is not null)
+            trackList.SelectedIndex = index;
+        MenuItem add = new() { Header = LocaleService.Get("PARTICLE_ADD_TRACK") };
+        add.Click += (_, _) => addTrack();
+        MenuItem duplicate = new() { Header = LocaleService.Get("PARTICLE_DUPLICATE_TRACK"), IsEnabled = current is not null };
+        duplicate.Click += (_, _) =>
+        {
+            if (current is not null)
+                duplicateTrack(current);
+        };
+        MenuItem remove = new() { Header = LocaleService.Get("PARTICLE_REMOVE_TRACK"), IsEnabled = current is not null };
+        remove.Click += (_, _) =>
+        {
+            if (current is not null)
+                removeTrack(current);
+        };
+        ContextMenu menu = new()
+        {
+            ItemsSource = new[] { add, duplicate, remove },
+            Placement = requestedByPointer ? PlacementMode.Pointer : PlacementMode.Bottom,
+        };
+        trackList.ContextMenu = menu;
+        Control target = !requestedByPointer && index >= 0 ? trackList.ContainerFromIndex(index) ?? trackList : trackList;
+        menu.Open(target);
+        args.Handled = true;
+    }
+
+    private int getTrackIndexAt(Point position)
+    {
+        Visual? visual = trackList.InputHitTest(position) as Visual;
+        while (visual is not null && visual != trackList)
+        {
+            if (visual is ListBoxItem item)
+                return trackList.IndexFromContainer(item);
+            visual = visual.GetVisualParent();
+        }
+        return -1;
+    }
+
+    private void addTrack()
+    {
+        if (data["tracks"] is not JsonArray)
+            data["tracks"] = new JsonArray();
+        JsonObject created = ParticleAssetSchema.CreateTrack(uniqueTrackName(LocaleService.Get("PARTICLE_TRACK")));
+        string glow = "/Game/Assets/Particles/Glow.png";
+        if (GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, glow, out _))
+            created["texture"] = glow;
+        tracks.Add(created);
         commit();
-        refreshTracks(destination);
+        refreshTracks(tracks.Count - 1);
+    }
+
+    private void duplicateTrack(JsonObject current)
+    {
+        int index = tracks.IndexOf(current);
+        if (index < 0)
+            return;
+        JsonObject copy = (JsonObject)current.DeepClone();
+        copy["name"] = uniqueTrackName(text(current, "name") + " (copy)");
+        tracks.Insert(index + 1, copy);
+        commit();
+        refreshTracks(index + 1);
+    }
+
+    private void removeTrack(JsonObject current)
+    {
+        int index = tracks.IndexOf(current);
+        if (index < 0)
+            return;
+        tracks.RemoveAt(index);
+        commit();
+        refreshTracks(index);
     }
 
     private string uniqueTrackName(string name)

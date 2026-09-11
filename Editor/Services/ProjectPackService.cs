@@ -19,6 +19,7 @@ public enum ProjectPackFailure
     ProjectInvalid,
     AppNameUnchanged,
     PluginPreparationFailed,
+    ExportFailed,
     Cancelled,
     PlatformUnsupported,
     ScriptMissing,
@@ -97,24 +98,24 @@ public sealed record ProjectPackResult(
 
 public sealed class ProjectPackService
 {
-    private const int AppNameUnchangedExitCode = 24;
-    private const string CompileLuaDirectoriesEnvironment =
-        "LUDORK_PACK_COMPILE_LUA_DIRECTORIES";
-    private const string ExcludedFilesEnvironment =
-        "LUDORK_PACK_EXCLUDED_FILES";
     private static readonly UTF8Encoding utf8 = new(false);
     private static readonly Regex defaultAppNamePattern = new(
-        @"^[ \t]*local[ \t]+APP_NAME[ \t]*=[ \t]*[""']LudorkSample[""'][ \t]*(?:--[^\r\n]*)?\r?$",
+        ProjectToolConstants.DefaultAppNamePattern,
         RegexOptions.Multiline | RegexOptions.CultureInvariant);
     private readonly string projectPath;
     private readonly ProjectOperationPipeline operationPipeline;
+    private readonly Func<Action<string>, CancellationToken, Task<ProjectExportResult>> exportProject;
 
-    public ProjectPackService(string projectPath, IEditorPluginRuntime? pluginRuntime = null)
+    public ProjectPackService(
+        string projectPath,
+        Func<Action<string>, CancellationToken, Task<ProjectExportResult>> exportProject,
+        IEditorPluginRuntime? pluginRuntime = null)
     {
         if (!Path.IsPathFullyQualified(projectPath))
             throw new ArgumentException(nameof(projectPath));
         this.projectPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
         operationPipeline = new ProjectOperationPipeline(this.projectPath, pluginRuntime);
+        this.exportProject = exportProject;
     }
 
     public event EventHandler<string>? OutputReceived;
@@ -213,6 +214,9 @@ public sealed class ProjectPackService
         PluginResult preparation;
         try
         {
+            ProjectExportResult exported = await exportProject(writeOutput, cancellationToken);
+            if (!exported.Success)
+                return ProjectPackResult.Failed(exported.Cancelled ? ProjectPackFailure.Cancelled : ProjectPackFailure.ExportFailed, exported.Detail);
             preparation = await operationPipeline.ExecuteAsync(
                 ProjectOperationKind.Pack,
                 writeOutput,
@@ -490,7 +494,7 @@ public sealed class ProjectPackService
             return ProjectPackResult.Failed(ProjectPackFailure.LaunchFailed, execution.LaunchError);
         if (execution.ExitCode == 0)
             return null;
-        if (execution.ExitCode == AppNameUnchangedExitCode)
+        if (execution.ExitCode == ProjectToolConstants.AppNameUnchangedExitCode)
         {
             return ProjectPackResult.Failed(
                 ProjectPackFailure.AppNameUnchanged,
@@ -500,10 +504,10 @@ public sealed class ProjectPackService
         {
             ProjectPackFailure failure = execution.ExitCode switch
             {
-                20 => ProjectPackFailure.ToolchainUnavailable,
-                21 => ProjectPackFailure.DeviceUnavailable,
-                22 => ProjectPackFailure.SigningUnavailable,
-                23 => ProjectPackFailure.IOSProjectUnsupported,
+                ProjectToolConstants.ToolchainExitCode => ProjectPackFailure.ToolchainUnavailable,
+                ProjectToolConstants.DeviceExitCode => ProjectPackFailure.DeviceUnavailable,
+                ProjectToolConstants.SigningExitCode => ProjectPackFailure.SigningUnavailable,
+                ProjectToolConstants.ProjectExitCode => ProjectPackFailure.IOSProjectUnsupported,
                 _ => ProjectPackFailure.PackFailed,
             };
             return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
@@ -512,10 +516,10 @@ public sealed class ProjectPackService
         {
             ProjectPackFailure failure = execution.ExitCode switch
             {
-                20 => ProjectPackFailure.HarmonyToolchainUnavailable,
-                21 => ProjectPackFailure.HarmonyDeviceUnavailable,
-                22 => ProjectPackFailure.HarmonySigningUnavailable,
-                23 => ProjectPackFailure.HarmonyProjectUnsupported,
+                ProjectToolConstants.ToolchainExitCode => ProjectPackFailure.HarmonyToolchainUnavailable,
+                ProjectToolConstants.DeviceExitCode => ProjectPackFailure.HarmonyDeviceUnavailable,
+                ProjectToolConstants.SigningExitCode => ProjectPackFailure.HarmonySigningUnavailable,
+                ProjectToolConstants.ProjectExitCode => ProjectPackFailure.HarmonyProjectUnsupported,
                 _ => ProjectPackFailure.PackFailed,
             };
             return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
@@ -524,9 +528,9 @@ public sealed class ProjectPackService
         {
             ProjectPackFailure failure = execution.ExitCode switch
             {
-                20 => ProjectPackFailure.AndroidToolchainUnavailable,
-                22 => ProjectPackFailure.AndroidSigningUnavailable,
-                23 => ProjectPackFailure.AndroidProjectUnsupported,
+                ProjectToolConstants.ToolchainExitCode => ProjectPackFailure.AndroidToolchainUnavailable,
+                ProjectToolConstants.SigningExitCode => ProjectPackFailure.AndroidSigningUnavailable,
+                ProjectToolConstants.ProjectExitCode => ProjectPackFailure.AndroidProjectUnsupported,
                 _ => ProjectPackFailure.PackFailed,
             };
             return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
@@ -597,16 +601,16 @@ public sealed class ProjectPackService
         };
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-        startInfo.Environment.Remove(CompileLuaDirectoriesEnvironment);
-        startInfo.Environment.Remove(ExcludedFilesEnvironment);
+        startInfo.Environment.Remove(ProjectToolConstants.CompileLuaDirectoriesEnvironment);
+        startInfo.Environment.Remove(ProjectToolConstants.ExcludedFilesEnvironment);
         if (packaging.CompileLuaDirectories.Count != 0)
         {
-            startInfo.Environment[CompileLuaDirectoriesEnvironment] =
+            startInfo.Environment[ProjectToolConstants.CompileLuaDirectoriesEnvironment] =
                 string.Join('\n', packaging.CompileLuaDirectories);
         }
         if (packaging.ExcludedFiles.Count != 0)
         {
-            startInfo.Environment[ExcludedFilesEnvironment] =
+            startInfo.Environment[ProjectToolConstants.ExcludedFilesEnvironment] =
                 string.Join('\n', packaging.ExcludedFiles);
         }
         if (OperatingSystem.IsWindows())

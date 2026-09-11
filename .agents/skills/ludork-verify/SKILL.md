@@ -22,7 +22,7 @@ Commands below run from the repository root on macOS. Use matching `.bat` entry 
 | Declarative UI JSON or asset moves | `.tools/ScriptTools/ScriptTools ui-assets validate Game`; inspect the affected UI and its references. |
 | Native UI registry/adapters or editor UI registration | `.tools/ScriptTools/ScriptTools ui-adapter-check .`; build the affected editor/runtime/preview host. |
 | Shell/build/CI wiring | Syntax-check changed `.sh` with `sh -n`; validate workflow YAML with `actionlint` when available; exercise the affected local entry point or report platform limitations. |
-| Packaging/templates | Run the affected platform/variant entry point from `tools/README.md` and inspect its package. Check that templates retain stubs and game packages exclude them when Lua packaging changes. |
+| Packaging/templates | Run the affected platform/variant entry point from `tools/README.md` and inspect its package. Check that templates exclude UI/Locale Export outputs and records, retain all other stubs including General Data and native binding declarations, and game packages exclude the entire stub tree when Lua packaging changes. |
 
 Useful targeted entry points are `sh tools/build_script_tools.sh`, `sh tools/build_ui_preview_host.sh Game Debug`, `sh tools/run_editor.sh` and `sh tools/run_cpp.sh Game Debug`. The C++ build already validates UI assets; avoid repeating the same successful check without an intervening relevant change. Shared `.tools`, `Game/build`, `bin`, `obj` and packaging outputs must not be mutated concurrently by multiple builds or agents.
 

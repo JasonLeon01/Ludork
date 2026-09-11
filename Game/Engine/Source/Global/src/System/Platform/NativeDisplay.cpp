@@ -1,5 +1,7 @@
 #include "NativeDisplay.hpp"
 
+#include <SFML/Window/WindowEnums.hpp>
+
 #if defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -18,10 +20,6 @@ namespace ludork::global {
 #if defined(_WIN32)
 
 namespace {
-
-constexpr DWORD standardWindowStyle = WS_VISIBLE | WS_CAPTION | WS_MINIMIZEBOX |
-                                      WS_THICKFRAME | WS_MAXIMIZEBOX |
-                                      WS_SYSMENU;
 
 void ensureProcessDpiAware() noexcept {
     static std::once_flag flag;
@@ -53,9 +51,23 @@ void ensureProcessDpiAware() noexcept {
 }
 
 std::optional<sf::Vector2u> clientSizeForWorkArea(
-    const MONITORINFO& monitorInfo) noexcept {
+    const MONITORINFO& monitorInfo, std::uint32_t windowStyle) noexcept {
+    DWORD nativeStyle = WS_VISIBLE;
+    if (windowStyle == sf::Style::None) {
+        nativeStyle |= WS_POPUP;
+    } else {
+        if (windowStyle & sf::Style::Titlebar) {
+            nativeStyle |= WS_CAPTION | WS_MINIMIZEBOX;
+        }
+        if (windowStyle & sf::Style::Resize) {
+            nativeStyle |= WS_THICKFRAME | WS_MAXIMIZEBOX;
+        }
+        if (windowStyle & sf::Style::Close) {
+            nativeStyle |= WS_SYSMENU;
+        }
+    }
     RECT frame{};
-    if (!AdjustWindowRectEx(&frame, standardWindowStyle, FALSE, 0)) {
+    if (!AdjustWindowRectEx(&frame, nativeStyle, FALSE, 0)) {
         return std::nullopt;
     }
 
@@ -82,7 +94,7 @@ std::optional<sf::Vector2u> clientSizeForWorkArea(
 }  // namespace
 
 std::optional<sf::Vector2u> getMaximumWindowedClientSize(
-    sf::WindowHandle windowHandle) noexcept {
+    sf::WindowHandle windowHandle, std::uint32_t windowStyle) noexcept {
     ensureProcessDpiAware();
 
     HWND window = windowHandle;
@@ -102,7 +114,7 @@ std::optional<sf::Vector2u> getMaximumWindowedClientSize(
         return std::nullopt;
     }
 
-    return clientSizeForWorkArea(monitorInfo);
+    return clientSizeForWorkArea(monitorInfo, windowStyle);
 }
 
 std::optional<sf::Vector2u> getWindowedClientSize(
@@ -131,7 +143,7 @@ void setWindowedFramePlacement(sf::WindowHandle,
 #elif !defined(__APPLE__) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
 
 std::optional<sf::Vector2u> getMaximumWindowedClientSize(
-    sf::WindowHandle) noexcept {
+    sf::WindowHandle, std::uint32_t) noexcept {
     return std::nullopt;
 }
 

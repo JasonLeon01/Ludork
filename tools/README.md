@@ -6,7 +6,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 |---|---|
 | `init` | Prepare the generator environment and native dependencies |
 | `setup_python` | Create `.venv` and install build-time Python requirements |
-| `build_script_tools` | Build the repository-owned ScriptTools executable under `.tools` |
+| `build_script_tools` | Build the ScriptTools runtime bundle under `.tools/ScriptTools`; compiler outputs stay under `.tools/build/ScriptTools` |
 | `build_ui_preview_host` | Build and publish a project's native preview snapshot |
 | `init_cpp_dependencies` | Download dependencies for a C++ project folder; per-package scripts live under `tools/cpp_dependencies` |
 | `run_editor` | Start the editor from the repository root |
@@ -25,6 +25,9 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG |
 
 Typical commands:
+
+Use the editor's **Export** before running or packaging a project with the
+command-line tools. These tools consume the exported UI and locale Lua files.
 
 ```sh
 ./tools/init.sh
@@ -58,7 +61,7 @@ by editor packaging.
 
 ```bat
 tools\animation_to_mp4.bat
-tools\animation_to_mp4.bat Game --input Game/Data/Animations/attack.json --output Game/Temp/attack.mp4
+tools\animation_to_mp4.bat Game --input Game/Data/Animations/attack.json --output Game/EditorCache/attack.mp4
 tools\animation_to_mp4.bat Game --size 512x512 --background "#202020" --overwrite
 ```
 
@@ -66,7 +69,7 @@ On macOS, use `sh tools/animation_to_mp4.sh` with the same arguments. The direct
 command is `ScriptTools animation-mp4 [project] [options]`; the project defaults
 to `Game`. `--input` accepts one source JSON or a directory searched recursively,
 defaulting to `<project>/Data/Animations`. `--output` defaults to
-`<project>/Temp/AnimationMp4`; directory exports preserve relative subdirectories.
+`<project>/EditorCache/AnimationMp4`; directory exports preserve relative subdirectories.
 Explicit input/output paths are relative to the repository root when using the
 wrappers. A single input also accepts an output `.mp4` filename.
 
@@ -86,14 +89,24 @@ location and published only after FFmpeg succeeds. Batch export continues after
 individual failures and returns a nonzero exit code if any file failed.
 
 The editor **Construct** button runs `build_cpp` for C++ Source projects.
-**Play** uses the same Debug build record: it stays unavailable until the
-first successful Debug build, then asks to build and play when the record
-is not current. The editor workflow is in
+**Export** generates UI Lua files and runs project export hooks, including
+Official Locale Tools. General Data and game variable Lua files still update
+when their data is saved. **Play** requires a successful Export and, for C++
+Source projects, a successful Debug Construct. Its disabled hint and pre-run
+checks consider Construct first, then Export. After the first success, changed
+native inputs prompt to construct and play; changed export inputs or outputs
+prompt to export and play. Editor **Pack** runs Export before packaging and
+stops if export fails. The editor workflow is in
 [Running, Testing and Packaging](<../docs/en_GB/02.Editor User Guide/08.Run Debug and Package.md>).
+
+The project export record is local state in `EditorCache/ProjectExport.json`. Templates
+exclude that record, generated UI Views and declarations, and generated locale
+catalogues. They retain handwritten Lua, General Data and variable exports, the
+locale workbook and `Source/Locale/Core.lua`, and native binding stubs/metadata.
 
 Both repository and installed-editor `build_cpp` scripts record the latest
 successful native build with `ScriptTools native-build-state`, in
-`build/NativeBuild-<configuration>.json`. Starting another build preserves that
+`EditorCache/NativeBuild-<configuration>.json`. Starting another build preserves that
 record and writes a pending marker. A failed or cancelled build, or inputs
 changed during compilation, leaves the marker in place and makes `check` report
 that compilation is required. Only a successful build with unchanged inputs
@@ -105,6 +118,16 @@ does not create a successful record.
 reason. Both are normal checks with exit code 0; invalid input or an unreadable
 state returns 2. `begin` and `complete` are the build scripts' paired operations;
 `complete` returns 1 if inputs changed during compilation.
+
+The editor prewarms one read-only `ScriptTools project-state-worker <project>`
+process per open project. Requests and responses use JSON Lines over stdin and
+stdout. Each request has `version:1`, an integer `id`, and an `operation`:
+`ready`, `native-check` (with `configuration:Debug` or `Release`), or
+`ui-manifest`. Responses echo `id` with either `result` or `error`. Diagnostics
+use stderr. Every check reads current content; the process does not cache check
+results or write build/export records. The editor serialises requests, restarts
+the worker when the ScriptTools bundle changes or the process exits, and stops it on cancellation or
+project close. Play keeps its initial and final Construct → Export checks.
 
 The check compares the paths and contents of first-party native source/header,
 CMake and resource files, the `Main.proj` FFmpeg switch, and the compiled Windows
@@ -176,6 +199,11 @@ dist/
 ├── Locale/
 ├── Templates/
 ├── tools/
+│   └── ScriptTools/
+│       ├── ScriptTools.exe
+│       ├── runtime-versions.txt
+│       ├── runtime-files.json
+│       └── …                  # Bundled runtime dependencies
 ├── Plugins/
 ├── plugins.json
 ├── docs/
@@ -229,11 +257,51 @@ LaunchServices entry before deleting the app:
 
 Shell files only coordinate commands. Metadata generation, project inspection,
 version checks, packaging helpers, and Lua bytecode compilation are implemented
-by the standalone ScriptTools executable. Python is needed only when `init` or
-`build_script_tools` builds ScriptTools with Nuitka. Development build and
-packaging commands consume the initialized executable; rerun `init` or
-`build_script_tools` explicitly after changing ScriptTools. Python is not
-required by an installed editor.
+by the ScriptTools runtime bundle. Nuitka's standalone directory build publishes
+only runtime files under `.tools/ScriptTools`, with the development entry point
+`.tools/ScriptTools/ScriptTools` on macOS or
+`.tools\ScriptTools\ScriptTools.exe` on Windows. Compiler outputs and caches
+remain under `.tools/build/ScriptTools`.
+
+Editor packaging copies the complete runtime directory to `tools/ScriptTools`
+inside the installation's resource root. The installed entry point is
+`tools/ScriptTools/ScriptTools` or `tools\ScriptTools\ScriptTools.exe`; keep its
+neighbouring libraries and data files together when copying or moving it.
+`runtime-versions.txt` records the build mode and dependency versions, while
+`runtime-files.json` records bundle contents for
+`ScriptTools runtime-bundle validate <bundle-directory>`. Package validation
+runs this command through the installed entry point. On macOS it also verifies
+the signatures of every Mach-O executable and library in the copied bundle.
+
+Python is needed only when `init` or `build_script_tools` compiles ScriptTools.
+Development build and packaging commands consume the prepared runtime bundle;
+rerun `init` or `build_script_tools` explicitly after changing its sources.
+An installed editor uses its bundled runtime and needs no system Python.
+
+`ScriptTools/packaging_constants.py` owns the shared packaging exit codes,
+default application-name check, editor-cache directory, resource and licence
+lists, template names, generated native Lua files, and common mobile dependency
+cache inputs. Platform SDK, signing, bundle identifiers and runtime archive
+formats remain in their platform packers. Mobile dependency-cache lookup keeps
+each platform's existing priority; the desktop native build retains its larger
+dependency list.
+
+Shell and batch tools read fixed lists through
+`ScriptTools packaging-constants list <name>`. Supported names are
+`editor-cache-directory`, `package-cache-directories`, `resource-groups`,
+`runtime-legal-files`, `template-names`, `cpp-template-names`,
+`standalone-template-names`, `plain-template-names`, `ffmpeg-template-names` and
+`native-lua-files`. Output is one entry per line; `--separator space` emits a
+single line, and `--windows` changes path separators for batch consumers.
+`check-app-name <project-root>` rejects the unchanged sample name with exit code
+24 and reports missing or unreadable entry scripts with code 23. Desktop and
+mobile packing use the same check, including single/double quotes, tabs, CRLF
+and trailing Lua comments.
+
+`ScriptTools packaging-constants csharp <output.cs>` generates
+`Ludork.Services.ProjectToolConstants` for the editor build. Generated constants
+are build outputs; edit the Python source and rebuild ScriptTools before
+building the editor or running packaging tools.
 
 `dotnet build` and `dotnet publish` generate `obj/.../EngineConstants.g.cs` with `ScriptTools engine-constants <EngineState.hpp> <output.cs>`. The C++ declaration is authoritative for the editor cell size; rebuild ScriptTools after changing the generator. The managed Actions cache includes this header and generator so changed constants cannot reuse stale editor binaries.
 
@@ -264,21 +332,34 @@ Declare window modules with direct `require` imports and one final
 nonzero without writing. All inputs and output conflicts are checked before
 updating either Views or window declarations.
 
-Project saves generate after writing JSON. Native builds depend on the
-`UiAssetGenerate` target, so repository and installed-editor `build_cpp` tools
-and direct CMake builds synchronise Views. `run_cpp` generates before launching
-an existing binary; editor Standalone Play generates after before-run hooks.
-Desktop and mobile pack entry points generate before copying runtime resources.
-Mobile `--check` only performs preflight and does not generate. Generation errors
-stop saving, building, running or packaging.
+`ScriptTools ui-assets manifest <project-root>` is a read-only description used
+by the editor's Export record. It emits JSON with project-relative input paths
+and their SHA-256 hashes, plus the expected and existing generated output paths.
+It includes window modules and their handwritten Controller declarations,
+including missing declarations. It neither runs plug-in hooks nor records a
+successful project Export.
 
-`build_standalone --use-current-build` also regenerates before validation and
-copying. Template generation therefore uses current JSON even when
-`create_templates --native-cache` reuses native binaries. Unchanged generated
-files retain their contents and timestamps; only obsolete files bearing the
-generation marker are removed from the generated trees. Handwritten file
-conflicts stop generation. Templates retain the generated stub tree, while game
-packaging removes it before optional Lua compilation.
+The editor's **Export** generates these files after saving project data.
+Ordinary saves, native builds and direct run or pack commands do not generate
+UI Lua. Export also invokes project export hooks and records the inputs and
+outputs only after they succeed. Editor Play checks whether export is current;
+editor Pack runs Export before invoking its pack hooks and platform tools.
+Generation errors stop Export and any Play or Pack that depends on it.
+
+Low-level `build_cpp`, `build_standalone`, `run_cpp` and desktop/mobile pack
+entry points consume existing exports and retain their existing UI validation.
+For command-line workflows, export in the editor first, or deliberately run
+`ui-assets generate` and prepare locale catalogues before running or packaging.
+Mobile `--check` performs preflight only. The standalone UI generator does not
+run editor plug-ins or publish the editor's project export record.
+
+Unchanged generated files retain their contents and timestamps; only obsolete
+files bearing the generation marker are removed from the generated trees.
+Handwritten file conflicts stop generation. `create_templates` excludes
+`Scripts/Source/UI`, `Scripts/stub/Source/UI` and `Scripts/stub/Source/UIWindows`,
+even when these folders exist in Game or a native cache is reused. Templates
+retain handwritten declarations and native binding stubs; game packaging
+removes all of `Scripts/stub` before optional Lua compilation.
 
 Desktop `build_cpp` builds the project preview before full UI validation.
 `build_ui_preview_host <project-folder> <Debug|Release>` builds that target
@@ -308,8 +389,8 @@ The build runs `ScriptTools ui-preview publish <project-root> <bin-directory>
 --configuration <Debug|Release>` after linking and dependency preparation. The
 Host's `--build-info` embeds its exact dependency filenames, platform, architecture
 and configuration; `--describe` exports the native UI descriptors. Publication
-reads both outputs and writes only `Temp/UiPreview.json` and
-`Temp/UiPreview.registry.json`, without copying the source runtime to `Binaries`.
+reads both outputs and writes only `EditorCache/UiPreview.json` and
+`EditorCache/UiPreview.registry.json`, without copying the source runtime to `Binaries`.
 Manifest v3 records a safe project-relative `runtimeDirectory`, binary filenames,
 configuration and registry identity. The build ID hashes the declared binaries
 and the exact UTF-8 registry bytes, including the final LF, under the fixed
@@ -317,22 +398,22 @@ and the exact UTF-8 registry bytes, including the final LF, under the fixed
 content does not rewrite the JSON.
 
 Before source compilation, `UiPreviewPrepare` calls `ui-preview begin-build`, stops
-existing project preview connections and creates `Temp/UiPreview.building`.
+existing project preview connections and creates `EditorCache/UiPreview.building`.
 Compilation, linking, description or publication failure leaves preview unavailable;
 the next successful publication clears the marker. Full UI asset validation runs
 after publication, so asset errors fail the build while preserving the new preview
 for editing. The building marker also blocks metadata recovery.
 
 `ui-preview copy <source-project> <target-project>` installs the matched binaries
-in the target's `Binaries` and both JSON files in its `Temp`, rewriting
+in the target's `Binaries` and both JSON files in its `EditorCache`, rewriting
 `runtimeDirectory` to `Binaries`. It retains identical shared game libraries and
-unrelated target Temp content, and rejects mismatched dependency versions.
+unrelated target EditorCache content, and rejects mismatched dependency versions.
 Template native-cache transfers use
 `ui-preview copy --runtime-directory bin/<configuration> <source> <target>` after
 copying the game build outputs, reusing that bin directory without an extra
 `Binaries` copy. `ui-preview registry <project-root>` prints the ensured registry
 path. Staging validation receives
-`--registry <source-project>/Temp/UiPreview.registry.json` explicitly rather than
+`--registry <source-project>/EditorCache/UiPreview.registry.json` explicitly rather than
 looking for development data in the final game package.
 
 Validate convention-based C++ and Lua host-to-implementation boundaries, including the Standard ClassRuntime layer order, with:
@@ -347,7 +428,12 @@ Validate convention-based C++ and Lua host-to-implementation boundaries, includi
 
 The command discovers C++ host/same-name-directory pairs from the source tree. For Lua it discovers the equivalent host/module directory pairs and excludes child modules that have their own mirrored `.d.lua` contract. It reports source locations for reverse dependencies, host member definitions in implementation folders, and Lua partial-class or mixin reuse. CMake exposes the same check through the `ImplBoundaryValidate` target.
 
-Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`. The Official Locale Tools editor plug-in performs export through before-run and before-pack hooks. Run or pack from the editor, or provide an equivalent deliberate export step when automating outside it.
+Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`.
+Official Locale Tools exports through the editor's project export hook. Its
+pack hook excludes the workbook from game packages. Use **Export** or **Pack**
+in the editor, or provide an equivalent deliberate export step when automating
+outside it. Template creation keeps the workbook and handwritten locale Core
+while excluding generated language catalogues.
 
 `pack_harmony.sh` produces an arm64-v8a HAP for HarmonyOS 6.0.2 / API 22 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK. Its form/backend matrix is fixed: Mobile uses OpenGL ES, while 2in1 uses OpenGL by default and can instead use OpenGL ES. The editor passes both choices explicitly; direct commands use `--device-form mobile|2in1` and `--graphics-api opengl|opengl-es`. Omitting the graphics option selects OpenGL ES for Mobile and OpenGL for 2in1; explicitly selecting OpenGL for Mobile is rejected.
 
@@ -381,7 +467,7 @@ staging become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Entries
 retain paths relative to their source directory. Use
 `ScriptTools validate-ldpak-source <runtime-root>` for the common source preflight.
 Encryption runs before archiving, and the source project remains loose and unchanged.
-Packaging excludes the project-root `Temp` and `Cache` directories, with or
+Packaging excludes the project-root `EditorCache` and `Cache` directories, with or
 without `--use-ldpak`. Nested directories with those names in runtime
 content remain included. Runtime rejects loose/archive conflicts and old per-group
 archives rather than merging them.
@@ -401,7 +487,7 @@ links the full Engine target nor starts gameplay or Lua Controllers.
 
 Source preview and game linker outputs share `bin/Debug` or `bin/Release`.
 The editor launches the Host directly from the directory selected by the manifest,
-using the JSON files in project `Temp`. Ordinary source builds publish metadata
+using the JSON files in project `EditorCache`. Ordinary source builds publish metadata
 only; Standalone generation copies the matched runtime to `Binaries`. C++ UI
 changes take effect after recompilation. A source build stops the project's old
 preview connections before compiling and refreshes UI and Actor previews after
@@ -422,8 +508,8 @@ in their native implementations.
 `Templates/Cpp` carries preview source and requires a first build.
 `Templates/Standalone` carries the corresponding prebuilt preview snapshot,
 including for the FFmpeg variant. Template native caches include the current
-snapshot in `bin/<configuration>` and exactly `Temp/UiPreview.json` plus
-`Temp/UiPreview.registry.json`. Template generation excludes other project Temp
+snapshot in `bin/<configuration>` and exactly `EditorCache/UiPreview.json` plus
+`EditorCache/UiPreview.registry.json`. Template generation excludes other project EditorCache
 content; C++ templates remove both compiled binaries and JSON before distribution.
 Native caches use the same layout and must be republished by `ui-preview publish`
 before reuse when their metadata layout is outdated; no old-path reads are used.
@@ -436,5 +522,5 @@ native dependencies, optional FFmpeg and bundled assets. Template generation
 refreshes those materials in C++ templates and derives Standalone templates
 from them. Editor, managed-runtime and build-tool notices remain in the editor
 distribution. Final game packages remove only preview-specific files from
-`Binaries`, retain shared libraries, and exclude root `Temp` and `Cache`. macOS game
+`Binaries`, retain shared libraries, and exclude root `EditorCache` and `Cache`. macOS game
 packaging does not provide distributor signing or notarisation.

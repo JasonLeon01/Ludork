@@ -18,7 +18,22 @@ import zipfile
 from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
-from .ui_asset_generation import generate_assets
+from .pack_error import PackError
+from .packaging_constants import (
+    ARTIFACT_NAME_FALLBACK,
+    ARTIFACT_NAME_MAX_LENGTH,
+    ARTIFACT_NAME_PATTERN,
+    COMMON_DEPENDENCY_CACHE_DIRECTORIES,
+    EXIT_PROJECT,
+    EXIT_SIGNING,
+    EXIT_TOOLCHAIN,
+    FILE_BUFFER_SIZE,
+    MOBILE_DEPENDENCY_NAMES,
+    RESOURCE_GROUPS,
+    RUNTIME_LEGAL_FILES,
+    TEMPLATE_TOKEN_PATTERN,
+    check_app_name,
+)
 from .ui_property_values import UiAssetError
 from ScriptTools.ui_preview import prepare_registry
 from ScriptTools.compile_lua import resolve_luac
@@ -31,10 +46,6 @@ from ScriptTools.ldpak import (
 )
 
 
-EXIT_TOOLCHAIN = 20
-EXIT_SIGNING = 22
-EXIT_PROJECT = 23
-EXIT_APP_NAME_UNCHANGED = 24
 ANDROID_COMPILE_SDK = 36
 ANDROID_TARGET_SDK = 36
 ANDROID_MIN_SDK = 24
@@ -42,7 +53,6 @@ ANDROID_BUILD_TOOLS = "36.0.0"
 ANDROID_ABI = "arm64-v8a"
 ANDROID_STL = "c++_static"
 ANDROID_ACTIVITY_NAME = "com.ludork.android.LudorkActivity"
-FILE_BUFFER_SIZE = 1024 * 1024
 ANDROID_APP_CATEGORY = "game"
 ANDROID_APP_CATEGORY_VALUE = 0
 ANDROID_SCREEN_ORIENTATION = "sensorLandscape"
@@ -57,38 +67,12 @@ ANDROID_STUDIO_CANDIDATES = (
     pathlib.Path("/Applications/Android Studio.app"),
     pathlib.Path.home() / "Applications" / "Android Studio.app",
 )
-DEFAULT_APP_NAME_PATTERN = re.compile(
-    r"^[ \t]*local[ \t]+APP_NAME[ \t]*=[ \t]*[\"']LudorkSample[\"'][ \t]*(?:--[^\r\n]*)?\r?$",
-    re.MULTILINE,
-)
-TEMPLATE_TOKEN_PATTERN = re.compile(r"__LUDORK_[A-Z0-9_]+__")
 HEX_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 NDK_REVISION_PATTERN = re.compile(
     r"^(?P<numbers>[0-9]+(?:\.[0-9]+){1,3})(?P<suffix>.*)$"
 )
-OPTIONAL_RUNTIME_LEGAL_FILES = (
-    "LICENSE.md",
-    "THIRD_PARTY_NOTICES.md",
-    "THIRD_PARTY_NOTICES_zh_CN.md",
-)
-DEPENDENCY_NAMES = (
-    "flac",
-    "freetype",
-    "harfbuzz",
-    "libssh2",
-    "mbedtls",
-    "ogg",
-    "sheenbidi",
-    "vorbis",
-)
 SIGNING_STORE_PASSWORD_ENVIRONMENT = "LUDORK_ANDROID_STORE_PASSWORD"
 SIGNING_KEY_PASSWORD_ENVIRONMENT = "LUDORK_ANDROID_KEY_PASSWORD"
-
-
-class PackError(RuntimeError):
-    def __init__(self, message: str, exit_code: int = 1) -> None:
-        super().__init__(message)
-        self.exit_code = exit_code
 
 
 @dataclass(frozen=True)
@@ -591,18 +575,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         required = project_dir / relative
         if not required.is_file():
             raise PackError(f"Required Android project file was not found: {required}", EXIT_PROJECT)
-    entry_path = project_dir / "Scripts" / "Entry.lua"
-    if not entry_path.is_file():
-        raise PackError(f"Lua entry script was not found: {entry_path}", EXIT_PROJECT)
-    try:
-        entry_source = entry_path.read_text(encoding="utf-8")
-    except OSError as exception:
-        raise PackError(f"Unable to read {entry_path}: {exception}", EXIT_PROJECT) from exception
-    if DEFAULT_APP_NAME_PATTERN.search(entry_source):
-        raise PackError(
-            "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.",
-            EXIT_APP_NAME_UNCHANGED,
-        )
+    check_app_name(project_dir)
     system_assets = project_dir / "Assets" / "System"
     if not any((system_assets / name).is_file() for name in ("icon.png", "icon.icns")):
         raise PackError(f"Project icon was not found in {system_assets}.", EXIT_PROJECT)
@@ -633,9 +606,9 @@ def read_game_name(project_dir: pathlib.Path) -> str:
 
 def artifact_name(game_name: str) -> str:
     normalized = unicodedata.normalize("NFC", game_name)
-    safe = re.sub(r'[\x00-\x1f\x7f<>:"/\\|?*;]+', "-", normalized)
+    safe = ARTIFACT_NAME_PATTERN.sub("-", normalized)
     safe = re.sub(r"\s+", " ", safe).strip(" .")
-    return (safe[:80].rstrip(" .") or "Ludork Game")
+    return (safe[:ARTIFACT_NAME_MAX_LENGTH].rstrip(" .") or ARTIFACT_NAME_FALLBACK)
 
 
 def application_id(game_name: str) -> str:
@@ -758,7 +731,7 @@ def copy_runtime_resources(context: PackContext) -> None:
     if context.runtime_dir.exists():
         shutil.rmtree(context.runtime_dir)
     context.runtime_dir.mkdir(parents=True)
-    for name in ("Assets", "Data", "Scripts"):
+    for name in RESOURCE_GROUPS:
         shutil.copytree(
             context.project_dir / name,
             context.runtime_dir / name,
@@ -771,7 +744,7 @@ def copy_runtime_resources(context: PackContext) -> None:
             context.runtime_dir / "Licenses",
             ignore=shutil.ignore_patterns(".DS_Store"),
         )
-    for name in OPTIONAL_RUNTIME_LEGAL_FILES:
+    for name in RUNTIME_LEGAL_FILES:
         source = context.project_dir / name
         if source.is_file():
             shutil.copy2(source, context.runtime_dir / name)
@@ -972,12 +945,10 @@ def prepare_gradle_stage(
 def cached_dependency_arguments(project_dir: pathlib.Path) -> list[str]:
     roots = (
         project_dir / "build" / "android" / "_deps",
-        project_dir / "build" / "_deps",
-        project_dir / "build" / "Release" / "_deps",
-        project_dir / "build" / "Debug" / "_deps",
+        *(project_dir / relative for relative in COMMON_DEPENDENCY_CACHE_DIRECTORIES),
     )
     arguments: list[str] = []
-    for name in DEPENDENCY_NAMES:
+    for name in MOBILE_DEPENDENCY_NAMES:
         for root in roots:
             source = root / f"{name}-src"
             if (source / "CMakeLists.txt").is_file():
@@ -1956,8 +1927,6 @@ def main(arguments: list[str] | None = None) -> int:
             packaging_kind = "signed" if signing is not None else "unsigned"
             print(f"Android {packaging_kind} APK packaging check passed.")
             return 0
-        for path in generate_assets(context.project_dir):
-            print(f"Generated UI: {path}")
         context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         copy_runtime_resources(context)
         manifest = create_runtime_manifest(

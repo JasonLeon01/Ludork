@@ -9,6 +9,8 @@ import platform
 import sys
 import tempfile
 
+from .packaging_constants import EDITOR_CACHE_DIRECTORY
+
 
 SOURCE_EXTENSIONS = {
     ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx",
@@ -19,7 +21,7 @@ EXCLUDED_DIRECTORIES = {
     ".git", ".vs", ".idea", ".tools", ".venv", "obj", "dist",
 }
 EXCLUDED_ROOT_DIRECTORIES = {
-    "assets", "data", "scripts", "intermediate", "temp", "cache",
+    "assets", "data", "scripts", "intermediate", EDITOR_CACHE_DIRECTORY.casefold(), "cache",
     "log", "save", "binaries",
 }
 
@@ -109,7 +111,7 @@ def _context(configuration: str) -> dict:
 
 
 def _paths(project: pathlib.Path, configuration: str) -> tuple[pathlib.Path, pathlib.Path]:
-    directory = project / "build"
+    directory = project / EDITOR_CACHE_DIRECTORY
     return (
         directory / f"NativeBuild-{configuration}.json",
         directory / f"NativeBuild-{configuration}.pending.json",

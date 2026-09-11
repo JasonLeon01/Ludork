@@ -72,10 +72,10 @@ absolute_path() {
 
 resolve_script_tools() {
     for candidate in \
-        "$TOOLS_DIR/ScriptTools" \
+        "$TOOLS_DIR/ScriptTools/ScriptTools" \
         "$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
     do
-        if [ -x "$candidate" ]; then
+        if [ -f "$candidate" ] && [ -x "$candidate" ]; then
             printf '%s\n' "$candidate"
             return
         fi

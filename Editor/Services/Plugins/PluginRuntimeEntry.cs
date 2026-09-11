@@ -46,6 +46,8 @@ internal sealed class PluginRuntimeEntry : IDisposable
 
     public IReadOnlyList<IProjectOperationHook> BeforePackHooks { get; set; } = [];
 
+    public IReadOnlyList<IProjectExportHook> BeforeExportHooks { get; set; } = [];
+
     public string Diagnostic
     {
         get
@@ -86,6 +88,7 @@ internal sealed class PluginRuntimeEntry : IDisposable
         TextHintProviders = [];
         BeforeRunHooks = [];
         BeforePackHooks = [];
+        BeforeExportHooks = [];
         LoadContext?.Unload();
         LoadContext = null;
     }

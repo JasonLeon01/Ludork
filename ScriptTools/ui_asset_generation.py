@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import pathlib
 import re
@@ -333,7 +334,7 @@ def _install(
             raise UiAssetError(f"UI generation failed; prior files restored: {exception}") from exception
 
 
-def generate_assets(project_root: pathlib.Path, *, check: bool = False) -> list[str]:
+def _prepare_generation(project_root: pathlib.Path) -> tuple[pathlib.Path, dict[pathlib.Path, bytes], dict[pathlib.Path, bytes | None]]:
     root = project_root.expanduser().resolve()
     if not root.is_dir():
         raise UiAssetError(f"UI project directory does not exist: {root}")
@@ -347,6 +348,7 @@ def generate_assets(project_root: pathlib.Path, *, check: bool = False) -> list[
                 raise UiAssetError(f"UI generation does not follow links: {path}")
         validate_assets(root, structure_only=True)
         assets: dict[str, dict[str, object]] = {}
+        inputs: dict[pathlib.Path, bytes | None] = {}
         case_keys: dict[str, str] = {}
         for path in sorted(assets_root.rglob("*.json")):
             _check_path(root, path.relative_to(root))
@@ -360,6 +362,7 @@ def generate_assets(project_root: pathlib.Path, *, check: bool = False) -> list[
                 raise UiAssetError(f"UI assets conflict on case-insensitive filesystems: {case_keys[folded]}, {asset_key}")
             case_keys[folded] = asset_key
             assets[asset_key] = _load_json(path)
+            inputs[path.relative_to(root)] = path.read_bytes()
         outputs: dict[pathlib.Path, bytes] = {}
         for asset_key in assets:
             runtime, stub = _render(asset_key, assets)
@@ -369,7 +372,34 @@ def generate_assets(project_root: pathlib.Path, *, check: bool = False) -> list[
         outputs.update(window_outputs(root, {
             "Source.UI." + key.replace("/", "."): "Source.UI." + _type_key(key)
             for key in assets
-        }, GENERATED_MARKER))
+        }, GENERATED_MARKER, inputs))
+        return root, outputs, inputs
+    except OSError as exception:
+        raise UiAssetError(f"UI generation could not access project files: {exception}") from exception
+
+
+def generation_manifest(project_root: pathlib.Path) -> dict[str, object]:
+    root, outputs, inputs = _prepare_generation(project_root)
+    output_paths = set(outputs)
+    for relative_root in OUTPUT_ROOTS:
+        _check_path(root, relative_root)
+        for path in (root / relative_root).rglob("*"):
+            if _is_link(path):
+                raise UiAssetError(f"UI generation does not follow links: {path}")
+            if path.is_file():
+                output_paths.add(path.relative_to(root))
+    return {
+        "inputs": {
+            path.as_posix(): hashlib.sha256(data).hexdigest() if data is not None else "missing"
+            for path, data in sorted(inputs.items())
+        },
+        "outputPaths": [path.as_posix() for path in sorted(output_paths)],
+    }
+
+
+def generate_assets(project_root: pathlib.Path, *, check: bool = False) -> list[str]:
+    root, outputs, _ = _prepare_generation(project_root)
+    try:
         changes = _output_changes(root, outputs)
         directory_moves = _case_directory_moves(root, outputs)
         if changes and not check:

@@ -143,9 +143,11 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="ToggleButton.mode">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="48" />
             <Setter Property="Background" Value="#282828" />
             <Setter Property="BorderBrush" Value="#1c1c1c" />
-            <Setter Property="BorderThickness" Value="0,0,1,0" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -154,7 +156,7 @@
         <Style Selector="ToggleButton.mode:checked">
             <Setter Property="Background" Value="#4f5b62" />
             <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
-            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="BorderThickness" Value="0,0,2,0" />
         </Style>
         <Style Selector="Button.runAction">
             <Setter Property="Width" Value="64" />
@@ -283,7 +285,7 @@
                 <Grid x:Name="CenterArea" Grid.Column="2" RowDefinitions="Auto,*">
                     <Grid x:Name="MapEditToolbar"
                           Grid.Row="0"
-                          ColumnDefinitions="*,Auto,Auto"
+                          ColumnDefinitions="*,Auto"
                           Background="{DynamicResource LudorkSurfaceBrush}">
                         <ScrollViewer x:Name="LayerTabsScroll" Grid.Column="0"
                                       Classes="no-auto-hide"
@@ -326,38 +328,16 @@
                             </TabStrip>
                         </ScrollViewer>
 
-                        <Grid x:Name="EditModeToggles"
-                              Grid.Column="1"
-                              ColumnDefinitions="64,64,64"
-                              Height="32"
-                              VerticalAlignment="Top">
-                            <ToggleButton x:Name="TileModeToggle" Grid.Column="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
-                                <Grid RowDefinitions="22,10">
-                                    <Image Grid.Row="0" Width="20" Height="20" Source="{StaticResource EditorImage.ModeTile}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="8" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
-                                </Grid>
-                            </ToggleButton>
-                            <ToggleButton x:Name="LightModeToggle" Grid.Column="1" Classes="mode" Click="onLightModeClick">
-                                <Grid RowDefinitions="22,10">
-                                    <Image Grid.Row="0" Width="20" Height="20" Source="{StaticResource EditorImage.ModeLight}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="8" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
-                                </Grid>
-                            </ToggleButton>
-                            <ToggleButton x:Name="ActorModeToggle" Grid.Column="2" Classes="mode" Click="onActorModeClick">
-                                <Grid RowDefinitions="22,10">
-                                    <Image Grid.Row="0" Width="20" Height="20" Source="{StaticResource EditorImage.ModeActor}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+3, macOS=⌘3}" FontSize="8" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
-                                </Grid>
-                            </ToggleButton>
-                        </Grid>
-
                         <StackPanel x:Name="RunButtons"
-                                    Grid.Column="2"
+                                    Grid.Column="1"
                                     Orientation="Horizontal"
                                     Height="32"
                                     VerticalAlignment="Top">
                             <Button x:Name="ConstructButton" Classes="runAction" IsVisible="False" Click="onConstructClick">
                                 <Image Width="22" Height="22" Source="{StaticResource EditorImage.Construct}" />
+                            </Button>
+                            <Button x:Name="ExportButton" Classes="runAction" Click="onExportClick">
+                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.Export}" />
                             </Button>
                             <Border x:Name="PlayButtonHint" Background="Transparent">
                                 <Button x:Name="PlayButton" Classes="runAction" Click="onPlayClick">
@@ -367,16 +347,43 @@
                         </StackPanel>
                     </Grid>
 
-                    <Grid Grid.Row="1">
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+                        <Grid x:Name="EditModeToggles"
+                              Grid.Column="0"
+                              RowDefinitions="48,48,48"
+                              Width="64"
+                              VerticalAlignment="Top">
+                            <ToggleButton x:Name="TileModeToggle" Grid.Row="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
+                                <Grid RowDefinitions="28,16">
+                                    <Image Grid.Row="0" Width="24" Height="24" Source="{StaticResource EditorImage.ModeTile}" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="12" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
+                                </Grid>
+                            </ToggleButton>
+                            <ToggleButton x:Name="LightModeToggle" Grid.Row="1" Classes="mode" Click="onLightModeClick">
+                                <Grid RowDefinitions="28,16">
+                                    <Image Grid.Row="0" Width="24" Height="24" Source="{StaticResource EditorImage.ModeLight}" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="12" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
+                                </Grid>
+                            </ToggleButton>
+                            <ToggleButton x:Name="ActorModeToggle" Grid.Row="2" Classes="mode" Click="onActorModeClick">
+                                <Grid RowDefinitions="28,16">
+                                    <Image Grid.Row="0" Width="24" Height="24" Source="{StaticResource EditorImage.ModeActor}" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+3, macOS=⌘3}" FontSize="12" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
+                                </Grid>
+                            </ToggleButton>
+                        </Grid>
                         <ScrollViewer x:Name="EditorScroll"
-                                      MinWidth="640"
+                                      Grid.Column="1"
+                                      MinWidth="576"
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto">
                             <controls:MapPanel x:Name="EditorPanel" />
                         </ScrollViewer>
                         <controls:WorldMapPanel x:Name="WorldEditorPanel"
+                                                Grid.Column="1"
                                                 IsVisible="False" />
                         <Border x:Name="GameViewport"
+                                Grid.Column="1"
                                 Background="#000000"
                                 IsVisible="False">
                             <controls:AspectRatioPanel x:Name="GameAspectPanel">

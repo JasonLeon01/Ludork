@@ -22,6 +22,7 @@ public interface IPluginRegistrar
     void RegisterTextHintProvider(ITextHintProvider provider);
     void RegisterBeforeRunHook(IProjectOperationHook hook);
     void RegisterBeforePackHook(IProjectOperationHook hook);
+    void RegisterBeforeExportHook(IProjectExportHook hook);
 }
 
 public interface ITextHintProvider
@@ -33,6 +34,15 @@ public interface IProjectOperationHook
 {
     Task<PluginResult> ExecuteAsync(ProjectOperationContext context);
 }
+
+public interface IProjectExportHook : IProjectOperationHook
+{
+    ProjectExportFiles GetFiles(string projectPath);
+}
+
+public sealed record ProjectExportFiles(
+    IReadOnlyList<string> InputPaths,
+    IReadOnlyList<string> OutputPaths);
 
 public interface IProjectPackaging
 {
@@ -187,6 +197,7 @@ public enum ProjectOperationKind
 {
     Run,
     Pack,
+    Export,
 }
 
 public enum PluginMessageKind

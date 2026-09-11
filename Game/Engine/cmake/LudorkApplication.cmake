@@ -1,12 +1,6 @@
 ludork_add_impl_boundary_validation_target(
     ImplBoundaryValidate
     "${CMAKE_CURRENT_SOURCE_DIR}")
-add_custom_target(UiAssetGenerate
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
-        ui-assets generate "${LUDORK_PROJECT_SOURCE_DIR}"
-    WORKING_DIRECTORY "${LUDORK_PROJECT_SOURCE_DIR}"
-    VERBATIM)
-add_dependencies(ImplBoundaryValidate UiAssetGenerate)
 add_dependencies(Engine ImplBoundaryValidate)
 if(LUDORK_BUILD_UI_PREVIEW_HOST)
     add_dependencies(Engine UiPreviewHost)

@@ -16,6 +16,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from .packaging_constants import EDITOR_CACHE_DIRECTORY
 from .ui_control_registry import (
     UiControlRegistry,
     UiRegistryError,
@@ -28,7 +29,7 @@ from .ui_property_values import UiAssetError
 
 
 PREVIEW_DIRECTORY = pathlib.Path("Binaries")
-METADATA_DIRECTORY = pathlib.Path("Temp")
+METADATA_DIRECTORY = pathlib.Path(EDITOR_CACHE_DIRECTORY)
 MANIFEST_NAME = "UiPreview.json"
 REGISTRY_NAME = "UiPreview.registry.json"
 BUILDING_NAME = "UiPreview.building"
@@ -117,7 +118,7 @@ def _runtime_directory(project: pathlib.Path, value: object) -> pathlib.Path:
         raise UiRegistryError("Preview runtimeDirectory must be a relative directory")
     parts = value.split("/")
     if parts[0].casefold() == METADATA_DIRECTORY.as_posix().casefold():
-        raise UiRegistryError("Preview binaries must not be inside project Temp")
+        raise UiRegistryError(f"Preview binaries must not be inside project {EDITOR_CACHE_DIRECTORY}")
     for part in parts:
         _runtime_files([part])
     return _artifact_root(project, pathlib.Path(*parts))
@@ -349,7 +350,7 @@ def prepare_registry(project: pathlib.Path, script_tools: pathlib.Path) -> pathl
         "build_ui_preview_host.bat" if os.name == "nt" else "build_ui_preview_host.sh"
     )
     candidates = (
-        script_tools.parent / name,
+        script_tools.parent.parent / name,
         script_tools.parent.parent.parent / "tools" / name,
     )
     script = next((path for path in candidates if path.is_file()), None)

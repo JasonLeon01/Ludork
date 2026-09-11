@@ -16,6 +16,7 @@ LUDORK_GLOBAL_API void setDisplayScaleHost(
     DisplayScaleRequestHandler handler);
 LUDORK_GLOBAL_API void clearDisplayScaleHost() noexcept;
 LUDORK_GLOBAL_API bool isDisplayScaleConfigurable();
+LUDORK_GLOBAL_API bool takeDisplayScaleRestoreRequest();
 LUDORK_GLOBAL_API std::optional<sf::Vector2u> getMaximumWindowedSize();
 LUDORK_GLOBAL_API void requestDisplayScale(float scale,
                                            const sf::Vector2u& gameSize);

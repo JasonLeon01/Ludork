@@ -14,6 +14,8 @@ from dataclasses import dataclass
 
 from PIL import Image
 
+from .packaging_constants import EDITOR_CACHE_DIRECTORY
+
 
 @dataclass(frozen=True)
 class KeyFrame:
@@ -264,7 +266,7 @@ def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ScriptTools animation-mp4", description="Export Ludork source animation JSON to H.264/AAC MP4.")
     parser.add_argument("project", nargs="?", type=pathlib.Path, default=pathlib.Path("Game"))
     parser.add_argument("--input", type=pathlib.Path, help="JSON file or directory; default: <project>/Data/Animations")
-    parser.add_argument("--output", type=pathlib.Path, help="MP4 file for a single input, or output directory; default: <project>/Temp/AnimationMp4")
+    parser.add_argument("--output", type=pathlib.Path, help=f"MP4 file for a single input, or output directory; default: <project>/{EDITOR_CACHE_DIRECTORY}/AnimationMp4")
     parser.add_argument("--ffmpeg", help="FFmpeg executable with libx264/AAC; default: PATH, then .tools/ffmpeg/ffmpeg[.exe]")
     parser.add_argument("--size", help="Even WIDTHxHEIGHT; default: fit all frames around the animation origin")
     parser.add_argument("--background", default="#000000", help="Opaque #RRGGBB background (default: black)")
@@ -289,7 +291,7 @@ def main(arguments: list[str] | None = None) -> int:
         if not ffmpeg:
             raise ValueError("FFmpeg was not found. Install an FFmpeg build with libx264/AAC and add it to PATH, or pass --ffmpeg <executable>.")
         source = (parsed.input or project / "Data" / "Animations").resolve()
-        output = (parsed.output or project / "Temp" / "AnimationMp4").resolve()
+        output = (parsed.output or project / EDITOR_CACHE_DIRECTORY / "AnimationMp4").resolve()
         if source.is_file():
             sources = [source]
         elif source.is_dir():

@@ -15,32 +15,38 @@ import unicodedata
 import zipfile
 from dataclasses import dataclass, replace
 
-from .ui_asset_generation import generate_assets
+from .pack_error import PackError
+from .packaging_constants import (
+    ARTIFACT_NAME_FALLBACK,
+    ARTIFACT_NAME_MAX_LENGTH,
+    ARTIFACT_NAME_PATTERN,
+    COMMON_DEPENDENCY_CACHE_DIRECTORIES,
+    EXIT_DEVICE,
+    EXIT_PROJECT,
+    EXIT_SIGNING,
+    EXIT_TOOLCHAIN,
+    FILE_BUFFER_SIZE,
+    MOBILE_DEPENDENCY_NAMES,
+    RESOURCE_GROUPS,
+    RESOURCE_PACKAGES,
+    RUNTIME_LEGAL_FILES,
+    TEMPLATE_TOKEN_PATTERN,
+    check_app_name,
+)
 from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.ui_preview import prepare_registry
 from ScriptTools.finalize_package import finalize_package
 from ScriptTools.ldpak import (
     LdPakError,
-    RESOURCE_PACKAGES,
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
     validate_runtime_resource_paths,
 )
 
 
-EXIT_TOOLCHAIN = 20
-EXIT_DEVICE = 21
-EXIT_SIGNING = 22
-EXIT_PROJECT = 23
-EXIT_APP_NAME_UNCHANGED = 24
-DEFAULT_APP_NAME_PATTERN = re.compile(
-    r"^[ \t]*local[ \t]+APP_NAME[ \t]*=[ \t]*[\"']LudorkSample[\"'][ \t]*(?:--[^\r\n]*)?\r?$",
-    re.MULTILINE,
-)
 DEVECO_APP = pathlib.Path("/Applications/DevEco-Studio.app")
 RUNTIME_ARCHIVE_NAME = "ludork-runtime.zip"
-FILE_BUFFER_SIZE = 1024 * 1024
 HARMONY_SDK_VERSION = "6.0.2(22)"
 HARMONY_COMPATIBLE_API = 22
 HARMONY_COMPILER_TARGET = "aarch64-linux-ohos22.0.0"
@@ -50,7 +56,6 @@ BUNDLE_NAME_PATTERN = re.compile(
     r"^[A-Za-z](?:[A-Za-z0-9_]*[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9_]*[A-Za-z0-9])?){2,}$"
 )
-TEMPLATE_TOKEN_PATTERN = re.compile(r"__LUDORK_[A-Z0-9_]+__")
 SIGNING_MATERIAL_FIELDS = (
     "storeFile",
     "storePassword",
@@ -99,12 +104,6 @@ SIGNING_MATERIAL_PATH_PATTERN = re.compile(
     r"\S+\.(?:p12|p7b|cer|pem|jks|keystore))"
 )
 DEVICE_IDENTIFIER_PATTERN = re.compile(r"(?i)\b[0-9a-f]{64}\b")
-
-
-class PackError(RuntimeError):
-    def __init__(self, message: str, exit_code: int) -> None:
-        super().__init__(message)
-        self.exit_code = exit_code
 
 
 @dataclass(frozen=True)
@@ -272,18 +271,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         path = project_dir / path_name
         if not path.is_file():
             raise PackError(f"Required HarmonyOS project file was not found: {path}", EXIT_PROJECT)
-    entry_path = project_dir / "Scripts" / "Entry.lua"
-    if not entry_path.is_file():
-        raise PackError(f"Lua entry script was not found: {entry_path}", EXIT_PROJECT)
-    try:
-        entry_source = entry_path.read_text(encoding="utf-8")
-    except OSError as exception:
-        raise PackError(f"Unable to read {entry_path}: {exception}", EXIT_PROJECT) from exception
-    if DEFAULT_APP_NAME_PATTERN.search(entry_source):
-        raise PackError(
-            "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.",
-            EXIT_APP_NAME_UNCHANGED,
-        )
+    check_app_name(project_dir)
     if project_data.get("ffmpeg") is True:
         for path in (
             project_dir / "Engine" / "ThirdParty" / "ffmpeg" / "configure",
@@ -315,9 +303,9 @@ def read_game_name(project_dir: pathlib.Path) -> str:
 
 def safe_artifact_name(game_name: str) -> str:
     normalized = unicodedata.normalize("NFC", game_name)
-    safe = re.sub(r"[\x00-\x1f\x7f<>:\"/\\|?*;]+", "-", normalized)
+    safe = ARTIFACT_NAME_PATTERN.sub("-", normalized)
     safe = re.sub(r"\s+", " ", safe).strip(" .")
-    return (safe[:80].rstrip(" .") or "Ludork Game")
+    return (safe[:ARTIFACT_NAME_MAX_LENGTH].rstrip(" .") or ARTIFACT_NAME_FALLBACK)
 
 
 def harmony_bundle_name(game_name: str) -> str:
@@ -568,7 +556,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
-    for name in ("Assets", "Data", "Scripts"):
+    for name in RESOURCE_GROUPS:
         shutil.copytree(
             context.project_dir / name,
             destination / name,
@@ -581,7 +569,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
             destination / "Licenses",
             ignore=shutil.ignore_patterns(".DS_Store"),
         )
-    for name in ("LICENSE.md", "THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES_zh_CN.md"):
+    for name in RUNTIME_LEGAL_FILES:
         source = context.project_dir / name
         if source.is_file():
             shutil.copy2(source, destination / name)
@@ -726,14 +714,11 @@ def cmake_bracket_literal(value: str) -> str:
 
 
 def cached_dependency_sources(project_dir: pathlib.Path) -> dict[str, pathlib.Path]:
-    names = ("flac", "freetype", "harfbuzz", "libssh2", "mbedtls", "ogg", "sheenbidi", "vorbis")
     roots = (
-        project_dir / "build" / "_deps",
-        project_dir / "build" / "Release" / "_deps",
-        project_dir / "build" / "Debug" / "_deps",
+        *(project_dir / relative for relative in COMMON_DEPENDENCY_CACHE_DIRECTORIES),
     )
     result: dict[str, pathlib.Path] = {}
-    for name in names:
+    for name in MOBILE_DEPENDENCY_NAMES:
         for root in roots:
             source = root / f"{name}-src"
             if (source / "CMakeLists.txt").is_file():
@@ -2423,8 +2408,6 @@ def main(arguments: list[str] | None = None) -> int:
                 f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed."
             )
             return 0
-        for path in generate_assets(context.project_dir):
-            print(f"Generated UI: {path}")
         context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         if parsed.export_to_device:
             if device is None:

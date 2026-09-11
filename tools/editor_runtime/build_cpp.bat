@@ -23,7 +23,7 @@ if not exist "%CPP_DIR%\Main.proj" (
     exit /b 1
 )
 
-set "SCRIPT_TOOLS=%~dp0ScriptTools.exe"
+set "SCRIPT_TOOLS=%~dp0ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" if exist "%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe" (
     set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 )

@@ -9,6 +9,7 @@ namespace {
 std::mutex hostMutex;
 DisplayScaleRequestHandler displayScaleRequestHandler;
 bool displayScaleConfigurable = false;
+bool displayScaleRestorePending = false;
 std::optional<sf::Vector2u> maximumWindowedSize;
 
 }  // namespace
@@ -18,6 +19,7 @@ void setDisplayScaleHost(bool configurable,
                          DisplayScaleRequestHandler handler) {
     const std::lock_guard<std::mutex> lock(hostMutex);
     displayScaleConfigurable = configurable && static_cast<bool>(handler);
+    displayScaleRestorePending = displayScaleConfigurable;
     maximumWindowedSize =
         displayScaleConfigurable && hostMaximumWindowedSize.x > 0 &&
                 hostMaximumWindowedSize.y > 0
@@ -31,6 +33,7 @@ void setDisplayScaleHost(bool configurable,
 void clearDisplayScaleHost() noexcept {
     const std::lock_guard<std::mutex> lock(hostMutex);
     displayScaleConfigurable = false;
+    displayScaleRestorePending = false;
     maximumWindowedSize.reset();
     displayScaleRequestHandler = {};
 }
@@ -39,6 +42,11 @@ bool isDisplayScaleConfigurable() {
     const std::lock_guard<std::mutex> lock(hostMutex);
     return displayScaleConfigurable &&
            static_cast<bool>(displayScaleRequestHandler);
+}
+
+bool takeDisplayScaleRestoreRequest() {
+    const std::lock_guard<std::mutex> lock(hostMutex);
+    return std::exchange(displayScaleRestorePending, false);
 }
 
 std::optional<sf::Vector2u> getMaximumWindowedSize() {
@@ -53,6 +61,7 @@ void requestDisplayScale(float scale, const sf::Vector2u& gameSize) {
         if (!displayScaleConfigurable || !displayScaleRequestHandler) {
             return;
         }
+        displayScaleRestorePending = false;
         handler = displayScaleRequestHandler;
     }
     handler(scale, gameSize);

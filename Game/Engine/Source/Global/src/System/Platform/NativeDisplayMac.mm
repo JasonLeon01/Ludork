@@ -1,5 +1,6 @@
 #include "NativeDisplay.hpp"
 
+#include <SFML/Window/WindowEnums.hpp>
 #import <AppKit/AppKit.h>
 #include <algorithm>
 #include <cmath>
@@ -34,14 +35,21 @@ std::optional<unsigned int> unsignedSize(CGFloat value) noexcept {
 }
 
 std::optional<sf::Vector2u> maximumClientSizeForScreen(
-    NSScreen* screen) noexcept {
+    NSScreen* screen, std::uint32_t windowStyle) noexcept {
     if (screen == nil) {
         return std::nullopt;
     }
     const NSRect visibleFrame = [screen visibleFrame];
-    const NSWindowStyleMask style =
-        NSWindowStyleMaskTitled | NSWindowStyleMaskMiniaturizable |
-        NSWindowStyleMaskResizable | NSWindowStyleMaskClosable;
+    NSWindowStyleMask style = NSWindowStyleMaskBorderless;
+    if (windowStyle & sf::Style::Titlebar) {
+        style |= NSWindowStyleMaskTitled | NSWindowStyleMaskMiniaturizable;
+    }
+    if (windowStyle & sf::Style::Resize) {
+        style |= NSWindowStyleMaskResizable;
+    }
+    if (windowStyle & sf::Style::Close) {
+        style |= NSWindowStyleMaskClosable;
+    }
     const NSRect contentRect = [NSWindow
         contentRectForFrameRect:NSMakeRect(0.0, 0.0, visibleFrame.size.width,
                                            visibleFrame.size.height)
@@ -59,12 +67,12 @@ std::optional<sf::Vector2u> maximumClientSizeForScreen(
 }  // namespace
 
 std::optional<sf::Vector2u> getMaximumWindowedClientSize(
-    sf::WindowHandle windowHandle) noexcept {
+    sf::WindowHandle windowHandle, std::uint32_t windowStyle) noexcept {
     @autoreleasepool {
         NSWindow* window = windowForHandle(windowHandle);
         NSScreen* screen =
             window != nil ? [window screen] : [NSScreen mainScreen];
-        return maximumClientSizeForScreen(screen);
+        return maximumClientSizeForScreen(screen, windowStyle);
     }
 }
 

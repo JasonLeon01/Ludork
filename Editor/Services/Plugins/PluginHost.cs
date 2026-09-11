@@ -97,6 +97,16 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
                     hook)))
             .ToArray();
 
+    public IReadOnlyList<RegisteredProjectOperationHook> BeforeExportHooks =>
+        runtimePlugins
+            .Where(plugin => plugin.Status == PluginRuntimeStatus.Loaded)
+            .SelectMany(plugin => plugin.BeforeExportHooks.Select(hook =>
+                new RegisteredProjectOperationHook(
+                    plugin.RegistryEntry.Id,
+                    plugin.Name,
+                    hook)))
+            .ToArray();
+
     public bool HasStartupFailures =>
         Management.RegistryDiagnostic.Length != 0
         || Management.StartupDiagnostics.Count != 0
@@ -178,6 +188,48 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         return null;
     }
 
+    public IReadOnlyList<ProjectExportParticipant> GetExportParticipants(string projectPath)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        List<ProjectExportParticipant> participants = [];
+        foreach (PluginRuntimeEntry plugin in runtimePlugins)
+        {
+            if (plugin.Status != PluginRuntimeStatus.Loaded)
+                continue;
+            foreach (IProjectExportHook hook in plugin.BeforeExportHooks)
+            {
+                try
+                {
+                    ProjectExportFiles files = hook.GetFiles(projectPath);
+                    if (files is null || files.InputPaths is null || files.OutputPaths is null
+                        || files.InputPaths.Any(string.IsNullOrWhiteSpace)
+                        || files.OutputPaths.Any(string.IsNullOrWhiteSpace))
+                    {
+                        throw new InvalidDataException("Export hooks must declare non-null file lists with non-empty paths.");
+                    }
+                    Type hookType = hook.GetType();
+                    string identity = string.Join(":",
+                        plugin.RegistryEntry.Id,
+                        plugin.Version,
+                        hookType.FullName ?? hookType.Name,
+                        hookType.Assembly.ManifestModule.ModuleVersionId.ToString("D"));
+                    participants.Add(new ProjectExportParticipant(identity, files));
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    string message = $"[{plugin.Name}] Export file declaration failed: {formatException(exception)}";
+                    plugin.AddDiagnostic(message);
+                    throw new InvalidDataException(message, exception);
+                }
+            }
+        }
+        return participants;
+    }
+
     public async Task<PluginResult> ExecuteBeforeProjectOperationAsync(
         ProjectOperationContext context)
     {
@@ -186,6 +238,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         {
             ProjectOperationKind.Run => BeforeRunHooks,
             ProjectOperationKind.Pack => BeforePackHooks,
+            ProjectOperationKind.Export => BeforeExportHooks,
             _ => [],
         };
         foreach (RegisteredProjectOperationHook registration in hooks)
@@ -316,6 +369,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
             runtime.TextHintProviders = registrar.TextHintProviders;
             runtime.BeforeRunHooks = registrar.BeforeRunHooks;
             runtime.BeforePackHooks = registrar.BeforePackHooks;
+            runtime.BeforeExportHooks = registrar.BeforeExportHooks;
             runtime.Status = PluginRuntimeStatus.Loaded;
             compilation = null;
             return runtime;

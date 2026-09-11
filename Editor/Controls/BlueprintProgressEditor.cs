@@ -25,15 +25,15 @@ internal sealed class BlueprintProgressEditor : Grid
         slider.Maximum = stepCount;
         slider.SmallChange = 1;
         slider.LargeChange = Math.Max(1, Math.Min(10, stepCount / 10));
+        slider.MinWidth = 96;
 
         decimal minimum = toDecimal(range.Minimum);
         decimal maximum = toDecimal(range.Maximum);
         decimal increment = Math.Max(0.000001m, toDecimal(range.Step));
         number = EditorInputs.CreateNumericUpDown(0, minimum, maximum, increment, stretch: false);
-        number.Width = 96;
         number.FormatString = createFormatString(range.Step);
 
-        ColumnDefinitions = new ColumnDefinitions("*,96");
+        ColumnDefinitions = new ColumnDefinitions("*,Auto");
         ColumnSpacing = 6;
         Children.Add(slider);
         Grid.SetColumn(number, 1);

@@ -26,8 +26,8 @@ public sealed class OfficialLocaleToolsPlugin : IEditorPlugin
 
         registrar.RegisterMenuCommand(openWorkbookCommand);
         registrar.RegisterTextHintProvider(textHintProvider);
-        registrar.RegisterBeforeRunHook(exportHook);
-        registrar.RegisterBeforePackHook(exportHook);
+        registrar.RegisterBeforeExportHook(exportHook);
+        registrar.RegisterBeforePackHook(new LocalePackHook());
     }
 
     private static async Task<PluginResult> OpenWorkbookAsync(

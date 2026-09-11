@@ -16,7 +16,6 @@ ENVIRONMENT_INPUTS = (
     "patches/luasf-value-copy.patch",
     "tools/setup_python.*",
     "tools/build_script_tools.*",
-    "tools/script_tools_hash.ps1",
     "tools/init_cpp_dependencies.*",
     "tools/init_ffmpeg_source.*",
     "tools/init_gnu_make.*",
@@ -53,6 +52,7 @@ MANAGED_INPUTS = (
     "tools/pack_editor.*",
     "Game/Engine/Source/Core/include/EngineState.hpp",
     "ScriptTools/engine_constants.py",
+    "ScriptTools/packaging_constants.py",
 )
 LAUNCHER_INPUTS = (
     "tools/editor_launcher/*",

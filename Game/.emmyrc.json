@@ -11,7 +11,7 @@
             "dist",
             "Log",
             "obj",
-            "Temp",
+            "EditorCache",
             "ThirdPartySource",
             "Engine/ThirdParty",
             "Intermediate"

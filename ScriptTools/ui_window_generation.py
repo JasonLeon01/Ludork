@@ -290,7 +290,12 @@ def _render(path: pathlib.Path, text: str, relative: pathlib.Path,
     return _format_annotations(lines)
 
 
-def window_outputs(project_root: pathlib.Path, view_types: dict[str, str], marker: str) -> dict[pathlib.Path, bytes]:
+def window_outputs(
+    project_root: pathlib.Path,
+    view_types: dict[str, str],
+    marker: str,
+    inputs: dict[pathlib.Path, bytes | None],
+) -> dict[pathlib.Path, bytes]:
     scripts = project_root / "Scripts"
     source = scripts / "Source"
     outputs: dict[pathlib.Path, bytes] = {}
@@ -325,6 +330,8 @@ def window_outputs(project_root: pathlib.Path, view_types: dict[str, str], marke
             target = item if item.is_absolute() else project_root / item
             if _is_link(target):
                 raise UiAssetError(f"UI generation does not follow links: {target}")
+        inputs[path.relative_to(project_root)] = path.read_bytes()
+        inputs[stub.relative_to(project_root)] = stub.read_bytes() if stub.is_file() else None
         content = _render(path, text, relative, tokens, arguments, references, view_types, marker, stub)
         window_type = re.search(r"^---@class ([\w.]+):", content, re.MULTILINE)[1]
         if window_type in window_types or window_type in view_types.values():

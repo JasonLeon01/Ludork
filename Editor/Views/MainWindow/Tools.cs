@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views;
@@ -128,13 +129,34 @@ public partial class MainWindow
             return;
         }
 
-        ProjectPackService packService = new(ProjectPath);
+        if (projectRunner is null)
+            return;
+        using CancellationTokenSource cancellation = new();
+        projectLaunchCancellation = cancellation;
+        projectLaunchPending = true;
+        TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        projectOperationCompletion = completion;
+        setProjectRunState(ProjectRunState.Packing);
         PackLogDialog logDialog = new();
+        ProjectPackService packService = new(ProjectPath,
+            (writeOutput, token) => EditorExportWorkflow.ExportAsync(
+                logDialog, viewModel.ProjectSave, projectRunner.ExportState, writeOutput, token));
         packLogDialog = logDialog;
         packService.OutputReceived += (_, text) => logDialog.AppendLog(text);
         Task closed = logDialog.ShowDialog(this);
-        ProjectPackResult result = await packService.PackAsync(options);
-        logDialog.Finish(result);
+        try
+        {
+            ProjectPackResult result = await packService.PackAsync(options, cancellation.Token);
+            logDialog.Finish(result);
+        }
+        finally
+        {
+            projectLaunchPending = false;
+            projectLaunchCancellation = null;
+            setProjectRunState(ProjectRunState.Idle);
+            projectOperationCompletion = null;
+            completion.TrySetResult();
+        }
         await closed;
         packLogDialog = null;
     }

@@ -61,6 +61,7 @@
   <ItemGroup>
     <ProjectReference Include="Editor\Ludork.Plugin.Abstractions\Ludork.Plugin.Abstractions.csproj" />
     <ProjectReference Include="Editor\Ludork.Plugin.Avalonia\Ludork.Plugin.Avalonia.csproj" />
+    <PackageReference Include="Svg.Controls.Avalonia" Version="12.0.0.17" />
     <PackageReference Include="Avalonia" Version="12.1.0" />
     <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.0" />
@@ -81,14 +82,15 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <LudorkScriptTools>$(MSBuildProjectDirectory)/.tools/ScriptTools/ScriptTools</LudorkScriptTools>
+    <LudorkScriptTools Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(LudorkScriptTools).exe</LudorkScriptTools>
+  </PropertyGroup>
+
   <Target
       Name="GenerateEngineConstants"
       Inputs="$(MSBuildProjectDirectory)/Game/Engine/Source/Core/include/EngineState.hpp;$(MSBuildProjectDirectory)/ScriptTools/engine_constants.py;$(MSBuildProjectFullPath)"
       Outputs="$(IntermediateOutputPath)EngineConstants.g.cs">
-    <PropertyGroup>
-      <LudorkScriptTools>$(MSBuildProjectDirectory)/.tools/ScriptTools/ScriptTools</LudorkScriptTools>
-      <LudorkScriptTools Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(LudorkScriptTools).exe</LudorkScriptTools>
-    </PropertyGroup>
     <Error Condition="!Exists('$(LudorkScriptTools)')" Text="ScriptTools was not found. Run tools/init for this platform first." />
     <Exec Command="&quot;$(LudorkScriptTools)&quot; engine-constants &quot;$(MSBuildProjectDirectory)/Game/Engine/Source/Core/include/EngineState.hpp&quot; &quot;$(IntermediateOutputPath)EngineConstants.g.cs&quot;" />
     <ItemGroup>
@@ -102,6 +104,26 @@
       DependsOnTargets="GenerateEngineConstants">
     <ItemGroup>
       <Compile Include="$(IntermediateOutputPath)EngineConstants.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target
+      Name="GenerateProjectToolConstants"
+      DependsOnTargets="GenerateEngineConstants"
+      Inputs="$(MSBuildProjectDirectory)/ScriptTools/packaging_constants.py;$(MSBuildProjectFullPath)"
+      Outputs="$(IntermediateOutputPath)ProjectToolConstants.g.cs">
+    <Exec Command="&quot;$(LudorkScriptTools)&quot; packaging-constants csharp &quot;$(IntermediateOutputPath)ProjectToolConstants.g.cs&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(IntermediateOutputPath)ProjectToolConstants.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target
+      Name="IncludeProjectToolConstants"
+      BeforeTargets="BeforeCompile"
+      DependsOnTargets="GenerateProjectToolConstants">
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)ProjectToolConstants.g.cs" />
     </ItemGroup>
   </Target>
 

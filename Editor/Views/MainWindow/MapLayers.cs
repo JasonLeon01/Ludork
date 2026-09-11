@@ -406,11 +406,28 @@ public partial class MainWindow
 
     private async void onClosing(object? sender, WindowClosingEventArgs args)
     {
-        viewModel?.ProjectSave.FlushPendingChanges();
         if (closeConfirmed)
             return;
-        if (projectLaunchPending)
+        if (projectLaunchPending && projectOperationCompletion is not null)
+        {
+            args.Cancel = true;
+            if (closingPrompt)
+                return;
+            closingPrompt = true;
+            Task completion = projectOperationCompletion.Task;
             projectLaunchCancellation?.Cancel();
+            if (projectRunner is not null && projectRunner.State != ProjectRunState.Idle)
+            {
+                long generation = projectRunner.RunGeneration;
+                await projectRunner.SetPerformanceMonitoringAsync(false, generation);
+                await projectRunner.StopAsync(generation);
+            }
+            await completion;
+            closingPrompt = false;
+            Close();
+            return;
+        }
+        viewModel?.ProjectSave.FlushPendingChanges();
         bool hasRunningProject = projectRunner is not null
             && projectRunner.State != ProjectRunState.Idle;
         if (viewModel?.IsModified != true && !hasRunningProject)
@@ -461,6 +478,7 @@ public partial class MainWindow
         {
             if (viewModel?.ProjectConfig.IsStandalone == false)
                 projectRunner.NativeBuildState.Changed -= onNativeBuildStateChanged;
+            projectRunner.ExportState.Changed -= onExportStateChanged;
             projectRunner.OutputReceived -= onProjectOutputReceived;
             projectRunner.StateChanged -= onProjectRunStateChanged;
             projectRunner.CommandAvailabilityChanged -= onCommandAvailabilityChanged;

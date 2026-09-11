@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
+from .packaging_constants import FILE_BUFFER_SIZE, PACKAGE_CACHE_DIRECTORIES, RESOURCE_GROUPS, RESOURCE_PACKAGES, SCRIPT_GROUP
 from .ui_preview import is_preview_development_file
 
 
@@ -22,10 +23,6 @@ DIRECTORY_FLAG = 1
 ALIGNMENT = 8
 HEADER = struct.Struct("<4sHHIIQQII")
 ENTRY = struct.Struct("<IIQQII")
-BUFFER_SIZE = 1024 * 1024
-SCRIPT_GROUP = "Scripts"
-RESOURCE_GROUPS = ("Assets", "Data", SCRIPT_GROUP)
-RESOURCE_PACKAGES = tuple(f"{name}.ldpak" for name in RESOURCE_GROUPS)
 SCRIPT_ENTRY_PATHS = ("Entry.lua", "Entry.luac")
 
 
@@ -220,7 +217,7 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
                 data_size = 0
                 data_crc32 = 0
                 with entry.source_path.open("rb") as source:
-                    while chunk := source.read(BUFFER_SIZE):
+                    while chunk := source.read(FILE_BUFFER_SIZE):
                         stream.write(chunk)
                         data_size += len(chunk)
                         data_crc32 = zlib.crc32(chunk, data_crc32)
@@ -294,7 +291,7 @@ def _require_zero_bytes(
     while remaining:
         chunk = _read_exact(
             stream,
-            min(remaining, BUFFER_SIZE),
+            min(remaining, FILE_BUFFER_SIZE),
             description,
         )
         if any(chunk):
@@ -486,7 +483,7 @@ def _validate_ldpak_entries(
             while remaining:
                 chunk = _read_exact(
                     stream,
-                    min(remaining, BUFFER_SIZE),
+                    min(remaining, FILE_BUFFER_SIZE),
                     f"file data for {entry.relative_path}",
                 )
                 checksum = zlib.crc32(chunk, checksum)
@@ -647,7 +644,7 @@ def validate_runtime_resource_paths(
     use_ldpak = any(name in paths for name in RESOURCE_PACKAGES)
     if expected_use_ldpak is not None and use_ldpak != expected_use_ldpak:
         raise LdPakError("Runtime has the wrong loose/packed resource layout")
-    for directory in ("Temp", "Cache"):
+    for directory in PACKAGE_CACHE_DIRECTORIES:
         if any(name == directory or name.startswith(directory + "/") for name in names):
             raise LdPakError(
                 f"Runtime must not contain the project root {directory} directory"

@@ -12,14 +12,24 @@ import sys
 import unicodedata
 import zipfile
 
+from .pack_error import PackError
+from .packaging_constants import (
+    ARTIFACT_NAME_FALLBACK,
+    ARTIFACT_NAME_MAX_LENGTH,
+    ARTIFACT_NAME_PATTERN,
+    COMMON_DEPENDENCY_CACHE_DIRECTORIES,
+    EXIT_PROJECT,
+    EXIT_TOOLCHAIN,
+    MOBILE_DEPENDENCY_NAMES,
+    RESOURCE_GROUPS,
+    check_app_name,
+)
 from .compile_lua import resolve_luac
-from .ui_asset_generation import generate_assets
 from .ui_property_values import UiAssetError
 from .ui_preview import prepare_registry
 from .finalize_package import finalize_package
 from .ldpak import (
     LdPakError,
-    RESOURCE_GROUPS,
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
 )
@@ -28,10 +38,6 @@ from .ios_device import install_and_launch as install_and_launch_on_device
 from .ios_device import require_device_tools
 from .ios_device import requires_developer_trust
 from .ios_device import select_iphone
-from .ios_toolchain import EXIT_APP_NAME_UNCHANGED
-from .ios_toolchain import EXIT_PROJECT
-from .ios_toolchain import EXIT_TOOLCHAIN
-from .ios_toolchain import PackError
 from .ios_toolchain import choose_team_id
 from .ios_toolchain import require_cmake
 from .ios_toolchain import require_xcode_tools
@@ -41,12 +47,6 @@ from .ios_toolchain import run_capture
 from .ios_toolchain import run_streaming
 from .ios_toolchain import select_team_id
 from .ios_toolchain import xcode_account_team_ids
-
-
-DEFAULT_APP_NAME_PATTERN = re.compile(
-    r"""^[ \t]*local[ \t]+APP_NAME[ \t]*=[ \t]*["']LudorkSample["'][ \t]*(?:--[^\r\n]*)?\r?$""",
-    re.MULTILINE,
-)
 
 
 class PackContext:
@@ -144,21 +144,7 @@ def resolve_project(project_folder: str) -> pathlib.Path:
                 f"Required iOS project folder was not found: {directory}",
                 EXIT_PROJECT,
             )
-    entry_path = project_dir / "Scripts" / "Entry.lua"
-    if not entry_path.is_file():
-        raise PackError(f"Lua entry script was not found: {entry_path}", EXIT_PROJECT)
-    try:
-        entry_source = entry_path.read_text(encoding="utf-8")
-    except OSError as exception:
-        raise PackError(
-            f"Unable to read Lua entry script: {exception}",
-            EXIT_PROJECT,
-        ) from exception
-    if DEFAULT_APP_NAME_PATTERN.search(entry_source):
-        raise PackError(
-            "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.",
-            EXIT_APP_NAME_UNCHANGED,
-        )
+    check_app_name(project_dir)
     system_assets = project_dir / "Assets" / "System"
     if not any(
         (system_assets / icon_name).is_file()
@@ -199,11 +185,11 @@ def read_game_name(project_dir: pathlib.Path) -> str:
 
 def artifact_name(game_name: str) -> str:
     normalized = unicodedata.normalize("NFC", game_name)
-    safe = re.sub(r"[\x00-\x1f\x7f<>:\"/\\|?*;]+", "-", normalized)
+    safe = ARTIFACT_NAME_PATTERN.sub("-", normalized)
     safe = re.sub(r"\s+", " ", safe).strip(" .")
     if not safe:
-        safe = "Ludork Game"
-    return safe[:80].rstrip(" .") or "Ludork Game"
+        safe = ARTIFACT_NAME_FALLBACK
+    return safe[:ARTIFACT_NAME_MAX_LENGTH].rstrip(" .") or ARTIFACT_NAME_FALLBACK
 
 
 def bundle_identifier(team_id: str, game_name: str) -> str:
@@ -325,24 +311,12 @@ def create_app_icon(context: PackContext, path: pathlib.Path) -> None:
 
 
 def cached_dependency_arguments(project_dir: pathlib.Path) -> list[str]:
-    dependency_names = (
-        "flac",
-        "freetype",
-        "harfbuzz",
-        "libssh2",
-        "mbedtls",
-        "ogg",
-        "sheenbidi",
-        "vorbis",
-    )
     cache_roots = (
         project_dir / "build" / "ios" / "_deps",
-        project_dir / "build" / "_deps",
-        project_dir / "build" / "Release" / "_deps",
-        project_dir / "build" / "Debug" / "_deps",
+        *(project_dir / relative for relative in COMMON_DEPENDENCY_CACHE_DIRECTORIES),
     )
     arguments: list[str] = []
-    for dependency_name in dependency_names:
+    for dependency_name in MOBILE_DEPENDENCY_NAMES:
         for cache_root in cache_roots:
             source_dir = cache_root / f"{dependency_name}-src"
             if (source_dir / "CMakeLists.txt").is_file():
@@ -398,7 +372,7 @@ def copy_runtime_resources(
         validate_ldpak_source(context.project_dir)
     if resources_dir.exists():
         shutil.rmtree(resources_dir)
-    for directory_name in ("Assets", "Data", "Scripts"):
+    for directory_name in RESOURCE_GROUPS:
         shutil.copytree(
             context.project_dir / directory_name,
             resources_dir / directory_name,
@@ -606,8 +580,6 @@ def main(arguments: list[str] | None = None) -> int:
         if arguments.check:
             print("iOS packaging prerequisites are ready.", flush=True)
             return 0
-        for path in generate_assets(context.project_dir):
-            print(f"Generated UI: {path}", flush=True)
         app_path = configure_and_build(context, device)
         verify_app(context, app_path)
         create_ipa(context, app_path)

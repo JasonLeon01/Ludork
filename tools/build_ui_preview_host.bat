@@ -13,7 +13,7 @@ if not exist "%PROJECT_DIR%\CMakeLists.txt" (
     echo CMakeLists.txt was not found: %PROJECT_DIR%
     exit /b 1
 )
-set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 set "GNU_MAKE=%TOOLS_DIR%\gnu-make\gnumake.exe"
 if not exist "%GNU_MAKE%" set "GNU_MAKE=%ROOT_DIR%\.tools\gnu-make\gnumake.exe"

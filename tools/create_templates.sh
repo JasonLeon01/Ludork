@@ -47,13 +47,16 @@ if [ -n "$OUTPUT_FOLDER" ]; then
 else
     TEMPLATES_DIR="$PROJECT_ROOT/Templates"
 fi
-CPP_TEMPLATE_DIR="$TEMPLATES_DIR/Cpp"
-STANDALONE_TEMPLATE_DIR="$TEMPLATES_DIR/Standalone"
-CPP_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/Cpp-ffmpeg"
-STANDALONE_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/Standalone-ffmpeg"
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
-# CMake publishes these seven files; all other Scripts content comes from Game.
-GENERATED_SCRIPTS="stub/Engine.d.lua stub/GlobalCore.d.lua stub/GlobalFunctions.d.lua stub/LuaSF.d.lua Engine_meta.lua GlobalCore_meta.lua GlobalFunctions_meta.lua"
+EDITOR_CACHE_DIRECTORY=$("$SCRIPT_TOOLS" packaging-constants list editor-cache-directory --separator space)
+GENERATED_SCRIPTS=$("$SCRIPT_TOOLS" packaging-constants list native-lua-files --separator space)
+RUNTIME_LEGAL_FILES=$("$SCRIPT_TOOLS" packaging-constants list runtime-legal-files --separator space)
+TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list template-names --separator space)
+set -- $TEMPLATE_NAMES
+CPP_TEMPLATE_DIR="$TEMPLATES_DIR/$1"
+CPP_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/$2"
+STANDALONE_TEMPLATE_DIR="$TEMPLATES_DIR/$3"
+STANDALONE_FFMPEG_TEMPLATE_DIR="$TEMPLATES_DIR/$4"
 
 physical_path() (
     if [ -d "$1" ]; then
@@ -165,11 +168,9 @@ copy_runtime_legal_files() {
         rsync -a --delete --exclude '.DS_Store' \
             "$LICENSES_DIR/FFmpeg/" "$template_dir/Licenses/FFmpeg/"
     fi
-    cp "$SOURCE_DIR/LICENSE.md" "$template_dir/LICENSE.md"
-    cp "$SOURCE_DIR/THIRD_PARTY_NOTICES.md" \
-        "$template_dir/THIRD_PARTY_NOTICES.md"
-    cp "$SOURCE_DIR/THIRD_PARTY_NOTICES_zh_CN.md" \
-        "$template_dir/THIRD_PARTY_NOTICES_zh_CN.md"
+    for legal_name in $RUNTIME_LEGAL_FILES; do
+        cp "$SOURCE_DIR/$legal_name" "$template_dir/$legal_name"
+    done
 }
 
 copy_cpp_template() {
@@ -181,7 +182,7 @@ copy_cpp_template() {
         --exclude '.venv/' \
         --exclude 'build/' \
         --exclude 'Intermediate/' \
-        --exclude '/Temp/' \
+        --exclude "/$EDITOR_CACHE_DIRECTORY/" \
         --exclude '/Cache/' \
         --exclude 'bin/' \
         --exclude 'Log/' \
@@ -202,7 +203,12 @@ copy_cpp_template() {
         --exclude 'generate_vs2022.bat' \
         --exclude 'generate_clion.bat' \
         --exclude 'ThirdPartySource/' \
-        --exclude '/Binaries/'
+        --exclude '/Binaries/' \
+        --exclude '/Scripts/Source/UI/' \
+        --exclude '/Scripts/stub/Source/UI/' \
+        --exclude '/Scripts/stub/Source/UIWindows/' \
+        --include '/Scripts/Source/Locale/Core.lua' \
+        --exclude '/Scripts/Source/Locale/*'
     if [ "$include_ffmpeg" -ne 1 ]; then
         set -- "$@" --exclude 'ffmpeg/'
     fi
@@ -283,7 +289,7 @@ finalize_template_pair() {
         fi
     fi
     rm -rf "$source_template_dir/build" "$source_template_dir/bin" \
-        "$source_template_dir/Intermediate" "$source_template_dir/Temp" "$source_template_dir/Cache"
+        "$source_template_dir/Intermediate" "$source_template_dir/$EDITOR_CACHE_DIRECTORY" "$source_template_dir/Cache"
     rm -rf "$source_template_dir/Binaries"
     "$SCRIPT_TOOLS" ui-preview validate "$standalone_template_dir"
     if [ "$include_ffmpeg" -eq 1 ]; then

@@ -3,20 +3,29 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
 public static class UiAssetGenerationService
 {
-    public static ProcessStartInfo? CreateStartInfo(string projectPath)
+    public static string? FindToolPath()
     {
         string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
-        string? toolPath = EditorRuntimePaths.FindFile("tools", executable)
+        return EditorRuntimePaths.FindFile("tools", "ScriptTools", executable)
             ?? EditorRuntimePaths.FindFile(".tools", "ScriptTools", executable);
-        if (toolPath is null)
-            return null;
+    }
 
+    public static async Task<SaveResult> ExecuteAsync(
+        string projectPath,
+        string operation,
+        Action<string>? writeOutput,
+        CancellationToken cancellationToken)
+    {
+        string? toolPath = FindToolPath();
+        if (toolPath is null)
+            return new SaveResult(false, "ScriptTools was not found in the editor installation.");
         ProcessStartInfo startInfo = new()
         {
             FileName = toolPath,
@@ -29,41 +38,43 @@ public static class UiAssetGenerationService
             StandardErrorEncoding = Encoding.UTF8,
         };
         startInfo.ArgumentList.Add("ui-assets");
-        startInfo.ArgumentList.Add("generate");
+        startInfo.ArgumentList.Add(operation);
         startInfo.ArgumentList.Add(projectPath);
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-        return startInfo;
-    }
-
-    public static SaveResult Generate(string projectPath)
-    {
-        ProcessStartInfo? startInfo = CreateStartInfo(projectPath);
-        if (startInfo is null)
-            return new SaveResult(false, "ScriptTools was not found in the editor installation.");
-
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            using Process? process = Process.Start(startInfo);
-            if (process is null)
-                return new SaveResult(false, "UI asset generation could not be started.");
-            Task<string> output = process.StandardOutput.ReadToEndAsync();
-            Task<string> error = process.StandardError.ReadToEndAsync();
-            process.WaitForExit();
-            string outputText = output.GetAwaiter().GetResult().Trim();
-            string errorText = error.GetAwaiter().GetResult().Trim();
-            if (process.ExitCode == 0)
-                return new SaveResult(true, string.Empty);
-            return new SaveResult(false, errorText.Length != 0 ? errorText
-                : outputText.Length != 0 ? outputText : "UI asset generation failed.");
+            using Process process = new() { StartInfo = startInfo };
+            process.Start();
+            Task<string> output = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            Task<string> error = process.StandardError.ReadToEndAsync(cancellationToken);
+            using CancellationTokenRegistration registration = cancellationToken.Register(() => stopProcess(process));
+            await process.WaitForExitAsync(cancellationToken);
+            string outputText = (await output).Trim();
+            string errorText = (await error).Trim();
+            if (outputText.Length != 0)
+                writeOutput?.Invoke(outputText);
+            if (errorText.Length != 0)
+                writeOutput?.Invoke(errorText);
+            return new SaveResult(process.ExitCode == 0,
+                process.ExitCode == 0 ? outputText : errorText.Length != 0 ? errorText : outputText);
         }
-        catch (Win32Exception exception)
+        catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
         {
             return new SaveResult(false, exception.Message);
         }
-        catch (IOException exception)
+    }
+
+    private static void stopProcess(Process process)
+    {
+        try
         {
-            return new SaveResult(false, exception.Message);
+            if (!process.HasExited)
+                process.Kill(true);
+        }
+        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
+        {
         }
     }
 }

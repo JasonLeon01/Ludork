@@ -48,7 +48,7 @@ if "%~2"=="" (
 )
 
 set "PROJECT_FILE=%PROJECT_DIR%\Main.proj"
-set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" (
     echo ScriptTools was not found. Run tools\init.bat first.
@@ -58,18 +58,11 @@ if not exist "%PROJECT_FILE%" (
     echo Main.proj was not found: %PROJECT_FILE%
     exit /b 1
 )
-set "ENTRY_FILE=%PROJECT_DIR%\Scripts\Entry.lua"
-if not exist "%ENTRY_FILE%" (
-    echo Lua entry script was not found: %ENTRY_FILE%
-    exit /b 1
-)
-findstr /R /C:"^[ ]*local[ ][ ]*APP_NAME[ ]*=[ ]*\"LudorkSample\"[ ]*$" "%ENTRY_FILE%" >nul 2>nul
-if not errorlevel 1 (
-    echo Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.
-    exit /b 24
-)
-"%SCRIPT_TOOLS%" ui-assets generate "%PROJECT_DIR%"
+"%SCRIPT_TOOLS%" packaging-constants check-app-name "%PROJECT_DIR%"
 if errorlevel 1 exit /b %errorlevel%
+set "EDITOR_CACHE_DIRECTORY="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
+if not defined EDITOR_CACHE_DIRECTORY exit /b 1
 if "%USE_LDPAK%"=="1" (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
@@ -91,7 +84,7 @@ if "%USE_LDPAK%"=="1" (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
 )
-robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%PROJECT_DIR%\Temp" "%PROJECT_DIR%\Cache" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
+robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%PROJECT_DIR%\%EDITOR_CACHE_DIRECTORY%" "%PROJECT_DIR%\Cache" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
 if not exist "%DIST_DIR%\Main.exe" (
@@ -143,7 +136,7 @@ if "%USE_LDPAK%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --use-ldpak"
 "%SCRIPT_TOOLS%" finalize-package %FINALIZE_OPTIONS% --registry "%UI_REGISTRY%" "%DIST_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 for %%F in (UiPreviewHost.exe UiPreviewHostRuntime.dll) do if exist "%DIST_DIR%\Binaries\%%F" exit /b 1
-if exist "%DIST_DIR%\Temp" exit /b 1
+if exist "%DIST_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 exit /b %errorlevel%
 
 :validate_runtime_layout

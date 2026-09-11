@@ -53,17 +53,7 @@ if [ ! -f "$PROJECT_FILE" ]; then
     echo "Main.proj was not found: $PROJECT_FILE" >&2
     exit 1
 fi
-ENTRY_FILE="$PROJECT_DIR/Scripts/Entry.lua"
-if [ ! -f "$ENTRY_FILE" ]; then
-    echo "Lua entry script was not found: $ENTRY_FILE" >&2
-    exit 1
-fi
-DEFAULT_APP_NAME_PATTERN="^[[:space:]]*local[[:space:]]+APP_NAME[[:space:]]*=[[:space:]]*['\"]LudorkSample['\"][[:space:]]*(--.*)?$"
-if grep -Eq "$DEFAULT_APP_NAME_PATTERN" "$ENTRY_FILE"; then
-    echo "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging." >&2
-    exit 24
-fi
-"$SCRIPT_TOOLS" ui-assets generate "$PROJECT_DIR"
+"$SCRIPT_TOOLS" packaging-constants check-app-name "$PROJECT_DIR"
 if [ "$USE_LDPAK" -eq 1 ]; then
     "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi

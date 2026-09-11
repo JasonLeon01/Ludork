@@ -69,6 +69,7 @@ public partial class MainWindow : Window
     private ProjectRunState projectOperationState;
     private bool projectLaunchPending;
     private CancellationTokenSource? projectLaunchCancellation;
+    private TaskCompletionSource? projectOperationCompletion;
     private bool projectRunReachedRunning;
     private bool gameLayoutLocked;
     private bool uiAssetRefreshPending;

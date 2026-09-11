@@ -18,7 +18,10 @@ from ScriptTools import ios_pack
 from ScriptTools import ldpak
 from ScriptTools import macos_bundle
 from ScriptTools import native_build_state
+from ScriptTools import packaging_constants
+from ScriptTools import project_state_worker
 from ScriptTools import project_runtime_mode
+from ScriptTools import runtime_bundle
 from ScriptTools import prune_editor_macos_publish
 from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
@@ -43,7 +46,10 @@ COMMANDS: dict[str, Command] = {
     "harmony-pack": harmony_pack.main,
     "ide-config": ide_config.main,
     "impl-boundary-check": impl_boundary_check.main,
+    "packaging-constants": packaging_constants.main,
+    "project-state-worker": project_state_worker.main,
     "project-runtime-mode": project_runtime_mode.main,
+    "runtime-bundle": runtime_bundle.main,
     "macos-bundle": macos_bundle.main,
     "native-build-state": native_build_state.main,
     "ios-pack": ios_pack.main,

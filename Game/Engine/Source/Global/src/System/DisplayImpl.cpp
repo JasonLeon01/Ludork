@@ -70,8 +70,8 @@ std::optional<float> DisplayImpl::getMaximumWindowedScale(
         const sf::WindowHandle windowHandle =
             window_ != nullptr && window_->isOpen() ? window_->getNativeHandle()
                                                     : sf::WindowHandle{};
-        maximumSize =
-            ludork::global::getMaximumWindowedClientSize(windowHandle);
+        maximumSize = ludork::global::getMaximumWindowedClientSize(
+            windowHandle, ludork::global::runtimeWindowStyle());
     }
     if (!maximumSize.has_value() || maximumSize->x == 0 ||
         maximumSize->y == 0) {
@@ -150,8 +150,9 @@ void DisplayImpl::createDisplayWindow() {
 #endif
     } else if (isMobileDisplay()) {
         window = std::make_shared<sf::RenderWindow>(
-            sf::VideoMode::getDesktopMode(), windowTitle_, sf::Style::Default,
-            sf::State::Fullscreen, windowContextSettings_);
+            sf::VideoMode::getDesktopMode(), windowTitle_,
+            ludork::global::runtimeWindowStyle(), sf::State::Fullscreen,
+            windowContextSettings_);
         surfaceFitScale = windowFitScale(window->getSize());
     } else {
         const float configuredScale = SystemConfigBase::getConfiguredScale();
@@ -161,7 +162,8 @@ void DisplayImpl::createDisplayWindow() {
                                : windowSizeForScale(configuredScale);
         window = std::make_shared<sf::RenderWindow>(
             sf::VideoMode(windowSize), windowTitle_,
-            desktopFullscreen_ ? sf::Style::None : sf::Style::Default,
+            desktopFullscreen_ ? sf::Style::None
+                               : ludork::global::runtimeWindowStyle(),
             sf::State::Windowed, windowContextSettings_);
         const std::optional<sf::Vector2u> clientSize =
             desktopFullscreen_ ? std::nullopt
@@ -308,9 +310,10 @@ void DisplayImpl::recreateDesktopWindow(bool fullscreen,
     }
     ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
-    window_->create(sf::VideoMode(size), windowTitle_,
-                    fullscreen ? sf::Style::None : sf::Style::Default,
-                    sf::State::Windowed, windowContextSettings_);
+    window_->create(
+        sf::VideoMode(size), windowTitle_,
+        fullscreen ? sf::Style::None : ludork::global::runtimeWindowStyle(),
+        sf::State::Windowed, windowContextSettings_);
     desktopFullscreen_ = fullscreen;
     if (fullscreen) {
         window_->setPosition({0, 0});
@@ -331,9 +334,10 @@ void DisplayImpl::replaceWindowedDesktopWindow(
     ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     const std::shared_ptr<sf::RenderWindow> replacement =
-        std::make_shared<sf::RenderWindow>(
-            sf::VideoMode(size), windowTitle_, sf::Style::Default,
-            sf::State::Windowed, windowContextSettings_);
+        std::make_shared<sf::RenderWindow>(sf::VideoMode(size), windowTitle_,
+                                           ludork::global::runtimeWindowStyle(),
+                                           sf::State::Windowed,
+                                           windowContextSettings_);
     {
         const std::lock_guard<std::mutex> lock(windowMutex_);
         window_ = replacement;
@@ -545,8 +549,17 @@ void DisplayImpl::requestConfiguredScale(float scale) {
 }
 
 std::optional<float> DisplayImpl::takeConfiguredScale() {
-    const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
-    return std::exchange(pendingConfiguredScale_, std::nullopt);
+    std::optional<float> scale;
+    {
+        const std::lock_guard<std::mutex> lock(pendingSettingsMutex_);
+        scale = std::exchange(pendingConfiguredScale_, std::nullopt);
+    }
+    if (isMobileDisplay() && !isEmbeddedDisplay() &&
+        ludork::global::native_display_host::takeDisplayScaleRestoreRequest() &&
+        !scale.has_value()) {
+        scale = SystemConfigBase::getConfiguredScale();
+    }
+    return scale;
 }
 
 void DisplayImpl::requestRenderTargetRebuild() {

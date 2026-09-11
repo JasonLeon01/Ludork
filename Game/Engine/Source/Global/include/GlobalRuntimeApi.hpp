@@ -36,6 +36,8 @@ LUDORK_GLOBAL_API void setRuntimeLaunchOptions(
 
 LUDORK_GLOBAL_API const RuntimeLaunchOptions& runtimeLaunchOptions() noexcept;
 
+LUDORK_GLOBAL_API std::uint32_t runtimeWindowStyle() noexcept;
+
 LUDORK_GLOBAL_API void shutdown(lua_State* state) noexcept;
 
 }  // namespace ludork::global

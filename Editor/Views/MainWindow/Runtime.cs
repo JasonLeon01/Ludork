@@ -94,7 +94,7 @@ public partial class MainWindow
 
     private async void onPlayClick(object? sender, RoutedEventArgs args)
     {
-        if (projectOperationState == ProjectRunState.Building)
+        if (projectOperationState is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing)
             return;
         if (projectLaunchPending || projectRunner?.State is ProjectRunState.Preparing or ProjectRunState.Running)
         {
@@ -108,75 +108,115 @@ public partial class MainWindow
             }
             return;
         }
-        await executeProjectOperationAsync(false);
+        await executeProjectOperationAsync(ToolbarAction.Play);
     }
 
     private async void onConstructClick(object? sender, RoutedEventArgs args)
     {
         if (viewModel?.ProjectConfig.IsStandalone != false)
             return;
-        await executeProjectOperationAsync(true);
+        await executeProjectOperationAsync(ToolbarAction.Construct);
     }
 
-    private async Task executeProjectOperationAsync(bool build)
+    private async void onExportClick(object? sender, RoutedEventArgs args)
+    {
+        await executeProjectOperationAsync(ToolbarAction.Export);
+    }
+
+    private enum ToolbarAction
+    {
+        Construct,
+        Export,
+        Play,
+    }
+
+    private async Task executeProjectOperationAsync(ToolbarAction action)
     {
         if (projectLaunchPending || projectRunner is null || viewModel is null
-            || projectRunner.State != ProjectRunState.Idle)
+            || projectRunner.State != ProjectRunState.Idle || projectOperationState != ProjectRunState.Idle)
             return;
         bool sourceProject = !viewModel.ProjectConfig.IsStandalone;
-        if (!build && sourceProject)
+        if (action == ToolbarAction.Play)
         {
-            projectRunner.NativeBuildState.RefreshAvailability();
-            if (!projectRunner.NativeBuildState.HasSuccessfulBuild)
+            projectRunner.ExportState.RefreshAvailability();
+            if (sourceProject)
+                projectRunner.NativeBuildState.RefreshAvailability();
+            if (sourceProject && !projectRunner.NativeBuildState.HasSuccessfulBuild
+                || !projectRunner.ExportState.HasSuccessfulExport)
                 return;
         }
         using CancellationTokenSource cancellation = new();
         projectLaunchCancellation = cancellation;
         projectLaunchPending = true;
-        setProjectRunState(build ? ProjectRunState.Building : ProjectRunState.Preparing);
+        TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        projectOperationCompletion = completion;
+        ProjectRunState initialState = action switch
+        {
+            ToolbarAction.Construct => ProjectRunState.Building,
+            ToolbarAction.Export => ProjectRunState.Exporting,
+            _ => ProjectRunState.Preparing,
+        };
+        setProjectRunState(initialState);
         ProjectRunResult? result = null;
-        bool logging = false;
-        bool building = build;
+        bool building = action == ToolbarAction.Construct;
+        resetConsoleOutput();
+        performanceMonitorWindow?.ClearData();
+        BottomTabs.SelectedIndex = 1;
+        string? logError = consoleLogSession.Start(ProjectPath);
+        if (logError is not null)
+            appendConsoleLine("[Console] Failed to create the log file: " + logError);
         try
         {
-            bool needsBuild = build || sourceProject && !await projectRunner.NativeBuildState.CheckAsync(cancellation.Token);
+            if (action == ToolbarAction.Export)
+            {
+                result = await exportProjectAsync(appendConsoleLine, cancellation.Token);
+                return;
+            }
             while (true)
             {
                 cancellation.Token.ThrowIfCancellationRequested();
-                if (needsBuild && !build)
+                bool needsBuild = action == ToolbarAction.Construct
+                    || sourceProject && !await projectRunner.NativeBuildState.CheckAsync(cancellation.Token);
+                if (needsBuild && action == ToolbarAction.Play)
                 {
                     restoreEditorViewport();
                     if (!await ConfirmationDialog.ShowAsync(this,
-                        LocaleService.Get("RUN_REBUILD_TITLE"), LocaleService.Get("RUN_REBUILD_CONFIRM")))
+                        LocaleService.Get("RUN_REBUILD_TITLE"), LocaleService.Get("RUN_REBUILD_CONFIRM"), cancellation.Token))
                     {
                         result = ProjectRunResult.CancelledResult();
                         return;
                     }
-                    cancellation.Token.ThrowIfCancellationRequested();
                 }
                 result = null;
                 building = needsBuild;
                 setProjectRunState(building ? ProjectRunState.Building : ProjectRunState.Preparing);
+                cancellation.Token.ThrowIfCancellationRequested();
                 if (!await EditorSaveWorkflow.TrySaveAsync(this, viewModel.ProjectSave, false, needsBuild))
                     return;
                 cancellation.Token.ThrowIfCancellationRequested();
-                if (!logging)
-                {
-                    resetConsoleOutput();
-                    performanceMonitorWindow?.ClearData();
-                    BottomTabs.SelectedIndex = 1;
-                    string? logError = consoleLogSession.Start(ProjectPath);
-                    logging = true;
-                    if (logError is not null)
-                        appendConsoleLine("[Console] Failed to create the log file: " + logError);
-                }
                 if (needsBuild)
                 {
-                    result = await projectRunner.BuildAsync();
+                    result = await projectRunner.BuildAsync(cancellation.Token);
                     cancellation.Token.ThrowIfCancellationRequested();
-                    if (!result.Success || build)
+                    if (!result.Success || action == ToolbarAction.Construct)
                         return;
                     building = false;
+                    setProjectRunState(ProjectRunState.Preparing);
+                }
+                if (!await projectRunner.ExportState.CheckAsync(cancellation.Token))
+                {
+                    restoreEditorViewport();
+                    if (!await ConfirmationDialog.ShowAsync(this,
+                        LocaleService.Get("RUN_REEXPORT_TITLE"), LocaleService.Get("RUN_REEXPORT_CONFIRM"), cancellation.Token))
+                    {
+                        result = ProjectRunResult.CancelledResult();
+                        return;
+                    }
+                    setProjectRunState(ProjectRunState.Exporting);
+                    result = await exportProjectAsync(appendConsoleLine, cancellation.Token);
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    if (!result.Success)
+                        return;
                     setProjectRunState(ProjectRunState.Preparing);
                 }
                 ProjectWindowMode windowMode = viewModel.IndividualWindow
@@ -189,35 +229,51 @@ public partial class MainWindow
                     return;
                 }
                 result = await projectRunner.StartAsync(new ProjectRunOptions(
-                    viewModel.ProjectConfig.IsStandalone, windowMode, windowHandle));
+                    viewModel.ProjectConfig.IsStandalone, windowMode, windowHandle), cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
-                if (result.Failure != ProjectRunFailure.BuildRequired)
+                if (result.Failure is not (ProjectRunFailure.BuildRequired or ProjectRunFailure.ExportRequired))
                     return;
-                needsBuild = true;
             }
         }
         catch (OperationCanceledException)
         {
             result = ProjectRunResult.CancelledResult();
         }
+        catch (ProjectStateCheckException exception)
+        {
+            result = ProjectRunResult.Failed(ProjectRunFailure.LaunchFailed, exception.Message);
+        }
         finally
         {
             projectLaunchPending = false;
             projectLaunchCancellation = null;
-            if (logging)
-            {
-                string? logError = consoleLogSession.Stop();
-                if (logError is not null)
-                    appendConsoleLine("[Console] Failed to close the log file: " + logError);
-            }
+            logError = consoleLogSession.Stop();
+            if (logError is not null)
+                appendConsoleLine("[Console] Failed to close the log file: " + logError);
             setProjectRunState(projectRunner.State);
-            if (result is { Success: false, Cancelled: false })
+            projectOperationCompletion = null;
+            completion.TrySetResult();
+            if (result is { Success: false, Cancelled: false } && !closingPrompt && !closeConfirmed)
             {
-                await AlertDialog.ShowAsync(this,
-                    LocaleService.Get(building ? "BUILD_FAILED_TITLE" : "RUN_FAILED_TITLE"),
-                    getProjectRunFailureMessage(result));
+                string title = result.Failure == ProjectRunFailure.ExportFailed ? "EXPORT_FAILED_TITLE"
+                    : building ? "BUILD_FAILED_TITLE" : "RUN_FAILED_TITLE";
+                await AlertDialog.ShowAsync(this, LocaleService.Get(title), getProjectRunFailureMessage(result));
             }
         }
+    }
+
+    private async Task<ProjectRunResult> exportProjectAsync(Action<string> writeOutput, CancellationToken cancellationToken)
+    {
+        ProjectExportResult result = await EditorExportWorkflow.ExportAsync(
+            this, viewModel!.ProjectSave, projectRunner!.ExportState, writeOutput, cancellationToken);
+        return result.Success ? ProjectRunResult.Completed()
+            : result.Cancelled ? ProjectRunResult.CancelledResult()
+            : ProjectRunResult.Failed(ProjectRunFailure.ExportFailed, result.Detail);
+    }
+
+    private void onExportStateChanged(object? sender, EventArgs args)
+    {
+        Dispatcher.UIThread.Post(updateRunButtons);
     }
 
     private void onNativeBuildStateChanged(object? sender, EventArgs args)
@@ -227,6 +283,7 @@ public partial class MainWindow
 
     private void onMainWindowActivated(object? sender, EventArgs args)
     {
+        projectRunner?.ExportState.RefreshAvailability();
         if (viewModel?.ProjectConfig.IsStandalone == false && projectRunner is not null)
             projectRunner.NativeBuildState.RefreshAvailability();
     }
@@ -476,17 +533,21 @@ public partial class MainWindow
 
     private void updateRunButtons()
     {
-        bool building = projectOperationState == ProjectRunState.Building;
+        bool busy = projectOperationState is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing;
         bool playing = projectOperationState is ProjectRunState.Preparing or ProjectRunState.Running;
         bool sourceProject = viewModel?.ProjectConfig.IsStandalone == false;
         bool hasBuild = !sourceProject || projectRunner?.NativeBuildState.HasSuccessfulBuild == true;
         ConstructButton.IsVisible = sourceProject;
         ConstructButton.IsEnabled = viewModel is not null && projectOperationState == ProjectRunState.Idle;
-        PlayButton.IsEnabled = viewModel is not null && !building && (playing || hasBuild);
+        bool hasExport = projectRunner?.ExportState.HasSuccessfulExport == true;
+        ExportButton.IsEnabled = viewModel is not null && projectOperationState == ProjectRunState.Idle;
+        PlayButton.IsEnabled = viewModel is not null && !busy && (playing || hasBuild && hasExport);
         PlayIcon.Source = EditorIconResources.GetImage(playing ? "EditorImage.Stop" : "EditorImage.Play");
-        string playTip = LocaleService.Get(playing ? "RUN_STOP" : !hasBuild ? "RUN_BUILD_REQUIRED" : "RUN_PLAY");
+        string playTip = LocaleService.Get(playing ? "RUN_STOP" : !hasBuild ? "RUN_BUILD_REQUIRED" : !hasExport ? "RUN_EXPORT_REQUIRED" : "RUN_PLAY");
         ToolTip.SetTip(PlayButtonHint, playTip);
         ToolTip.SetTip(ConstructButton, LocaleService.Get("CONSTRUCT"));
+        ToolTip.SetTip(ExportButton, LocaleService.Get("EXPORT"));
+        Avalonia.Automation.AutomationProperties.SetName(ExportButton, LocaleService.Get("EXPORT"));
         Avalonia.Automation.AutomationProperties.SetName(PlayButton, LocaleService.Get(playing ? "RUN_STOP" : "RUN_PLAY"));
         Avalonia.Automation.AutomationProperties.SetName(ConstructButton, LocaleService.Get("CONSTRUCT"));
     }
@@ -644,7 +705,8 @@ public partial class MainWindow
             ProjectRunFailure.BuildToolMissing => "RUN_BUILD_TOOL_MISSING",
             ProjectRunFailure.BuildFailed => "RUN_BUILD_FAILED",
             ProjectRunFailure.BuildRequired => "RUN_BUILD_REQUIRED",
-            ProjectRunFailure.UiGenerationFailed => "RUN_UI_GENERATION_FAILED",
+            ProjectRunFailure.ExportRequired => "RUN_EXPORT_REQUIRED",
+            ProjectRunFailure.ExportFailed => "EXPORT_FAILED_TITLE",
             ProjectRunFailure.ExecutableMissing => "RUN_EXECUTABLE_MISSING",
             ProjectRunFailure.EmbeddedHandleUnavailable => "RUN_EMBED_HANDLE_UNAVAILABLE",
             ProjectRunFailure.ProtocolMismatch => "RUN_PROTOCOL_MISMATCH",

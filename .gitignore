@@ -7,7 +7,7 @@ obj/
 **/tests/
 **.log
 Log/
-Temp/
+EditorCache/
 Game/.venv/
 build-verify/
 Ludork.ini
@@ -39,8 +39,6 @@ Game/Scripts/stub/*
 *.anim.json
 Game/Data/Locale/*
 !/Game/Data/Locale/locale.xlsx
-Game/Scripts/Source/Locale/*
-!/Game/Scripts/Source/Locale/Core.lua
 *.proj
 **/dist/
 **/dist-luac/

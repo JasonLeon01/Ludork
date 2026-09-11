@@ -9,12 +9,16 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | 组件 | Ludork 1.0.0 使用版本 | 用途与分发范围 | 许可证 | 完整正文 | 官方来源 |
 | --- | --- | --- | --- | --- | --- |
 | .NET Runtime | 9.0.15 | 编辑器自包含运行时 | MIT 及其随附第三方条款 | `Licenses/DotNet/LICENSE.txt`、`Licenses/DotNet/THIRD-PARTY-NOTICES.txt` | [dotnet/runtime](https://github.com/dotnet/runtime) |
-| CPython 及其包含的组件 | 每个发行包记录 Python 3.12 patch 版本；已审计 macOS 构建为 3.12.0 | 独立 `ScriptTools` 可执行文件的嵌入式运行时 | Python Software Foundation License 及 CPython 复现的随附许可证，包括 OpenSSL 3 许可证 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt` | [python/cpython](https://github.com/python/cpython) |
-| OpenSSL | 每个发行包记录实际版本；已审计 macOS 构建为 3.0.11 | macOS `ScriptTools` onefile payload 中的 `libssl` 与 `libcrypto`；Windows 可能包含等效的 Python runtime 库 | OpenSSL 3.0 及更高版本适用 Apache License 2.0 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt`（OpenSSL 章节） | [openssl/openssl](https://github.com/openssl/openssl) |
-| Nuitka runtime library | 4.1.3 | 独立 `ScriptTools` 可执行文件中的生成 runtime 代码 | AGPL 3.0；生成的 target code 适用 Nuitka Runtime Library Exception | `Licenses/ScriptTools/Nuitka-4.1.3-AGPL-3.0.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-NOTICE.txt` | [Nuitka/Nuitka](https://github.com/Nuitka/Nuitka) |
-| Zstandard | Nuitka onefile bootstrap 中的 1.4.7 | 独立 `ScriptTools` 可执行文件使用的压缩组件 | BSD 3-Clause | `Licenses/ScriptTools/Zstandard-1.4.7-LICENSE.txt` | [facebook/zstd](https://github.com/facebook/zstd) |
+| CPython 及其包含的组件 | 每个发行包记录 Python 3.12 patch 版本；已审计 macOS 构建为 3.12.0 | 与编译后的 `ScriptTools` 可执行文件一起放在 `tools/ScriptTools` 中的运行时 | Python Software Foundation License 及 CPython 复现的随附许可证，包括 OpenSSL 3 许可证 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt` | [python/cpython](https://github.com/python/cpython) |
+| OpenSSL | 每个发行包记录实际版本；已审计 macOS 构建为 3.0.11 | macOS `ScriptTools` 运行时目录中的 `libssl` 与 `libcrypto`；Windows 可能包含等效的 Python runtime 库 | OpenSSL 3.0 及更高版本适用 Apache License 2.0 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt`（OpenSSL 章节） | [openssl/openssl](https://github.com/openssl/openssl) |
+| Nuitka runtime library | 4.1.3 | 编译后的 `ScriptTools` 可执行文件中的生成 runtime 代码 | AGPL 3.0；生成的 target code 适用 Nuitka Runtime Library Exception | `Licenses/ScriptTools/Nuitka-4.1.3-AGPL-3.0.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-NOTICE.txt` | [Nuitka/Nuitka](https://github.com/Nuitka/Nuitka) |
+| Pillow 及其包含的组件 | 12.2.0 | ScriptTools 动画导出与打包使用的图像处理 | MIT-CMU 及 Pillow wheel 复现的随附许可证 | `Licenses/ScriptTools/Pillow-12.2.0-LICENSE.txt` | [python-pillow/Pillow](https://github.com/python-pillow/Pillow) |
 | Avalonia 软件包族 | 12.1.0 | 编辑器 UI、桌面后端、渲染、主题、颜色选择器与 Inter 字体集成 | MIT | `Licenses/Avalonia/LICENSE.txt` | [AvaloniaUI/Avalonia](https://github.com/AvaloniaUI/Avalonia) |
 | Avalonia.AvaloniaEdit | 12.0.0 | 文本与代码编辑 | MIT | `Licenses/EditorPackages/AvaloniaEdit-LICENSE.txt` | [AvaloniaUI/AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit) |
+| Svg.Controls.Avalonia | 12.0.0.17 | 编辑器 SVG 图标渲染 | MIT | `Licenses/EditorPackages/Svg.Skia-LICENSE.txt` | [wieslawsoltes/Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia/tree/7910666415a96a09643d1729eb5da5d115d75748) |
+| Svg.Model、Svg.SceneGraph 与 ShimSkiaSharp | 5.2.3 | SVG 渲染模型、保留式场景图与绘制记录 | MIT | `Licenses/EditorPackages/Svg.Skia-LICENSE.txt` | [wieslawsoltes/Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia/tree/7910666415a96a09643d1729eb5da5d115d75748) |
+| Svg.Custom | 5.2.3 | SVG 文档模型与解析 | Microsoft Public License（MS-PL） | `Licenses/EditorPackages/Svg.Custom-LICENSE.txt` | [Svg.Custom 源码与许可证](https://github.com/wieslawsoltes/Svg.Skia/tree/7910666415a96a09643d1729eb5da5d115d75748/src/Svg.Custom) |
+| ExCSS | 4.3.1 | SVG 文档中的 CSS 解析 | MIT | `Licenses/EditorPackages/ExCSS-LICENSE.txt` | [TylerBrinks/ExCSS](https://github.com/TylerBrinks/ExCSS/tree/c97e84d6126bb2e42658cf5af627d52e697c8779) |
 | Material.Avalonia | 3.17.0 | Material 样式与控件 | MIT | `Licenses/EditorPackages/Material.Avalonia-LICENSE.txt` | [AvaloniaCommunity/Material.Avalonia](https://github.com/AvaloniaCommunity/Material.Avalonia) |
 | CommunityToolkit.Mvvm | 8.4.2 | 编辑器 ViewModel 基础设施 | MIT 及其随附第三方声明 | `Licenses/EditorPackages/CommunityToolkit.Mvvm-LICENSE.md`、`Licenses/EditorPackages/CommunityToolkit.Mvvm-THIRD-PARTY-NOTICES.txt` | [CommunityToolkit/dotnet](https://github.com/CommunityToolkit/dotnet) |
 | MoonSharp | 2.0.0 | 在独立环境中读取编辑器侧 Lua metadata | BSD 3-Clause | `Licenses/EditorPackages/MoonSharp-LICENSE.txt` | [moonsharp-devs/moonsharp](https://github.com/moonsharp-devs/moonsharp) |
@@ -38,7 +42,7 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | Avalonia ANGLE Windows natives | 2.1.27548.20260419 | Windows 包中的 OpenGL ES 转换层 | BSD 3-Clause | `Licenses/Avalonia/ANGLE-LICENSE.txt` | [AvaloniaUI/angle](https://github.com/AvaloniaUI/angle) |
 | Avalonia.Fonts.Inter 中的 Inter 字体 | 随 Avalonia.Fonts.Inter 12.1.0 分发 | 默认编辑器字体资源 | SIL Open Font License 1.1 | `Licenses/Avalonia/Inter-OFL-1.1.txt` | [rsms/inter](https://github.com/rsms/inter) |
 
-每个发行包都会在 `tools/ScriptTools-runtime-versions.txt` 中记录 ScriptTools 实际使用的 CPython、OpenSSL、Nuitka 与压缩工具版本。`python-zstandard` 0.25.0 只在构建 onefile payload 时使用，不会以 Python 包形式随发行版分发。
+每个发行包都会在 `tools/ScriptTools/runtime-versions.txt` 中记录 ScriptTools 构建模式及实际使用的 CPython、OpenSSL、Nuitka 与 Pillow 版本。编辑器分发完整的运行时目录，包括所需的原生库与数据文件。
 
 `AvaloniaUI.DiagnosticsSupport` 2.2.3 以及 analyser/build-service 软件包仅供开发使用，不进入 Release 包。编辑器打包脚本会移除不属于目标平台的程序集。
 

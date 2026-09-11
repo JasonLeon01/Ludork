@@ -41,7 +41,11 @@ case "$CPP_DIR" in
         exit 1
         ;;
 esac
-for protected_name in Assets Data Scripts Binaries Temp Cache bin build Licenses ThirdPartySource Engine Intermediate; do
+SCRIPT_TOOLS=$(resolve_script_tools)
+EDITOR_CACHE_DIRECTORY=$("$SCRIPT_TOOLS" packaging-constants list editor-cache-directory --separator space)
+RESOURCE_GROUPS=$("$SCRIPT_TOOLS" packaging-constants list resource-groups --separator space)
+RUNTIME_LEGAL_FILES=$("$SCRIPT_TOOLS" packaging-constants list runtime-legal-files --separator space)
+for protected_name in $RESOURCE_GROUPS Binaries "$EDITOR_CACHE_DIRECTORY" Cache bin build Licenses ThirdPartySource Engine Intermediate; do
     protected_source="$CPP_DIR/$protected_name"
     case "$STANDALONE_DIR" in
         "$protected_source" | "$protected_source"/*)
@@ -51,22 +55,19 @@ for protected_name in Assets Data Scripts Binaries Temp Cache bin build Licenses
     esac
 done
 
-SCRIPT_TOOLS=$(resolve_script_tools)
 if [ "$USE_CURRENT_BUILD" -eq 1 ]; then
-    "$SCRIPT_TOOLS" ui-assets generate "$CPP_DIR"
     "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
 else
     sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"
 fi
 
-for resource in Assets Data Scripts; do
+for resource in $RESOURCE_GROUPS; do
     if [ ! -d "$CPP_DIR/$resource" ]; then
         echo "$resource folder was not found: $CPP_DIR/$resource" >&2
         exit 1
     fi
 done
 if [ "${LUDORK_VALIDATE_LDPAK_SOURCE:-0}" = "1" ]; then
-    SCRIPT_TOOLS=$(resolve_script_tools)
     "$SCRIPT_TOOLS" validate-ldpak-source "$CPP_DIR"
 fi
 
@@ -133,13 +134,13 @@ if [ -d "$CPP_DIR/ThirdPartySource" ]; then
         rsync -a --delete --exclude '.DS_Store' "$CPP_DIR/Engine/cmake/FFmpeg/" "$STANDALONE_DIR/ThirdPartySource/FFmpeg-Build/"
     fi
 fi
-for legal_name in LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md; do
+for legal_name in $RUNTIME_LEGAL_FILES; do
     if [ -f "$CPP_DIR/$legal_name" ]; then
         cp "$CPP_DIR/$legal_name" "$STANDALONE_DIR/$legal_name"
     fi
 done
 
-rm -rf "$STANDALONE_DIR/Temp"
+rm -rf "$STANDALONE_DIR/$EDITOR_CACHE_DIRECTORY"
 "$SCRIPT_TOOLS" ui-preview copy "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/Cache"
 

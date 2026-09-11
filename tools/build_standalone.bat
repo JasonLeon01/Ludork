@@ -3,7 +3,7 @@ setlocal EnableExtensions
 for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
 cd /d "%ROOT_DIR%"
-set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools.exe"
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 
 set "USE_CURRENT_BUILD=0"
@@ -20,9 +20,18 @@ for %%I in ("%~1") do set "CPP_DIR=%%~fI"
 for %%I in ("%~2") do set "STANDALONE_DIR=%%~fI"
 set "CONFIG=%~3"
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto :usage
+set "EDITOR_CACHE_DIRECTORY="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
+if not defined EDITOR_CACHE_DIRECTORY exit /b 1
+set "RESOURCE_GROUPS="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list resource-groups --separator space"') do set "RESOURCE_GROUPS=%%V"
+if not defined RESOURCE_GROUPS exit /b 1
+set "RUNTIME_LEGAL_FILES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list runtime-legal-files --separator space"') do set "RUNTIME_LEGAL_FILES=%%V"
+if not defined RUNTIME_LEGAL_FILES exit /b 1
 set "LUDORK_STANDALONE_SOURCE_PATH=%CPP_DIR%"
 set "LUDORK_STANDALONE_TARGET_PATH=%STANDALONE_DIR%"
-powershell -NoProfile -Command "function Test-ReparseAncestor([string] $value) { $current = $value; while (-not [string]::IsNullOrEmpty($current)) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; while ($null -ne $item) { if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }; $item = $item.Parent }; return $false }; $parent = [IO.Path]::GetDirectoryName($current); if ($parent -eq $current) { return $false }; $current = $parent }; return $false }; $source = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_SOURCE_PATH).TrimEnd('\') + '\'; $target = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_TARGET_PATH).TrimEnd('\') + '\'; if ((Test-ReparseAncestor $source) -or (Test-ReparseAncestor $target) -or $source.StartsWith($target, [StringComparison]::OrdinalIgnoreCase)) { exit 1 }; foreach ($name in @('Assets', 'Data', 'Scripts', 'Binaries', 'Temp', 'Cache', 'bin', 'build', 'Licenses', 'ThirdPartySource', 'Engine', 'Intermediate')) { $protected = [IO.Path]::Combine($source, $name).TrimEnd('\') + '\'; if ($target.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase)) { exit 1 } }"
+powershell -NoProfile -Command "function Test-ReparseAncestor([string] $value) { $current = $value; while (-not [string]::IsNullOrEmpty($current)) { if (Test-Path -LiteralPath $current) { $item = Get-Item -Force -LiteralPath $current; while ($null -ne $item) { if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $true }; $item = $item.Parent }; return $false }; $parent = [IO.Path]::GetDirectoryName($current); if ($parent -eq $current) { return $false }; $current = $parent }; return $false }; $source = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_SOURCE_PATH).TrimEnd('\') + '\'; $target = [IO.Path]::GetFullPath($env:LUDORK_STANDALONE_TARGET_PATH).TrimEnd('\') + '\'; if ((Test-ReparseAncestor $source) -or (Test-ReparseAncestor $target) -or $source.StartsWith($target, [StringComparison]::OrdinalIgnoreCase)) { exit 1 }; foreach ($name in @('Assets', 'Data', 'Scripts', 'Binaries', $env:EDITOR_CACHE_DIRECTORY, 'Cache', 'bin', 'build', 'Licenses', 'ThirdPartySource', 'Engine', 'Intermediate')) { $protected = [IO.Path]::Combine($source, $name).TrimEnd('\') + '\'; if ($target.StartsWith($protected, [StringComparison]::OrdinalIgnoreCase)) { exit 1 } }"
 set "LUDORK_STANDALONE_SOURCE_PATH="
 set "LUDORK_STANDALONE_TARGET_PATH="
 if errorlevel 1 (
@@ -35,8 +44,6 @@ if "%USE_CURRENT_BUILD%"=="1" (
         echo ScriptTools was not found. Run tools\init.bat first.
         exit /b 1
     )
-    "%SCRIPT_TOOLS%" ui-assets generate "%CPP_DIR%"
-    if errorlevel 1 exit /b 1
     "%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
     if errorlevel 1 exit /b 1
 ) else (
@@ -74,7 +81,7 @@ if exist "%STANDALONE_DIR%\Data" rmdir /S /Q "%STANDALONE_DIR%\Data"
 if exist "%STANDALONE_DIR%\Data" exit /b 1
 if exist "%STANDALONE_DIR%\Scripts" rmdir /S /Q "%STANDALONE_DIR%\Scripts"
 if exist "%STANDALONE_DIR%\Scripts" exit /b 1
-for %%R in (Assets Data Scripts) do (
+for %%R in (%RESOURCE_GROUPS%) do (
     if exist "%STANDALONE_DIR%\%%R.ldpak" del /Q "%STANDALONE_DIR%\%%R.ldpak"
     if exist "%STANDALONE_DIR%\%%R.ldpak" exit /b 1
 )
@@ -112,13 +119,13 @@ if exist "%CPP_DIR%\ThirdPartySource" (
         if errorlevel 8 exit /b %errorlevel%
     )
 )
-for %%F in (LICENSE.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md) do if exist "%CPP_DIR%\%%F" (
+for %%F in (%RUNTIME_LEGAL_FILES%) do if exist "%CPP_DIR%\%%F" (
     copy /Y "%CPP_DIR%\%%F" "%STANDALONE_DIR%\%%F" >nul
     if errorlevel 1 exit /b %errorlevel%
 )
 
-if exist "%STANDALONE_DIR%\Temp" rmdir /S /Q "%STANDALONE_DIR%\Temp"
-if exist "%STANDALONE_DIR%\Temp" exit /b 1
+if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" rmdir /S /Q "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%"
+if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 "%SCRIPT_TOOLS%" ui-preview copy "%CPP_DIR%" "%STANDALONE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 if exist "%STANDALONE_DIR%\Cache" rmdir /S /Q "%STANDALONE_DIR%\Cache"

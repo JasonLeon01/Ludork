@@ -43,14 +43,6 @@
     "zh_CN": "删除轨道",
     "en_GB": "Remove Track"
   },
-  "PARTICLE_MOVE_UP": {
-    "zh_CN": "上移",
-    "en_GB": "Up"
-  },
-  "PARTICLE_MOVE_DOWN": {
-    "zh_CN": "下移",
-    "en_GB": "Down"
-  },
   "PARTICLE_NO_TRACK": {
     "zh_CN": "添加轨道以设置发射或驻留循环。",
     "en_GB": "Add a track to configure emission or resident looping."
@@ -312,8 +304,16 @@
     "en_GB": "Texture"
   },
   "PARTICLE_FIELD_TEXTURERECT": {
-    "zh_CN": "纹理区域 X / Y / 宽 / 高",
-    "en_GB": "Texture Rect X / Y / W / H"
+    "zh_CN": "纹理区域",
+    "en_GB": "Texture Rect"
+  },
+  "PARTICLE_RECT_POSITION": {
+    "zh_CN": "位置：",
+    "en_GB": "Position:"
+  },
+  "PARTICLE_RECT_SIZE": {
+    "zh_CN": "尺寸：",
+    "en_GB": "Size:"
   },
   "PARTICLE_FIELD_COLUMNS": {
     "zh_CN": "列数",
@@ -943,6 +943,34 @@
     "zh_CN": "编译",
     "en_GB": "Construct"
   },
+  "EXPORT": {
+    "zh_CN": "导出",
+    "en_GB": "Export"
+  },
+  "EXPORT_COMPLETE": {
+    "zh_CN": "项目导出完成。",
+    "en_GB": "Project export completed."
+  },
+  "EXPORT_FAILED_TITLE": {
+    "zh_CN": "导出失败",
+    "en_GB": "Export Failed"
+  },
+  "RUN_EXPORT_REQUIRED": {
+    "zh_CN": "需要先导出项目。",
+    "en_GB": "Export the project before playing."
+  },
+  "RUN_REEXPORT_TITLE": {
+    "zh_CN": "导出后运行",
+    "en_GB": "Export and Play"
+  },
+  "RUN_REEXPORT_CONFIRM": {
+    "zh_CN": "导出源文件或生成文件已变化，需要重新导出。是否导出后运行？",
+    "en_GB": "Export inputs or generated files have changed. Export the project and then play?"
+  },
+  "PACK_EXPORT_FAILED": {
+    "zh_CN": "项目导出失败。",
+    "en_GB": "Project export failed."
+  },
   "RUN_BUILD_REQUIRED": {
     "zh_CN": "需要先编译 C++ Debug 工程。",
     "en_GB": "Compile the C++ Debug project before playing."
@@ -958,10 +986,6 @@
   "BUILD_FAILED_TITLE": {
     "zh_CN": "编译失败",
     "en_GB": "Build Failed"
-  },
-  "RUN_UI_GENERATION_FAILED": {
-    "zh_CN": "UI 自动代码生成失败。",
-    "en_GB": "UI code generation failed."
   },
   "UI_GAMEPAD_UNBOUND": {
     "zh_CN": "无绑定",

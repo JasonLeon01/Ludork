@@ -6,19 +6,13 @@ import plistlib
 import re
 import shutil
 import subprocess
-
-
-EXIT_TOOLCHAIN = 20
-EXIT_DEVICE = 21
-EXIT_SIGNING = 22
-EXIT_PROJECT = 23
-EXIT_APP_NAME_UNCHANGED = 24
-
-
-class PackError(RuntimeError):
-    def __init__(self, message: str, exit_code: int = 1) -> None:
-        super().__init__(message)
-        self.exit_code = exit_code
+from .pack_error import PackError
+from .packaging_constants import (
+    EXIT_DEVICE,
+    EXIT_PROJECT,
+    EXIT_SIGNING,
+    EXIT_TOOLCHAIN,
+)
 
 
 def run_capture(

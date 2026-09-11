@@ -5,10 +5,12 @@ Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组�
 本目录是权威 `Licenses`。编辑器包完整携带；模板携带本索引、公共运行时目录，并仅在启用时携带 `FFmpeg`。
 
 - `DotNet`、`DotNetPackages`、`Avalonia` 与 `EditorPackages`：编辑器和托管运行时声明。
-- `ScriptTools`：发行版构建工具所含 CPython、Nuitka runtime、OpenSSL 与 onefile 压缩组件声明。
+- `ScriptTools`：发行版构建工具运行时目录所含 CPython、Nuitka runtime、OpenSSL，以及 Pillow 与其随附组件声明。
 - `Lua`、`LuaSF`、`SFML`、`sol2`、`lua-cjson`、`zlib` 与 `NativeDependencies`：模板公共运行时声明。
 - `FFmpeg`：FFmpeg 模板的可选视频运行时声明。
 - `GNUMake` 与 `MicrosoftVisualCppRuntime`：不进入模板的编辑器/外部再分发条款。
 - `HarmonyOSSans` 与 `SampleMusic`：权威资产声明；模板副本留在资产旁。
+
+编辑器 SVG 依赖中，`Svg.Controls.Avalonia`、`Svg.Model`、`Svg.SceneGraph` 与 `ShimSkiaSharp` 使用 [Svg.Skia 的 MIT 正文](EditorPackages/Svg.Skia-LICENSE.txt)；`Svg.Custom` 使用 [Microsoft Public License 正文](EditorPackages/Svg.Custom-LICENSE.txt)；`ExCSS` 使用其 [MIT 正文](EditorPackages/ExCSS-LICENSE.txt)。这些正文均从已还原 NuGet 包标识的仓库提交原样复制，对应提交链接列在第三方声明表中。
 
 法律正文保持其随附语言，不翻译、不改写。说明性索引不能替代法律正文。

@@ -15,6 +15,10 @@ internal static class LuaLocaleTableReader
             new UTF8Encoding(false, true),
             true);
         string content = reader.ReadToEnd();
+        if (content.StartsWith(LocaleExporter.GeneratedMarker + "\n", StringComparison.Ordinal))
+            content = content[(LocaleExporter.GeneratedMarker.Length + 1)..];
+        else if (content.StartsWith(LocaleExporter.GeneratedMarker + "\r\n", StringComparison.Ordinal))
+            content = content[(LocaleExporter.GeneratedMarker.Length + 2)..];
         Parser parser = new Parser(content);
         return parser.Parse();
     }

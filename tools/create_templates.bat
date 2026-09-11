@@ -50,13 +50,25 @@ if not defined OUTPUT_FOLDER (
 ) else (
     for %%I in ("%OUTPUT_FOLDER%") do set "TEMPLATES_DIR=%%~fI"
 )
-set "CPP_TEMPLATE_DIR=%TEMPLATES_DIR%\Cpp"
-set "STANDALONE_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone"
-set "CPP_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Cpp-ffmpeg"
-set "STANDALONE_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\Standalone-ffmpeg"
 set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
-rem CMake publishes these seven files; all other Scripts content comes from Game.
-set "GENERATED_SCRIPTS=stub\Engine.d.lua stub\GlobalCore.d.lua stub\GlobalFunctions.d.lua stub\LuaSF.d.lua Engine_meta.lua GlobalCore_meta.lua GlobalFunctions_meta.lua"
+set "EDITOR_CACHE_DIRECTORY="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
+if not defined EDITOR_CACHE_DIRECTORY exit /b 1
+set "GENERATED_SCRIPTS="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list native-lua-files --separator space --windows"') do set "GENERATED_SCRIPTS=%%V"
+if not defined GENERATED_SCRIPTS exit /b 1
+set "RUNTIME_LEGAL_FILES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list runtime-legal-files --separator space"') do set "RUNTIME_LEGAL_FILES=%%V"
+if not defined RUNTIME_LEGAL_FILES exit /b 1
+set "TEMPLATE_NAMES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list template-names --separator space"') do set "TEMPLATE_NAMES=%%V"
+if not defined TEMPLATE_NAMES exit /b 1
+for /f "tokens=1-4" %%A in ("%TEMPLATE_NAMES%") do (
+    set "CPP_TEMPLATE_DIR=%TEMPLATES_DIR%\%%A"
+    set "CPP_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\%%B"
+    set "STANDALONE_TEMPLATE_DIR=%TEMPLATES_DIR%\%%C"
+    set "STANDALONE_FFMPEG_TEMPLATE_DIR=%TEMPLATES_DIR%\%%D"
+)
 if defined NATIVE_CACHE (
     call :validate_native_cache_paths
     if errorlevel 1 exit /b 1
@@ -166,8 +178,8 @@ if defined CACHE_ENTRY if not defined CURRENT_BUILD_OPTION (
 if exist "%CPP_TARGET%\build" rmdir /S /Q "%CPP_TARGET%\build"
 if exist "%CPP_TARGET%\bin" rmdir /S /Q "%CPP_TARGET%\bin"
 if exist "%CPP_TARGET%\Intermediate" rmdir /S /Q "%CPP_TARGET%\Intermediate"
-if exist "%CPP_TARGET%\Temp" rmdir /S /Q "%CPP_TARGET%\Temp"
-if exist "%CPP_TARGET%\Temp" exit /b 1
+if exist "%CPP_TARGET%\%EDITOR_CACHE_DIRECTORY%" rmdir /S /Q "%CPP_TARGET%\%EDITOR_CACHE_DIRECTORY%"
+if exist "%CPP_TARGET%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 if exist "%CPP_TARGET%\Cache" rmdir /S /Q "%CPP_TARGET%\Cache"
 if exist "%CPP_TARGET%\Cache" exit /b 1
 if exist "%CPP_TARGET%\Binaries" rmdir /S /Q "%CPP_TARGET%\Binaries"
@@ -250,10 +262,17 @@ for %%F in ("%~1") do if "%%~zF"=="0" (
 exit /b 0
 
 :copy_cpp_template
-set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\Temp" "%SOURCE_DIR%\Cache" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\%EDITOR_CACHE_DIRECTORY%" "%SOURCE_DIR%\Cache" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Scripts\Source\UI" "%SOURCE_DIR%\Scripts\stub\Source\UI" "%SOURCE_DIR%\Scripts\stub\Source\UIWindows" "%SOURCE_DIR%\Scripts\Source\Locale"
 if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
 robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
+if exist "%SOURCE_DIR%\Scripts\Source\Locale\Core.lua" (
+    if not exist "%~1\Scripts\Source\Locale" mkdir "%~1\Scripts\Source\Locale"
+    if errorlevel 1 exit /b 1
+    copy /Y "%SOURCE_DIR%\Scripts\Source\Locale\Core.lua" "%~1\Scripts\Source\Locale\Core.lua" >nul
+    if errorlevel 1 exit /b 1
+)
 if "%~2"=="1" (
     if not exist "%~1\ThirdPartySource" mkdir "%~1\ThirdPartySource"
     copy /Y "%FFMPEG_SOURCE_ARCHIVE%" "%~1\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz" >nul
@@ -290,9 +309,8 @@ if "%COPY_FFMPEG_LICENSES%"=="1" (
     robocopy "%LICENSES_DIR%\FFmpeg" "%LEGAL_TARGET%\Licenses\FFmpeg" /E /NFL /NDL /NJH /NJS /NP
     if errorlevel 8 exit /b 1
 )
-copy /Y "%SOURCE_DIR%\LICENSE.md" "%LEGAL_TARGET%\LICENSE.md" >nul
-if errorlevel 1 exit /b %errorlevel%
-copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES.md" >nul
-if errorlevel 1 exit /b %errorlevel%
-copy /Y "%SOURCE_DIR%\THIRD_PARTY_NOTICES_zh_CN.md" "%LEGAL_TARGET%\THIRD_PARTY_NOTICES_zh_CN.md" >nul
+for %%F in (%RUNTIME_LEGAL_FILES%) do (
+    copy /Y "%SOURCE_DIR%\%%F" "%LEGAL_TARGET%\%%F" >nul
+    if errorlevel 1 exit /b 1
+)
 exit /b %errorlevel%

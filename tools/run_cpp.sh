@@ -13,7 +13,5 @@ if [ ! -x "$GAME" ]; then
     echo "No C++ game executable was found: $GAME" >&2
     exit 1
 fi
-SCRIPT_TOOLS=$(resolve_script_tools)
-"$SCRIPT_TOOLS" ui-assets generate "$CPP_DIR"
 cd "$CPP_DIR"
 exec "$GAME"

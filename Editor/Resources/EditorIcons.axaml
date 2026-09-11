@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:svg="clr-namespace:Avalonia.Svg;assembly=Svg.Controls.Avalonia">
     <StreamGeometry x:Key="EditorIcon.VisibilityHidden">M12,17.5C8.2,17.5 4.8,15.4 3.2,12H1C2.7,16.4 7,19.5 12,19.5S21.3,16.4 23,12H20.8C19.2,15.4 15.8,17.5 12,17.5Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.VisibilityVisible">M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5M12,17C9.24,17 7,14.76 7,12C7,9.24 9.24,7 12,7C14.76,7 17,9.24 17,12C17,14.76 14.76,17 12,17M12,9C10.34,9 9,10.34 9,12C9,13.66 10.34,15 12,15C13.66,15 15,13.66 15,12C15,10.34 13.66,9 12,9Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.NavigateUp">M8,14L12,6L16,14ZM10.5,14L10.5,20L13.5,20L13.5,14Z</StreamGeometry>
@@ -14,79 +15,13 @@
     <StreamGeometry x:Key="EditorIcon.TemplateCppCode">M14,6L4,17L14,28M34,6L44,17L34,28</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.TemplateCppSlash">M29,4L20,30</StreamGeometry>
 
-    <DrawingImage x:Key="EditorImage.ModeTile" Viewbox="0,0,24,24">
-        <DrawingImage.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Brush="#E8EAED" Geometry="M5.8,4H9.2A1.8,1.8,0,0,1,11,5.8V9.2A1.8,1.8,0,0,1,9.2,11H5.8A1.8,1.8,0,0,1,4,9.2V5.8A1.8,1.8,0,0,1,5.8,4Z" />
-                <GeometryDrawing Brush="#E8EAED" Geometry="M14.8,4H18.2A1.8,1.8,0,0,1,20,5.8V9.2A1.8,1.8,0,0,1,18.2,11H14.8A1.8,1.8,0,0,1,13,9.2V5.8A1.8,1.8,0,0,1,14.8,4Z" />
-                <GeometryDrawing Brush="#8AB4F8" Geometry="M5.8,13H9.2A1.8,1.8,0,0,1,11,14.8V18.2A1.8,1.8,0,0,1,9.2,20H5.8A1.8,1.8,0,0,1,4,18.2V14.8A1.8,1.8,0,0,1,5.8,13Z" />
-                <GeometryDrawing Brush="#E8EAED" Geometry="M14.8,13H18.2A1.8,1.8,0,0,1,20,14.8V18.2A1.8,1.8,0,0,1,18.2,20H14.8A1.8,1.8,0,0,1,13,18.2V14.8A1.8,1.8,0,0,1,14.8,13Z" />
-            </DrawingGroup>
-        </DrawingImage.Drawing>
-    </DrawingImage>
-    <DrawingImage x:Key="EditorImage.ModeLight" Viewbox="0,0,24,24">
-        <DrawingImage.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Geometry="M12,2.8V5.1M4.7,6.3L6.4,8M19.3,6.3L17.6,8M3,13H5.2M18.8,13H21">
-                    <GeometryDrawing.Pen>
-                        <Pen Brush="#8AB4F8" Thickness="1.8" LineCap="Round" />
-                    </GeometryDrawing.Pen>
-                </GeometryDrawing>
-                <GeometryDrawing Geometry="M8,12A4,4,0,1,1,16,12C16,13.45,15.22,14.18,14.6,15.05C14.3,15.47,14.1,15.87,14.1,16.3H9.9C9.9,15.87,9.7,15.47,9.4,15.05C8.78,14.18,8,13.45,8,12Z">
-                    <GeometryDrawing.Pen>
-                        <Pen Brush="#E8EAED" Thickness="2" LineCap="Round" LineJoin="Round" />
-                    </GeometryDrawing.Pen>
-                </GeometryDrawing>
-                <GeometryDrawing Geometry="M9.5,17.4H14.5M10,20H14">
-                    <GeometryDrawing.Pen>
-                        <Pen Brush="#E8EAED" Thickness="2" LineCap="Round" />
-                    </GeometryDrawing.Pen>
-                </GeometryDrawing>
-            </DrawingGroup>
-        </DrawingImage.Drawing>
-    </DrawingImage>
-    <DrawingImage x:Key="EditorImage.ModeActor" Viewbox="0,0,24,24">
-        <DrawingImage.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Geometry="M4.2,8V4.2H8M16,4.2H19.8V8M4.2,16V19.8H8M16,19.8H19.8V16">
-                    <GeometryDrawing.Pen>
-                        <Pen Brush="#8AB4F8" Thickness="1.8" LineCap="Round" LineJoin="Round" />
-                    </GeometryDrawing.Pen>
-                </GeometryDrawing>
-                <GeometryDrawing Brush="#E8EAED" Geometry="M12,5.4A3,3,0,1,1,12,11.4A3,3,0,1,1,12,5.4Z" />
-                <GeometryDrawing Brush="#E8EAED" Geometry="M6.5,19.5C6.5,16.25,8.9,14.1,12,14.1S17.5,16.25,17.5,19.5Z" />
-            </DrawingGroup>
-        </DrawingImage.Drawing>
-    </DrawingImage>
-    <DrawingImage x:Key="EditorImage.Play" Viewbox="0,0,24,24">
-        <DrawingImage.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Geometry="M12,3.5A8.5,8.5,0,1,1,12,20.5A8.5,8.5,0,1,1,12,3.5Z">
-                    <GeometryDrawing.Pen>
-                        <Pen Brush="#E8EAED" Thickness="2" LineCap="Round" />
-                    </GeometryDrawing.Pen>
-                </GeometryDrawing>
-                <GeometryDrawing Brush="#8AB4F8" Geometry="M10,8.2V15.8L16.8,12Z" />
-            </DrawingGroup>
-        </DrawingImage.Drawing>
-    </DrawingImage>
-    <DrawingImage x:Key="EditorImage.Stop" Viewbox="0,0,24,24">
-        <DrawingImage.Drawing>
-            <GeometryDrawing Brush="#EF8B8B" Geometry="M5,5H19V19H5Z" />
-        </DrawingImage.Drawing>
-    </DrawingImage>
-    <DrawingImage x:Key="EditorImage.Construct" Viewbox="0,0,24,24">
-        <DrawingImage.Drawing>
-            <DrawingGroup>
-                <GeometryDrawing Geometry="M5,4L20,19M19,4L4,19">
-                    <GeometryDrawing.Pen>
-                        <Pen Brush="#E8EAED" Thickness="3" LineCap="Round" />
-                    </GeometryDrawing.Pen>
-                </GeometryDrawing>
-                <GeometryDrawing Brush="#8AB4F8" Geometry="M3,3H10V7H7V10H3ZM17,2L22,7L19,10L14,5Z" />
-            </DrawingGroup>
-        </DrawingImage.Drawing>
-    </DrawingImage>
+    <svg:SvgImage x:Key="EditorImage.ModeTile" Source="avares://Ludork/Editor/Assets/icons/mode_tilemap.svg" />
+    <svg:SvgImage x:Key="EditorImage.ModeLight" Source="avares://Ludork/Editor/Assets/icons/mode_light.svg" />
+    <svg:SvgImage x:Key="EditorImage.ModeActor" Source="avares://Ludork/Editor/Assets/icons/mode_actor.svg" />
+    <svg:SvgImage x:Key="EditorImage.Play" Source="avares://Ludork/Editor/Assets/icons/play.svg" />
+    <svg:SvgImage x:Key="EditorImage.Stop" Source="avares://Ludork/Editor/Assets/icons/stop.svg" />
+    <svg:SvgImage x:Key="EditorImage.Construct" Source="avares://Ludork/Editor/Assets/icons/construct.svg" />
+    <svg:SvgImage x:Key="EditorImage.Export" Source="avares://Ludork/Editor/Assets/icons/export.svg" />
     <DrawingImage x:Key="EditorImage.FolderOpen" Viewbox="0,0,24,24">
         <DrawingImage.Drawing>
             <DrawingGroup>

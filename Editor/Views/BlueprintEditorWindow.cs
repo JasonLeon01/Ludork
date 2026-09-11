@@ -134,9 +134,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         variableForm.ComponentAddRequested += onComponentAddRequested;
         variableForm.ComponentRemoveRequested += onComponentRemoveRequested;
 
-        WidthConstrainedScrollViewer leftScroll = new()
+        ContentWidthScrollViewer leftScroll = new()
         {
-            MinWidth = 320,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -238,9 +237,23 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         };
         splitLayout = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("5*,4,6*"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,4,*"),
         };
-        splitLayout.ColumnDefinitions[0].MinWidth = leftScroll.MinWidth;
+        void updateVariableColumnWidth()
+        {
+            double availableWidth = splitLayout.Bounds.Width;
+            double splitterWidth = contentSplitter.IsVisible ? contentSplitter.Bounds.Width : 0;
+            double maximum = availableWidth > 0
+                ? Math.Max(0, availableWidth - splitterWidth)
+                : double.PositiveInfinity;
+            ColumnDefinition column = splitLayout.ColumnDefinitions[0];
+            column.MaxWidth = maximum;
+            column.MinWidth = Math.Min(leftScroll.RequiredWidth, maximum);
+            leftScroll.MaxWidth = maximum;
+        }
+        leftScroll.RequiredWidthChanged += (_, _) => updateVariableColumnWidth();
+        splitLayout.LayoutUpdated += (_, _) => updateVariableColumnWidth();
+        updateVariableColumnWidth();
         splitLayout.Children.Add(leftScroll);
         Grid.SetColumn(contentSplitter, 1);
         splitLayout.Children.Add(contentSplitter);
@@ -350,7 +363,6 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
         StackPanel panel = new()
         {
-            MinWidth = 320,
             Margin = new Thickness(8),
             Spacing = 8,
             Children =

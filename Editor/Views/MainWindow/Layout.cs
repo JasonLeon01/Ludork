@@ -101,6 +101,7 @@ public partial class MainWindow
         ActorInfoPanel.BlueprintLocateRequested += onBlueprintLocateRequested;
         if (projectRunner is not null)
         {
+            projectRunner.ExportState.Changed += onExportStateChanged;
             projectRunner.OutputReceived += onProjectOutputReceived;
             projectRunner.StateChanged += onProjectRunStateChanged;
             projectRunner.CommandAvailabilityChanged += onCommandAvailabilityChanged;

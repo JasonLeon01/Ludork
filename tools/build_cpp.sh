@@ -40,7 +40,7 @@ set -- \
     -DLUDORK_LUAC_CACHE_FILE="$LUAC_CACHE" \
     -DLUDORK_SAVE_AS_LDC="${LUDORK_SAVE_AS_LDC:-0}"
 
-DEPENDENCY_NAMES="flac freetype harfbuzz libssh2 mbedtls ogg sheenbidi vorbis"
+DEPENDENCY_NAMES="flac freetype harfbuzz libssh2 ludork_utf8proc mbedtls ogg sheenbidi vorbis"
 dependency_cache_is_ready() {
     cache_dir=$1
     for dependency_name in $DEPENDENCY_NAMES; do

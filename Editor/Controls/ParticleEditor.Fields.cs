@@ -67,7 +67,8 @@ public sealed partial class ParticleEditor
         addNumber(forces, current, "damping", 0, 0);
         StackPanel renderer = module("PARTICLE_RENDERER", true);
         addTexture(renderer, current);
-        addVector(renderer, current, "textureRect", [0, 0, 0, 0], 0, 16384, 1);
+        addVector(renderer, current, "textureRect", [0, 0, 0, 0], 0, 16384, 1,
+            [LocaleService.Get("PARTICLE_RECT_POSITION"), LocaleService.Get("PARTICLE_RECT_SIZE")]);
         addChoice(renderer, current, "blend", ["alpha", "add"]);
         StackPanel sheet = module("PARTICLE_SHEET");
         addNumber(sheet, current, "columns", 1, 1, 4096, 1);
@@ -88,12 +89,23 @@ public sealed partial class ParticleEditor
     private StackPanel module(string label, bool expanded = false)
     {
         StackPanel fields = new() { Spacing = 6, Margin = new Thickness(6) };
-        properties.Children.Add(new Expander
-        {
-            Header = LocaleService.Get(label), Content = fields, IsExpanded = expanded,
-            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
-        });
+        properties.Children.Add(createExpander(label, fields, expanded));
         return fields;
+    }
+
+    private static Expander createExpander(string label, Control content, bool expanded = false)
+    {
+        Expander expander = new()
+        {
+            Header = LocaleService.Get(label), Content = expanded ? content : null, IsExpanded = expanded,
+            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        expander.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == Expander.IsExpandedProperty)
+                expander.Content = expander.IsExpanded ? content : null;
+        };
+        return expander;
     }
 
     private static void field(StackPanel parent, string key, Control input)
@@ -151,9 +163,24 @@ public sealed partial class ParticleEditor
     }
 
     private void addVector(StackPanel parent, JsonObject owner, string property, double[] fallback,
-        double minimum = -1000000, double maximum = 1000000, double increment = 0.1)
+        double minimum = -1000000, double maximum = 1000000, double increment = 0.1, string[]? rowLabels = null)
     {
-        Grid row = new() { ColumnDefinitions = new ColumnDefinitions(string.Join(',', fallback.Select(_ => "*"))), ColumnSpacing = 4 };
+        Grid row = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions(rowLabels is null ? "*,*" : "Auto,*,*"),
+            RowDefinitions = new RowDefinitions(string.Join(',', Enumerable.Repeat("Auto", (fallback.Length + 1) / 2))),
+            ColumnSpacing = 4,
+            RowSpacing = 4,
+        };
+        if (rowLabels is not null)
+        {
+            for (int index = 0; index < rowLabels.Length; index++)
+            {
+                TextBlock label = new() { Text = rowLabels[index], VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetRow(label, index);
+                row.Children.Add(label);
+            }
+        }
         JsonArray source = owner[property] as JsonArray ?? ParticleAssetSchema.Array(fallback);
         for (int index = 0; index < fallback.Length; index++)
         {
@@ -170,7 +197,8 @@ public sealed partial class ParticleEditor
                     owner[property] = values;
                 commit();
             };
-            Grid.SetColumn(box, index);
+            Grid.SetColumn(box, index % 2 + (rowLabels is null ? 0 : 1));
+            Grid.SetRow(box, index / 2);
             row.Children.Add(box);
         }
         field(parent, property, row);
@@ -216,9 +244,7 @@ public sealed partial class ParticleEditor
             owner[property] = ParticleAssetSchema.Array(value.R, value.G, value.B, value.A);
             commit();
         };
-        Expander expander = new() { Header = LocaleService.Get("PARTICLE_FIELD_" + property.ToUpperInvariant()), Content = picker,
-            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-        parent.Children.Add(expander);
+        parent.Children.Add(createExpander("PARTICLE_FIELD_" + property.ToUpperInvariant(), picker));
     }
 
     private void addTexture(StackPanel parent, JsonObject owner)
@@ -267,7 +293,6 @@ public sealed partial class ParticleEditor
             commit();
             buildProperties();
         }));
-        parent.Children.Add(new Expander { Header = LocaleService.Get("PARTICLE_BURSTS"), Content = entries,
-            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch });
+        parent.Children.Add(createExpander("PARTICLE_BURSTS", entries));
     }
 }

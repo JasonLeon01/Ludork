@@ -2,7 +2,7 @@
   "parent": "Source.ConditionalActor.ConditionalActor",
   "attrs": {
     "animatable": false,
-    "collisionEnabled": false,
+    "collisionEnabled": true,
     "tickable": false,
     "texturePath": "/Game/Assets/Characters/npcs/classic-npcs-50F-single.png",
     "defaultRect": [

@@ -14,6 +14,7 @@
 #include <Manager/TimeManager.hpp>
 #include <Manager/UiAudioBridge.hpp>
 #include <RuntimeSession.hpp>
+#include <SFML/Window/WindowEnums.hpp>
 #include <System.hpp>
 #include <SystemConfigBase.hpp>
 #include <UIManager.hpp>
@@ -76,6 +77,10 @@ void setRuntimeLaunchOptions(const RuntimeLaunchOptions& options) noexcept {
 
 const RuntimeLaunchOptions& runtimeLaunchOptions() noexcept {
     return launchOptions;
+}
+
+std::uint32_t runtimeWindowStyle() noexcept {
+    return sf::Style::Titlebar | sf::Style::Close;
 }
 
 void shutdown(lua_State* state) noexcept {

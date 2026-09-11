@@ -11,6 +11,7 @@ internal sealed class PluginRegistrar : IPluginRegistrar
     private readonly List<ITextHintProvider> textHintProviders = [];
     private readonly List<IProjectOperationHook> beforeRunHooks = [];
     private readonly List<IProjectOperationHook> beforePackHooks = [];
+    private readonly List<IProjectExportHook> beforeExportHooks = [];
 
     public PluginRegistrar(
         string pluginDirectory,
@@ -38,6 +39,8 @@ internal sealed class PluginRegistrar : IPluginRegistrar
     public IReadOnlyList<IProjectOperationHook> BeforeRunHooks => beforeRunHooks;
 
     public IReadOnlyList<IProjectOperationHook> BeforePackHooks => beforePackHooks;
+
+    public IReadOnlyList<IProjectExportHook> BeforeExportHooks => beforeExportHooks;
 
     public void RegisterMenuCommand(PluginMenuCommand command)
     {
@@ -73,6 +76,12 @@ internal sealed class PluginRegistrar : IPluginRegistrar
     {
         ArgumentNullException.ThrowIfNull(hook);
         beforePackHooks.Add(hook);
+    }
+
+    public void RegisterBeforeExportHook(IProjectExportHook hook)
+    {
+        ArgumentNullException.ThrowIfNull(hook);
+        beforeExportHooks.Add(hook);
     }
 
     private void ensureCommandIdAvailable(string commandId)

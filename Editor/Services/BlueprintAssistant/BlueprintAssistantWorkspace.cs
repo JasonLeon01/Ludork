@@ -79,7 +79,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         "logs",
         "obj",
         "Plugins",
-        "Temp",
+        ProjectToolConstants.EditorCacheDirectory,
         "ThirdParty",
         "ThirdPartySource",
     };

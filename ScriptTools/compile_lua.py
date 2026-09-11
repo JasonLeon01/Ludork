@@ -18,9 +18,8 @@ def resolve_luac(configured: str | None = None) -> pathlib.Path:
     executable_name = "luac.exe" if os.name == "nt" else "luac"
     candidates.extend(
         (
-            executable_dir / executable_name,
+            executable_dir.parent / executable_name,
             executable_dir.parent / "Lua" / executable_name,
-            executable_dir.parent.parent / "Lua" / executable_name,
         )
     )
     for candidate in candidates:
@@ -28,7 +27,7 @@ def resolve_luac(configured: str | None = None) -> pathlib.Path:
         if resolved.is_file():
             return resolved
     raise RuntimeError(
-        "Host luac was not found. Run tools/init and keep luac next to ScriptTools."
+        "Host luac was not found. Run tools/init and keep luac in the editor tools directory."
     )
 
 

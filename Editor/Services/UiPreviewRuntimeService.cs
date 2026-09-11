@@ -159,7 +159,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
 
     private SnapshotReadResult readCurrent()
     {
-        string metadataRoot = Path.Combine(ProjectPath, "Temp");
+        string metadataRoot = Path.Combine(ProjectPath, ProjectToolConstants.EditorCacheDirectory);
         string manifestPath = Path.Combine(metadataRoot, "UiPreview.json");
         string registryPath = Path.Combine(metadataRoot, RegistryFileName);
         requireNotLink(metadataRoot);
@@ -301,7 +301,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
     {
         string[] parts = relativePath.Split('/');
         require(!Path.IsPathRooted(relativePath) && !relativePath.Contains('\\')
-            && !string.Equals(parts[0], "Temp", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(parts[0], ProjectToolConstants.EditorCacheDirectory, StringComparison.OrdinalIgnoreCase)
             && parts.All(isSafeFileName), "UI preview runtime directory must be a safe project-relative path.");
         string path = ProjectPath;
         foreach (string part in parts)
@@ -316,7 +316,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
     {
         if (disposed)
             return false;
-        string metadataRoot = Path.Combine(ProjectPath, "Temp");
+        string metadataRoot = Path.Combine(ProjectPath, ProjectToolConstants.EditorCacheDirectory);
         string buildingPath = Path.Combine(metadataRoot, "UiPreview.building");
         if (Path.Exists(buildingPath))
             return false;
@@ -329,7 +329,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
         string binaryRoot = Path.Combine(ProjectPath, "Binaries");
         requireNotLink(binaryRoot);
         string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
-        string? toolPath = EditorRuntimePaths.FindFile("tools", executable)
+        string? toolPath = EditorRuntimePaths.FindFile("tools", "ScriptTools", executable)
             ?? EditorRuntimePaths.FindFile(".tools", "ScriptTools", executable);
         string manifestPath = Path.Combine(metadataRoot, "UiPreview.json");
         string registryPath = Path.Combine(metadataRoot, RegistryFileName);

@@ -10,6 +10,7 @@
 #include <Manager/AudioManager.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <RuntimeSession.hpp>
+#include <SFML/Window/Context.hpp>
 #include <System.hpp>
 #include <Utils/EventBus.hpp>
 #include <VideoPlayback.hpp>
@@ -151,7 +152,8 @@ void SceneBase::systemMain() {
                     break;
                 }
                 System::updateRuntime();
-                if (System::hasPendingSceneOperations()) {
+                if (!System::isActive() ||
+                    System::hasPendingSceneOperations()) {
                     lifecycleImpl_->requestStop();
                     break;
                 }
@@ -171,10 +173,16 @@ void SceneBase::systemMain() {
                     window != nullptr) {
                     inputService().update(*window);
                 }
+                if (!System::isActive()) {
+                    break;
+                }
                 if (uiManager_ != nullptr) {
                     uiManager_->refreshDisplayScale();
                 }
                 systemInput();
+                if (!System::isActive()) {
+                    break;
+                }
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
                     measurement.inputMilliseconds =
@@ -185,6 +193,9 @@ void SceneBase::systemMain() {
                 deltaTime = TimeManager::getDeltaTime().asSeconds();
                 if (uiManager_ != nullptr) {
                     uiManager_->logicHandle(deltaTime);
+                }
+                if (!System::isActive()) {
+                    break;
                 }
                 updateCommonTipOverlay(deltaTime);
                 if (emitterScheduler_ != nullptr) {
@@ -558,6 +569,13 @@ void SceneBase::startLogicThread() {
     }
     logicThread_ = std::thread([this]() {
         try {
+            // Keep the worker's context alive when shared render textures are
+            // rebuilt or released by the render thread.
+            sf::Context context;
+            if (!context.setActive(true)) {
+                throw std::runtime_error(
+                    "Failed to activate the scene logic graphics context");
+            }
             logicLoop();
         } catch (...) {
             const std::lock_guard<std::mutex> lock(logicFailureMutex_);

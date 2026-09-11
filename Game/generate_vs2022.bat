@@ -60,7 +60,7 @@ set "BUILD_CPP="
 if defined LUDORK_TOOLS_DIR (
     call :use_tools_dir "%LUDORK_TOOLS_DIR%"
     if not defined SCRIPT_TOOLS (
-        echo LUDORK_TOOLS_DIR does not contain ScriptTools.exe, build_cpp.bat, and gnu-make\gnumake.exe: %LUDORK_TOOLS_DIR%
+        echo LUDORK_TOOLS_DIR does not contain ScriptTools\ScriptTools.exe, build_cpp.bat, and gnu-make\gnumake.exe: %LUDORK_TOOLS_DIR%
         exit /b 1
     )
     exit /b 0
@@ -90,8 +90,8 @@ exit /b 0
 
 :use_tools_dir
 for %%I in ("%~1") do set "CANDIDATE_TOOLS_DIR=%%~fI"
-if exist "!CANDIDATE_TOOLS_DIR!\ScriptTools.exe" if exist "!CANDIDATE_TOOLS_DIR!\gnu-make\gnumake.exe" if exist "!CANDIDATE_TOOLS_DIR!\build_cpp.bat" (
-    set "SCRIPT_TOOLS=!CANDIDATE_TOOLS_DIR!\ScriptTools.exe"
+if exist "!CANDIDATE_TOOLS_DIR!\ScriptTools\ScriptTools.exe" if exist "!CANDIDATE_TOOLS_DIR!\gnu-make\gnumake.exe" if exist "!CANDIDATE_TOOLS_DIR!\build_cpp.bat" (
+    set "SCRIPT_TOOLS=!CANDIDATE_TOOLS_DIR!\ScriptTools\ScriptTools.exe"
     set "GNU_MAKE=!CANDIDATE_TOOLS_DIR!\gnu-make\gnumake.exe"
     set "BUILD_CPP=!CANDIDATE_TOOLS_DIR!\build_cpp.bat"
 )

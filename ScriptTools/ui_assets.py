@@ -753,8 +753,15 @@ def main(arguments: list[str] | None = None) -> int:
     generate_parser = operations.add_parser("generate")
     generate_parser.add_argument("project_root", type=pathlib.Path)
     generate_parser.add_argument("--check", action="store_true")
+    manifest_parser = operations.add_parser("manifest")
+    manifest_parser.add_argument("project_root", type=pathlib.Path)
     parsed = parser.parse_args(arguments)
     try:
+        if parsed.operation == "manifest":
+            from .ui_asset_generation import generation_manifest
+
+            print(json.dumps(generation_manifest(parsed.project_root), ensure_ascii=False))
+            return 0
         if parsed.operation == "generate":
             from .ui_asset_generation import generate_assets
 

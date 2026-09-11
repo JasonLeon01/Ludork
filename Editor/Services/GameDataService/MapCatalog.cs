@@ -66,7 +66,7 @@ public sealed partial class GameDataService
 
     private string getMapCatalogCachePath()
     {
-        return Path.Combine(ProjectPath, "Temp", "EditorMapCatalog.json");
+        return Path.Combine(ProjectPath, ProjectToolConstants.EditorCacheDirectory, "EditorMapCatalog.json");
     }
 
     private JsonObject? readMapFile(string path, bool requireType)

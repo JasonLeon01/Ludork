@@ -958,7 +958,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         RectRangeSelection initial = parseRect(value, new RectRangeSelection(0, 0, CellSize, CellSize));
         Grid grid = new()
         {
-            ColumnDefinitions = new ColumnDefinitions("86,86,86,86"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto"),
             ColumnSpacing = 4,
             HorizontalAlignment = HorizontalAlignment.Left,
         };
@@ -972,7 +972,6 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 int.MaxValue,
                 1,
                 stretch: false);
-            box.Width = 86;
             box.FormatString = "0";
             attachHistory(box);
             boxes.Add(box);
@@ -1321,7 +1320,6 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     changed(cloneNode(items), refresh);
                 },
                 dictionaryKey);
-            itemEditor.MinWidth = 0;
             Grid.SetColumn(itemEditor, index);
             grid.Children.Add(itemEditor);
         }

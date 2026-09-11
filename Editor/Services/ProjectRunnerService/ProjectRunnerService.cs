@@ -19,6 +19,8 @@ public enum ProjectRunState
 {
     Idle,
     Building,
+    Exporting,
+    Packing,
     Preparing,
     Running,
 }
@@ -31,7 +33,8 @@ public enum ProjectRunFailure
     BuildToolMissing,
     BuildFailed,
     BuildRequired,
-    UiGenerationFailed,
+    ExportFailed,
+    ExportRequired,
     ExecutableMissing,
     LaunchFailed,
     GameFailed,
@@ -101,6 +104,8 @@ public sealed partial class ProjectRunnerService : IDisposable
     private long connectionGeneration;
     private bool disposed;
     private NativeBuildStateService? nativeBuildState;
+    private readonly ProjectStateWorker stateWorker;
+    public ProjectExportService ExportState { get; }
 
     public ProjectRunnerService(string projectPath, IEditorPluginRuntime? pluginRuntime = null)
     {
@@ -108,11 +113,13 @@ public sealed partial class ProjectRunnerService : IDisposable
             throw new ArgumentException(nameof(projectPath));
         this.projectPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
         operationPipeline = new ProjectOperationPipeline(this.projectPath, pluginRuntime);
+        stateWorker = new ProjectStateWorker(this.projectPath);
+        ExportState = new ProjectExportService(this.projectPath, stateWorker, pluginRuntime);
     }
 
     public ProjectRunState State { get; private set; }
     public bool CanSendCommand { get; private set; }
-    public NativeBuildStateService NativeBuildState => nativeBuildState ??= new(projectPath);
+    public NativeBuildStateService NativeBuildState => nativeBuildState ??= new(projectPath, stateWorker);
     public long RunGeneration => Interlocked.Read(ref runGeneration);
     public long ConnectionGeneration => Interlocked.Read(ref connectionGeneration);
     public event EventHandler<string>? OutputReceived;
@@ -120,7 +127,7 @@ public sealed partial class ProjectRunnerService : IDisposable
     public event EventHandler<ProjectRunState>? StateChanged;
     public event EventHandler<bool>? CommandAvailabilityChanged;
 
-    public async Task<ProjectRunResult> StartAsync(ProjectRunOptions options)
+    public async Task<ProjectRunResult> StartAsync(ProjectRunOptions options, CancellationToken cancellationToken = default)
     {
         if (disposed || State != ProjectRunState.Idle)
             return ProjectRunResult.CancelledResult();
@@ -139,15 +146,13 @@ public sealed partial class ProjectRunnerService : IDisposable
 
         Interlocked.Increment(ref runGeneration);
 
-        CancellationTokenSource cancellation = new();
+        CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         lock (processLock)
             runCancellation = cancellation;
 
         try
         {
             setState(ProjectRunState.Preparing);
-            if (!options.IsStandaloneProject && !await NativeBuildState.CheckAsync(cancellation.Token))
-                return ProjectRunResult.Failed(ProjectRunFailure.BuildRequired, NativeBuildState.Detail);
             PluginResult preparation = await operationPipeline.ExecuteAsync(
                 ProjectOperationKind.Run,
                 writeOutput,
@@ -159,17 +164,10 @@ public sealed partial class ProjectRunnerService : IDisposable
                     preparation.Error);
             }
 
-            ProcessStartInfo? generationStartInfo = UiAssetGenerationService.CreateStartInfo(projectPath);
-            if (generationStartInfo is null)
-                return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "ScriptTools");
-            writeOutput($"> {generationStartInfo.FileName} ui-assets generate \"{projectPath}\"");
-            int generationExitCode = await runProcessAsync(generationStartInfo, cancellation.Token);
-            if (cancellation.IsCancellationRequested)
-                return ProjectRunResult.CancelledResult();
-            if (generationExitCode != 0)
-                return ProjectRunResult.Failed(ProjectRunFailure.UiGenerationFailed, generationExitCode.ToString());
             if (!options.IsStandaloneProject && !await NativeBuildState.CheckAsync(cancellation.Token))
                 return ProjectRunResult.Failed(ProjectRunFailure.BuildRequired, NativeBuildState.Detail);
+            if (!await ExportState.CheckAsync(cancellation.Token))
+                return ProjectRunResult.Failed(ProjectRunFailure.ExportRequired, ExportState.Detail);
 
             string executableName = OperatingSystem.IsWindows() ? "Main.exe" : "Main";
             string executablePath = options.IsStandaloneProject
@@ -202,7 +200,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         {
             return ProjectRunResult.Failed(ProjectRunFailure.LaunchFailed, exception.Message);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is InvalidOperationException or ProjectStateCheckException)
         {
             return ProjectRunResult.Failed(ProjectRunFailure.LaunchFailed, exception.Message);
         }
@@ -219,7 +217,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         }
     }
 
-    public async Task<ProjectRunResult> BuildAsync()
+    public async Task<ProjectRunResult> BuildAsync(CancellationToken cancellationToken = default)
     {
         if (disposed || State != ProjectRunState.Idle)
             return ProjectRunResult.CancelledResult();
@@ -227,7 +225,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         if (projectError is not null)
             return ProjectRunResult.Failed(ProjectRunFailure.ProjectInvalid, projectError);
         Interlocked.Increment(ref runGeneration);
-        CancellationTokenSource cancellation = new();
+        CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         lock (processLock)
             runCancellation = cancellation;
         try
@@ -251,7 +249,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         {
             return ProjectRunResult.CancelledResult();
         }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
+        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException or ProjectStateCheckException)
         {
             return ProjectRunResult.Failed(ProjectRunFailure.BuildFailed, exception.Message);
         }
@@ -441,6 +439,8 @@ public sealed partial class ProjectRunnerService : IDisposable
         disposed = true;
         Stop();
         nativeBuildState?.Dispose();
+        ExportState.Dispose();
+        stateWorker.Dispose();
     }
 
     private string? validateProject(bool standalone)

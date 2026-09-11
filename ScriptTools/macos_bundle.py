@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 
+from .packaging_constants import RESOURCE_GROUPS, RUNTIME_LEGAL_FILES
 from .ui_preview import is_preview_development_file
 
 
@@ -146,7 +147,7 @@ def rewrite_executable_rpath(executable: pathlib.Path) -> None:
 
 
 def copy_resources(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> None:
-    for name in ("Assets", "Data", "Scripts"):
+    for name in RESOURCE_GROUPS:
         source = project_dir / name
         if not source.is_dir():
             raise RuntimeError(f"Project is missing {name}: {source}")
@@ -163,11 +164,7 @@ def copy_resources(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> No
                 resources_dir / name,
                 ignore=shutil.ignore_patterns(".DS_Store"),
             )
-    for name in (
-        "LICENSE.md",
-        "THIRD_PARTY_NOTICES.md",
-        "THIRD_PARTY_NOTICES_zh_CN.md",
-    ):
+    for name in RUNTIME_LEGAL_FILES:
         source = project_dir / name
         if source.is_file():
             shutil.copy2(source, resources_dir / name)

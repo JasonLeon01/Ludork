@@ -43,8 +43,15 @@ MACOS_DIR="$APP_DIR/Contents/MacOS"
 RESOURCES_DIR="$APP_DIR/Contents/Resources"
 FINAL_DIR="$PROJECT_ROOT/dist"
 BACKUP_DIR="$WORK_DIR/previous-dist"
-SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
-SCRIPT_TOOLS_VERSION_REPORT="$PROJECT_ROOT/.tools/ScriptTools/runtime-versions.txt"
+SCRIPT_TOOLS_DIRECTORY="$PROJECT_ROOT/.tools/ScriptTools"
+SCRIPT_TOOLS="$SCRIPT_TOOLS_DIRECTORY/ScriptTools"
+EDITOR_CACHE_DIRECTORY=$("$SCRIPT_TOOLS" packaging-constants list editor-cache-directory --separator space)
+TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list template-names --separator space)
+CPP_TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list cpp-template-names --separator space)
+STANDALONE_TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list standalone-template-names --separator space)
+PLAIN_TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list plain-template-names --separator space)
+FFMPEG_TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list ffmpeg-template-names --separator space)
+SCRIPT_TOOLS_VERSION_REPORT="$SCRIPT_TOOLS_DIRECTORY/runtime-versions.txt"
 FFMPEG_SOURCE_ARCHIVE="$PROJECT_ROOT/Game/ThirdPartySource/ffmpeg-$FFMPEG_VERSION.tar.gz"
 LUAC="$PROJECT_ROOT/.tools/Lua/luac"
 DIST_BACKED_UP=0
@@ -242,7 +249,7 @@ purge_windows_tools() {
 
 purge_template_runtime_state() {
     templates_dir=$1
-    for template_name in Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg; do
+    for template_name in $TEMPLATE_NAMES; do
         template_dir="$templates_dir/$template_name"
         rm -rf "$template_dir/Log" "$template_dir/Save"
         rm -f \
@@ -520,6 +527,22 @@ validate_standalone_runtime_layout() {
     codesign --verify --strict "$template_dir/Main"
 }
 
+validate_script_tools_bundle() {
+    script_tools_bundle=$1
+    require_package_directory "$script_tools_bundle"
+    require_package_executable "$script_tools_bundle/ScriptTools"
+    require_package_file "$script_tools_bundle/runtime-versions.txt"
+    require_package_file "$script_tools_bundle/runtime-files.json"
+    "$script_tools_bundle/ScriptTools" runtime-bundle validate "$script_tools_bundle"
+    find "$script_tools_bundle" -type f -exec sh -c '
+        for binary do
+            case "$(file -b "$binary")" in
+                *Mach-O*) codesign --verify --strict "$binary" || exit 1 ;;
+            esac
+        done
+    ' sh {} +
+}
+
 validate_package() {
     package_app=$1
     package_macos="$package_app/Contents/MacOS"
@@ -538,7 +561,7 @@ validate_package() {
         "$package_resources/Templates/Standalone"
     validate_standalone_runtime_layout \
         "$package_resources/Templates/Standalone-ffmpeg"
-    for template_name in Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg; do
+    for template_name in $TEMPLATE_NAMES; do
         "$SCRIPT_TOOLS" validate-ldpak-source \
             "$package_resources/Templates/$template_name"
     done
@@ -550,23 +573,22 @@ validate_package() {
     require_package_executable "$package_resources/tools/pack_android.sh"
     require_package_executable "$package_resources/tools/unregister_editor.sh"
     require_package_file "$package_resources/tools/common.sh"
-    require_package_executable "$package_resources/tools/ScriptTools"
-    require_package_file "$package_resources/tools/ScriptTools-runtime-versions.txt"
+    validate_script_tools_bundle "$package_resources/tools/ScriptTools"
     require_package_executable "$package_resources/tools/luac"
     require_package_executable "$package_resources/tools/build_ui_preview_host.sh"
-    for template_name in Standalone Standalone-ffmpeg; do
+    for template_name in $STANDALONE_TEMPLATE_NAMES; do
         "$SCRIPT_TOOLS" ui-preview validate "$package_resources/Templates/$template_name"
-        unexpected_temp=$(find "$package_resources/Templates/$template_name/Temp" \
+        unexpected_temp=$(find "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" \
             -mindepth 1 -maxdepth 1 ! -name UiPreview.json ! -name UiPreview.registry.json -print -quit)
         if [ -n "$unexpected_temp" ]; then
-            echo "Unexpected template Temp entry: $unexpected_temp" >&2
+            echo "Unexpected template $EDITOR_CACHE_DIRECTORY entry: $unexpected_temp" >&2
             exit 1
         fi
     done
-    for template_name in Cpp Cpp-ffmpeg; do
+    for template_name in $CPP_TEMPLATE_NAMES; do
         require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
         if [ -e "$package_resources/Templates/$template_name/Binaries" ] \
-            || [ -e "$package_resources/Templates/$template_name/Temp" ]; then
+            || [ -e "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" ]; then
             echo "Source template contains a prebuilt UI preview snapshot." >&2
             exit 1
         fi
@@ -603,6 +625,9 @@ validate_package() {
         Avalonia/Inter-OFL-1.1.txt \
         EditorPackages/AvaloniaEdit-LICENSE.txt \
         EditorPackages/CommunityToolkit.Mvvm-LICENSE.md \
+        EditorPackages/Svg.Skia-LICENSE.txt \
+        EditorPackages/Svg.Custom-LICENSE.txt \
+        EditorPackages/ExCSS-LICENSE.txt \
         EditorPackages/Material.Avalonia-LICENSE.txt \
         EditorPackages/CommunityToolkit.Mvvm-THIRD-PARTY-NOTICES.txt \
         EditorPackages/HarfBuzzSharp-LICENSE.txt \
@@ -652,7 +677,7 @@ validate_package() {
         ScriptTools/Nuitka-4.1.3-NOTICE.txt \
         ScriptTools/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt \
         ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt \
-        ScriptTools/Zstandard-1.4.7-LICENSE.txt; do
+        ScriptTools/Pillow-12.2.0-LICENSE.txt; do
         require_package_file "$package_resources/Licenses/$required_licence_path"
     done
 
@@ -727,6 +752,7 @@ validate_package() {
         "$package_macos/Ludork.ini" \
         "$package_resources/Locale/locale.json" \
         "$package_resources/Page" \
+        "$package_resources/tools/ScriptTools-runtime-versions.txt" \
         "$package_resources/tools/pack_editor.sh" \
         "$package_resources/tools/pack_editor.bat" \
         "$package_resources/tools/pack_editor_msi.bat" \
@@ -793,7 +819,7 @@ validate_package() {
         fi
     done
 
-    for template_name in Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg; do
+    for template_name in $TEMPLATE_NAMES; do
         template_dir="$package_resources/Templates/$template_name"
         require_package_file "$template_dir/LICENSE.md"
         require_package_file "$template_dir/THIRD_PARTY_NOTICES.md"
@@ -851,7 +877,7 @@ validate_package() {
         done
     done
 
-    for template_name in Cpp Standalone; do
+    for template_name in $PLAIN_TEMPLATE_NAMES; do
         template_licence_dir="$package_resources/Templates/$template_name/Licenses/FFmpeg"
         if [ -e "$template_licence_dir" ]; then
             echo "FFmpeg licence material was found in a non-FFmpeg template: $template_licence_dir" >&2
@@ -859,7 +885,7 @@ validate_package() {
         fi
     done
 
-    for template_name in Cpp Cpp-ffmpeg; do
+    for template_name in $CPP_TEMPLATE_NAMES; do
         template_dir="$package_resources/Templates/$template_name"
         require_package_executable "$template_dir/generate_clion.sh"
         for foreign_ide_tool in \
@@ -881,7 +907,7 @@ validate_package() {
             fi
         done
     done
-    for template_name in Standalone Standalone-ffmpeg; do
+    for template_name in $STANDALONE_TEMPLATE_NAMES; do
         template_dir="$package_resources/Templates/$template_name"
         for source_ide_tool in \
             "$template_dir/generate_vs2022.bat" \
@@ -894,7 +920,7 @@ validate_package() {
         done
     done
 
-    for template_name in Cpp-ffmpeg Standalone-ffmpeg; do
+    for template_name in $FFMPEG_TEMPLATE_NAMES; do
         template_licence_dir="$package_resources/Templates/$template_name/Licenses/FFmpeg"
         for template_licence_name in \
             COPYING.GPLv2.txt \
@@ -927,6 +953,7 @@ require_command plutil
 require_command file
 require_command hdiutil
 require_command cmp
+require_command codesign
 require_command DeRez
 require_command GetFileInfo
 require_command Rez
@@ -1097,8 +1124,7 @@ cp "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh" "$RESOURCES_DIR/tools/pa
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_android.sh" "$RESOURCES_DIR/tools/pack_android.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/unregister_editor.sh" "$RESOURCES_DIR/tools/unregister_editor.sh"
 require_file "$LUAC"
-cp "$SCRIPT_TOOLS" "$RESOURCES_DIR/tools/ScriptTools"
-cp "$SCRIPT_TOOLS_VERSION_REPORT" "$RESOURCES_DIR/tools/ScriptTools-runtime-versions.txt"
+copy_directory "$SCRIPT_TOOLS_DIRECTORY" "$RESOURCES_DIR/tools/ScriptTools"
 cp "$LUAC" "$RESOURCES_DIR/tools/luac"
 chmod +x \
     "$RESOURCES_DIR/tools/build_cpp.sh" \
@@ -1109,7 +1135,6 @@ chmod +x \
     "$RESOURCES_DIR/tools/pack_harmony.sh" \
     "$RESOURCES_DIR/tools/pack_android.sh" \
     "$RESOURCES_DIR/tools/unregister_editor.sh" \
-    "$RESOURCES_DIR/tools/ScriptTools" \
     "$RESOURCES_DIR/tools/luac"
 
 "$SCRIPT_TOOLS" editor-macos-metadata generate \

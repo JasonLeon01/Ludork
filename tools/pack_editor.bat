@@ -87,8 +87,27 @@ if not defined FFMPEG_VERSION (
 set "GNU_MAKE_EXE=%ROOT_DIR%\.tools\gnu-make\gnumake.exe"
 set "GNU_MAKE_SOURCE=%ROOT_DIR%\.tools\sources\make-%GNU_MAKE_VERSION%.tar.gz"
 set "GNU_MAKE_LICENSE=%ROOT_DIR%\.tools\build\make-%GNU_MAKE_VERSION%\COPYING"
-set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
-set "SCRIPT_TOOLS_VERSION_REPORT=%ROOT_DIR%\.tools\ScriptTools\runtime-versions.txt"
+set "SCRIPT_TOOLS_DIRECTORY=%ROOT_DIR%\.tools\ScriptTools"
+set "SCRIPT_TOOLS=%SCRIPT_TOOLS_DIRECTORY%\ScriptTools.exe"
+set "EDITOR_CACHE_DIRECTORY="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
+if not defined EDITOR_CACHE_DIRECTORY exit /b 1
+set "TEMPLATE_NAMES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list template-names --separator space"') do set "TEMPLATE_NAMES=%%V"
+if not defined TEMPLATE_NAMES exit /b 1
+set "CPP_TEMPLATE_NAMES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list cpp-template-names --separator space"') do set "CPP_TEMPLATE_NAMES=%%V"
+if not defined CPP_TEMPLATE_NAMES exit /b 1
+set "STANDALONE_TEMPLATE_NAMES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list standalone-template-names --separator space"') do set "STANDALONE_TEMPLATE_NAMES=%%V"
+if not defined STANDALONE_TEMPLATE_NAMES exit /b 1
+set "PLAIN_TEMPLATE_NAMES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list plain-template-names --separator space"') do set "PLAIN_TEMPLATE_NAMES=%%V"
+if not defined PLAIN_TEMPLATE_NAMES exit /b 1
+set "FFMPEG_TEMPLATE_NAMES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list ffmpeg-template-names --separator space"') do set "FFMPEG_TEMPLATE_NAMES=%%V"
+if not defined FFMPEG_TEMPLATE_NAMES exit /b 1
+set "SCRIPT_TOOLS_VERSION_REPORT=%SCRIPT_TOOLS_DIRECTORY%\runtime-versions.txt"
 set "FFMPEG_SOURCE_ARCHIVE=%ROOT_DIR%\Game\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 for %%F in (
@@ -219,9 +238,7 @@ for %%F in (build_standalone.bat build_ui_preview_host.bat pack_project.bat) do 
 )
 call :require_file "%ROOT_DIR%\.tools\Lua\luac.exe"
 if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe" "%STAGE_DIR%\tools\ScriptTools.exe" >nul
-if errorlevel 1 goto failed
-copy /Y "%SCRIPT_TOOLS_VERSION_REPORT%" "%STAGE_DIR%\tools\ScriptTools-runtime-versions.txt" >nul
+call :copy_directory "%SCRIPT_TOOLS_DIRECTORY%" "%STAGE_DIR%\tools\ScriptTools"
 if errorlevel 1 goto failed
 copy /Y "%ROOT_DIR%\.tools\Lua\luac.exe" "%STAGE_DIR%\tools\luac.exe" >nul
 if errorlevel 1 goto failed
@@ -294,7 +311,7 @@ del /S /Q "%~1\*.pdb" >nul 2>nul
 exit /b 0
 
 :purge_template_runtime_state
-for %%T in (Cpp Cpp-ffmpeg) do (
+for %%T in (%CPP_TEMPLATE_NAMES%) do (
     if exist "%~1\%%T\Log" rmdir /S /Q "%~1\%%T\Log"
     if exist "%~1\%%T\Save" rmdir /S /Q "%~1\%%T\Save"
     if exist "%~1\%%T\Main.ini" del /Q "%~1\%%T\Main.ini"
@@ -302,6 +319,16 @@ for %%T in (Cpp Cpp-ffmpeg) do (
     if exist "%~1\%%T\Ludork-startup-error.log" del /Q "%~1\%%T\Ludork-startup-error.log"
 )
 exit /b 0
+
+:validate_script_tools_bundle
+call :require_directory "%~1"
+if errorlevel 1 exit /b 1
+for %%F in (ScriptTools.exe runtime-versions.txt runtime-files.json) do (
+    call :require_file "%~1\%%F"
+    if errorlevel 1 exit /b 1
+)
+"%~1\ScriptTools.exe" runtime-bundle validate "%~1"
+exit /b %errorlevel%
 
 :validate_package
 set "PACKAGE_DIR=%~1"
@@ -319,7 +346,7 @@ call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone"
 if errorlevel 1 exit /b 1
 call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone-ffmpeg"
 if errorlevel 1 exit /b 1
-for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
+for %%T in (%TEMPLATE_NAMES%) do (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PACKAGE_DIR%\Templates\%%T"
     if errorlevel 1 exit /b 1
 )
@@ -329,9 +356,7 @@ call :require_file "%PACKAGE_DIR%\tools\build_standalone.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\pack_project.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\ScriptTools.exe"
-if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\ScriptTools-runtime-versions.txt"
+call :validate_script_tools_bundle "%PACKAGE_DIR%\tools\ScriptTools"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\luac.exe"
 if errorlevel 1 exit /b 1
@@ -393,6 +418,9 @@ for %%F in (
     "Avalonia\Inter-OFL-1.1.txt"
     "EditorPackages\AvaloniaEdit-LICENSE.txt"
     "EditorPackages\CommunityToolkit.Mvvm-LICENSE.md"
+    "EditorPackages\Svg.Skia-LICENSE.txt"
+    "EditorPackages\Svg.Custom-LICENSE.txt"
+    "EditorPackages\ExCSS-LICENSE.txt"
     "EditorPackages\Material.Avalonia-LICENSE.txt"
     "EditorPackages\CommunityToolkit.Mvvm-THIRD-PARTY-NOTICES.txt"
     "EditorPackages\HarfBuzzSharp-LICENSE.txt"
@@ -442,7 +470,7 @@ for %%F in (
     "ScriptTools\Nuitka-4.1.3-NOTICE.txt"
     "ScriptTools\Nuitka-4.1.3-RUNTIME-EXCEPTION.txt"
     "ScriptTools\Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt"
-    "ScriptTools\Zstandard-1.4.7-LICENSE.txt"
+    "ScriptTools\Pillow-12.2.0-LICENSE.txt"
 ) do (
     call :require_file "%PACKAGE_DIR%\Licenses\%%~F"
     if errorlevel 1 exit /b 1
@@ -499,6 +527,8 @@ for %%P in (
     "%PACKAGE_DIR%\Page"
     "%PACKAGE_DIR%\Ludork.ini"
     "%PACKAGE_DIR%\Locale\locale.json"
+    "%PACKAGE_DIR%\tools\ScriptTools.exe"
+    "%PACKAGE_DIR%\tools\ScriptTools-runtime-versions.txt"
     "%PACKAGE_DIR%\tools\pack_editor.bat"
     "%PACKAGE_DIR%\tools\pack_editor_msi.bat"
     "%PACKAGE_DIR%\tools\validate_editor_windows_layout.bat"
@@ -543,7 +573,7 @@ for /r "%PACKAGE_DIR%\tools" %%F in (*.sh) do (
         exit /b 1
     )
 )
-for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
+for %%T in (%TEMPLATE_NAMES%) do (
     call :require_file "%PACKAGE_DIR%\Templates\%%T\LICENSE.md"
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\THIRD_PARTY_NOTICES.md"
@@ -584,11 +614,11 @@ for %%T in (Cpp Cpp-ffmpeg Standalone Standalone-ffmpeg) do (
         exit /b 1
     )
 )
-for %%T in (Cpp Standalone) do if exist "%PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg" (
+for %%T in (%PLAIN_TEMPLATE_NAMES%) do if exist "%PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg" (
     echo FFmpeg licence material was found in a non-FFmpeg template: %PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg
     exit /b 1
 )
-for %%T in (Cpp-ffmpeg Standalone-ffmpeg) do for %%F in (
+for %%T in (%FFMPEG_TEMPLATE_NAMES%) do for %%F in (
     COPYING.GPLv2.txt
     COPYING.GPLv3.txt
     COPYING.LGPLv2.1.txt
@@ -599,9 +629,9 @@ for %%T in (Cpp-ffmpeg Standalone-ffmpeg) do for %%F in (
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg\%%F"
     if errorlevel 1 exit /b 1
 )
-for %%T in (Cpp Cpp-ffmpeg) do (
+for %%T in (%CPP_TEMPLATE_NAMES%) do (
     if exist "%PACKAGE_DIR%\Templates\%%T\Binaries" exit /b 1
-    if exist "%PACKAGE_DIR%\Templates\%%T\Temp" exit /b 1
+    if exist "%PACKAGE_DIR%\Templates\%%T\%EDITOR_CACHE_DIRECTORY%" exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Engine\UiPreviewHost\CMakeLists.txt"
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\generate_vs2022.bat"
@@ -637,7 +667,7 @@ for %%T in (Cpp Cpp-ffmpeg) do (
         exit /b 1
     )
 )
-for %%T in (Standalone Standalone-ffmpeg) do for %%F in (
+for %%T in (%STANDALONE_TEMPLATE_NAMES%) do for %%F in (
     generate_vs2022.bat
     generate_clion.bat
     generate_clion.sh
@@ -668,8 +698,8 @@ if "%STANDALONE_RUNTIME_LIBRARY_FOUND%"=="0" (
 )
 "%SCRIPT_TOOLS%" ui-preview validate "%~1"
 if errorlevel 1 exit /b %errorlevel%
-for /f "delims=" %%F in ('dir /B /A "%~1\Temp"') do if not "%%F"=="UiPreview.json" if not "%%F"=="UiPreview.registry.json" (
-    echo Unexpected template Temp entry: %~1\Temp\%%F
+for /f "delims=" %%F in ('dir /B /A "%~1\%EDITOR_CACHE_DIRECTORY%"') do if not "%%F"=="UiPreview.json" if not "%%F"=="UiPreview.registry.json" (
+    echo Unexpected template %EDITOR_CACHE_DIRECTORY% entry: %~1\%EDITOR_CACHE_DIRECTORY%\%%F
     exit /b 1
 )
 exit /b 0

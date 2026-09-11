@@ -16,6 +16,7 @@ from .ldpak import (
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
 )
+from .packaging_constants import COMPILE_LUA_DIRECTORIES_ENVIRONMENT, EXCLUDED_FILES_ENVIRONMENT, PACKAGE_CACHE_DIRECTORIES
 from .ui_assets import validate_assets
 from .ui_control_registry import UiControlRegistry, load_registry
 from .ui_preview import PREVIEW_DIRECTORY, ensure_preview, is_preview_development_file
@@ -32,8 +33,6 @@ STREAM_FALLBACK = 0x9E3779B97F4A7C15
 UINT64_MASK = 0xFFFFFFFFFFFFFFFF
 MAX_SHADER_SIZE = 64 * 1024 * 1024
 MAX_DATA_SIZE = 512 * 1024 * 1024
-COMPILE_LUA_DIRECTORIES_ENVIRONMENT = "LUDORK_PACK_COMPILE_LUA_DIRECTORIES"
-EXCLUDED_FILES_ENVIRONMENT = "LUDORK_PACK_EXCLUDED_FILES"
 SHADER_EXTENSIONS = {
     ".frag": ".fragc",
     ".vert": ".vertc",
@@ -354,8 +353,7 @@ def prune_package(
 ) -> int:
     removed = 0
     for relative_path in (
-        pathlib.Path("Temp"),
-        pathlib.Path("Cache"),
+        *(pathlib.Path(name) for name in PACKAGE_CACHE_DIRECTORIES),
         pathlib.Path("Scripts") / "stub",
     ):
         target = resource_root / relative_path
@@ -446,7 +444,7 @@ def _finalize_package_in_place(
     removed += strip_ui_editor_data(root / "Data")
     encrypted_data = encrypt_data(root / "Data") if encrypt_data_enabled else 0
     reject_declaration_files(root)
-    for directory in ("Temp", "Cache"):
+    for directory in PACKAGE_CACHE_DIRECTORIES:
         if os.path.lexists(root / directory):
             raise RuntimeError(
                 f"The project root {directory} directory remains in the game package"

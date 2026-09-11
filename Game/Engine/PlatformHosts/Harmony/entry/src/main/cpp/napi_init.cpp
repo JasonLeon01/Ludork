@@ -1,4 +1,5 @@
 #include <Application.hpp>
+#include <GlobalRuntimeApi.hpp>
 #include <Input/InputService.hpp>
 #include <SFML/Main/MainHarmony.hpp>
 #include <SFML/Window/Harmony/NativeAppImpl.hpp>
@@ -19,6 +20,14 @@
 #include <vector>
 
 namespace {
+
+napi_value getWindowStyle(napi_env env, napi_callback_info) {
+    napi_value result{};
+    return napi_create_uint32(env, ludork::global::runtimeWindowStyle(),
+                              &result) == napi_ok
+               ? result
+               : nullptr;
+}
 
 struct DisplayScalePayload {
     float scale{};
@@ -340,6 +349,9 @@ extern "C" napi_value initializeModule(napi_env env, napi_value exports) {
     }
 
     const std::array properties{
+        napi_property_descriptor{"getWindowStyle", nullptr, ::getWindowStyle,
+                                 nullptr, nullptr, nullptr, napi_default,
+                                 nullptr},
         napi_property_descriptor{"configureRuntimePaths", nullptr,
                                  ::configureRuntimePaths, nullptr, nullptr,
                                  nullptr, napi_default, nullptr},

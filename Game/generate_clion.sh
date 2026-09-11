@@ -20,8 +20,8 @@ CMAKE_EXE=
 NINJA_EXE=
 use_tools_dir() {
     candidate_tools_dir=$1
-    if [ -x "$candidate_tools_dir/ScriptTools" ]; then
-        SCRIPT_TOOLS="$candidate_tools_dir/ScriptTools"
+    if [ -x "$candidate_tools_dir/ScriptTools/ScriptTools" ]; then
+        SCRIPT_TOOLS="$candidate_tools_dir/ScriptTools/ScriptTools"
     fi
 }
 
@@ -41,7 +41,7 @@ use_clion_app() {
 if [ -n "${LUDORK_TOOLS_DIR:-}" ]; then
     use_tools_dir "$LUDORK_TOOLS_DIR"
     if [ -z "$SCRIPT_TOOLS" ]; then
-        echo "LUDORK_TOOLS_DIR does not contain an executable ScriptTools: $LUDORK_TOOLS_DIR" >&2
+        echo "LUDORK_TOOLS_DIR does not contain an executable ScriptTools/ScriptTools: $LUDORK_TOOLS_DIR" >&2
         exit 1
     fi
 else

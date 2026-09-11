@@ -3,6 +3,7 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/WindowHandle.hpp>
 
+#include <cstdint>
 #include <optional>
 
 namespace ludork::global {
@@ -14,7 +15,7 @@ struct WindowedFramePlacement {
 };
 
 std::optional<sf::Vector2u> getMaximumWindowedClientSize(
-    sf::WindowHandle windowHandle) noexcept;
+    sf::WindowHandle windowHandle, std::uint32_t windowStyle) noexcept;
 std::optional<sf::Vector2u> getWindowedClientSize(
     sf::WindowHandle windowHandle) noexcept;
 std::optional<WindowedFramePlacement> getWindowedFramePlacement(

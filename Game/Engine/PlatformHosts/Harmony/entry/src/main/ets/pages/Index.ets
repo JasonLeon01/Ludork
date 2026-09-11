@@ -166,6 +166,7 @@ class SfmlHostCallbacks {
 }
 
 interface SfmlNativeContext {
+  getWindowStyle(): number;
   configureRuntimePaths(runtimeRoot: string, userDataRoot: string): void;
   configureSystemLocale(systemLocale: string): void;
   configureDisplayScaleHost(
@@ -575,6 +576,14 @@ struct Index {
       mainWindow.setWindowSystemBarEnable(systemBars),
       mainWindow.setWindowKeepScreenOn(keepScreenOn)
     ]);
+    await this.applyFreeWindowStyle(mainWindow);
+  }
+
+  private async applyFreeWindowStyle(mainWindow: window.Window): Promise<void> {
+    const nativeContext = this.nativeContext;
+    if (nativeContext !== undefined && deviceInfo.deviceType === 'tablet' && mainWindow.isInFreeWindowMode()) {
+      await this.applyWindowControls(mainWindow, nativeContext.getWindowStyle());
+    }
   }
 
   private configureWindow(
@@ -794,22 +803,35 @@ struct Index {
 
   private applyWindowStyle(mainWindow: window.Window, style: number): Promise<void> {
     const decorated = (style & 0x7) !== 0;
-    const resizable = (style & 0x2) !== 0;
-    const closeable = (style & 0x4) !== 0;
     mainWindow.setWindowDecorVisible(decorated);
     mainWindow.setWindowTitleMoveEnabled(decorated);
+    return this.applyWindowControls(mainWindow, style);
+  }
+
+  private applyWindowControls(mainWindow: window.Window, style: number): Promise<void> {
+    const decorated = (style & 0x7) !== 0;
+    const resizable = (style & 0x2) !== 0;
+    const closeable = (style & 0x4) !== 0;
     mainWindow.setWindowTitleButtonVisible(resizable, decorated, closeable);
     return mainWindow.setResizeByDragEnabled(resizable);
   }
 
-  private resizeClientArea(mainWindow: window.Window, width: number, height: number): Promise<void> {
-    const properties = mainWindow.getWindowProperties();
+  private getWindowSizeForClientArea(
+    properties: window.WindowProperties,
+    width: number,
+    height: number
+  ): window.Size {
     const horizontalDecor = Math.max(0, properties.windowRect.width - properties.drawableRect.width);
     const verticalDecor = Math.max(0, properties.windowRect.height - properties.drawableRect.height);
-    return mainWindow.resize(
-      Math.max(1, Math.trunc(width) + horizontalDecor),
-      Math.max(1, Math.trunc(height) + verticalDecor)
-    );
+    return {
+      width: Math.max(1, Math.trunc(width) + horizontalDecor),
+      height: Math.max(1, Math.trunc(height) + verticalDecor)
+    };
+  }
+
+  private resizeClientArea(mainWindow: window.Window, width: number, height: number): Promise<void> {
+    const size = this.getWindowSizeForClientArea(mainWindow.getWindowProperties(), width, height);
+    return mainWindow.resize(size.width, size.height);
   }
 
   private setWindowSizeLimit(
@@ -1406,7 +1428,7 @@ struct Index {
     context: common.UIAbilityContext,
     hostGeneration: number
   ): boolean {
-    if (!this.displayScaleConfigurable) {
+    if (!this.displayScaleConfigurable || this.lifecycle === 'background') {
       this.displayScaleHostConfigured = false;
       nativeContext.clearDisplayScaleHost();
       return false;
@@ -1487,9 +1509,12 @@ struct Index {
       nativeContext.clearDisplayScaleHost();
       return;
     }
+    const context = hostContext as common.UIAbilityContext;
+    this.queueWindowCommand(context, 'Applying Stage window style',
+      (mainWindow: window.Window) => this.applyFreeWindowStyle(mainWindow));
     this.configureNativeDisplayScaleHost(
       nativeContext,
-      hostContext as common.UIAbilityContext,
+      context,
       this.windowHostGeneration
     );
   }
@@ -1555,7 +1580,8 @@ struct Index {
   }
 
   private isDisplayScaleRequestCurrent(request: number, generation: number): boolean {
-    return this.displayScaleConfigurable && request === this.displayScaleRequest &&
+    return this.displayScaleConfigurable && this.lifecycle !== 'background' &&
+      request === this.displayScaleRequest &&
       generation === this.windowHostGeneration;
   }
 
@@ -1596,13 +1622,25 @@ struct Index {
       if (!this.isDisplayScaleRequestCurrent(request, generation)) {
         return;
       }
-      const width = Math.max(1, Math.round(gameWidth * scale));
-      const height = Math.max(1, Math.round(gameHeight * scale));
-      await mainWindow.resizeAsync(width, height);
+      await this.applyWindowPresentation(mainWindow, false, this.keepScreenOn);
       if (!this.isDisplayScaleRequestCurrent(request, generation)) {
         return;
       }
-      await this.applyWindowPresentation(mainWindow, false, this.keepScreenOn);
+      const width = Math.max(1, Math.round(gameWidth * scale));
+      const height = Math.max(1, Math.round(gameHeight * scale));
+      const size = this.getWindowSizeForClientArea(mainWindow.getWindowProperties(), width, height);
+      await mainWindow.resizeAsync(size.width, size.height);
+      if (!this.isDisplayScaleRequestCurrent(request, generation)) {
+        return;
+      }
+      const properties = mainWindow.getWindowProperties();
+      if (properties.drawableRect.width === width && properties.drawableRect.height === height) {
+        return;
+      }
+      const correctedSize = this.getWindowSizeForClientArea(properties, width, height);
+      if (correctedSize.width !== size.width || correctedSize.height !== size.height) {
+        await mainWindow.resizeAsync(correctedSize.width, correctedSize.height);
+      }
     });
   }
 
@@ -1850,6 +1888,9 @@ struct Index {
         this.publishWindowState(this.mainWindow);
       }
     } else if (this.lifecycle === 'background') {
+      ++this.displayScaleRequest;
+      this.displayScaleHostConfigured = false;
+      context.clearDisplayScaleHost();
       this.finishTextInput(false, '');
       this.releaseHeldSurfaceKeys(context);
       context.onBackground();
