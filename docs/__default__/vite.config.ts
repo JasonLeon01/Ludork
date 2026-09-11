@@ -1,4 +1,5 @@
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
@@ -11,6 +12,7 @@ const PROJECT_DIRECTORY = fileURLToPath(new URL('.', import.meta.url))
 const DOCS_DIRECTORY = resolve(PROJECT_DIRECTORY, '..')
 const LANGUAGE_DIRECTORIES = ['en_GB', 'zh_CN'] as const
 const PUBLIC_DOCS_DIRECTORIES = ['_images', ...LANGUAGE_DIRECTORIES] as const
+const ABOUT_FILES = LANGUAGE_DIRECTORIES.map((language) => `About_${language}.md`)
 
 type DocsManifest = Record<(typeof LANGUAGE_DIRECTORIES)[number], string[]>
 
@@ -45,9 +47,25 @@ function readDocsManifest(): DocsManifest {
 
 function isDocsFile(filename: string): boolean {
   const relativePath = relative(DOCS_DIRECTORY, filename)
-  return PUBLIC_DOCS_DIRECTORIES.some((directory) =>
+  return ABOUT_FILES.includes(relativePath) || PUBLIC_DOCS_DIRECTORIES.some((directory) =>
     relativePath === directory || relativePath.startsWith(`${directory}${sep}`),
   )
+}
+
+function serveAbout(request: IncomingMessage, response: ServerResponse, next: () => void): void {
+  const filename = request.url?.split('?')[0].replace(/^\//, '') ?? ''
+  if (!ABOUT_FILES.includes(filename)) {
+    next()
+    return
+  }
+  try {
+    const content = readFileSync(resolve(DOCS_DIRECTORY, filename))
+    response.setHeader('Content-Type', 'text/markdown; charset=utf-8')
+    response.end(content)
+  } catch {
+    response.statusCode = 404
+    response.end('Not found')
+  }
 }
 
 function ludorkDocsPlugin(): Plugin {
@@ -66,13 +84,16 @@ function ludorkDocsPlugin(): Plugin {
       return `export default ${JSON.stringify(readDocsManifest())}`
     },
     configureServer(server) {
+      server.middlewares.use(serveAbout)
+      server.watcher.add(ABOUT_FILES.map((filename) => resolve(DOCS_DIRECTORY, filename)))
       for (const directory of PUBLIC_DOCS_DIRECTORIES) {
         const source = resolve(DOCS_DIRECTORY, directory)
         server.watcher.add(source)
-        server.middlewares.use(`/docs/${directory}`, sirv(source, { dev: true, etag: true }))
+        server.middlewares.use(`/${directory}`, sirv(source, { dev: true, etag: true }))
       }
     },
     configurePreviewServer(server) {
+      server.middlewares.use(serveAbout)
       for (const directory of PUBLIC_DOCS_DIRECTORIES) {
         server.middlewares.use(
           `/${directory}`,
@@ -96,6 +117,16 @@ function ludorkDocsPlugin(): Plugin {
 }
 
 export default defineConfig({
+  appType: 'mpa',
   base: './',
   plugins: [react(), ludorkDocsPlugin()],
+  build: {
+    rolldownOptions: {
+      input: {
+        home: resolve(PROJECT_DIRECTORY, 'index.html'),
+        docs: resolve(PROJECT_DIRECTORY, 'docs/index.html'),
+        about: resolve(PROJECT_DIRECTORY, 'about/index.html'),
+      },
+    },
+  },
 })

@@ -7,6 +7,7 @@
 #include <System/NativeDisplayHost.hpp>
 #include <Input/InjectedInputEvent.hpp>
 #include "TextInputHostHarmony.hpp"
+#include "WebViewHostHarmony.hpp"
 
 #include <array>
 #include <cstdint>
@@ -345,6 +346,12 @@ extern "C" napi_value initializeModule(napi_env env, napi_value exports) {
             env, initializedExports)) {
         napi_throw_error(env, nullptr,
                          "Failed to register the text input host");
+        return nullptr;
+    }
+
+    if (!ludork::application::registerHarmonyWebViewHost(env,
+                                                         initializedExports)) {
+        napi_throw_error(env, nullptr, "Failed to register the WebView host");
         return nullptr;
     }
 

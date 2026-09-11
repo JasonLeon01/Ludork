@@ -1,0 +1,23 @@
+target_sources(LudorkRuntime PRIVATE WebViewService.cpp)
+
+if(WIN32)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/LudorkWebView2.cmake")
+    target_sources(LudorkRuntime PRIVATE Platform/WindowsWebViewHostImpl.cpp)
+    target_link_libraries(LudorkRuntime PRIVATE Ludork::WebView2 ole32 user32 shell32 gdi32)
+elseif(APPLE)
+    set_target_properties(LudorkRuntime PROPERTIES OBJCXX_STANDARD 20 OBJCXX_STANDARD_REQUIRED ON)
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        set(LUDORK_WEBVIEW_APPLE_SOURCE Platform/IosWebViewHostImpl.mm)
+        target_link_libraries(LudorkRuntime PRIVATE "-framework UIKit")
+    else()
+        set(LUDORK_WEBVIEW_APPLE_SOURCE Platform/MacWebViewHostImpl.mm)
+        target_link_libraries(LudorkRuntime PRIVATE "-framework AppKit")
+    endif()
+    target_sources(LudorkRuntime PRIVATE "${LUDORK_WEBVIEW_APPLE_SOURCE}")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/${LUDORK_WEBVIEW_APPLE_SOURCE}"
+        TARGET_DIRECTORY LudorkRuntime
+        PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    target_link_libraries(LudorkRuntime PRIVATE "-framework WebKit")
+else()
+    target_sources(LudorkRuntime PRIVATE Platform/WebViewPlatform.cpp)
+endif()

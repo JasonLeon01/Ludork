@@ -1,5 +1,6 @@
 #include <Input/JoystickButton.hpp>
 #include <Input/InputNamedValue.hpp>
+#include "JoystickDevice/JoystickDeviceImpl.hpp"
 
 #include <SFML/Config.hpp>
 
@@ -41,6 +42,13 @@ constexpr std::array<ButtonEntry, 12> PlatformButtons = {
 };
 
 #endif
+
+constexpr std::array<ButtonEntry, 11> PlayStationDesktopButtons = {
+    ButtonEntry{"A", 1},    ButtonEntry{"B", 2},     ButtonEntry{"X", 0},
+    ButtonEntry{"Y", 3},    ButtonEntry{"LB", 4},    ButtonEntry{"RB", 5},
+    ButtonEntry{"View", 8}, ButtonEntry{"Menu", 9},  ButtonEntry{"LS", 10},
+    ButtonEntry{"RS", 11},  ButtonEntry{"XBox", 12},
+};
 
 }  // namespace
 
@@ -122,4 +130,52 @@ std::optional<InputNamedValue> JoystickButton::fromName(
         }
     }
     throw std::invalid_argument("Unknown gamepad button: " + name);
+}
+
+std::optional<unsigned int> JoystickButton::resolve(
+    unsigned int joystickId, const InputNamedValue& button) {
+    if (joystickId >= sf::Joystick::Count ||
+        !sf::Joystick::isConnected(joystickId)) {
+        return std::nullopt;
+    }
+    int raw = button.value;
+    if (!button.name.empty()) {
+        if (!isValid(button)) {
+            return std::nullopt;
+        }
+        const Family family = getFamily(joystickId);
+        if (family == Family::PlayStation4 || family == Family::PlayStation5) {
+            if (button.name == "Share") {
+                return std::nullopt;
+            }
+#if defined(SFML_SYSTEM_WINDOWS) || defined(SFML_SYSTEM_MACOS)
+            for (const auto& [name, value] : PlayStationDesktopButtons) {
+                if (name == button.name) {
+                    raw = value;
+                    break;
+                }
+            }
+#endif
+        }
+    }
+    if (raw < 0 || static_cast<unsigned int>(raw) >=
+                       sf::Joystick::getButtonCount(joystickId)) {
+        return std::nullopt;
+    }
+    return static_cast<unsigned int>(raw);
+}
+
+JoystickButton::Family JoystickButton::getFamily(unsigned int joystickId) {
+    return ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+        .family(joystickId);
+}
+
+JoystickButton::Family JoystickButton::getDisplayFamily() {
+    return ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+        .displayFamily();
+}
+
+std::uint64_t JoystickButton::getPresentationRevision() {
+    return ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+        .presentationRevision();
 }

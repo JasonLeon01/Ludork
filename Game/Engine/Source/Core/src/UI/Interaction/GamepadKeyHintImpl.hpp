@@ -1,9 +1,12 @@
 #pragma once
 
 #include <Input/InputNamedValue.hpp>
-#include <UI/PlainText.hpp>
+#include "GamepadGlyphImpl.hpp"
+#include <array>
+#include <optional>
 #include <UI/PlainTextConfig.hpp>
 #include <UI/SectorShape.hpp>
+#include <SFML/Window/Joystick.hpp>
 
 namespace ludork::engine::ui_interaction {
 
@@ -17,7 +20,8 @@ public:
 
     void setTextConfig(const std::shared_ptr<PlainTextConfig>& textConfig);
     void setLongPress(bool longPress);
-    bool updateHold(bool down, bool enabled, float deltaTime);
+    void refresh();
+    bool updateHold(bool enabled, float deltaTime);
     void resetProgress();
     void layout(const sf::Vector2f& position);
     void setColour(bool enabled, const sf::Color& presentation);
@@ -28,9 +32,11 @@ private:
     InputNamedValue button_;
     bool longPress_;
     float holdTime_ = 0.0f;
-    bool triggered_ = false;
+    std::optional<unsigned int> heldJoystick_;
+    std::array<bool, sf::Joystick::Count> consumed_{};
+    std::uint64_t presentationRevision_ = 0;
     sf::Vector2f position_;
-    std::unique_ptr<PlainText> label_;
+    std::unique_ptr<GamepadGlyphImpl> glyph_;
     sf::CircleShape background_;
     sf::CircleShape track_;
     SectorShape progress_;

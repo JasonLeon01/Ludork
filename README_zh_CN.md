@@ -1,6 +1,6 @@
 # Ludork
 
-[English](README.md) · [简体中文](README_zh_CN.md)
+[English](README.md) ｜ 简体中文
 
 Ludork 是一款面向 2D 角色扮演游戏创作的游戏编辑器与原生运行时。它将可视化地图和数据创作、Blueprint 图、Lua 脚本与 C++20 运行时整合为一套完整的生产流程。
 
@@ -101,6 +101,7 @@ macOS：
 
 ## 文档与支持
 
+- 访问 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)了解功能、下载与项目信息，或阅读[在线文档](https://jasonleon01.github.io/Ludork/docs/?lang=zh_CN)。
 - 从 [Ludork 文档](docs/zh_CN/00.Ludork%20文档.md)开始阅读。
 - 按照[快速入门](docs/zh_CN/01.快速入门/01.创建第一个项目.md)完成工程创建、运行与打包。
 - 通过 [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues)报告可复现问题或提交功能建议。

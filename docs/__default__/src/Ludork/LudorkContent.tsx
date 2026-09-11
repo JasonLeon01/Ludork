@@ -1,15 +1,18 @@
-import { useEffect, useState, type MouseEvent } from 'react'
-import { Box, CircularProgress, Typography } from '@mui/material'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { Box, Button, CircularProgress } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
-import 'highlight.js/styles/github.css'
 import { getDocsUrl, resolveDocsReference } from './ludorkDocs'
 import { resolveKnownDocPath } from './ludorkDocsIndex'
 import { getLudorkDocHref, getLudorkPathHref } from './ludorkUrl'
+import type { LanguageKey } from './ludorkLanguages'
+import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
+import './ludork.css'
 
 type LudorkContentProps = {
+  language: LanguageKey
   path: string | null
   hash: string
   onNavigate?: (targetPath: string, hash: string) => void
@@ -39,8 +42,11 @@ function scrollToHash(hash: string): void {
   document.getElementById(id)?.scrollIntoView({ block: 'start' })
 }
 
-export default function LudorkContent({ path, hash, onNavigate }: LudorkContentProps) {
+export default function LudorkContent({ path, hash, language, onNavigate }: LudorkContentProps) {
   const [loadResult, setLoadResult] = useState<MarkdownLoadResult | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const messages = LUDORK_SITE_MESSAGES[language].docs
 
   useEffect(() => {
     if (!path) {
@@ -58,6 +64,9 @@ export default function LudorkContent({ path, hash, onNavigate }: LudorkContentP
         const response = await fetch(getDocsUrl(targetPath), { signal: controller.signal })
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`)
+        }
+        if (response.headers.get('content-type')?.includes('text/html')) {
+          throw new Error('Unexpected HTML response')
         }
         const text = await response.text()
         if (!cancelled) {
@@ -79,7 +88,7 @@ export default function LudorkContent({ path, hash, onNavigate }: LudorkContentP
       cancelled = true
       controller.abort()
     }
-  }, [path])
+  }, [path, attempt])
 
   const currentResult = loadResult?.path === path ? loadResult : null
   const loading = Boolean(path && !currentResult)
@@ -87,40 +96,43 @@ export default function LudorkContent({ path, hash, onNavigate }: LudorkContentP
   const markdown = currentResult?.markdown ?? null
 
   useEffect(() => {
-    if (!markdown || !hash) {
+    if (!markdown) {
       return
     }
-    const frame = requestAnimationFrame(() => scrollToHash(hash))
+    const frame = requestAnimationFrame(() => {
+      if (hash) scrollToHash(hash)
+      else contentRef.current?.closest('main')?.scrollTo({ top: 0 })
+    })
     return () => cancelAnimationFrame(frame)
   }, [hash, markdown, path])
 
   if (!path) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-        <Typography variant="h6">Select a document from the sidebar</Typography>
-      </Box>
+      <div className="ludork-docs-status">
+        <p>{messages.selectDocument}</p>
+      </div>
     )
   }
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
+      <div className="ludork-docs-status" role="status" aria-label={messages.loading}>
+        <CircularProgress size={28} aria-label={messages.loading} />
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Box sx={{ p: 4, textAlign: 'center', color: 'error.main' }}>
-        <Typography variant="h6">Failed to load document</Typography>
-        <Typography variant="body2">{error}</Typography>
-      </Box>
+      <div className="ludork-docs-status" role="alert">
+        <p>{messages.loadError}</p>
+        <Button onClick={() => { setLoadResult(null); setAttempt((previous) => previous + 1) }}>{messages.retry}</Button>
+      </div>
     )
   }
 
   return (
-    <Box className="ludork-markdown" sx={{ px: { xs: 2, md: 4 }, py: 3, width: '100%', boxSizing: 'border-box' }}>
+    <Box ref={contentRef} className="ludork-markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSlug, rehypeHighlight]}
@@ -136,7 +148,7 @@ export default function LudorkContent({ path, hash, onNavigate }: LudorkContentP
                 <a
                   href={documentHref}
                   onClick={(event) => {
-                    if (!shouldHandleNavigation(event)) {
+                    if (!onNavigate || !shouldHandleNavigation(event)) {
                       return
                     }
                     event.preventDefault()

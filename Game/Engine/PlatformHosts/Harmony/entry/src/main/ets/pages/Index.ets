@@ -7,6 +7,8 @@ import { i18n, resourceManager } from '@kit.LocalizationKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { TextInputDialog } from './TextInputDialog';
+import { WebViewOverlay } from './WebViewOverlay';
+import { inputMethod } from '@kit.IMEKit';
 
 const DOMAIN = 0x4C44;
 const TAG = 'Ludork-Harmony';
@@ -182,6 +184,9 @@ interface SfmlNativeContext {
   ) => void): void;
   clearTextInputHost(): void;
   completeTextInput(sessionId: string, accepted: boolean, text: string): void;
+  configureWebViewHost(callback: (sessionId: string, visible: boolean, url: string) => void): void;
+  clearWebViewHost(): void;
+  completeWebView(sessionId: string): void;
   submitKeyEvent(
     keyCode: number,
     pressed: boolean,
@@ -381,6 +386,65 @@ struct Index {
   private textInputDialog?: CustomDialogController;
   private textInputSession: string = '';
   private textInputContext?: SfmlNativeContext;
+  @State private webViewSession: string = '';
+  @State private webViewUrl: string = '';
+  @State private webViewRequest: number = 0;
+  private webViewContext?: SfmlNativeContext;
+  private webViewKeyboardWindow?: window.Window;
+  private webViewKeyboardHeight: number = 0;
+  private webViewKeyboardListener: Callback<number> = (height: number): void => {
+    this.webViewKeyboardHeight = height;
+  };
+
+  private finishWebView(notify: boolean = true): void {
+    const sessionId = this.webViewSession;
+    const context = this.webViewContext;
+    this.webViewSession = '';
+    this.webViewUrl = '';
+    this.webViewContext = undefined;
+    this.webViewKeyboardWindow?.off('keyboardHeightChange', this.webViewKeyboardListener);
+    this.webViewKeyboardWindow = undefined;
+    this.webViewKeyboardHeight = 0;
+    if (notify && sessionId.length > 0) {
+      context?.completeWebView(sessionId);
+    }
+    if (sessionId.length > 0 && this.lifecycle === 'foreground') {
+      this.activeSurfaceBinding?.requestFocus?.();
+    }
+  }
+
+  private backFromWebView(): void {
+    if (this.webViewKeyboardHeight > 0) {
+      inputMethod.getController().hideTextInput().catch((failure: BusinessError): void => {
+        hilog.warn(DOMAIN, TAG, 'Unable to hide the web keyboard: %{public}s', failure.message);
+      });
+      return;
+    }
+    this.finishWebView();
+  }
+
+  private showWebView(context: SfmlNativeContext, sessionId: string, visible: boolean, url: string): void {
+    if (!visible) {
+      if (this.webViewSession === sessionId) {
+        this.finishWebView(false);
+      }
+      return;
+    }
+    if (this.nativeHostDestroyed || this.lifecycle === 'background' || context !== this.nativeContext) {
+      context.completeWebView(sessionId);
+      return;
+    }
+    this.finishTextInput(false, '');
+    this.releaseHeldSurfaceKeys(context);
+    this.webViewContext = context;
+    this.webViewUrl = url;
+    this.webViewSession = sessionId;
+    ++this.webViewRequest;
+    if (this.webViewKeyboardWindow === undefined && this.mainWindow !== undefined) {
+      this.webViewKeyboardWindow = this.mainWindow;
+      this.webViewKeyboardWindow.on('keyboardHeightChange', this.webViewKeyboardListener);
+    }
+  }
 
   private finishTextInput(accepted: boolean, text: string, notify: boolean = true): void {
     const sessionId = this.textInputSession;
@@ -393,7 +457,7 @@ struct Index {
     if (notify && sessionId.length > 0) {
       context?.completeTextInput(sessionId, accepted, text);
     }
-    if (this.lifecycle === 'foreground') {
+    if (sessionId.length > 0 && this.lifecycle === 'foreground' && this.webViewSession.length === 0) {
       this.activeSurfaceBinding?.requestFocus?.();
     }
   }
@@ -409,6 +473,10 @@ struct Index {
       return;
     }
     this.finishTextInput(false, '');
+    if (this.webViewSession.length > 0) {
+      context.completeTextInput(sessionId, false, '');
+      return;
+    }
     if (this.nativeHostDestroyed || this.lifecycle === 'background' || context !== this.nativeContext) {
       context.completeTextInput(sessionId, false, '');
       return;
@@ -531,6 +599,9 @@ struct Index {
   }
 
   private setVirtualKeyboardVisible(visible: boolean): void {
+    if (this.webViewSession.length > 0) {
+      return;
+    }
     try {
       if (visible) {
         this.resetImeEditor();
@@ -979,6 +1050,9 @@ struct Index {
           throw new Error('Cannot focus a hidden or minimized Stage window');
         }
         await mainWindow.showWindow({ focusOnShow: true });
+        if (this.webViewSession.length > 0) {
+          break;
+        }
         let focusError: Error | undefined;
         for (let attempt = 0; attempt < 25 && Date.now() + 100 < command.expiresAt; ++attempt) {
           try {
@@ -1724,6 +1798,8 @@ struct Index {
   }
 
   private invalidateNativeBridges(context?: SfmlNativeContext): void {
+    this.finishWebView();
+    context?.clearWebViewHost();
     this.finishTextInput(false, '');
     context?.clearTextInputHost();
     ++this.windowHostGeneration;
@@ -1891,6 +1967,7 @@ struct Index {
       ++this.displayScaleRequest;
       this.displayScaleHostConfigured = false;
       context.clearDisplayScaleHost();
+      this.finishWebView();
       this.finishTextInput(false, '');
       this.releaseHeldSurfaceKeys(context);
       context.onBackground();
@@ -1950,6 +2027,9 @@ struct Index {
     this.trackFreeWindowMode(mainWindow);
     const hostGeneration = ++this.windowHostGeneration;
     this.configureNativeDisplayScaleHost(nativeContext, abilityContext, hostGeneration);
+    nativeContext.configureWebViewHost((sessionId: string, visible: boolean, url: string): void => {
+      this.showWebView(nativeContext, sessionId, visible, url);
+    });
     nativeContext.configureTextInputHost((
       sessionId: string, visible: boolean, text: string, title: string, prompt: string,
       placeholder: string, confirmText: string, cancelText: string
@@ -1964,6 +2044,7 @@ struct Index {
       this.createHostCallbacks(abilityContext)
     );
     if (!initialized) {
+      nativeContext.clearWebViewHost();
       nativeContext.clearTextInputHost();
       this.displayScaleHostConfigured = false;
       nativeContext.clearDisplayScaleHost();
@@ -2098,6 +2179,10 @@ struct Index {
   }
 
   private handleImeKeyEvent(event: KeyEvent): boolean {
+    if (this.webViewSession.length > 0) {
+      event.stopPropagation();
+      return true;
+    }
     const binding = this.activeSurfaceBinding;
     if (binding === undefined || event.keySource === KeySource.JOYSTICK) {
       return false;
@@ -2129,6 +2214,10 @@ struct Index {
     forwardKeyText: boolean = true,
     consumeEvent: boolean = true
   ): boolean {
+    if (this.webViewSession.length > 0) {
+      event.stopPropagation();
+      return true;
+    }
     if (binding !== this.activeSurfaceBinding) {
       return false;
     }
@@ -2165,6 +2254,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.webViewSession.length > 0) {
+      this.backFromWebView();
+      return true;
+    }
     if (this.textInputSession.length > 0) {
       this.finishTextInput(false, '');
       return true;
@@ -2283,6 +2376,9 @@ struct Index {
   }
 
   private handleImeChange(value: string, options?: TextChangeOptions): void {
+    if (this.webViewSession.length > 0) {
+      return;
+    }
     const edit = this.deriveImeEdit(value, options);
     this.imeCommittedText = value;
     this.imeText = value;
@@ -2335,7 +2431,9 @@ struct Index {
           this.imeSelectionEnd = selectionEnd;
         })
         .onSubmit(() => {
-          this.nativeContext?.submitTextEdit(0, 0, '\r');
+          if (this.webViewSession.length === 0) {
+            this.nativeContext?.submitTextEdit(0, 0, '\r');
+          }
         });
 
       if (this.status.length > 0) {
@@ -2346,6 +2444,19 @@ struct Index {
           .padding(6)
           .margin(8)
           .hitTestBehavior(HitTestMode.None);
+      }
+      if (this.webViewSession.length > 0) {
+        WebViewOverlay({
+          url: this.webViewUrl,
+          request: this.webViewRequest,
+          close: (): void => {
+            this.finishWebView();
+          },
+          back: (): void => {
+            this.backFromWebView();
+          }
+        })
+          .zIndex(1000);
       }
     }
     .width('100%')

@@ -1,20 +1,18 @@
 local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
 local Logging = require("Global.Utils.Logging")
 local Locale = require("Source.Locale.Core")
 
-local System = GlobalCore.System
-
 local MainConfig = {}
 local DEFAULT_LANGUAGE = "en_GB"
-local DEFAULT_DISPLAY_SCALE = 1.0
+local DEFAULT_DISPLAY_SCALE = 0.0
+local INVALID_DISPLAY_SCALE_FALLBACK = 1.0
 local INVALID_MAXIMUM_RENDER_SCALE_FALLBACK = 2.0
 local DISPLAY_SCALE_EPSILON = 0.0001
 local DISPLAY_SCALE_PRESETS = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0 }
 local MAXIMUM_RENDER_SCALE_PRESETS = { 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 0.0 }
 local DEFAULT_MAIN_ITEMS = {
     { "script", "Scripts/Entry.lua" }, { "language", DEFAULT_LANGUAGE }, { "framerate", "60" },
-    { "maxrenderscale", "1.0" }, { "antialiasinglevel", "2" }, { "lightingrenderscale", "0.75" },
+    { "maxrenderscale", "2.0" }, { "antialiasinglevel", "8" }, { "lightingrenderscale", "1.0" },
     { "verticalsync", "true" }, { "musicon", "true" }, { "soundon", "true" }, { "voiceon", "true" },
     { "musicvolume", "100.00" }, { "soundvolume", "100.00" }, { "voicevolume", "100.00" }
 }
@@ -40,20 +38,13 @@ local function getIniFilePath()
     return Engine.getMainIniPath()
 end
 
-local function getDefaultDisplayScale()
-    if PLATFORM == "ohos" and LUDORK_MOBILE and System.isDisplayScaleConfigurable() then
-        return 0.0
-    end
-    return DEFAULT_DISPLAY_SCALE
-end
-
 local function createMainIni(iniFilePath, iniFile)
     iniFile:add_section("Main")
     for _, item in ipairs(DEFAULT_MAIN_ITEMS) do
         iniFile:set("Main", item[1], item[2])
     end
     iniFile:set("Main", "language", getInitialLanguage())
-    iniFile:set("Main", "scale", tostring(getDefaultDisplayScale()))
+    iniFile:set("Main", "scale", tostring(DEFAULT_DISPLAY_SCALE))
     iniFile:write(iniFilePath)
 end
 
@@ -62,10 +53,12 @@ local function scaleFits(scale, maximumScale)
 end
 
 local function normalizeConfiguredScale(configuredScale)
-    if configuredScale == nil or configuredScale ~= configuredScale
-        or configuredScale < 0.0 or configuredScale == math.huge
-        or configuredScale == -math.huge then
+    if configuredScale == nil then
         return DEFAULT_DISPLAY_SCALE
+    end
+    if configuredScale ~= configuredScale or configuredScale < 0.0
+        or configuredScale == math.huge or configuredScale == -math.huge then
+        return INVALID_DISPLAY_SCALE_FALLBACK
     end
     return configuredScale
 end
@@ -145,7 +138,7 @@ function MainConfig.LoadOrCreate()
         Logging.info("Created main configuration: %s", iniFilePath)
     end
     if iniFile:get("Main", "scale", nil) == nil then
-        iniFile:set("Main", "scale", tostring(getDefaultDisplayScale()))
+        iniFile:set("Main", "scale", tostring(DEFAULT_DISPLAY_SCALE))
     end
     return iniFilePath, iniFile
 end

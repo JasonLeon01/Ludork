@@ -72,7 +72,8 @@ public sealed class BlueprintCreationService
             HashSet<string> invalidVars = new(resolved.InvalidVars, StringComparer.Ordinal);
             foreach (ResolvedBlueprintField field in resolved.Fields)
             {
-                if (field.Name.StartsWith('_')
+                if (!field.HasBlueprintDefaultValue
+                    || field.Name.StartsWith('_')
                     || invalidVars.Contains(field.Name))
                 {
                     continue;

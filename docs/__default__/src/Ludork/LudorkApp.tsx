@@ -1,21 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Box,
-  CssBaseline,
   Drawer,
-  FormControl,
   IconButton,
-  MenuItem,
-  Select,
-  Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import type { SelectChangeEvent } from '@mui/material'
 import LudorkSidebar from './LudorkSidebar'
 import LudorkContent from './LudorkContent'
 import LudorkSectionTabs from './LudorkSectionTabs'
-import { GitHubIcon, HomeIcon, MenuIcon } from './LudorkIcon'
+import { MenuIcon } from './LudorkIcon'
+import LudorkHeader from './LudorkHeader'
+import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
+import useLudorkPageMetadata from './useLudorkPageMetadata'
 import {
   docKeyFromFilename,
   findSectionByFilename,
@@ -27,7 +24,7 @@ import {
   type DocSection,
   type SelectedDoc,
 } from './ludorkDocsIndex'
-import { LUDORK_LANGUAGES, LUDORK_LANGUAGE_KEYS, type LanguageKey } from './ludorkLanguages'
+import { LUDORK_LANGUAGE_KEYS, type LanguageKey } from './ludorkLanguages'
 import {
   detectLudorkLanguageFromBrowser,
   parseLudorkDoc,
@@ -39,6 +36,7 @@ import {
   setLudorkPathInUrl,
 } from './ludorkUrl'
 import './ludork.css'
+import './ludorkSite.css'
 
 const SIDEBAR_WIDTH = 280
 
@@ -151,9 +149,10 @@ export default function LudorkApp() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const collapsed = isNarrow ? !mobileOpen : desktopCollapsed
   const sections = useMemo(() => getDocsSections(language), [language])
+  const messages = LUDORK_SITE_MESSAGES[language]
+  useLudorkPageMetadata('docs', language)
 
   useEffect(() => {
-    document.title = 'Ludork'
     const fromUrl = parseLudorkLanguage()
     if (!fromUrl) {
       setLudorkLanguageInUrl(language, true)
@@ -327,176 +326,88 @@ export default function LudorkApp() {
       : getDocsHomePath(language)
   }, [freePath, language, selected.type, selectedFilename])
 
-  const drawerPaperSx = {
-    width: SIDEBAR_WIDTH,
-    boxSizing: 'border-box',
-  }
-
   return (
-    <>
-      <CssBaseline />
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            px: { xs: 1.5, sm: 3 },
-            py: 1,
-            borderBottom: 1,
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 'auto', minWidth: 0 }}>
-            <Box
-              component="img"
-              src={`${import.meta.env.BASE_URL}favicon.svg`}
-              alt=""
-              aria-hidden="true"
-              sx={{ display: 'block', width: 36, height: 36, flexShrink: 0 }}
+    <Box className="ludork-docs-shell" sx={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+      <LudorkHeader page="docs" language={language} onLanguageChange={(next) => {
+        if (currentLocation) {
+          rememberSelection(language, currentLocation.section.key, currentLocation.selection)
+        }
+        const currentSelection = currentLocation?.selection ?? selected
+        const nextSelection = currentSelection.type === 'doc'
+          && filenameFromDocKey(next, currentSelection.docKey)
+          ? selectedFromDocKey(next, currentSelection.docKey)
+          : { type: 'home' } as const
+        setLanguage(next)
+        setFreePath(null)
+        setSelected(nextSelection)
+        setContentHash('')
+        setLudorkDocInUrl(next, nextSelection.type === 'doc' ? nextSelection.docKey : null)
+      }} />
+
+      <LudorkSectionTabs
+        language={language}
+        sections={sections}
+        activeSectionKey={activeSection?.key ?? false}
+        onSelect={handleSectionSelect}
+      />
+
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+        {showSidebar && activeSection && (isNarrow || !collapsed) && (
+          <Drawer
+            variant={isNarrow ? 'temporary' : 'permanent'}
+            open={!collapsed}
+            onClose={() => setMobileOpen(false)}
+            slotProps={{ paper: { id: 'document-navigation', 'aria-label': messages.docs.sections } }}
+            sx={{
+              width: isNarrow ? 0 : SIDEBAR_WIDTH,
+              flexShrink: 0,
+              '& .MuiDrawer-paper': {
+                width: SIDEBAR_WIDTH,
+                maxWidth: '100vw',
+                boxSizing: 'border-box',
+                borderRight: '1px solid var(--ludork-line)',
+                background: 'var(--ludork-surface)',
+                boxShadow: 'none',
+                ...(isNarrow ? {} : { position: 'relative', height: '100%' }),
+              },
+            }}
+          >
+            <LudorkSidebar
+              language={language}
+              section={activeSection}
+              selected={visibleSelection}
+              onSelect={handleSelect}
+              onToggle={handleToggle}
             />
-            <Typography component="div" variant="h6" noWrap sx={{ fontWeight: 700 }}>
-              Ludork
-            </Typography>
-          </Box>
+          </Drawer>
+        )}
+
+        {showSidebar && (isNarrow || collapsed) && (
           <IconButton
-            component="a"
-            href="https://github.com/JasonLeon01/Ludork"
-            target="_blank"
-            rel="noreferrer"
-            size="small"
-            aria-label="GitHub"
+            onClick={handleToggle}
+            sx={{
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              zIndex: 1200,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: 'none',
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+            aria-label={messages.docs.expandSidebar}
+            aria-expanded={!collapsed}
+            aria-controls="document-navigation"
           >
-            <GitHubIcon />
+            <MenuIcon />
           </IconButton>
-          <IconButton
-            component="a"
-            href="https://jasonleon01.github.io/"
-            target="_blank"
-            rel="noreferrer"
-            size="small"
-            aria-label="Homepage"
-          >
-            <HomeIcon />
-          </IconButton>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              value={language}
-              onChange={(event: SelectChangeEvent) => {
-                const next = event.target.value as LanguageKey
-                if (currentLocation) {
-                  rememberSelection(language, currentLocation.section.key, currentLocation.selection)
-                }
-                const currentSelection = currentLocation?.selection ?? selected
-                const nextSelection = currentSelection.type === 'doc'
-                  && filenameFromDocKey(next, currentSelection.docKey)
-                  ? selectedFromDocKey(next, currentSelection.docKey)
-                  : { type: 'home' } as const
-                setLanguage(next)
-                setFreePath(null)
-                setSelected(nextSelection)
-                setContentHash('')
-                setLudorkDocInUrl(
-                  next,
-                  nextSelection.type === 'doc' ? nextSelection.docKey : null,
-                )
-              }}
-            >
-              {LUDORK_LANGUAGE_KEYS.map((langKey) => (
-                <MenuItem key={langKey} value={langKey}>
-                  {LUDORK_LANGUAGES[langKey].label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
+        )}
 
-        <LudorkSectionTabs
-          sections={sections}
-          activeSectionKey={activeSection?.key ?? false}
-          onSelect={handleSectionSelect}
-        />
-
-        <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-          {showSidebar && activeSection && (
-            isNarrow ? (
-              !collapsed && (
-                <>
-                  <Box
-                    onClick={() => setMobileOpen(false)}
-                    sx={{ position: 'absolute', inset: 0, zIndex: 1199, bgcolor: 'rgba(0,0,0,0.5)' }}
-                  />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      width: SIDEBAR_WIDTH,
-                      zIndex: 1200,
-                      display: 'flex',
-                    }}
-                  >
-                    <LudorkSidebar
-                      language={language}
-                      section={activeSection}
-                      selected={visibleSelection}
-                      onSelect={handleSelect}
-                    />
-                  </Box>
-                </>
-              )
-            ) : (
-              !collapsed && (
-                <Drawer
-                  variant="permanent"
-                  sx={{
-                    width: SIDEBAR_WIDTH,
-                    height: '100%',
-                    flexShrink: 0,
-                    '& .MuiDrawer-paper': {
-                      ...drawerPaperSx,
-                      position: 'relative',
-                      height: '100%',
-                    },
-                  }}
-                >
-                  <LudorkSidebar
-                    language={language}
-                    section={activeSection}
-                    selected={visibleSelection}
-                    onSelect={handleSelect}
-                    onToggle={handleToggle}
-                  />
-                </Drawer>
-              )
-            )
-          )}
-
-          {showSidebar && collapsed && (
-            <IconButton
-              onClick={handleToggle}
-              sx={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                zIndex: 1200,
-                bgcolor: 'background.paper',
-                boxShadow: 2,
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-              aria-label="Expand sidebar"
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
-
-          <Box component="main" sx={{ flex: 1, minWidth: 0, height: '100%', overflow: 'auto' }}>
-            <LudorkContent path={contentPath} hash={contentHash} onNavigate={handleNavigate} />
-          </Box>
+        <Box component="main" id="main-content" tabIndex={-1} sx={{ flex: 1, minWidth: 0, height: '100%', overflow: 'auto' }}>
+          <LudorkContent language={language} path={contentPath} hash={contentHash} onNavigate={handleNavigate} />
         </Box>
       </Box>
-    </>
+    </Box>
   )
 }

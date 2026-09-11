@@ -21,7 +21,7 @@ export const DEFAULT_LUDORK_LANGUAGE: LanguageKey = 'en_GB'
 export const LUDORK_LANGUAGE_KEYS = Object.keys(LUDORK_LANGUAGES) as LanguageKey[]
 
 export function isLudorkLanguageKey(value: string): value is LanguageKey {
-  return value in LUDORK_LANGUAGES
+  return Object.hasOwn(LUDORK_LANGUAGES, value)
 }
 
 function normalizeLocaleTag(tag: string): string {
@@ -33,19 +33,32 @@ function localeMatches(locale: string, localeKey: string): boolean {
   return locale === key || locale.startsWith(`${key}_`)
 }
 
+export function matchLudorkLanguage(tag: string): LanguageKey | null {
+  const locale = normalizeLocaleTag(tag)
+  if (!locale) {
+    return null
+  }
+  for (const langKey of LUDORK_LANGUAGE_KEYS) {
+    if (LUDORK_LANGUAGES[langKey].localeKeys.some((key) => localeMatches(locale, key))) {
+      return langKey
+    }
+  }
+  return null
+}
+
+function systemLocale(): string {
+  return typeof Intl === 'undefined' ? '' : Intl.DateTimeFormat().resolvedOptions().locale
+}
+
 export function detectLudorkLanguageFromBrowser(): LanguageKey {
   const candidates = [
-    ...(typeof navigator !== 'undefined' ? navigator.languages ?? [] : []),
+    systemLocale(),
     typeof navigator !== 'undefined' ? navigator.language : '',
-  ].filter(Boolean)
-
+  ]
   for (const tag of candidates) {
-    const locale = normalizeLocaleTag(tag)
-    for (const langKey of LUDORK_LANGUAGE_KEYS) {
-      const { localeKeys } = LUDORK_LANGUAGES[langKey]
-      if (localeKeys.some((key) => localeMatches(locale, key))) {
-        return langKey
-      }
+    const match = matchLudorkLanguage(tag)
+    if (match) {
+      return match
     }
   }
   return DEFAULT_LUDORK_LANGUAGE

@@ -896,10 +896,11 @@ public sealed class BlueprintClassResolver : IDisposable
             HashSet<string> added = new(StringComparer.Ordinal);
             foreach (string name in metadataOrder)
             {
+                BlueprintFieldMetadata fieldMetadata = schema[name];
                 bool hasBlueprintValue = blueprintFieldSet.Contains(name);
                 bool hasDefault = fieldsWithMetadataDefaults.Contains(name);
                 bool hasOverride = overrides?.ContainsKey(name) == true;
-                if (!hasDefault && !hasBlueprintValue && !hasOverride)
+                if (!hasDefault && !hasBlueprintValue && !hasOverride && !fieldMetadata.Component)
                     continue;
                 JsonNode? blueprintDefaultValue = hasBlueprintValue
                     ? blueprintValues[name]
@@ -907,7 +908,6 @@ public sealed class BlueprintClassResolver : IDisposable
                         ? metadataDefaults[name]
                         : null;
                 JsonNode? value = hasOverride ? overrides![name] : blueprintDefaultValue;
-                BlueprintFieldMetadata fieldMetadata = schema[name];
                 fields.Add(new ResolvedBlueprintField(
                     name,
                     fieldMetadata.Type,

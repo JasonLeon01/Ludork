@@ -144,7 +144,7 @@ void InputImpl::recordMouseWheel(sf::Mouse::Wheel wheel, float delta,
 }
 
 bool InputImpl::isMouseWheelScrolled() const {
-    return pointer_.mouseWheelScrolled_ && !pointer_.mouseBlocked_;
+    return pointer_.mouseWheelScrolled_ && !isMouseBlocked();
 }
 
 std::optional<sf::Mouse::Wheel> InputImpl::getMouseScrolledWheel() const {
@@ -166,11 +166,11 @@ std::optional<sf::Vector2i> InputImpl::getMouseScrolledWheelPosition() const {
 }
 
 bool InputImpl::isMouseButtonPressed() const {
-    return pointer_.mouseButtonPressed_ && !pointer_.mouseBlocked_;
+    return pointer_.mouseButtonPressed_ && !isMouseBlocked();
 }
 
 bool InputImpl::isMouseButtonReleased() const {
-    return pointer_.mouseButtonReleased_ && !pointer_.mouseBlocked_;
+    return pointer_.mouseButtonReleased_ && !isMouseBlocked();
 }
 
 bool InputImpl::getMouseButtonPressed(sf::Mouse::Button button, bool handled) {
@@ -206,7 +206,7 @@ bool InputImpl::getMouseButtonReleased(sf::Mouse::Button button, bool handled) {
 }
 
 bool InputImpl::isMouseMoved() const {
-    return pointer_.mouseMoved_ && !pointer_.mouseBlocked_;
+    return pointer_.mouseMoved_ && !isMouseBlocked();
 }
 
 sf::Vector2i InputImpl::getMousePosition() const {
@@ -246,21 +246,24 @@ void InputImpl::setMousePosition(const sf::Vector2i& position) {
 
 void InputImpl::setMousePosition(const sf::Vector2i& position,
                                  sf::WindowBase& window) {
+    if (isInputCaptured()) {
+        return;
+    }
     if (!ludork::engine::platform_input::setMousePosition(window, position)) {
         sf::Mouse::setPosition(position, window);
     }
 }
 
 bool InputImpl::isMouseEntered() const {
-    return pointer_.mouseEntered_ && !pointer_.mouseBlocked_;
+    return pointer_.mouseEntered_ && !isMouseBlocked();
 }
 
 bool InputImpl::isMouseLeft() const {
-    return pointer_.mouseLeft_ && !pointer_.mouseBlocked_;
+    return pointer_.mouseLeft_ && !isMouseBlocked();
 }
 
 bool InputImpl::isTouchBegan(bool handled) {
-    if (pointer_.touchBlocked_ || pointer_.touchGestureSuppressed_ ||
+    if (isTouchBlocked() || pointer_.touchGestureSuppressed_ ||
         !pointer_.touchBegan_ || pointer_.touchBeganHandled_) {
         return false;
     }
@@ -271,7 +274,7 @@ bool InputImpl::isTouchBegan(bool handled) {
 }
 
 bool InputImpl::isTouchTap(bool handled) {
-    if (pointer_.touchBlocked_ || pointer_.touchGestureSuppressed_ ||
+    if (isTouchBlocked() || pointer_.touchGestureSuppressed_ ||
         !pointer_.touchTap_ || pointer_.touchTapHandled_) {
         return false;
     }
@@ -282,38 +285,38 @@ bool InputImpl::isTouchTap(bool handled) {
 }
 
 bool InputImpl::isTouchEnded() const {
-    return pointer_.touchEnded_ && !pointer_.touchBlocked_ &&
+    return pointer_.touchEnded_ && !isTouchBlocked() &&
            !pointer_.touchGestureSuppressed_;
 }
 
 bool InputImpl::isTouchMoved() const {
-    return pointer_.touchMoved_ && !pointer_.touchBlocked_ &&
+    return pointer_.touchMoved_ && !isTouchBlocked() &&
            !pointer_.touchGestureSuppressed_;
 }
 
 bool InputImpl::isTouchDragged() const {
-    return pointer_.touchDragged_ && !pointer_.touchBlocked_ &&
+    return pointer_.touchDragged_ && !isTouchBlocked() &&
            !pointer_.touchGestureSuppressed_;
 }
 
 bool InputImpl::isTouchActive() const {
-    return pointer_.touchActive_ && !pointer_.touchBlocked_;
+    return pointer_.touchActive_ && !isTouchBlocked();
 }
 
 std::optional<sf::Vector2i> InputImpl::getTouchPosition() const {
-    return pointer_.touchPosition_;
+    return isInputCaptured() ? std::nullopt : pointer_.touchPosition_;
 }
 
 std::optional<sf::Vector2i> InputImpl::getTouchBeganPosition() const {
-    return pointer_.touchBeganPosition_;
+    return isInputCaptured() ? std::nullopt : pointer_.touchBeganPosition_;
 }
 
 std::optional<sf::Vector2i> InputImpl::getTouchTapPosition() const {
-    return pointer_.touchTapPosition_;
+    return isInputCaptured() ? std::nullopt : pointer_.touchTapPosition_;
 }
 
 std::optional<sf::Vector2i> InputImpl::getTouchEndedPosition() const {
-    return pointer_.touchEndedPosition_;
+    return isInputCaptured() ? std::nullopt : pointer_.touchEndedPosition_;
 }
 
 std::optional<sf::Vector2i> InputImpl::getTouchMovedDelta() const {
@@ -336,7 +339,7 @@ void InputImpl::cancelTouchGesture() noexcept {
 }
 
 bool InputImpl::isTouchTriggered(bool handled) {
-    if (pointer_.touchBlocked_ || pointer_.touchDragged_ ||
+    if (isTouchBlocked() || pointer_.touchDragged_ ||
         pointer_.touchGestureSuppressed_ || pointer_.touchTrigger_.handled ||
         pointer_.touchTrigger_.count < 1) {
         return false;
@@ -348,7 +351,7 @@ bool InputImpl::isTouchTriggered(bool handled) {
 }
 
 bool InputImpl::isTouchBlocked() const {
-    return pointer_.touchBlocked_;
+    return isInputCaptured() || pointer_.touchBlocked_;
 }
 
 void InputImpl::blockTouch() {
@@ -368,7 +371,7 @@ void InputImpl::unblockTouch() {
 }
 
 bool InputImpl::isMouseButtonTriggered(sf::Mouse::Button button, bool handled) {
-    if (pointer_.mouseBlocked_) {
+    if (isMouseBlocked()) {
         return false;
     }
     const auto iterator =
@@ -384,7 +387,7 @@ bool InputImpl::isMouseButtonTriggered(sf::Mouse::Button button, bool handled) {
 }
 
 bool InputImpl::isMouseButtonDown(sf::Mouse::Button button) const {
-    if (pointer_.mouseBlocked_) {
+    if (isMouseBlocked() || !modal_.allowsMouseButton(button)) {
         return false;
     }
     const int buttonCode = static_cast<int>(button);
@@ -408,7 +411,7 @@ bool InputImpl::isMouseButtonDown(sf::Mouse::Button button) const {
 }
 
 bool InputImpl::isMouseBlocked() const {
-    return pointer_.mouseBlocked_;
+    return isInputCaptured() || pointer_.mouseBlocked_;
 }
 
 void InputImpl::blockMouse() {

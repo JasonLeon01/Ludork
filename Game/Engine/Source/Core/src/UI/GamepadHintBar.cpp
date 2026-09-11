@@ -113,12 +113,11 @@ void GamepadHintBar::update(float deltaTime) {
                              inputService().isFocused();
     for (std::size_t index = 0; index < entries_.size(); ++index) {
         Entry& entry = entries_[index];
+        entry.keyHint->refresh();
         if (!entry.longPress) {
             continue;
         }
-        const bool down = ludork::engine::ui_interaction::anyJoystickButtonDown(
-            entry.button.value);
-        if (entry.keyHint->updateHold(down, holdEnabled && entry.enabled,
+        if (entry.keyHint->updateHold(holdEnabled && entry.enabled,
                                       deltaTime) &&
             !triggeredIndex.has_value()) {
             triggeredIndex = static_cast<int>(index);

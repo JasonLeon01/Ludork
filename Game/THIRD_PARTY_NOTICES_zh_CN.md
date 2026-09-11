@@ -14,6 +14,7 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | sol2 | 发行版 LuaSF 源码中的 3.2.3 | C++/Lua 绑定头文件 | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |
 | lua-cjson | 源码发行版本 2.1.0.19；上游运行时常量报告为 2.1.0.11 | 链接到游戏运行时的 JSON 模块 | MIT | `Licenses/lua-cjson/LICENSE.txt` | [openresty/lua-cjson](https://github.com/openresty/lua-cjson) |
 | zlib | 1.3.1 | 游戏运行时压缩支持 | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
+| Microsoft.Web.WebView2 | 1.0.4191.47 | Windows 原生网页覆盖层；静态链接 SDK Loader，使用系统已有 Evergreen Runtime，不分发浏览器内核 | Microsoft Software License Terms | `Licenses/NativeDependencies/WebView2-LICENSE.txt` | [Microsoft NuGet](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4191.47) |
 | FreeType | 2.14.3 | 静态链接的 SFML 字体依赖 | FreeType License 或 GPLv2；Ludork 选用 FreeType License | `Licenses/NativeDependencies/FreeType-LICENSE.txt`、`Licenses/NativeDependencies/FreeType-FTL.txt` | [freetype/freetype](https://gitlab.freedesktop.org/freetype/freetype) |
 | HarfBuzz | 14.1.0 | 静态链接的 SFML 文本塑形依赖 | Old MIT | `Licenses/NativeDependencies/HarfBuzz-COPYING.txt` | [harfbuzz/harfbuzz](https://github.com/harfbuzz/harfbuzz) |
 | SheenBidi | 3.0.0 | 静态链接的 SFML 双向文字依赖 | Apache License 2.0 | `Licenses/NativeDependencies/SheenBidi-LICENSE.txt` | [Tehreer/SheenBidi](https://github.com/Tehreer/SheenBidi) |

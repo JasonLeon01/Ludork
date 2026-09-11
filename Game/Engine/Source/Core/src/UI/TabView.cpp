@@ -6,6 +6,7 @@
 
 #include "Interaction/InputArguments.hpp"
 #include "Interaction/JoystickState.hpp"
+#include "Interaction/GamepadGlyphImpl.hpp"
 #include "TabView/KeyHintImpl.hpp"
 #include "TabView/NavigationImpl.hpp"
 #include "TabView/VisualLayout.hpp"
@@ -30,9 +31,6 @@ namespace {
 constexpr float HintSize = 16.0f;
 constexpr float HintContentSize = 14.0f;
 constexpr unsigned int HintCharacterSize = 8;
-
-using ludork::engine::ui_interaction::pointerButtonIndex;
-using ludork::engine::ui_interaction::pointerPosition;
 
 std::shared_ptr<PlainTextConfig> hintTextConfig(
     const std::shared_ptr<PlainTextConfig>& source) {
@@ -158,13 +156,13 @@ bool TabView::handleNavigationInput() {
     const bool keyboardLeft = input->isKeyTriggered(sf::Keyboard::Key::Q, false,
                                                     false, false, false, false);
     const InputNamedValue leftButton = JoystickButton::getLB();
-    const bool handleLeft = input->isAnyJoystickButtonTriggered(
-        static_cast<unsigned int>(leftButton.value), false);
+    const bool handleLeft =
+        input->isAnyJoystickButtonValueTriggered(leftButton, false);
     const bool keyboardRight = input->isKeyTriggered(
         sf::Keyboard::Key::E, false, false, false, false, false);
     const InputNamedValue rightButton = JoystickButton::getRB();
-    const bool handleRight = input->isAnyJoystickButtonTriggered(
-        static_cast<unsigned int>(rightButton.value), false);
+    const bool handleRight =
+        input->isAnyJoystickButtonValueTriggered(rightButton, false);
     if (!keyboardLeft && !handleLeft && !keyboardRight && !handleRight) {
         return false;
     }
@@ -174,16 +172,14 @@ bool TabView::handleNavigationInput() {
                               true);
     }
     if (handleLeft) {
-        input->isAnyJoystickButtonTriggered(
-            static_cast<unsigned int>(leftButton.value), true);
+        input->isAnyJoystickButtonValueTriggered(leftButton, true);
     }
     if (keyboardRight) {
         input->isKeyTriggered(sf::Keyboard::Key::E, false, false, false, false,
                               true);
     }
     if (handleRight) {
-        input->isAnyJoystickButtonTriggered(
-            static_cast<unsigned int>(rightButton.value), true);
+        input->isAnyJoystickButtonValueTriggered(rightButton, true);
     }
 
     const bool moveLeft = keyboardLeft || handleLeft;
@@ -229,7 +225,8 @@ void TabView::onClick(const UiInputEventArguments& arguments) {
     if (suppressNextClick_) {
         suppressNextClick_ = false;
     } else if (isInteractionEnabled()) {
-        const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+        const std::optional<sf::Vector2f> position =
+            ludork::engine::ui_interaction::pointerPosition(arguments);
         if (position.has_value()) {
             selectPointerPosition(*position);
         }
@@ -243,8 +240,10 @@ bool TabView::onMouseButtonDown(const UiInputEventArguments& arguments) {
     if (!isInteractionEnabled()) {
         return callbackHandled;
     }
-    const std::optional<int> button = pointerButtonIndex(arguments);
-    const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+    const std::optional<int> button =
+        ludork::engine::ui_interaction::pointerButtonIndex(arguments);
+    const std::optional<sf::Vector2f> position =
+        ludork::engine::ui_interaction::pointerPosition(arguments);
     const int leftButton = static_cast<int>(sf::Mouse::Button::Left);
     if (!button.has_value() || *button != leftButton || !position.has_value()) {
         return callbackHandled;
@@ -265,8 +264,8 @@ void TabView::refreshDisplayScale() {
     }
     leftHintBackground_->refreshDisplayScale();
     rightHintBackground_->refreshDisplayScale();
-    leftHintText_->refreshDisplayScale();
-    rightHintText_->refreshDisplayScale();
+    leftHintGlyph_->refreshDisplayScale();
+    rightHintGlyph_->refreshDisplayScale();
     layoutVisuals();
     ControlBase::refreshDisplayScale();
 }
@@ -287,8 +286,12 @@ void TabView::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     target.draw(*selectionRect_, states);
     target.draw(*leftHintBackground_, states);
     target.draw(*rightHintBackground_, states);
-    target.draw(*leftHintText_, states);
-    target.draw(*rightHintText_, states);
+    if (leftHintBackground_->getVisible()) {
+        leftHintGlyph_->draw(target, states);
+    }
+    if (rightHintBackground_->getVisible()) {
+        rightHintGlyph_->draw(target, states);
+    }
 }
 
 void TabView::_refreshPresentationColour() {
@@ -319,8 +322,12 @@ TabView::KeyHintText TabView::parseKeyHint(const KeyHint& values,
             *values.Keyboard, source + ".Keyboard");
     }
     if (values.Joystick) {
-        result.handle = ludork::engine::tab_view_impl::handleKeyText(
-            *values.Joystick, source + ".Joystick");
+        if (!JoystickButton::isValid(*values.Joystick)) {
+            throw std::invalid_argument(
+                source +
+                ".Joystick must match a registered JoystickButton value");
+        }
+        result.joystick = values.Joystick;
     }
     return result;
 }
@@ -365,7 +372,8 @@ void TabView::selectMouseHover(const UiInputEventArguments& arguments) {
     if (!isInteractionEnabled() || hasTouchCapture()) {
         return;
     }
-    const std::optional<sf::Vector2f> position = pointerPosition(arguments);
+    const std::optional<sf::Vector2f> position =
+        ludork::engine::ui_interaction::pointerPosition(arguments);
     if (position.has_value()) {
         selectPointerPosition(*position);
     }
@@ -406,11 +414,13 @@ void TabView::rebuildLabels() {
 }
 
 void TabView::rebuildHintVisuals() {
-    std::shared_ptr<PlainTextConfig> config = hintTextConfig(textConfig_);
-    leftHintText_ = std::make_unique<PlainText>(config, "");
-    rightHintText_ = std::make_unique<PlainText>(std::move(config), "");
-    leftHintText_->setColour(sf::Color::Black);
-    rightHintText_->setColour(sf::Color::Black);
+    const std::shared_ptr<PlainTextConfig> config = hintTextConfig(textConfig_);
+    leftHintGlyph_ =
+        std::make_unique<ludork::engine::ui_interaction::GamepadGlyphImpl>(
+            config);
+    rightHintGlyph_ =
+        std::make_unique<ludork::engine::ui_interaction::GamepadGlyphImpl>(
+            config);
 }
 
 void TabView::layoutVisuals() {
@@ -422,8 +432,8 @@ void TabView::layoutVisuals() {
     for (std::size_t index = 0; index < labels_.size(); ++index) {
         layoutLabel(*labels_[index], static_cast<int>(index));
     }
-    layoutHint(*leftHintText_, *leftHintBackground_, true);
-    layoutHint(*rightHintText_, *rightHintBackground_, false);
+    layoutHint(*leftHintGlyph_, *leftHintBackground_, true);
+    layoutHint(*rightHintGlyph_, *rightHintBackground_, false);
     setTouchHitBounds(sf::FloatRect({HintSize, 0.0f}, {contentWidth, size_.y}));
     updateSelectionVisual();
     updateHintVisibility();
@@ -436,16 +446,15 @@ void TabView::layoutLabel(PlainText& label, int index) const {
         bounds, size_, index, items_.size(), HintSize));
 }
 
-void TabView::layoutHint(PlainText& text, SolidRect& background,
-                         bool left) const {
-    const sf::FloatRect bounds = text.getLocalBounds();
-    const ludork::engine::tab_view_impl::HintLayout layout =
-        ludork::engine::tab_view_impl::hintLayout(bounds, size_, left, HintSize,
-                                                  HintContentSize);
-    background.setPosition(layout.backgroundPosition);
-    text.setOrigin({0.0f, 0.0f});
-    text.setScale({layout.textScale, layout.textScale});
-    text.setPosition(layout.textPosition);
+void TabView::layoutHint(
+    ludork::engine::ui_interaction::GamepadGlyphImpl& glyph,
+    SolidRect& background, bool left) const {
+    const sf::Vector2f position =
+        ludork::engine::tab_view_impl::hintPosition(size_, left, HintSize);
+    background.setPosition(position);
+    const float inset = (HintSize - HintContentSize) * 0.5f;
+    glyph.layout(position + sf::Vector2f(inset, inset),
+                 {HintContentSize, HintContentSize});
 }
 
 void TabView::updateSelectionVisual() {
@@ -455,24 +464,32 @@ void TabView::updateSelectionVisual() {
 }
 
 void TabView::updateHintVisibility() {
-    const std::optional<std::string>& left = visibleHint(leftHint_);
-    const std::optional<std::string>& right = visibleHint(rightHint_);
-    const bool showLeft = selectedIndex_ > 0 && left.has_value();
-    const bool showRight =
-        selectedIndex_ + 1 < static_cast<int>(items_.size()) &&
-        right.has_value();
-    leftHintBackground_->setVisible(showLeft);
-    leftHintText_->setVisible(showLeft);
-    rightHintBackground_->setVisible(showRight);
-    rightHintText_->setVisible(showRight);
-    if (showLeft && leftHintText_->getString() != *left) {
-        leftHintText_->setString(*left);
-        layoutHint(*leftHintText_, *leftHintBackground_, true);
-    }
-    if (showRight && rightHintText_->getString() != *right) {
-        rightHintText_->setString(*right);
-        layoutHint(*rightHintText_, *rightHintBackground_, false);
-    }
+    const bool joystick = anyJoystickConnected();
+    const bool keyboard = !joystick && keyboardHintsAvailableWithoutJoystick();
+    const auto update =
+        [this, joystick, keyboard](
+            const KeyHintText& hint,
+            ludork::engine::ui_interaction::GamepadGlyphImpl& glyph,
+            SolidRect& background, bool left, bool selectable) {
+            const bool visible =
+                selectable &&
+                (joystick ? hint.joystick.has_value()
+                          : keyboard && hint.keyboard.has_value());
+            background.setVisible(visible);
+            if (!visible) {
+                return;
+            }
+            if (joystick) {
+                glyph.setButton(*hint.joystick);
+            } else {
+                glyph.setText(*hint.keyboard);
+            }
+            layoutHint(glyph, background, left);
+        };
+    update(leftHint_, *leftHintGlyph_, *leftHintBackground_, true,
+           selectedIndex_ > 0);
+    update(rightHint_, *rightHintGlyph_, *rightHintBackground_, false,
+           selectedIndex_ + 1 < static_cast<int>(items_.size()));
 }
 
 void TabView::applyPresentationColour() {
@@ -482,18 +499,6 @@ void TabView::applyPresentationColour() {
     }
     leftHintBackground_->setPresentationColour(this, presentationColour());
     rightHintBackground_->setPresentationColour(this, presentationColour());
-    leftHintText_->setPresentationColour(this, presentationColour());
-    rightHintText_->setPresentationColour(this, presentationColour());
-}
-
-const std::optional<std::string>& TabView::visibleHint(
-    const KeyHintText& hint) const {
-    if (anyJoystickConnected()) {
-        return hint.handle;
-    }
-    if (keyboardHintsAvailableWithoutJoystick()) {
-        return hint.keyboard;
-    }
-    static const std::optional<std::string> hidden;
-    return hidden;
+    leftHintGlyph_->setColour(sf::Color(0, 0, 0, presentationColour().a));
+    rightHintGlyph_->setColour(sf::Color(0, 0, 0, presentationColour().a));
 }

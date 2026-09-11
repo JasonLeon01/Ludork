@@ -144,8 +144,8 @@ for %%F in (
     "%ROOT_DIR%\README_zh_CN.md"
     "%ROOT_DIR%\THIRD_PARTY_NOTICES.md"
     "%ROOT_DIR%\THIRD_PARTY_NOTICES_zh_CN.md"
-    "%ROOT_DIR%\About_en_GB.md"
-    "%ROOT_DIR%\About_zh_CN.md"
+    "%ROOT_DIR%\docs\About_en_GB.md"
+    "%ROOT_DIR%\docs\About_zh_CN.md"
 ) do (
     call :require_file "%%~F"
     if errorlevel 1 exit /b 1
@@ -382,7 +382,7 @@ call :require_file "%PACKAGE_DIR%\About_en_GB.md"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\About_zh_CN.md"
 if errorlevel 1 exit /b 1
-for %%F in ("%ROOT_DIR%\About_*.md") do (
+for %%F in ("%ROOT_DIR%\docs\About_*.md") do (
     call :require_file "%PACKAGE_DIR%\%%~nxF"
     if errorlevel 1 exit /b 1
 )

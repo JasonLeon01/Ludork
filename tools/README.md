@@ -49,6 +49,33 @@ tools\pack_project.bat Game
 tools\pack_editor.bat
 ```
 
+### Website and documentation
+
+The website frontend lives in `docs/__default__` and uses React, MUI, and Vite.
+Install its locked dependencies with `npm ci` from that directory, then run
+`npm run dev` for local development or `npm run preview` after building. Both
+servers expose the Markdown and images directly from the parent `docs` directory.
+
+From the repository root, run `sh docs/build_docs.sh` on macOS or
+`docs\build_docs.bat` on Windows to build the website and refresh its GitHub Pages
+files. Node.js must satisfy the frontend's `package.json` engine requirement.
+The scripts check all required outputs before replacing generated pages and
+assets. Do not edit the generated HTML or asset bundles by hand.
+
+GitHub Pages serves the repository's `docs` directory at `/Ludork/`. The homepage,
+documentation, and About page have separate HTML entries at `/Ludork/`,
+`/Ludork/docs/`, and `/Ludork/about/`; Download links directly to GitHub Releases.
+All pages use `?lang=en_GB` or `?lang=zh_CN`. Document selections use `doc` or
+`path` under `/Ludork/docs/`, with an optional heading fragment. Root-page document
+queries are not documentation routes. Keep `.nojekyll` in the published output.
+
+Keep public Markdown in `docs/en_GB` and `docs/zh_CN`, images in `docs/_images`,
+and shared About text in `docs/About_*.md`. Frontend translations live in the typed
+`ludorkSiteMessages.ts` module. The editor packages only the two documentation
+language trees and their images; About sources are mapped to the editor's resource
+root through MSBuild and the platform packaging scripts. Website HTML, JavaScript,
+and build sources are not included in editor packages.
+
 ### Animation MP4 export
 
 After changing ScriptTools, run `tools/setup_python` and `tools/build_script_tools`

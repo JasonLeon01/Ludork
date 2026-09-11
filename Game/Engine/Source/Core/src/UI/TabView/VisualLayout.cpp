@@ -2,8 +2,6 @@
 
 #include "NavigationImpl.hpp"
 
-#include <algorithm>
-
 namespace ludork::engine::tab_view_impl {
 
 float slotWidth(float totalWidth, float hintSize, std::size_t itemCount) {
@@ -19,23 +17,10 @@ sf::Vector2f labelPosition(const sf::FloatRect& bounds,
             size.y * 0.5f - bounds.position.y - bounds.size.y * 0.5f};
 }
 
-HintLayout hintLayout(const sf::FloatRect& bounds, const sf::Vector2f& size,
-                      bool left, float hintSize, float contentSize) {
+sf::Vector2f hintPosition(const sf::Vector2f& size, bool left, float hintSize) {
     const float x = left ? 0.0f : size.x - hintSize;
     const float y = (size.y - hintSize) * 0.5f;
-    float fitScale = 1.0f;
-    if (bounds.size.x > 0.0f) {
-        fitScale = std::min(fitScale, contentSize / bounds.size.x);
-    }
-    if (bounds.size.y > 0.0f) {
-        fitScale = std::min(fitScale, contentSize / bounds.size.y);
-    }
-    return {{x, y},
-            {x + hintSize * 0.5f -
-                 (bounds.position.x + bounds.size.x * 0.5f) * fitScale,
-             y + hintSize * 0.5f -
-                 (bounds.position.y + bounds.size.y * 0.5f) * fitScale},
-            fitScale};
+    return {x, y};
 }
 
 sf::Vector2f selectionPosition(float totalWidth, std::size_t itemCount,

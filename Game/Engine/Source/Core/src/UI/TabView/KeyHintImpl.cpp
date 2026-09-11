@@ -1,6 +1,4 @@
 #include "KeyHintImpl.hpp"
-#include <Input/InputNamedValue.hpp>
-#include <Input/JoystickButton.hpp>
 
 #include <Input/InputService.hpp>
 #include <LudorkPlatform.hpp>
@@ -34,15 +32,6 @@ std::string keyboardKeyText(sf::Keyboard::Key key, const std::string& source) {
     const sf::Keyboard::Scancode scan = sf::Keyboard::delocalize(key);
     std::string result = toUtf8String(sf::Keyboard::getDescription(scan));
     return result.empty() ? std::to_string(code) : result;
-}
-
-std::string handleKeyText(const InputNamedValue& button,
-                          const std::string& source) {
-    if (!JoystickButton::isValid(button)) {
-        throw std::invalid_argument(
-            source + " must match a registered Engine.JoystickButton value");
-    }
-    return button.name;
 }
 
 bool keyboardHintsAvailableWithoutJoystick() {

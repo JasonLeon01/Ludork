@@ -75,15 +75,13 @@ void Button::update(float deltaTime) {
     }
     const bool enabled = isInteractionEnabled() && inputService().isFocused() &&
                          ludork::engine::ui_interaction::anyJoystickConnected();
-    const int button = impl_->gamepadButton->value;
+    impl_->keyHint->refresh();
     bool triggered = false;
     if (impl_->gamepadLongPress) {
-        triggered = impl_->keyHint->updateHold(
-            ludork::engine::ui_interaction::anyJoystickButtonDown(button),
-            enabled, deltaTime);
+        triggered = impl_->keyHint->updateHold(enabled, deltaTime);
     } else if (enabled) {
-        triggered = inputService().isAnyJoystickButtonTriggered(
-            static_cast<unsigned int>(button), true);
+        triggered = inputService().isAnyJoystickButtonValueTriggered(
+            *impl_->gamepadButton, true);
     }
     if (triggered) {
         onConfirm({});

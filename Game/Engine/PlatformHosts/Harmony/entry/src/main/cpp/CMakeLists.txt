@@ -54,7 +54,7 @@ if(NOT TARGET entry)
         "The Ludork project did not create the HarmonyOS entry target.")
 endif()
 
-target_sources(entry PRIVATE napi_init.cpp TextInputHostHarmony.cpp)
+target_sources(entry PRIVATE napi_init.cpp TextInputHostHarmony.cpp WebViewHostHarmony.cpp)
 target_compile_features(entry PRIVATE cxx_std_20)
 target_include_directories(entry PRIVATE
     "${LUDORK_PROJECT_DIR}/Application/include"

@@ -2,6 +2,7 @@
 
 #include <EngineState.hpp>
 #include <Input/JoystickButton.hpp>
+#include <Input/InputService.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -60,34 +61,68 @@ void GamepadKeyHintImpl::setTextConfig(
     config->outline.thickness = 0.0f;
     config->glow = {};
     config->gradient = {};
-    label_ = std::make_unique<PlainText>(config, button_.name);
+    glyph_ = std::make_unique<GamepadGlyphImpl>(config);
+    glyph_->setButton(button_);
     layout(position_);
 }
 
 void GamepadKeyHintImpl::setLongPress(bool longPress) {
     longPress_ = longPress;
-    triggered_ = false;
+    consumed_ = {};
     resetProgress();
     layout(position_);
 }
 
-bool GamepadKeyHintImpl::updateHold(bool down, bool enabled, float deltaTime) {
-    if (!down) {
-        triggered_ = false;
+void GamepadKeyHintImpl::refresh() {
+    glyph_->refresh();
+    const std::uint64_t revision = JoystickButton::getPresentationRevision();
+    if (presentationRevision_ != revision) {
+        presentationRevision_ = revision;
+        heldJoystick_.reset();
+        resetProgress();
     }
-    if (!down || !enabled || !longPress_) {
+}
+
+bool GamepadKeyHintImpl::updateHold(bool enabled, float deltaTime) {
+    refresh();
+    std::array<bool, sf::Joystick::Count> down{};
+    for (unsigned int joystickId = 0; joystickId < down.size(); ++joystickId) {
+        down[joystickId] =
+            inputService().isJoystickButtonValueDown(joystickId, button_);
+        if (!down[joystickId]) {
+            consumed_[joystickId] = false;
+        }
+    }
+    if (!enabled || !longPress_) {
+        heldJoystick_.reset();
         resetProgress();
         return false;
     }
-    if (triggered_) {
+    if (heldJoystick_ && (!down[*heldJoystick_] || consumed_[*heldJoystick_])) {
+        heldJoystick_.reset();
+        resetProgress();
+    }
+    if (!heldJoystick_) {
+        for (unsigned int joystickId = 0; joystickId < down.size();
+             ++joystickId) {
+            if (down[joystickId] && !consumed_[joystickId]) {
+                heldJoystick_ = joystickId;
+                break;
+            }
+        }
+    }
+    if (!heldJoystick_) {
         return false;
     }
     const float elapsed =
         std::isfinite(deltaTime) ? std::max(0.0f, deltaTime) : 0.0f;
     holdTime_ = std::min(holdTime_ + elapsed, LongPressDuration);
     progress_.setAngle(sf::degrees(holdTime_ / LongPressDuration * 360.0f));
-    triggered_ = holdTime_ >= LongPressDuration;
-    return triggered_;
+    if (holdTime_ >= LongPressDuration) {
+        consumed_[*heldJoystick_] = true;
+        return true;
+    }
+    return false;
 }
 
 void GamepadKeyHintImpl::resetProgress() {
@@ -109,18 +144,10 @@ void GamepadKeyHintImpl::layout(const sf::Vector2f& position) {
     background_.setPosition(
         (position + sf::Vector2f(radius - innerRadius, radius - innerRadius)) *
         scale);
-    const sf::FloatRect bounds = label_->getLocalBounds();
     const float content = innerRadius * 2.0f * ContentRatio;
-    float labelScale = 1.0f;
-    if (bounds.size.x > 0.0f) {
-        labelScale = std::min(labelScale, content / bounds.size.x);
-    }
-    if (bounds.size.y > 0.0f) {
-        labelScale = std::min(labelScale, content / bounds.size.y);
-    }
-    label_->setScale({labelScale, labelScale});
-    label_->setPosition(position + sf::Vector2f(radius, radius) -
-                        (bounds.position + bounds.size * 0.5f) * labelScale);
+    const sf::Vector2f extent{content, content};
+    glyph_->layout(position + sf::Vector2f(radius, radius) - extent * 0.5f,
+                   extent);
 }
 
 void GamepadKeyHintImpl::setColour(bool enabled,
@@ -130,11 +157,11 @@ void GamepadKeyHintImpl::setColour(bool enabled,
     background_.setFillColor(modulate(background, presentation));
     track_.setOutlineColor(modulate(background, presentation));
     progress_.setFillColour(modulate(sf::Color(0, 255, 0), presentation));
-    label_->setColour(modulate(sf::Color::Black, presentation));
+    glyph_->setColour(modulate(sf::Color::Black, presentation));
 }
 
 void GamepadKeyHintImpl::refreshDisplayScale() {
-    label_->refreshDisplayScale();
+    glyph_->refreshDisplayScale();
     layout(position_);
 }
 
@@ -145,7 +172,7 @@ void GamepadKeyHintImpl::draw(sf::RenderTarget& target,
         target.draw(progress_, states);
     }
     target.draw(background_, states);
-    target.draw(*label_, states);
+    glyph_->draw(target, states);
 }
 
 }  // namespace ludork::engine::ui_interaction

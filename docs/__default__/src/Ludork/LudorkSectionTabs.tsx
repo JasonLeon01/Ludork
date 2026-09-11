@@ -1,35 +1,46 @@
 import { Box, Tab, Tabs } from '@mui/material'
 import type { DocSection } from './ludorkDocsIndex'
+import type { LanguageKey } from './ludorkLanguages'
+import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
+import './ludorkSite.css'
 
 type LudorkSectionTabsProps = {
+  language: LanguageKey
   sections: readonly DocSection[]
   activeSectionKey: string | false
   onSelect: (sectionKey: string) => void
 }
 
 export default function LudorkSectionTabs({
+  language,
   sections,
   activeSectionKey,
   onSelect,
 }: LudorkSectionTabsProps) {
   return (
-    <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+    <Box className="ludork-docs-tabs">
       <Tabs
         value={activeSectionKey}
         onChange={(_event, value: string) => onSelect(value)}
         variant="scrollable"
         scrollButtons="auto"
         allowScrollButtonsMobile
-        aria-label="Documentation sections"
+        aria-label={LUDORK_SITE_MESSAGES[language].docs.sections}
         sx={{
-          minHeight: 38,
+          minHeight: 44,
+          '& .MuiTabs-indicator': { height: 2, borderRadius: 980 },
           '& .MuiTab-root': {
-            minHeight: 38,
-            minWidth: 112,
+            minHeight: 44,
+            minWidth: 0,
             px: 2,
             py: 0,
-            fontWeight: 700,
+            color: 'text.secondary',
+            fontWeight: 500,
             textTransform: 'none',
+          },
+          '& .Mui-selected': {
+            color: 'text.primary',
+            fontWeight: 600,
           },
         }}
       >

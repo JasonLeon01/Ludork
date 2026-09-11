@@ -1,5 +1,6 @@
+import { getSiteRoot } from './ludorkSite'
+
 const DOCS_ROOT = new URL('https://ludork-docs.local/docs/')
-const DOCS_RELATIVE_ROOT = import.meta.env.DEV ? '../docs/' : './'
 
 export type DocsReference = {
   path: string
@@ -30,8 +31,7 @@ function hasUrlScheme(value: string): boolean {
 
 export function getDocsUrl(path: string, search = '', hash = ''): string {
   const normalized = validateDocsPath(path)
-  const baseUrl = new URL(DOCS_RELATIVE_ROOT, window.location.href)
-  const url = new URL(encodeDocsPath(normalized), baseUrl)
+  const url = new URL(encodeDocsPath(normalized), getSiteRoot())
   url.search = search
   url.hash = hash
   return url.href

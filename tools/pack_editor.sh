@@ -158,7 +158,7 @@ copy_public_docs() {
 copy_about_files() {
     target_dir=$1
     found=0
-    for source_path in "$PROJECT_ROOT"/About_*.md; do
+    for source_path in "$PROJECT_ROOT"/docs/About_*.md; do
         if [ ! -f "$source_path" ]; then
             continue
         fi
@@ -694,7 +694,7 @@ validate_package() {
         exit 1
     fi
 
-    for source_path in "$PROJECT_ROOT"/About_*.md; do
+    for source_path in "$PROJECT_ROOT"/docs/About_*.md; do
         if [ -f "$source_path" ]; then
             require_package_file "$package_resources/$(basename -- "$source_path")"
         fi
@@ -1028,8 +1028,8 @@ require_file "$PROJECT_ROOT/README.md"
 require_file "$PROJECT_ROOT/README_zh_CN.md"
 require_file "$PROJECT_ROOT/THIRD_PARTY_NOTICES.md"
 require_file "$PROJECT_ROOT/THIRD_PARTY_NOTICES_zh_CN.md"
-require_file "$PROJECT_ROOT/About_en_GB.md"
-require_file "$PROJECT_ROOT/About_zh_CN.md"
+require_file "$PROJECT_ROOT/docs/About_en_GB.md"
+require_file "$PROJECT_ROOT/docs/About_zh_CN.md"
 require_file "$PROJECT_ROOT/Editor/Assets/icon.ico"
 require_file "$PROJECT_ROOT/Editor/Assets/project-icon.png"
 require_directory "$PROJECT_ROOT/docs/_images"

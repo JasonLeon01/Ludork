@@ -1848,8 +1848,8 @@
         "tag": "RenamePlayer",
         "bp": "Data.Blueprints.Actors.BP_Actor_RenamePlayer",
         "position": [
-          8,
-          12
+          6,
+          11
         ]
       },
       {
@@ -1857,6 +1857,14 @@
         "bp": "Data.Blueprints.Actors.BP_EmitterShowcase",
         "position": [
           0,
+          3
+        ]
+      },
+      {
+        "tag": "Tutorial",
+        "bp": "Data.Blueprints.Actors.BP_Actor_Tutorial",
+        "position": [
+          12,
           3
         ]
       }

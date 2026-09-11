@@ -49,7 +49,7 @@
     <Content Include="docs\_images\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\en_GB\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\zh_CN\**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="About_*.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\About_*.md" TargetPath="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />

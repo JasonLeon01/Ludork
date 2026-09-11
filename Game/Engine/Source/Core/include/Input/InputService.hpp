@@ -21,6 +21,8 @@ public:
 
     void initializeNativePolling();
 
+    bool isInputCaptured() const override;
+
     BIND_METHOD()
     void update(sf::WindowBase& window);
 
@@ -212,6 +214,20 @@ public:
                         bool ctrl = false, bool shift = false,
                         bool system = false, bool handled = false,
                         float repeatDelay = 0.0f, float repeatInterval = 0.0f);
+
+    BIND_METHOD(Pure = true)
+    bool isJoystickButtonDown(unsigned int joystickId,
+                              unsigned int button) const;
+
+    BIND_METHOD(name = "isJoystickButtonDown", metadata = false)
+    bool isJoystickButtonValueDown(unsigned int joystickId,
+                                   const InputNamedValue& button) const;
+
+    BIND_METHOD(Pure = true)
+    bool isAnyJoystickButtonDown(unsigned int button) const;
+
+    BIND_METHOD(name = "isAnyJoystickButtonDown", metadata = false)
+    bool isAnyJoystickButtonValueDown(const InputNamedValue& button) const;
 
     BIND_METHOD()
     bool isAnyJoystickButtonTriggered(unsigned int button, bool handled = false,

@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include "Input/JoystickDevice/JoystickDeviceImpl.hpp"
 #include <Input/InjectedInputEvent.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
@@ -171,6 +172,9 @@ void InputImpl::consumePendingSystemCancel() {
             false, std::memory_order_acq_rel)) {
         return;
     }
+    if (isInputCaptured()) {
+        return;
+    }
     if (ludork::engine::text_input::service().blocksGameplay()) {
         ludork::engine::text_input::service().execute(
             ludork::engine::text_input::Command::Cancel);
@@ -297,7 +301,8 @@ void InputImpl::processPlatformScrollEvents(sf::WindowBase& window) {
     pointer_.mouseWheelDelta_ = 0.0f;
     pointer_.mouseWheelPrecise_ = false;
     pointer_.mouseWheelPosition_.reset();
-    if (eventPump_.useInjectedMouseOnly_ || !window.hasFocus()) {
+    if (isInputCaptured() || eventPump_.useInjectedMouseOnly_ ||
+        !window.hasFocus()) {
         return;
     }
     for (const ludork::engine::platform_input::ScrollEvent& event : events) {
@@ -322,6 +327,11 @@ void InputImpl::processInjectedEvents() {
     while (!events.empty()) {
         const InjectedInputEvent event = std::move(events.front());
         events.pop_front();
+        modal_.observeInjectedEvent(event);
+        if (isInputCaptured() && event.type != "FocusGained" &&
+            event.type != "FocusLost") {
+            continue;
+        }
         const InputModifiers modifiers{event.alt, event.control, event.shift,
                                        event.system};
         const sf::Vector2i pixel{event.x, event.y};
@@ -450,12 +460,42 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
     if (event.is<sf::Event::Closed>()) {
         window.close();
     }
+    if (const auto* device = event.getIf<sf::Event::JoystickDisconnected>()) {
+        clearJoystickDevice(device->joystickId);
+        joystick_.disconnected_ = true;
+    }
+    if (const auto* device = event.getIf<sf::Event::JoystickConnected>()) {
+        clearJoystickDevice(device->joystickId);
+        joystick_.connected_ = true;
+        ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+            .synchronize();
+    }
+    if (const auto* button = event.getIf<sf::Event::JoystickButtonPressed>()) {
+        ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+            .activity(button->joystickId);
+    }
+    if (const auto* axis = event.getIf<sf::Event::JoystickMoved>();
+        axis != nullptr && ((axis->axis == sf::Joystick::Axis::X ||
+                             axis->axis == sf::Joystick::Axis::Y) &&
+                                std::abs(axis->position) >= 10.0f ||
+                            (axis->axis == sf::Joystick::Axis::PovX ||
+                             axis->axis == sf::Joystick::Axis::PovY) &&
+                                std::abs(axis->position) >= 50.0f)) {
+        ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+            .activity(axis->joystickId);
+    }
     if (!eventPump_.useInjectedMouseOnly_ && event.is<sf::Event::FocusLost>()) {
         setFocused(false);
     }
     if (!eventPump_.useInjectedMouseOnly_ &&
         event.is<sf::Event::FocusGained>()) {
         setFocused(true);
+    }
+    if (!modal_.observeNativeEvent(event)) {
+        return true;
+    }
+    if (isInputCaptured()) {
+        return true;
     }
     if (!eventPump_.useInjectedMouseOnly_ &&
         ludork::engine::text_input::service().processEvent(event)) {
@@ -651,7 +691,12 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
             .pressedEvents_[joystickEvent->joystickId][joystickEvent->button] =
             true;
         InputTriggerEntry& entry =
-            joystick_.buttonTriggers_[joystickEvent->button];
+            joystick_.buttonTriggers_[joystickEvent->joystickId]
+                                     [joystickEvent->button];
+        if (joystick_.pendingButtonReleases_[joystickEvent->joystickId].erase(
+                joystickEvent->button) != 0) {
+            entry = {};
+        }
         ++entry.count;
     }
     if (const sf::Event::JoystickButtonReleased* joystickEvent =
@@ -660,7 +705,8 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
         joystick_
             .releasedEvents_[joystickEvent->joystickId][joystickEvent->button] =
             true;
-        joystick_.buttonTriggers_.erase(joystickEvent->button);
+        joystick_.pendingButtonReleases_[joystickEvent->joystickId].insert(
+            joystickEvent->button);
     }
     if (const sf::Event::JoystickMoved* joystickEvent =
             event.getIf<sf::Event::JoystickMoved>()) {
@@ -669,15 +715,6 @@ bool InputImpl::processNativeEvent(sf::WindowBase& window,
             joystickEvent->position;
         joystick_.axisStatus_[joystickEvent->joystickId][joystickEvent->axis] =
             joystickEvent->position;
-    }
-    joystick_.connected_ =
-        joystick_.connected_ || event.is<sf::Event::JoystickConnected>();
-    if (const sf::Event::JoystickDisconnected* joystickEvent =
-            event.getIf<sf::Event::JoystickDisconnected>()) {
-        joystick_.disconnected_ = true;
-        joystick_.axisStatus_.erase(joystickEvent->joystickId);
-        joystick_.pressedEvents_.erase(joystickEvent->joystickId);
-        joystick_.releasedEvents_.erase(joystickEvent->joystickId);
     }
     if (!eventPump_.useInjectedMouseOnly_) {
         if (const sf::Event::TextEntered* textEvent =

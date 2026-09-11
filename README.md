@@ -1,6 +1,6 @@
 # Ludork
 
-[English](README.md) · [简体中文](README_zh_CN.md)
+English ｜ [简体中文](README_zh_CN.md)
 
 Ludork is a game editor and native runtime for creating 2D role-playing games. It combines visual map and data authoring, Blueprint graphs, Lua scripting, and a C++20 runtime in one production workflow.
 
@@ -101,6 +101,7 @@ The initialisation script prepares the native dependencies and the editor-owned 
 
 ## Documentation and support
 
+- Visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for an overview, downloads, and project information, or read the [online documentation](https://jasonleon01.github.io/Ludork/docs/?lang=en_GB).
 - Start with the [Ludork documentation](docs/en_GB/00.Ludork%20Documentation.md).
 - Follow [Getting Started](docs/en_GB/01.Getting%20Started/01.Create%20Your%20First%20Project.md) for project creation, running, and packaging.
 - Report reproducible faults and request features through [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues).

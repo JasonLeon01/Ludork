@@ -1,4 +1,5 @@
 import type { LanguageKey } from './ludorkLanguages'
+import { getSitePageHref } from './ludorkSite'
 import {
   DEFAULT_LUDORK_LANGUAGE,
   detectLudorkLanguageFromBrowser,
@@ -31,7 +32,8 @@ export function parseLudorkPath(search = window.location.search): string | null 
 
 function buildUrl(params: URLSearchParams, hash: string): string {
   const query = params.toString()
-  return `${window.location.pathname}${query ? `?${query}` : ''}${hash}`
+  const pathname = getSitePageHref('docs', DEFAULT_LUDORK_LANGUAGE).split('?')[0]
+  return `${pathname}${query ? `?${query}` : ''}${hash}`
 }
 
 function updateHistory(params: URLSearchParams, replace: boolean, hash = window.location.hash): void {

@@ -37,6 +37,7 @@ public final class LudorkActivity extends NativeActivity {
     private static final int BUFFER_SIZE = 64 * 1024;
     private Api33BackHandler api33BackHandler;
     private final LudorkTextInputDialog textInputDialog = new LudorkTextInputDialog(this);
+    private final LudorkWebViewDialog webViewDialog = new LudorkWebViewDialog(this);
     private boolean textInputAvailable;
 
     @TargetApi(Build.VERSION_CODES.TIRAMISU)
@@ -45,7 +46,7 @@ public final class LudorkActivity extends NativeActivity {
 
         Api33BackHandler(LudorkActivity activity) {
             callback = () -> {
-                if (!activity.textInputDialog.cancel()) {
+                if (!activity.webViewDialog.back() && !activity.textInputDialog.cancel()) {
                     submitSystemBack();
                 }
             };
@@ -91,7 +92,7 @@ public final class LudorkActivity extends NativeActivity {
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            if (!textInputDialog.cancel()) {
+            if (!webViewDialog.back() && !textInputDialog.cancel()) {
                 submitSystemBack();
             }
         }
@@ -106,12 +107,14 @@ public final class LudorkActivity extends NativeActivity {
     @Override
     protected void onPause() {
         textInputAvailable = false;
+        webViewDialog.cancel();
         textInputDialog.cancel();
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        webViewDialog.cancel();
         textInputDialog.cancel();
         if (api33BackHandler != null) {
             api33BackHandler.unregister(this);
@@ -124,14 +127,32 @@ public final class LudorkActivity extends NativeActivity {
 
     static native void completeTextInput(long sessionId, boolean accepted, String text);
 
+    static native void completeWebView(long sessionId);
+
+    public void showWebView(long sessionId, String url) {
+        runOnUiThread(() -> {
+            textInputDialog.cancel();
+            webViewDialog.show(sessionId, url);
+        });
+    }
+
+    public void dismissWebView(long sessionId) {
+        runOnUiThread(() -> webViewDialog.dismiss(sessionId));
+    }
+
     boolean isTextInputAvailable() {
         return textInputAvailable && !isFinishing() && !isDestroyed();
     }
 
     public void showTextInput(long sessionId, String text, String title, String prompt,
                               String placeholder, String confirmText, String cancelText) {
-        runOnUiThread(() -> textInputDialog.show(sessionId, text, title, prompt,
-                placeholder, confirmText, cancelText));
+        runOnUiThread(() -> {
+            if (webViewDialog.isVisible()) {
+                completeTextInput(sessionId, false, "");
+                return;
+            }
+            textInputDialog.show(sessionId, text, title, prompt, placeholder, confirmText, cancelText);
+        });
     }
 
     public void dismissTextInput(long sessionId) {

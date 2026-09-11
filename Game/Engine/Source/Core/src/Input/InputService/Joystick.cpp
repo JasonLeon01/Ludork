@@ -2,6 +2,8 @@
 #include <Input/TextInputService.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/JoystickAxisEvent.hpp>
+#include <Input/JoystickButton.hpp>
+#include "Input/JoystickDevice/JoystickDeviceImpl.hpp"
 
 #include <array>
 #include <cmath>
@@ -23,6 +25,22 @@ std::string InputImpl::axisId(unsigned int joystickId,
                               sf::Joystick::Axis axis) {
     return std::to_string(joystickId) + ":" +
            std::to_string(static_cast<int>(axis));
+}
+
+void InputImpl::clearJoystickDevice(unsigned int joystickId) {
+    joystick_.axisStatus_.erase(joystickId);
+    joystick_.dominantAxis_.erase(joystickId);
+    joystick_.axisEvents_.erase(joystickId);
+    joystick_.pressedEvents_.erase(joystickId);
+    joystick_.releasedEvents_.erase(joystickId);
+    joystick_.buttonTriggers_.erase(joystickId);
+    joystick_.pendingButtonReleases_.erase(joystickId);
+    const std::string prefix = std::to_string(joystickId) + ":";
+    std::erase_if(joystick_.axisTriggers_, [&prefix](const auto& entry) {
+        return entry.first.starts_with(prefix);
+    });
+    ludork::engine::joystick_device::JoystickDeviceImpl::instance().disconnect(
+        joystickId);
 }
 
 void InputImpl::updateJoystickDominantAxes() {
@@ -61,11 +79,37 @@ void InputImpl::updateJoystickDominantAxes() {
     }
 }
 
+bool InputImpl::isJoystickButtonDown(unsigned int joystickId,
+                                     unsigned int button) const {
+    return !isJoystickBlocked() && joystickId < sf::Joystick::Count &&
+           modal_.allowsJoystickButton(joystickId, button) &&
+           sf::Joystick::isConnected(joystickId) &&
+           button < sf::Joystick::getButtonCount(joystickId) &&
+           sf::Joystick::isButtonPressed(joystickId, button);
+}
+
+bool InputImpl::isJoystickButtonValueDown(unsigned int joystickId,
+                                          const InputNamedValue& button) const {
+    const std::optional<unsigned int> raw =
+        JoystickButton::resolve(joystickId, button);
+    return raw && isJoystickButtonDown(joystickId, *raw);
+}
+
 bool InputImpl::isAnyJoystickButtonDown(unsigned int button) const {
     for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
          ++joystickId) {
-        if (sf::Joystick::isConnected(joystickId) &&
-            sf::Joystick::isButtonPressed(joystickId, button)) {
+        if (isJoystickButtonDown(joystickId, button)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool InputImpl::isAnyJoystickButtonValueDown(
+    const InputNamedValue& button) const {
+    for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
+         ++joystickId) {
+        if (isJoystickButtonValueDown(joystickId, button)) {
             return true;
         }
     }
@@ -103,8 +147,9 @@ bool InputImpl::getJoystickButtonPressed(unsigned int joystickId,
 bool InputImpl::getJoystickButtonValuePressed(unsigned int joystickId,
                                               const InputNamedValue& button,
                                               bool handled) {
-    return getJoystickButtonPressed(
-        joystickId, static_cast<unsigned int>(button.value), handled);
+    const std::optional<unsigned int> raw =
+        JoystickButton::resolve(joystickId, button);
+    return raw && getJoystickButtonPressed(joystickId, *raw, handled);
 }
 
 bool InputImpl::getJoystickButtonReleased(unsigned int joystickId,
@@ -130,8 +175,9 @@ bool InputImpl::getJoystickButtonReleased(unsigned int joystickId,
 bool InputImpl::getJoystickButtonValueReleased(unsigned int joystickId,
                                                const InputNamedValue& button,
                                                bool handled) {
-    return getJoystickButtonReleased(
-        joystickId, static_cast<unsigned int>(button.value), handled);
+    const std::optional<unsigned int> raw =
+        JoystickButton::resolve(joystickId, button);
+    return raw && getJoystickButtonReleased(joystickId, *raw, handled);
 }
 
 bool InputImpl::isJoystickAxisMoved() const {
@@ -167,7 +213,7 @@ bool InputImpl::isJoystickDisconnected() const {
 }
 
 bool InputImpl::isJoystickBlocked() const {
-    return joystick_.blocked_ ||
+    return isInputCaptured() || !eventPump_.focused_ || joystick_.blocked_ ||
            ludork::engine::text_input::service().blocksGameplay();
 }
 

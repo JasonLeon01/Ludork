@@ -4,6 +4,7 @@
 #include <Input/TextInputService.hpp>
 #include <SFML/System/NativeActivity.hpp>
 #include "Android/TextInputHostAndroid.hpp"
+#include "Android/WebViewHostAndroid.hpp"
 
 #include <android/native_activity.h>
 #include <jni.h>
@@ -44,6 +45,7 @@ Java_com_ludork_android_LudorkActivity_submitSystemBack(JNIEnv*, jclass) {
 
 #define LUDORK_DEFINE_MAIN()                                    \
     int main(int argc, char** argv) {                           \
+        ludork::application::configureAndroidWebViewHost();     \
         configureAndroidRuntimePaths();                         \
         ludork::engine::text_input::service().setHost(          \
             ludork::application::createAndroidTextInputHost()); \

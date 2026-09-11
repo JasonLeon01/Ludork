@@ -82,7 +82,8 @@ bool InputImpl::axisMatches(float position, const InputActionKey& key) {
 }
 
 void InputImpl::dispatchActionMappings() {
-    if (ludork::engine::text_input::service().blocksGameplay()) {
+    if (isInputCaptured() ||
+        ludork::engine::text_input::service().blocksGameplay()) {
         return;
     }
     struct MoveAction {
@@ -97,7 +98,8 @@ void InputImpl::dispatchActionMappings() {
             continue;
         }
         for (const InputActionKey& key : mapping.actionKeys) {
-            if (ludork::engine::text_input::service().blocksGameplay()) {
+            if (isInputCaptured() ||
+                ludork::engine::text_input::service().blocksGameplay()) {
                 return;
             }
             if (key.kind == InputActionKind::JoystickButton) {
@@ -107,17 +109,21 @@ void InputImpl::dispatchActionMappings() {
                 bool triggered = false;
                 for (const auto& [joystickId, buttons] :
                      joystick_.pressedEvents_) {
-                    static_cast<void>(joystickId);
-                    const auto iterator =
-                        buttons.find(static_cast<unsigned int>(key.code));
+                    const std::optional<unsigned int> raw =
+                        JoystickButton::resolve(joystickId,
+                                                {key.name, key.code});
+                    if (!raw) {
+                        continue;
+                    }
+                    const auto iterator = buttons.find(*raw);
                     if (iterator != buttons.end() && iterator->second) {
                         triggered = true;
                         break;
                     }
                 }
                 if (!triggered && mapping.triggerOnHold) {
-                    triggered = isAnyJoystickButtonDown(
-                        static_cast<unsigned int>(key.code));
+                    triggered =
+                        isAnyJoystickButtonValueDown({key.name, key.code});
                 }
                 if (triggered) {
                     mapping.callback(mapping.object, std::nullopt);
@@ -140,7 +146,7 @@ void InputImpl::dispatchActionMappings() {
                     }
                 }
             } else if (key.kind == InputActionKind::MouseButton) {
-                if (!pointer_.mouseBlocked_ &&
+                if (!isMouseBlocked() &&
                     (getMouseButtonPressed(
                          static_cast<sf::Mouse::Button>(key.code), false) ||
                      (mapping.triggerOnHold &&
@@ -209,7 +215,8 @@ void InputImpl::dispatchActionMappings() {
         [](const MoveAction& left, const MoveAction& right) {
             return std::abs(left.position) < std::abs(right.position);
         });
-    if (finalAction != moveActions.end() && finalAction->position != 0.0f) {
+    if (!isInputCaptured() && finalAction != moveActions.end() &&
+        finalAction->position != 0.0f) {
         finalAction->callback(finalAction->object, finalAction->position);
     }
 }
@@ -264,52 +271,73 @@ bool InputImpl::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
         isKeyboardKeyDown(key), handled, repeatDelay, repeatInterval);
 }
 
-bool InputImpl::isAnyJoystickButtonTriggered(unsigned int button, bool handled,
-                                             float repeatDelay,
-                                             float repeatInterval) {
+bool InputImpl::joystickButtonTriggered(unsigned int joystickId,
+                                        unsigned int button, bool handled,
+                                        float repeatDelay,
+                                        float repeatInterval) {
     if (isJoystickBlocked()) {
         return false;
     }
-    const auto iterator = joystick_.buttonTriggers_.find(button);
-    if (iterator == joystick_.buttonTriggers_.end()) {
+    const auto device = joystick_.buttonTriggers_.find(joystickId);
+    if (device == joystick_.buttonTriggers_.end()) {
+        return false;
+    }
+    const auto iterator = device->second.find(button);
+    if (iterator == device->second.end()) {
         return false;
     }
     InputTriggerEntry& entry = iterator->second;
-    if (repeatInterval > 0.0f) {
+    if (!entry.handled && entry.count > 0) {
         const auto now = std::chrono::steady_clock::now();
-        if (!entry.handled) {
-            entry.repeatStart = now;
-            entry.repeatLast = now;
-            if (handled) {
-                entry.handled = true;
-            }
-            return true;
+        entry.repeatStart = now;
+        entry.repeatLast = now;
+        if (handled) {
+            entry.handled = true;
         }
-        if (isAnyJoystickButtonDown(button) &&
-            std::chrono::duration<float>(now - entry.repeatStart).count() >=
+        return true;
+    }
+    if (repeatInterval > 0.0f && isJoystickButtonDown(joystickId, button)) {
+        const auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration<float>(now - entry.repeatStart).count() >=
                 repeatDelay &&
             std::chrono::duration<float>(now - entry.repeatLast).count() >=
                 repeatInterval) {
             entry.repeatLast = now;
             return true;
         }
-        return false;
     }
-    if (entry.handled || entry.count < 1) {
-        return false;
+    return false;
+}
+
+bool InputImpl::isAnyJoystickButtonTriggered(unsigned int button, bool handled,
+                                             float repeatDelay,
+                                             float repeatInterval) {
+    bool triggered = false;
+    for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
+         ++joystickId) {
+        if (joystickButtonTriggered(joystickId, button, handled, repeatDelay,
+                                    repeatInterval)) {
+            triggered = true;
+        }
     }
-    if (handled) {
-        entry.handled = true;
-    }
-    return true;
+    return triggered;
 }
 
 bool InputImpl::isAnyJoystickButtonValueTriggered(const InputNamedValue& button,
                                                   bool handled,
                                                   float repeatDelay,
                                                   float repeatInterval) {
-    return isAnyJoystickButtonTriggered(static_cast<unsigned int>(button.value),
-                                        handled, repeatDelay, repeatInterval);
+    bool triggered = false;
+    for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
+         ++joystickId) {
+        const std::optional<unsigned int> raw =
+            JoystickButton::resolve(joystickId, button);
+        if (raw && joystickButtonTriggered(joystickId, *raw, handled,
+                                           repeatDelay, repeatInterval)) {
+            triggered = true;
+        }
+    }
+    return triggered;
 }
 
 bool InputImpl::actionTriggered(const InputActionKey& key, bool handled,
@@ -343,9 +371,8 @@ bool InputImpl::actionTriggered(const InputActionKey& key, bool handled,
                               repeatInterval);
     }
     if (key.kind == InputActionKind::JoystickButton) {
-        return isAnyJoystickButtonTriggered(static_cast<unsigned int>(key.code),
-                                            handled, repeatDelay,
-                                            repeatInterval);
+        return isAnyJoystickButtonValueTriggered({key.name, key.code}, handled,
+                                                 repeatDelay, repeatInterval);
     }
     if (key.kind == InputActionKind::MouseButton) {
         return isMouseButtonTriggered(static_cast<sf::Mouse::Button>(key.code),
@@ -421,8 +448,7 @@ bool InputImpl::actionHeld(const InputActionKey& key) const {
                    static_cast<sf::Keyboard::Scancode>(key.code));
     }
     if (key.kind == InputActionKind::JoystickButton) {
-        return !isJoystickBlocked() &&
-               isAnyJoystickButtonDown(static_cast<unsigned int>(key.code));
+        return isAnyJoystickButtonValueDown({key.name, key.code});
     }
     if (key.kind == InputActionKind::MouseButton) {
         return isMouseButtonDown(static_cast<sf::Mouse::Button>(key.code));

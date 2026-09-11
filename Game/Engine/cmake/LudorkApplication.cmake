@@ -117,7 +117,8 @@ if(LUDORK_STATIC_LUA_MODULES)
 endif()
 if(ANDROID)
     target_sources(Main PRIVATE
-        "${LUDORK_APPLICATION_ROOT}/src/Platform/Android/TextInputHostAndroid.cpp")
+        "${LUDORK_APPLICATION_ROOT}/src/Platform/Android/TextInputHostAndroid.cpp"
+        "${LUDORK_APPLICATION_ROOT}/src/Platform/Android/WebViewHostAndroid.cpp")
     if(NOT DEFINED LUDORK_ANDROID_RUNTIME_HASH
        OR LUDORK_ANDROID_RUNTIME_HASH STREQUAL "")
         message(FATAL_ERROR

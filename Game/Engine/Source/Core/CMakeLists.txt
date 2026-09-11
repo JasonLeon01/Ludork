@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkEngine LANGUAGES CXX)
 
-if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(APPLE)
     enable_language(OBJCXX)
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkEnginePlatform.cmake")

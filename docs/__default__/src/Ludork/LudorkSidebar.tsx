@@ -15,6 +15,8 @@ import {
 } from './ludorkDocsIndex'
 import { ChevronLeftIcon, HomeIcon } from './LudorkIcon'
 import type { LanguageKey } from './ludorkLanguages'
+import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
+import { getLudorkDocHref } from './ludorkUrl'
 
 type LudorkSidebarProps = {
   language: LanguageKey
@@ -40,16 +42,16 @@ export default function LudorkSidebar({
         overflow: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: 'background.paper',
+        bgcolor: 'transparent',
         whiteSpace: 'nowrap',
       }}
     >
-      <Box sx={{ px: 2, pt: 2, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+      <Box sx={{ px: 2.25, pt: 2, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.02em' }}>
           Ludork
         </Typography>
         {onToggle && (
-          <IconButton onClick={onToggle} size="small" aria-label="Collapse sidebar">
+          <IconButton onClick={onToggle} size="small" aria-label={LUDORK_SITE_MESSAGES[language].docs.collapseSidebar}>
             <ChevronLeftIcon />
           </IconButton>
         )}
@@ -58,8 +60,14 @@ export default function LudorkSidebar({
       <List dense disablePadding sx={{ flex: 1, overflow: 'auto' }}>
         {section.includesHome && (
           <ListItemButton
+            component="a"
+            href={getLudorkDocHref(language, null)}
             selected={selected.type === 'home'}
-            onClick={() => onSelect({ type: 'home' })}
+            onClick={(event) => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+              event.preventDefault()
+              onSelect({ type: 'home' })
+            }}
             sx={{ pl: 2, gap: 1 }}
           >
             <HomeIcon />
@@ -95,7 +103,8 @@ function renderTreeItem(
             pt: depth === 0 ? 1.25 : 0.75,
             pb: 0.25,
             color: 'text.secondary',
-            fontWeight: 700,
+            fontWeight: 600,
+            letterSpacing: '0.04em',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}
@@ -115,9 +124,15 @@ function renderTreeItem(
 
   return (
     <ListItemButton
+      component="a"
+      href={getLudorkDocHref(language, docKey)}
       key={item.entry.filename}
       selected={isSelected}
-      onClick={() => onSelect({ type: 'doc', lang: language, docKey })}
+      onClick={(event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        event.preventDefault()
+        onSelect({ type: 'doc', lang: language, docKey })
+      }}
       sx={{ pl: 2 + depth * 2 }}
     >
       <ListItemText

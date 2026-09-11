@@ -426,7 +426,7 @@ bool InputImpl::isTextEntered() const {
 }
 
 bool InputImpl::isKeyboardBlocked() const {
-    return keyboard_.blocked_ ||
+    return isInputCaptured() || keyboard_.blocked_ ||
            ludork::engine::text_input::service().blocksGameplay();
 }
 

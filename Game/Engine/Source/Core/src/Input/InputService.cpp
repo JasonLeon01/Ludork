@@ -10,6 +10,10 @@
 
 #include <utility>
 
+bool InputService::isInputCaptured() const {
+    return ludork::engine::input_impl::inputImpl().isInputCaptured();
+}
+
 void InputService::initializeNativePolling() {
     ludork::engine::input_impl::inputImpl().initializeNativePolling();
 }
@@ -282,6 +286,29 @@ bool InputService::isKeyTriggered(sf::Keyboard::Key key, bool alt, bool ctrl,
                                   float repeatDelay, float repeatInterval) {
     return ludork::engine::input_impl::inputImpl().isKeyTriggered(
         key, alt, ctrl, shift, system, handled, repeatDelay, repeatInterval);
+}
+
+bool InputService::isJoystickButtonDown(unsigned int joystickId,
+                                        unsigned int button) const {
+    return ludork::engine::input_impl::inputImpl().isJoystickButtonDown(
+        joystickId, button);
+}
+
+bool InputService::isJoystickButtonValueDown(
+    unsigned int joystickId, const InputNamedValue& button) const {
+    return ludork::engine::input_impl::inputImpl().isJoystickButtonValueDown(
+        joystickId, button);
+}
+
+bool InputService::isAnyJoystickButtonDown(unsigned int button) const {
+    return ludork::engine::input_impl::inputImpl().isAnyJoystickButtonDown(
+        button);
+}
+
+bool InputService::isAnyJoystickButtonValueDown(
+    const InputNamedValue& button) const {
+    return ludork::engine::input_impl::inputImpl().isAnyJoystickButtonValueDown(
+        button);
 }
 
 bool InputService::isAnyJoystickButtonTriggered(unsigned int button,

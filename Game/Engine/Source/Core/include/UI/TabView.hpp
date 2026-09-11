@@ -15,6 +15,10 @@ class PlainText;
 class Rect;
 class SolidRect;
 
+namespace ludork::engine::ui_interaction {
+class GamepadGlyphImpl;
+}
+
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TabView : public ControlBase, public FunctionalBase {
 public:
@@ -120,7 +124,7 @@ protected:
 private:
     struct KeyHintText {
         std::optional<std::string> keyboard;
-        std::optional<std::string> handle;
+        std::optional<InputNamedValue> joystick;
     };
 
     static sf::Vector2f normalizedSize(const sf::Vector2f& size);
@@ -140,12 +144,11 @@ private:
     void rebuildHintVisuals();
     void layoutVisuals();
     void layoutLabel(PlainText& label, int index) const;
-    void layoutHint(PlainText& text, SolidRect& background, bool left) const;
+    void layoutHint(ludork::engine::ui_interaction::GamepadGlyphImpl& glyph,
+                    SolidRect& background, bool left) const;
     void updateSelectionVisual();
     void updateHintVisibility();
     void applyPresentationColour();
-    const std::optional<std::string>& visibleHint(
-        const KeyHintText& hint) const;
 
     sf::Vector2f size_;
     sf::Image windowSkin_;
@@ -160,7 +163,9 @@ private:
     std::vector<std::unique_ptr<PlainText>> labels_;
     std::unique_ptr<SolidRect> leftHintBackground_;
     std::unique_ptr<SolidRect> rightHintBackground_;
-    std::unique_ptr<PlainText> leftHintText_;
-    std::unique_ptr<PlainText> rightHintText_;
+    std::unique_ptr<ludork::engine::ui_interaction::GamepadGlyphImpl>
+        leftHintGlyph_;
+    std::unique_ptr<ludork::engine::ui_interaction::GamepadGlyphImpl>
+        rightHintGlyph_;
     bool suppressNextClick_ = false;
 };

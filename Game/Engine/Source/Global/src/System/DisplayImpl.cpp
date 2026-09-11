@@ -14,6 +14,7 @@
 #include <LudorkPlatform.hpp>
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/WebViewHost.hpp>
 #include <System/NativeDisplayHost.hpp>
 #include <SystemConfigBase.hpp>
 #include <algorithm>
@@ -188,6 +189,7 @@ void DisplayImpl::createDisplayWindow() {
 }
 
 void DisplayImpl::initializeInput() {
+    ludork::runtime::webview::attachWindow(window_->getNativeHandle());
     setInputMethodDisabled(true);
 #if defined(SFML_SYSTEM_IOS)
     ludork::engine::text_input::service().setHost(
@@ -208,6 +210,7 @@ void DisplayImpl::initWindow(const std::shared_ptr<sf::RenderWindow>& window) {
     if (window == nullptr) {
         throw std::invalid_argument("System window cannot be nil");
     }
+    ludork::runtime::webview::detachWindow();
     {
         const std::lock_guard<std::mutex> lock(windowMutex_);
         window_ = window;
@@ -308,6 +311,7 @@ void DisplayImpl::recreateDesktopWindow(bool fullscreen,
     if (window_ == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
+    ludork::runtime::webview::detachWindow();
     ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     window_->create(
@@ -331,6 +335,7 @@ void DisplayImpl::replaceWindowedDesktopWindow(
     if (previousWindow == nullptr || isEmbeddedDisplay() || isMobileDisplay()) {
         return;
     }
+    ludork::runtime::webview::detachWindow();
     ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     const std::shared_ptr<sf::RenderWindow> replacement =
@@ -610,6 +615,7 @@ void DisplayImpl::reset() {
 }
 
 void DisplayImpl::shutdown() noexcept {
+    ludork::runtime::webview::detachWindow();
     ludork::engine::text_input::service().setHost(nullptr);
     ludork::global::restoreNativeInputMethod();
     std::shared_ptr<sf::RenderWindow> previousWindow;

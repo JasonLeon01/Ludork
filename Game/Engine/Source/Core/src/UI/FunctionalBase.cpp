@@ -447,6 +447,9 @@ FunctionalInputProvider* FunctionalBase::inputProvider() {
 }
 
 bool FunctionalBase::isInteractionEnabled() const {
+    if (inputProvider_ != nullptr && inputProvider_->isInputCaptured()) {
+        return false;
+    }
     if (!active_) {
         return false;
     }

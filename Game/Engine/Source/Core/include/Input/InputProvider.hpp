@@ -8,6 +8,9 @@
 class FunctionalInputProvider {
 public:
     virtual ~FunctionalInputProvider() = default;
+    virtual bool isInputCaptured() const {
+        return false;
+    }
     virtual sf::Vector2i getMousePosition() const = 0;
     virtual bool isMouseButtonPressed() const = 0;
     virtual bool getMouseButtonPressed(sf::Mouse::Button button,

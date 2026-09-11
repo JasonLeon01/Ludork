@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ModalInputImpl.hpp"
+
 #include <Input/InputAction.hpp>
 #include <Input/InputActionKey.hpp>
 #include <Input/InputNamedValue.hpp>
@@ -167,7 +169,11 @@ private:
     std::unordered_map<unsigned int, std::optional<sf::Joystick::Axis>>
         dominantAxis_;
     std::unordered_map<std::string, InputTriggerEntry> axisTriggers_;
-    std::unordered_map<unsigned int, InputTriggerEntry> buttonTriggers_;
+    std::unordered_map<unsigned int,
+                       std::unordered_map<unsigned int, InputTriggerEntry>>
+        buttonTriggers_;
+    std::unordered_map<unsigned int, std::unordered_set<unsigned int>>
+        pendingButtonReleases_;
     bool blocked_ = false;
 };
 
@@ -195,6 +201,7 @@ public:
     void setPointerViewport(std::optional<sf::IntRect> viewport);
     void onWindowRecreated(sf::WindowBase& window);
 
+    bool isInputCaptured() const;
     bool isFocused() const;
     bool isFocusLost() const;
     bool isFocusGained() const;
@@ -242,6 +249,13 @@ public:
     bool isTouchBlocked() const;
     void blockTouch();
     void unblockTouch();
+
+    bool isJoystickButtonDown(unsigned int joystickId,
+                              unsigned int button) const;
+    bool isJoystickButtonValueDown(unsigned int joystickId,
+                                   const InputNamedValue& button) const;
+    bool isAnyJoystickButtonDown(unsigned int button) const;
+    bool isAnyJoystickButtonValueDown(const InputNamedValue& button) const;
 
     bool isJoystickButtonPressed() const;
     bool isJoystickButtonReleased() const;
@@ -321,6 +335,7 @@ private:
                                      const sf::Vector2i& position);
 
     void resetFrameState();
+    void clearCapturedInput();
     void consumePendingSystemCancel();
     void restoreKeyPulses();
     void clearKeyboardState();
@@ -347,6 +362,7 @@ private:
     void processPlatformScrollEvents(sf::WindowBase& window);
     void processInjectedEvents();
     bool processNativeEvent(sf::WindowBase& window, const sf::Event& event);
+    void clearJoystickDevice(unsigned int joystickId);
     void updateJoystickDominantAxes();
     void updateInputType(sf::WindowBase& window);
     void dispatchActionMappings();
@@ -359,10 +375,13 @@ private:
     bool actionTriggered(const InputActionKey& key, bool handled,
                          float repeatDelay, float repeatInterval);
     bool actionHeld(const InputActionKey& key) const;
+    bool joystickButtonTriggered(unsigned int joystickId, unsigned int button,
+                                 bool handled, float repeatDelay,
+                                 float repeatInterval);
     bool isKeyboardKeyDown(sf::Keyboard::Key key) const;
     bool isKeyboardScanDown(sf::Keyboard::Scancode scan) const;
-    bool isAnyJoystickButtonDown(unsigned int button) const;
 
+    ModalInputImpl modal_;
     InputEventPumpImpl eventPump_;
     KeyboardInputImpl keyboard_;
     PointerInputImpl pointer_;

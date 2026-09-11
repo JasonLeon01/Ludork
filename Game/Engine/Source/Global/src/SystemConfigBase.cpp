@@ -15,10 +15,10 @@
 #include <utility>
 
 namespace {
-constexpr float DefaultMaximumRenderScale = 1.0f;
-constexpr float DefaultLightingRenderScale = 0.75f;
+constexpr float DefaultMaximumRenderScale = 2.0f;
+constexpr float DefaultLightingRenderScale = 1.0f;
 constexpr int DefaultFrameRate = 60;
-constexpr int DefaultAntiAliasingLevel = 2;
+constexpr int DefaultAntiAliasingLevel = 8;
 
 std::string numberText(float value) {
     std::ostringstream stream;
@@ -35,7 +35,7 @@ std::shared_ptr<ludork::standard::ConfigParser> SystemConfigBase::data_;
 std::filesystem::path SystemConfigBase::dataFilePath_;
 std::string SystemConfigBase::script_ = "Scripts/Entry.lua";
 std::string SystemConfigBase::language_ = "en_GB";
-float SystemConfigBase::scale_ = 1.0f;
+float SystemConfigBase::scale_ = 0.0f;
 float SystemConfigBase::maximumRenderScale_ = DefaultMaximumRenderScale;
 float SystemConfigBase::lightingRenderScale_ = DefaultLightingRenderScale;
 int SystemConfigBase::frameRate_ = DefaultFrameRate;
@@ -284,7 +284,7 @@ void SystemConfigBase::shutdown() noexcept {
     dataFilePath_.clear();
     script_ = "Scripts/Entry.lua";
     language_ = "en_GB";
-    scale_ = 1.0f;
+    scale_ = 0.0f;
     maximumRenderScale_ = DefaultMaximumRenderScale;
     lightingRenderScale_ = DefaultLightingRenderScale;
     frameRate_ = DefaultFrameRate;

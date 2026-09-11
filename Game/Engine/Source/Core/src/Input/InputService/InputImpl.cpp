@@ -2,6 +2,7 @@
 #include <Input/TextInputService.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
+#include "Input/JoystickDevice/JoystickDeviceImpl.hpp"
 
 #include <SFML/Window/Clipboard.hpp>
 
@@ -11,8 +12,47 @@
 
 namespace ludork::engine::input_impl {
 
+bool InputImpl::isInputCaptured() const {
+    return modal_.captured();
+}
+
+void InputImpl::clearCapturedInput() {
+    for (const auto& [key, state] : keyboard_.heldKeys_) {
+        static_cast<void>(state);
+        modal_.suppressKey(static_cast<sf::Keyboard::Key>(key));
+    }
+    const bool focusLost = eventPump_.focusLost_;
+    const bool focusGained = eventPump_.focusGained_;
+    resetFrameState();
+    eventPump_.focusLost_ = focusLost;
+    eventPump_.focusGained_ = focusGained;
+    clearKeyboardState();
+    abortTwoFingerCancel();
+    cancelTouchGesture();
+    pointer_.mouseTriggers_.clear();
+    pointer_.pendingMouseTriggerReleases_.clear();
+    pointer_.touchFingers_.clear();
+    pointer_.primaryTouchFinger_.reset();
+    pointer_.touchPosition_.reset();
+    pointer_.touchBeganPosition_.reset();
+    joystick_.buttonTriggers_.clear();
+    joystick_.pendingButtonReleases_.clear();
+    joystick_.axisTriggers_.clear();
+    joystick_.axisStatus_.clear();
+    joystick_.dominantAxis_.clear();
+}
+
 void InputImpl::resetFrameState() {
     restoreKeyPulses();
+    for (const auto& [joystickId, buttons] : joystick_.pendingButtonReleases_) {
+        const auto device = joystick_.buttonTriggers_.find(joystickId);
+        if (device != joystick_.buttonTriggers_.end()) {
+            for (const unsigned int button : buttons) {
+                device->second.erase(button);
+            }
+        }
+    }
+    joystick_.pendingButtonReleases_.clear();
     for (const std::string& identifier : keyboard_.pendingKeyTriggerReleases_) {
         keyboard_.keyTriggers_.erase(identifier);
     }
@@ -98,6 +138,10 @@ void InputImpl::updateInputType(sf::WindowBase& window) {
 void InputImpl::update(sf::WindowBase& window) {
     eventPump_.activeWindow_ = &window;
     resetFrameState();
+    if (modal_.beginFrame()) {
+        ludork::engine::text_input::service().close();
+        clearCapturedInput();
+    }
     ludork::engine::text_input::service().beginFrame();
     consumePendingSystemCancel();
     if (pointer_.injectedTransitionPending_.has_value()) {
@@ -120,8 +164,17 @@ void InputImpl::update(sf::WindowBase& window) {
         }
     }
     processPlatformScrollEvents(window);
+    for (unsigned int joystickId = 0; joystickId < sf::Joystick::Count;
+         ++joystickId) {
+        if (!sf::Joystick::isConnected(joystickId)) {
+            clearJoystickDevice(joystickId);
+        }
+    }
+    ludork::engine::joystick_device::JoystickDeviceImpl::instance()
+        .synchronize();
 
-    if (!eventPump_.useInjectedMouseOnly_ && window.hasFocus()) {
+    if (!isInputCaptured() && !eventPump_.useInjectedMouseOnly_ &&
+        window.hasFocus()) {
         const sf::Vector2i pixel = sf::Mouse::getPosition(window);
         updatePointerViewportState(pixel);
         const sf::Vector2i polled = pixelToWorld(window, pixel);
@@ -151,9 +204,19 @@ void InputImpl::update(sf::WindowBase& window) {
         joystick_.buttonTriggers_.clear();
         joystick_.axisTriggers_.clear();
     }
-    updateJoystickDominantAxes();
-    updateInputType(window);
-    dispatchActionMappings();
+    if (!isInputCaptured()) {
+        updateJoystickDominantAxes();
+        updateInputType(window);
+        dispatchActionMappings();
+    }
+    if (isInputCaptured()) {
+        clearCapturedInput();
+        window.setMouseCursorVisible(true);
+    } else {
+        window.setMouseCursorVisible(eventPump_.currentInputType_ ==
+                                     InputType::Mouse);
+    }
+    modal_.finishFrame();
     if (frameCompletionCallback_) {
         frameCompletionCallback_();
     }
@@ -182,6 +245,7 @@ void InputImpl::setFrameCompletionCallback(std::function<void()> callback) {
 }
 
 void InputImpl::shutdown() noexcept {
+    modal_.reset();
     ludork::engine::text_input::service().shutdown();
     InputEventPumpImpl::pendingSystemCancel_.store(false,
                                                    std::memory_order_release);
@@ -216,6 +280,8 @@ void InputImpl::shutdown() noexcept {
     joystick_.dominantAxis_.clear();
     joystick_.axisTriggers_.clear();
     joystick_.buttonTriggers_.clear();
+    joystick_.pendingButtonReleases_.clear();
+    ludork::engine::joystick_device::JoystickDeviceImpl::instance().reset();
     eventPump_.activeWindow_ = nullptr;
 }
 

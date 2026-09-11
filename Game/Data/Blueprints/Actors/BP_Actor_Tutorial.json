@@ -1,0 +1,95 @@
+{
+  "parent": "Source.ConditionalActor.ConditionalActor",
+  "attrs": {
+    "animatable": true,
+    "material": {
+      "lightBlock": 0.4,
+      "mirror": false,
+      "reflectionStrength": 0.5,
+      "opacity": 1.0,
+      "speedRate": 1.0
+    },
+    "collisionEnabled": true,
+    "tickable": false,
+    "texturePath": "/Game/Assets/Characters/enemies/classic-enemies-x01-natural-single.png",
+    "defaultRect": [
+      [
+        0,
+        128,
+        32,
+        32
+      ]
+    ],
+    "tag": "",
+    "emitterComp": {
+      "resource": "Smoke",
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "offset": [
+        0,
+        8
+      ],
+      "rotation": 0,
+      "scale": [
+        0.6,
+        0.6
+      ],
+      "beforeActor": true
+    }
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCollision": {
+        "nodes": [
+          {
+            "nodeFunction": "Engine.OpenWebView",
+            "params": [
+              "https://jasonleon01.github.io/Ludork/"
+            ],
+            "pos": [
+              0.0,
+              0.0
+            ]
+          }
+        ],
+        "links": []
+      },
+      "onCreate": {
+        "nodes": [],
+        "links": []
+      },
+      "onDestroy": {
+        "nodes": [],
+        "links": []
+      },
+      "onFixedTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onLateTick": {
+        "nodes": [],
+        "links": []
+      },
+      "onOverlap": {
+        "nodes": [],
+        "links": []
+      },
+      "onTick": {
+        "nodes": [],
+        "links": []
+      }
+    },
+    "startNodes": {
+      "onCollision": 0,
+      "onCreate": null,
+      "onDestroy": null,
+      "onFixedTick": null,
+      "onLateTick": null,
+      "onOverlap": null,
+      "onTick": null
+    }
+  },
+  "type": "blueprint"
+}

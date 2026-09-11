@@ -2,6 +2,7 @@
 #include "TextInputServiceImpl.hpp"
 
 #include <Input/JoystickButton.hpp>
+#include <Input/InputService.hpp>
 #include <UnicodeText.hpp>
 #include <SFML/System/String.hpp>
 #include <SFML/Window/Clipboard.hpp>
@@ -71,6 +72,9 @@ void TextInputService::setHost(std::shared_ptr<TextInputHost> host) {
 }
 
 SessionId TextInputService::begin(const Request& request, Callback callback) {
+    if (inputService().isInputCaptured()) {
+        return 0;
+    }
     close();
     impl_->id = ++impl_->nextId;
     impl_->state = request.state;
@@ -288,7 +292,8 @@ bool TextInputService::processEvent(const sf::Event& event) {
     }
     if (const auto* joystick = event.getIf<sf::Event::JoystickButtonPressed>();
         joystick != nullptr && isEditing() && !isModal() &&
-        static_cast<int>(joystick->button) == JoystickButton::getB().value) {
+        JoystickButton::resolve(joystick->joystickId, JoystickButton::getB()) ==
+            joystick->button) {
         execute(Command::Cancel);
         return true;
     }

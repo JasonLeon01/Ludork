@@ -2,18 +2,21 @@
 set -eu
 
 DOCS_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-cd "$DOCS_DIR"
-
-rm -f index.html
-rm -rf assets
-
 cd "$DOCS_DIR/__default__"
 npm run build
 
-if [ ! -d dist ]; then
-    echo "docs/__default__/dist was not produced." >&2
+for entry in index.html docs/index.html about/index.html favicon.svg .nojekyll; do
+    if [ ! -f "dist/$entry" ]; then
+        echo "Missing website output: $entry" >&2
+        exit 1
+    fi
+done
+if [ ! -d dist/assets ]; then
+    echo "Website assets were not produced." >&2
     exit 1
 fi
 
+rm -f "$DOCS_DIR/index.html"
+rm -rf "$DOCS_DIR/assets" "$DOCS_DIR/docs" "$DOCS_DIR/about"
 cp -R dist/. "$DOCS_DIR/"
 echo "Copied docs/__default__/dist into $DOCS_DIR"

@@ -1,0 +1,605 @@
+:root {
+  color-scheme: light;
+  --ludork-blue: #0071e3;
+  --ludork-ink: #1d1d1f;
+  --ludork-muted: #6e6e73;
+  --ludork-line: rgba(0, 0, 0, 0.08);
+  --ludork-canvas: #f5f5f7;
+  --ludork-surface: #ffffff;
+  --ludork-header: rgba(251, 251, 253, 0.72);
+  --ludork-hover: rgba(0, 0, 0, 0.04);
+  --ludork-code: #f5f5f7;
+  --ludork-quote: rgba(0, 113, 227, 0.06);
+  --ludork-scrollbar: #c7c7cc;
+  --ludork-icon-well: #ffffff;
+  --ludork-focus: rgba(0, 113, 227, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ludork-blue: #2997ff;
+    --ludork-ink: #f5f5f7;
+    --ludork-muted: #a1a1a6;
+    --ludork-line: rgba(255, 255, 255, 0.12);
+    --ludork-canvas: #000000;
+    --ludork-surface: #1d1d1f;
+    --ludork-header: rgba(22, 22, 23, 0.72);
+    --ludork-hover: rgba(255, 255, 255, 0.06);
+    --ludork-code: #1d1d1f;
+    --ludork-quote: rgba(41, 151, 255, 0.12);
+    --ludork-scrollbar: #636366;
+    --ludork-icon-well: #ffffff;
+    --ludork-focus: rgba(41, 151, 255, 0.55);
+  }
+}
+
+.ludork-site {
+  min-height: 100%;
+  background: var(--ludork-canvas);
+  color: var(--ludork-ink);
+  overflow-wrap: anywhere;
+}
+
+.ludork-container {
+  width: min(1120px, calc(100% - 64px));
+  margin-inline: auto;
+}
+
+.ludork-header {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  border-bottom: 1px solid var(--ludork-line);
+  background: var(--ludork-header);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  flex-shrink: 0;
+}
+
+.ludork-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-height: 52px;
+  padding: 0 28px;
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+.ludork-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ludork-ink);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ludork-brand img {
+  border-radius: 8px;
+}
+
+.ludork-navigation {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: auto;
+}
+
+.ludork-navigation a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ludork-muted);
+  text-decoration: none;
+  font-size: .875rem;
+  font-weight: 400;
+  padding-block: 16px;
+  transition: color 160ms ease;
+}
+
+.ludork-navigation a:hover,
+.ludork-navigation a[aria-current="page"] {
+  color: var(--ludork-ink);
+}
+
+.ludork-navigation a[aria-current="page"] {
+  font-weight: 600;
+}
+
+.ludork-language {
+  min-width: 132px;
+}
+
+.ludork-language .MuiOutlinedInput-notchedOutline {
+  border-color: var(--ludork-line);
+}
+
+.ludork-language .MuiSelect-select {
+  font-size: .8125rem;
+}
+
+.ludork-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  transform: translateY(-160%);
+  z-index: 1500;
+  border-radius: 980px;
+  background: var(--ludork-surface);
+  padding: 10px 16px;
+  color: var(--ludork-blue);
+}
+
+.ludork-skip-link:focus {
+  transform: translateY(0);
+}
+
+.ludork-site a:focus-visible,
+.ludork-header a:focus-visible {
+  outline: 3px solid var(--ludork-focus);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.ludork-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+  min-height: 640px;
+  padding-block: 96px 72px;
+}
+
+.ludork-hero-copy {
+  max-width: 860px;
+  min-width: 0;
+  text-align: left;
+}
+
+.ludork-hero-visual {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+}
+
+.ludork-hero-visual img {
+  position: absolute;
+  inset: -6%;
+  display: block;
+  width: 112%;
+  height: 112%;
+  max-width: none;
+  object-fit: contain;
+}
+
+.ludork-hero .ludork-eyebrow {
+  color: var(--ludork-muted);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 20px;
+}
+
+.ludork-eyebrow {
+  color: var(--ludork-muted);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin: 0 0 18px;
+}
+
+html[lang="zh-CN"] .ludork-eyebrow {
+  letter-spacing: .16em;
+}
+
+.ludork-hero h1 {
+  font-size: clamp(3rem, 6vw, 4.75rem);
+  line-height: 1.08;
+  letter-spacing: -.045em;
+  font-weight: 600;
+  white-space: pre-line;
+  margin: 0 0 24px;
+}
+
+html[lang="zh-CN"] .ludork-hero h1 {
+  letter-spacing: -.02em;
+}
+
+.ludork-lead {
+  color: var(--ludork-muted);
+  font-size: 1.375rem;
+  line-height: 1.55;
+  max-width: 620px;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.ludork-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-top: 40px;
+}
+
+.ludork-download.MuiButton-root {
+  min-width: 196px;
+  padding: 14px 32px;
+  border-radius: 980px;
+  font-size: 1.0625rem;
+  font-weight: 500;
+}
+
+.ludork-section {
+  padding-block: 72px;
+}
+
+.ludork-section h2,
+.ludork-about h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.25;
+  letter-spacing: -.03em;
+  font-weight: 600;
+  margin: 0 0 12px;
+  text-wrap: balance;
+}
+
+.ludork-about-links p {
+  color: var(--ludork-muted);
+  line-height: 1.7;
+  margin: 0 0 20px;
+}
+
+.ludork-about-links a {
+  color: var(--ludork-blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.ludork-about-links a:hover,
+.ludork-footer-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ludork-platform-section {
+  border-top: 1px solid var(--ludork-line);
+}
+
+.ludork-platform-section + .ludork-platform-section {
+  border-top: 0;
+}
+
+.ludork-platform-section + .ludork-platform-section .ludork-section {
+  padding-top: 0;
+}
+
+.ludork-platform-scroll {
+  container-type: inline-size;
+  overflow-x: clip;
+  margin-top: 32px;
+  padding-block: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ludork-scrollbar) transparent;
+}
+
+.ludork-platform-track {
+  --platform-gap: clamp(10px, 2cqw, 20px);
+  --platform-width: min(12.5rem, calc((100cqw - 2 * var(--platform-gap)) / 3));
+  --platform-unit: calc(var(--platform-width) / 200);
+  display: flex;
+  width: max-content;
+}
+
+.ludork-platform-scroll[data-overflow="true"] {
+  mask-image: linear-gradient(to right, transparent, #000 min(32px, 6%), #000 calc(100% - min(32px, 6%)), transparent);
+}
+
+.ludork-platform-scroll[data-overflow="true"] .ludork-platform-track {
+  animation: ludork-platform-loop var(--platform-duration) linear infinite;
+}
+
+.ludork-platform-scroll:is(:hover, :focus-within, :active) .ludork-platform-track {
+  animation-play-state: paused;
+}
+
+.ludork-platform-group {
+  display: flex;
+  flex: none;
+  width: max-content;
+  gap: var(--platform-gap);
+  list-style: none;
+  padding: 0 var(--platform-gap) 0 0;
+  margin: 0;
+}
+
+.ludork-platform-group li {
+  flex: 0 0 var(--platform-width);
+  width: var(--platform-width);
+}
+
+.ludork-platform {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(20 * var(--platform-unit));
+  padding: calc(28 * var(--platform-unit)) calc(16 * var(--platform-unit)) calc(24 * var(--platform-unit));
+  color: var(--ludork-ink);
+  font-size: clamp(.75rem, calc(17 * var(--platform-unit)), 1.0625rem);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: calc(18 * var(--platform-unit));
+  background: var(--ludork-surface);
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.ludork-platform:hover {
+  background: var(--ludork-hover);
+  transform: translateY(-2px);
+}
+
+.ludork-platform-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(180 * var(--platform-unit));
+  max-width: 100%;
+  height: calc(112 * var(--platform-unit));
+  padding: calc(8 * var(--platform-unit));
+  border-radius: calc(16 * var(--platform-unit));
+  background: var(--ludork-icon-well);
+}
+
+.ludork-platform img {
+  display: block;
+  width: calc(112 * var(--platform-unit));
+  max-width: 100%;
+  height: calc(96 * var(--platform-unit));
+  object-fit: contain;
+}
+
+.ludork-platform-wide img {
+  width: calc(180 * var(--platform-unit));
+}
+
+.ludork-platform-scroll:has(:focus-visible) {
+  overflow-x: auto;
+  mask-image: none;
+}
+
+.ludork-platform-scroll:has(:focus-visible) .ludork-platform-track {
+  animation: none;
+}
+
+.ludork-platform-scroll:has(:focus-visible) .ludork-platform-copy {
+  display: none;
+}
+
+@keyframes ludork-platform-loop {
+  to { transform: translateX(var(--platform-shift)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ludork-platform,
+  .ludork-navigation a {
+    transition: none;
+  }
+
+  .ludork-platform:hover {
+    transform: none;
+  }
+
+  .ludork-platform-scroll[data-overflow="true"] {
+    overflow-x: auto;
+  }
+
+  .ludork-platform-scroll[data-overflow="true"] .ludork-platform-track {
+    animation: none;
+  }
+
+  .ludork-platform-copy {
+    display: none;
+  }
+}
+
+.ludork-footer {
+  border-top: 1px solid var(--ludork-line);
+  background: var(--ludork-canvas);
+}
+
+.ludork-footer-inner {
+  display: flex;
+  gap: 40px;
+  justify-content: space-between;
+  padding-block: 48px 56px;
+}
+
+.ludork-footer .ludork-brand {
+  font-size: 1.125rem;
+}
+
+.ludork-footer p {
+  color: var(--ludork-muted);
+  font-size: .8125rem;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+
+.ludork-footer-links {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  align-content: start;
+  gap: 14px 36px;
+  padding-top: 4px;
+}
+
+.ludork-footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8125rem;
+  color: var(--ludork-muted);
+  text-decoration: none;
+}
+
+.ludork-about {
+  max-width: 760px;
+  padding-block: 88px 96px;
+  min-height: 65vh;
+}
+
+.ludork-about-heading h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 0 0 28px;
+  letter-spacing: -.03em;
+  font-weight: 600;
+}
+
+.ludork-about .ludork-markdown {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  font-size: 1.0625rem;
+}
+
+.ludork-about .ludork-markdown p {
+  margin: 0 0 22px;
+}
+
+.ludork-about-links {
+  border-top: 1px solid var(--ludork-line);
+  margin-top: 40px;
+  padding-top: 36px;
+}
+
+.ludork-about-links h2 {
+  font-size: 1.375rem;
+}
+
+.ludork-project-links {
+  display: flex;
+  gap: 16px 28px;
+  flex-wrap: wrap;
+}
+
+.ludork-docs-shell {
+  background: var(--ludork-canvas);
+}
+
+.ludork-docs-tabs {
+  border-bottom: 1px solid var(--ludork-line);
+  background: var(--ludork-header);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.ludork-docs-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 42vh;
+  padding: 48px 24px;
+  color: var(--ludork-muted);
+  text-align: center;
+}
+
+.ludork-docs-status p {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.ludork-docs-status .MuiButton-root {
+  min-width: 120px;
+}
+
+@media (max-width: 900px) {
+  .ludork-container {
+    width: calc(100% - 40px);
+  }
+
+  .ludork-header-inner {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    min-height: 0;
+    padding: 10px 20px 0;
+  }
+
+  .ludork-brand {
+    margin-right: auto;
+  }
+
+  .ludork-language {
+    margin-left: auto;
+  }
+
+  .ludork-navigation {
+    order: 3;
+    width: 100%;
+    margin: 0;
+    gap: 0;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .ludork-navigation a {
+    padding: 10px 4px 12px;
+    font-size: .8125rem;
+  }
+
+  .ludork-hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 520px;
+    padding-block: 56px 48px;
+  }
+
+  .ludork-hero-visual {
+    width: min(100%, 560px);
+    justify-self: center;
+  }
+
+  .ludork-hero-visual img {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .ludork-hero h1 {
+    font-size: clamp(2.35rem, 8vw, 3.75rem);
+  }
+
+  .ludork-lead {
+    font-size: 1.125rem;
+  }
+
+  .ludork-section {
+    padding-block: 48px;
+  }
+
+  .ludork-platform-scroll {
+    margin-top: 20px;
+  }
+
+  .ludork-footer-inner {
+    flex-direction: column;
+    padding-block: 36px 44px;
+  }
+
+  .ludork-footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .ludork-about {
+    padding-block: 48px 64px;
+  }
+}

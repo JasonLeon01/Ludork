@@ -317,7 +317,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             Width = 24,
             Height = 34,
             Padding = new Thickness(0),
-            IsEnabled = !isReadOnly && addableFields.Count > 0,
+            IsEnabled = !isReadOnly && ComponentAddRequested is not null && addableFields.Count > 0,
         };
         add.Click += (_, _) => ComponentAddRequested?.Invoke(
             this,
@@ -332,6 +332,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         void updateRemoveState()
         {
             remove.IsEnabled = !isReadOnly
+                && ComponentRemoveRequested is not null
                 && list.SelectedItem is ListBoxItem selected
                 && selected.Tag is BlueprintVariableField field
                 && (CanRemoveComponent?.Invoke(field) ?? true);

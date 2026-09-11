@@ -2,11 +2,15 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkRuntime LANGUAGES CXX)
 
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
+
 if(LUDORK_WITH_LUA)
     file(GLOB_RECURSE LUDORK_RUNTIME_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
     list(FILTER LUDORK_RUNTIME_SOURCES EXCLUDE REGEX
-        ".*/src/(LuaServices|Metadata|Graphics)/.*\\.cpp$")
+        ".*/src/(LuaServices|Metadata|Graphics|WebView)/.*\\.cpp$")
 else()
     set(LUDORK_RUNTIME_SOURCES
         src/RuntimeData.cpp
@@ -50,6 +54,7 @@ add_library(LudorkRuntime ${LUDORK_RUNTIME_LIBRARY_TYPE}
 add_library(Ludork::Runtime ALIAS LudorkRuntime)
 
 add_subdirectory(src/Graphics)
+add_subdirectory(src/WebView)
 
 if(LUDORK_WITH_LUA)
     add_subdirectory(src/Metadata)
