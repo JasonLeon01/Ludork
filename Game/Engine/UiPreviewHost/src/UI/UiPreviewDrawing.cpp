@@ -141,9 +141,8 @@ UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
 
 std::vector<std::uint8_t> renderFrame(
     const std::shared_ptr<UiAssetInstance>& instance,
-    const sf::Vector2u& size) {
+    sf::RenderTexture& target) {
     const std::shared_ptr<ControlBase> root = instance->getRoot();
-    sf::RenderTexture target(size);
     target.clear(sf::Color::Transparent);
     if (root->getVisible()) {
         renderNestedCanvases(root);
@@ -151,7 +150,7 @@ std::vector<std::uint8_t> renderFrame(
     }
     target.display();
     const sf::Image image = target.getTexture().copyToImage();
-    return bgraFromPremultipliedRgba(image, size);
+    return bgraFromPremultipliedRgba(image, target.getSize());
 }
 
 RuntimeData::Array nodeGeometry(

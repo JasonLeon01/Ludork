@@ -10,6 +10,7 @@
 #include <LightOcclusionInput.hpp>
 #include <LightOcclusionResult.hpp>
 #include <GameMapBase.hpp>
+#include <Emitters/EmitterScheduler.hpp>
 #include <Runtime/RuntimeObject.hpp>
 
 #include <Gameplay/Actor.hpp>
@@ -60,7 +61,23 @@ GameMapBase::GameMapBase()
                      ludork::global::game_map_base_impl::ActorRegistryImpl>()) {
 }
 
-GameMapBase::~GameMapBase() = default;
+GameMapBase::~GameMapBase() {
+    releaseEmitters();
+}
+
+void GameMapBase::collectEmitters(EmitterScheduler& scheduler) {
+    for (const auto& [_, actors] : actorRegistry_->materialActors()) {
+        for (const ActorPtr& actor : actors) {
+            if (actor != nullptr) {
+                actor->collectEmitter(scheduler);
+            }
+        }
+    }
+}
+
+void GameMapBase::releaseEmitters() noexcept {
+    actorRegistry_->releaseEmitters();
+}
 
 const ActorDict& GameMapBase::getMaterialActorsForRenderer() const {
     return actorRegistry_->materialActors();

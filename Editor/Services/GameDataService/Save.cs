@@ -137,6 +137,8 @@ public sealed partial class GameDataService
     private IReadOnlyList<string> validateGameAssetPaths()
     {
         List<string> errors = [];
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Particles"].Data)
+            errors.AddRange(ParticleAssetSchema.Validate(entry.Value, entry.Key));
         foreach (KeyValuePair<string, JsonObject> entry in sections["Tilesets"].Data)
             validateAssetPath(entry.Value["fileName"], $"Tilesets/{entry.Key}.fileName", errors);
         foreach (KeyValuePair<string, JsonObject> entry in sections["AutoTiles"].Data)

@@ -6,6 +6,11 @@ function(ludork_add_ui_preview_host_runtime target)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/UI/*.cpp")
     list(APPEND preview_runtime_sources
         "${CMAKE_CURRENT_SOURCE_DIR}/src/AnimSprite.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Emitters/Emitter.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Emitters/EmitterResource.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Emitters/EmitterCurves.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Emitters/EmitterConfigurationCompiler.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/EmitterScheduler.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Curve.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Curve/CurveMath.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Vector2Curve.cpp"

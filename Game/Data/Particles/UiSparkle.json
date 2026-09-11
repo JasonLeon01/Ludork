@@ -1,0 +1,195 @@
+{
+  "type": "particle",
+  "name": "UI Sparkle",
+  "simulationRate": 60,
+  "seed": 137,
+  "tracks": [
+    {
+      "name": "Glimmer",
+      "enabled": true,
+      "mode": "resident",
+      "delay": 0,
+      "duration": 2,
+      "loop": true,
+      "prewarm": false,
+      "capacity": 32,
+      "count": 32,
+      "rate": 0,
+      "distanceRate": 0,
+      "bursts": [],
+      "shape": "rectangle",
+      "extent": [
+        220,
+        72
+      ],
+      "radius": 16,
+      "innerRadius": 8,
+      "direction": -90,
+      "spread": 30,
+      "lifetime": [
+        0.8,
+        2
+      ],
+      "speed": [
+        0,
+        6
+      ],
+      "sizeMin": [
+        10,
+        10
+      ],
+      "sizeMax": [
+        22,
+        22
+      ],
+      "rotation": [
+        0,
+        360
+      ],
+      "angularVelocity": [
+        0,
+        0
+      ],
+      "colourMin": [
+        100,
+        175,
+        255,
+        180
+      ],
+      "colourMax": [
+        210,
+        245,
+        255,
+        255
+      ],
+      "gravity": [
+        0,
+        0
+      ],
+      "radialAcceleration": 0,
+      "tangentialAcceleration": 0,
+      "damping": 0,
+      "texture": "/Game/Assets/Particles/Glow.png",
+      "textureRect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "columns": 1,
+      "rows": 1,
+      "frameCount": 1,
+      "frameRate": 0,
+      "randomStartFrame": false,
+      "frameLoop": true,
+      "space": "local",
+      "scaleMode": "hierarchy",
+      "blend": "add",
+      "offset": [
+        0,
+        0
+      ],
+      "rotationOffset": 0,
+      "scale": [
+        1,
+        1
+      ],
+      "curves": {
+        "alpha": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 0,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 0.3,
+              "value": 1,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 0.7,
+              "value": 0.8,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 0,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        },
+        "sizeX": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 0.2,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 0.5,
+              "value": 1,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 0.2,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        },
+        "sizeY": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 0.2,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 0.5,
+              "value": 1,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 0.2,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 640,
+    "height": 480
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Particle Showcase",
+    "category": "Examples"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        640,
+        480
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "Sparks",
+        "controlId": "Engine.EmitterView",
+        "properties": {
+          "particle": "Sparks",
+          "size": [
+            280,
+            180
+          ],
+          "anchor": [
+            0.5,
+            0.65
+          ],
+          "autoPlay": true
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 20,
+            "top": 20,
+            "right": 300,
+            "bottom": 200
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "Smoke",
+        "controlId": "Engine.EmitterView",
+        "properties": {
+          "particle": "Smoke",
+          "size": [
+            280,
+            180
+          ],
+          "anchor": [
+            0.5,
+            0.65
+          ],
+          "autoPlay": true
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 320,
+            "top": 20,
+            "right": 600,
+            "bottom": 200
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "ResidentAura",
+        "controlId": "Engine.EmitterView",
+        "properties": {
+          "particle": "ResidentAura",
+          "size": [
+            280,
+            180
+          ],
+          "anchor": [
+            0.5,
+            0.65
+          ],
+          "autoPlay": true
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 20,
+            "top": 230,
+            "right": 300,
+            "bottom": 410
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "UiSparkle",
+        "controlId": "Engine.EmitterView",
+        "properties": {
+          "particle": "UiSparkle",
+          "size": [
+            280,
+            180
+          ],
+          "anchor": [
+            0.5,
+            0.65
+          ],
+          "autoPlay": true
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 320,
+            "top": 230,
+            "right": 600,
+            "bottom": 410
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

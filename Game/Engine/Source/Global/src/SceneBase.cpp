@@ -23,6 +23,7 @@ using ludork::global::scene_base_impl::durationMilliseconds;
 
 SceneBase::SceneBase()
     : uiManager_(std::make_shared<UIManager>()),
+      emitterScheduler_(std::make_shared<EmitterScheduler>()),
       commonTipParticleSystem_(std::make_shared<ParticleSystem>()),
       commonTipController_(
           std::make_shared<CommonTipController>(commonTipParticleSystem_)),
@@ -35,6 +36,19 @@ SceneBase::~SceneBase() {
 
 std::shared_ptr<UIManager> SceneBase::getUIManager() const {
     return uiManager_;
+}
+
+std::shared_ptr<EmitterScheduler> SceneBase::getEmitterScheduler() const {
+    return emitterScheduler_;
+}
+
+void SceneBase::setEmitterMap(const std::shared_ptr<GameMapBase>& map) {
+    const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
+    if (const std::shared_ptr<GameMapBase> previous = emitterMap_.lock();
+        previous != nullptr && previous != map) {
+        previous->releaseEmitters();
+    }
+    emitterMap_ = ludork::runtime::detail::canonicalRuntimeOwner(map);
 }
 
 TimerHandle SceneBase::addTimer(float interval, RuntimeIdentityPtr task,
@@ -173,6 +187,23 @@ void SceneBase::systemMain() {
                     uiManager_->logicHandle(deltaTime);
                 }
                 updateCommonTipOverlay(deltaTime);
+                if (emitterScheduler_ != nullptr) {
+                    if (const std::shared_ptr<sf::RenderWindow> window =
+                            System::getWindow();
+                        window != nullptr && !window->setActive(true)) {
+                        throw std::runtime_error(
+                            "Failed to activate the emitter graphics context");
+                    }
+                    emitterScheduler_->beginFrame();
+                    if (const std::shared_ptr<GameMapBase> map =
+                            emitterMap_.lock()) {
+                        map->collectEmitters(*emitterScheduler_);
+                    }
+                    if (uiManager_ != nullptr) {
+                        uiManager_->collectEmitters(*emitterScheduler_);
+                    }
+                    emitterScheduler_->advance(deltaTime);
+                }
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
                     measurement.uiUpdateMilliseconds =
@@ -628,6 +659,18 @@ void SceneBase::clearRuntimeState() noexcept {
         commonTipController = std::move(commonTipController_);
         commonTipParticleSystem = std::move(commonTipParticleSystem_);
         uiManager = std::move(uiManager_);
+        if (const std::shared_ptr<GameMapBase> map = emitterMap_.lock()) {
+            map->releaseEmitters();
+        }
+        emitterMap_.reset();
+        if (emitterScheduler_ != nullptr) {
+            if (const std::shared_ptr<sf::RenderWindow> window =
+                    System::getWindow()) {
+                static_cast<void>(window->setActive(true));
+            }
+            emitterScheduler_->shutdown();
+            emitterScheduler_.reset();
+        }
         blockingTimerCount_ = 0;
     }
 }

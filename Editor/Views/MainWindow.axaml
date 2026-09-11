@@ -56,6 +56,7 @@
                     <NativeMenuItemSeparator />
                     <NativeMenuItem Header="{Binding NewBlueprint}" Command="{Binding NewBlueprintCommand}" />
                     <NativeMenuItem Header="{Binding NewAnimation}" Command="{Binding NewAnimationCommand}" />
+                    <NativeMenuItem Header="{Binding NewParticle}" Command="{Binding NewParticleCommand}" />
                     <NativeMenuItem Header="{Binding NewCurve}" Command="{Binding NewCurveCommand}" />
                     <NativeMenuItem Header="{Binding NewTextConfig}" Command="{Binding NewTextConfigCommand}" />
                     <NativeMenuItem Header="{Binding NewUiAsset}" Command="{Binding NewUiAssetCommand}" />
@@ -65,10 +66,11 @@
                 <NativeMenu>
                     <NativeMenuItem Header="{Binding SystemConfig}" Command="{Binding SystemConfigCommand}" Gesture="F4" />
                     <NativeMenuItem Header="{Binding AnimationOverview}" Command="{Binding AnimationOverviewCommand}" Gesture="F5" />
-                    <NativeMenuItem Header="{Binding TilesetsData}" Command="{Binding TilesetsDataCommand}" Gesture="F6" />
-                    <NativeMenuItem Header="{Binding CommonFunctions}" Command="{Binding CommonFunctionsCommand}" Gesture="F7" />
-                    <NativeMenuItem Header="{Binding GameVariablesLabel}" Command="{Binding GameVariablesCommand}" Gesture="F8" />
-                    <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F9" />
+                    <NativeMenuItem Header="{Binding ParticleOverview}" Command="{Binding ParticleOverviewCommand}" Gesture="F6" />
+                    <NativeMenuItem Header="{Binding TilesetsData}" Command="{Binding TilesetsDataCommand}" Gesture="F7" />
+                    <NativeMenuItem Header="{Binding CommonFunctions}" Command="{Binding CommonFunctionsCommand}" Gesture="F8" />
+                    <NativeMenuItem Header="{Binding GameVariablesLabel}" Command="{Binding GameVariablesCommand}" Gesture="F9" />
+                    <NativeMenuItem Header="{Binding GeneralData}" Command="{Binding GeneralDataCommand}" Gesture="F10" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Plugins}" IsEnabled="{Binding CanEdit}">
@@ -117,10 +119,11 @@
         <KeyBinding Gesture="F3" Command="{Binding GameConfigCommand}" />
         <KeyBinding Gesture="F4" Command="{Binding SystemConfigCommand}" />
         <KeyBinding Gesture="F5" Command="{Binding AnimationOverviewCommand}" />
-        <KeyBinding Gesture="F6" Command="{Binding TilesetsDataCommand}" />
-        <KeyBinding Gesture="F7" Command="{Binding CommonFunctionsCommand}" />
-        <KeyBinding Gesture="F8" Command="{Binding GameVariablesCommand}" />
-        <KeyBinding Gesture="F9" Command="{Binding GeneralDataCommand}" />
+        <KeyBinding Gesture="F6" Command="{Binding ParticleOverviewCommand}" />
+        <KeyBinding Gesture="F7" Command="{Binding TilesetsDataCommand}" />
+        <KeyBinding Gesture="F8" Command="{Binding CommonFunctionsCommand}" />
+        <KeyBinding Gesture="F9" Command="{Binding GameVariablesCommand}" />
+        <KeyBinding Gesture="F10" Command="{Binding GeneralDataCommand}" />
     </Window.KeyBindings>
 
     <Window.Styles>

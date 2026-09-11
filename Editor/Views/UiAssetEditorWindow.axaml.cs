@@ -811,6 +811,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         };
         switch (property.Type)
         {
+            case "string" when property.Id == "particle":
+                addChoiceField(
+                    property.DisplayName,
+                    getString(value),
+                    gameData.ParticlesData.Keys.Prepend(string.Empty).OrderBy(key => key, StringComparer.Ordinal).ToArray(),
+                    next => commit(JsonValue.Create(next)));
+                break;
             case "sf.Text.LineAlignment":
                 addChoiceField(
                     property.DisplayName,

@@ -16,6 +16,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
     private readonly UiPreviewClient client;
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? debounceCancellation;
+    private CancellationTokenSource? renderCancellation;
     private Task workerTask = Task.CompletedTask;
     private Task? disposalTask;
     private AssetSnapshot? assetSnapshot;
@@ -139,6 +140,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
 
     private void setRequest(double scale, UiPreviewAnimationSample? sample)
     {
+        renderCancellation?.Cancel();
         if (!double.IsFinite(scale) || scale <= 0)
             throw new ArgumentOutOfRangeException(nameof(scale));
         renderScale = scale;
@@ -218,13 +220,23 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         long epoch = frameEpoch;
         AssetSnapshot source = assetSnapshot ??= captureAssetSnapshot();
         double scale = renderScale;
-        UiPreviewFrame? frame = await client.RenderAsync(
-            source.Key,
-            source.Asset,
-            source.Dependencies,
-            scale,
-            sample,
-            lifetime.Token);
+        using CancellationTokenSource renderLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        renderCancellation = renderLifetime;
+        UiPreviewFrame? frame;
+        try
+        {
+            frame = await client.RenderAsync(source.Key, source.Asset, source.Dependencies,
+                scale, sample, renderLifetime.Token);
+        }
+        catch (OperationCanceledException) when (renderLifetime.IsCancellationRequested)
+        {
+            return;
+        }
+        finally
+        {
+            if (ReferenceEquals(renderCancellation, renderLifetime))
+                renderCancellation = null;
+        }
         if (frame is null || disposed || epoch != frameEpoch || !runtime.IsReady
             || snapshot.BuildId != runtime.Current?.BuildId
             || snapshot.RegistryHash != runtime.Current?.RegistryHash

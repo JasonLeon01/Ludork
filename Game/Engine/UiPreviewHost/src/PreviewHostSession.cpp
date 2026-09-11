@@ -22,6 +22,7 @@ PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint,
     : adapterFingerprint_(adapterFingerprint), registryHash_(registryHash) {}
 
 PreviewHostSession::~PreviewHostSession() noexcept {
+    particleSession_.reset();
     uiSession_.reset();
     clearUiVector4CurveResourceCache();
     clearUiControlAdapterResourceCache();
@@ -52,10 +53,15 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
         engineState().setScale(1.0f);
         return actorRenderer_.render(request, frameFiles_);
     }
+    if (type == "renderParticle") {
+        engineState().setScale(1.0f);
+        return particleSession_.render(request, frameFiles_);
+    }
     throw std::invalid_argument("Unknown preview request type: " + type);
 }
 
 RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
+    particleSession_.reset();
     clearUiVector4CurveResourceCache();
     accepted_ = false;
     uiSession_.reset();
@@ -101,6 +107,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     RuntimeData::Array capabilities;
     capabilities.emplace_back(RuntimeData("ui"));
     capabilities.emplace_back(RuntimeData("actor"));
+    capabilities.emplace_back(RuntimeData("particle"));
     return RuntimeData(object({
         {"type", RuntimeData("handshake")},
         {"accepted", RuntimeData(accepted)},

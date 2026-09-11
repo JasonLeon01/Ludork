@@ -3,6 +3,7 @@
 #include "UiControlAdapterSupport.hpp"
 
 #include <UI/CharacterView.hpp>
+#include <UI/EmitterView.hpp>
 #include <UI/FunctionalImage.hpp>
 #include <UI/Image.hpp>
 #include <UI/ProgressBar.hpp>
@@ -19,6 +20,41 @@
 void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     UiControlAdapterRegistry& registry) {
     using namespace ui_control_adapter_detail;
+
+    UiControlAdapterRegistry::Adapter emitterView;
+    emitterView.factory = [](const UiControlProperties& properties) {
+        return std::make_shared<EmitterView>(
+            stringProperty(properties, "particle"),
+            vector2fProperty(properties, "size", {100.0f, 100.0f}),
+            vector2fProperty(properties, "anchor", {0.5f, 0.5f}),
+            boolProperty(properties, "autoPlay", true));
+    };
+    emitterView.setter = [](ControlBase& control, const std::string& propertyId,
+                            const UiControlPropertyValue& value) {
+        EmitterView& view =
+            requireControlType<EmitterView>(control, "Engine.EmitterView");
+        if (propertyId == "particle") {
+            view.setParticle(requireString(value, "particle"));
+        } else if (propertyId == "size") {
+            view.setSize(requireVector2f(value, "size"));
+        } else if (propertyId == "anchor") {
+            view.setAnchor(requireVector2f(value, "anchor"));
+        } else if (propertyId == "autoPlay") {
+            view.setAutoPlay(requireBool(value, "autoPlay"));
+        } else {
+            throw std::invalid_argument("Unknown EmitterView property " +
+                                        propertyId);
+        }
+    };
+    emitterView.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                              const sf::Vector2f& renderScale) {
+        EmitterView& view =
+            requireControlType<EmitterView>(control, "Engine.EmitterView");
+        view.setSize(size);
+        view.setScale(renderScale);
+    };
+    registry.registerAdapter<EmitterViewUiControlAdapterTag>(
+        std::move(emitterView));
 
     UiControlAdapterRegistry::Adapter solidRect;
     solidRect.factory = [](const UiControlProperties& properties) {

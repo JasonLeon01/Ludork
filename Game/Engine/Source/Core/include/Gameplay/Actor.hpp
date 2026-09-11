@@ -10,6 +10,7 @@
 #include <Runtime/Blueprint/BPBase.hpp>
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Gameplay/Components/LightComponent.hpp>
+#include <Gameplay/Components/EmitterComponent.hpp>
 #include <General/Material.hpp>
 
 #include <SFML/Audio/Sound.hpp>
@@ -30,7 +31,7 @@ public:
                    std::optional<sf::IntRect> rect = std::nullopt,
                    std::string tag = "");
 
-    ~Actor() override = default;
+    ~Actor() override;
 
     BIND_PROPERTY(meta(BlueprintOnly = true))
     bool scriptMixin = false;
@@ -365,6 +366,20 @@ public:
     BIND_PROPERTY(component = true)
     std::shared_ptr<LightComponent> lightComp;
 
+    BIND_METHOD(property = "emitterComp", setter = "setEmitterComponent",
+                component = true)
+    std::shared_ptr<EmitterComponent> getEmitterComponent() const;
+
+    void setEmitterComponent(
+        const std::shared_ptr<EmitterComponent>& component);
+
+    BIND_METHOD(metadata = false)
+    void drawEmitter(sf::RenderTarget& target, sf::RenderStates states,
+                     bool beforeActor);
+
+    void collectEmitter(EmitterScheduler& scheduler);
+    void releaseEmitter() noexcept;
+
     BIND_METHOD(property = "lightColour", setter = "setLightColour",
                 metadata = false)
     sf::Color getLightColour() const;
@@ -543,6 +558,7 @@ private:
     static RuntimeValue actorListValue(const std::vector<Actor*>& actors);
 
     std::weak_ptr<ActorMapService> map_;
+    std::shared_ptr<EmitterComponent> emitterComp_;
     bool pathfindingBlocks_ = false;
     std::unordered_set<Actor*> descendantActors_;
     std::weak_ptr<Actor> parent_;

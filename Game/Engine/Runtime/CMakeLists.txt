@@ -6,7 +6,7 @@ if(LUDORK_WITH_LUA)
     file(GLOB_RECURSE LUDORK_RUNTIME_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
     list(FILTER LUDORK_RUNTIME_SOURCES EXCLUDE REGEX
-        ".*/src/(LuaServices|Metadata)/.*\\.cpp$")
+        ".*/src/(LuaServices|Metadata|Graphics)/.*\\.cpp$")
 else()
     set(LUDORK_RUNTIME_SOURCES
         src/RuntimeData.cpp
@@ -48,6 +48,8 @@ ludork_apply_msvc_debug_source_options(
 add_library(LudorkRuntime ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_RUNTIME_SOURCES})
 add_library(Ludork::Runtime ALIAS LudorkRuntime)
+
+add_subdirectory(src/Graphics)
 
 if(LUDORK_WITH_LUA)
     add_subdirectory(src/Metadata)

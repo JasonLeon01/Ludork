@@ -25,6 +25,7 @@ public:
     const std::unordered_map<Actor*, std::string>& actorLayers() const;
     void markViewsDirty();
     void destroyActor(Actor& actor);
+    void releaseEmitters() noexcept;
     void syncActorsRef(const ActorDict& actors, OccupancyIndexImpl& occupancy);
     void syncMaterialActorsRef(const ActorDict& actors);
     bool registerLayerActor(ActorPtr actor, const std::string& layer);

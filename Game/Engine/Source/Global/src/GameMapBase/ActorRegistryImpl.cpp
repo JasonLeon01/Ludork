@@ -327,6 +327,7 @@ bool ActorRegistryImpl::forgetActors(
         if (occupancy.registeredCells(actor) != nullptr) {
             occupancy.unregisterActorOccupancy(*actor, worldSize);
         }
+        actor->releaseEmitter();
         actorLayerRef_.erase(actor);
         entries.erase(actor);
     }
@@ -410,4 +411,13 @@ void ActorRegistryImpl::destroyActor(Actor& actor) {
         actorDestroyer_(actor);
     }
 }
+
+void ActorRegistryImpl::releaseEmitters() noexcept {
+    for (const auto& [_, entry] : entries) {
+        if (entry.owner != nullptr) {
+            entry.owner->releaseEmitter();
+        }
+    }
+}
+
 }  // namespace ludork::global::game_map_base_impl

@@ -38,6 +38,11 @@ public sealed class EditorActionRouter
         requestCreation(new EditorDataCreationRequest(EditorDataKind.Animation, destinationPath));
     }
 
+    public void NewParticle(string? destinationPath = null)
+    {
+        requestCreation(new EditorDataCreationRequest(EditorDataKind.Particle, destinationPath));
+    }
+
     public void NewCurve()
     {
         NewCurve(null);
@@ -70,6 +75,8 @@ public sealed class EditorActionRouter
     public void OpenSystemConfig() => request("SystemConfig");
     public void OpenGameConfig() => request("GameConfig");
     public void OpenAnimationOverview() => request("AnimationOverview");
+    public void OpenParticleOverview() => request("ParticleOverview");
+    public void OpenParticle(string key) => request($"Particle:{key}");
     public void OpenAnimation(string key) => request($"Animation:{key}");
     public void OpenCurve(string key) => request($"Curve:{key}");
     public void OpenTextConfig(string key) => request($"TextConfig:{key}");
@@ -94,6 +101,7 @@ public enum EditorDataKind
 {
     Blueprint,
     Animation,
+    Particle,
     Curve,
     TextConfig,
     PlainTextConfig,

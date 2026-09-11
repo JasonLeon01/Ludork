@@ -533,7 +533,11 @@ public partial class MainWindow
     {
         foreach (Window window in OwnedWindows)
         {
-            if (window is AnimationOverviewWindow or AnimationWindow or TilesetEditorWindow
+            if (!enabled && window is ParticleWindow particle)
+                particle.PausePreview();
+            if (!enabled && window is ParticleOverviewWindow particles)
+                particles.PausePreview();
+            if (window is AnimationOverviewWindow or AnimationWindow or ParticleOverviewWindow or ParticleWindow or TilesetEditorWindow
                 or GeneralDataEditorWindow or CommonFunctionWindow or GameVariableManagerWindow
                 or CurveWindow or TextConfigEditorWindow or BlueprintEditorWindow or UiAssetEditorWindow)
                 window.IsEnabled = enabled;

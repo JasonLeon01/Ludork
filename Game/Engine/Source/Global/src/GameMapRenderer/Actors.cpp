@@ -174,7 +174,9 @@ void GameMapRendererImpl::drawLayerActors(sf::RenderTarget& target,
             actor->intersects(*player)) {
             alpha = coverAlpha;
         }
+        actor->drawEmitter(target, states, true);
         drawActor(target, states, actor, alpha, shaderTime);
+        actor->drawEmitter(target, states, false);
     }
 }
 

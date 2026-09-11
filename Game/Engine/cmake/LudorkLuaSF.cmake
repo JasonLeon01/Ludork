@@ -17,6 +17,32 @@ if(NOT EXISTS "${LUDORK_LUASF_SOURCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
         "LuaSF source project was not found: ${LUDORK_LUASF_SOURCE_DIR}")
 endif()
+set(LUDORK_SFML_SOURCE_DIR "" CACHE PATH
+    "Optional external SFML source project used by LuaSF")
+if(LUDORK_SFML_SOURCE_DIR)
+    get_filename_component(LUDORK_SFML_SOURCE_DIR
+        "${LUDORK_SFML_SOURCE_DIR}" ABSOLUTE)
+    if(NOT EXISTS "${LUDORK_SFML_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "SFML source project was not found: ${LUDORK_SFML_SOURCE_DIR}")
+    endif()
+    function(ludork_add_external_sfml)
+        if(CMAKE_SYSTEM_NAME STREQUAL "iOS"
+           OR CMAKE_SYSTEM_NAME STREQUAL "Android"
+           OR CMAKE_SYSTEM_NAME STREQUAL "OHOS")
+            set(BUILD_SHARED_LIBS OFF)
+        elseif(DEFINED LUASF_BUILD_SHARED_SFML)
+            set(BUILD_SHARED_LIBS ${LUASF_BUILD_SHARED_SFML})
+        else()
+            set(BUILD_SHARED_LIBS ON)
+        endif()
+        set(SFML_BUILD_EXAMPLES OFF)
+        set(SFML_BUILD_DOC OFF)
+        set(SFML_BUILD_TEST_SUITE OFF)
+        add_subdirectory("${LUDORK_SFML_SOURCE_DIR}" SFML)
+    endfunction()
+    ludork_add_external_sfml()
+endif()
 if(LUDORK_WITH_LUA)
     add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF)
 else()

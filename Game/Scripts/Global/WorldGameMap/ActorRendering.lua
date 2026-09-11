@@ -120,7 +120,9 @@ function GameMapRendering.DrawLayerActors(
                 actorAlpha = self.DefaultCoverAlpha
             end
             ---@cast actorAlpha integer
+            actor:drawEmitter(target, states, true)
             self:_drawActor(target, states, actor, actorAlpha)
+            actor:drawEmitter(target, states, false)
         end
     end
     self:_drawActorPixelShatterEffects(target, layerName)

@@ -28,6 +28,7 @@ public sealed partial class GameDataService : IDisposable
         ["CommonFunctions"] = new("commonFunction", true),
         ["Blueprints"] = new("blueprint", true),
         ["Animations"] = new("animation", true),
+        ["Particles"] = new("particle", true),
         ["Curves"] = new(["curve", "vector2Curve", "vector3Curve", "vector4Curve"]),
         ["TextConfigs"] = new(["plainTextConfig", "richTextConfig"]),
         ["UI"] = new([UiAssetSchema.UiAssetType]),
@@ -82,6 +83,7 @@ public sealed partial class GameDataService : IDisposable
     public IReadOnlyDictionary<string, JsonObject> CommonFunctionsData => sections["CommonFunctions"].Snapshots;
     public IReadOnlyDictionary<string, JsonObject> BlueprintsData => sections["Blueprints"].Snapshots;
     public IReadOnlyDictionary<string, JsonObject> AnimationsData => sections["Animations"].Snapshots;
+    public IReadOnlyDictionary<string, JsonObject> ParticlesData => sections["Particles"].Snapshots;
     public IReadOnlyDictionary<string, JsonObject> CurvesData => sections["Curves"].Snapshots;
     public IReadOnlyDictionary<string, JsonObject> TextConfigsData => sections["TextConfigs"].Snapshots;
     public IReadOnlyDictionary<string, JsonObject> UiAssetsData => new JsonSnapshotDictionary(sections["UI"].Data

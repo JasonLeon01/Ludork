@@ -1,4 +1,464 @@
 {
+  "NEW_PARTICLE": {
+    "zh_CN": "新建通用粒子",
+    "en_GB": "New Common Particle"
+  },
+  "PARTICLE_OVERVIEW": {
+    "zh_CN": "通用粒子总览",
+    "en_GB": "Common Particle Overview"
+  },
+  "PARTICLE_EDITOR": {
+    "zh_CN": "粒子编辑器",
+    "en_GB": "Particle Editor"
+  },
+  "SELECT_PARTICLE_PATH": {
+    "zh_CN": "选择 Data/Particles 内的 .json 资源路径",
+    "en_GB": "Select a .json resource path inside Data/Particles"
+  },
+  "PARTICLE_EXISTS": {
+    "zh_CN": "粒子资源已存在",
+    "en_GB": "Particle resource already exists"
+  },
+  "PARTICLE_SEARCH": {
+    "zh_CN": "搜索粒子资源",
+    "en_GB": "Search particles"
+  },
+  "PARTICLE_TRACK": {
+    "zh_CN": "轨道",
+    "en_GB": "Track"
+  },
+  "PARTICLE_SOLO": {
+    "zh_CN": "独奏所选轨道",
+    "en_GB": "Solo selected track"
+  },
+  "PARTICLE_ADD_TRACK": {
+    "zh_CN": "添加轨道",
+    "en_GB": "Add Track"
+  },
+  "PARTICLE_DUPLICATE_TRACK": {
+    "zh_CN": "复制轨道",
+    "en_GB": "Duplicate Track"
+  },
+  "PARTICLE_REMOVE_TRACK": {
+    "zh_CN": "删除轨道",
+    "en_GB": "Remove Track"
+  },
+  "PARTICLE_MOVE_UP": {
+    "zh_CN": "上移",
+    "en_GB": "Up"
+  },
+  "PARTICLE_MOVE_DOWN": {
+    "zh_CN": "下移",
+    "en_GB": "Down"
+  },
+  "PARTICLE_NO_TRACK": {
+    "zh_CN": "添加轨道以设置发射或驻留循环。",
+    "en_GB": "Add a track to configure emission or resident looping."
+  },
+  "PARTICLE_SYSTEM": {
+    "zh_CN": "系统",
+    "en_GB": "System"
+  },
+  "PARTICLE_MAIN": {
+    "zh_CN": "常规",
+    "en_GB": "Main"
+  },
+  "PARTICLE_EMISSION": {
+    "zh_CN": "发射 / 驻留",
+    "en_GB": "Emission / Resident"
+  },
+  "PARTICLE_SHAPE": {
+    "zh_CN": "发射形状",
+    "en_GB": "Shape"
+  },
+  "PARTICLE_INITIAL": {
+    "zh_CN": "初始属性",
+    "en_GB": "Initial Properties"
+  },
+  "PARTICLE_FORCES": {
+    "zh_CN": "力与阻尼",
+    "en_GB": "Forces and Damping"
+  },
+  "PARTICLE_RENDERER": {
+    "zh_CN": "渲染",
+    "en_GB": "Renderer"
+  },
+  "PARTICLE_SHEET": {
+    "zh_CN": "序列帧",
+    "en_GB": "Texture Sheet"
+  },
+  "PARTICLE_TRANSFORM": {
+    "zh_CN": "空间与变换",
+    "en_GB": "Space and Transform"
+  },
+  "PARTICLE_BURSTS": {
+    "zh_CN": "爆发",
+    "en_GB": "Bursts"
+  },
+  "PARTICLE_ADD_BURST": {
+    "zh_CN": "添加爆发",
+    "en_GB": "Add Burst"
+  },
+  "PARTICLE_REMOVE_BURST": {
+    "zh_CN": "删除爆发",
+    "en_GB": "Remove Burst"
+  },
+  "PARTICLE_BROWSE": {
+    "zh_CN": "浏览…",
+    "en_GB": "Browse…"
+  },
+  "PARTICLE_SELECT_TEXTURE": {
+    "zh_CN": "选择粒子纹理",
+    "en_GB": "Select particle texture"
+  },
+  "PARTICLE_EDIT_CURVE": {
+    "zh_CN": "内嵌编辑",
+    "en_GB": "Edit Inline"
+  },
+  "PARTICLE_FIT_CURVE": {
+    "zh_CN": "适应曲线",
+    "en_GB": "Fit Curve"
+  },
+  "PARTICLE_INLINE_CURVE": {
+    "zh_CN": "内嵌 / 默认值",
+    "en_GB": "Inline / Default"
+  },
+  "PARTICLE_CURVE_HINT": {
+    "zh_CN": "双击添加；Delete 删除；t 为归一化寿命",
+    "en_GB": "Double-click to add; Delete to remove; t is normalized lifetime"
+  },
+  "PARTICLE_CURVE_REFERENCE": {
+    "zh_CN": "引用通用曲线；内嵌后可独立编辑",
+    "en_GB": "Shared curve; embed to edit independently"
+  },
+  "PARTICLE_PLAY": {
+    "zh_CN": "播放",
+    "en_GB": "Play"
+  },
+  "PARTICLE_PAUSE": {
+    "zh_CN": "暂停",
+    "en_GB": "Pause"
+  },
+  "PARTICLE_STOP": {
+    "zh_CN": "停止",
+    "en_GB": "Stop"
+  },
+  "PARTICLE_RESTART": {
+    "zh_CN": "重播",
+    "en_GB": "Restart"
+  },
+  "PARTICLE_STEP": {
+    "zh_CN": "单步",
+    "en_GB": "Step"
+  },
+  "PARTICLE_ZOOM": {
+    "zh_CN": "缩放",
+    "en_GB": "Zoom"
+  },
+  "PARTICLE_SEEKING": {
+    "zh_CN": "正在定位…",
+    "en_GB": "Seeking…"
+  },
+  "PARTICLE_PREVIEW_UNAVAILABLE": {
+    "zh_CN": "当前预览运行时不支持 GPU 粒子，请构建原生运行时。",
+    "en_GB": "This preview runtime does not support GPU particles. Build the native runtime."
+  },
+  "PARTICLE_STATS": {
+    "zh_CN": "存活 {alive} / 容量 {capacity}（采样 {sampledTime} s） | GPU 模拟 {simulation} ms · 绘制 {draw} ms  | 预览回读 {readback} ms · 传输 {transfer} ms",
+    "en_GB": "Alive {alive} / Capacity {capacity} (sampled {sampledTime} s) | GPU simulation {simulation} ms · draw {draw} ms  | Preview readback {readback} ms · transfer {transfer} ms"
+  },
+  "PARTICLE_RENAME": {
+    "zh_CN": "重命名粒子",
+    "en_GB": "Rename Particle"
+  },
+  "PARTICLE_ENTER_NAME": {
+    "zh_CN": "粒子资源名称",
+    "en_GB": "Particle resource name"
+  },
+  "PARTICLE_DELETE": {
+    "zh_CN": "删除粒子",
+    "en_GB": "Delete Particle"
+  },
+  "PARTICLE_COPY": {
+    "zh_CN": "复制粒子",
+    "en_GB": "Duplicate Particle"
+  },
+  "PARTICLE_FIELD_NAME": {
+    "zh_CN": "名称",
+    "en_GB": "Name"
+  },
+  "PARTICLE_FIELD_SIMULATIONRATE": {
+    "zh_CN": "模拟频率 (Hz)",
+    "en_GB": "Simulation Rate (Hz)"
+  },
+  "PARTICLE_FIELD_SEED": {
+    "zh_CN": "随机种子",
+    "en_GB": "Random Seed"
+  },
+  "PARTICLE_FIELD_ENABLED": {
+    "zh_CN": "启用轨道",
+    "en_GB": "Enable Track"
+  },
+  "PARTICLE_FIELD_MODE": {
+    "zh_CN": "模式",
+    "en_GB": "Mode"
+  },
+  "PARTICLE_FIELD_DURATION": {
+    "zh_CN": "周期 (秒)",
+    "en_GB": "Duration (s)"
+  },
+  "PARTICLE_FIELD_DELAY": {
+    "zh_CN": "开始延迟 (秒)",
+    "en_GB": "Start Delay (s)"
+  },
+  "PARTICLE_FIELD_LOOP": {
+    "zh_CN": "循环",
+    "en_GB": "Loop"
+  },
+  "PARTICLE_FIELD_PREWARM": {
+    "zh_CN": "预热",
+    "en_GB": "Prewarm"
+  },
+  "PARTICLE_FIELD_CAPACITY": {
+    "zh_CN": "最大粒子数",
+    "en_GB": "Maximum Particles"
+  },
+  "PARTICLE_FIELD_COUNT": {
+    "zh_CN": "粒子数量",
+    "en_GB": "Count"
+  },
+  "PARTICLE_FIELD_RATE": {
+    "zh_CN": "每秒发射数",
+    "en_GB": "Rate over Time"
+  },
+  "PARTICLE_FIELD_DISTANCERATE": {
+    "zh_CN": "每像素发射数",
+    "en_GB": "Rate over Distance"
+  },
+  "PARTICLE_FIELD_SHAPE": {
+    "zh_CN": "形状",
+    "en_GB": "Shape"
+  },
+  "PARTICLE_FIELD_EXTENT": {
+    "zh_CN": "范围 X / Y",
+    "en_GB": "Extent X / Y"
+  },
+  "PARTICLE_FIELD_RADIUS": {
+    "zh_CN": "外半径",
+    "en_GB": "Outer Radius"
+  },
+  "PARTICLE_FIELD_INNERRADIUS": {
+    "zh_CN": "内半径",
+    "en_GB": "Inner Radius"
+  },
+  "PARTICLE_FIELD_DIRECTION": {
+    "zh_CN": "方向 (度)",
+    "en_GB": "Direction (degrees)"
+  },
+  "PARTICLE_FIELD_SPREAD": {
+    "zh_CN": "散布角 (度)",
+    "en_GB": "Spread (degrees)"
+  },
+  "PARTICLE_FIELD_LIFETIME": {
+    "zh_CN": "寿命最小 / 最大 (秒)",
+    "en_GB": "Lifetime Min / Max (s)"
+  },
+  "PARTICLE_FIELD_SPEED": {
+    "zh_CN": "速度最小 / 最大",
+    "en_GB": "Speed Min / Max"
+  },
+  "PARTICLE_FIELD_SIZEMIN": {
+    "zh_CN": "最小尺寸 X / Y",
+    "en_GB": "Minimum Size X / Y"
+  },
+  "PARTICLE_FIELD_SIZEMAX": {
+    "zh_CN": "最大尺寸 X / Y",
+    "en_GB": "Maximum Size X / Y"
+  },
+  "PARTICLE_FIELD_ROTATION": {
+    "zh_CN": "旋转最小 / 最大 (度)",
+    "en_GB": "Rotation Min / Max (degrees)"
+  },
+  "PARTICLE_FIELD_ANGULARVELOCITY": {
+    "zh_CN": "角速度最小 / 最大",
+    "en_GB": "Angular Velocity Min / Max"
+  },
+  "PARTICLE_FIELD_COLOURMIN": {
+    "zh_CN": "最小颜色 RGBA",
+    "en_GB": "Minimum Colour RGBA"
+  },
+  "PARTICLE_FIELD_COLOURMAX": {
+    "zh_CN": "最大颜色 RGBA",
+    "en_GB": "Maximum Colour RGBA"
+  },
+  "PARTICLE_FIELD_GRAVITY": {
+    "zh_CN": "重力 X / Y",
+    "en_GB": "Gravity X / Y"
+  },
+  "PARTICLE_FIELD_RADIALACCELERATION": {
+    "zh_CN": "径向加速度",
+    "en_GB": "Radial Acceleration"
+  },
+  "PARTICLE_FIELD_TANGENTIALACCELERATION": {
+    "zh_CN": "切向加速度",
+    "en_GB": "Tangential Acceleration"
+  },
+  "PARTICLE_FIELD_DAMPING": {
+    "zh_CN": "阻尼",
+    "en_GB": "Damping"
+  },
+  "PARTICLE_FIELD_TEXTURE": {
+    "zh_CN": "纹理",
+    "en_GB": "Texture"
+  },
+  "PARTICLE_FIELD_TEXTURERECT": {
+    "zh_CN": "纹理区域 X / Y / 宽 / 高",
+    "en_GB": "Texture Rect X / Y / W / H"
+  },
+  "PARTICLE_FIELD_COLUMNS": {
+    "zh_CN": "列数",
+    "en_GB": "Columns"
+  },
+  "PARTICLE_FIELD_ROWS": {
+    "zh_CN": "行数",
+    "en_GB": "Rows"
+  },
+  "PARTICLE_FIELD_FRAMECOUNT": {
+    "zh_CN": "总帧数",
+    "en_GB": "Frame Count"
+  },
+  "PARTICLE_FIELD_FRAMERATE": {
+    "zh_CN": "动画频率 (Hz)",
+    "en_GB": "Frame Rate (Hz)"
+  },
+  "PARTICLE_FIELD_RANDOMSTARTFRAME": {
+    "zh_CN": "随机起始帧",
+    "en_GB": "Random Start Frame"
+  },
+  "PARTICLE_FIELD_FRAMELOOP": {
+    "zh_CN": "帧循环",
+    "en_GB": "Loop Frames"
+  },
+  "PARTICLE_FIELD_SPACE": {
+    "zh_CN": "模拟空间",
+    "en_GB": "Simulation Space"
+  },
+  "PARTICLE_FIELD_SCALEMODE": {
+    "zh_CN": "缩放继承",
+    "en_GB": "Scaling Mode"
+  },
+  "PARTICLE_FIELD_BLEND": {
+    "zh_CN": "混合模式",
+    "en_GB": "Blend Mode"
+  },
+  "PARTICLE_FIELD_OFFSET": {
+    "zh_CN": "偏移 X / Y",
+    "en_GB": "Offset X / Y"
+  },
+  "PARTICLE_FIELD_ROTATIONOFFSET": {
+    "zh_CN": "旋转偏移 (度)",
+    "en_GB": "Rotation Offset (degrees)"
+  },
+  "PARTICLE_FIELD_SCALE": {
+    "zh_CN": "缩放 X / Y",
+    "en_GB": "Scale X / Y"
+  },
+  "PARTICLE_FIELD_TIME": {
+    "zh_CN": "时间 (秒)",
+    "en_GB": "Time (s)"
+  },
+  "PARTICLE_FIELD_CYCLES": {
+    "zh_CN": "重复次数",
+    "en_GB": "Cycles"
+  },
+  "PARTICLE_FIELD_INTERVAL": {
+    "zh_CN": "间隔 (秒)",
+    "en_GB": "Interval (s)"
+  },
+  "PARTICLE_OPTION_EMISSION": {
+    "zh_CN": "发射",
+    "en_GB": "Emission"
+  },
+  "PARTICLE_OPTION_RESIDENT": {
+    "zh_CN": "驻留循环（无需发射）",
+    "en_GB": "Resident Loop (no emission)"
+  },
+  "PARTICLE_OPTION_POINT": {
+    "zh_CN": "点",
+    "en_GB": "Point"
+  },
+  "PARTICLE_OPTION_LINE": {
+    "zh_CN": "线",
+    "en_GB": "Line"
+  },
+  "PARTICLE_OPTION_RECTANGLE": {
+    "zh_CN": "矩形",
+    "en_GB": "Rectangle"
+  },
+  "PARTICLE_OPTION_DISK": {
+    "zh_CN": "圆盘",
+    "en_GB": "Disk"
+  },
+  "PARTICLE_OPTION_RING": {
+    "zh_CN": "圆环",
+    "en_GB": "Ring"
+  },
+  "PARTICLE_OPTION_LOCAL": {
+    "zh_CN": "本地",
+    "en_GB": "Local"
+  },
+  "PARTICLE_OPTION_WORLD": {
+    "zh_CN": "世界",
+    "en_GB": "World"
+  },
+  "PARTICLE_OPTION_HIERARCHY": {
+    "zh_CN": "继承层级",
+    "en_GB": "Hierarchy"
+  },
+  "PARTICLE_OPTION_SHAPE": {
+    "zh_CN": "仅发射形状",
+    "en_GB": "Shape Only"
+  },
+  "PARTICLE_OPTION_ALPHA": {
+    "zh_CN": "透明",
+    "en_GB": "Alpha"
+  },
+  "PARTICLE_OPTION_ADD": {
+    "zh_CN": "叠加",
+    "en_GB": "Additive"
+  },
+  "PARTICLE_CURVE_SPEED": {
+    "zh_CN": "速度倍率",
+    "en_GB": "Speed Multiplier"
+  },
+  "PARTICLE_CURVE_SIZEX": {
+    "zh_CN": "尺寸 X 倍率",
+    "en_GB": "Size X Multiplier"
+  },
+  "PARTICLE_CURVE_SIZEY": {
+    "zh_CN": "尺寸 Y 倍率",
+    "en_GB": "Size Y Multiplier"
+  },
+  "PARTICLE_CURVE_ROTATION": {
+    "zh_CN": "旋转偏移",
+    "en_GB": "Rotation Offset"
+  },
+  "PARTICLE_CURVE_RED": {
+    "zh_CN": "红色倍率",
+    "en_GB": "Red Multiplier"
+  },
+  "PARTICLE_CURVE_GREEN": {
+    "zh_CN": "绿色倍率",
+    "en_GB": "Green Multiplier"
+  },
+  "PARTICLE_CURVE_BLUE": {
+    "zh_CN": "蓝色倍率",
+    "en_GB": "Blue Multiplier"
+  },
+  "PARTICLE_CURVE_ALPHA": {
+    "zh_CN": "透明度倍率",
+    "en_GB": "Alpha Multiplier"
+  },
   "UNION_SELECT_TYPE": {
     "zh_CN": "选择类型",
     "en_GB": "Select type"

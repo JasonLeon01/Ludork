@@ -14,6 +14,8 @@ using ActorPtr = std::shared_ptr<Actor>;
 using ActorDict = std::unordered_map<std::string, std::vector<ActorPtr>>;
 using IntPair = std::pair<int, int>;
 
+class EmitterScheduler;
+
 namespace ludork::global::game_map_base_impl {
 class ActorRegistryImpl;
 class OccupancyIndexImpl;
@@ -60,6 +62,9 @@ public:
     GameMapBase();
 
     ~GameMapBase() override;
+
+    void collectEmitters(EmitterScheduler& scheduler);
+    void releaseEmitters() noexcept;
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a grayscale texture from a material map

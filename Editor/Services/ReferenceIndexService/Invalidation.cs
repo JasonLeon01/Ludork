@@ -40,6 +40,7 @@ public sealed partial class ReferenceIndexService
             "WorldMaps" => "worldMap",
             "CommonFunctions" => "commonFunction",
             "Animations" => "animation",
+            "Particles" => "particle",
             "Curves" => "curve",
             "TextConfigs" => "textConfig",
             "UI" => "uiAsset",
@@ -149,6 +150,9 @@ public sealed partial class ReferenceIndexService
                 break;
             case "Animations":
                 scanAnimationReferences(nodeId("animation", key), data, key);
+                break;
+            case "Particles":
+                scanParticleReferences(key, data);
                 break;
             case "Curves":
                 scanGenericReferences(nodeId("curve", key), data, $"Curves/{key}");

@@ -408,7 +408,7 @@ def parse_binding_options(
         "type",
     }
     if "property" in options:
-        reserved_options.add("default")
+        reserved_options.update({"component", "default"})
     unsupported_options = {
         key: value for key, value in options.items() if key not in reserved_options
     }

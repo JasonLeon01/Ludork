@@ -56,6 +56,9 @@ public sealed partial class ReferenceIndexService
         }
         if (node["properties"] is JsonObject properties)
         {
+            if (controlId == "Engine.EmitterView"
+                && normalizeReferenceParam(properties["particle"]) is string particle && particle.Length != 0)
+                addReference(sourceId, nodeId("particle", particle), "particle", $"UI/{key}.{path}.properties.particle");
             foreach (string propertyName in new[]
                      {
                          "texture",
@@ -186,6 +189,9 @@ public sealed partial class ReferenceIndexService
             {
                 if (field.Metadata is null)
                     continue;
+                if (string.Equals(getMetaReference(field.Metadata.Meta["GeneralDataVars"], field.Name), "PARTICLE", StringComparison.OrdinalIgnoreCase)
+                    && normalizeReferenceParam(attrs[field.Name]) is string particle && particle.Length != 0)
+                    addReference(sourceId, nodeId("particle", particle), "particle", $"Blueprints/{key}.attrs.{field.Name}");
                 if (getMetaReference(field.Metadata.Meta["PathRoot"], field.Name) == "Project")
                     continue;
                 if (getMetaReference(field.Metadata.Meta["PathVars"], field.Name) is not null)
@@ -225,6 +231,24 @@ public sealed partial class ReferenceIndexService
             }
         }
         scanGenericReferences(sourceId, data, $"Animations/{key}");
+    }
+
+    private void scanParticleReferences(string key, JsonObject data)
+    {
+        string source = nodeId("particle", key);
+        scanGenericReferences(source, data, $"Particles/{key}");
+        if (data["tracks"] is not JsonArray tracks)
+            return;
+        for (int index = 0; index < tracks.Count; index++)
+        {
+            if (tracks[index] is not JsonObject track || track["curves"] is not JsonObject curves)
+                continue;
+            foreach (KeyValuePair<string, JsonNode?> pair in curves)
+            {
+                if (getString(pair.Value) is string curve && curve.Length != 0)
+                    addReference(source, nodeId("curve", curve), "curve", $"Particles/{key}.tracks[{index}].curves.{pair.Key}");
+            }
+        }
     }
 
     private void scanGeneralReferences(
@@ -416,9 +440,12 @@ public sealed partial class ReferenceIndexService
                 string? generalValue = normalizeReferenceParam(value);
                 if (generalValue is not null)
                 {
-                    string targetId = generalType.Equals("ANIMATION", StringComparison.OrdinalIgnoreCase)
-                        ? nodeId("animation", generalValue)
-                        : generalMemberNodeId(generalType, generalValue);
+                    string targetId = generalType.ToUpperInvariant() switch
+                    {
+                        "ANIMATION" => nodeId("animation", generalValue),
+                        "PARTICLE" => nodeId("particle", generalValue),
+                        _ => generalMemberNodeId(generalType, generalValue),
+                    };
                     addReference(sourceId, targetId, "nodeParam", referencePath);
                 }
             }

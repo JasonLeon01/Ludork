@@ -593,7 +593,7 @@ public sealed class UiAssetValidationService
         if (text is null || text.Length == 0)
             return;
         if (propertyId is not ("texture" or "windowSkin" or "lineTexture" or "handleTexture"
-            or "font" or "shader" or "textConfig" or "opacityCurve" or "gradientCurve"))
+            or "font" or "shader" or "textConfig" or "opacityCurve" or "gradientCurve" or "particle"))
         {
             return;
         }
@@ -641,6 +641,14 @@ public sealed class UiAssetValidationService
                 add(issues, "missingTextConfig", path, $"Text config \"{text}\" was not found");
             else
                 validateTextConfigType(controlId, textConfig, path, issues);
+            return;
+        }
+        if (propertyId == "particle")
+        {
+            if (!tryGetCanonicalDataKey(text, "Particles", out string key))
+                add(issues, "particleKey", path, "Particle must use a canonical Particles key without an extension");
+            else if (!gameData.ParticlesData.ContainsKey(key))
+                add(issues, "missingParticle", path, $"Particle \"{text}\" was not found");
             return;
         }
         if (propertyId is "opacityCurve" or "gradientCurve")

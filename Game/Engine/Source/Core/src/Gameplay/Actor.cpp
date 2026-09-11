@@ -93,8 +93,47 @@ bool Actor::isDestroyed() const {
     return destroyed_;
 }
 
+Actor::~Actor() {
+    releaseEmitter();
+}
+
 void Actor::markDestroyed(bool destroyed) {
     destroyed_ = destroyed;
+    if (destroyed_) {
+        releaseEmitter();
+    }
+}
+
+void Actor::drawEmitter(sf::RenderTarget& target, sf::RenderStates states,
+                        bool beforeActor) {
+    if (emitterComp_ != nullptr) {
+        emitterComp_->draw(*this, target, states, beforeActor);
+    }
+}
+
+std::shared_ptr<EmitterComponent> Actor::getEmitterComponent() const {
+    return emitterComp_;
+}
+
+void Actor::setEmitterComponent(
+    const std::shared_ptr<EmitterComponent>& component) {
+    if (emitterComp_ == component) {
+        return;
+    }
+    releaseEmitter();
+    emitterComp_ = component;
+}
+
+void Actor::collectEmitter(EmitterScheduler& scheduler) {
+    if (emitterComp_ != nullptr) {
+        emitterComp_->collect(*this, scheduler);
+    }
+}
+
+void Actor::releaseEmitter() noexcept {
+    if (emitterComp_ != nullptr) {
+        emitterComp_->release();
+    }
 }
 
 void Actor::lateUpdate(float deltaTime) {
@@ -707,6 +746,10 @@ std::shared_ptr<ActorMapService> Actor::getMap() const {
 }
 
 void Actor::setMap(const std::shared_ptr<ActorMapService>& inMap) {
+    if (const std::shared_ptr<ActorMapService> previous = map_.lock();
+        previous != nullptr && previous != inMap) {
+        releaseEmitter();
+    }
     map_ = ludork::runtime::detail::canonicalRuntimeOwner(inMap);
 }
 

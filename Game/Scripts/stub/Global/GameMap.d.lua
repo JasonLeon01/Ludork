@@ -471,8 +471,10 @@ function GameMap:getScene() end
 
 ---@brief Set the scene this map belongs to.
 ---
---- - @param scene The parent scene.
----@param scene GlobalCore.SceneBase
+--- Transfers unified emitter scheduling to the new scene. Passing nil detaches
+--- the map and releases its previous scene-owned particle state.
+--- - @param scene The parent scene, or nil to detach.
+---@param scene GlobalCore.SceneBase | nil
 function GameMap:setScene(scene) end
 
 ---@brief Display a floating tip text in the parent scene.

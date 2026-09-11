@@ -5,8 +5,10 @@
 
 #include <System.hpp>
 #include <EngineState.hpp>
+#include <Emitters/EmitterScheduler.hpp>
 #include <UI/Canvas.hpp>
 #include <UI/FunctionalBase.hpp>
+#include <UI/UiEmitterTraversal.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -26,6 +28,7 @@ void renderCanvas(const std::shared_ptr<ControlBase>& ui) {
         canvas->render(*target);
     }
 }
+
 }  // namespace
 
 UIManager* UIManager::activeManager_ = nullptr;
@@ -142,6 +145,12 @@ void UIManager::refreshDisplayScale() {
         if (ui != nullptr) {
             ui->refreshDisplayScale();
         }
+    }
+}
+
+void UIManager::collectEmitters(EmitterScheduler& scheduler) {
+    for (const std::shared_ptr<ControlBase>& ui : getUIs()) {
+        ludork::engine::collectUiEmitters(ui, scheduler);
     }
 }
 

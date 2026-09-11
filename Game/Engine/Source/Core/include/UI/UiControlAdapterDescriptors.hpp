@@ -306,6 +306,16 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("colour", "Colour", "sf.Color", false,             \
                             "[255,255,255,255]"))                              \
     BIND_UI_CONTROL(                                                           \
+        EmitterViewUiControlAdapterTag, "Engine.EmitterView",                  \
+        "Engine.EmitterView", "Emitter View", "Visual", UiChildPolicy::None,   \
+        UiControlSlotType::None,                                               \
+        UI_CONTROL_PROPERTY("particle", "Particle", "string", false, "\"\""),  \
+        UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2f", false,              \
+                            "[100.0,100.0]"),                                  \
+        UI_CONTROL_PROPERTY("anchor", "Anchor", "sf.Vector2f", false,          \
+                            "[0.5,0.5]"),                                      \
+        UI_CONTROL_PROPERTY("autoPlay", "Auto Play", "bool", false, "true"))   \
+    BIND_UI_CONTROL(                                                           \
         FunctionalPlainTextUiControlAdapterTag, "Engine.FunctionalPlainText",  \
         "Engine.FunctionalPlainText", "Functional Plain Text", "Input",        \
         UiChildPolicy::None, UiControlSlotType::None,                          \

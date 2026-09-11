@@ -69,12 +69,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         HelpCommand = new RelayCommand(Actions.OpenHelp);
         NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
         NewAnimationCommand = new RelayCommand(Actions.NewAnimation, () => CanEdit);
+        NewParticleCommand = new RelayCommand(() => Actions.NewParticle(), () => CanEdit);
         NewCurveCommand = new RelayCommand(Actions.NewCurve, () => CanEdit);
         NewTextConfigCommand = new RelayCommand(() => Actions.NewTextConfig(), () => CanEdit);
         NewUiAssetCommand = new RelayCommand(() => Actions.NewUiAsset(), () => CanEdit);
         GameConfigCommand = new RelayCommand(Actions.OpenGameConfig, () => CanEdit);
         SystemConfigCommand = new RelayCommand(Actions.OpenSystemConfig, () => CanEdit);
         AnimationOverviewCommand = new RelayCommand(Actions.OpenAnimationOverview, () => CanEdit);
+        ParticleOverviewCommand = new RelayCommand(Actions.OpenParticleOverview, () => CanEdit);
         TilesetsDataCommand = new RelayCommand(() => Actions.OpenTilesets(), () => CanEdit);
         CommonFunctionsCommand = new RelayCommand(() => Actions.OpenCommonFunctions(), () => CanEdit);
         GameVariablesCommand = new RelayCommand(Actions.OpenGameVariables, () => CanEdit);
@@ -84,8 +86,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         editingCommands =
         [
             SaveCommand, UndoCommand, RedoCommand, TileModeCommand, LightModeCommand, ActorModeCommand,
-            NewBlueprintCommand, NewAnimationCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
-            GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, TilesetsDataCommand,
+            NewBlueprintCommand, NewAnimationCommand, NewParticleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
+            GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
         ];
         ChangeLanguageCommand = new RelayCommand<string>(changeLanguage);
@@ -146,12 +148,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand HelpCommand { get; }
     public IRelayCommand NewBlueprintCommand { get; }
     public IRelayCommand NewAnimationCommand { get; }
+    public IRelayCommand NewParticleCommand { get; }
     public IRelayCommand NewCurveCommand { get; }
     public IRelayCommand NewTextConfigCommand { get; }
     public IRelayCommand NewUiAssetCommand { get; }
     public IRelayCommand GameConfigCommand { get; }
     public IRelayCommand SystemConfigCommand { get; }
     public IRelayCommand AnimationOverviewCommand { get; }
+    public IRelayCommand ParticleOverviewCommand { get; }
     public IRelayCommand TilesetsDataCommand { get; }
     public IRelayCommand CommonFunctionsCommand { get; }
     public IRelayCommand GameVariablesCommand { get; }
@@ -650,6 +654,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             case EditorDataOpenTarget.Animation:
                 Actions.OpenAnimation(info.Key);
                 break;
+            case EditorDataOpenTarget.Particle:
+                Actions.OpenParticle(info.Key);
+                break;
             case EditorDataOpenTarget.Curve:
                 Actions.OpenCurve(info.Key);
                 break;
@@ -712,12 +719,14 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public string ReloadModule => LocaleService.Get("RELOAD_MODULE");
     public string NewBlueprint => LocaleService.Get("NEW_BLUEPRINT");
     public string NewAnimation => LocaleService.Get("NEW_ANIMATION");
+    public string NewParticle => LocaleService.Get("NEW_PARTICLE");
     public string NewCurve => LocaleService.Get("NEW_CURVE");
     public string NewTextConfig => LocaleService.Get("NEW_TEXT_CONFIG");
     public string NewUiAsset => LocaleService.Get("NEW_UI_ASSET");
     public string Database => LocaleService.Get("DATABASE");
     public string SystemConfig => LocaleService.Get("SYSTEM_CONFIG");
     public string AnimationOverview => LocaleService.Get("ANIMATION_OVERVIEW");
+    public string ParticleOverview => LocaleService.Get("PARTICLE_OVERVIEW");
     public string TilesetsData => LocaleService.Get("TILESETS_DATA");
     public string CommonFunctions => LocaleService.Get("COMMON_FUNCTIONS");
     public string GameVariablesLabel => LocaleService.Get("GAME_VARIABLES");

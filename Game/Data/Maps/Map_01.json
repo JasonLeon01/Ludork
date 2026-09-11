@@ -1851,6 +1851,14 @@
           8,
           12
         ]
+      },
+      {
+        "tag": "EmitterShowcase",
+        "bp": "Data.Blueprints.Actors.BP_EmitterShowcase",
+        "position": [
+          0,
+          3
+        ]
       }
     ]
   },

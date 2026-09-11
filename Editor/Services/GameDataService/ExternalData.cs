@@ -60,6 +60,11 @@ public sealed partial class GameDataService
                         data.Remove("type");
                     string relativePath = Path.GetRelativePath(root, path);
                     string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
+                    if (pair.Key == "Particles" && ParticleAssetSchema.Validate(data, key).Count != 0)
+                    {
+                        invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
+                        continue;
+                    }
                     pair.Value.Data[key] = data;
                 }
                 catch (JsonException)

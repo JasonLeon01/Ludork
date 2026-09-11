@@ -9,6 +9,8 @@
 
 #include <mutex>
 
+class EmitterScheduler;
+
 BIND_CLASS()
 class UIManager {
 public:
@@ -37,6 +39,7 @@ public:
     void fixedLogicHandle(float fixedDelta);
     void refreshDisplayScale();
     void logicHandle(float deltaTime);
+    void collectEmitters(EmitterScheduler& scheduler);
     void renderHandle(float deltaTime,
                       const std::function<void()>& overlayRenderer = {});
 

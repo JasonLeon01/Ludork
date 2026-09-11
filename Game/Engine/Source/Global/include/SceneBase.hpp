@@ -9,6 +9,8 @@
 #include <Particles/ParticleSystem.hpp>
 #include <System/SceneRuntime.hpp>
 #include <UIManager.hpp>
+#include <Emitters/EmitterScheduler.hpp>
+#include <GameMapBase.hpp>
 
 #include <exception>
 #include <mutex>
@@ -27,6 +29,11 @@ public:
 
     BIND_METHOD(Pure = true)
     std::shared_ptr<UIManager> getUIManager() const;
+
+    std::shared_ptr<EmitterScheduler> getEmitterScheduler() const;
+
+    BIND_METHOD(metadata = false)
+    void setEmitterMap(const std::shared_ptr<GameMapBase>& map);
 
     BIND_METHOD(latent(TimeUp = true), defaults = {nil, nil, {}, false},
                 parameter_types = {float, function, any[], bool})
@@ -125,6 +132,8 @@ private:
     std::vector<std::shared_ptr<TimerEntry>> timerEntries_;
     std::vector<std::shared_ptr<Animation>> animations_;
     std::shared_ptr<UIManager> uiManager_;
+    std::shared_ptr<EmitterScheduler> emitterScheduler_;
+    std::weak_ptr<GameMapBase> emitterMap_;
     std::shared_ptr<ParticleSystem> commonTipParticleSystem_;
     std::shared_ptr<CommonTipController> commonTipController_;
     int blockingTimerCount_ = 0;

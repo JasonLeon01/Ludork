@@ -1,0 +1,296 @@
+{
+  "type": "particle",
+  "name": "Smoke",
+  "simulationRate": 60,
+  "seed": 137,
+  "tracks": [
+    {
+      "name": "Smoke",
+      "enabled": true,
+      "mode": "emission",
+      "delay": 0,
+      "duration": 2,
+      "loop": true,
+      "prewarm": true,
+      "capacity": 160,
+      "count": 32,
+      "rate": 18,
+      "distanceRate": 0,
+      "bursts": [],
+      "shape": "disk",
+      "extent": [
+        32,
+        32
+      ],
+      "radius": 10,
+      "innerRadius": 8,
+      "direction": -90,
+      "spread": 15,
+      "lifetime": [
+        2,
+        3.5
+      ],
+      "speed": [
+        10,
+        22
+      ],
+      "sizeMin": [
+        40,
+        40
+      ],
+      "sizeMax": [
+        64,
+        64
+      ],
+      "rotation": [
+        0,
+        360
+      ],
+      "angularVelocity": [
+        -12,
+        12
+      ],
+      "colourMin": [
+        175,
+        190,
+        215,
+        90
+      ],
+      "colourMax": [
+        225,
+        230,
+        240,
+        140
+      ],
+      "gravity": [
+        0,
+        0
+      ],
+      "radialAcceleration": 0,
+      "tangentialAcceleration": 0,
+      "damping": 0,
+      "texture": "/Game/Assets/Particles/SmokeFrames.png",
+      "textureRect": [
+        0,
+        0,
+        1772,
+        886
+      ],
+      "columns": 4,
+      "rows": 2,
+      "frameCount": 8,
+      "frameRate": 2.4,
+      "randomStartFrame": false,
+      "frameLoop": false,
+      "space": "local",
+      "scaleMode": "hierarchy",
+      "blend": "alpha",
+      "offset": [
+        0,
+        0
+      ],
+      "rotationOffset": 0,
+      "scale": [
+        1,
+        1
+      ],
+      "curves": {
+        "alpha": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 0,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 0.15,
+              "value": 1,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 0.7,
+              "value": 0.5,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 0,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        },
+        "sizeX": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 0.5,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 1.7,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        },
+        "sizeY": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 0.5,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 1.7,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Embers",
+      "enabled": true,
+      "mode": "emission",
+      "delay": 0,
+      "duration": 2,
+      "loop": true,
+      "prewarm": false,
+      "capacity": 80,
+      "count": 32,
+      "rate": 10,
+      "distanceRate": 0,
+      "bursts": [],
+      "shape": "point",
+      "extent": [
+        32,
+        32
+      ],
+      "radius": 16,
+      "innerRadius": 8,
+      "direction": -90,
+      "spread": 25,
+      "lifetime": [
+        0.5,
+        1.5
+      ],
+      "speed": [
+        35,
+        65
+      ],
+      "sizeMin": [
+        4,
+        6
+      ],
+      "sizeMax": [
+        8,
+        12
+      ],
+      "rotation": [
+        0,
+        360
+      ],
+      "angularVelocity": [
+        0,
+        0
+      ],
+      "colourMin": [
+        255,
+        110,
+        20,
+        180
+      ],
+      "colourMax": [
+        255,
+        230,
+        100,
+        255
+      ],
+      "gravity": [
+        0,
+        0
+      ],
+      "radialAcceleration": 0,
+      "tangentialAcceleration": 0,
+      "damping": 0,
+      "texture": "/Game/Assets/Particles/Glow.png",
+      "textureRect": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "columns": 1,
+      "rows": 1,
+      "frameCount": 1,
+      "frameRate": 0,
+      "randomStartFrame": false,
+      "frameLoop": true,
+      "space": "local",
+      "scaleMode": "hierarchy",
+      "blend": "add",
+      "offset": [
+        0,
+        0
+      ],
+      "rotationOffset": 0,
+      "scale": [
+        1,
+        1
+      ],
+      "curves": {
+        "alpha": {
+          "type": "curve",
+          "defaultValue": 1,
+          "preInfinity": "constant",
+          "postInfinity": "constant",
+          "keys": [
+            {
+              "time": 0,
+              "value": 1,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            },
+            {
+              "time": 1,
+              "value": 0,
+              "interpolation": "linear",
+              "arriveTangent": 0,
+              "leaveTangent": 0
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

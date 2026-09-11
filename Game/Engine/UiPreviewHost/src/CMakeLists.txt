@@ -1,5 +1,6 @@
 target_sources(UiPreviewHostExecutable PRIVATE
     Actor/ActorBatchRenderer.cpp
+    Particle/ParticlePreviewSession.cpp
     PreviewBuildInfo.cpp
     PreviewHostSession.cpp
     Protocol/FrameFiles.cpp

@@ -19,7 +19,8 @@ namespace ludork::preview_host {
 UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
                                                     double requestedScale);
 std::vector<std::uint8_t> renderFrame(
-    const std::shared_ptr<UiAssetInstance>& instance, const sf::Vector2u& size);
+    const std::shared_ptr<UiAssetInstance>& instance,
+    sf::RenderTexture& target);
 RuntimeData::Array nodeGeometry(
     const std::shared_ptr<UiAssetInstance>& instance, const sf::Vector2u& size,
     float renderScale);

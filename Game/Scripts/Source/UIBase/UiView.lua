@@ -34,6 +34,9 @@ local function clearControlCallbacks(control)
         ---@cast control Engine.TextBox
         control:setOnTextChanged(nil)
         control:setOnEditingChanged(nil)
+    elseif Class.isInstance(control, Engine.EmitterView) then
+        ---@cast control Engine.EmitterView
+        control:dispose()
     end
 end
 
@@ -247,6 +250,7 @@ function UiView:dispose()
         dispose(child)
     end
     self:detachControl(self.root)
+    clearControlCallbacks(self.root)
 end
 
 return class(UiView)

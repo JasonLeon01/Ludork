@@ -139,6 +139,12 @@ public sealed class UiPreviewClient : IAsyncDisposable
         try
         {
             JsonObject response = await connection.ExchangeAsync(request, CancellationToken.None);
+            while (response["particleSeeking"]?.GetValue<bool>() == true)
+            {
+                if (cancellationToken.IsCancellationRequested || !connection.IsReady)
+                    return null;
+                response = await connection.ExchangeAsync(request, CancellationToken.None);
+            }
             if (cancellationToken.IsCancellationRequested || !connection.IsReady)
                 return null;
             if (!string.Equals(getString(response, "type"), "frame", StringComparison.Ordinal))

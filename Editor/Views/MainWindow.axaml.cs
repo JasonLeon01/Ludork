@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private bool layoutSavePending;
     private TileSelectViewModel? tileSelect;
     private AnimationOverviewWindow? animationOverview;
+    private ParticleOverviewWindow? particleOverview;
     private TilesetEditorWindow? tilesetEditor;
     private GeneralDataEditorWindow? generalDataEditor;
     private CommonFunctionWindow? commonFunctionWindow;

@@ -20,6 +20,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             ["worldMap"] = "Maps",
             ["commonFunction"] = "CommonFunctions",
             ["animation"] = "Animations",
+            ["particle"] = "Particles",
             ["curve"] = "Curves",
             ["textConfig"] = "TextConfigs",
             ["uiAsset"] = "UI",
@@ -333,6 +334,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         foreach (string key in gameData.BlueprintsData.Keys)
             addNode("blueprint", BlueprintPrefix + key.Replace('/', '.'));
         addSectionNodes("animation", gameData.AnimationsData.Keys);
+        addSectionNodes("particle", gameData.ParticlesData.Keys);
         addSectionNodes("curve", gameData.CurvesData.Keys);
         addSectionNodes("textConfig", gameData.TextConfigsData.Keys);
         addSectionNodes("uiAsset", gameData.UiAssetsData.Keys);
@@ -410,6 +412,8 @@ public sealed partial class ReferenceIndexService : IDisposable
             scanDocumentReferences("Blueprints", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.AnimationsData)
             scanDocumentReferences("Animations", pair.Key, pair.Value, globalDefinitions);
+        foreach (KeyValuePair<string, JsonObject> pair in gameData.ParticlesData)
+            scanDocumentReferences("Particles", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.CurvesData)
             scanDocumentReferences("Curves", pair.Key, pair.Value, globalDefinitions);
         foreach (KeyValuePair<string, JsonObject> pair in gameData.TextConfigsData)
@@ -506,6 +510,8 @@ public sealed partial class ReferenceIndexService : IDisposable
             return ("commonFunction", gameData.CommonFunctionsData);
         if (section.Equals("Animations", StringComparison.OrdinalIgnoreCase))
             return ("animation", gameData.AnimationsData);
+        if (section.Equals("Particles", StringComparison.OrdinalIgnoreCase))
+            return ("particle", gameData.ParticlesData);
         if (section.Equals("Curves", StringComparison.OrdinalIgnoreCase))
             return ("curve", gameData.CurvesData);
         if (section.Equals("TextConfigs", StringComparison.OrdinalIgnoreCase))

@@ -221,7 +221,13 @@ function GameMap:getScene()
 end
 
 function GameMap:setScene(scene)
+    if self._scene ~= nil and self._scene ~= scene then
+        self._scene:setEmitterMap(nil)
+    end
     self._scene = scene
+    if scene ~= nil then
+        scene:setEmitterMap(self)
+    end
 end
 
 function GameMap:addCommonTip(text)

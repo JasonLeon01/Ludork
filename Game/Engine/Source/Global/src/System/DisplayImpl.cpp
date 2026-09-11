@@ -119,7 +119,7 @@ void DisplayImpl::prepareInitialization(const std::string& title,
     windowContextSettings_ = {};
     windowContextSettings_.antiAliasingLevel =
         static_cast<unsigned int>(SystemConfigBase::getAntiAliasingLevel());
-#if defined(SFML_SYSTEM_IOS)
+#if defined(SFML_OPENGL_ES)
     windowContextSettings_.majorVersion = 3;
     windowContextSettings_.minorVersion = 0;
 #endif
@@ -173,10 +173,10 @@ void DisplayImpl::createDisplayWindow() {
 
     surfaceFitScale_ = surfaceFitScale;
     engineState().setScale(effectiveRenderScale(surfaceFitScale));
-#if defined(SFML_SYSTEM_IOS)
+#if defined(SFML_OPENGL_ES)
     if (window->getSettings().majorVersion < 3) {
         throw std::runtime_error(
-            "iOS requires an OpenGL ES 3.0 context, but OpenGL ES " +
+            "Ludork requires an OpenGL ES 3.0 context, but OpenGL ES " +
             std::to_string(window->getSettings().majorVersion) + "." +
             std::to_string(window->getSettings().minorVersion) +
             " was created");

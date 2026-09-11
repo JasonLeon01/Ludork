@@ -461,7 +461,9 @@ function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayer
         for _, actor in ipairs(self._actors[layerName] or {}) do
             if actor:isVisibleInHierarchy() and self:_isWorldActorLayerVisible(actor, layerName, visibleRect)
                 and self._actorPixelShatterByActor[actor] == nil then
+                actor:drawEmitter(target, states, true)
                 self:_drawActor(target, states, actor, 255)
+                actor:drawEmitter(target, states, false)
             end
         end
         self:_drawActorPixelShatterEffects(target, layerName)

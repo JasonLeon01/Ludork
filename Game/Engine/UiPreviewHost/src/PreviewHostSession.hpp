@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Actor/ActorBatchRenderer.hpp"
+#include "Particle/ParticlePreviewSession.hpp"
 #include "Protocol/FrameFiles.hpp"
 #include "UI/UiPreviewSession.hpp"
 
@@ -32,6 +33,7 @@ private:
     FrameFiles frameFiles_;
     ActorBatchRenderer actorRenderer_;
     UiPreviewSession uiSession_;
+    ParticlePreviewSession particleSession_;
     bool accepted_ = false;
 };
 

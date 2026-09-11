@@ -1,0 +1,35 @@
+{
+  "parent": "Source.ConditionalActor.ConditionalActor",
+  "attrs": {
+    "animatable": false,
+    "collisionEnabled": false,
+    "tickable": false,
+    "texturePath": "/Game/Assets/Characters/npcs/classic-npcs-50F-single.png",
+    "defaultRect": [
+      [
+        0,
+        192,
+        32,
+        32
+      ]
+    ],
+    "emitterComp": {
+      "resource": "ResidentAura",
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "scale": [
+        0.6,
+        0.6
+      ],
+      "beforeActor": false
+    },
+    "tag": ""
+  },
+  "graph": {
+    "nodeGraph": {},
+    "startNodes": {}
+  },
+  "type": "blueprint"
+}

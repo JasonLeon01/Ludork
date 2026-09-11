@@ -60,6 +60,8 @@ public partial class MainWindow
             await createCurveAsync(viewModel.GameData);
         else if (action == "AnimationOverview" && viewModel is not null)
             showAnimationOverview(viewModel.GameData);
+        else if (action == "ParticleOverview" && viewModel is not null)
+            showParticleOverview(viewModel.GameData);
         else if (action == "CommonFunctions" && viewModel is not null)
             await showCommonFunctionsAsync(viewModel, null);
         else if (action.StartsWith("CommonFunctions:", StringComparison.Ordinal) && viewModel is not null)
@@ -76,6 +78,8 @@ public partial class MainWindow
             showBlueprintEditor(viewModel, action["Blueprint:".Length..]);
         else if (action.StartsWith("Animation:", StringComparison.Ordinal) && viewModel is not null)
             showAnimation(action["Animation:".Length..], viewModel.GameData);
+        else if (action.StartsWith("Particle:", StringComparison.Ordinal) && viewModel is not null)
+            showParticle(action["Particle:".Length..], viewModel.GameData);
         else if (action.StartsWith("Curve:", StringComparison.Ordinal) && viewModel is not null)
             showCurve(action["Curve:".Length..], viewModel.GameData);
         else if (action.StartsWith("TextConfig:", StringComparison.Ordinal) && viewModel is not null)
@@ -92,6 +96,8 @@ public partial class MainWindow
             await createBlueprintAsync(viewModel, request);
         else if (request.Kind == EditorDataKind.Animation)
             await createAnimationAsync(viewModel.GameData, request.DestinationPath);
+        else if (request.Kind == EditorDataKind.Particle)
+            await createParticleAsync(viewModel.GameData, request.DestinationPath);
         else if (request.Kind == EditorDataKind.Curve)
             await createCurveAsync(
                 viewModel.GameData,

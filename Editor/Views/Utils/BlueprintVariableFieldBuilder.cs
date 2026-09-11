@@ -415,6 +415,10 @@ public sealed class BlueprintVariableFieldBuilder
         {
             keys = gameData.AnimationsData.Keys;
         }
+        else if (string.Equals(dataType, "PARTICLE", StringComparison.OrdinalIgnoreCase))
+        {
+            keys = gameData.ParticlesData.Keys;
+        }
         else if (gameData.GeneralData.TryGetValue(dataType, out JsonObject? data)
             && data["members"] is JsonObject members)
         {
