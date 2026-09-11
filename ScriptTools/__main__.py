@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable
 
 from ScriptTools import android_pack
+from ScriptTools import animation_mp4
 from ScriptTools import compile_lua
 from ScriptTools import configure_project_template
 from ScriptTools import editor_macos_metadata
@@ -31,6 +32,7 @@ Command = Callable[[list[str] | None], int]
 
 COMMANDS: dict[str, Command] = {
     "android-pack": android_pack.main,
+    "animation-mp4": animation_mp4.main,
     "core-bindgen": generate.main,
     "core-bindgen-layout": layout.main,
     "configure-project-template": configure_project_template.main,

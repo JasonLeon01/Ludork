@@ -197,11 +197,27 @@ function Enemy:onCollision(other)
     local won = result.code == MotaBattleAbility.BattleResult.WIN
     local prepared = won and self:_preparePostBattle(player, scene) or nil
     MotaBattleAbility.CommitResult(result)
+    local playerAnimation = player:playAttackAnimationAt(scene, self:getPosition())
+    local enemyAnimation = self:playAttackAnimationAt(scene, player:getPosition())
     if result.data.damage > 0 then
-        scene:getGameMap():addDamageText(tostring(result.data.damage), player:getPosition())
+        ---@type number | nil
+        local damageTime = nil
+        if enemyAnimation ~= nil then
+            for _, timeTag in ipairs(enemyAnimation:getAllTimeTags()) do
+                if timeTag.tag == "dmg" then
+                    damageTime = timeTag.time
+                    break
+                end
+            end
+        end
+        damageTime = damageTime or 0
+        scene:addTimer(damageTime, function()
+            scene:getGameMap():addDamageText(tostring(result.data.damage), player:getPosition())
+        end)
     end
     local animationLength = math.max(
-        player:playAttackAnimationAt(scene, self:getPosition()), self:playAttackAnimationAt(scene, player:getPosition())
+        playerAnimation ~= nil and playerAnimation:getVisualDuration() or 0.0,
+        enemyAnimation ~= nil and enemyAnimation:getVisualDuration() or 0.0
     )
     self._battleCondition = scene:addTimer(animationLength, function ()
         self._battleCondition = nil

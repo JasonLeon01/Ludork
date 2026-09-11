@@ -160,6 +160,11 @@
       ]
     }
   ],
-  "timeTags": [],
+  "timeTags": [
+    {
+      "tag": "dmg",
+      "time": 0.06666666666666667
+    }
+  ],
   "type": "animation"
 }

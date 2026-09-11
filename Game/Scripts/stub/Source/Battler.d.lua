@@ -13,7 +13,7 @@ function Battler:getAbilitySystemComponent() end
 
 ---@param scene          GlobalCore.SceneBase
 ---@param targetPosition sf.Vector2f
----@return number
+---@return GlobalCore.Animation | nil
 function Battler:playAttackAnimationAt(scene, targetPosition) end
 
 return Battler

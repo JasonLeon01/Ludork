@@ -202,7 +202,10 @@ function MovementSpecials.Commit(player, pathPositions)
     for _, source in ipairs(allSources) do
         if not seenEnemies[source.enemy] then
             seenEnemies[source.enemy] = true
-            animationLength = math.max(animationLength, source.enemy:playAttackAnimationAt(scene, playerPosition))
+            local animation = source.enemy:playAttackAnimationAt(scene, playerPosition)
+            if animation ~= nil then
+                animationLength = math.max(animationLength, animation:getVisualDuration())
+            end
         end
     end
     local eventData = GameplayEventData.new(

@@ -33,7 +33,7 @@ end
 
 function Battler:playAttackAnimationAt(scene, targetPosition)
     if not bool(self.attributes.ANIMATION_KEY) then
-        return 0.0
+        return nil
     end
     local animationData = Data.GetAnimation(self.attributes.ANIMATION_KEY)
     local Animation = GlobalCore.Animation
@@ -41,7 +41,7 @@ function Battler:playAttackAnimationAt(scene, targetPosition)
     local halfCell = Engine.GetCellSize() * 0.5
     animation:setPosition(sf.Vector2f.new(targetPosition.x + halfCell, targetPosition.y + halfCell))
     scene:addAnim(animation)
-    return animation:getVisualDuration()
+    return animation
 end
 
 return class(Battler)

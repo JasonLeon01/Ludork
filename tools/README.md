@@ -10,6 +10,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `build_ui_preview_host` | Build and publish a project's native preview snapshot |
 | `init_cpp_dependencies` | Download dependencies for a C++ project folder; per-package scripts live under `tools/cpp_dependencies` |
 | `run_editor` | Start the editor from the repository root |
+| `animation_to_mp4` | Export source animation JSON files to H.264/AAC MP4, individually or recursively in a batch |
 | `build_cpp` | Configure/build a C++ project, its preview and registry; regenerate Core bindings, stubs and metadata |
 | `run_cpp` | Run a built native project with its source folder as working directory |
 | `build_standalone` | Build a desktop runtime with a root launcher/host and native code under `Binaries` |
@@ -44,6 +45,45 @@ tools\run_cpp.bat Game Debug
 tools\pack_project.bat Game
 tools\pack_editor.bat
 ```
+
+### Animation MP4 export
+
+After changing ScriptTools, run `tools/setup_python` and `tools/build_script_tools`
+using the matching platform extension. The exporter uses Pillow from the Python
+requirements; the built ScriptTools executable includes it. Provide an FFmpeg
+executable with `libx264` and AAC on `PATH`, place it at
+`.tools/ffmpeg/ffmpeg.exe` (Windows) or `.tools/ffmpeg/ffmpeg` (macOS), or pass
+`--ffmpeg <executable>`. FFmpeg is a separate local prerequisite and is not bundled
+by editor packaging.
+
+```bat
+tools\animation_to_mp4.bat
+tools\animation_to_mp4.bat Game --input Game/Data/Animations/attack.json --output Game/Temp/attack.mp4
+tools\animation_to_mp4.bat Game --size 512x512 --background "#202020" --overwrite
+```
+
+On macOS, use `sh tools/animation_to_mp4.sh` with the same arguments. The direct
+command is `ScriptTools animation-mp4 [project] [options]`; the project defaults
+to `Game`. `--input` accepts one source JSON or a directory searched recursively,
+defaulting to `<project>/Data/Animations`. `--output` defaults to
+`<project>/Temp/AnimationMp4`; directory exports preserve relative subdirectories.
+Explicit input/output paths are relative to the repository root when using the
+wrappers. A single input also accepts an output `.mp4` filename.
+
+The exporter reads saved `type: animation` data and loose `/Game/Assets/...`
+files, retaining the source frame rate, timeline order, linear transforms,
+horizontal flip and sound timing/trimming. It exports one playback through the
+last image or sound segment, rounded up to whole frames; the remaining sound-only
+portion shows the background. The automatic even-sized canvas contains all
+sampled frames with the animation origin at its centre. `--size WIDTHxHEIGHT`
+sets an even-sized canvas without rescaling; content outside it is cropped.
+`--background "#RRGGBB"` selects the opaque background (black by default), and
+`--mute` removes audio while retaining the timeline duration. Time tags are not
+encoded as video events. Compressed caches and `.ldpak` packages are not inputs.
+
+Existing outputs require `--overwrite`. Each file is encoded to a temporary
+location and published only after FFmpeg succeeds. Batch export continues after
+individual failures and returns a nonzero exit code if any file failed.
 
 The editor **Construct** button runs `build_cpp` for C++ Source projects.
 **Play** uses the same Debug build record: it stays unavailable until the

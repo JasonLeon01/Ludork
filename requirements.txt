@@ -1,1 +1,2 @@
 Nuitka[onefile]==4.1.3
+Pillow==12.2.0

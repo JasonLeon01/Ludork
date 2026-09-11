@@ -19,7 +19,8 @@
     "/Game/Assets/Animations/WaterSpread_14.png",
     "/Game/Assets/Animations/WaterSpread_15.png",
     "/Game/Assets/Animations/WaterSpread_16.png",
-    "/Game/Assets/Animations/WaterSpread_17.png"
+    "/Game/Assets/Animations/WaterSpread_17.png",
+    "/Game/Assets/Sounds/waterspread.wav"
   ],
   "timeLines": [
     {
@@ -547,8 +548,46 @@
           "flipX": false
         }
       ]
+    },
+    {
+      "timeSegments": [
+        {
+          "type": "sound",
+          "asset": 18,
+          "startFrame": {
+            "time": 0.26666666666666666,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              1,
+              1
+            ]
+          },
+          "endFrame": {
+            "time": 2.2666666666666666,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              1,
+              1
+            ]
+          },
+          "originalDuration": 2
+        }
+      ]
     }
   ],
-  "timeTags": [],
+  "timeTags": [
+    {
+      "tag": "dmg",
+      "time": 0.36666666666666664
+    }
+  ],
   "type": "animation"
 }

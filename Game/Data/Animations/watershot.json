@@ -19,7 +19,8 @@
     "/Game/Assets/Animations/WaterShot_14.png",
     "/Game/Assets/Animations/WaterShot_15.png",
     "/Game/Assets/Animations/WaterShot_16.png",
-    "/Game/Assets/Animations/WaterShot_17.png"
+    "/Game/Assets/Animations/WaterShot_17.png",
+    "/Game/Assets/Sounds/watershot.wav"
   ],
   "timeLines": [
     {
@@ -547,8 +548,46 @@
           "flipX": false
         }
       ]
+    },
+    {
+      "timeSegments": [
+        {
+          "type": "sound",
+          "asset": 18,
+          "startFrame": {
+            "time": 0,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              1,
+              1
+            ]
+          },
+          "endFrame": {
+            "time": 2,
+            "position": [
+              0,
+              0
+            ],
+            "rotation": 0,
+            "scale": [
+              1,
+              1
+            ]
+          },
+          "originalDuration": 2
+        }
+      ]
     }
   ],
-  "timeTags": [],
+  "timeTags": [
+    {
+      "tag": "dmg",
+      "time": 0.3
+    }
+  ],
   "type": "animation"
 }
