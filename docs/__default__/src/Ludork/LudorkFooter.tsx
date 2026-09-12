@@ -2,7 +2,7 @@ import type { LanguageKey } from './ludorkLanguages'
 import { getSitePageHref, LUDORK_LINKS } from './ludorkSite'
 import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
 import { GitHubIcon } from './LudorkIcon'
-import iconCreditsUrl from './assets/platforms/credits.md?url&no-inline'
+import iconCreditsUrl from './assets/credits.md?url&no-inline'
 
 export default function LudorkFooter({ language }: { language: LanguageKey }) {
   const messages = LUDORK_SITE_MESSAGES[language]
@@ -18,7 +18,7 @@ export default function LudorkFooter({ language }: { language: LanguageKey }) {
           <a href={LUDORK_LINKS.repository}><GitHubIcon size={18} />{messages.footer.source}</a>
           <a href={LUDORK_LINKS.issues}>{messages.footer.feedback}</a>
           <a href={LUDORK_LINKS.license}>{messages.footer.license}</a>
-          <a href={LUDORK_LINKS.notices[language]}>{messages.footer.notices}</a>
+          <a href={getSitePageHref('notices', language)}>{messages.footer.notices}</a>
           <a href={iconCreditsUrl}>{messages.footer.iconCredits}</a>
         </div>
       </div>

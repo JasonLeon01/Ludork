@@ -4,6 +4,7 @@ local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
 local GeneralDataSchema = require("Source.Data.GeneralDataSchema")
 
+local ResourceFileConstants = Engine.ResourceFileConstants
 local Curve = Engine.Curve
 local Vector2Curve = Engine.Vector2Curve
 local Vector3Curve = Engine.Vector3Curve
@@ -80,7 +81,7 @@ end
 ---@param relativePath string
 ---@return string
 local function animationNameFromRelativePath(relativePath)
-    local suffix = ".anim.json"
+    local suffix = ResourceFileConstants.ANIMATION_CACHE_SUFFIX
     assert(string.endsWith(relativePath, suffix), "Invalid compressed animation file name: " .. relativePath)
     local name = relativePath:sub(1, -#suffix - 1)
     assert(bool(name), "Compressed animation name must not be empty")
@@ -250,7 +251,7 @@ function DataLoading:countLoadableFiles(dataRoot, needExt, recursive)
     if needExt ~= nil and not string.endsWith(tostring(needExt), "json") then
         return 0
     end
-    local suffix = needExt or ".json"
+    local suffix = needExt or ResourceFileConstants.DATA_EXTENSION
     local total = 0
     self:drainFileBatch({
         {
@@ -271,7 +272,7 @@ function DataLoading:loadAnimations(onFileLoaded)
     self:_loadOneCategory({
         category = "animations",
         root = Engine.getAnimationCacheRoot(),
-        suffix = ".anim.json",
+        suffix = ResourceFileConstants.ANIMATION_CACHE_SUFFIX,
         recursive = true,
         required = false
     }, onFileLoaded)
@@ -281,7 +282,7 @@ function DataLoading:loadCommonFunctions(onFileLoaded)
     self:_loadOneCategory({
         category = "commonFunctions",
         root = "./Data/CommonFunctions",
-        suffix = ".json",
+        suffix = ResourceFileConstants.DATA_EXTENSION,
         recursive = true,
         required = false
     }, onFileLoaded)
@@ -291,7 +292,7 @@ function DataLoading:loadTilesets(onFileLoaded)
     self:_loadOneCategory({
         category = "tilesets",
         root = "./Data/Tilesets",
-        suffix = ".json",
+        suffix = ResourceFileConstants.DATA_EXTENSION,
         recursive = false,
         required = true
     }, onFileLoaded)
@@ -301,7 +302,7 @@ function DataLoading:loadAutoTiles(onFileLoaded)
     self:_loadOneCategory({
         category = "autoTiles",
         root = "./Data/AutoTiles",
-        suffix = ".json",
+        suffix = ResourceFileConstants.DATA_EXTENSION,
         recursive = true,
         required = false
     }, onFileLoaded)
@@ -311,7 +312,7 @@ function DataLoading:loadGeneralData(onFileLoaded)
     self:_loadOneCategory({
         category = "general",
         root = "./Data/General",
-        suffix = ".json",
+        suffix = ResourceFileConstants.DATA_EXTENSION,
         recursive = false,
         required = true
     }, onFileLoaded)
@@ -321,7 +322,7 @@ function DataLoading:loadCurves(onFileLoaded)
     self:_loadOneCategory({
         category = "curves",
         root = "./Data/Curves",
-        suffix = ".json",
+        suffix = ResourceFileConstants.DATA_EXTENSION,
         recursive = true,
         required = false
     }, onFileLoaded)
@@ -331,7 +332,7 @@ function DataLoading:loadTextConfigs(onFileLoaded)
     self:_loadOneCategory({
         category = "textConfigs",
         root = "./Data/TextConfigs",
-        suffix = ".json",
+        suffix = ResourceFileConstants.DATA_EXTENSION,
         recursive = true,
         required = true
     }, onFileLoaded)

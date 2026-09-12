@@ -1,5 +1,7 @@
 #pragma once
 
+#include <JsonRuntimeProtocol.hpp>
+
 #include <LudorkRuntimeBinding/NativeObjectCodec.hpp>
 
 #include <cstdint>
@@ -16,8 +18,8 @@ inline bool isJsonNull(const sol::object& value) {
         return false;
     }
     sol::state_view lua(value.lua_state());
-    const sol::object sentinel =
-        lua.registry().raw_get<sol::object>("LuaSF.JsonNullSentinel");
+    const sol::object sentinel = lua.registry().raw_get<sol::object>(
+        ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
     if (isNil(sentinel)) {
         return false;
     }

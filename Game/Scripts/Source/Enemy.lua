@@ -14,6 +14,7 @@ local GameplayScene = require("Source.Gameplay.GameplayScene")
 local Player = require("Source.Player")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local GameplayEventData = GlobalCore.GameplayEventData
@@ -73,7 +74,7 @@ function Enemy:init(texture, rect, tag)
         local effect = SpecialAbilities.CreateEffect(specialID, self.attributes.special[specialID])
         abilitySystem:applyGameplayEffectSpec(
             GameplayEffectSpec.new(
-                effect, GameplayEventData.new(self, self, "Event.Special.Initialise"), 1, "Special." .. specialID
+                effect, GameplayEventData.new(self, self, "Event.Special.Initialise"), 1, GameplayConstants.SPECIAL_PREFIX .. specialID
             )
         )
     end

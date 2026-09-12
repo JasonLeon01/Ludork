@@ -1,4 +1,5 @@
 #include "Class/ClassRuntimeInternals.hpp"
+#include <ClassRuntimeProtocol.hpp>
 
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
@@ -27,9 +28,11 @@ bool hasManagedField(sol::state_view lua, const sol::object& target,
         return target.get_type() == sol::type::userdata;
     }
     const sol::table classTable = rawClass.as<sol::table>();
-    if (detail::findAccessor(lua, classTable, "__getters", key)
+    if (detail::findAccessor(lua, classTable, protocol::CLASS_GETTERS_FIELD,
+                             key)
             .is<sol::function>() ||
-        detail::findAccessor(lua, classTable, "__setters", key)
+        detail::findAccessor(lua, classTable, protocol::CLASS_SETTERS_FIELD,
+                             key)
             .is<sol::function>()) {
         return true;
     }

@@ -43,7 +43,6 @@ Controller.windowOptions = {
     itemHeight = _OPTION_ITEM_HEIGHT
 }
 
-Controller._OPTION_ITEM_HEIGHT = 32
 Controller._MAX_OPTIONS = 4
 Controller.ContentMode = ContentMode
 

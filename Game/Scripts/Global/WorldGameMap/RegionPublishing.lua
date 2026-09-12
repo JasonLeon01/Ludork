@@ -4,7 +4,6 @@ local WorldGeometry = require("Global.WorldGeometry")
 local System = GlobalCore.System
 local WorldRegionDemand = GlobalCore.WorldRegionDemand
 local WorldRegionState = GlobalCore.WorldRegionState
-local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 local STREAM_CONVERSION_NODE_BUDGET = 64
 
 local WorldGameMapRegionPublishing = {}
@@ -443,10 +442,11 @@ end
 
 ---@param region Source.SceneComponents.WorldRegionData
 ---@param self   WorldGameMapImplState
-function WorldGameMapRegionPublishing.DrainRegionPublish(self, region)
+---@param publishBudgetSeconds number
+function WorldGameMapRegionPublishing.DrainRegionPublish(self, region, publishBudgetSeconds)
     local started = perfCounter()
     while region.publishState ~= nil do
-        local deadline = region.publishState.phase == "convert" and perfCounter() + STREAM_PUBLISH_BUDGET_SECONDS
+        local deadline = region.publishState.phase == "convert" and perfCounter() + publishBudgetSeconds
             or math.huge
         self:_stepRegionPublish(region, deadline)
     end

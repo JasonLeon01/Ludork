@@ -10,12 +10,6 @@
 #include <cmath>
 #include <utility>
 
-namespace {
-
-constexpr std::size_t MaximumShaderLights = 16;
-
-}  // namespace
-
 bool GameMapRendererImpl::LightState::matches(const ActiveLight& value) const {
     return owner == value.owner.get() &&
            light.position == value.light.position &&
@@ -49,7 +43,7 @@ std::vector<GameMapRendererImpl::ActiveLight>
 GameMapRendererImpl::collectActiveLights(
     const std::vector<Light>& mapLights) const {
     std::vector<ActiveLight> result;
-    result.reserve(MaximumShaderLights);
+    result.reserve(maximumShaderLights);
     const std::optional<sf::FloatRect> viewport =
         camera ? camera->getViewport() : std::nullopt;
     const sf::Angle rotation =
@@ -57,7 +51,7 @@ GameMapRendererImpl::collectActiveLights(
     for (const Light& light : mapLights) {
         if (light.radius > 0.0f && lightVisible(light, viewport, rotation)) {
             result.push_back({light, nullptr});
-            if (result.size() == MaximumShaderLights) {
+            if (result.size() == maximumShaderLights) {
                 return result;
             }
         }
@@ -84,7 +78,7 @@ GameMapRendererImpl::collectActiveLights(
                 continue;
             }
             result.push_back({light, actor});
-            if (result.size() == MaximumShaderLights) {
+            if (result.size() == maximumShaderLights) {
                 return result;
             }
         }

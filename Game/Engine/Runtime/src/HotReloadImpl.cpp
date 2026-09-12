@@ -1,4 +1,5 @@
 #include "HotReloadImpl.hpp"
+#include <ClassRuntimeProtocol.hpp>
 
 #include "Blueprint/ClassRuntime/ClassRuntimeHotReload.hpp"
 
@@ -176,8 +177,12 @@ bool HotReloadImpl::isClassInternal(int key) const {
         return false;
     }
     const std::string name = stringValue(key);
-    return name == "new" || (name.starts_with("__") && name != "__getters" &&
-                             name != "__setters");
+    return name == "new" ||
+           (name.starts_with("__") &&
+            name != ludork::standard::class_runtime::protocol::
+                        CLASS_GETTERS_FIELD &&
+            name !=
+                ludork::standard::class_runtime::protocol::CLASS_SETTERS_FIELD);
 }
 
 void HotReloadImpl::fail(const std::string& path,

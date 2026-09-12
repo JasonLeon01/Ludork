@@ -6,7 +6,6 @@ import json
 import os
 import pathlib
 import shutil
-import struct
 import tempfile
 import zlib
 
@@ -17,27 +16,29 @@ from .ldpak import (
     validate_runtime_ldpak_layout,
 )
 from .packaging_constants import COMPILE_LUA_DIRECTORIES_ENVIRONMENT, EXCLUDED_FILES_ENVIRONMENT, PACKAGE_CACHE_DIRECTORIES
+from .resource_constants import DATA_EXTENSION, ENCRYPTED_DATA_EXTENSION, SHADER_EXTENSIONS
+from .runtime_formats import (
+    DATA_MAGIC,
+    ENCRYPTED_HEADER as HEADER,
+    ENCRYPTED_VERSION as VERSION,
+    ENCRYPTED_ZLIB_FLAG as FLAG_ZLIB,
+    KEY_SEED,
+    MAX_DATA_SIZE,
+    MAX_SHADER_SIZE,
+    SHADER_MAGIC,
+    STREAM_BLOCK_SIZE,
+    STREAM_FALLBACK,
+    STREAM_LEFT_SHIFT,
+    STREAM_MULTIPLIER,
+    STREAM_RIGHT_SHIFT_FIRST,
+    STREAM_RIGHT_SHIFT_LAST,
+)
 from .ui_assets import validate_assets
 from .ui_control_registry import UiControlRegistry, load_registry
 from .ui_preview import PREVIEW_DIRECTORY, ensure_preview, is_preview_development_file
 
 
-SHADER_MAGIC = b"LDSC"
-DATA_MAGIC = b"LDDC"
-VERSION = 1
-FLAG_ZLIB = 1
-HEADER = struct.Struct("<4sBBHIIQ")
-KEY_SEED = 0xD6E8FEB86659FD93
-STREAM_MULTIPLIER = 0x2545F4914F6CDD1D
-STREAM_FALLBACK = 0x9E3779B97F4A7C15
 UINT64_MASK = 0xFFFFFFFFFFFFFFFF
-MAX_SHADER_SIZE = 64 * 1024 * 1024
-MAX_DATA_SIZE = 512 * 1024 * 1024
-SHADER_EXTENSIONS = {
-    ".frag": ".fragc",
-    ".vert": ".vertc",
-    ".geom": ".geomc",
-}
 
 
 class ShaderCodecError(RuntimeError):
@@ -49,12 +50,12 @@ class DataCodecError(RuntimeError):
 
 
 def _next_stream_block(state: int) -> tuple[int, bytes]:
-    state ^= state >> 12
-    state ^= (state << 25) & UINT64_MASK
-    state ^= state >> 27
+    state ^= state >> STREAM_RIGHT_SHIFT_FIRST
+    state ^= (state << STREAM_LEFT_SHIFT) & UINT64_MASK
+    state ^= state >> STREAM_RIGHT_SHIFT_LAST
     state &= UINT64_MASK
     value = (state * STREAM_MULTIPLIER) & UINT64_MASK
-    return state, value.to_bytes(8, "little")
+    return state, value.to_bytes(STREAM_BLOCK_SIZE, "little")
 
 
 def _apply_stream(data: bytes, nonce: int) -> bytes:
@@ -232,9 +233,9 @@ def encrypt_data(data_root: pathlib.Path) -> int:
         return 0
     jobs: list[tuple[pathlib.Path, pathlib.Path, bytes]] = []
     for source_path in sorted(path for path in data_root.rglob("*") if path.is_file()):
-        if source_path.suffix.lower() != ".json":
+        if source_path.suffix.lower() != DATA_EXTENSION:
             continue
-        target_path = source_path.with_suffix(".ldc")
+        target_path = source_path.with_suffix(ENCRYPTED_DATA_EXTENSION)
         if target_path.exists():
             raise DataCodecError(f"Encrypted data target already exists: {target_path}")
         relative_path = source_path.relative_to(data_root)

@@ -1,3 +1,59 @@
+# Icon credits / 图标来源
+
+# Dependency icons / 依赖图标
+
+These original assets identify the projects acknowledged on the Ludork homepage. They are stored locally without changing their artwork or colours and are displayed with their original proportions. Each card links to the corresponding official project.
+
+这些原始素材用于标识 Ludork 首页致谢的项目。本地文件保留原始图形和颜色，展示时保持原始比例；每张卡片链接到对应的官方项目。
+
+Sources and notices checked on 2026-09-12. / 来源与声明核对日期：2026-09-12。
+
+## .NET
+
+- Official project / 官方项目：[.NET](https://dotnet.microsoft.com/)
+- Local file / 本地文件：`dependencies/dotnet.svg`
+- Original asset / 原始素材：[dotnet/brand — dotnet-logo.svg](https://raw.githubusercontent.com/dotnet/brand/main/logo/dotnet-logo.svg)
+- Source notice / 来源声明：[.NET Brand Guidelines repository](https://github.com/dotnet/brand) identifies the .NET authors as the copyright holders of the logo and brand guidelines and describes using the logo to represent .NET in related content according to its [brand guidelines](https://github.com/dotnet/brand/blob/main/dotnet-styleGuide-2024.pdf). / 官方品牌仓库注明 Logo 与品牌指南的版权归 .NET 作者所有，并说明可遵循品牌指南，在相关内容中使用 Logo 表示 .NET。
+
+## Avalonia
+
+- Official project / 官方项目：[Avalonia](https://avaloniaui.net/)
+- Local file / 本地文件：`dependencies/avalonia.png`
+- Original asset / 原始素材：[avaloniaui.net — avalonia-logo.png](https://avaloniaui.net/images/avalonia-logo.png)
+- Source notice / 来源声明：[Trademark Guidelines](https://avaloniaui.net/legal/trademark) identify AvaloniaUI OÜ as the owner of the Avalonia name and logos. The [Brand Guidelines](https://avaloniaui.net/brand) specify proportional resizing, clear space and sufficient background contrast. / 商标指南注明 Avalonia 名称与 Logo 归 AvaloniaUI OÜ 所有；品牌指南要求等比例缩放、保留留白并确保背景对比度。
+
+## Lua
+
+- Official project / 官方项目：[Lua](https://www.lua.org/)
+- Local file / 本地文件：`dependencies/lua.gif`
+- Original asset / 原始素材：[lua.org — lua-logo.gif](https://www.lua.org/images/lua-logo.gif)
+- Source notice / 来源声明：[Lua logos](https://www.lua.org/images/) credits Copyright © 1998 Lua.org, graphic design by Alexandre Nakonechnyj. It permits use, copying and distribution, including commercial use, provided the origin is not misrepresented, changes are limited to the orbiting text and proportions are retained. It asks web uses to link to the Lua website. / 官方 Logo 页面注明 Copyright © 1998 Lua.org，图形设计者为 Alexandre Nakonechnyj；允许使用、复制和分发，包括商业用途，要求不冒称原创、仅可修改环绕文字并保持图形比例，网页使用时链接到 Lua 官网。
+
+## SFML
+
+- Official project / 官方项目：[SFML](https://www.sfml-dev.org/)
+- Local file / 本地文件：`dependencies/sfml.svg`
+- Original asset / 原始素材：[sfml-dev.org — sfml-logo.svg](https://www.sfml-dev.org/download/goodies/sfml-logo.svg)
+- Source notice / 来源声明：[SFML Goodies](https://www.sfml-dev.org/download/goodies/) identifies the official logo as public domain. The downloaded SVG metadata credits Michael Bradshaw and links to a Creative Commons public-domain declaration. / 官方下载页面注明 SFML Logo 属于公有领域；下载的 SVG 元数据注明 Michael Bradshaw，并链接到 Creative Commons 公有领域声明。
+
+## React
+
+- Official project / 官方项目：[React](https://react.dev/)
+- Local file / 本地文件：`dependencies/react.svg`
+- Original asset / 原始素材：[react/create-react-app — template logo.svg](https://raw.githubusercontent.com/react/create-react-app/main/packages/cra-template/template/src/logo.svg)
+- Source notice / 来源声明：The original asset is included in the official Create React App template. Its [repository license](https://github.com/react/create-react-app/blob/main/LICENSE) lists the MIT License and Copyright (c) 2013-present, Facebook, Inc. The SVG contains no separate license notice. / 素材来自官方 Create React App 模板；仓库许可证列出 MIT License 及 Copyright (c) 2013-present, Facebook, Inc.，SVG 内没有单独的许可声明。
+
+## MUI
+
+- Official project / 官方项目：[MUI](https://mui.com/)
+- Local file / 本地文件：`dependencies/mui.svg`
+- Original asset / 原始素材：[mui.com — logo.svg](https://mui.com/static/logo.svg)
+- Source notice / 来源声明：The logo is supplied by the official website. The [official brand announcement](https://mui.com/blog/material-ui-is-now-mui/) describes the MUI name and company logo. The downloaded SVG contains no license or copyright notice. / Logo 来自官网；官方品牌公告介绍了 MUI 名称与公司 Logo，下载的 SVG 内没有许可或版权声明。
+
+## Text cards / 文字卡片
+
+[LuaSF](https://github.com/JasonLeon01/LuaSF-AutoGenerator) and [sol2](https://github.com/ThePhD/sol2) are identified with text rather than image assets. / LuaSF 与 sol2 使用文字标识，不使用图像素材。
+
 # Platform icon credits / 平台图标来源
 
 These platform marks identify the systems supported by Ludork. All names and marks belong to their respective owners. Their use does not imply sponsorship or endorsement of Ludork. The images are stored locally and displayed without changing the artwork.
@@ -36,11 +92,11 @@ Android is a trademark of Google LLC. Android 是 Google LLC 的商标。
 
 ## Asset files / 素材文件
 
-- `windows.svg`: [original download / 原始下载](https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/windows11/windows11-original.svg)
-- `macos.svg`: [original download / 原始下载](https://raw.githubusercontent.com/simple-icons/simple-icons/16.0.0/icons/apple.svg)
-- `ios.svg`: [original download / 原始下载](https://raw.githubusercontent.com/simple-icons/simple-icons/16.0.0/icons/ios.svg)
-- `openharmony.svg`: [original download / 原始下载](https://upload.wikimedia.org/wikipedia/commons/e/e5/OpenHarmony_Logo_by_OpenAtom.svg)
-- `android.svg`: [original download / 原始下载](https://developer.android.com/static/images/brand/android-head_flat.svg)
+- `platforms/windows.svg`: [original download / 原始下载](https://raw.githubusercontent.com/devicons/devicon/v2.17.0/icons/windows11/windows11-original.svg)
+- `platforms/macos.svg`: [original download / 原始下载](https://raw.githubusercontent.com/simple-icons/simple-icons/16.0.0/icons/apple.svg)
+- `platforms/ios.svg`: [original download / 原始下载](https://raw.githubusercontent.com/simple-icons/simple-icons/16.0.0/icons/ios.svg)
+- `platforms/openharmony.svg`: [original download / 原始下载](https://upload.wikimedia.org/wikipedia/commons/e/e5/OpenHarmony_Logo_by_OpenAtom.svg)
+- `platforms/android.svg`: [original download / 原始下载](https://developer.android.com/static/images/brand/android-head_flat.svg)
 
 ## Devicon — MIT License
 

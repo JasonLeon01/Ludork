@@ -11,6 +11,7 @@ local IconTexture = require("Source.UIBase.IconTexture")
 local PlayerStateRowController = require("Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller")
 local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.PlayerAttrHUD")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
@@ -268,8 +269,8 @@ function Controller:refresh()
             layoutDirty = true
         end
 
-        local weakStacks = abilitySystem:getActiveEffectStacks("State." .. State.Weak)
-        local poisonStacks = abilitySystem:getActiveEffectStacks("State." .. State.Poisoned)
+        local weakStacks = abilitySystem:getActiveEffectStacks(GameplayConstants.STATE_PREFIX .. State.Weak)
+        local poisonStacks = abilitySystem:getActiveEffectStacks(GameplayConstants.STATE_PREFIX .. State.Poisoned)
         local stackSignature = createSignature(weakStacks, poisonStacks)
         if self._stackSignature ~= stackSignature then
             self._stackSignature = stackSignature

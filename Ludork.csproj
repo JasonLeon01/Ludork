@@ -53,8 +53,7 @@
     <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="THIRD_PARTY_NOTICES_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\THIRD_PARTY_NOTICES*.md" TargetPath="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Licenses\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
@@ -139,6 +138,20 @@
       BeforeTargets="ComputeFilesToPublish"
       Condition="'$(DesignTimeBuild)' != 'true'">
     <RemoveDir Directories="$(PublishDir)docs;$(PublishDir)Page" />
+  </Target>
+
+  <Target
+      Name="WriteLegalResourceOutput"
+      AfterTargets="Build"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="&quot;$(LudorkScriptTools)&quot; legal-resources editor &quot;$(MSBuildProjectDirectory)&quot; &quot;$(TargetDir)/.&quot;" />
+  </Target>
+
+  <Target
+      Name="WriteLegalResourcePublishOutput"
+      AfterTargets="Publish"
+      Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="&quot;$(LudorkScriptTools)&quot; legal-resources editor &quot;$(MSBuildProjectDirectory)&quot; &quot;$(PublishDir)/.&quot;" />
   </Target>
 
   <Target

@@ -1,4 +1,5 @@
 #include "Instance/InstanceRuntime.hpp"
+#include "Detail/RuntimeState.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
@@ -28,7 +29,7 @@ void validateNativeInstanceShape(sol::state_view lua,
             "Class with native bases must return its composite instance");
     }
     const sol::table fields = class_native::getUserFields(lua, instance, false);
-    const sol::object rawClass = fields.raw_get<sol::object>("__class");
+    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
     if (!rawClass.is<sol::table>() ||
         !objectsRawEqual(rawClass.as<sol::table>(), classTable)) {
         throw std::runtime_error("Composite instance belongs to another class");
@@ -59,7 +60,7 @@ bool compositeBelongsToClass(sol::state_view lua, const sol::object& instance,
     }
     const sol::object rawClass =
         class_native::getUserFields(lua, instance, false)
-            .raw_get<sol::object>("__class");
+            .raw_get<sol::object>(CLASS_FIELD);
     return rawClass.is<sol::table>() &&
            objectsRawEqual(rawClass.as<sol::table>(), classTable);
 }

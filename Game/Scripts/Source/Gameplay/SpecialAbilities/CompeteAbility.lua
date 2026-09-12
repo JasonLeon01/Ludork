@@ -1,5 +1,6 @@
 local GlobalCore = require("GlobalCore")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -10,8 +11,8 @@ local CompeteAbility = {}
 
 function CompeteAbility:init()
     GameplayAbility.init(self, {})
-    self.id = "Special." .. Special.Compete
-    self.triggerTags = { "Event.Combat.ResolveAttack" }
+    self.id = GameplayConstants.SPECIAL_PREFIX .. Special.Compete
+    self.triggerTags = { GameplayConstants.COMBAT_RESOLVE_ATTACK_EVENT }
 end
 
 ---@diagnostic disable-next-line: unused, Gameplay Ability override intentionally ignores its receiver

@@ -1,5 +1,7 @@
 #include <GameMapRenderer.hpp>
+#include <Graphics/HueConstants.hpp>
 #include <Gameplay/Tilemap/Tilemap.hpp>
+#include <Light.hpp>
 
 #include "GameMapRenderer/GameMapRendererImpl.hpp"
 
@@ -24,9 +26,9 @@ GameMapRenderer::GameMapRenderer(GameMapBase& map,
                                  std::shared_ptr<Camera> camera,
                                  const std::vector<std::string>& layerNames,
                                  int coverAlpha, bool previewOnly)
-    : impl_(std::make_unique<GameMapRendererImpl>(map, std::move(tilemap),
-                                                  std::move(camera), layerNames,
-                                                  coverAlpha, previewOnly)) {}
+    : impl_(std::make_unique<GameMapRendererImpl>(
+          map, std::move(tilemap), std::move(camera), layerNames, coverAlpha,
+          previewOnly, static_cast<std::size_t>(Light::MAX_SHADER_LIGHTS))) {}
 
 GameMapRenderer::~GameMapRenderer() = default;
 
@@ -75,20 +77,22 @@ std::shared_ptr<sf::Shader> GameMapRenderer::getMaterialShader() const {
 GameMapRendererImpl::GameMapRendererImpl(
     GameMapBase& map, std::shared_ptr<Tilemap> tilemap,
     std::shared_ptr<Camera> camera, const std::vector<std::string>& layerNames,
-    int coverAlpha, bool previewOnly)
+    int coverAlpha, bool previewOnly, std::size_t maximumShaderLights)
     : map(map),
       tilemap(std::move(tilemap)),
       camera(std::move(camera)),
       layerNames(layerNames),
       coverAlpha(static_cast<std::uint8_t>(std::clamp(coverAlpha, 0, 255))),
-      previewOnly(previewOnly) {
+      previewOnly(previewOnly),
+      maximumShaderLights(maximumShaderLights) {
     if (!this->tilemap) {
         throw std::invalid_argument("GameMapRenderer tilemap must not be nil");
     }
     if (!sf::Shader::isAvailable()) {
         return;
     }
-    actorHueShader = loadFragmentShader("/Game/Assets/Shaders/Global/Hue.frag");
+    actorHueShader =
+        loadFragmentShader(ludork::engine::graphics::HueShaderPath);
     if (previewOnly) {
         return;
     }

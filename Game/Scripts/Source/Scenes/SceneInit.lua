@@ -7,13 +7,10 @@ local Data = require("Source.Data")
 local SceneInitAnimationCache = require("Source.Scenes.SceneInitAnimationCache")
 local SceneInitController = require("Source.Scenes.SceneInit.Controller")
 
+local ResourceFileConstants = Engine.ResourceFileConstants
 local GlobalSystem = GlobalCore.System
 local SceneBase = GlobalCore.SceneBase
 
-local ANIMATION_SOURCE_SUFFIX = ".json"
-local ENCRYPTED_DATA_SUFFIX = ".ldc"
-local ANIMATION_CACHE_SUFFIX = ".anim.json"
-local ENCRYPTED_ANIMATION_CACHE_SUFFIX = ".anim.ldc"
 local ANIMATION_PROGRESS_WEIGHT = 0.5
 
 ---@class Source.Scenes.SceneInit.SceneInit
@@ -82,49 +79,49 @@ function Scene:loadGameData()
         {
             category = "animations",
             root = Engine.getAnimationCacheRoot(),
-            suffix = ANIMATION_CACHE_SUFFIX,
+            suffix = ResourceFileConstants.ANIMATION_CACHE_SUFFIX,
             recursive = true,
             required = true
         },
         {
             category = "commonFunctions",
             root = os.path.join(".", "Data", "CommonFunctions"),
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = false,
             required = true
         },
         {
             category = "tilesets",
             root = os.path.join(".", "Data", "Tilesets"),
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = false,
             required = true
         },
         {
             category = "autoTiles",
             root = os.path.join(".", "Data", "AutoTiles"),
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = false,
             required = false
         },
         {
             category = "general",
             root = os.path.join(".", "Data", "General"),
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = false,
             required = true
         },
         {
             category = "curves",
             root = os.path.join(".", "Data", "Curves"),
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = true,
             required = false
         },
         {
             category = "textConfigs",
             root = os.path.join(".", "Data", "TextConfigs"),
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = true,
             required = true
         }
@@ -177,7 +174,7 @@ end
 ---@param cacheRoot  string
 function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
     local relativePath = item.relativePath
-    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_SOURCE_SUFFIX)
+    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ResourceFileConstants.DATA_EXTENSION)
     local encryptedSource = item.encryptedData == true
     assert(bool(sourceKey), "Animation source filename must not be empty")
     assert(not self._animationSourceKeys[sourceKey], "Duplicate animation source key: " .. sourceKey)
@@ -187,10 +184,10 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
     assert(payload.type == "animation", "Animation source has invalid type: " .. relativePath)
     self._animationSourceKeys[sourceKey] = true
 
-    local sourceRelativePath = encryptedSource and sourceKey .. ENCRYPTED_DATA_SUFFIX or relativePath
+    local sourceRelativePath = encryptedSource and sourceKey .. ResourceFileConstants.ENCRYPTED_DATA_EXTENSION or relativePath
     local sourcePath = os.path.join(sourceRoot, sourceRelativePath)
     local cacheRelativePath = sourceKey
-        .. (encryptedSource and ENCRYPTED_ANIMATION_CACHE_SUFFIX or ANIMATION_CACHE_SUFFIX)
+        .. (encryptedSource and ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX or ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
     local cachePath = os.path.join(cacheRoot, cacheRelativePath)
     local frameAssets = SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
     if SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
@@ -208,7 +205,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
         Engine.writeJSON(cachePath, compressed)
     end
     local alternateCachePath = os.path.join(
-        cacheRoot, sourceKey .. (encryptedSource and ANIMATION_CACHE_SUFFIX or ENCRYPTED_ANIMATION_CACHE_SUFFIX)
+        cacheRoot, sourceKey .. (encryptedSource and ResourceFileConstants.ANIMATION_CACHE_SUFFIX or ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX)
     )
     if os.path.isfile(alternateCachePath) then
         os.removeFile(alternateCachePath)
@@ -225,8 +222,8 @@ function Scene:compressAnimations()
         {
             category = "animationSources",
             root = sourceRoot,
-            suffix = ANIMATION_SOURCE_SUFFIX,
-            excludeSuffix = ANIMATION_CACHE_SUFFIX,
+            suffix = ResourceFileConstants.DATA_EXTENSION,
+            excludeSuffix = ResourceFileConstants.ANIMATION_CACHE_SUFFIX,
             recursive = true,
             required = true
         }
@@ -262,11 +259,11 @@ function Scene:_removeOrphanedAnimation(item)
         return false
     end
     local relativePath = item.relativePath
-    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ANIMATION_CACHE_SUFFIX)
+    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
     if self._animationSourceKeys[sourceKey] then
         return false
     end
-    local cacheRelativePath = item.encryptedData == true and sourceKey .. ENCRYPTED_ANIMATION_CACHE_SUFFIX
+    local cacheRelativePath = item.encryptedData == true and sourceKey .. ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX
         or relativePath
     local cachePath = os.path.join(Engine.getAnimationCacheRoot(), cacheRelativePath)
     os.removeFile(cachePath)

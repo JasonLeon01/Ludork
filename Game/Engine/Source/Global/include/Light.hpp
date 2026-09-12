@@ -12,6 +12,9 @@ using LightData = std::unordered_map<std::string, LightValue>;
 ////////////////////////////////////////////////////////////
 BIND_CLASS(copyable = true)
 struct Light {
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const int MAX_SHADER_LIGHTS;
+
     BIND_PROPERTY(default = {0.0, 0.0})
     sf::Vector2f position{0.0f, 0.0f};
 

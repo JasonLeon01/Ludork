@@ -1,8 +1,8 @@
 # Ludork 1.0.0 许可证与第三方声明
 
-Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该许可证适用于 Ludork 软件，不会替代下列组件和资产各自的许可证。
+Ludork 软件本体适用 [`LICENSE.md`](../LICENSE.md) 中的 Zlib 许可证。该许可证适用于 Ludork 软件，不会替代下列组件和资产各自的许可证。
 
-本声明覆盖 Ludork 1.0.0 的 Windows x64、macOS Apple Silicon 自包含编辑器包、随附工程模板，以及这些模板原样带入生成游戏包的 Ludork runtime 与资产材料。工程自行添加的代码和资产需要另行提供声明。许可证完整正文见 [`Licenses` 索引](Licenses/README_zh_CN.md)；C++ Source 模板还会在第三方源码树中保留原始声明。
+本声明覆盖 Ludork 1.0.0 的 Windows x64、macOS Apple Silicon 自包含编辑器包、随附工程模板，以及这些模板原样带入生成游戏包的 Ludork runtime 与资产材料。工程自行添加的代码和资产需要另行提供声明。许可证完整正文见 [`Licenses` 索引](../Licenses/README_zh_CN.md)；C++ Source 模板还会在第三方源码树中保留原始声明。
 
 ## 编辑器与托管运行时
 

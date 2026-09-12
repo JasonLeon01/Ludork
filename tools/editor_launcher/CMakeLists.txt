@@ -33,6 +33,9 @@ add_executable(LudorkEditorLauncher WIN32
     Launcher.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/Launcher.rc")
 target_compile_features(LudorkEditorLauncher PRIVATE cxx_std_20)
+get_filename_component(LUDORK_REPOSITORY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+target_include_directories(LudorkEditorLauncher PRIVATE
+    "${LUDORK_REPOSITORY_ROOT}/Game/Engine/PlatformHosts/Common/include")
 target_compile_definitions(LudorkEditorLauncher PRIVATE
     UNICODE _UNICODE _WIN32_WINNT=0x0A00)
 target_link_libraries(LudorkEditorLauncher PRIVATE User32)

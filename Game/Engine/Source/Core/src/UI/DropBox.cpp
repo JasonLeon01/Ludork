@@ -5,6 +5,7 @@
 #include "DropBox/PopupImpl.hpp"
 #include "DropBox/VisualImpl.hpp"
 #include "Interaction/InputArguments.hpp"
+#include "Interaction/ScrollConstants.hpp"
 
 #include <Input/InputService.hpp>
 #include <EngineState.hpp>
@@ -32,8 +33,6 @@ constexpr float RepeatInterval = 0.1f;
 constexpr float ItemHorizontalInset = 32.0f;
 constexpr float CollapsedTextInset = 8.0f;
 constexpr float ExpandedContentTop = 16.0f;
-constexpr float WheelScrollResponse = 18.0f;
-constexpr float WheelScrollEpsilon = 0.01f;
 constexpr float GeometryEpsilon = 0.001f;
 
 #if defined(LUDORK_MOBILE)
@@ -520,13 +519,15 @@ void DropBox::updateWheelScroll(float deltaTime) const {
         return;
     }
     const float distance = *scrollTargetOffset_ - scrollOffset_;
-    if (std::abs(distance) <= WheelScrollEpsilon) {
+    if (std::abs(distance) <=
+        ludork::engine::ui_interaction::WheelScrollEpsilon) {
         setScrollOffset(*scrollTargetOffset_);
         scrollTargetOffset_.reset();
         return;
     }
     setScrollOffset(ludork::engine::drop_box_impl::advanceScrollOffset(
-        scrollOffset_, *scrollTargetOffset_, deltaTime, WheelScrollResponse));
+        scrollOffset_, *scrollTargetOffset_, deltaTime,
+        ludork::engine::ui_interaction::WheelScrollResponse));
 }
 
 void DropBox::ensureCursorVisible() const {

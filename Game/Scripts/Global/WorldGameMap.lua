@@ -20,6 +20,7 @@ local PanoramaController = GlobalCore.PanoramaController
 local WorldRegionState = GlobalCore.WorldRegionState
 local WorldStreamingState = GlobalCore.WorldStreamingState
 
+local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 local SIGNIFICANT_PUBLISH_OVERRUN_MILLISECONDS = 4.0
 local NON_ACTIVE_CACHE_REGION_LIMIT = 32
 local NON_ACTIVE_CACHE_BYTE_LIMIT = 256 * 1024 * 1024
@@ -983,7 +984,7 @@ function WorldGameMap:_pumpRegionBackgroundBuilds(deadline)
 end
 
 function WorldGameMap:_drainRegionPublish(region)
-    return WorldGameMapRegionPublishing.DrainRegionPublish(self, region)
+    return WorldGameMapRegionPublishing.DrainRegionPublish(self, region, STREAM_PUBLISH_BUDGET_SECONDS)
 end
 
 function WorldGameMap:_pumpRegionPublishing(deadline)
@@ -1051,7 +1052,7 @@ function WorldGameMap:_consumeStreamingItem(item)
 end
 
 function WorldGameMap:_pumpStreaming()
-    return WorldGameMapStreaming.PumpStreaming(self)
+    return WorldGameMapStreaming.PumpStreaming(self, STREAM_PUBLISH_BUDGET_SECONDS)
 end
 
 function WorldGameMap:_queuePendingWorldActorRehome(root, destinationRegion, sourceRegion, position, touchedRegions)

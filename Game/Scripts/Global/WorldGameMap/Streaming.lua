@@ -6,7 +6,6 @@ local WorldRegionDemand = GlobalCore.WorldRegionDemand
 local WorldRegionState = GlobalCore.WorldRegionState
 
 local STREAM_BATCH_SIZE = 4
-local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
 
 local WorldGameMapStreaming = {}
 
@@ -272,11 +271,12 @@ function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
 end
 
 ---@param self WorldGameMapImplState
-function WorldGameMapStreaming.PumpStreaming(self)
+---@param publishBudgetSeconds number
+function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
     if self._worldDisposed then
         return
     end
-    local deadline = perfCounter() + STREAM_PUBLISH_BUDGET_SECONDS
+    local deadline = perfCounter() + publishBudgetSeconds
     self:_startStreamingBatch()
     self:_pumpRegionPublishing(deadline)
     while perfCounter() < deadline do

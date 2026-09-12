@@ -31,6 +31,7 @@ ludork_apply_msvc_debug_source_options(
 
 add_library(LudorkStandard ${LUDORK_RUNTIME_LIBRARY_TYPE} ${LUDORK_STANDARD_SOURCES})
 add_library(Ludork::Standard ALIAS LudorkStandard)
+target_link_libraries(LudorkStandard PRIVATE Ludork::RuntimeConstants)
 target_compile_features(LudorkStandard PUBLIC cxx_std_20)
 target_compile_definitions(LudorkStandard
     PUBLIC LUDORK_WITH_LUA=$<BOOL:${LUDORK_WITH_LUA}>
@@ -56,7 +57,13 @@ endif()
 set_target_properties(LudorkStandard PROPERTIES
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN ON
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ON
     WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+if(MINGW)
+    set_target_properties(LudorkStandard PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+endif()
+ludork_enable_release_dead_strip(LudorkStandard)
 ludork_set_runtime_output(LudorkStandard)
 
 if(LUDORK_WITH_LUA)

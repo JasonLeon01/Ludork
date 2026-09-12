@@ -7,6 +7,7 @@ local LocaleCore = require("Source.Locale.Core")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Teleporter = require("Source.Teleporter")
 local RegionDict = require("Source.Configs.RegionDict")
+local MapConstants = require("Source.Configs.MapConstants")
 
 local Node = Engine.Node
 local GlobalSystem = GlobalCore.System
@@ -473,14 +474,14 @@ function Scene.GotoMapAndPos(self, mapPath, pos, blockTransition)
             assert(targetPosition.x >= 0 and targetPosition.y >= 0
                     and targetPosition.x < worldSize.x and targetPosition.y < worldSize.y,
                 "Current world position is outside the destination world")
-        elseif targetPosition == nil and (bool(isChildEntry) or os.path.basename(targetMap) == "_world.json") then
+        elseif targetPosition == nil and (bool(isChildEntry) or os.path.basename(targetMap) == MapConstants.WORLD_MANIFEST_FILE) then
             targetMap, targetPosition = self._mapBuilder:resolveMapDestination(
                 mapPath, self:_getCurrentRegionMap(), self.player:getMapPosition()
             )
         end
     end
     ---@cast targetMap string
-    local isWorldTarget = bool(targetMap) and os.path.basename(targetMap) == "_world.json"
+    local isWorldTarget = bool(targetMap) and os.path.basename(targetMap) == MapConstants.WORLD_MANIFEST_FILE
     if isWorldTarget and not blockTransition and not GlobalSystem.isTransitionBackgroundFrozen() then
         assert(targetPosition ~= nil, "World map transfer requires a resolved target position: " .. targetMap)
         self:_queueWorldTransfer(targetMap, targetPosition)

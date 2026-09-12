@@ -22,11 +22,6 @@ namespace ludork::standard::container_runtime::detail {
 inline constexpr const char* ORIGINAL_IPAIRS_KEY =
     "LudorkStandard.ContainerOriginalIpairs";
 inline constexpr const char* LESS_THAN_KEY = "LudorkStandard.ContainerLessThan";
-inline constexpr const char* JSON_NULL_KEY = "LuaSF.JsonNullSentinel";
-inline constexpr const char* JSON_ARRAY_METATABLE_KEY =
-    "LuaSF.JsonArrayMetatable";
-inline constexpr const char* JSON_EMPTY_ARRAY_METATABLE_KEY =
-    "LuaSF.JsonEmptyArrayMetatable";
 inline constexpr std::uint64_t HASH_OFFSET = 1469598103934665603ULL;
 inline constexpr std::uint64_t HASH_PRIME = 1099511628211ULL;
 

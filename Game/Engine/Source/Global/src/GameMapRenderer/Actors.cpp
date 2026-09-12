@@ -1,4 +1,5 @@
 #include "GameMapRendererImpl.hpp"
+#include <Graphics/HueConstants.hpp>
 #include <Gameplay/TileLayer.hpp>
 
 #include <algorithm>
@@ -7,18 +8,18 @@
 
 namespace {
 
-constexpr float HueEpsilon = 0.0001f;
-
 float normaliseHue(float hue) {
-    float result = std::fmod(hue, 360.0f);
+    float result = std::fmod(hue, ludork::engine::graphics::HuePeriod);
     if (result < 0.0f) {
-        result += 360.0f;
+        result += ludork::engine::graphics::HuePeriod;
     }
     return result;
 }
 
 bool neutralHue(float hue) {
-    return hue <= HueEpsilon || std::abs(hue - 360.0f) <= HueEpsilon;
+    return hue <= ludork::engine::graphics::HueEpsilon ||
+           std::abs(hue - ludork::engine::graphics::HuePeriod) <=
+               ludork::engine::graphics::HueEpsilon;
 }
 
 }  // namespace

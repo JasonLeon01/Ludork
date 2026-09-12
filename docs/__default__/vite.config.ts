@@ -12,7 +12,11 @@ const PROJECT_DIRECTORY = fileURLToPath(new URL('.', import.meta.url))
 const DOCS_DIRECTORY = resolve(PROJECT_DIRECTORY, '..')
 const LANGUAGE_DIRECTORIES = ['en_GB', 'zh_CN'] as const
 const PUBLIC_DOCS_DIRECTORIES = ['_images', ...LANGUAGE_DIRECTORIES] as const
-const ABOUT_FILES = LANGUAGE_DIRECTORIES.map((language) => `About_${language}.md`)
+const PUBLIC_ROOT_DOCUMENTS = [
+  ...LANGUAGE_DIRECTORIES.map((language) => `About_${language}.md`),
+  'THIRD_PARTY_NOTICES.md',
+  'THIRD_PARTY_NOTICES_zh_CN.md',
+]
 
 type DocsManifest = Record<(typeof LANGUAGE_DIRECTORIES)[number], string[]>
 
@@ -47,14 +51,14 @@ function readDocsManifest(): DocsManifest {
 
 function isDocsFile(filename: string): boolean {
   const relativePath = relative(DOCS_DIRECTORY, filename)
-  return ABOUT_FILES.includes(relativePath) || PUBLIC_DOCS_DIRECTORIES.some((directory) =>
+  return PUBLIC_ROOT_DOCUMENTS.includes(relativePath) || PUBLIC_DOCS_DIRECTORIES.some((directory) =>
     relativePath === directory || relativePath.startsWith(`${directory}${sep}`),
   )
 }
 
-function serveAbout(request: IncomingMessage, response: ServerResponse, next: () => void): void {
+function serveRootDocument(request: IncomingMessage, response: ServerResponse, next: () => void): void {
   const filename = request.url?.split('?')[0].replace(/^\//, '') ?? ''
-  if (!ABOUT_FILES.includes(filename)) {
+  if (!PUBLIC_ROOT_DOCUMENTS.includes(filename)) {
     next()
     return
   }
@@ -84,8 +88,8 @@ function ludorkDocsPlugin(): Plugin {
       return `export default ${JSON.stringify(readDocsManifest())}`
     },
     configureServer(server) {
-      server.middlewares.use(serveAbout)
-      server.watcher.add(ABOUT_FILES.map((filename) => resolve(DOCS_DIRECTORY, filename)))
+      server.middlewares.use(serveRootDocument)
+      server.watcher.add(PUBLIC_ROOT_DOCUMENTS.map((filename) => resolve(DOCS_DIRECTORY, filename)))
       for (const directory of PUBLIC_DOCS_DIRECTORIES) {
         const source = resolve(DOCS_DIRECTORY, directory)
         server.watcher.add(source)
@@ -93,7 +97,7 @@ function ludorkDocsPlugin(): Plugin {
       }
     },
     configurePreviewServer(server) {
-      server.middlewares.use(serveAbout)
+      server.middlewares.use(serveRootDocument)
       for (const directory of PUBLIC_DOCS_DIRECTORIES) {
         server.middlewares.use(
           `/${directory}`,
@@ -126,6 +130,7 @@ export default defineConfig({
         home: resolve(PROJECT_DIRECTORY, 'index.html'),
         docs: resolve(PROJECT_DIRECTORY, 'docs/index.html'),
         about: resolve(PROJECT_DIRECTORY, 'about/index.html'),
+        notices: resolve(PROJECT_DIRECTORY, 'notices/index.html'),
       },
     },
   },

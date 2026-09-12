@@ -1,10 +1,8 @@
 local Player = require("Source.Player")
 local Context = require("Source.NodeFunctions.Context")
+local MovementLatentOutputs = require("Source.Configs.MovementLatentOutputs")
 
 local Movement = {}
-
-local LATENT_STARTED = 0
-local LATENT_FINISHED = 1
 
 ---@param actor       Engine.Actor
 ---@param destination sf.Vector2i
@@ -70,11 +68,11 @@ end
 function MovementCondition:poll()
     if not self._startedEmitted then
         self._startedEmitted = true
-        return { LATENT_STARTED }
+        return { MovementLatentOutputs.STARTED }
     end
     if isMovementFinished(self._actor) then
         self._finished = true
-        return { LATENT_FINISHED }
+        return { MovementLatentOutputs.FINISHED }
     end
     return {}
 end

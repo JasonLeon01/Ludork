@@ -93,8 +93,8 @@ sol::table nativeCallbacks(sol::state_view lua, const sol::table& nativeType,
         sol::stack::get<sol::object>(lua.lua_state(), -1);
     lua_pop(lua.lua_state(), 1);
     result.raw_set("__self", selfResolver);
-    const sol::object rawNames =
-        rawMember(lua, nativeType, sol::make_object(lua, "__classCallbacks"));
+    const sol::object rawNames = rawMember(
+        lua, nativeType, sol::make_object(lua, CLASS_CALLBACKS_FIELD));
     if (!rawNames.is<sol::table>()) {
         return result;
     }
@@ -130,7 +130,7 @@ sol::object invokeNativeFactory(sol::state_view lua,
                                 const sol::object& instance,
                                 const sol::object& rawArguments) {
     sol::object rawFactory =
-        rawMember(lua, nativeType, sol::make_object(lua, "__classFactory"));
+        rawMember(lua, nativeType, sol::make_object(lua, CLASS_FACTORY_FIELD));
     const bool isClassFactory = rawFactory.is<sol::protected_function>();
     if (!isClassFactory) {
         rawFactory = rawMember(lua, nativeType, sol::make_object(lua, "new"));
@@ -331,7 +331,7 @@ sol::object constructNativeRoot(sol::state_view lua,
     const sol::object rawObjects =
         fields.raw_get<sol::object>(protocol::NATIVE_OBJECTS_FIELD);
     const sol::object rawInstanceId =
-        fields.raw_get<sol::object>("__instanceId");
+        fields.raw_get<sol::object>(INSTANCE_ID_FIELD);
     if (!rawObjects.is<sol::table>() || !rawInstanceId.is<std::size_t>()) {
         throw std::runtime_error(
             "Composite instance has incomplete native state");
@@ -385,7 +385,7 @@ int nativeBaseInitializer(lua_State* state) {
                 "Native base initializers may only run during class "
                 "construction");
         }
-        const sol::object rawClass = fields.raw_get<sol::object>("__class");
+        const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
         if (!rawClass.is<sol::table>()) {
             throw std::runtime_error("Composite instance has no class");
         }
@@ -402,12 +402,12 @@ int nativeBaseInitializer(lua_State* state) {
                 "Native initializer target is not an exact class root");
         }
         const sol::object rawInitialized =
-            fields.raw_get<sol::object>("__classInitializedRoots");
+            fields.raw_get<sol::object>(CLASS_INITIALIZED_ROOTS_FIELD);
         sol::table initialized = rawInitialized.is<sol::table>()
                                      ? rawInitialized.as<sol::table>()
                                      : lua.create_table();
         if (!rawInitialized.is<sol::table>()) {
-            fields.raw_set("__classInitializedRoots", initialized);
+            fields.raw_set(CLASS_INITIALIZED_ROOTS_FIELD, initialized);
         }
         const sol::object alreadyInitialized =
             initialized.raw_get<sol::object>(nativeType);
@@ -443,7 +443,7 @@ int nativeBaseInitializer(lua_State* state) {
             return 0;
         }
         const sol::object rawInstanceId =
-            fields.raw_get<sol::object>("__instanceId");
+            fields.raw_get<sol::object>(INSTANCE_ID_FIELD);
         if (!rawInstanceId.is<std::size_t>()) {
             throw std::runtime_error(
                 "Composite instance has no native instance id");
@@ -491,7 +491,7 @@ int nativeBaseInitializer(lua_State* state) {
 
 void ensureNativeInitializer(sol::state_view lua, sol::table nativeType) {
     const sol::object rawFactory =
-        rawMember(lua, nativeType, sol::make_object(lua, "__classFactory"));
+        rawMember(lua, nativeType, sol::make_object(lua, CLASS_FACTORY_FIELD));
     const sol::object rawNew =
         rawMember(lua, nativeType, sol::make_object(lua, "new"));
     if (!rawFactory.is<sol::protected_function>() &&

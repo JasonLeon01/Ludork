@@ -1,4 +1,5 @@
 #include "Detail/TypeQueries.hpp"
+#include "RuntimeState.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
@@ -31,7 +32,8 @@ bool isCompositeInstance(sol::state_view lua, const sol::object& instance) {
 sol::object scriptClassOf(sol::state_view lua, const sol::object& value) {
     if (value.get_type() == sol::type::table) {
         const sol::table tableValue = value.as<sol::table>();
-        const sol::object rawClass = tableValue.raw_get<sol::object>("__class");
+        const sol::object rawClass =
+            tableValue.raw_get<sol::object>(CLASS_FIELD);
         if (rawClass.is<sol::table>()) {
             return rawClass;
         }
@@ -45,7 +47,7 @@ sol::object scriptClassOf(sol::state_view lua, const sol::object& value) {
         value.push();
         const int valueIndex = lua_absindex(state, -1);
         if (lua_getiuservalue(state, valueIndex, 1) == LUA_TTABLE) {
-            lua_getfield(state, -1, "__class");
+            lua_getfield(state, -1, CLASS_FIELD);
             const sol::object rawClass =
                 sol::stack::get<sol::object>(state, -1);
             lua_pop(state, 3);
@@ -62,7 +64,7 @@ sol::object scriptClassOf(sol::state_view lua, const sol::object& value) {
 sol::object typeInfoOf(sol::state_view lua, const sol::table& nativeType) {
     return class_native::getObjectMetatable(lua,
                                             sol::make_object(lua, nativeType))
-        .raw_get<sol::object>("__type");
+        .raw_get<sol::object>(protocol::CLASS_TYPE_FIELD);
 }
 
 namespace {
@@ -92,8 +94,9 @@ sol::object nativeTypeOf(sol::state_view lua, const sol::object& value) {
     if (value.get_type() != sol::type::userdata) {
         return nilObject(lua);
     }
-    const sol::object rawTypeInfo = class_native::getObjectMetatable(lua, value)
-                                        .raw_get<sol::object>("__type");
+    const sol::object rawTypeInfo =
+        class_native::getObjectMetatable(lua, value)
+            .raw_get<sol::object>(protocol::CLASS_TYPE_FIELD);
     if (!rawTypeInfo.is<sol::table>()) {
         return nilObject(lua);
     }

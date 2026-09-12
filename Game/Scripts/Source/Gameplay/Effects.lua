@@ -1,10 +1,11 @@
 local GlobalCore = require("GlobalCore")
-local GameplayEffect = GlobalCore.GameplayEffect
-local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local Data = require("Source.Data")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
+local GameplayEffect = GlobalCore.GameplayEffect
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local Effects = {}
 
 function Effects.CreateInstantModifierSpec(effectID, attribute, operation, magnitude, eventData)
@@ -38,7 +39,7 @@ function Effects.CreateEquipmentEffect(equipID, slot, attrPlus)
         return left.attribute < right.attribute
     end)
     return GameplayEffect.new({
-        id = "Equipment." .. slot .. "." .. equipID,
+        id = GameplayConstants.EQUIPMENT_PREFIX .. slot .. "." .. equipID,
         durationPolicy = "Infinite",
         stackingPolicy = "None",
         modifiers = modifiers,
@@ -51,7 +52,7 @@ function Effects.CreateStateEffect(stateID)
     local stateData = Data.GetGeneralStateData(stateID)
     local modifiers = {}
     local grantedAbilities = {
-        GeneralDataGraphAbility.new("State", stateID, "onWalk", { "Event.Movement.Step" }),
+        GeneralDataGraphAbility.new("State", stateID, "onWalk", { GameplayConstants.MOVEMENT_STEP_EVENT }),
         GeneralDataGraphAbility.new("State", stateID, "onHookTriggered", { "Event.State.Trigger." .. stateID })
     }
     if stateID == "Weak" then
@@ -63,11 +64,11 @@ function Effects.CreateStateEffect(stateID)
         grantedAbilities[#grantedAbilities + 1] = SpecialAbilities.CreatePoisonedAbility()
     end
     return GameplayEffect.new({
-        id = "State." .. stateID,
+        id = GameplayConstants.STATE_PREFIX .. stateID,
         durationPolicy = "Infinite",
         stackingPolicy = bool(stateData.stackable) and "Aggregate" or "None",
         modifiers = modifiers,
-        grantedTags = { "State." .. stateID },
+        grantedTags = { GameplayConstants.STATE_PREFIX .. stateID },
         grantedAbilities = grantedAbilities,
         data = { stateID = stateID }
     })
@@ -83,12 +84,12 @@ function Effects.CreateStateSpec(stateID, stacks, eventData)
     stacks = stacks or 1
     assert(math.type(stacks) == "integer" and stacks > 0, "State stacks must be positive")
     local effect = Effects.CreateStateEffect(stateID)
-    return GameplayEffectSpec.new(effect, eventData, stacks, "State." .. stateID)
+    return GameplayEffectSpec.new(effect, eventData, stacks, GameplayConstants.STATE_PREFIX .. stateID)
 end
 
 function Effects.RemoveState(target, stateID)
     local abilitySystem = target:getAbilitySystemComponent()
-    local handle = Effects.FindActiveEffectHandle(abilitySystem, "State." .. stateID)
+    local handle = Effects.FindActiveEffectHandle(abilitySystem, GameplayConstants.STATE_PREFIX .. stateID)
     if handle == nil then
         return false
     end
@@ -98,7 +99,7 @@ end
 function Effects.ReduceState(target, stateID, stacks)
     stacks = stacks or 1
     local abilitySystem = target:getAbilitySystemComponent()
-    local handle = Effects.FindActiveEffectHandle(abilitySystem, "State." .. stateID)
+    local handle = Effects.FindActiveEffectHandle(abilitySystem, GameplayConstants.STATE_PREFIX .. stateID)
     if handle == nil then
         return false
     end
@@ -111,7 +112,7 @@ function Effects.ClearStates(target)
     for _, activeEffect in ipairs(abilitySystem:getActiveGameplayEffects()) do
         local spec = assert(activeEffect.spec)
         local effect = assert(spec.effect)
-        if string.startsWith(effect.id, "State.") then
+        if string.startsWith(effect.id, GameplayConstants.STATE_PREFIX) then
             handles[#handles + 1] = activeEffect.handle
         end
     end

@@ -1,4 +1,5 @@
 #include <Runtime/AssetPath.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include <Utf8Path.hpp>
 
@@ -7,7 +8,8 @@
 
 namespace {
 
-constexpr std::string_view AssetPrefix = "/Game/Assets/";
+constexpr std::string_view AssetPrefix =
+    ludork::generated::resources::AssetPathPrefix;
 
 void validateSegment(const std::string_view segment,
                      const std::string& source) {
@@ -47,7 +49,7 @@ void validateGroup(const std::string_view group, const std::string& source) {
         }
     }
     if (group.find('/') != std::string_view::npos ||
-        folded.ends_with(".ldpak")) {
+        folded.ends_with(ludork::generated::resources::PackageExtension)) {
         throw std::invalid_argument("Invalid asset group in: " + source);
     }
 }

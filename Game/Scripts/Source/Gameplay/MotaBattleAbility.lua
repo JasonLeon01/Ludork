@@ -1,12 +1,12 @@
 local GlobalCore = require("GlobalCore")
-local GameplayAbility = GlobalCore.GameplayAbility
-local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
-local GameplayEventData = GlobalCore.GameplayEventData
 local Effects = require("Source.Gameplay.Effects")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
+local GameplayAbility = GlobalCore.GameplayAbility
+local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
+local GameplayEventData = GlobalCore.GameplayEventData
 local Special = GeneralEnum.Special
 
 ---@class Source.Gameplay.MotaBattleAbility: GlobalCore.GameplayAbility
@@ -25,7 +25,7 @@ local function resolveAttack(attacker, defender)
     local abilitySystem = attacker:getAbilitySystemComponent()
     return math.max(
         0,
-        dispatchValue(abilitySystem, "Event.Combat.ResolveAttack", attacker, defender, {
+        dispatchValue(abilitySystem, GameplayConstants.COMBAT_RESOLVE_ATTACK_EVENT, attacker, defender, {
             value = abilitySystem:getNumericAttribute("ATK"),
             opponentAbilitySystem = defender:getAbilitySystemComponent()
         })
@@ -36,7 +36,7 @@ local function resolveDefense(defender, attacker, attackerATK)
     local abilitySystem = defender:getAbilitySystemComponent()
     return math.max(
         0,
-        dispatchValue(abilitySystem, "Event.Combat.ResolveDefense", defender, attacker, {
+        dispatchValue(abilitySystem, GameplayConstants.COMBAT_RESOLVE_DEFENSE_EVENT, defender, attacker, {
             value = abilitySystem:getNumericAttribute("DEF"),
             attackerATK = attackerATK
         })
@@ -44,9 +44,15 @@ local function resolveDefense(defender, attacker, attackerATK)
 end
 
 local function resolveHitCount(attacker, defender)
-    return dispatchValue(attacker:getAbilitySystemComponent(), "Event.Combat.ResolveHitCount", attacker, defender, {
-        value = 1
-    })
+    return dispatchValue(
+        attacker:getAbilitySystemComponent(),
+        GameplayConstants.COMBAT_RESOLVE_HIT_COUNT_EVENT,
+        attacker,
+        defender,
+        {
+            value = 1
+        }
+    )
 end
 
 function MotaBattleAbility:init()
@@ -64,7 +70,7 @@ local function resolveBattleRules(enemy, player, counterDamage)
         enemyAbilitySystem = enemy:getAbilitySystemComponent()
     }
     enemy:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new(
-        enemy, player, SpecialAbilities.BATTLE_RULES_EVENT, payload
+        enemy, player, GameplayConstants.BATTLE_RULES_EVENT, payload
     ))
     return payload
 end
@@ -84,13 +90,13 @@ function MotaBattleAbility.CalculateDamagePerRound(attacker, defender)
     local defenderDEF = resolveDefense(defender, attacker, attackerATK)
     local payload = { attackerATK = attackerATK, defenderDEF = defenderDEF }
     attacker:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new(
-        attacker, defender, "Event.Combat.ResolveDamage", payload
+        attacker, defender, GameplayConstants.COMBAT_RESOLVE_DAMAGE_EVENT, payload
     ))
     local hitCount = resolveHitCount(attacker, defender)
     local damage = math.max(0, payload.attackerATK - payload.defenderDEF) * hitCount
     local incomingPayload = { value = damage }
     defender:getAbilitySystemComponent():handleGameplayEvent(GameplayEventData.new(
-        attacker, defender, "Event.Combat.ResolveIncomingDamage", incomingPayload
+        attacker, defender, GameplayConstants.COMBAT_RESOLVE_INCOMING_DAMAGE_EVENT, incomingPayload
     ))
     return incomingPayload.value, {
             attackerATK = payload.attackerATK,
@@ -171,7 +177,7 @@ function MotaBattleAbility.CalculateCriticalValue(enemy, player)
     if attackDamage >= enemy.attributes.MAXHP then
         return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.NOT_NEEDED))
     end
-    if enemy:getAbilitySystemComponent():hasMatchingGameplayTag("Special." .. Special.Hard) then
+    if enemy:getAbilitySystemComponent():hasMatchingGameplayTag(GameplayConstants.SPECIAL_PREFIX .. Special.Hard) then
         return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.UNKNOWN))
     end
     local hitCount = math.max(1, playerAttack.hitCount)

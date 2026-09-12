@@ -114,7 +114,7 @@ Ludork editor plug-ins are C# source packages that execute with the editor proce
 
 ## Licences and asset rights
 
-Ludork itself is distributed under the [Zlib License](LICENSE.md), including commercial use. Dependencies and redistributed tools remain under their respective terms; see the [Third-Party Notices](THIRD_PARTY_NOTICES.md) and the [complete licence-text index](Licenses/README.md).
+Ludork itself is distributed under the [Zlib License](LICENSE.md), including commercial use. Dependencies and redistributed tools remain under their respective terms; see the [Third-Party Notices](docs/THIRD_PARTY_NOTICES.md) and the [complete licence-text index](Licenses/README.md).
 
 Project templates carry the Ludork licence together with the applicable game-runtime, optional video-runtime and bundled-asset notices and complete local licence texts. Editor, managed-runtime, preview-host and build-tool notices remain in the editor distribution and are not copied into projects. Packaging preserves project legal materials when they are present, but Android APK and HarmonyOS HAP packaging do not treat them as format prerequisites or verify legal completeness. Preserve the applicable materials, add notices for your own dependencies and assets, and review the result before distribution.
 

@@ -1,4 +1,5 @@
 local GlobalCore = require("GlobalCore")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 
@@ -8,7 +9,7 @@ local PassiveTagAbility = {}
 ---@param specialID string
 function PassiveTagAbility:init(specialID)
     GameplayAbility.init(self, {})
-    self.id = "Special." .. specialID
+    self.id = GameplayConstants.SPECIAL_PREFIX .. specialID
 end
 
 return class(PassiveTagAbility, GameplayAbility)

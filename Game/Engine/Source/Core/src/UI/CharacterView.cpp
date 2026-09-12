@@ -1,4 +1,5 @@
 #include <UI/CharacterView.hpp>
+#include <Graphics/HueConstants.hpp>
 #include <UI/FunctionalImage.hpp>
 
 #include "Graphics/SpriteVisuals.hpp"
@@ -10,12 +11,6 @@
 #include <cmath>
 #include <stdexcept>
 #include <utility>
-
-namespace {
-
-constexpr float HueEpsilon = 0.0001f;
-
-}  // namespace
 
 CharacterView::CharacterView(std::shared_ptr<sf::Texture> texture,
                              std::optional<sf::IntRect> frameRect,
@@ -260,15 +255,17 @@ sf::Vector2u CharacterView::bufferSize(const sf::IntRect& frameRect) {
 }
 
 float CharacterView::normaliseHue(float hue) {
-    float result = std::fmod(hue, 360.0f);
+    float result = std::fmod(hue, ludork::engine::graphics::HuePeriod);
     if (result < 0.0f) {
-        result += 360.0f;
+        result += ludork::engine::graphics::HuePeriod;
     }
     return result;
 }
 
 bool CharacterView::neutralHue(float hue) {
-    return hue <= HueEpsilon || std::abs(hue - 360.0f) <= HueEpsilon;
+    return hue <= ludork::engine::graphics::HueEpsilon ||
+           std::abs(hue - ludork::engine::graphics::HuePeriod) <=
+               ludork::engine::graphics::HueEpsilon;
 }
 
 sf::Vector2f CharacterView::nonZeroScale(const sf::Vector2f& scale) {
@@ -294,7 +291,7 @@ void CharacterView::applyShaderPath() {
     hueShader_.reset();
     if (!neutralHue(hue_) && sf::Shader::isAvailable()) {
         hueShader_ = ludork::engine::sprite_visuals::loadShader(
-                         "/Game/Assets/Shaders/Global/Hue.frag")
+                         ludork::engine::graphics::HueShaderPath)
                          .shader;
     }
 }

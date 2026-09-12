@@ -4,7 +4,6 @@ import argparse
 import os
 import pathlib
 import shutil
-import struct
 import sys
 import tempfile
 import zlib
@@ -12,18 +11,24 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from .packaging_constants import FILE_BUFFER_SIZE, PACKAGE_CACHE_DIRECTORIES, RESOURCE_GROUPS, RESOURCE_PACKAGES, SCRIPT_GROUP
+from .packaging_constants import FILE_BUFFER_SIZE, PACKAGE_CACHE_DIRECTORIES
+from .resource_constants import (
+    PACKAGE_EXTENSION,
+    RESOURCE_GROUPS,
+    RESOURCE_PACKAGES,
+    SCRIPT_ENTRY_PATHS,
+    SCRIPT_GROUP,
+)
+from .runtime_formats import (
+    LDPK_ALIGNMENT as ALIGNMENT,
+    LDPK_DIRECTORY_FLAG as DIRECTORY_FLAG,
+    LDPK_ENTRY as ENTRY,
+    LDPK_FLAGS as FLAGS,
+    LDPK_HEADER as HEADER,
+    LDPK_MAGIC as MAGIC,
+    LDPK_VERSION as VERSION,
+)
 from .ui_preview import is_preview_development_file
-
-
-MAGIC = b"LDPK"
-VERSION = 1
-FLAGS = 0
-DIRECTORY_FLAG = 1
-ALIGNMENT = 8
-HEADER = struct.Struct("<4sHHIIQQII")
-ENTRY = struct.Struct("<IIQQII")
-SCRIPT_ENTRY_PATHS = ("Entry.lua", "Entry.luac")
 
 
 class LdPakError(RuntimeError):
@@ -82,7 +87,7 @@ def _validate_group_name(group_name: str) -> bytes:
         or "\0" in group_name
     ):
         raise LdPakError(f"Invalid asset package group name: {group_name!r}")
-    if group_name.casefold().endswith(".ldpak"):
+    if group_name.casefold().endswith(PACKAGE_EXTENSION):
         raise LdPakError(
             f"Asset directory names must not end with .ldpak: {group_name}"
         )
@@ -346,7 +351,7 @@ def _validate_ldpak_entries(
             raise LdPakError(
                 f"Asset package group is {group_name!r}, expected {expected_group!r}"
             )
-        if require_matching_filename and package_path.name != group_name + ".ldpak":
+        if require_matching_filename and package_path.name != group_name + PACKAGE_EXTENSION:
             raise LdPakError(
                 "Asset package filename does not match its group: "
                 f"{package_path.name!r}"
@@ -523,7 +528,7 @@ def _scan_resource_root(resource_root: pathlib.Path) -> list[_SourceEntry]:
     entries = _scan_group(resource_root)
     for entry in entries:
         if "/" not in entry.relative_path and entry.relative_path.casefold().endswith(
-            ".ldpak"
+            PACKAGE_EXTENSION
         ):
             raise LdPakError(
                 f"Resource roots must not contain legacy .ldpak groups: {entry.source_path}"
@@ -589,7 +594,7 @@ def validate_ldpak_source(
     sources: list[pathlib.Path] = []
     for name in RESOURCE_GROUPS:
         source = runtime_root / name
-        package = runtime_root / f"{name}.ldpak"
+        package = runtime_root / f"{name}{PACKAGE_EXTENSION}"
         if os.path.lexists(package):
             raise LdPakError(f"Resource package output already exists: {package}")
         if name == SCRIPT_GROUP:
@@ -607,7 +612,7 @@ def validate_runtime_scripts(
 ) -> bool:
     runtime_root = pathlib.Path(runtime_root)
     scripts_root = runtime_root / SCRIPT_GROUP
-    scripts_package = runtime_root / f"{SCRIPT_GROUP}.ldpak"
+    scripts_package = runtime_root / f"{SCRIPT_GROUP}{PACKAGE_EXTENSION}"
     has_loose_scripts = os.path.lexists(scripts_root)
     has_packed_scripts = os.path.lexists(scripts_package)
     if has_loose_scripts == has_packed_scripts:
@@ -674,7 +679,7 @@ def validate_runtime_resource_paths(
                 for name in names
                 if name.startswith(group + "/")
                 and "/" not in name[len(group) + 1 :]
-                and name.casefold().endswith(".ldpak")
+                and name.casefold().endswith(PACKAGE_EXTENSION)
             ]
             if legacy:
                 raise LdPakError(
@@ -712,7 +717,7 @@ def validate_runtime_ldpak_layout(
     validate_runtime_scripts(runtime_root, expected_entry)
     for name in RESOURCE_GROUPS[:2]:
         if use_ldpak:
-            validate_ldpak(runtime_root / f"{name}.ldpak", expected_group=name)
+            validate_ldpak(runtime_root / f"{name}{PACKAGE_EXTENSION}", expected_group=name)
         else:
             _scan_resource_root(runtime_root / name)
     return use_ldpak
@@ -733,7 +738,7 @@ def pack_ldpak(runtime_root: pathlib.Path) -> int:
     moved_sources: list[tuple[pathlib.Path, pathlib.Path]] = []
     try:
         for index, (source, output) in enumerate(zip(sources, outputs, strict=True)):
-            temporary = stage_root / f"{index}.ldpak"
+            temporary = stage_root / f"{index}{PACKAGE_EXTENSION}"
             write_ldpak(source, temporary)
             validate_ldpak(
                 temporary,

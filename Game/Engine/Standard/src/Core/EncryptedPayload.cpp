@@ -1,4 +1,5 @@
 #include <EncryptedPayload.hpp>
+#include <LudorkGenerated/EncryptedPayloadConstants.hpp>
 
 #include <zlib.h>
 
@@ -7,15 +8,9 @@
 #include <stdexcept>
 
 namespace ludork::standard {
+namespace format = ludork::generated::encrypted;
 
 namespace {
-
-constexpr std::uint8_t Version = 1;
-constexpr std::uint8_t ZlibFlag = 1;
-constexpr std::size_t HeaderSize = 24;
-constexpr std::uint64_t KeySeed = 0xD6E8FEB86659FD93ULL;
-constexpr std::uint64_t StreamMultiplier = 0x2545F4914F6CDD1DULL;
-constexpr std::uint64_t StreamFallback = 0x9E3779B97F4A7C15ULL;
 
 std::string message(std::string_view prefix, std::string_view context) {
     return std::string(prefix) + ": " + std::string(context);
@@ -49,18 +44,18 @@ std::uint64_t readUint64(const std::uint8_t* data) {
 }
 
 void applyStream(std::vector<std::uint8_t>& data, std::uint64_t nonce) {
-    std::uint64_t state = nonce ^ KeySeed;
+    std::uint64_t state = nonce ^ format::KeySeed;
     if (state == 0) {
-        state = StreamFallback;
+        state = format::StreamFallback;
     }
     std::size_t offset = 0;
     while (offset < data.size()) {
-        state ^= state >> 12U;
-        state ^= state << 25U;
-        state ^= state >> 27U;
-        const std::uint64_t block = state * StreamMultiplier;
-        const std::size_t count =
-            std::min<std::size_t>(8, data.size() - offset);
+        state ^= state >> format::StreamRightShiftFirst;
+        state ^= state << format::StreamLeftShift;
+        state ^= state >> format::StreamRightShiftLast;
+        const std::uint64_t block = state * format::StreamMultiplier;
+        const std::size_t count = std::min<std::size_t>(format::StreamBlockSize,
+                                                        data.size() - offset);
         for (std::size_t index = 0; index < count; ++index) {
             data[offset + index] ^=
                 static_cast<std::uint8_t>(block >> (index * 8U));
@@ -101,10 +96,10 @@ std::vector<std::uint8_t> encodeEncryptedPayload(
                      static_cast<uInt>(source.size()));
 
     std::vector<std::uint8_t> encoded;
-    encoded.reserve(HeaderSize + compressed.size());
+    encoded.reserve(format::HeaderSize + compressed.size());
     encoded.insert(encoded.end(), format.magic.begin(), format.magic.end());
-    encoded.push_back(Version);
-    encoded.push_back(ZlibFlag);
+    encoded.push_back(format::Version);
+    encoded.push_back(format::ZlibFlag);
     encoded.push_back(0);
     encoded.push_back(0);
     appendUint32(encoded, static_cast<std::uint32_t>(source.size()));
@@ -118,7 +113,7 @@ std::string decodeEncryptedPayload(std::span<const std::uint8_t> encoded,
                                    const EncryptedPayloadFormat& format,
                                    std::string_view context) {
     const std::string prefix = encryptedPrefix(format);
-    if (encoded.size() < HeaderSize) {
+    if (encoded.size() < format::HeaderSize) {
         throw std::runtime_error(
             message(prefix + " header is truncated", context));
     }
@@ -127,26 +122,32 @@ std::string decodeEncryptedPayload(std::span<const std::uint8_t> encoded,
         throw std::runtime_error(
             message(prefix + " magic is invalid", context));
     }
-    if (encoded[4] != Version) {
-        throw std::runtime_error("Unsupported encrypted " +
-                                 std::string(format.formatName) +
-                                 " version: " + std::to_string(encoded[4]) +
-                                 " in " + std::string(context));
+    if (encoded[format::HeaderVersionOffset] != format::Version) {
+        throw std::runtime_error(
+            "Unsupported encrypted " + std::string(format.formatName) +
+            " version: " +
+            std::to_string(encoded[format::HeaderVersionOffset]) + " in " +
+            std::string(context));
     }
-    if (encoded[5] != ZlibFlag || encoded[6] != 0 || encoded[7] != 0) {
+    if (encoded[format::HeaderFlagsOffset] != format::ZlibFlag ||
+        encoded[format::HeaderReservedOffset] != 0 ||
+        encoded[format::HeaderReservedOffset + 1] != 0) {
         throw std::runtime_error(
             message(prefix + " flags are invalid", context));
     }
 
-    const std::uint32_t sourceSize = readUint32(encoded.data() + 8);
-    const std::uint32_t expectedChecksum = readUint32(encoded.data() + 12);
-    const std::uint64_t nonce = readUint64(encoded.data() + 16);
+    const std::uint32_t sourceSize =
+        readUint32(encoded.data() + format::HeaderSourceSizeOffset);
+    const std::uint32_t expectedChecksum =
+        readUint32(encoded.data() + format::HeaderChecksumOffset);
+    const std::uint64_t nonce =
+        readUint64(encoded.data() + format::HeaderNonceOffset);
     if (sourceSize > format.maximumSourceSize) {
         throw std::runtime_error(
             message(prefix + " source is too large", context));
     }
 
-    std::vector<std::uint8_t> compressed(encoded.begin() + HeaderSize,
+    std::vector<std::uint8_t> compressed(encoded.begin() + format::HeaderSize,
                                          encoded.end());
     if (compressed.empty()) {
         throw std::runtime_error(

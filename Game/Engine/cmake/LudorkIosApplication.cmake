@@ -59,6 +59,9 @@ function(ludork_configure_ios_application target)
         XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET "15.0"
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${LUDORK_IOS_BUNDLE_IDENTIFIER}"
         XCODE_ATTRIBUTE_SUPPORTED_PLATFORMS iphoneos
+        "XCODE_ATTRIBUTE_DEPLOYMENT_POSTPROCESSING[variant=Release]" YES
+        "XCODE_ATTRIBUTE_STRIP_INSTALLED_PRODUCT[variant=Release]" YES
+        "XCODE_ATTRIBUTE_STRIP_STYLE[variant=Release]" non-global
         XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1")
     target_link_libraries(${target} PRIVATE
         SFML::Main)

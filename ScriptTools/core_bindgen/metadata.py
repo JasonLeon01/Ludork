@@ -7,6 +7,8 @@ import math
 import re
 from pathlib import Path
 
+from ScriptTools.lua_syntax.constants import LUA_RESERVED_WORDS
+
 from .constants import GENERATED_FILE_MARKER
 from .context import GeneratorContext
 from .model import (
@@ -14,7 +16,6 @@ from .model import (
     TypeInfo,
 )
 from .cpp_types import (
-    LUA_RESERVED_WORDS,
     INTEGER_TYPES,
     MAP_TYPES,
     OPTIONAL_TYPES,

@@ -7,10 +7,9 @@ local Pool = require("Global.Pool")
 local Light = GlobalCore.Light
 local System = GlobalCore.System
 
-local MAX_SHADER_LIGHTS = 16
 local DYNAMIC_TRANSMISSION_PADDING = 2
 local UNOBSTRUCTED_LIGHT_INTENSITY_UNIFORMS = {}
-for index = 0, MAX_SHADER_LIGHTS - 1 do
+for index = 0, Light.MAX_SHADER_LIGHTS - 1 do
     UNOBSTRUCTED_LIGHT_INTENSITY_UNIFORMS[index + 1] = "lightIntensity[" .. index .. "]"
 end
 
@@ -453,7 +452,7 @@ function GameMapLighting.GetActiveLights(self)
     for _, light in ipairs(self._lights) do
         if light.radius > 0.0 and self:_isLightVisible(light.position, light.radius, viewport) then
             lights[#lights + 1] = { light = light }
-            if #lights >= MAX_SHADER_LIGHTS then
+            if #lights >= Light.MAX_SHADER_LIGHTS then
                 return lights
             end
         end
@@ -478,7 +477,7 @@ function GameMapLighting.GetActiveLights(self)
                         light = Light.new(position, lightComp.lightColour, radius, 1.0),
                         owner = actor
                     }
-                    if #lights >= MAX_SHADER_LIGHTS then
+                    if #lights >= Light.MAX_SHADER_LIGHTS then
                         break
                     end
                 end

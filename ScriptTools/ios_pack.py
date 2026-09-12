@@ -12,6 +12,7 @@ import sys
 import unicodedata
 import zipfile
 
+from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
 from .packaging_constants import (
     ARTIFACT_NAME_FALLBACK,
@@ -21,9 +22,9 @@ from .packaging_constants import (
     EXIT_PROJECT,
     EXIT_TOOLCHAIN,
     MOBILE_DEPENDENCY_NAMES,
-    RESOURCE_GROUPS,
     check_app_name,
 )
+from .resource_constants import RESOURCE_GROUPS
 from .compile_lua import resolve_luac
 from .ui_property_values import UiAssetError
 from .ui_preview import prepare_registry
@@ -376,7 +377,7 @@ def copy_runtime_resources(
         shutil.copytree(
             context.project_dir / directory_name,
             resources_dir / directory_name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*.anim.json"),
+            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
         )
 
 

@@ -150,6 +150,20 @@ function(ludork_set_runtime_output target)
         PDB_OUTPUT_DIRECTORY "${LUDORK_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
 endfunction()
 
+function(ludork_enable_release_dead_strip target)
+    if(NOT APPLE)
+        return()
+    endif()
+
+    get_target_property(target_type ${target} TYPE)
+    if(target_type STREQUAL "EXECUTABLE"
+       OR target_type STREQUAL "SHARED_LIBRARY"
+       OR target_type STREQUAL "MODULE_LIBRARY")
+        target_link_options(${target} PRIVATE
+            "$<$<CONFIG:Release>:LINKER:-dead_strip>")
+    endif()
+endfunction()
+
 function(ludork_configure_visual_studio_play target)
     if(NOT CMAKE_GENERATOR MATCHES "^Visual Studio")
         return()

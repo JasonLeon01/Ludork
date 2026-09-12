@@ -7,6 +7,8 @@ import re
 import shutil
 import tempfile
 
+from ScriptTools.lua_syntax.constants import LUA_RESERVED_WORDS
+
 from .ui_assets import (
     ASSETS_RELATIVE_PATH,
     _asset_key_from_path,
@@ -25,11 +27,6 @@ OUTPUT_ROOTS = (
     WINDOW_OUTPUT_ROOT,
 )
 _TYPE_ESCAPE = "__ui_"
-_LUA_KEYWORDS = {
-    "and", "break", "do", "else", "elseif", "end", "false", "for", "function",
-    "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then",
-    "true", "until", "while",
-}
 
 
 def _lua_string(value: str) -> str:
@@ -43,7 +40,7 @@ def _lua_string(value: str) -> str:
 
 
 def _identifier(value: str) -> bool:
-    return re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", value) is not None and value not in _LUA_KEYWORDS
+    return re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", value) is not None and value not in LUA_RESERVED_WORDS
 
 
 def _type_key(asset_key: str) -> str:

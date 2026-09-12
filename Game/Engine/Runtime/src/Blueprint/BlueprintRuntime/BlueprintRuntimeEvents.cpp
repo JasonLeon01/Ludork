@@ -1,4 +1,5 @@
 #include <Runtime/RuntimeReference.hpp>
+#include <ClassRuntimeProtocol.hpp>
 #include "BlueprintRuntimeInternal.hpp"
 
 #include <Runtime/Components/ComponentRuntime.hpp>
@@ -89,14 +90,17 @@ bool classHasBlueprintEvent(const RuntimeValue& rawClass,
                 return true;
             }
             return classHasBlueprintEvent(
-                rawGet(ludork::runtime::reference::intern(classType), "__base"),
+                rawGet(ludork::runtime::reference::intern(classType),
+                       ludork::standard::class_runtime::protocol::
+                           CLASS_BASE_FIELD),
                 eventName);
         }
         if (generatedBlueprintGraphHasExecutableEvent(classType, eventName)) {
             return true;
         }
         return classHasBlueprintEvent(
-            rawGet(ludork::runtime::reference::intern(classType), "__base"),
+            rawGet(ludork::runtime::reference::intern(classType),
+                   ludork::standard::class_runtime::protocol::CLASS_BASE_FIELD),
             eventName);
     }
     const RuntimeValue graph =
@@ -110,7 +114,8 @@ bool classHasBlueprintEvent(const RuntimeValue& rawClass,
         return true;
     }
     return classHasBlueprintEvent(
-        rawGet(ludork::runtime::reference::intern(classType), "__base"),
+        rawGet(ludork::runtime::reference::intern(classType),
+               ludork::standard::class_runtime::protocol::CLASS_BASE_FIELD),
         eventName);
 }
 
@@ -151,7 +156,8 @@ bool executeParentBlueprintEvent(const RuntimeValue& object,
         return false;
     }
     const RuntimeValue rawParent =
-        rawGet(ludork::runtime::reference::intern(rawClass), "__base");
+        rawGet(ludork::runtime::reference::intern(rawClass),
+               ludork::standard::class_runtime::protocol::CLASS_BASE_FIELD);
     if (!isTable(rawParent)) {
         return false;
     }

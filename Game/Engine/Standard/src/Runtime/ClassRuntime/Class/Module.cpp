@@ -1,4 +1,5 @@
 #include "Class/ClassRuntimeInternals.hpp"
+#include <JsonRuntimeProtocol.hpp>
 
 #include "Composite/CompositeRuntime.hpp"
 #include "Detail/Hierarchy.hpp"
@@ -222,9 +223,10 @@ void shutdown(lua_State* state) noexcept {
         MONITOR_STATES_KEY,
         LIFECYCLE_STATES_KEY,
         DISPOSED_METATABLE_KEY,
-        "LuaSF.JsonNullSentinel",
-        "LuaSF.JsonArrayMetatable",
-        "LuaSF.JsonEmptyArrayMetatable",
+        ludork::standard::json_runtime::protocol::JSON_NULL_KEY,
+        ludork::standard::json_runtime::protocol::JSON_ARRAY_METATABLE_KEY,
+        ludork::standard::json_runtime::protocol::
+            JSON_EMPTY_ARRAY_METATABLE_KEY,
     };
     for (const char* key : registryKeys) {
         lua_pushnil(state);

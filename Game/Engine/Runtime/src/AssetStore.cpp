@@ -1,4 +1,5 @@
 #include <Runtime/AssetStore.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <Runtime/AssetInputStream.hpp>
 
 #include "AssetStoreImpl.hpp"
@@ -254,7 +255,8 @@ void loadLooseTree(const std::filesystem::path& assetsRoot,
                 entry.path().lexically_relative(assetsRoot);
             const std::string relativeText =
                 ludork::standard::pathToGenericUtf8(relative);
-            const std::string key = "/Game/Assets/" + relativeText;
+            const std::string key =
+                ludork::generated::resources::AssetPathPrefix + relativeText;
             static_cast<void>(AssetPath::parse(key));
             addEntry(
                 entries, foldedPaths, key,
@@ -273,11 +275,12 @@ void loadPackage(const std::filesystem::path& packagePath,
                  std::unordered_map<std::string, StoreEntry>& entries,
                  std::unordered_map<std::string, std::string>& foldedPaths) {
     detail::LdPakArchive archive(packagePath);
-    if (archive.group() != "Assets") {
+    if (archive.group() != ludork::generated::resources::AssetGroup) {
         throw std::runtime_error("Assets.ldpak must use the Assets group");
     }
     for (const detail::LdPakEntry& archiveEntry : archive.entries()) {
-        const std::string key = "/Game/Assets/" + archiveEntry.path;
+        const std::string key =
+            ludork::generated::resources::AssetPathPrefix + archiveEntry.path;
         static_cast<void>(AssetPath::parse(key));
         addEntry(entries, foldedPaths, key,
                  {archive.path(), archiveEntry.offset, archiveEntry.size,
@@ -294,13 +297,18 @@ AssetStore::~AssetStore() = default;
 void AssetStore::configure(const std::filesystem::path& runtimeRoot,
                            const AssetStoreMode mode) {
     const std::filesystem::path normalized = detail::resourceStoreRoot(
-        runtimeRoot, "Assets", mode == AssetStoreMode::Packed);
+        runtimeRoot, ludork::generated::resources::AssetGroup,
+        mode == AssetStoreMode::Packed);
     std::unordered_map<std::string, StoreEntry> loadedEntries;
     std::unordered_map<std::string, std::string> foldedPaths;
     if (mode == AssetStoreMode::Loose) {
-        loadLooseTree(normalized / "Assets", loadedEntries, foldedPaths);
+        loadLooseTree(normalized / ludork::generated::resources::AssetGroup,
+                      loadedEntries, foldedPaths);
     } else {
-        loadPackage(normalized / "Assets.ldpak", loadedEntries, foldedPaths);
+        loadPackage(normalized /
+                        (std::string(ludork::generated::resources::AssetGroup) +
+                         ludork::generated::resources::PackageExtension),
+                    loadedEntries, foldedPaths);
     }
 
     std::unique_lock lock(impl_->mutex);
@@ -351,8 +359,9 @@ std::optional<AssetStore::AssetStat> AssetStore::stat(
         throw std::logic_error("AssetStore is not configured");
     }
     if (impl_->mode == AssetStoreMode::Loose) {
-        const std::optional<StoreEntry> entry =
-            findLooseEntry(impl_->runtimeRoot / "Assets", parsed);
+        const std::optional<StoreEntry> entry = findLooseEntry(
+            impl_->runtimeRoot / ludork::generated::resources::AssetGroup,
+            parsed);
         return entry.has_value()
                    ? std::optional<AssetStore::AssetStat>(
                          AssetStore::AssetStat{entry->directory, entry->size,
@@ -377,7 +386,9 @@ std::unique_ptr<AssetInputStream> AssetStore::open(
     }
     std::optional<StoreEntry> resolved;
     if (impl_->mode == AssetStoreMode::Loose) {
-        resolved = findLooseEntry(impl_->runtimeRoot / "Assets", parsed);
+        resolved = findLooseEntry(
+            impl_->runtimeRoot / ludork::generated::resources::AssetGroup,
+            parsed);
     } else {
         const auto iterator = impl_->entries.find(assetPath);
         if (iterator != impl_->entries.end()) {

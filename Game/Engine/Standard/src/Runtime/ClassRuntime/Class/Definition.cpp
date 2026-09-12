@@ -1,4 +1,5 @@
 #include "Class/ClassRuntimeInternals.hpp"
+#include "Detail/RuntimeState.hpp"
 
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
@@ -41,7 +42,7 @@ int classInstanceIndex(lua_State* state) {
             return 1;
         }
         const sol::object getter =
-            findAccessor(lua, classTable, "__getters", key);
+            findAccessor(lua, classTable, protocol::CLASS_GETTERS_FIELD, key);
         if (getter.is<sol::function>()) {
             getter.push();
             target.push();
@@ -65,7 +66,7 @@ int classInstanceNewIndex(lua_State* state) {
         sol::table classTable = constructorClass(state);
         const sol::object key = sol::stack::get<sol::object>(state, 2);
         const sol::object setter =
-            findAccessor(lua, classTable, "__setters", key);
+            findAccessor(lua, classTable, protocol::CLASS_SETTERS_FIELD, key);
         if (setter.is<sol::function>()) {
             setter.push();
             lua_pushvalue(state, 1);
@@ -137,49 +138,49 @@ int classMetatableNewIndex(lua_State* state) {
 
 bool isFinalizedClass(const sol::table& value) {
     return isClass(value) && tableHasMetatable(value) &&
-           value.raw_get<sol::object>("__bases").is<sol::table>() &&
-           value.raw_get<sol::object>("__mro").is<sol::table>() &&
+           value.raw_get<sol::object>(BASES_FIELD).is<sol::table>() &&
+           value.raw_get<sol::object>(MRO_FIELD).is<sol::table>() &&
            value.raw_get<sol::object>("__index").is<sol::function>() &&
            value.raw_get<sol::object>("__newindex").is<sol::function>() &&
            value.raw_get<sol::object>("new").is<sol::function>();
 }
 
 constexpr const char* CLASS_RESERVED_FIELDS[] = {
-    "__ludorkClass",
-    "__name",
-    "__bases",
-    "__base",
-    "__mro",
-    "__mroSet",
-    "__runtimeBases",
-    "__runtimeMro",
-    "__runtimeMroSet",
-    "__nativeBases",
-    "__nativeMro",
-    "__nativeMroSet",
-    "__subclasses",
-    "__lookupCache",
-    "__lookupVersion",
+    protocol::CLASS_MARKER_FIELD,
+    protocol::CLASS_NAME_FIELD,
+    BASES_FIELD,
+    protocol::CLASS_BASE_FIELD,
+    MRO_FIELD,
+    MRO_SET_FIELD,
+    RUNTIME_BASES_FIELD,
+    RUNTIME_MRO_FIELD,
+    RUNTIME_MRO_SET_FIELD,
+    NATIVE_BASES_FIELD,
+    NATIVE_MRO_FIELD,
+    NATIVE_MRO_SET_FIELD,
+    SUBCLASSES_FIELD,
+    LOOKUP_CACHE_FIELD,
+    LOOKUP_VERSION_FIELD,
     "__index",
     "__newindex",
     "__gc",
     "__call",
     "new",
     "_hasImplementationOwner",
-    "__classBaseMethods",
-    "__classCallbacks",
-    "__classDefaults",
-    "__classResolvedDefaults",
-    "__classFactory",
-    "__classFactoryMinArgs",
-    "__classInit",
-    "__nativeMethodCache",
+    CLASS_BASE_METHODS_FIELD,
+    CLASS_CALLBACKS_FIELD,
+    CLASS_DEFAULTS_FIELD,
+    NATIVE_CLASS_RESOLVED_DEFAULTS_FIELD,
+    CLASS_FACTORY_FIELD,
+    CLASS_FACTORY_MIN_ARGUMENTS_FIELD,
+    NATIVE_INITIALIZER_FIELD,
+    NATIVE_METHOD_CACHE_FIELD,
     protocol::NATIVE_OBJECTS_FIELD,
-    "__nativeProperties",
+    NATIVE_PROPERTIES_FIELD,
 };
 
 void validateClassDefinition(const sol::table& definition) {
-    if (rawBool(definition, "__ludorkClass")) {
+    if (rawBool(definition, protocol::CLASS_MARKER_FIELD)) {
         throw std::invalid_argument("Class definition is already finalized");
     }
     if (tableHasMetatable(definition)) {
@@ -264,14 +265,14 @@ sol::table finalizeClassImpl(sol::table definition, const sol::table& bases) {
         mro.add(type);
     }
     sol::table classTable = definition;
-    classTable.raw_set("__ludorkClass", true);
-    classTable.raw_set("__lookupVersion", 1);
-    classTable.raw_set("__bases", baseList);
+    classTable.raw_set(protocol::CLASS_MARKER_FIELD, true);
+    classTable.raw_set(LOOKUP_VERSION_FIELD, 1);
+    classTable.raw_set(BASES_FIELD, baseList);
     if (baseList.size() > 0) {
-        classTable.raw_set("__base", baseList[1]);
+        classTable.raw_set(protocol::CLASS_BASE_FIELD, baseList[1]);
     }
-    classTable.raw_set("__mro", mro);
-    ensureMroSet(lua, classTable, mro, "__mroSet");
+    classTable.raw_set(MRO_FIELD, mro);
+    ensureMroSet(lua, classTable, mro, MRO_SET_FIELD);
     for (const sol::table& base : tableList(baseList)) {
         registerSubclass(lua, base, classTable);
     }

@@ -10,6 +10,7 @@ import useLudorkPageMetadata from './useLudorkPageMetadata'
 import './ludorkSite.css'
 
 const LudorkAboutPage = lazy(() => import('./LudorkAboutPage'))
+const LudorkNoticesPage = lazy(() => import('./LudorkNoticesPage'))
 
 export default function LudorkSiteApp() {
   const page = getSitePage()
@@ -28,11 +29,14 @@ export default function LudorkSiteApp() {
   return (
     <div className="ludork-site">
       <LudorkHeader page={page} language={language} onLanguageChange={(next) => {
-        history.pushState(null, '', `${getSitePageHref(page, next)}${window.location.hash}`)
+        history.pushState(null, '', `${getSitePageHref(page, next)}${page === 'notices' ? '' : window.location.hash}`)
         setLanguage(next)
+        if (page === 'notices') window.scrollTo({ top: 0 })
       }} />
-      <Suspense fallback={<p className="ludork-container" role="status">{LUDORK_SITE_MESSAGES[language].docs.loading}</p>}>
-        {page === 'about' ? <LudorkAboutPage language={language} /> : <LudorkHomePage language={language} />}
+      <Suspense fallback={<div className="ludork-docs-status" role="status"><p>{LUDORK_SITE_MESSAGES[language].docs.loading}</p></div>}>
+        {page === 'about' ? <LudorkAboutPage language={language} />
+          : page === 'notices' ? <LudorkNoticesPage language={language} />
+            : <LudorkHomePage language={language} />}
       </Suspense>
       <LudorkFooter language={language} />
     </div>

@@ -5,6 +5,7 @@ const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino
 
 export default function LudorkTheme({ children }: { children: ReactNode }) {
   const isDark = useMediaQuery('(prefers-color-scheme: dark)', { noSsr: true })
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)', { noSsr: true })
   const theme = useMemo(() => createTheme({
     typography: {
       fontFamily: FONT_FAMILY,
@@ -29,10 +30,41 @@ export default function LudorkTheme({ children }: { children: ReactNode }) {
       },
     },
     shape: { borderRadius: 12 },
+    transitions: {
+      easing: { easeOut: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      duration: {
+        shortest: reducedMotion ? 0 : 160,
+        shorter: reducedMotion ? 0 : 180,
+        short: reducedMotion ? 0 : 200,
+        standard: reducedMotion ? 0 : 200,
+        complex: reducedMotion ? 0 : 220,
+        enteringScreen: reducedMotion ? 0 : 200,
+        leavingScreen: reducedMotion ? 0 : 180,
+      },
+    },
     components: {
+      MuiButtonBase: {
+        defaultProps: { disableRipple: true },
+        styleOverrides: {
+          root: {
+            '&.Mui-focusVisible': {
+              outline: '3px solid var(--ludork-focus)',
+              outlineOffset: 3,
+            },
+          },
+        },
+      },
       MuiButton: {
         styleOverrides: {
-          root: { borderRadius: 980 },
+          root: {
+            borderRadius: 980,
+            transition: reducedMotion ? 'none' : 'background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease',
+            '&.MuiButton-contained.MuiButton-colorPrimary': {
+              color: '#fff',
+              backgroundColor: '#0071e3',
+              '&:hover': { backgroundColor: '#0077ed' },
+            },
+          },
         },
       },
       MuiOutlinedInput: {
@@ -45,8 +77,32 @@ export default function LudorkTheme({ children }: { children: ReactNode }) {
           root: { borderRadius: 980 },
         },
       },
+      MuiMenu: {
+        defaultProps: { transitionDuration: reducedMotion ? 0 : 200 },
+        styleOverrides: {
+          paper: {
+            marginTop: 8,
+            padding: 4,
+            borderRadius: 16,
+            backgroundImage: 'none',
+            border: '1px solid var(--ludork-line)',
+            boxShadow: 'var(--ludork-shadow)',
+          },
+          list: { padding: 0 },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            borderRadius: 10,
+            minHeight: 40,
+            fontSize: '0.875rem',
+            '&.Mui-selected': { backgroundColor: 'var(--ludork-selected)' },
+          },
+        },
+      },
     },
-  }), [isDark])
+  }), [isDark, reducedMotion])
 
   return (
     <ThemeProvider theme={theme}>

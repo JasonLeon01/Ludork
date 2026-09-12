@@ -3,6 +3,7 @@
 
 #include <Curve.hpp>
 #include <Runtime/Graphics/EmitterTrackParameters.hpp>
+#include <Runtime/Graphics/GpuEmitterCurveLayout.hpp>
 #include <cmath>
 #include <cstddef>
 #include <initializer_list>
@@ -166,16 +167,23 @@ ludork::runtime::graphics::GpuEmitterConfiguration compileEmitterConfiguration(
             const Curve::CurveData& curveData = track.curves.*member;
             validateCurve(curveData, name);
             Curve curve(curveData);
-            for (std::size_t sample = 0; sample < 256; ++sample) {
-                const float value =
-                    curve.evaluate(static_cast<float>(sample) / 255);
+            for (std::size_t sample = 0;
+                 sample <
+                 ludork::runtime::graphics::emitter_curve_layout::SampleCount;
+                 ++sample) {
+                const float value = curve.evaluate(
+                    static_cast<float>(sample) /
+                    static_cast<float>(ludork::runtime::graphics::
+                                           emitter_curve_layout::SampleCount -
+                                       1));
                 if (!std::isfinite(value)) {
                     throw std::invalid_argument(
                         std::string("Particle curve sample must be finite: ") +
                         name);
                 }
-                compiled.curveSamples[(channel / 4) * 256 * 4 + sample * 4 +
-                                      channel % 4] = value;
+                compiled.curveSamples[ludork::runtime::graphics::
+                                          emitter_curve_layout::sampleIndex(
+                                              channel, sample)] = value;
             }
         }
         result.tracks.push_back(std::move(compiled));

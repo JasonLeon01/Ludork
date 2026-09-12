@@ -37,19 +37,11 @@ function(ludork_configure_core_target target)
         INTERPROCEDURAL_OPTIMIZATION_DEBUG ${LUDORK_CORE_DEBUG_LTO}
         INTERPROCEDURAL_OPTIMIZATION_RELEASE ${LUDORK_CORE_RELEASE_LTO}
         WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+    ludork_enable_release_dead_strip(${target})
     ludork_set_runtime_output(${target})
 endfunction()
 
 if(LUDORK_BUILD_GAME_APPLICATION)
-set(LUDORK_SCRIPT_TOOLS_EXECUTABLE
-    ""
-    CACHE FILEPATH
-    "Path to the platform ScriptTools executable")
-if(NOT LUDORK_SCRIPT_TOOLS_EXECUTABLE OR
-   NOT EXISTS "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}")
-    message(FATAL_ERROR
-        "LUDORK_SCRIPT_TOOLS_EXECUTABLE is missing. Run tools/init first.")
-endif()
 if(NOT DEFINED LUASF_CALLBACK_CODECS_FILE OR
    NOT IS_ABSOLUTE "${LUASF_CALLBACK_CODECS_FILE}" OR
    NOT EXISTS "${LUASF_CALLBACK_CODECS_FILE}")
@@ -89,6 +81,15 @@ function(ludork_configure_core_library
         set_property(SOURCE "${generated_binding}" PROPERTY
             SKIP_UNITY_BUILD_INCLUSION ON)
     endforeach()
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin"
+       AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64"
+           OR (NOT CMAKE_OSX_ARCHITECTURES
+               AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64"))
+            set_property(SOURCE ${generated_bindings} APPEND PROPERTY
+                COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
+        endif()
+    endif()
     if(MSVC)
         target_compile_options(${target} PRIVATE "/FI${generated_traits}")
     else()

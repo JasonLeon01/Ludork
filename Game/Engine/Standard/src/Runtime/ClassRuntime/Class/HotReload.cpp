@@ -110,9 +110,9 @@ void validateCallbacks(sol::state_view lua, const sol::table& previous,
             !detail::isNativeType(lua, rawType.as<sol::table>())) {
             continue;
         }
-        const sol::object callbacks =
-            detail::rawMember(lua, rawType.as<sol::table>(),
-                              sol::make_object(lua, "__classCallbacks"));
+        const sol::object callbacks = detail::rawMember(
+            lua, rawType.as<sol::table>(),
+            sol::make_object(lua, detail::CLASS_CALLBACKS_FIELD));
         if (!callbacks.is<sol::table>()) {
             continue;
         }
@@ -179,8 +179,10 @@ void validateHotReloadClass(lua_State* state, int oldIndex, int newIndex,
     const sol::table candidateToLive =
         sol::stack::get<sol::table>(state, candidateToLiveTableIndex);
     if (detail::isClass(candidate)) {
-        validateHierarchy(previous, candidate, candidateToLive, "__bases");
-        validateHierarchy(previous, candidate, candidateToLive, "__mro");
+        validateHierarchy(previous, candidate, candidateToLive,
+                          detail::BASES_FIELD);
+        validateHierarchy(previous, candidate, candidateToLive,
+                          detail::MRO_FIELD);
     } else if (!detail::rawBool(previous, "_GENERATED_CLASS")) {
         throw std::runtime_error("Class export changed kind; restart the game");
     }

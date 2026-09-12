@@ -117,7 +117,8 @@ void syncNativeRootDefaults(sol::state_view lua, const sol::table& classTable,
             continue;
         }
         const sol::object rawProperties =
-            rawType.as<sol::table>().raw_get<sol::object>("__nativeProperties");
+            rawType.as<sol::table>().raw_get<sol::object>(
+                NATIVE_PROPERTIES_FIELD);
         if (!rawProperties.is<sol::table>()) {
             continue;
         }
@@ -237,7 +238,7 @@ void syncNativeClassDefaults(sol::state_view lua, const sol::table& classTable,
             continue;
         }
         const sol::object rawProperties =
-            nativeType.raw_get<sol::object>("__nativeProperties");
+            nativeType.raw_get<sol::object>(NATIVE_PROPERTIES_FIELD);
         if (!rawProperties.is<sol::table>()) {
             continue;
         }

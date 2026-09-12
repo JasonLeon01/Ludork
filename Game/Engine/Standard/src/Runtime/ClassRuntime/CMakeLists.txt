@@ -7,7 +7,14 @@ add_subdirectory(Instance)
 add_subdirectory(Class)
 
 set_target_properties(LudorkStandardClassRuntime PROPERTIES
-    POSITION_INDEPENDENT_CODE ON)
+    POSITION_INDEPENDENT_CODE ON
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+if(MINGW)
+    set_target_properties(LudorkStandardClassRuntime PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+endif()
 
 target_compile_features(LudorkStandardClassRuntime PRIVATE cxx_std_20)
 target_compile_definitions(LudorkStandardClassRuntime

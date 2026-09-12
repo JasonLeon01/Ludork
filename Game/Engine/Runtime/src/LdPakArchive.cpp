@@ -1,4 +1,6 @@
 #include "LdPakArchive.hpp"
+#include <LudorkGenerated/LdPakFormatConstants.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include <Utf8Path.hpp>
 
@@ -24,12 +26,10 @@
 #include <windows.h>
 #endif
 
+namespace format = ludork::generated::ldpak;
+
 namespace {
 
-constexpr std::size_t HeaderSize = 40;
-constexpr std::size_t EntryHeaderSize = 32;
-constexpr std::uint16_t FormatVersion = 1;
-constexpr std::uint32_t DirectoryFlag = 1;
 constexpr std::size_t CrcBufferSize = 64U * 1024U;
 
 std::uint16_t readU16(const std::uint8_t* value) {
@@ -52,11 +52,12 @@ std::uint64_t readU64(const std::uint8_t* value) {
     return result;
 }
 
-std::uint64_t aligned8(std::uint64_t value) {
-    if (value > std::numeric_limits<std::uint64_t>::max() - 7U) {
+std::uint64_t alignArchiveOffset(std::uint64_t value) {
+    if (value >
+        std::numeric_limits<std::uint64_t>::max() - (format::Alignment - 1)) {
         throw std::runtime_error("LDPak offset overflow");
     }
-    return (value + 7U) & ~std::uint64_t{7U};
+    return (value + format::Alignment - 1) & ~(format::Alignment - 1);
 }
 
 bool addOverflows(std::uint64_t left, std::uint64_t right) {
@@ -166,7 +167,8 @@ void validateRelativePath(const std::string_view value,
 void validateGroup(const std::string& group) {
     validateSegment(group, group);
     if (group.find('/') != std::string::npos ||
-        asciiFold(group).ends_with(".ldpak")) {
+        asciiFold(group).ends_with(
+            ludork::generated::resources::PackageExtension)) {
         throw std::runtime_error("Invalid LDPak group: " + group);
     }
 }
@@ -284,7 +286,7 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
     }
 
     const std::uint64_t fileSize = regularFileSize(path);
-    if (fileSize < HeaderSize) {
+    if (fileSize < format::HeaderSize) {
         throw std::runtime_error("LDPak header is truncated: " +
                                  ludork::standard::pathToUtf8(path));
     }
@@ -293,26 +295,35 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
         throw std::runtime_error("Failed to open LDPak: " +
                                  ludork::standard::pathToUtf8(path));
     }
-    std::array<std::uint8_t, HeaderSize> header{};
+    std::array<std::uint8_t, format::HeaderSize> header{};
     readExact(stream, header.data(), header.size(), "LDPak header");
-    if (std::memcmp(header.data(), "LDPK", 4) != 0) {
+    if (std::memcmp(header.data() + format::HeaderMagicOffset,
+                    format::Magic.data(), format::Magic.size()) != 0) {
         throw std::runtime_error("Invalid LDPak magic: " +
                                  ludork::standard::pathToUtf8(path));
     }
-    const std::uint16_t version = readU16(header.data() + 4);
-    const std::uint16_t flags = readU16(header.data() + 6);
-    const std::uint32_t groupLength = readU32(header.data() + 8);
-    const std::uint32_t entryCount = readU32(header.data() + 12);
-    const std::uint64_t indexOffset = readU64(header.data() + 16);
-    const std::uint64_t indexSize = readU64(header.data() + 24);
-    const std::uint32_t indexCrc = readU32(header.data() + 32);
-    const std::uint32_t reserved = readU32(header.data() + 36);
-    if (version != FormatVersion || flags != 0 || reserved != 0) {
+    const std::uint16_t version =
+        readU16(header.data() + format::HeaderVersionOffset);
+    const std::uint16_t flags =
+        readU16(header.data() + format::HeaderFlagsOffset);
+    const std::uint32_t groupLength =
+        readU32(header.data() + format::HeaderGroupLengthOffset);
+    const std::uint32_t entryCount =
+        readU32(header.data() + format::HeaderEntryCountOffset);
+    const std::uint64_t indexOffset =
+        readU64(header.data() + format::HeaderIndexOffsetOffset);
+    const std::uint64_t indexSize =
+        readU64(header.data() + format::HeaderIndexSizeOffset);
+    const std::uint32_t indexCrc =
+        readU32(header.data() + format::HeaderIndexCrcOffset);
+    const std::uint32_t reserved =
+        readU32(header.data() + format::HeaderReservedOffset);
+    if (version != format::Version || flags != format::Flags || reserved != 0) {
         throw std::runtime_error("Unsupported LDPak header: " +
                                  ludork::standard::pathToUtf8(path));
     }
-    if (groupLength == 0 || addOverflows(HeaderSize, groupLength) ||
-        HeaderSize + groupLength > fileSize) {
+    if (groupLength == 0 || addOverflows(format::HeaderSize, groupLength) ||
+        format::HeaderSize + groupLength > fileSize) {
         throw std::runtime_error("Invalid LDPak group name length");
     }
     std::string group(groupLength, '\0');
@@ -321,20 +332,22 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
         throw std::runtime_error("LDPak group is not valid UTF-8");
     }
     validateGroup(group);
-    const std::string expectedFilename = group + ".ldpak";
+    const std::string expectedFilename =
+        group + ludork::generated::resources::PackageExtension;
     if (ludork::standard::pathToUtf8(path.filename()) != expectedFilename) {
         throw std::runtime_error("LDPak filename does not match group " +
                                  group);
     }
-    const std::uint64_t dataStart = aligned8(HeaderSize + groupLength);
-    const std::size_t groupPadding =
-        static_cast<std::size_t>(dataStart - (HeaderSize + groupLength));
-    requireZeroRange(stream, HeaderSize + groupLength, groupPadding,
+    const std::uint64_t dataStart =
+        alignArchiveOffset(format::HeaderSize + groupLength);
+    const std::size_t groupPadding = static_cast<std::size_t>(
+        dataStart - (format::HeaderSize + groupLength));
+    requireZeroRange(stream, format::HeaderSize + groupLength, groupPadding,
                      "LDPak group padding");
-    if (indexOffset < dataStart || indexOffset % 8U != 0 ||
+    if (indexOffset < dataStart || indexOffset % format::Alignment != 0 ||
         addOverflows(indexOffset, indexSize) ||
         indexOffset + indexSize != fileSize ||
-        entryCount > indexSize / EntryHeaderSize ||
+        entryCount > indexSize / format::EntrySize ||
         indexSize > std::numeric_limits<std::size_t>::max() ||
         indexOffset > static_cast<std::uint64_t>(
                           std::numeric_limits<std::streamoff>::max())) {
@@ -357,17 +370,23 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
     std::size_t position = 0;
     std::string previousPath;
     for (std::uint32_t entryIndex = 0; entryIndex < entryCount; ++entryIndex) {
-        if (index.size() - position < EntryHeaderSize) {
+        if (index.size() - position < format::EntrySize) {
             throw std::runtime_error("Truncated LDPak index entry");
         }
         const std::uint8_t* entryHeader = index.data() + position;
-        const std::uint32_t pathLength = readU32(entryHeader);
-        const std::uint32_t entryFlags = readU32(entryHeader + 4);
-        const std::uint64_t dataOffset = readU64(entryHeader + 8);
-        const std::uint64_t dataSize = readU64(entryHeader + 16);
-        const std::uint32_t crc = readU32(entryHeader + 24);
-        const std::uint32_t entryReserved = readU32(entryHeader + 28);
-        position += EntryHeaderSize;
+        const std::uint32_t pathLength =
+            readU32(entryHeader + format::EntryPathLengthOffset);
+        const std::uint32_t entryFlags =
+            readU32(entryHeader + format::EntryFlagsOffset);
+        const std::uint64_t dataOffset =
+            readU64(entryHeader + format::EntryDataOffsetOffset);
+        const std::uint64_t dataSize =
+            readU64(entryHeader + format::EntryDataSizeOffset);
+        const std::uint32_t crc =
+            readU32(entryHeader + format::EntryDataCrcOffset);
+        const std::uint32_t entryReserved =
+            readU32(entryHeader + format::EntryReservedOffset);
+        position += format::EntrySize;
         if (pathLength == 0 || pathLength > index.size() - position) {
             throw std::runtime_error("Invalid LDPak entry path length");
         }
@@ -391,19 +410,19 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
                 "LDPak paths differ only by case: " + foldedIterator->second +
                 " and " + relative);
         }
-        if (entryFlags & ~DirectoryFlag || entryReserved != 0) {
+        if (entryFlags & ~format::DirectoryFlag || entryReserved != 0) {
             throw std::runtime_error("Unsupported LDPak entry flags: " +
                                      relative);
         }
-        const bool directory = (entryFlags & DirectoryFlag) != 0;
+        const bool directory = (entryFlags & format::DirectoryFlag) != 0;
         if (directory) {
             if (dataOffset != 0 || dataSize != 0 || crc != 0) {
                 throw std::runtime_error(
                     "LDPak directory contains file data: " + relative);
             }
             directoryPaths.insert(relative);
-        } else if (dataOffset % 8U != 0 || dataOffset < dataStart ||
-                   dataOffset > indexOffset ||
+        } else if (dataOffset % format::Alignment != 0 ||
+                   dataOffset < dataStart || dataOffset > indexOffset ||
                    addOverflows(dataOffset, dataSize) ||
                    dataOffset + dataSize > indexOffset ||
                    (dataSize == 0 && crc != 0)) {
@@ -430,7 +449,7 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
         if (entry.directory) {
             continue;
         }
-        const std::uint64_t alignedOffset = aligned8(expectedOffset);
+        const std::uint64_t alignedOffset = alignArchiveOffset(expectedOffset);
         if (entry.offset != alignedOffset) {
             throw std::runtime_error("LDPak file data is not in index order");
         }
@@ -440,7 +459,7 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
             "LDPak file padding");
         expectedOffset = alignedOffset + entry.size;
     }
-    const std::uint64_t alignedIndexOffset = aligned8(expectedOffset);
+    const std::uint64_t alignedIndexOffset = alignArchiveOffset(expectedOffset);
     if (alignedIndexOffset != indexOffset) {
         throw std::runtime_error("LDPak data section size mismatch");
     }

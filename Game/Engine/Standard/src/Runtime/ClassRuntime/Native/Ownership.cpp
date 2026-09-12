@@ -53,7 +53,7 @@ void* nativePointer(lua_State* state, int index) {
     lua_getfield(state, -1, protocol::COMPOSITE_MARKER_FIELD);
     const bool composite = lua_toboolean(state, -1) != 0;
     lua_pop(state, 1);
-    lua_getfield(state, -1, "__type");
+    lua_getfield(state, -1, protocol::CLASS_TYPE_FIELD);
     const bool native = lua_istable(state, -1);
     lua_pop(state, 2);
     if (composite || !native) {

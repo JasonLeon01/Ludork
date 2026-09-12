@@ -1,8 +1,10 @@
 local Engine = require("Engine")
 local Logging = require("Global.Utils.Logging")
 
+local ResourceFileConstants = Engine.ResourceFileConstants
+
 local Save = {}
-local SAVE_FILE_EXTENSION = bool(SAVE_AS_LDC) and ".ldc" or ".json"
+local SAVE_FILE_EXTENSION = bool(SAVE_AS_LDC) and ResourceFileConstants.ENCRYPTED_DATA_EXTENSION or ResourceFileConstants.DATA_EXTENSION
 
 local function assertConfiguredSavePath(filePath)
     local _, fileExtension = os.path.splitext(filePath)

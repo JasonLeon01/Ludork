@@ -1,4 +1,5 @@
 #include "RuntimeServiceInternals.hpp"
+#include <ClassRuntimeProtocol.hpp>
 
 #include "RuntimeBindingTraits.hpp"
 #include "RuntimeClassIdentity.hpp"
@@ -33,8 +34,6 @@ namespace ludork::runtime::detail {
 
 constexpr const char* CLASS_IDENTITY_CACHE_KEY =
     "Ludork.Runtime.classIdentityCache";
-constexpr const char* CLASS_TYPE_METADATA_CACHE_KEY =
-    "Ludork.Runtime.classTypeMetadataCache";
 constexpr const char* ATTR_METADATA_CACHE_KEY =
     "Ludork.Runtime.attrMetadataCache";
 
@@ -61,8 +60,8 @@ std::optional<RuntimeClassIdentity> resolveRuntimeClassIdentity(
         return classIdentityFromDescriptor(cached.as<sol::table>());
     }
 
-    const sol::object explicitModule =
-        classTable.raw_get<sol::object>("__metadataModule");
+    const sol::object explicitModule = classTable.raw_get<sol::object>(
+        ludork::standard::class_runtime::protocol::CLASS_METADATA_MODULE_FIELD);
     if (explicitModule.is<std::string>() &&
         !explicitModule.as<std::string>().empty()) {
         sol::table descriptor = lua.create_table();
@@ -158,8 +157,8 @@ sol::object findRuntimeClassModule(sol::state_view lua,
 
 sol::object syntheticRuntimeMetadata(sol::state_view lua,
                                      const sol::table& classTable) {
-    const sol::object native =
-        classTable.raw_get<sol::object>("__runtimeMetadata");
+    const sol::object native = classTable.raw_get<sol::object>(
+        ludork::standard::class_runtime::protocol::RUNTIME_METADATA_FIELD);
     if (native.is<sol::table>()) {
         return native;
     }
@@ -606,8 +605,8 @@ sol::object evaluateRuntimeExpression(sol::state_view lua,
 
 sol::object runtimeTypeMetadata(sol::state_view lua,
                                 const sol::table& classType) {
-    const sol::object native =
-        classType.raw_get<sol::object>("__runtimeMetadata");
+    const sol::object native = classType.raw_get<sol::object>(
+        ludork::standard::class_runtime::protocol::RUNTIME_METADATA_FIELD);
     if (native.is<sol::table>()) {
         return native;
     }

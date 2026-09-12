@@ -37,7 +37,7 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
     if (field.valid() && field.get_type() != sol::type::lua_nil) {
         return field;
     }
-    const sol::object rawClass = fields.raw_get<sol::object>("__class");
+    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
     if (!rawClass.is<sol::table>()) {
         return nilObject(lua);
     }
@@ -49,9 +49,11 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
                        disposeMethod);
         return disposeMethod;
     }
-    const sol::object getter = findAccessor(lua, classTable, "__getters", key);
+    const sol::object getter =
+        findAccessor(lua, classTable, protocol::CLASS_GETTERS_FIELD, key);
     if (getter.is<sol::function>()) {
-        cacheFastClassOwner(lua, fields, classTable, key, "__getters",
+        cacheFastClassOwner(lua, fields, classTable, key,
+                            protocol::CLASS_GETTERS_FIELD,
                             FastIndexKind::Getter);
         return getter.as<sol::function>()(target);
     }
@@ -239,9 +241,9 @@ int compositeIndex(lua_State* state) {
                 lua_rawget(state, cacheIndex);
                 if (lua_istable(state, -1)) {
                     const int entryIndex = lua_absindex(state, -1);
-                    lua_getfield(state, fieldsIndex, "__class");
+                    lua_getfield(state, fieldsIndex, CLASS_FIELD);
                     if (lua_istable(state, -1)) {
-                        lua_getfield(state, -1, "__lookupVersion");
+                        lua_getfield(state, -1, LOOKUP_VERSION_FIELD);
                         const lua_Integer currentVersion =
                             lua_isinteger(state, -1) ? lua_tointeger(state, -1)
                                                      : 0;
@@ -286,7 +288,8 @@ int compositeIndex(lua_State* state) {
                             } else if (kind == FastIndexKind::Getter) {
                                 lua_rawgeti(state, entryIndex, 2);
                                 if (lua_istable(state, -1)) {
-                                    lua_getfield(state, -1, "__getters");
+                                    lua_getfield(state, -1,
+                                                 protocol::CLASS_GETTERS_FIELD);
                                     if (lua_istable(state, -1)) {
                                         lua_pushvalue(state, 2);
                                         lua_rawget(state, -2);

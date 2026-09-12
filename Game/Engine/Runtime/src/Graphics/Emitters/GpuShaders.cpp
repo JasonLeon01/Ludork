@@ -1,22 +1,31 @@
 #include "GpuShaders.hpp"
+#include <Runtime/Graphics/GpuEmitterCurveLayout.hpp>
 
 namespace ludork::runtime::graphics {
 namespace {
 std::string vertexHeader(bool embedded) {
-    return embedded ? "#version 300 es\nprecision highp float;\n#define IN "
-                      "in\n#define OUT out\n#define TEX texture\n"
-                    : "#version 120\n#define IN attribute\n#define OUT "
-                      "varying\n#define TEX texture2D\n";
+    std::string result =
+        embedded ? "#version 300 es\nprecision highp float;\n#define IN "
+                   "in\n#define OUT out\n#define TEX texture\n"
+                 : "#version 120\n#define IN attribute\n#define OUT "
+                   "varying\n#define TEX texture2D\n";
+    result += "#define LUDORK_EMITTER_CURVE_SAMPLES " +
+              std::to_string(emitter_curve_layout::SampleCount) + ".0\n";
+    result += "#define LUDORK_EMITTER_CURVE_ROWS " +
+              std::to_string(emitter_curve_layout::TextureRowCount) + ".0\n";
+    return result;
 }
 const char* attributes = R"GLSL(
 IN vec4 a0; IN vec4 a1; IN vec4 a2; IN vec4 a3; IN vec4 a4; IN vec4 a5;
 IN vec2 corner;
 uniform sampler2D uCurves;
-vec4 sampleCurves(float age, float row) {
-    float x = clamp(age, 0.0, 1.0) * 255.0;
+vec4 sampleCurves(float age, float rowIndex) {
+    float lastSample = LUDORK_EMITTER_CURVE_SAMPLES - 1.0;
+    float row = (rowIndex + 0.5) / LUDORK_EMITTER_CURVE_ROWS;
+    float x = clamp(age, 0.0, 1.0) * lastSample;
     float left = floor(x);
-    return mix(TEX(uCurves, vec2((left + 0.5) / 256.0, row)),
-               TEX(uCurves, vec2((min(left + 1.0, 255.0) + 0.5) / 256.0, row)), fract(x));
+    return mix(TEX(uCurves, vec2((left + 0.5) / LUDORK_EMITTER_CURVE_SAMPLES, row)),
+               TEX(uCurves, vec2((min(left + 1.0, lastSample) + 0.5) / LUDORK_EMITTER_CURVE_SAMPLES, row)), fract(x));
 }
 )GLSL";
 }  // namespace
@@ -91,7 +100,7 @@ void main() {
                 radial = distance > 0.0001 ? radial/distance : vec2(0.0);
                 s0.zw += (uGravity + radial*uRadial + vec2(-radial.y,radial.x)*uTangential)*dt;
                 s0.zw *= exp(-uDamping*dt);
-                s0.xy += s0.zw * sampleCurves(s1.x/s1.y,0.25).x * dt;
+                s0.xy += s0.zw * sampleCurves(s1.x/s1.y,0.0).x * dt;
                 s1.z += s1.w * dt;
             }
         }
@@ -111,7 +120,7 @@ uniform vec2 uGrid;
 uniform vec4 uRect;
 uniform vec4 uTint;
 void main() {
-    vec4 transformCurve=sampleCurves(a1.x/a1.y,0.25);
+    vec4 transformCurve=sampleCurves(a1.x/a1.y,0.0);
     float rotation=a1.z + transformCurve.w*0.01745329252;
     vec2 point=corner*a2.xy*transformCurve.yz;
     point=mat2(cos(rotation),sin(rotation),-sin(rotation),cos(rotation))*point;
@@ -123,7 +132,7 @@ void main() {
     frame=uFrameLoop>0.5?mod(frame,uFrameCount):min(frame,uFrameCount-1.0);
     vec2 cell=vec2(mod(frame,uGrid.x),floor(frame/uGrid.x));
     vUv=uRect.xy+(cell+corner+vec2(0.5))/uGrid*uRect.zw;
-    vColour=a3*sampleCurves(a1.x/a1.y,0.75)*uTint;
+    vColour=a3*sampleCurves(a1.x/a1.y,1.0)*uTint;
 }
 )GLSL";
 }

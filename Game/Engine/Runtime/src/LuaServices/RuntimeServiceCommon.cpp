@@ -1,4 +1,5 @@
 #include <Runtime/Detail/RuntimeServices.hpp>
+#include <ClassRuntimeProtocol.hpp>
 
 #include <ClassServices.hpp>
 #include <LuaError.hpp>
@@ -94,7 +95,8 @@ bool rawBool(const sol::table& table, const char* name) {
 }
 
 bool isClass(const sol::table& value) {
-    const sol::object marker = value.raw_get<sol::object>("__ludorkClass");
+    const sol::object marker = value.raw_get<sol::object>(
+        ludork::standard::class_runtime::protocol::CLASS_MARKER_FIELD);
     return marker.is<bool>() && marker.as<bool>();
 }
 
@@ -111,9 +113,11 @@ sol::table objectMetatable(sol::state_view lua, const sol::object& value) {
 }
 
 bool isNativeType(sol::state_view lua, const sol::table& value) {
-    return !isClass(value) && objectMetatable(lua, sol::make_object(lua, value))
-                                  .raw_get<sol::object>("__type")
-                                  .is<sol::table>();
+    return !isClass(value) &&
+           objectMetatable(lua, sol::make_object(lua, value))
+               .raw_get<sol::object>(
+                   ludork::standard::class_runtime::protocol::CLASS_TYPE_FIELD)
+               .is<sol::table>();
 }
 
 bool isInstance(sol::this_state state, const sol::object& value,

@@ -1,4 +1,5 @@
 #include "Instance/InstanceRuntime.hpp"
+#include <ClassRuntimeProtocol.hpp>
 #include "Instance/LifecycleInternal.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
@@ -173,7 +174,7 @@ void clearInstanceMonitor(sol::state_view lua, const sol::object& instance) {
 DisposeSnapshot createDisposeSnapshot(sol::state_view lua,
                                       const sol::object& instance) {
     const sol::table fields = managedInstanceFields(lua, instance);
-    const sol::object rawClass = fields.raw_get<sol::object>("__class");
+    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
     if (!rawClass.is<sol::table>()) {
         throw std::runtime_error("Class instance has no runtime class");
     }
@@ -184,7 +185,7 @@ DisposeSnapshot createDisposeSnapshot(sol::state_view lua,
         {},
     };
     const sol::object rawInstanceId =
-        fields.raw_get<sol::object>("__instanceId");
+        fields.raw_get<sol::object>(INSTANCE_ID_FIELD);
     if (rawInstanceId.is<std::size_t>()) {
         snapshot.instanceId = rawInstanceId.as<std::size_t>();
     }
@@ -194,9 +195,9 @@ DisposeSnapshot createDisposeSnapshot(sol::state_view lua,
             continue;
         }
         const sol::object rawCallbacks =
-            root.raw_get<sol::object>("__classCallbacks");
+            root.raw_get<sol::object>(CLASS_CALLBACKS_FIELD);
         const sol::object rawMetadataModule =
-            root.raw_get<sol::object>("__metadataModule");
+            root.raw_get<sol::object>(protocol::CLASS_METADATA_MODULE_FIELD);
         snapshot.nativeTargets.push_back({
             root,
             nativeObject,
@@ -252,13 +253,13 @@ std::optional<sol::table> tryManagedInstanceFields(
     if (isCompositeInstance(lua, instance)) {
         const sol::table fields =
             class_native::getUserFields(lua, instance, false);
-        const sol::object rawClass = fields.raw_get<sol::object>("__class");
+        const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
         if (rawClass.is<sol::table>() && isClass(rawClass.as<sol::table>())) {
             return fields;
         }
     } else if (instance.is<sol::table>()) {
         const sol::table fields = instance.as<sol::table>();
-        const sol::object rawClass = fields.raw_get<sol::object>("__class");
+        const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
         if (rawClass.is<sol::table>() && isClass(rawClass.as<sol::table>()) &&
             tableMatchesInstanceClass(lua, fields, rawClass.as<sol::table>())) {
             return fields;

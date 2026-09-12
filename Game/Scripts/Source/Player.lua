@@ -2,12 +2,13 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local Battler = require("Source.Battler")
-local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
-local GameplayEventData = GlobalCore.GameplayEventData
 local Effects = require("Source.Gameplay.Effects")
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 local LocaleCore = require("Source.Locale.Core")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
+local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
+local GameplayEventData = GlobalCore.GameplayEventData
 local Character = Engine.Character
 local Input = Engine.Input
 
@@ -189,7 +190,9 @@ function Player:onFixedTick(_fixedDelta)
         MovementSpecials.NotifyPlayerMovementFinished(self, self:consumeMovementSpecialPath())
     end
     if self._wasMovingOnLastFixedTick and not self:isMoving() then
-        self:getAbilitySystemComponent():handleGameplayEvent(createPlayerEvent(self, "Event.Movement.Step"))
+        self
+            :getAbilitySystemComponent()
+            :handleGameplayEvent(createPlayerEvent(self, GameplayConstants.MOVEMENT_STEP_EVENT))
     end
     self._wasMovingOnLastFixedTick = self:isMoving()
 end
@@ -403,17 +406,22 @@ end
 
 function Player:_executeEquipGraph(equipID, graphEvent)
     local ability = GeneralDataGraphAbility.new("Equip", equipID, graphEvent)
-    local eventTag = graphEvent == "onEquip" and "Event.Equipment.Equip" or "Event.Equipment.Unequip"
+    local eventTag = graphEvent == "onEquip" and GameplayConstants.EQUIPMENT_EQUIP_EVENT or "Event.Equipment.Unequip"
     return ability:activate(self:getAbilitySystemComponent(), createPlayerEvent(self, eventTag, { equipID = equipID }))
 end
 
 function Player:_setEquippedItem(slot, equipID, executeGraph)
     local equipData = Data.GetGeneralEquipData(equipID)
     local effect = Effects.CreateEquipmentEffect(equipID, slot, equipData.attrPlus)
-    local eventData = createPlayerEvent(self, "Event.Equipment.Equip", { equipID = equipID, slot = slot })
+    local eventData = createPlayerEvent(self, GameplayConstants.EQUIPMENT_EQUIP_EVENT, {
+        equipID = equipID,
+        slot = slot
+    })
     local handle = self
         :getAbilitySystemComponent()
-        :applyGameplayEffectSpec(GameplayEffectSpec.new(effect, eventData, 1, "Equipment." .. slot))
+        :applyGameplayEffectSpec(GameplayEffectSpec.new(
+            effect, eventData, 1, GameplayConstants.EQUIPMENT_PREFIX .. slot
+        ))
     self._equipInfo[slot] = equipID
     self._equipEffectHandles[slot] = handle
     if executeGraph then

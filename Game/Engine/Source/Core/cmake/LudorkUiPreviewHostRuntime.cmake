@@ -39,7 +39,7 @@ function(ludork_add_ui_preview_host_runtime target)
             Ludork::Runtime
             Ludork::Standard
             SFML::Graphics
-        PRIVATE zlibstatic)
+        PRIVATE zlibstatic Ludork::RuntimeConstants)
     ludork_link_engine_platform(${target})
     ludork_configure_core_target(${target})
     ludork_enable_release_symbols(${target})

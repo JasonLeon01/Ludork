@@ -1,4 +1,5 @@
 #include "ClassRuntime/ClassRuntime.hpp"
+#include <ClassRuntimeProtocol.hpp>
 #include "ContainerRuntimeInternal.hpp"
 
 #include <algorithm>
@@ -485,7 +486,9 @@ void registerList(sol::state_view lua) {
     type.set_function("copy", &copyList);
     type.set_function("unpack", &sequenceUnpack);
     type.set_function("toTable", &containerToTable);
-    type.set_function("__copy", &copyList);
+    type.set_function(
+        ludork::standard::class_runtime::protocol::NATIVE_COPY_FIELD,
+        &copyList);
     type[sol::meta_function::index] = [](sol::this_state state,
                                          const sol::object& self,
                                          const sol::object& key) {
@@ -541,9 +544,11 @@ void registerTuple(sol::state_view lua) {
         });
     type.set_function("unpack", &sequenceUnpack);
     type.set_function("toTable", &containerToTable);
-    type.set_function("__copy", [](const sol::object& self) {
-        return self;
-    });
+    type.set_function(
+        ludork::standard::class_runtime::protocol::NATIVE_COPY_FIELD,
+        [](const sol::object& self) {
+            return self;
+        });
     type[sol::meta_function::index] = [](sol::this_state state,
                                          const sol::object& self,
                                          const sol::object& key) {

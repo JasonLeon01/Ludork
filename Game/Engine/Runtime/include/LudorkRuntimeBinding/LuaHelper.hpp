@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ClassRuntimeProtocol.hpp>
+
 #include <LudorkRuntimeBinding/ValueCodec.hpp>
 
 extern "C" {
@@ -94,20 +96,25 @@ inline void pushToString(lua_State* state, int index) {
 
 inline bool pushExpectedTypeName(lua_State* state, int expectedTypeIndex) {
     const int absoluteIndex = lua_absindex(state, expectedTypeIndex);
-    constexpr const char* fields[] = {"__name", "__blueprintClassPath"};
+    constexpr const char* fields[] = {
+        ludork::standard::class_runtime::protocol::CLASS_NAME_FIELD,
+        "__blueprintClassPath"};
     for (const char* field : fields) {
         if (pushRawTruthyField(state, absoluteIndex, field)) {
             return true;
         }
     }
-    lua_pushliteral(state, "__metadataModule");
+    lua_pushstring(
+        state,
+        ludork::standard::class_runtime::protocol::CLASS_METADATA_MODULE_FIELD);
     lua_rawget(state, absoluteIndex);
     if (lua_type(state, -1) != LUA_TNIL) {
         return true;
     }
     lua_pop(state, 1);
 
-    lua_pushliteral(state, "__ludorkClass");
+    lua_pushstring(
+        state, ludork::standard::class_runtime::protocol::CLASS_MARKER_FIELD);
     lua_rawget(state, absoluteIndex);
     const bool isLuaClass = lua_toboolean(state, -1) != 0;
     lua_pop(state, 1);

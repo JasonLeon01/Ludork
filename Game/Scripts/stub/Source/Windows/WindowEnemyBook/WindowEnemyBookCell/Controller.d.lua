@@ -22,7 +22,7 @@ function WindowEnemyBookCellController:bind() end
 
 function WindowEnemyBookCellController:refresh() end
 
----@param logicalSize sf.Vector2u
+---@param logicalSize sf.Vector2u | nil
 ---@return Engine.Canvas
 function WindowEnemyBookCellController:prepare(logicalSize) end
 

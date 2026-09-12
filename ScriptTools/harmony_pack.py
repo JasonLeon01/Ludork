@@ -15,8 +15,10 @@ import unicodedata
 import zipfile
 from dataclasses import dataclass, replace
 
+from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
 from .packaging_constants import (
+    MOBILE_PROJECT_DIRECTORIES,
     ARTIFACT_NAME_FALLBACK,
     ARTIFACT_NAME_MAX_LENGTH,
     ARTIFACT_NAME_PATTERN,
@@ -27,12 +29,11 @@ from .packaging_constants import (
     EXIT_TOOLCHAIN,
     FILE_BUFFER_SIZE,
     MOBILE_DEPENDENCY_NAMES,
-    RESOURCE_GROUPS,
-    RESOURCE_PACKAGES,
     RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
     check_app_name,
 )
+from .resource_constants import RESOURCE_GROUPS, RESOURCE_PACKAGES
 from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.ui_preview import prepare_registry
@@ -248,19 +249,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
             "HarmonyOS packaging requires a C++ source project. Standalone projects are not supported.",
             EXIT_PROJECT,
         )
-    required_directories = (
-        "Assets",
-        "Engine/Source",
-        "Engine/Runtime",
-        "Data",
-        "Application",
-        "Engine/ThirdParty/LuaSF",
-        "Engine/ThirdParty/lua-cjson",
-        "Scripts",
-        "Engine/Standard",
-        "Engine/ThirdParty/zlib",
-    )
-    for name in required_directories:
+    for name in MOBILE_PROJECT_DIRECTORIES:
         directory = project_dir / name
         if not directory.is_dir():
             raise PackError(
@@ -560,7 +549,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
         shutil.copytree(
             context.project_dir / name,
             destination / name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*.anim.json"),
+            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
         )
     licenses = context.project_dir / "Licenses"
     if licenses.is_dir():
@@ -658,7 +647,7 @@ def validate_runtime_zip(
             for name in names
             if pathlib.PurePosixPath(name).name == ".DS_Store"
             or name.casefold().endswith(".d.lua")
-            or name.endswith(".anim.json")
+            or name.endswith(ANIMATION_CACHE_SUFFIX)
             or "/Scripts/stub/" in "/" + name
         )
         if forbidden:

@@ -1,4 +1,5 @@
 local GlobalCore = require("GlobalCore")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -9,7 +10,7 @@ local PoisonedAbility = {}
 function PoisonedAbility:init()
     GameplayAbility.init(self, {})
     self.id = "State.Poisoned.Combat"
-    self.triggerTags = { "Event.Combat.ResolveIncomingDamage" }
+    self.triggerTags = { GameplayConstants.COMBAT_RESOLVE_INCOMING_DAMAGE_EVENT }
 end
 
 ---@diagnostic disable-next-line: unused, Gameplay Ability override intentionally ignores its receiver

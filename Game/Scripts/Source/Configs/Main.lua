@@ -3,7 +3,6 @@ local Logging = require("Global.Utils.Logging")
 local Locale = require("Source.Locale.Core")
 
 local MainConfig = {}
-local DEFAULT_LANGUAGE = "en_GB"
 local DEFAULT_DISPLAY_SCALE = 0.0
 local INVALID_DISPLAY_SCALE_FALLBACK = 1.0
 local INVALID_MAXIMUM_RENDER_SCALE_FALLBACK = 2.0
@@ -11,13 +10,13 @@ local DISPLAY_SCALE_EPSILON = 0.0001
 local DISPLAY_SCALE_PRESETS = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0 }
 local MAXIMUM_RENDER_SCALE_PRESETS = { 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 0.0 }
 local DEFAULT_MAIN_ITEMS = {
-    { "script", "Scripts/Entry.lua" }, { "language", DEFAULT_LANGUAGE }, { "framerate", "60" },
+    { "script", "Scripts/Entry.lua" }, { "language", Locale.DEFAULT_LANGUAGE }, { "framerate", "60" },
     { "maxrenderscale", "2.0" }, { "antialiasinglevel", "8" }, { "lightingrenderscale", "1.0" },
     { "verticalsync", "true" }, { "musicon", "true" }, { "soundon", "true" }, { "voiceon", "true" },
     { "musicvolume", "100.00" }, { "soundvolume", "100.00" }, { "voicevolume", "100.00" }
 }
 
-MainConfig.SupportedLanguages = { "en_GB", "zh_CN" }
+MainConfig.SupportedLanguages = { Locale.DEFAULT_LANGUAGE, "zh_CN" }
 
 local function isSupportedLanguage(language)
     return table.contains(MainConfig.SupportedLanguages, language)
@@ -28,7 +27,7 @@ local function getInitialLanguage()
     if isSupportedLanguage(language) then
         return language
     end
-    return DEFAULT_LANGUAGE
+    return Locale.DEFAULT_LANGUAGE
 end
 
 local function getIniFilePath()

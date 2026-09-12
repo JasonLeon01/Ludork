@@ -1,4 +1,5 @@
 #include "ClassRuntime/ClassRuntime.hpp"
+#include <ClassRuntimeProtocol.hpp>
 #include "ContainerRuntimeInternal.hpp"
 
 #include <limits>
@@ -256,7 +257,9 @@ void registerDict(sol::state_view lua) {
     type.set_function("items", &nativeDictPairs);
     type.set_function("copy", &copyDict);
     type.set_function("toTable", &containerToTable);
-    type.set_function("__copy", &copyDict);
+    type.set_function(
+        ludork::standard::class_runtime::protocol::NATIVE_COPY_FIELD,
+        &copyDict);
     type[sol::meta_function::index] = &dictIndex;
     type[sol::meta_function::new_index] = &dictNewIndex;
     type[sol::meta_function::length] = [](const NativeDict& self) {

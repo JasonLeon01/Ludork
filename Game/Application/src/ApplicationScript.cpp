@@ -1,4 +1,5 @@
 #include "ApplicationRuntime.hpp"
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include "ApplicationPaths.hpp"
 #include "ApplicationPlatform.hpp"
@@ -65,11 +66,14 @@ void setLuaArguments(lua_State* state, int argc, char** argv) {
 std::string configuredScriptPath() {
     ludork::standard::ConfigParser iniFile;
     if (!iniFile.read("Main.ini")) {
-        return "Scripts/Entry.lua";
+        return (std::string(ludork::generated::resources::ScriptPathPrefix) +
+                ludork::generated::resources::ScriptEntrySource);
     }
     const std::optional<std::string> script = iniFile.get("Main", "script");
-    return script.has_value() && !script->empty() ? *script
-                                                  : "Scripts/Entry.lua";
+    return script.has_value() && !script->empty()
+               ? *script
+               : (std::string(ludork::generated::resources::ScriptPathPrefix) +
+                  ludork::generated::resources::ScriptEntrySource);
 }
 
 int runEntryScript(lua_State* state, const std::filesystem::path& scriptPath) {
@@ -82,7 +86,8 @@ int runEntryScript(lua_State* state, const std::filesystem::path& scriptPath) {
     std::string loadedPathText = normalizedScriptPath.generic_string();
     int loadStatus = LUA_ERRFILE;
     if (!normalizedScriptPath.is_absolute() &&
-        loadedPathText.starts_with("Scripts/")) {
+        loadedPathText.starts_with(
+            ludork::generated::resources::ScriptPathPrefix)) {
         loadStatus =
             ludork::runtime::scriptStore().loadFile(state, loadedPathText);
     } else {

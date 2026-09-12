@@ -96,6 +96,11 @@ else()
     add_executable(Main ${LUDORK_APPLICATION_SOURCES})
     set(LUDORK_APPLICATION_TARGET Main)
 endif()
+if(LUDORK_STATIC_LUA_MODULES)
+    set_target_properties(${LUDORK_APPLICATION_TARGET} PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+ludork_enable_release_dead_strip(${LUDORK_APPLICATION_TARGET})
 ludork_configure_visual_studio_play(${LUDORK_APPLICATION_TARGET})
 if(TARGET LudorkCacheLuac)
     add_dependencies(${LUDORK_APPLICATION_TARGET} LudorkCacheLuac)
@@ -156,6 +161,8 @@ if(WIN32)
         "${LUDORK_APPLICATION_ROOT}/src/Platform/Windows/Launcher.cpp"
         Main.rc)
     target_compile_features(LudorkLauncher PRIVATE cxx_std_20)
+    target_include_directories(LudorkLauncher PRIVATE
+        "${LUDORK_PROJECT_SOURCE_DIR}/Engine/PlatformHosts/Common/include")
     target_link_libraries(LudorkLauncher PRIVATE User32)
     set_target_properties(LudorkLauncher PROPERTIES
         OUTPUT_NAME Main
@@ -183,6 +190,8 @@ endif()
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     ludork_set_runtime_output(${LUDORK_APPLICATION_TARGET})
 endif()
+
+target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE Ludork::RuntimeConstants)
 
 add_dependencies(${LUDORK_APPLICATION_TARGET} lua_cjson)
 if(NOT LUDORK_STATIC_LUA_MODULES AND NOT LUDORK_BUILD_UI_PREVIEW_HOST)

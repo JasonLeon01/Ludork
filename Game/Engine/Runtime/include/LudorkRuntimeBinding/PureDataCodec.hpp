@@ -1,5 +1,7 @@
 #pragma once
 
+#include <JsonRuntimeProtocol.hpp>
+
 #include <LudorkRuntimeBinding/ValueCodec.hpp>
 
 #include <cmath>
@@ -12,8 +14,8 @@ inline bool isPureDataNull(const sol::object& value) {
         return true;
     }
     sol::state_view lua(value.lua_state());
-    const sol::object sentinel =
-        lua.registry().raw_get<sol::object>("LuaSF.JsonNullSentinel");
+    const sol::object sentinel = lua.registry().raw_get<sol::object>(
+        ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
     if (isNil(sentinel)) {
         return false;
     }
@@ -61,8 +63,10 @@ Data readPureDataValueImpl(const sol::object& value,
         sol::state_view lua(state);
         const sol::object metatable = sol::stack::get<sol::object>(state, -1);
         lua_pop(state, 1);
-        for (const char* key :
-             {"LuaSF.JsonArrayMetatable", "LuaSF.JsonEmptyArrayMetatable"}) {
+        for (const char* key : {ludork::standard::json_runtime::protocol::
+                                    JSON_ARRAY_METATABLE_KEY,
+                                ludork::standard::json_runtime::protocol::
+                                    JSON_EMPTY_ARRAY_METATABLE_KEY}) {
             const sol::object known = lua.registry().raw_get<sol::object>(key);
             auto pushedMetatable = sol::stack::push_pop(metatable);
             auto pushedKnown = sol::stack::push_pop(known);
@@ -194,8 +198,8 @@ sol::object writePureDataValue(sol::state_view lua, const Data& value) {
     }
     for (const auto& [name, item] : *items) {
         if (item.isNil()) {
-            const sol::object null =
-                lua.registry().raw_get<sol::object>("LuaSF.JsonNullSentinel");
+            const sol::object null = lua.registry().raw_get<sol::object>(
+                ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
             if (isNil(null)) {
                 throw std::runtime_error("JSON null sentinel is unavailable");
             }

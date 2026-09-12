@@ -1,6 +1,7 @@
 #include <UI/ScrollBox.hpp>
 
 #include "Interaction/InputArguments.hpp"
+#include "Interaction/ScrollConstants.hpp"
 
 #include <Input/InputService.hpp>
 #include <EngineState.hpp>
@@ -260,15 +261,18 @@ void ScrollBox::updateWheelScroll(float deltaTime) {
         return;
     }
     const sf::Vector2f distance = *scrollTargetOffset_ - scrollOffset_;
-    if (std::abs(distance.x) <= WheelEpsilon &&
-        std::abs(distance.y) <= WheelEpsilon) {
+    if (std::abs(distance.x) <=
+            ludork::engine::ui_interaction::WheelScrollEpsilon &&
+        std::abs(distance.y) <=
+            ludork::engine::ui_interaction::WheelScrollEpsilon) {
         scrollOffset_ = *scrollTargetOffset_;
         scrollTargetOffset_.reset();
         applyView();
         return;
     }
     const float factor =
-        1.0f - std::exp(-WheelResponse * std::max(0.0f, deltaTime));
+        1.0f - std::exp(-ludork::engine::ui_interaction::WheelScrollResponse *
+                        std::max(0.0f, deltaTime));
     scrollOffset_ += distance * factor;
     applyView();
 }

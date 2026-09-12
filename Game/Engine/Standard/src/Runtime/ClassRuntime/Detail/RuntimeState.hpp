@@ -51,7 +51,30 @@ inline constexpr const char* NATIVE_CLASS_GUARD_FIELD =
     "__ludorkNativeClassGuard";
 inline constexpr const char* NATIVE_CLASS_RESOLVED_DEFAULTS_FIELD =
     "__classResolvedDefaults";
-inline constexpr const char* NATIVE_COPY_FIELD = "__copy";
+
+inline constexpr const char* CLASS_FIELD = "__class";
+inline constexpr const char* BASES_FIELD = "__bases";
+inline constexpr const char* MRO_FIELD = "__mro";
+inline constexpr const char* MRO_SET_FIELD = "__mroSet";
+inline constexpr const char* RUNTIME_BASES_FIELD = "__runtimeBases";
+inline constexpr const char* RUNTIME_MRO_FIELD = "__runtimeMro";
+inline constexpr const char* RUNTIME_MRO_SET_FIELD = "__runtimeMroSet";
+inline constexpr const char* NATIVE_BASES_FIELD = "__nativeBases";
+inline constexpr const char* NATIVE_MRO_FIELD = "__nativeMro";
+inline constexpr const char* NATIVE_MRO_SET_FIELD = "__nativeMroSet";
+inline constexpr const char* SUBCLASSES_FIELD = "__subclasses";
+inline constexpr const char* LOOKUP_CACHE_FIELD = "__lookupCache";
+inline constexpr const char* LOOKUP_VERSION_FIELD = "__lookupVersion";
+inline constexpr const char* CLASS_BASE_METHODS_FIELD = "__classBaseMethods";
+inline constexpr const char* CLASS_CALLBACKS_FIELD = "__classCallbacks";
+inline constexpr const char* CLASS_DEFAULTS_FIELD = "__classDefaults";
+inline constexpr const char* CLASS_FACTORY_FIELD = "__classFactory";
+inline constexpr const char* CLASS_FACTORY_MIN_ARGUMENTS_FIELD =
+    "__classFactoryMinArgs";
+inline constexpr const char* NATIVE_PROPERTIES_FIELD = "__nativeProperties";
+inline constexpr const char* INSTANCE_ID_FIELD = "__instanceId";
+inline constexpr const char* CLASS_INITIALIZED_ROOTS_FIELD =
+    "__classInitializedRoots";
 
 extern unsigned char nativeClassDefaultResolverKeyStorage;
 extern unsigned char nativeDeepCopyProtocolsKeyStorage;

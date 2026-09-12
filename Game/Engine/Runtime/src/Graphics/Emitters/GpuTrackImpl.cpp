@@ -3,6 +3,7 @@
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/ConcurrentResourceCache.hpp>
+#include <Runtime/Graphics/GpuEmitterCurveLayout.hpp>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -62,8 +63,10 @@ GpuTrackImpl::GpuTrackImpl(const GpuEmitterConfiguration::Track& data,
         gl.TexParameteri(0x0DE1, 0x2800, 0x2600);
         gl.TexParameteri(0x0DE1, 0x2802, 0x812F);
         gl.TexParameteri(0x0DE1, 0x2803, 0x812F);
-        gl.TexImage2D(0x0DE1, 0, 0x8814, 256, 2, 0, 0x1908, 0x1406,
-                      definition.curveSamples.data());
+        gl.TexImage2D(0x0DE1, 0, 0x8814,
+                      static_cast<int>(emitter_curve_layout::SampleCount),
+                      static_cast<int>(emitter_curve_layout::TextureRowCount),
+                      0, 0x1908, 0x1406, definition.curveSamples.data());
         const sf::Vector2u size = texture->getSize();
         if (definition.textureRect.size.x == 0 &&
             definition.textureRect.size.y == 0) {

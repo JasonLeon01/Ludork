@@ -1,4 +1,5 @@
 #include <Runtime/DataStore.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include "DataStoreImpl.hpp"
 #include "LdPakArchive.hpp"
@@ -102,7 +103,8 @@ void validateGroup(const std::string& group) {
         group.find('/') != std::string::npos ||
         group.find('\\') != std::string::npos ||
         group.find('\0') != std::string::npos ||
-        asciiFold(group).ends_with(".ldpak")) {
+        asciiFold(group).ends_with(
+            ludork::generated::resources::PackageExtension)) {
         throw std::runtime_error("Invalid Data group: " + group);
     }
 }
@@ -141,7 +143,7 @@ void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
 void loadLooseTree(const std::filesystem::path& dataRoot,
                    std::unordered_map<std::string, StoreEntry>& entries,
                    std::unordered_map<std::string, std::string>& foldedPaths) {
-    addEntry(entries, foldedPaths, "Data",
+    addEntry(entries, foldedPaths, ludork::generated::resources::DataGroup,
              {dataRoot, nullptr, {}, {true, 0, modificationTime(dataRoot)}});
 
     std::error_code error;
@@ -175,7 +177,8 @@ void loadLooseTree(const std::filesystem::path& dataRoot,
                 entry.path().lexically_relative(dataRoot);
             validateGroup(ludork::standard::pathToUtf8(*relative.begin()));
             const std::string key =
-                "Data/" + ludork::standard::pathToGenericUtf8(relative);
+                ludork::generated::resources::DataPathPrefix +
+                ludork::standard::pathToGenericUtf8(relative);
             addEntry(entries, foldedPaths, key,
                      {entry.path(),
                       nullptr,
@@ -196,20 +199,22 @@ void loadPackage(const std::filesystem::path& packagePath,
                  std::unordered_map<std::string, std::string>& foldedPaths) {
     std::shared_ptr<detail::LdPakArchive> archive =
         std::make_shared<detail::LdPakArchive>(packagePath);
-    if (archive->group() != "Data") {
+    if (archive->group() != ludork::generated::resources::DataGroup) {
         throw std::runtime_error("Data.ldpak must use the Data group");
     }
     addEntry(
-        entries, foldedPaths, "Data",
+        entries, foldedPaths, ludork::generated::resources::DataGroup,
         {archive->path(), archive, {}, {true, 0, archive->modificationTime()}});
     for (const detail::LdPakEntry& archiveEntry : archive->entries()) {
         validateGroup(archiveEntry.path.substr(0, archiveEntry.path.find('/')));
-        addEntry(entries, foldedPaths, "Data/" + archiveEntry.path,
-                 {archive->path(),
-                  archive,
-                  archiveEntry.path,
-                  {archiveEntry.directory, archiveEntry.size,
-                   archive->modificationTime()}});
+        addEntry(
+            entries, foldedPaths,
+            ludork::generated::resources::DataPathPrefix + archiveEntry.path,
+            {archive->path(),
+             archive,
+             archiveEntry.path,
+             {archiveEntry.directory, archiveEntry.size,
+              archive->modificationTime()}});
     }
 }
 
@@ -219,7 +224,7 @@ buildDirectoryEntries(
     std::unordered_map<std::string, std::vector<std::filesystem::path>> result;
     for (const auto& [key, entry] : entries) {
         static_cast<void>(entry);
-        if (key == "Data") {
+        if (key == ludork::generated::resources::DataGroup) {
             continue;
         }
         const std::size_t separator = key.rfind('/');
@@ -257,7 +262,8 @@ std::optional<std::string> normalizeDataPath(
         }
     }
     const std::string key = ludork::standard::pathToGenericUtf8(relative);
-    if (key != "Data" && !key.starts_with("Data/")) {
+    if (key != ludork::generated::resources::DataGroup &&
+        !key.starts_with(ludork::generated::resources::DataPathPrefix)) {
         return std::nullopt;
     }
     return key;
@@ -271,13 +277,18 @@ DataStore::~DataStore() = default;
 void DataStore::configure(const std::filesystem::path& runtimeRoot,
                           const DataStoreMode mode) {
     const std::filesystem::path normalized = detail::resourceStoreRoot(
-        runtimeRoot, "Data", mode == DataStoreMode::Packed);
+        runtimeRoot, ludork::generated::resources::DataGroup,
+        mode == DataStoreMode::Packed);
     std::unordered_map<std::string, StoreEntry> loadedEntries;
     std::unordered_map<std::string, std::string> foldedPaths;
     if (mode == DataStoreMode::Loose) {
-        loadLooseTree(normalized / "Data", loadedEntries, foldedPaths);
+        loadLooseTree(normalized / ludork::generated::resources::DataGroup,
+                      loadedEntries, foldedPaths);
     } else {
-        loadPackage(normalized / "Data.ldpak", loadedEntries, foldedPaths);
+        loadPackage(
+            normalized / (std::string(ludork::generated::resources::DataGroup) +
+                          ludork::generated::resources::PackageExtension),
+            loadedEntries, foldedPaths);
     }
     auto loadedDirectoryEntries = buildDirectoryEntries(loadedEntries);
 

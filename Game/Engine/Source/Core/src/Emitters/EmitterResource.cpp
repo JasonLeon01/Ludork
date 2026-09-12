@@ -42,8 +42,14 @@ std::string string(const RuntimeData::Map& map, const std::string& key,
                                   *value, "particle." + key);
 }
 int choice(const RuntimeData::Map& map, const std::string& key,
-           std::initializer_list<const char*> choices) {
-    const std::string value = string(map, key, *choices.begin());
+           std::initializer_list<const char*> choices, int fallback) {
+    const RuntimeData* input =
+        ludork::runtime::value_reader::findValue(map, key);
+    if (input == nullptr) {
+        return fallback;
+    }
+    const std::string value =
+        ludork::runtime::value_reader::requireString(*input, "particle." + key);
     int index = 0;
     for (const char* candidate : choices) {
         if (value == candidate) {
@@ -78,6 +84,17 @@ sf::Vector2f vector2(const RuntimeData::Map& map, const std::string& key,
     const auto result = vector<2>(map, key, {fallback.x, fallback.y});
     return {result[0], result[1]};
 }
+std::array<float, 4> colour(const RuntimeData::Map& map, const std::string& key,
+                            const std::array<float, 4>& fallback) {
+    if (ludork::runtime::value_reader::findValue(map, key) == nullptr) {
+        return fallback;
+    }
+    std::array<float, 4> result = vector<4>(map, key, fallback);
+    for (float& component : result) {
+        component /= 255;
+    }
+    return result;
+}
 Curve::CurveData curve(const RuntimeData& input, float fallback) {
     RuntimeData data = input;
     if (const std::string* key = data.getIf<std::string>()) {
@@ -87,8 +104,8 @@ Curve::CurveData curve(const RuntimeData& input, float fallback) {
         ludork::runtime::value_reader::requireMap(data, "particle.curve");
     Curve::CurveData result;
     result.defaultValue = number(map, "defaultValue", fallback);
-    result.preInfinity = string(map, "preInfinity", "constant");
-    result.postInfinity = string(map, "postInfinity", "constant");
+    result.preInfinity = string(map, "preInfinity", result.preInfinity);
+    result.postInfinity = string(map, "postInfinity", result.postInfinity);
     if (const RuntimeData* keys =
             ludork::runtime::value_reader::findValue(map, "keys")) {
         for (const RuntimeData& entry :
@@ -98,11 +115,13 @@ Curve::CurveData curve(const RuntimeData& input, float fallback) {
                 ludork::runtime::value_reader::requireMap(entry,
                                                           "particle.curve.key");
             CurveKey item;
-            item.time = number(key, "time", 0);
+            item.time = number(key, "time", item.time);
             item.value = number(key, "value", fallback);
-            item.interpolation = string(key, "interpolation", "linear");
-            item.arriveTangent = number(key, "arriveTangent", 0);
-            item.leaveTangent = number(key, "leaveTangent", 0);
+            item.interpolation =
+                string(key, "interpolation", item.interpolation);
+            item.arriveTangent =
+                number(key, "arriveTangent", item.arriveTangent);
+            item.leaveTangent = number(key, "leaveTangent", item.leaveTangent);
             result.keys.push_back(item);
         }
     }
@@ -128,9 +147,10 @@ EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {
         throw std::invalid_argument("Emitter resource type must be particle");
     }
     EmitterConfiguration result;
-    result.name = string(root, "name", "");
-    result.simulationRate = integer(root, "simulationRate", 60);
-    result.seed = integer(root, "seed", 1);
+    result.name = string(root, "name", result.name);
+    result.simulationRate =
+        integer(root, "simulationRate", result.simulationRate);
+    result.seed = integer(root, "seed", result.seed);
     const RuntimeData* tracks =
         ludork::runtime::value_reader::findValue(root, "tracks");
     if (tracks == nullptr) {
@@ -141,46 +161,55 @@ EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {
         const RuntimeData::Map& map =
             ludork::runtime::value_reader::requireMap(entry, "particle.track");
         EmitterTrack track;
-        track.name = string(map, "name", "Track");
-        track.texture = string(map, "texture", "");
-        track.enabled = boolean(map, "enabled", true);
-        track.resident = choice(map, "mode", {"emission", "resident"}) == 1;
-        track.world = choice(map, "space", {"local", "world"}) == 1;
-        track.additive = choice(map, "blend", {"alpha", "add"}) == 1;
-        track.scaleMode =
-            choice(map, "scaleMode", {"hierarchy", "local", "shape"});
-        track.shape = choice(map, "shape",
-                             {"point", "line", "rectangle", "disk", "ring"});
-        track.loop = boolean(map, "loop", true);
-        track.prewarm = boolean(map, "prewarm", false);
-        track.capacity = integer(map, "capacity", 1024);
-        track.count = integer(map, "count", std::min(32, track.capacity));
-        track.delay = number(map, "delay", 0);
-        track.duration = number(map, "duration", 2);
-        track.rate = number(map, "rate", 30);
-        track.distanceRate = number(map, "distanceRate", 0);
-        track.extent = vector2(map, "extent", {32, 32});
-        track.radius = number(map, "radius", 16);
-        track.innerRadius = number(map, "innerRadius", 8);
-        track.direction = number(map, "direction", -90);
-        track.spread = number(map, "spread", 30);
-        track.lifetime = vector2(map, "lifetime", {1, 2});
-        track.speed = vector2(map, "speed", {20, 40});
-        track.sizeMin = vector2(map, "sizeMin", {8, 8});
-        track.sizeMax = vector2(map, "sizeMax", {16, 16});
-        track.rotation = vector2(map, "rotation", {0, 360});
-        track.angularVelocity = vector2(map, "angularVelocity", {0, 0});
-        track.colourMin = vector<4>(map, "colourMin", {255, 255, 255, 255});
-        track.colourMax = vector<4>(map, "colourMax", {255, 255, 255, 255});
-        for (int index = 0; index < 4; ++index) {
-            track.colourMin[index] /= 255;
-            track.colourMax[index] /= 255;
-        }
-        track.gravity = vector2(map, "gravity", {});
-        track.radialAcceleration = number(map, "radialAcceleration", 0);
-        track.tangentialAcceleration = number(map, "tangentialAcceleration", 0);
-        track.damping = number(map, "damping", 0);
-        const auto rect = vector<4>(map, "textureRect", {0, 0, 0, 0});
+        track.name = string(map, "name", track.name);
+        track.texture = string(map, "texture", track.texture);
+        track.enabled = boolean(map, "enabled", track.enabled);
+        track.resident = choice(map, "mode", {"emission", "resident"},
+                                track.resident ? 1 : 0) == 1;
+        track.world =
+            choice(map, "space", {"local", "world"}, track.world ? 1 : 0) == 1;
+        track.additive =
+            choice(map, "blend", {"alpha", "add"}, track.additive ? 1 : 0) == 1;
+        track.scaleMode = choice(
+            map, "scaleMode", {"hierarchy", "local", "shape"}, track.scaleMode);
+        track.shape =
+            choice(map, "shape", {"point", "line", "rectangle", "disk", "ring"},
+                   track.shape);
+        track.loop = boolean(map, "loop", track.loop);
+        track.prewarm = boolean(map, "prewarm", track.prewarm);
+        track.capacity = integer(map, "capacity", track.capacity);
+        track.count =
+            integer(map, "count", std::min(track.count, track.capacity));
+        track.delay = number(map, "delay", track.delay);
+        track.duration = number(map, "duration", track.duration);
+        track.rate = number(map, "rate", track.rate);
+        track.distanceRate = number(map, "distanceRate", track.distanceRate);
+        track.extent = vector2(map, "extent", track.extent);
+        track.radius = number(map, "radius", track.radius);
+        track.innerRadius = number(map, "innerRadius", track.innerRadius);
+        track.direction = number(map, "direction", track.direction);
+        track.spread = number(map, "spread", track.spread);
+        track.lifetime = vector2(map, "lifetime", track.lifetime);
+        track.speed = vector2(map, "speed", track.speed);
+        track.sizeMin = vector2(map, "sizeMin", track.sizeMin);
+        track.sizeMax = vector2(map, "sizeMax", track.sizeMax);
+        track.rotation = vector2(map, "rotation", track.rotation);
+        track.angularVelocity =
+            vector2(map, "angularVelocity", track.angularVelocity);
+        track.colourMin = colour(map, "colourMin", track.colourMin);
+        track.colourMax = colour(map, "colourMax", track.colourMax);
+        track.gravity = vector2(map, "gravity", track.gravity);
+        track.radialAcceleration =
+            number(map, "radialAcceleration", track.radialAcceleration);
+        track.tangentialAcceleration =
+            number(map, "tangentialAcceleration", track.tangentialAcceleration);
+        track.damping = number(map, "damping", track.damping);
+        const auto rect =
+            vector<4>(map, "textureRect",
+                      {static_cast<float>(track.textureRect.position.x),
+                       static_cast<float>(track.textureRect.position.y),
+                       static_cast<float>(track.textureRect.size.x),
+                       static_cast<float>(track.textureRect.size.y)});
         for (float component : rect) {
             if (component < 0 ||
                 static_cast<double>(component) >
@@ -192,15 +221,17 @@ EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {
         track.textureRect = {
             {static_cast<int>(rect[0]), static_cast<int>(rect[1])},
             {static_cast<int>(rect[2]), static_cast<int>(rect[3])}};
-        track.columns = integer(map, "columns", 1);
-        track.rows = integer(map, "rows", 1);
-        track.frameCount = integer(map, "frameCount", 1);
-        track.frameRate = number(map, "frameRate", 0);
-        track.randomStartFrame = boolean(map, "randomStartFrame", false);
-        track.frameLoop = boolean(map, "frameLoop", true);
-        track.offset = vector2(map, "offset", {});
-        track.rotationOffset = number(map, "rotationOffset", 0);
-        track.scale = vector2(map, "scale", {1, 1});
+        track.columns = integer(map, "columns", track.columns);
+        track.rows = integer(map, "rows", track.rows);
+        track.frameCount = integer(map, "frameCount", track.frameCount);
+        track.frameRate = number(map, "frameRate", track.frameRate);
+        track.randomStartFrame =
+            boolean(map, "randomStartFrame", track.randomStartFrame);
+        track.frameLoop = boolean(map, "frameLoop", track.frameLoop);
+        track.offset = vector2(map, "offset", track.offset);
+        track.rotationOffset =
+            number(map, "rotationOffset", track.rotationOffset);
+        track.scale = vector2(map, "scale", track.scale);
         if (const RuntimeData* curves =
                 ludork::runtime::value_reader::findValue(map, "curves")) {
             const auto& values = ludork::runtime::value_reader::requireMap(
@@ -221,9 +252,11 @@ EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {
                      *bursts, "particle.bursts")) {
                 const auto& item = ludork::runtime::value_reader::requireMap(
                     value, "particle.burst");
-                ludork::runtime::graphics::EmitterBurst burst{
-                    number(item, "time", 0), integer(item, "count", 0),
-                    integer(item, "cycles", 1), number(item, "interval", 0)};
+                ludork::runtime::graphics::EmitterBurst burst;
+                burst.time = number(item, "time", burst.time);
+                burst.count = integer(item, "count", burst.count);
+                burst.cycles = integer(item, "cycles", burst.cycles);
+                burst.interval = number(item, "interval", burst.interval);
                 track.bursts.push_back(burst);
             }
         }

@@ -1,4 +1,5 @@
 #include "Actor/ActorBatchRendererImpl.hpp"
+#include <Graphics/HueConstants.hpp>
 #include <Runtime/AssetInputStream.hpp>
 
 #include "Protocol/FrameFiles.hpp"
@@ -35,7 +36,6 @@ namespace {
 
 constexpr unsigned int maximumAtlasSize = 2048;
 constexpr unsigned int atlasGutter = 1;
-constexpr float neutralHueEpsilon = 0.0001f;
 
 actor_batch_detail::FileStamp fileStamp(const std::string& path) {
     const std::optional<ludork::runtime::AssetStore::AssetStat> stat =
@@ -124,8 +124,9 @@ RuntimeData ActorBatchRenderer::Impl::render(const RuntimeData::Map& request,
     std::unordered_set<std::uint64_t> requestedEffectBufferKeys;
     for (const PackedActorVisual& visual : visuals) {
         const bool hasHue =
-            visual.visual.hue > neutralHueEpsilon &&
-            std::abs(visual.visual.hue - 360.0f) > neutralHueEpsilon;
+            visual.visual.hue > ludork::engine::graphics::HueEpsilon &&
+            std::abs(visual.visual.hue - ludork::engine::graphics::HuePeriod) >
+                ludork::engine::graphics::HueEpsilon;
         if (!visual.visual.shaderPath.empty() && hasHue) {
             requestedEffectBufferKeys.insert(
                 effectBufferKey(visual.visual.textureRect.size));
@@ -223,9 +224,9 @@ ActorBatchRenderer::Impl::parseVisual(const RuntimeData& value,
     float hue = ludork::runtime::value_reader::requireFloat(
         ludork::runtime::value_reader::requireValue(item, "hue", source),
         source + ".hue");
-    hue = std::fmod(hue, 360.0f);
+    hue = std::fmod(hue, ludork::engine::graphics::HuePeriod);
     if (hue < 0.0f) {
-        hue += 360.0f;
+        hue += ludork::engine::graphics::HuePeriod;
     }
     actor_batch_detail::ActorVisualRequest visual{
         ludork::runtime::value_reader::requireString(
@@ -347,8 +348,9 @@ void ActorBatchRenderer::Impl::renderVisual(sf::RenderTexture& target,
         }
     }
     const bool hasHue =
-        packed.visual.hue > neutralHueEpsilon &&
-        std::abs(packed.visual.hue - 360.0f) > neutralHueEpsilon;
+        packed.visual.hue > ludork::engine::graphics::HueEpsilon &&
+        std::abs(packed.visual.hue - ludork::engine::graphics::HuePeriod) >
+            ludork::engine::graphics::HueEpsilon;
     if (packed.shaderError) {
         drawError(target, *textureEntry.texture, rect, packed.position);
         return;
@@ -465,7 +467,7 @@ void ActorBatchRenderer::Impl::pruneEffectBuffers(
 
 sf::Shader& ActorBatchRenderer::Impl::requireHueShader() {
     const std::string path =
-        actorShaderPath("/Game/Assets/Shaders/Global/Hue.frag");
+        actorShaderPath(ludork::engine::graphics::HueShaderPath);
     const ShaderCacheEntry& entry = loadShader(path);
     if (entry.shader == nullptr) {
         throw std::runtime_error(entry.error);

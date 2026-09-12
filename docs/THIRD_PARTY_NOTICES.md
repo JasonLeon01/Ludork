@@ -1,8 +1,8 @@
 # Ludork 1.0.0 Licences and Third-Party Notices
 
-Ludork itself is licensed under the Zlib License in [`LICENSE.md`](LICENSE.md). That licence applies to Ludork software; it does not replace the licences of the components and assets listed below.
+Ludork itself is licensed under the Zlib License in [`LICENSE.md`](../LICENSE.md). That licence applies to Ludork software; it does not replace the licences of the components and assets listed below.
 
-This notice covers the self-contained Windows x64 and macOS Apple Silicon editor packages, the project templates shipped with Ludork 1.0.0, and the unchanged Ludork runtime and asset materials that those templates carry into a generated game package. Project-specific code and assets require their own notices. Complete licence texts are listed in the [`Licences` index](Licenses/README.md). C++ Source templates also retain notices embedded in their third-party source trees.
+This notice covers the self-contained Windows x64 and macOS Apple Silicon editor packages, the project templates shipped with Ludork 1.0.0, and the unchanged Ludork runtime and asset materials that those templates carry into a generated game package. Project-specific code and assets require their own notices. Complete licence texts are listed in the [`Licences` index](../Licenses/README.md). C++ Source templates also retain notices embedded in their third-party source trees.
 
 ## Editor and managed runtime
 

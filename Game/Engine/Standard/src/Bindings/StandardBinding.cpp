@@ -1,4 +1,5 @@
 #include <Standard.hpp>
+#include <JsonRuntimeProtocol.hpp>
 #include <LudorkPlatform.hpp>
 #include <LuaError.hpp>
 #include <RuntimeSession.hpp>
@@ -71,20 +72,24 @@ void initialize(lua_State* state, int cjsonIndex) {
     binding::registerString(lua);
     binding::registerTable(lua);
     sol::table cjson = sol::stack::get<sol::table>(state, absoluteCjsonIndex);
-    lua.registry().raw_set("LuaSF.JsonNullSentinel",
-                           cjson.raw_get<sol::object>("null"));
+    lua.registry().raw_set(
+        ludork::standard::json_runtime::protocol::JSON_NULL_KEY,
+        cjson.raw_get<sol::object>("null"));
     const sol::object jsonArrayMetatable =
         cjson.raw_get<sol::object>("array_mt");
     if (jsonArrayMetatable.get_type() != sol::type::table) {
         throw std::runtime_error("cjson array metatable is not defined");
     }
-    lua.registry().raw_set("LuaSF.JsonArrayMetatable", jsonArrayMetatable);
+    lua.registry().raw_set(
+        ludork::standard::json_runtime::protocol::JSON_ARRAY_METATABLE_KEY,
+        jsonArrayMetatable);
     const sol::object jsonEmptyArrayMetatable =
         cjson.raw_get<sol::object>("empty_array_mt");
     if (jsonEmptyArrayMetatable.get_type() != sol::type::table) {
         throw std::runtime_error("cjson empty-array metatable is not defined");
     }
-    lua.registry().raw_set("LuaSF.JsonEmptyArrayMetatable",
+    lua.registry().raw_set(ludork::standard::json_runtime::protocol::
+                               JSON_EMPTY_ARRAY_METATABLE_KEY,
                            jsonEmptyArrayMetatable);
     binding::registerContainers(lua);
     const sol::object jsonDecode = cjson.raw_get<sol::object>("decode");

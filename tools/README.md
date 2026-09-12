@@ -63,18 +63,37 @@ The scripts check all required outputs before replacing generated pages and
 assets. Do not edit the generated HTML or asset bundles by hand.
 
 GitHub Pages serves the repository's `docs` directory at `/Ludork/`. The homepage,
-documentation, and About page have separate HTML entries at `/Ludork/`,
-`/Ludork/docs/`, and `/Ludork/about/`; Download links directly to GitHub Releases.
+documentation, About, and third-party notices have separate HTML entries at
+`/Ludork/`, `/Ludork/docs/`, `/Ludork/about/`, and `/Ludork/notices/`; Download links
+directly to GitHub Releases. The notices page is reached from the shared footer
+and keeps its page identity when switching language.
 All pages use `?lang=en_GB` or `?lang=zh_CN`. Document selections use `doc` or
 `path` under `/Ludork/docs/`, with an optional heading fragment. Root-page document
 queries are not documentation routes. Keep `.nojekyll` in the published output.
 
 Keep public Markdown in `docs/en_GB` and `docs/zh_CN`, images in `docs/_images`,
-and shared About text in `docs/About_*.md`. Frontend translations live in the typed
-`ludorkSiteMessages.ts` module. The editor packages only the two documentation
-language trees and their images; About sources are mapped to the editor's resource
-root through MSBuild and the platform packaging scripts. Website HTML, JavaScript,
-and build sources are not included in editor packages.
+and shared About text in `docs/About_*.md`. The editor notices are sourced from
+`docs/THIRD_PARTY_NOTICES.md` and `docs/THIRD_PARTY_NOTICES_zh_CN.md`. Frontend
+translations live in the typed `ludorkSiteMessages.ts` module. The editor packages
+the two documentation language trees and their images; About and notice sources
+are mapped to the editor's resource root through MSBuild and the platform
+packaging scripts. Website HTML, JavaScript, and build sources are not included
+in editor packages.
+
+The homepage uses `src/Ludork/assets/hero/home-hero.png` as its replaceable main
+image. Its acknowledgements list is defined in `ludorkDependencies.ts`; platform
+and dependency cards share the horizontal logo scroller, with manual scrolling
+when reduced motion is requested. Icon sources are recorded in
+`src/Ludork/assets/credits.md`.
+
+`ScriptTools legal-resources editor <repository-root> <output-root>` writes the
+editor's root licence, READMEs, notices and licence indexes, relocating their
+Markdown links for the distribution layout. MSBuild and editor packaging invoke
+it after copying resources. `legal-resources template-index` takes the same two
+paths and writes only the two licence indexes so they point to the template's
+own root runtime notices. Both commands leave the source documents unchanged;
+the `Game` notices and runtime packaging filenames remain independent of the
+editor notices.
 
 ### Animation MP4 export
 
@@ -306,10 +325,11 @@ rerun `init` or `build_script_tools` explicitly after changing its sources.
 An installed editor uses its bundled runtime and needs no system Python.
 
 `ScriptTools/packaging_constants.py` owns the shared packaging exit codes,
-default application-name check, editor-cache directory, resource and licence
-lists, template names, generated native Lua files, and common mobile dependency
-cache inputs. Platform SDK, signing, bundle identifiers and runtime archive
-formats remain in their platform packers. Mobile dependency-cache lookup keeps
+default application-name check, editor-cache directory, licence lists, template
+names, generated native Lua files, and common mobile project/dependency-cache
+inputs. `ScriptTools/resource_constants.py` owns resource groups, logical path
+prefixes, entry names and file extensions. Platform SDK, signing, bundle
+identifiers and platform archive formats remain in their platform packers. Mobile dependency-cache lookup keeps
 each platform's existing priority; the desktop native build retains its larger
 dependency list.
 
@@ -331,6 +351,20 @@ are build outputs; edit the Python source and rebuild ScriptTools before
 building the editor or running packaging tools.
 
 `dotnet build` and `dotnet publish` generate `obj/.../EngineConstants.g.cs` with `ScriptTools engine-constants <EngineState.hpp> <output.cs>`. The C++ declaration is authoritative for the editor cell size; rebuild ScriptTools after changing the generator. The managed Actions cache includes this header and generator so changed constants cannot reuse stale editor binaries.
+
+`ScriptTools runtime-constants cpp <project-root> <output-directory>` generates
+C++ headers under `<output-directory>/LudorkGenerated`. `runtime_formats.py`
+owns LDPK and encrypted data/shader format values and field layouts;
+`resource_constants.py` owns shared resource names. The generator also reads the
+single `LUDORK_MAX_SHADER_LIGHTS` decimal definition from the project's
+`Assets/Shaders/Global/UnoccludedLightPass.frag`, requiring a value from 1 to 256.
+CMake runs the generator before its consumers in game, preview and no-Lua
+builds. Generated headers stay under `Intermediate`, are recreated when missing,
+and are not rewritten when their content is unchanged. Rebuild ScriptTools
+after editing the Python definitions, then rebuild the native project. Changing
+the shader limit also requires a native rebuild before packaging. Source
+projects use the installed tools bundle; runtime binaries do not read tool
+sources or generated headers.
 
 System UI descriptors are owned by each project's
 `Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp`. The compiled
@@ -506,6 +540,33 @@ project-root `Cache` is also excluded when generating templates.
 Desktop Standalone output keeps its launcher at the root and native dependencies
 under `Binaries`; a packaged macOS app uses its standard `Contents` layout.
 
+Release native builds enable IPO/LTO for Standard, its ClassRuntime OBJECT target
+and the final mobile application, alongside Runtime and Core; MinGW keeps IPO
+disabled. ClassRuntime hides ordinary and inline symbols while preserving explicit
+public exports. On Apple platforms, the game application, Standard, Runtime and
+Core use `-dead_strip` for their final Release links. Debug optimisation and
+symbol-stripping policies remain unchanged.
+
+On macOS, single-arm64 AppleClang Release builds compile generated Core binding
+sources with `-Os`. Handwritten runtime sources and other platforms, architectures
+and configurations retain their existing optimisation levels.
+
+Final native symbol handling is platform-specific:
+
+| Platform | Distribution output |
+|---|---|
+| macOS | C++ Source and Standalone packing apply `strip -x` to Main and real dynamic libraries in the final app, skipping symlinks. Binaries receive ad-hoc signatures after dependency-path changes; the complete app is signed and verified after resource finalisation. Strip or signing failure aborts packing. |
+| iOS | The Release application target uses `DEPLOYMENT_POSTPROCESSING=YES`, `STRIP_INSTALLED_PRODUCT=YES` and `STRIP_STYLE=non-global`, so Xcode strips before signing; input static libraries remain intact. |
+| Windows | MSVC generates separate PDB files with `/DEBUG:FULL` and keeps `/OPT:REF /OPT:ICF`. Packages exclude PDB files; EXE/DLL files are not passed through a generic strip tool. |
+| Android | NDK `llvm-strip --strip-unneeded` processes the staged `libludork.so` before Gradle builds the APK. |
+| HarmonyOS | Hvigor strips native libraries for Mobile and both 2in1 Release variants before HAP signing; signed HAP files are not modified afterwards. |
+
+Keep matching unstripped native outputs and any generated debug-symbol files for
+release diagnostics. macOS packing leaves source `bin` outputs, Standalone
+templates and shared preview libraries unstripped. Its ad-hoc signatures do not
+provide distributor certificate signing or notarisation. Android and HarmonyOS
+retain their toolchain section garbage collection without extra global flags.
+
 `LUDORK_WITH_LUA` defaults to `ON` for game projects. The desktop project
 preview target leaves the setting unchanged and reuses the project's Runtime,
 Standard and SFML dependencies. Its dedicated `UiPreviewHostRuntime` compiles
@@ -549,5 +610,4 @@ native dependencies, optional FFmpeg and bundled assets. Template generation
 refreshes those materials in C++ templates and derives Standalone templates
 from them. Editor, managed-runtime and build-tool notices remain in the editor
 distribution. Final game packages remove only preview-specific files from
-`Binaries`, retain shared libraries, and exclude root `EditorCache` and `Cache`. macOS game
-packaging does not provide distributor signing or notarisation.
+`Binaries`, retain shared libraries, and exclude root `EditorCache` and `Cache`.

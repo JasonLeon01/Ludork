@@ -1,6 +1,6 @@
 # Licence Text Index
 
-Ludork uses the distribution-root [Zlib License](../LICENSE.md); third-party components and assets keep their own terms. See [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for versions, sources, purposes and text paths.
+Ludork uses the distribution-root [Zlib License](../LICENSE.md); third-party components and assets keep their own terms. See [THIRD_PARTY_NOTICES.md](../docs/THIRD_PARTY_NOTICES.md) for versions, sources, purposes and text paths.
 
 This is the canonical `Licenses` tree. The editor package receives it in full; templates receive this index, the common runtime directories, and `FFmpeg` only when enabled.
 

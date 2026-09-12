@@ -1,5 +1,6 @@
 local GlobalCore = require("GlobalCore")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -11,8 +12,8 @@ local MultiHitAbility = {}
 ---@param magnitude integer
 function MultiHitAbility:init(magnitude)
     GameplayAbility.init(self, {})
-    self.id = "Special." .. Special.MultiHit
-    self.triggerTags = { "Event.Combat.ResolveHitCount" }
+    self.id = GameplayConstants.SPECIAL_PREFIX .. Special.MultiHit
+    self.triggerTags = { GameplayConstants.COMBAT_RESOLVE_HIT_COUNT_EVENT }
     local clampedMagnitude = math.max(1, magnitude)
     ---@cast clampedMagnitude integer
     self._magnitude = clampedMagnitude

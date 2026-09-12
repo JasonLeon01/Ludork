@@ -1,4 +1,5 @@
 #include <Runtime/ScriptStore.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include "ScriptStoreImpl.hpp"
 #include "ScriptModuleShape.hpp"
@@ -96,15 +97,21 @@ bool isIgnoredMetadata(const std::filesystem::path& path,
 }
 
 bool isLuaScriptPath(const std::string_view path) {
-    return path.ends_with(".lua") || path.ends_with(".luac");
+    return path.ends_with(ludork::generated::resources::LuaSourceExtension) ||
+           path.ends_with(ludork::generated::resources::LuaCompiledExtension);
 }
 
 std::string moduleName(const std::string& path) {
     std::size_t extensionSize = 0;
-    if (path.ends_with(".luac")) {
-        extensionSize = 5;
-    } else if (path.ends_with(".lua")) {
-        extensionSize = 4;
+    if (path.ends_with(ludork::generated::resources::LuaCompiledExtension)) {
+        extensionSize =
+            std::string_view(ludork::generated::resources::LuaCompiledExtension)
+                .size();
+    } else if (path.ends_with(
+                   ludork::generated::resources::LuaSourceExtension)) {
+        extensionSize =
+            std::string_view(ludork::generated::resources::LuaSourceExtension)
+                .size();
     } else {
         return {};
     }
@@ -132,11 +139,15 @@ std::string moduleName(const std::string& path) {
 }
 
 std::string validateScriptPath(const std::string& scriptPath) {
-    constexpr std::string_view Prefix = "Scripts/";
+    constexpr std::string_view Prefix =
+        ludork::generated::resources::ScriptPathPrefix;
     if (!scriptPath.starts_with(Prefix) || scriptPath.size() == Prefix.size() ||
         scriptPath.find('\\') != std::string::npos ||
         scriptPath.find('\0') != std::string::npos ||
-        (!scriptPath.ends_with(".lua") && !scriptPath.ends_with(".luac"))) {
+        (!scriptPath.ends_with(
+             ludork::generated::resources::LuaSourceExtension) &&
+         !scriptPath.ends_with(
+             ludork::generated::resources::LuaCompiledExtension))) {
         throw std::invalid_argument(
             "Script path must name a .lua or .luac file under Scripts");
     }
@@ -207,8 +218,10 @@ void addModule(std::unordered_map<std::string, std::string>& modules,
         modules.emplace(name, relative);
         return;
     }
-    const bool newSource = relative.ends_with(".lua");
-    const bool oldSource = existing->second.ends_with(".lua");
+    const bool newSource =
+        relative.ends_with(ludork::generated::resources::LuaSourceExtension);
+    const bool oldSource = existing->second.ends_with(
+        ludork::generated::resources::LuaSourceExtension);
     if (newSource == oldSource) {
         throw std::runtime_error("Multiple Script files map to module " + name);
     }
@@ -218,11 +231,23 @@ void addModule(std::unordered_map<std::string, std::string>& modules,
 }
 
 std::string alternateScriptPath(const std::string& relative) {
-    if (relative.ends_with(".lua")) {
-        return relative + 'c';
+    if (relative.ends_with(ludork::generated::resources::LuaSourceExtension)) {
+        return relative.substr(
+                   0, relative.size() -
+                          std::string_view(
+                              ludork::generated::resources::LuaSourceExtension)
+                              .size()) +
+               ludork::generated::resources::LuaCompiledExtension;
     }
-    if (relative.ends_with(".luac")) {
-        return relative.substr(0, relative.size() - 1);
+    if (relative.ends_with(
+            ludork::generated::resources::LuaCompiledExtension)) {
+        return relative.substr(
+                   0,
+                   relative.size() -
+                       std::string_view(
+                           ludork::generated::resources::LuaCompiledExtension)
+                           .size()) +
+               ludork::generated::resources::LuaSourceExtension;
     }
     return {};
 }
@@ -302,8 +327,11 @@ void ScriptStore::configure(const std::filesystem::path& runtimeRoot) {
     if (error || normalized.empty()) {
         throw std::invalid_argument("Invalid runtime root for ScriptStore");
     }
-    const std::filesystem::path scriptsRoot = normalized / "Scripts";
-    const std::filesystem::path packagePath = normalized / "Scripts.ldpak";
+    const std::filesystem::path scriptsRoot =
+        normalized / ludork::generated::resources::ScriptGroup;
+    const std::filesystem::path packagePath =
+        normalized / (std::string(ludork::generated::resources::ScriptGroup) +
+                      ludork::generated::resources::PackageExtension);
     error.clear();
     const bool looseExists = std::filesystem::exists(scriptsRoot, error);
     if (error) {
@@ -318,8 +346,9 @@ void ScriptStore::configure(const std::filesystem::path& runtimeRoot) {
     }
     if (looseExists == packageExists) {
         throw std::runtime_error(
-            "Runtime root must contain exactly one of Scripts or "
-            "Scripts.ldpak");
+            "Runtime root must contain exactly one of Scripts or " +
+            (std::string(ludork::generated::resources::ScriptGroup) +
+             ludork::generated::resources::PackageExtension));
     }
 
     std::unordered_map<std::string, script_store_impl::ScriptEntry>
@@ -382,7 +411,8 @@ void ScriptStore::configure(const std::filesystem::path& runtimeRoot) {
         }
     } else {
         loadedArchive = std::make_shared<detail::LdPakArchive>(packagePath);
-        if (loadedArchive->group() != "Scripts") {
+        if (loadedArchive->group() !=
+            ludork::generated::resources::ScriptGroup) {
             throw std::runtime_error(
                 "Scripts.ldpak must use the Scripts group");
         }
@@ -407,8 +437,10 @@ void ScriptStore::configure(const std::filesystem::path& runtimeRoot) {
             addModule(loadedModules, entry.path);
         }
     }
-    if (!loadedEntries.contains("Entry.lua") &&
-        !loadedEntries.contains("Entry.luac")) {
+    if (!loadedEntries.contains(
+            ludork::generated::resources::ScriptEntrySource) &&
+        !loadedEntries.contains(
+            ludork::generated::resources::ScriptEntryCompiled)) {
         throw std::runtime_error(
             "Scripts must contain Entry.lua or Entry.luac");
     }
@@ -491,8 +523,8 @@ int ScriptStore::loadModule(lua_State* state,
         if (module == impl_->modules.end()) {
             throw std::runtime_error("Script module not found: " + moduleName);
         }
-        const std::string relative =
-            validateScriptPath("Scripts/" + module->second);
+        const std::string relative = validateScriptPath(
+            ludork::generated::resources::ScriptPathPrefix + module->second);
         return loadScriptEntry(state, relative, impl_->entries, impl_->archive);
     } catch (const std::exception& exception) {
         lua_pushstring(state, exception.what());
@@ -530,10 +562,12 @@ void ScriptStore::registerPreloadedModules(lua_State* state) const {
         }
         lua_pushlightuserdata(state, const_cast<ScriptStore*>(this));
         lua_pushlstring(state, name.data(), name.size());
-        lua_pushboolean(state, captureDefinitions &&
-                                   impl_->mode == ScriptStoreMode::Loose &&
-                                   impl_->modules.at(name).ends_with(".lua") &&
-                                   !name.ends_with("_meta"));
+        lua_pushboolean(
+            state, captureDefinitions &&
+                       impl_->mode == ScriptStoreMode::Loose &&
+                       impl_->modules.at(name).ends_with(
+                           ludork::generated::resources::LuaSourceExtension) &&
+                       !name.ends_with("_meta"));
         lua_pushcclosure(state, preloadScript, 3);
         lua_pushvalue(state, -1);
         lua_setfield(state, ownersIndex, name.c_str());
@@ -568,7 +602,7 @@ ScriptStore::ReloadSnapshot ScriptStore::prepareReload() const {
         if (path.ends_with("_meta.lua") || path.ends_with("_meta.luac")) {
             continue;
         }
-        if (!path.ends_with(".lua")) {
+        if (!path.ends_with(ludork::generated::resources::LuaSourceExtension)) {
             if (candidate.entries.contains(alternateScriptPath(path))) {
                 continue;
             }
@@ -576,12 +610,15 @@ ScriptStore::ReloadSnapshot ScriptStore::prepareReload() const {
                 "Hot reload does not support bytecode: Scripts/" + path);
         }
         const std::vector<std::uint8_t> bytes = readPhysicalFile(entry.source);
-        snapshot.sources.emplace("Scripts/" + path,
-                                 std::string(bytes.begin(), bytes.end()));
+        snapshot.sources.emplace(
+            ludork::generated::resources::ScriptPathPrefix + path,
+            std::string(bytes.begin(), bytes.end()));
     }
     for (const auto& [name, path] : candidate.modules) {
-        if (snapshot.sources.contains("Scripts/" + path)) {
-            snapshot.modules.emplace(name, "Scripts/" + path);
+        if (snapshot.sources.contains(
+                ludork::generated::resources::ScriptPathPrefix + path)) {
+            snapshot.modules.emplace(
+                name, ludork::generated::resources::ScriptPathPrefix + path);
         }
     }
     return snapshot;

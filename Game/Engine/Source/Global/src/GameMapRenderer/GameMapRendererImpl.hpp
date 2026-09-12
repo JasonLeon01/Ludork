@@ -77,7 +77,8 @@ public:
     GameMapRendererImpl(GameMapBase& map, std::shared_ptr<Tilemap> tilemap,
                         std::shared_ptr<Camera> camera,
                         const std::vector<std::string>& layerNames,
-                        int coverAlpha, bool previewOnly);
+                        int coverAlpha, bool previewOnly,
+                        std::size_t maximumShaderLights);
 
     void setCamera(std::shared_ptr<Camera> value);
     void drawContent(
@@ -189,6 +190,7 @@ public:
     std::vector<std::string> layerNames;
     std::uint8_t coverAlpha;
     bool previewOnly;
+    const std::size_t maximumShaderLights;
 
     std::shared_ptr<sf::Shader> materialShader;
     std::shared_ptr<sf::Shader> tileMaskShader;

@@ -3,8 +3,6 @@
 local MapDataParser = {}
 
 MapDataParser.DATA_ROOT = ""
-MapDataParser.EXTENSION = ""
-MapDataParser.WORLD_MANIFEST_FILE = ""
 
 ---@param mapPath string
 ---@return string

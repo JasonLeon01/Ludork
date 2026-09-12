@@ -1,4 +1,5 @@
 #include "ScriptModuleShape.hpp"
+#include <ClassRuntimeProtocol.hpp>
 
 #include <ClassHotReload.hpp>
 
@@ -24,8 +25,11 @@ bool internalKey(lua_State* state, int key, bool classTable) {
     const char* text = lua_tolstring(state, key, &length);
     const std::string_view name(text, length);
     return name == "new" || name == "_hasImplementationOwner" ||
-           (name.starts_with("__") && name != "__getters" &&
-            name != "__setters");
+           (name.starts_with("__") &&
+            name != ludork::standard::class_runtime::protocol::
+                        CLASS_GETTERS_FIELD &&
+            name !=
+                ludork::standard::class_runtime::protocol::CLASS_SETTERS_FIELD);
 }
 
 void pushShape(lua_State* state, int value, int seen) {

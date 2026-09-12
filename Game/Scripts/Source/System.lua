@@ -3,6 +3,7 @@ local GameMap = require("Global.GameMap")
 local GlobalCore = require("GlobalCore")
 local MainConfig = require("Source.Configs.Main")
 
+local ResourceFileConstants = Engine.ResourceFileConstants
 local FontManager = GlobalCore.FontManager
 local GlobalSystem = GlobalCore.System
 local RuntimeProviders = Engine.RuntimeProviders
@@ -42,7 +43,10 @@ local systemState = {
 ---@return string
 local function blueprintRelativePathToClassPath(relativePath)
     assert(Class.isInstance(relativePath, "string"), "Start player blueprint path must be a string")
-    assert(relativePath:sub(-5) == ".json", "Start player blueprint path must end with .json")
+    assert(
+        string.endsWith(relativePath, ResourceFileConstants.DATA_EXTENSION),
+        "Start player blueprint path must end with .json"
+    )
     assert(relativePath:sub(1, 1) ~= "/", "Start player blueprint path must be relative")
     assert(not relativePath:find("\\", 1, true), "Start player blueprint path must use / separators")
     assert(not relativePath:find("//", 1, true), "Start player blueprint path contains an empty segment")

@@ -9,8 +9,6 @@ local LOC = Locale.ApplyStringLocaleFormat
 local ToShortNumber = NumberFormat.ToShortNumber
 local TextLayout = Engine.TextLayout
 
-local _CELL_WIDTH = 320
-local _CELL_HEIGHT = 64
 local _ICON_AREA_WIDTH = 64
 local _SPECIAL_ICON_SIZE = 16
 local _SPECIAL_GAP = 4
@@ -95,7 +93,7 @@ end
 
 function WindowEnemyBookCellController:refresh()
     local specialAreaWidth = measureSpecialAreaWidth(self._specialDisplays, self._specialTexts)
-    local nameMaxWidth = math.max(32, math.floor(_CELL_WIDTH - _ICON_AREA_WIDTH - specialAreaWidth))
+    local nameMaxWidth = math.max(32, math.floor(assert(self._viewLogicalSize).x - _ICON_AREA_WIDTH - specialAreaWidth))
     self:setText("Name", TextLayout.fitPlainText(self.model.entry.name or "", nameMaxWidth, self.ui.controls["Name"]))
     for _, stat in ipairs(_STAT_FIELDS) do
         local value = tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
@@ -134,9 +132,7 @@ function WindowEnemyBookCellController:prepare(logicalSize)
 end
 
 function WindowEnemyBookCellController:refreshLocale()
-    local logicalSize = sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT)
-    ---@cast logicalSize sf.Vector2u
-    self:prepare(logicalSize)
+    self:prepare()
     self.root:render()
 end
 
@@ -162,7 +158,7 @@ function measureSpecialAreaWidth(specialDisplays, specialTexts)
 end
 
 function WindowEnemyBookCellController:_layoutSpecials()
-    local currentX = _CELL_WIDTH - _SPECIAL_RIGHT_PAD + 0.0
+    local currentX = assert(self._viewLogicalSize).x - _SPECIAL_RIGHT_PAD + 0.0
     for index = math.min(#self._specialDisplays, 3), 1, -1 do
         local item = assert(self._specialDisplays[index])
         if item.texture ~= nil then

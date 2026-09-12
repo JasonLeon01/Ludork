@@ -148,8 +148,7 @@ copy_runtime_legal_files() {
     include_ffmpeg=$2
     rm -rf "$template_dir/Licenses"
     mkdir -p "$template_dir/Licenses"
-    cp "$LICENSES_DIR/README.md" "$template_dir/Licenses/README.md"
-    cp "$LICENSES_DIR/README_zh_CN.md" "$template_dir/Licenses/README_zh_CN.md"
+    "$SCRIPT_TOOLS" legal-resources template-index "$PROJECT_ROOT" "$template_dir"
     for licence_directory in \
         Lua \
         LuaSF \

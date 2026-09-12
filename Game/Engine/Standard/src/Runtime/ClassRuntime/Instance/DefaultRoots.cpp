@@ -30,7 +30,7 @@ void completeDefaultNativeRoots(sol::state_view lua,
             continue;
         }
         const sol::object rawMinimum =
-            root.raw_get<sol::object>("__classFactoryMinArgs");
+            root.raw_get<sol::object>(CLASS_FACTORY_MIN_ARGUMENTS_FIELD);
         if (!rawMinimum.is<lua_Integer>() ||
             rawMinimum.as<lua_Integer>() != 0) {
             continue;
@@ -53,11 +53,11 @@ sol::object ensureDefaultNativeObject(sol::state_view lua,
     if (!rawBool(fields, NATIVE_INITIALIZING_FIELD)) {
         return nilObject(lua);
     }
-    const sol::object rawClass = fields.raw_get<sol::object>("__class");
+    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
     const sol::object rawObjects =
         fields.raw_get<sol::object>(protocol::NATIVE_OBJECTS_FIELD);
     const sol::object rawInstanceId =
-        fields.raw_get<sol::object>("__instanceId");
+        fields.raw_get<sol::object>(INSTANCE_ID_FIELD);
     if (!rawClass.is<sol::table>() || !rawObjects.is<sol::table>() ||
         !rawInstanceId.is<std::size_t>()) {
         return nilObject(lua);
@@ -77,7 +77,7 @@ sol::object ensureDefaultNativeObject(sol::state_view lua,
         return nilObject(lua);
     }
     const sol::object rawMinimum =
-        root.raw_get<sol::object>("__classFactoryMinArgs");
+        root.raw_get<sol::object>(CLASS_FACTORY_MIN_ARGUMENTS_FIELD);
     if (!rawMinimum.is<lua_Integer>() || rawMinimum.as<lua_Integer>() != 0) {
         return nilObject(lua);
     }
@@ -87,7 +87,7 @@ sol::object ensureDefaultNativeObject(sol::state_view lua,
 
 bool nativeRootIsDeferred(const sol::table& root) {
     const sol::object rawMinimum =
-        root.raw_get<sol::object>("__classFactoryMinArgs");
+        root.raw_get<sol::object>(CLASS_FACTORY_MIN_ARGUMENTS_FIELD);
     return rawMinimum.is<lua_Integer>() && rawMinimum.as<lua_Integer>() >= 0;
 }
 

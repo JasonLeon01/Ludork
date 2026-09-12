@@ -1,8 +1,9 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GameplayEventData = GlobalCore.GameplayEventData
 local Teleporter = require("Source.Teleporter")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
+local GameplayEventData = GlobalCore.GameplayEventData
 local MapClickAutoPathRuntime = {}
 
 function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal)
@@ -63,7 +64,7 @@ function MapClickAutoPathRuntime.TriggerInstantWalkStates(player, walkCount)
     for _ = 1, walkCount do
         player
             :getAbilitySystemComponent()
-            :handleGameplayEvent(GameplayEventData.new(player, player, "Event.Movement.Step", {}))
+            :handleGameplayEvent(GameplayEventData.new(player, player, GameplayConstants.MOVEMENT_STEP_EVENT, {}))
     end
 end
 

@@ -1,6 +1,6 @@
 # 许可证正文索引
 
-Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组件和资产保留各自条款。版本、来源、用途与正文路径见 [`THIRD_PARTY_NOTICES_zh_CN.md`](../THIRD_PARTY_NOTICES_zh_CN.md)。
+Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组件和资产保留各自条款。版本、来源、用途与正文路径见 [`THIRD_PARTY_NOTICES_zh_CN.md`](../docs/THIRD_PARTY_NOTICES_zh_CN.md)。
 
 本目录是权威 `Licenses`。编辑器包完整携带；模板携带本索引、公共运行时目录，并仅在启用时携带 `FFmpeg`。
 

@@ -12,6 +12,7 @@ local IconTexture = require("Source.UIBase.IconTexture")
 local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.WindowEnemyBook")
 local WindowEnemyBookCellController = require("Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
@@ -133,7 +134,7 @@ function Controller:buildEntry(enemy, visual)
         GOLD = enemy.attributes.GOLD,
         damage = battleResult.code == MotaBattleAbility.BattleResult.CANNOT_DAMAGE and "???" or battleData.damage,
         critical = MotaBattleAbility.CalculateCriticalValue(enemy, self:getPlayer()),
-        hitCount = abilitySystem:hasMatchingGameplayTag("Special." .. Special.MultiHit)
+        hitCount = abilitySystem:hasMatchingGameplayTag(GameplayConstants.SPECIAL_PREFIX .. Special.MultiHit)
             and battleData.enemyAttack.hitCount
             or nil,
         specialDisplays = self:buildSpecialDisplays(special),

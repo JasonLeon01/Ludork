@@ -2,14 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Box,
   Drawer,
-  IconButton,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
 import LudorkSidebar from './LudorkSidebar'
 import LudorkContent from './LudorkContent'
 import LudorkSectionTabs from './LudorkSectionTabs'
-import { MenuIcon } from './LudorkIcon'
 import LudorkHeader from './LudorkHeader'
 import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
 import useLudorkPageMetadata from './useLudorkPageMetadata'
@@ -145,6 +143,7 @@ export default function LudorkApp() {
   const [rememberedSelections, setRememberedSelections] = useState<RememberedSelections>({})
   const theme = useTheme()
   const isNarrow = useMediaQuery(theme.breakpoints.down('md'))
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [desktopCollapsed, setDesktopCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const collapsed = isNarrow ? !mobileOpen : desktopCollapsed
@@ -349,26 +348,42 @@ export default function LudorkApp() {
         sections={sections}
         activeSectionKey={activeSection?.key ?? false}
         onSelect={handleSectionSelect}
+        onToggleNavigation={showSidebar ? handleToggle : undefined}
+        navigationExpanded={!collapsed}
       />
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-        {showSidebar && activeSection && (isNarrow || !collapsed) && (
+        {showSidebar && activeSection && (
           <Drawer
             variant={isNarrow ? 'temporary' : 'permanent'}
             open={!collapsed}
             onClose={() => setMobileOpen(false)}
-            slotProps={{ paper: { id: 'document-navigation', 'aria-label': messages.docs.sections } }}
+            transitionDuration={reducedMotion ? 0 : 200}
+            slotProps={{
+              paper: {
+                id: 'document-navigation',
+                'aria-label': messages.docs.sections,
+                inert: !isNarrow && collapsed ? true : undefined,
+              },
+            }}
             sx={{
-              width: isNarrow ? 0 : SIDEBAR_WIDTH,
+              width: isNarrow || collapsed ? 0 : SIDEBAR_WIDTH,
               flexShrink: 0,
+              overflow: 'hidden',
+              transition: reducedMotion ? 'none' : 'width 200ms var(--ludork-ease)',
               '& .MuiDrawer-paper': {
                 width: SIDEBAR_WIDTH,
                 maxWidth: '100vw',
                 boxSizing: 'border-box',
                 borderRight: '1px solid var(--ludork-line)',
                 background: 'var(--ludork-surface)',
-                boxShadow: 'none',
-                ...(isNarrow ? {} : { position: 'relative', height: '100%' }),
+                boxShadow: isNarrow ? 'var(--ludork-shadow)' : 'none',
+                ...(isNarrow ? {} : {
+                  position: 'relative',
+                  height: '100%',
+                  transform: collapsed ? 'translateX(-100%)' : 'translateX(0)',
+                  transition: reducedMotion ? 'none' : 'transform 200ms var(--ludork-ease)',
+                }),
               },
             }}
           >
@@ -377,34 +392,12 @@ export default function LudorkApp() {
               section={activeSection}
               selected={visibleSelection}
               onSelect={handleSelect}
-              onToggle={handleToggle}
+              onToggle={isNarrow ? handleToggle : undefined}
             />
           </Drawer>
         )}
 
-        {showSidebar && (isNarrow || collapsed) && (
-          <IconButton
-            onClick={handleToggle}
-            sx={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              zIndex: 1200,
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              boxShadow: 'none',
-              '&:hover': { bgcolor: 'action.hover' },
-            }}
-            aria-label={messages.docs.expandSidebar}
-            aria-expanded={!collapsed}
-            aria-controls="document-navigation"
-          >
-            <MenuIcon />
-          </IconButton>
-        )}
-
-        <Box component="main" id="main-content" tabIndex={-1} sx={{ flex: 1, minWidth: 0, height: '100%', overflow: 'auto' }}>
+        <Box component="main" id="main-content" tabIndex={-1} className="ludork-docs-main" sx={{ flex: 1, minWidth: 0, height: '100%', overflow: 'auto' }}>
           <LudorkContent language={language} path={contentPath} hash={contentHash} onNavigate={handleNavigate} />
         </Box>
       </Box>

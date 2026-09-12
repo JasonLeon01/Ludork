@@ -1,4 +1,5 @@
 #include "Class/ClassRuntimeInternals.hpp"
+#include <ClassRuntimeProtocol.hpp>
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
@@ -69,7 +70,7 @@ int superProxyIndex(lua_State* state) {
             }
             const sol::table type = rawType.as<sol::table>();
             const sol::object rawGetters =
-                type.raw_get<sol::object>("__getters");
+                type.raw_get<sol::object>(protocol::CLASS_GETTERS_FIELD);
             if (rawGetters.is<sol::table>()) {
                 const sol::object getter =
                     rawGetters.as<sol::table>().raw_get<sol::object>(key);
@@ -83,7 +84,7 @@ int superProxyIndex(lua_State* state) {
             sol::object member = nilObject(lua);
             if (isNativeType(lua, type)) {
                 const sol::object rawBaseMethods =
-                    type.raw_get<sol::object>("__classBaseMethods");
+                    type.raw_get<sol::object>(CLASS_BASE_METHODS_FIELD);
                 if (rawBaseMethods.is<sol::table>()) {
                     member =
                         rawBaseMethods.as<sol::table>().raw_get<sol::object>(

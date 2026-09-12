@@ -7,6 +7,7 @@ import re
 import sys
 
 from .pack_error import PackError
+from .resource_constants import RESOURCE_GROUPS, RESOURCE_PACKAGES, SCRIPT_GROUP
 
 
 EXIT_TOOLCHAIN = 20
@@ -23,13 +24,15 @@ DEFAULT_APP_NAME_PATTERN = (
 )
 TEMPLATE_TOKEN_PATTERN = re.compile(r"__LUDORK_[A-Z0-9_]+__")
 FILE_BUFFER_SIZE = 1024 * 1024
-SCRIPT_GROUP = "Scripts"
-RESOURCE_GROUPS = ("Assets", "Data", SCRIPT_GROUP)
-RESOURCE_PACKAGES = tuple(f"{name}.ldpak" for name in RESOURCE_GROUPS)
 RUNTIME_LEGAL_FILES = (
     "LICENSE.md",
     "THIRD_PARTY_NOTICES.md",
     "THIRD_PARTY_NOTICES_zh_CN.md",
+)
+MOBILE_PROJECT_DIRECTORIES = (
+    "Assets", "Engine/Source", "Engine/Runtime", "Data", "Application",
+    "Engine/ThirdParty/LuaSF", "Engine/ThirdParty/lua-cjson", "Scripts",
+    "Engine/Standard", "Engine/ThirdParty/zlib",
 )
 MOBILE_DEPENDENCY_NAMES = (
     "flac", "freetype", "harfbuzz", "libssh2", "mbedtls", "ogg", "sheenbidi", "vorbis",

@@ -3,12 +3,17 @@
 #include <array>
 #include <cctype>
 #include <stdexcept>
+#include <string_view>
 
 namespace ludork::standard {
+namespace {
+
+constexpr std::string_view Alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+}  // namespace
 
 std::string encodeBase64(std::span<const std::uint8_t> bytes) {
-    static constexpr char Alphabet[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::string result;
     result.reserve(((bytes.size() + 2) / 3) * 4);
     for (std::size_t index = 0; index < bytes.size(); index += 3) {
@@ -32,10 +37,8 @@ std::vector<std::uint8_t> decodeBase64(std::string_view value) {
     static constexpr std::array<signed char, 256> Lookup = [] {
         std::array<signed char, 256> result{};
         result.fill(-1);
-        constexpr std::string_view alphabet =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        for (std::size_t index = 0; index < alphabet.size(); ++index) {
-            result[static_cast<unsigned char>(alphabet[index])] =
+        for (std::size_t index = 0; index < Alphabet.size(); ++index) {
+            result[static_cast<unsigned char>(Alphabet[index])] =
                 static_cast<signed char>(index);
         }
         return result;

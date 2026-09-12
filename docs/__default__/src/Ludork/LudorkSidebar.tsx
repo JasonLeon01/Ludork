@@ -43,11 +43,10 @@ export default function LudorkSidebar({
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'transparent',
-        whiteSpace: 'nowrap',
       }}
     >
-      <Box sx={{ px: 2.25, pt: 2, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, letterSpacing: '-0.02em' }}>
+      <Box sx={{ px: 2.75, pt: 2.75, pb: 1.75, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <Typography variant="h6" sx={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.025em' }}>
           Ludork
         </Typography>
         {onToggle && (
@@ -57,18 +56,19 @@ export default function LudorkSidebar({
         )}
       </Box>
 
-      <List dense disablePadding sx={{ flex: 1, overflow: 'auto' }}>
+      <List dense disablePadding sx={{ flex: '1 0 auto', pb: 3 }}>
         {section.includesHome && (
           <ListItemButton
             component="a"
             href={getLudorkDocHref(language, null)}
             selected={selected.type === 'home'}
+            aria-current={selected.type === 'home' ? 'page' : undefined}
             onClick={(event) => {
               if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
               event.preventDefault()
               onSelect({ type: 'home' })
             }}
-            sx={{ pl: 2, gap: 1 }}
+            sx={{ pl: 1.5, gap: 1, alignItems: 'flex-start', '& > span': { flexShrink: 0, mt: '5px' } }}
           >
             <HomeIcon />
             <ListItemText
@@ -98,15 +98,16 @@ function renderTreeItem(
           variant="caption"
           sx={{
             display: 'block',
-            pl: 2 + depth * 2,
-            pr: 2,
-            pt: depth === 0 ? 1.25 : 0.75,
-            pb: 0.25,
+            pl: 2.75 + depth * 1.5,
+            pr: 2.75,
+            pt: depth === 0 ? 2.25 : 1.25,
+            pb: 0.65,
             color: 'text.secondary',
             fontWeight: 600,
-            letterSpacing: '0.04em',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            fontSize: 12,
+            lineHeight: 1.6,
+            letterSpacing: '0.015em',
+            overflowWrap: 'anywhere',
           }}
         >
           {item.displayName}
@@ -128,12 +129,13 @@ function renderTreeItem(
       href={getLudorkDocHref(language, docKey)}
       key={item.entry.filename}
       selected={isSelected}
+      aria-current={isSelected ? 'page' : undefined}
       onClick={(event) => {
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
         event.preventDefault()
         onSelect({ type: 'doc', lang: language, docKey })
       }}
-      sx={{ pl: 2 + depth * 2 }}
+      sx={{ pl: 1.5 + depth * 1.5 }}
     >
       <ListItemText
         primary={item.entry.displayName}
@@ -142,8 +144,9 @@ function renderTreeItem(
             sx: {
               fontSize: 14,
               fontWeight: isSelected ? 600 : 400,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              lineHeight: 1.55,
+              whiteSpace: 'normal',
+              overflowWrap: 'anywhere',
             },
           },
         }}

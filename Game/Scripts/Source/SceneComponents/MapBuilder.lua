@@ -17,7 +17,9 @@ local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorR
 local MapBuilderWorldActors = require("Source.SceneComponents.MapBuilder.WorldActors")
 local MapBuilderWorldRegion = require("Source.SceneComponents.MapBuilder.WorldRegion")
 local MapBuilderWorldTiles = require("Source.SceneComponents.MapBuilder.WorldTiles")
+local MapConstants = require("Source.Configs.MapConstants")
 
+local ResourceFileConstants = Engine.ResourceFileConstants
 local TextureManager = GlobalCore.TextureManager
 
 local DAMAGE_TEXT_CONFIG = "Global/DamageText"
@@ -58,7 +60,7 @@ end
 function SceneMapBuilder:loadMapData(mapPath, currentMap)
     local resolvedPath = self:resolveMapPath(mapPath, currentMap)
     local _, extension = os.path.splitext(resolvedPath)
-    assert(extension:lower() == MapDataParser.EXTENSION, "Unsupported map data format: " .. resolvedPath)
+    assert(extension:lower() == ResourceFileConstants.DATA_EXTENSION, "Unsupported map data format: " .. resolvedPath)
     local isWorldManifest = MapDataParser.IsWorldManifest(resolvedPath)
     if isWorldManifest then
         WorldDirectoryValidator.Validate(MapDataParser.DATA_ROOT, resolvedPath)
@@ -84,7 +86,7 @@ function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position)
     else
         local parent = os.path.dirname(resolvedPath)
         if bool(parent) then
-            local candidate = MapPath.Normalise(os.path.join(parent, MapDataParser.WORLD_MANIFEST_FILE))
+            local candidate = MapPath.Normalise(os.path.join(parent, MapConstants.WORLD_MANIFEST_FILE))
             if Engine.jsonExists(SceneMapBuilder.GetMapDataPath(candidate)) then
                 worldManifestPath = candidate
             end

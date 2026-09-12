@@ -1,4 +1,5 @@
 #include "ContainerRuntimeInternal.hpp"
+#include <JsonRuntimeProtocol.hpp>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -165,7 +166,8 @@ sol::object convertedSequence(const sol::object& value,
     }
     sol::table result = context.lua.create_table(static_cast<int>(length), 0);
     const sol::object arrayMetatable =
-        context.lua.registry().raw_get<sol::object>(JSON_ARRAY_METATABLE_KEY);
+        context.lua.registry().raw_get<sol::object>(
+            ludork::standard::json_runtime::protocol::JSON_ARRAY_METATABLE_KEY);
     if (arrayMetatable.get_type() != sol::type::table) {
         throw std::runtime_error("cjson array metatable is not registered");
     }
@@ -224,13 +226,15 @@ sol::object convertedRawTable(const sol::table& value,
     }
     sol::table result = context.lua.create_table();
     const sol::object arrayMetatable =
-        context.lua.registry().raw_get<sol::object>(JSON_ARRAY_METATABLE_KEY);
+        context.lua.registry().raw_get<sol::object>(
+            ludork::standard::json_runtime::protocol::JSON_ARRAY_METATABLE_KEY);
     if (arrayMetatable.get_type() != sol::type::table) {
         throw std::runtime_error("cjson array metatable is not registered");
     }
     const sol::object emptyArrayMetatable =
         context.lua.registry().raw_get<sol::object>(
-            JSON_EMPTY_ARRAY_METATABLE_KEY);
+            ludork::standard::json_runtime::protocol::
+                JSON_EMPTY_ARRAY_METATABLE_KEY);
     if (emptyArrayMetatable.get_type() != sol::type::table) {
         throw std::runtime_error(
             "cjson empty-array metatable is not registered");
@@ -266,7 +270,8 @@ sol::object convertToTable(const sol::object& value,
                            TableConversionContext& context) {
     if (value.get_type() == sol::type::lua_nil) {
         const sol::object nullValue =
-            context.lua.registry().raw_get<sol::object>(JSON_NULL_KEY);
+            context.lua.registry().raw_get<sol::object>(
+                ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
         if (!nullValue.valid() || nullValue.get_type() == sol::type::lua_nil) {
             throw std::runtime_error("cjson.null is not registered");
         }

@@ -3,6 +3,9 @@ local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
 local MapPath = require("Source.MapPath")
 local System = require("Source.System")
+local MapConstants = require("Source.Configs.MapConstants")
+
+local ResourceFileConstants = Engine.ResourceFileConstants
 
 local WORLD_MANIFEST_FIELDS = {
     type = true,
@@ -22,8 +25,6 @@ local WORLD_PLACEMENT_FIELDS = { map = true, rect = true }
 
 local MapDataParser = {}
 MapDataParser.DATA_ROOT = os.path.join(".", "Data", "Maps")
-MapDataParser.EXTENSION = ".json"
-MapDataParser.WORLD_MANIFEST_FILE = "_world.json"
 
 local function requireInteger(value, path, minimum)
     assert(Class.isInstance(value, "number") and math.type(value) == "integer", path .. " must be an integer")
@@ -66,7 +67,7 @@ function MapDataParser.GetDataPath(mapPath)
 end
 
 function MapDataParser.IsWorldManifest(mapPath)
-    return os.path.basename(mapPath) == MapDataParser.WORLD_MANIFEST_FILE
+    return os.path.basename(mapPath) == MapConstants.WORLD_MANIFEST_FILE
 end
 
 function MapDataParser.GetPathCandidates(mapPath, currentMap)
@@ -86,15 +87,15 @@ function MapDataParser.GetPathCandidates(mapPath, currentMap)
     extension = extension:lower()
     if bool(extension) then
         append(mapPath)
-        if extension == MapDataParser.EXTENSION then
-            append(stem .. MapDataParser.EXTENSION)
+        if extension == ResourceFileConstants.DATA_EXTENSION then
+            append(stem .. ResourceFileConstants.DATA_EXTENSION)
         end
     else
         local _, currentExtension = os.path.splitext(MapPath.Normalise(currentMap or System.GetStartMap()))
-        if currentExtension:lower() == MapDataParser.EXTENSION then
+        if currentExtension:lower() == ResourceFileConstants.DATA_EXTENSION then
             append(mapPath .. currentExtension:lower())
         end
-        append(mapPath .. MapDataParser.EXTENSION)
+        append(mapPath .. ResourceFileConstants.DATA_EXTENSION)
     end
     return candidates
 end
@@ -147,7 +148,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
         assert(os.path.dirname(map) == "", "World child map must be a direct file: " .. map)
         local _, extension = os.path.splitext(map)
         assert(
-            extension:lower() == MapDataParser.EXTENSION and map ~= MapDataParser.WORLD_MANIFEST_FILE,
+            extension:lower() == ResourceFileConstants.DATA_EXTENSION and map ~= MapConstants.WORLD_MANIFEST_FILE,
             "World child map must be a .json map file: " .. map
         )
         assert(not seenMaps[map], "World child map is placed more than once: " .. map)

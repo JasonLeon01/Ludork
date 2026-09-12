@@ -3,6 +3,7 @@
 --- Loads translation dictionaries and exposes localization functions.
 
 ---@class Source.Locale.Core.Module
+---@field DEFAULT_LANGUAGE        string
 ---@field GetLocaleKeys           fun(): string[]
 ---@field Init                    fun()
 ---@field GetLocaleContent        fun(localeKey: string, key: string): string

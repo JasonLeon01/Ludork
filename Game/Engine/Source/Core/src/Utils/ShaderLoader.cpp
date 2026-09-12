@@ -1,4 +1,6 @@
 #include <Utils/ShaderLoader.hpp>
+#include <LudorkGenerated/EncryptedPayloadConstants.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include <EncryptedPayload.hpp>
 #include <Runtime/AssetPath.hpp>
@@ -14,10 +16,9 @@
 
 namespace {
 
-constexpr std::uint32_t MaximumShaderSize = 64U * 1024U * 1024U;
 constexpr ludork::standard::EncryptedPayloadFormat ShaderFormat{
-    .magic = {'L', 'D', 'S', 'C'},
-    .maximumSourceSize = MaximumShaderSize,
+    .magic = ludork::generated::encrypted::ShaderMagic,
+    .maximumSourceSize = ludork::generated::encrypted::MaximumShaderSize,
     .formatName = "shader",
 };
 
@@ -30,8 +31,10 @@ std::string lowerString(std::string value) {
 }
 
 bool isEncryptedExtension(const std::string& extension) {
-    return extension == ".fragc" || extension == ".vertc" ||
-           extension == ".geomc";
+    return std::ranges::any_of(ludork::generated::resources::ShaderExtensions,
+                               [&extension](const auto& item) {
+                                   return extension == item.encrypted;
+                               });
 }
 
 std::string pathExtension(const std::string& path) {
@@ -52,7 +55,10 @@ void validateRequestedShaderPath(const std::string& path) {
             "an encrypted extension: " +
             path);
     }
-    if (extension != ".frag" && extension != ".vert" && extension != ".geom") {
+    if (std::ranges::none_of(ludork::generated::resources::ShaderExtensions,
+                             [&extension](const auto& item) {
+                                 return extension == item.source;
+                             })) {
         throw std::invalid_argument(
             "Shader asset path must use .frag, .vert, or .geom: " + path);
     }
@@ -60,14 +66,20 @@ void validateRequestedShaderPath(const std::string& path) {
 
 std::optional<sf::Shader::Type> shaderTypeFromExtension(
     const std::string& path) {
-    const std::string extension = pathExtension(path);
-    if (extension == ".vert" || extension == ".vertc") {
+    std::string extension = pathExtension(path);
+    for (const auto& item : ludork::generated::resources::ShaderExtensions) {
+        if (extension == item.encrypted) {
+            extension = item.source;
+            break;
+        }
+    }
+    if (extension == ".vert") {
         return sf::Shader::Type::Vertex;
     }
-    if (extension == ".geom" || extension == ".geomc") {
+    if (extension == ".geom") {
         return sf::Shader::Type::Geometry;
     }
-    if (extension == ".frag" || extension == ".fragc") {
+    if (extension == ".frag") {
         return sf::Shader::Type::Fragment;
     }
     return std::nullopt;
@@ -79,10 +91,14 @@ std::string resolveShaderPath(const std::string& value) {
         return value;
     }
     const std::string extension = pathExtension(value);
-    if (extension == ".frag" || extension == ".vert" || extension == ".geom") {
-        const std::string encrypted = value + 'c';
-        if (ludork::runtime::assetStore().exists(encrypted)) {
-            return encrypted;
+    for (const auto& item : ludork::generated::resources::ShaderExtensions) {
+        if (extension == item.source) {
+            const std::string encrypted =
+                value + std::string(item.encrypted.substr(item.source.size()));
+            if (ludork::runtime::assetStore().exists(encrypted)) {
+                return encrypted;
+            }
+            break;
         }
     }
     return value;

@@ -6,7 +6,8 @@ local Core = {}
 local LOCALE_MODULE_PREFIX = "Source.Locale."
 local dataDict = {}
 
-Core.LANGUAGE = "en_GB"
+Core.DEFAULT_LANGUAGE = "en_GB"
+Core.LANGUAGE = Core.DEFAULT_LANGUAGE
 
 function Core.GetLocaleKeys()
     return table.orderedStringKeys(dataDict)
@@ -41,14 +42,14 @@ function Core.GetContent(key)
     if dataDict[Core.LANGUAGE] ~= nil then
         return Core.GetLocaleContent(Core.LANGUAGE, key)
     end
-    return Core.GetLocaleContent("en_GB", key)
+    return Core.GetLocaleContent(Core.DEFAULT_LANGUAGE, key)
 end
 
 function Core.GetLocaleDict()
     if dataDict[Core.LANGUAGE] ~= nil then
         return dataDict[Core.LANGUAGE]
     end
-    return dataDict.en_GB or {}
+    return dataDict[Core.DEFAULT_LANGUAGE] or {}
 end
 
 function Core.ApplyStringLocaleFormat(value)
@@ -98,7 +99,7 @@ function Core.ApplyListLocaleFormat(values)
 end
 
 function Core.SetLanguage(language)
-    local resolved = bool(language) and language or "en_GB"
+    local resolved = bool(language) and language or Core.DEFAULT_LANGUAGE
     if resolved == Core.LANGUAGE then
         return
     end
@@ -147,7 +148,7 @@ function Core.ResolveLanguage(language)
     if languageMatch ~= nil and not ambiguous then
         return languageMatch
     end
-    return "en_GB"
+    return Core.DEFAULT_LANGUAGE
 end
 
 Core.LOC = Core.ApplyStringLocaleFormat

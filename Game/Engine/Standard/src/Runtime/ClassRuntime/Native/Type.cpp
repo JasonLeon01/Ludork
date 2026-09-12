@@ -1,4 +1,5 @@
 #include "Native/NativeRuntime.hpp"
+#include <ClassRuntimeProtocol.hpp>
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
@@ -57,7 +58,7 @@ bool nativeTypeDeclaresProperty(const sol::table& nativeType,
         return false;
     }
     const sol::object rawProperties =
-        nativeType.raw_get<sol::object>("__nativeProperties");
+        nativeType.raw_get<sol::object>(NATIVE_PROPERTIES_FIELD);
     if (!rawProperties.is<sol::table>()) {
         return false;
     }
@@ -98,7 +99,7 @@ sol::object resolveNativeClassDefault(sol::state_view lua,
         return value;
     }
     const sol::object rawMetadata =
-        nativeType.raw_get<sol::object>("__runtimeMetadata");
+        nativeType.raw_get<sol::object>(protocol::RUNTIME_METADATA_FIELD);
     if (!rawMetadata.is<sol::table>()) {
         return value;
     }
@@ -214,7 +215,7 @@ bool nativeClassProperty(sol::state_view lua, const sol::table& nativeType,
             return true;
         }
         const sol::object rawDefaults =
-            current.raw_get<sol::object>("__classDefaults");
+            current.raw_get<sol::object>(CLASS_DEFAULTS_FIELD);
         if (rawDefaults.is<sol::table>()) {
             sol::table defaults = rawDefaults.as<sol::table>();
             value = defaults.raw_get<sol::object>(key);
@@ -301,7 +302,7 @@ void registerNativeClass(sol::table nativeType, const sol::table& metadata) {
             defaults.raw_set(rawName, value);
         }
     }
-    nativeType.raw_set("__classDefaults", defaults);
+    nativeType.raw_set(CLASS_DEFAULTS_FIELD, defaults);
     nativeType.raw_set(NATIVE_CLASS_RESOLVED_DEFAULTS_FIELD,
                        lua.create_table());
 

@@ -21,9 +21,6 @@ extern "C" {
 
 namespace {
 
-constexpr const char* CLASS_TYPE_METADATA_CACHE_KEY =
-    "Ludork.Runtime.classTypeMetadataCache";
-
 sol::object writeValue(sol::state_view lua, const RuntimeValue& value) {
     return ludork::runtime::binding::writeLuaValue(lua, value);
 }
@@ -58,7 +55,7 @@ std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::classTypeMetadata(
         return {};
     }
     sol::table cache = ludork::runtime::detail::registryTable(
-        lua, CLASS_TYPE_METADATA_CACHE_KEY, "k");
+        lua, ludork::runtime::detail::CLASS_TYPE_METADATA_CACHE_KEY, "k");
     sol::object rawDescriptor = cache.raw_get<sol::object>(rawClass);
     if (!rawDescriptor.is<sol::table>()) {
         sol::object metadata =

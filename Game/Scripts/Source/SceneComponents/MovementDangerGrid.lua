@@ -1,5 +1,5 @@
 local MovementSpecials = require("Source.MovementSpecials")
-local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local MovementDangerGrid = {}
 
@@ -15,7 +15,7 @@ local function calculateEntry(enemies, player, position, previewContext)
 end
 
 function MovementDangerGrid.HasMovementSpecial(enemy)
-    return enemy:getAbilitySystemComponent():hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG)
+    return enemy:getAbilitySystemComponent():hasMatchingGameplayTag(GameplayConstants.MOVEMENT_HAZARD_TAG)
 end
 
 function MovementDangerGrid.GetEntryDamage(entry, ignoredEnemySet)

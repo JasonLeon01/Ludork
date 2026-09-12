@@ -1,4 +1,5 @@
 #include <Runtime/RuntimeProviderFacade.hpp>
+#include <ClassRuntimeProtocol.hpp>
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
@@ -112,7 +113,8 @@ RuntimeValue moduleClass(const RuntimeValue& rawModule,
     }
     const RuntimeValue module = rawModule;
     const RuntimeValue classMarker =
-        rawGet(ludork::runtime::reference::intern(module), "__ludorkClass");
+        rawGet(ludork::runtime::reference::intern(module),
+               ludork::standard::class_runtime::protocol::CLASS_MARKER_FIELD);
     if (is<bool>(classMarker) && as<bool>(classMarker)) {
         const std::size_t separator = moduleName.find_last_of('.');
         const std::string moduleType = separator == std::string::npos

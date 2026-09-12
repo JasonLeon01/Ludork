@@ -1,4 +1,5 @@
 #include "ContainerRuntime.hpp"
+#include <JsonRuntimeProtocol.hpp>
 
 #include "ContainerRuntimeInternal.hpp"
 
@@ -83,8 +84,8 @@ bool isStoredNil(const sol::object& value) {
 }
 
 bool isJsonNull(sol::state_view lua, const sol::object& value) {
-    const sol::object sentinel =
-        lua.registry().raw_get<sol::object>(JSON_NULL_KEY);
+    const sol::object sentinel = lua.registry().raw_get<sol::object>(
+        ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
     return sentinel.valid() && sentinel.get_type() != sol::type::lua_nil &&
            rawEqual(value, sentinel);
 }

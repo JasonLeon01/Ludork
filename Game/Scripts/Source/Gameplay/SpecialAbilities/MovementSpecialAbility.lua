@@ -1,5 +1,6 @@
 local GlobalCore = require("GlobalCore")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -12,8 +13,8 @@ local MovementSpecialAbility = {}
 ---@param magnitude any
 function MovementSpecialAbility:init(specialID, magnitude)
     GameplayAbility.init(self, {})
-    self.id = "Special." .. specialID
-    self.triggerTags = { "Event.Movement.QueryHazard" }
+    self.id = GameplayConstants.SPECIAL_PREFIX .. specialID
+    self.triggerTags = { GameplayConstants.MOVEMENT_QUERY_HAZARD_EVENT }
     self._specialID = specialID
     self._magnitude = magnitude
 end

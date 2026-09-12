@@ -30,6 +30,7 @@ add_library(GlobalCore ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_GLOBAL_SOURCES}
     ${LUDORK_GLOBAL_BINDINGS})
 add_library(Ludork::Global ALIAS GlobalCore)
+target_link_libraries(GlobalCore PRIVATE Ludork::RuntimeConstants)
 target_compile_definitions(GlobalCore PRIVATE
     LUDORK_GLOBAL_EXPORTS=1
     LUDORK_PLATFORM="${LUDORK_PLATFORM}")

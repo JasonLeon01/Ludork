@@ -5,7 +5,6 @@
 --- and automatic positioning relative to reference actors.
 ---@class Source.Windows.WindowMessage.Controller: Source.UIBase.UiController
 ---@field host                Source.Windows.WindowMessage
----@field _OPTION_ITEM_HEIGHT integer
 ---@field _MAX_OPTIONS        integer
 ---@field _inDialogue         boolean
 ---@field _contentMode        integer

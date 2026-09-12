@@ -73,8 +73,6 @@ private:
     };
 
     static constexpr float WheelStep = 32.0f;
-    static constexpr float WheelResponse = 18.0f;
-    static constexpr float WheelEpsilon = 0.01f;
 
     static sf::Vector2u roundedSize(const sf::Vector2f& size);
     static std::size_t indicatorIndex(Indicator indicator);

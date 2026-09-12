@@ -88,6 +88,8 @@ endif()
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(Engine/ThirdParty/zlib zlib EXCLUDE_FROM_ALL)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkRuntimeConstants.cmake")
+
 add_subdirectory(Engine/Standard)
 
 add_subdirectory(Engine/Runtime)

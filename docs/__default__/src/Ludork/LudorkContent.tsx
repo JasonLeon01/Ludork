@@ -16,6 +16,7 @@ type LudorkContentProps = {
   path: string | null
   hash: string
   onNavigate?: (targetPath: string, hash: string) => void
+  linkTargets?: Readonly<Record<string, string>>
 }
 
 type MarkdownLoadResult = {
@@ -42,7 +43,7 @@ function scrollToHash(hash: string): void {
   document.getElementById(id)?.scrollIntoView({ block: 'start' })
 }
 
-export default function LudorkContent({ path, hash, language, onNavigate }: LudorkContentProps) {
+export default function LudorkContent({ path, hash, language, onNavigate, linkTargets }: LudorkContentProps) {
   const [loadResult, setLoadResult] = useState<MarkdownLoadResult | null>(null)
   const [attempt, setAttempt] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -132,12 +133,26 @@ export default function LudorkContent({ path, hash, language, onNavigate }: Ludo
   }
 
   return (
-    <Box ref={contentRef} className="ludork-markdown">
+    <Box key={path} ref={contentRef} className="ludork-markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSlug, rehypeHighlight]}
         components={{
+          pre({ children }) {
+            return <pre tabIndex={0}>{children}</pre>
+          },
+          table({ children }) {
+            return (
+              <div className="ludork-table-scroll" tabIndex={0}>
+                <table>{children}</table>
+              </div>
+            )
+          },
           a({ href, children, ...rest }) {
+            const linkTarget = href && linkTargets && Object.hasOwn(linkTargets, href) ? linkTargets[href] : undefined
+            if (linkTarget) {
+              return <a href={linkTarget} {...rest}>{children}</a>
+            }
             const reference = href ? resolveDocsReference(path, href) : null
             if (reference?.path.toLowerCase().endsWith('.md')) {
               const knownDocument = resolveKnownDocPath(reference.path)

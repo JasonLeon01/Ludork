@@ -34,7 +34,7 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
     if (rawBool(fields, NATIVE_CONSTRUCTION_FAILED_FIELD)) {
         throw std::runtime_error("Class instance construction failed");
     }
-    const sol::object rawClass = fields.raw_get<sol::object>("__class");
+    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
     auto assignValue = [&]() {
         if (!rawClass.is<sol::table>()) {
             fields.raw_set(key, value);
@@ -43,11 +43,12 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
         }
         const sol::table classTable = rawClass.as<sol::table>();
         const sol::object setter =
-            findAccessor(lua, classTable, "__setters", key);
+            findAccessor(lua, classTable, protocol::CLASS_SETTERS_FIELD, key);
         if (setter.is<sol::function>()) {
             setter.as<sol::function>()(target, value);
             clearExplicitNilField(lua, target, key);
-            cacheFastClassOwner(lua, fields, classTable, key, "__getters",
+            cacheFastClassOwner(lua, fields, classTable, key,
+                                protocol::CLASS_GETTERS_FIELD,
                                 FastIndexKind::Getter);
             return;
         }
@@ -131,10 +132,10 @@ int compositeNewIndex(lua_State* state) {
                     lua_rawget(state, cacheIndex);
                     if (lua_istable(state, -1)) {
                         const int entryIndex = lua_absindex(state, -1);
-                        lua_getfield(state, fieldsIndex, "__class");
+                        lua_getfield(state, fieldsIndex, CLASS_FIELD);
                         lua_Integer currentVersion = 0;
                         if (lua_istable(state, -1)) {
-                            lua_getfield(state, -1, "__lookupVersion");
+                            lua_getfield(state, -1, LOOKUP_VERSION_FIELD);
                             currentVersion = lua_isinteger(state, -1)
                                                  ? lua_tointeger(state, -1)
                                                  : 0;
@@ -187,7 +188,8 @@ int compositeNewIndex(lua_State* state) {
                             } else if (kind == FastIndexKind::Getter) {
                                 lua_rawgeti(state, entryIndex, 2);
                                 if (lua_istable(state, -1)) {
-                                    lua_getfield(state, -1, "__setters");
+                                    lua_getfield(state, -1,
+                                                 protocol::CLASS_SETTERS_FIELD);
                                     if (lua_istable(state, -1)) {
                                         lua_pushvalue(state, 2);
                                         lua_rawget(state, -2);

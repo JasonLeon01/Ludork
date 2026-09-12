@@ -3,6 +3,7 @@
 #define NOMINMAX
 #endif
 #include <Windows.h>
+#include <WindowsHostConstants.hpp>
 
 #include <algorithm>
 #include <array>
@@ -41,7 +42,6 @@ int reportError(const std::wstring& action, const DWORD error) {
 }
 
 bool executablePath(std::wstring& result) {
-    constexpr std::size_t MaximumPathLength = 32768;
     std::vector<wchar_t> buffer(MAX_PATH);
     while (true) {
         const DWORD length = GetModuleFileNameW(
@@ -53,10 +53,11 @@ bool executablePath(std::wstring& result) {
             result.assign(buffer.data(), length);
             return true;
         }
-        if (buffer.size() == MaximumPathLength) {
+        if (buffer.size() == ludork::platform::windows::MaximumPathLength) {
             break;
         }
-        buffer.resize(std::min(buffer.size() * 2, MaximumPathLength));
+        buffer.resize(std::min(buffer.size() * 2,
+                               ludork::platform::windows::MaximumPathLength));
     }
     SetLastError(ERROR_FILENAME_EXCED_RANGE);
     return false;
@@ -64,7 +65,8 @@ bool executablePath(std::wstring& result) {
 
 struct ChildStartup {
     STARTUPINFOEXW info{};
-    std::array<HANDLE, 3> inheritedHandles{};
+    std::array<HANDLE, ludork::platform::windows::StandardHandleIds.size()>
+        inheritedHandles{};
     void* attributeStorage = nullptr;
     BOOL inheritHandles = FALSE;
     DWORD creationFlags = 0;
@@ -118,15 +120,13 @@ bool prepareChildStartup(ChildStartup& startup, DWORD& error) {
     startup.info.StartupInfo.cbReserved2 = 0;
     startup.info.StartupInfo.lpReserved2 = nullptr;
 
-    constexpr std::array<DWORD, 3> StandardHandleIds{
-        STD_INPUT_HANDLE,
-        STD_OUTPUT_HANDLE,
-        STD_ERROR_HANDLE,
-    };
-    std::array<HANDLE, 3> standardHandles{};
+    std::array<HANDLE, ludork::platform::windows::StandardHandleIds.size()>
+        standardHandles{};
     bool hasStandardHandle = false;
-    for (std::size_t index = 0; index < StandardHandleIds.size(); ++index) {
-        standardHandles[index] = GetStdHandle(StandardHandleIds[index]);
+    for (std::size_t index = 0;
+         index < ludork::platform::windows::StandardHandleIds.size(); ++index) {
+        standardHandles[index] =
+            GetStdHandle(ludork::platform::windows::StandardHandleIds[index]);
         hasStandardHandle =
             hasStandardHandle || usableHandle(standardHandles[index]);
     }
@@ -153,8 +153,8 @@ bool prepareChildStartup(ChildStartup& startup, DWORD& error) {
             }
             continue;
         }
-        startup.inheritedHandles[index] =
-            createNullHandle(StandardHandleIds[index]);
+        startup.inheritedHandles[index] = createNullHandle(
+            ludork::platform::windows::StandardHandleIds[index]);
         if (!usableHandle(startup.inheritedHandles[index])) {
             error = GetLastError();
             startup.inheritedHandles[index] = nullptr;

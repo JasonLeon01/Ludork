@@ -6,6 +6,8 @@ import pathlib
 import subprocess
 import sys
 
+from .resource_constants import LUA_SOURCE_EXTENSION, LUA_COMPILED_EXTENSION
+
 
 def resolve_luac(configured: str | None = None) -> pathlib.Path:
     candidates: list[pathlib.Path] = []
@@ -34,7 +36,7 @@ def resolve_luac(configured: str | None = None) -> pathlib.Path:
 def lua_source_paths(scripts_dir: pathlib.Path) -> list[pathlib.Path]:
     return sorted(
         path
-        for path in scripts_dir.rglob("*.lua")
+        for path in scripts_dir.rglob("*" + LUA_SOURCE_EXTENSION)
         if path.is_file() and not path.name.endswith(".d.lua")
     )
 
@@ -43,7 +45,7 @@ def compile_scripts(scripts_dir: pathlib.Path, luac: pathlib.Path) -> int:
     scripts = lua_source_paths(scripts_dir)
     if not scripts:
         raise RuntimeError(f"No Lua scripts were found: {scripts_dir}")
-    destinations = [script.with_suffix(".luac") for script in scripts]
+    destinations = [script.with_suffix(LUA_COMPILED_EXTENSION) for script in scripts]
     for destination in destinations:
         if destination.exists():
             raise RuntimeError(

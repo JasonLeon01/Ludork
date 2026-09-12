@@ -5,6 +5,7 @@ import json
 import pathlib
 import re
 
+from .resource_constants import ASSET_PATH_PREFIX
 from .ui_control_registry import UiControlRegistry, load_registry
 from .ui_property_values import (
     INT32_MAX,
@@ -205,7 +206,7 @@ def _game_asset_path(
     value: str,
     label: str,
 ) -> tuple[pathlib.Path, pathlib.PurePosixPath]:
-    prefix = "/Game/Assets/"
+    prefix = ASSET_PATH_PREFIX
     if value != value.strip() or "\\" in value or not value.startswith(prefix):
         raise UiAssetError(f"{label} must use a canonical /Game/Assets/ path")
     relative_text = value[len(prefix) :]

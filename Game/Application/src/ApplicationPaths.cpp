@@ -1,4 +1,5 @@
 #include <Application.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include "ApplicationPaths.hpp"
 #include "ApplicationPlatform.hpp"
@@ -21,11 +22,15 @@ bool isRegularFile(const std::filesystem::path& path) {
 bool isRuntimeRoot(const std::filesystem::path& path) {
     bool loose = true;
     bool packed = true;
-    const std::filesystem::path resourceNames[]{"Assets", "Data", "Scripts"};
+    const std::filesystem::path resourceNames[]{
+        ludork::generated::resources::AssetGroup,
+        ludork::generated::resources::DataGroup,
+        ludork::generated::resources::ScriptGroup,
+    };
     for (const std::filesystem::path& name : resourceNames) {
         const std::filesystem::path directory = path / name;
         std::filesystem::path package = directory;
-        package += ".ldpak";
+        package += ludork::generated::resources::PackageExtension;
         std::error_code error;
         const std::filesystem::file_status directoryStatus =
             std::filesystem::symlink_status(directory, error);

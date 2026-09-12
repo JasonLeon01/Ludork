@@ -7,6 +7,7 @@ local Logging = require("Global.Utils.Logging")
 local Path = require("Global.Utils.Path")
 local BlueprintActorOverrides = require("Source.Data.BlueprintActorOverrides")
 
+local ResourceFileConstants = Engine.ResourceFileConstants
 local RuntimeProviders = Engine.RuntimeProviders
 local TextureManager = GlobalCore.TextureManager
 
@@ -53,7 +54,7 @@ function DataBlueprints:_loadBlueprintClassPaths()
         {
             category = "blueprints",
             root = "./Data/Blueprints",
-            suffix = ".json",
+            suffix = ResourceFileConstants.DATA_EXTENSION,
             recursive = true,
             required = false
         }
@@ -113,7 +114,7 @@ end
 
 function DataBlueprints:getCommonFunction(name)
     if self._state.commonFunctionsData[name] == nil then
-        local path = "./Data/CommonFunctions/" .. tostring(name) .. ".json"
+        local path = "./Data/CommonFunctions/" .. tostring(name) .. ResourceFileConstants.DATA_EXTENSION
         assert(Engine.jsonExists(path), "Common function not found: " .. tostring(name))
         local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
         ---@cast loadedData Source.Data.GraphData
@@ -239,7 +240,7 @@ function DataBlueprints:resolveBlueprintData(classPath)
     if relative == nil then
         return nil
     end
-    local path = "./Data/Blueprints/" .. relative:gsub("%.", "/") .. ".json"
+    local path = "./Data/Blueprints/" .. relative:gsub("%.", "/") .. ResourceFileConstants.DATA_EXTENSION
     if not Engine.jsonExists(path) then
         return nil
     end

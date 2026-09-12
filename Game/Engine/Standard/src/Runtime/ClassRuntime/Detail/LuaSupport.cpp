@@ -1,4 +1,5 @@
 #include "Detail/Hierarchy.hpp"
+#include <ClassRuntimeProtocol.hpp>
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeState.hpp"
 #include "Detail/TypedFields.hpp"
@@ -77,7 +78,8 @@ void protectedAssign(sol::state_view lua, const sol::object& target,
 }
 
 bool isClass(const sol::table& value) {
-    const sol::object marker = value.raw_get<sol::object>("__ludorkClass");
+    const sol::object marker =
+        value.raw_get<sol::object>(protocol::CLASS_MARKER_FIELD);
     return marker.is<bool>() && marker.as<bool>();
 }
 

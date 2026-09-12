@@ -52,6 +52,7 @@ ludork_apply_msvc_debug_source_options(
 add_library(LudorkRuntime ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_RUNTIME_SOURCES})
 add_library(Ludork::Runtime ALIAS LudorkRuntime)
+target_link_libraries(LudorkRuntime PRIVATE Ludork::RuntimeConstants)
 
 add_subdirectory(src/Graphics)
 add_subdirectory(src/WebView)
@@ -94,4 +95,5 @@ if(MINGW)
         INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF
         INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 endif()
+ludork_enable_release_dead_strip(LudorkRuntime)
 ludork_set_runtime_output(LudorkRuntime)

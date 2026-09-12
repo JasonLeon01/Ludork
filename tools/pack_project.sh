@@ -107,4 +107,6 @@ UI_REGISTRY=$("$SCRIPT_TOOLS" ui-preview registry "$PROJECT_DIR")
 "$SCRIPT_TOOLS" finalize-package "$@" --registry "$UI_REGISTRY" \
     "$DIST_DIR/Main.app/Contents/Resources"
 plutil -lint "$DIST_DIR/Main.app/Contents/Info.plist"
+codesign --force --sign - "$DIST_DIR/Main.app"
+codesign --verify --deep --strict "$DIST_DIR/Main.app"
 echo "Pack complete: $DIST_DIR/Main.app"

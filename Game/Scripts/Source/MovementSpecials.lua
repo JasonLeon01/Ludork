@@ -5,8 +5,8 @@ local ActorTree = require("Global.ActorTree")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Effects = require("Source.Gameplay.Effects")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
-local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 local GameplayEventData = GlobalCore.GameplayEventData
@@ -54,7 +54,7 @@ local function queryEnemy(enemy, player, playerPosition, previewContext)
         assert(previewContext.player == player, "Movement preview context belongs to another player")
         damage = assert(previewContext.damageByEnemy[enemy], "Movement preview context is missing an enemy")
     end
-    local eventData = GameplayEventData.new(enemy, player, "Event.Movement.QueryHazard", {
+    local eventData = GameplayEventData.new(enemy, player, GameplayConstants.MOVEMENT_QUERY_HAZARD_EVENT, {
         distance = Engine.ManhattanDistance(playerPosition, enemyPosition),
         damagePerRound = damage,
         playerPosition = playerPosition,
@@ -152,7 +152,7 @@ local function collectEnemies(player)
         if Class.isInstance(actor, Enemy) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
             ---@cast actor Source.Enemy
             local abilitySystem = actor:getAbilitySystemComponent()
-            if abilitySystem:hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG) then
+            if abilitySystem:hasMatchingGameplayTag(GameplayConstants.MOVEMENT_HAZARD_TAG) then
                 enemies[#enemies + 1] = actor
             end
         end

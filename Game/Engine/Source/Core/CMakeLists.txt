@@ -22,6 +22,7 @@ add_library(Engine ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_ENGINE_SOURCES}
     ${LUDORK_ENGINE_BINDINGS})
 add_library(Ludork::Engine ALIAS Engine)
+target_link_libraries(Engine PRIVATE Ludork::RuntimeConstants)
 
 target_compile_definitions(Engine PRIVATE
     LUDORK_ENGINE_EXPORTS=1

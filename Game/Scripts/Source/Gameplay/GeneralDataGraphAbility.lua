@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 
@@ -44,7 +45,7 @@ function GeneralDataGraphAbility:activate(abilitySystem, eventData)
         for _, activeEffect in ipairs(abilitySystem:getActiveGameplayEffects()) do
             local effectSpec = assert(activeEffect.spec)
             local effect = assert(effectSpec.effect)
-            if effect.id == "State." .. self.memberID then
+            if effect.id == GameplayConstants.STATE_PREFIX .. self.memberID then
                 eventData.payload.activeEffect = activeEffect
                 break
             end

@@ -1,4 +1,6 @@
 #include <Runtime/RuntimeReference.hpp>
+#include <ClassRuntimeProtocol.hpp>
+#include <JsonRuntimeProtocol.hpp>
 #include <Runtime/RuntimeObject.hpp>
 
 #include "LuaServices/RuntimeBindingTraits.hpp"
@@ -122,8 +124,10 @@ std::optional<RuntimeValue::Array> arrayValues(const RuntimeValue& value) {
         const sol::object metatable =
             sol::make_object(lua, detail::objectMetatable(lua, raw));
         bool jsonArray = false;
-        for (const char* key :
-             {"LuaSF.JsonArrayMetatable", "LuaSF.JsonEmptyArrayMetatable"}) {
+        for (const char* key : {ludork::standard::json_runtime::protocol::
+                                    JSON_ARRAY_METATABLE_KEY,
+                                ludork::standard::json_runtime::protocol::
+                                    JSON_EMPTY_ARRAY_METATABLE_KEY}) {
             const sol::object known = lua.registry().raw_get<sol::object>(key);
             auto pushedMetatable = sol::stack::push_pop(metatable);
             auto pushedKnown = sol::stack::push_pop(known);
@@ -594,15 +598,18 @@ RuntimeValue typeMetadata(const RuntimeHandle& value) {
 bool isClass(const RuntimeValue& value) {
     return isTable(value) &&
            is<bool>(rawGet(ludork::runtime::reference::intern(value),
-                           "__ludorkClass")) &&
-           as<bool>(rawGet(ludork::runtime::reference::intern(value),
-                           "__ludorkClass"));
+                           ludork::standard::class_runtime::protocol::
+                               CLASS_MARKER_FIELD)) &&
+           as<bool>(rawGet(
+               ludork::runtime::reference::intern(value),
+               ludork::standard::class_runtime::protocol::CLASS_MARKER_FIELD));
 }
 
 bool isNativeType(const RuntimeValue& value) {
     return isTable(value) && !isClass(value) &&
-           isTable(rawGet(metatable(ludork::runtime::reference::intern(value)),
-                          "__type"));
+           isTable(rawGet(
+               metatable(ludork::runtime::reference::intern(value)),
+               ludork::standard::class_runtime::protocol::CLASS_TYPE_FIELD));
 }
 
 bool isInstance(const RuntimeValue& value, const RuntimeValue& type) {

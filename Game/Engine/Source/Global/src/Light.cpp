@@ -1,4 +1,8 @@
 #include <Light.hpp>
+#include <LudorkGenerated/LightingConstants.hpp>
+
+const int Light::MAX_SHADER_LIGHTS =
+    ludork::generated::lighting::MaximumShaderLights;
 
 namespace {
 

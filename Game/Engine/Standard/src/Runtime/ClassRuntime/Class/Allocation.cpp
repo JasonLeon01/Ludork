@@ -29,7 +29,7 @@ void finishNativeConstruction(sol::state_view lua, const sol::table& classTable,
     sol::table fields = class_native::getUserFields(lua, instance, false);
     fields.raw_set(NATIVE_INITIALIZING_FIELD, false);
     fields.raw_set(NATIVE_CONSTRUCTION_FAILED_FIELD, sol::lua_nil);
-    fields.raw_set("__classInitializedRoots", sol::lua_nil);
+    fields.raw_set(CLASS_INITIALIZED_ROOTS_FIELD, sol::lua_nil);
     fields.raw_set(NATIVE_CONSTRUCTING_ROOTS_FIELD, sol::lua_nil);
     fields.raw_set(NATIVE_DIRTY_PROPERTIES_FIELD, sol::lua_nil);
     instance.push();
@@ -82,10 +82,10 @@ sol::object createNativeInstance(sol::state_view lua,
     }
     sol::table fields = lua.create_table();
     sol::table nativeObjects = lua.create_table();
-    fields.raw_set("__class", classTable);
+    fields.raw_set(CLASS_FIELD, classTable);
     fields.raw_set(protocol::NATIVE_OBJECTS_FIELD, nativeObjects);
     const std::size_t instanceId = class_native::nextInstanceId(lua);
-    fields.raw_set("__instanceId", instanceId);
+    fields.raw_set(INSTANCE_ID_FIELD, instanceId);
     fields.raw_set(NATIVE_INITIALIZING_FIELD, true);
     lua_newuserdatauv(lua.lua_state(), 1, 1);
     constructingCompositeMetatable(lua).push();
@@ -121,7 +121,7 @@ sol::object allocateInstance(sol::state_view lua, const sol::table& classTable,
         lua, classTable, constructorArguments, allowDeferredRoots);
     if (!instance.valid() || instance.get_type() == sol::type::lua_nil) {
         sol::table tableInstance = lua.create_table();
-        tableInstance.raw_set("__class", classTable);
+        tableInstance.raw_set(CLASS_FIELD, classTable);
         tableInstance[sol::metatable_key] = classTable;
         instance = tableInstance;
     }

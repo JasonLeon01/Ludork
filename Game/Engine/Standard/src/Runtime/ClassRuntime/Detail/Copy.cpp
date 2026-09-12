@@ -1,4 +1,5 @@
 #include "Detail/CopyImpl.hpp"
+#include <ClassRuntimeProtocol.hpp>
 #include "Detail/CopyRuntime.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
@@ -211,7 +212,8 @@ sol::object copyNativeValue(sol::state_view lua, const sol::object& value) {
         return value;
     }
     const sol::object rawCopy = protectedIndex(
-        lua, rawType, sol::make_object(lua, std::string(NATIVE_COPY_FIELD)));
+        lua, rawType,
+        sol::make_object(lua, std::string(protocol::NATIVE_COPY_FIELD)));
     if (!rawCopy.is<sol::protected_function>()) {
         return value;
     }

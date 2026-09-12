@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
+from .resource_constants import ASSET_PATH_PREFIX
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
 
 
@@ -63,7 +64,7 @@ def key_frame(value: object, label: str) -> KeyFrame:
 def asset_path(project: pathlib.Path, value: object) -> pathlib.Path | None:
     if value == "":
         return None
-    if not isinstance(value, str) or not value.startswith("/Game/Assets/"):
+    if not isinstance(value, str) or not value.startswith(ASSET_PATH_PREFIX):
         raise ValueError(f"Expected a /Game/Assets/ path: {value!r}")
     relative = value[len("/Game/"):]
     parts = relative.split("/")

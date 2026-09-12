@@ -6,7 +6,7 @@ cd /d "%~dp0__default__"
 call npm run build
 if errorlevel 1 exit /b %errorlevel%
 
-for %%F in (index.html docs\index.html about\index.html favicon.svg .nojekyll) do (
+for %%F in (index.html docs\index.html about\index.html notices\index.html favicon.svg .nojekyll) do (
     if not exist "dist\%%F" (
         echo Missing website output: %%F
         exit /b 1
@@ -18,7 +18,7 @@ if not exist dist\assets\ (
 )
 
 if exist "%~dp0index.html" del /f /q "%~dp0index.html"
-for %%D in (assets docs about) do (
+for %%D in (assets docs about notices) do (
     if exist "%~dp0%%D" rmdir /s /q "%~dp0%%D"
     if exist "%~dp0%%D" exit /b 1
 )

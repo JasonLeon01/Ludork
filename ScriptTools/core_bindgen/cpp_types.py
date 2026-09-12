@@ -59,32 +59,6 @@ INTEGER_TYPES = {
 }
 
 
-LUA_RESERVED_WORDS = {
-    "and",
-    "break",
-    "do",
-    "else",
-    "elseif",
-    "end",
-    "false",
-    "for",
-    "function",
-    "goto",
-    "if",
-    "in",
-    "local",
-    "nil",
-    "not",
-    "or",
-    "repeat",
-    "return",
-    "then",
-    "true",
-    "until",
-    "while",
-}
-
-
 def documentation_before(text: str, offset: int) -> str:
     lines = text[:offset].splitlines()
     result: list[str] = []

@@ -1,4 +1,6 @@
 #include <DataFile.hpp>
+#include <LudorkGenerated/EncryptedPayloadConstants.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <EncryptedPayload.hpp>
 #include <ReadOnlyFileProvider.hpp>
 #include <Utf8Path.hpp>
@@ -18,12 +20,11 @@ namespace ludork::standard {
 
 namespace {
 
-constexpr std::uint32_t MaximumDataSize = 512U * 1024U * 1024U;
 constexpr std::uint64_t NonceOffset = 0xCBF29CE484222325ULL;
 constexpr std::uint64_t NoncePrime = 0x100000001B3ULL;
 constexpr EncryptedPayloadFormat DataFormat{
-    .magic = {'L', 'D', 'D', 'C'},
-    .maximumSourceSize = MaximumDataSize,
+    .magic = ludork::generated::encrypted::DataMagic,
+    .maximumSourceSize = ludork::generated::encrypted::MaximumDataSize,
     .formatName = "data",
 };
 
@@ -46,7 +47,8 @@ bool isRegularFile(const std::filesystem::path& path) {
 }
 
 bool isEncryptedDataPath(const std::filesystem::path& path) {
-    return lowerString(pathToUtf8(path.extension())) == ".ldc";
+    return lowerString(pathToUtf8(path.extension())) ==
+           ludork::generated::resources::EncryptedDataExtension;
 }
 
 std::uint64_t contentNonce(const std::filesystem::path& path,
@@ -108,9 +110,11 @@ std::filesystem::path resolveJsonDataPath(const std::filesystem::path& path) {
     if (isRegularFile(path)) {
         return path;
     }
-    if (lowerString(pathToUtf8(path.extension())) == ".json") {
+    if (lowerString(pathToUtf8(path.extension())) ==
+        ludork::generated::resources::DataExtension) {
         std::filesystem::path encrypted = path;
-        encrypted.replace_extension(".ldc");
+        encrypted.replace_extension(
+            ludork::generated::resources::EncryptedDataExtension);
         if (isRegularFile(encrypted)) {
             return encrypted;
         }
@@ -123,7 +127,7 @@ std::filesystem::path logicalJsonDataPath(const std::filesystem::path& path) {
         return path;
     }
     std::filesystem::path logical = path;
-    logical.replace_extension(".json");
+    logical.replace_extension(ludork::generated::resources::DataExtension);
     return logical;
 }
 

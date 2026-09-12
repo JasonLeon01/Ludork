@@ -2,6 +2,7 @@ local cjson = require("cjson")
 local Data = require("Source.Data")
 local Records = require("Source.GameInstance.Records")
 local MapPath = require("Source.MapPath")
+local MapConstants = require("Source.Configs.MapConstants")
 
 local SaveCodec = {}
 local SAVE_VERSION = 1
@@ -313,7 +314,7 @@ function SaveCodec.Encode(state)
         telepoints = serialiseTelepoints(state.telepoints),
         screenshot = deepcopy(state.screenshot)
     }
-    if bool(worldMovedActors) or os.path.basename(cachedMap) == "_world.json" then
+    if bool(worldMovedActors) or os.path.basename(cachedMap) == MapConstants.WORLD_MANIFEST_FILE then
         saveData.worldMovedActors = worldMovedActors
     end
     return saveData
@@ -347,7 +348,7 @@ function SaveCodec.Decode(data)
     state.actorPositions = normaliseActorPositions(data.actorPositions)
     if data.worldMovedActors == nil then
         assert(
-            os.path.basename(MapPath.Normalise(data.map)) ~= "_world.json",
+            os.path.basename(MapPath.Normalise(data.map)) ~= MapConstants.WORLD_MANIFEST_FILE,
             "worldMovedActors must be an object for a world save"
         )
         state.worldMovedActors = {}

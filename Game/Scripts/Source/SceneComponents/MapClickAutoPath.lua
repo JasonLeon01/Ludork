@@ -4,8 +4,8 @@ local ComponentBase = require("Global.Components.ComponentBase")
 local Pool = require("Global.Pool")
 local Enemy = require("Source.Enemy")
 local MovementSpecials = require("Source.MovementSpecials")
-local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local MapClickAutoPathRuntime = require("Source.SceneComponents.MapClickAutoPathRuntime")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local Input = Engine.Input
 local Actor = Engine.Actor
@@ -385,7 +385,7 @@ function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
             ---@cast actor Source.Enemy
             local abilitySystem = actor:getAbilitySystemComponent()
             if not actor:isDestroyed() and actor:isVisibleInHierarchy()
-                and abilitySystem:hasMatchingGameplayTag(SpecialAbilities.MOVEMENT_HAZARD_TAG) then
+                and abilitySystem:hasMatchingGameplayTag(GameplayConstants.MOVEMENT_HAZARD_TAG) then
                 if table.contains(actor:getOccupiedMapCells(), goal) then
                     enemies[#enemies + 1] = actor
                 end

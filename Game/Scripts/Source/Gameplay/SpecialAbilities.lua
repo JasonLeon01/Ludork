@@ -1,6 +1,5 @@
 local GlobalCore = require("GlobalCore")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local Constants = require("Source.Gameplay.SpecialAbilities.Constants")
 local CompeteAbility = require("Source.Gameplay.SpecialAbilities.CompeteAbility")
 local HardAbility = require("Source.Gameplay.SpecialAbilities.HardAbility")
 local MagicAbility = require("Source.Gameplay.SpecialAbilities.MagicAbility")
@@ -11,14 +10,12 @@ local PassiveTagAbility = require("Source.Gameplay.SpecialAbilities.PassiveTagAb
 local VampireAbility = require("Source.Gameplay.SpecialAbilities.VampireAbility")
 local FirstAbility = require("Source.Gameplay.SpecialAbilities.FirstAbility")
 local FixDmgAbility = require("Source.Gameplay.SpecialAbilities.FixDmgAbility")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayEffect = GlobalCore.GameplayEffect
 local Special = GeneralEnum.Special
 
 local SpecialAbilities = {}
-
-SpecialAbilities.MOVEMENT_HAZARD_TAG = Constants.MOVEMENT_HAZARD_TAG
-SpecialAbilities.BATTLE_RULES_EVENT = Constants.BATTLE_RULES_EVENT
 
 local abilityTypes = {
     [Special.Compete] = function ()
@@ -65,12 +62,12 @@ local movementSpecialIDs = { [Special.Domain] = true, [Special.Flank] = true, [S
 function SpecialAbilities.CreateEffect(specialID, magnitude)
     local createAbility = abilityTypes[specialID]
     local ability = createAbility ~= nil and createAbility(magnitude) or PassiveTagAbility.new(specialID)
-    local grantedTags = { "Special." .. specialID }
+    local grantedTags = { GameplayConstants.SPECIAL_PREFIX .. specialID }
     if movementSpecialIDs[specialID] then
-        grantedTags[#grantedTags + 1] = SpecialAbilities.MOVEMENT_HAZARD_TAG
+        grantedTags[#grantedTags + 1] = GameplayConstants.MOVEMENT_HAZARD_TAG
     end
     return GameplayEffect.new({
-        id = "Special." .. specialID,
+        id = GameplayConstants.SPECIAL_PREFIX .. specialID,
         durationPolicy = "Infinite",
         stackingPolicy = "None",
         grantedTags = grantedTags,
@@ -87,7 +84,7 @@ function SpecialAbilities.GetMagnitude(abilitySystem, specialID)
     for _, activeEffect in ipairs(abilitySystem:getActiveGameplayEffects()) do
         local spec = assert(activeEffect.spec)
         local effect = assert(spec.effect)
-        if effect.id == "Special." .. specialID then
+        if effect.id == GameplayConstants.SPECIAL_PREFIX .. specialID then
             return effect.data.magnitude
         end
     end

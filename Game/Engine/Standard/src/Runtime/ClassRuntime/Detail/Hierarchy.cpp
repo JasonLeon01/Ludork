@@ -1,4 +1,5 @@
 #include "Detail/Hierarchy.hpp"
+#include "RuntimeState.hpp"
 
 #include "Detail/LuaSupport.hpp"
 #include "Detail/RuntimeBridge.hpp"
@@ -15,11 +16,11 @@ namespace ludork::standard::class_runtime::detail {
 
 sol::table classLookupOwners(sol::state_view lua, sol::table classTable,
                              const char* category) {
-    sol::object rawCache = classTable.raw_get<sol::object>("__lookupCache");
+    sol::object rawCache = classTable.raw_get<sol::object>(LOOKUP_CACHE_FIELD);
     sol::table cache = rawCache.is<sol::table>() ? rawCache.as<sol::table>()
                                                  : lua.create_table();
     if (!rawCache.is<sol::table>()) {
-        classTable.raw_set("__lookupCache", cache);
+        classTable.raw_set(LOOKUP_CACHE_FIELD, cache);
     }
     const sol::object rawOwners = cache.raw_get<sol::object>(category);
     if (rawOwners.is<sol::table>()) {
@@ -32,13 +33,13 @@ sol::table classLookupOwners(sol::state_view lua, sol::table classTable,
 
 void invalidateClassLookup(sol::state_view lua, sol::table classTable) {
     const sol::object rawVersion =
-        classTable.raw_get<sol::object>("__lookupVersion");
+        classTable.raw_get<sol::object>(LOOKUP_VERSION_FIELD);
     const lua_Integer version =
         rawVersion.is<lua_Integer>() ? rawVersion.as<lua_Integer>() : 0;
-    classTable.raw_set("__lookupVersion", version + 1);
-    classTable.raw_set("__lookupCache", sol::lua_nil);
+    classTable.raw_set(LOOKUP_VERSION_FIELD, version + 1);
+    classTable.raw_set(LOOKUP_CACHE_FIELD, sol::lua_nil);
     const sol::object rawSubclasses =
-        classTable.raw_get<sol::object>("__subclasses");
+        classTable.raw_get<sol::object>(SUBCLASSES_FIELD);
     if (!rawSubclasses.is<sol::table>()) {
         return;
     }
@@ -51,12 +52,13 @@ void invalidateClassLookup(sol::state_view lua, sol::table classTable) {
 
 void registerSubclass(sol::state_view lua, sol::table base,
                       const sol::table& subclass) {
-    const sol::object rawSubclasses = base.raw_get<sol::object>("__subclasses");
+    const sol::object rawSubclasses =
+        base.raw_get<sol::object>(SUBCLASSES_FIELD);
     sol::table subclasses = rawSubclasses.is<sol::table>()
                                 ? rawSubclasses.as<sol::table>()
                                 : createWeakTable(lua, "k");
     if (!rawSubclasses.is<sol::table>()) {
-        base.raw_set("__subclasses", subclasses);
+        base.raw_set(SUBCLASSES_FIELD, subclasses);
     }
     subclasses.raw_set(subclass, true);
 }
@@ -156,22 +158,23 @@ std::vector<sol::table> createMro(const sol::table& type,
 }
 
 sol::table getMro(sol::state_view lua, sol::table type) {
-    const sol::object rawMro = type.raw_get<sol::object>("__mro");
+    const sol::object rawMro = type.raw_get<sol::object>(MRO_FIELD);
     if (rawMro.is<sol::table>()) {
         const sol::table mro = rawMro.as<sol::table>();
-        ensureMroSet(lua, type, mro, "__mroSet");
+        ensureMroSet(lua, type, mro, MRO_SET_FIELD);
         return mro;
     }
-    const sol::object rawRuntimeMro = type.raw_get<sol::object>("__runtimeMro");
+    const sol::object rawRuntimeMro =
+        type.raw_get<sol::object>(RUNTIME_MRO_FIELD);
     if (rawRuntimeMro.is<sol::table>()) {
         const sol::table mro = rawRuntimeMro.as<sol::table>();
-        ensureMroSet(lua, type, mro, "__runtimeMroSet");
+        ensureMroSet(lua, type, mro, RUNTIME_MRO_SET_FIELD);
         return mro;
     }
     sol::table bases = lua.create_table();
-    sol::object rawBases = type.raw_get<sol::object>("__runtimeBases");
+    sol::object rawBases = type.raw_get<sol::object>(RUNTIME_BASES_FIELD);
     if (!rawBases.is<sol::table>()) {
-        rawBases = type.raw_get<sol::object>("__nativeBases");
+        rawBases = type.raw_get<sol::object>(NATIVE_BASES_FIELD);
     }
     if (rawBases.is<sol::table>()) {
         bases = rawBases.as<sol::table>();
@@ -185,20 +188,20 @@ sol::table getMro(sol::state_view lua, sol::table type) {
             result.add(entry);
         }
     }
-    type.raw_set("__runtimeMro", result);
-    ensureMroSet(lua, type, result, "__runtimeMroSet");
+    type.raw_set(RUNTIME_MRO_FIELD, result);
+    ensureMroSet(lua, type, result, RUNTIME_MRO_SET_FIELD);
     return result;
 }
 
 sol::table getNativeMro(sol::state_view lua, sol::table type) {
-    const sol::object rawMro = type.raw_get<sol::object>("__nativeMro");
+    const sol::object rawMro = type.raw_get<sol::object>(NATIVE_MRO_FIELD);
     if (rawMro.is<sol::table>()) {
         const sol::table mro = rawMro.as<sol::table>();
-        ensureMroSet(lua, type, mro, "__nativeMroSet");
+        ensureMroSet(lua, type, mro, NATIVE_MRO_SET_FIELD);
         return mro;
     }
     sol::table bases = lua.create_table();
-    const sol::object rawBases = type.raw_get<sol::object>("__nativeBases");
+    const sol::object rawBases = type.raw_get<sol::object>(NATIVE_BASES_FIELD);
     if (rawBases.is<sol::table>()) {
         bases = rawBases.as<sol::table>();
     }
@@ -211,13 +214,13 @@ sol::table getNativeMro(sol::state_view lua, sol::table type) {
             result.add(entry);
         }
     }
-    type.raw_set("__nativeMro", result);
-    ensureMroSet(lua, type, result, "__nativeMroSet");
+    type.raw_set(NATIVE_MRO_FIELD, result);
+    ensureMroSet(lua, type, result, NATIVE_MRO_SET_FIELD);
     return result;
 }
 
 sol::table getBases(sol::state_view lua, const sol::table& classTable) {
-    const sol::object value = classTable.raw_get<sol::object>("__bases");
+    const sol::object value = classTable.raw_get<sol::object>(BASES_FIELD);
     return value.is<sol::table>() ? value.as<sol::table>() : lua.create_table();
 }
 
@@ -324,13 +327,13 @@ sol::object findClassOverride(sol::state_view lua, const sol::table& classTable,
 
 bool derivesFrom(sol::state_view lua, const sol::table& classTable,
                  const sol::table& targetClass) {
-    sol::object rawSet = classTable.raw_get<sol::object>("__mroSet");
+    sol::object rawSet = classTable.raw_get<sol::object>(MRO_SET_FIELD);
     if (!rawSet.is<sol::table>()) {
-        rawSet = classTable.raw_get<sol::object>("__runtimeMroSet");
+        rawSet = classTable.raw_get<sol::object>(RUNTIME_MRO_SET_FIELD);
     }
     if (!rawSet.is<sol::table>()) {
         getMro(lua, classTable);
-        rawSet = classTable.raw_get<sol::object>("__runtimeMroSet");
+        rawSet = classTable.raw_get<sol::object>(RUNTIME_MRO_SET_FIELD);
     }
     if (!rawSet.is<sol::table>()) {
         return false;

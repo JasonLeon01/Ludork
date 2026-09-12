@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local Constants = require("Source.Gameplay.SpecialAbilities.Constants")
+local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -22,8 +22,8 @@ local FixDmgAbility = {}
 ---@param value number | string
 function FixDmgAbility:init(value)
     GameplayAbility.init(self, {})
-    self.id = "Special." .. Special.FixDmg
-    self.triggerTags = { Constants.BATTLE_RULES_EVENT }
+    self.id = GameplayConstants.SPECIAL_PREFIX .. Special.FixDmg
+    self.triggerTags = { GameplayConstants.BATTLE_RULES_EVENT }
     self._value = value
 end
 

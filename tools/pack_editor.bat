@@ -142,8 +142,8 @@ for %%F in (
     "%ROOT_DIR%\LICENSE.md"
     "%ROOT_DIR%\README.md"
     "%ROOT_DIR%\README_zh_CN.md"
-    "%ROOT_DIR%\THIRD_PARTY_NOTICES.md"
-    "%ROOT_DIR%\THIRD_PARTY_NOTICES_zh_CN.md"
+    "%ROOT_DIR%\docs\THIRD_PARTY_NOTICES.md"
+    "%ROOT_DIR%\docs\THIRD_PARTY_NOTICES_zh_CN.md"
     "%ROOT_DIR%\docs\About_en_GB.md"
     "%ROOT_DIR%\docs\About_zh_CN.md"
 ) do (
@@ -203,6 +203,9 @@ for %%F in ("%BINARIES_DIR%\About_*.md") do (
     if errorlevel 1 goto failed
 )
 if exist "%BINARIES_DIR%\Page" rmdir /S /Q "%BINARIES_DIR%\Page"
+
+"%SCRIPT_TOOLS%" legal-resources editor "%ROOT_DIR%" "%STAGE_DIR%"
+if errorlevel 1 goto failed
 
 call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%STAGE_DIR%"
 if errorlevel 1 goto failed

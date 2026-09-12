@@ -7,7 +7,11 @@ import subprocess
 import sys
 import tempfile
 
-from .packaging_constants import RESOURCE_GROUPS, RUNTIME_LEGAL_FILES
+from .resource_constants import ANIMATION_CACHE_SUFFIX
+from .packaging_constants import (
+    RUNTIME_LEGAL_FILES,
+)
+from .resource_constants import RESOURCE_GROUPS
 from .ui_preview import is_preview_development_file
 
 
@@ -88,6 +92,9 @@ def copy_runtime(
     shutil.copy2(executable_source.resolve(), executable)
     executable.chmod(executable.stat().st_mode | 0o111)
     rewrite_executable_rpath(executable)
+    strip_and_sign_runtime(
+        [executable, *(frameworks_dir / source.name for source in runtime_files)]
+    )
 
 
 def executable_rpaths(executable: pathlib.Path) -> set[str]:
@@ -133,16 +140,26 @@ def rewrite_executable_rpath(executable: pathlib.Path) -> None:
         raise RuntimeError(f"Bundle Main retains the root runtime search path: {executable}")
     if "@loader_path/../Frameworks" not in rewritten_rpaths:
         raise RuntimeError(f"Bundle Main is missing the Frameworks rpath: {executable}")
+
+
+def strip_and_sign_runtime(binaries: list[pathlib.Path]) -> None:
+    strip = shutil.which("strip")
     codesign = shutil.which("codesign")
-    if codesign is None:
-        raise RuntimeError("codesign was not found")
-    subprocess.run(
-        [codesign, "--force", "--sign", "-", str(executable)],
-        check=True,
-    )
-    subprocess.run(
-        [codesign, "--verify", "--strict", str(executable)],
-        check=True,
+    if strip is None or codesign is None:
+        raise RuntimeError("strip and codesign are required for macOS packaging")
+    original_size = sum(binary.stat().st_size for binary in binaries)
+    for binary in binaries:
+        subprocess.run([strip, "-x", str(binary)], check=True)
+        subprocess.run(
+            [codesign, "--force", "--sign", "-", str(binary)], check=True
+        )
+        subprocess.run(
+            [codesign, "--verify", "--strict", str(binary)], check=True
+        )
+    packaged_size = sum(binary.stat().st_size for binary in binaries)
+    print(
+        f"Runtime symbols stripped: {original_size:,} -> {packaged_size:,} bytes "
+        f"({original_size - packaged_size:,} bytes saved)"
     )
 
 
@@ -154,7 +171,7 @@ def copy_resources(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> No
         shutil.copytree(
             source,
             resources_dir / name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*.anim.json"),
+            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
         )
     for name in ("Licenses", "ThirdPartySource"):
         source = project_dir / name

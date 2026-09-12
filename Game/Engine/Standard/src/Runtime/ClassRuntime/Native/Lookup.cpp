@@ -1,4 +1,5 @@
 #include "Native/NativeRuntime.hpp"
+#include "Detail/RuntimeState.hpp"
 
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
@@ -94,7 +95,7 @@ sol::object findCachedNativeMethod(sol::state_view lua, sol::table fields,
 
 lua_Integer classLookupVersion(const sol::table& classTable) {
     const sol::object rawVersion =
-        classTable.raw_get<sol::object>("__lookupVersion");
+        classTable.raw_get<sol::object>(LOOKUP_VERSION_FIELD);
     return rawVersion.is<lua_Integer>() ? rawVersion.as<lua_Integer>() : 0;
 }
 
