@@ -40,15 +40,15 @@ public sealed class CanvasAnchorPresetPicker : Button
     ];
 
     private static readonly IBrush InputBackground =
-        new SolidColorBrush(Color.Parse("#333333"));
+        EditorTheme.Brush("Surface");
     private static readonly IBrush PopupBackground =
-        new SolidColorBrush(Color.Parse("#202225"));
+        EditorTheme.Brush("Background");
     private static readonly IBrush CellBackground =
-        new SolidColorBrush(Color.Parse("#292B2E"));
+        EditorTheme.Brush("Surface");
     private static readonly IBrush FieldBorder =
         new SolidColorBrush(EditorInputs.FieldBorderColor);
     private static readonly IBrush ActiveBorder =
-        new SolidColorBrush(Color.Parse("#2B82C9"));
+        EditorTheme.Brush("Accent");
 
     public CanvasAnchorPresetPicker(
         double minimumX,
@@ -111,7 +111,7 @@ public sealed class CanvasAnchorPresetPicker : Button
         {
             Text = "▾",
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = Brushes.Gray,
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
         Grid.SetColumn(label, 1);
         Grid.SetColumn(arrow, 2);
@@ -231,15 +231,15 @@ public sealed class CanvasAnchorPresetPicker : Button
 internal sealed class CanvasAnchorPresetIcon : Control
 {
     private static readonly IBrush BackgroundBrush =
-        new SolidColorBrush(Color.Parse("#202225"));
+        EditorTheme.Brush("Background");
     private static readonly IBrush GridBrush =
-        new SolidColorBrush(Color.Parse("#34383D"));
+        EditorTheme.Brush("Input");
     private static readonly IBrush FrameBrush =
-        new SolidColorBrush(Color.Parse("#686C70"));
+        EditorTheme.Brush("Border");
     private static readonly IBrush AnchorBrush =
-        new SolidColorBrush(Color.Parse("#D8D8D8"));
+        EditorTheme.Brush("Text");
     private static readonly IBrush AnchorBorderBrush =
-        new SolidColorBrush(Color.Parse("#8B8E91"));
+        EditorTheme.Brush("TextMuted");
     private readonly double minimumX;
     private readonly double minimumY;
     private readonly double maximumX;

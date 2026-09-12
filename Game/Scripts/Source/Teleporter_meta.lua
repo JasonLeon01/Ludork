@@ -1,5 +1,6 @@
 local _METADATA = {
     Teleporter = {
+        moduleReturn = true,
         attrs = {
             "Offset",
             "stairSE",

@@ -34,14 +34,15 @@ public sealed class WorldMapPanel : Grid, IDisposable
     public WorldMapPanel()
     {
         ColumnDefinitions = new ColumnDefinitions("220,4,*");
-        Background = new SolidColorBrush(Color.Parse("#121212"));
+        Background = Ludork.Services.EditorTheme.Brush("Background");
 
         TextBlock childTitle = new()
         {
             Height = 32,
-            FontSize = 16,
+            FontSize = 14,
             FontWeight = FontWeight.Bold,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(8, 0),
             VerticalAlignment = VerticalAlignment.Center,
             Text = LocaleService.Get("WORLD_CHILD_MAPS"),
         };
@@ -49,7 +50,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
         {
             ItemsSource = childItems,
             SelectionMode = SelectionMode.Single,
-            Background = new SolidColorBrush(Color.Parse("#1f1f1f")),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             ItemTemplate = new FuncDataTemplate<WorldMapChildListItem>(createChildItem),
         };
         emptyText = new TextBlock
@@ -118,6 +119,8 @@ public sealed class WorldMapPanel : Grid, IDisposable
         GameDataService gameData,
         BlueprintPreviewService previewService)
     {
+        childItems.Clear();
+        canvas.SetWorld(null, null, []);
         renderer?.Dispose();
         renderer = new WorldMapPreviewRenderer(gameData, previewService);
         canvas.Configure(renderer);
@@ -129,13 +132,25 @@ public sealed class WorldMapPanel : Grid, IDisposable
         IReadOnlyList<WorldMapChildSource> children)
     {
         IReadOnlyDictionary<string, (int X, int Y)> positions = getPlacementPositions(worldKey, manifest);
+        Dictionary<string, WorldMapChildSource> currentSources = childItems.ToDictionary(item => item.Source.Key, item => item.Source, StringComparer.Ordinal);
         List<WorldMapChildListItem> nextItems = [];
         foreach (WorldMapChildSource child in children.OrderBy(item => item.Key, StringComparer.Ordinal))
         {
+            WorldMapChildSource source = child;
+            if (currentSources.TryGetValue(child.Key, out WorldMapChildSource? currentSource)
+                && currentSource.Width == child.Width
+                && currentSource.Height == child.Height
+                && string.Equals(currentSource.DisplayName, child.DisplayName, StringComparison.Ordinal)
+                && currentSource.LayerOrder.SequenceEqual(child.LayerOrder, StringComparer.Ordinal))
+            {
+                source = currentSource;
+                if (!ReferenceEquals(source, child))
+                    child.Dispose();
+            }
             positions.TryGetValue(child.Key, out (int X, int Y) position);
             bool placed = positions.ContainsKey(child.Key);
             nextItems.Add(new WorldMapChildListItem(
-                child,
+                source,
                 placed,
                 placed
                     ? string.Format(CultureInfo.CurrentCulture, LocaleService.Get("WORLD_PLACED_AT"), position.X, position.Y)
@@ -151,10 +166,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
                 WorldMapChildListItem next = nextItems[index];
                 if (current.IsPlaced != next.IsPlaced
                     || !string.Equals(current.PlacementText, next.PlacementText, StringComparison.Ordinal)
-                    || current.Source.Width != next.Source.Width
-                    || current.Source.Height != next.Source.Height
-                    || !string.Equals(current.Source.DisplayName, next.Source.DisplayName, StringComparison.Ordinal)
-                    || !current.Source.LayerOrder.SequenceEqual(next.Source.LayerOrder, StringComparer.Ordinal))
+                    || !ReferenceEquals(current.Source, next.Source))
                 {
                     childItems[index] = next;
                 }
@@ -168,7 +180,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
         }
         emptyText.IsVisible = childItems.Count == 0;
         childList.IsVisible = childItems.Count != 0;
-        canvas.SetWorld(worldKey, manifest, children);
+        canvas.SetWorld(worldKey, manifest, nextItems.Select(item => item.Source).ToArray());
         statusText.Text = getWorldSizeText(manifest);
     }
 
@@ -217,7 +229,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
             Margin = new Thickness(2),
             BorderBrush = new SolidColorBrush(item.IsPlaced ? Color.Parse("#547f58") : Color.Parse("#3a3a3a")),
             BorderThickness = new Thickness(1),
-            Background = new SolidColorBrush(Color.Parse("#292929")),
+            Background = EditorTheme.Brush("Background"),
             Child = content,
         };
         PointerPressedEventArgs? dragPress = null;

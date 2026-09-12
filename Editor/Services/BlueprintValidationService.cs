@@ -308,10 +308,7 @@ public sealed class BlueprintValidationService
         {
             return false;
         }
-        if (metadataService.GetType(parsed) is not null)
-            return true;
-        LuaTypeReference fileClassReference = new(reference, parsed.TypeName);
-        return metadataService.GetType(fileClassReference) is not null
+        return metadataService.GetRuntimeClassType(reference) is not null
             || BlueprintCompatibilityCatalog.TryGet(parsed.QualifiedName, out BlueprintCompatibilityType? compatibility)
                 && compatibility is not null;
     }

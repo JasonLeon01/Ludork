@@ -268,21 +268,6 @@ public sealed partial class MapPanel
         animationStateDirty = true;
     }
 
-    private void ensurePendingActorRenderState()
-    {
-        if (!pendingActorRenderStateDirty)
-            return;
-        disposeActorPreviewLease(pendingActorRenderState?.PreviewLease);
-        pendingActorRenderState = null;
-        if (!string.IsNullOrWhiteSpace(pendingActor))
-        {
-            JsonObject ghost = new() { ["bp"] = pendingActor };
-            pendingActorRenderState = createActorRenderState(ghost);
-        }
-        pendingActorRenderStateDirty = false;
-        animationStateDirty = true;
-    }
-
     private ActorRenderState createActorRenderState(JsonObject actor)
     {
         ActorVisualDescriptor? descriptor = resolveActorVisual(actor, null);

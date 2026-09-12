@@ -535,7 +535,7 @@ public partial class MarkdownPreviewWindow : Window
             string codeText = "\u2009" + token[1..^1] + "\u2009";
             Run code = new(codeText)
             {
-                Background = new SolidColorBrush(Color.Parse("#2d2d2d")),
+                Background = EditorTheme.Brush("Surface"),
                 Foreground = codeString,
                 FontFamily = codeFont,
             };
@@ -581,7 +581,7 @@ public partial class MarkdownPreviewWindow : Window
                 string targetText = " (" + target + ")";
                 inlines.Add(new Run(targetText)
                 {
-                    Foreground = new SolidColorBrush(Color.Parse("#a0a0a0")),
+                    Foreground = Ludork.Services.EditorTheme.Brush("TextMuted"),
                 });
                 length += targetText.Length;
             }
@@ -1038,8 +1038,8 @@ public partial class MarkdownPreviewWindow : Window
         };
         Border header = new()
         {
-            Background = new SolidColorBrush(Color.Parse("#292929")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#444444")),
+            Background = EditorTheme.Brush("Background"),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(10, 5),
             Child = languageLabel,
@@ -1049,8 +1049,8 @@ public partial class MarkdownPreviewWindow : Window
         content.Children.Add(codeBlock);
         Border container = new()
         {
-            Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#444444")),
+            Background = Ludork.Services.EditorTheme.Brush("Background"),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             ClipToBounds = true,
@@ -1273,8 +1273,8 @@ public partial class MarkdownPreviewWindow : Window
             };
             Border cell = new()
             {
-                Background = new SolidColorBrush(Color.Parse(header ? "#2d2d2d" : "#1f1f1f")),
-                BorderBrush = new SolidColorBrush(Color.Parse("#555555")),
+                Background = EditorTheme.Brush(header ? "Surface" : "Background"),
+                BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
                 BorderThickness = new Thickness(column == 0 ? 1 : 0, row == 0 ? 1 : 0, 1, 1),
                 Padding = new Thickness(8, 6),
                 Child = text,

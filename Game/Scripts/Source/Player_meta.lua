@@ -1,5 +1,6 @@
 local _METADATA = {
     Player = {
+        moduleReturn = true,
         attrs = {
             "ID",
             "tickable",

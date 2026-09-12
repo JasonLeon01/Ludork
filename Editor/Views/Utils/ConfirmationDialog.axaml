@@ -5,8 +5,8 @@
         Height="180"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="#121212"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
     <Grid Margin="24" RowDefinitions="*,Auto">
         <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />

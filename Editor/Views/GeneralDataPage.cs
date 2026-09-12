@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -32,6 +33,13 @@ internal sealed class GeneralDataPage : Grid
     private string typeKey => resourceDocument?.Key ?? initialTypeKey;
     private bool attached;
     private bool refreshPending;
+    private bool searchPending;
+    private long documentRevision;
+    private int formVersion;
+    private bool formInterrupted;
+    private bool formBuildPending;
+    private Vector? preservedFormOffset;
+    private int restoreFormVersion = -1;
     private JsonObject typeData;
     private readonly Dictionary<JsonObject, string> memberKeys = [];
     private readonly GeneralDataPageSessionState sessionState;
@@ -64,6 +72,7 @@ internal sealed class GeneralDataPage : Grid
         initialTypeKey = typeKey;
         resourceDocument = gameData.GetDocument("General", typeKey);
         this.typeData = typeData;
+        documentRevision = resourceDocument?.Revision ?? 0;
         rebuildMemberKeys();
         this.sessionState = sessionState;
 
@@ -75,20 +84,31 @@ internal sealed class GeneralDataPage : Grid
         searchBox.Margin = new Thickness(4);
         searchBox.TextChanged += (_, _) =>
         {
-            sessionState.SearchText = searchBox.Text ?? string.Empty;
-            populateMemberList(sessionState.SelectedMemberId);
+            string next = searchBox.Text ?? string.Empty;
+            if (sessionState.SearchText == next)
+                return;
+            sessionState.SearchText = next;
+            if (searchPending)
+                return;
+            searchPending = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                searchPending = false;
+                if (attached)
+                    populateMemberList(sessionState.SelectedMemberId, false);
+            }, DispatcherPriority.Background);
         };
         Grid.SetRow(searchBox, 0);
         leftGrid.Children.Add(searchBox);
 
         memberList = new ListBox
         {
-            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             SelectionMode = SelectionMode.Single,
             ItemTemplate = HintedTextPresenter.StringItemTemplate,
         };
         memberList.SelectionChanged += onMemberSelectionChanged;
-        memberList.AddHandler(PointerPressedEvent, onMemberListPointerPressed, RoutingStrategies.Bubble);
+        memberList.AddHandler(ContextRequestedEvent, onMemberListContextRequested, RoutingStrategies.Bubble);
         Grid.SetRow(memberList, 1);
         leftGrid.Children.Add(memberList);
 
@@ -106,7 +126,7 @@ internal sealed class GeneralDataPage : Grid
         GridSplitter splitter = new()
         {
             Width = 4,
-            Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
+            Background = Ludork.Services.EditorTheme.Brush("Input"),
             VerticalAlignment = VerticalAlignment.Stretch,
         };
         Grid.SetColumn(splitter, 1);
@@ -115,7 +135,7 @@ internal sealed class GeneralDataPage : Grid
         Grid rightGrid = new() { RowDefinitions = new RowDefinitions("Auto,*") };
         actionBar = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             Padding = new Thickness(8, 6),
         };
         editAbilityGraphButton = new Button
@@ -161,16 +181,16 @@ internal sealed class GeneralDataPage : Grid
 
         tableHeader = new Grid
         {
-            Background = new SolidColorBrush(Color.Parse("#333333")),
+            Background = Ludork.Services.EditorTheme.Brush("Input"),
         };
         tableList = new ListBox
         {
-            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             SelectionMode = SelectionMode.Single,
             ItemTemplate = new FuncDataTemplate<GeneralDataTableRow>(buildTableRow),
         };
         tableList.SelectionChanged += onTableSelectionChanged;
-        tableList.AddHandler(PointerPressedEvent, onTablePointerPressed, RoutingStrategies.Tunnel);
+        tableList.AddHandler(ContextRequestedEvent, onTableContextRequested, RoutingStrategies.Tunnel);
         tableSurface = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*"),
@@ -194,13 +214,21 @@ internal sealed class GeneralDataPage : Grid
 
         populateMemberList(sessionState.SelectedMemberId);
         updateActionBar();
-        updateViewMode();
+        updateViewMode(false);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
     {
         base.OnAttachedToVisualTree(args);
         attached = true;
+        if (formInterrupted && documentRevision == (resourceDocument?.Revision ?? 0)
+            && sessionState.ViewMode == GeneralDataViewMode.Form)
+        {
+            formInterrupted = false;
+            Vector offset = preservedFormOffset ?? formScroll.Offset;
+            buildForm(selectedMemberId);
+            restoreFormOffset(offset);
+        }
         if (resourceDocument is not null)
             resourceDocument.Changed += onDocumentChanged;
         onDocumentChanged(this, EventArgs.Empty);
@@ -209,6 +237,9 @@ internal sealed class GeneralDataPage : Grid
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
         attached = false;
+        formVersion++;
+        formInterrupted |= formBuildPending;
+        formBuildPending = false;
         if (resourceDocument is not null)
             resourceDocument.Changed -= onDocumentChanged;
         base.OnDetachedFromVisualTree(args);
@@ -222,20 +253,22 @@ internal sealed class GeneralDataPage : Grid
         Dispatcher.UIThread.Post(() =>
         {
             refreshPending = false;
-            if (!attached || resourceDocument?.Data is not JsonObject current || JsonNode.DeepEquals(typeData, current))
+            if (!attached || resourceDocument is null || documentRevision == resourceDocument.Revision
+                || resourceDocument.Data is not JsonObject current)
                 return;
+            documentRevision = resourceDocument.Revision;
             typeData = current;
             rebuildMemberKeys();
-            Vector formOffset = formScroll.Offset;
+            Vector formOffset = preservedFormOffset ?? formScroll.Offset;
             Vector tableOffset = tableScroll.Offset;
             populateMemberList(sessionState.SelectedMemberId);
             updateActionBar();
-            formScroll.Offset = formOffset;
+            restoreFormOffset(formOffset);
             tableScroll.Offset = tableOffset;
         });
     }
 
-    private void populateMemberList(string? preferredMemberId = null)
+    private void populateMemberList(string? preferredMemberId = null, bool refreshContent = true)
     {
         List<string> memberIds = [];
         if (typeData["members"] is JsonObject members)
@@ -252,10 +285,11 @@ internal sealed class GeneralDataPage : Grid
                 ? sessionState.SelectedMemberId
                 : memberIds.FirstOrDefault();
         syncingSelection = true;
-        memberList.ItemsSource = memberIds;
+        if (!memberIds.SequenceEqual(memberList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
+            memberList.ItemsSource = memberIds;
         memberList.SelectedItem = nextSelection;
         syncingSelection = false;
-        selectMember(nextSelection);
+        selectMember(nextSelection, refreshContent);
         if (sessionState.ViewMode == GeneralDataViewMode.Table)
             rebuildTable();
     }
@@ -288,8 +322,9 @@ internal sealed class GeneralDataPage : Grid
         return false;
     }
 
-    private void selectMember(string? memberId)
+    private void selectMember(string? memberId, bool refreshContent = true)
     {
+        bool selectionChanged = selectedMemberId != memberId;
         selectedMemberId = memberId;
         sessionState.SelectedMemberId = memberId;
         syncingSelection = true;
@@ -304,7 +339,7 @@ internal sealed class GeneralDataPage : Grid
                 tableList.SelectedItem = row;
         }
         syncingSelection = false;
-        if (sessionState.ViewMode == GeneralDataViewMode.Form)
+        if (sessionState.ViewMode == GeneralDataViewMode.Form && (selectionChanged || refreshContent || memberId is null))
             buildForm(memberId);
         updateEditAbilityGraphButton();
     }
@@ -317,13 +352,15 @@ internal sealed class GeneralDataPage : Grid
         updateViewMode();
     }
 
-    private void updateViewMode()
+    private void updateViewMode(bool refreshContent = true)
     {
         bool showForm = sessionState.ViewMode == GeneralDataViewMode.Form;
         formScroll.IsVisible = showForm;
         tableScroll.IsVisible = !showForm;
         formViewButton.IsEnabled = !showForm;
         tableViewButton.IsEnabled = showForm;
+        if (!refreshContent)
+            return;
         if (showForm)
             buildForm(selectedMemberId);
         else
@@ -376,7 +413,7 @@ internal sealed class GeneralDataPage : Grid
     {
         Border border = new()
         {
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(0, 0, 1, 1),
             Padding = new Thickness(8, 6),
             Child = new TextBlock
@@ -428,7 +465,7 @@ internal sealed class GeneralDataPage : Grid
     {
         Border border = new()
         {
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(0, 0, 1, 1),
             Padding = new Thickness(6, 4),
             MinHeight = 42,
@@ -534,7 +571,7 @@ internal sealed class GeneralDataPage : Grid
         sessionState.SelectedMemberId = memberId;
         sessionState.ViewMode = GeneralDataViewMode.Form;
         populateMemberList(memberId);
-        updateViewMode();
+        updateViewMode(false);
     }
 
     private void revealMember(string memberId)
@@ -554,10 +591,9 @@ internal sealed class GeneralDataPage : Grid
             selectMember(row.Id);
     }
 
-    private void onTablePointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onTableContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        if (!args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
-            return;
+        bool requestedByPointer = args.TryGetPosition(this, out _);
         string? hitId = null;
         if (args.Source is Visual source)
         {
@@ -572,16 +608,17 @@ internal sealed class GeneralDataPage : Grid
                 current = current.GetVisualParent();
             }
         }
+        if (!requestedByPointer)
+            hitId ??= (tableList.SelectedItem as GeneralDataTableRow)?.Id;
         if (hitId is not null)
             selectMember(hitId);
         args.Handled = true;
-        showMemberContextMenu(hitId, tableList);
+        showMemberContextMenu(hitId, tableList, requestedByPointer);
     }
 
-    private void onMemberListPointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onMemberListContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        if (!args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
-            return;
+        bool requestedByPointer = args.TryGetPosition(this, out _);
         string? hitId = null;
         if (args.Source is Visual source)
         {
@@ -596,36 +633,40 @@ internal sealed class GeneralDataPage : Grid
                 current = current.GetVisualParent();
             }
         }
+        if (!requestedByPointer)
+            hitId ??= memberList.SelectedItem as string;
+        if (hitId is not null)
+            selectMember(hitId);
         args.Handled = true;
-        showMemberContextMenu(hitId, memberList);
+        showMemberContextMenu(hitId, memberList, requestedByPointer);
     }
 
-    private void showMemberContextMenu(string? memberId, Control anchor)
+    private void showMemberContextMenu(string? memberId, ListBox list, bool requestedByPointer)
     {
-        ContextMenu menu = new();
-        if (memberId is not null)
+        if (memberId is null)
+            return;
+        ContextMenu menu = new() { Placement = requestedByPointer ? PlacementMode.Pointer : PlacementMode.Bottom };
+        MenuItem changeIdItem = new() { Header = LocaleService.Get("CHANGE_ID") };
+        changeIdItem.Click += async (_, _) => await onChangeMemberIdAsync(memberId);
+        menu.Items.Add(changeIdItem);
+
+        MenuItem duplicateItem = new() { Header = LocaleService.Get("DUPLICATE_MEMBER") };
+        duplicateItem.Click += async (_, _) => await onDuplicateMemberAsync(memberId);
+        menu.Items.Add(duplicateItem);
+
+        if (canEditAbilityGraph(memberId))
         {
-            MenuItem changeIdItem = new() { Header = LocaleService.Get("CHANGE_ID") };
-            changeIdItem.Click += async (_, _) => await onChangeMemberIdAsync(memberId);
-            menu.Items.Add(changeIdItem);
-
-            MenuItem duplicateItem = new() { Header = LocaleService.Get("DUPLICATE_MEMBER") };
-            duplicateItem.Click += async (_, _) => await onDuplicateMemberAsync(memberId);
-            menu.Items.Add(duplicateItem);
-
-            if (canEditAbilityGraph(memberId))
-            {
-                MenuItem editAbilityGraphItem = new() { Header = LocaleService.Get("EDIT_ABILITY_GRAPH") };
-                editAbilityGraphItem.Click += (_, _) => owner.showBlueprintEditor(typeKey, memberId);
-                menu.Items.Add(editAbilityGraphItem);
-            }
-
-            menu.Items.Add(new Separator());
-
-            MenuItem removeItem = new() { Header = LocaleService.Get("REMOVE_MEMBER") };
-            removeItem.Click += (_, _) => onRemoveMember(memberId);
-            menu.Items.Add(removeItem);
+            MenuItem editAbilityGraphItem = new() { Header = LocaleService.Get("EDIT_ABILITY_GRAPH") };
+            editAbilityGraphItem.Click += (_, _) => owner.showBlueprintEditor(typeKey, memberId);
+            menu.Items.Add(editAbilityGraphItem);
         }
+
+        menu.Items.Add(new Separator());
+
+        MenuItem removeItem = new() { Header = LocaleService.Get("REMOVE_MEMBER") };
+        removeItem.Click += (_, _) => onRemoveMember(memberId);
+        menu.Items.Add(removeItem);
+        Control anchor = list.ContainerFromIndex(list.SelectedIndex) ?? (Control)list;
         menu.Open(anchor);
     }
 
@@ -735,7 +776,62 @@ internal sealed class GeneralDataPage : Grid
 
     private void buildForm(string? memberId)
     {
+        int version = ++formVersion;
+        preservedFormOffset = null;
+        restoreFormVersion = -1;
+        formBuildPending = true;
+        formInterrupted = false;
         formContent.Children.Clear();
+        IEnumerator<Control> rows = createFormRows(memberId).GetEnumerator();
+        void appendRows()
+        {
+            if (version != formVersion)
+            {
+                rows.Dispose();
+                return;
+            }
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            while (rows.MoveNext())
+            {
+                formContent.Children.Add(rows.Current);
+                if (clock.Elapsed.TotalMilliseconds >= 8)
+                {
+                    Dispatcher.UIThread.Post(appendRows, DispatcherPriority.Background);
+                    return;
+                }
+            }
+            rows.Dispose();
+            formBuildPending = false;
+            scheduleFormOffsetRestore();
+        }
+        appendRows();
+    }
+
+    private void restoreFormOffset(Vector offset)
+    {
+        preservedFormOffset = offset;
+        restoreFormVersion = formVersion;
+        if (!formBuildPending)
+            scheduleFormOffsetRestore();
+    }
+
+    private void scheduleFormOffsetRestore()
+    {
+        if (preservedFormOffset is not Vector offset || restoreFormVersion != formVersion)
+            return;
+        int version = formVersion;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!attached || version != formVersion || restoreFormVersion != version || formBuildPending)
+                return;
+            formScroll.Offset = offset;
+            preservedFormOffset = null;
+            restoreFormVersion = -1;
+        }, DispatcherPriority.Background);
+    }
+
+    private IEnumerable<Control> createFormRows(string? memberId)
+    {
         if (memberId is null || typeData["members"] is not JsonObject members || members[memberId] is not JsonObject member)
         {
             TextBlock placeholder = new()
@@ -746,20 +842,20 @@ internal sealed class GeneralDataPage : Grid
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 40),
-                Foreground = new SolidColorBrush(Color.FromRgb(130, 130, 130)),
+                Foreground = Ludork.Services.EditorTheme.Brush("TextMuted"),
             };
-            formContent.Children.Add(placeholder);
-            return;
+            yield return placeholder;
+            yield break;
         }
 
         JsonObject? paramsObj = typeData["params"] as JsonObject;
 
         TextBox idBox = EditorInputs.CreateReadOnlyTextBox(memberId);
-        formContent.Children.Add(buildFormRow("ID", idBox, null, null));
+        yield return buildFormRow("ID", idBox, null, null);
 
         if (paramsObj is not null)
         {
-            foreach (KeyValuePair<string, JsonNode?> paramEntry in paramsObj)
+            foreach (KeyValuePair<string, JsonNode?> paramEntry in paramsObj.ToArray())
             {
                 if (paramEntry.Value is not JsonObject paramDef)
                     continue;
@@ -767,7 +863,7 @@ internal sealed class GeneralDataPage : Grid
                 JsonNode? rawValue = member[paramName];
                 Control editor = buildFieldEditor(paramName, paramDef, rawValue, member);
                 Control row = buildFormRow(paramName, editor, paramsObj, paramName);
-                formContent.Children.Add(row);
+                yield return row;
             }
         }
 
@@ -778,7 +874,7 @@ internal sealed class GeneralDataPage : Grid
             Margin = new Thickness(0, 6, 0, 0),
         };
         addParamBtn.Click += async (_, _) => await onAddParamAsync(memberId);
-        formContent.Children.Add(addParamBtn);
+        yield return addParamBtn;
     }
 
     private Control buildFormRow(string label, Control editor, JsonObject? paramsObj, string? paramName)
@@ -1033,7 +1129,7 @@ internal sealed class GeneralDataPage : Grid
         {
             string current = rawValue?.GetValue<string>() ?? string.Empty;
             TextBox pathBox = EditorInputs.CreateReadOnlyTextBox(current);
-            Button browseBtn = new() { Content = "...", MinWidth = 36, Height = 34 };
+            Button browseBtn = new() { Content = "...", MinWidth = 36, Height = EditorInputs.FieldMinHeight };
             browseBtn.Click += async (_, _) =>
             {
                 string baseHint = paramDef["base"]?.GetValue<string>() ?? string.Empty;

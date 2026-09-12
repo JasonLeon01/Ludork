@@ -50,14 +50,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             GameData,
             ProjectConfig,
             BlueprintClasses,
-            PreviewService,
-            IconService);
+            PreviewService);
         FileExplorerPanel = new FileExplorerViewModel(
             projectPath,
             ProjectConfig,
             GameData,
             PreviewService,
-            IconService,
             ReferenceIndex);
         Actions = new EditorActionRouter(projectPath);
         SaveCommand = new RelayCommand(() => SaveRequested?.Invoke(this, EventArgs.Empty), () => CanEdit && IsModified);
@@ -594,7 +592,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void onGameVariablesSaved(object? sender, EventArgs args)
     {
-        FileExplorerPanel.Refresh();
+        FileExplorerPanel.RequestRefresh();
         onModifiedChanged(sender, args);
     }
 
@@ -620,9 +618,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         SelectedMapChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void onExplorerFileClicked(object? sender, string path)
+    private void onExplorerFileClicked(object? sender, FileExplorerFileEventArgs args)
     {
-        DataFileInfo? info = GameData.TryLoadDataFile(path);
+        string path = args.Path;
+        DataFileInfo? info = args.Info;
         if (info?.Type != "blueprint" || info.Key is null)
             return;
         string reference = "Data.Blueprints." + info.Key.Replace('/', '.');
@@ -700,11 +699,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         return reference.Length > "Data.Blueprints.".Length;
     }
 
-    private void onExplorerFileOpened(object? sender, string path)
+    private void onExplorerFileOpened(object? sender, FileExplorerFileEventArgs args)
     {
         if (!CanEdit)
             return;
-        DataFileInfo? info = GameData.TryLoadDataFile(path);
+        string path = args.Path;
+        DataFileInfo? info = args.Info;
         if (info?.Type == "invalidTextConfig")
         {
             FileOpenFailed?.Invoke(

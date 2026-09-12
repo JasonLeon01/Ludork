@@ -43,9 +43,8 @@ public sealed class PluginManagerWindow : Window
         MinWidth = 620;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#202124"));
-        FontFamily = FontFamily.Parse(
-            "avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         importButton.Content = LocaleService.Get("IMPORT_PLUGIN");
@@ -220,14 +219,14 @@ public sealed class PluginManagerWindow : Window
             TextBlock diagnosticLabel = new()
             {
                 Text = LocaleService.Get("PLUGIN_DIAGNOSTICS"),
-                Foreground = new SolidColorBrush(Color.Parse("#aaaaaa")),
+                Foreground = Ludork.Services.EditorTheme.Brush("TextMuted"),
                 Margin = new Thickness(0, 5, 0, 0),
             };
             TextBlock diagnostic = new()
             {
                 Text = item.Diagnostic,
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(Color.Parse("#cccccc")),
+                Foreground = EditorTheme.Brush("Text"),
                 FontFamily = FontFamily.Parse("Consolas"),
                 FontSize = 12,
             };
@@ -256,7 +255,7 @@ public sealed class PluginManagerWindow : Window
         return new Border
         {
             Background = new SolidColorBrush(Color.Parse("#292a2d")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(5),
             Child = cardContent,

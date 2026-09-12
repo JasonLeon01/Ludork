@@ -20,7 +20,7 @@ internal sealed class ReferenceTreeGraphControl : Control
     private const double NodeWidth = 240;
     private const double NodeHeight = 74;
     private static readonly FontFamily GraphFont =
-        FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Ludork.Services.EditorTheme.FontFamily;
     private static readonly Typeface NormalTypeface = new(GraphFont);
     private static readonly Typeface BoldTypeface = new(GraphFont, FontStyle.Normal, FontWeight.Bold);
     private static readonly IReadOnlyDictionary<string, Color> NodeColors =

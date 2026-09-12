@@ -36,7 +36,7 @@ public sealed class AnimationOverviewWindow : Window
         MinWidth = 1000;
         MinHeight = 680;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Avalonia.Media.Brushes.Black;
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
 
         Grid root = new() { ColumnDefinitions = new ColumnDefinitions("240,*") };
@@ -52,9 +52,10 @@ public sealed class AnimationOverviewWindow : Window
             () => LocaleService.Get("ANIMATION_OVERVIEW") + (currentKey.Length == 0 ? string.Empty : " - " + currentKey));
         gameData.Documents.Changed += onDocumentsChanged;
         Closed += (_, _) => gameData.Documents.Changed -= onDocumentsChanged;
-        initializer = new DeferredWindowInitializer(this, () =>
+        initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
             Content = root;
+            await EditorUiBatch.YieldAsync(cancellationToken);
             refreshCore();
         });
     }
@@ -90,6 +91,8 @@ public sealed class AnimationOverviewWindow : Window
 
     private void select(string? key)
     {
+        if (currentKey == key && editorHost.Content is AnimationEditor)
+            return;
         if (string.IsNullOrWhiteSpace(key) || !gameData.AnimationsData.TryGetValue(key, out JsonObject? data))
         {
             currentKey = string.Empty;
@@ -97,8 +100,6 @@ public sealed class AnimationOverviewWindow : Window
             documentBinding.Refresh();
             return;
         }
-        if (currentKey == key && editorHost.Content is AnimationEditor)
-            return;
         currentKey = key;
         documentBinding.Refresh();
         editorHost.Content = new AnimationEditor(gameData, key, data);

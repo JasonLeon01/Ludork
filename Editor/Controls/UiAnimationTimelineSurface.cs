@@ -1,3 +1,4 @@
+using Ludork.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -53,12 +54,12 @@ public sealed class UiAnimationTimelineSurface : Control
     {
         base.Render(context);
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#262626")), bounds);
+        context.FillRectangle(EditorTheme.Brush("Surface"), bounds);
         context.FillRectangle(
-            new SolidColorBrush(Color.Parse("#383838")),
+            EditorTheme.Brush("Surface"),
             new Rect(LabelWidth, 0, Math.Max(0, bounds.Width - LabelWidth), HeaderHeight));
         context.FillRectangle(
-            new SolidColorBrush(Color.Parse("#303030")),
+            EditorTheme.Brush("Surface"),
             new Rect(0, 0, LabelWidth, bounds.Height));
         drawRuler(context, bounds);
         for (int trackIndex = 0; trackIndex < TrackNames.Length; trackIndex++)
@@ -150,7 +151,7 @@ public sealed class UiAnimationTimelineSurface : Control
             double x = LabelWidth + time * PixelsPerSecond;
             bool whole = Math.Abs(time - Math.Round(time)) < 0.0001;
             Pen pen = new(
-                new SolidColorBrush(Color.Parse(whole ? "#606060" : "#454545")),
+                EditorTheme.Brush(whole ? "TextDisabled" : "Border"),
                 1);
             context.DrawLine(pen, new Point(x, whole ? 0 : 14), new Point(x, bounds.Height));
             if (!whole)
@@ -161,7 +162,7 @@ public sealed class UiAnimationTimelineSurface : Control
                 FlowDirection.LeftToRight,
                 Typeface.Default,
                 10,
-                new SolidColorBrush(Color.Parse("#bbbbbb")));
+                EditorTheme.Brush("TextMuted"));
             context.DrawText(label, new Point(x + 3, 2));
         }
     }
@@ -170,11 +171,11 @@ public sealed class UiAnimationTimelineSurface : Control
     {
         string track = TrackNames[trackIndex];
         double y = HeaderHeight + trackIndex * TrackHeight;
-        string fill = string.Equals(track, selectedTrack, StringComparison.Ordinal)
-            ? "#354553"
-            : trackIndex % 2 == 0 ? "#2d2d2d" : "#292929";
+        IBrush fill = EditorTheme.Brush(string.Equals(track, selectedTrack, StringComparison.Ordinal)
+            ? "AccentMuted"
+            : trackIndex % 2 == 0 ? "Surface" : "Background");
         context.FillRectangle(
-            new SolidColorBrush(Color.Parse(fill)),
+            fill,
             new Rect(0, y, bounds.Width, TrackHeight));
         FormattedText label = new(
             track,

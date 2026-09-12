@@ -34,7 +34,7 @@ public sealed class ConfigDictPanel : Border
         this.fileName = fileName;
         this.data = data;
         resourceDocument = gameData.GetDocument("Configs", fileName);
-        Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
+        Background = Ludork.Services.EditorTheme.Brush("Surface");
         BorderBrush = new SolidColorBrush(Color.FromRgb(96, 96, 96));
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(6);

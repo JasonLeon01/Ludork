@@ -24,8 +24,8 @@ namespace Ludork.Controls;
 
 internal sealed class WorldMapThumbnail : Control
 {
-    private static readonly IBrush BackgroundBrush = new SolidColorBrush(Color.Parse("#1a1a1a"));
-    private static readonly Pen BorderPen = new(new SolidColorBrush(Color.Parse("#555555")), 1);
+    private static readonly IBrush BackgroundBrush = Ludork.Services.EditorTheme.Brush("Background");
+    private static readonly Pen BorderPen = new(EditorTheme.Brush("Border"), 1);
     private readonly WorldMapPreviewRenderer? renderer;
     private readonly WorldMapChildSource child;
 
@@ -39,12 +39,15 @@ internal sealed class WorldMapThumbnail : Control
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
     {
         base.OnAttachedToVisualTree(args);
+        child.DataChanged += onPreviewChanged;
         if (renderer is not null)
             renderer.PreviewChanged += onPreviewChanged;
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        child.DataChanged -= onPreviewChanged;
+        child.ReleaseData(this);
         if (renderer is not null)
             renderer.PreviewChanged -= onPreviewChanged;
         base.OnDetachedFromVisualTree(args);
@@ -63,10 +66,8 @@ internal sealed class WorldMapThumbnail : Control
             (Bounds.Height - height * cellSize) / 2,
             width * cellSize,
             height * cellSize);
-        if (child.HasData && child.LoadData() is JsonObject map)
+        if (child.RequestData(this) is JsonObject map)
             renderer?.DrawMap(context, child.Key, map, mapRect.TopLeft, cellSize, Bounds);
-        else
-            child.ScheduleLoad(InvalidateVisual);
         context.DrawRectangle(null, BorderPen, mapRect);
     }
 

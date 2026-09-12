@@ -15,8 +15,10 @@ export default function LudorkHomePage({ language }: { language: LanguageKey }) 
       <section className="ludork-hero ludork-container">
         <LudorkReveal className="ludork-hero-copy">
           <p className="ludork-eyebrow">{messages.home.eyebrow}</p>
-          <h1>{messages.home.title}</h1>
-          <p className="ludork-lead">{messages.home.description}</p>
+          <h1>{messages.home.description}</h1>
+          <p className="ludork-hero-slogan" lang="en">
+            {messages.home.slogan.map((line) => <span key={line}>{line}</span>)}
+          </p>
           <div className="ludork-actions">
             <Button className="ludork-download" component="a" href={LUDORK_LINKS.releases} variant="contained" size="large" disableElevation>{messages.download}</Button>
           </div>

@@ -1,104 +1,130 @@
 using Avalonia.Threading;
+using Ludork.Models;
+using Ludork.Services;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Controls;
 
-public sealed class WorldMapChildSource
+public sealed class WorldMapChildSource : IDisposable
 {
-    private readonly Func<JsonObject?> loadData;
-    private readonly Func<bool>? isDataLoaded;
-    private readonly Func<Task<JsonObject?>>? readDataAsync;
-    private readonly Func<JsonObject, JsonObject?>? installData;
-    private JsonObject? data;
-    private bool loadScheduled;
+    private readonly GameDataService gameData;
+    private readonly HashSet<object> consumers = new(ReferenceEqualityComparer.Instance);
+    private CancellationTokenSource? pendingLoad;
+    private JsonObject? snapshot;
     private bool loadFailed;
+    private bool disposed;
 
-    public WorldMapChildSource(
-        string key,
-        string displayName,
-        int width,
-        int height,
-        Func<JsonObject?> loadData,
-        IReadOnlyList<string>? layerOrder = null,
-        Func<bool>? isDataLoaded = null,
-        Func<Task<JsonObject?>>? readDataAsync = null,
-        Func<JsonObject, JsonObject?>? installData = null)
+    public WorldMapChildSource(GameDataService gameData, MapCatalogEntry entry)
     {
-        Key = key;
-        DisplayName = displayName;
-        Width = width;
-        Height = height;
-        this.loadData = loadData;
-        this.isDataLoaded = isDataLoaded;
-        this.readDataAsync = readDataAsync;
-        this.installData = installData;
-        LayerOrder = layerOrder ?? [];
+        this.gameData = gameData;
+        Key = entry.Key;
+        DisplayName = entry.DisplayName;
+        Width = entry.Width;
+        Height = entry.Height;
+        LayerOrder = entry.LayerOrder;
+        gameData.MapPreviewChanged += onMapPreviewChanged;
     }
+
+    public event EventHandler? DataChanged;
 
     public string Key { get; }
     public string DisplayName { get; }
     public int Width { get; }
     public int Height { get; }
-    public bool HasData => isDataLoaded?.Invoke() ?? data is not null;
     public IReadOnlyList<string> LayerOrder { get; }
 
-    public JsonObject? LoadData()
+    public JsonObject? RequestData(object consumer)
     {
-        if (isDataLoaded is not null)
+        if (disposed)
+            return null;
+        consumers.Add(consumer);
+        if (snapshot is null && pendingLoad is null && !loadFailed)
         {
-            JsonObject? loaded = loadData();
-            loadFailed = loaded is null;
-            return loaded;
+            CancellationTokenSource request = new();
+            pendingLoad = request;
+            Dispatcher.UIThread.Post(() => _ = loadAsync(request), DispatcherPriority.Background);
         }
-        data ??= loadData();
-        loadFailed = data is null;
-        return data;
+        return snapshot;
     }
 
-    public void ReleaseData()
+    public void ReleaseData(object consumer)
     {
-        if (isDataLoaded is null)
-            data = null;
+        if (consumers.Remove(consumer) && consumers.Count == 0)
+            clearData();
     }
 
-    public void ScheduleLoad(Action completed)
+    public void Dispose()
     {
-        if (HasData || loadScheduled || loadFailed)
+        if (disposed)
             return;
-        loadScheduled = true;
-        if (readDataAsync is not null && installData is not null)
+        disposed = true;
+        gameData.MapPreviewChanged -= onMapPreviewChanged;
+        clearData();
+        consumers.Clear();
+        DataChanged = null;
+    }
+
+    private async Task loadAsync(CancellationTokenSource request)
+    {
+        JsonObject? loaded = null;
+        try
         {
-            _ = loadInBackground(completed);
-            return;
+            if (!request.IsCancellationRequested)
+                loaded = await gameData.ReadWorldChildMapSnapshotAsync(Key, request.Token).ConfigureAwait(false);
         }
-        Dispatcher.UIThread.Post(
-            () =>
-            {
-                try
-                {
-                    LoadData();
-                }
-                finally
-                {
-                    loadScheduled = false;
-                    completed();
-                }
-            },
-            DispatcherPriority.Background);
-    }
-
-    private async Task loadInBackground(Action completed)
-    {
-        JsonObject? loaded = await readDataAsync!().ConfigureAwait(false);
+        catch (OperationCanceledException) when (request.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is System.IO.IOException
+            or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+        }
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            JsonObject? installed = loaded is null ? null : installData!(loaded);
-            loadFailed = installed is null;
-            loadScheduled = false;
-            completed();
-        });
+            if (disposed || request.IsCancellationRequested || !ReferenceEquals(pendingLoad, request))
+            {
+                request.Dispose();
+                return;
+            }
+            pendingLoad = null;
+            request.Dispose();
+            try
+            {
+                snapshot = loaded is null ? null : gameData.InstallWorldChildMapSnapshot(Key, loaded);
+            }
+            catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException)
+            {
+                snapshot = null;
+            }
+            loadFailed = snapshot is null;
+            DataChanged?.Invoke(this, EventArgs.Empty);
+        }, DispatcherPriority.Background);
+    }
+
+    private void clearData()
+    {
+        pendingLoad?.Cancel();
+        pendingLoad = null;
+        snapshot = null;
+        loadFailed = false;
+    }
+
+    private void onMapPreviewChanged(object? sender, MapPreviewChangedEventArgs args)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => onMapPreviewChanged(sender, args));
+            return;
+        }
+        if (disposed)
+            return;
+        if (!args.ReloadData || args.MapKey is not null && !string.Equals(args.MapKey, Key, StringComparison.Ordinal))
+            return;
+        clearData();
+        DataChanged?.Invoke(this, EventArgs.Empty);
     }
 }

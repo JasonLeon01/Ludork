@@ -65,41 +65,60 @@ public partial class FileExplorerPanel : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
-        if (previewViewModel is not null)
-            previewViewModel.SetPreviewActive(false);
+        foreach (FileExplorerItemControl row in this.GetVisualDescendants().OfType<FileExplorerItemControl>())
+            row.Deactivate();
         previewViewModel = null;
         base.OnDetachedFromVisualTree(args);
     }
 
     private void updatePreviewActivity()
     {
-        FileExplorerViewModel? next = DataContext as FileExplorerViewModel;
-        if (previewViewModel != next)
-            previewViewModel?.SetPreviewActive(false);
-        previewViewModel = next;
-        previewViewModel?.SetPreviewActive(IsEffectivelyVisible && VisualRoot is not null);
+        previewViewModel = DataContext as FileExplorerViewModel;
+        foreach (FileExplorerItemControl row in this.GetVisualDescendants().OfType<FileExplorerItemControl>())
+            row.RefreshPreviewActivity();
     }
 
-    private void refreshEntries()
+    private async void refreshEntries()
     {
-        if (DataContext is not FileExplorerViewModel viewModel)
-            return;
-        viewModel.Refresh();
+        if (DataContext is FileExplorerViewModel viewModel)
+            await viewModel.EnsureLoadedAsync();
     }
 
-    public bool LocatePath(string path)
+    public async Task<bool> LocatePathAsync(string path)
     {
-        bool located = (DataContext as FileExplorerViewModel)?.LocatePath(path) == true;
+        bool located = DataContext is FileExplorerViewModel viewModel && await viewModel.LocatePathAsync(path);
         if (located)
+        {
+            activeEntries.ScrollIntoView(activeEntries.SelectedItem!);
             activeEntries.Focus();
+        }
         return located;
     }
 
-    private void onUp(object? sender, RoutedEventArgs args) => (DataContext as FileExplorerViewModel)?.GoUp();
-    private void onBreadcrumbClick(object? sender, RoutedEventArgs args)
+    private async void onUp(object? sender, RoutedEventArgs args)
     {
-        if (sender is Button { CommandParameter: string path })
-            (DataContext as FileExplorerViewModel)?.NavigateTo(path);
+        if (DataContext is FileExplorerViewModel viewModel)
+            await viewModel.GoUpAsync();
+    }
+
+    private async void onBreadcrumbClick(object? sender, RoutedEventArgs args)
+    {
+        if (sender is Button { CommandParameter: string path } && DataContext is FileExplorerViewModel viewModel)
+            await viewModel.NavigateToAsync(path);
+    }
+
+    internal void UpdateItemPresentation(FileExplorerItemControl row, FileExplorerEntryViewModel item)
+    {
+        ListBox? list = row.FindAncestorOfType<ListBox>();
+        Point? origin = list is null ? null : row.TranslatePoint(default, list);
+        bool active = IsEffectivelyVisible && row.IsEffectivelyVisible && ReferenceEquals(list, activeEntries)
+            && VisualRoot is not null && row.Bounds.Height > 0 && origin is not null;
+        Rect bounds = new(origin ?? default, row.Bounds.Size);
+        Rect viewport = new(list?.Bounds.Size ?? default);
+        bool visible = active && bounds.Intersects(viewport);
+        bool preload = active && bounds.Intersects(viewport.Inflate(new Thickness(0, viewport.Height)));
+        int size = (int)Math.Ceiling((ReferenceEquals(list, IconEntries) ? 80 : 28) * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
+        item.SetPresentation(row, visible, preload, size);
     }
 
     private void updateViewMode()
@@ -125,9 +144,14 @@ public partial class FileExplorerPanel : UserControl
             current.Selection.AnchorIndex = anchorIndex;
         }
         current.Focus();
+        updatePreviewActivity();
     }
 
-    private void onDoubleTapped(object? sender, TappedEventArgs args) => (DataContext as FileExplorerViewModel)?.OpenSelected();
+    private async void onDoubleTapped(object? sender, TappedEventArgs args)
+    {
+        if (DataContext is FileExplorerViewModel viewModel)
+            await viewModel.OpenSelectedAsync();
+    }
 
     private async void onOpenTarget(object? sender, RoutedEventArgs args)
     {
@@ -386,7 +410,7 @@ public partial class FileExplorerPanel : UserControl
         {
             if (args.Key == Key.Enter)
             {
-                viewModel.OpenSelected();
+                await viewModel.OpenSelectedAsync();
                 args.Handled = true;
                 return;
             }
@@ -413,10 +437,10 @@ public partial class FileExplorerPanel : UserControl
         switch (args.Key)
         {
             case Key.Back:
-                viewModel.GoUp();
+                await viewModel.GoUpAsync();
                 break;
             case Key.F5:
-                viewModel.Refresh();
+                await viewModel.RefreshAsync();
                 break;
             case Key.Delete:
                 await deleteSelected(viewModel, getSelectedEntries(activeEntries));
@@ -430,12 +454,12 @@ public partial class FileExplorerPanel : UserControl
                 if (OperatingSystem.IsMacOS())
                     await tryRenameSelected(viewModel);
                 else
-                    viewModel.OpenSelected();
+                    await viewModel.OpenSelectedAsync();
                 break;
             case Key.Space:
                 if (viewModel.SelectedEntry is { IsDirectory: false } selected && isImage(selected.FullPath)
                     && TopLevel.GetTopLevel(this) is Window owner)
-                    await new FilePreviewDialog(selected.FullPath).ShowDialog(owner);
+                    await new FilePreviewDialog(selected.FullPath, viewModel.Thumbnails).ShowDialog(owner);
                 break;
             default:
                 return;

@@ -28,11 +28,13 @@ public sealed class AutoTileRenderer : IDisposable
     };
 
     private readonly GameDataService gameData;
+    private readonly Func<string, Bitmap?>? sourceResolver;
     private readonly Dictionary<string, Bitmap> sourceImages = new(StringComparer.Ordinal);
 
-    public AutoTileRenderer(GameDataService gameData)
+    public AutoTileRenderer(GameDataService gameData, Func<string, Bitmap?>? sourceResolver = null)
     {
         this.gameData = gameData;
+        this.sourceResolver = sourceResolver;
     }
 
     public void drawTile(Avalonia.Media.DrawingContext context, string key, JsonArray grid, int x, int y, Rect destination, int frame)
@@ -79,6 +81,8 @@ public sealed class AutoTileRenderer : IDisposable
 
     private Bitmap? getSource(string key)
     {
+        if (sourceResolver is not null)
+            return sourceResolver(key);
         if (sourceImages.TryGetValue(key, out Bitmap? cached))
             return cached;
         if (!gameData.AutoTileData.TryGetValue(key, out JsonObject? data))

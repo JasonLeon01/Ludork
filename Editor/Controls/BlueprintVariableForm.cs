@@ -13,6 +13,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Controls;
 
@@ -158,7 +160,46 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (disposed)
             return;
         editorRefreshGeneration++;
+        prepareFields(nextFields);
+        foreach (bool row in buildFieldRows())
+        {
+        }
+        building = false;
+        form.IsEnabled = true;
+        refreshDependencyStates();
+    }
+
+    public async Task SetFieldsAsync(IEnumerable<BlueprintVariableField> nextFields, CancellationToken cancellationToken)
+    {
+        if (disposed)
+            return;
+        int generation = ++editorRefreshGeneration;
+        prepareFields(nextFields);
+        EditorUiBatch batch = new();
+        try
+        {
+            foreach (bool row in buildFieldRows())
+            {
+                await batch.YieldIfNeededAsync(cancellationToken);
+                if (disposed || generation != editorRefreshGeneration)
+                    return;
+            }
+        }
+        finally
+        {
+            if (generation == editorRefreshGeneration)
+            {
+                building = false;
+                form.IsEnabled = true;
+                refreshDependencyStates();
+            }
+        }
+    }
+
+    private void prepareFields(IEnumerable<BlueprintVariableField> nextFields)
+    {
         building = true;
+        form.IsEnabled = false;
         disposeNestedForms();
         fields.Clear();
         fields.AddRange(nextFields.Select(field => field.Clone()));
@@ -188,11 +229,18 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 values[entry.Key] = cloneNode(entry.Value);
         }
 
+    }
+
+    private IEnumerable<bool> buildFieldRows()
+    {
         List<BlueprintVariableField> componentFields = fields
             .Where(field => field.IsComponent)
             .ToList();
         if (componentFields.Count > 0)
+        {
             addComponentRow(componentFields);
+            yield return true;
+        }
 
         IEnumerable<BlueprintVariableField> variableFields = fields.Where(field => !field.IsComponent);
         if (ShowSourceGroups)
@@ -202,17 +250,21 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             {
                 Grid target = string.IsNullOrWhiteSpace(group.Key) ? form : addSourceGroup(group.Key);
                 foreach (BlueprintVariableField field in group)
+                {
                     addFieldRow(field, target);
+                    yield return true;
+                }
             }
         }
         else
         {
             foreach (BlueprintVariableField field in variableFields)
+            {
                 addFieldRow(field, form);
+                yield return true;
+            }
         }
 
-        building = false;
-        refreshDependencyStates();
     }
 
     public void Clear()
@@ -317,7 +369,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         {
             Content = "+",
             Width = 24,
-            Height = 34,
+            Height = EditorInputs.FieldMinHeight,
             Padding = new Thickness(0),
             IsEnabled = !isReadOnly && ComponentAddRequested is not null && addableFields.Count > 0,
         };
@@ -328,7 +380,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         {
             Content = "-",
             Width = 24,
-            Height = 34,
+            Height = EditorInputs.FieldMinHeight,
             Padding = new Thickness(0),
         };
         void updateRemoveState()
@@ -408,7 +460,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             {
                 new Avalonia.Controls.Shapes.Rectangle
                 {
-                    Stroke = new SolidColorBrush(Color.Parse("#666666")),
+                    Stroke = EditorTheme.Brush("Border"),
                     StrokeThickness = 1,
                     StrokeDashArray = [4, 3],
                     IsHitTestVisible = false,
@@ -1578,7 +1630,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         nested.SetFields(nestedFields);
         return new Border
         {
-            BorderBrush = new SolidColorBrush(Color.Parse("#444444")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(10, 5, 0, 0),
             Child = nested,

@@ -17,9 +17,9 @@
         CanResize="False"
         WindowDecorations="None"
         WindowStartupLocation="CenterScreen"
-        Background="#111315"
+        Background="{DynamicResource Editor.BackgroundBrush}"
         DragDrop.AllowDrop="True"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico"
         Title="Ludork">
 
@@ -37,33 +37,33 @@
     <Window.Styles>
         <Style Selector="Button.startAction">
             <Setter Property="MinHeight" Value="104" />
-            <Setter Property="Padding" Value="18" />
+            <Setter Property="Padding" Value="16" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="Background" Value="#1b1e21" />
-            <Setter Property="Foreground" Value="#eef1f4" />
-            <Setter Property="BorderBrush" Value="#3a3f44" />
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="4" />
         </Style>
         <Style Selector="Button.startAction:pointerover">
-            <Setter Property="Background" Value="#23272b" />
-            <Setter Property="BorderBrush" Value="#6c747c" />
+            <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
         </Style>
         <Style Selector="Button.startAction:pressed">
-            <Setter Property="Background" Value="#292e32" />
+            <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
         </Style>
         <Style Selector="Button.startAction.primary">
-            <Setter Property="Background" Value="{DynamicResource LudorkPrimaryBrush}" />
-            <Setter Property="Foreground" Value="#161715" />
-            <Setter Property="BorderBrush" Value="#9d862c" />
+            <Setter Property="Background" Value="{DynamicResource Editor.AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Editor.TextOnAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
         </Style>
         <Style Selector="Button.startAction.primary:pointerover">
-            <Setter Property="Background" Value="#ffe05d" />
-            <Setter Property="BorderBrush" Value="#ffe47a" />
+            <Setter Property="Background" Value="{DynamicResource Editor.AccentHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentHoverBrush}" />
         </Style>
         <Style Selector="Button.startAction.primary:pressed">
-            <Setter Property="Background" Value="#e9c735" />
+            <Setter Property="Background" Value="{DynamicResource Editor.AccentPressedBrush}" />
         </Style>
         <Style Selector="Button.recentProject">
             <Setter Property="MinHeight" Value="55" />
@@ -71,17 +71,17 @@
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#dfe3e7" />
+            <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="CornerRadius" Value="4" />
         </Style>
         <Style Selector="Button.recentProject:pointerover">
-            <Setter Property="Background" Value="#1c1f22" />
-            <Setter Property="BorderBrush" Value="#34383d" />
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
         </Style>
         <Style Selector="Button.recentProject:pressed">
-            <Setter Property="Background" Value="#24282c" />
+            <Setter Property="Background" Value="{DynamicResource Editor.HoverBrush}" />
         </Style>
     </Window.Styles>
 
@@ -91,8 +91,8 @@
                        MaxHeight="64" />
 
         <Border Grid.Row="1"
-                Background="#151719"
-                BorderBrush="#2d3135"
+                Background="{DynamicResource Editor.SurfaceBrush}"
+                BorderBrush="{DynamicResource Editor.BorderBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="24,0"
                 PointerPressed="onTitleBarPointerPressed">
@@ -104,8 +104,8 @@
                 <TextBlock Grid.Column="1"
                            VerticalAlignment="Center"
                            Text="{Binding AppName}"
-                           Foreground="#f4f6f8"
-                           FontSize="19"
+                           Foreground="{DynamicResource Editor.TextBrush}"
+                           FontSize="18"
                            FontWeight="SemiBold" />
             </Grid>
         </Border>
@@ -119,26 +119,26 @@
                         VerticalAlignment="Center"
                         Spacing="0">
                 <TextBlock Text="{Binding StartTitle}"
-                           Foreground="#f4f6f8"
-                           FontSize="42"
+                           Foreground="{DynamicResource Editor.TextBrush}"
+                           FontSize="32"
                            FontWeight="SemiBold" />
                 <TextBlock Margin="0,8,0,25"
                            Text="{Binding StartSubtitle}"
-                           Foreground="#9da5ad"
+                           Foreground="{DynamicResource Editor.TextMutedBrush}"
                            FontSize="14"
                            TextWrapping="Wrap" />
                 <Grid ColumnDefinitions="1*,1*" ColumnSpacing="12">
-                    <Button Classes="startAction primary"
+                    <Button Classes="startAction primary accent"
                             Click="onNewProject">
                         <Grid RowDefinitions="Auto,*">
                             <Viewbox Width="30" Height="30"
                                      HorizontalAlignment="Left">
                                 <Canvas Width="32" Height="32">
                                     <Path Data="{StaticResource EditorIcon.NewProjectOutline}"
-                                          Stroke="#161715"
+                                          Stroke="{DynamicResource Editor.TextOnAccentBrush}"
                                           StrokeThickness="2" />
                                     <Path Data="{StaticResource EditorIcon.NewProjectEdges}"
-                                          Stroke="#161715"
+                                          Stroke="{DynamicResource Editor.TextOnAccentBrush}"
                                           StrokeThickness="1.5" />
                                 </Canvas>
                             </Viewbox>
@@ -147,11 +147,11 @@
                                   VerticalAlignment="Bottom">
                                 <TextBlock Text="{Binding NewProject}"
                                            VerticalAlignment="Center"
-                                           FontSize="16"
+                                           FontSize="14"
                                            FontWeight="SemiBold" />
                                 <Viewbox Grid.Column="1" Width="16" Height="16">
                                     <Path Data="{StaticResource EditorIcon.StartArrowRight}"
-                                          Stroke="#161715"
+                                          Stroke="{DynamicResource Editor.TextOnAccentBrush}"
                                           StrokeThickness="1.5"
                                           StrokeLineCap="Round"
                                           StrokeJoin="Round" />
@@ -172,11 +172,11 @@
                                   VerticalAlignment="Bottom">
                                 <TextBlock Text="{Binding OpenProject}"
                                            VerticalAlignment="Center"
-                                           FontSize="16"
+                                           FontSize="14"
                                            FontWeight="SemiBold" />
                                 <Viewbox Grid.Column="1" Width="16" Height="16">
                                     <Path Data="{StaticResource EditorIcon.StartArrowRight}"
-                                          Stroke="#858e97"
+                                          Stroke="{DynamicResource Editor.TextMutedBrush}"
                                           StrokeThickness="1.5"
                                           StrokeLineCap="Round"
                                           StrokeJoin="Round" />
@@ -192,7 +192,7 @@
                         Spacing="0">
                 <TextBlock Margin="0,0,0,7"
                            Text="{Binding RecentProjectsTitle}"
-                           Foreground="#dce1e6"
+                           Foreground="{DynamicResource Editor.TextBrush}"
                            FontSize="13"
                            FontWeight="SemiBold" />
                 <ItemsControl ItemsSource="{Binding RecentProjects}"
@@ -206,11 +206,11 @@
                                       ColumnSpacing="9">
                                     <Border Width="30" Height="30"
                                             VerticalAlignment="Center"
-                                            Background="#272921"
-                                            CornerRadius="6">
+                                            Background="{DynamicResource Editor.AccentMutedBrush}"
+                                            CornerRadius="4">
                                         <Viewbox Width="17" Height="17">
                                             <Path Data="{StaticResource EditorIcon.StartRecentFolder}"
-                                                  Stroke="#d0ad35"
+                                                  Stroke="{DynamicResource Editor.AccentBrush}"
                                                   StrokeThickness="1.7"
                                                   StrokeJoin="Round" />
                                         </Viewbox>
@@ -219,20 +219,20 @@
                                                 VerticalAlignment="Center"
                                                 Spacing="2">
                                         <TextBlock Text="{Binding Name}"
-                                                   Foreground="#e3e6e9"
+                                                   Foreground="{DynamicResource Editor.TextBrush}"
                                                    FontSize="13"
                                                    FontWeight="SemiBold"
                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock Text="{Binding ProjectDirectory}"
-                                                   Foreground="#747d85"
-                                                   FontSize="11"
+                                                   Foreground="{DynamicResource Editor.TextMutedBrush}"
+                                                   FontSize="12"
                                                    TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <Viewbox Grid.Column="2"
                                              Width="15" Height="15"
                                              VerticalAlignment="Center">
                                         <Path Data="{StaticResource EditorIcon.StartArrowRight}"
-                                              Stroke="#737b83"
+                                              Stroke="{DynamicResource Editor.TextMutedBrush}"
                                               StrokeThickness="1.5"
                                               StrokeLineCap="Round"
                                               StrokeJoin="Round" />
@@ -244,28 +244,28 @@
                 </ItemsControl>
                 <Border MinHeight="112"
                         IsVisible="{Binding HasNoRecentProjects}"
-                        Background="#181b1e"
-                        BorderBrush="#2d3135"
+                        Background="{DynamicResource Editor.BackgroundBrush}"
+                        BorderBrush="{DynamicResource Editor.BorderBrush}"
                         BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="18">
+                        CornerRadius="4"
+                        Padding="16">
                     <TextBlock HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                Text="{Binding NoRecentProjects}"
-                               Foreground="#747d85"
+                               Foreground="{DynamicResource Editor.TextMutedBrush}"
                                FontSize="12"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
                 </Border>
                 <Border Margin="0,14,0,0"
-                        BorderBrush="#2c3034"
+                        BorderBrush="{DynamicResource Editor.BorderBrush}"
                         BorderThickness="0,1,0,0"
                         Padding="10,12,10,0">
                     <Grid ColumnDefinitions="15,*" ColumnSpacing="8">
                         <Viewbox Width="15" Height="15"
                                  VerticalAlignment="Center">
                             <Path Data="{StaticResource EditorIcon.StartFileUpload}"
-                                  Stroke="#767f88"
+                                  Stroke="{DynamicResource Editor.TextMutedBrush}"
                                   StrokeThickness="1.5"
                                   StrokeLineCap="Round"
                                   StrokeJoin="Round" />
@@ -273,8 +273,8 @@
                         <TextBlock Grid.Column="1"
                                    VerticalAlignment="Center"
                                    Text="{Binding DropProjectHint}"
-                                   Foreground="#767f88"
-                                   FontSize="11"
+                                   Foreground="{DynamicResource Editor.TextMutedBrush}"
+                                   FontSize="12"
                                    TextWrapping="Wrap" />
                     </Grid>
                 </Border>

@@ -12,7 +12,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Ludork.Views.Utils;
 
 namespace Ludork.ViewModels;
 
@@ -24,12 +26,11 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     private readonly ProjectConfigService projectConfig;
     private readonly GameDataService gameData;
     private readonly BlueprintPreviewService previewService;
-    private readonly FileIconService iconService;
     private readonly ReferenceIndexService referenceIndex;
     private readonly ExternalIdeService externalIdeService;
-    private bool previewsActive;
     private bool disposed;
-    private bool refreshingEntries;
+    [ObservableProperty] private bool isLoading;
+    [ObservableProperty] private string loadingError = string.Empty;
     [ObservableProperty] private string currentPath;
     [ObservableProperty] private bool iconView = true;
     [ObservableProperty] private FileExplorerEntryViewModel? selectedEntry;
@@ -39,14 +40,12 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         ProjectConfigService projectConfig,
         GameDataService gameData,
         BlueprintPreviewService previewService,
-        FileIconService iconService,
         ReferenceIndexService referenceIndex)
     {
         this.projectPath = Path.GetFullPath(projectPath);
         this.projectConfig = projectConfig;
         this.gameData = gameData;
         this.previewService = previewService;
-        this.iconService = iconService;
         this.referenceIndex = referenceIndex;
         externalIdeService = new ExternalIdeService(this.projectPath, !projectConfig.IsStandalone);
         string? savedPath = projectConfig.LastFileExplorerPath;
@@ -58,18 +57,20 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         gameData.DataReloaded += onGameDataChanged;
         gameData.Documents.Changed += onDocumentsChanged;
         gameData.DataSaved += onGameDataChanged;
+        previewService.VisualsInvalidated += onVisualsInvalidated;
     }
 
     public ObservableCollection<FileExplorerEntryViewModel> Entries { get; } = [];
     public ObservableCollection<FileExplorerBreadcrumbViewModel> BreadcrumbItems { get; } = [];
-    public event EventHandler<string>? FileClicked;
-    public event EventHandler<string>? FileOpened;
+    public event EventHandler<FileExplorerFileEventArgs>? FileClicked;
+    public event EventHandler<FileExplorerFileEventArgs>? FileOpened;
     public event EventHandler<EditorDataCreationRequest>? DataCreationRequested;
     public event EventHandler<string>? ReferenceTreeRequested;
     public event EventHandler<FileExplorerFilesChangedEventArgs>? FilesChanging;
     public event EventHandler<FileExplorerFilesChangedEventArgs>? FilesChanged;
 
     public string ProjectPath => projectPath;
+    public EditorThumbnailService Thumbnails => gameData.Thumbnails;
     public bool IsReadOnly { get; set; }
     public bool HasClipboard => clipboardPaths.Any(pathExists);
 
@@ -98,7 +99,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     public bool CanGoUp => !string.Equals(CurrentPath, projectPath, StringComparison.OrdinalIgnoreCase);
     public string FileExplorerViewMode => LocaleService.Get(
         IconView ? "FILE_EXPLORER_LIST_VIEW" : "FILE_EXPLORER_ICON_VIEW");
-    public string FileExplorerViewModeIcon => IconView ? "☷" : "▦";
+    public string ParentFolder => LocaleService.Get("FILE_DIALOG_PARENT_FOLDER");
     public string OpenContainingFolder => LocaleService.Get("OPEN_CONTAINING_FOLDER");
     public string ExternalEditorVSCode => LocaleService.Get("EXTERNAL_EDITOR_VSCODE");
     public string ExternalEditorCursor => LocaleService.Get("EXTERNAL_EDITOR_CURSOR");
@@ -114,7 +115,6 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     partial void OnIconViewChanged(bool value)
     {
         OnPropertyChanged(nameof(FileExplorerViewMode));
-        OnPropertyChanged(nameof(FileExplorerViewModeIcon));
     }
 
     partial void OnCurrentPathChanged(string value)
@@ -127,69 +127,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     partial void OnSelectedEntryChanged(FileExplorerEntryViewModel? value)
     {
         if (value is not null && !value.IsDirectory)
-            FileClicked?.Invoke(this, value.FullPath);
-    }
-
-    public void Refresh()
-    {
-        if (disposed || refreshingEntries)
-            return;
-        refreshingEntries = true;
-        try
-        {
-            SelectedEntry = null;
-            foreach (FileExplorerEntryViewModel entry in Entries)
-                entry.Dispose();
-            Entries.Clear();
-            foreach (string path in enumerateVisiblePaths().ToArray())
-                Entries.Add(createEntry(path));
-            visibleDocumentPaths = gameData.Documents.All
-                .ToDictionary(document => document.Id, document => (document.Path, document.Exists));
-        }
-        finally
-        {
-            refreshingEntries = false;
-        }
-    }
-
-    public void NavigateTo(string path)
-    {
-        string fullPath = Path.GetFullPath(path);
-        if (!isVisibleDirectory(fullPath) || !isUnderRoot(fullPath))
-            return;
-        CurrentPath = fullPath;
-        if (!IsReadOnly)
-            projectConfig.LastFileExplorerPath = Path.GetRelativePath(projectPath, fullPath);
-        Refresh();
-    }
-
-    public void GoUp()
-    {
-        string? parent = Directory.GetParent(CurrentPath)?.FullName;
-        if (parent is not null)
-            NavigateTo(parent);
-    }
-
-    public bool LocatePath(string path)
-    {
-        if (!pathExists(path))
-            return false;
-        string fullPath = Path.GetFullPath(path);
-        if (!isUnderRoot(fullPath))
-            return false;
-        NavigateTo(Directory.GetParent(fullPath)?.FullName ?? projectPath);
-        SelectedEntry = Entries.FirstOrDefault(entry => string.Equals(entry.FullPath, fullPath, StringComparison.OrdinalIgnoreCase));
-        return SelectedEntry is not null;
-    }
-
-    public void OpenSelected()
-    {
-        if (SelectedEntry is null)
-            return;
-        if (SelectedEntry.IsDirectory)
-            NavigateTo(SelectedEntry.FullPath);
-        else if (!IsReadOnly)
-            FileOpened?.Invoke(this, SelectedEntry.FullPath);
+            _ = notifyFileClickedAsync(value);
     }
 
     public void CopySelected(bool cut)
@@ -264,80 +202,30 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private FileExplorerEntryViewModel createEntry(string path)
-    {
-        bool directory = isVisibleDirectory(path);
-        int iconSize = IconView ? 80 : 28;
-        IImage? icon;
-        ActorPreviewLease? previewLease = null;
-        if (!directory && isImage(path))
-        {
-            icon = loadImageThumbnail(path, iconSize)
-                ?? iconService.getShellIcon(path, false, iconSize);
-        }
-        else if (!directory && isBlueprint(path, out string blueprintKey))
-        {
-            gameData.BlueprintsData.TryGetValue(blueprintKey, out JsonObject? blueprint);
-            Bitmap? fallback = previewService.tryLoadPreview(blueprint ?? [], iconSize, blueprintKey);
-            ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(
-                blueprint ?? [],
-                blueprintKey);
-            icon = fallback ?? iconService.getShellIcon(path, false, iconSize);
-            previewLease = descriptor is { RequiresPreviewService: true }
-                ? previewService.ActorPreviews.Acquire(descriptor, iconSize, previewsActive)
-                : null;
-        }
-        else
-        {
-            icon = iconService.getShellIcon(path, directory, iconSize);
-        }
-        FileExplorerEntryViewModel entry = new(path, directory, icon, previewLease);
-        entry.IsPreviewActive = previewsActive;
-        entry.IsModified = !directory && gameData.Documents.FindByPath(path)?.IsModified == true;
-        return entry;
-    }
-
-    public void SetPreviewActive(bool active)
-    {
-        previewsActive = active;
-        foreach (FileExplorerEntryViewModel entry in Entries)
-            entry.IsPreviewActive = active;
-    }
-
     public void Dispose()
     {
         if (disposed)
             return;
         disposed = true;
+        navigation?.Cancel();
+        navigation?.Dispose();
         gameData.DataReloaded -= onGameDataChanged;
         gameData.Documents.Changed -= onDocumentsChanged;
         gameData.DataSaved -= onGameDataChanged;
+        previewService.VisualsInvalidated -= onVisualsInvalidated;
         foreach (FileExplorerEntryViewModel entry in Entries)
             entry.Dispose();
         Entries.Clear();
         SelectedEntry = null;
     }
 
-    private void onGameDataChanged(object? sender, EventArgs args)
-    {
-        Refresh();
-    }
+    private void onGameDataChanged(object? sender, EventArgs args) => RequestRefresh();
 
-    private bool shouldDisplay(string path)
+    private void onVisualsInvalidated(object? sender, EventArgs args)
     {
-        if (!DataConfig.shouldDisplay(path))
-            return false;
-        if (Directory.Exists(path))
-        {
-            return isInsideTextConfigs(path)
-                ? hasVisibleTextConfigContent(path)
-                : true;
-        }
-        if (!tryGetTextConfigKey(path, out string key))
-        {
-            return true;
-        }
-        return gameData.TextConfigsData.ContainsKey(key);
+        visualVersion++;
+        foreach (FileExplorerEntryViewModel entry in Entries)
+            updateDocumentState(entry);
     }
 
 }

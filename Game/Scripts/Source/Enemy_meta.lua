@@ -1,5 +1,6 @@
 local _METADATA = {
     Enemy = {
+        moduleReturn = true,
         attrs = {
             "ID",
             "childActorComp",
@@ -26,7 +27,7 @@ local _METADATA = {
             },
             component = true,
             default = {
-                className = "Source.EnemyDamageText.EnemyDamageText",
+                className = "Source.EnemyDamageText",
                 relativePosition = { 0.0, 0.0 }
             }
         },

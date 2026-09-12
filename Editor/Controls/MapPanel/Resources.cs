@@ -542,8 +542,13 @@ public sealed partial class MapPanel
 
     private void invalidatePendingActorRenderState()
     {
+        pendingActorRequest?.Cancel();
+        pendingActorRequest?.Dispose();
+        pendingActorRequest = null;
         disposeActorPreviewLease(pendingActorRenderState?.PreviewLease);
         pendingActorRenderState = null;
+        pendingActorImage?.Dispose();
+        pendingActorImage = null;
         pendingActorRenderStateDirty = true;
         animationStateDirty = true;
     }

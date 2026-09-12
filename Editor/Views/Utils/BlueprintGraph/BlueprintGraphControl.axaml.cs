@@ -28,6 +28,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private bool hasPendingChange;
     private bool parameterFlushScheduled;
     private bool viewportInitialized;
+    private ViewState? pendingViewState;
     private bool pickerOpen;
     private bool disposed;
 
@@ -87,6 +88,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     public ViewState CaptureViewState()
     {
+        if (pendingViewState is not null)
+            return pendingViewState;
         return new ViewState(editor.Zoom, editor.OffsetX, editor.OffsetY,
             viewModel.SelectedNodes.OfType<BlueprintGraphNodeViewModel>()
                 .Select(node => (node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)).ToArray());
@@ -94,7 +97,11 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     public void RestoreViewState(ViewState state)
     {
-        viewportInitialized = true;
+        if (!viewportInitialized)
+        {
+            pendingViewState = state;
+            return;
+        }
         editor.Zoom = state.Zoom;
         editor.OffsetX = state.OffsetX;
         editor.OffsetY = state.OffsetY;
@@ -191,14 +198,20 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         if (viewportInitialized)
             return;
-        viewportInitialized = true;
-        Dispatcher.UIThread.Post(resetViewport);
+        Dispatcher.UIThread.Post(initializeViewport);
     }
 
-    private void resetViewport()
+    private void initializeViewport()
     {
-        if (disposed)
+        if (disposed || viewportInitialized)
             return;
+        viewportInitialized = true;
+        if (pendingViewState is ViewState state)
+        {
+            pendingViewState = null;
+            RestoreViewState(state);
+            return;
+        }
         editor.Zoom = 1;
         editor.OffsetX = 0;
         editor.OffsetY = 0;

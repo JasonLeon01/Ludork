@@ -15,11 +15,11 @@ internal sealed class TilesetGridControl : Control, IDisposable
     private const double MinimumScale = 0.5;
     private const double MaximumScale = 4.0;
     private static readonly IBrush BackgroundBrush =
-        new SolidColorBrush(Color.Parse("#1e1e1e"));
+        PluginTheme.Brush("Background");
     private static readonly Pen GridPen =
         new(new SolidColorBrush(Color.FromArgb(145, 80, 80, 80)), 1);
     private static readonly Pen SelectionPen =
-        new(new SolidColorBrush(Color.Parse("#fbbc04")), 3);
+        new(PluginTheme.Brush("Accent"), 3);
 
     private readonly PluginTilesetSnapshot tileset;
     private readonly Bitmap bitmap;

@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Models;
 
@@ -315,19 +316,26 @@ public sealed partial class GameDataService
         return sections[sectionName].Data.Keys.Any(key => keyMatchesPrefix(key, prefix));
     }
 
-    public DataFileInfo? TryLoadDataFile(string absolutePath)
+    public DataFileInfo? TryLoadDataFile(string absolutePath) => prepareDataFileRead(absolutePath)();
+
+    public Task<DataFileInfo?> TryLoadDataFileAsync(string absolutePath, CancellationToken cancellationToken = default)
+    {
+        Func<DataFileInfo?> read = prepareDataFileRead(absolutePath);
+        return Task.Run(read, cancellationToken);
+    }
+
+    private Func<DataFileInfo?> prepareDataFileRead(string absolutePath)
     {
         if (DataConfig.isAnimationCache(absolutePath)
             || !string.Equals(Path.GetExtension(absolutePath), DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
-            return null;
-        EditorDocument? document = GetDocumentByPath(absolutePath);
+            return () => null;
+        EditorDocument? document = Documents.FindByPath(absolutePath);
         if (document?.InternalData is JsonObject current)
         {
             string? currentType = getString(current["type"]);
-            return new DataFileInfo(currentType ?? sections[document.Section].ExpectedType ?? "general", document.Key);
+            DataFileInfo info = new(currentType ?? sections[document.Section].ExpectedType ?? "general", document.Key);
+            return () => info;
         }
-        if (!File.Exists(absolutePath))
-            return null;
         bool dataFile = tryGetDataLocation(
             absolutePath,
             out string sectionName,
@@ -335,46 +343,52 @@ public sealed partial class GameDataService
         DataSection? section = dataFile ? sections[sectionName] : null;
         bool textConfigFile = dataFile && sectionName == "TextConfigs";
         bool uiFile = dataFile && sectionName == "UI";
+        string? key = getDataKey(absolutePath);
         if (uiFile && !hasDataFileExtension(sectionName, absolutePath))
-            return new DataFileInfo("invalidUiData", getDataKey(absolutePath));
-        try
+            return () => new DataFileInfo("invalidUiData", key);
+        return () =>
         {
-            if (JsonNode.Parse(File.ReadAllText(absolutePath)) is not JsonObject file)
-            {
-                return textConfigFile
-                    ? new DataFileInfo("invalidTextConfig", getDataKey(absolutePath))
-                    : uiFile
-                        ? new DataFileInfo("invalidUiData", getDataKey(absolutePath))
-                    : null;
-            }
-            string? type = file["type"] is JsonValue typeValue
-                && typeValue.TryGetValue<string>(out string? parsedType)
-                    ? parsedType
-                    : null;
-            if (section is not null && !section.AcceptsType(type))
-            {
-                return textConfigFile
-                    ? new DataFileInfo("invalidTextConfig", getDataKey(absolutePath))
-                    : uiFile
-                        ? new DataFileInfo("invalidUiData", getDataKey(absolutePath))
-                    : null;
-            }
-            string? resolvedType = string.IsNullOrWhiteSpace(type)
-                ? section?.ExpectedType
-                : type;
-            if (string.IsNullOrWhiteSpace(resolvedType)
-                && sectionName != "General")
+            if (!File.Exists(absolutePath))
                 return null;
-            return new DataFileInfo(resolvedType ?? "general", getDataKey(absolutePath));
-        }
-        catch (JsonException)
-        {
-            return textConfigFile
-                ? new DataFileInfo("invalidTextConfig", getDataKey(absolutePath))
-                : uiFile
-                    ? new DataFileInfo("invalidUiData", getDataKey(absolutePath))
-                : null;
-        }
+            try
+            {
+                if (JsonNode.Parse(File.ReadAllText(absolutePath)) is not JsonObject file)
+                {
+                    return textConfigFile
+                        ? new DataFileInfo("invalidTextConfig", key)
+                        : uiFile
+                            ? new DataFileInfo("invalidUiData", key)
+                        : null;
+                }
+                string? type = file["type"] is JsonValue typeValue
+                    && typeValue.TryGetValue<string>(out string? parsedType)
+                        ? parsedType
+                        : null;
+                if (section is not null && !section.AcceptsType(type))
+                {
+                    return textConfigFile
+                        ? new DataFileInfo("invalidTextConfig", key)
+                        : uiFile
+                            ? new DataFileInfo("invalidUiData", key)
+                        : null;
+                }
+                string? resolvedType = string.IsNullOrWhiteSpace(type)
+                    ? section?.ExpectedType
+                    : type;
+                if (string.IsNullOrWhiteSpace(resolvedType)
+                    && sectionName != "General")
+                    return null;
+                return new DataFileInfo(resolvedType ?? "general", key);
+            }
+            catch (JsonException)
+            {
+                return textConfigFile
+                    ? new DataFileInfo("invalidTextConfig", key)
+                    : uiFile
+                        ? new DataFileInfo("invalidUiData", key)
+                    : null;
+            }
+        };
     }
 
 }

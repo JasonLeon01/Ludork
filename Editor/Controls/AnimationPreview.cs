@@ -8,22 +8,26 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Controls;
 
-public sealed class AnimationPreview : Control
+public sealed class AnimationPreview : Control, IDisposable
 {
-    private readonly string projectPath;
+    private readonly GameDataService gameData;
     private readonly Func<JsonObject> getData;
-    private readonly Dictionary<string, Bitmap> cache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, EditorThumbnailLease> cache = new(StringComparer.Ordinal);
+    private CancellationTokenSource? imageRequest;
+    private string[] preparedAssets = [];
     private Point dragStart;
     private double dragStartX;
     private double dragStartY;
     private bool dragging;
 
-    public AnimationPreview(string projectPath, Func<JsonObject> getData)
+    public AnimationPreview(GameDataService gameData, Func<JsonObject> getData)
     {
-        this.projectPath = projectPath;
+        this.gameData = gameData;
         this.getData = getData;
         Focusable = true;
     }
@@ -40,10 +44,10 @@ public sealed class AnimationPreview : Control
     {
         base.Render(context);
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#202020")), bounds);
+        context.FillRectangle(EditorTheme.Brush("Background"), bounds);
         Point center = new(bounds.Width / 2, bounds.Height / 2);
-        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#555555")), 1), new Point(center.X, 0), new Point(center.X, bounds.Height));
-        context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#555555")), 1), new Point(0, center.Y), new Point(bounds.Width, center.Y));
+        context.DrawLine(new Pen(EditorTheme.Brush("Border"), 1), new Point(center.X, 0), new Point(center.X, bounds.Height));
+        context.DrawLine(new Pen(EditorTheme.Brush("Border"), 1), new Point(0, center.Y), new Point(bounds.Width, center.Y));
 
         JsonArray assets = getData()["assets"] as JsonArray ?? [];
         JsonArray lines = getData()["timeLines"] as JsonArray ?? [];
@@ -178,16 +182,58 @@ public sealed class AnimationPreview : Control
             && segment >= 0 && segment < segments.Count ? segments[segment] as JsonObject : null;
     }
 
-    private Bitmap? getBitmap(string asset)
+    public void PrepareAssets(string[] assets, bool force = false)
     {
-        if (cache.TryGetValue(asset, out Bitmap? bitmap))
-            return bitmap;
-        if (!GameAssetPath.TryResolveExistingFile(projectPath, asset, out string path))
-            return null;
-        bitmap = new Bitmap(path);
-        cache[asset] = bitmap;
-        return bitmap;
+        if (!force && imageRequest is not null && assets.SequenceEqual(preparedAssets, StringComparer.Ordinal))
+            return;
+        Dispose();
+        preparedAssets = assets;
+        imageRequest = new CancellationTokenSource();
+        CancellationToken token = imageRequest.Token;
+        foreach (string asset in assets.Distinct(StringComparer.Ordinal))
+        {
+            string extension = System.IO.Path.GetExtension(asset);
+            if (new[] { ".png", ".jpg", ".jpeg", ".bmp", ".webp" }.Contains(extension, StringComparer.OrdinalIgnoreCase))
+                loadAsset(asset, token);
+        }
     }
+
+    private async void loadAsset(string asset, CancellationToken cancellationToken)
+    {
+        try
+        {
+            string? path = await Task.Run(() =>
+                GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, asset, out string resolved) ? resolved : null,
+                cancellationToken);
+            if (path is null)
+                return;
+            EditorThumbnailLease? lease = await gameData.Thumbnails.AcquireAsync(path, 0, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                lease?.Dispose();
+                return;
+            }
+            if (lease is not null)
+                cache[asset] = lease;
+            InvalidateVisual();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        imageRequest?.Cancel();
+        imageRequest?.Dispose();
+        imageRequest = null;
+        foreach (EditorThumbnailLease lease in cache.Values)
+            lease.Dispose();
+        cache.Clear();
+        InvalidateVisual();
+    }
+
+    private Bitmap? getBitmap(string asset) => cache.TryGetValue(asset, out EditorThumbnailLease? lease) ? lease.Bitmap : null;
 
     private static double interpolate(JsonArray? start, JsonArray? end, int index, double factor, double fallback = 0)
     {

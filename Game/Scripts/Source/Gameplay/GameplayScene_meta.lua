@@ -1,5 +1,6 @@
 local _METADATA = {
     GameplayScene = {
+        moduleReturn = true,
         attrs = {},
         bases = {
             { "GlobalCore", "SceneBase" }

@@ -5,13 +5,13 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="#121212"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
     <Grid Margin="24" RowDefinitions="*,Auto">
         <StackPanel Grid.Row="0" Spacing="14">
             <TextBlock x:Name="DescriptionText"
-                       Foreground="#aaaaaa"
+                       Foreground="{DynamicResource Editor.TextMutedBrush}"
                        TextWrapping="Wrap" />
             <StackPanel Spacing="6">
                 <TextBlock x:Name="KeystoreLabel" />
@@ -45,11 +45,11 @@
                       IsChecked="False"
                       IsVisible="False" />
             <TextBlock x:Name="CredentialStatusText"
-                       Foreground="#ffb74d"
+                       Foreground="{DynamicResource Editor.WarningBrush}"
                        TextWrapping="Wrap" />
             <TextBlock x:Name="ValidationText"
                        MinHeight="18"
-                       Foreground="#ff6e6e"
+                       Foreground="{DynamicResource Editor.ErrorBrush}"
                        TextWrapping="Wrap" />
         </StackPanel>
         <StackPanel Grid.Row="1"

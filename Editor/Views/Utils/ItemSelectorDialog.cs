@@ -21,8 +21,8 @@ public sealed class ItemSelectorDialog : Window
         MinWidth = 320;
         MinHeight = 160;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Surface");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         comboBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -43,7 +43,7 @@ public sealed class ItemSelectorDialog : Window
             Text = message,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
-            Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
         confirm.Click += onConfirm;

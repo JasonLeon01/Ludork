@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -36,14 +37,8 @@ internal static class EditorInputs
 
     public static void ApplyEditable(TextBox textBox)
     {
-        textBox.MinHeight = 34;
-        textBox.Padding = new Thickness(16, 0);
-        textBox.CornerRadius = new CornerRadius(4);
         textBox.Focusable = true;
         textBox.IsTabStop = true;
-        textBox.Background = new SolidColorBrush(Color.Parse("#333333"));
-        textBox.BorderBrush = new SolidColorBrush(Color.Parse("#464646"));
-        textBox.BorderThickness = new Thickness(1);
         textBox.Classes.Add("ludork-editable");
     }
 }
@@ -174,7 +169,7 @@ internal static class DialogHost
             MinWidth = 380,
             MinHeight = 190,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new SolidColorBrush(Color.Parse("#202124")),
+            Background = PluginTheme.Brush("Surface"),
             Content = panel,
         };
         cancel.Click += (_, _) =>

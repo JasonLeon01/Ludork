@@ -75,7 +75,7 @@ public sealed partial class ActorInfoPanel : UserControl
         titleContainer = new Border
         {
             Height = 24,
-            Background = new SolidColorBrush(Color.Parse("#444444")),
+            Background = EditorTheme.Brush("Input"),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(4),
             Child = titleLabel,
@@ -103,14 +103,14 @@ public sealed partial class ActorInfoPanel : UserControl
         blueprintOpenButton = new Button
         {
             Content = LocaleService.Get("OPEN"),
-            Height = 34,
+            Height = EditorInputs.FieldMinHeight,
             Padding = new Thickness(8, 0),
         };
         blueprintOpenButton.Click += (_, _) => requestBlueprintOpen();
         blueprintLocateButton = new Button
         {
             Content = LocaleService.Get("LOCATE"),
-            Height = 34,
+            Height = EditorInputs.FieldMinHeight,
             Padding = new Thickness(8, 0),
         };
         blueprintLocateButton.Click += (_, _) => requestBlueprintLocate();
@@ -241,7 +241,7 @@ public sealed partial class ActorInfoPanel : UserControl
         noSelectionLabel = new TextBlock
         {
             Text = LocaleService.Get("GENERAL_DATA_PLACEHOLDER"),
-            Foreground = new SolidColorBrush(Color.Parse("#888888")),
+            Foreground = Ludork.Services.EditorTheme.Brush("TextMuted"),
             FontStyle = FontStyle.Italic,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,

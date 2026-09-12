@@ -18,10 +18,10 @@ namespace Ludork.Controls;
 public sealed partial class WorldMapCanvas : Control, IDisposable
 {
     internal const string ChildDragPrefix = "LUDORK_WORLD_CHILD:";
-    private static readonly IBrush OutsideBrush = new SolidColorBrush(Color.Parse("#111111"));
-    private static readonly IBrush WorldBrush = new SolidColorBrush(Color.Parse("#202020"));
-    private static readonly IBrush HoleBrush = new SolidColorBrush(Color.Parse("#171717"));
-    private static readonly Pen WorldBorderPen = new(new SolidColorBrush(Color.Parse("#777777")), 1);
+    private static readonly IBrush OutsideBrush = Ludork.Services.EditorTheme.Brush("Background");
+    private static readonly IBrush WorldBrush = EditorTheme.Brush("Surface");
+    private static readonly IBrush HoleBrush = EditorTheme.Brush("Background");
+    private static readonly Pen WorldBorderPen = new(EditorTheme.Brush("Border"), 1);
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.FromArgb(35, 255, 255, 255)), 1);
     private static readonly Pen PlacementPen = new(new SolidColorBrush(Color.FromArgb(220, 240, 240, 240)), 1);
     private static readonly Pen SelectedPlacementPen = new(new SolidColorBrush(Color.Parse("#ffd54f")), 2);
@@ -86,8 +86,15 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         bool preserveView = string.Equals(WorldKey, worldKey, StringComparison.Ordinal)
             && WorldWidth == nextWorldWidth
             && WorldHeight == nextWorldHeight;
+        HashSet<WorldMapChildSource> nextChildren = children.ToHashSet();
         foreach (WorldMapChildSource child in childMaps.Values)
-            child.ReleaseData();
+        {
+            child.DataChanged -= onChildDataChanged;
+            if (!nextChildren.Contains(child))
+                child.Dispose();
+        }
+        if (!string.Equals(WorldKey, worldKey, StringComparison.Ordinal))
+            renderer?.ResetView();
         WorldKey = worldKey;
         Manifest = manifest;
         WorldWidth = nextWorldWidth;
@@ -96,6 +103,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         childCatalog.Clear();
         foreach (WorldMapChildSource child in children)
         {
+            child.DataChanged += onChildDataChanged;
             childMaps[child.Key] = child;
             childCatalog[child.Key] = new MapCatalogEntry(
                 child.Key,
@@ -118,6 +126,12 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                     placements.Add(placement);
                 }
             }
+        }
+        HashSet<string> placedKeys = placements.Select(placement => placement.Child.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (WorldMapChildSource child in childMaps.Values)
+        {
+            if (!placedKeys.Contains(child.Key))
+                child.ReleaseData(this);
         }
         rebuildLayerOrderValidity();
         selectedPlacement = selectedPlacement is null
@@ -175,6 +189,10 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         if (disposed)
             return;
         disposed = true;
+        foreach (WorldMapChildSource child in childMaps.Values)
+            child.Dispose();
+        childMaps.Clear();
+        placements.Clear();
         disposeViewport();
         setRenderer(null, false);
     }
@@ -202,10 +220,9 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         foreach (WorldMapPlacementPreview placement in placements)
         {
             if (!pinnedMaps.Contains(placement.Child.Key))
-                placement.Child.ReleaseData();
+                placement.Child.ReleaseData(this);
         }
         renderer?.TrimMapCache(pinnedMaps);
-        int remainingLoads = 1;
         using (context.PushClip(worldRect.Intersect(visibleCanvas)))
         {
             List<(WorldMapPlacementPreview Placement, JsonObject Map)> detailedPlacements = [];
@@ -216,18 +233,9 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                 Rect placementRect = getPlacementRect(placement);
                 context.FillRectangle(WorldBrush, placementRect);
                 if (drawDetailedMaps
-                    && placement.Child.HasData
-                    && placement.Child.LoadData() is JsonObject map)
+                    && placement.Child.RequestData(this) is JsonObject map)
                 {
                     detailedPlacements.Add((placement, map));
-                }
-                if (drawDetailedMaps && !placement.Child.HasData)
-                {
-                    if (remainingLoads > 0)
-                    {
-                        remainingLoads -= 1;
-                        placement.Child.ScheduleLoad(InvalidateVisual);
-                    }
                 }
             }
             IReadOnlyList<string> layerOrder = getWorldLayerOrder(visiblePlacements);
@@ -733,6 +741,12 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
             Dispatcher.UIThread.Post(() => onPreviewChanged(sender, args));
             return;
         }
+        if (!disposed)
+            InvalidateVisual();
+    }
+
+    private void onChildDataChanged(object? sender, EventArgs args)
+    {
         if (!disposed)
             InvalidateVisual();
     }

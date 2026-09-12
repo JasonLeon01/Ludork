@@ -49,8 +49,8 @@ public sealed class BlueprintNodePickerWindow : Window
         CanResize = true;
         ShowInTaskbar = false;
         Topmost = true;
-        Background = new SolidColorBrush(Color.Parse("#2b2b2b"));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Surface");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
 
         searchBox = EditorInputs.CreateEditableTextBox();
         searchBox.PlaceholderText = LocaleService.Get("SEARCH");
@@ -59,8 +59,8 @@ public sealed class BlueprintNodePickerWindow : Window
         itemList = new ListBox
         {
             ItemsSource = rows,
-            Background = new SolidColorBrush(Color.Parse("#232323")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             ItemTemplate = new FuncDataTemplate<BlueprintNodePickerRow>(createRow),
         };
@@ -145,7 +145,7 @@ public sealed class BlueprintNodePickerWindow : Window
             Text = row.DisplayText,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = row.IsGroup ? Brushes.White : new SolidColorBrush(Color.Parse("#eeeeee")),
+            Foreground = EditorTheme.Brush(row.IsGroup ? "Text" : "TextMuted"),
         };
         Grid.SetColumn(title, 1);
         content.Children.Add(title);

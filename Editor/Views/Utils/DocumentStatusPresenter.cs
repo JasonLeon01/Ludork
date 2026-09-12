@@ -28,7 +28,7 @@ public sealed class DocumentStatusPresenter : StackPanel
 
     public static IDataTemplate CreateTemplate(GameDataService gameData, string section)
     {
-        return new FuncDataTemplate<string>((key, _) => new DocumentStatusPresenter(gameData, section, key));
+        return new FuncDataTemplate<string>((key, _) => key is null ? null : new DocumentStatusPresenter(gameData, section, key));
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)

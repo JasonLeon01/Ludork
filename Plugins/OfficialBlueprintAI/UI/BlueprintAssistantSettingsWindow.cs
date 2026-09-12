@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -26,7 +27,7 @@ public sealed class BlueprintAssistantSettingsWindow : Window
     private readonly TextBlock statusText = new()
     {
         TextWrapping = TextWrapping.Wrap,
-        Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+        Foreground = PluginTheme.Brush("TextMuted"),
     };
     private readonly Button saveButton = new();
     private readonly Button testButton = new();
@@ -45,7 +46,7 @@ public sealed class BlueprintAssistantSettingsWindow : Window
         MinWidth = 500;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#202124"));
+        Background = PluginTheme.Brush("Surface");
 
         foreach (string providerName in new[] { "OpenAI", "DeepSeek", "Google", "Custom" })
             providerField.Items.Add(providerName);

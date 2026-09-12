@@ -5,7 +5,6 @@
         xmlns:views="using:Ludork.Views"
         xmlns:utils="using:Ludork.Views.Utils"
         xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
-        xmlns:fluent="clr-namespace:Avalonia.Themes.Fluent;assembly=Avalonia.Themes.Fluent"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -16,8 +15,8 @@
         MinWidth="1144"
         MinHeight="680"
         WindowStartupLocation="CenterScreen"
-        Background="#121212"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico"
         Title="Ludork">
 
@@ -133,91 +132,51 @@
 
     <Window.Styles>
         <Style Selector="Border.surface">
-            <Setter Property="Background" Value="#121212" />
-            <Setter Property="BorderBrush" Value="#3a3a3a" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="GridSplitter">
-            <Setter Property="Background" Value="#262626" />
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
         </Style>
         <Style Selector="TextBlock.panelTitle">
             <Setter Property="Height" Value="32" />
-            <Setter Property="FontSize" Value="19" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Margin" Value="12,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="ToggleButton.mode">
-            <Setter Property="Width" Value="64" />
+            <Setter Property="Width" Value="48" />
             <Setter Property="Height" Value="48" />
-            <Setter Property="Background" Value="#282828" />
-            <Setter Property="BorderBrush" Value="#1c1c1c" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.BackgroundBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="ToggleButton.mode:checked">
-            <Setter Property="Background" Value="#4f5b62" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Editor.AccentMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
             <Setter Property="BorderThickness" Value="0,0,2,0" />
         </Style>
-        <Style Selector="Button.runAction">
-            <Setter Property="Width" Value="64" />
-            <Setter Property="Height" Value="32" />
-            <Setter Property="Background" Value="#282828" />
-            <Setter Property="BorderBrush" Value="#1c1c1c" />
-            <Setter Property="BorderThickness" Value="1,0,0,0" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Style Selector="ToggleButton.layerVisibility > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.VisibilityHidden}" />
         </Style>
-        <Style Selector="Button.runAction:disabled">
-            <Setter Property="Opacity" Value="0.4" />
-        </Style>
-        <Style Selector="TabStrip.layerTabs">
-            <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
-        </Style>
-        <Style Selector="ToggleButton.layerVisibility > PathIcon">
-            <Setter Property="Data" Value="{StaticResource EditorIcon.VisibilityHidden}" />
-        </Style>
-        <Style Selector="ToggleButton.layerVisibility:checked > PathIcon">
-            <Setter Property="Data" Value="{StaticResource EditorIcon.VisibilityVisible}" />
+        <Style Selector="ToggleButton.layerVisibility:checked > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.VisibilityVisible}" />
         </Style>
         <Style Selector="TabStrip.layerTabs > TabStripItem">
-            <Setter Property="Height" Value="32" />
-            <Setter Property="MinWidth" Value="96" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource LudorkTextBrush}" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,2" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-        <Style Selector="TabStrip.layerTabs > TabStripItem:not(:selected) /template/ ContentPresenter#PART_HeaderContent">
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="VerticalAlignment" Value="Stretch" />
         </Style>
         <Style Selector="TextBlock.overviewLayerName">
             <Setter Property="HorizontalAlignment" Value="Center" />
         </Style>
-        <Style Selector="TabStrip.layerTabs > TabStripItem:pointerover">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
-        </Style>
-        <Style Selector="TabStrip.layerTabs > TabStripItem:selected">
-            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
-        </Style>
         <Style Selector="TreeView.actorOutliner">
-            <Setter Property="Background" Value="#1f1f1f" />
+            <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
         </Style>
         <Style Selector="TreeView.actorOutliner TreeViewItem">
             <Setter Property="Padding" Value="4,6" />
@@ -266,15 +225,14 @@
                             <TreeDataTemplate x:DataType="vm:MapListItemViewModel"
                                               ItemsSource="{Binding Children}">
                                 <Grid ColumnDefinitions="18,*,Auto">
-                                    <TextBlock Grid.Column="0"
-                                               Text="▣"
-                                               Foreground="{DynamicResource LudorkPrimaryBrush}"
-                                               IsVisible="{Binding IsWorld}"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="0"
-                                               Text="◇"
-                                               IsVisible="{Binding IsMap}"
-                                               VerticalAlignment="Center" />
+                                    <Image Grid.Column="0" Width="16" Height="16"
+                                           Source="{StaticResource EditorImage.World}"
+                                           IsVisible="{Binding IsWorld}"
+                                           VerticalAlignment="Center" />
+                                    <Image Grid.Column="0" Width="16" Height="16"
+                                           Source="{StaticResource EditorImage.Map}"
+                                           IsVisible="{Binding IsMap}"
+                                           VerticalAlignment="Center" />
                                     <utils:HintedTextPresenter Grid.Column="1"
                                                                Text="{Binding DisplayName}"
                                                                ToolTip.Tip="{Binding Key}" />
@@ -291,14 +249,14 @@
                     <Grid x:Name="MapEditToolbar"
                           Grid.Row="0"
                           ColumnDefinitions="*,Auto"
-                          Background="{DynamicResource LudorkSurfaceBrush}">
+                          Background="{DynamicResource Editor.SurfaceBrush}">
                         <ScrollViewer x:Name="LayerTabsScroll" Grid.Column="0"
                                       Classes="no-auto-hide"
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Disabled">
                             <TabStrip x:Name="LayerTabs"
                                       Classes="layerTabs"
-                                      Height="32"
+                                      Height="{DynamicResource Editor.TabHeight}"
                                       MinWidth="120"
                                       HorizontalAlignment="Left"
                                       ItemsSource="{Binding LayerTabs}"
@@ -306,16 +264,15 @@
                                 <TabStrip.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LayerTabViewModel">
                                         <Grid ColumnDefinitions="*,Auto"
-                                              Margin="8,0"
                                               HorizontalAlignment="Stretch">
                                             <TextBlock Grid.Column="0"
                                                        Classes.overviewLayerName="{Binding IsOverview}"
                                                        Text="{Binding Name}"
                                                        VerticalAlignment="Center" />
                                             <ToggleButton Grid.Column="1"
-                                                          Classes="layerVisibility"
-                                                          Width="24"
-                                                          Height="24"
+                                                          Classes="toolbar layerVisibility"
+                                                          Width="28"
+                                                          Height="28"
                                                           Margin="8,0,0,0"
                                                           Padding="0"
                                                           VerticalAlignment="Center"
@@ -324,8 +281,8 @@
                                                           IsChecked="{Binding LayerVisible, Mode=OneWay}"
                                                           ToolTip.Tip="{Binding VisibilityTooltip}"
                                                           Click="onLayerVisibilityClick">
-                                                <PathIcon Width="15"
-                                                          Height="15" />
+                                                <Image Width="16"
+                                                       Height="16" />
                                             </ToggleButton>
                                         </Grid>
                                     </DataTemplate>
@@ -336,17 +293,18 @@
                         <StackPanel x:Name="RunButtons"
                                     Grid.Column="1"
                                     Orientation="Horizontal"
-                                    Height="32"
-                                    VerticalAlignment="Top">
-                            <Button x:Name="ConstructButton" Classes="runAction" IsVisible="False" Click="onConstructClick">
-                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.Construct}" />
+                                    Spacing="4"
+                                    Margin="8,0"
+                                    VerticalAlignment="Center">
+                            <Button x:Name="ConstructButton" Classes="toolbar" IsVisible="False" Click="onConstructClick">
+                                <Image Width="16" Height="16" Source="{StaticResource EditorImage.Construct}" />
                             </Button>
-                            <Button x:Name="ExportButton" Classes="runAction" Click="onExportClick">
-                                <Image Width="22" Height="22" Source="{StaticResource EditorImage.Export}" />
+                            <Button x:Name="ExportButton" Classes="toolbar" Click="onExportClick">
+                                <Image Width="16" Height="16" Source="{StaticResource EditorImage.Export}" />
                             </Button>
                             <Border x:Name="PlayButtonHint" Background="Transparent">
-                                <Button x:Name="PlayButton" Classes="runAction" Click="onPlayClick">
-                                    <Image x:Name="PlayIcon" Width="22" Height="22" Source="{StaticResource EditorImage.Play}" />
+                                <Button x:Name="PlayButton" Classes="toolbar" Click="onPlayClick">
+                                    <Image x:Name="PlayIcon" Width="16" Height="16" Source="{StaticResource EditorImage.Play}" />
                                 </Button>
                             </Border>
                         </StackPanel>
@@ -356,24 +314,24 @@
                         <Grid x:Name="EditModeToggles"
                               Grid.Column="0"
                               RowDefinitions="48,48,48"
-                              Width="64"
+                              Width="48"
                               VerticalAlignment="Top">
                             <ToggleButton x:Name="TileModeToggle" Grid.Row="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
                                 <Grid RowDefinitions="28,16">
-                                    <Image Grid.Row="0" Width="24" Height="24" Source="{StaticResource EditorImage.ModeTile}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="12" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
+                                    <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeTile}" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="LightModeToggle" Grid.Row="1" Classes="mode" Click="onLightModeClick">
                                 <Grid RowDefinitions="28,16">
-                                    <Image Grid.Row="0" Width="24" Height="24" Source="{StaticResource EditorImage.ModeLight}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="12" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
+                                    <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeLight}" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
                             <ToggleButton x:Name="ActorModeToggle" Grid.Row="2" Classes="mode" Click="onActorModeClick">
                                 <Grid RowDefinitions="28,16">
-                                    <Image Grid.Row="0" Width="24" Height="24" Source="{StaticResource EditorImage.ModeActor}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+3, macOS=⌘3}" FontSize="12" Foreground="#bedcdcdc" HorizontalAlignment="Center" />
+                                    <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeActor}" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+3, macOS=⌘3}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
                         </Grid>
@@ -389,13 +347,13 @@
                                                 IsVisible="False" />
                         <Border x:Name="LiveDebugBanner" Grid.Column="1"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Background="#DD172431" CornerRadius="4" Padding="10,6" Margin="8"
+                                Background="{DynamicResource Editor.OverlayBrush}" CornerRadius="4" Padding="10,6" Margin="8"
                                 IsVisible="False" IsHitTestVisible="False">
-                            <TextBlock x:Name="LiveDebugStatus" Foreground="#DDEEFF" />
+                            <TextBlock x:Name="LiveDebugStatus" Foreground="{DynamicResource Editor.TextMutedBrush}" />
                         </Border>
                         <Border x:Name="GameViewport"
                                 Grid.Column="1"
-                                Background="#000000"
+                                Background="{DynamicResource Editor.BackgroundBrush}"
                                 IsVisible="False">
                             <controls:AspectRatioPanel x:Name="GameAspectPanel">
                                 <controls:GamePanel x:Name="GamePanel" />
@@ -435,24 +393,20 @@
                     <TabItem Header="{Binding Console}">
                         <Border x:Name="ConsolePanel" Classes="surface">
                             <Grid RowDefinitions="*,Auto">
-                                <Border Grid.Row="0" Background="#101010">
-                                    <Border.Styles>
-                                        <fluent:FluentTheme />
-                                        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
-                                    </Border.Styles>
+                                <Border Grid.Row="0" Background="{DynamicResource Editor.BackgroundBrush}">
                                     <avaloniaEdit:TextEditor x:Name="ConsoleOutput"
                                                              IsReadOnly="True"
                                                              WordWrap="False"
                                                              ShowLineNumbers="False"
-                                                             Background="#101010"
-                                                             Foreground="#e6e6e6"
+                                                             Background="{DynamicResource Editor.BackgroundBrush}"
+                                                             Foreground="{DynamicResource Editor.TextBrush}"
                                                              FontFamily="Cascadia Mono,Menlo,Monaco,Consolas"
                                                              HorizontalScrollBarVisibility="Auto"
                                                              VerticalScrollBarVisibility="Auto" />
                                 </Border>
                                 <Border Grid.Row="1"
-                                        Background="#181818"
-                                        BorderBrush="#3a3a3a"
+                                        Background="{DynamicResource Editor.BackgroundBrush}"
+                                        BorderBrush="{DynamicResource Editor.BorderBrush}"
                                         BorderThickness="0,1,0,0"
                                         Padding="8">
                                     <Grid ColumnDefinitions="*,Auto">

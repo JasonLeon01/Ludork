@@ -7,6 +7,8 @@ using Ludork.Services;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Controls;
 
@@ -20,6 +22,11 @@ public enum TilesetEditMode
 public sealed class TilesetImageEditor : Control, IDisposable
 {
     private readonly int cellSize;
+    private readonly GameDataService gameData;
+    private EditorThumbnailLease? imageLease;
+    private CancellationTokenSource? imageRequest;
+    private string? imageAssetPath;
+    private Rect viewport;
     private Bitmap? image;
     private JsonObject? data;
     private bool isAutoTile;
@@ -31,13 +38,21 @@ public sealed class TilesetImageEditor : Control, IDisposable
     private (int X, int Y) batchLastCell;
     private JsonNode? batchSourceValue;
 
-    public TilesetImageEditor(int cellSize)
+    public TilesetImageEditor(GameDataService gameData, int cellSize)
     {
+        this.gameData = gameData;
         this.cellSize = Math.Max(1, cellSize);
+        EffectiveViewportChanged += (_, args) =>
+        {
+            viewport = args.EffectiveViewport;
+            InvalidateVisual();
+        };
         Focusable = true;
     }
 
     public TilesetEditMode Mode { get; set; }
+    public event EventHandler? ImageChanged;
+    public bool HasImage => image is not null;
     public Func<string, JsonNode, IReadOnlyList<int>, int, bool>? EditRequested { get; set; }
     public Func<int, int, int, bool, bool>? DirectionEditRequested { get; set; }
     public Func<int, int, JsonObject, JsonObject, bool>? MaterialCommitRequested { get; set; }
@@ -53,27 +68,59 @@ public sealed class TilesetImageEditor : Control, IDisposable
     {
         data = nextData;
         isAutoTile = nextIsAutoTile;
-        image?.Dispose();
-        image = null;
-        if (GameAssetPath.TryResolveExistingFile(
-                projectPath,
-                assetPath,
-                out string filePath))
-        {
-            image = new Bitmap(filePath);
-        }
-        if (image is null)
-        {
-            Width = 0;
-            Height = 0;
-        }
-        else
-        {
-            Width = image.PixelSize.Width;
-            Height = image.PixelSize.Height;
-        }
-        InvalidateMeasure();
         InvalidateVisual();
+        if (imageRequest is not null && imageAssetPath == assetPath)
+            return;
+        releaseImage();
+        imageAssetPath = assetPath;
+        imageRequest = new CancellationTokenSource();
+        loadImage(projectPath, assetPath, imageRequest.Token);
+    }
+
+    public void ReloadImage()
+    {
+        string? path = imageAssetPath;
+        releaseImage();
+        setData(data, gameData.ProjectPath, path, isAutoTile);
+    }
+
+    private async void loadImage(string projectPath, string? assetPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            string? path = await Task.Run(() =>
+                GameAssetPath.TryResolveExistingFile(projectPath, assetPath, out string resolved) ? resolved : null,
+                cancellationToken);
+            EditorThumbnailLease? lease = path is null ? null
+                : await gameData.Thumbnails.AcquireAsync(path, 0, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                lease?.Dispose();
+                return;
+            }
+            imageLease = lease;
+            image = lease?.Bitmap;
+            Width = image?.PixelSize.Width ?? 0;
+            Height = image?.PixelSize.Height ?? 0;
+            InvalidateMeasure();
+            InvalidateVisual();
+            ImageChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void releaseImage()
+    {
+        imageRequest?.Cancel();
+        imageRequest?.Dispose();
+        imageRequest = null;
+        image = null;
+        imageLease?.Dispose();
+        imageLease = null;
+        Width = 0;
+        Height = 0;
     }
 
     public override void Render(DrawingContext context)
@@ -82,20 +129,28 @@ public sealed class TilesetImageEditor : Control, IDisposable
         if (image is null)
             return;
         Rect imageBounds = new(0, 0, image.PixelSize.Width, image.PixelSize.Height);
+        Rect visible = imageBounds.Intersect(viewport);
+        if (visible.Width <= 0 || visible.Height <= 0)
+            return;
+        using IDisposable clip = context.PushClip(visible);
         context.DrawImage(image, imageBounds);
         int columns = image.PixelSize.Width / cellSize;
         int rows = image.PixelSize.Height / cellSize;
         Pen gridPen = new(new SolidColorBrush(Color.FromArgb(100, 0, 0, 0)));
-        for (int x = 0; x <= columns; x++)
+        int firstColumn = Math.Max(0, (int)Math.Floor(visible.Left / cellSize));
+        int lastColumn = Math.Min(columns, (int)Math.Ceiling(visible.Right / cellSize));
+        int firstRow = Math.Max(0, (int)Math.Floor(visible.Top / cellSize));
+        int lastRow = Math.Min(rows, (int)Math.Ceiling(visible.Bottom / cellSize));
+        for (int x = firstColumn; x <= lastColumn; x++)
             context.DrawLine(gridPen, new Point(x * cellSize, 0), new Point(x * cellSize, rows * cellSize));
-        for (int y = 0; y <= rows; y++)
+        for (int y = firstRow; y <= lastRow; y++)
             context.DrawLine(gridPen, new Point(0, y * cellSize), new Point(columns * cellSize, y * cellSize));
         if (data is null)
             return;
         if (isAutoTile)
             drawAutoTileOverlay(context, new Rect(0, 0, Math.Min(3, columns) * cellSize, Math.Min(4, rows) * cellSize));
         else
-            drawTilesetOverlays(context, columns, rows);
+            drawTilesetOverlays(context, columns, firstColumn, lastColumn, firstRow, lastRow);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs args)
@@ -171,15 +226,16 @@ public sealed class TilesetImageEditor : Control, IDisposable
     public void Dispose()
     {
         completeBatchPaint();
-        image?.Dispose();
-        image = null;
+        releaseImage();
     }
 
-    private void drawTilesetOverlays(DrawingContext context, int columns, int rows)
+    private void drawTilesetOverlays(DrawingContext context, int columns, int firstColumn, int lastColumn, int firstRow, int lastRow)
     {
-        for (int index = 0; index < columns * rows; index++)
+        for (int y = firstRow; y < lastRow; y++)
+        for (int x = firstColumn; x < lastColumn; x++)
         {
-            Rect cell = new(index % columns * cellSize, index / columns * cellSize, cellSize, cellSize);
+            int index = y * columns + x;
+            Rect cell = new(x * cellSize, y * cellSize, cellSize, cellSize);
             switch (Mode)
             {
                 case TilesetEditMode.Passable:

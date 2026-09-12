@@ -147,7 +147,7 @@ internal sealed partial class PerformanceMonitorCanvas
         IReadOnlyList<StageValue> values,
         double measuredTotal)
     {
-        context.DrawRectangle(new SolidColorBrush(Color.Parse("#171717")), panelPen, bar, 2, 2);
+        context.DrawRectangle(EditorTheme.Brush("Background"), panelPen, bar, 2, 2);
         double phaseTotal = 0.0;
         foreach (StageValue value in values)
             phaseTotal += value.Milliseconds;

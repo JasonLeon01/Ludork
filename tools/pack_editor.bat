@@ -424,7 +424,6 @@ for %%F in (
     "EditorPackages\Svg.Skia-LICENSE.txt"
     "EditorPackages\Svg.Custom-LICENSE.txt"
     "EditorPackages\ExCSS-LICENSE.txt"
-    "EditorPackages\Material.Avalonia-LICENSE.txt"
     "EditorPackages\CommunityToolkit.Mvvm-THIRD-PARTY-NOTICES.txt"
     "EditorPackages\HarfBuzzSharp-LICENSE.txt"
     "EditorPackages\MoonSharp-LICENSE.txt"

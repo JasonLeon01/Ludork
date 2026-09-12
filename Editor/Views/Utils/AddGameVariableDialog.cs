@@ -31,9 +31,8 @@ public sealed class AddGameVariableDialog : Window
         MinWidth = 360;
         MinHeight = 200;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
-        FontFamily = FontFamily.Parse(
-            "avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Surface");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         nameBox = EditorInputs.CreateEditableTextBox();

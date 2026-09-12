@@ -17,8 +17,8 @@ namespace Ludork.Controls;
 public sealed partial class ParticleEditor
 {
     private readonly ParticlePreviewSurface previewSurface = new();
-    private readonly TextBlock previewStatus = new() { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray, Margin = new Thickness(12) };
-    private readonly TextBlock statistics = new() { Foreground = Brushes.Gray, Margin = new Thickness(6), TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock previewStatus = new() { TextWrapping = TextWrapping.Wrap, Foreground = EditorTheme.Brush("TextMuted"), Margin = new Thickness(12) };
+    private readonly TextBlock statistics = new() { Foreground = EditorTheme.Brush("TextMuted"), Margin = new Thickness(6), TextWrapping = TextWrapping.Wrap };
     private readonly Button playButton = new() { Content = LocaleService.Get("PARTICLE_PLAY") };
     private readonly Slider timeline = new() { Minimum = 0, Maximum = 10 };
     private readonly NumericUpDown seekTime = EditorInputs.CreateNumericUpDown(0, 0, 3600, 0.1m);

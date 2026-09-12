@@ -11,7 +11,7 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
-public sealed class BlueprintPreviewService : IDisposable
+public sealed partial class BlueprintPreviewService : IDisposable
 {
     private readonly string projectPath;
     private readonly GameDataService gameData;
@@ -27,12 +27,13 @@ public sealed class BlueprintPreviewService : IDisposable
         this.projectPath = Path.GetFullPath(projectPath);
         this.gameData = gameData;
         this.classResolver = classResolver;
-        ActorPreviews = new ActorPreviewService(runtime);
+        ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails);
         gameData.DataReloaded += onVisualSourceDataChanged;
         gameData.DataRestored += onVisualSourceDataChanged;
     }
 
     public ActorPreviewService ActorPreviews { get; }
+    public long ResolutionRevision => classResolver.Revision;
     public event EventHandler? VisualsInvalidated;
     public event EventHandler? LiveVisualsInvalidated;
 
@@ -180,15 +181,20 @@ public sealed class BlueprintPreviewService : IDisposable
 
     private ActorVisualDescriptor? createActorVisual(
         ResolvedBlueprintClass resolved,
-        string blueprintReference)
+        string blueprintReference,
+        PixelSize? preparedSize = null)
     {
         string texturePath = getResolvedValue(resolved, "texturePath")?.ToString() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(texturePath))
             return null;
-        string filePath = resolveTextureFilePath(texturePath);
-        if (!File.Exists(filePath))
-            return null;
-        PixelSize? sourceSize = getSourceImageSize(filePath);
+        PixelSize? sourceSize = preparedSize;
+        if (sourceSize is null)
+        {
+            string filePath = resolveTextureFilePath(texturePath);
+            if (!File.Exists(filePath))
+                return null;
+            sourceSize = getSourceImageSize(filePath);
+        }
         if (sourceSize is null)
             return null;
         PixelSize textureSize = sourceSize.Value;

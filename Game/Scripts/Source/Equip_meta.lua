@@ -1,5 +1,6 @@
 local _METADATA = {
     Equip = {
+        moduleReturn = true,
         attrs = {
             "ID",
             "getSE"

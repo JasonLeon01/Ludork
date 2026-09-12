@@ -4,6 +4,14 @@
              xmlns:controls="using:Ludork.Controls"
              x:Class="Ludork.Controls.ActorQueuePanel"
              x:DataType="vm:ActorQueueViewModel">
+    <UserControl.Styles>
+        <Style Selector="ToggleButton.favorite > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.Favorite}" />
+        </Style>
+        <Style Selector="ToggleButton.favorite:checked > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.FavoriteSelected}" />
+        </Style>
+    </UserControl.Styles>
     <Grid RowDefinitions="38,38,*" RowSpacing="6">
         <TextBox x:Name="SearchBox"
                  Text="{Binding SearchText, Mode=TwoWay}"
@@ -48,14 +56,13 @@
                                                                   Opacity="0.62" />
                             </StackPanel>
                             <ToggleButton Grid.Column="2"
-                                          Width="30"
-                                          Height="30"
-                                          Padding="0"
-                                          HorizontalContentAlignment="Center"
-                                          VerticalContentAlignment="Center"
-                                          Content="★"
+                                          Classes="toolbar favorite"
+                                          ToolTip.Tip="{Binding FavoriteLabel}"
+                                          AutomationProperties.Name="{Binding FavoriteLabel}"
                                           IsChecked="{Binding IsFavorite, Mode=OneWay}"
-                                          Click="onFavouriteClick" />
+                                          Click="onFavouriteClick">
+                                <Image />
+                            </ToggleButton>
                         </Grid>
                     </controls:ActorQueueItemControl>
                 </DataTemplate>

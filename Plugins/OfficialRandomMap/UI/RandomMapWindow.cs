@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
@@ -37,12 +38,12 @@ internal sealed class RandomMapWindow : Window
     private readonly StackPanel stepPanel = new();
     private readonly TextBlock statusText = new()
     {
-        Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+        Foreground = PluginTheme.Brush("TextMuted"),
         TextWrapping = TextWrapping.Wrap,
     };
     private readonly TextBlock passableWarning = new()
     {
-        Foreground = new SolidColorBrush(Color.Parse("#f9ab00")),
+        Foreground = PluginTheme.Brush("Warning"),
         TextWrapping = TextWrapping.Wrap,
         IsVisible = false,
     };
@@ -108,7 +109,7 @@ internal sealed class RandomMapWindow : Window
         MinWidth = 980;
         MinHeight = 600;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#161718"));
+        Background = PluginTheme.Brush("Background");
 
         configureControls();
         Content = createLayout();
@@ -224,7 +225,7 @@ internal sealed class RandomMapWindow : Window
         Border statusBorder = new()
         {
             Padding = new Thickness(12),
-            Background = new SolidColorBrush(Color.Parse("#202124")),
+            Background = PluginTheme.Brush("Surface"),
             Child = statusText,
         };
         Grid.SetRow(statusBorder, 1);
@@ -442,7 +443,7 @@ internal sealed class RandomMapWindow : Window
         TextBlock hint = new()
         {
             Text = localizer.Text("markerHint"),
-            Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+            Foreground = PluginTheme.Brush("TextMuted"),
             TextWrapping = TextWrapping.Wrap,
         };
         stepPanel.Children.Add(hint);
@@ -456,7 +457,7 @@ internal sealed class RandomMapWindow : Window
         TextBlock densityHint = new()
         {
             Text = localizer.Text("densityHint"),
-            Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+            Foreground = PluginTheme.Brush("TextMuted"),
             TextWrapping = TextWrapping.Wrap,
         };
         stepPanel.Children.Add(densityHint);
@@ -645,7 +646,7 @@ internal sealed class RandomMapWindow : Window
         return new TextBlock
         {
             Text = text,
-            FontSize = 16,
+            FontSize = 14,
             FontWeight = FontWeight.SemiBold,
         };
     }
@@ -665,7 +666,7 @@ internal sealed class RandomMapWindow : Window
         {
             Width = 5,
             ResizeDirection = GridResizeDirection.Columns,
-            Background = new SolidColorBrush(Color.Parse("#353535")),
+            Background = PluginTheme.Brush("Input"),
         };
     }
 }

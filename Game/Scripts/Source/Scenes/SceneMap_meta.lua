@@ -1,5 +1,6 @@
 local _METADATA = {
     Scene = {
+        moduleReturn = true,
         attrs = {},
         bases = {
             { "Source.Gameplay.GameplayScene", "GameplayScene" }

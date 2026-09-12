@@ -36,7 +36,8 @@ public sealed class LuaTypeMetadata
         IReadOnlyList<string> invalidVars,
         JsonObject rectRangeVars,
         IReadOnlyList<string> memberNames,
-        IReadOnlyDictionary<string, LuaNodeMemberMetadata> members
+        IReadOnlyDictionary<string, LuaNodeMemberMetadata> members,
+        bool moduleReturn = false
     )
     {
         Type = type;
@@ -48,9 +49,11 @@ public sealed class LuaTypeMetadata
         RectRangeVars = (JsonObject)rectRangeVars.DeepClone();
         MemberNames = memberNames;
         Members = members;
+        ModuleReturn = moduleReturn;
     }
 
     public LuaTypeReference Type { get; }
+    public bool ModuleReturn { get; }
     public IReadOnlyList<string> Attrs { get; }
     public IReadOnlyList<LuaTypeReference> Bases { get; }
     public IReadOnlyDictionary<string, BlueprintFieldMetadata> Fields { get; }

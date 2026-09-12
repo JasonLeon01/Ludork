@@ -6,7 +6,7 @@
              x:DataType="vm:TileSelectViewModel">
     <UserControl.Styles>
         <Style Selector="ListBox.autoTiles">
-            <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="ListBox.autoTiles > ListBoxItem">
@@ -22,38 +22,12 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="ListBox.autoTiles > ListBoxItem:pointerover">
-            <Setter Property="Background" Value="{DynamicResource LudorkPrimaryMutedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Editor.AccentMutedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
         </Style>
         <Style Selector="ListBox.autoTiles > ListBoxItem:selected">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
-        </Style>
-        <Style Selector="TabStrip.tilesetTabs">
-            <Setter Property="Background" Value="{DynamicResource LudorkSurfaceBrush}" />
-        </Style>
-        <Style Selector="TabStrip.tilesetTabs > TabStripItem">
-            <Setter Property="Height" Value="36" />
-            <Setter Property="MinWidth" Value="48" />
-            <Setter Property="Padding" Value="16,0" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource LudorkTextBrush}" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,2" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-        <Style Selector="TabStrip.tilesetTabs > TabStripItem:pointerover">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
-        </Style>
-        <Style Selector="TabStrip.tilesetTabs > TabStripItem:selected">
-            <Setter Property="Foreground" Value="{DynamicResource LudorkPrimaryBrush}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="{DynamicResource LudorkPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -77,7 +51,7 @@
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:AutoTileItemViewModel">
                     <controls:AutoTilePreview Width="32"
-                                              Height="32"
+                                              Height="{DynamicResource Editor.TabHeight}"
                                               CellSize="32"
                                               ProjectPath="{Binding ProjectPath}"
                                               AssetPath="{Binding AssetPath}"
@@ -91,7 +65,7 @@
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Disabled">
             <TabStrip Classes="tilesetTabs"
-                      Height="36"
+                      Height="{DynamicResource Editor.TabHeight}"
                       HorizontalAlignment="Left"
                       ItemsSource="{Binding Tilesets}"
                       SelectedItem="{Binding SelectedTileset, Mode=TwoWay}">

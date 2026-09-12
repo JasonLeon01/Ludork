@@ -34,7 +34,7 @@ public sealed class CurveWindow : Window
         MinWidth = 720;
         MinHeight = 500;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Avalonia.Media.Brushes.Black;
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
         editor = new CurveEditor(gameData, key, data);
         Content = editor;

@@ -71,7 +71,6 @@ public partial class NewProjectWindow : Window
 
     private void applyLocale()
     {
-        HeaderTitle.Text = LocaleService.Get("NEW_PROJECT");
         HeaderSubtitle.Text = LocaleService.Get("NEW_PROJECT_SUBTITLE");
         ChooseTemplateText.Text = LocaleService.Get("NEW_PROJECT_CHOOSE_TEMPLATE");
         StandaloneTitle.Text = LocaleService.Get("NEW_PROJECT_STANDALONE");

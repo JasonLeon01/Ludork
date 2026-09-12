@@ -64,6 +64,8 @@ public sealed partial class WorldMapCanvas
         VisualTreeAttachmentEventArgs args)
     {
         LayoutUpdated -= onLayoutUpdated;
+        foreach (WorldMapChildSource child in childMaps.Values)
+            child.ReleaseData(this);
         pendingZoomAnchor = null;
         bindHostScrollViewer(null);
         base.OnDetachedFromVisualTree(args);

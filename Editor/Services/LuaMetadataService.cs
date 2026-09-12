@@ -180,6 +180,24 @@ public sealed class LuaMetadataService
         return getType(type, defaultModule);
     }
 
+    public LuaTypeMetadata? GetRuntimeClassType(string classReference)
+    {
+        ensureCacheCurrent();
+        LuaTypeReference reference = LuaTypeReference.Parse(classReference);
+        IReadOnlyDictionary<string, LuaTypeMetadata> moduleTypes = getFileTypes(
+            getMetadataPath(reference.QualifiedName),
+            reference.QualifiedName);
+        return moduleTypes.Values.FirstOrDefault(type => type.ModuleReturn) ?? getType(reference);
+    }
+
+    public string GetRuntimeClassReference(LuaTypeReference type)
+    {
+        LuaTypeMetadata? metadata = GetType(type);
+        return metadata?.ModuleReturn == true && metadata.Type.ModuleName is string moduleName
+            ? moduleName
+            : type.QualifiedName;
+    }
+
     private LuaTypeMetadata? getType(LuaTypeReference type, string? defaultModule = null)
     {
         LuaTypeReference resolvedType = type.WithDefaultModule(defaultModule);
@@ -645,11 +663,16 @@ public sealed class LuaMetadataService
             if (metadata is not null)
                 types[typeName] = metadata;
         }
+        if (types.Count > 1 && types.Values.Any(type => type.ModuleReturn))
+            throw new InvalidDataException("Metadata for a directly returned class must contain one type");
         return types;
     }
 
     private static LuaTypeMetadata? parseType(string moduleName, string typeName, Table table)
     {
+        DynValue moduleReturn = table.Get("moduleReturn");
+        if (moduleReturn.Type is not DataType.Nil and not DataType.Void and not DataType.Boolean)
+            throw new InvalidDataException("moduleReturn must be a boolean");
         LuaTypeReference declaringType = new(moduleName, typeName);
         IReadOnlyList<string> attrs = readStringArray(table.Get("attrs"));
         IReadOnlyList<LuaTypeReference> bases = readBases(table.Get("bases"), moduleName);
@@ -703,7 +726,8 @@ public sealed class LuaMetadataService
             readStringArray(table.Get("InvalidVars")),
             toJsonObject(table.Get("RectRangeVars")),
             memberNames,
-            members
+            members,
+            moduleReturn.Type == DataType.Boolean && moduleReturn.Boolean
         );
     }
 

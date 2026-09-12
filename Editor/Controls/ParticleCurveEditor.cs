@@ -24,7 +24,7 @@ public sealed class ParticleCurveEditor : UserControl
     private readonly NumericUpDown keyTime = EditorInputs.CreateNumericUpDown(0, 0, 1, 0.01m);
     private readonly NumericUpDown keyValue = EditorInputs.CreateNumericUpDown(1, -10000, 10000, 0.05m);
     private readonly ComboBox interpolation = new() { ItemsSource = new[] { "constant", "linear", "cubic" }, Width = 90 };
-    private readonly TextBlock state = new() { Foreground = Brushes.LightGray };
+    private readonly TextBlock state = new() { Foreground = EditorTheme.Brush("TextMuted") };
     private JsonObject curve = new();
     private string[] resourceKeys = [];
     private bool refreshing;

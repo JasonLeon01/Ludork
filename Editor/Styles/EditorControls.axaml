@@ -1,0 +1,160 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Editor.FontFamily}" />
+        <Setter Property="FontSize" Value="{DynamicResource Editor.FontSize}" />
+    </Style>
+    <Style Selector="Button, ToggleButton, TabItem, TabStripItem, MenuItem, ComboBox, TextBox, NumericUpDown, CheckBox, RadioButton, ListBoxItem, TreeViewItem, Expander">
+        <Setter Property="FontSize" Value="{DynamicResource Editor.FontSize}" />
+    </Style>
+    <Style Selector=":is(TemplatedControl)">
+        <Setter Property="Transitions" Value="{x:Null}" />
+    </Style>
+    <Style Selector="Button">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.ludork-editable">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.ludork-readonly">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="NumericUpDown.ludork-editable">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.caption">
+        <Setter Property="FontSize" Value="{DynamicResource Editor.CaptionFontSize}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextMutedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.heading">
+        <Setter Property="FontSize" Value="{DynamicResource Editor.HeadingFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button, ToggleButton, ComboBox">
+        <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button, ToggleButton">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button:pressed">
+        <Setter Property="RenderTransform" Value="none" />
+    </Style>
+    <Style Selector="Button:focus-visible, ToggleButton:focus-visible, ComboBox:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.toolbar, ToggleButton.toolbar">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.toolbar PathIcon, ToggleButton.toolbar PathIcon, Button.toolbar Image, ToggleButton.toolbar Image">
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+    </Style>
+    <Style Selector="Button.toolbar:disabled Image, ToggleButton.toolbar:disabled Image, ToggleButton.mode:disabled Image">
+        <Setter Property="Opacity" Value="0.4" />
+    </Style>
+    <Style Selector="TextBox.ludork-editable, TextBox.ludork-readonly, NumericUpDown.ludork-editable">
+        <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
+        <Setter Property="Height" Value="{DynamicResource Editor.FieldHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource Editor.FieldPadding}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Background" Value="{DynamicResource Editor.InputBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.ludork-readonly">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+        <Setter Property="CaretBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="TextBox.ludork-readonly:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
+    </Style>
+    <Style Selector="NumericUpDown.ludork-editable /template/ TextBox#PART_TextBox">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="{DynamicResource Editor.FieldPadding}" />
+    </Style>
+    <Style Selector="ListBox, TreeView">
+        <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+    </Style>
+    <Style Selector="ListBoxItem, TreeViewItem">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="TabControl, TabStrip">
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+    </Style>
+    <Style Selector="TabItem, TabStripItem">
+        <Setter Property="MinHeight" Value="{DynamicResource Editor.TabHeight}" />
+        <Setter Property="Height" Value="{DynamicResource Editor.TabHeight}" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TabItem:selected, TabStripItem:selected">
+        <Setter Property="Foreground" Value="{DynamicResource Editor.AccentBrush}" />
+    </Style>
+    <Style Selector="TabItem /template/ Border#PART_SelectedPipe, TabStripItem /template/ Border#PART_SelectedPipe">
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="TabItem:not(:selected):pointerover /template/ Border#PART_SelectedPipe, TabStripItem:not(:selected):pointerover /template/ Border#PART_SelectedPipe">
+        <Setter Property="IsVisible" Value="True" />
+        <Setter Property="Opacity" Value="0.4" />
+    </Style>
+    <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe, TabStripItem:selected /template/ Border#PART_SelectedPipe">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Expander">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="{DynamicResource Editor.SurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.BorderBrush}" />
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="MinHeight" Value="{DynamicResource Editor.FieldHeight}" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="{DynamicResource Editor.HeadingFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:focus-visible /template/ Border#ToggleButtonBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+    </Style>
+    <Style Selector="ScrollBar:vertical">
+        <Setter Property="Width" Value="8" />
+    </Style>
+    <Style Selector="ScrollBar:horizontal">
+        <Setter Property="Height" Value="8" />
+    </Style>
+    <Style Selector="GridSplitter">
+        <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
+    </Style>
+    <Style Selector="GridSplitter:pointerover">
+        <Setter Property="Background" Value="{DynamicResource Editor.AccentBrush}" />
+    </Style>
+    <Style Selector="Separator">
+        <Setter Property="Background" Value="{DynamicResource Editor.BorderBrush}" />
+        <Setter Property="Margin" Value="4" />
+    </Style>
+</Styles>

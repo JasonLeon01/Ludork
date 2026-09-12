@@ -73,8 +73,8 @@ public sealed class AddParamDialog : Window
         Height = 400;
         MinWidth = 380;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Surface");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         nameBox = EditorInputs.CreateEditableTextBox();
@@ -103,13 +103,13 @@ public sealed class AddParamDialog : Window
         {
             TextWrapping = TextWrapping.Wrap,
             FontSize = 11,
-            Foreground = new SolidColorBrush(Color.FromRgb(160, 160, 160)),
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
         defaultTipBlock = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
             FontSize = 11,
-            Foreground = new SolidColorBrush(Color.FromRgb(160, 160, 160)),
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
         errorText = new TextBlock
         {

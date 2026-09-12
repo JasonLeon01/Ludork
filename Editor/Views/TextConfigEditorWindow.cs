@@ -56,7 +56,7 @@ public sealed class TextConfigEditorWindow : Window
         MinWidth = 960;
         MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#121212"));
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
         toast = new Toast(this);
         preview = new TextConfigPreview(gameData);
@@ -98,7 +98,7 @@ public sealed class TextConfigEditorWindow : Window
         Border inspectorBorder = new()
         {
             Background = new SolidColorBrush(Color.Parse("#1c1c1c")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#3a3a3a")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             Child = new ScrollViewer
             {
@@ -817,7 +817,7 @@ public sealed class TextConfigEditorWindow : Window
             Width = 28,
             Height = 20,
             Background = new SolidColorBrush(colour),
-            BorderBrush = new SolidColorBrush(Color.Parse("#777777")),
+            BorderBrush = EditorTheme.Brush("TextMuted"),
             BorderThickness = new Thickness(1),
         };
         StackPanel content = new()

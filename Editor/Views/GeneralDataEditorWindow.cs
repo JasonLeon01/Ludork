@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -49,15 +50,15 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         MinWidth = 700;
         MinHeight = 400;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         tabControl = new TabControl
         {
-            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+            Background = Ludork.Services.EditorTheme.Brush("Background"),
         };
-        tabControl.AddHandler(PointerPressedEvent, onTabPointerPressed, RoutingStrategies.Bubble);
+        tabControl.AddHandler(ContextRequestedEvent, onTabContextRequested, RoutingStrategies.Bubble);
         tabControl.SelectionChanged += (_, _) =>
         {
             if (!buildingTabs)
@@ -74,9 +75,10 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             () => (tabControl.SelectedItem as TabItem)?.Tag is string key ? gameData.GetDocument("General", key) : null,
             () => LocaleService.Get("GENERAL_DATA_EDITOR"));
         projectSave.RegisterParticipant(this);
-        initializer = new DeferredWindowInitializer(this, () =>
+        initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
             Content = tabControl;
+            await EditorUiBatch.YieldAsync(cancellationToken);
             buildTabs(pendingTypeKey);
             pendingTypeKey = null;
         });
@@ -128,15 +130,15 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
     {
         buildingTabs = true;
         tabControl.Items.Clear();
-        foreach (KeyValuePair<string, JsonObject> entry in gameData.GeneralData.OrderBy(e => e.Key, StringComparer.Ordinal))
+        foreach (string key in gameData.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal))
         {
             TabItem tab = new()
             {
-                Header = new DocumentStatusPresenter(gameData, "General", entry.Key),
-                Tag = entry.Key,
+                Header = new DocumentStatusPresenter(gameData, "General", key),
+                Tag = key,
             };
             tabControl.Items.Add(tab);
-            if (string.Equals(entry.Key, preserveKey, StringComparison.Ordinal))
+            if (string.Equals(key, preserveKey, StringComparison.Ordinal))
                 tabControl.SelectedItem = tab;
         }
         if (tabControl.SelectedItem is null && tabControl.Items.Count > 0)
@@ -276,31 +278,30 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         args.Handled = true;
     }
 
-    private void onTabPointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onTabContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        if (!args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
-            return;
-        string? hitKey = null;
-        if (args.Source is Visual source)
+        bool requestedByPointer = args.TryGetPosition(tabControl, out _);
+        TabItem? hitTab = (args.Source as Visual)?.GetSelfAndVisualAncestors()
+            .OfType<TabItem>()
+            .FirstOrDefault(item => tabControl.Items.Contains(item));
+        if (hitTab is null && tabControl.ItemCount > 0)
         {
-            Visual? current = source;
-            while (current is not null)
+            Control? header = tabControl.Presenter;
+            if (header is null || !args.TryGetPosition(header, out Point position)
+                || !new Rect(header.Bounds.Size).Contains(position))
             {
-                if (current is TabItem item && item.Tag is string key)
-                {
-                    hitKey = key;
-                    break;
-                }
-                current = current.GetVisualParent();
+                return;
             }
         }
+        if (hitTab is not null)
+            tabControl.SelectedItem = hitTab;
         args.Handled = true;
-        showTabContextMenu(hitKey, args.GetPosition(this));
+        showTabContextMenu(hitTab?.Tag as string, hitTab ?? (Control)tabControl, requestedByPointer);
     }
 
-    private void showTabContextMenu(string? typeKey, Point screenPoint)
+    private void showTabContextMenu(string? typeKey, Control anchor, bool requestedByPointer)
     {
-        ContextMenu menu = new();
+        ContextMenu menu = new() { Placement = requestedByPointer ? PlacementMode.Pointer : PlacementMode.Bottom };
         MenuItem newItem = new() { Header = LocaleService.Get("NEW_DATA_TYPE") };
         newItem.Click += async (_, _) => await onAddDataTypeAsync();
         menu.Items.Add(newItem);
@@ -327,7 +328,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             deleteItem.Click += async (_, _) => await onDeleteDataTypeAsync(typeKey);
             menu.Items.Add(deleteItem);
         }
-        menu.Open(this);
+        menu.Open(anchor);
     }
 
     private async Task onAddDataTypeAsync()

@@ -5,8 +5,8 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="#121212"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
     <Grid Margin="24" RowDefinitions="*,Auto">
         <StackPanel Grid.Row="0" Spacing="20">
@@ -26,7 +26,7 @@
                              IsEnabled="True" />
                 <TextBlock x:Name="IosStatusText"
                            Margin="28,0,0,0"
-                           Foreground="#888888"
+                           Foreground="{DynamicResource Editor.TextMutedBrush}"
                            IsVisible="False"
                            TextWrapping="Wrap" />
                 <CheckBox x:Name="ExportToIPhoneOption"
@@ -89,7 +89,7 @@
                           IsChecked="False" />
                 <TextBlock x:Name="EncryptSavesHintText"
                            Margin="28,0,0,0"
-                           Foreground="#888888"
+                           Foreground="{DynamicResource Editor.TextMutedBrush}"
                            IsVisible="False"
                            TextWrapping="Wrap" />
             </StackPanel>

@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Models;
 
@@ -13,22 +14,39 @@ namespace Ludork.Services;
 
 public sealed partial class GameDataService
 {
-    public Task<JsonObject?> ReadWorldChildMapSnapshotAsync(string key)
+    private readonly SemaphoreSlim worldChildReads = new(2);
+
+    public async Task<JsonObject?> ReadWorldChildMapSnapshotAsync(string key, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (disposed)
+            return null;
         key = normaliseMapKey(key);
         if (sections["Maps"].Data.TryGetValue(key, out JsonObject? current))
-            return Task.FromResult(current.DeepClone() as JsonObject);
+            return current.DeepClone() as JsonObject;
         if (!tryGetMapCatalogEntry(key, out MapCatalogEntry entry)
             || entry.Kind != MapCatalogEntryKind.WorldChildMap)
         {
-            return Task.FromResult<JsonObject?>(null);
+            return null;
         }
         string path = getReadableMapDataPath(key);
-        return Task.Run(() => readMapFile(path, true));
+        await worldChildReads.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            JsonObject? snapshot = await Task.Run(() => readMapFile(path, true), cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return snapshot;
+        }
+        finally
+        {
+            worldChildReads.Release();
+        }
     }
 
     public JsonObject? InstallWorldChildMapSnapshot(string key, JsonObject snapshot)
     {
+        if (disposed)
+            return null;
         key = normaliseMapKey(key);
         if (sections["Maps"].Data.TryGetValue(key, out JsonObject? loaded))
         {
@@ -49,7 +67,7 @@ public sealed partial class GameDataService
         mapLoadedBytes[key] = new FileInfo(path).Length;
         touchMap(key);
         RegisterLoadedDocument("Maps", key);
-        return (JsonObject)snapshot.DeepClone();
+        return snapshot;
     }
 
     public int TrimWorldChildCache(

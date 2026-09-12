@@ -7,8 +7,8 @@
         MinHeight="320"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="#121212"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
     <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
         <TextBlock x:Name="AppNameText"
@@ -25,7 +25,7 @@
         <TextBlock x:Name="CopyrightText"
                    Grid.Row="3"
                    HorizontalAlignment="Center"
-                   Foreground="#9a9a9a" />
+                   Foreground="{DynamicResource Editor.TextMutedBrush}" />
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button x:Name="LicensesButton" Click="onOpenLicenses" />
             <Button x:Name="CloseButton" Click="onClose" />

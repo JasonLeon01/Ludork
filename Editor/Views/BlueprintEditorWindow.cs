@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -19,6 +20,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views;
@@ -54,13 +56,16 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private Toast toast = null!;
     private readonly DeferredWindowInitializer initializer;
     private ActorPreviewLease? previewLease;
-    private Bitmap? previewBitmap;
+    private EditorThumbnailLease? previewThumbnail;
+    private CancellationTokenSource? previewRequest;
+    private bool closed;
     private ActorVisualDescriptor? publishedVisualDescriptor;
     private ResolvedBlueprintClass? resolvedParent;
     private ResolvedBlueprintClass? resolvedClass;
     private bool suppressLiveVisualInvalidation;
     private bool visualDescriptorPublished;
     private bool refreshing;
+    private bool inheritanceRefreshPending;
 
     public BlueprintEditorWindow(
         BlueprintEditorDocument document,
@@ -89,8 +94,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         MinWidth = 700;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#1e1e1e"));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
         HistoryMergeBehavior.AttachBoundary(this, gameData);
 
@@ -100,17 +105,22 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         documentBinding = new EditorDocumentBinding(this, gameData, () => document.ResourceDocument, () => document.Title, closeWhenDeleted: true);
         projectSave.RegisterParticipant(this);
         gameData.DataReloaded += onDataReloaded;
+        gameData.Documents.ContentChanged += onProjectContentChanged;
         Closed += onClosed;
         Deactivated += (_, _) => flushGraphViews();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        initializer = new DeferredWindowInitializer(this, () =>
+        initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
             nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
                 metadataService,
                 classResolver);
+            await EditorUiBatch.YieldAsync(cancellationToken);
             Content = createEditorContent();
+            await EditorUiBatch.YieldAsync(cancellationToken);
             toast = new Toast(this);
-            refreshAll();
+            await initializeFieldsAsync(cancellationToken);
+            if (inheritanceRefreshPending)
+                Dispatcher.UIThread.Post(refreshInheritance, DispatcherPriority.Background);
         });
     }
 
@@ -147,7 +157,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         graphList = new ListBox
         {
             Height = 50,
-            Background = new SolidColorBrush(Color.Parse("#282828")),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             ClipToBounds = true,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch,
@@ -164,7 +174,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             ScrollViewer.VerticalScrollBarVisibilityProperty,
             Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         graphList.SelectionChanged += onGraphSelectionChanged;
-        graphList.AddHandler(PointerPressedEvent, onGraphListPointerPressed, RoutingStrategies.Bubble);
+        graphList.AddHandler(ContextRequestedEvent, onGraphListContextRequested, RoutingStrategies.Bubble);
 
         Grid tabBar = new()
         {
@@ -196,7 +206,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         previewPlaceholder = new TextBlock
         {
             Text = LocaleService.Get("PREVIEW"),
-            Foreground = new SolidColorBrush(Color.Parse("#777777")),
+            Foreground = EditorTheme.Brush("TextMuted"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -352,7 +362,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             Content = "...",
             Width = 24,
-            Height = 34,
+            Height = EditorInputs.FieldMinHeight,
             Padding = new Thickness(0),
             IsVisible = document.CanEditAttributes,
             IsEnabled = document.CanEditAttributes,
@@ -381,7 +391,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             Button addAttribute = new()
             {
                 Content = "+",
-                Height = 34,
+                Height = EditorInputs.FieldMinHeight,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
             };
             addAttribute.Click += async (_, _) => await addAttributeAsync();
@@ -589,7 +599,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             Content = "-",
             Width = 24,
-            Height = 34,
+            Height = EditorInputs.FieldMinHeight,
             Padding = new Thickness(0),
             IsEnabled = hasLocalValue,
         };
@@ -698,6 +708,22 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         return result;
     }
 
+    private async Task initializeFieldsAsync(CancellationToken cancellationToken)
+    {
+        refreshing = true;
+        parentField.Text = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
+        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
+        resolvedClass = resolved;
+        resolvedParent = resolveParentClass();
+        revertActions.Clear();
+        await variableForm.SetFieldsAsync(fieldBuilder.Build(resolved,
+            document.Kind == BlueprintEditorDocumentKind.Blueprint), cancellationToken);
+        updateGraphMode();
+        refreshing = false;
+        await EditorUiBatch.YieldAsync(cancellationToken);
+        refreshGraphList(null, false);
+    }
+
     private void refreshAll()
     {
         refreshing = true;
@@ -741,46 +767,55 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         return parent.Length == 0 ? null : classResolver.Resolve(parent);
     }
 
-    private void refreshPreview(ResolvedBlueprintClass? resolved = null)
+    private async void refreshPreview(ResolvedBlueprintClass? resolved = null)
     {
+        if (closed)
+            return;
         resolved ??= classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
         resolvedClass = resolved;
-        ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(
-            resolved,
-            resolved.ClassReference);
-        publishVisualDescriptor(descriptor);
-        if (isGraphReadOnly())
+        previewRequest?.Cancel();
+        previewRequest?.Dispose();
+        previewRequest = new CancellationTokenSource();
+        CancellationToken cancellationToken = previewRequest.Token;
+        bool suppressInvalidation = suppressLiveVisualInvalidation;
+        try
         {
+            (EditorThumbnailLease? thumbnail, ActorVisualDescriptor? descriptor) =
+                await previewService.LoadPreviewAsync(resolved, resolved.ClassReference, 480, cancellationToken);
+            if (cancellationToken.IsCancellationRequested || closed)
+            {
+                thumbnail?.Dispose();
+                return;
+            }
+            publishVisualDescriptor(descriptor, suppressInvalidation);
+            if (isGraphReadOnly())
+            {
+                thumbnail?.Dispose();
+                if (previewLease is not null)
+                    previewLease.IsActive = false;
+                return;
+            }
+            if (descriptor is not { RequiresPreviewService: true })
+                releasePreviewLease();
+            else if (previewLease is null)
+            {
+                previewLease = previewService.ActorPreviews.Acquire(descriptor, 480, previewPanel.IsVisible);
+                previewLease.FrameChanged += onPreviewFrameChanged;
+            }
+            else
+                previewLease.UpdateDescriptor(descriptor);
             if (previewLease is not null)
-                previewLease.IsActive = false;
-            return;
+                previewLease.IsActive = previewPanel.IsVisible;
+            replacePreviewFallback(thumbnail);
         }
-        if (descriptor is not { RequiresPreviewService: true })
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            releasePreviewLease();
-            replacePreviewFallback(previewService.tryLoadPreview(resolved, 480));
-            return;
         }
-
-        if (previewLease is null)
-        {
-            previewLease = previewService.ActorPreviews.Acquire(
-                descriptor,
-                480,
-                previewPanel.IsVisible);
-            previewLease.FrameChanged += onPreviewFrameChanged;
-        }
-        else
-        {
-            previewLease.UpdateDescriptor(descriptor);
-        }
-        previewLease.IsActive = previewPanel.IsVisible;
-        replacePreviewFallback(previewService.tryLoadPreview(resolved, 480));
     }
 
-    private void publishVisualDescriptor(ActorVisualDescriptor? descriptor)
+    private void publishVisualDescriptor(ActorVisualDescriptor? descriptor, bool suppressInvalidation)
     {
-        if (!suppressLiveVisualInvalidation
+        if (!suppressInvalidation
             && visualDescriptorPublished
             && !Equals(publishedVisualDescriptor, descriptor))
         {
@@ -790,10 +825,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         visualDescriptorPublished = true;
     }
 
-    private void replacePreviewFallback(Bitmap? next)
+    private void replacePreviewFallback(EditorThumbnailLease? next)
     {
-        Bitmap? previous = previewBitmap;
-        previewBitmap = next;
+        EditorThumbnailLease? previous = previewThumbnail;
+        previewThumbnail = next;
         updatePreviewSource();
         previous?.Dispose();
     }
@@ -810,8 +845,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void updatePreviewSource()
     {
+        if (closed)
+            return;
         Bitmap? frame = previewLease?.Frame;
-        previewImage.Source = frame ?? previewBitmap;
+        previewImage.Source = frame ?? previewThumbnail?.Bitmap;
         previewPlaceholder.IsVisible = previewImage.Source is null;
         previewImage.InvalidateVisual();
     }
@@ -1011,10 +1048,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             showSelectedContent();
     }
 
-    private void onGraphListPointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onGraphListContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        if (!args.GetCurrentPoint(graphList).Properties.IsRightButtonPressed)
-            return;
+        bool requestedByPointer = args.TryGetPosition(graphList, out _);
         BlueprintEditorTabItem? hitItem = null;
         if (args.Source is Visual source)
         {
@@ -1030,15 +1066,17 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                 current = current.GetVisualParent();
             }
         }
+        if (!requestedByPointer)
+            hitItem ??= graphList.SelectedItem as BlueprintEditorTabItem;
         if (hitItem is not null)
             graphList.SelectedItem = hitItem;
         args.Handled = true;
-        showGraphContextMenu(hitItem);
+        showGraphContextMenu(hitItem, requestedByPointer);
     }
 
-    private void showGraphContextMenu(BlueprintEditorTabItem? item)
+    private void showGraphContextMenu(BlueprintEditorTabItem? item, bool requestedByPointer)
     {
-        ContextMenu menu = new();
+        ContextMenu menu = new() { Placement = requestedByPointer ? PlacementMode.Pointer : PlacementMode.Bottom };
         if (document.CanEditGraphEvents)
         {
             MenuItem newEvent = new()
@@ -1077,7 +1115,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                 menu.Items.Add(delete);
             }
         }
-        menu.Open(graphList);
+        if (menu.ItemCount > 0)
+            menu.Open(graphList.ContainerFromIndex(graphList.SelectedIndex) ?? (Control)graphList);
     }
 
     private async Task addEventAsync()
@@ -1166,6 +1205,34 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         reloadFromDataChange();
     }
 
+    private void onProjectContentChanged(object? sender, EditorDocumentsChangedEventArgs args)
+    {
+        if (closed || args.Reset || inheritanceRefreshPending
+            || document.Kind != BlueprintEditorDocumentKind.Blueprint || resolvedClass is null)
+        {
+            return;
+        }
+        bool ancestorChanged = args.Changes.Any(change => change.Section == "Blueprints"
+            && change.DocumentId != document.ResourceDocument?.Id
+            && (change.Key is string key && resolvedClass.DependsOnBlueprint(key)
+                || change.PreviousKey is string previousKey && resolvedClass.DependsOnBlueprint(previousKey)));
+        if (!ancestorChanged)
+            return;
+        inheritanceRefreshPending = true;
+        if (initializer.IsInitialized)
+            Dispatcher.UIThread.Post(refreshInheritance, DispatcherPriority.Background);
+    }
+
+    private void refreshInheritance()
+    {
+        if (closed || !inheritanceRefreshPending || !initializer.IsInitialized)
+            return;
+        inheritanceRefreshPending = false;
+        flushGraphViews();
+        nodeDefinitionCatalog?.Invalidate();
+        reload(false);
+    }
+
     private void onDataReloaded(object? sender, EventArgs args)
     {
         reloadFromDataChange();
@@ -1173,6 +1240,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void reloadFromDataChange()
     {
+        inheritanceRefreshPending = false;
         suppressLiveVisualInvalidation = true;
         try
         {
@@ -1220,14 +1288,22 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void onClosed(object? sender, EventArgs args)
     {
+        closed = true;
+        inheritanceRefreshPending = false;
+        gameData.Documents.ContentChanged -= onProjectContentChanged;
+        previewRequest?.Cancel();
+        previewRequest?.Dispose();
+        previewRequest = null;
+        variableForm?.Dispose();
         document.ExternalChanged -= onDataRestored;
         document.Dispose();
         projectSave.UnregisterParticipant(this);
         gameData.DataReloaded -= onDataReloaded;
         clearGraphViews();
         releasePreviewLease();
-        previewBitmap?.Dispose();
-        previewBitmap = null;
+        previewImage?.SetValue(Image.SourceProperty, null);
+        previewThumbnail?.Dispose();
+        previewThumbnail = null;
     }
 
     private void removeGraphView(string eventName)

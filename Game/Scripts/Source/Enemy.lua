@@ -52,7 +52,7 @@ Enemy.ID = "FILL_IT_BY_YOURSELF"
 Enemy.DefeatShatterEffectEnabled = true
 Enemy._componentTypes = componentTypes
 Enemy.childActorComp = ChildActorComponent.new({
-    className = "Source.EnemyDamageText.EnemyDamageText",
+    className = "Source.EnemyDamageText",
     relativePosition = sf.Vector2f.new(0.0, 0.0)
 })
 Enemy.collisionEnabled = true
@@ -74,7 +74,8 @@ function Enemy:init(texture, rect, tag)
         local effect = SpecialAbilities.CreateEffect(specialID, self.attributes.special[specialID])
         abilitySystem:applyGameplayEffectSpec(
             GameplayEffectSpec.new(
-                effect, GameplayEventData.new(self, self, "Event.Special.Initialise"), 1, GameplayConstants.SPECIAL_PREFIX .. specialID
+                effect, GameplayEventData.new(self, self, "Event.Special.Initialise"), 1,
+                GameplayConstants.SPECIAL_PREFIX .. specialID
             )
         )
     end
@@ -212,7 +213,7 @@ function Enemy:onCollision(other)
             end
         end
         damageTime = damageTime or 0
-        scene:addTimer(damageTime, function()
+        scene:addTimer(damageTime, function ()
             scene:getGameMap():addDamageText(tostring(result.data.damage), player:getPosition())
         end)
     end

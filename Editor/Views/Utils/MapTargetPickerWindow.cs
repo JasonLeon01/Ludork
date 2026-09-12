@@ -313,16 +313,7 @@ internal sealed class MapTargetPickerWindow : Window
                 .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap
                     && string.Equals(entry.WorldKey, selectedTarget.WorldKey, StringComparison.Ordinal))
                 .OrderBy(entry => entry.Key, StringComparer.Ordinal)
-                .Select(entry => new WorldMapChildSource(
-                    entry.Key,
-                    entry.DisplayName,
-                    entry.Width,
-                    entry.Height,
-                    () => gameData.ReadMapSnapshot(entry.Key),
-                    entry.LayerOrder,
-                    () => gameData.LoadedMapData.ContainsKey(entry.Key),
-                    () => gameData.ReadWorldChildMapSnapshotAsync(entry.Key),
-                    snapshot => gameData.InstallWorldChildMapSnapshot(entry.Key, snapshot)))
+                .Select(entry => new WorldMapChildSource(gameData, entry))
                 .ToArray();
             worldView.SetWorld(
                 selectedTarget.WorldKey,
@@ -334,6 +325,7 @@ internal sealed class MapTargetPickerWindow : Window
         }
         else
         {
+            worldView.SetWorld(null, null, []);
             mapView.SetMap(selectedTarget.Key, gameData.ReadMapSnapshot(selectedTarget.Key));
             mapView.SetPosition(position);
             mapView.IsVisible = true;

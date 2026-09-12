@@ -1,56 +1,57 @@
 local _METADATA = {
     EnemyDamageText = {
+        moduleReturn = true,
         attrs = {
             "tickable",
             "collisionEnabled",
             "requiredItemID",
             "textConfig",
-            "damageTextOffset",
+            "damageTextOffset"
         },
         bases = {
-            { "Engine", "Actor" },
+            { "Engine", "Actor" }
         },
         tickable = {
             type = "bool",
-            default = true,
+            default = true
         },
         collisionEnabled = {
             type = "bool",
-            default = false,
+            default = false
         },
         requiredItemID = {
             type = "string",
             default = "EnemyBook",
             Meta = {
-                GeneralDataVars = "Item",
-            },
+                GeneralDataVars = "Item"
+            }
         },
         textConfig = {
             type = "string",
-            default = "Enemy/DamageReadout",
+            default = "Enemy/DamageReadout"
         },
         damageTextOffset = {
             type = "sf.Vector2f",
-            default = { 0.0, 0.0 },
+            default = { 0.0, 0.0 }
         },
         onTick = {
             type = "event",
             parameters = {
                 "deltaTime",
-                deltaTime = "float",
+                deltaTime = "float"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         Meta = {
             GeneralDataVars = {
-                { "requiredItemID", "Item" },
-            },
-        },
-    },
+                { "requiredItemID", "Item" }
+            }
+        }
+    }
 }
 
 return _METADATA

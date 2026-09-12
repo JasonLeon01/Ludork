@@ -18,6 +18,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
@@ -70,6 +73,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private bool refreshing;
     private bool contentInitialized;
     private bool closed;
+    private bool refreshPending;
+    private string? paletteSignature;
+    private string? hierarchySignature;
+    private string? detailsSignature;
+    private string? animationSignature;
+    private string? relatedAssetsRevision;
+    private IReadOnlyList<UiControlDescriptor> paletteDescriptors = [];
 
     public UiAssetEditorWindow()
     {
@@ -96,6 +106,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         document.Changed += onDocumentChanged;
         controlRegistry.Runtime.Changed += onRegistryChanged;
+        gameData.Documents.Changed += onProjectDocumentsChanged;
         Closing += onClosing;
         Closed += onClosed;
         projectSave.RegisterParticipant(this);
@@ -103,10 +114,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             () => document.Title + " - " + LocaleService.Get("UI_ASSET_EDITOR"), updateTitle, closeWhenDeleted: true);
         Deactivated += onDeactivated;
         AddHandler(KeyDownEvent, onDocumentKeyDown, RoutingStrategies.Tunnel);
-        initializer = new DeferredWindowInitializer(this, () =>
+        initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
+            if (contentInitialized)
+                await releasePreviewAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            paletteSignature = null;
+            hierarchySignature = null;
+            detailsSignature = null;
+            animationSignature = null;
             InitializeComponent();
-            contentInitialized = true;
             toast = new Toast(this);
             previewSession = new UiAssetPreviewSession(document, gameData, controlRegistry.Runtime);
             previewSurface = new UiPreviewSurface
@@ -130,7 +147,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             previewSurface.ZoomChanged += onPreviewZoomChanged;
             timelineEditor.PreviewChanged += onTimelinePreviewChanged;
             ScalingChanged += onScalingChanged;
-            refreshAll();
+            contentInitialized = true;
+            await EditorUiBatch.YieldAsync(cancellationToken);
+            await initializePanelsAsync(cancellationToken);
         });
     }
 
@@ -182,11 +201,18 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         document.Dispose();
         Deactivated -= onDeactivated;
         controlRegistry.Runtime.Changed -= onRegistryChanged;
+        gameData.Documents.Changed -= onProjectDocumentsChanged;
         projectSave.UnregisterParticipant(this);
         Closing -= onClosing;
         Closed -= onClosed;
+        await releasePreviewAsync();
+    }
+
+    private async Task releasePreviewAsync()
+    {
         if (!contentInitialized)
             return;
+        contentInitialized = false;
         ScalingChanged -= onScalingChanged;
         timelineEditor.PreviewChanged -= onTimelinePreviewChanged;
         timelineEditor.StopPlayback();
@@ -254,13 +280,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         updatePreviewState();
     }
 
-    private void updateTitle()
-    {
-        string title = document.Title;
-        documentBinding?.Refresh();
-        if (contentInitialized)
-            DocumentTitle.Text = (document.ResourceDocument?.IsModified == true ? "* " : string.Empty) + title;
-    }
+    private void updateTitle() => documentBinding?.Refresh();
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
@@ -289,6 +309,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             flushPendingField();
             if (!controlRegistry.IsReady)
                 timelineEditor.StopPlayback();
+            paletteSignature = null;
+            hierarchySignature = null;
+            detailsSignature = null;
             refreshAll();
             updatePreviewState();
             UiAssetValidationResult result = validationService.ValidateAsset(document.AssetKey, document.Data);
@@ -297,18 +320,73 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         });
     }
 
+    private void onProjectDocumentsChanged(object? sender, EventArgs args)
+    {
+        if (closed || !initializer.IsInitialized || refreshPending)
+            return;
+        refreshPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            refreshPending = false;
+            if (closed)
+                return;
+            string nextRevision = string.Join("\n", gameData.Documents.All
+                .Where(item => item.Section == "UI" && item != document.ResourceDocument)
+                .Select(item => item.Id.ToString() + ":" + item.Revision.ToString(CultureInfo.InvariantCulture)));
+            if (relatedAssetsRevision != nextRevision)
+            {
+                relatedAssetsRevision = nextRevision;
+                animationSignature = null;
+                refreshAll();
+            }
+            else
+                refreshCatalog();
+        }, DispatcherPriority.Background);
+    }
+
+    private async Task initializePanelsAsync(CancellationToken cancellationToken)
+    {
+        refreshing = true;
+        refreshCatalog();
+        await EditorUiBatch.YieldAsync(cancellationToken);
+        refreshHierarchy();
+        await EditorUiBatch.YieldAsync(cancellationToken);
+        refreshDetails();
+        await EditorUiBatch.YieldAsync(cancellationToken);
+        refreshing = false;
+        refreshAll();
+    }
+
+    private void refreshCatalog()
+    {
+        string signature = string.Join("\n", gameData.Documents.All
+            .Where(item => item.Section == "UI" && item.Exists)
+            .Select(item => item.Key + "\t" + item.InternalData?["palette"]?.ToJsonString()
+                + "\t" + item.InternalData?["designSize"]?.ToJsonString()));
+        if (paletteSignature == signature)
+            return;
+        paletteSignature = signature;
+        controlLookup = controlRegistry.CreateControlLookup(true);
+        paletteDescriptors = controlRegistry.GetDescriptors();
+        refreshPalette();
+    }
+
     private void refreshAll()
     {
         refreshing = true;
         try
         {
-            controlLookup = controlRegistry.CreateControlLookup(true);
-            refreshPalette();
+            refreshCatalog();
             refreshHierarchy();
             refreshDetails();
             updateAnchorGuides();
             updateZoomText();
-            timelineEditor.Refresh();
+            string nextAnimations = hierarchySignature + "\n" + document.Data["animations"]?.ToJsonString();
+            if (animationSignature != nextAnimations)
+            {
+                animationSignature = nextAnimations;
+                timelineEditor.Refresh();
+            }
             PaletteSearch.IsEnabled = controlRegistry.IsReady;
             PaletteCategories.IsEnabled = controlRegistry.IsReady;
             HierarchyTree.IsEnabled = controlRegistry.IsReady;
@@ -337,8 +415,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         }
         string search = PaletteSearch.Text?.Trim() ?? string.Empty;
-        IEnumerable<UiControlDescriptor> descriptors = controlRegistry
-            .GetDescriptors()
+        IEnumerable<UiControlDescriptor> descriptors = paletteDescriptors
             .Where(descriptor => search.Length == 0
                 || descriptor.DisplayName.Contains(search, StringComparison.CurrentCultureIgnoreCase)
                 || descriptor.ControlId.Contains(search, StringComparison.OrdinalIgnoreCase))
@@ -388,6 +465,20 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void refreshHierarchy()
     {
         JsonObject? root = document.Data["root"] as JsonObject;
+        string nextSignature = getHierarchySignature(root);
+        if (hierarchySignature == nextSignature)
+        {
+            if (HierarchyTree.ItemsSource is IEnumerable<UiHierarchyItem> items
+                && items.FirstOrDefault() is UiHierarchyItem existing)
+            {
+                UiHierarchyItem? existingSelection = findHierarchyItem(existing, selectedNodeName);
+                if (existingSelection is not null && !ReferenceEquals(HierarchyTree.SelectedItem, existingSelection))
+                    HierarchyTree.SelectedItem = existingSelection;
+            }
+            previewSurface.SetSelectedNode(selectedNodeName);
+            return;
+        }
+        hierarchySignature = nextSignature;
         if (root is null)
         {
             HierarchyTree.ItemsSource = Array.Empty<UiHierarchyItem>();
@@ -405,6 +496,28 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
         HierarchyTree.SelectedItem = selected;
         previewSurface.SetSelectedNode(selectedNodeName);
+    }
+
+    private static string getHierarchySignature(JsonObject? root)
+    {
+        StringBuilder result = new();
+        void append(JsonObject? node)
+        {
+            if (node is null)
+                return;
+            string name = getString(node, "name");
+            string control = getString(node, "controlId");
+            result.Append(name.Length).Append(':').Append(name)
+                .Append(control.Length).Append(':').Append(control)
+                .Append(getBool((node["properties"] as JsonObject)?["visible"], true));
+            result.Append('[');
+            if (node["children"] is JsonArray children)
+                foreach (JsonObject child in children.OfType<JsonObject>())
+                    append(child);
+            result.Append(']');
+        }
+        append(root);
+        return result.ToString();
     }
 
     private UiHierarchyItem createHierarchyItem(JsonObject node)
@@ -638,16 +751,23 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         menu.Open(HierarchyTree);
     }
 
-    private void refreshDetails()
+    private void refreshDetails(bool force = false)
     {
+        JsonObject? node = selectedNodeName is null ? null : document.FindNode(selectedNodeName);
+        bool isRoot = node is not null && document.FindParent(selectedNodeName!) is null;
+        string signature = selectedNodeName + "\n" + (node is null ? string.Empty : string.Join("\n",
+            node.Where(entry => entry.Key is not "children" and not "animations")
+                .Select(entry => entry.Key + "=" + entry.Value?.ToJsonString())));
+        if (isRoot)
+            signature += "\n" + document.AssetKey + "\n" + document.Data["palette"]?.ToJsonString()
+                + "\n" + document.Data["designSize"]?.ToJsonString();
+        if (!force && signature == detailsSignature)
+            return;
+        detailsSignature = signature;
         pendingFieldCommit = null;
         DetailsPanel.Children.Clear();
-        JsonObject? node = selectedNodeName is null
-            ? null
-            : document.FindNode(selectedNodeName);
         if (node is null)
             return;
-        bool isRoot = document.FindParent(selectedNodeName!) is null;
         if (isRoot)
             addAssetDetails();
         addWidgetDetails(node);
@@ -788,7 +908,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (!renamed)
         {
             setStatus(LocaleService.Get("UI_NAME_MUST_BE_UNIQUE"));
-            refreshDetails();
+            refreshDetails(true);
             return;
         }
         if (string.Equals(selectedNodeName, nodeName, StringComparison.Ordinal))
@@ -943,7 +1063,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             DetailsPanel.Children.Add(new TextBlock
             {
                 Text = LocaleService.Get("UI_LIST_SLOT_ORDERED"),
-                Foreground = Brushes.Gray,
+                Foreground = EditorTheme.Brush("TextMuted"),
                 TextWrapping = TextWrapping.Wrap,
             });
             return;
@@ -1486,7 +1606,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 TextBlock componentLabel = new()
                 {
                     Text = componentLabels[index],
-                    Foreground = Brushes.Gray,
+                    Foreground = EditorTheme.Brush("TextMuted"),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
                 Grid.SetColumn(box, 1);

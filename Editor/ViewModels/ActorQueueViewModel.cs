@@ -1,14 +1,13 @@
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Ludork.Models;
 using Ludork.Services;
+using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.Json.Nodes;
 
 namespace Ludork.ViewModels;
 
@@ -29,12 +28,13 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     private readonly ProjectConfigService projectConfig;
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintPreviewService previewService;
-    private readonly FileIconService iconService;
+    private readonly IImage placeholder;
     private readonly Dictionary<string, ActorQueueItemViewModel> catalog = new(StringComparer.Ordinal);
     private readonly List<string> recentReferences = [];
     private bool refreshing;
     private bool deferVisibleRefresh;
     private bool disposed;
+    private long visualRevision;
     private string? selectedReference;
     [ObservableProperty] private ActorQueueItemViewModel? selectedItem;
     [ObservableProperty] private string searchText = string.Empty;
@@ -45,14 +45,13 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
         GameDataService gameData,
         ProjectConfigService projectConfig,
         BlueprintClassResolver classResolver,
-        BlueprintPreviewService previewService,
-        FileIconService iconService)
+        BlueprintPreviewService previewService)
     {
         this.gameData = gameData;
         this.projectConfig = projectConfig;
         this.classResolver = classResolver;
         this.previewService = previewService;
-        this.iconService = iconService;
+        placeholder = EditorIconResources.GetImage("EditorImage.File");
         Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.All, LocaleService.Get("ACTOR_LIBRARY_ALL")));
         Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.Favourites, LocaleService.Get("ACTOR_LIBRARY_FAVOURITES")));
         Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.Recent, LocaleService.Get("ACTOR_LIBRARY_RECENT")));
@@ -205,7 +204,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     public void DeactivatePreviews()
     {
         foreach (ActorQueueItemViewModel item in catalog.Values)
-            item.IsPreviewActive = false;
+            item.DeactivatePreviews();
     }
 
     public void Dispose()
@@ -224,6 +223,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     private void onDataReloaded(object? sender, EventArgs args)
     {
+        visualRevision++;
         refreshCatalog();
     }
 
@@ -244,28 +244,26 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
         using IDisposable resolutionBatch = classResolver.BeginBatch();
         bool selectedRemoved = false;
         HashSet<string> validReferences = new HashSet<string>(StringComparer.Ordinal);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.BlueprintsData)
+        foreach (string key in gameData.BlueprintsData.Keys)
         {
-            string reference = BlueprintPrefix + pair.Key.Replace('/', '.');
+            string reference = BlueprintPrefix + key.Replace('/', '.');
             ResolvedBlueprintClass resolved = classResolver.Resolve(reference);
             if (!classResolver.IsDerivedFrom(resolved, "Engine.Actor"))
                 continue;
             validReferences.Add(reference);
-            ActorVisualDescriptor? descriptor = previewService.tryResolveActorVisual(resolved, reference);
-            IImage? fallback = previewService.tryLoadPreview(resolved, 48)
-                ?? iconService.getShellIcon(pair.Key + ".json", false, 48);
             if (catalog.TryGetValue(reference, out ActorQueueItemViewModel? existing))
             {
-                existing.UpdatePreview(descriptor, fallback);
+                existing.UpdateSource(resolved, visualRevision);
                 existing.IsFavorite = projectConfig.IsActorFavorite(reference);
                 existing.IsRecent = recentReferences.Contains(reference, StringComparer.Ordinal);
                 continue;
             }
             catalog[reference] = new ActorQueueItemViewModel(
                 reference,
-                fallback,
-                descriptor,
-                previewService.ActorPreviews,
+                placeholder,
+                resolved,
+                previewService,
+                visualRevision,
                 projectConfig.IsActorFavorite(reference),
                 recentReferences.Contains(reference, StringComparer.Ordinal));
         }
@@ -286,14 +284,17 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
                 selectedRemoved = true;
             }
         }
-        Categories.Clear();
-        Categories.Add(LocaleService.Get("ALL_CATEGORIES"));
-        foreach (string category in catalog.Values
+        string[] categories = catalog.Values
             .Select(item => item.Category)
             .Distinct(StringComparer.Ordinal)
-            .OrderBy(value => value, StringComparer.Ordinal))
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .Prepend(LocaleService.Get("ALL_CATEGORIES"))
+            .ToArray();
+        if (!Categories.SequenceEqual(categories, StringComparer.Ordinal))
         {
-            Categories.Add(category);
+            Categories.Clear();
+            foreach (string category in categories)
+                Categories.Add(category);
         }
         if (SelectedCategory is null || !Categories.Contains(SelectedCategory))
         {
@@ -331,12 +332,28 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
                 || item.BlueprintReference.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
 
+        ActorQueueItemViewModel[] nextItems = source.ToArray();
         refreshing = true;
-        foreach (ActorQueueItemViewModel item in Items)
-            item.IsPreviewActive = false;
-        Items.Clear();
-        foreach (ActorQueueItemViewModel item in source)
-            Items.Add(item);
+        HashSet<ActorQueueItemViewModel> retained = nextItems.ToHashSet();
+        for (int index = Items.Count - 1; index >= 0; index--)
+        {
+            if (!retained.Contains(Items[index]))
+            {
+                Items[index].DeactivatePreviews();
+                Items.RemoveAt(index);
+            }
+        }
+        for (int index = 0; index < nextItems.Length; index++)
+        {
+            ActorQueueItemViewModel item = nextItems[index];
+            if (index < Items.Count && ReferenceEquals(Items[index], item))
+                continue;
+            int previous = Items.IndexOf(item);
+            if (previous >= 0)
+                Items.Move(previous, index);
+            else
+                Items.Insert(index, item);
+        }
         SelectedItem = selectedReference is null
             ? null
             : Items.FirstOrDefault(item => item.BlueprintReference == selectedReference);

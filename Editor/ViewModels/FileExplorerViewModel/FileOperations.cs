@@ -243,7 +243,7 @@ public sealed partial class FileExplorerViewModel
         else if (deleted.Count != 0)
             changed(new FileExplorerFilesChangedEventArgs([], [], deleted));
         if (!isVisibleDirectory(CurrentPath))
-            NavigateTo(projectPath);
+            _ = NavigateToAsync(projectPath);
         return new FileOperationResult(deleted.Count != 0, errors);
     }
 

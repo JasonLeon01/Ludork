@@ -22,7 +22,7 @@ internal sealed class BlueprintColourSwatch : Button
         Height = 28;
         MinWidth = 54;
         Padding = new Thickness(0);
-        BorderBrush = new SolidColorBrush(Color.Parse("#464646"));
+        BorderBrush = Ludork.Services.EditorTheme.Brush("Border");
         BorderThickness = new Thickness(1);
         Grid content = new()
         {

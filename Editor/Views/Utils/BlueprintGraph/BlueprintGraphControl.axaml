@@ -6,7 +6,7 @@
              x:Class="Ludork.Views.Utils.BlueprintGraph.BlueprintGraphControl"
              x:DataType="local:BlueprintGraphEditorViewModel"
              Focusable="True">
-    <Grid Background="#1c1c1c">
+    <Grid Background="{DynamicResource Editor.BackgroundBrush}">
         <nodify:NodifyEditor x:Name="Editor"
                              ItemsSource="{Binding Nodes}"
                              SelectedItems="{Binding SelectedNodes}"
@@ -29,7 +29,7 @@
                                           Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}"
                                           Spacing="32"
                                           Thickness="0.5"
-                                          Brush="#353535"
+                                          Brush="{DynamicResource Editor.HoverBrush}"
                                           ZIndex="-2" />
                 </DataTemplate>
             </nodify:NodifyEditor.GridLineTemplate>
@@ -51,8 +51,8 @@
                                               CompletedCommand="{Binding CompleteCommand}"
                                               EnablePreview="True"
                                               EnableSnapping="True"
-                                              Stroke="#ffd740"
-                                              Background="#ccffd740"
+                                              Stroke="{DynamicResource Editor.AccentBrush}"
+                                              Background="{DynamicResource Editor.AccentMutedBrush}"
                                               Direction="{Binding Source.Flow, Converter={StaticResource FlowToDirectionConverter}}"
                                               PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}" />
                 </DataTemplate>
@@ -66,14 +66,14 @@
                                  IsResize="False"
                                  ToolTip.Tip="{Binding ToolTip}">
                         <nodify:Node.ContentBrush>
-                            <SolidColorBrush Color="#2a2a2a" />
+                            <SolidColorBrush Color="{DynamicResource Editor.SurfaceColor}" />
                         </nodify:Node.ContentBrush>
                         <nodify:Node.Header>
                             <Grid ColumnDefinitions="24,*,Auto"
                                   MinWidth="190">
                                 <TextBlock Grid.Column="0"
                                            Text="{Binding StartMarker}"
-                                           Foreground="#ffd740"
+                                           Foreground="{DynamicResource Editor.AccentBrush}"
                                            FontSize="16"
                                            FontWeight="Bold"
                                            VerticalAlignment="Center" />
@@ -85,7 +85,7 @@
                                 <TextBlock Grid.Column="2"
                                            Text="!"
                                            IsVisible="{Binding IsUnresolved}"
-                                           Foreground="#ff8a80"
+                                           Foreground="{DynamicResource Editor.ErrorBrush}"
                                            FontWeight="Bold"
                                            Margin="8,0,0,0"
                                            VerticalAlignment="Center" />
@@ -101,7 +101,7 @@
                                                     MinWidth="180"
                                                     MaxWidth="300">
                                             <TextBlock Text="{Binding DisplayTitle}"
-                                                       Foreground="#eeeeee"
+                                                       Foreground="{DynamicResource Editor.TextBrush}"
                                                        TextWrapping="Wrap" />
                                             <ContentControl Content="{Binding Editor}"
                                                             IsVisible="{Binding IsEditorVisible}"
@@ -118,7 +118,7 @@
                                                    BorderBrush="{Binding Brush}">
                                     <nodify:NodeOutput.Header>
                                         <TextBlock Text="{Binding DisplayTitle}"
-                                                   Foreground="#eeeeee"
+                                                   Foreground="{DynamicResource Editor.TextBrush}"
                                                    TextWrapping="Wrap"
                                                    MaxWidth="220" />
                                     </nodify:NodeOutput.Header>

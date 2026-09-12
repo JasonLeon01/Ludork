@@ -1,5 +1,6 @@
 local _METADATA = {
     GameMap = {
+        moduleReturn = true,
         attrs = {
             "DefaultCoverAlpha",
             "MapViewRect"

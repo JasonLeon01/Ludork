@@ -1,5 +1,6 @@
 local _METADATA = {
     Battler = {
+        moduleReturn = true,
         attrs = {}
     }
 }

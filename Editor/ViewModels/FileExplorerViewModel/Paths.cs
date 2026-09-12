@@ -17,37 +17,6 @@ namespace Ludork.ViewModels;
 
 public sealed partial class FileExplorerViewModel
 {
-    private bool hasVisibleTextConfigContent(string directory)
-    {
-        foreach (string path in Directory.EnumerateFileSystemEntries(directory))
-        {
-            if (Directory.Exists(path))
-            {
-                if (hasVisibleTextConfigContent(path))
-                    return true;
-                continue;
-            }
-            if (!tryGetTextConfigKey(path, out string key)
-                || gameData.TextConfigsData.ContainsKey(key))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private bool isInsideTextConfigs(string path)
-    {
-        string root = Path.GetFullPath(Path.Combine(
-            projectPath,
-            "Data",
-            "TextConfigs"));
-        string relative = Path.GetRelativePath(root, Path.GetFullPath(path));
-        return !Path.IsPathRooted(relative)
-            && relative != ".."
-            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
-    }
-
     private static bool isSameOrChildPath(string directory, string path)
     {
         string relative = Path.GetRelativePath(
@@ -58,54 +27,9 @@ public sealed partial class FileExplorerViewModel
             && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
-    private bool tryGetTextConfigKey(string path, out string key)
-    {
-        key = string.Empty;
-        string root = Path.GetFullPath(Path.Combine(projectPath, "Data", "TextConfigs"));
-        string fullPath = Path.GetFullPath(path);
-        string relative = Path.GetRelativePath(root, fullPath);
-        if (Path.IsPathRooted(relative)
-            || relative == ".."
-            || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            || !string.Equals(
-                Path.GetExtension(fullPath),
-                DataConfig.DataFileExtension,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-        DataFileInfo? info = gameData.TryLoadDataFile(fullPath);
-        if (info?.Type is not ("plainTextConfig" or "richTextConfig")
-            || string.IsNullOrWhiteSpace(info.Key))
-        {
-            return false;
-        }
-        key = info.Key;
-        return true;
-    }
-
-    private static Bitmap? loadImageThumbnail(string path, int size)
-    {
-        using FileStream stream = File.OpenRead(path);
-        return Bitmap.DecodeToWidth(stream, size);
-    }
-
-    private bool isBlueprint(string path, out string key)
-    {
-        key = string.Empty;
-        string blueprintsRoot = Path.Combine(projectPath, "Data", "Blueprints");
-        if (!path.StartsWith(blueprintsRoot, StringComparison.OrdinalIgnoreCase)
-            || !Path.GetExtension(path).Equals(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase)
-            || gameData.TryLoadDataFile(path)?.Type != "blueprint")
-            return false;
-        key = Path.GetRelativePath(blueprintsRoot, path).Replace('\\', '/');
-        key = Path.ChangeExtension(key, null)!;
-        return true;
-    }
-
     private void changed(FileExplorerFilesChangedEventArgs changes)
     {
-        Refresh();
+        RequestRefresh();
         FilesChanged?.Invoke(this, changes);
     }
 
@@ -197,9 +121,6 @@ public sealed partial class FileExplorerViewModel
                 && relative != ".."
                 && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal));
     }
-    private static bool isImage(string path) => new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" }
-        .Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
-
     private string getTargetDirectory(string? targetDirectory)
     {
         string target = string.IsNullOrWhiteSpace(targetDirectory) ? CurrentPath : Path.GetFullPath(targetDirectory);

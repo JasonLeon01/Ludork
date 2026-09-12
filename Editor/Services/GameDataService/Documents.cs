@@ -230,6 +230,7 @@ public sealed partial class GameDataService
         if (disposed)
             return;
         disposed = true;
+        Thumbnails.Dispose();
         Documents.Clear();
         pendingWorldDirectoryMoves.Clear();
     }

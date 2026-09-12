@@ -5,7 +5,19 @@
              x:Class="Ludork.Controls.FileExplorerPanel"
              x:DataType="vm:FileExplorerViewModel"
              KeyDown="onKeyDown">
-    <Grid RowDefinitions="36,*">
+    <UserControl.Styles>
+        <Style Selector="ListBox#IconEntries ListBoxItem, ListBox#ListEntries ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ToggleButton#ViewModeButton > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.ViewGrid}" />
+        </Style>
+        <Style Selector="ToggleButton#ViewModeButton:checked > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.ViewList}" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="36,*,Auto">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
             <ScrollViewer Grid.Column="0"
                           HorizontalScrollBarVisibility="Auto"
@@ -19,12 +31,10 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:FileExplorerBreadcrumbViewModel">
                             <StackPanel Orientation="Horizontal" Spacing="2">
-                                <TextBlock Text=">"
-                                           IsVisible="{Binding ShowSeparator}"
-                                           VerticalAlignment="Center"
-                                           Foreground="#8A8A8A"
-                                           Margin="2,0,4,0"
-                                           FontSize="11" />
+                                <Image Source="{StaticResource EditorImage.ChevronRight}" Width="12" Height="12"
+                                       IsVisible="{Binding ShowSeparator}"
+                                       VerticalAlignment="Center"
+                                       Margin="2,0,4,0" />
                                 <Button Content="{Binding Label}"
                                         CommandParameter="{Binding Path}"
                                         Click="onBreadcrumbClick"
@@ -37,14 +47,20 @@
             <ToggleButton x:Name="ViewModeButton"
                           Grid.Column="1"
                           IsChecked="{Binding IconView, Mode=TwoWay}"
-                          Content="{Binding FileExplorerViewModeIcon}"
-                          ToolTip.Tip="{Binding FileExplorerViewMode}" />
-            <Button Grid.Column="2" Content="↑" Click="onUp" IsEnabled="{Binding CanGoUp}" />
+                          Classes="toolbar"
+                          ToolTip.Tip="{Binding FileExplorerViewMode}"
+                          AutomationProperties.Name="{Binding FileExplorerViewMode}">
+                <Image />
+            </ToggleButton>
+            <Button Grid.Column="2" Classes="toolbar" Click="onUp" IsEnabled="{Binding CanGoUp}"
+                    ToolTip.Tip="{Binding ParentFolder}" AutomationProperties.Name="{Binding ParentFolder}">
+                <Image Source="{StaticResource EditorImage.NavigateUp}" />
+            </Button>
             <SplitButton x:Name="ExternalOpenButton"
                          Grid.Column="3"
                          Click="onOpenTarget"
-                         Padding="8,4">
-                <Grid Width="18" Height="18">
+                         Padding="6,0" Height="28" VerticalAlignment="Center">
+                <Grid Width="16" Height="16">
                     <Image x:Name="FolderOpenButtonIcon"
                            Source="{StaticResource EditorImage.FolderOpen}"
                            Stretch="Uniform" />
@@ -70,8 +86,8 @@
                         <MenuItem Header="{Binding OpenContainingFolder}" Click="onSelectFolder">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.FolderOpen}"
-                                       Width="18"
-                                       Height="18"
+                                       Width="16"
+                                       Height="16"
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
@@ -80,8 +96,8 @@
                                   IsVisible="{Binding HasVSCode}">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.ExternalVSCode}"
-                                       Width="18"
-                                       Height="18"
+                                       Width="16"
+                                       Height="16"
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
@@ -90,8 +106,8 @@
                                   IsVisible="{Binding HasCursor}">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.ExternalCursor}"
-                                       Width="18"
-                                       Height="18"
+                                       Width="16"
+                                       Height="16"
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
@@ -100,8 +116,8 @@
                                   IsVisible="{Binding HasClion}">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.ExternalClion}"
-                                       Width="18"
-                                       Height="18"
+                                       Width="16"
+                                       Height="16"
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
@@ -110,8 +126,8 @@
                                   IsVisible="{Binding HasVisualStudio}">
                             <MenuItem.Icon>
                                 <Image Source="{StaticResource EditorImage.ExternalVisualStudio}"
-                                       Width="18"
-                                       Height="18"
+                                       Width="16"
+                                       Height="16"
                                        Stretch="Uniform" />
                             </MenuItem.Icon>
                         </MenuItem>
@@ -129,11 +145,12 @@
                      PointerReleased="onPointerReleased">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel />
+                        <controls:VirtualizingTilePanel ItemWidth="162" ItemHeight="124" />
                     </ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
+                        <controls:FileExplorerItemControl>
                         <StackPanel Width="150" Margin="6" Spacing="3">
                             <Grid Width="80" Height="80" HorizontalAlignment="Center">
                                 <controls:FrameRevisionImage Source="{Binding Icon}"
@@ -144,15 +161,17 @@
                                                          HorizontalAlignment="Center" />
                                 <TextBlock Text="*" IsVisible="{Binding IsModified}"
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           FontSize="18" FontWeight="Bold" Foreground="#FFD166"
+                                           FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
                                            IsHitTestVisible="False" />
                             </Grid>
                             <TextBlock Text="{Binding Name}"
                                        TextAlignment="Center"
-                                       TextWrapping="Wrap"
+                                       TextWrapping="NoWrap"
                                        TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding FullPath}"
                                        MaxHeight="38" />
                         </StackPanel>
+                        </controls:FileExplorerItemControl>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
@@ -166,6 +185,7 @@
                      PointerReleased="onPointerReleased">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
+                        <controls:FileExplorerItemControl>
                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
                             <Grid Width="28" Height="28" HorizontalAlignment="Center">
                                 <controls:FrameRevisionImage Source="{Binding Icon}"
@@ -175,14 +195,19 @@
                                                          Stretch="Uniform" />
                                 <TextBlock Text="*" IsVisible="{Binding IsModified}"
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           FontSize="18" FontWeight="Bold" Foreground="#FFD166"
+                                           FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
                                            IsHitTestVisible="False" />
                             </Grid>
                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                         </StackPanel>
+                        </controls:FileExplorerItemControl>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
         </Grid>
+        <StackPanel Grid.Row="2" Margin="8,2" Orientation="Horizontal" Spacing="8">
+            <TextBlock IsVisible="{Binding IsLoading}" Text="{Binding LoadingLabel}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+            <TextBlock Text="{Binding LoadingError}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+        </StackPanel>
     </Grid>
 </UserControl>

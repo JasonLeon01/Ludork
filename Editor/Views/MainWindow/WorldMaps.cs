@@ -108,16 +108,7 @@ public partial class MainWindow
             .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap
                 && string.Equals(entry.WorldKey, world.Key, StringComparison.Ordinal))
             .OrderBy(entry => entry.Key, StringComparer.Ordinal)
-            .Select(entry => new WorldMapChildSource(
-                entry.Key,
-                entry.DisplayName,
-                entry.Width,
-                entry.Height,
-                () => viewModel.GameData.ReadMapSnapshot(entry.Key),
-                entry.LayerOrder,
-                () => viewModel.GameData.LoadedMapData.ContainsKey(entry.Key),
-                () => viewModel.GameData.ReadWorldChildMapSnapshotAsync(entry.Key),
-                snapshot => viewModel.GameData.InstallWorldChildMapSnapshot(entry.Key, snapshot)))
+            .Select(entry => new WorldMapChildSource(viewModel.GameData, entry))
             .ToArray();
         WorldEditorPanel.SetWorld(
             world.Key,

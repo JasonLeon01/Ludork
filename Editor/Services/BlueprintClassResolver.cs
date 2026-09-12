@@ -103,7 +103,8 @@ public sealed class BlueprintClassResolver : IDisposable
     public bool IsDerivedFrom(ResolvedBlueprintClass resolved, string baseTypeName)
     {
         using IDisposable metadataRead = metadataService.BeginRead();
-        LuaTypeReference baseType = LuaTypeReference.Parse(baseTypeName);
+        LuaTypeReference baseType = metadataService.GetRuntimeClassType(baseTypeName)?.Type
+            ?? LuaTypeReference.Parse(baseTypeName);
         if (resolved.RootType is not null && metadataService.ResolveMro(resolved.RootType)
             .Any(type => type.Type == baseType))
             return true;
@@ -277,11 +278,9 @@ public sealed class BlueprintClassResolver : IDisposable
     {
         LuaTypeReference parsed = LuaTypeReference.Parse(reference);
         probedMetadataTypes?.Add(parsed);
-        if (metadataService.GetType(parsed) is not null)
-            return parsed;
         LuaTypeReference fileClassReference = new(reference, parsed.TypeName);
         probedMetadataTypes?.Add(fileClassReference);
-        return metadataService.GetType(fileClassReference) is not null ? fileClassReference : null;
+        return metadataService.GetRuntimeClassType(reference)?.Type;
     }
 
     private ResolvedBlueprintTemplate createResolvedTemplate(
@@ -988,7 +987,8 @@ public sealed class BlueprintClassResolver : IDisposable
                 localMixinFieldNames,
                 scriptMixinError,
                 resolverRevision,
-                MetadataRevision);
+                MetadataRevision,
+                blueprintDependencies);
         }
 
     }

@@ -11,7 +11,7 @@ export default function LudorkFooter({ language }: { language: LanguageKey }) {
       <div className="ludork-container ludork-footer-inner">
         <div>
           <a className="ludork-brand" href={getSitePageHref('home', language)}>Ludork</a>
-          <p>{messages.footer.description}</p>
+          <p lang="en">{messages.footer.description}</p>
           <p>© 2026 JasonLeon</p>
         </div>
         <div className="ludork-footer-links">

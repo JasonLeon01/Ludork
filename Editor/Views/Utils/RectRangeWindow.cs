@@ -46,8 +46,8 @@ public sealed class RectRangeWindow : Window
         };
         Border imageArea = new()
         {
-            Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            Background = Ludork.Services.EditorTheme.Brush("Background"),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             ClipToBounds = true,
             Child = scroll,
@@ -260,7 +260,7 @@ internal sealed class RectRangeCanvas : Control
     public override void Render(DrawingContext context)
     {
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#1e1e1e")), bounds);
+        context.FillRectangle(EditorTheme.Brush("Background"), bounds);
         if (bitmap is not null)
         {
             Rect imageRect = new(0, 0, imageWidth, imageHeight);

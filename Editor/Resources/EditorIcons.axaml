@@ -1,9 +1,6 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:svg="clr-namespace:Avalonia.Svg;assembly=Svg.Controls.Avalonia">
-    <StreamGeometry x:Key="EditorIcon.VisibilityHidden">M12,17.5C8.2,17.5 4.8,15.4 3.2,12H1C2.7,16.4 7,19.5 12,19.5S21.3,16.4 23,12H20.8C19.2,15.4 15.8,17.5 12,17.5Z</StreamGeometry>
-    <StreamGeometry x:Key="EditorIcon.VisibilityVisible">M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5M12,17C9.24,17 7,14.76 7,12C7,9.24 9.24,7 12,7C14.76,7 17,9.24 17,12C17,14.76 14.76,17 12,17M12,9C10.34,9 9,10.34 9,12C9,13.66 10.34,15 12,15C13.66,15 15,13.66 15,12C15,10.34 13.66,9 12,9Z</StreamGeometry>
-    <StreamGeometry x:Key="EditorIcon.NavigateUp">M8,14L12,6L16,14ZM10.5,14L10.5,20L13.5,20L13.5,14Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.SubmenuRight">M0,0L4,3.5L0,7Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.NewProjectOutline">M5,8.5L16,3L27,8.5L27,23.5L16,29L5,23.5Z</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.NewProjectEdges">M5,8.5L16,14L27,8.5M16,14L16,29</StreamGeometry>
@@ -15,6 +12,16 @@
     <StreamGeometry x:Key="EditorIcon.TemplateCppCode">M14,6L4,17L14,28M34,6L44,17L34,28</StreamGeometry>
     <StreamGeometry x:Key="EditorIcon.TemplateCppSlash">M29,4L20,30</StreamGeometry>
 
+    <svg:SvgImage x:Key="EditorImage.Map" Source="avares://Ludork/Editor/Assets/icons/map.svg" />
+    <svg:SvgImage x:Key="EditorImage.World" Source="avares://Ludork/Editor/Assets/icons/world.svg" />
+    <svg:SvgImage x:Key="EditorImage.NavigateUp" Source="avares://Ludork/Editor/Assets/icons/navigate_up.svg" />
+    <svg:SvgImage x:Key="EditorImage.ChevronRight" Source="avares://Ludork/Editor/Assets/icons/chevron_right.svg" />
+    <svg:SvgImage x:Key="EditorImage.ViewGrid" Source="avares://Ludork/Editor/Assets/icons/view_grid.svg" />
+    <svg:SvgImage x:Key="EditorImage.ViewList" Source="avares://Ludork/Editor/Assets/icons/view_list.svg" />
+    <svg:SvgImage x:Key="EditorImage.Favorite" Source="avares://Ludork/Editor/Assets/icons/favorite.svg" />
+    <svg:SvgImage x:Key="EditorImage.FavoriteSelected" Source="avares://Ludork/Editor/Assets/icons/favorite_selected.svg" />
+    <svg:SvgImage x:Key="EditorImage.VisibilityVisible" Source="avares://Ludork/Editor/Assets/icons/visibility_visible.svg" />
+    <svg:SvgImage x:Key="EditorImage.VisibilityHidden" Source="avares://Ludork/Editor/Assets/icons/visibility_hidden.svg" />
     <svg:SvgImage x:Key="EditorImage.ModeTile" Source="avares://Ludork/Editor/Assets/icons/mode_tilemap.svg" />
     <svg:SvgImage x:Key="EditorImage.ModeLight" Source="avares://Ludork/Editor/Assets/icons/mode_light.svg" />
     <svg:SvgImage x:Key="EditorImage.ModeActor" Source="avares://Ludork/Editor/Assets/icons/mode_actor.svg" />

@@ -106,7 +106,7 @@ public sealed partial class ActorInfoPanel
             fields.Add(new ResolvedBlueprintField(entry.Key, fieldType, value, value, metadata, false, true, reference));
         }
         ResolvedBlueprintClass resolved = new(reference, reference, declaringType, fields, [], [], [],
-            false, false, false, [], [], null, 0, 0);
+            false, false, false, [], [], null, 0, 0, new HashSet<string>(StringComparer.Ordinal));
         defaultValues.Clear();
         displayValues.Clear();
         fieldsWithDefaults.Clear();

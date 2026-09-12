@@ -37,7 +37,7 @@ public sealed class ParticleOverviewWindow : Window
         MinWidth = 1280;
         MinHeight = 720;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Avalonia.Media.Brushes.Black;
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
         search.PlaceholderText = LocaleService.Get("PARTICLE_SEARCH");
         resources.ItemTemplate = DocumentStatusPresenter.CreateTemplate(gameData, "Particles");
@@ -73,7 +73,11 @@ public sealed class ParticleOverviewWindow : Window
         gameData.Documents.Changed += onDocumentsChanged;
         Closed += (_, _) => gameData.Documents.Changed -= onDocumentsChanged;
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
-        refresh();
+        _ = new DeferredWindowInitializer(this, async cancellationToken =>
+        {
+            await EditorUiBatch.YieldAsync(cancellationToken);
+            refresh();
+        });
     }
 
     private void onDocumentsChanged(object? sender, EventArgs args) => refresh();

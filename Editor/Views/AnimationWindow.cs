@@ -11,7 +11,6 @@ namespace Ludork.Views;
 
 public sealed class AnimationWindow : Window
 {
-    private readonly AnimationEditor editor;
     private readonly GameDataService gameData;
     private readonly ProjectSaveService projectSave;
     private readonly EditorDocument? resourceDocument;
@@ -34,10 +33,14 @@ public sealed class AnimationWindow : Window
         MinWidth = 900;
         MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Avalonia.Media.Brushes.Black;
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
-        editor = new AnimationEditor(gameData, key, data);
-        Content = editor;
+        Content = DeferredWindowInitializer.CreateLoadingContent();
+        _ = new DeferredWindowInitializer(this, async cancellationToken =>
+        {
+            await EditorUiBatch.YieldAsync(cancellationToken);
+            Content = new AnimationEditor(gameData, key, resourceDocument?.Data ?? data);
+        });
         toast = new Toast(this);
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         documentBinding = new EditorDocumentBinding(this, gameData, () => resourceDocument,

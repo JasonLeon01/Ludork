@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -10,9 +11,9 @@ namespace Ludork.Plugins.OfficialRandomMap.UI;
 internal sealed class TilePreviewControl : Control, IDisposable
 {
     private static readonly IBrush BackgroundBrush =
-        new SolidColorBrush(Color.Parse("#262626"));
+        PluginTheme.Brush("Surface");
     private static readonly Pen BorderPen =
-        new(new SolidColorBrush(Color.Parse("#5f6368")), 1);
+        new(PluginTheme.Brush("Border"), 1);
 
     private readonly IMapEditorHost host;
     private Bitmap? bitmap;

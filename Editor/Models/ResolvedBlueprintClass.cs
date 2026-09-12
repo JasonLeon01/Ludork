@@ -7,6 +7,7 @@ namespace Ludork.Models;
 public sealed class ResolvedBlueprintClass
 {
     private readonly IReadOnlyDictionary<string, ResolvedBlueprintField> fieldsByName;
+    private readonly IReadOnlySet<string> blueprintDependencies;
 
     public ResolvedBlueprintClass(
         string classReference,
@@ -23,7 +24,8 @@ public sealed class ResolvedBlueprintClass
         IReadOnlyList<string> localMixinFieldNames,
         string? scriptMixinError,
         long resolverRevision,
-        long metadataRevision
+        long metadataRevision,
+        IReadOnlySet<string> blueprintDependencies
     )
     {
         ClassReference = classReference;
@@ -41,6 +43,7 @@ public sealed class ResolvedBlueprintClass
         ScriptMixinError = scriptMixinError;
         ResolverRevision = resolverRevision;
         MetadataRevision = metadataRevision;
+        this.blueprintDependencies = blueprintDependencies;
         Dictionary<string, ResolvedBlueprintField> lookup = new(StringComparer.Ordinal);
         foreach (ResolvedBlueprintField field in fields)
             lookup[field.Name] = field;
@@ -62,6 +65,8 @@ public sealed class ResolvedBlueprintClass
     public string? ScriptMixinError { get; }
     public long ResolverRevision { get; }
     public long MetadataRevision { get; }
+
+    internal bool DependsOnBlueprint(string key) => blueprintDependencies.Contains(key);
 
     public ResolvedBlueprintField? GetField(string name)
     {

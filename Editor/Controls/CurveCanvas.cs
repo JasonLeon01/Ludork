@@ -145,9 +145,9 @@ public sealed class CurveCanvas : Control
     {
         base.Render(context);
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#2b2b2b")), bounds);
+        context.FillRectangle(EditorTheme.Brush("Surface"), bounds);
         Rect graph = graphRect();
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#242424")), graph);
+        context.FillRectangle(EditorTheme.Brush("Background"), graph);
         drawGrid(context, graph);
         drawCurve(context, graph);
         drawKeys(context);
@@ -352,7 +352,7 @@ public sealed class CurveCanvas : Control
             context.DrawLine(grid, new Point(x, graph.Top), new Point(x, graph.Bottom));
             context.DrawLine(grid, new Point(graph.Left, y), new Point(graph.Right, y));
         }
-        context.DrawRectangle(new Pen(new SolidColorBrush(Color.Parse("#666666")), 1), graph);
+        context.DrawRectangle(new Pen(EditorTheme.Brush("Border"), 1), graph);
     }
 
     private void drawCurve(DrawingContext context, Rect graph)
@@ -414,7 +414,7 @@ public sealed class CurveCanvas : Control
                 new Pen(
                     isSelected
                         ? Brushes.White
-                        : new SolidColorBrush(Color.Parse("#dddddd")),
+                        : EditorTheme.Brush("Text"),
                     1),
                 point,
                 isSelected ? 5 : 4,

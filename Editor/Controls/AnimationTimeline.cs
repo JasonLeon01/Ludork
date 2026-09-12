@@ -256,9 +256,9 @@ public sealed class AnimationTimeline : Control
     {
         base.Render(context);
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#292929")), bounds);
-        context.FillRectangle(new SolidColorBrush(Color.Parse("#383838")), new Rect(0, 0, bounds.Width, HeaderHeight));
-        Pen gridPen = new(new SolidColorBrush(Color.Parse("#505050")), 1);
+        context.FillRectangle(EditorTheme.Brush("Background"), bounds);
+        context.FillRectangle(EditorTheme.Brush("Surface"), new Rect(0, 0, bounds.Width, HeaderHeight));
+        Pen gridPen = new(EditorTheme.Brush("Border"), 1);
         for (double second = 0; second * PixelsPerSecond < bounds.Width; second += 1)
             context.DrawLine(gridPen, new Point(second * PixelsPerSecond, 0), new Point(second * PixelsPerSecond, bounds.Height));
 
@@ -266,7 +266,7 @@ public sealed class AnimationTimeline : Control
         for (int track = 0; track < Math.Max(5, tracks.Count); track += 1)
         {
             double y = HeaderHeight + track * TrackHeight;
-            context.FillRectangle(new SolidColorBrush(Color.Parse(track % 2 == 0 ? "#303030" : "#2c2c2c")), new Rect(0, y, bounds.Width, TrackHeight));
+            context.FillRectangle(EditorTheme.Brush(track % 2 == 0 ? "Surface" : "Background"), new Rect(0, y, bounds.Width, TrackHeight));
             if (track >= tracks.Count || tracks[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
                 continue;
             for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex += 1)

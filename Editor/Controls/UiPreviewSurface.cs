@@ -107,7 +107,7 @@ public sealed class UiPreviewSurface : UserControl
         {
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
-            Foreground = Brushes.Gray,
+            Foreground = EditorTheme.Brush("TextMuted"),
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             Margin = new Thickness(30),
@@ -122,8 +122,8 @@ public sealed class UiPreviewSurface : UserControl
         };
         viewport = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#181818")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#404040")),
+            Background = Ludork.Services.EditorTheme.Brush("Background"),
+            BorderBrush = EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             ClipToBounds = true,
             Child = viewportContent,

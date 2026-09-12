@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Media;
@@ -265,11 +266,11 @@ public static class BlueprintAssistantMarkdownRenderer
                 Border cell = new()
                 {
                     Background = row == 0
-                        ? new SolidColorBrush(Color.Parse("#2c2c2c"))
+                        ? PluginTheme.Brush("Input")
                         : row % 2 == 0
-                            ? new SolidColorBrush(Color.Parse("#242424"))
+                            ? PluginTheme.Brush("Surface")
                             : Brushes.Transparent,
-                    BorderBrush = new SolidColorBrush(Color.Parse("#4a4a4a")),
+                    BorderBrush = PluginTheme.Brush("Border"),
                     BorderThickness = new Thickness(
                         column == 0 ? 0 : 1,
                         row == 0 ? 0 : 1,
@@ -285,7 +286,7 @@ public static class BlueprintAssistantMarkdownRenderer
         }
         return new Border
         {
-            BorderBrush = new SolidColorBrush(Color.Parse("#4a4a4a")),
+            BorderBrush = PluginTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             ClipToBounds = true,
@@ -323,7 +324,7 @@ public static class BlueprintAssistantMarkdownRenderer
         {
             inlines.Add(new Run("\u2009" + token[1..^1] + "\u2009")
             {
-                Background = new SolidColorBrush(Color.Parse("#2d2d2d")),
+                Background = PluginTheme.Brush("Input"),
                 Foreground = new SolidColorBrush(Color.Parse("#ce9178")),
                 FontFamily = CodeFont,
             });
@@ -348,12 +349,12 @@ public static class BlueprintAssistantMarkdownRenderer
         }
         inlines.Add(new Run(link.Groups[1].Value)
         {
-            Foreground = new SolidColorBrush(Color.Parse("#7ec8ff")),
+            Foreground = PluginTheme.Brush("Accent"),
             TextDecorations = TextDecorations.Underline,
         });
         inlines.Add(new Run(" (" + link.Groups[2].Value + ")")
         {
-            Foreground = new SolidColorBrush(Color.Parse("#a0a0a0")),
+            Foreground = PluginTheme.Brush("TextMuted"),
         });
     }
 
@@ -368,7 +369,7 @@ public static class BlueprintAssistantMarkdownRenderer
                 FontFamily = CodeFont,
                 FontSize = 12,
                 FontWeight = FontWeight.SemiBold,
-                Foreground = new SolidColorBrush(Color.Parse("#a8a8a8")),
+                Foreground = PluginTheme.Brush("TextMuted"),
                 Margin = new Thickness(10, 5),
             });
         }
@@ -377,14 +378,14 @@ public static class BlueprintAssistantMarkdownRenderer
             Text = code,
             FontFamily = CodeFont,
             FontSize = 14,
-            Foreground = new SolidColorBrush(Color.Parse("#dcdcdc")),
+            Foreground = PluginTheme.Brush("Text"),
             TextWrapping = TextWrapping.Wrap,
             Padding = new Thickness(10),
         });
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#444444")),
+            Background = PluginTheme.Brush("Background"),
+            BorderBrush = PluginTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             ClipToBounds = true,

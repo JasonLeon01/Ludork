@@ -1,5 +1,6 @@
 local _METADATA = {
     ConditionalActor = {
+        moduleReturn = true,
         attrs = {
             "conditionVariable",
             "conditionOperator",

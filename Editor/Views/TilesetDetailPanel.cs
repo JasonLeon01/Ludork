@@ -45,7 +45,7 @@ internal sealed class TilesetDetailPanel : Grid
         this.dataChanged = dataChanged;
         RowDefinitions = new RowDefinitions("Auto,64,*");
         RowSpacing = 5;
-        imageEditor = new TilesetImageEditor(gameData.getCellSize())
+        imageEditor = new TilesetImageEditor(gameData, gameData.getCellSize())
         {
             EditRequested = updateMetadata,
             DirectionEditRequested = updateDirection,
@@ -56,6 +56,7 @@ internal sealed class TilesetDetailPanel : Grid
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top,
         };
+        imageEditor.ImageChanged += (_, _) => updateImageStatus();
         HistoryMergeBehavior.Attach(nameBox, gameData);
         nameBox.PropertyChanged += (_, args) =>
         {
@@ -90,7 +91,7 @@ internal sealed class TilesetDetailPanel : Grid
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             HorizontalContentAlignment = HorizontalAlignment.Left,
             VerticalContentAlignment = VerticalAlignment.Top,
-            Background = Brushes.Black,
+            Background = Ludork.Services.EditorTheme.Brush("Background"),
         };
         Grid.SetRow(scroll, 2);
         Children.Add(scroll);
@@ -100,6 +101,8 @@ internal sealed class TilesetDetailPanel : Grid
     {
         base.OnAttachedToVisualTree(args);
         attached = true;
+        gameData.DataReloaded += onAssetsReloaded;
+        imageEditor.ReloadImage();
         if (resourceDocument is not null)
             resourceDocument.Changed += onDocumentChanged;
         onDocumentChanged(this, EventArgs.Empty);
@@ -108,6 +111,8 @@ internal sealed class TilesetDetailPanel : Grid
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
         attached = false;
+        gameData.DataReloaded -= onAssetsReloaded;
+        imageEditor.Dispose();
         if (resourceDocument is not null)
             resourceDocument.Changed -= onDocumentChanged;
         base.OnDetachedFromVisualTree(args);
@@ -143,21 +148,23 @@ internal sealed class TilesetDetailPanel : Grid
         populating = true;
         nameBox.Text = data?["name"]?.GetValue<string>() ?? string.Empty;
         string fileName = data?["fileName"]?.GetValue<string>() ?? string.Empty;
-        bool resolved = GameAssetPath.TryResolveExistingFile(
-            gameData.ProjectPath,
-            fileName,
-            out _);
-        bool missingFile = fileName.Length != 0 && !resolved;
         fileBox.Text = fileName;
-        fileBox.BorderBrush = new SolidColorBrush(
-            missingFile ? Color.Parse("#b94a48") : EditorInputs.ReadOnlyBorderColor);
-        ToolTip.SetTip(fileBox, missingFile ? fileName : null);
         imageEditor.setData(
             data,
             gameData.ProjectPath,
             fileName,
             isAutoTile);
         populating = false;
+    }
+
+    private void onAssetsReloaded(object? sender, EventArgs args) => imageEditor.ReloadImage();
+
+    private void updateImageStatus()
+    {
+        string fileName = fileBox.Text ?? string.Empty;
+        bool missing = fileName.Length != 0 && !imageEditor.HasImage;
+        fileBox.BorderBrush = new SolidColorBrush(missing ? Color.Parse("#b94a48") : EditorInputs.ReadOnlyBorderColor);
+        ToolTip.SetTip(fileBox, missing ? fileName : null);
     }
 
     private static void addHeader(Grid header, int labelColumn, string label, Control editor)
@@ -213,7 +220,10 @@ internal sealed class TilesetDetailPanel : Grid
             initialFilePath: initialFilePath);
         if (path is null)
             return;
-        using Avalonia.Media.Imaging.Bitmap bitmap = new(path);
+        using EditorThumbnailLease? lease = await gameData.Thumbnails.AcquireAsync(path, 0);
+        if (lease is null)
+            return;
+        Avalonia.Media.Imaging.Bitmap bitmap = lease.Bitmap;
         if (isAutoTile && (bitmap.PixelSize.Width < 96 || bitmap.PixelSize.Height < 128 || bitmap.PixelSize.Width % 96 != 0))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), string.Format(LocaleService.Get("AUTOTILE_FILE_SIZE_INVALID"), bitmap.PixelSize.Width, bitmap.PixelSize.Height));

@@ -5,7 +5,8 @@ using Avalonia.Interactivity;
 using Ludork.Controls;
 using Ludork.Services;
 using Ludork.Views.Utils;
-using System.Collections.Generic;
+using System;
+using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Views;
@@ -17,10 +18,12 @@ public partial class ConfigWindow : Window
     private Toast? toast;
     private string? activeConfigKey;
     private EditorDocumentBinding? documentBinding;
+    private bool refreshingList;
     public ConfigWindow()
     {
         InitializeComponent();
         Title = LocaleService.Get("SYSTEM_CONFIG");
+        EmptyState.Text = LocaleService.Get("SYSTEM_CONFIG_EMPTY");
     }
 
     public ConfigWindow(GameDataService gameData, ProjectSaveService projectSave) : this()
@@ -28,27 +31,23 @@ public partial class ConfigWindow : Window
         this.gameData = gameData;
         this.projectSave = projectSave;
         toast = new Toast(this);
-        populate(gameData);
+        ConfigList.ItemTemplate = DocumentStatusPresenter.CreateTemplate(gameData, "Configs");
         documentBinding = new EditorDocumentBinding(this, gameData,
             () => activeConfigKey is null ? null : gameData.GetDocument("Configs", activeConfigKey),
             () => LocaleService.Get("SYSTEM_CONFIG") + (activeConfigKey is null ? string.Empty : " - " + activeConfigKey));
 
-        gameData.DataReloaded += onDataRestored;
-        Closed += (_, _) =>
-        {
-
-            gameData.DataReloaded -= onDataRestored;
-        };
+        populate();
+        gameData.DataReloaded += onDataReloaded;
+        Closed += onClosed;
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
 
-    private void onDataRestored(object? sender, System.EventArgs args)
+    private void onDataReloaded(object? sender, EventArgs args) => populate();
+
+    private void onClosed(object? sender, EventArgs args)
     {
-        if (gameData is null)
-            return;
-        PanelGrid.Children.Clear();
-        PanelGrid.RowDefinitions.Clear();
-        populate(gameData);
+        if (gameData is not null)
+            gameData.DataReloaded -= onDataReloaded;
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
@@ -67,35 +66,41 @@ public partial class ConfigWindow : Window
         args.Handled = true;
     }
 
-    private void populate(GameDataService gameData)
+    private void populate()
     {
-        int index = 0;
-        foreach (KeyValuePair<string, JsonObject> entry in gameData.SystemConfigData)
-        {
-            ConfigDictPanel panel = new(this, gameData, entry.Key, entry.Value)
-            {
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
-            };
-            activeConfigKey ??= entry.Key;
-            panel.GotFocus += (_, _) =>
-            {
-                activeConfigKey = entry.Key;
-                documentBinding?.Refresh();
-            };
-            panel.PointerPressed += (_, _) =>
-            {
-                activeConfigKey = entry.Key;
-                documentBinding?.Refresh();
-            };
-            int row = index / 2;
-            int column = index % 2;
-            while (PanelGrid.RowDefinitions.Count <= row)
-                PanelGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-            Grid.SetRow(panel, row);
-            Grid.SetColumn(panel, column);
-            PanelGrid.Children.Add(panel);
-            index += 1;
-        }
+        if (gameData is null)
+            return;
+        string[] keys = gameData.SystemConfigData.Keys.ToArray();
+        refreshingList = true;
+        ConfigList.ItemsSource = keys;
+        ConfigList.SelectedItem = activeConfigKey is not null && keys.Contains(activeConfigKey, StringComparer.Ordinal)
+            ? activeConfigKey : keys.FirstOrDefault();
+        refreshingList = false;
+        showSelectedConfig();
+    }
+
+    private void onConfigSelected(object? sender, SelectionChangedEventArgs args)
+    {
+        if (!refreshingList && gameData is not null)
+            showSelectedConfig();
+    }
+
+    private void showSelectedConfig()
+    {
+        activeConfigKey = ConfigList.SelectedItem as string;
+        ConfigContent.Content = gameData is not null && activeConfigKey is not null
+            && gameData.SystemConfigData.TryGetValue(activeConfigKey, out JsonObject? data)
+                ? new ConfigDictPanel(this, gameData, activeConfigKey, data)
+                {
+                    Background = EditorTheme.Brush("Background"),
+                    BorderThickness = new Thickness(0),
+                    Padding = new Thickness(0),
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
+                }
+                : null;
+        ConfigScroll.Offset = default;
+        EmptyState.IsVisible = ConfigContent.Content is null;
+        documentBinding?.Refresh();
     }
 }

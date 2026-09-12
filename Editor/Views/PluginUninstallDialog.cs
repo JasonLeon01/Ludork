@@ -19,9 +19,8 @@ internal sealed class PluginUninstallDialog : Window
         Height = 230;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#202124"));
-        FontFamily = FontFamily.Parse(
-            "avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         string message = LocaleService.Get("PLUGIN_UNINSTALL_PROMPT")

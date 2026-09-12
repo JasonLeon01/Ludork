@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -57,8 +58,8 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         MinWidth = 1200;
         MinHeight = 800;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#1e1e1e"));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
@@ -73,12 +74,14 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         Deactivated += (_, _) => flushGraph();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         HistoryMergeBehavior.AttachBoundary(this, gameData);
-        initializer = new DeferredWindowInitializer(this, () =>
+        initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
             nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
                 metadataService,
                 classResolver);
+            await EditorUiBatch.YieldAsync(cancellationToken);
             Content = createEditorContent();
+            await EditorUiBatch.YieldAsync(cancellationToken);
             toast = new Toast(this);
             string? preferredName = pendingFunctionName;
             pendingFunctionName = null;
@@ -100,8 +103,8 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         };
         functionList.SelectionChanged += onSelectionChanged;
         functionList.AddHandler(
-            PointerPressedEvent,
-            onListPointerPressed,
+            ContextRequestedEvent,
+            onListContextRequested,
             RoutingStrategies.Bubble);
         graphHost = new Border
         {
@@ -182,10 +185,9 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         currentDocument.CommitGraph(BlueprintGraphCodec.Save(graphControl.Document));
     }
 
-    private void onListPointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onListContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        if (!args.GetCurrentPoint(functionList).Properties.IsRightButtonPressed)
-            return;
+        bool requestedByPointer = args.TryGetPosition(functionList, out _);
         string? hitName = null;
         if (args.Source is Visual source)
         {
@@ -200,15 +202,17 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
                 current = current.GetVisualParent();
             }
         }
+        if (!requestedByPointer)
+            hitName ??= functionList.SelectedItem as string;
         if (hitName is not null)
             functionList.SelectedItem = hitName;
         args.Handled = true;
-        showContextMenu(hitName);
+        showContextMenu(hitName, requestedByPointer);
     }
 
-    private void showContextMenu(string? name)
+    private void showContextMenu(string? name, bool requestedByPointer)
     {
-        ContextMenu menu = new();
+        ContextMenu menu = new() { Placement = requestedByPointer ? PlacementMode.Pointer : PlacementMode.Bottom };
         if (name is not null)
         {
             MenuItem organize = new() { Header = LocaleService.Get("ORGANIZE_GRAPH") };
@@ -237,7 +241,8 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
                 menu.Items.Add(paste);
             }
         }
-        menu.Open(functionList);
+        if (menu.ItemCount > 0)
+            menu.Open(functionList.ContainerFromIndex(functionList.SelectedIndex) ?? (Control)functionList);
     }
 
     private async Task createFunctionAsync()

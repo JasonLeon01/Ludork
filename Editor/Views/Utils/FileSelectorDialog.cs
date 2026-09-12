@@ -1,24 +1,29 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
+using Avalonia.Styling;
 using Avalonia.Threading;
+using Ludork.Controls;
 using Ludork.Services;
+using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils;
 
 public sealed class FileSelectorDialog : Window
 {
+    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private static readonly HashSet<string> ImageSuffixes = new(StringComparer.OrdinalIgnoreCase)
         { "png", "jpg", "jpeg", "bmp", "gif", "webp" };
 
@@ -28,13 +33,11 @@ public sealed class FileSelectorDialog : Window
 
     private const int MaxTextPreviewBytes = 256 * 1024;
 
-    private static readonly SolidColorBrush SurfaceBrush = new(Color.Parse("#1c1c1c"));
-    private static readonly SolidColorBrush GridBorderBrush = new(Color.Parse("#3a3a3a"));
-    private static readonly SolidColorBrush AccentBrush = new(Color.Parse("#ffd740"));
-    private static readonly SolidColorBrush AccentMutedBrush = new(Color.Parse("#33ffd740"));
-    private static readonly SolidColorBrush HoverBrush = new(Color.Parse("#2a2a2a"));
-    private static readonly SolidColorBrush TextBrush = new(Color.Parse("#ffffff"));
-    private static readonly SolidColorBrush DetailBrush = new(Color.Parse("#888888"));
+    private static IBrush SurfaceBrush => EditorTheme.Brush("Background");
+    private static IBrush GridBorderBrush => EditorTheme.Brush("Border");
+    private static IBrush AccentBrush => EditorTheme.Brush("Accent");
+    private static IBrush TextBrush => EditorTheme.Brush("Text");
+    private static IBrush DetailBrush => EditorTheme.Brush("TextMuted");
 
     private readonly string _root;
     private readonly bool _save;
@@ -46,14 +49,19 @@ public sealed class FileSelectorDialog : Window
     private string _currentDirectory;
     private string? _selectedPath;
     private readonly List<string> _selectedPaths = [];
-    private string? _selectionAnchorPath;
     private string _fileName = string.Empty;
-    private Bitmap? _previewBitmap;
-    private readonly List<Bitmap> _thumbnailBitmaps = [];
+    private readonly EditorThumbnailService _thumbnails;
+    private readonly bool _ownsThumbnails;
+    private EditorThumbnailLease? _previewLease;
+    private CancellationTokenSource _directoryCancellation = new();
+    private CancellationTokenSource _previewCancellation = new();
+    private bool _closed;
+    private bool _opened;
+    private bool _updatingSelection;
 
     private readonly TextBox _lookInBox;
     private readonly Button _upButton;
-    private readonly WrapPanel _fileGrid;
+    private readonly ListBox _fileGrid;
     private readonly Image _previewImage;
     private readonly Panel _previewImageContainer;
     private readonly TextBox _previewTextBox;
@@ -61,7 +69,7 @@ public sealed class FileSelectorDialog : Window
     private readonly TextBox _fileNameBox;
     private readonly ComboBox _filterCombo;
     private readonly Button _confirmButton;
-    private Border? _initialFileCell;
+    private List<FileEntry> _entries = [];
 
     public string? SelectedPath => _selectedPath;
     public string SelectedNameFilter => _filterIndex < _filterNames.Length ? _filterNames[_filterIndex] : string.Empty;
@@ -145,6 +153,9 @@ public sealed class FileSelectorDialog : Window
         _root = Path.GetFullPath(root);
         _save = save;
         _allowMultiple = allowMultiple && !save;
+        EditorThumbnailService? projectThumbnails = findProjectThumbnails(owner);
+        _thumbnails = projectThumbnails ?? new EditorThumbnailService();
+        _ownsThumbnails = projectThumbnails is null;
 
         string[] parts = filterStr.Split(";;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
@@ -179,28 +190,25 @@ public sealed class FileSelectorDialog : Window
         Height = 620;
         MinWidth = 680;
         MinHeight = 440;
-        Background = new SolidColorBrush(Color.Parse("#121212"));
+        Background = EditorTheme.Brush("Background");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = true;
-        FontFamily = new FontFamily("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        FontFamily = EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         _upButton = new Button
         {
-            Content = new PathIcon
-            {
-                Data = EditorIconResources.GetGeometry("EditorIcon.NavigateUp"),
-                Width = 18,
-                Height = 18,
-                Foreground = AccentBrush,
-            },
-            Width = 38,
-            Height = 34,
+            Content = EditorIconResources.CreateImage("EditorImage.NavigateUp", 16, 16),
+            Classes = { "toolbar" },
+            Width = 28,
+            Height = 28,
             Padding = new Thickness(0),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        _upButton.Click += (_, _) => navigateUp();
+        ToolTip.SetTip(_upButton, LocaleService.Get("FILE_DIALOG_PARENT_FOLDER"));
+        Avalonia.Automation.AutomationProperties.SetName(_upButton, LocaleService.Get("FILE_DIALOG_PARENT_FOLDER"));
+        _upButton.Click += async (_, _) => await navigateUpAsync();
 
         TextBlock lookInLabel = new()
         {
@@ -217,21 +225,34 @@ public sealed class FileSelectorDialog : Window
         Grid.SetColumn(_lookInBox, 2);
         topRow.Children.Add(_lookInBox);
 
-        _fileGrid = new WrapPanel { Orientation = Orientation.Horizontal };
-        ScrollViewer gridScrollViewer = new()
+        _fileGrid = new ListBox
         {
-            Content = _fileGrid,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            SelectionMode = _allowMultiple ? SelectionMode.Multiple : SelectionMode.Single,
+            ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingTilePanel
+            {
+                ItemWidth = 162,
+                ItemHeight = 132,
+            }),
+            ItemTemplate = new FuncDataTemplate<FileEntry>((entry, _) => entry is null ? null : createEntry(entry)),
         };
+        ScrollViewer.SetHorizontalScrollBarVisibility(_fileGrid, ScrollBarVisibility.Disabled);
+        ScrollViewer.SetVerticalScrollBarVisibility(_fileGrid, ScrollBarVisibility.Auto);
+        Style itemStyle = new(selector => selector.OfType<ListBoxItem>());
+        itemStyle.Setters.Add(new Setter(TemplatedControl.PaddingProperty, new Thickness(0)));
+        itemStyle.Setters.Add(new Setter(Layoutable.MarginProperty, new Thickness(1)));
+        itemStyle.Setters.Add(new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+        _fileGrid.Styles.Add(itemStyle);
+        _fileGrid.SelectionChanged += onSelectionChanged;
         Border fileGridBorder = new()
         {
             Background = SurfaceBrush,
             BorderBrush = GridBorderBrush,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
+            CornerRadius = new CornerRadius(4),
             ClipToBounds = true,
-            Child = gridScrollViewer,
+            Child = _fileGrid,
         };
 
         _previewImage = new Image { Stretch = Stretch.Uniform, Margin = new Thickness(8) };
@@ -264,7 +285,7 @@ public sealed class FileSelectorDialog : Window
             Background = SurfaceBrush,
             BorderBrush = GridBorderBrush,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
+            CornerRadius = new CornerRadius(4),
             ClipToBounds = true,
             Child = previewStack,
         };
@@ -294,7 +315,7 @@ public sealed class FileSelectorDialog : Window
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        _filterCombo.SelectionChanged += (_, _) => onFilterChanged();
+        _filterCombo.SelectionChanged += async (_, _) => await onFilterChangedAsync();
 
         TextBlock filterLabel = new()
         {
@@ -306,7 +327,7 @@ public sealed class FileSelectorDialog : Window
         {
             Content = save ? LocaleService.Get("SAVE") : LocaleService.Get("FILE_DIALOG_OPEN"),
             IsEnabled = false,
-            Classes = { "Raised" },
+            Classes = { "accent" },
         };
         _confirmButton.Click += (_, _) => confirm();
 
@@ -339,26 +360,28 @@ public sealed class FileSelectorDialog : Window
         Content = layout;
 
         KeyDown += onKeyDown;
-        Closed += (_, _) => disposeAllBitmaps();
-        Opened += (_, _) =>
+        Closed += (_, _) => disposeResources();
+        Opened += async (_, _) =>
         {
-            Border? initialFileCell = _initialFileCell;
-            _initialFileCell = null;
-            if (initialFileCell is not null)
-            {
-                Dispatcher.UIThread.Post(
-                    initialFileCell.BringIntoView,
-                    DispatcherPriority.Loaded);
-            }
+            _opened = true;
+            await refreshDirectoryAsync(initialSelection);
         };
+    }
 
-        refreshDirectory(initialSelection);
+    private static EditorThumbnailService? findProjectThumbnails(Window? owner)
+    {
+        for (Window? window = owner; window is not null; window = window.Owner as Window)
+        {
+            if (window.DataContext is MainViewModel main)
+                return main.GameData.Thumbnails;
+        }
+        return null;
     }
 
     private bool canGoUp =>
-        !string.Equals(_currentDirectory, _root, StringComparison.OrdinalIgnoreCase);
+        !PathComparer.Equals(_currentDirectory, _root);
 
-    private void navigateUp()
+    private async Task navigateUpAsync()
     {
         if (!canGoUp)
             return;
@@ -366,7 +389,7 @@ public sealed class FileSelectorDialog : Window
         if (parent is not null && isWithinRoot(parent))
         {
             _currentDirectory = parent;
-            refreshDirectory();
+            await refreshDirectoryAsync();
         }
     }
 
@@ -377,54 +400,100 @@ public sealed class FileSelectorDialog : Window
         return !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative);
     }
 
-    private void refreshDirectory(string? initialFilePath = null)
+    private async Task refreshDirectoryAsync(string? initialFilePath = null)
     {
+        if (_closed)
+            return;
+        _directoryCancellation.Cancel();
+        _directoryCancellation.Dispose();
+        _directoryCancellation = new CancellationTokenSource();
+        CancellationToken token = _directoryCancellation.Token;
         _lookInBox.Text = _currentDirectory;
         _upButton.IsEnabled = canGoUp;
         _selectedPath = null;
         _selectedPaths.Clear();
-        _selectionAnchorPath = null;
         _fileName = string.Empty;
-        if (_allowMultiple)
+        if (!_save)
             _fileNameBox.Text = string.Empty;
         clearPreview();
         updateConfirmButton();
-
-        disposeThumbnails();
-        _fileGrid.Children.Clear();
-
-        List<string> dirs =
-        [
-            .. Directory.GetDirectories(_currentDirectory)
-                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase),
-        ];
-        List<string> files =
-        [
-            .. Directory.GetFiles(_currentDirectory)
-                .Where(matchesFilter)
-                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase),
-        ];
-
-        foreach (string dir in dirs)
-            _fileGrid.Children.Add(createEntry(dir, isDirectory: true));
-        foreach (string file in files)
+        _entries = [];
+        _fileGrid.ItemsSource = _entries;
+        string directory = _currentDirectory;
+        string[] patterns = _filterIndex < _filterPatterns.Count
+            ? _filterPatterns[_filterIndex].ToArray()
+            : [];
+        try
         {
-            Border entry = createEntry(file, isDirectory: false);
-            _fileGrid.Children.Add(entry);
-            if (string.Equals(file, initialFilePath, StringComparison.OrdinalIgnoreCase))
-                _initialFileCell = entry;
+            List<FileEntry> entries = await Task.Run(() => readDirectory(directory, patterns, token), token);
+            if (_closed || token.IsCancellationRequested)
+                return;
+            _entries = entries;
+            _fileGrid.ItemsSource = entries;
+            if (initialFilePath is not null)
+            {
+                FileEntry? initial = entries.FirstOrDefault(entry =>
+                    !entry.IsDirectory && PathComparer.Equals(entry.Path, initialFilePath));
+                if (initial is not null)
+                {
+                    _fileGrid.SelectedItem = initial;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!_closed && !token.IsCancellationRequested)
+                            _fileGrid.ScrollIntoView(initial);
+                    }, DispatcherPriority.Loaded);
+                }
+            }
         }
-        if (_initialFileCell is not null)
-            selectEntry(initialFilePath!, isDirectory: false, _initialFileCell, KeyModifiers.None);
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            if (!_closed && !token.IsCancellationRequested)
+            {
+                _previewTextBox.Text = exception.Message;
+                _previewTextContainer.IsVisible = true;
+            }
+        }
     }
 
-    private bool matchesFilter(string filePath)
+    private static List<FileEntry> readDirectory(string directory, string[] patterns, CancellationToken token)
+    {
+        List<FileEntry> entries = [];
+        foreach (DirectoryInfo child in new DirectoryInfo(directory).EnumerateDirectories())
+        {
+            token.ThrowIfCancellationRequested();
+            entries.Add(new FileEntry(child.FullName, true, 0));
+        }
+        foreach (FileInfo file in new DirectoryInfo(directory).EnumerateFiles())
+        {
+            token.ThrowIfCancellationRequested();
+            if (!matchesFilter(file.FullName, patterns))
+                continue;
+            long size;
+            try
+            {
+                size = file.Length;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                size = 0;
+            }
+            entries.Add(new FileEntry(file.FullName, false, size));
+        }
+        return entries.OrderBy(entry => !entry.IsDirectory)
+            .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private bool matchesFilter(string filePath) => matchesFilter(filePath,
+        _filterIndex < _filterPatterns.Count ? _filterPatterns[_filterIndex] : []);
+
+    private static bool matchesFilter(string filePath, IReadOnlyList<string> patterns)
     {
         if (DataConfig.isAnimationCache(filePath))
             return false;
-        List<string> patterns = _filterIndex < _filterPatterns.Count
-            ? _filterPatterns[_filterIndex]
-            : [];
         if (patterns.Count == 0 || patterns.Contains("*") || patterns.Contains("*.*"))
             return true;
         string lower = Path.GetFileName(filePath).ToLowerInvariant();
@@ -434,28 +503,30 @@ public sealed class FileSelectorDialog : Window
                 : pattern == "*");
     }
 
-    private void onFilterChanged()
+    private async Task onFilterChangedAsync()
     {
         _filterIndex = Math.Max(0, _filterCombo.SelectedIndex);
-        refreshDirectory();
+        if (_opened)
+            await refreshDirectoryAsync();
     }
 
-    private Border createEntry(string path, bool isDirectory)
+    private Border createEntry(FileEntry entry)
     {
+        string path = entry.Path;
+        bool isDirectory = entry.IsDirectory;
         bool isImage = !isDirectory && ImageSuffixes.Contains(Path.GetExtension(path).TrimStart('.'));
         string name = Path.GetFileName(path);
-        string detail = isDirectory ? string.Empty : formatFileSize(new FileInfo(path).Length);
+        string detail = isDirectory ? string.Empty : formatFileSize(entry.Size);
 
         Border cell = new()
         {
             Width = 160,
-            Height = 114,
+            Height = 128,
             Padding = new Thickness(3),
             Background = Brushes.Transparent,
-            BorderThickness = new Thickness(2),
+            BorderThickness = new Thickness(0),
             BorderBrush = Brushes.Transparent,
-            CornerRadius = new CornerRadius(3),
-            Tag = path,
+            CornerRadius = new CornerRadius(4),
             Cursor = new Cursor(StandardCursorType.Hand),
         };
 
@@ -488,7 +559,7 @@ public sealed class FileSelectorDialog : Window
         {
             Text = detail,
             Foreground = DetailBrush,
-            FontSize = 10,
+            FontSize = 12,
             TextAlignment = TextAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -498,195 +569,58 @@ public sealed class FileSelectorDialog : Window
 
         cell.Child = inner;
 
-        cell.PointerEntered += (_, _) =>
+        cell.DoubleTapped += async (_, args) =>
         {
-            if (!isSelectedEntry(path))
-                cell.Background = HoverBrush;
+            args.Handled = true;
+            await activateEntryAsync(entry);
         };
-        cell.PointerExited += (_, _) =>
-        {
-            if (!isSelectedEntry(path))
-                resetCellStyle(cell);
-        };
-        cell.PointerPressed += (_, args) =>
-        {
-            if (args.GetCurrentPoint(cell).Properties.IsLeftButtonPressed)
-                selectEntry(path, isDirectory, cell, args.KeyModifiers);
-        };
-        cell.DoubleTapped += (_, _) => activateEntry(path, isDirectory);
-
         return cell;
     }
 
-    private bool isSelectedEntry(string path) =>
-        _allowMultiple
-            ? _selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase)
-            : string.Equals(_selectedPath, path, StringComparison.OrdinalIgnoreCase);
-
-    private static void resetCellStyle(Border cell)
+    private void onSelectionChanged(object? sender, SelectionChangedEventArgs args)
     {
-        cell.Background = Brushes.Transparent;
-        cell.BorderBrush = Brushes.Transparent;
-    }
-
-    private static void applySelectedStyle(Border cell)
-    {
-        cell.Background = AccentMutedBrush;
-        cell.BorderBrush = AccentBrush;
-    }
-
-    private void deselectAll()
-    {
-        foreach (Control control in _fileGrid.Children)
-        {
-            if (control is Border border)
-                resetCellStyle(border);
-        }
-    }
-
-    private void selectEntry(string path, bool isDirectory, Border clicked, KeyModifiers modifiers)
-    {
-        if (isDirectory)
-        {
-            deselectAll();
-            applySelectedStyle(clicked);
-            _selectedPath = null;
-            _selectedPaths.Clear();
-            _selectionAnchorPath = null;
-            _fileName = string.Empty;
-            if (_allowMultiple)
-                _fileNameBox.Text = string.Empty;
-            clearPreview();
-        }
-        else if (_allowMultiple)
-        {
-            bool primary = EditorShortcuts.HasPrimaryModifier(modifiers);
-            bool shift = modifiers.HasFlag(KeyModifiers.Shift);
-            if (shift && _selectionAnchorPath is not null)
-                selectRange(_selectionAnchorPath, path, primary);
-            else if (primary)
-                toggleSelection(path);
-            else
-            {
-                _selectedPaths.Clear();
-                _selectedPaths.Add(path);
-            }
-            if (!shift || _selectionAnchorPath is null)
-                _selectionAnchorPath = path;
-            refreshSelectionStyles();
-            updateActiveSelection(path);
-        }
-        else
-        {
-            deselectAll();
-            applySelectedStyle(clicked);
-            _selectedPath = path;
-            _fileName = Path.GetFileName(path);
-            if (!_save)
-                _fileNameBox.Text = _fileName;
-            updatePreview(path);
-        }
-        updateConfirmButton();
-    }
-
-    private void selectRange(string startPath, string endPath, bool additive)
-    {
-        List<string> files = _fileGrid.Children
-            .OfType<Border>()
-            .Select(control => control.Tag as string)
-            .Where(path => path is not null && File.Exists(path))
-            .Cast<string>()
-            .ToList();
-        int startIndex = files.FindIndex(path => string.Equals(path, startPath, StringComparison.OrdinalIgnoreCase));
-        int endIndex = files.FindIndex(path => string.Equals(path, endPath, StringComparison.OrdinalIgnoreCase));
-        if (startIndex < 0 || endIndex < 0)
-        {
-            if (!additive)
-                _selectedPaths.Clear();
-            addSelectedPath(endPath);
+        if (_closed || _updatingSelection)
             return;
-        }
-        if (!additive)
-            _selectedPaths.Clear();
-        int first = Math.Min(startIndex, endIndex);
-        int last = Math.Max(startIndex, endIndex);
-        for (int index = first; index <= last; index += 1)
-            addSelectedPath(files[index]);
-    }
-
-    private void toggleSelection(string path)
-    {
-        int index = _selectedPaths.FindIndex(selected =>
-            string.Equals(selected, path, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0)
-            _selectedPaths.RemoveAt(index);
-        else
-            _selectedPaths.Add(path);
-    }
-
-    private void addSelectedPath(string path)
-    {
-        if (!_selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
-            _selectedPaths.Add(path);
-    }
-
-    private void refreshSelectionStyles()
-    {
-        foreach (Control control in _fileGrid.Children)
+        FileEntry? added = args.AddedItems.OfType<FileEntry>().LastOrDefault();
+        if (added is { IsDirectory: true } && _fileGrid.SelectedItems is { Count: > 1 })
         {
-            if (control is not Border border || border.Tag is not string path)
-                continue;
-            if (_selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
-                applySelectedStyle(border);
-            else
-                resetCellStyle(border);
+            _updatingSelection = true;
+            _fileGrid.SelectedItem = added;
+            _updatingSelection = false;
         }
-    }
-
-    private void updateActiveSelection(string requestedPath)
-    {
-        _selectedPath = _selectedPaths.Contains(requestedPath, StringComparer.OrdinalIgnoreCase)
-            ? requestedPath
-            : _selectedPaths.LastOrDefault();
+        List<FileEntry> selected = _fileGrid.SelectedItems?.OfType<FileEntry>()
+            .Where(entry => !entry.IsDirectory).ToList() ?? [];
+        _selectedPaths.Clear();
+        _selectedPaths.AddRange(selected.Select(entry => entry.Path));
+        _selectedPath = added is { IsDirectory: false } && selected.Contains(added)
+            ? added.Path : selected.LastOrDefault()?.Path;
         _fileName = _selectedPath is null ? string.Empty : Path.GetFileName(_selectedPath);
-        _fileNameBox.Text = string.Join(", ", _selectedPaths.Select(Path.GetFileName));
+        if (!_save)
+            _fileNameBox.Text = _allowMultiple
+                ? string.Join(", ", _selectedPaths.Select(Path.GetFileName))
+                : _fileName;
         if (_selectedPath is null)
             clearPreview();
         else
-            updatePreview(_selectedPath);
+            _ = updatePreviewAsync(_selectedPath);
+        updateConfirmButton();
     }
 
-    private void activateEntry(string path, bool isDirectory)
+    private async Task activateEntryAsync(FileEntry entry)
     {
-        if (isDirectory)
+        if (entry.IsDirectory)
         {
-            if (isWithinRoot(path))
+            if (isWithinRoot(entry.Path))
             {
-                _currentDirectory = Path.GetFullPath(path);
-                refreshDirectory();
+                _currentDirectory = entry.Path;
+                await refreshDirectoryAsync();
             }
             return;
         }
-        if (_allowMultiple)
-        {
-            if (!_selectedPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
-            {
-                _selectedPaths.Clear();
-                _selectedPaths.Add(path);
-                refreshSelectionStyles();
-            }
-            updateActiveSelection(path);
-            updateConfirmButton();
-            confirm();
-            return;
-        }
-        _selectedPath = path;
-        _fileName = Path.GetFileName(path);
+        if (!_selectedPaths.Contains(entry.Path, PathComparer))
+            _fileGrid.SelectedItem = entry;
         if (!_save)
-        {
-            _fileNameBox.Text = _fileName;
             confirm();
-        }
     }
 
     private void confirm()
@@ -728,70 +662,119 @@ public sealed class FileSelectorDialog : Window
 
     private void clearPreview()
     {
+        _previewCancellation.Cancel();
+        _previewCancellation.Dispose();
+        _previewCancellation = new CancellationTokenSource();
         _previewImageContainer.IsVisible = false;
         _previewTextContainer.IsVisible = false;
-
         _previewImage.Source = null;
-        _previewBitmap?.Dispose();
-        _previewBitmap = null;
+        _previewLease?.Dispose();
+        _previewLease = null;
         _previewTextBox.Text = string.Empty;
     }
 
-    private void updatePreview(string path)
+    private async Task updatePreviewAsync(string path)
     {
         clearPreview();
-        string ext = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
-
-        if (ImageSuffixes.Contains(ext))
-            showImagePreview(path);
-        else if (TextSuffixes.Contains(ext))
-            showTextPreview(path);
-    }
-
-    private void showImagePreview(string path)
-    {
-        _previewBitmap = new Bitmap(path);
-        _previewImage.Source = _previewBitmap;
-        _previewImageContainer.IsVisible = true;
-    }
-
-    private void showTextPreview(string path)
-    {
-        long size = new FileInfo(path).Length;
-        int readSize = (int)Math.Min(size, MaxTextPreviewBytes);
-        using FileStream stream = File.OpenRead(path);
-        byte[] buffer = new byte[readSize];
-        int read = stream.Read(buffer, 0, readSize);
-
-        int checkLen = Math.Min(read, 8192);
-        for (int i = 0; i < checkLen; i++)
+        CancellationToken token = _previewCancellation.Token;
+        string extension = Path.GetExtension(path).TrimStart('.');
+        try
         {
-            if (buffer[i] == 0)
-                return;
+            if (ImageSuffixes.Contains(extension))
+            {
+                EditorThumbnailLease? lease = await _thumbnails.AcquireAsync(path, 520, token);
+                if (_closed || token.IsCancellationRequested)
+                {
+                    lease?.Dispose();
+                    return;
+                }
+                _previewLease = lease;
+                _previewImage.Source = lease?.Bitmap;
+                _previewImageContainer.IsVisible = lease is not null;
+            }
+            else if (TextSuffixes.Contains(extension))
+            {
+                string? text = await readTextPreviewAsync(path, token);
+                if (!_closed && !token.IsCancellationRequested && text is not null)
+                {
+                    _previewTextBox.Text = text;
+                    _previewTextContainer.IsVisible = true;
+                }
+            }
         }
-
-        string text = Encoding.UTF8.GetString(buffer.AsSpan(0, read));
-        if (size > MaxTextPreviewBytes)
-            text += "\n\n...";
-
-        _previewTextBox.Text = text;
-        _previewTextContainer.IsVisible = true;
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            if (!_closed && !token.IsCancellationRequested)
+            {
+                _previewTextBox.Text = exception.Message;
+                _previewTextContainer.IsVisible = true;
+            }
+        }
     }
+
+    private static Task<string?> readTextPreviewAsync(string path, CancellationToken token) => Task.Run(async () =>
+    {
+        await using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite,
+            8192, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        byte[] buffer = new byte[Math.Min(stream.Length, MaxTextPreviewBytes)];
+        int read = await stream.ReadAtLeastAsync(buffer, buffer.Length, false, token);
+        if (Array.IndexOf(buffer, (byte)0, 0, Math.Min(read, 8192)) >= 0)
+            return null;
+        string text = Encoding.UTF8.GetString(buffer.AsSpan(0, read));
+        return stream.Length > MaxTextPreviewBytes ? text + "\n\n..." : text;
+    }, token);
 
     private Control createThumbnail(string path)
     {
-        Bitmap bitmap = new(path);
-        _thumbnailBitmaps.Add(bitmap);
-        return new Image
+        Image image = new()
         {
-            Source = bitmap,
+            Source = EditorIconResources.GetImage("EditorImage.File"),
             Stretch = Stretch.Uniform,
             Margin = new Thickness(3),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            MaxWidth = 80,
-            MaxHeight = 80,
+            Width = 80,
+            Height = 80,
         };
+        CancellationTokenSource? cancellation = null;
+        EditorThumbnailLease? activeLease = null;
+        image.AttachedToVisualTree += async (_, _) =>
+        {
+            if (_closed)
+                return;
+            cancellation?.Cancel();
+            cancellation?.Dispose();
+            CancellationTokenSource request = CancellationTokenSource.CreateLinkedTokenSource(_directoryCancellation.Token);
+            cancellation = request;
+            try
+            {
+                EditorThumbnailLease? lease = await _thumbnails.AcquireAsync(path, 160, request.Token);
+                if (_closed || request.IsCancellationRequested || !ReferenceEquals(cancellation, request))
+                {
+                    lease?.Dispose();
+                    return;
+                }
+                activeLease?.Dispose();
+                activeLease = lease;
+                image.Source = lease?.Bitmap ?? EditorIconResources.GetImage("EditorImage.File");
+            }
+            catch (OperationCanceledException) when (request.IsCancellationRequested)
+            {
+            }
+        };
+        image.DetachedFromVisualTree += (_, _) =>
+        {
+            cancellation?.Cancel();
+            cancellation?.Dispose();
+            cancellation = null;
+            image.Source = null;
+            activeLease?.Dispose();
+            activeLease = null;
+        };
+        return image;
     }
 
     private static string formatFileSize(long bytes)
@@ -818,13 +801,17 @@ public sealed class FileSelectorDialog : Window
         return patterns.Count > 0 ? patterns : ["*"];
     }
 
-    private void onKeyDown(object? sender, KeyEventArgs e)
+    private async void onKeyDown(object? sender, KeyEventArgs e)
     {
         switch (e.Key)
         {
             case Key.Escape:
                 Close(null);
                 e.Handled = true;
+                break;
+            case Key.Enter when _fileGrid.IsKeyboardFocusWithin && _fileGrid.SelectedItem is FileEntry { IsDirectory: true } entry:
+                e.Handled = true;
+                await activateEntryAsync(entry);
                 break;
             case Key.Enter when _confirmButton.IsEnabled:
                 confirm();
@@ -833,17 +820,17 @@ public sealed class FileSelectorDialog : Window
         }
     }
 
-    private void disposeThumbnails()
+    private void disposeResources()
     {
-        foreach (Bitmap bitmap in _thumbnailBitmaps)
-            bitmap.Dispose();
-        _thumbnailBitmaps.Clear();
+        _closed = true;
+        _directoryCancellation.Cancel();
+        _directoryCancellation.Dispose();
+        clearPreview();
+        _previewCancellation.Dispose();
+        _fileGrid.ItemsSource = null;
+        if (_ownsThumbnails)
+            _thumbnails.Dispose();
     }
 
-    private void disposeAllBitmaps()
-    {
-        disposeThumbnails();
-        _previewBitmap?.Dispose();
-        _previewBitmap = null;
-    }
+    private sealed record FileEntry(string Path, bool IsDirectory, long Size);
 }

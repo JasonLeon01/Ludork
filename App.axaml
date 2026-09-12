@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Ludork.App"
              xmlns:local="using:Ludork"
-             xmlns:material="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
+             xmlns:fluent="clr-namespace:Avalonia.Themes.Fluent;assembly=Avalonia.Themes.Fluent"
              Name="Ludork"
              RequestedThemeVariant="Dark">
 
@@ -10,11 +10,8 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://Ludork/Editor/Resources/EditorIcons.axaml" />
+                <ResourceInclude Source="avares://Ludork/Editor/Resources/EditorTheme.axaml" />
             </ResourceDictionary.MergedDictionaries>
-            <SolidColorBrush x:Key="LudorkPrimaryBrush" Color="#ffd740" />
-            <SolidColorBrush x:Key="LudorkPrimaryMutedBrush" Color="#33ffd740" />
-            <SolidColorBrush x:Key="LudorkSurfaceBrush" Color="#232629" />
-            <SolidColorBrush x:Key="LudorkTextBrush" Color="#ffffff" />
         </ResourceDictionary>
     </Application.Resources>
 
@@ -30,24 +27,22 @@
     </NativeMenu.Menu>
 
     <Application.Styles>
-        <material:MaterialTheme BaseTheme="Dark"
-                                PrimaryColor="Amber"
-                                SecondaryColor="Lime" />
-        <StyleInclude Source="avares://Ludork/Editor/Styles/NativeMenuItems.axaml" />
+        <fluent:FluentTheme DensityStyle="Compact">
+            <fluent:FluentTheme.Palettes>
+                <fluent:ColorPaletteResources x:Key="Dark"
+                                             Accent="{StaticResource Editor.AccentColor}"
+                                             RegionColor="{StaticResource Editor.BackgroundColor}"
+                                             BaseHigh="{StaticResource Editor.TextColor}"
+                                             BaseMedium="{StaticResource Editor.TextMutedColor}"
+                                             ChromeLow="{StaticResource Editor.SurfaceColor}"
+                                             ChromeMediumLow="{StaticResource Editor.SurfaceColor}"
+                                             ChromeHigh="{StaticResource Editor.InputColor}"
+                                             ErrorText="{StaticResource Editor.ErrorColor}" />
+            </fluent:FluentTheme.Palettes>
+        </fluent:FluentTheme>
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="avares://NodifyM.Avalonia/Styles/ControlStyles.axaml" />
-        <Style Selector="NumericUpDown.ludork-editable /template/ Border#PART_RootBorder">
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="MinHeight" Value="34" />
-            <Setter Property="CornerRadius" Value="4" />
-        </Style>
-        <Style Selector="NumericUpDown.ludork-editable /template/ TextBox#PART_TextBox">
-            <Setter Property="Margin" Value="{Binding $parent[NumericUpDown].Padding}" />
-        </Style>
-        <Style Selector="ScrollBar:vertical">
-            <Setter Property="Width" Value="8" />
-        </Style>
-        <Style Selector="ScrollBar:horizontal">
-            <Setter Property="Height" Value="8" />
-        </Style>
+        <StyleInclude Source="avares://Ludork/Editor/Styles/EditorControls.axaml" />
+        <StyleInclude Source="avares://Ludork/Editor/Styles/NativeMenuItems.axaml" />
     </Application.Styles>
 </Application>

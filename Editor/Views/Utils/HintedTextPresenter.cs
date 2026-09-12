@@ -42,13 +42,13 @@ public sealed class HintedTextPresenter : StackPanel
         };
         hintBlock = new TextBlock
         {
-            Foreground = new SolidColorBrush(Color.Parse("#888888")),
+            Foreground = Ludork.Services.EditorTheme.Brush("TextMuted"),
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
         hintBorder = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#262626")),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(6, 2),
             VerticalAlignment = VerticalAlignment.Center,

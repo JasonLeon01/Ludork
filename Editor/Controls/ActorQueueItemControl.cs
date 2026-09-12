@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using Ludork.ViewModels;
+using System;
 
 namespace Ludork.Controls;
 
@@ -30,7 +31,7 @@ public sealed class ActorQueueItemControl : ContentControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
         if (item is not null)
-            item.IsPreviewActive = false;
+            item.SetPreviewActive(this, false, 48);
         item = null;
         base.OnDetachedFromVisualTree(args);
     }
@@ -46,7 +47,7 @@ public sealed class ActorQueueItemControl : ContentControl
         if (item != next)
         {
             if (item is not null)
-                item.IsPreviewActive = false;
+                item.SetPreviewActive(this, false, 48);
         }
         item = next;
         refreshPreviewActivity();
@@ -56,6 +57,9 @@ public sealed class ActorQueueItemControl : ContentControl
     {
         ActorQueuePanel? panel = this.FindAncestorOfType<ActorQueuePanel>();
         if (item is not null)
-            item.IsPreviewActive = panel?.IsItemPreviewVisible(this) == true;
+        {
+            int size = (int)Math.Ceiling(48 * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
+            item.SetPreviewActive(this, panel?.IsItemPreviewVisible(this) == true, size);
+        }
     }
 }

@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -29,7 +30,7 @@ internal sealed class TilesetSelectionDialog : Window
         MinWidth = 520;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#161718"));
+        Background = PluginTheme.Brush("Background");
 
         grid = new TilesetGridControl(host, tileset, selectedTile);
         grid.SelectionChanged += (_, _) =>
@@ -46,7 +47,7 @@ internal sealed class TilesetSelectionDialog : Window
                 OperatingSystem.IsMacOS()
                     ? "tileDialogHintMac"
                     : "tileDialogHint"),
-            Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+            Foreground = PluginTheme.Brush("TextMuted"),
             TextWrapping = TextWrapping.Wrap,
         };
         Button cancelButton = new()

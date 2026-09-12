@@ -18,7 +18,7 @@ public sealed class PerformanceMonitorWindow : Window
         Height = 400;
         MinWidth = 720;
         MinHeight = 340;
-        Background = new SolidColorBrush(Color.Parse("#1e1e1e"));
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
         Content = canvas;

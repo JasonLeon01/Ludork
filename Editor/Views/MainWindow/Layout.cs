@@ -226,10 +226,6 @@ public partial class MainWindow
         clampHorizontalPanelWidths();
         layoutReady = true;
         saveEditorLayout();
-        DispatcherTimer.RunOnce(
-            () => viewModel?.FileExplorerPanel.NavigateTo(viewModel.FileExplorerPanel.CurrentPath),
-            TimeSpan.FromMilliseconds(500)
-        );
         if (viewModel is null || viewModel.GameData.InvalidLoadPaths.Count == 0)
             return;
         string paths = string.Join(Environment.NewLine, viewModel.GameData.InvalidLoadPaths);
@@ -485,14 +481,14 @@ public partial class MainWindow
         EditorPanel.selectActor(item.LayerName, item.ActorIndex);
     }
 
-    private void onBlueprintLocateRequested(object? sender, string reference)
+    private async void onBlueprintLocateRequested(object? sender, string reference)
     {
         if (!reference.StartsWith("Data.Blueprints.", StringComparison.Ordinal))
             return;
         string key = reference["Data.Blueprints.".Length..].Replace('.', Path.DirectorySeparatorChar);
         string path = Path.Combine(ProjectPath, "Data", "Blueprints", key + ".json");
         BottomTabs.SelectedIndex = 0;
-        FileExplorerPanel.LocatePath(path);
+        await FileExplorerPanel.LocatePathAsync(path);
     }
 
     private void onLanguageChangeRequested(object? sender, EventArgs args)

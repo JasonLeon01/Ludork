@@ -7,7 +7,7 @@ export default function useLudorkPageMetadata(page: SitePage, language: Language
   useEffect(() => {
     const messages = LUDORK_SITE_MESSAGES[language]
     document.documentElement.lang = language === 'zh_CN' ? 'zh-CN' : 'en-GB'
-    document.title = page === 'home' ? `Ludork — ${messages.home.title.replaceAll('\n', ' ')}`
+    document.title = page === 'home' ? `Ludork — ${messages.footer.description}`
       : messages[page].title
     document.querySelector('meta[name="description"]')?.setAttribute(
       'content', messages[page].description,

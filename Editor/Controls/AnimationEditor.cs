@@ -18,6 +18,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 using InputKey = Avalonia.Input.Key;
 
 namespace Ludork.Controls;
@@ -73,6 +75,12 @@ public sealed class AnimationEditor : UserControl
     private int selectedSegment = -1;
     private bool loadingInspector;
     private bool isPlaying;
+    private bool attached;
+    private bool committing;
+    private long documentRevision;
+    private string[] displayedAssets = [];
+    private CancellationTokenSource? assetRequest;
+    private readonly List<EditorThumbnailLease> assetLeases = [];
     private bool updatingZoomSlider;
     private static (int Track, JsonObject Segment)? segmentClipboard;
 
@@ -82,8 +90,9 @@ public sealed class AnimationEditor : UserControl
         initialKey = key;
         resourceDocument = gameData.GetDocument("Animations", key);
         this.data = (JsonObject)data.DeepClone();
+        documentRevision = resourceDocument?.Revision ?? 0;
 
-        preview = new AnimationPreview(gameData.ProjectPath, () => this.data);
+        preview = new AnimationPreview(gameData, () => this.data);
         timeline = new AnimationTimeline(gameData.ProjectPath, () => this.data);
         preview.SegmentSelected += selectSingleSegment;
         preview.SegmentChanged += onSegmentChanged;
@@ -108,13 +117,21 @@ public sealed class AnimationEditor : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
     {
         base.OnAttachedToVisualTree(args);
+        attached = true;
+        gameData.DataReloaded += onAssetsReloaded;
         if (resourceDocument is not null)
             resourceDocument.Changed += onDocumentChanged;
         onDocumentChanged(this, EventArgs.Empty);
+        refreshAssets();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        attached = false;
+        stopPlayback();
+        releaseAssets();
+        preview.Dispose();
+        gameData.DataReloaded -= onAssetsReloaded;
         if (resourceDocument is not null)
             resourceDocument.Changed -= onDocumentChanged;
         base.OnDetachedFromVisualTree(args);
@@ -122,8 +139,10 @@ public sealed class AnimationEditor : UserControl
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (resourceDocument?.Data is not JsonObject current || JsonNode.DeepEquals(current, data))
+        if (committing || resourceDocument is null || documentRevision == resourceDocument.Revision
+            || resourceDocument.Data is not JsonObject current)
             return;
+        documentRevision = resourceDocument.Revision;
         data = current;
         refreshEditor();
     }
@@ -242,7 +261,7 @@ public sealed class AnimationEditor : UserControl
         Grid.SetColumn(right, 1);
         right.Children.Add(preview);
         Grid timelineArea = new() { RowDefinitions = new RowDefinitions("28,*"), RowSpacing = 0 };
-        Border toolbar = new() { Background = new SolidColorBrush(Color.Parse("#333333")), BorderBrush = new SolidColorBrush(Color.Parse("#222222")), BorderThickness = new Thickness(0, 0, 0, 1) };
+        Border toolbar = new() { Background = EditorTheme.Brush("Surface"), BorderBrush = EditorTheme.Brush("Border"), BorderThickness = new Thickness(0, 0, 0, 1) };
         StackPanel transport = new() { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(8, 2) };
         playbackButton = new Button
         {
@@ -261,7 +280,7 @@ public sealed class AnimationEditor : UserControl
         };
         addTimeTag.Click += async (_, _) => await addTimeTagAtPlayhead();
         transport.Children.Add(addTimeTag);
-        transport.Children.Add(new TextBlock { Text = "Zoom", Foreground = new SolidColorBrush(Color.Parse("#aaaaaa")), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) });
+        transport.Children.Add(new TextBlock { Text = "Zoom", Foreground = Ludork.Services.EditorTheme.Brush("TextMuted"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) });
         zoomSlider.PropertyChanged += (_, args) =>
         {
             if (args.Property == RangeBase.ValueProperty && !updatingZoomSlider)
@@ -796,7 +815,16 @@ public sealed class AnimationEditor : UserControl
 
     private void commit()
     {
-        gameData.UpdateAnimation(key, data);
+        committing = true;
+        try
+        {
+            gameData.UpdateAnimation(key, data);
+            documentRevision = resourceDocument?.Revision ?? 0;
+        }
+        finally
+        {
+            committing = false;
+        }
         preview.Refresh();
         timeline.Refresh();
         Modified?.Invoke(this, EventArgs.Empty);
@@ -999,37 +1027,58 @@ public sealed class AnimationEditor : UserControl
         loadInspector();
     }
 
-    private void refreshAssets()
+    private void onAssetsReloaded(object? sender, EventArgs args) => refreshAssets(true);
+
+    private void refreshAssets(bool force = false)
     {
-        int assetCount = getAssets().Count;
+        string[] assets = getAssets().Select(asset => asset?.GetValue<string>() ?? string.Empty).ToArray();
+        if (!attached || !force && assetRequest is not null && assets.SequenceEqual(displayedAssets, StringComparer.Ordinal))
+            return;
+        releaseAssets();
+        displayedAssets = assets;
+        assetRequest = new CancellationTokenSource();
+        preview.PrepareAssets(assets, force);
+        buildAssets(assets, assetRequest.Token);
+    }
+
+    private async void buildAssets(string[] assets, CancellationToken cancellationToken)
+    {
+        int assetCount = assets.Length;
         selectedAssetIndexes.RemoveWhere(index => index < 0 || index >= assetCount);
         if (assetSelectionAnchor >= assetCount)
             assetSelectionAnchor = -1;
         assetGrid.Children.Clear();
-        JsonArray assets = getAssets();
         assetGrid.RowDefinitions.Clear();
-        int rowCount = (assets.Count + 2) / 3;
+        int rowCount = (assets.Length + 2) / 3;
         for (int row = 0; row < rowCount; row += 1)
             assetGrid.RowDefinitions.Add(new RowDefinition(new GridLength(64)));
-        for (int index = 0; index < assets.Count; index += 1)
+        EditorUiBatch batch = new();
+        try
         {
-            string assetName = assets[index]?.GetValue<string>() ?? string.Empty;
-            Border item = createAssetItem(index, assetName);
-            Grid.SetRow(item, index / 3);
-            Grid.SetColumn(item, index % 3);
-            assetGrid.Children.Add(item);
+            for (int index = 0; index < assets.Length; index += 1)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Border item = createAssetItem(index, assets[index], cancellationToken);
+                Grid.SetRow(item, index / 3);
+                Grid.SetColumn(item, index % 3);
+                assetGrid.Children.Add(item);
+                await batch.YieldIfNeededAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
-    private Border createAssetItem(int index, string assetName)
+    private Border createAssetItem(int index, string assetName, CancellationToken cancellationToken)
     {
         Border item = new()
         {
             Width = 64,
             Height = 64,
             BorderThickness = new Thickness(selectedAssetIndexes.Contains(index) ? 3 : 1),
-            BorderBrush = new SolidColorBrush(Color.Parse(selectedAssetIndexes.Contains(index) ? "#8ab4f8" : "#555555")),
-            Background = new SolidColorBrush(Color.Parse("#333333")),
+            BorderBrush = EditorTheme.Brush(selectedAssetIndexes.Contains(index) ? "Accent" : "Border"),
+            Background = EditorTheme.Brush("Surface"),
             Margin = new Thickness(0),
             Tag = index,
         };
@@ -1116,35 +1165,54 @@ public sealed class AnimationEditor : UserControl
             assetDragPress = null;
             assetDragStart = null;
         };
-        string extension = Path.GetExtension(assetName);
-        if (!isAudioAsset(assetName) && new[] { ".png", ".jpg", ".bmp" }.Contains(extension, StringComparer.OrdinalIgnoreCase))
-        {
-            if (GameAssetPath.TryResolveExistingFile(
-                    gameData.ProjectPath,
-                    assetName,
-                    out string path))
-            {
-                item.Child = new Image { Source = new Bitmap(path), Stretch = Stretch.Uniform };
-            }
-            else
-                item.Child = createAssetText("Missing");
-        }
-        else if (isAudioAsset(assetName))
-        {
-            if (GameAssetPath.TryResolveExistingFile(
-                    gameData.ProjectPath,
-                    assetName,
-                    out string path))
-            {
-                item.Background = new SolidColorBrush(Color.Parse("#442222"));
-                item.Child = createAssetText("Audio");
-            }
-            else
-                item.Child = createAssetText("Missing");
-        }
-        else
-            item.Child = createAssetText("Unknown");
+        item.Child = createAssetText(isAudioAsset(assetName) ? "Audio" : "…");
+        loadAssetImage(item, assetName, cancellationToken);
         return item;
+    }
+
+    private async void loadAssetImage(Border item, string assetName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            string? path = await Task.Run(() =>
+                GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, assetName, out string resolved) ? resolved : null,
+                cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (path is null)
+            {
+                item.Child = createAssetText("Missing");
+                return;
+            }
+            if (isAudioAsset(assetName))
+                return;
+            EditorThumbnailLease? lease = await gameData.Thumbnails.AcquireAsync(path, 64, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                lease?.Dispose();
+                return;
+            }
+            if (lease is null)
+            {
+                item.Child = createAssetText("Missing");
+                return;
+            }
+            assetLeases.Add(lease);
+            item.Child = new Image { Source = lease.Bitmap, Stretch = Stretch.Uniform };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void releaseAssets()
+    {
+        assetRequest?.Cancel();
+        assetRequest?.Dispose();
+        assetRequest = null;
+        assetGrid.Children.Clear();
+        foreach (EditorThumbnailLease lease in assetLeases)
+            lease.Dispose();
+        assetLeases.Clear();
     }
 
     private void refreshAssetSelection()
@@ -1155,7 +1223,7 @@ public sealed class AnimationEditor : UserControl
                 continue;
             bool selected = selectedAssetIndexes.Contains(index);
             item.BorderThickness = new Thickness(selected ? 3 : 1);
-            item.BorderBrush = new SolidColorBrush(Color.Parse(selected ? "#8ab4f8" : "#555555"));
+            item.BorderBrush = EditorTheme.Brush(selected ? "Accent" : "Border");
         }
     }
 

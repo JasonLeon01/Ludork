@@ -25,9 +25,14 @@ public sealed class ParticleWindow : Window
         MinWidth = 1080;
         MinHeight = 720;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Avalonia.Media.Brushes.Black;
+        Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
-        Content = new ParticleEditor(gameData, runtime, key);
+        Content = DeferredWindowInitializer.CreateLoadingContent();
+        _ = new DeferredWindowInitializer(this, async cancellationToken =>
+        {
+            await EditorUiBatch.YieldAsync(cancellationToken);
+            Content = new ParticleEditor(gameData, runtime, key);
+        });
         toast = new Toast(this);
         binding = new EditorDocumentBinding(this, gameData, () => document,
             () => LocaleService.Get("PARTICLE_EDITOR") + " - " + Key, closeWhenDeleted: true);

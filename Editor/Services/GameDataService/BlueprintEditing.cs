@@ -59,7 +59,7 @@ public sealed partial class GameDataService
     public bool UpdateBlueprintEventGraph(string key, string eventName, BlueprintGraphSaveResult result)
     {
         return sections["Blueprints"].Data.TryGetValue(normalizeJsonKey(key), out JsonObject? blueprint)
-            && GetBlueprintGraphNames(key).Contains(eventName, StringComparer.Ordinal)
+            && !string.IsNullOrWhiteSpace(eventName)
             && updateEventGraph("Blueprints", key, blueprint, "graph", eventName, result);
     }
 

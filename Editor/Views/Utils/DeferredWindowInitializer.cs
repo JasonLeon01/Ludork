@@ -1,21 +1,23 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Threading;
 using Ludork.Services;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils;
 
 internal sealed class DeferredWindowInitializer
 {
     private readonly Window window;
-    private readonly Action initialize;
+    private readonly Func<CancellationToken, Task> initialize;
+    private readonly CancellationTokenSource lifetime = new();
     private bool closed;
     private bool scheduled;
 
-    public DeferredWindowInitializer(Window window, Action initialize)
+    public DeferredWindowInitializer(Window window, Func<CancellationToken, Task> initialize)
     {
         this.window = window;
         this.initialize = initialize;
@@ -29,12 +31,9 @@ internal sealed class DeferredWindowInitializer
     {
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
             Child = new TextBlock
             {
                 Text = LocaleService.Get("LOADING"),
-                FontSize = 16,
-                Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             },
@@ -49,18 +48,61 @@ internal sealed class DeferredWindowInitializer
         Dispatcher.UIThread.Post(run, DispatcherPriority.Background);
     }
 
-    private void run()
+    private async void run()
     {
-        scheduled = false;
         if (closed || IsInitialized)
+        {
+            if (closed)
+                lifetime.Dispose();
             return;
-        initialize();
-        IsInitialized = true;
+        }
+        try
+        {
+            await initialize(lifetime.Token);
+            lifetime.Token.ThrowIfCancellationRequested();
+            IsInitialized = true;
+        }
+        catch (OperationCanceledException) when (closed)
+        {
+        }
+        catch (Exception error)
+        {
+            if (closed)
+                return;
+            Button retry = new() { Content = LocaleService.Get("RETRY") };
+            retry.Click += (_, _) =>
+            {
+                window.Content = CreateLoadingContent();
+                onOpened(this, EventArgs.Empty);
+            };
+            window.Content = new StackPanel
+            {
+                Spacing = 8,
+                Margin = new Thickness(16),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Children =
+                {
+                    new TextBlock { Text = LocaleService.Get("ERROR") },
+                    new TextBlock { Text = error.Message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                    retry,
+                },
+            };
+        }
+        finally
+        {
+            scheduled = false;
+            if (closed)
+                lifetime.Dispose();
+        }
     }
 
     private void onClosed(object? sender, EventArgs args)
     {
         closed = true;
+        lifetime.Cancel();
+        if (!scheduled)
+            lifetime.Dispose();
         window.Opened -= onOpened;
         window.Closed -= onClosed;
     }

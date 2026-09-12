@@ -5,15 +5,15 @@
         Height="220"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="#121212"
-        FontFamily="avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
     <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
         <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
         <TextBox x:Name="ValueBox" Grid.Row="1" />
         <TextBlock x:Name="ErrorText"
                    Grid.Row="2"
-                   Foreground="#ff6e6e"
+                   Foreground="{DynamicResource Editor.ErrorBrush}"
                    TextWrapping="Wrap" />
         <StackPanel Grid.Row="3"
                     Orientation="Horizontal"

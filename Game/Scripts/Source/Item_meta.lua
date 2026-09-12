@@ -1,5 +1,6 @@
 local _METADATA = {
     Item = {
+        moduleReturn = true,
         attrs = {
             "ID",
             "count",

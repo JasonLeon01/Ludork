@@ -1,21 +1,22 @@
 local _METADATA = {
     ChildActorComponent = {
+        moduleReturn = true,
         attrs = {
             "className",
-            "relativePosition",
+            "relativePosition"
         },
         bases = {
-            { "Engine", "Component" },
+            { "Engine", "Component" }
         },
         className = {
             type = "string",
-            default = "",
+            default = ""
         },
         relativePosition = {
             type = "sf.Vector2f",
-            default = { 0.0, 0.0 },
-        },
-    },
+            default = { 0.0, 0.0 }
+        }
+    }
 }
 
 return _METADATA

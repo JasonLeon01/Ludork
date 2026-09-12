@@ -138,7 +138,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         Grid root = new()
         {
             ColumnDefinitions = new ColumnDefinitions("220,5,*"),
-            Background = new SolidColorBrush(Color.Parse("#202020")),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
         };
         Grid animationListPanel = new()
         {
@@ -150,7 +150,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         GridSplitter splitter = new()
         {
             Width = 5,
-            Background = new SolidColorBrush(Color.Parse("#383838")),
+            Background = EditorTheme.Brush("Surface"),
             ResizeDirection = GridResizeDirection.Columns,
         };
         Grid.SetColumn(splitter, 1);

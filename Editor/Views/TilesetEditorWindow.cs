@@ -50,13 +50,17 @@ public sealed class TilesetEditorWindow : Window
         MinWidth = 560;
         MinHeight = 480;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.FromRgb(43, 43, 43));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Surface");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
         HistoryMergeBehavior.AttachBoundary(this, gameData);
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
-        initializer = new DeferredWindowInitializer(this, initializeContent);
+        initializer = new DeferredWindowInitializer(this, async cancellationToken =>
+        {
+            initializeContent();
+            await EditorUiBatch.YieldAsync(cancellationToken);
+        });
         toast = new Toast(this);
         documentBinding = new EditorDocumentBinding(this, gameData,
             () => ReferenceEquals(tabControl?.SelectedItem, autoTileItem) ? autoTileTab?.Document : tilesetTab?.Document,

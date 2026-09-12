@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -58,6 +59,7 @@ public sealed class ActorPreviewLease : IDisposable
         if (disposed || Descriptor == descriptor)
             return;
         Descriptor = descriptor;
+        PublicationRevision++;
         renderedTextureRect = default;
         nativeRenderDirty = descriptor.RequiresNativePreview;
         ShaderError = null;
@@ -69,12 +71,14 @@ public sealed class ActorPreviewLease : IDisposable
         if (disposed)
             return;
         disposed = true;
+        PublicationRevision++;
         owner.release(this);
         ownedFrame?.Dispose();
         ownedFrame = null;
         frame = null;
     }
 
+    internal long PublicationRevision { get; private set; }
     internal bool IsDisposed => disposed;
     internal bool IsStatic => staticFrame;
     internal bool NeedsNativeRender => nativeRenderDirty;
@@ -104,6 +108,7 @@ public sealed class ActorPreviewLease : IDisposable
     {
         if (disposed || width <= 0 || height <= 0)
             return;
+        PublicationRevision++;
         byte[] publishedPixels = copyPixels(
             width,
             height,
@@ -157,6 +162,52 @@ public sealed class ActorPreviewLease : IDisposable
         FrameChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    internal WriteableBitmap PrepareFallback(byte[] pixels, int width, int height,
+        ActorVisualDescriptor descriptor, CancellationToken cancellationToken)
+    {
+        if (presentationSize > 0)
+            (pixels, width, height) = projectPresentation(pixels, width, height, descriptor, presentationSize, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        WriteableBitmap bitmap = new(new PixelSize(width, height), new Vector(96, 96),
+            PixelFormat.Bgra8888, AlphaFormat.Unpremul);
+        try
+        {
+            using ILockedFramebuffer locked = bitmap.Lock();
+            if (locked.RowBytes == width * 4)
+                Marshal.Copy(pixels, 0, locked.Address, pixels.Length);
+            else
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Marshal.Copy(pixels, y * width * 4, IntPtr.Add(locked.Address, y * locked.RowBytes), width * 4);
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            return bitmap;
+        }
+        catch
+        {
+            bitmap.Dispose();
+            throw;
+        }
+    }
+
+    internal void PublishFallback(WriteableBitmap bitmap, PixelRect textureRect, string? shaderError)
+    {
+        PublicationRevision++;
+        WriteableBitmap? previous = ownedFrame;
+        ownedFrame = bitmap;
+        frame = bitmap;
+        frameAlphaFormat = AlphaFormat.Unpremul;
+        SourceRect = new PixelRect(0, 0, bitmap.PixelSize.Width, bitmap.PixelSize.Height);
+        renderedTextureRect = textureRect;
+        nativeRenderDirty = false;
+        ShaderError = shaderError;
+        FrameChanged?.Invoke(this, EventArgs.Empty);
+        previous?.Dispose();
+    }
+
     internal void publishAtlas(
         Bitmap atlas,
         PixelRect atlasRect,
@@ -165,6 +216,7 @@ public sealed class ActorPreviewLease : IDisposable
     {
         if (disposed || presentationSize != 0)
             return;
+        PublicationRevision++;
         ownedFrame?.Dispose();
         ownedFrame = null;
         frameAlphaFormat = null;
@@ -186,6 +238,7 @@ public sealed class ActorPreviewLease : IDisposable
         if (disposed)
             return;
         bool changed = frame is not null || !string.Equals(ShaderError, shaderError, StringComparison.Ordinal);
+        PublicationRevision++;
         ownedFrame?.Dispose();
         ownedFrame = null;
         frameAlphaFormat = null;
@@ -203,6 +256,7 @@ public sealed class ActorPreviewLease : IDisposable
         if (disposed)
             return;
         bool changed = !string.Equals(ShaderError, shaderError, StringComparison.Ordinal);
+        PublicationRevision++;
         renderedTextureRect = textureRect;
         nativeRenderDirty = false;
         ShaderError = shaderError;
@@ -232,7 +286,8 @@ public sealed class ActorPreviewLease : IDisposable
         int sourceWidth,
         int sourceHeight,
         ActorVisualDescriptor descriptor,
-        int size)
+        int size,
+        CancellationToken cancellationToken = default)
     {
         double scaleX = descriptor.Scale.X;
         double scaleY = descriptor.Scale.Y;
@@ -240,50 +295,33 @@ public sealed class ActorPreviewLease : IDisposable
             return (new byte[4], 1, 1);
         double absoluteScaleX = Math.Abs(scaleX);
         double absoluteScaleY = Math.Abs(scaleY);
-        int width = Math.Max(1, (int)(sourceWidth * absoluteScaleX));
-        int height = Math.Max(1, (int)(sourceHeight * absoluteScaleY));
-        byte[] scaled = new byte[width * height * 4];
-        for (int y = 0; y < height; y += 1)
+        int scaledWidth = Math.Max(1, (int)(sourceWidth * absoluteScaleX));
+        int scaledHeight = Math.Max(1, (int)(sourceHeight * absoluteScaleY));
+        int maxDimension = Math.Max(scaledWidth, scaledHeight);
+        double fit = maxDimension > size ? size / (double)maxDimension : 1;
+        int width = Math.Max(1, (int)Math.Round(scaledWidth * fit));
+        int height = Math.Max(1, (int)Math.Round(scaledHeight * fit));
+        byte[] pixels = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
         {
-            for (int x = 0; x < width; x += 1)
+            cancellationToken.ThrowIfCancellationRequested();
+            int scaledY = Math.Clamp((int)Math.Floor(y / fit), 0, scaledHeight - 1);
+            int sourceY = (int)Math.Floor(scaledY / absoluteScaleY + descriptor.Origin.Y);
+            if (scaleY < 0)
+                sourceY = sourceHeight - 1 - sourceY;
+            if (sourceY < 0 || sourceY >= sourceHeight)
+                continue;
+            for (int x = 0; x < width; x++)
             {
-                int sourceX = (int)Math.Floor(x / absoluteScaleX + descriptor.Origin.X);
-                int sourceY = (int)Math.Floor(y / absoluteScaleY + descriptor.Origin.Y);
+                int scaledX = Math.Clamp((int)Math.Floor(x / fit), 0, scaledWidth - 1);
+                int sourceX = (int)Math.Floor(scaledX / absoluteScaleX + descriptor.Origin.X);
                 if (scaleX < 0)
                     sourceX = sourceWidth - 1 - sourceX;
-                if (scaleY < 0)
-                    sourceY = sourceHeight - 1 - sourceY;
-                if (sourceX < 0 || sourceY < 0 || sourceX >= sourceWidth || sourceY >= sourceHeight)
+                if (sourceX < 0 || sourceX >= sourceWidth)
                     continue;
-                Buffer.BlockCopy(
-                    source,
-                    (sourceY * sourceWidth + sourceX) * 4,
-                    scaled,
-                    (y * width + x) * 4,
-                    4);
+                Buffer.BlockCopy(source, (sourceY * sourceWidth + sourceX) * 4, pixels, (y * width + x) * 4, 4);
             }
         }
-        int maxDimension = Math.Max(width, height);
-        if (maxDimension <= size)
-            return (scaled, width, height);
-        double fit = size / (double)maxDimension;
-        int fittedWidth = Math.Max(1, (int)Math.Round(width * fit));
-        int fittedHeight = Math.Max(1, (int)Math.Round(height * fit));
-        byte[] fitted = new byte[fittedWidth * fittedHeight * 4];
-        for (int y = 0; y < fittedHeight; y += 1)
-        {
-            for (int x = 0; x < fittedWidth; x += 1)
-            {
-                int sourceX = Math.Clamp((int)Math.Floor(x / fit), 0, width - 1);
-                int sourceY = Math.Clamp((int)Math.Floor(y / fit), 0, height - 1);
-                Buffer.BlockCopy(
-                    scaled,
-                    (sourceY * width + sourceX) * 4,
-                    fitted,
-                    (y * fittedWidth + x) * 4,
-                    4);
-            }
-        }
-        return (fitted, fittedWidth, fittedHeight);
+        return (pixels, width, height);
     }
 }

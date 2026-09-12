@@ -66,6 +66,8 @@ public sealed class BlueprintCreationService
         }
 
         ResolvedBlueprintClass resolved = classResolver.Resolve(parent);
+        if (!parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal) && resolved.RootType is not null)
+            parent = metadataService.GetRuntimeClassReference(resolved.RootType);
         JsonObject attrs = [];
         if (!parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
         {

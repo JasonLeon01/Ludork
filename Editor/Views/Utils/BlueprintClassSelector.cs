@@ -43,7 +43,7 @@ public static class BlueprintClassSelector
         {
             ResolvedBlueprintClass resolved = classResolver.Resolve(current);
             if (resolved.RootType is not null)
-                initial = resolved.RootType.QualifiedName;
+                initial = metadataService.GetRuntimeClassReference(resolved.RootType);
         }
         return BlueprintClassSelectorWindow.ShowAsync(owner, options, initial);
     }
@@ -57,9 +57,9 @@ public static class BlueprintClassSelector
     {
         HashSet<string> classes = new(StringComparer.Ordinal);
         foreach (string typeName in BlueprintCompatibilityCatalog.GetTypeNames())
-            addClass(classes, typeName, classResolver);
+            addClass(classes, typeName, metadataService, classResolver);
         foreach (LuaTypeMetadata metadata in metadataService.EnumerateTypes())
-            addClass(classes, metadata.Type.QualifiedName, classResolver);
+            addClass(classes, metadata.Type.QualifiedName, metadataService, classResolver);
 
         List<string> blueprints = [];
         foreach (string key in gameData.BlueprintsData.Keys.OrderBy(value => value, StringComparer.Ordinal))
@@ -82,10 +82,13 @@ public static class BlueprintClassSelector
     private static void addClass(
         ISet<string> classes,
         string typeName,
+        LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
     {
         ResolvedBlueprintClass resolved = classResolver.Resolve(typeName);
-        string qualifiedName = resolved.RootType?.QualifiedName ?? typeName;
+        string qualifiedName = resolved.RootType is not null
+            ? metadataService.GetRuntimeClassReference(resolved.RootType)
+            : typeName;
         LuaTypeReference type = LuaTypeReference.Parse(qualifiedName);
         if (!type.TypeName.StartsWith('_') && isBlueprintClass(qualifiedName, classResolver))
             classes.Add(qualifiedName);

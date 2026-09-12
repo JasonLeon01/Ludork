@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -29,7 +30,7 @@ public sealed class BlueprintAssistantWindow : Window
     private readonly TextBox inputBox = EditorInputs.CreateEditableTextBox();
     private readonly TextBlock statusText = new()
     {
-        Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+        Foreground = PluginTheme.Brush("TextMuted"),
         TextWrapping = TextWrapping.Wrap,
     };
     private readonly Button newButton = new();
@@ -66,7 +67,7 @@ public sealed class BlueprintAssistantWindow : Window
         MinWidth = 840;
         MinHeight = 560;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#161718"));
+        Background = PluginTheme.Brush("Background");
 
         configureControls();
         messageScroll = new ScrollViewer
@@ -183,7 +184,7 @@ public sealed class BlueprintAssistantWindow : Window
         Border statusBorder = new()
         {
             Padding = new Thickness(14, 8),
-            Background = new SolidColorBrush(Color.Parse("#202124")),
+            Background = PluginTheme.Brush("Surface"),
             Child = statusText,
         };
         Grid assistant = new()
@@ -207,7 +208,7 @@ public sealed class BlueprintAssistantWindow : Window
         {
             Width = 5,
             ResizeDirection = GridResizeDirection.Columns,
-            Background = new SolidColorBrush(Color.Parse("#353535")),
+            Background = PluginTheme.Brush("Input"),
         };
         Grid.SetColumn(splitter, 1);
         root.Children.Add(splitter);
@@ -720,7 +721,7 @@ public sealed class BlueprintAssistantWindow : Window
         TextBlock message = new()
         {
             Text = text,
-            Foreground = new SolidColorBrush(Color.Parse("#9e9e9e")),
+            Foreground = PluginTheme.Brush("TextMuted"),
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
@@ -736,14 +737,14 @@ public sealed class BlueprintAssistantWindow : Window
         {
             Text = role,
             FontWeight = FontWeight.SemiBold,
-            Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+            Foreground = PluginTheme.Brush("TextMuted"),
         };
         StackPanel panel = new() { Spacing = 6 };
         panel.Children.Add(roleText);
         panel.Children.Add(content);
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse(user ? "#263248" : "#242526")),
+            Background = PluginTheme.Brush(user ? "AccentMuted" : "Surface"),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(12),
             Child = panel,
@@ -756,7 +757,7 @@ public sealed class BlueprintAssistantWindow : Window
         {
             Text = state.Proposal.Title,
             FontWeight = FontWeight.SemiBold,
-            FontSize = 16,
+            FontSize = 14,
         };
         TextBox diff = new()
         {
@@ -773,8 +774,7 @@ public sealed class BlueprintAssistantWindow : Window
             Text = state.Proposal.IsValid
                 ? PluginUiText.Get("BLUEPRINT_AI_PROPOSAL_VALID")
                 : string.Join(Environment.NewLine, state.Proposal.Diagnostics),
-            Foreground = new SolidColorBrush(Color.Parse(
-                state.Proposal.IsValid ? "#81c784" : "#ef9a9a")),
+            Foreground = PluginTheme.Brush(state.Proposal.IsValid ? "Success" : "Error"),
             TextWrapping = TextWrapping.Wrap,
         };
         Button apply = new()
@@ -796,7 +796,7 @@ public sealed class BlueprintAssistantWindow : Window
                     ? PluginUiText.Get("BLUEPRINT_AI_PROPOSAL_APPLIED")
                     : PluginUiText.Get("BLUEPRINT_AI_PROPOSAL_DISCARDED")
                 : string.Empty,
-            Foreground = new SolidColorBrush(Color.Parse("#bdbdbd")),
+            Foreground = PluginTheme.Brush("TextMuted"),
             VerticalAlignment = VerticalAlignment.Center,
         };
         apply.Click += async (_, _) =>
@@ -819,8 +819,8 @@ public sealed class BlueprintAssistantWindow : Window
         panel.Children.Add(buttons);
         messageList.Children.Add(new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#2b2a24")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#575141")),
+            Background = PluginTheme.Brush("Surface"),
+            BorderBrush = PluginTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(12),

@@ -19,7 +19,7 @@ public class MapReferenceView : Control, IDisposable
     private const int MinimumTileSize = 12;
     private const int MaximumTileSize = 96;
     private const int TileSizeStep = 4;
-    private static readonly IBrush BackgroundBrush = new SolidColorBrush(Color.Parse("#262626"));
+    private static readonly IBrush BackgroundBrush = EditorTheme.Brush("Surface");
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.FromArgb(45, 255, 255, 255)), 1);
 
     private readonly GameDataService gameData;

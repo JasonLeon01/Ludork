@@ -1,4 +1,8 @@
 {
+  "RETRY": {
+    "zh_CN": "重试",
+    "en_GB": "Retry"
+  },
   "LIVE_DEBUG": {
     "zh_CN": "实时调试",
     "en_GB": "Live Debug"
@@ -1402,6 +1406,10 @@
   "SYSTEM_CONFIG": {
     "zh_CN": "系统配置",
     "en_GB": "System Config"
+  },
+  "SYSTEM_CONFIG_EMPTY": {
+    "zh_CN": "Data/Configs 中没有可用的系统配置。",
+    "en_GB": "No system configurations found in Data/Configs."
   },
   "TILESETS_DATA": {
     "zh_CN": "图块集数据",
@@ -3118,6 +3126,10 @@
   "FILE_FILTER_FILES": {
     "zh_CN": "文件 ({patterns})",
     "en_GB": "Files ({patterns})"
+  },
+  "FILE_DIALOG_PARENT_FOLDER": {
+    "zh_CN": "上一级文件夹",
+    "en_GB": "Parent Folder"
   },
   "FILE_DIALOG_LOOK_IN": {
     "zh_CN": "查找范围:",

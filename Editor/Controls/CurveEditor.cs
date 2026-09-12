@@ -110,7 +110,7 @@ public sealed class CurveEditor : UserControl
         componentList.ItemsSource = Enumerable.Range(0, componentCount)
             .Select(createComponentListItem)
             .ToArray();
-        componentList.Background = new SolidColorBrush(Color.Parse("#282828"));
+        componentList.Background = Ludork.Services.EditorTheme.Brush("Surface");
         componentList.SelectionMode = SelectionMode.Single;
         componentList.SelectionChanged += (_, _) =>
         {
@@ -178,7 +178,7 @@ public sealed class CurveEditor : UserControl
         canvasHost.Children.Add(new TextBlock
         {
             Text = canvasHint,
-            Foreground = new SolidColorBrush(Color.Parse("#777777")),
+            Foreground = EditorTheme.Brush("TextMuted"),
             FontSize = 11,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,

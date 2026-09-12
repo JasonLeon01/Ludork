@@ -69,8 +69,6 @@
   gap: 28px;
   min-height: 64px;
   padding: 0 32px;
-  max-width: 1184px;
-  margin-inline: auto;
 }
 
 .ludork-brand {
@@ -87,6 +85,29 @@
 
 .ludork-brand img {
   border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.ludork-header .ludork-brand {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.ludork-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.ludork-brand-description {
+  color: var(--ludork-muted);
+  font-size: .75rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-wrap: pretty;
 }
 
 .ludork-navigation {
@@ -190,7 +211,27 @@
 
 .ludork-hero-copy {
   width: 100%;
-  max-width: 820px;
+  text-align: left;
+}
+
+.ludork-hero-slogan {
+  margin: 48px 0 0;
+  font-size: clamp(.875rem, 3.4vw, 2.25rem);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -.035em;
+}
+
+.ludork-hero-slogan span {
+  display: block;
+}
+
+.ludork-hero-slogan span:nth-child(2) {
+  margin-left: 8%;
+}
+
+.ludork-hero-slogan span:nth-child(3) {
+  margin-left: 16%;
 }
 
 .ludork-hero-visual {
@@ -340,9 +381,9 @@
 }
 
 .ludork-hero .ludork-eyebrow {
-  font-size: .9375rem;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
   letter-spacing: .2em;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
 
 html[lang="zh-CN"] .ludork-eyebrow {
@@ -350,39 +391,30 @@ html[lang="zh-CN"] .ludork-eyebrow {
 }
 
 .ludork-hero h1 {
-  font-size: clamp(3rem, 6vw, 4.75rem);
-  line-height: 1.07;
-  letter-spacing: -.05em;
+  font-size: clamp(1.75rem, 4vw, 3.5rem);
+  line-height: 1.16;
+  letter-spacing: -.04em;
   font-weight: 600;
-  white-space: pre-line;
-  margin: 0 0 24px;
+  margin: 0;
   text-wrap: balance;
 }
 
 html[lang="zh-CN"] .ludork-hero h1 {
   letter-spacing: -.035em;
-  line-height: 1.14;
-}
-
-.ludork-lead {
-  color: var(--ludork-muted);
-  font-size: 1.3125rem;
-  line-height: 1.6;
-  max-width: 600px;
-  margin: 0 auto;
-  text-wrap: balance;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 .ludork-actions {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: 28px;
 }
 
 .ludork-download.MuiButton-root {
-  min-width: 180px;
+  min-width: 240px;
   padding: 13px 28px;
   border-radius: 980px;
   font-size: 1rem;
@@ -704,6 +736,23 @@ html[lang="zh-CN"] .ludork-hero h1 {
   min-width: 120px;
 }
 
+@media (min-width: 901px) and (orientation: landscape) {
+  .ludork-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: clamp(24px, 3vw, 48px);
+    width: min(1520px, calc(100% - 64px));
+  }
+
+  .ludork-hero-copy {
+    container-type: inline-size;
+  }
+
+  .ludork-hero-slogan {
+    font-size: clamp(.875rem, 4.5cqw, 2.25rem);
+  }
+}
+
 @media (max-width: 900px) {
   .ludork-notices {
     --notice-scroll-offset: 128px;
@@ -721,7 +770,7 @@ html[lang="zh-CN"] .ludork-hero h1 {
   }
 
   .ludork-header .ludork-brand {
-    margin-right: auto;
+    flex: 1;
   }
 
   .ludork-language {
@@ -747,14 +796,8 @@ html[lang="zh-CN"] .ludork-hero h1 {
     padding-block: 48px 32px;
   }
 
-  .ludork-hero h1 {
-    font-size: clamp(2.375rem, 8vw, 3.75rem);
-    margin-bottom: 20px;
-  }
-
-  .ludork-lead {
-    font-size: 1.125rem;
-    max-width: 540px;
+  .ludork-hero-slogan {
+    margin-top: 36px;
   }
 
   .ludork-section {
@@ -782,19 +825,17 @@ html[lang="zh-CN"] .ludork-hero h1 {
 }
 
 @media (max-width: 600px) {
+  .ludork-notices {
+    --notice-scroll-offset: 160px;
+  }
+
   .ludork-hero {
     gap: 20px;
     padding-top: 36px;
   }
 
   .ludork-hero .ludork-eyebrow {
-    font-size: .8125rem;
-    margin-bottom: 14px;
-  }
-
-  .ludork-lead {
-    font-size: 1rem;
-    line-height: 1.7;
+    margin-bottom: 20px;
   }
 
   .ludork-actions {
@@ -802,7 +843,9 @@ html[lang="zh-CN"] .ludork-hero h1 {
   }
 
   .ludork-navigation a {
-    padding-inline: 9px;
+    padding-inline: 6px;
+    font-size: .75rem;
+    white-space: nowrap;
   }
 
   .ludork-logo-track {

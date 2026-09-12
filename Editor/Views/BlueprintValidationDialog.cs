@@ -28,8 +28,8 @@ public sealed class BlueprintValidationDialog : Window
         MinWidth = 520;
         MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#121212"));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         SelectableTextBlock details = new()
@@ -41,7 +41,7 @@ public sealed class BlueprintValidationDialog : Window
         Border detailsHost = new()
         {
             Background = new SolidColorBrush(Color.Parse("#202124")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Child = new ScrollViewer

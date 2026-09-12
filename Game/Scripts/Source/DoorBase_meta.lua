@@ -1,5 +1,6 @@
 local _METADATA = {
     DoorBase = {
+        moduleReturn = true,
         attrs = {
             "collisionEnabled",
             "openInterval",

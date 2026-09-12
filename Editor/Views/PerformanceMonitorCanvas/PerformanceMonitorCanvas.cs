@@ -17,8 +17,8 @@ internal sealed partial class PerformanceMonitorCanvas : Control
     private const double GraphRight = 12.0;
     private const double GraphTop = 43.0;
     private static readonly Typeface typeface = new("Arial");
-    private static readonly IBrush backgroundBrush = new SolidColorBrush(Color.Parse("#1e1e1e"));
-    private static readonly IBrush panelBrush = new SolidColorBrush(Color.Parse("#252525"));
+    private static readonly IBrush backgroundBrush = Ludork.Services.EditorTheme.Brush("Background");
+    private static readonly IBrush panelBrush = EditorTheme.Brush("Surface");
     private static readonly IBrush waitingBrush = new SolidColorBrush(Color.Parse("#b4b4b4"));
     private static readonly IBrush labelBrush = new SolidColorBrush(Color.Parse("#c8c8c8"));
     private static readonly IBrush mutedBrush = new SolidColorBrush(Color.Parse("#9e9e9e"));
@@ -26,7 +26,7 @@ internal sealed partial class PerformanceMonitorCanvas : Control
     private static readonly IBrush liveBrush = new SolidColorBrush(Color.Parse("#2e7d32"));
     private static readonly IBrush inactiveActionBrush = new SolidColorBrush(Color.Parse("#3a3a3a"));
     private static readonly Pen panelPen = new(new SolidColorBrush(Color.Parse("#484848")), 1);
-    private static readonly Pen dividerPen = new(new SolidColorBrush(Color.Parse("#505050")), 1);
+    private static readonly Pen dividerPen = new(EditorTheme.Brush("Border"), 1);
     private static readonly Pen gridPen = new(
         new SolidColorBrush(Color.Parse("#5b5b5b")),
         1,

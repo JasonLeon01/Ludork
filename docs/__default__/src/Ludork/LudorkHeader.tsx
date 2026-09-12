@@ -19,7 +19,10 @@ export default function LudorkHeader({ page, language, onLanguageChange }: Ludor
       <div className="ludork-header-inner">
         <a className="ludork-brand" href={getSitePageHref('home', language)} aria-label="Ludork">
           <img src={getSiteAssetUrl('favicon.svg')} width="36" height="36" alt="" />
-          <span>Ludork</span>
+          <span className="ludork-brand-copy">
+            <span>Ludork</span>
+            <span className="ludork-brand-description" lang="en">{messages.footer.description}</span>
+          </span>
         </a>
         <nav className="ludork-navigation" aria-label={messages.navigation.label}>
           {(['home', 'docs', 'about'] as const).map((item) => (

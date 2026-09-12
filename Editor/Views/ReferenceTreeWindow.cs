@@ -27,7 +27,7 @@ public sealed class ReferenceTreeWindow : Window
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = new SolidColorBrush(Color.Parse("#202124"));
-        FontFamily = FontFamily.Parse("avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
         ReferenceTreeGraphControl graph = new(referenceIndex, nodeId);
         graph.NodeOpenRequested += onNodeOpenRequested;

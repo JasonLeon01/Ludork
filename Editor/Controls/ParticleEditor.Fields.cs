@@ -16,94 +16,145 @@ public sealed partial class ParticleEditor
     private void buildProperties()
     {
         properties.Children.Clear();
-        StackPanel system = module("PARTICLE_SYSTEM", true);
-        addText(system, data, "name");
-        addNumber(system, data, "simulationRate", 60, 1, 240, 1);
-        addNumber(system, data, "seed", 1, 0, 16777215, 1);
+        module("PARTICLE_SYSTEM", system =>
+        {
+            addText(system, data, "name");
+            addNumber(system, data, "simulationRate", 60, 1, 240, 1);
+            addNumber(system, data, "seed", 1, 0, 16777215, 1);
+        }, true);
         if (track is not JsonObject current)
         {
             properties.Children.Add(new TextBlock { Text = LocaleService.Get("PARTICLE_NO_TRACK"), TextWrapping = TextWrapping.Wrap });
             curveHost.Content = null;
             return;
         }
-        StackPanel main = module("PARTICLE_MAIN", true);
-        addText(main, current, "name");
-        addBool(main, current, "enabled", true);
-        addChoice(main, current, "mode", ["emission", "resident"]);
-        addNumber(main, current, "duration", 2, 0.001, 3600);
-        addNumber(main, current, "delay", 0, 0, 3600);
-        addBool(main, current, "loop", true);
-        addBool(main, current, "prewarm", false);
-        addNumber(main, current, "capacity", 1024, 1, 1000000, 1);
-        addVector(main, current, "lifetime", [1, 2], 0.001, 3600);
-        StackPanel emission = module("PARTICLE_EMISSION", true);
-        if (text(current, "mode", "emission") == "resident")
-            addNumber(emission, current, "count", 32, 0, number(current["capacity"], 1024), 1);
-        else
+        module("PARTICLE_MAIN", main =>
         {
-            addNumber(emission, current, "rate", 30, 0, 100000);
-            addNumber(emission, current, "distanceRate", 0, 0, 100000);
-            addBursts(emission, current);
-        }
-        StackPanel shape = module("PARTICLE_SHAPE", true);
-        addChoice(shape, current, "shape", ["point", "line", "rectangle", "disk", "ring"]);
-        addVector(shape, current, "extent", [32, 32], 0);
-        addNumber(shape, current, "radius", 16, 0);
-        addNumber(shape, current, "innerRadius", 8, 0);
-        addNumber(shape, current, "direction", -90, -360, 360);
-        addNumber(shape, current, "spread", 30, 0, 360);
-        StackPanel initial = module("PARTICLE_INITIAL", true);
-        addVector(initial, current, "speed", [20, 40]);
-        addVector(initial, current, "sizeMin", [8, 8], 0);
-        addVector(initial, current, "sizeMax", [16, 16], 0);
-        addVector(initial, current, "rotation", [0, 360]);
-        addVector(initial, current, "angularVelocity", [0, 0]);
-        addColour(initial, current, "colourMin");
-        addColour(initial, current, "colourMax");
-        StackPanel forces = module("PARTICLE_FORCES");
-        addVector(forces, current, "gravity", [0, 0]);
-        addNumber(forces, current, "radialAcceleration", 0);
-        addNumber(forces, current, "tangentialAcceleration", 0);
-        addNumber(forces, current, "damping", 0, 0);
-        StackPanel renderer = module("PARTICLE_RENDERER", true);
-        addTexture(renderer, current);
-        addVector(renderer, current, "textureRect", [0, 0, 0, 0], 0, 16384, 1,
-            [LocaleService.Get("PARTICLE_RECT_POSITION"), LocaleService.Get("PARTICLE_RECT_SIZE")]);
-        addChoice(renderer, current, "blend", ["alpha", "add"]);
-        StackPanel sheet = module("PARTICLE_SHEET");
-        addNumber(sheet, current, "columns", 1, 1, 4096, 1);
-        addNumber(sheet, current, "rows", 1, 1, 4096, 1);
-        addNumber(sheet, current, "frameCount", 1, 1, 16777216, 1);
-        addNumber(sheet, current, "frameRate", 0, 0, 1000);
-        addBool(sheet, current, "randomStartFrame", false);
-        addBool(sheet, current, "frameLoop", true);
-        StackPanel transform = module("PARTICLE_TRANSFORM");
-        addChoice(transform, current, "space", ["local", "world"]);
-        addChoice(transform, current, "scaleMode", ["hierarchy", "local", "shape"]);
-        addVector(transform, current, "offset", [0, 0]);
-        addNumber(transform, current, "rotationOffset", 0);
-        addVector(transform, current, "scale", [1, 1]);
+            addText(main, current, "name");
+            addBool(main, current, "enabled", true);
+            addChoice(main, current, "mode", ["emission", "resident"]);
+            addNumber(main, current, "duration", 2, 0.001, 3600);
+            addNumber(main, current, "delay", 0, 0, 3600);
+            addBool(main, current, "loop", true);
+            addBool(main, current, "prewarm", false);
+            addNumber(main, current, "capacity", 1024, 1, 1000000, 1);
+            addVector(main, current, "lifetime", [1, 2], 0.001, 3600);
+        }, true);
+        module("PARTICLE_EMISSION", emission =>
+        {
+            if (text(current, "mode", "emission") == "resident")
+                addNumber(emission, current, "count", 32, 0, number(current["capacity"], 1024), 1);
+            else
+            {
+                addNumber(emission, current, "rate", 30, 0, 100000);
+                addNumber(emission, current, "distanceRate", 0, 0, 100000);
+                addBursts(emission, current);
+            }
+        }, true);
+        module("PARTICLE_SHAPE", shape =>
+        {
+            addChoice(shape, current, "shape", ["point", "line", "rectangle", "disk", "ring"]);
+            addVector(shape, current, "extent", [32, 32], 0);
+            addNumber(shape, current, "radius", 16, 0);
+            addNumber(shape, current, "innerRadius", 8, 0);
+            addNumber(shape, current, "direction", -90, -360, 360);
+            addNumber(shape, current, "spread", 30, 0, 360);
+        }, true);
+        module("PARTICLE_INITIAL", initial =>
+        {
+            addVector(initial, current, "speed", [20, 40]);
+            addVector(initial, current, "sizeMin", [8, 8], 0);
+            addVector(initial, current, "sizeMax", [16, 16], 0);
+            addVector(initial, current, "rotation", [0, 360]);
+            addVector(initial, current, "angularVelocity", [0, 0]);
+            addColour(initial, current, "colourMin");
+            addColour(initial, current, "colourMax");
+        }, true);
+        module("PARTICLE_FORCES", forces =>
+        {
+            addVector(forces, current, "gravity", [0, 0]);
+            addNumber(forces, current, "radialAcceleration", 0);
+            addNumber(forces, current, "tangentialAcceleration", 0);
+            addNumber(forces, current, "damping", 0, 0);
+        });
+        module("PARTICLE_RENDERER", renderer =>
+        {
+            addTexture(renderer, current);
+            addVector(renderer, current, "textureRect", [0, 0, 0, 0], 0, 16384, 1,
+                [LocaleService.Get("PARTICLE_RECT_POSITION"), LocaleService.Get("PARTICLE_RECT_SIZE")]);
+            addChoice(renderer, current, "blend", ["alpha", "add"]);
+        }, true);
+        module("PARTICLE_SHEET", sheet =>
+        {
+            addNumber(sheet, current, "columns", 1, 1, 4096, 1);
+            addNumber(sheet, current, "rows", 1, 1, 4096, 1);
+            addNumber(sheet, current, "frameCount", 1, 1, 16777216, 1);
+            addNumber(sheet, current, "frameRate", 0, 0, 1000);
+            addBool(sheet, current, "randomStartFrame", false);
+            addBool(sheet, current, "frameLoop", true);
+        });
+        module("PARTICLE_TRANSFORM", transform =>
+        {
+            addChoice(transform, current, "space", ["local", "world"]);
+            addChoice(transform, current, "scaleMode", ["hierarchy", "local", "shape"]);
+            addVector(transform, current, "offset", [0, 0]);
+            addNumber(transform, current, "rotationOffset", 0);
+            addVector(transform, current, "scale", [1, 1]);
+        });
         curveHost.Content = new ParticleCurveEditor(gameData, current, commit);
     }
 
-    private StackPanel module(string label, bool expanded = false)
+    private void module(string label, Action<StackPanel> populate, bool expanded = false)
     {
-        StackPanel fields = new() { Spacing = 6, Margin = new Thickness(6) };
-        properties.Children.Add(createExpander(label, fields, expanded));
-        return fields;
+        properties.Children.Add(createExpander(label, () =>
+        {
+            StackPanel fields = new() { Spacing = 6, Margin = new Thickness(6) };
+            populate(fields);
+            return fields;
+        }, expanded));
     }
 
-    private static Expander createExpander(string label, Control content, bool expanded = false)
+    private static Expander createExpander(string label, Func<Control> createContent, bool expanded = false)
     {
         Expander expander = new()
         {
-            Header = LocaleService.Get(label), Content = expanded ? content : null, IsExpanded = expanded,
+            Header = LocaleService.Get(label), IsExpanded = expanded,
             HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
         };
+        Control? content = null;
+        bool attached = false;
+        bool pending = false;
+        void prepareContent()
+        {
+            if (!attached || !expander.IsExpanded || pending || content is not null)
+                return;
+            pending = true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                pending = false;
+                if (!attached || !expander.IsExpanded)
+                    return;
+                content ??= createContent();
+                expander.Content = content;
+            }, Avalonia.Threading.DispatcherPriority.Background);
+        }
+        expander.AttachedToVisualTree += (_, _) =>
+        {
+            attached = true;
+            prepareContent();
+        };
+        expander.DetachedFromVisualTree += (_, _) => attached = false;
         expander.PropertyChanged += (_, args) =>
         {
-            if (args.Property == Expander.IsExpandedProperty)
-                expander.Content = expander.IsExpanded ? content : null;
+            if (args.Property != Expander.IsExpandedProperty)
+                return;
+            if (expander.IsExpanded)
+            {
+                expander.Content = content;
+                prepareContent();
+            }
+            else
+                expander.Content = null;
         };
         return expander;
     }
@@ -111,7 +162,7 @@ public sealed partial class ParticleEditor
     private static void field(StackPanel parent, string key, Control input)
     {
         StackPanel row = new() { Spacing = 3 };
-        row.Children.Add(new TextBlock { Text = LocaleService.Get("PARTICLE_FIELD_" + key.ToUpperInvariant()), Foreground = Brushes.LightGray });
+        row.Children.Add(new TextBlock { Text = LocaleService.Get("PARTICLE_FIELD_" + key.ToUpperInvariant()), Foreground = EditorTheme.Brush("TextMuted") });
         row.Children.Add(input);
         parent.Children.Add(row);
     }
@@ -235,16 +286,19 @@ public sealed partial class ParticleEditor
 
     private void addColour(StackPanel parent, JsonObject owner, string property)
     {
-        JsonArray colour = owner[property] as JsonArray ?? ParticleAssetSchema.Array(255, 255, 255, 255);
-        LudorkColourPicker picker = new(Color.FromArgb((byte)number(colour[3], 255),
-            (byte)number(colour[0], 255), (byte)number(colour[1], 255), (byte)number(colour[2], 255)));
-        picker.ColourChanged += (_, _) =>
+        parent.Children.Add(createExpander("PARTICLE_FIELD_" + property.ToUpperInvariant(), () =>
         {
-            Color value = picker.Color;
-            owner[property] = ParticleAssetSchema.Array(value.R, value.G, value.B, value.A);
-            commit();
-        };
-        parent.Children.Add(createExpander("PARTICLE_FIELD_" + property.ToUpperInvariant(), picker));
+            JsonArray colour = owner[property] as JsonArray ?? ParticleAssetSchema.Array(255, 255, 255, 255);
+            LudorkColourPicker picker = new(Color.FromArgb((byte)number(colour[3], 255),
+                (byte)number(colour[0], 255), (byte)number(colour[1], 255), (byte)number(colour[2], 255)));
+            picker.ColourChanged += (_, _) =>
+            {
+                Color value = picker.Color;
+                owner[property] = ParticleAssetSchema.Array(value.R, value.G, value.B, value.A);
+                commit();
+            };
+            return picker;
+        }));
     }
 
     private void addTexture(StackPanel parent, JsonObject owner)
@@ -271,28 +325,31 @@ public sealed partial class ParticleEditor
 
     private void addBursts(StackPanel parent, JsonObject owner)
     {
-        StackPanel entries = new() { Spacing = 8 };
-        if (owner["bursts"] is JsonArray bursts)
+        parent.Children.Add(createExpander("PARTICLE_BURSTS", () =>
         {
-            foreach (JsonObject burst in bursts.OfType<JsonObject>().ToArray())
+            StackPanel entries = new() { Spacing = 8 };
+            if (owner["bursts"] is JsonArray bursts)
             {
-                StackPanel fields = new() { Spacing = 4 };
-                addNumber(fields, burst, "time", 0, 0, 3600);
-                addNumber(fields, burst, "count", 16, 0, 1000000, 1);
-                addNumber(fields, burst, "cycles", 1, 1, 10000, 1);
-                addNumber(fields, burst, "interval", 0, 0, 3600);
-                fields.Children.Add(button("PARTICLE_REMOVE_BURST", () => { bursts.Remove(burst); commit(); buildProperties(); }));
-                entries.Children.Add(new Border { Child = fields, Padding = new Thickness(6), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray });
+                foreach (JsonObject burst in bursts.OfType<JsonObject>().ToArray())
+                {
+                    StackPanel fields = new() { Spacing = 4 };
+                    addNumber(fields, burst, "time", 0, 0, 3600);
+                    addNumber(fields, burst, "count", 16, 0, 1000000, 1);
+                    addNumber(fields, burst, "cycles", 1, 1, 10000, 1);
+                    addNumber(fields, burst, "interval", 0, 0, 3600);
+                    fields.Children.Add(button("PARTICLE_REMOVE_BURST", () => { bursts.Remove(burst); commit(); buildProperties(); }));
+                    entries.Children.Add(new Border { Child = fields, Padding = new Thickness(6), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray });
+                }
             }
-        }
-        entries.Children.Add(button("PARTICLE_ADD_BURST", () =>
-        {
-            if (owner["bursts"] is not JsonArray)
-                owner["bursts"] = new JsonArray();
-            ((JsonArray)owner["bursts"]!).Add(new JsonObject { ["time"] = 0, ["count"] = 16, ["cycles"] = 1, ["interval"] = 0 });
-            commit();
-            buildProperties();
+            entries.Children.Add(button("PARTICLE_ADD_BURST", () =>
+            {
+                if (owner["bursts"] is not JsonArray)
+                    owner["bursts"] = new JsonArray();
+                ((JsonArray)owner["bursts"]!).Add(new JsonObject { ["time"] = 0, ["count"] = 16, ["cycles"] = 1, ["interval"] = 0 });
+                commit();
+                buildProperties();
+            }));
+            return entries;
         }));
-        parent.Children.Add(createExpander("PARTICLE_BURSTS", entries));
     }
 }

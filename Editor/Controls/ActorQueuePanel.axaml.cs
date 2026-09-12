@@ -107,13 +107,13 @@ public partial class ActorQueuePanel : UserControl
         favorite.Click += (_, _) => viewModel.ToggleFavorite(item);
         MenuItem remove = new MenuItem { Header = LocaleService.Get("REMOVE_FROM_RECENTLY_PLACED") };
         remove.Click += (_, _) => viewModel.RemoveRecent(item, previousItem);
-        Queue.ContextMenu = new ContextMenu
+        ContextMenu menu = new()
         {
             ItemsSource = item.IsRecent
                 ? new[] { open, locate, favorite, remove }
                 : new[] { open, locate, favorite },
         };
-        Queue.ContextMenu.Open(Queue);
+        menu.Open(Queue);
         args.Handled = true;
     }
 

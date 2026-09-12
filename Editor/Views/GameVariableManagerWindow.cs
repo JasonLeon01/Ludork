@@ -49,9 +49,8 @@ public sealed class GameVariableManagerWindow : Window
         MinWidth = 700;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#1e1e1e"));
-        FontFamily = FontFamily.Parse(
-            "avares://Ludork/Editor/Assets/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC");
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
 
         variableSearchBox = EditorInputs.CreateEditableTextBox();
@@ -60,7 +59,7 @@ public sealed class GameVariableManagerWindow : Window
         variableSearchBox.TextChanged += (_, _) => rebuildVariableList(null);
         variableList = new ListBox
         {
-            Background = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            Background = Ludork.Services.EditorTheme.Brush("Surface"),
             SelectionMode = SelectionMode.Single,
             ItemTemplate = HintedTextPresenter.StringItemTemplate,
         };
@@ -143,7 +142,7 @@ public sealed class GameVariableManagerWindow : Window
             Text = LocaleService.Get("GENERAL_DATA_PLACEHOLDER"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = Brushes.Gray,
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
         Grid detailHost = new();
         detailHost.Children.Add(new ScrollViewer

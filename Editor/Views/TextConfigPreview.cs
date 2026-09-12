@@ -20,8 +20,8 @@ internal sealed class TextConfigPreview : Border
     public TextConfigPreview(GameDataService gameData)
     {
         this.gameData = gameData;
-        Background = new SolidColorBrush(Color.Parse("#181818"));
-        BorderBrush = new SolidColorBrush(Color.Parse("#3a3a3a"));
+        Background = Ludork.Services.EditorTheme.Brush("Background");
+        BorderBrush = Ludork.Services.EditorTheme.Brush("Border");
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(4);
         Padding = new Thickness(44);

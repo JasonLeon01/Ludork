@@ -1,18 +1,19 @@
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Ludork.Models;
 using Ludork.Services;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
-internal sealed class WorldMapPreviewRenderer : IDisposable
+internal sealed partial class WorldMapPreviewRenderer : IDisposable
 {
     private static readonly IBrush MissingTilesetBrush = new SolidColorBrush(Color.FromArgb(90, 90, 120, 150));
     private static readonly IBrush ActorMarkerBrush = new SolidColorBrush(Color.FromArgb(220, 255, 196, 64));
@@ -20,13 +21,12 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
     private readonly GameDataService gameData;
     private readonly AutoTileRenderer autoTileRenderer;
     private readonly WorldMapActorPreviewRenderer? actorRenderer;
-    private readonly Dictionary<string, CachedBitmap> tilesetCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<PreviewChunkKey, CachedPreviewChunk> previewCache = [];
-    private readonly List<Bitmap> retiredBitmaps = [];
+    private readonly Dictionary<PreviewChunkKey, PendingPreviewChunk> pendingChunks = [];
+    private readonly Queue<PreviewChunkKey> chunkQueue = [];
     private long previewAccessOrder;
     private long previewCacheBytes;
-    private long assetRevision;
-    private DateTime nextAssetRevisionCheck;
+    private bool chunkWorkScheduled;
     private bool disposed;
 
     public WorldMapPreviewRenderer(
@@ -34,13 +34,14 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         BlueprintPreviewService? previewService = null)
     {
         this.gameData = gameData;
-        autoTileRenderer = new AutoTileRenderer(gameData);
+        autoTileRenderer = new AutoTileRenderer(gameData, key => getResourceImage(true, key));
         if (previewService is not null)
         {
-            actorRenderer = new WorldMapActorPreviewRenderer(gameData.ProjectPath, previewService);
+            actorRenderer = new WorldMapActorPreviewRenderer(previewService);
             actorRenderer.PreviewChanged += onActorPreviewChanged;
         }
         gameData.MapPreviewChanged += onMapPreviewChanged;
+        initializeResourceWatcher();
     }
 
     public event EventHandler? PreviewChanged;
@@ -85,7 +86,6 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             int firstChunkY = viewport.MinY / viewport.ChunkCellCount;
             int lastChunkX = (viewport.MaxX - 1) / viewport.ChunkCellCount;
             int lastChunkY = (viewport.MaxY - 1) / viewport.ChunkCellCount;
-            long resourceRevision = getAssetRevision();
             for (int chunkY = firstChunkY; chunkY <= lastChunkY; chunkY += 1)
             {
                 for (int chunkX = firstChunkX; chunkX <= lastChunkX; chunkX += 1)
@@ -98,11 +98,10 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
                         mapKey,
                         layerName,
                         viewport.ScaleBucket,
-                        resourceRevision,
                         viewport.ChunkCellCount,
                         chunkX,
                         chunkY);
-                    CachedPreviewChunk chunk = getPreviewChunk(
+                    CachedPreviewChunk? chunk = getPreviewChunk(
                         key,
                         layer,
                         viewport.RenderCellSize,
@@ -110,6 +109,8 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
                         chunkMinY,
                         chunkMaxX,
                         chunkMaxY);
+                    if (chunk is null)
+                        continue;
                     Rect source = new(0, 0, chunk.Bitmap.PixelSize.Width, chunk.Bitmap.PixelSize.Height);
                     Rect destination = new(
                         origin.X + chunkMinX * cellSize,
@@ -152,7 +153,20 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
     public void CompleteFrame()
     {
         actorRenderer?.TrimCache();
-        trimPreviewCache();
+    }
+
+    public void ClearPendingWork()
+    {
+        actorRenderer?.ClearPendingWork();
+        pendingChunks.Clear();
+        chunkQueue.Clear();
+    }
+
+    public void ResetView()
+    {
+        ClearPendingWork();
+        clearResourceCache();
+        actorRenderer?.InvalidateMap(null);
     }
 
     public void TrimMapCache(IReadOnlyCollection<string> pinnedMapKeys)
@@ -165,6 +179,8 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         if (disposed)
             return;
         disposed = true;
+        disposeResourceWatcher();
+        ClearPendingWork();
         gameData.MapPreviewChanged -= onMapPreviewChanged;
         if (actorRenderer is not null)
         {
@@ -172,12 +188,6 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             actorRenderer.Dispose();
         }
         autoTileRenderer.Dispose();
-        foreach (CachedBitmap bitmap in tilesetCache.Values)
-            bitmap.Image.Dispose();
-        foreach (Bitmap bitmap in retiredBitmaps)
-            bitmap.Dispose();
-        tilesetCache.Clear();
-        retiredBitmaps.Clear();
         clearPreviewCache();
     }
 
@@ -207,7 +217,7 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         int maxX = Math.Clamp((int)Math.Ceiling((visible.Right - origin.X) / cellSize), minX + 1, width);
         int maxY = Math.Clamp((int)Math.Ceiling((visible.Bottom - origin.Y) / cellSize), minY + 1, height);
         double renderCellSize = Math.Clamp(Math.Round(cellSize * 2) / 2, 0.5, 96);
-        int chunkCellCount = Math.Clamp((int)Math.Floor(768 / renderCellSize), 1, 32);
+        int chunkCellCount = Math.Clamp((int)Math.Floor(384 / renderCellSize), 1, 32);
         viewport = new PreviewViewport(
             width,
             height,
@@ -221,7 +231,7 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         return true;
     }
 
-    private CachedPreviewChunk getPreviewChunk(
+    private CachedPreviewChunk? getPreviewChunk(
         PreviewChunkKey key,
         JsonObject layer,
         double cellSize,
@@ -236,6 +246,51 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             cached.LastUsed = previewAccessOrder;
             return cached;
         }
+        if (!disposed && pendingChunks.Count < 128 && !pendingChunks.ContainsKey(key))
+        {
+            pendingChunks[key] = new PendingPreviewChunk(layer, cellSize, minX, minY, maxX, maxY);
+            chunkQueue.Enqueue(key);
+            scheduleChunkWork();
+        }
+        return null;
+    }
+
+    private void scheduleChunkWork()
+    {
+        if (disposed || chunkWorkScheduled || chunkQueue.Count == 0)
+            return;
+        chunkWorkScheduled = true;
+        Dispatcher.UIThread.Post(buildPendingChunks, DispatcherPriority.Background);
+    }
+
+    private void buildPendingChunks()
+    {
+        chunkWorkScheduled = false;
+        if (disposed)
+            return;
+        Stopwatch budget = Stopwatch.StartNew();
+        bool changed = false;
+        while (chunkQueue.TryDequeue(out PreviewChunkKey key))
+        {
+            if (!pendingChunks.Remove(key, out PendingPreviewChunk? request))
+                continue;
+            CachedPreviewChunk chunk = createPreviewChunk(request);
+            previewCache[key] = chunk;
+            previewCacheBytes += chunk.Bytes;
+            changed = true;
+            if (budget.Elapsed.TotalMilliseconds >= 4)
+                break;
+        }
+        trimPreviewCache();
+        releaseRetiredResources();
+        if (changed)
+            PreviewChanged?.Invoke(this, EventArgs.Empty);
+        scheduleChunkWork();
+    }
+
+    private CachedPreviewChunk createPreviewChunk(PendingPreviewChunk request)
+    {
+        (JsonObject layer, double cellSize, int minX, int minY, int maxX, int maxY) = request;
         int width = Math.Max(1, (int)Math.Ceiling((maxX - minX) * cellSize));
         int height = Math.Max(1, (int)Math.Ceiling((maxY - minY) * cellSize));
         RenderTargetBitmap bitmap = new(new PixelSize(width, height), new Vector(96, 96));
@@ -244,15 +299,12 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             Point origin = new(-minX * cellSize, -minY * cellSize);
             drawLayer(context, layer, origin, cellSize, minX, minY, maxX, maxY);
         }
-        CachedPreviewChunk created = new(bitmap, (long)width * height * 4, previewAccessOrder);
-        previewCache[key] = created;
-        previewCacheBytes += created.Bytes;
-        return created;
+        return new CachedPreviewChunk(bitmap, (long)width * height * 4, ++previewAccessOrder);
     }
 
     private void trimPreviewCache()
     {
-        const int maximumChunks = 512;
+        const int maximumChunks = 4096;
         const long maximumBytes = 128L * 1024L * 1024L;
         if (previewCache.Count <= maximumChunks && previewCacheBytes <= maximumBytes)
             return;
@@ -272,13 +324,25 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
 
     private void onMapPreviewChanged(object? sender, MapPreviewChangedEventArgs args)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => onMapPreviewChanged(sender, args));
+            return;
+        }
+        if (disposed)
+            return;
         actorRenderer?.InvalidateMap(args.MapKey);
         if (args.MapKey is null)
         {
+            clearResourceCache();
+            ClearPendingWork();
             clearPreviewCache();
         }
         else
         {
+            foreach (PreviewChunkKey key in pendingChunks.Keys
+                         .Where(key => string.Equals(key.MapKey, args.MapKey, StringComparison.Ordinal)).ToArray())
+                pendingChunks.Remove(key);
             foreach (PreviewChunkKey key in previewCache.Keys
                          .Where(key => string.Equals(key.MapKey, args.MapKey, StringComparison.Ordinal))
                          .ToArray())
@@ -305,34 +369,6 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         previewCacheBytes = 0;
     }
 
-    private long getAssetRevision()
-    {
-        DateTime now = DateTime.UtcNow;
-        if (now < nextAssetRevisionCheck)
-            return assetRevision;
-        nextAssetRevisionCheck = now.AddSeconds(1);
-        HashCode revision = new();
-        foreach (string directory in new[]
-                 {
-                     Path.Combine(gameData.ProjectPath, "Assets", "Tilesets"),
-                     Path.Combine(gameData.ProjectPath, "Assets", "Autotiles"),
-                 })
-        {
-            if (!Directory.Exists(directory))
-                continue;
-            foreach (string path in Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                         .OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
-            {
-                FileInfo file = new(path);
-                revision.Add(path, StringComparer.OrdinalIgnoreCase);
-                revision.Add(file.Length);
-                revision.Add(file.LastWriteTimeUtc.Ticks);
-            }
-        }
-        assetRevision = revision.ToHashCode();
-        return assetRevision;
-    }
-
     private void drawLayer(
         DrawingContext context,
         JsonObject layer,
@@ -347,7 +383,7 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             return;
         JsonArray? tiles = layer["tiles"] as JsonArray;
         JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
-        Bitmap? tileset = getTileset(getString(layer["layerTileset"]));
+        Bitmap? tileset = getResourceImage(false, getString(layer["layerTileset"]));
         int sourceTileSize = Math.Max(1, gameData.getCellSize());
         for (int y = minY; y < maxY; y++)
         {
@@ -423,39 +459,6 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         }
     }
 
-    private Bitmap? getTileset(string? key)
-    {
-        if (string.IsNullOrWhiteSpace(key)
-            || !gameData.TilesetData.TryGetValue(key, out JsonObject? tilesetData))
-        {
-            return null;
-        }
-        string? fileName = getString(tilesetData["fileName"]);
-        if (!GameAssetPath.TryResolveExistingFile(
-                gameData.ProjectPath,
-                fileName,
-                out string path))
-        {
-            return null;
-        }
-        FileInfo file = new(path);
-        if (!file.Exists)
-            return null;
-        if (tilesetCache.TryGetValue(path, out CachedBitmap cached)
-            && cached.ModifiedAt == file.LastWriteTimeUtc
-            && cached.Length == file.Length)
-        {
-            return cached.Image;
-        }
-        if (tilesetCache.Remove(path, out CachedBitmap removed))
-        {
-            retiredBitmaps.Add(removed.Image);
-        }
-        Bitmap image = new(path);
-        tilesetCache[path] = new CachedBitmap(file.LastWriteTimeUtc, file.Length, image);
-        return image;
-    }
-
     private static IReadOnlyList<string> getLayerOrder(JsonObject map, JsonObject layers)
     {
         List<string> result = [];
@@ -521,15 +524,15 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         return int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
 
-    private readonly record struct CachedBitmap(DateTime ModifiedAt, long Length, Bitmap Image);
     private readonly record struct PreviewChunkKey(
         string MapKey,
         string LayerName,
         int ScaleBucket,
-        long AssetRevision,
         int ChunkCellCount,
         int X,
         int Y);
+
+    private sealed record PendingPreviewChunk(JsonObject Layer, double CellSize, int MinX, int MinY, int MaxX, int MaxY);
 
     private readonly record struct PreviewViewport(
         int Width,

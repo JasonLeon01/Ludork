@@ -23,7 +23,7 @@ public sealed class ScreenColourOverlay : Window
             Text = LocaleService.Get("COLOUR_PICKER_PICK_SCREEN_HINT"),
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            Foreground = Brushes.White,
+            Foreground = Ludork.Services.EditorTheme.Brush("Text"),
         };
         PointerPressed += onPointerPressed;
         KeyDown += onKeyDown;

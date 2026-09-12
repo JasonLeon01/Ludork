@@ -1,9 +1,11 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Ludork.Controls;
 using Ludork.Models;
 using Ludork.Services;
 using Ludork.Views.Utils;
@@ -39,6 +41,8 @@ public sealed class MapEditWindow : Window
     private readonly TextBlock errorText = new() { Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap };
     private readonly StackPanel fogOptions = new() { Spacing = 8 };
     private readonly Button ambientButton = new();
+    private readonly Border ambientSwatch = new();
+    private readonly TextBlock ambientValue = new() { VerticalAlignment = VerticalAlignment.Center };
     private JsonObject bgmFilter;
     private JsonObject bgsFilter;
     private Color ambientColor;
@@ -82,6 +86,27 @@ public sealed class MapEditWindow : Window
         displayedFogOy = fogOyBox.Value;
         fogDistortBox.Value = initial.FogDistort;
         panoramaBox.Text = initial.Panorama;
+        ambientButton.Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children =
+            {
+                new Border
+                {
+                    Width = 28,
+                    Height = 18,
+                    BorderBrush = EditorTheme.Brush("Border"),
+                    BorderThickness = new Thickness(1),
+                    ClipToBounds = true,
+                    Child = new Grid
+                    {
+                        Children = { new BlueprintCheckerboard { CellSize = 4 }, ambientSwatch },
+                    },
+                },
+                ambientValue,
+            },
+        };
         updateAmbientButton();
 
         Grid form = new() { RowSpacing = 8 };
@@ -269,9 +294,9 @@ public sealed class MapEditWindow : Window
 
     private void updateAmbientButton()
     {
-        ambientButton.Background = new SolidColorBrush(ambientColor);
-        ambientButton.Foreground = ambientColor.A > 0 && ambientColor.R + ambientColor.G + ambientColor.B < 360 ? Brushes.White : Brushes.Black;
-        ambientButton.Content = $"#{ambientColor.A:X2}{ambientColor.R:X2}{ambientColor.G:X2}{ambientColor.B:X2}";
+        ambientSwatch.Background = new SolidColorBrush(ambientColor);
+        ambientValue.Text = $"#{ambientColor.A:X2}{ambientColor.R:X2}{ambientColor.G:X2}{ambientColor.B:X2}";
+        AutomationProperties.SetName(ambientButton, $"{LocaleService.Get("AMBIENT_LIGHT")} {ambientValue.Text}");
     }
 
     private static void addRow(Grid form, string label, Control editor)

@@ -329,10 +329,10 @@ public sealed class LudorkColourPicker : Grid
         {
             Width = 20,
             Height = 20,
-            BorderBrush = new SolidColorBrush(Color.Parse("#464646")),
+            BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             ClipToBounds = true,
-            Background = entry is null ? new SolidColorBrush(Color.Parse("#262626")) : Brushes.Transparent,
+            Background = entry is null ? EditorTheme.Brush("Surface") : Brushes.Transparent,
             Cursor = entry is null ? new Cursor(StandardCursorType.Arrow) : new Cursor(StandardCursorType.Hand),
         };
         if (entry is Color colour)

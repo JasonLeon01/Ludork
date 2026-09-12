@@ -47,7 +47,7 @@ public sealed class SearchableListPicker : Button
         {
             Text = "▾",
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = Brushes.Gray,
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
         Grid buttonContent = new()
         {
@@ -75,7 +75,7 @@ public sealed class SearchableListPicker : Button
 
         itemCountText = new TextBlock
         {
-            Foreground = Brushes.Gray,
+            Foreground = EditorTheme.Brush("TextMuted"),
         };
 
         Grid flyoutContent = new()
@@ -93,7 +93,7 @@ public sealed class SearchableListPicker : Button
         {
             Width = 320,
             Padding = new Thickness(8),
-            Background = new SolidColorBrush(Color.Parse("#202225")),
+            Background = EditorTheme.Brush("Background"),
             BorderBrush = new SolidColorBrush(EditorInputs.FieldBorderColor),
             BorderThickness = new Thickness(1),
             Child = flyoutContent,
@@ -241,7 +241,7 @@ public sealed class SearchableListPicker : Button
     {
         valueText.Text = selectedValue.Length == 0 ? placeholderText : selectedValue;
         if (selectedValue.Length == 0)
-            valueText.Foreground = Brushes.Gray;
+            valueText.Foreground = EditorTheme.Brush("TextMuted");
         else
             valueText.ClearValue(TextBlock.ForegroundProperty);
     }

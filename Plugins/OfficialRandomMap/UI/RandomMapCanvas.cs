@@ -22,9 +22,9 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private const int CharacterSheetColumns = 4;
     private const int CharacterSheetRows = 4;
     private static readonly IBrush BackgroundBrush =
-        new SolidColorBrush(Color.Parse("#262626"));
+        PluginTheme.Brush("Surface");
     private static readonly IBrush EmptyBrush =
-        new SolidColorBrush(Color.Parse("#202124"));
+        PluginTheme.Brush("Surface");
     private static readonly IBrush AutoTileBrush =
         new SolidColorBrush(Color.FromArgb(145, 66, 133, 244));
     private static readonly IBrush MissingActorBrush =
@@ -36,7 +36,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private static readonly IBrush MarkerBrush =
         new SolidColorBrush(Color.Parse("#fbbc04"));
     private static readonly Pen MarkerPen =
-        new(new SolidColorBrush(Color.Parse("#202124")), 2);
+        new(PluginTheme.Brush("Surface"), 2);
     private static readonly Pen GridPen =
         new(new SolidColorBrush(Color.FromArgb(65, 255, 255, 255)), 1);
 
