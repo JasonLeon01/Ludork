@@ -204,6 +204,8 @@ public partial class FileExplorerPanel : UserControl
 
     private async Task openExternalIde(ExternalIde ide, string displayName)
     {
+        if (DataContext is FileExplorerViewModel { IsReadOnly: true })
+            return;
         if (DataContext is not FileExplorerViewModel viewModel)
             return;
         if (TopLevel.GetTopLevel(this) is not Window owner)
@@ -299,6 +301,8 @@ public partial class FileExplorerPanel : UserControl
         bool requestedByPointer,
         Control placementTarget)
     {
+        if (viewModel.IsReadOnly)
+            return;
         IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(list);
         IReadOnlyList<FileExplorerEntryViewModel> selectedFiles = selected
             .Where(entry => !entry.IsDirectory)
@@ -378,6 +382,21 @@ public partial class FileExplorerPanel : UserControl
         if (DataContext is not FileExplorerViewModel viewModel)
             return;
         KeyModifiers modifiers = args.KeyModifiers;
+        if (viewModel.IsReadOnly)
+        {
+            if (args.Key == Key.Enter)
+            {
+                viewModel.OpenSelected();
+                args.Handled = true;
+                return;
+            }
+            if (args.Key is Key.Delete or Key.F2
+                || EditorShortcuts.HasPrimaryModifier(modifiers) && args.Key is Key.X or Key.V or Key.D or Key.N)
+            {
+                args.Handled = true;
+                return;
+            }
+        }
         if (EditorShortcuts.HasPrimaryModifier(modifiers))
         {
             IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(activeEntries);
@@ -607,6 +626,8 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onPointerMoved(object? sender, PointerEventArgs args)
     {
+        if (DataContext is FileExplorerViewModel { IsReadOnly: true })
+            return;
         if (startingDrag
             || dragStart is not Point start
             || dragSource is not ListBox list
@@ -641,6 +662,7 @@ public partial class FileExplorerPanel : UserControl
     private void onDragOver(object? sender, DragEventArgs args)
     {
         if (DataContext is not FileExplorerViewModel viewModel
+            || viewModel.IsReadOnly
             || getDraggedPaths(args) is not { Count: > 0 } paths
             || paths.Any(path => !viewModel.IsUnderRoot(path)))
         {
@@ -654,6 +676,7 @@ public partial class FileExplorerPanel : UserControl
     private async void onDrop(object? sender, DragEventArgs args)
     {
         if (DataContext is not FileExplorerViewModel viewModel
+            || viewModel.IsReadOnly
             || sender is not ListBox list
             || getDraggedPaths(args) is not { Count: > 0 } paths)
         {

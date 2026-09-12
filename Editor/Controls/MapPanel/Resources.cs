@@ -142,12 +142,14 @@ public sealed partial class MapPanel
 
     private void showLightContextMenu(Point position, int width, int height)
     {
+        if (IsRuntimeEditing || editingContext?.IsEditable != true)
+            return;
         if (getMapBasePosition(position, width, height) is not { } basePosition)
             return;
         MenuItem add = new() { Header = LocaleService.Get("NEW_LIGHT_SOURCE") };
         add.Click += (_, _) =>
         {
-            if (gameData is null || CurrentMapKey is null)
+            if (IsRuntimeEditing || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null)
                 return;
             int? index = gameData.AddMapLight(CurrentMapKey, basePosition.X, basePosition.Y);
             if (index is not null)
@@ -161,6 +163,8 @@ public sealed partial class MapPanel
 
     private void deleteSelectedLight()
     {
+        if (IsRuntimeEditing || editingContext?.IsEditable != true)
+            return;
         if (selectedLightIndex is not int index
             || CurrentMapData?["lights"] is not JsonArray lights
             || index < 0
@@ -472,7 +476,8 @@ public sealed partial class MapPanel
 
     private void endMapGesture()
     {
-        gameData?.EndHistoryGesture(mapEditGesture);
+        if (mapEditGesture != 0)
+            gameData?.EndHistoryGesture(mapEditGesture);
         mapEditGesture = 0;
     }
 
@@ -485,6 +490,7 @@ public sealed partial class MapPanel
         lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
+        movingRuntimeActorId = null;
     }
 
     private void onMapDataChanged(object? sender, MapPreviewChangedEventArgs args)
@@ -495,12 +501,14 @@ public sealed partial class MapPanel
         if (args.Edit is not null && CurrentMapData is not null)
         {
             args.Edit.ApplyTo(CurrentMapData);
-            if (args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors" or "lights"))
+            if (!IsRuntimeEditing && args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors" or "lights"))
                 cancelMapGesture();
             foreach (string layer in args.Edit.Layers)
                 scheduleBrushLayerRefresh(layer);
             if (args.Edit.ChangesActors)
             {
+                if (IsRuntimeEditing)
+                    reconcileRuntimeActorSelection();
                 invalidateActorRenderStates();
                 ActorDataChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -510,7 +518,9 @@ public sealed partial class MapPanel
             if (args.ReloadData)
             {
                 cancelMapGesture();
-                CurrentMapData = gameData.ReadMapSnapshot(CurrentMapKey);
+                CurrentMapData = editingContext?.ReadMapSnapshot(CurrentMapKey);
+                if (IsRuntimeEditing)
+                    reconcileRuntimeActorSelection();
             }
             disposeMapRenderCaches();
             invalidateActorRenderStates();
@@ -563,8 +573,8 @@ public sealed partial class MapPanel
     private void disposeRenderResources()
     {
         cancelMapGesture();
-        if (gameData is not null)
-            gameData.MapPreviewChanged -= onMapDataChanged;
+        if (editingContext is not null)
+            editingContext.Changed -= onMapDataChanged;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();

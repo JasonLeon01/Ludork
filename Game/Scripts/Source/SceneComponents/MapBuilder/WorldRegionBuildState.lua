@@ -197,6 +197,7 @@ local function createWorldRegionBuildCoroutine(
                 layerData.layerName, layerTileset, data.width, data.height, autoTilePool, autoTileKeys,
                 tostring(layerData.shaderPath or "")
             )
+            tileLayerData.layerTilesetKey = layerData.layerTileset
             coroutine.yield("createTileLayerData")
             local autoTileTextures = {}
             local autoTileFrameCounts = {}

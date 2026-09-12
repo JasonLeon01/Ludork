@@ -19,6 +19,9 @@ local NEIGHBOUR_OFFSETS = { NEIGHBOUR_OFFSET_DOWN, NEIGHBOUR_OFFSET_UP, NEIGHBOU
 ---@class Source.SceneComponents.MapClickAutoPath
 local MapClickAutoPath = {}
 
+---@type table<GameMap, Source.SceneComponents.MapClickAutoPath>
+local mapControllers = setmetatable({}, { __mode = "kv" })
+
 function MapClickAutoPath:init(gameMap, routeState, dangerState)
     super(MapClickAutoPath, self).init(gameMap)
     self._routeState = routeState
@@ -29,6 +32,29 @@ function MapClickAutoPath:init(gameMap, routeState, dangerState)
     self._pendingGoals = {}
     self._previewMapX = nil
     self._previewMapY = nil
+    mapControllers[gameMap] = self
+end
+
+function MapClickAutoPath:cancel()
+    self._autoPathing = false
+    self._activeGoal = nil
+    self._routeDangerRevision = nil
+    self._routeState:clear()
+    self._pendingGoals = {}
+    self._previewMapX = nil
+    self._previewMapY = nil
+    local player = self._parent:getPlayer()
+    if player ~= nil and not player:isDestroyed() then
+        player:setRoute(nil)
+        player:stop()
+    end
+end
+
+function MapClickAutoPath.CancelForMap(gameMap)
+    local controller = mapControllers[gameMap]
+    if controller ~= nil then
+        controller:cancel()
+    end
 end
 
 function MapClickAutoPath:onLateTick(_deltaTime)

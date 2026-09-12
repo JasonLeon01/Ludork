@@ -1,4 +1,40 @@
 {
+  "LIVE_DEBUG": {
+    "zh_CN": "实时调试",
+    "en_GB": "Live Debug"
+  },
+  "LIVE_DEBUG_ACTIVE": {
+    "zh_CN": "实时调试 · 修改仅作用于游戏实例",
+    "en_GB": "Live Debug · Changes affect runtime instances only"
+  },
+  "LIVE_DEBUG_DISCONNECTED": {
+    "zh_CN": "实时调试 · 已断开连接，地图只读",
+    "en_GB": "Live Debug · Disconnected; map is read-only"
+  },
+  "LIVE_DEBUG_UNAVAILABLE": {
+    "zh_CN": "实时调试 · 运行时调试服务不可用",
+    "en_GB": "Live Debug · Runtime debugging is unavailable"
+  },
+  "LIVE_DEBUG_NO_PLAYER": {
+    "zh_CN": "实时调试 · 没有存活玩家，地图只读",
+    "en_GB": "Live Debug · No live player; map is read-only"
+  },
+  "LIVE_DEBUG_WORLD_HOLE": {
+    "zh_CN": "实时调试 · 玩家位于世界空洞，地图只读",
+    "en_GB": "Live Debug · Player is outside world regions; map is read-only"
+  },
+  "LIVE_DEBUG_LOADING": {
+    "zh_CN": "实时调试 · 等待地图就绪，地图只读",
+    "en_GB": "Live Debug · Waiting for the map; map is read-only"
+  },
+  "LIVE_DEBUG_NO_SCENE": {
+    "zh_CN": "实时调试 · 当前场景不是地图场景",
+    "en_GB": "Live Debug · The current scene is not a map scene"
+  },
+  "LIVE_DEBUG_NO_MAP": {
+    "zh_CN": "实时调试 · 当前没有可编辑的玩家地图",
+    "en_GB": "Live Debug · No editable player map is available"
+  },
   "NEW_PARTICLE": {
     "zh_CN": "新建通用粒子",
     "en_GB": "New Common Particle"

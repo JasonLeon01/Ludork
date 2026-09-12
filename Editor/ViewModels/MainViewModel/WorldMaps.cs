@@ -20,7 +20,8 @@ public partial class MainViewModel
             if (selectedMapSnapshot is null || !string.Equals(selectedSnapshotKey, map.Key, StringComparison.Ordinal))
             {
                 selectedSnapshotKey = map.Key;
-                selectedMapSnapshot = GameData.ReadMapSnapshot(map.Key);
+                selectedMapSnapshot = liveDebugSession is null
+                    ? GameData.ReadMapSnapshot(map.Key) : liveDebugSession.ReadMapSnapshot(map.Key);
             }
             return selectedMapSnapshot;
         }

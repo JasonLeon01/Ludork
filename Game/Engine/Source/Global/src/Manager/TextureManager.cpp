@@ -53,6 +53,15 @@ std::size_t TextureManager::getMemory() {
                                    : sizeof(std::weak_ptr<sf::Texture>)));
 }
 
+std::optional<std::string> TextureManager::getPath(
+    const std::shared_ptr<sf::Texture>& texture) {
+    const std::optional<std::string> key = textureCache().findKey(texture);
+    if (!key.has_value()) {
+        return std::nullopt;
+    }
+    return key->substr(0, key->find('\0'));
+}
+
 void TextureManager::clear() noexcept {
     textureCache().clear();
 }

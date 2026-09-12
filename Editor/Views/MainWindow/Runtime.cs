@@ -156,6 +156,8 @@ public partial class MainWindow
             ToolbarAction.Export => ProjectRunState.Exporting,
             _ => ProjectRunState.Preparing,
         };
+        if (action == ToolbarAction.Play)
+            prepareLiveDebug();
         setProjectRunState(initialState);
         ProjectRunResult? result = null;
         bool building = action == ToolbarAction.Construct;
@@ -229,7 +231,7 @@ public partial class MainWindow
                     return;
                 }
                 result = await projectRunner.StartAsync(new ProjectRunOptions(
-                    viewModel.ProjectConfig.IsStandalone, windowMode, windowHandle), cancellation.Token);
+                    viewModel.ProjectConfig.IsStandalone, windowMode, windowHandle, liveDebugRequested), cancellation.Token);
                 cancellation.Token.ThrowIfCancellationRequested();
                 if (result.Failure is not (ProjectRunFailure.BuildRequired or ProjectRunFailure.ExportRequired))
                     return;
@@ -327,6 +329,7 @@ public partial class MainWindow
                 || runner.ConnectionGeneration != connection)
                 return;
             GamePanel.ResetTextInput();
+            liveDebugSession?.SetConnection(available);
             updateConsoleInputState();
             GamePanel.SetInputEnabled(
                 available
@@ -562,7 +565,11 @@ public partial class MainWindow
         if (returnedFromRun)
             projectRunReachedRunning = false;
         if (viewModel is not null)
+        {
             viewModel.CanEdit = !active;
+            viewModel.FileExplorerPanel.IsReadOnly = active;
+            viewModel.ActorQueue.IsReadOnly = active;
+        }
         updateRunButtons();
         EditModeToggles.IsEnabled = !active;
         EditorPanel.IsEnabled = !active;
@@ -576,6 +583,8 @@ public partial class MainWindow
         FileExplorerPanel.IsEnabled = !active;
         ActorOutliner.IsEnabled = !active;
         setDocumentWindowsEnabled(!active);
+        updateLiveDebugRunState(state);
+        updateLiveDebugControls();
         if (!active)
         {
             if (returnedFromRun && viewModel is not null)

@@ -50,6 +50,18 @@ public static class HistoryMergeBehavior
             RoutingStrategies.Tunnel);
     }
 
+    public static void Detach(Control control)
+    {
+        if (attachedControls.TryGetValue(control, out ControlAttachment? attachment))
+            attachment.Rebind(null);
+    }
+
+    public static void DetachBoundary(Control boundary)
+    {
+        if (attachedBoundaries.TryGetValue(boundary, out BoundaryAttachment? attachment))
+            attachment.GameData = null;
+    }
+
     private static void attach(
         Control control,
         GameDataService gameData,
@@ -75,8 +87,10 @@ public static class HistoryMergeBehavior
 
     private static void endOutsideActiveControl(
         PointerPressedEventArgs args,
-        GameDataService gameData)
+        GameDataService? gameData)
     {
+        if (gameData is null)
+            return;
         GestureScope scope = scopes.GetOrCreateValue(gameData);
         if (scope.ActiveControl is null || args.Source is not Visual source
             || isInside(source, scope.ActiveControl))
@@ -103,7 +117,7 @@ public static class HistoryMergeBehavior
     private sealed class ControlAttachment
     {
         private readonly Control control;
-        private GameDataService gameData;
+        private GameDataService? gameData;
         private long gestureId;
 
         public ControlAttachment(Control control, GameDataService gameData)
@@ -112,7 +126,7 @@ public static class HistoryMergeBehavior
             this.gameData = gameData;
         }
 
-        public void Rebind(GameDataService nextGameData)
+        public void Rebind(GameDataService? nextGameData)
         {
             if (ReferenceEquals(gameData, nextGameData))
                 return;
@@ -123,7 +137,7 @@ public static class HistoryMergeBehavior
 
         public void HandleGotFocus()
         {
-            if (!gameData.IsHistoryGestureActive(gestureId))
+            if (gameData is not null && !gameData.IsHistoryGestureActive(gestureId))
                 startGesture();
         }
 
@@ -135,18 +149,20 @@ public static class HistoryMergeBehavior
 
         public void HandleChanged()
         {
-            if (control.IsKeyboardFocusWithin && !gameData.IsHistoryGestureActive(gestureId))
+            if (gameData is not null && control.IsKeyboardFocusWithin && !gameData.IsHistoryGestureActive(gestureId))
                 startGesture();
         }
 
         public void StartIfFocused()
         {
-            if (control.IsKeyboardFocusWithin && !gameData.IsHistoryGestureActive(gestureId))
+            if (gameData is not null && control.IsKeyboardFocusWithin && !gameData.IsHistoryGestureActive(gestureId))
                 startGesture();
         }
 
         private void startGesture()
         {
+            if (gameData is null)
+                return;
             gestureId = gameData.BeginHistoryGesture();
             GestureScope scope = scopes.GetOrCreateValue(gameData);
             scope.ActiveControl = control;
@@ -155,6 +171,8 @@ public static class HistoryMergeBehavior
 
         private void endGesture()
         {
+            if (gameData is null)
+                return;
             gameData.EndHistoryGesture(gestureId);
             GestureScope scope = scopes.GetOrCreateValue(gameData);
             if (scope.GestureId == gestureId)
@@ -168,7 +186,7 @@ public static class HistoryMergeBehavior
 
     private sealed class BoundaryAttachment(GameDataService gameData)
     {
-        public GameDataService GameData { get; set; } = gameData;
+        public GameDataService? GameData { get; set; } = gameData;
     }
 
     private sealed class GestureScope

@@ -71,6 +71,8 @@ public partial class MainWindow
 
     private void onWorldChildMapOpenRequested(object? sender, string mapKey)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (viewModel is not null)
             viewModel.SelectedMap = viewModel.findMapItem(mapKey);
     }
@@ -125,6 +127,8 @@ public partial class MainWindow
 
     private void onMapListPointerPressed(object? sender, PointerPressedEventArgs args)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (viewModel is null || !args.GetCurrentPoint(MapList).Properties.IsRightButtonPressed)
             return;
         TreeViewItem? item = getMapListItem(args.Source);
@@ -137,6 +141,8 @@ public partial class MainWindow
 
     private async void onMapListDoubleTapped(object? sender, TappedEventArgs args)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         TreeViewItem? item = getMapListItem(args.Source);
         if (item?.DataContext is not MapListItemViewModel map)
             return;
@@ -147,6 +153,8 @@ public partial class MainWindow
 
     private async void onMapListKeyDown(object? sender, KeyEventArgs args)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (viewModel is null)
             return;
         bool primary = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers);

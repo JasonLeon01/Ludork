@@ -9,7 +9,7 @@ public sealed class MapDataEditedEventArgs(string mapKey, IEnumerable<JsonDataEd
 {
     public string MapKey { get; } = mapKey;
     public IReadOnlyList<JsonDataEdit> Edits { get; } = Array.AsReadOnly(edits.ToArray());
-    public bool ChangesActors => Edits.Any(edit => edit.Path[0] is "actors" or "BPClassVarChanged");
+    public bool ChangesActors => Edits.Any(edit => edit.Path[0] is "actors" or "BPClassVarChanged" or "runtimeInfo");
     public bool ChangesLights => Edits.Any(edit => edit.Path[0] is "lights");
     public IEnumerable<string> Layers => Edits
         .Where(edit => edit.Path.Count > 1 && edit.Path[0] is "layers")

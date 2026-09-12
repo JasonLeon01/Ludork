@@ -14,6 +14,8 @@ public partial class MainWindow
 {
     private void onHistoryContextFocus(object? sender, FocusChangedEventArgs args)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         updateHistoryContext(args.Source, false);
         if (viewModel?.ActiveDocument is not null && args.Source is Control control)
         {
@@ -32,6 +34,8 @@ public partial class MainWindow
 
     private void updateHistoryContext(object? source, bool pointer)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (viewModel is null || source is not Avalonia.Visual visual)
             return;
         Control? control = visual as Control;

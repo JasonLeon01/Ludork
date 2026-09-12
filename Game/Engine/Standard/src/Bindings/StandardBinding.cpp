@@ -88,12 +88,17 @@ void initialize(lua_State* state, int cjsonIndex) {
                            jsonEmptyArrayMetatable);
     binding::registerContainers(lua);
     const sol::object jsonDecode = cjson.raw_get<sol::object>("decode");
+    const sol::object jsonEncode = cjson.raw_get<sol::object>("encode");
     if (!jsonDecode.is<sol::protected_function>()) {
         throw std::runtime_error("cjson decode function is not defined");
     }
+    if (!jsonEncode.is<sol::protected_function>()) {
+        throw std::runtime_error("cjson encode function is not defined");
+    }
     jsonDecode.push();
-    runtime::initializeEditorConsole(state, -1);
-    lua_pop(state, 1);
+    jsonEncode.push();
+    runtime::initializeEditorConsole(state, -2, -1);
+    lua_pop(state, 2);
     lua_pushcfunction(state, updateFromLua);
     lua_setglobal(state, "_LUDORK_STANDARD_UPDATE");
 }

@@ -29,7 +29,7 @@ public partial class MainWindow
 {
     private void onPreviewModeRequested(object? sender, int modeIndex)
     {
-        if (viewModel?.CanEdit != true)
+        if (viewModel?.CanUseMapTools != true)
             return;
         MapEditMode mode = modeIndex switch
         {
@@ -114,10 +114,12 @@ public partial class MainWindow
 
     private void selectPreviewMode(MapEditMode mode)
     {
+        if (viewModel?.IsLiveDebugActive == true && mode == MapEditMode.Light)
+            return;
         bool tileMode = mode == MapEditMode.Tile;
         bool lightMode = mode == MapEditMode.Light;
         bool actorMode = mode == MapEditMode.Actor;
-        LayerTabs.IsEnabled = !lightMode && viewModel?.CanEdit == true;
+        LayerTabs.IsEnabled = !lightMode && viewModel?.CanUseMapTools == true;
         if (lightMode && viewModel is not null)
             viewModel.SelectedLayerTab = null;
         TileModeToggle.IsChecked = tileMode;
@@ -148,11 +150,15 @@ public partial class MainWindow
         LayerTabViewModel? layer = item?.Content as LayerTabViewModel ?? item?.DataContext as LayerTabViewModel;
         if (point.Properties.IsRightButtonPressed)
         {
+            if (viewModel?.CanEdit != true)
+                return;
             showLayerContextMenu(layer, item as Control ?? LayerTabs);
             args.Handled = true;
             return;
         }
         if (!point.Properties.IsLeftButtonPressed || layer is null || layer.IsOverview)
+            return;
+        if (viewModel?.CanEdit != true)
             return;
         draggedLayer = layer;
         dragStart = args.GetPosition(LayerTabs);
@@ -161,6 +167,8 @@ public partial class MainWindow
 
     private void onLayerVisibilityClick(object? sender, RoutedEventArgs args)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (viewModel is null || (sender as Control)?.DataContext is not LayerTabViewModel layer)
             return;
         viewModel.SelectedLayerTab = layer;
@@ -264,6 +272,8 @@ public partial class MainWindow
 
     private void showLayerContextMenu(LayerTabViewModel? layer, Control target)
     {
+        if (viewModel?.CanEdit != true)
+            return;
         if (viewModel is null)
             return;
         if (layer is { IsOverview: false })

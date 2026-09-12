@@ -87,11 +87,27 @@ public sealed class ProjectConfigService
             if (IndividualWindow == resolved)
                 return;
             data["IndividualWindow"] = resolved;
+            if (!resolved)
+                data["LiveDebug"] = false;
             save();
         }
     }
 
     public bool CanConfigureIndividualWindow => OperatingSystem.IsWindows();
+
+    public bool LiveDebug
+    {
+        get => IndividualWindow && data["LiveDebug"] is JsonValue value
+            && value.TryGetValue(out bool enabled) && enabled;
+        set
+        {
+            bool resolved = IndividualWindow && value;
+            if (LiveDebug == resolved)
+                return;
+            data["LiveDebug"] = resolved;
+            save();
+        }
+    }
 
     public IReadOnlyList<string> GetActorFavorites()
     {

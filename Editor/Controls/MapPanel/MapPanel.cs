@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -56,6 +57,7 @@ public sealed partial class MapPanel : Control
     private readonly HashSet<string> animatedAutoTileLayerNames = new(StringComparer.Ordinal);
     private readonly EditorZoomInput zoomInput = new();
     private GameDataService? gameData;
+    private IMapEditingContext? editingContext;
     private BlueprintPreviewService? previewService;
     private AutoTileRenderer? autoTileRenderer;
     private IMapLayerShaderRenderer? layerShaderRenderer;
@@ -70,16 +72,20 @@ public sealed partial class MapPanel : Control
     private double continuousTileSize = SourceTileSize;
     private bool tileBrushDragging;
     private long mapEditGesture;
+    private IPointer? capturedPointer;
     private readonly Dictionary<string, string?> tilesetPaths = new(StringComparer.Ordinal);
     private int? selectedLightIndex;
     private int? selectedActorIndex;
     private string? selectedActorLayer;
+    private string? selectedRuntimeActorId;
     private bool lightMoveDragging;
     private bool lightRadiusDragging;
     private Vector lightDragOffset;
     private Point lightDragCenter;
     private int? actorMoveIndex;
     private string? actorMoveLayer;
+    private string? movingRuntimeActorId;
+    private (int X, int Y) actorMoveOffset;
     private JsonObject? actorClipboard;
     private JsonObject? actorClassVarChangesClipboard;
     private ViewportRenderCache? checkerboardRenderCache;
@@ -113,7 +119,10 @@ public sealed partial class MapPanel : Control
     public string? PendingActor => pendingActor;
     public string? SelectedActorLayer => selectedActorLayer;
     public int? SelectedActorIndex => selectedActorIndex;
+    public string? SelectedRuntimeActorId => selectedRuntimeActorId;
     public bool IsSelectedLayerEditable => selectedLayerEditable;
+    public bool IsRuntimeEditing => editingContext?.IsRuntime == true;
+    private bool canEditMap => selectedLayerEditable && editingContext?.IsEditable == true;
     public MapEditMode EditMode { get; private set; } = MapEditMode.Tile;
     public event EventHandler<TileSelectionChangedEventArgs>? TileSelectionPicked;
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
@@ -133,11 +142,9 @@ public sealed partial class MapPanel : Control
         invalidatePendingActorRenderState();
         disposeCachedBitmaps();
         autoTileRenderer?.Dispose();
-        if (gameData is not null)
-            gameData.MapPreviewChanged -= onMapDataChanged;
         endMapGesture();
         gameData = nextGameData;
-        gameData.MapPreviewChanged += onMapDataChanged;
+        ConfigureEditingContext(new ProjectMapEditingContext(nextGameData));
         tilesetPaths.Clear();
         previewService = nextPreviewService;
         previewService.VisualsInvalidated += onActorVisualsInvalidated;
@@ -152,6 +159,55 @@ public sealed partial class MapPanel : Control
     {
         layerShaderRenderer = renderer;
         InvalidateVisual();
+    }
+
+    public void ConfigureEditingContext(IMapEditingContext context)
+    {
+        if (ReferenceEquals(editingContext, context))
+            return;
+        CancelInteractions();
+        if (editingContext is not null)
+            editingContext.Changed -= onMapDataChanged;
+        editingContext = context;
+        editingContext.Changed += onMapDataChanged;
+        setPendingActor(null);
+        setSelectedActor(null, null, true, true);
+        if (CurrentMapKey is not null)
+            refreshMap(CurrentMapKey, context.ReadMapSnapshot(CurrentMapKey));
+    }
+
+    public void CancelInteractions()
+    {
+        cancelMapGesture();
+        capturedPointer?.Capture(null);
+        capturedPointer = null;
+        hoverGrid = null;
+        flushPendingBrushLayers();
+        InvalidateVisual();
+    }
+
+    private void capturePointer(IPointer pointer)
+    {
+        capturedPointer = pointer;
+        pointer.Capture(this);
+    }
+
+    public MapPanelViewportState CaptureViewport()
+        => new(tileSize, continuousTileSize, hostScrollViewer?.Offset ?? default);
+
+    public void RestoreViewport(MapPanelViewportState state)
+    {
+        pendingMapZoomAnchor = null;
+        tileSize = Math.Clamp(state.TileSize, MinTileSize, MaxTileSize);
+        continuousTileSize = Math.Clamp(state.ContinuousTileSize, MinTileSize, MaxTileSize);
+        disposeMapRenderCaches();
+        InvalidateMeasure();
+        InvalidateVisual();
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (hostScrollViewer is not null)
+                hostScrollViewer.Offset = state.Offset;
+        }, DispatcherPriority.Loaded);
     }
 
     public void refreshMap(string? mapKey, JsonObject? mapData)
@@ -206,6 +262,7 @@ public sealed partial class MapPanel : Control
         lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
+        movingRuntimeActorId = null;
         if (mode != MapEditMode.Actor)
             setSelectedActor(null, null, true);
         InvalidateVisual();
@@ -257,6 +314,8 @@ public sealed partial class MapPanel : Control
 
     public void updateSelectedLight(JsonObject lightData)
     {
+        if (IsRuntimeEditing || editingContext?.IsEditable != true)
+            return;
         if (selectedLightIndex is not int index || CurrentMapData?["lights"] is not JsonArray lights || index < 0 || index >= lights.Count || lights[index] is not JsonObject light)
             return;
         JsonObject next = (JsonObject)lightData.DeepClone();
@@ -270,7 +329,7 @@ public sealed partial class MapPanel : Control
 
     public void setPendingActor(string? blueprintReference)
     {
-        string? nextPendingActor = string.IsNullOrWhiteSpace(blueprintReference)
+        string? nextPendingActor = IsRuntimeEditing || string.IsNullOrWhiteSpace(blueprintReference)
             ? null
             : blueprintReference.Trim();
         if (string.Equals(pendingActor, nextPendingActor, StringComparison.Ordinal))

@@ -15,7 +15,7 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
-public sealed class ActorInfoPanel : UserControl
+public sealed partial class ActorInfoPanel : UserControl
 {
     private const double ClassContentMinimumWidth = 379;
     private readonly Border titleContainer;
@@ -39,6 +39,13 @@ public sealed class ActorInfoPanel : UserControl
     private readonly HashSet<string> overriddenFields = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Button> resetButtons = new(StringComparer.Ordinal);
     private GameDataService? gameData;
+    private IMapEditingContext? editingContext;
+    private string? runtimeActorId;
+    private JsonObject? displayedRuntimeValues;
+    private JsonObject? displayedRuntimeSchema;
+    private bool isRuntime => editingContext?.IsRuntime == true;
+    private bool canEditActor => layerEditable && editingContext?.IsEditable == true;
+    private bool canMoveActor => canEditActor && (!isRuntime || getActorData()?["parentRuntimeId"] is null);
     private LuaMetadataService? metadataService;
     private BlueprintClassResolver? classResolver;
     private BlueprintVariableFieldBuilder? fieldBuilder;
@@ -279,6 +286,7 @@ public sealed class ActorInfoPanel : UserControl
         HistoryMergeBehavior.Attach(positionX, nextGameData);
         HistoryMergeBehavior.Attach(positionY, nextGameData);
         HistoryMergeBehavior.AttachBoundary(this, nextGameData);
+        ConfigureEditingContext(new ProjectMapEditingContext(nextGameData));
     }
 
     public void setActor(
@@ -287,9 +295,20 @@ public sealed class ActorInfoPanel : UserControl
         int? nextActorIndex,
         JsonObject? actorData)
     {
+        bool sameRuntimeActor = isRuntime && runtimeActorId is not null
+            && string.Equals(runtimeActorId, actorData?["runtimeId"]?.GetValue<string>(), StringComparison.Ordinal)
+            && string.Equals(mapKey, nextMapKey, StringComparison.Ordinal);
         mapKey = string.IsNullOrWhiteSpace(nextMapKey) ? null : nextMapKey;
         layerName = nextLayerName;
         actorIndex = nextActorIndex;
+        runtimeActorId = isRuntime ? actorData?["runtimeId"]?.GetValue<string>() : null;
+        if (sameRuntimeActor)
+        {
+            refreshRuntimeActorInfo();
+            return;
+        }
+        displayedRuntimeValues = null;
+        displayedRuntimeSchema = null;
         if (mapKey is null || layerName is null || actorIndex is null || actorData is null)
         {
             mapKey = null;
@@ -297,6 +316,7 @@ public sealed class ActorInfoPanel : UserControl
             actorIndex = null;
             actorTag = null;
             blueprintReference = null;
+            runtimeActorId = null;
             showSelection(false);
             clearClassDetail();
             return;
@@ -307,6 +327,8 @@ public sealed class ActorInfoPanel : UserControl
         actorTag = actorData["tag"]?.GetValue<string>() ?? string.Empty;
         tagEdit.Text = actorTag;
         blueprintReference = actorData["bp"]?.GetValue<string>();
+        if (isRuntime && string.IsNullOrWhiteSpace(blueprintReference))
+            blueprintReference = actorData["type"]?.GetValue<string>();
         blueprintPath.Text = blueprintReference ?? string.Empty;
         updatePositionEditors(actorData);
         loading = false;
@@ -324,6 +346,11 @@ public sealed class ActorInfoPanel : UserControl
 
     public void refreshActorPosition()
     {
+        if (isRuntime)
+        {
+            refreshRuntimeActorInfo();
+            return;
+        }
         JsonObject? actorData = getActorData();
         if (actorData is null)
             return;
@@ -360,20 +387,24 @@ public sealed class ActorInfoPanel : UserControl
 
     private void updateEditableState()
     {
-        bool editable = layerEditable && mapKey is not null && layerName is not null && actorIndex is not null;
-        if (editable)
+        bool editable = canEditActor && mapKey is not null && layerName is not null && actorIndex is not null;
+        if (editable && !isRuntime)
             EditorInputs.ApplyEditable(tagEdit);
         else
             EditorInputs.ApplyReadOnly(tagEdit);
-        positionX.IsReadOnly = !editable;
-        positionY.IsReadOnly = !editable;
-        positionX.Focusable = editable;
-        positionY.Focusable = editable;
+        positionX.IsReadOnly = !editable || !canMoveActor;
+        positionY.IsReadOnly = !editable || !canMoveActor;
+        positionX.Focusable = editable && canMoveActor;
+        positionY.Focusable = editable && canMoveActor;
         classForm.IsReadOnly = !editable;
+        bool hasBlueprint = tryGetProjectBlueprintReference(out _);
+        blueprintOpenButton.IsEnabled = !isRuntime && hasBlueprint;
+        blueprintLocateButton.IsEnabled = hasBlueprint;
         layerReadOnlyLabel.IsVisible = mapKey is not null && !editable;
-        resetAllButton.IsEnabled = editable && overriddenFields.Count != 0;
+        resetAllButton.IsVisible = !isRuntime;
+        resetAllButton.IsEnabled = editable && !isRuntime && overriddenFields.Count != 0;
         foreach (Button button in resetButtons.Values)
-            button.IsEnabled = editable;
+            button.IsEnabled = editable && !isRuntime;
     }
 
     private void updatePositionEditors(JsonObject actorData)
@@ -392,14 +423,23 @@ public sealed class ActorInfoPanel : UserControl
 
     private void requestBlueprintOpen()
     {
-        if (!string.IsNullOrWhiteSpace(blueprintReference))
-            BlueprintOpenRequested?.Invoke(this, blueprintReference);
+        if (!isRuntime && tryGetProjectBlueprintReference(out string reference))
+            BlueprintOpenRequested?.Invoke(this, reference);
     }
 
     private void requestBlueprintLocate()
     {
-        if (!string.IsNullOrWhiteSpace(blueprintReference))
-            BlueprintLocateRequested?.Invoke(this, blueprintReference);
+        if (tryGetProjectBlueprintReference(out string reference))
+            BlueprintLocateRequested?.Invoke(this, reference);
+    }
+
+    private bool tryGetProjectBlueprintReference(out string reference)
+    {
+        const string prefix = "Data.Blueprints.";
+        reference = blueprintReference ?? string.Empty;
+        return reference.StartsWith(prefix, StringComparison.Ordinal)
+            && reference.Length > prefix.Length
+            && gameData?.BlueprintsData.ContainsKey(reference[prefix.Length..].Replace('.', '/')) == true;
     }
 
     private Control createResetAction(BlueprintVariableField field)
@@ -423,15 +463,15 @@ public sealed class ActorInfoPanel : UserControl
     {
         foreach (KeyValuePair<string, Button> pair in resetButtons)
         {
-            pair.Value.IsVisible = overriddenFields.Contains(pair.Key);
-            pair.Value.IsEnabled = layerEditable;
+            pair.Value.IsVisible = !isRuntime && overriddenFields.Contains(pair.Key);
+            pair.Value.IsEnabled = canEditActor && !isRuntime;
         }
-        resetAllButton.IsEnabled = layerEditable && overriddenFields.Count != 0;
+        resetAllButton.IsEnabled = canEditActor && !isRuntime && overriddenFields.Count != 0;
     }
 
     private void resetOverride(string name)
     {
-        if (!layerEditable || gameData is null || editorPanel is null || getEditableActorData() is not JsonObject actorData
+        if (isRuntime || !canEditActor || gameData is null || editorPanel is null || getEditableActorData() is not JsonObject actorData
             || getClassVarChanges(actorData) is not JsonObject changes
             || !changes.ContainsKey(name))
         {
@@ -449,7 +489,7 @@ public sealed class ActorInfoPanel : UserControl
 
     private void resetAllOverrides()
     {
-        if (!layerEditable || gameData is null || editorPanel is null || getEditableActorData() is not JsonObject actorData
+        if (isRuntime || !canEditActor || gameData is null || editorPanel is null || getEditableActorData() is not JsonObject actorData
             || getClassVarChanges(actorData) is not JsonObject changes
             || changes.Count == 0)
         {
@@ -467,6 +507,11 @@ public sealed class ActorInfoPanel : UserControl
 
     private void refreshClassDetail()
     {
+        if (isRuntime)
+        {
+            refreshRuntimeClassDetail();
+            return;
+        }
         JsonObject? actorData = getActorData();
         string? reference = actorData?["bp"]?.GetValue<string>();
         if (actorData is null || string.IsNullOrWhiteSpace(reference)
@@ -525,7 +570,7 @@ public sealed class ActorInfoPanel : UserControl
 
     private void onTagChanged(object? sender, TextChangedEventArgs args)
     {
-        if (loading || !layerEditable || gameData is null || editorPanel is null
+        if (isRuntime || loading || !canEditActor || gameData is null || editorPanel is null
             || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
             return;
         string oldTag = actorTag;
@@ -556,7 +601,12 @@ public sealed class ActorInfoPanel : UserControl
         object? sender,
         BlueprintVariableValueChangedEventArgs args)
     {
-        if (loading || !layerEditable || gameData is null || editorPanel is null
+        if (isRuntime)
+        {
+            setRuntimeActorVariable(args);
+            return;
+        }
+        if (loading || !canEditActor || gameData is null || editorPanel is null
             || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
             return;
         JsonObject? actorData = getEditableActorData();
@@ -577,7 +627,7 @@ public sealed class ActorInfoPanel : UserControl
 
         bool updated = isDefault
             ? gameData.RemoveMapActorOverrides(mapKey, layerName, index, actorTag, args.Name)
-            : gameData.SetMapActorOverride(mapKey, layerName, index, actorTag, args.Name, value);
+            : editingContext?.SetActorVariable(mapKey, layerName, actorTag, args.Name, value) == true;
         if (!updated)
         {
             refreshActorInfo();
@@ -601,7 +651,7 @@ public sealed class ActorInfoPanel : UserControl
 
     private void onPositionChanged(object? sender, NumericUpDownValueChangedEventArgs args)
     {
-        if (loading || !layerEditable || gameData is null || editorPanel is null
+        if (loading || !canMoveActor || editingContext is null || editorPanel is null
             || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
             return;
         JsonObject? actorData = getEditableActorData();
@@ -614,7 +664,8 @@ public sealed class ActorInfoPanel : UserControl
         {
             return;
         }
-        if (!gameData.MoveMapActor(mapKey, layerName, index, actorTag, x, y))
+        string actorId = isRuntime ? runtimeActorId ?? string.Empty : actorTag;
+        if (actorId.Length == 0 || !editingContext.MoveActor(mapKey, layerName, actorId, x, y))
             refreshActorInfo();
         else
             editorPanel.refreshSelectedActor();
@@ -644,8 +695,9 @@ public sealed class ActorInfoPanel : UserControl
     private JsonObject? getEditableActorData()
     {
         JsonObject? actor = getActorData();
-        if (actor is not null && actorTag is not null
-            && string.Equals(actor["tag"]?.GetValue<string>() ?? string.Empty, actorTag, StringComparison.Ordinal))
+        string? identity = isRuntime ? runtimeActorId : actorTag;
+        if (actor is not null && identity is not null
+            && string.Equals(actor[isRuntime ? "runtimeId" : "tag"]?.GetValue<string>() ?? string.Empty, identity, StringComparison.Ordinal))
         {
             return actor;
         }
@@ -658,7 +710,7 @@ public sealed class ActorInfoPanel : UserControl
         JsonObject? map = getMapData();
         if (map is null)
             return null;
-        string tag = actorData["tag"]?.GetValue<string>() ?? string.Empty;
+        string tag = actorData[isRuntime ? "runtimeId" : "tag"]?.GetValue<string>() ?? string.Empty;
         return map["BPClassVarChanged"] is JsonObject root ? root[tag] as JsonObject : null;
     }
 

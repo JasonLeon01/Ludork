@@ -8,6 +8,8 @@ struct lua_State;
 
 namespace ludork::standard {
 
+inline constexpr std::int64_t EditorBridgeProtocolVersion = 1;
+
 LUDORK_STANDARD_API std::uint64_t editorConnectionId();
 LUDORK_STANDARD_API bool sendEditorMessage(std::uint64_t connectionId,
                                            std::string_view message);
@@ -34,6 +36,11 @@ LUDORK_STANDARD_API void unregisterEditorCommandInputHandler(
 LUDORK_STANDARD_API void registerEditorCommandShutdownHandler(
     lua_State* state, int functionIndex);
 LUDORK_STANDARD_API void unregisterEditorCommandShutdownHandler(
+    lua_State* state) noexcept;
+
+LUDORK_STANDARD_API void registerEditorLiveDebugHandler(lua_State* state,
+                                                        int functionIndex);
+LUDORK_STANDARD_API void unregisterEditorLiveDebugHandler(
     lua_State* state) noexcept;
 
 LUDORK_STANDARD_API void registerEditorCommandBoolControlHandler(

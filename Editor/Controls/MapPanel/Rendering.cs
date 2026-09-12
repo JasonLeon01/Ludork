@@ -301,6 +301,8 @@ public sealed partial class MapPanel
         JsonObject actor,
         Dictionary<string, ActorVisualDescriptor?>? sharedDescriptors)
     {
+        if (IsRuntimeEditing)
+            return resolveRuntimeActorVisual(actor);
         if (CurrentMapData is null || previewService is null)
             return null;
         string reference = actor["bp"]?.GetValue<string>() ?? string.Empty;

@@ -58,7 +58,7 @@ void EmbeddedTextInputHostImpl::end(ludork::engine::text_input::SessionId id) {
 bool EmbeddedTextInputHostImpl::send(std::string_view action,
                                      const sf::FloatRect* caretRect) {
     RuntimeData::Map message{
-        {"v", RuntimeData(std::int64_t{1})},
+        {"v", RuntimeData(ludork::standard::EditorBridgeProtocolVersion)},
         {"type", RuntimeData("textInput")},
         {"action", RuntimeData(std::string(action))},
         {"session", RuntimeData(std::to_string(id_))},

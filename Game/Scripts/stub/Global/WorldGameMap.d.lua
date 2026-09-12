@@ -2,6 +2,11 @@
 
 ---@alias Global.WorldGameMap.StreamingStats GlobalCore.WorldStreamingStats
 
+---@class Global.WorldGameMap.TerrainEditBatch
+---@field region Source.SceneComponents.WorldRegionData
+---@field positions sf.Vector2i[]
+---@field keys table<string, boolean>
+
 ---@alias Global.WorldGameMap.StaticTransmissionSignature tuple<string | integer | boolean>
 
 ---@class Global.WorldGameMap.ObservedRootPosition

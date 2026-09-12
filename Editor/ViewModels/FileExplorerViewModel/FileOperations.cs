@@ -19,6 +19,8 @@ public sealed partial class FileExplorerViewModel
 {
     public FileOperationResult Paste(string? targetDirectory = null)
     {
+        if (IsReadOnly)
+            return FileOperationResult.Empty;
         string target = getTargetDirectory(targetDirectory);
         List<string> errors = [];
         List<string> externalAdded = [];
@@ -111,6 +113,8 @@ public sealed partial class FileExplorerViewModel
 
     public FileOperationResult Duplicate(IEnumerable<string> paths)
     {
+        if (IsReadOnly)
+            return FileOperationResult.Empty;
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
@@ -164,6 +168,8 @@ public sealed partial class FileExplorerViewModel
 
     public FileOperationResult Delete(IEnumerable<string> paths)
     {
+        if (IsReadOnly)
+            return FileOperationResult.Empty;
         string[] normalizedPaths = normalizeTopLevelPaths(paths).ToArray();
         string[] protectedMapPaths = normalizedPaths
             .Where(path => !gameData.MapPathPolicy.CanDeletePath(path))
@@ -256,6 +262,8 @@ public sealed partial class FileExplorerViewModel
 
     public FileOperationResult CreateDirectory(string name, string? targetDirectory = null)
     {
+        if (IsReadOnly)
+            return FileOperationResult.Empty;
         string target = getTargetDirectory(targetDirectory);
         if (isSameOrChildPath(gameData.MapPathPolicy.MapsRoot, target)
             && !gameData.MapPathPolicy.CanCreateDirectory(target))
@@ -282,6 +290,8 @@ public sealed partial class FileExplorerViewModel
 
     public FileOperationResult RenameSelected(string newName)
     {
+        if (IsReadOnly)
+            return FileOperationResult.Empty;
         if (SelectedEntry is null)
             return FileOperationResult.Empty;
         string oldPath = SelectedEntry.FullPath;
@@ -329,6 +339,8 @@ public sealed partial class FileExplorerViewModel
 
     public FileOperationResult Move(IEnumerable<string> paths, string targetDirectory)
     {
+        if (IsReadOnly)
+            return FileOperationResult.Empty;
         string target = getTargetDirectory(targetDirectory);
         List<string> errors = [];
         List<(string OldPath, string NewPath)> moved = [];

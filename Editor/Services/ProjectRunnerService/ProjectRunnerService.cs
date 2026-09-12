@@ -51,7 +51,8 @@ public enum ProjectWindowMode
 public sealed record ProjectRunOptions(
     bool IsStandaloneProject,
     ProjectWindowMode WindowMode,
-    nint WindowHandle);
+    nint WindowHandle,
+    bool LiveDebug = false);
 
 public sealed record RuntimeInputEvent(
     string Type,
@@ -380,6 +381,12 @@ public sealed partial class ProjectRunnerService : IDisposable
         BridgeMessage message, long expectedRunGeneration, long? expectedConnectionGeneration = null)
     {
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(message, bridgeJsonOptions);
+        return await sendBridgeBytesAsync(json, expectedRunGeneration, expectedConnectionGeneration);
+    }
+
+    private async Task<bool> sendBridgeBytesAsync(
+        byte[] json, long expectedRunGeneration, long? expectedConnectionGeneration = null)
+    {
         if (json.Length > MaximumBridgeMessageSize)
             return false;
         byte[] payload = new byte[json.Length + 1];
@@ -510,6 +517,9 @@ public sealed partial class ProjectRunnerService : IDisposable
         startInfo.Environment.Remove("WINDOWHANDLE");
         startInfo.Environment["LUDORK_COMMAND_PORT"] = commandPort.ToString(CultureInfo.InvariantCulture);
         startInfo.Environment["LUDORK_EDITOR"] = "1";
+        startInfo.Environment.Remove("LUDORK_LIVE_DEBUG");
+        if (options.LiveDebug && options.WindowMode == ProjectWindowMode.Individual)
+            startInfo.Environment["LUDORK_LIVE_DEBUG"] = "1";
         startInfo.Environment["LUDORK_WINDOW_MODE"] = options.WindowMode == ProjectWindowMode.Individual
             ? "individual"
             : "embedded";

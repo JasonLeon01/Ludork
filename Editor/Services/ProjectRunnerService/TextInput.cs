@@ -24,6 +24,11 @@ public sealed partial class ProjectRunnerService
         {
             using JsonDocument document = JsonDocument.Parse(line);
             JsonElement root = document.RootElement;
+            if (root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("type", out JsonElement messageType)
+                && messageType.ValueKind == JsonValueKind.String
+                && messageType.GetString() == "liveDebug")
+                return receiveLiveDebugMessage(root, generation, connection);
             string? error = validateBridgeEnvelope(root, "textInput");
             if (error is not null)
                 return error;

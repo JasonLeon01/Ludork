@@ -63,6 +63,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     }
 
     public ObservableCollection<ActorQueueItemViewModel> Items { get; } = [];
+    public bool IsReadOnly { get; set; }
     public ObservableCollection<ActorLibraryScopeOption> Scopes { get; } = [];
     public ObservableCollection<string> Categories { get; } = [];
     public IReadOnlyList<string> BlueprintReferences => catalog.Keys.ToArray();
@@ -159,6 +160,8 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     public void ToggleFavorite(ActorQueueItemViewModel item)
     {
+        if (IsReadOnly)
+            return;
         item.IsFavorite = !item.IsFavorite;
         projectConfig.SetActorFavorite(item.BlueprintReference, item.IsFavorite);
         if (SelectedScope?.Scope == ActorLibraryScope.Favourites)
@@ -189,7 +192,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     public void RequestOpen(ActorQueueItemViewModel? item)
     {
-        if (item is not null)
+        if (!IsReadOnly && item is not null)
             BlueprintOpenRequested?.Invoke(this, item.BlueprintReference);
     }
 

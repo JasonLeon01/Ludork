@@ -2,6 +2,8 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local cjson = require("cjson")
 local GameMap = require("Global.GameMap")
+local TerrainValue = require("Global.GameMap.TerrainValue")
+local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local WorldGameMapActors = require("Global.WorldGameMap.Actors")
 local WorldGameMapActorStreaming = require("Global.WorldGameMap.ActorStreaming")
@@ -423,17 +425,54 @@ function WorldGameMap:setTerrainTile(layerName, position, tileID)
 end
 
 function WorldGameMap:setTerrainTiles(layerName, positions, tileID)
-    local changed = {}
+    if not bool(positions) then
+        return {}
+    end
+    local terrainTileID = TerrainValue.Normalise(tileID)
+    ---@type Global.WorldGameMap.TerrainEditBatch[]
+    local batches = {}
+    ---@type table<Source.SceneComponents.WorldRegionData, Global.WorldGameMap.TerrainEditBatch>
+    local regionBatches = {}
     for _, position in ipairs(positions) do
         local region, localPosition = self:getRegionPosition(position)
-        if region ~= nil and self:isSparseWorldCellReady(position)
-            and assert(region.payload).terrain:setTerrainTile(layerName, assert(localPosition), tileID) then
+        if region ~= nil and self:isSparseWorldCellReady(position) then
             local payload = assert(region.payload)
+            local cellPosition = assert(localPosition)
+            if payload.terrain:getTerrainTile(layerName, cellPosition) ~= terrainTileID then
+                local batch = regionBatches[region]
+                if batch == nil then
+                    batch = { region = region, positions = {}, keys = {} }
+                    regionBatches[region] = batch
+                    batches[#batches + 1] = batch
+                end
+                local key = WorldGeometry.GridKey(position.x, position.y)
+                if not batch.keys[key] then
+                    batch.keys[key] = true
+                    batch.positions[#batch.positions + 1] = cellPosition
+                end
+            end
+        end
+    end
+    local changedKeys = {}
+    for _, batch in ipairs(batches) do
+        local payload = assert(batch.region.payload)
+        local localChanges = payload.terrain:setTerrainTiles(layerName, batch.positions, terrainTileID)
+        if bool(localChanges) then
             payload.tilemap = payload.terrain:getTilemap()
-            self:setSparseWorldRegion(region.index, payload.tilemap, true)
+            self:setSparseWorldRegion(batch.region.index, payload.tilemap, true)
             if payload.prewarmedLayerShaders ~= nil then
                 payload.prewarmedLayerShaders[layerName] = nil
             end
+            for _, localPosition in ipairs(localChanges) do
+                changedKeys[WorldGeometry.GridKey(localPosition.x + batch.region.x, localPosition.y + batch.region.y)] = true
+            end
+        end
+    end
+    local changed = {}
+    for _, position in ipairs(positions) do
+        local key = WorldGeometry.GridKey(position.x, position.y)
+        if changedKeys[key] then
+            changedKeys[key] = nil
             changed[#changed + 1] = position
         end
     end

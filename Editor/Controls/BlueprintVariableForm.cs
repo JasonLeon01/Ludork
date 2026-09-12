@@ -101,11 +101,11 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             if (ReferenceEquals(historyGameData, value))
                 return;
             historyGameData = value;
-            if (historyGameData is null)
-                return;
             foreach (Control control in historyControls)
             {
-                if (control is TextBox text)
+                if (historyGameData is null)
+                    HistoryMergeBehavior.Detach(control);
+                else if (control is TextBox text)
                     HistoryMergeBehavior.Attach(text, historyGameData);
                 else if (control is NumericUpDown number)
                     HistoryMergeBehavior.Attach(number, historyGameData);
@@ -166,6 +166,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         rows.Clear();
         dependencySources.Clear();
         instanceVariableSources.Clear();
+        foreach (Control control in historyControls)
+            HistoryMergeBehavior.Detach(control);
         historyControls.Clear();
         form.Children.Clear();
         form.RowDefinitions.Clear();

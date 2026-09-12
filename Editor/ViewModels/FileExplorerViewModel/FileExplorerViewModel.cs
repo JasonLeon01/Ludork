@@ -70,10 +70,13 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     public event EventHandler<FileExplorerFilesChangedEventArgs>? FilesChanged;
 
     public string ProjectPath => projectPath;
+    public bool IsReadOnly { get; set; }
     public bool HasClipboard => clipboardPaths.Any(pathExists);
 
     public void RequestDataCreation(EditorDataCreationRequest request)
     {
+        if (IsReadOnly)
+            return;
         DataCreationRequested?.Invoke(this, request);
     }
 
@@ -155,7 +158,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         if (!isVisibleDirectory(fullPath) || !isUnderRoot(fullPath))
             return;
         CurrentPath = fullPath;
-        projectConfig.LastFileExplorerPath = Path.GetRelativePath(projectPath, fullPath);
+        if (!IsReadOnly)
+            projectConfig.LastFileExplorerPath = Path.GetRelativePath(projectPath, fullPath);
         Refresh();
     }
 
@@ -184,7 +188,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
             return;
         if (SelectedEntry.IsDirectory)
             NavigateTo(SelectedEntry.FullPath);
-        else
+        else if (!IsReadOnly)
             FileOpened?.Invoke(this, SelectedEntry.FullPath);
     }
 
@@ -197,6 +201,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     public void SetClipboard(IEnumerable<string> paths, bool cut)
     {
+        if (IsReadOnly && cut)
+            return;
         clipboardPaths.Clear();
         clipboardPaths.AddRange(normalizeTopLevelPaths(paths));
         clipboardCut = cut && clipboardPaths.Count != 0;

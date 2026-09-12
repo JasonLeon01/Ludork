@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
 using System;
@@ -23,6 +24,23 @@ public sealed partial class WorldMapCanvas
     private bool panning;
     private Point lastPanPointer;
     private WorldMapZoomAnchor? pendingZoomAnchor;
+
+    public WorldMapViewportState CaptureViewport() => new(cellSize, hostScrollViewer?.Offset ?? default);
+
+    public void RestoreViewport(WorldMapViewportState state)
+    {
+        pendingZoomAnchor = null;
+        viewportResetPending = false;
+        viewInitialized = true;
+        cellSize = Math.Clamp(state.CellSize, MinimumCellSize, MaximumCellSize);
+        InvalidateMeasure();
+        InvalidateVisual();
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (hostScrollViewer is not null)
+                hostScrollViewer.Offset = state.Offset;
+        }, DispatcherPriority.Loaded);
+    }
 
     protected override Size MeasureOverride(Size availableSize)
     {

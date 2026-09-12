@@ -42,6 +42,11 @@
                                             IsChecked="{Binding IndividualWindow, Mode=OneWay}"
                                             IsEnabled="{Binding CanConfigureIndividualWindow}"
                                             Click="onIndividualWindowClicked" />
+                            <NativeMenuItem Header="{Binding LiveDebugLabel}"
+                                            ToggleType="CheckBox"
+                                            IsChecked="{Binding LiveDebug, Mode=OneWay}"
+                                            IsEnabled="{Binding CanConfigureLiveDebug}"
+                                            Click="onLiveDebugClicked" />
                             <NativeMenuItem Header="{Binding PerformanceMonitor}" Click="onOpenPerformanceMonitor" />
                         </NativeMenu>
                     </NativeMenuItem>
@@ -246,7 +251,7 @@
                     <ColumnDefinition Width="*" MinWidth="640" />
                 </Grid.ColumnDefinitions>
 
-                <Grid Grid.Column="0" RowDefinitions="32,*">
+                <Grid Grid.Column="0" RowDefinitions="32,*" IsEnabled="{Binding CanEdit}">
                     <TextBlock Grid.Row="0"
                                Classes="panelTitle"
                                Text="{Binding MapList}" />
@@ -382,6 +387,12 @@
                         <controls:WorldMapPanel x:Name="WorldEditorPanel"
                                                 Grid.Column="1"
                                                 IsVisible="False" />
+                        <Border x:Name="LiveDebugBanner" Grid.Column="1"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Background="#DD172431" CornerRadius="4" Padding="10,6" Margin="8"
+                                IsVisible="False" IsHitTestVisible="False">
+                            <TextBlock x:Name="LiveDebugStatus" Foreground="#DDEEFF" />
+                        </Border>
                         <Border x:Name="GameViewport"
                                 Grid.Column="1"
                                 Background="#000000"

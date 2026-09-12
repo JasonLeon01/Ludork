@@ -413,8 +413,12 @@ public partial class MainWindow
 
     private void onMapActorSelectionChanged(object? sender, ActorSelectionChangedEventArgs args)
     {
+        if (EditorPanel.IsRuntimeEditing && args.LayerName is not null && viewModel is not null
+            && viewModel.SelectedLayerTab?.Name != args.LayerName)
+            viewModel.SelectedLayerTab = viewModel.LayerTabs.FirstOrDefault(layer => layer.Name == args.LayerName);
         ActorInfoPanel.setActor(args.MapKey, args.LayerName, args.Index, args.ActorData);
-        if (!string.IsNullOrWhiteSpace(args.BlueprintReference))
+        liveDebugSession?.SelectActor(args.ActorData?["runtimeId"]?.GetValue<string>());
+        if (viewModel?.CanEdit == true && !string.IsNullOrWhiteSpace(args.BlueprintReference))
             viewModel?.ActorQueue.AddOrPromote(args.BlueprintReference);
         syncActorOutlinerSelection();
     }
@@ -451,10 +455,14 @@ public partial class MainWindow
         {
             ActorOutlinerItemViewModel? layerItem = viewModel.ActorOutlinerItems
                 .FirstOrDefault(item => item.LayerName == layerName);
-            selection = EditorPanel.SelectedActorIndex is int actorIndex
-                ? layerItem?.Children.FirstOrDefault(item => item.ActorIndex == actorIndex)
-                : layerItem;
+            selection = EditorPanel.IsRuntimeEditing && EditorPanel.SelectedRuntimeActorId is string runtimeId
+                ? viewModel.ActorOutlinerItems.SelectMany(item => item.EnumerateDescendants())
+                    .FirstOrDefault(item => item.RuntimeId == runtimeId)
+                : EditorPanel.SelectedActorIndex is int actorIndex
+                    ? layerItem?.Children.FirstOrDefault(item => item.ActorIndex == actorIndex) : layerItem;
         }
+        if (ReferenceEquals(ActorOutliner.SelectedItem, selection))
+            return;
         updatingActorOutlinerSelection = true;
         ActorOutliner.SelectedItem = selection;
         updatingActorOutlinerSelection = false;
@@ -464,6 +472,7 @@ public partial class MainWindow
     {
         if (updatingActorOutlinerSelection
             || viewModel is null
+            || viewModel.IsRefreshingActorOutliner
             || ActorOutliner.SelectedItem is not ActorOutlinerItemViewModel item)
         {
             return;
@@ -478,6 +487,8 @@ public partial class MainWindow
 
     private void onBlueprintLocateRequested(object? sender, string reference)
     {
+        if (!reference.StartsWith("Data.Blueprints.", StringComparison.Ordinal))
+            return;
         string key = reference["Data.Blueprints.".Length..].Replace('.', Path.DirectorySeparatorChar);
         string path = Path.Combine(ProjectPath, "Data", "Blueprints", key + ".json");
         BottomTabs.SelectedIndex = 0;

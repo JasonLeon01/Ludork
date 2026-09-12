@@ -272,8 +272,9 @@ public sealed partial class ProjectRunnerService
         if (CanSendCommand == value)
             return;
         CanSendCommand = value;
+        if (!value)
+            cancelLiveDebugRequests();
         CommandAvailabilityChanged?.Invoke(this, value);
     }
 
 }
-

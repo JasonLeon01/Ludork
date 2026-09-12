@@ -21,6 +21,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private bool disposed;
     private EditorDocument? activeDocument;
     private bool canEdit = true;
+    private (string? MapKey, LiveDebugSession? Session, string? Context) actorOutlinerSource;
     private readonly IRelayCommand[] editingCommands;
 
     public MainViewModel(string projectPath)
@@ -63,9 +64,9 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         NewProjectCommand = new RelayCommand(() => NewProjectRequested?.Invoke(this, EventArgs.Empty));
         OpenProjectCommand = new RelayCommand(() => OpenProjectRequested?.Invoke(this, EventArgs.Empty));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
-        TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => CanEdit);
+        TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => CanUseMapTools);
         LightModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 1), () => CanEdit);
-        ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => CanEdit);
+        ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => CanUseMapTools);
         HelpCommand = new RelayCommand(Actions.OpenHelp);
         NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
         NewAnimationCommand = new RelayCommand(Actions.NewAnimation, () => CanEdit);
@@ -186,6 +187,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 return;
             ProjectConfig.IndividualWindow = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(LiveDebug));
+            OnPropertyChanged(nameof(CanConfigureLiveDebug));
         }
     }
     public bool CanEdit
@@ -196,6 +199,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (!SetProperty(ref canEdit, value))
                 return;
             OnPropertyChanged(nameof(CanConfigureIndividualWindow));
+            OnPropertyChanged(nameof(CanConfigureLiveDebug));
             foreach (IRelayCommand command in editingCommands)
                 command.NotifyCanExecuteChanged();
         }
@@ -219,13 +223,16 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         get => selectedMap;
         set
         {
+            if (liveDebugSession is not null && !selectingRuntimeMap)
+                return;
             if (!SetProperty(ref selectedMap, value))
                 return;
             refreshLayerTabs();
             IReadOnlyCollection<string> pinnedMaps = value is { IsWorldChild: true }
                 ? new[] { value.Key }
                 : Array.Empty<string>();
-            GameData.TrimWorldChildCache(pinnedMaps);
+            if (liveDebugSession is null)
+                GameData.TrimWorldChildCache(pinnedMaps);
             onUndoRedoStateChanged(this, EventArgs.Empty);
             SelectedMapChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -240,8 +247,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 return;
             bool hasLayer = value is not null && !value.IsOverview && SelectedMap is not null;
             TileSelect.IsLayerSelected = hasLayer;
-            if (hasLayer)
+            if (hasLayer && liveDebugSession is null)
                 TileSelect.setCurrentTilesetKey(GameData.getLayerTilesetKey(SelectedMap!.Key, value!.Name));
+            else if (hasLayer)
+                restoreRuntimeTileset();
             LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -261,6 +270,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool moveLayer(LayerTabViewModel moving, LayerTabViewModel target)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || moving.IsOverview || target.IsOverview || moving == target)
             return false;
         if (!GameData.reorderLayers(SelectedMap.Key, moving.Name, target.Name))
@@ -275,6 +286,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool addLayer(string name, string? insertAfterLayer)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || !GameData.addEmptyLayer(SelectedMap.Key, name, insertAfterLayer))
             return false;
         refreshLayerTabs(name);
@@ -283,6 +296,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool renameLayer(string oldName, string newName)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || !GameData.renameLayer(SelectedMap.Key, oldName, newName))
             return false;
         refreshLayerTabs(newName);
@@ -291,6 +306,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool deleteLayer(string layerName)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || !GameData.removeLayer(SelectedMap.Key, layerName))
             return false;
         refreshLayerTabs();
@@ -299,6 +316,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool copyLayer(string layerName)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || GameData.copyLayer(SelectedMap.Key, layerName) is not { } copy)
             return false;
         copiedLayer = copy;
@@ -309,6 +328,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool pasteLayer(string insertAfterLayer)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || copiedLayer is null || string.IsNullOrWhiteSpace(copiedLayerName))
             return false;
         string name = getUniqueLayerName($"{copiedLayerName}_copy");
@@ -322,6 +343,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool setLayerVisible(LayerTabViewModel layer, bool visible)
     {
+        if (!CanEdit)
+            return false;
         if (SelectedMap is null || layer.IsOverview || layer.LayerVisible == visible)
             return false;
         if (!GameData.SetLayerVisible(SelectedMap.Key, layer.Name, visible))
@@ -338,6 +361,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool setLayerShaderPath(string layerName, string shaderPath)
     {
+        if (!CanEdit)
+            return false;
         return SelectedMap is not null && GameData.setLayerShaderPath(SelectedMap.Key, layerName, shaderPath);
     }
 
@@ -348,13 +373,32 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public void refreshActorOutliner()
     {
-        ActorOutlinerItems.Clear();
+        IsRefreshingActorOutliner = true;
+        (string? MapKey, LiveDebugSession? Session, string? Context) source =
+            (SelectedMap?.Key, liveDebugSession, liveDebugSession?.Context);
+        if (actorOutlinerSource != source)
+        {
+            ActorOutlinerItems.Clear();
+            actorOutlinerSource = source;
+        }
+        ActorOutlinerItemViewModel[] previousItems = ActorOutlinerItems
+            .SelectMany(layer => layer.EnumerateDescendants().Prepend(layer)).ToArray();
+        Dictionary<string, ActorOutlinerItemViewModel> runtimeActors = previousItems
+            .Where(actor => actor.RuntimeId is not null)
+            .ToDictionary(actor => actor.RuntimeId!, StringComparer.Ordinal);
+        Dictionary<string, ActorOutlinerItemViewModel> currentActors = new(StringComparer.Ordinal);
+        List<ActorOutlinerItemViewModel> layers = [];
+        Dictionary<ActorOutlinerItemViewModel, List<ActorOutlinerItemViewModel>> childrenToKeep = [];
+        List<(ActorOutlinerItemViewModel Item, ActorOutlinerItemViewModel Layer, string? ParentId)> actorEntries = [];
         JsonObject? actorGroups = SelectedMapData?["actors"] as JsonObject;
         foreach (LayerTabViewModel layer in LayerTabs)
         {
             if (layer.IsOverview)
                 continue;
-            List<ActorOutlinerItemViewModel> actors = [];
+            ActorOutlinerItemViewModel layerItem = ActorOutlinerItems.FirstOrDefault(item => item.LayerName == layer.Name)
+                ?? new(layer.Name, layer.Name, layer.Name, null, []);
+            layers.Add(layerItem);
+            childrenToKeep[layerItem] = [];
             if (actorGroups?[layer.Name] is JsonArray layerActors)
             {
                 for (int index = 0; index < layerActors.Count; index += 1)
@@ -363,27 +407,65 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                         continue;
                     string tag = getString(actor["tag"]);
                     string reference = getString(actor["bp"]);
+                    string? runtimeId = actor["runtimeId"]?.GetValue<string>();
                     string name = !string.IsNullOrWhiteSpace(tag)
                         ? tag
                         : !string.IsNullOrWhiteSpace(reference)
                             ? reference
                             : $"#{index + 1}";
-                    actors.Add(new ActorOutlinerItemViewModel(
-                        name,
-                        reference,
-                        layer.Name,
-                        index,
-                        []));
+                    ActorOutlinerItemViewModel? item = runtimeId is not null
+                        ? runtimeActors.GetValueOrDefault(runtimeId)
+                        : layerItem.Children.FirstOrDefault(child => child.ActorIndex == index);
+                    item ??= new(name, reference, layer.Name, index, [], runtimeId);
+                    item.Update(name, reference, layer.Name, index);
+                    childrenToKeep[item] = [];
+                    if (runtimeId is not null)
+                        currentActors[runtimeId] = item;
+                    actorEntries.Add((item, layerItem, actor["parentRuntimeId"]?.GetValue<string>()));
                 }
             }
-            ActorOutlinerItems.Add(new ActorOutlinerItemViewModel(
-                layer.Name,
-                layer.Name,
-                layer.Name,
-                null,
-                actors));
         }
+        foreach ((ActorOutlinerItemViewModel item, ActorOutlinerItemViewModel layer, string? parentId) in actorEntries)
+        {
+            ActorOutlinerItemViewModel parent = liveDebugSession is not null && parentId is not null
+                && currentActors.TryGetValue(parentId, out ActorOutlinerItemViewModel? owner) && owner != item
+                ? owner : layer;
+            childrenToKeep[parent].Add(item);
+        }
+        if (liveDebugSession is not null)
+            foreach (ActorOutlinerItemViewModel parent in childrenToKeep.Keys.ToArray())
+            {
+                List<ActorOutlinerItemViewModel> children = childrenToKeep[parent];
+                childrenToKeep[parent] = parent.Children.Where(children.Contains).Concat(children.Except(parent.Children)).ToList();
+            }
+        foreach (ActorOutlinerItemViewModel parent in previousItems)
+            foreach (ActorOutlinerItemViewModel child in parent.Children.ToArray())
+                if (!childrenToKeep.TryGetValue(parent, out List<ActorOutlinerItemViewModel>? kept) || !kept.Contains(child))
+                    parent.Children.Remove(child);
+        reconcileOutlinerItems(ActorOutlinerItems, layers);
+        foreach ((ActorOutlinerItemViewModel parent, List<ActorOutlinerItemViewModel> children) in childrenToKeep)
+            reconcileOutlinerItems(parent.Children, children);
+        IsRefreshingActorOutliner = false;
         ActorOutlinerChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool IsRefreshingActorOutliner { get; private set; }
+
+    private static void reconcileOutlinerItems(
+        ObservableCollection<ActorOutlinerItemViewModel> items, IReadOnlyList<ActorOutlinerItemViewModel> expected)
+    {
+        for (int index = items.Count - 1; index >= 0; index--)
+            if (!expected.Contains(items[index]))
+                items.RemoveAt(index);
+        for (int index = 0; index < expected.Count; index++)
+        {
+            ActorOutlinerItemViewModel item = expected[index];
+            int previous = items.IndexOf(item);
+            if (previous < 0)
+                items.Insert(index, item);
+            else if (previous != index)
+                items.Move(previous, index);
+        }
     }
 
     public SaveResult SaveChanges(bool notify = true)
@@ -453,7 +535,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true));
         if (SelectedMap is not null)
         {
-            foreach (string name in GameData.getLayerNames(SelectedMap.Key))
+            foreach (string name in displayedLayerNames())
             {
                 bool visible = SelectedMapData?["layers"]?[name]?["visible"]?.GetValue<bool?>() ?? true;
                 LayerTabs.Add(new LayerTabViewModel(
@@ -499,6 +581,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void onTilesetSelected(object? sender, string tilesetKey)
     {
+        if (!CanEdit)
+        {
+            restoreRuntimeTileset();
+            return;
+        }
         if (SelectedMap is null || SelectedLayerTab is not { IsOverview: false } layer)
             return;
         if (GameData.setLayerTilesetKey(SelectedMap.Key, layer.Name, tilesetKey))
@@ -615,6 +702,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     private void onExplorerFileOpened(object? sender, string path)
     {
+        if (!CanEdit)
+            return;
         DataFileInfo? info = GameData.TryLoadDataFile(path);
         if (info?.Type == "invalidTextConfig")
         {

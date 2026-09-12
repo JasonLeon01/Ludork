@@ -20,11 +20,15 @@ struct EditorConsoleImpl {
     sf::TcpSocket client;
     std::string input;
     std::deque<std::string> output;
+    std::deque<std::string> liveDebugOutput;
+    std::size_t liveDebugOutputSize{};
     std::size_t outputOffset{};
     std::size_t outputSize{};
     std::uint64_t connectionId{};
     int environmentReference{LUA_NOREF};
     int jsonDecodeReference{LUA_NOREF};
+    int jsonEncodeReference{LUA_NOREF};
+    int liveDebugReference{LUA_NOREF};
     int inputInjectReference{LUA_NOREF};
     int shutdownReference{LUA_NOREF};
     EditorCommandReloadHandler reloadHandler{};

@@ -1,5 +1,6 @@
 local GlobalCore = require("GlobalCore")
 local TerrainOperations = require("Global.GameMap.TerrainOperations")
+local TerrainChanges = require("Global.GameMap.TerrainChanges")
 
 local GameMapBase = GlobalCore.GameMapBase
 
@@ -34,6 +35,7 @@ function GameMapTerrain.SetTerrainTiles(self, layerName, positions, tileID)
     ---@cast autoTileFrameCounts integer[]
     self:_replaceTerrainLayer(layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
     self:markPassabilityDirty()
+    TerrainChanges.Publish(self, layerName, changedPositions, tileID, layer)
     return changedPositions
 end
 

@@ -27,6 +27,7 @@
 ---@class Source.SceneComponents.MapLayerData
 ---@field layerName    string
 ---@field layerTileset string
+---@field visible      boolean | nil
 ---@field tiles        Source.SceneComponents.SerializedTileRow[]
 ---@field autoTiles    Source.SceneComponents.SerializedAutoTileRow[] | nil
 ---@field shaderPath   string | nil

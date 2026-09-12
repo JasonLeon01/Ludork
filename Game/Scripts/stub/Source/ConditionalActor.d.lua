@@ -14,6 +14,9 @@ local ConditionalActor = {}
 --- Release this Actor's variable subscription without changing visibility or destruction records.
 function ConditionalActor:releaseConditionMonitor() end
 
+--- Replace the live variable subscription and immediately evaluate the current condition without running lifecycle events.
+function ConditionalActor:refreshConditionMonitor() end
+
 --- Release all condition subscriptions owned by a departing map, including removed Actors.
 ---@param gameMap GameMap
 function ConditionalActor.ReleaseMapMonitors(gameMap) end

@@ -189,6 +189,7 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
         local tileLayerData = Engine.TileLayerData.new(
             name, layerTileset, tiles, autoTileGrid, autoTilePool, autoTileKeys, tostring(layerData.shaderPath or "")
         )
+        tileLayerData.layerTilesetKey = layerData.layerTileset
         local autoTileTextures = {}
         local autoTileFrameCounts = {}
         for index, entry in ipairs(autoTilePool) do

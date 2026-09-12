@@ -6,6 +6,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <stdexcept>
 #include <string>
@@ -98,6 +99,20 @@ public:
             coldPublications_ = 0;
         }
         return entries_.size();
+    }
+
+    std::optional<std::string> findKey(
+        const std::shared_ptr<Resource>& resource) {
+        if (resource == nullptr) {
+            return std::nullopt;
+        }
+        const std::shared_lock lock(mutex_);
+        for (const auto& [key, entry] : entries_) {
+            if (retainedResource(entry) == resource) {
+                return key;
+            }
+        }
+        return std::nullopt;
     }
 
     void clear() noexcept {

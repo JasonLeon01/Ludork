@@ -32,10 +32,10 @@ public sealed partial class MapPanel
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (gameData is not null)
+        if (editingContext is not null)
         {
-            gameData.MapPreviewChanged -= onMapDataChanged;
-            gameData.MapPreviewChanged += onMapDataChanged;
+            editingContext.Changed -= onMapDataChanged;
+            editingContext.Changed += onMapDataChanged;
         }
         LayoutUpdated += onLayoutUpdated;
         bindHostScrollViewer(this.FindAncestorOfType<ScrollViewer>());
@@ -64,18 +64,19 @@ public sealed partial class MapPanel
         {
             drawCheckerboard(context);
             JsonObject? layers = CurrentMapData["layers"] as JsonObject;
-            if (layers is not null)
+            if (layers is not null && CurrentMapData["layerOrder"] is JsonArray layerOrder)
             {
-                foreach (KeyValuePair<string, JsonNode?> entry in layers)
+                foreach (JsonNode? name in layerOrder)
                 {
-                    if (entry.Value is not JsonObject layer || !isLayerVisible(layer))
+                    if (name?.GetValue<string>() is not string layerName
+                        || layers[layerName] is not JsonObject layer || !isLayerVisible(layer))
                         continue;
-                    double opacity = selectedLayerName is null || entry.Key == selectedLayerName ? 1.0 : OtherLayerOpacity;
+                    double opacity = selectedLayerName is null || layerName == selectedLayerName ? 1.0 : OtherLayerOpacity;
                     using (context.PushOpacity(opacity))
                     {
-                        drawLayer(context, entry.Key);
+                        drawLayer(context, layerName);
                         layerShaderRenderer?.renderLayer(context, layer, getLocalMapRect(mapWidth, mapHeight));
-                        drawActors(context, entry.Key);
+                        drawActors(context, layerName);
                     }
                 }
             }
@@ -95,11 +96,13 @@ public sealed partial class MapPanel
             return;
 
         PointerPoint point = args.GetCurrentPoint(this);
-        if (point.Properties.IsLeftButtonPressed)
+        if (point.Properties.IsLeftButtonPressed && !IsRuntimeEditing)
             mapEditGesture = gameData.BeginHistoryGesture();
         Point position = point.Position;
         if (EditMode == MapEditMode.Light)
         {
+            if (IsRuntimeEditing)
+                return;
             handleLightPointerPressed(args, position, width, height);
             return;
         }
@@ -121,21 +124,27 @@ public sealed partial class MapPanel
             args.Handled = true;
             return;
         }
-        if (!selectedLayerEditable)
+        if (!canEditMap)
         {
             showEditFeedback("LAYER_NOT_EDITABLE");
+            args.Handled = true;
+            return;
+        }
+        if (args.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            fillTileRegion(grid);
             args.Handled = true;
             return;
         }
         if (args.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             rectangleStart = grid;
-            args.Pointer.Capture(this);
+            capturePointer(args.Pointer);
             args.Handled = true;
             return;
         }
         tileBrushDragging = true;
-        args.Pointer.Capture(this);
+        capturePointer(args.Pointer);
         writeTileSelection(grid);
         args.Handled = true;
     }
@@ -183,8 +192,10 @@ public sealed partial class MapPanel
         lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
+        movingRuntimeActorId = null;
         endMapGesture();
         args.Pointer.Capture(null);
+        capturedPointer = null;
         InvalidateVisual();
     }
 
@@ -196,6 +207,8 @@ public sealed partial class MapPanel
         lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
+        movingRuntimeActorId = null;
+        capturedPointer = null;
         rectangleStart = null;
         base.OnPointerCaptureLost(args);
     }
@@ -351,4 +364,3 @@ public sealed partial class MapPanel
     }
 
 }
-

@@ -110,6 +110,10 @@ public sealed class WorldMapPanel : Grid, IDisposable
     public event EventHandler<WorldMapPlacementRemovedEventArgs>? PlacementRemoved;
     public event EventHandler<string>? ChildMapOpenRequested;
 
+    public WorldMapViewportState CaptureViewport() => canvas.CaptureViewport();
+
+    public void RestoreViewport(WorldMapViewportState state) => canvas.RestoreViewport(state);
+
     public void Configure(
         GameDataService gameData,
         BlueprintPreviewService previewService)

@@ -1,5 +1,6 @@
 #include "EditorConsole.hpp"
 #include "EditorConsoleImpl.hpp"
+#include "EditorLiveDebugImpl.hpp"
 
 #include <EditorCommandServices.hpp>
 #include <LuaError.hpp>
@@ -30,7 +31,7 @@ namespace ludork::standard::runtime {
 namespace {
 
 std::unique_ptr<EditorConsoleImpl> editorConsole;
-constexpr lua_Integer protocolVersion = 1;
+constexpr lua_Integer protocolVersion = EditorBridgeProtocolVersion;
 constexpr std::size_t maximumMessageSize = 64 * 1024;
 constexpr std::size_t maximumOutputSize = 1024 * 1024;
 std::uint64_t nextConnectionId = 0;
@@ -318,6 +319,8 @@ bool processMessage(lua_State* state, EditorConsoleImpl& runtime,
         requestShutdown(state, runtime);
     } else if (type == "control") {
         applyBoolControl(state, runtime, messageIndex);
+    } else if (type == "liveDebug") {
+        processEditorLiveDebugMessage(state, runtime, messageIndex);
     } else {
         std::cerr << "[EditorBridge] Unknown message type." << std::endl;
     }
@@ -357,6 +360,8 @@ void disconnectClient(EditorConsoleImpl& runtime) {
     runtime.connected = false;
     runtime.input.clear();
     runtime.output.clear();
+    runtime.liveDebugOutput.clear();
+    runtime.liveDebugOutputSize = 0;
     runtime.outputOffset = 0;
     runtime.outputSize = 0;
     runtime.connectionId = 0;
@@ -406,7 +411,8 @@ bool queueMessage(EditorConsoleImpl& runtime, std::string_view message) {
 
 }  // namespace
 
-void initializeEditorConsole(lua_State* state, int jsonDecodeIndex) {
+void initializeEditorConsole(lua_State* state, int jsonDecodeIndex,
+                             int jsonEncodeIndex) {
     if (editorConsole) {
         shutdownEditorConsole(state);
     }
@@ -420,10 +426,13 @@ void initializeEditorConsole(lua_State* state, int jsonDecodeIndex) {
         std::cerr << "[Console] Invalid LUDORK_COMMAND_PORT." << std::endl;
         return;
     }
-    if (!lua_isfunction(state, jsonDecodeIndex)) {
-        std::cerr << "[Console] JSON decoder is not callable." << std::endl;
+    if (!lua_isfunction(state, jsonDecodeIndex) ||
+        !lua_isfunction(state, jsonEncodeIndex)) {
+        std::cerr << "[Console] JSON codec is not callable." << std::endl;
         return;
     }
+    jsonDecodeIndex = lua_absindex(state, jsonDecodeIndex);
+    jsonEncodeIndex = lua_absindex(state, jsonEncodeIndex);
 
     std::unique_ptr<EditorConsoleImpl> runtime =
         std::make_unique<EditorConsoleImpl>();
@@ -438,6 +447,8 @@ void initializeEditorConsole(lua_State* state, int jsonDecodeIndex) {
     runtime->state = state;
     lua_pushvalue(state, jsonDecodeIndex);
     runtime->jsonDecodeReference = luaL_ref(state, LUA_REGISTRYINDEX);
+    lua_pushvalue(state, jsonEncodeIndex);
+    runtime->jsonEncodeReference = luaL_ref(state, LUA_REGISTRYINDEX);
     editorConsole = std::move(runtime);
 }
 
@@ -459,7 +470,8 @@ void updateEditorConsole(lua_State* state) {
         runtime.connectionId = ++nextConnectionId;
         runtime.input.clear();
         runtime.client.setBlocking(false);
-        queueMessage(runtime, "{\"v\":1,\"type\":\"ready\"}");
+        queueMessage(runtime, "{\"v\":" + std::to_string(protocolVersion) +
+                                  ",\"type\":\"ready\"}");
     }
 
     std::array<char, 4096> buffer{};
@@ -483,6 +495,18 @@ void updateEditorConsole(lua_State* state) {
         }
         disconnectClient(runtime);
     }
+    while (runtime.connected && !runtime.liveDebugOutput.empty()) {
+        const std::string& message = runtime.liveDebugOutput.front();
+        if (runtime.outputSize + message.size() + 1 > maximumOutputSize) {
+            break;
+        }
+        const std::size_t messageSize = message.size() + 1;
+        if (!queueMessage(runtime, message)) {
+            break;
+        }
+        runtime.liveDebugOutput.pop_front();
+        runtime.liveDebugOutputSize -= messageSize;
+    }
     if (runtime.connected && !flushOutput(runtime)) {
         disconnectClient(runtime);
     }
@@ -501,6 +525,15 @@ void shutdownEditorConsole(lua_State* state) noexcept {
         luaL_unref(state, LUA_REGISTRYINDEX,
                    editorConsole->jsonDecodeReference);
         editorConsole->jsonDecodeReference = LUA_NOREF;
+    }
+    if (editorConsole->jsonEncodeReference != LUA_NOREF) {
+        luaL_unref(state, LUA_REGISTRYINDEX,
+                   editorConsole->jsonEncodeReference);
+        editorConsole->jsonEncodeReference = LUA_NOREF;
+    }
+    if (editorConsole->liveDebugReference != LUA_NOREF) {
+        luaL_unref(state, LUA_REGISTRYINDEX, editorConsole->liveDebugReference);
+        editorConsole->liveDebugReference = LUA_NOREF;
     }
     if (editorConsole->inputInjectReference != LUA_NOREF) {
         luaL_unref(state, LUA_REGISTRYINDEX,
@@ -684,6 +717,34 @@ void unregisterEditorCommandShutdownHandler(lua_State* state) noexcept {
         return;
     }
     runtime::clearEditorCommandShutdownHandler(state);
+}
+
+void registerEditorLiveDebugHandler(lua_State* state, int functionIndex) {
+    LuaExecutionScope execution(state);
+    if (!execution.active() || !runtime::editorConsole ||
+        runtime::editorConsole->state != state ||
+        !lua_isfunction(state, functionIndex)) {
+        return;
+    }
+    lua_pushvalue(state, functionIndex);
+    if (runtime::editorConsole->liveDebugReference != LUA_NOREF) {
+        luaL_unref(state, LUA_REGISTRYINDEX,
+                   runtime::editorConsole->liveDebugReference);
+    }
+    runtime::editorConsole->liveDebugReference =
+        luaL_ref(state, LUA_REGISTRYINDEX);
+}
+
+void unregisterEditorLiveDebugHandler(lua_State* state) noexcept {
+    LuaExecutionScope execution(state);
+    if (!execution.active() || !runtime::editorConsole ||
+        runtime::editorConsole->state != state ||
+        runtime::editorConsole->liveDebugReference == LUA_NOREF) {
+        return;
+    }
+    luaL_unref(state, LUA_REGISTRYINDEX,
+               runtime::editorConsole->liveDebugReference);
+    runtime::editorConsole->liveDebugReference = LUA_NOREF;
 }
 
 void registerEditorCommandReloadHandler(lua_State* state,

@@ -9,6 +9,7 @@ local GameplayScene = require("Source.Gameplay.GameplayScene")
 local ConditionalActor = require("Source.ConditionalActor")
 local Teleporter = require("Source.Teleporter")
 local MapPath = require("Source.MapPath")
+local LiveDebug = require("Source.LiveDebug")
 local SceneMapInteractions = require("Source.Scenes.SceneMap.Interactions")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
@@ -203,6 +204,7 @@ function Scene:onCreate()
     self._worldAmbientTransitionElapsed = 0
     local startMap = self.inst:getCurrentMapPath() or GameSystem.GetStartMap()
     self:gotoMapAndPos(startMap, nil, true)
+    LiveDebug.BindScene(self)
 end
 
 function Scene:_registerFocusGroups()
@@ -254,6 +256,7 @@ function Scene:onQuit()
 end
 
 function Scene:onDestroy()
+    LiveDebug.UnbindScene(self)
     self._gameplayRequestsActive = false
     self._gameOverRequest = nil
     if self._gameMap ~= nil then

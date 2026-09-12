@@ -15,6 +15,12 @@ public:
     BIND_METHOD()
     static std::size_t getMemory();
 
+    /// Return the resource path associated with a cached texture, or nil for
+    /// textures created outside this manager.
+    BIND_METHOD(metadata = false)
+    static std::optional<std::string> getPath(
+        const std::shared_ptr<sf::Texture>& texture);
+
     static void clear() noexcept;
 
 private:

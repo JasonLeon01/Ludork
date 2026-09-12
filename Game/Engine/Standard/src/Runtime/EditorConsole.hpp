@@ -4,7 +4,8 @@ struct lua_State;
 
 namespace ludork::standard::runtime {
 
-void initializeEditorConsole(lua_State* state, int jsonDecodeIndex);
+void initializeEditorConsole(lua_State* state, int jsonDecodeIndex,
+                             int jsonEncodeIndex);
 void updateEditorConsole(lua_State* state);
 void shutdownEditorConsole(lua_State* state) noexcept;
 

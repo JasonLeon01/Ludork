@@ -107,6 +107,10 @@ function ConditionalActor:releaseConditionMonitor()
     self._conditionMap = nil
 end
 
+function ConditionalActor:refreshConditionMonitor()
+    self:_registerConditionMonitor()
+end
+
 function ConditionalActor.ReleaseMapMonitors(gameMap)
     local actors = monitoredActors[gameMap]
     if actors ~= nil then
