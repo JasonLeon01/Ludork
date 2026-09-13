@@ -54,31 +54,9 @@ std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::classTypeMetadata(
     if (!rawClass.is<sol::table>()) {
         return {};
     }
-    sol::table cache = ludork::runtime::detail::registryTable(
-        lua, ludork::runtime::detail::CLASS_TYPE_METADATA_CACHE_KEY, "k");
-    sol::object rawDescriptor = cache.raw_get<sol::object>(rawClass);
-    if (!rawDescriptor.is<sol::table>()) {
-        sol::object metadata =
-            ludork::runtime::detail::syntheticRuntimeMetadata(
-                lua, rawClass.as<sol::table>());
-        if (!metadata.is<sol::table>()) {
-            metadata = ludork::runtime::detail::runtimeTypeMetadata(
-                lua, rawClass.as<sol::table>());
-        }
-        sol::table descriptor = lua.create_table();
-        descriptor.raw_set("hasMetadata", metadata.is<sol::table>());
-        if (metadata.is<sol::table>()) {
-            descriptor.raw_set("metadata", metadata);
-        }
-        const sol::object module =
-            ludork::runtime::detail::findRuntimeClassModule(lua, rawClass);
-        if (module.valid() && module.get_type() != sol::type::lua_nil) {
-            descriptor.raw_set("module", module);
-        }
-        cache.raw_set(rawClass, descriptor);
-        rawDescriptor = sol::make_object(lua, descriptor);
-    }
-    const sol::table descriptor = rawDescriptor.as<sol::table>();
+    const sol::table descriptor =
+        ludork::runtime::detail::runtimeClassTypeDescriptor(
+            lua, rawClass.as<sol::table>());
     const sol::object hasMetadata =
         descriptor.raw_get<sol::object>("hasMetadata");
     const sol::object metadata =

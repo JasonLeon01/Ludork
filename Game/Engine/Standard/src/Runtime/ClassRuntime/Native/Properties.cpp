@@ -221,8 +221,10 @@ void syncNativeClassDefaults(sol::state_view lua, const sol::table& classTable,
         return;
     }
     const sol::table fields = class_native::getUserFields(lua, instance, false);
-    if (!fields.raw_get<sol::object>(protocol::NATIVE_OBJECTS_FIELD)
-             .is<sol::table>()) {
+    const sol::object nativeObjects =
+        fields.raw_get<sol::object>(protocol::NATIVE_OBJECTS_FIELD);
+    if (!nativeObjects.is<sol::table>() ||
+        tableIsEmpty(nativeObjects.as<sol::table>())) {
         return;
     }
     std::vector<std::string> properties;

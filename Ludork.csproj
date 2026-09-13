@@ -108,7 +108,7 @@
   <Target
       Name="GenerateProjectToolConstants"
       DependsOnTargets="GenerateEngineConstants"
-      Inputs="$(MSBuildProjectDirectory)/ScriptTools/packaging_constants.py;$(MSBuildProjectFullPath)"
+      Inputs="$(MSBuildProjectDirectory)/ScriptTools/packaging_constants.py;$(MSBuildProjectDirectory)/ScriptTools/packaging_cli.py;$(MSBuildProjectFullPath)"
       Outputs="$(IntermediateOutputPath)ProjectToolConstants.g.cs">
     <Exec Command="&quot;$(LudorkScriptTools)&quot; packaging-constants csharp &quot;$(IntermediateOutputPath)ProjectToolConstants.g.cs&quot;" />
     <ItemGroup>

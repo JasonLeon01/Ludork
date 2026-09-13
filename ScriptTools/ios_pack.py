@@ -15,15 +15,12 @@ import zipfile
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
 from .packaging_constants import (
-    ARTIFACT_NAME_FALLBACK,
-    ARTIFACT_NAME_MAX_LENGTH,
-    ARTIFACT_NAME_PATTERN,
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_PROJECT,
     EXIT_TOOLCHAIN,
     MOBILE_DEPENDENCY_NAMES,
-    check_app_name,
 )
+from .packaging_names import artifact_name, read_app_name
 from .resource_constants import RESOURCE_GROUPS
 from .compile_lua import resolve_luac
 from .ui_property_values import UiAssetError
@@ -145,7 +142,7 @@ def resolve_project(project_folder: str) -> pathlib.Path:
                 f"Required iOS project folder was not found: {directory}",
                 EXIT_PROJECT,
             )
-    check_app_name(project_dir)
+    read_app_name(project_dir)
     system_assets = project_dir / "Assets" / "System"
     if not any(
         (system_assets / icon_name).is_file()
@@ -164,33 +161,6 @@ def resolve_project(project_folder: str) -> pathlib.Path:
                 EXIT_PROJECT,
             )
     return project_dir
-
-
-def read_game_name(project_dir: pathlib.Path) -> str:
-    system_path = project_dir / "Data" / "Configs" / "System.json"
-    try:
-        data = json.loads(system_path.read_text(encoding="utf-8"))
-        title = data["title"]["value"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exception:
-        raise PackError(
-            f"Unable to read game title from {system_path}: {exception}",
-            EXIT_PROJECT,
-        ) from exception
-    if not isinstance(title, str) or not title.strip():
-        raise PackError(
-            f"Game title must be a non-empty string: {system_path}",
-            EXIT_PROJECT,
-        )
-    return title
-
-
-def artifact_name(game_name: str) -> str:
-    normalized = unicodedata.normalize("NFC", game_name)
-    safe = ARTIFACT_NAME_PATTERN.sub("-", normalized)
-    safe = re.sub(r"\s+", " ", safe).strip(" .")
-    if not safe:
-        safe = ARTIFACT_NAME_FALLBACK
-    return safe[:ARTIFACT_NAME_MAX_LENGTH].rstrip(" .") or ARTIFACT_NAME_FALLBACK
 
 
 def bundle_identifier(team_id: str, game_name: str) -> str:
@@ -219,7 +189,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     developer_dir = resolve_developer_dir()
     cmake = resolve_cmake()
     cmake_version = require_cmake(cmake)
-    game_name = read_game_name(project_dir)
+    game_name = read_app_name(project_dir)
     tools = require_xcode_tools(developer_dir)
     team_id = select_team_id()
     if arguments.compile_lua:
@@ -260,7 +230,7 @@ def write_info_plist(context: PackContext, path: pathlib.Path) -> None:
         "CFBundleExecutable": "$(EXECUTABLE_NAME)",
         "CFBundleIdentifier": context.bundle_identifier,
         "CFBundleInfoDictionaryVersion": "6.0",
-        "CFBundleName": context.artifact_name,
+        "CFBundleName": context.game_name,
         "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": "1.0.0",
         "CFBundleVersion": "1",

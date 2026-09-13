@@ -43,6 +43,20 @@ void Canvas::resize(const sf::Vector2u& size) {
     bindCanvasTexture();
 }
 
+void Canvas::resizeForLayout(const sf::Vector2u& size) {
+    const sf::Vector2u pixelSize =
+        toVector2u(toVector2f(size) * engineState().getScale());
+    if (getSize() != toVector2f(size) ||
+        canvas_->getSize() != nonZeroRenderTextureSize(pixelSize) ||
+        &getTexture() != &canvas_->getTexture() ||
+        getTextureRect() != sf::IntRect({0, 0}, toVector2i(pixelSize))) {
+        resize(size);
+    } else {
+        canvas_->setSmooth(false);
+        setView(getDefaultView());
+    }
+}
+
 sf::IntRect Canvas::getNoTranslationRect() const {
     return {{0, 0},
             toVector2i(sf::Vector2f{static_cast<float>(size_.x),

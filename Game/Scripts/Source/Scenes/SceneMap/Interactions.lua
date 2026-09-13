@@ -16,6 +16,8 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local MAP_TRANSITION_NAME = ""
 local MAP_TRANSITION_TIME = 0.5
+local MAP_INPUT_BLOCK_FRAMES = 2
+local WINDOW_CLOSE_INPUT_BLOCK_FRAMES = 1
 local ENEMY_BOOK_ITEM_ID = GeneralEnum.Item.EnemyBook
 local FLOOR_TELEPORTER_ITEM_ID = GeneralEnum.Item.Teleport
 
@@ -89,7 +91,7 @@ function Scene.ShowMessage(self, name, message, refActor, localeArgs)
         refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
     end
     local restoreMove = suspendPlayerMovement(self.player, function ()
-        self:_blockMapInput(2)
+        self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
     end)
     ---@type Source.Scenes.SceneMap.DialogueMessageLocaleSource
     local dialogueSource = {
@@ -99,9 +101,10 @@ function Scene.ShowMessage(self, name, message, refActor, localeArgs)
     }
     self._dialogueLocaleSource = dialogueSource
     local formattedName, formattedMessage = Scene.FormatDialogueMessageSource(dialogueSource)
-    self._messageWindow:setMessage(refPosition, formattedName, formattedMessage, restoreMove)
+    local messageWindow = self._messageWindow:get()
+    messageWindow:setMessage(refPosition, formattedName, formattedMessage, restoreMove)
     return function ()
-        if self._messageWindow:isInDialogue() then
+        if messageWindow:isInDialogue() then
             return false
         end
         restoreMove()
@@ -120,7 +123,7 @@ function Scene.ShowSelection(self, name, options, refActor, allowCancel, localeA
         refPosition = gameMap:worldToUIScreenPosition(refActor:getPosition())
     end
     local restoreMove = suspendPlayerMovement(self.player, function ()
-        self:_blockMapInput(2)
+        self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
     end)
     ---@type Source.Scenes.SceneMap.DialogueSelectionLocaleSource
     local dialogueSource = {
@@ -130,9 +133,10 @@ function Scene.ShowSelection(self, name, options, refActor, allowCancel, localeA
     }
     self._dialogueLocaleSource = dialogueSource
     local formattedName, formattedOptions = Scene.FormatDialogueSelectionSource(dialogueSource)
-    self._messageWindow:setSelection(refPosition, formattedName, formattedOptions, allowCancel, restoreMove)
+    local messageWindow = self._messageWindow:get()
+    messageWindow:setSelection(refPosition, formattedName, formattedOptions, allowCancel, restoreMove)
     return function ()
-        local selectionResult = self._messageWindow:getSelectionResult()
+        local selectionResult = messageWindow:getSelectionResult()
         if selectionResult == nil then
             return nil
         end
@@ -156,14 +160,17 @@ end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.RebindPlayerToUI(self)
-    self._windowItem:setPlayer(self.player)
-    self._windowEquip:setPlayer(self.player)
-    self._windowMenu:setPlayer(self.player)
-    self._windowShop:setPlayer(self.player)
-    self._windowAttrShop:setPlayer(self.player)
-    self._windowEnemyBook:setPlayer(self.player)
+    local windows = {
+        self._windowItem, self._windowEquip, self._windowMenu, self._windowShop, self._windowAttrShop,
+        self._windowEnemyBook, self._windowPlayerName
+    }
+    for _, lazyWindow in ipairs(windows) do
+        local window = lazyWindow:peek()
+        if window ~= nil then
+            window:setPlayer(self.player)
+        end
+    end
     self._playerHUD:setPlayer(self.player)
-    self._windowPlayerName:setPlayer(self.player)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -171,12 +178,13 @@ function Scene.ShowEnemyBook(self)
     if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(ENEMY_BOOK_ITEM_ID) then
         return
     end
-    if not self._windowEnemyBook:getVisible() then
-        self._enemyBookMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
+    local window = self._windowEnemyBook:get()
+    if not window:getVisible() then
+        self._enemyBookMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
         self.player:setMoveEnabled(false)
     end
-    self._windowEnemyBook:open(self:getGameMap())
-    self:_blockMapInput(2)
+    window:open(self:getGameMap())
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -184,12 +192,13 @@ function Scene.ShowFloorTeleporter(self)
     if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
         return
     end
-    if not self._windowFloorTeleporter:getVisible() then
-        self._floorTeleporterMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
+    local window = self._windowFloorTeleporter:get()
+    if not window:getVisible() then
+        self._floorTeleporterMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
         self.player:setMoveEnabled(false)
     end
-    self._windowFloorTeleporter:open(self.inst)
-    self:_blockMapInput(2)
+    window:open(self.inst)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -201,34 +210,37 @@ end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenPlayerName(self)
-    if not self._windowPlayerName:getVisible() then
+    local window = self._windowPlayerName:get()
+    if not window:getVisible() then
         self._playerNameMoveEnabledBeforeOpen = self.player:getMoveEnabled()
         self.player:setMoveEnabled(false)
-        self._windowPlayerName:open()
-        self:_blockMapInput(2)
+        window:open()
+        self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
     end
     return function ()
-        return not self._windowPlayerName:getVisible()
+        return not window:getVisible()
     end
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenShop(self, buyItemIDs, canSell)
-    self._shopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
+    self._shopMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
     self.player:setMoveEnabled(false)
-    self._windowShop:open(buyItemIDs, canSell)
+    local window = self._windowShop:get()
+    window:open(buyItemIDs, canSell)
     return function ()
-        return not self._windowShop:getVisible()
+        return not window:getVisible()
     end
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenAttrShop(self, actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
-    self._attrShopMoveEnabledBeforeOpen = self._windowMenu:isBlocking() or self.player:getMoveEnabled()
+    self._attrShopMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
     self.player:setMoveEnabled(false)
-    self._windowAttrShop:open(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
+    local window = self._windowAttrShop:get()
+    window:open(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
     return function ()
-        return not self._windowAttrShop:getVisible()
+        return not window:getVisible()
     end
 end
 
@@ -238,34 +250,40 @@ function Scene.OnShopClose(self)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnPlayerNameClose(self)
+    self.player:setMoveEnabled(self._playerNameMoveEnabledBeforeOpen)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnAttrShopClose(self)
     self.player:setMoveEnabled(self._attrShopMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
+    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnEnemyBookClose(self)
     self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
+    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param entry Source.Windows.WindowEnemyBook.Entry
 ---@param self  Source.Scenes.SceneMap.SceneMap
 function Scene.OnEnemyBookConfirm(self, entry)
-    self._windowEnemyEncyclopedia:open(entry)
-    self:_blockMapInput(2)
+    self._windowEnemyEncyclopedia:get():open(entry)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnEnemyEncyclopediaClose(self)
     self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
+    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnFloorTeleporterClose(self)
     self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
-    self:_blockMapInput(1)
+    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param mapKey    string
@@ -275,10 +293,13 @@ function Scene.OnFloorTeleporterConfirm(self, mapKey, telepoint)
     local targetMap = self:resolveRegionMapPath(mapKey)
     local targetPosition = sf.Vector2i.new(telepoint.x, telepoint.y)
     ---@cast targetPosition sf.Vector2i
-    self._windowFloorTeleporter:close()
+    local window = self._windowFloorTeleporter:peek()
+    if window ~= nil then
+        window:close()
+    end
     self:gotoMapAndPos(targetMap, targetPosition)
     self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
-    self:_blockMapInput(2)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
 end
 
 ---@param nodeFunction function
@@ -318,8 +339,9 @@ end
 ---@return boolean
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.HasVisibleBlockingWindow(self)
-    for _, window in ipairs(self._blockingWindows) do
-        if window:getVisible() then
+    for _, lazyWindow in ipairs(self._blockingWindows) do
+        local window = lazyWindow:peek()
+        if window ~= nil and window:getVisible() then
             return true
         end
     end
@@ -329,7 +351,7 @@ end
 ---@param frames integer
 ---@param self   Source.Scenes.SceneMap.SceneMap
 function Scene.BlockMapInput(self, frames)
-    frames = frames or 1
+    frames = frames or WINDOW_CLOSE_INPUT_BLOCK_FRAMES
     self._mapInputBlockFrames = math.max(self._mapInputBlockFrames, frames)
 end
 
@@ -446,16 +468,23 @@ end
 ---@param reason string
 ---@param self   Source.Scenes.SceneMap.SceneMap
 function Scene.OnSaveLoadClose(self, reason)
-    if reason == "cancel" then
-        self._windowMenu:onSaveLoadClose()
+    local menu = self._windowMenu:peek()
+    if menu == nil then
         return
     end
-    self._windowMenu:close()
+    if reason == "cancel" then
+        menu:onSaveLoadClose()
+        return
+    end
+    menu:close()
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnConfigClose(self)
-    self._windowMenu:onConfigClose()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil then
+        menu:onConfigClose()
+    end
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -474,7 +503,8 @@ function Scene.GotoMapAndPos(self, mapPath, pos, blockTransition)
             assert(targetPosition.x >= 0 and targetPosition.y >= 0
                     and targetPosition.x < worldSize.x and targetPosition.y < worldSize.y,
                 "Current world position is outside the destination world")
-        elseif targetPosition == nil and (bool(isChildEntry) or os.path.basename(targetMap) == MapConstants.WORLD_MANIFEST_FILE) then
+        elseif targetPosition == nil
+            and (bool(isChildEntry) or os.path.basename(targetMap) == MapConstants.WORLD_MANIFEST_FILE) then
             targetMap, targetPosition = self._mapBuilder:resolveMapDestination(
                 mapPath, self:_getCurrentRegionMap(), self.player:getMapPosition()
             )

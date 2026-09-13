@@ -3,8 +3,8 @@
 ---@field new             fun(): Source.Scenes.SceneTitle
 ---@field _ui             Source.Scenes.SceneTitle.Controller
 ---@field _windowCommand  Source.Windows.WindowCommand
----@field _windowSaveLoad Source.Windows.WindowSaveLoad
----@field _configWindow   Source.Windows.ConfigWindow
+---@field _windowSaveLoad Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _configWindow   Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
 local Scene = {}
 
 ---@brief Start with a blind transition effect.

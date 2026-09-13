@@ -19,9 +19,6 @@ from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
-    ARTIFACT_NAME_FALLBACK,
-    ARTIFACT_NAME_MAX_LENGTH,
-    ARTIFACT_NAME_PATTERN,
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_DEVICE,
     EXIT_PROJECT,
@@ -31,8 +28,8 @@ from .packaging_constants import (
     MOBILE_DEPENDENCY_NAMES,
     RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
-    check_app_name,
 )
+from .packaging_names import artifact_name, read_app_name
 from .resource_constants import RESOURCE_GROUPS, RESOURCE_PACKAGES
 from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
@@ -260,7 +257,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         path = project_dir / path_name
         if not path.is_file():
             raise PackError(f"Required HarmonyOS project file was not found: {path}", EXIT_PROJECT)
-    check_app_name(project_dir)
+    read_app_name(project_dir)
     if project_data.get("ffmpeg") is True:
         for path in (
             project_dir / "Engine" / "ThirdParty" / "ffmpeg" / "configure",
@@ -273,28 +270,6 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
                     EXIT_PROJECT,
                 )
     return project_dir
-
-
-def read_game_name(project_dir: pathlib.Path) -> str:
-    system_path = project_dir / "Data" / "Configs" / "System.json"
-    try:
-        data = json.loads(system_path.read_text(encoding="utf-8"))
-        title = data["title"]["value"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exception:
-        raise PackError(
-            f"Unable to read game title from {system_path}: {exception}",
-            EXIT_PROJECT,
-        ) from exception
-    if not isinstance(title, str) or not title.strip():
-        raise PackError(f"Game title must be a non-empty string: {system_path}", EXIT_PROJECT)
-    return title.strip()
-
-
-def safe_artifact_name(game_name: str) -> str:
-    normalized = unicodedata.normalize("NFC", game_name)
-    safe = ARTIFACT_NAME_PATTERN.sub("-", normalized)
-    safe = re.sub(r"\s+", " ", safe).strip(" .")
-    return (safe[:ARTIFACT_NAME_MAX_LENGTH].rstrip(" .") or ARTIFACT_NAME_FALLBACK)
 
 
 def harmony_bundle_name(game_name: str) -> str:
@@ -349,7 +324,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             resolve_luac()
         except RuntimeError as exception:
             raise PackError(str(exception), EXIT_TOOLCHAIN) from exception
-    game_name = read_game_name(project_dir)
+    game_name = read_app_name(project_dir)
     dist_dir = (
         arguments.dist_folder.expanduser().resolve()
         if arguments.dist_folder is not None
@@ -373,7 +348,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         script_tools=resolve_script_tools(),
         tools=resolve_deveco_tools(),
         game_name=game_name,
-        artifact_name=safe_artifact_name(game_name),
+        artifact_name=artifact_name(game_name),
         bundle_name=bundle_name,
         device_form=arguments.device_form,
         graphics_api=graphics_api,

@@ -22,9 +22,6 @@ from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
-    ARTIFACT_NAME_FALLBACK,
-    ARTIFACT_NAME_MAX_LENGTH,
-    ARTIFACT_NAME_PATTERN,
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_PROJECT,
     EXIT_SIGNING,
@@ -33,8 +30,8 @@ from .packaging_constants import (
     MOBILE_DEPENDENCY_NAMES,
     RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
-    check_app_name,
 )
+from .packaging_names import artifact_name, read_app_name
 from .resource_constants import RESOURCE_GROUPS
 from .ui_property_values import UiAssetError
 from ScriptTools.ui_preview import prepare_registry
@@ -565,7 +562,7 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
         required = project_dir / relative
         if not required.is_file():
             raise PackError(f"Required Android project file was not found: {required}", EXIT_PROJECT)
-    check_app_name(project_dir)
+    read_app_name(project_dir)
     system_assets = project_dir / "Assets" / "System"
     if not any((system_assets / name).is_file() for name in ("icon.png", "icon.icns")):
         raise PackError(f"Project icon was not found in {system_assets}.", EXIT_PROJECT)
@@ -580,25 +577,6 @@ def resolve_project(path: pathlib.Path) -> pathlib.Path:
                     EXIT_PROJECT,
                 )
     return project_dir
-
-
-def read_game_name(project_dir: pathlib.Path) -> str:
-    system_path = project_dir / "Data" / "Configs" / "System.json"
-    try:
-        data = json.loads(system_path.read_text(encoding="utf-8"))
-        title = data["title"]["value"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exception:
-        raise PackError(f"Unable to read game title from {system_path}: {exception}", EXIT_PROJECT) from exception
-    if not isinstance(title, str) or not title.strip():
-        raise PackError(f"Game title must be a non-empty string: {system_path}", EXIT_PROJECT)
-    return title
-
-
-def artifact_name(game_name: str) -> str:
-    normalized = unicodedata.normalize("NFC", game_name)
-    safe = ARTIFACT_NAME_PATTERN.sub("-", normalized)
-    safe = re.sub(r"\s+", " ", safe).strip(" .")
-    return (safe[:ARTIFACT_NAME_MAX_LENGTH].rstrip(" .") or ARTIFACT_NAME_FALLBACK)
 
 
 def application_id(game_name: str) -> str:
@@ -687,7 +665,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     assert cmake is not None
     assert make is not None
     assert script_tools is not None
-    game_name = read_game_name(project_dir)
+    game_name = read_app_name(project_dir)
     build_dir = project_dir / "build" / "android"
     return PackContext(
         project_dir=project_dir,

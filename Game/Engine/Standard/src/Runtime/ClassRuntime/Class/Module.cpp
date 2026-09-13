@@ -212,6 +212,7 @@ void shutdown(lua_State* state) noexcept {
     constexpr const char* registryKeys[] = {
         METHOD_OWNERS_KEY,
         NATIVE_TYPE_CACHE_KEY,
+        NATIVE_PROPERTY_CACHE_KEY,
         INSTANCES_KEY,
         COMPOSITE_METATABLE_KEY,
         CONSTRUCTING_COMPOSITE_METATABLE_KEY,

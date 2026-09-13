@@ -29,10 +29,16 @@ void ComponentRuntimeCache::clear(lua_State* state) const noexcept {
 RuntimeValue ComponentRuntimeCache::get(
     ComponentRuntimeCache::ComponentRuntimeCacheKind kind,
     const RuntimeValue& key) const {
-    return ludork::runtime::reference::snapshot(
-        ludork::runtime::reference::rawGet(
-            ludork::runtime::reference::intern(cacheFor(kind)), key));
+    return ludork::runtime::reference::snapshot(getReference(kind, key));
 }
+
+RuntimeValue ComponentRuntimeCache::getReference(
+    ComponentRuntimeCache::ComponentRuntimeCacheKind kind,
+    const RuntimeValue& key) const {
+    return ludork::runtime::reference::rawGet(
+        ludork::runtime::reference::intern(cacheFor(kind)), key);
+}
+
 void ComponentRuntimeCache::set(
     ComponentRuntimeCache::ComponentRuntimeCacheKind kind,
     const RuntimeValue& key, const RuntimeValue& value) const {

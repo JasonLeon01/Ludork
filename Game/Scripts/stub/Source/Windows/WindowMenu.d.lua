@@ -1,36 +1,37 @@
 ---@meta
 
 ---@class Source.Windows.WindowMenuWindows
----@field item     Source.Windows.WindowItem
----@field equip    Source.Windows.WindowEquip
----@field saveLoad Source.Windows.WindowSaveLoad
----@field config   Source.Windows.ConfigWindow
+---@field item     Source.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field equip    Source.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field saveLoad Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field config   Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
 
 ---@brief In-game menu window that manages commands, open/close triggers, and sub-windows.
 ---
---- Owns the full menu lifecycle: detects the open trigger, defines built-in commands
---- (Items, Equipment, Save, Config, Return to Title), delegates to WindowItem, and
---- re-enables player movement on close.
+--- Defines commands and sub-window navigation, then restores player movement on close.
+--- The owning scene controls opening, stacking and the exit action.
 ---@class Source.Windows.WindowMenu.Controller: Source.UIBase.UiController
 ---@field host              Source.Windows.WindowMenu
 ---@field _player           Source.Player.Player
 ---@field ui                Source.UI.WindowMenu
----@field _menuControls     Engine.Canvas[]
 ---@field _moveRestoreGuard fun(): boolean
----@field _windowItem       Source.Windows.WindowItem
----@field _windowEquip      Source.Windows.WindowEquip
----@field _windowSaveLoad   Source.Windows.WindowSaveLoad
----@field _configWindow     Source.Windows.ConfigWindow
+---@field _onExit           fun()
+---@field _windowItem       Source.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field _windowEquip      Source.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field _windowSaveLoad   Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _configWindow     Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
 ---@field _commands         Source.UIBase.UiCollection<Source.UIBase.CommandRow.Controller>
 local Controller = {}
 
----@brief Construct the menu window and wire up sub-window callbacks.
+---@brief Construct the menu window without creating its independent sub-windows.
 ---
 --- - @param player The player actor; movement is disabled while the menu is open.
---- - @param windows Named item, equipment, and non-load-only save/load windows.
+--- - @param windows Named lazy handles for item, equipment, non-load-only save/load, and configuration windows.
+--- - @param onExit Scene-owned action invoked after the menu closes for Exit.
 ---@param player  Source.Player.Player
 ---@param windows Source.Windows.WindowMenuWindows
-function Controller:init(player, windows) end
+---@param onExit  fun()
+function Controller:init(player, windows, onExit) end
 
 ---@brief Rebind the player whose movement is controlled by the menu.
 ---@param player Source.Player.Player
@@ -88,6 +89,9 @@ function Controller:openConfig() end
 function Controller:exitGame() end
 
 function Controller:onSaveLoadClose() end
+
+---@brief Restore the return button and command focus after an item or equipment window closes.
+function Controller:onSubMenuClose() end
 
 ---@brief Reactivate the command list and return focus after the Config window closes.
 function Controller:onConfigClose() end

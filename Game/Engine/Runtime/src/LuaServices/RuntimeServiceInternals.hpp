@@ -4,8 +4,8 @@
 
 namespace ludork::runtime::detail {
 
-inline constexpr const char* CLASS_TYPE_METADATA_CACHE_KEY =
-    "Ludork.Runtime.classTypeMetadataCache";
+sol::table runtimeClassTypeDescriptor(sol::state_view lua,
+                                      const sol::table& classReference);
 
 sol::object resolveRuntimeAttrValueType(sol::state_view lua,
                                         const sol::object& owner,

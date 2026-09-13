@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
 cd /d "%ROOT_DIR%"
@@ -130,7 +130,7 @@ if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 if errorlevel 1 exit /b %errorlevel%
 if exist "%STANDALONE_DIR%\Cache" rmdir /S /Q "%STANDALONE_DIR%\Cache"
 if exist "%STANDALONE_DIR%\Cache" exit /b 1
-call :validate_runtime_layout "%STANDALONE_DIR%"
+call :validate_runtime_layout
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist "%STANDALONE_DIR%\Main.exe" (
@@ -138,7 +138,7 @@ if not exist "%STANDALONE_DIR%\Main.exe" (
     exit /b 1
 )
 
-echo Standalone build complete: %STANDALONE_DIR%
+echo Standalone build complete: "%STANDALONE_DIR%"
 exit /b 0
 
 :usage
@@ -146,20 +146,16 @@ echo Usage: tools\build_standalone.bat [--use-current-build] ^<cpp-folder^> ^<st
 exit /b 1
 
 :validate_runtime_layout
-if not exist "%~1\Binaries\Main.exe" (
-    echo Standalone runtime executable is missing: %~1\Binaries\Main.exe
+if not exist "%STANDALONE_DIR%\Binaries\Main.exe" (
+    echo Standalone runtime executable is missing: "%STANDALONE_DIR%\Binaries\Main.exe"
     exit /b 1
 )
 set "RUNTIME_LIBRARY_FOUND=0"
-for %%E in (dll so dylib) do for /f "delims=" %%F in ('dir /B /A-D "%~1\*.%%E" 2^>nul') do (
-    echo Runtime library exists outside Binaries: %~1\%%F
+for %%F in ("%STANDALONE_DIR%\*.dll" "%STANDALONE_DIR%\*.so" "%STANDALONE_DIR%\*.dylib" "%STANDALONE_DIR%\*.so.*") do if exist "%%~fF" if not exist "%%~fF\" (
+    echo Runtime library exists outside Binaries: "%%~fF"
     exit /b 1
 )
-for /f "delims=" %%F in ('dir /B /A-D "%~1\*.so.*" 2^>nul') do (
-    echo Runtime library exists outside Binaries: %~1\%%F
-    exit /b 1
-)
-for /f "delims=" %%F in ('dir /B /A-D "%~1\Binaries\*.dll" 2^>nul') do set "RUNTIME_LIBRARY_FOUND=1"
+for %%F in ("%STANDALONE_DIR%\Binaries\*.dll") do if exist "%%~fF" if not exist "%%~fF\" set "RUNTIME_LIBRARY_FOUND=1"
 if "%RUNTIME_LIBRARY_FOUND%"=="0" (
     echo Standalone output contains no runtime libraries in Binaries.
     exit /b 1

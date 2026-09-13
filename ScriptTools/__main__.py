@@ -19,7 +19,7 @@ from ScriptTools import ldpak
 from ScriptTools import legal_resources
 from ScriptTools import macos_bundle
 from ScriptTools import native_build_state
-from ScriptTools import packaging_constants
+from ScriptTools import packaging_cli
 from ScriptTools import project_state_worker
 from ScriptTools import project_runtime_mode
 from ScriptTools import runtime_constants
@@ -49,7 +49,7 @@ COMMANDS: dict[str, Command] = {
     "ide-config": ide_config.main,
     "impl-boundary-check": impl_boundary_check.main,
     "legal-resources": legal_resources.main,
-    "packaging-constants": packaging_constants.main,
+    "packaging-constants": packaging_cli.main,
     "project-state-worker": project_state_worker.main,
     "project-runtime-mode": project_runtime_mode.main,
     "runtime-bundle": runtime_bundle.main,

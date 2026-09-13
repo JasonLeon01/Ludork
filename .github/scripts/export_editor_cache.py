@@ -53,6 +53,7 @@ MANAGED_INPUTS = (
     "Game/Engine/Source/Core/include/EngineState.hpp",
     "ScriptTools/engine_constants.py",
     "ScriptTools/packaging_constants.py",
+    "ScriptTools/packaging_cli.py",
 )
 LAUNCHER_INPUTS = (
     "tools/editor_launcher/*",

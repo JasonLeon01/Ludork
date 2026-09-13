@@ -16,6 +16,8 @@ namespace ludork::standard::class_runtime::detail {
 inline constexpr const char* METHOD_OWNERS_KEY = "Ludork.Class.methodOwners";
 inline constexpr const char* NATIVE_TYPE_CACHE_KEY =
     "Ludork.Class.nativeTypeCache";
+inline constexpr const char* NATIVE_PROPERTY_CACHE_KEY =
+    "Ludork.Class.nativePropertyCache";
 inline constexpr const char* INSTANCES_KEY = "Ludork.Class.instances";
 inline constexpr const char* COMPOSITE_METATABLE_KEY =
     "Ludork.Class.compositeMetatable";

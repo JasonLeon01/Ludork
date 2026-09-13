@@ -35,9 +35,10 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
     canvas.arranger = [](ControlBase& control, const sf::Vector2f& size,
                          const sf::Vector2f& renderScale) {
         Canvas& canvas = requireControlType<Canvas>(control, "Engine.Canvas");
-        canvas.resize(
-            {static_cast<unsigned int>(std::max(0.0f, std::round(size.x))),
-             static_cast<unsigned int>(std::max(0.0f, std::round(size.y)))});
+        const sf::Vector2u logicalSize{
+            static_cast<unsigned int>(std::max(0.0f, std::round(size.x))),
+            static_cast<unsigned int>(std::max(0.0f, std::round(size.y)))};
+        canvas.resizeForLayout(logicalSize);
         canvas.setScale(renderScale);
     };
     canvas.childAttacher =

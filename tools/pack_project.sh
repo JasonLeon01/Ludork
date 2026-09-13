@@ -54,6 +54,8 @@ if [ ! -f "$PROJECT_FILE" ]; then
     exit 1
 fi
 "$SCRIPT_TOOLS" packaging-constants check-app-name "$PROJECT_DIR"
+APP_NAME=$("$SCRIPT_TOOLS" packaging-constants app-name "$PROJECT_DIR" --artifact)
+APP_PATH="$DIST_DIR/$APP_NAME.app"
 if [ "$USE_LDPAK" -eq 1 ]; then
     "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi
@@ -83,13 +85,12 @@ else
     RUNTIME_DIR="$TEMPORARY_DIR/runtime"
 fi
 
-rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 if [ "$USE_LDPAK" -eq 1 ]; then
     "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi
 "$SCRIPT_TOOLS" macos-bundle \
-    "$PROJECT_DIR" "$RUNTIME_DIR" "$DIST_DIR/Main.app"
+    "$PROJECT_DIR" "$RUNTIME_DIR" "$APP_PATH"
 set --
 if [ "$USE_LUAC" -eq 1 ]; then
     set -- "$@" --compile-lua
@@ -105,8 +106,8 @@ if [ "$USE_LDPAK" -eq 1 ]; then
 fi
 UI_REGISTRY=$("$SCRIPT_TOOLS" ui-preview registry "$PROJECT_DIR")
 "$SCRIPT_TOOLS" finalize-package "$@" --registry "$UI_REGISTRY" \
-    "$DIST_DIR/Main.app/Contents/Resources"
-plutil -lint "$DIST_DIR/Main.app/Contents/Info.plist"
-codesign --force --sign - "$DIST_DIR/Main.app"
-codesign --verify --deep --strict "$DIST_DIR/Main.app"
-echo "Pack complete: $DIST_DIR/Main.app"
+    "$APP_PATH/Contents/Resources"
+plutil -lint "$APP_PATH/Contents/Info.plist"
+codesign --force --sign - "$APP_PATH"
+codesign --verify --deep --strict "$APP_PATH"
+echo "Pack complete: $APP_PATH"

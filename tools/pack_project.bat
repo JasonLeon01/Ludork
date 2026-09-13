@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001>nul
 set "PYTHONIOENCODING=utf-8"
 for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
@@ -42,9 +42,9 @@ if not "%~3"=="" goto usage
 
 for %%I in ("%~1") do set "PROJECT_DIR=%%~fI"
 if "%~2"=="" (
-    set "DIST_DIR=%PROJECT_DIR%\dist"
+    set "DIST_ROOT=%PROJECT_DIR%\dist"
 ) else (
-    for %%I in ("%~2") do set "DIST_DIR=%%~fI"
+    for %%I in ("%~2") do set "DIST_ROOT=%%~fI"
 )
 
 set "PROJECT_FILE=%PROJECT_DIR%\Main.proj"
@@ -68,8 +68,14 @@ if "%USE_LDPAK%"=="1" (
     if errorlevel 1 exit /b 1
 )
 
-if exist "%DIST_DIR%" rmdir /S /Q "%DIST_DIR%"
-mkdir "%DIST_DIR%"
+set "DIST_DIR="
+set "NAME_OUTPUT=%TEMP%\ludork-pack-output-%RANDOM%-%RANDOM%.txt"
+"%SCRIPT_TOOLS%" packaging-constants prepare-output "%PROJECT_DIR%" "%DIST_ROOT%" > "%NAME_OUTPUT%"
+set "PREPARE_EXIT_CODE=%ERRORLEVEL%"
+if "%PREPARE_EXIT_CODE%"=="0" for /f "usebackq delims=" %%V in ("%NAME_OUTPUT%") do set "DIST_DIR=%%V"
+del /Q "%NAME_OUTPUT%"
+if not "%PREPARE_EXIT_CODE%"=="0" exit /b %PREPARE_EXIT_CODE%
+if not defined DIST_DIR exit /b 1
 
 findstr /R /C:"\"Cpp\"[ ]*:[ ]*true" "%PROJECT_FILE%" >nul 2>nul
 if not errorlevel 1 goto pack_cpp
@@ -84,7 +90,7 @@ if "%USE_LDPAK%"=="1" (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
 )
-robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%PROJECT_DIR%\%EDITOR_CACHE_DIRECTORY%" "%PROJECT_DIR%\Cache" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
+robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%DIST_ROOT%" "%DIST_DIR%" "%PROJECT_DIR%\%EDITOR_CACHE_DIRECTORY%" "%PROJECT_DIR%\Cache" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
 if not exist "%DIST_DIR%\Main.exe" (
@@ -103,7 +109,7 @@ if not exist "%CMAKE_FILE%" (
 
 set "LUDORK_VALIDATE_LDPAK_SOURCE=%USE_LDPAK%"
 set "LUDORK_SAVE_AS_LDC=%ENCRYPT_SAVES%"
-call "%TOOLS_DIR%\build_standalone.bat" "%PROJECT_DIR%" "%DIST_DIR%" Release
+call "%TOOLS_DIR%\build_standalone.bat" "%PROJECT_DIR%" "%%DIST_DIR%%" Release
 set "STANDALONE_EXIT_CODE=%ERRORLEVEL%"
 set "LUDORK_VALIDATE_LDPAK_SOURCE="
 set "LUDORK_SAVE_AS_LDC="
@@ -115,13 +121,13 @@ if not exist "%DIST_DIR%\Main.exe" (
 )
 
 :complete_pack
-call :validate_runtime_layout "%DIST_DIR%"
+call :validate_runtime_layout
 if errorlevel 1 exit /b %errorlevel%
 call :finalize_package
 if errorlevel 1 exit /b %errorlevel%
-call :validate_runtime_layout "%DIST_DIR%"
+call :validate_runtime_layout
 if errorlevel 1 exit /b %errorlevel%
-echo Pack complete: %DIST_DIR%
+echo Pack complete: "%DIST_DIR%"
 exit /b 0
 
 :finalize_package
@@ -140,24 +146,20 @@ if exist "%DIST_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 exit /b %errorlevel%
 
 :validate_runtime_layout
-if not exist "%~1\Main.exe" (
+if not exist "%DIST_DIR%\Main.exe" (
     echo Pack output is missing root Main.exe.
     exit /b 1
 )
-if not exist "%~1\Binaries\Main.exe" (
+if not exist "%DIST_DIR%\Binaries\Main.exe" (
     echo Pack output is missing Binaries\Main.exe.
     exit /b 1
 )
 set "RUNTIME_LIBRARY_FOUND=0"
-for %%E in (dll so dylib) do for /f "delims=" %%F in ('dir /B /A-D "%~1\*.%%E" 2^>nul') do (
-    echo Runtime library exists outside Binaries: %~1\%%F
+for %%F in ("%DIST_DIR%\*.dll" "%DIST_DIR%\*.so" "%DIST_DIR%\*.dylib" "%DIST_DIR%\*.so.*") do if exist "%%~fF" if not exist "%%~fF\" (
+    echo Runtime library exists outside Binaries: "%%~fF"
     exit /b 1
 )
-for /f "delims=" %%F in ('dir /B /A-D "%~1\*.so.*" 2^>nul') do (
-    echo Runtime library exists outside Binaries: %~1\%%F
-    exit /b 1
-)
-for /f "delims=" %%F in ('dir /B /A-D "%~1\Binaries\*.dll" 2^>nul') do set "RUNTIME_LIBRARY_FOUND=1"
+for %%F in ("%DIST_DIR%\Binaries\*.dll") do if exist "%%~fF" if not exist "%%~fF\" set "RUNTIME_LIBRARY_FOUND=1"
 if "%RUNTIME_LIBRARY_FOUND%"=="0" (
     echo Pack output contains no runtime DLLs in Binaries.
     exit /b 1

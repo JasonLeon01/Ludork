@@ -9,7 +9,7 @@ local LiveDebug = require("Source.LiveDebug")
 local NodeGraphFunctions = GlobalFunctions.NodeGraph
 local GlobalSystem = GlobalCore.System
 
-local APP_NAME = "LudorkSample"
+local APP_NAME = "Ludork Sample"
 
 -- Entry point.
 local function entry()

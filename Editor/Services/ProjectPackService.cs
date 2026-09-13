@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Plugin.Abstractions;
@@ -99,9 +98,6 @@ public sealed record ProjectPackResult(
 public sealed class ProjectPackService
 {
     private static readonly UTF8Encoding utf8 = new(false);
-    private static readonly Regex defaultAppNamePattern = new(
-        ProjectToolConstants.DefaultAppNamePattern,
-        RegexOptions.Multiline | RegexOptions.CultureInvariant);
     private readonly string projectPath;
     private readonly ProjectOperationPipeline operationPipeline;
     private readonly Func<Action<string>, CancellationToken, Task<ProjectExportResult>> exportProject;
@@ -149,7 +145,7 @@ public sealed class ProjectPackService
         if (optionsFailure is not null)
             return optionsFailure;
 
-        ProjectPackResult? appNameFailure = validateAppName();
+        ProjectPackResult? appNameFailure = await validateAppNameAsync(cancellationToken);
         if (appNameFailure is not null)
             return appNameFailure;
 
@@ -540,33 +536,72 @@ public sealed class ProjectPackService
             execution.ExitCode.ToString());
     }
 
-    private ProjectPackResult? validateAppName()
+    private async Task<ProjectPackResult?> validateAppNameAsync(CancellationToken cancellationToken)
     {
         string entryPath = Path.Combine(projectPath, "Scripts", "Entry.lua");
         if (!File.Exists(entryPath))
             return ProjectPackResult.Failed(ProjectPackFailure.ProjectInvalid, entryPath);
+        if (cancellationToken.IsCancellationRequested)
+            return ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty);
 
-        string source;
+        string? toolPath = EditorRuntimePaths.FindScriptTools();
+        if (toolPath is null)
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.ScriptMissing,
+                "ScriptTools was not found in the editor installation.");
+        }
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = toolPath,
+            WorkingDirectory = projectPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = utf8,
+            StandardErrorEncoding = utf8,
+        };
+        startInfo.ArgumentList.Add("packaging-constants");
+        startInfo.ArgumentList.Add("check-app-name");
+        startInfo.ArgumentList.Add(projectPath);
+        startInfo.Environment["PYTHONUTF8"] = "1";
+        startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+        using Process process = createProcess(startInfo);
         try
         {
-            source = File.ReadAllText(entryPath, Encoding.UTF8);
-        }
-        catch (IOException exception)
-        {
+            if (!process.Start())
+                return ProjectPackResult.Failed(ProjectPackFailure.LaunchFailed, toolPath);
+            Task<string> output = process.StandardOutput.ReadToEndAsync();
+            Task<string> error = process.StandardError.ReadToEndAsync();
+            using CancellationTokenRegistration registration = cancellationToken.Register(() => stopProcess(process));
+            await process.WaitForExitAsync().ConfigureAwait(false);
+            string outputText = (await output.ConfigureAwait(false)).Trim();
+            string errorText = (await error.ConfigureAwait(false)).Trim();
+            if (cancellationToken.IsCancellationRequested)
+                return ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty);
+            if (outputText.Length != 0)
+                writeOutput(outputText);
+            if (errorText.Length != 0)
+                writeOutput(errorText);
+            if (process.ExitCode == 0)
+                return null;
+            string detail = errorText.Length != 0
+                ? errorText
+                : outputText.Length != 0 ? outputText : entryPath;
             return ProjectPackResult.Failed(
-                ProjectPackFailure.ProjectInvalid,
-                entryPath + Environment.NewLine + exception.Message);
+                process.ExitCode == ProjectToolConstants.AppNameUnchangedExitCode
+                    ? ProjectPackFailure.AppNameUnchanged
+                    : ProjectPackFailure.ProjectInvalid,
+                detail);
         }
-        catch (UnauthorizedAccessException exception)
+        catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
         {
-            return ProjectPackResult.Failed(
-                ProjectPackFailure.ProjectInvalid,
-                entryPath + Environment.NewLine + exception.Message);
+            stopProcess(process);
+            return cancellationToken.IsCancellationRequested
+                ? ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty)
+                : ProjectPackResult.Failed(ProjectPackFailure.LaunchFailed, exception.Message);
         }
-
-        return defaultAppNamePattern.IsMatch(source)
-            ? ProjectPackResult.Failed(ProjectPackFailure.AppNameUnchanged, entryPath)
-            : null;
     }
 
     private ProcessStartInfo createStartInfo(

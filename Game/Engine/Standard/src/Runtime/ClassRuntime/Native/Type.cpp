@@ -10,6 +10,10 @@
 #include <ClassServices.hpp>
 #include <sol2/sol.hpp>
 
+extern "C" {
+#include <lua.h>
+}
+
 #include <cstddef>
 #include <stdexcept>
 #include <string>
@@ -43,17 +47,48 @@ std::string nativeTypeName(sol::state_view lua, const sol::table& nativeType) {
 sol::object nativeTypeDefinition(sol::state_view lua,
                                  const sol::table& nativeType,
                                  const sol::object& key) {
-    const std::string registryName = "sol." + nativeTypeName(lua, nativeType);
-    const sol::object rawMetatable =
-        lua.registry().raw_get<sol::object>(registryName);
-    if (!rawMetatable.is<sol::table>()) {
-        return nilObject(lua);
+    lua_State* state = lua.lua_state();
+    const int top = lua_gettop(state);
+    nativeType.push();
+    if (!lua_getmetatable(state, -1)) {
+        lua_settop(state, top);
+        throw std::invalid_argument(
+            "Native class is missing binding type information");
     }
-    return rawMetatable.as<sol::table>().raw_get<sol::object>(key);
+    lua_pushstring(state, protocol::CLASS_TYPE_FIELD);
+    lua_rawget(state, -2);
+    if (!lua_istable(state, -1)) {
+        lua_settop(state, top);
+        throw std::invalid_argument(
+            "Native class is missing binding type information");
+    }
+    lua_pushliteral(state, "sol.");
+    lua_pushliteral(state, "name");
+    lua_rawget(state, -3);
+    if (lua_type(state, -1) != LUA_TSTRING) {
+        lua_settop(state, top);
+        throw std::invalid_argument(
+            "Native class is missing its qualified type name");
+    }
+    lua_concat(state, 2);
+    lua_rawget(state, LUA_REGISTRYINDEX);
+    if (lua_istable(state, -1)) {
+        key.push();
+        lua_rawget(state, -2);
+    } else {
+        lua_pushnil(state);
+    }
+    const sol::object result = sol::stack::get<sol::object>(state, -1);
+    lua_settop(state, top);
+    return result;
 }
 
 bool nativeTypeDeclaresProperty(const sol::table& nativeType,
                                 const sol::object& key) {
+    constexpr const char* CACHE_SOURCE_FIELD = "source";
+    constexpr const char* CACHE_COUNT_FIELD = "count";
+    constexpr const char* CACHE_MEMBERS_FIELD = "members";
+
     if (!key.is<std::string>()) {
         return false;
     }
@@ -62,15 +97,45 @@ bool nativeTypeDeclaresProperty(const sol::table& nativeType,
     if (!rawProperties.is<sol::table>()) {
         return false;
     }
-    const std::string name = key.as<std::string>();
+    sol::state_view lua(nativeType.lua_state());
     const sol::table properties = rawProperties.as<sol::table>();
-    for (std::size_t index = 1; index <= properties.size(); ++index) {
-        const sol::object rawName = properties.raw_get<sol::object>(index);
-        if (rawName.is<std::string>() && rawName.as<std::string>() == name) {
-            return true;
+    const std::size_t propertyCount = properties.size();
+    if (propertyCount == 0) {
+        return false;
+    }
+    sol::table cache = registryTable(lua, NATIVE_PROPERTY_CACHE_KEY, "k");
+    const sol::object rawEntry = cache.raw_get<sol::object>(nativeType);
+    if (rawEntry.is<sol::table>()) {
+        const sol::table entry = rawEntry.as<sol::table>();
+        const sol::object rawSource =
+            entry.raw_get<sol::object>(CACHE_SOURCE_FIELD);
+        const sol::object rawCount =
+            entry.raw_get<sol::object>(CACHE_COUNT_FIELD);
+        const sol::object rawMembers =
+            entry.raw_get<sol::object>(CACHE_MEMBERS_FIELD);
+        if (objectsRawEqual(rawSource, rawProperties) &&
+            rawCount.is<std::size_t>() &&
+            rawCount.as<std::size_t>() == propertyCount &&
+            rawMembers.is<sol::table>()) {
+            const sol::object member =
+                rawMembers.as<sol::table>().raw_get<sol::object>(key);
+            return member.is<bool>() && member.as<bool>();
         }
     }
-    return false;
+    sol::table members = lua.create_table();
+    for (std::size_t index = 1; index <= propertyCount; ++index) {
+        const sol::object rawName = properties.raw_get<sol::object>(index);
+        if (rawName.is<std::string>()) {
+            members.raw_set(rawName, true);
+        }
+    }
+    sol::table entry = lua.create_table(0, 3);
+    entry.raw_set(CACHE_SOURCE_FIELD, properties);
+    entry.raw_set(CACHE_COUNT_FIELD, propertyCount);
+    entry.raw_set(CACHE_MEMBERS_FIELD, members);
+    cache.raw_set(nativeType, entry);
+    const sol::object member = members.raw_get<sol::object>(key);
+    return member.is<bool>() && member.as<bool>();
 }
 
 sol::object nativeClassDefaultResolverKey(sol::state_view lua) {
@@ -277,6 +342,8 @@ namespace ludork::standard::class_runtime {
 void registerNativeClass(sol::table nativeType, const sol::table& metadata) {
     using namespace ludork::standard::class_runtime::detail;
     sol::state_view lua(nativeType.lua_state());
+    registryTable(lua, NATIVE_PROPERTY_CACHE_KEY, "k")
+        .raw_set(nativeType, sol::lua_nil);
     sol::table defaults = lua.create_table();
     const sol::object rawAttrs = metadata.raw_get<sol::object>("attrs");
     if (rawAttrs.is<sol::table>()) {

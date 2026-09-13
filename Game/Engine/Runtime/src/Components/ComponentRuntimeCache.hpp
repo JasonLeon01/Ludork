@@ -16,6 +16,8 @@ public:
     void clear(lua_State* state) const noexcept;
     RuntimeValue get(ComponentRuntimeCacheKind kind,
                      const RuntimeValue& key) const;
+    RuntimeValue getReference(ComponentRuntimeCacheKind kind,
+                              const RuntimeValue& key) const;
     void set(ComponentRuntimeCacheKind kind, const RuntimeValue& key,
              const RuntimeValue& value) const;
 };

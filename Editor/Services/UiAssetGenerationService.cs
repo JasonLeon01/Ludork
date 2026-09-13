@@ -10,20 +10,13 @@ namespace Ludork.Services;
 
 public static class UiAssetGenerationService
 {
-    public static string? FindToolPath()
-    {
-        string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
-        return EditorRuntimePaths.FindFile("tools", "ScriptTools", executable)
-            ?? EditorRuntimePaths.FindFile(".tools", "ScriptTools", executable);
-    }
-
     public static async Task<SaveResult> ExecuteAsync(
         string projectPath,
         string operation,
         Action<string>? writeOutput,
         CancellationToken cancellationToken)
     {
-        string? toolPath = FindToolPath();
+        string? toolPath = EditorRuntimePaths.FindScriptTools();
         if (toolPath is null)
             return new SaveResult(false, "ScriptTools was not found in the editor installation.");
         ProcessStartInfo startInfo = new()

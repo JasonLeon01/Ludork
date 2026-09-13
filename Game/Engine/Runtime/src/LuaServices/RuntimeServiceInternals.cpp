@@ -25,6 +25,7 @@ extern "C" {
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -34,6 +35,8 @@ namespace ludork::runtime::detail {
 
 constexpr const char* CLASS_IDENTITY_CACHE_KEY =
     "Ludork.Runtime.classIdentityCache";
+constexpr const char* CLASS_TYPE_METADATA_CACHE_KEY =
+    "Ludork.Runtime.classTypeMetadataCache";
 constexpr const char* ATTR_METADATA_CACHE_KEY =
     "Ludork.Runtime.attrMetadataCache";
 
@@ -83,12 +86,28 @@ std::optional<RuntimeClassIdentity> resolveRuntimeClassIdentity(
     }
     const sol::table loaded = rawLoaded.as<sol::table>();
 
-    std::vector<std::string> directModules;
-    for (const auto& entry : loaded) {
-        if (entry.first.is<std::string>() &&
-            rawEqual(lua, entry.second, classReference)) {
-            directModules.push_back(entry.first.as<std::string>());
+    lua_State* state = lua.lua_state();
+    struct StackRestore {
+        lua_State* state;
+        int top;
+        ~StackRestore() {
+            lua_settop(state, top);
         }
+    } restore{state, lua_gettop(state)};
+    loaded.push();
+    const int loadedIndex = lua_gettop(state);
+    classReference.push();
+    const int classIndex = lua_gettop(state);
+    std::vector<std::string> directModules;
+    lua_pushnil(state);
+    while (lua_next(state, loadedIndex) != 0) {
+        if (lua_type(state, -2) == LUA_TSTRING &&
+            lua_rawequal(state, -1, classIndex)) {
+            std::size_t size = 0;
+            const char* name = lua_tolstring(state, -2, &size);
+            directModules.emplace_back(name, size);
+        }
+        lua_pop(state, 1);
     }
     std::sort(directModules.begin(), directModules.end());
     directModules.erase(std::unique(directModules.begin(), directModules.end()),
@@ -107,24 +126,32 @@ std::optional<RuntimeClassIdentity> resolveRuntimeClassIdentity(
     }
 
     std::vector<std::pair<std::string, std::string>> exports;
-    for (const auto& entry : loaded) {
-        if (!entry.first.is<std::string>() || !entry.second.is<sol::table>()) {
-            continue;
+    lua_pushnil(state);
+    while (lua_next(state, loadedIndex) != 0) {
+        if (lua_type(state, -2) == LUA_TSTRING && lua_istable(state, -1)) {
+            const int moduleIndex = lua_gettop(state);
+            lua_pushnil(state);
+            while (lua_next(state, moduleIndex) != 0) {
+                if (lua_type(state, -2) == LUA_TSTRING &&
+                    lua_rawequal(state, -1, classIndex)) {
+                    std::size_t exportSize = 0;
+                    const char* exportName =
+                        lua_tolstring(state, -2, &exportSize);
+                    const std::string_view name(exportName, exportSize);
+                    if (!name.starts_with("__") &&
+                        name != "_hasImplementationOwner") {
+                        std::size_t moduleSize = 0;
+                        const char* moduleName =
+                            lua_tolstring(state, moduleIndex - 1, &moduleSize);
+                        exports.emplace_back(
+                            std::string(moduleName, moduleSize),
+                            std::string(name));
+                    }
+                }
+                lua_pop(state, 1);
+            }
         }
-        const std::string moduleName = entry.first.as<std::string>();
-        for (const auto& member : entry.second.as<sol::table>()) {
-            if (!member.first.is<std::string>()) {
-                continue;
-            }
-            const std::string exportName = member.first.as<std::string>();
-            if (exportName.rfind("__", 0) == 0 ||
-                exportName == "_hasImplementationOwner") {
-                continue;
-            }
-            if (rawEqual(lua, member.second, classReference)) {
-                exports.emplace_back(moduleName, exportName);
-            }
-        }
+        lua_pop(state, 1);
     }
     std::sort(exports.begin(), exports.end());
     exports.erase(std::unique(exports.begin(), exports.end()), exports.end());
@@ -191,8 +218,123 @@ sol::object syntheticRuntimeMetadata(sol::state_view lua,
     return sol::make_object(lua, metadata);
 }
 
-sol::object runtimeTypeMetadata(sol::state_view lua,
-                                const sol::table& classType);
+namespace {
+
+bool runtimeModuleExists(sol::state_view lua, const sol::table& package,
+                         const std::string& moduleName) {
+    for (const char* field : {"loaded", "preload"}) {
+        const sol::object rawModules = package.raw_get<sol::object>(field);
+        if (!rawModules.is<sol::table>()) {
+            continue;
+        }
+        const sol::object module =
+            rawModules.as<sol::table>().raw_get<sol::object>(moduleName);
+        if (module.valid() && module.get_type() != sol::type::lua_nil) {
+            return true;
+        }
+    }
+    const sol::object rawSearch = package.raw_get<sol::object>("searchpath");
+    if (!rawSearch.is<sol::protected_function>()) {
+        return false;
+    }
+    sol::protected_function search = rawSearch.as<sol::protected_function>();
+    for (const char* field : {"path", "cpath"}) {
+        const sol::object rawPath = package.raw_get<sol::object>(field);
+        if (!rawPath.is<std::string>()) {
+            continue;
+        }
+        sol::protected_function_result result = search(moduleName, rawPath);
+        if (result.valid() && result.return_count() > 0) {
+            const sol::object found = result.get<sol::object>();
+            if (found.is<std::string>()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+sol::object moduleTypeMetadata(sol::state_view lua,
+                               const RuntimeClassIdentity& identity) {
+    if (identity.module.empty()) {
+        return nilObject(lua);
+    }
+    const std::string metadataModule = identity.module + "_meta";
+    const sol::object rawPackage =
+        lua.globals().raw_get<sol::object>("package");
+    if (!rawPackage.is<sol::table>()) {
+        return nilObject(lua);
+    }
+    const sol::table package = rawPackage.as<sol::table>();
+    if (!runtimeModuleExists(lua, package, metadataModule)) {
+        return nilObject(lua);
+    }
+    const sol::table metadata = requireLuaTable(lua, metadataModule.c_str());
+    std::string typeName = identity.type;
+    if (typeName.empty() && identity.direct) {
+        for (const auto& entry : metadata) {
+            if (!entry.first.is<std::string>() ||
+                !entry.second.is<sol::table>()) {
+                continue;
+            }
+            if (!typeName.empty()) {
+                throw std::runtime_error(
+                    "Metadata module for directly returned class must contain "
+                    "one "
+                    "type: " +
+                    metadataModule);
+            }
+            typeName = entry.first.as<std::string>();
+        }
+        if (typeName.empty()) {
+            throw std::runtime_error(
+                "Metadata module for directly returned class contains no "
+                "type: " +
+                metadataModule);
+        }
+        sol::table descriptor = identity.descriptor;
+        descriptor.raw_set("type", typeName);
+    }
+    return typeName.empty() ? nilObject(lua)
+                            : metadata.raw_get<sol::object>(typeName);
+}
+
+}  // namespace
+
+sol::table runtimeClassTypeDescriptor(sol::state_view lua,
+                                      const sol::table& classReference) {
+    sol::table cache = registryTable(lua, CLASS_TYPE_METADATA_CACHE_KEY, "k");
+    const sol::object cached = cache.raw_get<sol::object>(classReference);
+    if (cached.is<sol::table>()) {
+        return cached.as<sol::table>();
+    }
+    sol::object metadata = syntheticRuntimeMetadata(lua, classReference);
+    const std::optional<RuntimeClassIdentity> identity =
+        resolveRuntimeClassIdentity(lua, sol::make_object(lua, classReference));
+    if (!metadata.is<sol::table>() && identity.has_value()) {
+        metadata = moduleTypeMetadata(lua, *identity);
+    }
+    sol::table descriptor = lua.create_table();
+    descriptor.raw_set("hasMetadata", metadata.is<sol::table>());
+    if (metadata.is<sol::table>()) {
+        descriptor.raw_set("metadata", metadata);
+    }
+    const sol::object nativeMetadata = classReference.raw_get<sol::object>(
+        ludork::standard::class_runtime::protocol::RUNTIME_METADATA_FIELD);
+    if (nativeMetadata.is<sol::table>() ||
+        (!classReference.raw_get<sol::object>("__types").is<sol::table>() &&
+         !classReference.raw_get<sol::object>("__runtimeMeta")
+              .is<sol::table>())) {
+        descriptor.raw_set("runtimeMetadataResolved", true);
+        descriptor.raw_set("runtimeMetadata", metadata);
+    }
+    if (identity.has_value() && !identity->module.empty()) {
+        descriptor.raw_set("module", identity->module);
+        descriptor.raw_set("identity", identity->descriptor);
+    }
+    cache.raw_set(classReference, descriptor);
+    return descriptor;
+}
 
 sol::table collectRuntimeAttrMetadata(sol::state_view lua,
                                       const sol::table& owner) {
@@ -205,10 +347,10 @@ sol::table collectRuntimeAttrMetadata(sol::state_view lua,
     sol::table result = lua.create_table();
     const std::vector<sol::table> mro = runtimeClassMro(lua, owner);
     for (auto current = mro.rbegin(); current != mro.rend(); ++current) {
-        sol::object rawMetadata = syntheticRuntimeMetadata(lua, *current);
-        if (!rawMetadata.is<sol::table>()) {
-            rawMetadata = runtimeTypeMetadata(lua, *current);
-        }
+        const sol::table classDescriptor =
+            runtimeClassTypeDescriptor(lua, *current);
+        const sol::object rawMetadata =
+            classDescriptor.raw_get<sol::object>("metadata");
         if (!rawMetadata.is<sol::table>()) {
             continue;
         }
@@ -218,7 +360,7 @@ sol::table collectRuntimeAttrMetadata(sol::state_view lua,
             continue;
         }
         const sol::object module =
-            findRuntimeClassModule(lua, sol::make_object(lua, *current));
+            classDescriptor.raw_get<sol::object>("module");
         const sol::table attrs = rawAttrs.as<sol::table>();
         for (std::size_t index = 1; index <= attrs.size(); ++index) {
             const sol::object rawName = attrs.raw_get<sol::object>(index);
@@ -257,8 +399,8 @@ sol::table collectRuntimeAttrMetadata(sol::state_view lua,
         if (!rawTypes.is<sol::table>()) {
             continue;
         }
-        const sol::object module =
-            findRuntimeClassModule(lua, sol::make_object(lua, *current));
+        const sol::object module = runtimeClassTypeDescriptor(lua, *current)
+                                       .raw_get<sol::object>("module");
         for (const auto& entry : rawTypes.as<sol::table>()) {
             if (!entry.first.is<std::string>()) {
                 continue;
@@ -311,26 +453,18 @@ std::pair<sol::object, sol::object> resolveRuntimeConfigVar(
     const std::string name = rawName.as<std::string>();
     for (const sol::table& current :
          runtimeClassMro(lua, rawClass.as<sol::table>())) {
-        sol::object metadata = syntheticRuntimeMetadata(lua, current);
-        if (!metadata.is<sol::table>()) {
-            metadata = runtimeTypeMetadata(lua, current);
-        }
+        const sol::object metadata = runtimeClassTypeDescriptor(lua, current)
+                                         .raw_get<sol::object>("metadata");
         if (!metadata.is<sol::table>()) {
             continue;
         }
-        const RuntimeValue metadataValue =
-            ludork::runtime::binding::readLuaValue<RuntimeValue>(metadata);
-        std::optional<RuntimeMapView> metadataFields =
-            RuntimeValueView(metadataValue).map();
-        if (!metadataFields) {
+        const sol::object meta =
+            metadata.as<sol::table>().raw_get<sol::object>("Meta");
+        if (!meta.is<sol::table>()) {
             continue;
         }
-        const auto metaIterator = metadataFields->find("Meta");
-        if (!metaIterator) {
-            continue;
-        }
-        const RuntimeValue::Map references =
-            parseConfigVarReferences(metaIterator->toValue());
+        const RuntimeValue::Map references = parseConfigVarReferences(
+            ludork::runtime::binding::readLuaValue<RuntimeValue>(meta));
         const auto iterator = references.find(name);
         if (iterator == references.end()) {
             continue;
@@ -363,11 +497,10 @@ std::pair<sol::object, sol::object> resolveRuntimeMemberMetadata(
         if (!rawClass.is<sol::table>()) {
             continue;
         }
-        sol::object metadata =
-            syntheticRuntimeMetadata(lua, rawClass.as<sol::table>());
-        if (!metadata.is<sol::table>()) {
-            metadata = runtimeTypeMetadata(lua, rawClass.as<sol::table>());
-        }
+        const sol::table classDescriptor =
+            runtimeClassTypeDescriptor(lua, rawClass.as<sol::table>());
+        const sol::object metadata =
+            classDescriptor.raw_get<sol::object>("metadata");
         if (!metadata.is<sol::table>()) {
             continue;
         }
@@ -376,7 +509,8 @@ std::pair<sol::object, sol::object> resolveRuntimeMemberMetadata(
         if (!member.is<sol::table>()) {
             continue;
         }
-        const sol::object module = findRuntimeClassModule(lua, rawClass);
+        const sol::object module =
+            classDescriptor.raw_get<sol::object>("module");
         return {member, module.valid() ? module : nilObject(lua)};
     }
     return {nilObject(lua), nilObject(lua)};
@@ -400,40 +534,6 @@ sol::object resolveRuntimePath(sol::state_view lua, const sol::object& root,
         start = end + 1;
     }
     return current.valid() ? current : nilObject(lua);
-}
-
-bool runtimeModuleExists(sol::state_view lua, const sol::table& package,
-                         const std::string& moduleName) {
-    for (const char* field : {"loaded", "preload"}) {
-        const sol::object rawModules = package.raw_get<sol::object>(field);
-        if (!rawModules.is<sol::table>()) {
-            continue;
-        }
-        const sol::object module =
-            rawModules.as<sol::table>().raw_get<sol::object>(moduleName);
-        if (module.valid() && module.get_type() != sol::type::lua_nil) {
-            return true;
-        }
-    }
-    const sol::object rawSearch = package.raw_get<sol::object>("searchpath");
-    if (!rawSearch.is<sol::protected_function>()) {
-        return false;
-    }
-    sol::protected_function search = rawSearch.as<sol::protected_function>();
-    for (const char* field : {"path", "cpath"}) {
-        const sol::object rawPath = package.raw_get<sol::object>(field);
-        if (!rawPath.is<std::string>()) {
-            continue;
-        }
-        sol::protected_function_result result = search(moduleName, rawPath);
-        if (result.valid() && result.return_count() > 0) {
-            const sol::object found = result.get<sol::object>();
-            if (found.is<std::string>()) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 std::optional<std::string> directRuntimeMetadataTypeName(
@@ -605,53 +705,19 @@ sol::object evaluateRuntimeExpression(sol::state_view lua,
 
 sol::object runtimeTypeMetadata(sol::state_view lua,
                                 const sol::table& classType) {
-    const sol::object native = classType.raw_get<sol::object>(
-        ludork::standard::class_runtime::protocol::RUNTIME_METADATA_FIELD);
-    if (native.is<sol::table>()) {
-        return native;
+    sol::table descriptor = runtimeClassTypeDescriptor(lua, classType);
+    if (rawBool(descriptor, "runtimeMetadataResolved")) {
+        return descriptor.raw_get<sol::object>("runtimeMetadata");
     }
-    std::optional<RuntimeClassIdentity> identity =
-        resolveRuntimeClassIdentity(lua, sol::make_object(lua, classType));
-    if (!identity.has_value() || identity->module.empty()) {
-        return nilObject(lua);
-    }
-    const std::string metadataModule = identity->module + "_meta";
-    const sol::object rawPackage =
-        lua.globals().raw_get<sol::object>("package");
-    if (!rawPackage.is<sol::table>()) {
-        return nilObject(lua);
-    }
-    const sol::table package = rawPackage.as<sol::table>();
-    if (!runtimeModuleExists(lua, package, metadataModule)) {
-        return nilObject(lua);
-    }
-    const sol::table metadata = requireLuaTable(lua, metadataModule.c_str());
-    std::string typeName = identity->type;
-    if (typeName.empty() && identity->direct) {
-        for (const auto& entry : metadata) {
-            if (!entry.first.is<std::string>() ||
-                !entry.second.is<sol::table>()) {
-                continue;
-            }
-            if (!typeName.empty()) {
-                throw std::runtime_error(
-                    "Metadata module for directly returned class must contain "
-                    "one "
-                    "type: " +
-                    metadataModule);
-            }
-            typeName = entry.first.as<std::string>();
-        }
-        if (typeName.empty()) {
-            throw std::runtime_error(
-                "Metadata module for directly returned class contains no "
-                "type: " +
-                metadataModule);
-        }
-        identity->descriptor.raw_set("type", typeName);
-    }
-    return typeName.empty() ? nilObject(lua)
-                            : metadata.raw_get<sol::object>(typeName);
+    const sol::object rawIdentity = descriptor.raw_get<sol::object>("identity");
+    const sol::object metadata =
+        rawIdentity.is<sol::table>()
+            ? moduleTypeMetadata(lua, classIdentityFromDescriptor(
+                                          rawIdentity.as<sol::table>()))
+            : nilObject(lua);
+    descriptor.raw_set("runtimeMetadataResolved", true);
+    descriptor.raw_set("runtimeMetadata", metadata);
+    return metadata;
 }
 
 void clearRuntimeCaches(sol::state_view lua) {

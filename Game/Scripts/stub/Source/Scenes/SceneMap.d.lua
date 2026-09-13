@@ -36,20 +36,20 @@
 ---@field _mapBuilder                           Source.SceneComponents.SceneMapBuilder
 ---@field _mapAudio                             Source.SceneComponents.SceneMapAudioController
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
----@field _messageWindow                        Source.Windows.WindowMessage
----@field _windowPlayerName                     Source.Windows.WindowPlayerName
+---@field _messageWindow                        Source.UIBase.LazyWindow<Source.Windows.WindowMessage>
+---@field _windowPlayerName                     Source.UIBase.LazyWindow<Source.Windows.WindowPlayerName>
 ---@field _playerNameMoveEnabledBeforeOpen      boolean
----@field _windowItem                           Source.Windows.WindowItem
----@field _windowEquip                          Source.Windows.WindowEquip
----@field _windowShop                           Source.Windows.WindowShop
----@field _windowAttrShop                       Source.Windows.WindowAttrShop
----@field _windowEnemyBook                      Source.Windows.WindowEnemyBook
----@field _windowEnemyEncyclopedia              Source.Windows.WindowEnemyEncyclopedia
----@field _windowFloorTeleporter                Source.Windows.WindowFloorTeleporter
----@field _windowSaveLoad                       Source.Windows.WindowSaveLoad
----@field _windowMenu                           Source.Windows.WindowMenu
----@field _configWindow                         Source.Windows.ConfigWindow
----@field _blockingWindows                      Source.Scenes.SceneMap.BlockingWindow[]
+---@field _windowItem                           Source.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field _windowEquip                          Source.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field _windowShop                           Source.UIBase.LazyWindow<Source.Windows.WindowShop>
+---@field _windowAttrShop                       Source.UIBase.LazyWindow<Source.Windows.WindowAttrShop>
+---@field _windowEnemyBook                      Source.UIBase.LazyWindow<Source.Windows.WindowEnemyBook>
+---@field _windowEnemyEncyclopedia              Source.UIBase.LazyWindow<Source.Windows.WindowEnemyEncyclopedia>
+---@field _windowFloorTeleporter                Source.UIBase.LazyWindow<Source.Windows.WindowFloorTeleporter>
+---@field _windowSaveLoad                       Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _windowMenu                           Source.UIBase.LazyWindow<Source.Windows.WindowMenu>
+---@field _configWindow                         Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field _blockingWindows                      Source.UIBase.LazyWindow<Source.Scenes.SceneMap.BlockingWindow>[]
 ---@field _regionTitleUI                        Source.Scenes.SceneMap.RegionTitle.Controller
 ---@field _regionTitleText                      Engine.PlainText
 ---@field _localeChangedToken                   integer | nil
@@ -73,8 +73,17 @@
 ---@field _floorTeleporterMoveEnabledBeforeOpen boolean
 local Scene = {}
 
+---@return boolean
+function Scene:_isInDialogue() end
+
+---@return boolean
+function Scene:_isMenuBlocking() end
+
 ---@return fun(): boolean
 function Scene:openPlayerName() end
+
+---@private
+function Scene:_onPlayerNameClose() end
 
 ---@param source Source.Scenes.SceneMap.DialogueMessageLocaleSource
 ---@return string, string
@@ -93,7 +102,7 @@ function Scene:onEnter() end
 ---@param inst Source.GameInstance.GameInstance
 function Scene:setInst(inst) end
 
----@brief Create player HUD, message window, menu, and load the starting map.
+---@brief Create the player HUD and popup factories, then load the starting map.
 function Scene:onCreate() end
 
 ---@brief Stop map BGM/BGS and weather when leaving this scene.

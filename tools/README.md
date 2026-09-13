@@ -325,12 +325,16 @@ rerun `init` or `build_script_tools` explicitly after changing its sources.
 An installed editor uses its bundled runtime and needs no system Python.
 
 `ScriptTools/packaging_constants.py` owns the shared packaging exit codes,
-default application-name check, editor-cache directory, licence lists, template
-names, generated native Lua files, and common mobile project/dependency-cache
-inputs. `ScriptTools/resource_constants.py` owns resource groups, logical path
-prefixes, entry names and file extensions. Platform SDK, signing, bundle
-identifiers and platform archive formats remain in their platform packers. Mobile dependency-cache lookup keeps
-each platform's existing priority; the desktop native build retains its larger
+editor-cache directory, licence lists, template names, generated native Lua
+files, and common mobile project/dependency-cache
+inputs. `ScriptTools/packaging_names.py` reads the static `APP_NAME` string in
+`Scripts/Entry.lua` and owns package filename rules. The `packaging-constants`
+command and C# constant generation live in `ScriptTools/packaging_cli.py`, which
+consumes both modules; the shared constants have no dependency on the command or naming logic.
+`ScriptTools/resource_constants.py` owns resource groups, logical path prefixes,
+entry names and file extensions. Platform SDK, signing, bundle identifiers and
+platform archive formats remain in their platform packers. Mobile dependency-cache
+lookup keeps each platform's existing priority; the desktop native build retains its larger
 dependency list.
 
 Shell and batch tools read fixed lists through
@@ -341,9 +345,17 @@ Shell and batch tools read fixed lists through
 `native-lua-files`. Output is one entry per line; `--separator space` emits a
 single line, and `--windows` changes path separators for batch consumers.
 `check-app-name <project-root>` rejects the unchanged sample name with exit code
-24 and reports missing or unreadable entry scripts with code 23. Desktop and
-mobile packing use the same check, including single/double quotes, tabs, CRLF
-and trailing Lua comments.
+24 and reports missing, unreadable or invalid name definitions with code 23.
+`ScriptTools packaging-constants app-name <project-root>` prints the same validated
+`APP_NAME`; add `--artifact` to print its safe filename form. Desktop and mobile
+packers share this reader and require exactly one top-level `local APP_NAME`
+declaration with a non-empty static Lua string literal. Expressions that need
+Lua execution are rejected.
+
+`ScriptTools packaging-constants prepare-output <project-root> <dist-root>`
+prepares and prints the Windows package directory `<dist-root>/<game>` using
+the same filename form. It replaces only that named child, preserves siblings,
+and rejects links in the output directory or any ancestor, and paths that overlap protected project content.
 
 `ScriptTools packaging-constants csharp <output.cs>` generates
 `Ludork.Services.ProjectToolConstants` for the editor build. Generated constants
@@ -514,7 +526,19 @@ The 2in1 OpenGL HAP requires the target image to provide HarmonyOS desktop OpenG
 
 Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
 
-`pack_project` refuses a project whose `Scripts/Entry.lua` still uses the Game project `APP_NAME = "LudorkSample"`; set a unique application name first.
+All game packers use `APP_NAME` from `Scripts/Entry.lua` for application display
+names and derive output names and application identifiers from it. `<game>` in
+the mobile output paths above is its sanitised filename form. `pack_project`
+writes `dist/<game>/Main.exe` on Windows and `dist/<game>.app` on macOS; a custom
+output directory replaces `dist` as the parent. Repacking replaces only the
+package for the current name, preserving sibling packages and unrelated files.
+Project folder names and the System Config title do not affect these names;
+runtime title behaviour remains unchanged. Changing `APP_NAME` can change the
+installed application identity and require updated signing or provisioning.
+Set one top-level `local APP_NAME` to a unique non-empty static string literal
+before packaging; the sample
+`APP_NAME = "LudorkSample"`, missing definitions and dynamic expressions are rejected.
+
 With `--compile-lua`, every packaged `Scripts/**/*.lua` file is compiled with
 `luac -s`, renamed to `.luac`, and written to `dist`.
 With `--encrypt-saves`, a C++ Source package rebuilds Standard with

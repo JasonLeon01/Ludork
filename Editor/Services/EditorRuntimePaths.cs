@@ -50,6 +50,13 @@ public static class EditorRuntimePaths
         return null;
     }
 
+    public static string? FindScriptTools()
+    {
+        string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
+        return FindFile("tools", "ScriptTools", executable)
+            ?? FindFile(".tools", "ScriptTools", executable);
+    }
+
     private static IEnumerable<string> getRoots()
     {
         string[] roots = OperatingSystem.IsMacOS()

@@ -33,6 +33,7 @@ ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeReflection.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeServiceCommon.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeServiceInternals.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeMetadataReferences.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/ClassDict.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Graph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/NodeGraph/Node.cpp"

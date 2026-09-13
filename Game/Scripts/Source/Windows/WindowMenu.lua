@@ -10,9 +10,19 @@ local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
 local AudioManager = GlobalCore.AudioManager
-local GlobalSystem = GlobalCore.System
 
-local _MENU_Z_ORDER = 1
+---@param window Source.UIBase.Ui.Window | nil
+---@return boolean
+local function isVisible(window)
+    return window ~= nil and window:getVisible()
+end
+
+---@param window   Source.UIBase.Ui.Window | nil
+---@param position sf.Vector2f
+---@return boolean
+local function containsPointer(window, position)
+    return window ~= nil and window:getVisible() and sf.FloatRect.contains(window:getAbsoluteBounds(), position)
+end
 
 ---@class Source.Windows.WindowMenu.Controller
 local Controller = {}
@@ -26,12 +36,13 @@ Controller.windowOptions = {
     itemHeight = 32
 }
 
-function Controller:init(player, windows)
+function Controller:init(player, windows, onExit)
     self._player = player
     self._windowItem = windows.item
     self._windowEquip = windows.equip
     self._windowSaveLoad = windows.saveLoad
     self._configWindow = windows.config
+    self._onExit = onExit
     self._commands = self:createCollection(self.ui.controls["MenuList"], CommandRowController)
     self:attach(Controller.CreateCommands(self.host))
 end
@@ -89,12 +100,8 @@ function Controller:close(onHidden)
 end
 
 function Controller:isBlocking()
-    for _, window in ipairs(self._menuControls) do
-        if window:getVisible() then
-            return true
-        end
-    end
-    return false
+    return self.host:getVisible() or isVisible(self._windowItem:peek()) or isVisible(self._windowEquip:peek())
+        or isVisible(self._windowSaveLoad:peek()) or isVisible(self._configWindow:peek())
 end
 
 function Controller:onReturn()
@@ -104,21 +111,21 @@ end
 function Controller:openInventory()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("item")
-    self._windowItem:open()
+    self._windowItem:get():open()
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openEquipment()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
-    self._windowEquip:open()
+    self._windowEquip:get():open()
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openSaveLoad()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
-    self._windowSaveLoad:open(WindowTransition.MENU)
+    self._windowSaveLoad:get():open(WindowTransition.MENU)
     self:_syncReturnButtonSuppression()
 end
 
@@ -126,7 +133,7 @@ function Controller:openConfig()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("config")
     self.host:setActive(false)
-    self._configWindow:open()
+    self._configWindow:get():open()
     self:_syncReturnButtonSuppression()
 end
 
@@ -140,6 +147,13 @@ function Controller:onSaveLoadClose()
     end
     self:_syncReturnButtonSuppression()
     self.host:requestKeyboardFocus()
+end
+
+function Controller:onSubMenuClose()
+    self:_syncReturnButtonSuppression()
+    if self.host:isTransitionOpen() then
+        self.host:requestKeyboardFocus()
+    end
 end
 
 function Controller:onConfigClose()
@@ -197,24 +211,9 @@ function Controller.CreateCommands(owner)
 end
 
 function Controller:bind()
-    self._menuControls = { self.host, self._windowItem, self._windowEquip, self._windowSaveLoad, self._configWindow }
-    for _, control in ipairs(self._menuControls) do
-        control:setZOrder(_MENU_Z_ORDER)
-    end
     self._moveRestoreGuard = function ()
         return true
     end
-    local onSubMenuClose = function ()
-        self:_syncReturnButtonSuppression()
-        if self.host:isTransitionOpen() then
-            self.host:requestKeyboardFocus()
-        end
-    end
-    self._windowItem:setOnCloseCallback(onSubMenuClose)
-    self._windowEquip:setOnCloseCallback(onSubMenuClose)
-    self._windowItem:setOnUseCallback(function ()
-        self:close()
-    end)
 end
 
 function Controller:handleMouseButtonDown(kwargs)
@@ -268,52 +267,56 @@ function Controller:handleCancel()
 end
 
 function Controller:onMenuExit()
-    local Title = require("Source.Scenes.SceneTitle")
-
-    self:close(function ()
-        GlobalSystem.setScene(Title.new())
-    end)
+    self:close(self._onExit)
 end
 
 function Controller:_getCurrentSubMenuFocusTarget()
-    if self.host.index == 0 and self._windowItem:getVisible() then
-        return self._windowItem
-    end
-    if self.host.index == 1 and self._windowEquip:getVisible() then
-        return self._windowEquip:getSlotFocusTarget()
-    end
-    if self.host.index == 2 and self._windowSaveLoad:getVisible() then
-        return self._windowSaveLoad:getSlotWindow()
+    if self.host.index == 0 then
+        local window = self._windowItem:peek()
+        if window ~= nil and window:getVisible() then
+            return window
+        end
+    elseif self.host.index == 1 then
+        local window = self._windowEquip:peek()
+        if window ~= nil and window:getVisible() then
+            return window:getSlotFocusTarget()
+        end
+    elseif self.host.index == 2 then
+        local window = self._windowSaveLoad:peek()
+        if window ~= nil and window:getVisible() then
+            return window:getSlotWindow()
+        end
     end
     return nil
 end
 
 function Controller:_isPointerInsideMenuGroup(position)
-    for _, window in ipairs(self._menuControls) do
-        if window:getVisible() and sf.FloatRect.contains(window:getAbsoluteBounds(), position) then
-            return true
-        end
-    end
-    return false
+    return containsPointer(self.host, position) or containsPointer(self._windowItem:peek(), position)
+        or containsPointer(self._windowEquip:peek(), position) or containsPointer(self._windowSaveLoad:peek(), position)
+        or containsPointer(self._configWindow:peek(), position)
 end
 
 function Controller:_closeSubMenus(exceptName)
     exceptName = exceptName or ""
     local closed = false
-    if exceptName ~= "item" and self._windowItem:getVisible() then
-        self._windowItem:close()
+    local item = self._windowItem:peek()
+    local equip = self._windowEquip:peek()
+    local saveLoad = self._windowSaveLoad:peek()
+    local config = self._configWindow:peek()
+    if exceptName ~= "item" and item ~= nil and item:getVisible() then
+        item:close()
         closed = true
     end
-    if exceptName ~= "equip" and self._windowEquip:getVisible() then
-        self._windowEquip:close()
+    if exceptName ~= "equip" and equip ~= nil and equip:getVisible() then
+        equip:close()
         closed = true
     end
-    if exceptName ~= "save" and self._windowSaveLoad:getVisible() then
-        self._windowSaveLoad:close()
+    if exceptName ~= "save" and saveLoad ~= nil and saveLoad:getVisible() then
+        saveLoad:close()
         closed = true
     end
-    if exceptName ~= "config" and self._configWindow:isOpen() then
-        self._configWindow:close()
+    if exceptName ~= "config" and config ~= nil and config:isOpen() then
+        config:close()
         closed = true
     end
     self:_syncReturnButtonSuppression()
@@ -321,13 +324,15 @@ function Controller:_closeSubMenus(exceptName)
 end
 
 function Controller:_syncReturnButtonSuppression()
-    local suppressed = self._windowItem:getVisible() or self._windowEquip:getVisible()
-        or self._windowSaveLoad:getVisible() or self._configWindow:isOpen()
+    local config = self._configWindow:peek()
+    local suppressed = isVisible(self._windowItem:peek()) or isVisible(self._windowEquip:peek())
+        or isVisible(self._windowSaveLoad:peek()) or (config ~= nil and config:isOpen())
     self.host:setReturnButtonSuppressed(suppressed)
 end
 
 function Controller:_returnEquipSelectToSlot()
-    return self._windowEquip:returnSelectToSlot()
+    local window = self._windowEquip:peek()
+    return window ~= nil and window:returnSelectToSlot()
 end
 
 function Controller:attach(commands)

@@ -27,6 +27,8 @@ public:
     BIND_METHOD()
     void resize(const sf::Vector2u& size);
 
+    void resizeForLayout(const sf::Vector2u& size);
+
     BIND_METHOD(Pure = true)
     sf::IntRect getNoTranslationRect() const;
 

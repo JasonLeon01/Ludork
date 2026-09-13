@@ -3,6 +3,7 @@ local GlobalFunctions = require("GlobalFunctions")
 local SourceSystem = require("Source.System")
 local GameInstance = require("Source.GameInstance")
 local SceneTitleController = require("Source.Scenes.SceneTitle.Controller")
+local LazyWindow = require("Source.UIBase.LazyWindow")
 
 local ManagerFunctions = GlobalFunctions.Manager
 local AudioManager = GlobalCore.AudioManager
@@ -18,33 +19,37 @@ function Scene:onEnter()
 end
 
 function Scene:onCreate()
-    local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
-    local ConfigWindow = require("Source.Windows.ConfigWindow")
-
     local uiManager = self:getUIManager()
     ---@cast uiManager GlobalCore.UIManager
     uiManager:setFocusNavigationEnabled(true)
     self._ui = SceneTitleController.new(self)
     self._ui:mount(self:getUIManager(), GlobalSystem.getGameSize())
     self._windowCommand = self._ui:getCommandWindow()
-    self._windowSaveLoad = WindowSaveLoad.new(
-        true, nil,
-        function (reason)
-            self:_onSaveLoadClose(reason)
-        end,
-        function (inst)
-            self:_onSaveLoadLoaded(inst)
-        end
-    )
-    self._configWindow = ConfigWindow.new(function ()
-        self:_onConfigClose()
+    self._windowSaveLoad = LazyWindow.new(function ()
+        local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
+
+        local window = WindowSaveLoad.new(
+            true, nil,
+            function (reason)
+                self:_onSaveLoadClose(reason)
+            end,
+            function (inst)
+                self:_onSaveLoadLoaded(inst)
+            end
+        )
+        window:mount(assert(self:getUIManager()))
+        return window
     end)
-    ---@type any[]
-    local uiWindows = { self._windowCommand, self._windowSaveLoad, self._configWindow }
-    for _, window in ipairs(uiWindows) do
-        ---@cast window Engine.ControlBase
-        uiManager:loadUI(window)
-    end
+    self._configWindow = LazyWindow.new(function ()
+        local ConfigWindow = require("Source.Windows.ConfigWindow")
+
+        local window = ConfigWindow.new(function ()
+            self:_onConfigClose()
+        end)
+        window:mount(assert(self:getUIManager()))
+        return window
+    end)
+    uiManager:loadUI(self._windowCommand)
     self._windowCommand:setActive(false)
     self._ui:playAnimation("FadeIn", "CommandPanel", function ()
         self._windowCommand:setActive(true)
@@ -87,7 +92,7 @@ end
 function Scene:openLoad()
     AudioManager.playSound(SourceSystem.GetDecisionSE())
     self._windowCommand:setActive(false)
-    self._windowSaveLoad:open()
+    self._windowSaveLoad:get():open()
 end
 
 ---@param reason string
@@ -112,10 +117,11 @@ end
 
 function Scene:toggleConfig()
     AudioManager.playSound(SourceSystem.GetDecisionSE())
-    if self._configWindow:isOpen() then
-        self._configWindow:close()
+    local window = self._configWindow:peek()
+    if window ~= nil and window:isOpen() then
+        window:close()
     else
-        self._configWindow:open()
+        self._configWindow:get():open()
         self._windowCommand:setActive(false)
     end
 end

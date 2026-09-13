@@ -263,6 +263,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
 
     RuntimeHandle definition = table();
     RuntimeHandle instanceAttrs = table();
+    RuntimeHandle copyAttrs = table();
     RuntimeHandle nilAttrs = table();
     RuntimeValue rawMixin = RuntimeValue();
     std::string normalizedScriptPath;
@@ -305,6 +306,14 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
             rawSet(definition, entry.first, resolvedValue);
         }
         rawSet(instanceAttrs, entry.first, deepCopy(resolvedValue));
+        const RuntimeValue component =
+            isTable(rawFieldMetadata)
+                ? rawGet(ludork::runtime::reference::intern(rawFieldMetadata),
+                         "component")
+                : RuntimeValue();
+        if (!boolean(component)) {
+            rawSet(copyAttrs, entry.first, true);
+        }
     }
 
     rawSet(definition, "_GENERATED_CLASS", true);
@@ -333,6 +342,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     const RuntimeValue parentRecord =
         rawGet(requireTable(rawGet(state, "records")), parentPath);
     rawSet(record, "attrs", instanceAttrs);
+    rawSet(record, "copyAttrs", copyAttrs);
     rawSet(record, "nilAttrs", nilAttrs);
     rawSet(record, "parent", parentClass);
     rawSet(record, "parentRecord", parentRecord);

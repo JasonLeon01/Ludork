@@ -38,7 +38,7 @@ public sealed class ProjectStateWorker : IDisposable
         await requestLock.WaitAsync(cancellation.Token).ConfigureAwait(false);
         try
         {
-            string path = UiAssetGenerationService.FindToolPath()
+            string path = EditorRuntimePaths.FindScriptTools()
                 ?? throw new IOException("ScriptTools was not found in the editor installation.");
             string identity = await hashToolAsync(path, cancellation.Token).ConfigureAwait(false);
             if (process is null || process.HasExited || toolPath != path || toolIdentity != identity)

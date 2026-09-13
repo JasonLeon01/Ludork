@@ -2,6 +2,7 @@
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
+#include "LuaServices/RuntimeMetadataReferences.hpp"
 
 #include <Runtime/Components/ComponentRuntime.hpp>
 #include <Runtime/NodeGraph/Graph.hpp>
@@ -162,23 +163,11 @@ RuntimeValue configReferences(const RuntimeValue& owner) {
         return cached;
     }
     RuntimeHandle result = table();
-    TypedDataService& dataValues = typedDataService();
     std::vector<RuntimeValue> mro =
         classMro(ludork::runtime::reference::intern(owner));
     for (auto current = mro.rbegin(); current != mro.rend(); ++current) {
-        const RuntimeValue metadata =
-            dataValues.getClassTypeMetadata(*current).first;
-        std::optional<RuntimeMapView> metadataFields =
-            RuntimeValueView(metadata).map();
-        if (!metadataFields) {
-            continue;
-        }
-        const auto metaIterator = metadataFields->find("Meta");
-        if (!metaIterator) {
-            continue;
-        }
         for (const auto& [name, reference] :
-             getConfigVars(metaIterator->toValue())) {
+             detail::classConfigReferences(*current)) {
             rawSet(result, name, reference);
         }
     }
@@ -250,6 +239,8 @@ void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
         const RuntimeValue current = rawRecord;
         const RuntimeHandle classAttrs = requireTable(
             rawGet(ludork::runtime::reference::intern(current), "attrs"));
+        const RuntimeHandle copyAttrs = requireTable(
+            rawGet(ludork::runtime::reference::intern(current), "copyAttrs"));
         const RuntimeHandle nilAttrs = requireTable(
             rawGet(ludork::runtime::reference::intern(current), "nilAttrs"));
         const RuntimeHandle parentClass = requireTable(
@@ -264,12 +255,15 @@ void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
                 appliedAttrs.insert(as<std::string>(entry.first)).second &&
                 !hasOwnField(ludork::runtime::reference::intern(self),
                              entry.first)) {
+                const RuntimeValue value =
+                    boolean(rawGet(copyAttrs, entry.first))
+                        ? deepCopy(entry.second)
+                        : cloneAttrValue(parentClass, entry.first, entry.second,
+                                         rawGet(attrMetadata, entry.first),
+                                         rawGet(attrTypes, entry.first), false);
                 runtimeReflection().setTyped(
                     ludork::runtime::reference::intern(self),
-                    as<std::string>(entry.first),
-                    cloneAttrValue(parentClass, entry.first, entry.second,
-                                   rawGet(attrMetadata, entry.first),
-                                   rawGet(attrTypes, entry.first), false));
+                    as<std::string>(entry.first), value);
             }
         }
         for (const auto& entry : entries(nilAttrs)) {

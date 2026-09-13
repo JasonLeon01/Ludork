@@ -15,45 +15,13 @@ local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local RegionTitleController = require("Source.Scenes.SceneMap.RegionTitle.Controller")
 local PlayerAttrHUD = require("Source.Windows.HUDPlayerAttr")
-local WindowEquip = require("Source.Windows.WindowEquip")
-local WindowAttrShop = require("Source.Windows.WindowAttrShop")
-local WindowEnemyBook = require("Source.Windows.WindowEnemyBook")
-local WindowEnemyEncyclopedia = require("Source.Windows.WindowEnemyEncyclopedia")
-local ConfigWindow = require("Source.Windows.ConfigWindow")
-local WindowFloorTeleporter = require("Source.Windows.WindowFloorTeleporter")
-local WindowItem = require("Source.Windows.WindowItem")
-local WindowMenu = require("Source.Windows.WindowMenu")
-local WindowMessage = require("Source.Windows.WindowMessage")
-local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
-local WindowShop = require("Source.Windows.WindowShop")
-local WindowPlayerName = require("Source.Windows.WindowPlayerName")
+local SceneMapWindows = require("Source.Scenes.SceneMap.Windows")
 
 local Input = Engine.Input
-local Direction = Engine.FocusDirection
-local FocusGroup = GlobalCore.FocusGroup
-local FocusNeighbor = GlobalCore.FocusNeighbor
-local FocusTransition = GlobalCore.FocusTransition
 local GlobalSystem = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
 
 local WORLD_AMBIENT_TRANSITION_TIME = 0.5
-
----@param name    string
----@param control Engine.FunctionalBase
----@return GlobalCore.FocusGroup
-local function createSingleControlFocusGroup(name, control)
-    return FocusGroup.new(name, { control }, control)
-end
-
----@param uiManager GlobalCore.UIManager
----@param ...       Engine.ControlBase
-local function loadUiControls(uiManager, ...)
-    ---@type Engine.ControlBase[]
-    local controls = { ... }
-    for _, control in ipairs(controls) do
-        uiManager:loadUI(control)
-    end
-end
 
 ---@param from  sf.Color
 ---@param to    sf.Color
@@ -95,92 +63,12 @@ function Scene:onCreate()
             scene:openMenu()
         end
     end)
-    self._messageWindow = WindowMessage.new()
-    self._playerNameMoveEnabledBeforeOpen = true
-    self._windowPlayerName = WindowPlayerName.new(self.player, function ()
-        self.player:setMoveEnabled(self._playerNameMoveEnabledBeforeOpen)
-        self:_blockMapInput(2)
-    end)
     self._dialogueLocaleSource = nil
-    self._windowItem = WindowItem.new(self.player)
-    self._windowEquip = WindowEquip.new(self.player)
-    self._shopMoveEnabledBeforeOpen = true
-    self._windowShop = WindowShop.new(self.player, function ()
-        self:_onShopClose()
-    end)
-    self._attrShopMoveEnabledBeforeOpen = true
-    self._windowAttrShop = WindowAttrShop.new(self.player, function ()
-        self:_onAttrShopClose()
-    end)
-    self._enemyBookMoveEnabledBeforeOpen = true
-    self._windowEnemyBook = WindowEnemyBook.new(
-        self.player,
-        function ()
-            self:_onEnemyBookClose()
-        end,
-        function (entry)
-            self:_onEnemyBookConfirm(entry)
-        end
-    )
-    self._windowEnemyEncyclopedia = WindowEnemyEncyclopedia.new(function ()
-        self:_onEnemyEncyclopediaClose()
-    end)
-    self._floorTeleporterMoveEnabledBeforeOpen = true
-    self._windowFloorTeleporter = WindowFloorTeleporter.new(
-        self.inst,
-        function (mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
-            return self:_buildFloorMapPreview(mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
-        end,
-        function (mapKey, telepoint)
-            self:_onFloorTeleporterConfirm(mapKey, telepoint)
-        end,
-        function ()
-            self:_onFloorTeleporterClose()
-        end,
-        function (mapKey)
-            return self._mapBuilder:resolveMapPath(mapKey, self:_getCurrentRegionMap())
-        end,
-        function ()
-            self._mapBuilder:clearFloorMapPreviewCache()
-        end
-    )
-    self._windowSaveLoad = WindowSaveLoad.new(
-        false,
-        function ()
-            return self:_getSaveSource()
-        end,
-        function (reason)
-            self:_onSaveLoadClose(reason)
-        end,
-        function (inst)
-            self:applyLoadedGame(inst)
-        end
-    )
-    self._configWindow = ConfigWindow.new(function ()
-        self:_onConfigClose()
-    end)
-    self._windowMenu = WindowMenu.new(self.player, {
-        item = self._windowItem,
-        equip = self._windowEquip,
-        saveLoad = self._windowSaveLoad,
-        config = self._configWindow
-    })
-    self._blockingWindows = {
-        self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
-        self._windowFloorTeleporter, self._windowPlayerName
-    }
-    self._windowMenu:setMoveRestoreGuard(function ()
-        return self:_canRestoreMoveAfterMenuClose()
-    end)
-    self:_registerFocusGroups()
+    SceneMapWindows.Create(self)
     self._regionTitleUI = RegionTitleController.new(GlobalSystem.getGameSize())
     self._regionTitleUI:prepare()
     self._regionTitleText = self._regionTitleUI:getText()
-    loadUiControls(
-        uiManager, self._playerHUD, self._messageWindow, self._windowMenu, self._windowItem, self._windowEquip,
-        self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
-        self._windowFloorTeleporter, self._windowSaveLoad, self._configWindow, self._windowPlayerName
-    )
+    self._playerHUD:mount(uiManager)
     self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
         local scene = sceneRef[1]
         if scene ~= nil then
@@ -188,7 +76,6 @@ function Scene:onCreate()
         end
     end)
 
-    self._windowMenu:hideImmediate()
     self._gameMap = nil
     self._cachedMapFile = nil
     self._currentRegion = nil
@@ -205,46 +92,6 @@ function Scene:onCreate()
     local startMap = self.inst:getCurrentMapPath() or GameSystem.GetStartMap()
     self:gotoMapAndPos(startMap, nil, true)
     LiveDebug.BindScene(self)
-end
-
-function Scene:_registerFocusGroups()
-    local uiManager = assert(self:getUIManager(), "Scene map UI manager is unavailable")
-    local menuGroup = createSingleControlFocusGroup("menu", self._windowMenu)
-    local itemGroup = createSingleControlFocusGroup("item", self._windowItem)
-    itemGroup:setNeighbor(Direction.LEFT, menuGroup)
-
-    local equipSlotControl, equipSelectControl = self._windowEquip:getFocusControls()
-    local equipSlotGroup = createSingleControlFocusGroup("equip-slot", equipSlotControl)
-    local equipSelectGroup = createSingleControlFocusGroup("equip-select", equipSelectControl)
-    equipSlotGroup:setNeighbor(Direction.LEFT, menuGroup)
-    equipSlotGroup:setNeighbor(Direction.RIGHT, FocusNeighbor.new(equipSelectGroup, FocusTransition.EXPLICIT))
-    equipSelectGroup:setNeighbor(Direction.LEFT, FocusNeighbor.new(equipSlotGroup, FocusTransition.EXPLICIT))
-
-    local shopItemWindow = self._windowShop:getItemWindow()
-    local shopItemGroup = createSingleControlFocusGroup("shop-item", shopItemWindow)
-
-    local floorCommandWindow = self._windowFloorTeleporter:getCommandWindow()
-    local floorPreviewWindow = self._windowFloorTeleporter:getPreviewWindow()
-    local floorCommandGroup = createSingleControlFocusGroup("floor-command", floorCommandWindow)
-    local floorPreviewGroup = createSingleControlFocusGroup("floor-preview", floorPreviewWindow)
-    floorCommandGroup:setNeighbor(Direction.RIGHT, FocusNeighbor.new(floorPreviewGroup, FocusTransition.EXPLICIT))
-    floorPreviewGroup:setNeighbor(Direction.LEFT, FocusNeighbor.new(floorCommandGroup, FocusTransition.EXPLICIT))
-
-    local saveSlotWindow = self._windowSaveLoad:getSlotWindow()
-    local saveSlotGroup = createSingleControlFocusGroup("save-slot", saveSlotWindow)
-    saveSlotGroup:setNeighbor(Direction.LEFT, menuGroup)
-
-    local playerNameGroup = FocusGroup.new(
-        "player-name", self._windowPlayerName:getFocusControls(), self._windowPlayerName
-    )
-
-    local groups = {
-        menuGroup, itemGroup, equipSlotGroup, equipSelectGroup, shopItemGroup, floorCommandGroup, floorPreviewGroup,
-        saveSlotGroup, playerNameGroup
-    }
-    for _, group in ipairs(groups) do
-        uiManager:registerFocusGroup(group)
-    end
 end
 
 function Scene:onQuit()
@@ -270,50 +117,38 @@ function Scene:onDestroy()
     end
     self._dialogueLocaleSource = nil
     self._mapAudio:stopMapAudio()
-    self._messageWindow:hideImmediate()
-    self._windowMenu:hideImmediate()
-    self._windowItem:hideImmediate()
-    self._windowEquip:hideImmediate()
-    self._windowAttrShop:hideImmediate()
-    self._windowEnemyBook:hideImmediate()
-    self._windowEnemyEncyclopedia:hideImmediate()
-    self._messageWindow:dispose()
-    self._windowMenu:dispose()
-    self._windowItem:dispose()
-    self._windowEquip:dispose()
-    self._windowAttrShop:dispose()
-    self._windowEnemyBook:dispose()
-    self._windowEnemyEncyclopedia:dispose()
+    SceneMapWindows.Dispose(self)
     self._playerHUD:dispose()
-    self._windowSaveLoad:dispose()
-    self._windowShop:dispose()
-    self._windowFloorTeleporter:dispose()
-    self._configWindow:dispose()
-    self._windowPlayerName:dispose()
     self._regionTitleUI:dispose()
 end
 
 function Scene:refreshLocale()
-    if self._dialogueLocaleSource ~= nil and self._messageWindow:isInDialogue() then
+    local messageWindow = self._messageWindow:peek()
+    if self._dialogueLocaleSource ~= nil and messageWindow ~= nil and messageWindow:isInDialogue() then
         if self._dialogueLocaleSource.kind == "selection" then
             ---@cast self._dialogueLocaleSource Source.Scenes.SceneMap.DialogueSelectionLocaleSource
             local name, options = Scene.FormatDialogueSelectionSource(self._dialogueLocaleSource)
-            self._messageWindow:refreshSelection(name, options)
+            messageWindow:refreshSelection(name, options)
         else
             ---@cast self._dialogueLocaleSource Source.Scenes.SceneMap.DialogueMessageLocaleSource
             local name, message = Scene.FormatDialogueMessageSource(self._dialogueLocaleSource)
-            self._messageWindow:refreshMessage(name, message)
+            messageWindow:refreshMessage(name, message)
         end
     end
-    self._windowMenu:refreshRows()
-    self._windowItem:refreshLocale()
-    self._windowEquip:refreshLocale()
-    self._windowShop:refreshLocale()
-    self._windowAttrShop:refreshLocale()
-    self._windowEnemyBook:refreshLocale()
-    self._windowEnemyEncyclopedia:refreshLocale()
-    self._windowFloorTeleporter:refreshLocale()
-    self._windowPlayerName:refreshLocale()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil then
+        menu:refreshRows()
+    end
+    local windows = {
+        self._windowItem, self._windowEquip, self._windowShop, self._windowAttrShop, self._windowEnemyBook,
+        self._windowEnemyEncyclopedia, self._windowFloorTeleporter, self._windowPlayerName
+    }
+    for _, lazyWindow in ipairs(windows) do
+        local window = lazyWindow:peek()
+        if window ~= nil then
+            window:refreshLocale()
+        end
+    end
 end
 
 function Scene:onFixedTick(fixedDelta)
@@ -348,7 +183,7 @@ end
 
 function Scene:onTick(deltaTime)
     self._mapAudio:onTick(deltaTime)
-    if self._dialogueLocaleSource ~= nil and not self._messageWindow:isInDialogue() then
+    if self._dialogueLocaleSource ~= nil and not self:_isInDialogue() then
         self._dialogueLocaleSource = nil
     end
     if self._mapTransferInProgress then
@@ -527,7 +362,7 @@ function Scene:_renderHandle(deltaTime)
     if self._pendingMenuOpen then
         self._pendingMenuOpen = false
         Scene.CaptureScreenSnapshot()
-        self._windowMenu:open()
+        self._windowMenu:get():open()
     end
 end
 
@@ -557,20 +392,34 @@ end
 
 ---@return boolean
 function Scene:_canOpenMenu()
-    return not self._pendingMenuOpen and not self._windowMenu:isBlocking()
-        and not self._messageWindow:isInDialogue() and not self:_hasVisibleBlockingWindow()
+    return not self._pendingMenuOpen and not self:_isMenuBlocking()
+        and not self:_isInDialogue() and not self:_hasVisibleBlockingWindow()
 end
 
 ---@return boolean
 function Scene:_canOpenItemOverlay()
-    return self._windowMenu:getVisible() and self._windowItem:getVisible()
-        and not self._messageWindow:isInDialogue() and not self:_hasVisibleBlockingWindow()
+    local menu = self._windowMenu:peek()
+    local item = self._windowItem:peek()
+    return menu ~= nil and menu:getVisible() and item ~= nil and item:getVisible() and not self:_isInDialogue()
+        and not self:_hasVisibleBlockingWindow()
 end
 
 ---@return boolean
 function Scene:_isMapClickMoveBlocked()
-    return self._messageWindow:isInDialogue() or self._windowMenu:isBlocking()
+    return self:_isInDialogue() or self:_isMenuBlocking()
         or self:_hasVisibleBlockingWindow() or self._mapInputBlockFrames > 0
+end
+
+---@return boolean
+function Scene:_isInDialogue()
+    local window = self._messageWindow:peek()
+    return window ~= nil and window:isInDialogue()
+end
+
+---@return boolean
+function Scene:_isMenuBlocking()
+    local window = self._windowMenu:peek()
+    return window ~= nil and window:isBlocking()
 end
 
 function Scene.ConsumeMapClickMoveInput()
@@ -764,6 +613,10 @@ end
 
 function Scene:_onShopClose()
     return SceneMapInteractions.OnShopClose(self)
+end
+
+function Scene:_onPlayerNameClose()
+    return SceneMapInteractions.OnPlayerNameClose(self)
 end
 
 function Scene:_onAttrShopClose()

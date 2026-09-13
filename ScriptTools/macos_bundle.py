@@ -11,6 +11,7 @@ from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .packaging_constants import (
     RUNTIME_LEGAL_FILES,
 )
+from .packaging_names import prepare_directory, read_app_name
 from .resource_constants import RESOURCE_GROUPS
 from .ui_preview import is_preview_development_file
 
@@ -254,8 +255,8 @@ def create_icon(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> None:
         raise RuntimeError(f"iconutil did not generate {app_icon}")
 
 
-def bundle_identifier(project_name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", project_name.lower()).strip("-")
+def bundle_identifier(app_name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", app_name.lower()).strip("-")
     return f"com.ludork.game.{slug or 'main'}"
 
 
@@ -268,10 +269,9 @@ def main(arguments: list[str] | None = None) -> int:
         )
         return 1
     project_dir = pathlib.Path(command_arguments[0]).resolve()
+    app_name = read_app_name(project_dir)
     runtime_dir = pathlib.Path(command_arguments[1]).resolve()
-    app_path = pathlib.Path(command_arguments[2]).resolve()
-    if app_path.exists():
-        shutil.rmtree(app_path)
+    app_path = prepare_directory(project_dir, pathlib.Path(command_arguments[2]))
     macos_dir = app_path / "Contents" / "MacOS"
     frameworks_dir = app_path / "Contents" / "Frameworks"
     resources_dir = app_path / "Contents" / "Resources"
@@ -284,12 +284,12 @@ def main(arguments: list[str] | None = None) -> int:
     create_icon(project_dir, resources_dir)
     plist = {
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleDisplayName": project_dir.name,
+        "CFBundleDisplayName": app_name,
         "CFBundleExecutable": "Main",
-        "CFBundleIdentifier": bundle_identifier(project_dir.name),
+        "CFBundleIdentifier": bundle_identifier(app_name),
         "CFBundleInfoDictionaryVersion": "6.0",
         "CFBundleIconFile": "AppIcon",
-        "CFBundleName": "Main",
+        "CFBundleName": app_name,
         "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": "1.0.0",
         "CFBundleVersion": "1",
