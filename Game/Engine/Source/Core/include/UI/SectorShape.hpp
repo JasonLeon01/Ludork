@@ -8,6 +8,8 @@ BIND_CLASS()
 class LUDORK_ENGINE_API SectorShape : public sf::Drawable,
                                       public sf::Transformable {
 public:
+    LUDORK_CAST_ROOT(SectorShape)
+
     BIND_INIT()
     explicit SectorShape(float radius = 0.0f,
                          const sf::Color& fillColour = sf::Color::White);

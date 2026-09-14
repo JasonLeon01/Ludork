@@ -22,6 +22,8 @@ class GamepadGlyphImpl;
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TabView : public ControlBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(TabView, ControlBase, FunctionalBase)
+
     BIND_CLASS(copyable = true, table_init = true, strict_fields = true)
     struct KeyHint {
         BIND_PROPERTY()

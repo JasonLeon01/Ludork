@@ -15,8 +15,8 @@
 namespace {
 
 RuntimeValue actorGraph(const RuntimeValue& object) {
-    const std::shared_ptr<Actor> actor = std::dynamic_pointer_cast<Actor>(
-        ludork::runtime::reference::object(object));
+    const std::shared_ptr<Actor> actor =
+        ludork::Cast<Actor>(ludork::runtime::reference::object(object));
     const std::shared_ptr<Graph> graph =
         actor == nullptr ? nullptr : actor->getGraph();
     return graph == nullptr ? RuntimeValue() : RuntimeValue(graph);

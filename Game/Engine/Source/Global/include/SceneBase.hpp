@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Manager/TimerEntry.hpp>
 
 #include <CoreMinimal.hpp>
@@ -23,6 +24,8 @@ class LifecycleImpl;
 BIND_CLASS(bind_bases = false, cast_bases = {"SceneRuntime"}, callbacks = true)
 class SceneBase : public SceneRuntime {
 public:
+    LUDORK_CAST_DERIVED(SceneBase, SceneRuntime)
+
     BIND_INIT()
     SceneBase();
     ~SceneBase() override;

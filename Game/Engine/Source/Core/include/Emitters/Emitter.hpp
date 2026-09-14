@@ -8,6 +8,8 @@
 BIND_CLASS()
 class LUDORK_ENGINE_API Emitter : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Emitter, RuntimeObject)
+
     BIND_INIT(defaults = {""})
     explicit Emitter(const std::string& resourceKey = "");
     ~Emitter() override;

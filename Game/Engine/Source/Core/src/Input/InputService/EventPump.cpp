@@ -242,7 +242,7 @@ void InputImpl::setPointerViewport(std::optional<sf::IntRect> viewport) {
         pixelToWorld(*eventPump_.activeWindow_, *pointer_.injectedPixel_);
 }
 
-void InputImpl::onWindowRecreated(sf::WindowBase& window) {
+void InputImpl::onWindowRecreated(sf::RenderWindow& window) {
     ludork::engine::text_input::service().close();
     resetFrameState();
     clearKeyboardState();
@@ -287,7 +287,7 @@ void InputImpl::onWindowRecreated(sf::WindowBase& window) {
                                  InputType::Mouse);
 }
 
-void InputImpl::processPlatformScrollEvents(sf::WindowBase& window) {
+void InputImpl::processPlatformScrollEvents(sf::RenderWindow& window) {
     if (!ludork::engine::platform_input::isScrollCaptureAvailable()) {
         return;
     }
@@ -455,7 +455,7 @@ void InputImpl::processInjectedEvents() {
     }
 }
 
-bool InputImpl::processNativeEvent(sf::WindowBase& window,
+bool InputImpl::processNativeEvent(sf::RenderWindow& window,
                                    const sf::Event& event) {
     if (event.is<sf::Event::Closed>()) {
         window.close();

@@ -37,5 +37,7 @@ struct InputActionKey {
     BIND_PROPERTY(metadata = false)
     RuntimeIdentityPtr comparisonIdentity;
 
+    const InputAxisComparison* nativeComparison = nullptr;
+
     bool operator==(const InputActionKey& other) const;
 };

@@ -34,8 +34,7 @@ using namespace ludork::runtime::node_graph_detail;
 std::shared_ptr<Graph> requireBlueprintGraph(const RuntimeValue& graph) {
     const std::shared_ptr<Graph> nativeGraph =
         kind(graph) == "userdata"
-            ? std::dynamic_pointer_cast<Graph>(
-                  ludork::runtime::reference::object(graph))
+            ? ludork::Cast<Graph>(ludork::runtime::reference::object(graph))
             : nullptr;
     if (nativeGraph == nullptr) {
         throw std::invalid_argument("Blueprint graph must be an Engine.Graph");

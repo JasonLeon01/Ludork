@@ -13,6 +13,8 @@ class ScrollBox;
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API FunctionalBase : public FocusableMixin {
 public:
+    LUDORK_CAST_DERIVED(FunctionalBase, FocusableMixin)
+
     using FocusResolver = std::function<bool(const FunctionalBase&)>;
     using DirectionalFocusRequester =
         std::function<bool(FunctionalBase&, const std::string&)>;

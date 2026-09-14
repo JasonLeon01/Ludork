@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Graphics/AnimationTimeTag.hpp>
 #include <Graphics/AnimationSoundEntry.hpp>
 
@@ -11,6 +12,8 @@ struct AnimationSourceData;
 BIND_CLASS(cast_bases = {"sf::Drawable", "sf::Transformable"}, callbacks = true)
 class LUDORK_ENGINE_API AnimSprite : public sf::Sprite {
 public:
+    LUDORK_CAST_ROOT(AnimSprite)
+
     BIND_CLASS(copyable = true, table_init = true)
     struct AnimationData {
         BIND_PROPERTY()

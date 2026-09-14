@@ -95,8 +95,7 @@ bool EmitterView::isDisposed() const {
 sf::Transform EmitterView::domainParentTransform() const {
     sf::Transform transform;
     std::shared_ptr<ControlBase> parent = getParent();
-    while (parent != nullptr &&
-           dynamic_cast<Canvas*>(parent.get()) == nullptr) {
+    while (parent != nullptr && ludork::Cast<Canvas>(parent.get()) == nullptr) {
         transform = parent->renderTransform() * transform;
         parent = parent->getParent();
     }
@@ -107,7 +106,7 @@ sf::Transform EmitterView::prepareEmitter() {
     std::shared_ptr<ControlBase> ancestor = getParent();
     std::shared_ptr<Canvas> domain;
     while (ancestor != nullptr) {
-        domain = std::dynamic_pointer_cast<Canvas>(ancestor);
+        domain = ludork::Cast<Canvas>(ancestor);
         if (domain != nullptr) {
             break;
         }

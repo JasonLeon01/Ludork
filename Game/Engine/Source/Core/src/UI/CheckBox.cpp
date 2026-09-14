@@ -122,7 +122,7 @@ bool CheckBox::onMouseButtonDown(const UiInputEventArguments& arguments) {
 }
 
 void CheckBox::onKeyDown(const UiInputEventArguments& arguments) {
-    InputService* service = dynamic_cast<InputService*>(inputProvider());
+    InputService* service = ludork::Cast<InputService>(inputProvider());
     if (service != nullptr && ownsKeyboardCursorFocus() &&
         service->isActionTriggered(service->getConfirmKeys(), true)) {
         onConfirm({});

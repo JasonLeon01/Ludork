@@ -1,5 +1,7 @@
 include_guard(GLOBAL)
 
+include("${CMAKE_CURRENT_LIST_DIR}/LudorkCppOptions.cmake")
+
 option(
     LUDORK_WITH_LUA
     "Build the complete Lua scripting runtime and bindings"
@@ -20,6 +22,7 @@ if(LUDORK_WITH_LUA)
     target_compile_definitions(LudorkSolConfig INTERFACE
         $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
         SOL_SAFE_NUMERICS=1
+        SOL_NO_RTTI=1
         SOL_USE_INTEROP=1
         SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
         SOL_USERTYPE_TYPE_BINDING_INFO=0)

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -7,6 +8,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_GLOBAL_API AttributeSet : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(AttributeSet, RuntimeObject)
+
     BIND_CLASS(copyable = true, table_init = true)
     struct LUDORK_GLOBAL_API AttributeSchema {
         BIND_PROPERTY()

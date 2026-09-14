@@ -9,6 +9,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ListView : public ControlBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(ListView, ControlBase, FunctionalBase)
+
     BIND_INIT()
     ListView(const sf::IntRect& rect, int defaultItemHeight = 32,
              bool fixItemHeight = false, int columns = 1);

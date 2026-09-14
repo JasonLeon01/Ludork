@@ -9,6 +9,8 @@ class TileLayer;
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Tilemap {
 public:
+    LUDORK_CAST_ROOT(Tilemap)
+
     BIND_INIT()
     explicit Tilemap(const std::vector<std::shared_ptr<TileLayer>>& layers);
     virtual ~Tilemap();

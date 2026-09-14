@@ -11,6 +11,8 @@ class EmitterScheduler;
 BIND_CLASS(table_init = true)
 class LUDORK_ENGINE_API EmitterComponent : public Component {
 public:
+    LUDORK_CAST_DERIVED(EmitterComponent, Component)
+
     BIND_INIT()
     EmitterComponent() = default;
     ~EmitterComponent() override;

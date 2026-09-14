@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Cast.hpp>
 #include <LudorkRuntimeBinding/Annotations.hpp>
 #include <Runtime/RuntimeValue.hpp>
 

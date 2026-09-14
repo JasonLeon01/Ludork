@@ -9,6 +9,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Slider : public ControlBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(Slider, ControlBase, FunctionalBase)
+
     BIND_INIT()
     Slider(const sf::Vector2f& size, std::shared_ptr<sf::Texture> lineTexture,
            std::shared_ptr<sf::Texture> handleTexture, int minValue,

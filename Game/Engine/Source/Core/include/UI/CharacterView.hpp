@@ -8,6 +8,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API CharacterView : public FunctionalImage {
 public:
+    LUDORK_CAST_DERIVED(CharacterView, FunctionalImage)
+
     BIND_INIT(defaults = {nil, nil, nil, true, 0.2, "", 0.0})
     explicit CharacterView(std::shared_ptr<sf::Texture> texture,
                            std::optional<sf::IntRect> frameRect = std::nullopt,

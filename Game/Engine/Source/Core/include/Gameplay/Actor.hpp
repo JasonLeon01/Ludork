@@ -26,6 +26,8 @@ BIND_CLASS(bind_bases = false, runtime_bases = "BPBase,sf::Sprite",
            callbacks = true)
 class LUDORK_ENGINE_API Actor : public RuntimeObject, public sf::Sprite {
 public:
+    LUDORK_CAST_DERIVED(Actor, RuntimeObject)
+
     BIND_INIT()
     explicit Actor(std::shared_ptr<sf::Texture> texture = nullptr,
                    std::optional<sf::IntRect> rect = std::nullopt,

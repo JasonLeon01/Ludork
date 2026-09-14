@@ -9,6 +9,8 @@ class Actor;
 BIND_CLASS(metadata = false)
 class LUDORK_ENGINE_API ActorMapService : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(ActorMapService, RuntimeObject)
+
     ~ActorMapService() override;
 
     BIND_METHOD(Pure = true)

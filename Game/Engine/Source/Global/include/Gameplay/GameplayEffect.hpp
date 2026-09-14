@@ -10,6 +10,8 @@ class GameplayAbility;
 BIND_CLASS(table_init = true)
 class LUDORK_GLOBAL_API GameplayEffect : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(GameplayEffect, RuntimeObject)
+
     GameplayEffect();
 
     BIND_PROPERTY()

@@ -9,6 +9,8 @@ struct PlainTextConfig;
 BIND_CLASS(callbacks = true)
 class PlainText : public ControlBase {
 public:
+    LUDORK_CAST_DERIVED(PlainText, ControlBase)
+
     BIND_INIT()
     PlainText(std::shared_ptr<PlainTextConfig> config, const std::string& text);
     virtual ~PlainText();

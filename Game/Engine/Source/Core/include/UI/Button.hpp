@@ -9,6 +9,8 @@
 BIND_CLASS()
 class Button : public Image, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(Button, Image, FunctionalBase)
+
     BIND_INIT()
     explicit Button(std::shared_ptr<sf::Texture> texture,
                     std::optional<sf::IntRect> rect = std::nullopt,

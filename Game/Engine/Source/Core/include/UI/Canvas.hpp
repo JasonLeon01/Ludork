@@ -11,6 +11,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Canvas : public SpriteBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(Canvas, SpriteBase, FunctionalBase)
+
     BIND_INIT()
     explicit Canvas(const sf::IntRect& rect);
     virtual ~Canvas() = default;

@@ -7,6 +7,8 @@
 BIND_CLASS()
 class LUDORK_ENGINE_API Vector2Curve : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Vector2Curve, RuntimeObject)
+
     BIND_CLASS(copyable = true, table_init = true)
     struct Vector2CurveData {
         BIND_PROPERTY()

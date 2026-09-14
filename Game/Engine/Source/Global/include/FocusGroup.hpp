@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -10,6 +11,8 @@ class FunctionalBase;
 BIND_CLASS(callbacks = true)
 class FocusGroup : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(FocusGroup, RuntimeObject)
+
     BIND_INIT(defaults = {{}, nil})
     explicit FocusGroup(std::string name,
                         std::vector<std::shared_ptr<FunctionalBase>> items = {},

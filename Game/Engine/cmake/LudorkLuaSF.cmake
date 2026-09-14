@@ -108,6 +108,7 @@ endif()
 
 foreach(luasf_binding_target IN ITEMS LuaSF LuaSF_lua_extension)
     if(TARGET ${luasf_binding_target})
+        target_compile_definitions(${luasf_binding_target} PRIVATE SOL_NO_RTTI=1)
         set_property(
             TARGET ${luasf_binding_target}
             PROPERTY INTERPROCEDURAL_OPTIMIZATION_DEBUG

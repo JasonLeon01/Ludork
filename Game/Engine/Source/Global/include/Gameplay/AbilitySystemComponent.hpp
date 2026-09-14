@@ -17,6 +17,8 @@ class AttributeSet;
 BIND_CLASS()
 class LUDORK_GLOBAL_API AbilitySystemComponent : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(AbilitySystemComponent, RuntimeObject)
+
     struct Impl;
     using NumericConstraint = ludork::runtime::StrictFunction<GameplayNumber(
         GameplayNumber, std::shared_ptr<AbilitySystemComponent>,

@@ -8,6 +8,8 @@
 
 BIND_CLASS(copyable = true, table_init = true)
 struct LUDORK_ENGINE_API PlainTextConfig : public RuntimeObject {
+    LUDORK_CAST_DERIVED(PlainTextConfig, RuntimeObject)
+
     BIND_PROPERTY()
     std::string type = "plainTextConfig";
 

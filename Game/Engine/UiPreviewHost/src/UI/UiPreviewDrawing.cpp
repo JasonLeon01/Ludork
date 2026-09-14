@@ -44,8 +44,7 @@ void renderNestedCanvases(const std::shared_ptr<ControlBase>& control) {
             renderNestedCanvases(child);
         }
     }
-    const std::shared_ptr<Canvas> canvas =
-        std::dynamic_pointer_cast<Canvas>(control);
+    const std::shared_ptr<Canvas> canvas = ludork::Cast<Canvas>(control);
     if (canvas != nullptr) {
         canvas->render();
     }
@@ -67,7 +66,7 @@ sf::FloatRect effectiveClip(const std::shared_ptr<ControlBase>& control,
     sf::FloatRect clip = rootClip;
     std::shared_ptr<ControlBase> current = control;
     while (current != nullptr) {
-        if (std::dynamic_pointer_cast<Canvas>(current) != nullptr) {
+        if (ludork::Cast<Canvas>(current) != nullptr) {
             const std::optional<sf::FloatRect> intersection =
                 clip.findIntersection(current->getAbsoluteBounds());
             if (!intersection.has_value()) {
@@ -88,7 +87,7 @@ bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
     }
     std::shared_ptr<ControlBase> current = control;
     while (current != nullptr) {
-        if (std::dynamic_pointer_cast<Canvas>(current) != nullptr) {
+        if (ludork::Cast<Canvas>(current) != nullptr) {
             const sf::Vector2f local =
                 current->screenRenderTransform().getInverse().transformPoint(
                     point) /

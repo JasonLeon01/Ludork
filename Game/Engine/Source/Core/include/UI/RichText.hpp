@@ -1,4 +1,5 @@
 #pragma once
+
 #include <UI/TextGlowConfig.hpp>
 #include <UI/TextGradientConfig.hpp>
 
@@ -10,8 +11,12 @@
 BIND_CLASS(callbacks = true)
 class RichText : public ControlBase {
 public:
+    LUDORK_CAST_DERIVED(RichText, ControlBase)
+
     BIND_CLASS(copyable = true, table_init = true)
     struct LUDORK_ENGINE_API RichTextConfig : public RuntimeObject {
+        LUDORK_CAST_DERIVED(RichTextConfig, RuntimeObject)
+
         BIND_PROPERTY()
         std::string type = "richTextConfig";
 

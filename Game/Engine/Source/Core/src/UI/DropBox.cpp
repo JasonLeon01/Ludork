@@ -442,7 +442,7 @@ DropBox::PopupGeometry DropBox::calculatePopupGeometry() const {
     std::shared_ptr<Canvas> host;
     while (parent != nullptr) {
         if (const std::shared_ptr<Canvas> canvas =
-                std::dynamic_pointer_cast<Canvas>(parent)) {
+                ludork::Cast<Canvas>(parent)) {
             host = canvas;
         }
         parent = parent->getParent();
@@ -682,7 +682,7 @@ sf::Vector2f DropBox::toLocalPosition(
 bool DropBox::hasCanvasAncestor() const {
     std::shared_ptr<ControlBase> parent = getParent();
     while (parent != nullptr) {
-        if (dynamic_cast<Canvas*>(parent.get()) != nullptr) {
+        if (ludork::Cast<Canvas>(parent.get()) != nullptr) {
             return true;
         }
         parent = parent->getParent();
@@ -693,8 +693,7 @@ bool DropBox::hasCanvasAncestor() const {
 void DropBox::restoreParentFocus() {
     std::shared_ptr<ControlBase> parent = getParent();
     while (parent != nullptr) {
-        FunctionalBase* functional =
-            dynamic_cast<FunctionalBase*>(parent.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(parent.get());
         if (functional != nullptr && functional->canReceiveFocus()) {
             functional->requestKeyboardFocus();
             return;

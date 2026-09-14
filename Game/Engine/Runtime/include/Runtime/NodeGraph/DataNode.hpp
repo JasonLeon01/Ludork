@@ -7,6 +7,8 @@
 BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API DataNode : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(DataNode, RuntimeObject)
+
     BIND_INIT()
     DataNode(std::string nodeFunction, RuntimeValue params,
              RuntimeValue resolvedDefinition);

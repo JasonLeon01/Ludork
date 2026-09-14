@@ -203,7 +203,7 @@ std::shared_ptr<Node> createNodeGraphNode(
     std::shared_ptr<RuntimeObject> object;
     binding::tryReadSharedPointer(
         sol::stack::get<sol::object>(scope.state(), base + 1), object);
-    const auto node = std::dynamic_pointer_cast<Node>(object);
+    const auto node = ludork::Cast<Node>(object);
     if (node == nullptr) {
         throw std::runtime_error(
             "Node model constructor must return an Engine.Node or nil");

@@ -42,7 +42,8 @@ InputActionKey joystickAxis(sf::Joystick::Axis axis, float threshold,
     result.kind = InputActionKind::JoystickAxis;
     result.code = static_cast<int>(axis);
     result.threshold = threshold;
-    result.comparison = inputAxisComparisons.at(comparisonName);
+    result.nativeComparison = &inputAxisComparisons.at(comparisonName);
+    result.comparison = *result.nativeComparison;
     return result;
 }
 

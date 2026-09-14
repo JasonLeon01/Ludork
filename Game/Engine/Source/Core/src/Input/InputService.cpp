@@ -18,7 +18,7 @@ void InputService::initializeNativePolling() {
     ludork::engine::input_impl::inputImpl().initializeNativePolling();
 }
 
-void InputService::update(sf::WindowBase& window) {
+void InputService::update(sf::RenderWindow& window) {
     ludork::engine::input_impl::inputImpl().update(window);
 }
 
@@ -35,7 +35,7 @@ void InputService::setPointerViewport(std::optional<sf::IntRect> viewport) {
         std::move(viewport));
 }
 
-void InputService::onWindowRecreated(sf::WindowBase& window) {
+void InputService::onWindowRecreated(sf::RenderWindow& window) {
     ludork::engine::input_impl::inputImpl().onWindowRecreated(window);
 }
 

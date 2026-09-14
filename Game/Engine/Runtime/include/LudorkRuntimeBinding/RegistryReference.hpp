@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Cast.hpp>
 #include <RuntimeSession.hpp>
 #include <RuntimeApi.hpp>
 #include <utils.hpp>
@@ -11,6 +12,8 @@ namespace ludork::runtime::binding {
 
 class LUDORK_RUNTIME_API LuaRegistryReferenceOwner {
 public:
+    LUDORK_CAST_ROOT(LuaRegistryReferenceOwner)
+
     virtual ~LuaRegistryReferenceOwner();
     virtual const ludork::standard::LuaRegistryReference& registryReference()
         const noexcept = 0;
@@ -56,6 +59,8 @@ inline sol::object readLuaRegistryReference(
 template <typename Base>
 class LuaOpaqueObject final : public Base, public LuaRegistryReferenceOwner {
 public:
+    LUDORK_CAST_DERIVED(LuaOpaqueObject, Base, LuaRegistryReferenceOwner)
+
     explicit LuaOpaqueObject(const sol::object& value)
         : value_(makeLuaRegistryReference(value)) {
         ludork::standard::registerRuntimeOpaqueValue(this, value_);
@@ -77,6 +82,8 @@ private:
 template <typename Base>
 class LuaOpaqueIdentity final : public Base, public LuaRegistryReferenceOwner {
 public:
+    LUDORK_CAST_DERIVED(LuaOpaqueIdentity, Base, LuaRegistryReferenceOwner)
+
     explicit LuaOpaqueIdentity(const sol::object& value)
         : value_(makeLuaRegistryReference(value)) {
         ludork::standard::registerRuntimeOpaqueValue(this, value_);

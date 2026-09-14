@@ -104,10 +104,9 @@ void Graph::initializeContext(RuntimeValue parentValue) {
 std::shared_ptr<Graph> Graph::instantiate(RuntimeValue parentValue) {
     std::shared_ptr<Graph> instance(
         new Graph(*this, std::move(parentValue), InstanceTag{}));
-    instance->definition_ =
-        definition_ == nullptr
-            ? std::dynamic_pointer_cast<Graph>(shared_from_this())
-            : definition_;
+    instance->definition_ = definition_ == nullptr
+                                ? ludork::Cast<Graph>(shared_from_this())
+                                : definition_;
     return instance;
 }
 
@@ -161,7 +160,7 @@ void Graph::ensureEventInitialised(const std::string& key) {
     } reset{initialising_};
 
     const std::shared_ptr<Graph> self =
-        std::dynamic_pointer_cast<Graph>(weak_from_this().lock());
+        ludork::Cast<Graph>(weak_from_this().lock());
     if (self == nullptr) {
         throw std::logic_error("Graph owner is not shared");
     }
@@ -494,7 +493,7 @@ NodeResult Graph::executeResult(const std::string& key,
                     "Engine latent runtime is not initialised");
             }
             std::shared_ptr<Graph> self =
-                std::dynamic_pointer_cast<Graph>(shared_from_this());
+                ludork::Cast<Graph>(shared_from_this());
             latentManager().add(self, key, condition, localGraph, current,
                                 cache);
             executionState_->suspendedByLatent = true;

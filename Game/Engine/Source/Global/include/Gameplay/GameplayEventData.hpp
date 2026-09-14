@@ -7,6 +7,8 @@
 BIND_CLASS()
 class LUDORK_GLOBAL_API GameplayEventData : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(GameplayEventData, RuntimeObject)
+
     BIND_INIT(defaults = {nil, nil, "", nil},
               parameter_types = {any, any, string, any})
     explicit GameplayEventData(RuntimeValue eventInstigator = {},

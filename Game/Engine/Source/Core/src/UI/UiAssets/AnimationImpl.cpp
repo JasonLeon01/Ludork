@@ -244,7 +244,7 @@ void applyColour(const std::shared_ptr<ControlBase>& control,
         return;
     }
     control->setPresentationColour(source, colour);
-    if (dynamic_cast<Canvas*>(control.get()) != nullptr) {
+    if (ludork::Cast<Canvas>(control.get()) != nullptr) {
         return;
     }
     for (const std::shared_ptr<ControlBase>& child : control->getChildren()) {
@@ -258,7 +258,7 @@ void clearColour(const std::shared_ptr<ControlBase>& control,
         return;
     }
     control->clearPresentationColour(source);
-    if (dynamic_cast<Canvas*>(control.get()) != nullptr) {
+    if (ludork::Cast<Canvas>(control.get()) != nullptr) {
         return;
     }
     for (const std::shared_ptr<ControlBase>& child : control->getChildren()) {

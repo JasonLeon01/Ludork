@@ -9,6 +9,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ScrollBox : public Canvas {
 public:
+    LUDORK_CAST_DERIVED(ScrollBox, Canvas)
+
     BIND_INIT()
     ScrollBox(const sf::Vector2f& size, const sf::Image& windowSkin);
     virtual ~ScrollBox() = default;

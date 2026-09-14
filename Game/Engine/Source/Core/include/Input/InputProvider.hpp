@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Cast.hpp>
+
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Mouse.hpp>
 
@@ -7,6 +9,8 @@
 
 class FunctionalInputProvider {
 public:
+    LUDORK_CAST_ROOT(FunctionalInputProvider)
+
     virtual ~FunctionalInputProvider() = default;
     virtual bool isInputCaptured() const {
         return false;

@@ -10,6 +10,8 @@ class GameplayAbilitySpec;
 BIND_CLASS()
 class LUDORK_GLOBAL_API ActiveGameplayEffect : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(ActiveGameplayEffect, RuntimeObject)
+
     BIND_INIT()
     ActiveGameplayEffect(int effectHandle,
                          std::shared_ptr<GameplayEffectSpec> effectSpec,

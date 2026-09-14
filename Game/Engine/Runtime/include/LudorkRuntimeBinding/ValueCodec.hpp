@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Cast.hpp>
 #include <LudorkRuntimeBinding/ValueTraits.hpp>
 #include <Runtime/StrictFunction.hpp>
 #include <cmath>
@@ -13,8 +14,8 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
-#include <typeinfo>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -204,7 +205,8 @@ sol::object writeOwningLuaObject(sol::state_view lua,
                                  const std::shared_ptr<T>& value);
 
 bool tryWriteDynamicNativeObject(sol::state_view lua,
-                                 const std::type_info& dynamicType,
+                                 std::string_view dynamicType,
+                                 std::string_view sourceType,
                                  const std::shared_ptr<void>& owner,
                                  sol::object& result);
 
@@ -881,13 +883,14 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
             return owner;
         }
         using Element = typename IsSharedPointer<Value>::Element;
-        if constexpr (std::is_polymorphic_v<Element> &&
+        if constexpr (ludork::detail::RegisteredCastType<Element> &&
                       !std::is_const_v<Element>) {
-            void* completeObject = dynamic_cast<void*>(value.get());
-            const std::shared_ptr<void> dynamicOwner(value, completeObject);
+            const std::shared_ptr<void> dynamicOwner(value, value.get());
             sol::object dynamicValue;
-            if (tryWriteDynamicNativeObject(lua, typeid(*value), dynamicOwner,
-                                            dynamicValue)) {
+            if (tryWriteDynamicNativeObject(
+                    lua, value->ludorkDynamicTypeKey(),
+                    ludork::detail::CastTypeKey<Element>(), dynamicOwner,
+                    dynamicValue)) {
                 return dynamicValue;
             }
         }

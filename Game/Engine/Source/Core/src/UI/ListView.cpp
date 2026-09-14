@@ -123,7 +123,7 @@ sf::RenderStates ListView::getRenderStates() const {
 
 void ListView::update(float deltaTime) {
     for (const std::shared_ptr<ControlBase>& child : children_) {
-        FunctionalBase* functional = dynamic_cast<FunctionalBase*>(child.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
         if (functional != nullptr && child->getVisible()) {
             functional->update(deltaTime);
         }
@@ -133,7 +133,7 @@ void ListView::update(float deltaTime) {
 
 void ListView::lateUpdate(float deltaTime) {
     for (const std::shared_ptr<ControlBase>& child : children_) {
-        FunctionalBase* functional = dynamic_cast<FunctionalBase*>(child.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
         if (functional != nullptr && child->getVisible()) {
             functional->lateUpdate(deltaTime);
         }
@@ -142,7 +142,7 @@ void ListView::lateUpdate(float deltaTime) {
 
 void ListView::fixedUpdate(float fixedDelta) {
     for (const std::shared_ptr<ControlBase>& child : children_) {
-        FunctionalBase* functional = dynamic_cast<FunctionalBase*>(child.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
         if (functional != nullptr && child->getVisible()) {
             functional->fixedUpdate(fixedDelta);
         }

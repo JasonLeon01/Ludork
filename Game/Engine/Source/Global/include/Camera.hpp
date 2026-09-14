@@ -16,6 +16,8 @@
 BIND_CLASS(callbacks = true)
 class Camera : public sf::Drawable, public sf::Transformable {
 public:
+    LUDORK_CAST_ROOT(Camera)
+
     ////////////////////////////////////////////////////////////
     /// \brief Construct a camera with an optional viewport
     ///

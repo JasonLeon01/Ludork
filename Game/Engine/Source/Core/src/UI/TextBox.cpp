@@ -124,7 +124,7 @@ bool TextBox::beginEdit() {
     }
     requestKeyboardFocus();
     const std::weak_ptr<TextBox> owner =
-        std::dynamic_pointer_cast<TextBox>(weak_from_this().lock());
+        ludork::Cast<TextBox>(weak_from_this().lock());
     if (owner.expired()) {
         return false;
     }
@@ -279,7 +279,7 @@ void TextBox::onKeyDown(const UiInputEventArguments& arguments) {
     if (isEditing()) {
         return;
     }
-    InputService* input = dynamic_cast<InputService*>(inputProvider());
+    InputService* input = ludork::Cast<InputService>(inputProvider());
     if (input != nullptr && ownsKeyboardCursorFocus()) {
         if (input->isActionTriggered(input->getConfirmKeys(), true)) {
             onConfirm(arguments);

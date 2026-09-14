@@ -131,7 +131,6 @@ bool FocusGroup::isOwnerAvailable(
     if (element == nullptr || !element->getActive()) {
         return false;
     }
-    const ControlBase* control =
-        dynamic_cast<const ControlBase*>(element.get());
+    const ControlBase* control = ludork::Cast<const ControlBase>(element.get());
     return control == nullptr || control->getVisible();
 }

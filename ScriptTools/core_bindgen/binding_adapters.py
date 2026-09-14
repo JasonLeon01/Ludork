@@ -338,7 +338,12 @@ def adapter_class_lines(
     if callbacks:
         context.require_binding_feature("function")
     adapter = binding_identifier(info.cpp_name) + "LuaBindingAdapter"
-    output = [f"class {adapter} final : public {info.cpp_name} {{", "public:"]
+    output = [
+        f"class {adapter} final : public {info.cpp_name} {{",
+        "public:",
+        f"    LUDORK_CAST_DERIVED({adapter}, {info.cpp_name})",
+        "",
+    ]
     constructors = info.constructors or [
         Member(info.name, f"{info.name}()", "", "INIT", cpp_scope=tuple(info.cpp_name.split("::")))
     ]

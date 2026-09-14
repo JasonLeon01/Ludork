@@ -86,7 +86,7 @@ void arrangeAtIntrinsicSize(ControlBase& control,
 
 template <typename T>
 T& requireControlType(ControlBase& control, const std::string& controlId) {
-    T* typed = dynamic_cast<T*>(&control);
+    T* typed = ludork::Cast<T>(&control);
     if (typed == nullptr) {
         throw std::logic_error("UI adapter received the wrong control type: " +
                                controlId);

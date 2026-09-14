@@ -18,6 +18,8 @@ BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API GamepadHintBar : public ControlBase,
                                          public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(GamepadHintBar, ControlBase, FunctionalBase)
+
     BIND_CLASS(copyable = true, table_init = true, strict_fields = true)
     struct GamepadHint {
         BIND_PROPERTY()

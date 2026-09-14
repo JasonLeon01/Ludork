@@ -7,6 +7,8 @@
 BIND_CLASS(table_init = true)
 class LightComponent : public Component {
 public:
+    LUDORK_CAST_DERIVED(LightComponent, Component)
+
     BIND_INIT()
     LightComponent() = default;
 

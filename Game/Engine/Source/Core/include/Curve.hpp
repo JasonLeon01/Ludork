@@ -7,6 +7,8 @@
 BIND_CLASS()
 class LUDORK_ENGINE_API Curve : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Curve, RuntimeObject)
+
     BIND_CLASS(copyable = true, table_init = true)
     struct CurveData {
         BIND_PROPERTY()

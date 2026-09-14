@@ -6,6 +6,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API EmitterView : public ControlBase {
 public:
+    LUDORK_CAST_DERIVED(EmitterView, ControlBase)
+
     BIND_INIT(defaults = {"", {100.0, 100.0}, {0.5, 0.5}, true})
     explicit EmitterView(const std::string& particle = "",
                          const sf::Vector2f& size = sf::Vector2f(100.0f,

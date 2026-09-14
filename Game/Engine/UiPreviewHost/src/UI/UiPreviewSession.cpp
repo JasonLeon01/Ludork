@@ -38,7 +38,7 @@ namespace {
 void collectEmitterViews(const std::shared_ptr<ControlBase>& control,
                          std::vector<std::shared_ptr<EmitterView>>& emitters) {
     if (const std::shared_ptr<EmitterView> view =
-            std::dynamic_pointer_cast<EmitterView>(control)) {
+            ludork::Cast<EmitterView>(control)) {
         emitters.push_back(view);
     }
     for (const std::shared_ptr<ControlBase>& child : control->getChildren()) {

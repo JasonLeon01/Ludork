@@ -9,6 +9,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Window : public SpriteBase {
 public:
+    LUDORK_CAST_DERIVED(Window, SpriteBase)
+
     BIND_INIT()
     Window(const sf::IntRect& rect, const sf::Image& windowSkin,
            bool repeated = false);

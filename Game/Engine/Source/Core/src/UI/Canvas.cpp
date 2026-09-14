@@ -147,7 +147,7 @@ void Canvas::update(float deltaTime) {
         if (!child->getVisible()) {
             continue;
         }
-        FunctionalBase* functional = dynamic_cast<FunctionalBase*>(child.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
         if (functional != nullptr) {
             functional->update(deltaTime);
         }
@@ -198,7 +198,7 @@ void Canvas::lateUpdate(float deltaTime) {
         if (!child->getVisible()) {
             continue;
         }
-        FunctionalBase* functional = dynamic_cast<FunctionalBase*>(child.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
         if (functional != nullptr) {
             functional->lateUpdate(deltaTime);
         }
@@ -211,7 +211,7 @@ void Canvas::fixedUpdate(float fixedDelta) {
         if (!child->getVisible()) {
             continue;
         }
-        FunctionalBase* functional = dynamic_cast<FunctionalBase*>(child.get());
+        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
         if (functional != nullptr) {
             functional->fixedUpdate(fixedDelta);
         }
@@ -260,7 +260,7 @@ sf::Transform Canvas::_getScreenRenderTransform() const {
 
 void Canvas::_appendRenderNode(const std::shared_ptr<ControlBase>& node,
                                const sf::RenderStates& parentStates) {
-    ListView* listView = dynamic_cast<ListView*>(node.get());
+    ListView* listView = ludork::Cast<ListView>(node.get());
     if (listView != nullptr) {
         listView->applyPositions();
     }
@@ -269,7 +269,7 @@ void Canvas::_appendRenderNode(const std::shared_ptr<ControlBase>& node,
     if (listView == nullptr) {
         renderQueue_.push_back({node, nodeStates});
     }
-    if (Canvas* nested = dynamic_cast<Canvas*>(node.get())) {
+    if (Canvas* nested = ludork::Cast<Canvas>(node.get())) {
         nested->render();
         return;
     }
@@ -308,7 +308,7 @@ std::shared_ptr<sf::Texture> Canvas::placeholderTexture() {
 bool Canvas::hasCanvasAncestor() const {
     std::shared_ptr<ControlBase> parent = getParent();
     while (parent != nullptr) {
-        if (dynamic_cast<Canvas*>(parent.get()) != nullptr) {
+        if (ludork::Cast<Canvas>(parent.get()) != nullptr) {
             return true;
         }
         parent = parent->getParent();
@@ -317,7 +317,7 @@ bool Canvas::hasCanvasAncestor() const {
 }
 
 void Canvas::appendOverlayNode(const std::shared_ptr<ControlBase>& node) {
-    ListView* listView = dynamic_cast<ListView*>(node.get());
+    ListView* listView = ludork::Cast<ListView>(node.get());
     if (listView != nullptr) {
         listView->applyPositions();
     }

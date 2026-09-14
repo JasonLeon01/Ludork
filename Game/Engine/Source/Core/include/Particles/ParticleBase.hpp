@@ -12,6 +12,8 @@ class ParticleSystem;
 BIND_CLASS()
 class LUDORK_ENGINE_API ParticleBase {
 public:
+    LUDORK_CAST_ROOT(ParticleBase)
+
     ParticleBase() = delete;
 
     ////////////////////////////////////////////////////////////

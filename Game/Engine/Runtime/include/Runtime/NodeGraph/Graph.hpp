@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -16,6 +17,8 @@ struct ExecutionState;
 BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API Graph : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Graph, RuntimeObject)
+
     using DataNodeMap =
         std::unordered_map<std::string, std::vector<std::shared_ptr<DataNode>>>;
     using LinkMap = std::unordered_map<std::string, std::vector<GraphLink>>;

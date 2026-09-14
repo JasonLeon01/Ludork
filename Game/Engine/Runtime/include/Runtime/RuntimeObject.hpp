@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Cast.hpp>
+
 #include <LudorkRuntimeBinding/Annotations.hpp>
 #include <RuntimeApi.hpp>
 #include <memory>
@@ -22,6 +24,8 @@ protected:
 BIND_CLASS()
 class LUDORK_RUNTIME_API RuntimeObject : public RuntimeObjectSharedOwner {
 public:
+    LUDORK_CAST_ROOT(RuntimeObject)
+
     virtual ~RuntimeObject();
 
     void bindRuntimeOwner(const std::shared_ptr<RuntimeObject>& owner);

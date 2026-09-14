@@ -9,6 +9,7 @@
 #include <Input/JoystickAxisEvent.hpp>
 
 #include <SFML/Graphics/Rect.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Joystick.hpp>
 
@@ -70,7 +71,7 @@ private:
     bool useInjectedMouseOnly_ = false;
     std::mutex injectedEventsMutex_;
     std::deque<InjectedInputEvent> injectedEvents_;
-    sf::WindowBase* activeWindow_ = nullptr;
+    sf::RenderWindow* activeWindow_ = nullptr;
     static std::atomic_bool pendingSystemCancel_;
 };
 
@@ -195,11 +196,11 @@ private:
 class InputImpl {
 public:
     void initializeNativePolling();
-    void update(sf::WindowBase& window);
+    void update(sf::RenderWindow& window);
     void injectEvent(const InjectedInputEvent& event);
     void setUseInjectedMouseOnly(bool value);
     void setPointerViewport(std::optional<sf::IntRect> viewport);
-    void onWindowRecreated(sf::WindowBase& window);
+    void onWindowRecreated(sf::RenderWindow& window);
 
     bool isInputCaptured() const;
     bool isFocused() const;
@@ -329,9 +330,9 @@ private:
     static sf::Keyboard::Key keyFromName(const std::string& name);
     static sf::Mouse::Button mouseButtonFromName(const std::string& name);
     static std::string toUtf8(char32_t codepoint);
-    static sf::Vector2i pixelToWorld(sf::WindowBase& window,
+    static sf::Vector2i pixelToWorld(sf::RenderWindow& window,
                                      const sf::Vector2i& pixel);
-    static sf::Vector2i worldToPixel(sf::WindowBase& window,
+    static sf::Vector2i worldToPixel(sf::RenderWindow& window,
                                      const sf::Vector2i& position);
 
     void resetFrameState();
@@ -359,9 +360,9 @@ private:
     bool acceptsPointerPixel(const sf::Vector2i& pixel) const;
     void updatePointerViewportState(bool inside);
     void updatePointerViewportState(const sf::Vector2i& pixel);
-    void processPlatformScrollEvents(sf::WindowBase& window);
+    void processPlatformScrollEvents(sf::RenderWindow& window);
     void processInjectedEvents();
-    bool processNativeEvent(sf::WindowBase& window, const sf::Event& event);
+    bool processNativeEvent(sf::RenderWindow& window, const sf::Event& event);
     void clearJoystickDevice(unsigned int joystickId);
     void updateJoystickDominantAxes();
     void updateInputType(sf::WindowBase& window);

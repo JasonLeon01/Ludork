@@ -13,6 +13,8 @@ class Rect;
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API CheckBox : public ControlBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(CheckBox, ControlBase, FunctionalBase)
+
     BIND_INIT()
     CheckBox(const sf::Vector2f& size, const sf::Image& windowSkin,
              std::shared_ptr<PlainTextConfig> textConfig, bool checked);

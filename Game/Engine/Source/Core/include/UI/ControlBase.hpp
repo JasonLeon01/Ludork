@@ -33,6 +33,8 @@ class LUDORK_ENGINE_API ControlBase : public sf::Drawable,
                                       public ControlBaseSharedOwner,
                                       public RuntimeCallbackReleasable {
 public:
+    LUDORK_CAST_ROOT(ControlBase)
+
     BIND_INIT()
     ControlBase();
     virtual ~ControlBase();

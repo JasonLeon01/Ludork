@@ -27,6 +27,8 @@ BIND_CLASS()
 class LUDORK_ENGINE_API TileLayerGraphics : public sf::Drawable,
                                             public sf::Transformable {
 public:
+    LUDORK_CAST_ROOT(TileLayerGraphics)
+
     ////////////////////////////////////////////////////////////
     /// \brief Construct a tile layer graphics object
     ///

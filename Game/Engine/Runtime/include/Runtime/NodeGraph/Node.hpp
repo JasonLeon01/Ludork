@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -29,6 +30,8 @@ struct NodeMemberMetadata {
 BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API Node : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Node, RuntimeObject)
+
     using InputPinMap = std::unordered_map<int, RuntimeValue>;
 
     BIND_INIT(allow_nil = "parent")

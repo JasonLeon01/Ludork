@@ -290,7 +290,7 @@ void ControlBase::releaseRuntimeCallbacks() noexcept {
     if (presentationRelease_) {
         presentationRelease_();
     }
-    if (FunctionalBase* functional = dynamic_cast<FunctionalBase*>(this)) {
+    if (FunctionalBase* functional = ludork::Cast<FunctionalBase>(this)) {
         functional->clearEventCallbacks();
     }
     for (const std::shared_ptr<ControlBase>& child : getChildren()) {
@@ -337,7 +337,7 @@ void ControlBase::resetActiveRuntimeCallbackRegistry() noexcept {
 }
 
 void ControlBase::resetFunctionalInteractions(ControlBase& control) {
-    if (FunctionalBase* functional = dynamic_cast<FunctionalBase*>(&control)) {
+    if (FunctionalBase* functional = ludork::Cast<FunctionalBase>(&control)) {
         functional->onInteractionInvalidated();
         functional->resetPointerInteraction();
     }

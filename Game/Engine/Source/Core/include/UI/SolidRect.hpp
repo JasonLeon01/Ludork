@@ -7,6 +7,8 @@
 BIND_CLASS(callbacks = true)
 class SolidRect : public ControlBase {
 public:
+    LUDORK_CAST_DERIVED(SolidRect, ControlBase)
+
     BIND_INIT()
     explicit SolidRect(const sf::Vector2f& size,
                        const sf::Color& fillColor = sf::Color::White,

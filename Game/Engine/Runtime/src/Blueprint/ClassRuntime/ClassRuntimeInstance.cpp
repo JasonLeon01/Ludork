@@ -51,8 +51,8 @@ bool classGraphHasExecutableEvent(const std::string& classPath,
     if (graphTemplate.isNil()) {
         return false;
     }
-    const std::shared_ptr<Graph> graph = std::dynamic_pointer_cast<Graph>(
-        ludork::runtime::reference::object(graphTemplate));
+    const std::shared_ptr<Graph> graph =
+        ludork::Cast<Graph>(ludork::runtime::reference::object(graphTemplate));
     if (graph == nullptr) {
         throw std::runtime_error(
             "Blueprint graph template must be an Engine.Graph");

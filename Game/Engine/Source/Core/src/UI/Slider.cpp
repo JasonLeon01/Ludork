@@ -187,7 +187,7 @@ void Slider::onMouseMoved(const UiInputEventArguments& arguments) {
 }
 
 void Slider::onKeyDown(const UiInputEventArguments& arguments) {
-    InputService* service = dynamic_cast<InputService*>(inputProvider());
+    InputService* service = ludork::Cast<InputService>(inputProvider());
     if (service != nullptr && ownsKeyboardCursorFocus()) {
         if (service->isActionTriggered(service->getLeftKeys(), true, 0.4f,
                                        0.05f)) {

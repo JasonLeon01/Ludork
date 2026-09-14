@@ -64,8 +64,7 @@ void FocusManager::registerElement(
         return;
     }
     std::string label;
-    const ControlBase* control =
-        dynamic_cast<const ControlBase*>(element.get());
+    const ControlBase* control = ludork::Cast<const ControlBase>(element.get());
     if (control != nullptr) {
         label = control->getName();
     }
@@ -371,13 +370,13 @@ std::shared_ptr<FunctionalBase> FocusManager::findElement(
             }
         }
     }
-    const ControlBase* control = dynamic_cast<const ControlBase*>(element);
+    const ControlBase* control = ludork::Cast<const ControlBase>(element);
     if (control == nullptr) {
         return nullptr;
     }
     const std::shared_ptr<const ControlBase> owner =
         control->weak_from_this().lock();
     const std::shared_ptr<const FunctionalBase> functional =
-        std::dynamic_pointer_cast<const FunctionalBase>(owner);
+        ludork::Cast<const FunctionalBase>(owner);
     return std::const_pointer_cast<FunctionalBase>(functional);
 }

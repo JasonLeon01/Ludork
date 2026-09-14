@@ -2,29 +2,19 @@
 
 #include "Platform/PlatformInputBridge.hpp"
 
-#include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 
 namespace ludork::engine::input_impl {
 
-sf::Vector2i InputImpl::pixelToWorld(sf::WindowBase& window,
+sf::Vector2i InputImpl::pixelToWorld(sf::RenderWindow& window,
                                      const sf::Vector2i& pixel) {
-    const sf::RenderTarget* target =
-        dynamic_cast<const sf::RenderTarget*>(&window);
-    if (target == nullptr) {
-        return pixel;
-    }
-    const sf::Vector2f world = target->mapPixelToCoords(pixel);
+    const sf::Vector2f world = window.mapPixelToCoords(pixel);
     return {static_cast<int>(world.x), static_cast<int>(world.y)};
 }
 
-sf::Vector2i InputImpl::worldToPixel(sf::WindowBase& window,
+sf::Vector2i InputImpl::worldToPixel(sf::RenderWindow& window,
                                      const sf::Vector2i& position) {
-    const sf::RenderTarget* target =
-        dynamic_cast<const sf::RenderTarget*>(&window);
-    if (target == nullptr) {
-        return position;
-    }
-    return target->mapCoordsToPixel(
+    return window.mapCoordsToPixel(
         {static_cast<float>(position.x), static_cast<float>(position.y)});
 }
 

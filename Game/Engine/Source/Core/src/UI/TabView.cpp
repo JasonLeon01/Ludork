@@ -148,7 +148,7 @@ bool TabView::handleNavigationInput() {
     if (!isInteractionEnabled()) {
         return false;
     }
-    InputService* input = dynamic_cast<InputService*>(inputProvider());
+    InputService* input = ludork::Cast<InputService>(inputProvider());
     if (input == nullptr) {
         return false;
     }

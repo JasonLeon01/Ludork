@@ -421,7 +421,7 @@ def class_binding_body(
                     ),
                     (f"            const std::shared_ptr<{adapter}> bindingAdapter ="),
                     (
-                        f"                std::dynamic_pointer_cast<{adapter}>"
+                        f"                ludork::Cast<{adapter}>"
                         "(nativeObject);"
                     ),
                     "            if (bindingAdapter != nullptr) {",

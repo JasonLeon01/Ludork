@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Cast.hpp>
 #include <JsonRuntimeProtocol.hpp>
 
 #include <LudorkRuntimeBinding/NativeObjectCodec.hpp>
@@ -233,7 +234,7 @@ sol::object writeDynamicValue(sol::state_view lua, const DynamicValue& value) {
                 return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
             } else if constexpr (std::is_same_v<Item, Object>) {
                 if (const auto* reference =
-                        dynamic_cast<const LuaRegistryReferenceOwner*>(
+                        ludork::Cast<const LuaRegistryReferenceOwner>(
                             item.get())) {
                     return readLuaRegistryReference(
                         lua, reference->registryReference());

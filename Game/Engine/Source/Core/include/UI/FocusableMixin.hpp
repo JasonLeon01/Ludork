@@ -11,6 +11,8 @@ extern LUDORK_ENGINE_API const std::unordered_map<std::string, std::string>
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API FocusableMixin {
 public:
+    LUDORK_CAST_ROOT(FocusableMixin)
+
     BIND_INIT()
     FocusableMixin() = default;
     virtual ~FocusableMixin() = default;

@@ -13,7 +13,7 @@ EmitterComponent::~EmitterComponent() {
 
 RuntimeValue::Array EmitterComponent::onAttach(
     const RuntimeIdentityPtr& owner) {
-    const std::shared_ptr<Actor> actor = std::dynamic_pointer_cast<Actor>(
+    const std::shared_ptr<Actor> actor = ludork::Cast<Actor>(
         ludork::runtime::reference::object(RuntimeValue(owner)));
     if (actor == nullptr) {
         throw std::invalid_argument("EmitterComponent owner must be an Actor");

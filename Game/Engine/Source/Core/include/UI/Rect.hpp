@@ -10,6 +10,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API Rect : public SpriteBase {
 public:
+    LUDORK_CAST_DERIVED(Rect, SpriteBase)
+
     BIND_INIT()
     Rect(const sf::IntRect& rect, const sf::Image& windowSkin,
          std::optional<std::string> opacityCurveKey = std::nullopt);

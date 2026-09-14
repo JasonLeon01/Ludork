@@ -14,6 +14,8 @@ class LUDORK_ENGINE_API TextParticle : public ParticleBase,
                                        public sf::Drawable,
                                        public sf::Transformable {
 public:
+    LUDORK_CAST_DERIVED(TextParticle, ParticleBase)
+
     TextParticle() = delete;
 
     BIND_INIT()

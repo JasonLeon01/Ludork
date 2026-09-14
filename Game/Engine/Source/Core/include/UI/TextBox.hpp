@@ -9,6 +9,8 @@ struct PlainTextConfig;
 BIND_CLASS()
 class LUDORK_ENGINE_API TextBox : public ControlBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(TextBox, ControlBase, FunctionalBase)
+
     BIND_INIT()
     TextBox(const sf::Vector2f& size, const sf::Image& windowSkin,
             std::shared_ptr<PlainTextConfig> textConfig,

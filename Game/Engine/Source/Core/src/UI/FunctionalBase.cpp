@@ -94,7 +94,7 @@ void FunctionalBase::setActive(bool active) {
     if (!active_) {
         const bool hadPointerInteraction =
             hovered_ || pressed_ || pointerSource_ != PointerSource::None;
-        ControlBase* control = dynamic_cast<ControlBase*>(this);
+        ControlBase* control = ludork::Cast<ControlBase>(this);
         if (control != nullptr) {
             ControlBase::resetFunctionalInteractions(*control);
         } else {
@@ -115,7 +115,7 @@ void FunctionalBase::setTouchHitBounds(
 }
 
 std::optional<sf::FloatRect> FunctionalBase::getAbsoluteTouchHitBounds() const {
-    const ControlBase* control = dynamic_cast<const ControlBase*>(this);
+    const ControlBase* control = ludork::Cast<const ControlBase>(this);
     if (control == nullptr) {
         return std::nullopt;
     }
@@ -183,7 +183,7 @@ void FunctionalBase::clearEventCallbacks() noexcept {
 }
 
 void FunctionalBase::update(float deltaTime) {
-    ControlBase* control = dynamic_cast<ControlBase*>(this);
+    ControlBase* control = ludork::Cast<ControlBase>(this);
     if (control != nullptr) {
         control->updatePresentationAnimations(deltaTime);
     }
@@ -453,7 +453,7 @@ bool FunctionalBase::isInteractionEnabled() const {
     if (!active_) {
         return false;
     }
-    const ControlBase* control = dynamic_cast<const ControlBase*>(this);
+    const ControlBase* control = ludork::Cast<const ControlBase>(this);
     if (control == nullptr) {
         return true;
     }
@@ -466,7 +466,7 @@ bool FunctionalBase::isInteractionEnabled() const {
             return false;
         }
         const FunctionalBase* functional =
-            dynamic_cast<const FunctionalBase*>(parent.get());
+            ludork::Cast<const FunctionalBase>(parent.get());
         if (functional != nullptr && !functional->getActive()) {
             return false;
         }

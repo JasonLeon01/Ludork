@@ -15,14 +15,12 @@
 
 namespace {
 int zOrder(const std::shared_ptr<ControlBase>& ui) {
-    const std::shared_ptr<Canvas> canvas =
-        std::dynamic_pointer_cast<Canvas>(ui);
+    const std::shared_ptr<Canvas> canvas = ludork::Cast<Canvas>(ui);
     return canvas == nullptr ? 0 : canvas->getZOrder();
 }
 
 void renderCanvas(const std::shared_ptr<ControlBase>& ui) {
-    const std::shared_ptr<Canvas> canvas =
-        std::dynamic_pointer_cast<Canvas>(ui);
+    const std::shared_ptr<Canvas> canvas = ludork::Cast<Canvas>(ui);
     sf::RenderTexture* target = System::getCanvas();
     if (canvas != nullptr && target != nullptr) {
         canvas->render(*target);
@@ -253,5 +251,5 @@ void UIManager::releaseRuntimeState() noexcept {
 
 std::shared_ptr<FunctionalBase> UIManager::functionalUI(
     const std::shared_ptr<ControlBase>& ui) {
-    return std::dynamic_pointer_cast<FunctionalBase>(ui);
+    return ludork::Cast<FunctionalBase>(ui);
 }

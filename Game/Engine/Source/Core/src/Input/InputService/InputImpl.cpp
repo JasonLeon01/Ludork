@@ -135,7 +135,7 @@ void InputImpl::updateInputType(sf::WindowBase& window) {
     }
 }
 
-void InputImpl::update(sf::WindowBase& window) {
+void InputImpl::update(sf::RenderWindow& window) {
     eventPump_.activeWindow_ = &window;
     resetFrameState();
     if (modal_.beginFrame()) {

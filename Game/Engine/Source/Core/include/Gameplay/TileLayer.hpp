@@ -9,6 +9,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API TileLayer : public TileLayerGraphics {
 public:
+    LUDORK_CAST_DERIVED(TileLayer, TileLayerGraphics)
+
     BIND_INIT(defaults = {{}, {}, true, false})
     TileLayer(
         const TileLayerData& data, std::shared_ptr<sf::Texture> texture,

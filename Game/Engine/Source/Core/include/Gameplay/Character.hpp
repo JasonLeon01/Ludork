@@ -7,6 +7,8 @@
 BIND_CLASS(callbacks = true, invalid_vars(defaultRect))
 class Character : public Actor {
 public:
+    LUDORK_CAST_DERIVED(Character, Actor)
+
     BIND_INIT()
     explicit Character(std::shared_ptr<sf::Texture> texture,
                        std::string tag = "");

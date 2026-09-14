@@ -16,8 +16,6 @@ bool InputActionKey::operator==(const InputActionKey& other) const {
         return static_cast<bool>(comparison) ==
                static_cast<bool>(other.comparison);
     }
-    using FunctionPointer = bool (*)(float, float);
-    const FunctionPointer* left = comparison.target<FunctionPointer>();
-    const FunctionPointer* right = other.comparison.target<FunctionPointer>();
-    return left != nullptr && right != nullptr && *left == *right;
+    return nativeComparison != nullptr &&
+           nativeComparison == other.nativeComparison;
 }

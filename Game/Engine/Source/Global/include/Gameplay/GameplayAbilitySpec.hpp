@@ -9,6 +9,8 @@ class GameplayAbility;
 BIND_CLASS()
 class LUDORK_GLOBAL_API GameplayAbilitySpec : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(GameplayAbilitySpec, RuntimeObject)
+
     BIND_INIT(defaults = {nil, 0},
               parameter_types = {GameplayAbility, any, int})
     GameplayAbilitySpec(std::shared_ptr<GameplayAbility> gameplayAbility,

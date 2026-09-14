@@ -25,6 +25,8 @@ BIND_CLASS(bind_bases = false, runtime_bases = "sf::Drawable",
 class LUDORK_ENGINE_API ParticleSystem : public sf::Drawable,
                                          public ParticleSystemSharedOwner {
 public:
+    LUDORK_CAST_ROOT(ParticleSystem)
+
     ////////////////////////////////////////////////////////////
     /// \brief Default constructor
     ///

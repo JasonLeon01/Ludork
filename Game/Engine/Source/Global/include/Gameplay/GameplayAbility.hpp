@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -11,6 +12,8 @@ class AbilitySystemComponent;
 BIND_CLASS(callbacks = true, table_init = true)
 class LUDORK_GLOBAL_API GameplayAbility : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(GameplayAbility, RuntimeObject)
+
     virtual ~GameplayAbility() = default;
 
     BIND_PROPERTY()

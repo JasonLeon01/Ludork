@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Cast.hpp>
 #include <ClassRuntimeProtocol.hpp>
 #include <LuaError.hpp>
 #include <LudorkRuntimeBinding/RegistryReference.hpp>
@@ -8,7 +9,8 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <typeinfo>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace ludork::runtime::binding {
@@ -34,8 +36,7 @@ sol::object writeOpaqueIdentity(sol::state_view lua, const Pointer& value) {
     if (!value) {
         return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
     }
-    if (const auto opaque =
-            std::dynamic_pointer_cast<LuaRegistryReferenceOwner>(value)) {
+    if (const auto opaque = ludork::Cast<LuaRegistryReferenceOwner>(value)) {
         return readLuaRegistryReference(lua, opaque->registryReference());
     }
     const ludork::standard::LuaRegistryReference reference =
@@ -138,6 +139,27 @@ sol::object writeOwningLuaObject(sol::state_view lua,
     return owner;
 }
 
+template <typename Dynamic, typename... Sources>
+Dynamic* recoverDynamicNativePointer(std::string_view sourceType,
+                                     const std::shared_ptr<void>& owner) {
+    Dynamic* dynamic = nullptr;
+    const auto recover = [&]<typename Source>() {
+        static_assert(
+            std::is_convertible_v<Dynamic*, Source*>,
+            "Dynamic writer sources must be public unambiguous bases");
+        static_assert(
+            requires(Source* source) { static_cast<Dynamic*>(source); },
+            "Dynamic writer sources must support static recovery");
+        if (sourceType != ludork::detail::CastTypeKey<Source>()) {
+            return false;
+        }
+        dynamic = static_cast<Dynamic*>(static_cast<Source*>(owner.get()));
+        return true;
+    };
+    static_cast<void>((recover.template operator()<Sources>() || ...));
+    return dynamic;
+}
+
 template <typename Dynamic, typename Exposed, typename... Bases>
 int writeDynamicNativeObject(lua_State* state) {
     try {
@@ -151,7 +173,19 @@ int writeDynamicNativeObject(lua_State* state) {
             return luaL_error(state,
                               "Dynamic native writer owner is unavailable");
         }
-        Dynamic* dynamic = static_cast<Dynamic*>(owner->get());
+        if (lua_type(state, 2) != LUA_TSTRING) {
+            return luaL_error(state,
+                              "Dynamic native writer requires a source type");
+        }
+        std::size_t sourceTypeLength = 0;
+        const char* sourceType = lua_tolstring(state, 2, &sourceTypeLength);
+        Dynamic* dynamic =
+            recoverDynamicNativePointer<Dynamic, Dynamic, Exposed, Bases...>(
+                std::string_view(sourceType, sourceTypeLength), *owner);
+        if (dynamic == nullptr) {
+            lua_pushnil(state);
+            return 1;
+        }
         Exposed* exposed = static_cast<Exposed*>(dynamic);
         const std::shared_ptr<Exposed> value(*owner, exposed);
         writeOwningLuaObject<Exposed, Bases...>(sol::state_view(state), value)
@@ -164,43 +198,51 @@ int writeDynamicNativeObject(lua_State* state) {
 
 template <typename Dynamic, typename Exposed, typename... Bases>
 void registerDynamicNativeWriter(sol::state_view lua) {
-    lua_State* state = lua.lua_state();
-    lua_getfield(state, LUA_REGISTRYINDEX,
-                 ludork::standard::class_runtime::protocol::
-                     DYNAMIC_NATIVE_WRITERS_REGISTRY_KEY);
-    if (lua_type(state, -1) != LUA_TTABLE) {
-        lua_pop(state, 1);
-        lua_newtable(state);
-        lua_pushvalue(state, -1);
-        lua_setfield(state, LUA_REGISTRYINDEX,
+    if constexpr (std::is_polymorphic_v<Dynamic>) {
+        static_assert(
+            ludork::detail::RegisteredCastType<Dynamic>,
+            "Dynamic native writer type must declare its own Ludork cast type");
+        lua_State* state = lua.lua_state();
+        lua_getfield(state, LUA_REGISTRYINDEX,
                      ludork::standard::class_runtime::protocol::
                          DYNAMIC_NATIVE_WRITERS_REGISTRY_KEY);
-    }
-    const int writersIndex = lua_absindex(state, -1);
-    const char* dynamicName = typeid(Dynamic).name();
-    lua_pushstring(state, dynamicName);
-    lua_rawget(state, writersIndex);
-    const lua_CFunction writer =
-        &writeDynamicNativeObject<Dynamic, Exposed, Bases...>;
-    if (lua_isnil(state, -1)) {
-        lua_pop(state, 1);
-        lua_pushstring(state, dynamicName);
-        lua_pushcclosure(state, writer, 0);
-        lua_rawset(state, writersIndex);
-        lua_pop(state, 1);
-        return;
-    }
-    const bool matches =
-        lua_iscfunction(state, -1) != 0 && lua_tocfunction(state, -1) == writer;
-    lua_pop(state, 2);
-    if (!matches) {
-        throw std::runtime_error(
-            std::string("Dynamic native writer collision: ") + dynamicName);
+        if (lua_type(state, -1) != LUA_TTABLE) {
+            lua_pop(state, 1);
+            lua_newtable(state);
+            lua_pushvalue(state, -1);
+            lua_setfield(state, LUA_REGISTRYINDEX,
+                         ludork::standard::class_runtime::protocol::
+                             DYNAMIC_NATIVE_WRITERS_REGISTRY_KEY);
+        }
+        const int writersIndex = lua_absindex(state, -1);
+        constexpr std::string_view dynamicType =
+            ludork::detail::CastTypeKey<Dynamic>();
+        lua_pushlstring(state, dynamicType.data(), dynamicType.size());
+        lua_rawget(state, writersIndex);
+        const lua_CFunction writer =
+            &writeDynamicNativeObject<Dynamic, Exposed, Bases...>;
+        if (lua_isnil(state, -1)) {
+            lua_pop(state, 1);
+            lua_pushlstring(state, dynamicType.data(), dynamicType.size());
+            lua_pushcclosure(state, writer, 0);
+            lua_rawset(state, writersIndex);
+            lua_pop(state, 1);
+            return;
+        }
+        const bool matches = lua_iscfunction(state, -1) != 0 &&
+                             lua_tocfunction(state, -1) == writer;
+        lua_pop(state, 2);
+        if (!matches) {
+            throw std::runtime_error(
+                std::string("Dynamic native writer collision: ") +
+                std::string(dynamicType));
+        }
     }
 }
 
 inline bool tryWriteDynamicNativeObject(sol::state_view lua,
-                                        const std::type_info& dynamicType,
+                                        std::string_view dynamicType,
+                                        std::string_view sourceType,
                                         const std::shared_ptr<void>& owner,
                                         sol::object& result) {
     lua_State* state = lua.lua_state();
@@ -212,7 +254,7 @@ inline bool tryWriteDynamicNativeObject(sol::state_view lua,
         lua_settop(state, stackTop);
         return false;
     }
-    lua_pushstring(state, dynamicType.name());
+    lua_pushlstring(state, dynamicType.data(), dynamicType.size());
     lua_rawget(state, -2);
     if (!lua_isfunction(state, -1)) {
         lua_settop(state, stackTop);
@@ -220,7 +262,8 @@ inline bool tryWriteDynamicNativeObject(sol::state_view lua,
     }
     lua_pushlightuserdata(
         state, const_cast<std::shared_ptr<void>*>(std::addressof(owner)));
-    if (ludork::standard::protectedLuaCall(state, 1, 1) != LUA_OK) {
+    lua_pushlstring(state, sourceType.data(), sourceType.size());
+    if (ludork::standard::protectedLuaCall(state, 2, 1) != LUA_OK) {
         const char* message = lua_tostring(state, -1);
         const std::string error =
             message == nullptr ? "Dynamic native writer failed" : message;
@@ -229,7 +272,7 @@ inline bool tryWriteDynamicNativeObject(sol::state_view lua,
     }
     result = sol::stack::get<sol::object>(state, -1);
     lua_settop(state, stackTop);
-    return true;
+    return !isNil(result);
 }
 
 template <typename Native>

@@ -6,6 +6,9 @@ endif()
 
 project(LudorkEditorLauncher VERSION "${LUDORK_VERSION}" LANGUAGES CXX)
 
+get_filename_component(LUDORK_REPOSITORY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+include("${LUDORK_REPOSITORY_ROOT}/Game/Engine/cmake/LudorkCppOptions.cmake")
+
 if(NOT WIN32)
     message(FATAL_ERROR "The editor launcher requires a Windows toolchain.")
 endif()
@@ -33,7 +36,6 @@ add_executable(LudorkEditorLauncher WIN32
     Launcher.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/Launcher.rc")
 target_compile_features(LudorkEditorLauncher PRIVATE cxx_std_20)
-get_filename_component(LUDORK_REPOSITORY_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
 target_include_directories(LudorkEditorLauncher PRIVATE
     "${LUDORK_REPOSITORY_ROOT}/Game/Engine/PlatformHosts/Common/include")
 target_compile_definitions(LudorkEditorLauncher PRIVATE

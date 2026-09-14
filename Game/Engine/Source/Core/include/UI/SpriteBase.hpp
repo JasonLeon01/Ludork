@@ -7,6 +7,8 @@
 BIND_CLASS(callbacks = true)
 class SpriteBase : public ControlBase {
 public:
+    LUDORK_CAST_DERIVED(SpriteBase, ControlBase)
+
     BIND_INIT()
     explicit SpriteBase(std::shared_ptr<sf::Texture> texture,
                         std::optional<sf::IntRect> rect = std::nullopt);

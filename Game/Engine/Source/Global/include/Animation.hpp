@@ -1,4 +1,5 @@
 #pragma once
+
 #include <SFML/Audio/Sound.hpp>
 
 #include <AnimSprite.hpp>
@@ -9,6 +10,8 @@
 BIND_CLASS(callbacks = true)
 class Animation : public AnimSprite {
 public:
+    LUDORK_CAST_DERIVED(Animation, AnimSprite)
+
     BIND_CLASS(copyable = true, table_init = true)
     struct AnimationPlayingSound {
         BIND_PROPERTY()

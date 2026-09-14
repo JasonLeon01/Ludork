@@ -30,6 +30,8 @@ class LightOcclusionImpl;
 BIND_CLASS()
 class GameMapBase : public ActorMapService {
 public:
+    LUDORK_CAST_DERIVED(GameMapBase, ActorMapService)
+
     ////////////////////////////////////////////////////////////
     /// \brief Pathfinding result in all runtime path formats
     ///

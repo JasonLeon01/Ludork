@@ -16,6 +16,8 @@ BIND_CLASS(name = "Service", module = "Input", singleton = "inputService",
            bind_bases = false)
 class LUDORK_ENGINE_API InputService : public FunctionalInputProvider {
 public:
+    LUDORK_CAST_DERIVED(InputService, FunctionalInputProvider)
+
     using ActionCallback =
         std::function<void(const RuntimeIdentityPtr&, std::optional<float>)>;
 
@@ -24,7 +26,7 @@ public:
     bool isInputCaptured() const override;
 
     BIND_METHOD()
-    void update(sf::WindowBase& window);
+    void update(sf::RenderWindow& window);
 
     BIND_METHOD()
     void injectEvent(const InjectedInputEvent& event);
@@ -34,7 +36,7 @@ public:
 
     void setPointerViewport(std::optional<sf::IntRect> viewport);
 
-    void onWindowRecreated(sf::WindowBase& window);
+    void onWindowRecreated(sf::RenderWindow& window);
 
     static void requestSystemCancel() noexcept;
 

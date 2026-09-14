@@ -8,6 +8,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ProgressBar : public ControlBase {
 public:
+    LUDORK_CAST_DERIVED(ProgressBar, ControlBase)
+
     BIND_INIT()
     ProgressBar(const sf::Vector2f& size, float progress,
                 const sf::Color& backgroundColor, const sf::Color& fillColor);

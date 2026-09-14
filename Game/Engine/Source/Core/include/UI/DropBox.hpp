@@ -15,6 +15,8 @@ class Window;
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API DropBox : public ControlBase, public FunctionalBase {
 public:
+    LUDORK_CAST_DERIVED(DropBox, ControlBase, FunctionalBase)
+
     BIND_INIT(defaults = {{}, 0, false})
     DropBox(const sf::Vector2f& collapsedSize, const sf::Image& windowSkin,
             std::shared_ptr<PlainTextConfig> textConfig,

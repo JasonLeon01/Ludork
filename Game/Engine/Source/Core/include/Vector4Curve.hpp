@@ -9,6 +9,8 @@ struct Vector4CurveData;
 BIND_CLASS()
 class LUDORK_ENGINE_API Vector4Curve : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Vector4Curve, RuntimeObject)
+
     BIND_INIT()
     explicit Vector4Curve(Vector4CurveData data);
 

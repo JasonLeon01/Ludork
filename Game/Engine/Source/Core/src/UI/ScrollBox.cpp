@@ -329,19 +329,19 @@ void ScrollBox::updateTouchArbitration() {
     if (captured == nullptr || !position.has_value()) {
         return;
     }
-    if (const DropBox* dropBox = dynamic_cast<const DropBox*>(captured.get());
+    if (const DropBox* dropBox = ludork::Cast<const DropBox>(captured.get());
         dropBox != nullptr && dropBox->isExpanded()) {
         touchChildOwned_ = true;
         return;
     }
-    if (dynamic_cast<const ScrollBox*>(captured.get()) != nullptr) {
+    if (ludork::Cast<const ScrollBox>(captured.get()) != nullptr) {
         touchChildOwned_ = true;
         return;
     }
     const sf::Vector2f delta = sf::Vector2f(*position) - touchStartPosition_;
     const float absoluteX = std::abs(delta.x);
     const float absoluteY = std::abs(delta.y);
-    if (dynamic_cast<const Slider*>(captured.get()) != nullptr &&
+    if (ludork::Cast<const Slider>(captured.get()) != nullptr &&
         absoluteX > absoluteY) {
         touchChildOwned_ = true;
         return;
@@ -352,7 +352,7 @@ void ScrollBox::updateTouchArbitration() {
         touchChildOwned_ = true;
         return;
     }
-    FunctionalBase* functional = dynamic_cast<FunctionalBase*>(captured.get());
+    FunctionalBase* functional = ludork::Cast<FunctionalBase>(captured.get());
     if (functional == nullptr || !functional->hasTouchCapture()) {
         return;
     }
@@ -389,7 +389,7 @@ std::shared_ptr<ControlBase> ScrollBox::findCapturedDescendant(
             return captured;
         }
     }
-    FunctionalBase* functional = dynamic_cast<FunctionalBase*>(root.get());
+    FunctionalBase* functional = ludork::Cast<FunctionalBase>(root.get());
     if (functional != nullptr && functional->hasTouchCapture()) {
         return root;
     }

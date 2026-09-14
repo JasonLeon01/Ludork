@@ -11,10 +11,10 @@ void collectUiEmitters(const std::shared_ptr<ControlBase>& root,
     if (root == nullptr || !root->getVisible()) {
         return;
     }
-    if (ListView* list = dynamic_cast<ListView*>(root.get())) {
+    if (ListView* list = ludork::Cast<ListView>(root.get())) {
         list->applyPositions();
     }
-    if (EmitterView* view = dynamic_cast<EmitterView*>(root.get());
+    if (EmitterView* view = ludork::Cast<EmitterView>(root.get());
         view != nullptr && !view->isDisposed()) {
         scheduler.registerEmitter(view->getEmitter(), view->prepareEmitter());
     }

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -8,6 +9,8 @@
 BIND_CLASS(callbacks = true)
 class LUDORK_RUNTIME_API Component : public RuntimeObject {
 public:
+    LUDORK_CAST_DERIVED(Component, RuntimeObject)
+
     BIND_INIT()
     Component() = default;
 
