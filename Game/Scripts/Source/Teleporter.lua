@@ -23,6 +23,20 @@ function Teleporter:goDownstairs()
     self:_goFloor(-1)
 end
 
+function Teleporter:goToMap(mapPath, position, record)
+    local map = self:getMap()
+    if map == nil then
+        return
+    end
+    local scene = map:getScene()
+    if not Class.isInstance(scene, GameplayScene) then
+        return
+    end
+    ---@cast scene Source.Gameplay.GameplayScene
+    ---@cast self Source.Teleporter.Teleporter
+    scene:requestMapTransfer(self, mapPath, position, record)
+end
+
 function Teleporter:getTeleportPosition()
     local position = self:getMapPosition()
     return sf.Vector2i.new(position.x + self.Offset.x, position.y + self.Offset.y)

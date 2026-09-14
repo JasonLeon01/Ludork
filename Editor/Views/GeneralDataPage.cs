@@ -257,6 +257,8 @@ internal sealed class GeneralDataPage : Grid
                 || resourceDocument.Data is not JsonObject current)
                 return;
             documentRevision = resourceDocument.Revision;
+            if (JsonNode.DeepEquals(current, typeData))
+                return;
             typeData = current;
             rebuildMemberKeys();
             Vector formOffset = preservedFormOffset ?? formScroll.Offset;

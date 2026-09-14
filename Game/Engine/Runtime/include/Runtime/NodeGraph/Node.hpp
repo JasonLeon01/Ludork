@@ -86,7 +86,6 @@ private:
         NodeMemberMetadata metadata;
         std::vector<std::string> parameterNames;
         std::string declaringModule;
-        bool selfFunction = false;
         std::string displayName;
     };
 
@@ -116,6 +115,6 @@ private:
     std::vector<std::string> paramOrder_;
     std::string declaringModule_;
     std::string funcInfo_;
-    bool selfFunction_ = false;
+    bool hasSelfParameter_ = false;
     std::size_t paramCount_ = 0;
 };

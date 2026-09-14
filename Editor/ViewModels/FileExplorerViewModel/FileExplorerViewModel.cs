@@ -51,7 +51,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         string? savedPath = projectConfig.LastFileExplorerPath;
         currentPath = !string.IsNullOrWhiteSpace(savedPath)
             && Directory.Exists(Path.Combine(this.projectPath, savedPath))
-            ? Path.Combine(this.projectPath, savedPath)
+            ? Path.GetFullPath(Path.Combine(this.projectPath, savedPath))
             : this.projectPath;
         refreshBreadcrumbs();
         gameData.DataReloaded += onGameDataChanged;

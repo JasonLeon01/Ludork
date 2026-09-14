@@ -78,6 +78,14 @@ public sealed class BlueprintNodeDefinitionCatalog
                 resolved.RootType,
                 LuaNodeMemberKind.Function))
             {
+                LuaNodeParameterMetadata? receiver = member.Parameters.FirstOrDefault();
+                if (receiver is null
+                    || receiver.Name != "self"
+                    || receiver.Type.ModuleName is null
+                    || receiver.Type.Schema.Kind != LuaMetadataTypeKind.Named)
+                {
+                    continue;
+                }
                 addDefinition(
                     result,
                     definitionKeys,
@@ -302,33 +310,12 @@ public sealed class BlueprintNodeDefinitionCatalog
             runtimePath,
             member.RuntimePath,
         };
-        addModuleMemberAliases(aliases, member);
         return aliases.ToArray();
     }
 
     private static IReadOnlyList<string> getParentRuntimeAliases(LuaNodeMemberMetadata member)
     {
-        string rootRelativePath = getGlobalRuntimePath(member.RuntimePath);
-        HashSet<string> aliases = new(StringComparer.Ordinal)
-        {
-            member.Name,
-            "self." + member.Name,
-            member.RuntimePath,
-            rootRelativePath,
-        };
-        addModuleMemberAliases(aliases, member);
-        return aliases.ToArray();
-    }
-
-    private static void addModuleMemberAliases(
-        ISet<string> aliases,
-        LuaNodeMemberMetadata member)
-    {
-        if (member.DeclaringType.ModuleName is not string moduleName)
-            return;
-        string moduleMemberPath = moduleName + "." + member.Name;
-        aliases.Add(moduleMemberPath);
-        aliases.Add(getGlobalRuntimePath(moduleMemberPath));
+        return [member.Name, "self." + member.Name];
     }
 
     private static bool isProjectRoot(string name)

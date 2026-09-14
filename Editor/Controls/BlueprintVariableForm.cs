@@ -539,6 +539,12 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
 
         field = resolveInstanceVariableValueField(field, dictionaryKey);
+        if (field.EditorKind == BlueprintVariableEditorKind.ObjectReference)
+        {
+            TextBox input = createTextEditor(displayValue, true, changed);
+            input.PlaceholderText = "self";
+            return input;
+        }
         LuaMetadataType declaredType = LuaMetadataType.Parse(field.Type);
         if (declaredType.Kind == LuaMetadataTypeKind.Union)
             return createUnionEditor(field, declaredType, displayValue, changed, dictionaryKey);
@@ -838,7 +844,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         return input;
     }
 
-    private Control createTextEditor(
+    private TextBox createTextEditor(
         JsonNode? value,
         bool emptyAsNull,
         Action<JsonNode?, bool> changed)
@@ -2544,6 +2550,7 @@ public enum BlueprintVariableEditorKind
     TransferPosition,
     BlueprintClass,
     CommonFunction,
+    ObjectReference,
 }
 
 public sealed record BlueprintVariableRange(double Minimum, double Maximum, double Step)

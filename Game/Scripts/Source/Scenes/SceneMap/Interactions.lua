@@ -356,53 +356,61 @@ function Scene.BlockMapInput(self, frames)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
-function Scene.RequestFloorTransfer(self, targetMap, anchorPos, moveEnabled)
-    if self._pendingFloorTransfer ~= nil or self._pendingWorldTransfer ~= nil then
+function Scene.RequestTeleporterTransfer(self, targetMap, targetPosition, moveEnabled, findNearest, record)
+    if self._pendingTeleporterTransfer ~= nil or self._pendingWorldTransfer ~= nil then
         return false
     end
-    self._pendingFloorTransfer = { targetMap = targetMap, anchorPos = anchorPos, moveEnabled = moveEnabled }
+    local savedPosition = sf.Vector2i.new(targetPosition.x, targetPosition.y)
+    ---@cast savedPosition sf.Vector2i
+    self._pendingTeleporterTransfer = {
+        targetMap = targetMap,
+        targetPosition = savedPosition,
+        moveEnabled = moveEnabled,
+        findNearest = findNearest,
+        record = record
+    }
     GlobalSystem.freezeTransitionBackground()
     return true
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
-function Scene.ProcessPendingFloorTransfer(self)
-    if self._pendingFloorTransfer == nil or not GlobalSystem.isTransitionBackgroundFrozen() then
+function Scene.ProcessPendingTeleporterTransfer(self)
+    if self._pendingTeleporterTransfer == nil or not GlobalSystem.isTransitionBackgroundFrozen() then
         return
     end
-    local transferData = {
-        targetMap = self._pendingFloorTransfer.targetMap,
-        anchorPos = self._pendingFloorTransfer.anchorPos,
-        moveEnabled = self._pendingFloorTransfer.moveEnabled
-    }
-    self._pendingFloorTransfer = nil
+    local transferData = self._pendingTeleporterTransfer
+    self._pendingTeleporterTransfer = nil
     self._mapTransferInProgress = true
     local targetMap = transferData.targetMap
-    local anchorPos = transferData.anchorPos
+    local targetPos = transferData.targetPosition
     local moveEnabled = bool(transferData.moveEnabled)
-    self:gotoMapAndPos(targetMap, anchorPos, true)
+    self:gotoMapAndPos(targetMap, targetPos, true)
     local targetGameMap = self:getGameMap()
     local targetPlayer = targetGameMap:getPlayer()
     if targetPlayer == nil then
-        self:_cancelFloorTransfer(moveEnabled)
+        self:_cancelTeleporterTransfer(moveEnabled)
         self._mapTransferInProgress = false
         return
     end
 
-    local targetTeleporter = Teleporter.FindNearestTeleporter(
-        targetGameMap:getAllActors(), targetPlayer:getMapPosition()
-    )
-    if targetTeleporter == nil then
-        self:_cancelFloorTransfer(moveEnabled)
-        self._mapTransferInProgress = false
-        return
+    local targetTag = ""
+    if transferData.findNearest then
+        local targetTeleporter = Teleporter.FindNearestTeleporter(
+            targetGameMap:getAllActors(), targetPlayer:getMapPosition()
+        )
+        if targetTeleporter == nil then
+            self:_cancelTeleporterTransfer(moveEnabled)
+            self._mapTransferInProgress = false
+            return
+        end
+        targetPos = targetTeleporter:getTeleportPosition()
+        targetTag = targetTeleporter:getMapTag()
     end
-    local targetPos = targetTeleporter:getTeleportPosition()
     self:gotoMapAndPos(targetMap, targetPos)
-    if self._cachedMapFile ~= nil then
+    if transferData.record and self._cachedMapFile ~= nil then
         local savedTelepoint = sf.Vector2u.new(targetPos.x, targetPos.y)
         ---@cast savedTelepoint sf.Vector2u
-        self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint, targetTeleporter:getMapTag())
+        self.inst:recordTelepoint(self._cachedMapFile, savedTelepoint, targetTag)
     end
     targetPlayer:setMoveEnabled(moveEnabled)
     self._mapTransferInProgress = false
@@ -410,7 +418,7 @@ end
 
 ---@param moveEnabled boolean
 ---@param self        Source.Scenes.SceneMap.SceneMap
-function Scene.CancelFloorTransfer(self, moveEnabled)
+function Scene.CancelTeleporterTransfer(self, moveEnabled)
     self.player:setMoveEnabled(moveEnabled)
     GlobalSystem.cancelTransitionBackgroundFreeze()
     GlobalSystem.cancelPendingTransition()
@@ -442,7 +450,10 @@ end
 ---@param targetPosition sf.Vector2i
 ---@param self           Source.Scenes.SceneMap.SceneMap
 function Scene.QueueWorldTransfer(self, targetMap, targetPosition)
-    assert(self._pendingWorldTransfer == nil and self._pendingFloorTransfer == nil, "A map transfer is already pending")
+    assert(
+        self._pendingWorldTransfer == nil and self._pendingTeleporterTransfer == nil,
+        "A map transfer is already pending"
+    )
     self._pendingWorldTransfer = { targetMap = targetMap, targetPosition = targetPosition }
     self._mapTransferInProgress = true
     GlobalSystem.freezeTransitionBackground()

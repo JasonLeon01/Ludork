@@ -27,13 +27,14 @@ from .cpp_types import (
     dynamic_value_nested_type,
     exposed_parameters,
     exposed_type_name,
+    is_static_method,
     module_property_type,
     parse_cpp_type,
     remove_pointer,
     render_parsed_type,
     return_outputs,
 )
-from .annotations import QuotedAnnotationValue, split_macro_arguments
+from .annotations import QuotedAnnotationValue, singleton_options, split_macro_arguments
 
 
 @dataclass(frozen=True)
@@ -659,18 +660,21 @@ def has_decorator(member: Member, kind: str) -> bool:
 
 
 def parameter_metadata(
-    context: GeneratorContext, member: Member, type_modules: dict[str, str]
+    context: GeneratorContext,
+    member: Member,
+    type_modules: dict[str, str],
+    receiver: tuple[str, str] | None = None,
 ) -> str:
     parameters = exposed_parameters(member)
     names = [name for name, _ in parameters]
-    types = [type_name for _, type_name in parameters]
-    entries = ", ".join(
-        [lua_string(name) for name in names]
-        + [
-            f"{lua_key(name)} = {lua_metadata_type(context, type_name, type_modules)}"
-            for name, type_name in zip(names, types)
-        ]
-    )
+    schemas = [
+        f"{lua_key(name)} = {lua_metadata_type(context, type_name, type_modules)}"
+        for name, type_name in parameters
+    ]
+    if receiver is not None:
+        names.insert(0, "self")
+        schemas.insert(0, f"self = {lua_data_value(list(receiver), '            ')}")
+    entries = ", ".join([lua_string(name) for name in names] + schemas)
     return "{ " + entries + " }" if entries else "{}"
 
 
@@ -837,17 +841,22 @@ def lua_data_value(value: object, indent: str) -> str:
     raise ValueError(f"unsupported metadata default value: {value!r}")
 
 
-def member_defaults(context: GeneratorContext, member: Member, type_modules: dict[str, str]) -> str | None:
+def member_defaults(
+    context: GeneratorContext,
+    member: Member,
+    type_modules: dict[str, str],
+    has_receiver: bool = False,
+) -> str | None:
     raw = member.options.get("defaults")
-    if raw is None:
+    if raw is None and not has_receiver:
         return None
-    values = split_macro_arguments(raw)
+    values = split_macro_arguments(raw) if raw is not None else []
     parameters = exposed_parameters(member)
     if len(values) > len(parameters):
         raise ValueError(f"too many defaults for {member.name}")
     types = [type_name for _, type_name in parameters[len(parameters) - len(values):]]
-    output = []
-    offset = len(parameters) - len(values)
+    output = ['[1] = "self"'] if has_receiver else []
+    offset = len(parameters) - len(values) + int(has_receiver)
     for index, (value, type_name) in enumerate(zip(values, types), offset + 1):
         literal = lua_default_value(value)
         if literal == "nil":
@@ -1023,15 +1032,16 @@ def generate_metadata(
             output.append("        },")
         for member in decorated_methods:
             is_event = has_decorator(member, "REGISTER_EVENT")
+            receiver = (module, public_name) if not is_event and not is_static_method(member) else None
             exposed_name = member.options.get("name", member.name)
             output.append(f"        {lua_key(exposed_name)} = {{")
             output.append(
                 f"            type = {lua_string('event' if is_event else 'function')},"
             )
             output.append(
-                f"            parameters = {parameter_metadata(context, member, type_modules)},"
+                f"            parameters = {parameter_metadata(context, member, type_modules, receiver)},"
             )
-            defaults = member_defaults(context, member, type_modules)
+            defaults = member_defaults(context, member, type_modules, receiver is not None)
             if defaults is not None:
                 output.append(f"            default = {defaults},")
             unset_defaults = member_unset_defaults(member)
@@ -1068,6 +1078,15 @@ def generate_metadata(
         function_groups.setdefault(member.options.get("group", module), []).append(
             member
         )
+    for info in types:
+        if info.cpp_name not in metadata_types:
+            continue
+        singleton = singleton_options(info)
+        if singleton is None:
+            continue
+        methods = [member for member in metadata_methods(info) if member.access == "public"]
+        if methods:
+            function_groups.setdefault(singleton[0], []).extend(methods)
     if module_properties:
         function_groups.setdefault(module, [])
     for function_group, grouped_functions in function_groups.items():

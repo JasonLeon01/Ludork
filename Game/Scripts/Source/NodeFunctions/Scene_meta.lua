@@ -53,7 +53,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "TimeUp",
                 TimeUp = {
                     true
@@ -86,7 +87,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "FinishedDialogue",
                 FinishedDialogue = {
                     true
@@ -110,7 +112,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "FinishedDialogue",
                 FinishedDialogue = {
                     true
@@ -136,7 +139,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "FinishedDialogue",
                 FinishedDialogue = {
                     true
@@ -175,7 +179,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "FinishedDialogue",
                 FinishedDialogue = {
                     true
@@ -212,7 +217,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Selected0",
                 "Selected1",
                 "Selected2",
@@ -259,7 +265,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Selected0",
                 "Selected1",
                 "Selected2",
@@ -610,7 +617,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Closed",
                 Closed = {
                     true
@@ -650,7 +658,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Closed",
                 Closed = {
                     true
@@ -688,7 +697,8 @@ local _METADATA = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Closed",
                 Closed = {
                     true

@@ -134,7 +134,7 @@ void Node::initialise(RuntimeValue values, RuntimeValue resolvedDefinition) {
         }
         rawParams = array->toArray();
     }
-    paramCount_ = rawParams.size();
+    paramCount_ = std::max(rawParams.size(), paramOrder_.size());
     params = RuntimeValue(resolveStoredParams(rawParams));
 }
 
@@ -171,35 +171,42 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
 
     for (std::size_t index = 0; index < definition.paramCount_; ++index) {
         const auto replacement = inputPinReplace.find(static_cast<int>(index));
-        if (replacement != inputPinReplace.end()) {
-            const auto parameterType =
-                index < definition.paramOrder_.size()
-                    ? definition.paramList_.find(definition.paramOrder_[index])
-                    : definition.paramList_.end();
+        const bool connected = replacement != inputPinReplace.end();
+        const bool receiver = definition.hasSelfParameter_ && index == 0;
+        RuntimeValue value = connected ? replacement->second
+                             : index < storedParams->size()
+                                 ? (*storedParams)[index].toValue()
+                                 : RuntimeValue();
+        bool useParent = !connected && receiver && value.isNil();
+        if (!connected) {
+            const std::string* text = value.getIf<std::string>();
+            useParent = useParent || (text != nullptr && *text == "self");
+        }
+        if (useParent) {
+            value = parent;
+        }
+        if (receiver && value.isNil()) {
+            throw std::runtime_error("Node " + functionName +
+                                     " parameter self requires an object");
+        }
+        const auto parameterType =
+            index < definition.paramOrder_.size()
+                ? definition.paramList_.find(definition.paramOrder_[index])
+                : definition.paramList_.end();
+        if (connected || receiver || useParent) {
             try {
-                actualParams[index] =
-                    parameterType == definition.paramList_.end()
-                        ? replacement->second
-                        : typedDataService().resolveRuntimeTypedValue(
-                              replacement->second, parameterType->second,
-                              definition.declaringModule_);
+                value = parameterType == definition.paramList_.end()
+                            ? value
+                            : typedDataService().resolveRuntimeTypedValue(
+                                  value, parameterType->second,
+                                  definition.declaringModule_);
             } catch (const std::exception& error) {
                 throw std::runtime_error(
                     "Node " + functionName + " parameter " +
                     std::to_string(index + 1) + ": " + error.what());
             }
-            continue;
         }
-
-        const RuntimeValue stored = index < storedParams->size()
-                                        ? (*storedParams)[index].toValue()
-                                        : RuntimeValue();
-        if (const std::string* text = stored.getIf<std::string>();
-            text != nullptr && *text == "self") {
-            actualParams[index] = parent;
-            continue;
-        }
-        actualParams[index] = stored;
+        actualParams[index] = std::move(value);
     }
 
     if (definition.nodeFunction_ == nullptr) {
@@ -207,8 +214,6 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
                                  "' is not callable");
     }
 
-    const RuntimeValue selfValue =
-        definition.selfFunction_ ? parent : RuntimeValue();
     const std::shared_ptr<Graph> parentGraph = parentGraph_.lock();
     const RuntimeIdentityPtr context =
         parentGraph == nullptr ? nullptr : parentGraph->getLocalGraph();
@@ -219,7 +224,7 @@ NodeResult Node::executeResult(const InputPinMap& inputPinReplace) {
     }
     NodeResult result =
         ludork::runtime::node_graph_detail::invokeNodeGraphCallable(
-            scope, RuntimeHandle(definition.nodeFunction_), selfValue,
+            scope, RuntimeHandle(definition.nodeFunction_), RuntimeValue(),
             actualParams, RuntimeHandle(context));
     if (result.count == 0) {
         result.values = {RuntimeValue()};
@@ -290,7 +295,6 @@ Node::ResolvedCallable Node::resolvedCallable(
     }
     result.descriptor = descriptor->toMap();
     result.callable = identityValue(mapValue(*descriptor, "callable"));
-    result.selfFunction = boolValue(mapValue(*descriptor, "isSelf"));
     result.declaringModule =
         stringValue(mapValue(*descriptor, "declaringModule"));
     result.displayName = stringValue(mapValue(*descriptor, "displayName"));
@@ -398,7 +402,6 @@ void Node::analyseFunction(const RuntimeValue& resolvedDefinition) {
     }
     memberMetadata_ = std::move(callable.metadata);
     declaringModule_ = std::move(callable.declaringModule);
-    selfFunction_ = callable.selfFunction;
     funcInfo_ = std::move(callable.displayName);
     if (funcInfo_.empty()) {
         const std::size_t separator = functionName.find_last_of('.');
@@ -410,6 +413,8 @@ void Node::analyseFunction(const RuntimeValue& resolvedDefinition) {
     paramOrder_ = memberMetadata_.parameterOrder.empty()
                       ? std::move(callable.parameterNames)
                       : memberMetadata_.parameterOrder;
+    hasSelfParameter_ = memberMetadata_.kind == "function" &&
+                        !paramOrder_.empty() && paramOrder_.front() == "self";
     for (const std::string& parameterName : paramOrder_) {
         const auto type = memberMetadata_.parameterTypes.find(parameterName);
         paramList_.emplace(parameterName,
@@ -423,9 +428,16 @@ void Node::analyseFunction(const RuntimeValue& resolvedDefinition) {
 RuntimeValue::Array Node::resolveStoredParams(
     const RuntimeValue::Array& rawParams) {
     RuntimeValue::Array result;
-    result.reserve(rawParams.size());
-    for (std::size_t index = 0; index < rawParams.size(); ++index) {
-        const RuntimeValue& value = rawParams[index];
+    result.reserve(paramCount_);
+    for (std::size_t index = 0; index < paramCount_; ++index) {
+        RuntimeValue value =
+            index < rawParams.size() ? rawParams[index] : RuntimeValue();
+        if (value.isNil() && index < paramOrder_.size()) {
+            const auto defaultValue = paramDefaults_.find(paramOrder_[index]);
+            if (defaultValue != paramDefaults_.end()) {
+                value = defaultValue->second;
+            }
+        }
         if (const std::string* text = value.getIf<std::string>();
             text != nullptr && *text == "self") {
             result.push_back(value);

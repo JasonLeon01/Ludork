@@ -82,7 +82,7 @@ function Scene:onCreate()
     self._mapClickMoveBlockedUntilLateTick = false
     self._mapInputBlockFrames = 0
     self._pendingMenuOpen = false
-    self._pendingFloorTransfer = nil
+    self._pendingTeleporterTransfer = nil
     self._pendingWorldTransfer = nil
     self._mapTransferInProgress = false
     self._worldEnvironmentKey = nil
@@ -357,7 +357,7 @@ end
 function Scene:_renderHandle(deltaTime)
     self:getGameMap():show()
     super(Scene, self)._renderHandle(deltaTime)
-    self:_processPendingFloorTransfer()
+    self:_processPendingTeleporterTransfer()
     self:_processPendingWorldTransfer()
     if self._pendingMenuOpen then
         self._pendingMenuOpen = false
@@ -452,12 +452,12 @@ end
 ---@param mapFile string
 function Scene:_updateCurrentRegion(mapFile)
     local region = Scene.FindRegionForMap(mapFile)
+    self.inst:setCurrentRegion(region or "")
     if region == self._currentRegion then
         return
     end
     self._currentRegion = region
     if region ~= nil then
-        self.inst:setCurrentRegion(region)
         Scene.ShowRegionTitle(region)
     end
 end
@@ -505,19 +505,25 @@ function Scene:getGameInstance()
     return self.inst
 end
 
-function Scene:requestFloorStep(teleporter, step)
-    assert(step == 1 or step == -1, "Floor transfer step must be 1 or -1")
+---@param teleporter Source.Teleporter.Teleporter
+---@return boolean
+function Scene:_canRequestTeleporterTransfer(teleporter)
     if not self._gameplayRequestsActive or GlobalSystem.getScene() ~= self or self._mapTransferInProgress
-        or self._pendingFloorTransfer ~= nil or self._pendingWorldTransfer ~= nil or self._gameMap == nil
+        or self._pendingTeleporterTransfer ~= nil or self._pendingWorldTransfer ~= nil or self._gameMap == nil
         or teleporter:isDestroyed() or not teleporter:isVisibleInHierarchy() or teleporter:getMap() ~= self._gameMap then
         return false
     end
-    local player = self._gameMap:getPlayer()
-    if player == nil or not bool(self._cachedMapFile) then
+    return self._gameMap:getPlayer() ~= nil and bool(self._cachedMapFile)
+end
+
+function Scene:requestFloorStep(teleporter, step)
+    assert(step == 1 or step == -1, "Floor transfer step must be 1 or -1")
+    if not self:_canRequestTeleporterTransfer(teleporter) then
         return false
     end
     ---@cast self._cachedMapFile string
-    local regionMaps = RegionDict[self.inst:getCurrentRegion()] or {}
+    local region = Scene.FindRegionForMap(self._cachedMapFile)
+    local regionMaps = region ~= nil and RegionDict[region] or {}
     local currentIndex = Teleporter.FindCurrentMapIndex(regionMaps, self._cachedMapFile)
     if currentIndex == nil then
         return false
@@ -530,15 +536,41 @@ function Scene:requestFloorStep(teleporter, step)
     ---@cast targetMapKey string
     local anchorPosition = teleporter:getTeleportPosition()
     local targetMap = self:resolveRegionMapPath(targetMapKey)
+    return self:_startTeleporterTransfer(teleporter, targetMap, anchorPosition, true, true)
+end
+
+function Scene:requestMapTransfer(teleporter, mapPath, position, record)
+    if not self:_canRequestTeleporterTransfer(teleporter) or not bool(mapPath) then
+        return false
+    end
+    local targetMap, targetPosition = self._mapBuilder:resolveMapDestination(
+        mapPath, self:_getCurrentRegionMap(), position
+    )
+    assert(targetPosition ~= nil, "Teleporter transfer requires a target position")
+    return self:_startTeleporterTransfer(teleporter, targetMap, targetPosition, false, record ~= false)
+end
+
+---@param teleporter     Source.Teleporter.Teleporter
+---@param targetMap      string
+---@param targetPosition sf.Vector2i
+---@param findNearest    boolean
+---@param record         boolean
+---@return boolean
+function Scene:_startTeleporterTransfer(teleporter, targetMap, targetPosition, findNearest, record)
+    local player = self:getGameMap():getPlayer()
+    assert(player ~= nil, "Teleporter transfer requires a player")
     local moveEnabled = player:getMoveEnabled()
     player:setMoveEnabled(false)
-    if not self:requestFloorTransfer(targetMap, anchorPosition, moveEnabled) then
+    if not self:requestTeleporterTransfer(targetMap, targetPosition, moveEnabled, findNearest, record) then
         player:setMoveEnabled(moveEnabled)
         return false
     end
-    local sourceTelepoint = sf.Vector2u.new(anchorPosition.x, anchorPosition.y)
-    ---@cast sourceTelepoint sf.Vector2u
-    self.inst:recordTelepoint(self._cachedMapFile, sourceTelepoint, teleporter:getMapTag())
+    if record then
+        local sourcePosition = teleporter:getTeleportPosition()
+        local sourceTelepoint = sf.Vector2u.new(sourcePosition.x, sourcePosition.y)
+        ---@cast sourceTelepoint sf.Vector2u
+        self.inst:recordTelepoint(assert(self._cachedMapFile), sourceTelepoint, teleporter:getMapTag())
+    end
     GlobalCore.AudioManager.playSound(teleporter.stairSE)
     return true
 end
@@ -671,16 +703,18 @@ function Scene:_blockMapInput(frames)
     return SceneMapInteractions.BlockMapInput(self, frames)
 end
 
-function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled)
-    return SceneMapInteractions.RequestFloorTransfer(self, targetMap, anchorPos, moveEnabled)
+function Scene:requestTeleporterTransfer(targetMap, targetPosition, moveEnabled, findNearest, record)
+    return SceneMapInteractions.RequestTeleporterTransfer(
+        self, targetMap, targetPosition, moveEnabled, findNearest, record
+    )
 end
 
-function Scene:_processPendingFloorTransfer()
-    return SceneMapInteractions.ProcessPendingFloorTransfer(self)
+function Scene:_processPendingTeleporterTransfer()
+    return SceneMapInteractions.ProcessPendingTeleporterTransfer(self)
 end
 
-function Scene:_cancelFloorTransfer(moveEnabled)
-    return SceneMapInteractions.CancelFloorTransfer(self, moveEnabled)
+function Scene:_cancelTeleporterTransfer(moveEnabled)
+    return SceneMapInteractions.CancelTeleporterTransfer(self, moveEnabled)
 end
 
 function Scene:_applyMapDestination(targetMap, targetPosition, blockTransition)

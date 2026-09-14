@@ -37,12 +37,19 @@ local _METADATA = {
         },
         openDoor = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.DoorBase", "DoorBase" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Started",
                 "Finished",
                 Started = { 0 },
@@ -51,12 +58,19 @@ local _METADATA = {
         },
         closeDoor = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.DoorBase", "DoorBase" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Started",
                 "Finished",
                 Started = { 0 },

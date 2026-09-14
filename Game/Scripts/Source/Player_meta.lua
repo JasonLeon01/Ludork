@@ -49,26 +49,43 @@ local _METADATA = {
         },
         getDisplayName = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Player", "Player" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = { "name", name = "string" },
             Pure = true
         },
         setName = {
             type = "function",
-            parameters = { "name", name = "string" },
+            parameters = {
+                "self",
+                "name",
+                self = { "Source.Player", "Player" },
+                name = "string"
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = { "success", success = "bool" },
             ExecSplit = { "Success", "Invalid", Success = true, Invalid = false }
         },
         addItem = {
             type = "function",
             parameters = {
+                "self",
                 "itemID",
                 "count",
+                self = { "Source.Player", "Player" },
                 itemID = "string",
                 count = "int"
             },
             default = {
-                [2] = 1
+                [1] = "self",
+                [3] = 1
             },
             ["return"] = {},
             ExecSplit = {
@@ -84,13 +101,16 @@ local _METADATA = {
         removeItem = {
             type = "function",
             parameters = {
+                "self",
                 "itemID",
                 "count",
+                self = { "Source.Player", "Player" },
                 itemID = "string",
                 count = "int"
             },
             default = {
-                [2] = 1
+                [1] = "self",
+                [3] = 1
             },
             ["return"] = {
                 "return",
@@ -111,8 +131,13 @@ local _METADATA = {
         getItemCount = {
             type = "function",
             parameters = {
+                "self",
                 "itemID",
+                self = { "Source.Player", "Player" },
                 itemID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "count",
@@ -128,8 +153,13 @@ local _METADATA = {
         hasItem = {
             type = "function",
             parameters = {
+                "self",
                 "itemID",
+                self = { "Source.Player", "Player" },
                 itemID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "value",
@@ -145,13 +175,16 @@ local _METADATA = {
         addEquip = {
             type = "function",
             parameters = {
+                "self",
                 "equipID",
                 "count",
+                self = { "Source.Player", "Player" },
                 equipID = "string",
                 count = "int"
             },
             default = {
-                [2] = 1
+                [1] = "self",
+                [3] = 1
             },
             ["return"] = {},
             ExecSplit = {
@@ -167,13 +200,16 @@ local _METADATA = {
         removeEquip = {
             type = "function",
             parameters = {
+                "self",
                 "equipID",
                 "count",
+                self = { "Source.Player", "Player" },
                 equipID = "string",
                 count = "int"
             },
             default = {
-                [2] = 1
+                [1] = "self",
+                [3] = 1
             },
             ["return"] = {
                 "return",
@@ -194,8 +230,13 @@ local _METADATA = {
         equip = {
             type = "function",
             parameters = {
+                "self",
                 "equipID",
+                self = { "Source.Player", "Player" },
                 equipID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -211,8 +252,13 @@ local _METADATA = {
         unequip = {
             type = "function",
             parameters = {
+                "self",
                 "slotID",
+                self = { "Source.Player", "Player" },
                 slotID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -223,8 +269,13 @@ local _METADATA = {
         getEquipCount = {
             type = "function",
             parameters = {
+                "self",
                 "equipID",
+                self = { "Source.Player", "Player" },
                 equipID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "count",
@@ -240,8 +291,13 @@ local _METADATA = {
         hasEquip = {
             type = "function",
             parameters = {
+                "self",
                 "equipID",
+                self = { "Source.Player", "Player" },
                 equipID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "value",
@@ -257,8 +313,13 @@ local _METADATA = {
         getEquipInfo = {
             type = "function",
             parameters = {
+                "self",
                 "slotID",
+                self = { "Source.Player", "Player" },
                 slotID = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "value",
@@ -268,7 +329,13 @@ local _METADATA = {
         },
         getForbiddenMoving = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Player", "Player" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "value",
                 value = "bool"
@@ -278,8 +345,13 @@ local _METADATA = {
         setForbiddenMoving = {
             type = "function",
             parameters = {
+                "self",
                 "value",
+                self = { "Source.Player", "Player" },
                 value = "bool"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {

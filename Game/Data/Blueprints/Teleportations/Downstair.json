@@ -38,7 +38,9 @@
         "nodes": [
           {
             "nodeFunction": "goDownstairs",
-            "params": [],
+            "params": [
+              "self"
+            ],
             "pos": [
               720,
               314

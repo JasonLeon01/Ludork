@@ -46,7 +46,9 @@
         "nodes": [
           {
             "nodeFunction": "goUpstairs",
-            "params": [],
+            "params": [
+              "self"
+            ],
             "pos": [
               720,
               314

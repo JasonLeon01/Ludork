@@ -343,6 +343,7 @@ function Utils.RunCommonFunction(commonFunctionName)
     local callerGraph = Context.GetRefLocal(Utils.RunCommonFunction).__graph__
     local commonGraph = Data.GetCommonFunction(commonFunctionName)
     if callerGraph ~= nil then
+        commonGraph.parent = callerGraph.parent
         commonGraph.localGraph = callerGraph.localGraph
     end
     if commonGraph:hasKey("common") then

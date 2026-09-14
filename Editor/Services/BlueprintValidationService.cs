@@ -221,7 +221,8 @@ public sealed class BlueprintValidationService
                         $"General/{typeEntry.Key}/{memberEntry.Key}",
                         graphDocument,
                         graph,
-                        errors);
+                        errors,
+                        "GlobalCore.GameplayEventData");
                     validateGeneralDataLatentNodes(graph, definitionSet.RuntimeLookup, errors);
                 }
                 results.Add(new BlueprintValidationResult(
@@ -428,12 +429,15 @@ public sealed class BlueprintValidationService
         string key,
         JsonObject data,
         JsonObject graph,
-        ICollection<string> errors)
+        ICollection<string> errors,
+        string? graphParentType = null)
     {
         using IDisposable metadataBatch = classResolver.BeginBatch();
         BlueprintGraphContext context = new(data, key);
+        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
         BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver);
-        BlueprintNodeDefinitionSet definitionSet = catalog.GetNodeDefinitionSet(context);
+        BlueprintNodeDefinitionSet definitionSet = catalog.GetNodeDefinitionSet(context, resolved);
+        graphParentType ??= resolved.RootType?.QualifiedName;
         IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> lookup = definitionSet.RuntimeLookup;
         JsonObject nodeGraph = (JsonObject)graph["nodeGraph"]!;
         foreach (KeyValuePair<string, JsonNode?> pair in nodeGraph)
@@ -460,6 +464,14 @@ public sealed class BlueprintValidationService
                     continue;
                 }
                 nodeDefinitions[index] = definition;
+                validateReceiverParameter(
+                    pair.Key,
+                    index,
+                    node["params"] as JsonArray,
+                    definition,
+                    links,
+                    graphParentType,
+                    errors);
                 validateAssetParameters(
                     pair.Key,
                     index,
@@ -527,6 +539,39 @@ public sealed class BlueprintValidationService
                     errors.Add($"graph.nodeGraph[\"{pair.Key}\"].links[{linkIndex}]: event parameter '{externalKey}' only has data output pin 0");
                 }
             }
+        }
+    }
+
+    private void validateReceiverParameter(
+        string eventName,
+        int nodeIndex,
+        JsonArray? values,
+        BlueprintGraphNodeDefinition definition,
+        JsonArray links,
+        string? graphParentType,
+        ICollection<string> errors)
+    {
+        if (graphParentType is null)
+            return;
+        BlueprintGraphPortDefinition? receiver = definition.Ports.FirstOrDefault(port =>
+            port.Direction == BlueprintGraphPortDirection.Input
+            && port.Kind == BlueprintGraphPortKind.Params
+            && port.ParameterIndex == 0
+            && port.Name == "self");
+        if (receiver is null
+            || LuaTypeReference.Parse(receiver.TypeName).ModuleName is null
+            || links.OfType<JsonObject>().Any(link =>
+                getString(link["linkType"]) == "Params"
+                && tryGetInteger(link["right"], out int right) && right == nodeIndex
+                && tryGetInteger(link["rightInPin"], out int pin) && pin == receiver.PinIndex))
+        {
+            return;
+        }
+        JsonNode? value = values?.FirstOrDefault() ?? receiver.DefaultValue;
+        if (getString(value) == "self" && !metadataService.IsTypeAssignable(graphParentType, receiver.TypeName))
+        {
+            errors.Add($"graph.nodeGraph[\"{eventName}\"].nodes[{nodeIndex}].params[0]"
+                + $" cannot use graph parent {graphParentType} as {receiver.TypeName}");
         }
     }
 

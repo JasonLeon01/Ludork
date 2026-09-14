@@ -37,7 +37,6 @@
 ---@field callable        NodeCompiler.Callable
 ---@field memberMeta      NodeCompiler.MemberMetadata
 ---@field paramNames      string[]
----@field isSelf          boolean
 ---@field displayName     string
 ---@field declaringModule string
 

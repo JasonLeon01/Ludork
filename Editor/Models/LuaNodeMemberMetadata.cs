@@ -25,7 +25,8 @@ public sealed class LuaNodeMemberMetadata
         JsonNode? loopNode,
         bool pure,
         JsonObject meta,
-        LuaTypeReference declaringType
+        LuaTypeReference declaringType,
+        bool moduleReturn = false
     )
     {
         Name = name;
@@ -41,6 +42,7 @@ public sealed class LuaNodeMemberMetadata
         Pure = pure;
         Meta = (JsonObject)meta.DeepClone();
         DeclaringType = declaringType;
+        ModuleReturn = moduleReturn;
     }
 
     public string Name { get; }
@@ -65,6 +67,7 @@ public sealed class LuaNodeMemberMetadata
     public bool Pure { get; }
     public JsonObject Meta { get; }
     public LuaTypeReference DeclaringType { get; }
+    public bool ModuleReturn { get; }
     public string RuntimePath
     {
         get
@@ -74,7 +77,7 @@ public sealed class LuaNodeMemberMetadata
                 return $"{DeclaringType.TypeName}.{Name}";
             int separator = moduleName.LastIndexOf('.');
             string moduleTypeName = separator < 0 ? moduleName : moduleName[(separator + 1)..];
-            return string.Equals(moduleTypeName, DeclaringType.TypeName, StringComparison.Ordinal)
+            return ModuleReturn || string.Equals(moduleTypeName, DeclaringType.TypeName, StringComparison.Ordinal)
                 ? $"{moduleName}.{Name}"
                 : $"{moduleName}.{DeclaringType.TypeName}.{Name}";
         }

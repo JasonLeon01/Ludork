@@ -7,16 +7,16 @@ local _METADATA = {
                 "tag",
                 "enabled",
                 tag = "string",
-                enabled = "bool",
+                enabled = "bool"
             },
             default = {
-                [2] = true,
+                [2] = true
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SetMoveRoute = {
             type = "function",
@@ -25,32 +25,33 @@ local _METADATA = {
                 "route",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                route = "sf.Vector2i[]",
+                route = "sf.Vector2i[]"
             },
             default = {
-                [2] = {},
+                [2] = {}
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Started",
                 "Finished",
                 Started = {
-                    "_LATENT_STARTED",
+                    "_LATENT_STARTED"
                 },
                 Finished = {
-                    "_LATENT_FINISHED",
-                },
+                    "_LATENT_FINISHED"
+                }
             },
             Meta = {
                 MoveRouteVars = {
-                    "route",
-                },
-            },
+                    "route"
+                }
+            }
         },
         SetAutoPathToDestination = {
             type = "function",
@@ -59,30 +60,31 @@ local _METADATA = {
                 "destination",
                 actor = {
                     "Engine",
-                    "Actor",
+                    "Actor"
                 },
-                destination = "sf.Vector2i",
+                destination = "sf.Vector2i"
             },
             default = {
                 [2] = {
                     0,
-                    0,
-                },
+                    0
+                }
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Started",
                 "Finished",
                 Started = {
-                    "_LATENT_STARTED",
+                    "_LATENT_STARTED"
                 },
                 Finished = {
-                    "_LATENT_FINISHED",
-                },
-            },
+                    "_LATENT_FINISHED"
+                }
+            }
         },
         SetAutoPathToDestinationByTag = {
             type = "function",
@@ -90,30 +92,31 @@ local _METADATA = {
                 "tag",
                 "destination",
                 tag = "string",
-                destination = "sf.Vector2i",
+                destination = "sf.Vector2i"
             },
             default = {
                 [2] = {
                     0,
-                    0,
-                },
+                    0
+                }
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Started",
                 "Finished",
                 Started = {
-                    "_LATENT_STARTED",
+                    "_LATENT_STARTED"
                 },
                 Finished = {
-                    "_LATENT_FINISHED",
-                },
-            },
-        },
-    },
+                    "_LATENT_FINISHED"
+                }
+            }
+        }
+    }
 }
 
 return _METADATA

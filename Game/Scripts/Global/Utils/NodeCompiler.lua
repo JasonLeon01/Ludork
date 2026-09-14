@@ -42,7 +42,7 @@ end
 ---@param module     table
 ---@return table | nil
 local function moduleMetadata(moduleName, module)
-    if Class.isInstance(module.__runtimeMetadata, "table") then
+    if Class.hasOwnField(module, "__runtimeMetadata") and Class.isInstance(module.__runtimeMetadata, "table") then
         return module.__runtimeMetadata
     end
     local metadataName = moduleName .. "_meta"
@@ -57,10 +57,11 @@ end
 ---@param value      any
 ---@param parts      string[]
 ---@param startIndex integer
+---@param endIndex   integer | nil
 ---@return any
-local function traverse(value, parts, startIndex)
+local function traverse(value, parts, startIndex, endIndex)
     local current = value
-    for index = startIndex, #parts do
+    for index = startIndex, endIndex or #parts do
         if current == nil then
             return nil
         end
@@ -108,23 +109,35 @@ end
 ---@param metadata   table | nil
 ---@param typeName   string
 ---@param memberName string
----@return table | nil
-local function findMemberMetadata(metadata, typeName, memberName)
+---@param moduleName string
+---@param owner      any
+---@return table | nil, string | nil
+local function findMemberMetadata(metadata, typeName, memberName, moduleName, owner)
     if not Class.isInstance(metadata, "table") then
         return nil
     end
     ---@cast metadata table
-    if isNodeMemberDescriptor(metadata[memberName]) then
-        return metadata[memberName]
+    if typeName == "" then
+        if isNodeMemberDescriptor(metadata[memberName]) then
+            return metadata[memberName], moduleName
+        end
+        typeName = moduleName:match("([^.]+)$") or moduleName
+        for name, candidate in pairs(metadata) do
+            if Class.isInstance(candidate, "table") and candidate.moduleReturn == true then
+                typeName = name
+                break
+            end
+        end
     end
     local typeMetadata = metadata[typeName]
-    if Class.isInstance(typeMetadata, "table") and Class.isInstance(typeMetadata[memberName], "table") then
-        return typeMetadata[memberName]
+    if not Class.isInstance(typeMetadata, "table") then
+        return nil
     end
-    for _, candidate in pairs(metadata) do
-        if Class.isInstance(candidate, "table") and isNodeMemberDescriptor(candidate[memberName]) then
-            return candidate[memberName]
-        end
+    if isNodeMemberDescriptor(typeMetadata[memberName]) then
+        return typeMetadata[memberName], moduleName
+    end
+    if bool(typeMetadata.bases) then
+        return Engine.resolveMemberMetadata(owner, memberName)
     end
     return nil
 end
@@ -231,7 +244,7 @@ local function normaliseMemberMetadata(metadata)
     if not Class.isInstance(latentStates, "table") and Class.isInstance(metadata.Latent, "table") then
         latentStates = metadata.Latent
     end
-    local latent = metadata.Latent ~= nil
+    local latent = metadata.Latent == true or Class.isInstance(metadata.Latent, "table")
     local loop = metadata.Loop == true or metadata.LoopNode ~= nil
     local kind = Class.isInstance(metadata.type, "string") and metadata.type or ""
     local pure = metadata.Pure == true
@@ -277,7 +290,7 @@ end
 ---@param functionName string
 ---@param parentClass  Class.ClassType<any> | nil
 ---@param context      NodeCompiler.Context
----@return NodeCompiler.Callable | nil, boolean | nil, string | nil
+---@return NodeCompiler.Callable | nil, string | nil
 local function resolveCallable(functionName, parentClass, context)
     local explicitSelf = functionName:sub(1, 5) == "self."
     local lookupName = explicitSelf and functionName:sub(6) or functionName
@@ -285,14 +298,14 @@ local function resolveCallable(functionName, parentClass, context)
     if not bool(parts) then
         return nil
     end
-    if parentClass ~= nil then
+    if parentClass ~= nil and (explicitSelf or #parts == 1) then
         local candidate = traverse(parentClass, parts, 1)
         if isCallable(candidate) then
-            return candidate, explicitSelf or #parts == 1, Engine.getClassModulePath(parentClass) or ""
+            return candidate, Engine.getClassModulePath(parentClass) or ""
         end
-        if explicitSelf then
-            return nil
-        end
+    end
+    if explicitSelf then
+        return nil
     end
     if #parts > 1 then
         for prefixLength = #parts - 1, 1, -1 do
@@ -302,7 +315,7 @@ local function resolveCallable(functionName, parentClass, context)
                 if module ~= nil then
                     local candidate = traverse(module, parts, prefixLength + 1)
                     if isCallable(candidate) then
-                        return candidate, false, moduleName
+                        return candidate, moduleName
                     end
                 end
             end
@@ -312,7 +325,7 @@ local function resolveCallable(functionName, parentClass, context)
         local startIndex = parts[1] == root.name and 2 or 1
         local candidate = traverse(root.value, parts, startIndex)
         if isCallable(candidate) then
-            return candidate, false, root.name
+            return candidate, root.name
         end
     end
     return nil
@@ -343,25 +356,32 @@ local function resolveMetadata(functionName, parentClass, context)
     if #parts > 1 then
         for prefixLength = #parts - 1, 1, -1 do
             local prefix = table.concat(parts, ".", 1, prefixLength)
-            local typeName = parts[prefixLength]
-            ---@cast typeName string
+            local typeName = table.concat(parts, ".", prefixLength + 1, #parts - 1)
             for _, moduleName in ipairs(moduleCandidates(prefix, context)) do
                 local module = loadModule(moduleName)
                 if module ~= nil then
-                    local metadata = findMemberMetadata(moduleMetadata(moduleName, module), typeName, memberName)
+                    local metadata, declaringModule = findMemberMetadata(
+                        moduleMetadata(moduleName, module), typeName, memberName, moduleName,
+                        traverse(module, parts, prefixLength + 1, #parts - 1)
+                    )
                     if metadata ~= nil then
-                        return metadata, moduleName
+                        return metadata, declaringModule or moduleName
                     end
                 end
             end
         end
     end
     for _, root in ipairs(context.roots or {}) do
-        local metadata = findMemberMetadata(
-            moduleMetadata(root.name, root.value), #parts > 1 and parts[#parts - 1] or "", memberName
+        ---@type string
+        local rootName = root.name
+        local startIndex = parts[1] == rootName and 2 or 1
+        local typeName = table.concat(parts, ".", startIndex, #parts - 1)
+        local metadata, declaringModule = findMemberMetadata(
+            moduleMetadata(rootName, root.value), typeName, memberName, rootName,
+            traverse(root.value, parts, startIndex, #parts - 1)
         )
         if metadata ~= nil then
-            return metadata, root.name
+            return metadata, declaringModule or rootName
         end
     end
     return nil, ""
@@ -369,7 +389,7 @@ end
 
 function NodeCompiler.Compile(functionName, parentClass, context)
     context = context or {}
-    local callable, isSelf, declaringModule = resolveCallable(functionName, parentClass, context)
+    local callable, declaringModule = resolveCallable(functionName, parentClass, context)
     if callable == nil then
         return nil
     end
@@ -391,7 +411,6 @@ function NodeCompiler.Compile(functionName, parentClass, context)
         callable = callable,
         memberMeta = memberMeta,
         paramNames = paramNames,
-        isSelf = isSelf == true,
         displayName = parts[#parts] or functionName,
         declaringModule = declaringModule or ""
     }

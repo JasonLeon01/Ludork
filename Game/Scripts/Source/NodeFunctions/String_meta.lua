@@ -5,46 +5,46 @@ local _METADATA = {
             type = "function",
             parameters = {
                 "value",
-                value = "any",
+                value = "any"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
+            Pure = true
         },
         GetIntFromStr = {
             type = "function",
             parameters = {
                 "value",
-                value = "string",
+                value = "string"
             },
             default = {
-                [1] = "0",
+                [1] = "0"
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         GetFloatFromStr = {
             type = "function",
             parameters = {
                 "value",
-                value = "string",
+                value = "string"
             },
             default = {
-                [1] = "0",
+                [1] = "0"
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
+            Pure = true
         },
         StringConcat = {
             type = "function",
@@ -52,17 +52,17 @@ local _METADATA = {
                 "str1",
                 "str2",
                 str1 = "string",
-                str2 = "string",
+                str2 = "string"
             },
             default = {
                 [1] = "",
-                [2] = "",
+                [2] = ""
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
+            Pure = true
         },
         StringContains = {
             type = "function",
@@ -70,32 +70,32 @@ local _METADATA = {
                 "str1",
                 "str2",
                 str1 = "string",
-                str2 = "string",
+                str2 = "string"
             },
             default = {
                 [1] = "",
-                [2] = "",
+                [2] = ""
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         StringLength = {
             type = "function",
             parameters = {
                 "str1",
-                str1 = "string",
+                str1 = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         StringFind = {
             type = "function",
@@ -103,17 +103,17 @@ local _METADATA = {
                 "str1",
                 "str2",
                 str1 = "string",
-                str2 = "string",
+                str2 = "string"
             },
             default = {
                 [1] = "",
-                [2] = "",
+                [2] = ""
             },
             ["return"] = {
                 "value",
-                value = "int",
+                value = "int"
             },
-            Pure = true,
+            Pure = true
         },
         StringReplace = {
             type = "function",
@@ -123,18 +123,18 @@ local _METADATA = {
                 "str3",
                 str1 = "string",
                 str2 = "string",
-                str3 = "string",
+                str3 = "string"
             },
             default = {
                 [1] = "",
                 [2] = "",
-                [3] = "",
+                [3] = ""
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
+            Pure = true
         },
         StringSplit = {
             type = "function",
@@ -142,85 +142,85 @@ local _METADATA = {
                 "str1",
                 "str2",
                 str1 = "string",
-                str2 = "string",
+                str2 = "string"
             },
             default = {
                 [1] = "",
-                [2] = ",",
+                [2] = ","
             },
             ["return"] = {
                 "value",
-                value = "string[]",
+                value = "string[]"
             },
-            Pure = true,
+            Pure = true
         },
         StringSubstring = {
             type = "function",
             parameters = {
                 "str1",
                 "start",
-                "end",
+                "finish",
                 str1 = "string",
                 start = "int",
-                ["end"] = "int",
+                finish = "int"
             },
             default = {
                 [1] = "",
                 [2] = 0,
-                [3] = 0,
+                [3] = 0
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
+            Pure = true
         },
         StringToLower = {
             type = "function",
             parameters = {
                 "str1",
-                str1 = "string",
+                str1 = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
+            Pure = true
         },
         StringToUpper = {
             type = "function",
             parameters = {
                 "str1",
-                str1 = "string",
+                str1 = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
+            Pure = true
         },
         StringStrip = {
             type = "function",
             parameters = {
                 "str1",
-                str1 = "string",
+                str1 = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {
                 "value",
-                value = "string",
+                value = "string"
             },
-            Pure = true,
-        },
-    },
+            Pure = true
+        }
+    }
 }
 
 return _METADATA

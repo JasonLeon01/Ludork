@@ -5,6 +5,9 @@ local _METADATA = {
             "DefaultCoverAlpha",
             "MapViewRect"
         },
+        bases = {
+            { "GlobalCore", "GameMapBase" }
+        },
         DefaultCoverAlpha = {
             type = "int"
         },
@@ -16,7 +19,13 @@ local _METADATA = {
         },
         getPlayer = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "player",
                 player = {
@@ -29,11 +38,16 @@ local _METADATA = {
         setPlayer = {
             type = "function",
             parameters = {
+                "self",
                 "player",
+                self = { "Global.GameMap", "GameMap" },
                 player = {
                     "Engine",
                     "Actor"
                 }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -43,7 +57,13 @@ local _METADATA = {
         },
         getAllActors = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "actors",
                 actors = {
@@ -56,8 +76,13 @@ local _METADATA = {
         getActorsByPosition = {
             type = "function",
             parameters = {
+                "self",
                 "position",
+                self = { "Global.GameMap", "GameMap" },
                 position = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "actors",
@@ -71,10 +96,15 @@ local _METADATA = {
         getActorByLayerAndPosition = {
             type = "function",
             parameters = {
+                "self",
                 "layer",
                 "position",
+                self = { "Global.GameMap", "GameMap" },
                 layer = "string",
                 position = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "actor",
@@ -88,10 +118,15 @@ local _METADATA = {
         getActorsByRange = {
             type = "function",
             parameters = {
+                "self",
                 "position",
                 "radius",
+                self = { "Global.GameMap", "GameMap" },
                 position = "sf.Vector2i",
                 radius = "int"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "actors",
@@ -105,8 +140,13 @@ local _METADATA = {
         getActorByTag = {
             type = "function",
             parameters = {
+                "self",
                 "tag",
+                self = { "Global.GameMap", "GameMap" },
                 tag = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "actor",
@@ -120,13 +160,18 @@ local _METADATA = {
         isPassable = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
                 "targetPosition",
+                self = { "Global.GameMap", "GameMap" },
                 actor = {
                     "Engine",
                     "Actor"
                 },
                 targetPosition = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "passable",
@@ -137,9 +182,11 @@ local _METADATA = {
         spawnActor = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
                 "layer",
                 "emitCreateEvent",
+                self = { "Global.GameMap", "GameMap" },
                 actor = {
                     "Engine",
                     "Actor"
@@ -148,7 +195,8 @@ local _METADATA = {
                 emitCreateEvent = "bool"
             },
             default = {
-                [3] = true
+                [1] = "self",
+                [4] = true
             },
             ["return"] = {},
             ExecSplit = {
@@ -159,10 +207,12 @@ local _METADATA = {
         createActor = {
             type = "function",
             parameters = {
+                "self",
                 "actorClass",
                 "layer",
                 "kwargs",
                 "emitCreateEvent",
+                self = { "Global.GameMap", "GameMap" },
                 actorClass = {
                     "Engine",
                     "Actor"
@@ -172,7 +222,8 @@ local _METADATA = {
                 emitCreateEvent = "bool"
             },
             default = {
-                [4] = true
+                [1] = "self",
+                [5] = true
             },
             ["return"] = {
                 "actor",
@@ -189,11 +240,16 @@ local _METADATA = {
         destroyActor = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
+                self = { "Global.GameMap", "GameMap" },
                 actor = {
                     "Engine",
                     "Actor"
                 }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -203,7 +259,13 @@ local _METADATA = {
         },
         getCamera = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "camera",
                 camera = { "GlobalCore", "Camera" }
@@ -213,8 +275,13 @@ local _METADATA = {
         setCamera = {
             type = "function",
             parameters = {
+                "self",
                 "camera",
+                self = { "Global.GameMap", "GameMap" },
                 camera = { "GlobalCore", "Camera" }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -224,7 +291,13 @@ local _METADATA = {
         },
         getTilemap = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "tilemap",
                 tilemap = { "Engine", "Tilemap" }
@@ -234,10 +307,15 @@ local _METADATA = {
         getTerrainTile = {
             type = "function",
             parameters = {
+                "self",
                 "layerName",
                 "position",
+                self = { "Global.GameMap", "GameMap" },
                 layerName = "string",
                 position = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "tileID",
@@ -248,10 +326,15 @@ local _METADATA = {
         getTerrainTilePositions = {
             type = "function",
             parameters = {
+                "self",
                 "layerName",
                 "tileID",
+                self = { "Global.GameMap", "GameMap" },
                 layerName = "string",
                 tileID = "any"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "positions",
@@ -262,38 +345,60 @@ local _METADATA = {
         setTerrainTile = {
             type = "function",
             parameters = {
+                "self",
                 "layerName",
                 "position",
                 "tileID",
+                self = { "Global.GameMap", "GameMap" },
                 layerName = "string",
                 position = "sf.Vector2i",
                 tileID = "any"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "success",
                 success = "bool"
             },
-            Pure = true
+            ExecSplit = {
+                "default",
+                default = "nil"
+            }
         },
         setTerrainTiles = {
             type = "function",
             parameters = {
+                "self",
                 "layerName",
                 "positions",
                 "tileID",
+                self = { "Global.GameMap", "GameMap" },
                 layerName = "string",
                 positions = "sf.Vector2i[]",
                 tileID = "any"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "positions",
                 positions = "sf.Vector2i[]"
             },
-            Pure = true
+            ExecSplit = {
+                "default",
+                default = "nil"
+            }
         },
         getLights = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "lights",
                 lights = {
@@ -306,11 +411,16 @@ local _METADATA = {
         setLights = {
             type = "function",
             parameters = {
+                "self",
                 "lights",
+                self = { "Global.GameMap", "GameMap" },
                 lights = {
                     "GlobalCore",
                     "Light[]"
                 }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -321,11 +431,16 @@ local _METADATA = {
         addLight = {
             type = "function",
             parameters = {
+                "self",
                 "light",
+                self = { "Global.GameMap", "GameMap" },
                 light = {
                     "GlobalCore",
                     "Light"
                 }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -336,11 +451,16 @@ local _METADATA = {
         removeLight = {
             type = "function",
             parameters = {
+                "self",
                 "light",
+                self = { "Global.GameMap", "GameMap" },
                 light = {
                     "GlobalCore",
                     "Light"
                 }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -351,13 +471,18 @@ local _METADATA = {
         setLightPosition = {
             type = "function",
             parameters = {
+                "self",
                 "light",
                 "position",
+                self = { "Global.GameMap", "GameMap" },
                 light = {
                     "GlobalCore",
                     "Light"
                 },
                 position = "sf.Vector2f"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -368,13 +493,18 @@ local _METADATA = {
         setLightColour = {
             type = "function",
             parameters = {
+                "self",
                 "light",
                 "colour",
+                self = { "Global.GameMap", "GameMap" },
                 light = {
                     "GlobalCore",
                     "Light"
                 },
                 colour = "sf.Color"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -385,13 +515,18 @@ local _METADATA = {
         setLightRadius = {
             type = "function",
             parameters = {
+                "self",
                 "light",
                 "radius",
+                self = { "Global.GameMap", "GameMap" },
                 light = {
                     "GlobalCore",
                     "Light"
                 },
                 radius = "float"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -402,13 +537,18 @@ local _METADATA = {
         setLightIntensity = {
             type = "function",
             parameters = {
+                "self",
                 "light",
                 "intensity",
+                self = { "Global.GameMap", "GameMap" },
                 light = {
                     "GlobalCore",
                     "Light"
                 },
                 intensity = "float"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -418,7 +558,13 @@ local _METADATA = {
         },
         getAmbientLight = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "ambientLight",
                 ambientLight = "sf.Color"
@@ -428,8 +574,13 @@ local _METADATA = {
         setAmbientLight = {
             type = "function",
             parameters = {
+                "self",
                 "ambientLight",
+                self = { "Global.GameMap", "GameMap" },
                 ambientLight = "sf.Color"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -439,7 +590,13 @@ local _METADATA = {
         },
         getSize = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "size",
                 size = "sf.Vector2u"
@@ -449,8 +606,13 @@ local _METADATA = {
         getTopMaterial = {
             type = "function",
             parameters = {
+                "self",
                 "pos",
+                self = { "Global.GameMap", "GameMap" },
                 pos = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "topMaterial",
@@ -464,10 +626,12 @@ local _METADATA = {
         findPath = {
             type = "function",
             parameters = {
+                "self",
                 "start",
                 "goal",
                 "actor",
                 "excludedAnchors",
+                self = { "Global.GameMap", "GameMap" },
                 start = "sf.Vector2i",
                 goal = "sf.Vector2i",
                 actor = {
@@ -477,7 +641,8 @@ local _METADATA = {
                 excludedAnchors = "sf.Vector2i[]"
             },
             default = {
-                [4] = {}
+                [1] = "self",
+                [5] = {}
             },
             ["return"] = {
                 "path",
@@ -488,13 +653,18 @@ local _METADATA = {
         isPathfindingPassable = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
                 "targetPosition",
+                self = { "Global.GameMap", "GameMap" },
                 actor = {
                     "Engine",
                     "Actor"
                 },
                 targetPosition = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "passable",
@@ -505,13 +675,18 @@ local _METADATA = {
         hasPathBlockingOverlapActor = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
                 "targetPosition",
+                self = { "Global.GameMap", "GameMap" },
                 actor = {
                     "Engine",
                     "Actor"
                 },
                 targetPosition = "sf.Vector2i"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {
                 "hasActor",
@@ -521,7 +696,13 @@ local _METADATA = {
         },
         getScene = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Global.GameMap", "GameMap" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "scene",
                 scene = { "GlobalCore", "SceneBase" }
@@ -531,8 +712,13 @@ local _METADATA = {
         addCommonTip = {
             type = "function",
             parameters = {
+                "self",
                 "text",
+                self = { "Global.GameMap", "GameMap" },
                 text = "string"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -543,10 +729,15 @@ local _METADATA = {
         addDamageText = {
             type = "function",
             parameters = {
+                "self",
                 "text",
                 "position",
+                self = { "Global.GameMap", "GameMap" },
                 text = "string",
                 position = "sf.Vector2f"
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {

@@ -1,6 +1,6 @@
 ---@meta Source.Teleporter
 
----@brief Actor used to move between neighbouring maps in the current region.
+---@brief Actor used to move between neighbouring floors or to a chosen map position.
 ---@class Source.Teleporter.Teleporter: Source.ConditionalActor
 ---@field Offset                sf.Vector2i
 ---@field stairSE               string
@@ -20,6 +20,15 @@ function Teleporter:goUpstairs() end
 
 ---@brief Move to the previous map in the current region.
 function Teleporter:goDownstairs() end
+
+---@brief Move to a chosen map tile without searching for a destination stair.
+--- Records this actor's position including Offset and raw tag on the source map,
+--- and the exact arrival position with an empty tag on the destination map.
+--- Each map retains its own telepoints and region membership. Passing false leaves both records unchanged.
+---@param mapPath  string
+---@param position sf.Vector2i
+---@param record?  boolean     Defaults to true.
+function Teleporter:goToMap(mapPath, position, record) end
 
 ---@brief Get this teleporter's map position plus Offset.
 ---

@@ -710,7 +710,11 @@ public sealed class LuaMetadataService
         {
             if (pair.Key.Type != DataType.String || pair.Value.Type != DataType.Table)
                 continue;
-            LuaNodeMemberMetadata? member = parseNodeMember(pair.Key.String, pair.Value.Table, declaringType);
+            LuaNodeMemberMetadata? member = parseNodeMember(
+                pair.Key.String,
+                pair.Value.Table,
+                declaringType,
+                moduleReturn.Type == DataType.Boolean && moduleReturn.Boolean);
             if (member is null)
                 continue;
             memberNames.Add(member.Name);
@@ -734,7 +738,8 @@ public sealed class LuaMetadataService
     private static LuaNodeMemberMetadata? parseNodeMember(
         string name,
         Table table,
-        LuaTypeReference declaringType
+        LuaTypeReference declaringType,
+        bool moduleReturn
     )
     {
         DynValue memberTypeValue = table.Get("type");
@@ -800,7 +805,8 @@ public sealed class LuaMetadataService
                 : null,
             table.Get("Pure").CastToBool(),
             toJsonObject(table.Get("Meta")),
-            declaringType
+            declaringType,
+            moduleReturn
         );
     }
 

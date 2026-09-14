@@ -3728,8 +3728,8 @@
     "en_GB": "UI assets passed structural checks only. Native control validation has not run; build the C++ project to complete validation."
   },
   "UI_PREVIEW_SNAPSHOT_INVALID": {
-    "zh_CN": "此项目的 UI 注册表与原生预览程序无效或不匹配。源码工程请重新编译；Standalone 工程请更新 Temp 中的预览 JSON 和 Binaries 中配套的预览程序。",
-    "en_GB": "This project's UI registry and native preview runtime are invalid or do not match. Rebuild source projects; update the preview JSON in Temp and the matching preview runtime in Binaries for Standalone projects."
+    "zh_CN": "此项目的 UI 注册表与原生预览程序无效或不匹配。源码工程请重新编译；Standalone 工程请更新 EditorCache 中的预览 JSON 和 Binaries 中配套的预览程序。",
+    "en_GB": "This project's UI registry and native preview runtime are invalid or do not match. Rebuild source projects; update the preview JSON in EditorCache and the matching preview runtime in Binaries for Standalone projects."
   },
   "UI_REGISTRY_CANVAS_REQUIRED": {
     "zh_CN": "此项目的 UI 注册表缺少 Engine.Canvas，无法创建默认 UI 根节点。请恢复该原生控件并重新编译。",

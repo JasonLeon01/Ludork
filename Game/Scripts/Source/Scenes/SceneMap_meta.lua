@@ -7,7 +7,13 @@ local _METADATA = {
         },
         getGameMap = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Scenes.SceneMap", "Scene" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {
                 "gameMap",
                 gameMap = { "Global.GameMap", "GameMap" }
@@ -16,7 +22,13 @@ local _METADATA = {
         },
         openPlayerName = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Scenes.SceneMap", "Scene" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = { "return", ["return"] = "function" },
             Latent = true,
             LatentStates = { "Closed", Closed = { true } }
@@ -24,23 +36,27 @@ local _METADATA = {
         showMessage = {
             type = "function",
             parameters = {
+                "self",
                 "name",
                 "message",
                 "refActor",
                 "localeArgs",
+                self = { "Source.Scenes.SceneMap", "Scene" },
                 name = "string",
                 message = "string",
                 refActor = { "Engine", "Actor" },
                 localeArgs = "Dict[string, any]"
             },
             default = {
-                [4] = {}
+                [1] = "self",
+                [5] = {}
             },
             ["return"] = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "FinishedDialogue",
                 FinishedDialogue = { true }
             }
@@ -48,11 +64,13 @@ local _METADATA = {
         showSelection = {
             type = "function",
             parameters = {
+                "self",
                 "name",
                 "options",
                 "refActor",
                 "allowCancel",
                 "localeArgs",
+                self = { "Source.Scenes.SceneMap", "Scene" },
                 name = "string",
                 options = "string[]",
                 refActor = { "Engine", "Actor" },
@@ -60,14 +78,16 @@ local _METADATA = {
                 localeArgs = "Dict[string, any]"
             },
             default = {
-                [4] = true,
-                [5] = {}
+                [1] = "self",
+                [5] = true,
+                [6] = {}
             },
             ["return"] = {
                 "return",
                 ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Selected0",
                 "Selected1",
                 "Selected2",
@@ -83,8 +103,13 @@ local _METADATA = {
         applyLoadedGame = {
             type = "function",
             parameters = {
+                "self",
                 "inst",
+                self = { "Source.Scenes.SceneMap", "Scene" },
                 inst = { "Source.GameInstance", "GameInstance" }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -94,7 +119,13 @@ local _METADATA = {
         },
         showEnemyBook = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Scenes.SceneMap", "Scene" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {},
             ExecSplit = {
                 "default",
@@ -103,7 +134,13 @@ local _METADATA = {
         },
         showFloorTeleporter = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Scenes.SceneMap", "Scene" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {},
             ExecSplit = {
                 "default",
@@ -112,7 +149,13 @@ local _METADATA = {
         },
         openMenu = {
             type = "function",
-            parameters = {},
+            parameters = {
+                "self",
+                self = { "Source.Scenes.SceneMap", "Scene" }
+            },
+            default = {
+                [1] = "self"
+            },
             ["return"] = {},
             ExecSplit = {
                 "default",
@@ -122,8 +165,13 @@ local _METADATA = {
         recordAddedActor = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
+                self = { "Source.Scenes.SceneMap", "Scene" },
                 actor = { "Engine", "Actor" }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {
@@ -134,9 +182,17 @@ local _METADATA = {
         recordActorPosition = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
-                actor = { "Engine", "Actor" }
+                "position",
+                self = { "Source.Scenes.SceneMap", "Scene" },
+                actor = { "Engine", "Actor" },
+                position = "sf.Vector2i"
             },
+            default = {
+                [1] = "self"
+            },
+            defaultUnset = { "position" },
             ["return"] = {},
             ExecSplit = {
                 "default",
@@ -146,8 +202,13 @@ local _METADATA = {
         recordDestroyedActor = {
             type = "function",
             parameters = {
+                "self",
                 "actor",
+                self = { "Source.Scenes.SceneMap", "Scene" },
                 actor = { "Engine", "Actor" }
+            },
+            default = {
+                [1] = "self"
             },
             ["return"] = {},
             ExecSplit = {

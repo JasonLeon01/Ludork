@@ -93,7 +93,10 @@ public sealed class BlueprintVariableFieldBuilder
             assetSubdirectory,
             relatedFieldName);
         JsonNode? value = port.Value?.DeepClone();
-        bool constructedType = isConstructedNodeType(type);
+        bool receiver = port.ParameterIndex == 0
+            && port.Name == "self"
+            && namedReference?.ModuleName is not null;
+        bool constructedType = !receiver && isConstructedNodeType(type);
         string editorType = constructedType ? "any[]" : type.ToString();
         return new BlueprintVariableField(port.Name, editorType, value)
         {
@@ -103,7 +106,7 @@ public sealed class BlueprintVariableFieldBuilder
             Meta = meta,
             UseJsonTableEditor = constructedType,
             PreserveNullValue = true,
-            EditorKind = editorKind,
+            EditorKind = receiver ? BlueprintVariableEditorKind.ObjectReference : editorKind,
             RelatedFieldName = relatedFieldName,
             AssetSubdirectory = assetSubdirectory,
             Options = getNodeParameterOptions(port.Name, meta),

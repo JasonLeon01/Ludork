@@ -7,12 +7,12 @@ local _METADATA = {
                 "attr",
                 "value",
                 attr = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 DropBox = {
@@ -34,10 +34,10 @@ local _METADATA = {
                         "maxDistance",
                         "minGain",
                         "maxGain",
-                        "attenuation",
-                    },
-                },
-            },
+                        "attenuation"
+                    }
+                }
+            }
         },
         EditMusicFilter = {
             type = "function",
@@ -45,12 +45,12 @@ local _METADATA = {
                 "attr",
                 "value",
                 attr = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 DropBox = {
@@ -73,10 +73,10 @@ local _METADATA = {
                         "minGain",
                         "maxGain",
                         "attenuation",
-                        "loopPoint",
-                    },
-                },
-            },
+                        "loopPoint"
+                    }
+                }
+            }
         },
         PlaySound = {
             type = "function",
@@ -84,24 +84,24 @@ local _METADATA = {
                 "soundFileName",
                 "applyFilter",
                 soundFileName = "string",
-                applyFilter = "bool",
+                applyFilter = "bool"
             },
             default = {
-                [2] = false,
+                [2] = false
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 PathVars = {
                     {
                         "soundFileName",
-                        "/Game/Assets/Sounds",
-                    },
-                },
-            },
+                        "/Game/Assets/Sounds"
+                    }
+                }
+            }
         },
         PlayMusic = {
             type = "function",
@@ -109,24 +109,24 @@ local _METADATA = {
                 "musicFileName",
                 "applyFilter",
                 musicFileName = "string",
-                applyFilter = "bool",
+                applyFilter = "bool"
             },
             default = {
-                [2] = false,
+                [2] = false
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 PathVars = {
                     {
                         "musicFileName",
-                        "/Game/Assets/Musics",
-                    },
-                },
-            },
+                        "/Game/Assets/Musics"
+                    }
+                }
+            }
         },
         PlayVideo = {
             type = "function",
@@ -136,40 +136,40 @@ local _METADATA = {
                 "skipable",
                 videoFileName = "string",
                 mute = "bool",
-                skipable = "bool",
+                skipable = "bool"
             },
             default = {
                 [2] = false,
-                [3] = true,
+                [3] = true
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 PathVars = {
                     {
                         "videoFileName",
-                        "/Game/Assets/Videos",
-                    },
-                },
-            },
+                        "/Game/Assets/Videos"
+                    }
+                }
+            }
         },
         FreezeTransitionBackground = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Frozen",
                 Frozen = {
-                    true,
-                },
-            },
+                    true
+                }
+            }
         },
         RequestTransition = {
             type = "function",
@@ -177,30 +177,31 @@ local _METADATA = {
                 "transitionName",
                 "transitionTime",
                 transitionName = "string",
-                transitionTime = "float",
+                transitionTime = "float"
             },
             default = {
                 [1] = "",
-                [2] = 1.0,
+                [2] = 1.0
             },
             ["return"] = {
                 "return",
-                ["return"] = "function",
+                ["return"] = "function"
             },
-            Latent = {
+            Latent = true,
+            LatentStates = {
                 "Finished",
                 Finished = {
-                    true,
-                },
+                    true
+                }
             },
             Meta = {
                 PathVars = {
                     {
                         "transitionName",
-                        "/Game/Assets/Transitions",
-                    },
-                },
-            },
+                        "/Game/Assets/Transitions"
+                    }
+                }
+            }
         },
         SetBgmFilter = {
             type = "function",
@@ -208,12 +209,12 @@ local _METADATA = {
                 "attr",
                 "value",
                 attr = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 DropBox = {
@@ -236,10 +237,10 @@ local _METADATA = {
                         "minGain",
                         "maxGain",
                         "attenuation",
-                        "loopPoint",
-                    },
-                },
-            },
+                        "loopPoint"
+                    }
+                }
+            }
         },
         SetBgsFilter = {
             type = "function",
@@ -247,12 +248,12 @@ local _METADATA = {
                 "attr",
                 "value",
                 attr = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 DropBox = {
@@ -274,10 +275,10 @@ local _METADATA = {
                         "maxDistance",
                         "minGain",
                         "maxGain",
-                        "attenuation",
-                    },
-                },
-            },
+                        "attenuation"
+                    }
+                }
+            }
         },
         SetEffect = {
             type = "function",
@@ -285,29 +286,29 @@ local _METADATA = {
                 "audioType",
                 "effect",
                 audioType = "string",
-                effect = "string",
+                effect = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 DropBox = {
                     audioType = {
                         "Sound",
                         "Voice",
-                        "Music",
+                        "Music"
                     },
                     effect = {
                         "nil",
                         "Echo",
                         "Distortion",
                         "Underwater",
-                        "BehindWall",
-                    },
-                },
-            },
+                        "BehindWall"
+                    }
+                }
+            }
         },
         FlashScreen = {
             type = "function",
@@ -321,30 +322,29 @@ local _METADATA = {
                 green = "int",
                 blue = "int",
                 alpha = "int",
-                duration = "float",
+                duration = "float"
             },
             default = {
                 [1] = 255,
                 [2] = 255,
                 [3] = 255,
                 [4] = 255,
-                [5] = 0.5,
+                [5] = 0.5
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         StopFlashScreen = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ChangeScreenTone = {
             type = "function",
@@ -358,35 +358,35 @@ local _METADATA = {
                 green = "int",
                 blue = "int",
                 gray = "int",
-                duration = "float",
+                duration = "float"
             },
             default = {
                 [1] = 0,
                 [2] = 0,
                 [3] = 0,
                 [4] = 0,
-                [5] = 0.0,
+                [5] = 0.0
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ClearScreenTone = {
             type = "function",
             parameters = {
                 "duration",
-                duration = "float",
+                duration = "float"
             },
             default = {
-                [1] = 0.0,
+                [1] = 0.0
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         ScreenShake = {
             type = "function",
@@ -396,28 +396,27 @@ local _METADATA = {
                 "duration",
                 power = "float",
                 speed = "float",
-                duration = "float",
+                duration = "float"
             },
             default = {
                 [1] = 4.0,
                 [2] = 10.0,
-                [3] = 0.5,
+                [3] = 0.5
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         StopScreenShake = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SetWeather = {
             type = "function",
@@ -427,16 +426,16 @@ local _METADATA = {
                 "maxCount",
                 weatherType = "string",
                 power = "int",
-                maxCount = "int",
+                maxCount = "int"
             },
             default = {
                 [2] = 40,
-                [3] = 80,
+                [3] = 80
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 DropBox = {
@@ -444,22 +443,21 @@ local _METADATA = {
                         "LOC(\"WEATHER_TYPE_NONE\")",
                         "LOC(\"WEATHER_TYPE_RAIN\")",
                         "LOC(\"WEATHER_TYPE_STORM\")",
-                        "LOC(\"WEATHER_TYPE_SNOW\")",
-                    },
-                },
-            },
+                        "LOC(\"WEATHER_TYPE_SNOW\")"
+                    }
+                }
+            }
         },
         ClearWeather = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
-        },
-    },
+                default = "nil"
+            }
+        }
+    }
 }
 
 return _METADATA

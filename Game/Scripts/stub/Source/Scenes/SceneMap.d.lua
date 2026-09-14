@@ -1,9 +1,11 @@
 ---@meta Source.Scenes.SceneMap
 
----@class Source.Scenes.SceneMap.PendingFloorTransfer
----@field targetMap   string
----@field anchorPos   sf.Vector2i
----@field moveEnabled boolean
+---@class Source.Scenes.SceneMap.PendingTeleporterTransfer
+---@field targetMap      string
+---@field targetPosition sf.Vector2i
+---@field moveEnabled    boolean
+---@field findNearest    boolean
+---@field record         boolean
 
 ---@class Source.Scenes.SceneMap.PendingWorldTransfer
 ---@field targetMap      string
@@ -60,7 +62,7 @@
 ---@field _mapClickMoveBlockedUntilLateTick     boolean
 ---@field _mapInputBlockFrames                  integer
 ---@field _pendingMenuOpen                      boolean
----@field _pendingFloorTransfer                 Source.Scenes.SceneMap.PendingFloorTransfer | nil
+---@field _pendingTeleporterTransfer            Source.Scenes.SceneMap.PendingTeleporterTransfer | nil
 ---@field _pendingWorldTransfer                 Source.Scenes.SceneMap.PendingWorldTransfer | nil
 ---@field _mapTransferInProgress                boolean
 ---@field _worldEnvironmentKey                  string | nil
@@ -233,11 +235,13 @@ function Scene:openShop(buyItemIDs, canSell) end
 ---@return function
 function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName) end
 
----@param targetMap   string
----@param anchorPos   sf.Vector2i
----@param moveEnabled boolean
+---@param targetMap      string
+---@param targetPosition sf.Vector2i
+---@param moveEnabled    boolean
+---@param findNearest    boolean
+---@param record         boolean
 ---@return boolean
-function Scene:requestFloorTransfer(targetMap, anchorPos, moveEnabled) end
+function Scene:requestTeleporterTransfer(targetMap, targetPosition, moveEnabled, findNearest, record) end
 
 ---@brief Transition to a map and set the player position.
 ---
