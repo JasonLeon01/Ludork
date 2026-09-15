@@ -12,6 +12,7 @@
 #include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiLayoutEngine.hpp>
+#include <UI/WrapBox.hpp>
 #include <Runtime/Json.hpp>
 
 #include <algorithm>
@@ -158,6 +159,51 @@ std::shared_ptr<UiRuntimeNode> buildNode(
     UiAssetInstanceState& impl,
     ludork::engine::ui_asset_runtime_impl::BuildContext& context,
     std::unordered_set<std::string>& localNames, bool root);
+
+void registerTemplateNames(const RuntimeData& value, const std::string& source,
+                           std::unordered_set<std::string>& localNames) {
+    const RuntimeData::Map& node = requireMap(value, source);
+    const auto nameValue = findValue(node, "name");
+    const auto childrenValue = findValue(node, "children");
+    if (!nameValue || !childrenValue) {
+        throw std::invalid_argument(source + " requires name and children");
+    }
+    const std::string name = requireString(*nameValue, source + ".name");
+    if (!localNames.insert(name).second) {
+        throw std::invalid_argument("Duplicate UI node name " + name);
+    }
+    const auto& children = requireArray(*childrenValue, source + ".children");
+    for (std::size_t i = 0; i < children.size(); ++i) {
+        registerTemplateNames(children[i],
+                              source + ".children[" + std::to_string(i) + "]",
+                              localNames);
+    }
+}
+
+std::shared_ptr<UiAssetInstance> buildTemplateInstance(
+    const RuntimeData& value, const std::string& source,
+    const std::string& assetKey,
+    ludork::engine::ui_asset_runtime_impl::BuildContext& context) {
+    auto impl = std::make_shared<UiAssetInstanceState>();
+    impl->assetKey = assetKey;
+    std::unordered_set<std::string> localNames;
+    impl->root = buildNode(value, source, *impl, context, localNames, true);
+    impl->designSize = impl->root->nestedImpl != nullptr
+                           ? impl->root->nestedImpl->designSize
+                           : impl->root->control->getSize();
+    impl->logicalSize = impl->root->nestedImpl != nullptr
+                            ? impl->root->nestedImpl->logicalSize
+                            : impl->designSize;
+    for (const auto& [name, nested] : impl->nestedImpls) {
+        nested->parentImpl = impl;
+        nested->parentNodeName = name;
+    }
+    if (impl->root->nestedImpl == nullptr) {
+        ludork::engine::ui_asset_runtime_impl::installAnimationUpdater(impl);
+    }
+    UiLayoutEngine::reflow(*impl, impl->logicalSize);
+    return std::make_shared<UiAssetInstance>(std::move(impl));
+}
 
 void attachChildren(const std::shared_ptr<UiRuntimeNode>& node,
                     const std::string& source) {
@@ -329,6 +375,42 @@ std::shared_ptr<UiRuntimeNode> buildNode(
     }
     result->control->setName(result->name);
 
+    if (WrapBox* box = ludork::Cast<WrapBox>(result->control.get());
+        box != nullptr && result->nestedImpl == nullptr) {
+        if (children.size() > 1) {
+            throw std::invalid_argument(
+                source + " control accepts only one template child");
+        }
+        if (!children.empty()) {
+            const std::string templateSource = source + ".children[0]";
+            registerTemplateNames(children.front(), templateSource, localNames);
+            RuntimeData::Map templateNode =
+                requireMap(children.front(), templateSource);
+            const auto templateSlot = findValue(templateNode, "slot");
+            if (!templateSlot ||
+                !requireMap(*templateSlot, templateSource + ".slot").empty()) {
+                throw std::invalid_argument(
+                    templateSource + ".slot must be empty under a List Slot");
+            }
+            templateNode.erase("slot");
+            auto factory = [templateNode = RuntimeData(std::move(templateNode)),
+                            templateSource, assetKey = impl.assetKey,
+                            loader = context.loader,
+                            designMode = context.designMode,
+                            assetStack = context.assetStack]() {
+                ludork::engine::ui_asset_runtime_impl::BuildContext
+                    templateContext{loader, designMode, assetStack};
+                return buildTemplateInstance(templateNode, templateSource,
+                                             assetKey, templateContext);
+            };
+            if (box->getCount() == 0) {
+                static_cast<void>(factory());
+            }
+            box->setTemplateFactory(std::move(factory));
+        }
+        return result;
+    }
+
     result->children.reserve(children.size());
     for (std::size_t index = 0; index < children.size(); ++index) {
         const std::string childSource =
@@ -488,8 +570,8 @@ std::shared_ptr<UiAssetInstance> UiAssetRuntime::instantiateSnapshot(
         static_cast<void>(validateLogicalAssetKey(dependencyKey));
     }
     ludork::engine::ui_asset_runtime_impl::AssetLoader loader =
-        [&asset, &assetKey,
-         &dependencies](const std::string& requestedKey) -> RuntimeData {
+        [asset, assetKey,
+         dependencies](const std::string& requestedKey) -> RuntimeData {
         if (requestedKey == assetKey) {
             return asset;
         }

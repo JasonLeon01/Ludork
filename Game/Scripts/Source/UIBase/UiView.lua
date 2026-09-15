@@ -34,6 +34,9 @@ local function clearControlCallbacks(control)
         ---@cast control Engine.TextBox
         control:setOnTextChanged(nil)
         control:setOnEditingChanged(nil)
+    elseif Class.isInstance(control, Engine.WrapBox) then
+        ---@cast control Engine.WrapBox
+        control:dispose()
     elseif Class.isInstance(control, Engine.EmitterView) then
         ---@cast control Engine.EmitterView
         control:dispose()

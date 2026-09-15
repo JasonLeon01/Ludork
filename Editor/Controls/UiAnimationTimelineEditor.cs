@@ -389,7 +389,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
 
     private void addInheritedChoices()
     {
-        foreach (JsonObject node in UiAssetSchema.EnumerateNodes(document.Data))
+        foreach (JsonObject node in UiAssetSchema.EnumerateNodes(document.Data, false))
         {
             string controlId = stringValue(node["controlId"]);
             if (!UiAssetSchema.TryGetProjectAssetKey(controlId, out string assetKey))
@@ -427,7 +427,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         string? selected = currentChoice()?.Target;
         targets.Clear();
         targets.Add(new TargetChoice(null, LocaleService.Get("UI_ANIMATION_GLOBAL")));
-        foreach (JsonObject node in UiAssetSchema.EnumerateNodes(document.Data))
+        foreach (JsonObject node in UiAssetSchema.EnumerateNodes(document.Data, false))
         {
             string name = stringValue(node["name"]);
             if (name.Length != 0)

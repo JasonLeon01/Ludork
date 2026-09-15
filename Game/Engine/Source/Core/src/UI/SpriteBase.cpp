@@ -44,6 +44,7 @@ void SpriteBase::setTexture(std::shared_ptr<sf::Texture> texture,
     }
     texture_ = std::move(texture);
     sprite_->setTexture(*texture_, resetRect);
+    onTextureChanged();
 }
 
 const sf::Texture& SpriteBase::getTexture() const {
@@ -51,7 +52,11 @@ const sf::Texture& SpriteBase::getTexture() const {
 }
 
 void SpriteBase::setTextureRect(const sf::IntRect& rect) {
+    if (sprite_->getTextureRect() == rect) {
+        return;
+    }
     sprite_->setTextureRect(rect);
+    onTextureChanged();
 }
 
 sf::IntRect SpriteBase::getTextureRect() const {
@@ -90,6 +95,8 @@ void SpriteBase::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     states.blendMode = renderStates_.blendMode;
     target.draw(*sprite_, states);
 }
+
+void SpriteBase::onTextureChanged() {}
 
 void SpriteBase::setPremultipliedTexture(bool premultiplied) {
     premultipliedTexture_ = premultiplied;

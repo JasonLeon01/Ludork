@@ -13,9 +13,31 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <utility>
+#include <variant>
+
+namespace {
+
+Image::DrawAs imageDrawAs(const UiControlPropertyValue& value) {
+    if (const auto drawAs = std::get_if<Image::DrawAs>(&value)) {
+        return *drawAs;
+    }
+    if (const auto number = std::get_if<std::int64_t>(&value)) {
+        if (*number == static_cast<std::int64_t>(Image::DrawAs::Image)) {
+            return Image::DrawAs::Image;
+        }
+        if (*number == static_cast<std::int64_t>(Image::DrawAs::Tile)) {
+            return Image::DrawAs::Tile;
+        }
+    }
+    throw std::invalid_argument("drawAs must be an ImageDrawAs member");
+}
+
+}  // namespace
 
 void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
     UiControlAdapterRegistry& registry) {
@@ -157,6 +179,10 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
         std::shared_ptr<Image> result = std::make_shared<Image>(
             loadTexture(stringProperty(properties, "texture")),
             optionalIntRectProperty(properties, "textureRect"));
+        if (const auto drawAs = properties.find("drawAs");
+            drawAs != properties.end()) {
+            result->setDrawAs(imageDrawAs(drawAs->second));
+        }
         result->setColour(
             colorProperty(properties, "colour", sf::Color::White));
         return result;
@@ -176,6 +202,8 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             } else {
                 image.setTextureRect(requireIntRect(value, "textureRect"));
             }
+        } else if (propertyId == "drawAs") {
+            image.setDrawAs(imageDrawAs(value));
         } else if (propertyId == "colour") {
             image.setColour(requireColor(value, "colour"));
         } else {
@@ -253,6 +281,10 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             std::make_shared<FunctionalImage>(
                 loadTexture(stringProperty(properties, "texture")),
                 optionalIntRectProperty(properties, "textureRect"));
+        if (const auto drawAs = properties.find("drawAs");
+            drawAs != properties.end()) {
+            result->setDrawAs(imageDrawAs(drawAs->second));
+        }
         result->setColour(
             colorProperty(properties, "colour", sf::Color::White));
         return result;
@@ -274,6 +306,8 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             } else {
                 image.setTextureRect(requireIntRect(value, "textureRect"));
             }
+        } else if (propertyId == "drawAs") {
+            image.setDrawAs(imageDrawAs(value));
         } else if (propertyId == "colour") {
             image.setColour(requireColor(value, "colour"));
         } else {

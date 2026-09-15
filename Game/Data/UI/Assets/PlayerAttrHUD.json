@@ -235,54 +235,19 @@
         ]
       },
       {
-        "name": "HpBack",
-        "controlId": "Engine.SolidRect",
+        "name": "HpBar",
+        "controlId": "Engine.ProgressBar",
         "properties": {
           "size": [
             144.0,
             8.0
           ],
-          "fillColor": [
+          "progress": 1.0,
+          "backgroundColor": [
             24,
             24,
             24,
             220
-          ]
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              1.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 140.0,
-            "right": 0.0,
-            "bottom": 8.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": false,
-          "zOrder": 4
-        },
-        "editor": {},
-        "children": []
-      },
-      {
-        "name": "HpFill",
-        "controlId": "Engine.SolidRect",
-        "properties": {
-          "size": [
-            144.0,
-            8.0
           ],
           "fillColor": [
             0,
@@ -313,7 +278,7 @@
             0.0
           ],
           "autoSize": false,
-          "zOrder": 5
+          "zOrder": 4
         },
         "editor": {},
         "children": []

@@ -8,6 +8,7 @@ target_sources(UiPreviewHostExecutable PRIVATE
     Rendering/PixelConversion.cpp
     UI/UiPreviewDrawing.cpp
     UI/UiPreviewInstantiation.cpp
+    UI/UiPreviewReparent.cpp
     UI/UiPreviewSession.cpp
     UiPreviewHost.cpp)
 

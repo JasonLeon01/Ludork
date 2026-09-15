@@ -14,9 +14,6 @@
 ---@field _avatarRect            sf.IntRect | nil
 ---@field _avatarSize            integer
 ---@field _infoStartX            integer
----@field _hpBarWidth            integer
----@field _logicalSize           sf.Vector2u
----@field _hpRate                number
 ---@field _language              string
 ---@field _headerSignature       tuple<any> | nil
 ---@field _combatSignature       tuple<any> | nil

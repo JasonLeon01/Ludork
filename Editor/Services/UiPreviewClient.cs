@@ -214,6 +214,50 @@ public sealed class UiPreviewClient : IAsyncDisposable
         }
     }
 
+    public async Task<JsonObject?> ResolveReparentSlotAsync(
+        string assetKey,
+        JsonObject asset,
+        IReadOnlyDictionary<string, JsonObject> dependencies,
+        string nodeName,
+        string parentName,
+        int index,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await StartAsync(cancellationToken))
+            return null;
+        JsonObject dependencyData = new();
+        foreach (KeyValuePair<string, JsonObject> pair in dependencies)
+            dependencyData[pair.Key] = pair.Value.DeepClone();
+        JsonObject request = new()
+        {
+            ["type"] = "resolveReparent",
+            ["assetKey"] = assetKey,
+            ["asset"] = asset.DeepClone(),
+            ["dependencies"] = dependencyData,
+            ["nodeName"] = nodeName,
+            ["parentName"] = parentName,
+            ["index"] = index,
+        };
+        try
+        {
+            JsonObject response = await connection.ExchangeAsync(request, CancellationToken.None);
+            if (cancellationToken.IsCancellationRequested || !connection.IsReady)
+                return null;
+            if (getString(response, "type") != "reparentSlot" || response["slot"] is not JsonObject slot)
+            {
+                setState(UiPreviewClientState.Faulted,
+                    getString(response, "message", "UiPreviewHost returned an invalid reparent Slot."));
+                return null;
+            }
+            return (JsonObject)slot.DeepClone();
+        }
+        catch (Exception exception) when (PreviewHostConnection.IsProtocolException(exception))
+        {
+            setState(UiPreviewClientState.Faulted, exception.Message);
+            return null;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (disposed)

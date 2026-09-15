@@ -36,6 +36,7 @@ public:
     void reset() noexcept;
     RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
     RuntimeData hitTest(const RuntimeData::Map& request) const;
+    RuntimeData resolveReparent(const RuntimeData::Map& request);
 
 private:
     void resetContent() noexcept;

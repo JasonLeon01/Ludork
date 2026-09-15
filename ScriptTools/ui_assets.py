@@ -151,6 +151,12 @@ def _validate_property_semantics(
     ):
         raise UiAssetError(f"{label} must not be empty")
     if (
+        control_id == "Engine.WrapBox"
+        and property_id == "count"
+        and _integer(value, label) < 0
+    ):
+        raise UiAssetError(f"{label} cannot be negative")
+    if (
         control_id in {"Engine.Canvas", "Engine.Window"}
         and property_id == "size"
         and isinstance(value, list)
@@ -161,7 +167,10 @@ def _validate_property_semantics(
     ):
         raise UiAssetError(f"{label} components must not exceed {INT32_MAX}")
     if (
-        property_id == "scale"
+        (
+            property_id == "scale"
+            or control_id == "Engine.WrapBox" and property_id == "size"
+        )
         and isinstance(value, list)
         and any(
             _float_number(component, f"{label}[{index}]") < 0.0
@@ -507,7 +516,7 @@ def _validate_node(
     child_policy = descriptor.get("childPolicy")
     if child_policy == "none" and children:
         raise UiAssetError(f"{path} control cannot contain children")
-    if child_policy == "single" and len(children) > 1:
+    if (child_policy == "single" or control_id == "Engine.WrapBox") and len(children) > 1:
         raise UiAssetError(f"{path} control accepts only one child")
     if child_policy not in {"none", "single", "multiple"}:
         raise UiAssetError(f"{path} has an invalid child policy")
@@ -522,6 +531,15 @@ def _validate_node(
             asset_references,
             registry,
         )
+
+
+def _reference_nodes(node: dict[str, object]) -> list[dict[str, object]]:
+    result = [node]
+    control_id = str(node["controlId"])
+    if control_id != "Engine.WrapBox" and not control_id.startswith("Project:"):
+        for child in node["children"]:
+            result.extend(_reference_nodes(child))
+    return result
 
 
 def _validate_animation_track(
@@ -662,7 +680,10 @@ def _validate_asset(
         references,
         registry,
     )
-    _validate_animations(value.get("animations"), f"{path}.animations", node_names)
+    animation_targets = {
+        str(node["name"]) for node in _reference_nodes(value["root"])
+    }
+    _validate_animations(value.get("animations"), f"{path}.animations", animation_targets)
     return references
 
 

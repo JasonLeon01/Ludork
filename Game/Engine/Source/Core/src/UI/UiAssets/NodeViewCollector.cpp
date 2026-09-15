@@ -1,6 +1,8 @@
 #include "NodeViewCollector.hpp"
 
 #include <UI/UiControlAdapterRegistry.hpp>
+#include <UI/UiAssetInstance.hpp>
+#include <UI/WrapBox.hpp>
 
 #include <algorithm>
 
@@ -18,6 +20,22 @@ void collect(const std::shared_ptr<RuntimeNode>& node,
     view.drawOrder = drawOrder++;
     result.push_back(std::move(view));
     if (node->nestedImpl != nullptr) {
+        return;
+    }
+    if (const auto box = ludork::Cast<WrapBox>(node->control.get())) {
+        box->applyPositions();
+        for (const auto& instance : box->getInstances()) {
+            for (const auto& item : instance->getNodeViews()) {
+                NodeView repeated;
+                repeated.nodeName = item.nodeName;
+                repeated.control = item.control;
+                repeated.bounds = item.bounds;
+                repeated.nestedBoundary = item.nestedBoundary;
+                repeated.zOrder = item.zOrder;
+                repeated.drawOrder = drawOrder++;
+                result.push_back(std::move(repeated));
+            }
+        }
         return;
     }
     std::vector<std::shared_ptr<RuntimeNode>> children = node->children;

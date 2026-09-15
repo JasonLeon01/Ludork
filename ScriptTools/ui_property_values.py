@@ -96,6 +96,11 @@ def _validate_property_type(
     elif value_type == "Engine.TextGradientDirection":
         if not isinstance(value, str) or value not in {"vertical", "horizontal"}:
             raise UiAssetError(f"{label} must be vertical or horizontal")
+    elif value_type == "Engine.ImageDrawAs":
+        if not isinstance(value, str) or value not in {"Image", "Tile"}:
+            raise UiAssetError(
+                f"{label} must name an Engine.ImageDrawAs member: Image or Tile"
+            )
     elif value_type == "string[]":
         if not isinstance(value, list) or any(
             not isinstance(item, str) for item in value

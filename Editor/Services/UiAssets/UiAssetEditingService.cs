@@ -211,21 +211,9 @@ public sealed class UiAssetEditingService
             return false;
         }
         IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
-        if (position == DropPosition.Inside && canAcceptChild(target, nodeName, controls))
+        if (!tryGetDropLocation(document, target, nodeName, position, controls, out parentName, out index))
         {
-            parentName = targetNodeName;
-            index = target["children"] is JsonArray children ? children.Count : 0;
-        }
-        else
-        {
-            if (!tryGetNodeLocation(document, targetNodeName, out JsonObject? targetParent, out _, out int targetIndex)
-                || targetParent is null
-                || !canAcceptChild(targetParent, nodeName, controls))
-            {
-                return false;
-            }
-            parentName = getString(targetParent, "name");
-            index = targetIndex + (position == DropPosition.After ? 1 : 0);
+            return false;
         }
         if (sourceParent is not null
             && string.Equals(getString(sourceParent, "name"), parentName, StringComparison.Ordinal)
@@ -236,9 +224,59 @@ public sealed class UiAssetEditingService
         return TryGetMoveLocation(document, nodeName, parentName, index, out index);
     }
 
-    internal JsonObject CreateSlot(JsonObject parent)
+    internal bool TryGetControlDropLocation(
+        UiAssetEditorDocument document,
+        string controlId,
+        string targetNodeName,
+        DropPosition position,
+        out string parentName,
+        out int index,
+        out Failure failure)
     {
-        return createSlot(parent, controlRegistry.CreateControlLookup());
+        parentName = string.Empty;
+        index = 0;
+        failure = Failure.UnknownControl;
+        IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
+        if (!controlRegistry.IsReady || !controls.TryGetValue(controlId, out UiControlDescriptor? descriptor))
+            return false;
+        JsonObject? target = document.FindNode(targetNodeName);
+        failure = Failure.SelectContainer;
+        if (target is null)
+            return false;
+        failure = Failure.ContainerRejectsChild;
+        if (!tryGetDropLocation(document, target, null, position, controls, out parentName, out index))
+        {
+            return false;
+        }
+        UiAssetDependencyGraph graph = new(gameData.UiAssetsData, document.AssetKey, document.Data);
+        return canInsertControl(document, descriptor, graph, out failure);
+    }
+
+    private static bool tryGetDropLocation(
+        UiAssetEditorDocument document,
+        JsonObject target,
+        string? movingNodeName,
+        DropPosition position,
+        IReadOnlyDictionary<string, UiControlDescriptor> controls,
+        out string parentName,
+        out int index)
+    {
+        parentName = string.Empty;
+        index = 0;
+        if (position == DropPosition.Inside && canAcceptChild(target, movingNodeName, controls))
+        {
+            parentName = getString(target, "name");
+            index = target["children"] is JsonArray children ? children.Count : 0;
+            return true;
+        }
+        if (!tryGetNodeLocation(document, getString(target, "name"), out JsonObject? parent, out _, out int targetIndex)
+            || parent is null || !canAcceptChild(parent, movingNodeName, controls))
+        {
+            return false;
+        }
+        parentName = getString(parent, "name");
+        index = targetIndex + (position == DropPosition.After ? 1 : 0);
+        return true;
     }
 
     public static JsonObject CreateDefaultCanvasSlot()

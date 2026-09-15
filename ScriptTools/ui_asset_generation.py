@@ -14,6 +14,7 @@ from .ui_assets import (
     _asset_key_from_path,
     _is_link,
     _load_json,
+    _reference_nodes,
     validate_assets,
 )
 from .ui_property_values import UiAssetError
@@ -54,14 +55,6 @@ def _type_key(asset_key: str) -> str:
 
 def _field_name(name: str) -> str:
     return name if _identifier(name) else f"[{_lua_string(name)}]"
-
-
-def _nodes(node: dict[str, object]) -> list[dict[str, object]]:
-    result = [node]
-    if not str(node["controlId"]).startswith("Project:"):
-        for child in node["children"]:
-            result.extend(_nodes(child))
-    return result
 
 
 def _root_type(asset_key: str, assets: dict[str, dict[str, object]]) -> str:
@@ -106,7 +99,7 @@ def _render(asset_key: str, assets: dict[str, dict[str, object]]) -> tuple[str, 
     meta = module if all(_identifier(part) for part in module.split(".")) else _lua_string(module)
     controls: list[tuple[str, str]] = []
     nested_assets: list[tuple[str, str]] = []
-    for node in sorted(_nodes(value["root"]), key=lambda node: node["name"]):
+    for node in sorted(_reference_nodes(value["root"]), key=lambda node: node["name"]):
         if str(node["controlId"]).startswith("Project:"):
             nested_assets.append((str(node["name"]), str(node["controlId"]).removeprefix("Project:")))
         else:

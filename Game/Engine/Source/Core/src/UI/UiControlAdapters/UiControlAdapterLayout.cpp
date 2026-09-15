@@ -5,6 +5,7 @@
 #include <UI/Canvas.hpp>
 #include <UI/ListView.hpp>
 #include <UI/ScrollBox.hpp>
+#include <UI/WrapBox.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -145,4 +146,44 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
         list.applyPositions();
     };
     registry.registerAdapter<ListViewUiControlAdapterTag>(std::move(listView));
+
+    UiControlAdapterRegistry::Adapter wrapBox;
+    wrapBox.factory = [](const UiControlProperties& properties) {
+        return std::make_shared<WrapBox>(
+            vector2fProperty(properties, "size", {100.0f, 100.0f}),
+            intProperty(properties, "count", 1),
+            vector2fProperty(properties, "spacing", {0.0f, 0.0f}));
+    };
+    wrapBox.setter = [](ControlBase& control, const std::string& propertyId,
+                        const UiControlPropertyValue& value) {
+        WrapBox& box = requireControlType<WrapBox>(control, "Engine.WrapBox");
+        if (propertyId == "size") {
+            box.setSize(requireVector2f(value, "size"));
+        } else if (propertyId == "count") {
+            box.setCount(requireInt(value, "count"));
+        } else if (propertyId == "spacing") {
+            box.setSpacing(requireVector2f(value, "spacing"));
+        } else {
+            throw std::invalid_argument("Unknown WrapBox property " +
+                                        propertyId);
+        }
+    };
+    wrapBox.arranger = [](ControlBase& control, const sf::Vector2f& size,
+                          const sf::Vector2f& renderScale) {
+        WrapBox& box = requireControlType<WrapBox>(control, "Engine.WrapBox");
+        box.setSize(size);
+        box.setScale(renderScale);
+    };
+    wrapBox.childAttacher =
+        [](ControlBase&,
+           const std::vector<std::shared_ptr<ControlBase>>& children) {
+            if (!children.empty()) {
+                throw std::invalid_argument(
+                    "WrapBox children must be instantiated from its template");
+            }
+        };
+    wrapBox.childReflow = [](ControlBase& control) {
+        requireControlType<WrapBox>(control, "Engine.WrapBox").reflowItems();
+    };
+    registry.registerAdapter<WrapBoxUiControlAdapterTag>(std::move(wrapBox));
 }

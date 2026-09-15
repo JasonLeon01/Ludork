@@ -1,4 +1,5 @@
 #include <UI/Canvas.hpp>
+#include <UI/WrapBox.hpp>
 #include <AnimSprite.hpp>
 
 #include <EngineState.hpp>
@@ -289,9 +290,13 @@ void Canvas::_appendRenderNode(const std::shared_ptr<ControlBase>& node,
     if (listView != nullptr) {
         listView->applyPositions();
     }
+    WrapBox* wrapBox = ludork::Cast<WrapBox>(node.get());
+    if (wrapBox != nullptr) {
+        wrapBox->applyPositions();
+    }
     sf::RenderStates nodeStates = node->getRenderStates();
     nodeStates.transform.combine(parentStates.transform);
-    if (listView == nullptr) {
+    if (listView == nullptr && wrapBox == nullptr) {
         renderQueue_.push_back({node, nodeStates});
     }
     if (Canvas* nested = ludork::Cast<Canvas>(node.get())) {
@@ -342,6 +347,9 @@ bool Canvas::hasCanvasAncestor() const {
 }
 
 void Canvas::appendOverlayNode(const std::shared_ptr<ControlBase>& node) {
+    if (WrapBox* wrapBox = ludork::Cast<WrapBox>(node.get())) {
+        wrapBox->applyPositions();
+    }
     ListView* listView = ludork::Cast<ListView>(node.get());
     if (listView != nullptr) {
         listView->applyPositions();

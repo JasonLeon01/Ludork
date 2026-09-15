@@ -33,6 +33,7 @@ public sealed class UiPreviewSurface : UserControl
     private readonly List<UiPreviewNodeGeometry> nodes = [];
     private WriteableBitmap? bitmap;
     private string? selectedNodeName;
+    private int? selectedNodeDrawOrder;
     private Point pointerStart;
     private Point pointerCurrent;
     private Point panStart;
@@ -194,6 +195,8 @@ public sealed class UiPreviewSurface : UserControl
 
     public void SetSelectedNode(string? nodeName)
     {
+        if (!string.Equals(selectedNodeName, nodeName, StringComparison.Ordinal))
+            selectedNodeDrawOrder = null;
         selectedNodeName = nodeName;
         updateSelection();
     }
@@ -254,13 +257,7 @@ public sealed class UiPreviewSurface : UserControl
         if (!point.Properties.IsLeftButtonPressed)
             return;
         Point designPoint = toDesignPoint(point.Position);
-        UiPreviewNodeGeometry? selected = nodes
-            .Where(node => string.Equals(
-                node.NodeName,
-                selectedNodeName,
-                StringComparison.Ordinal))
-            .OrderByDescending(node => node.DrawOrder)
-            .FirstOrDefault();
+        UiPreviewNodeGeometry? selected = selectedGeometry();
         if (TransformEnabled && selected is not null && isResizeHandleHit(designPoint))
         {
             beginTransform(args, point, selected.NodeName, designPoint);
@@ -287,8 +284,16 @@ public sealed class UiPreviewSurface : UserControl
             args.Pointer.Capture(null);
             return;
         }
+        selectedNodeDrawOrder = nodes
+            .Where(node => string.Equals(node.NodeName, hitNodeName, StringComparison.Ordinal)
+                && node.Visible
+                && new Rect(node.X, node.Y, node.Width, node.Height).Contains(designPoint)
+                && new Rect(node.ClipX, node.ClipY, node.ClipWidth, node.ClipHeight).Contains(designPoint))
+            .OrderByDescending(node => node.DrawOrder)
+            .FirstOrDefault()?.DrawOrder;
         if (string.Equals(hitNodeName, selectedNodeName, StringComparison.Ordinal))
         {
+            updateSelection();
             if (!TransformEnabled || !hitTestPointerDown)
             {
                 args.Pointer.Capture(null);
@@ -456,12 +461,18 @@ public sealed class UiPreviewSurface : UserControl
         return viewport.TranslatePoint(point, content) ?? default;
     }
 
+    private UiPreviewNodeGeometry? selectedGeometry()
+    {
+        return nodes
+            .Where(node => string.Equals(node.NodeName, selectedNodeName, StringComparison.Ordinal))
+            .OrderByDescending(node => node.DrawOrder == selectedNodeDrawOrder)
+            .ThenByDescending(node => node.DrawOrder)
+            .FirstOrDefault();
+    }
+
     private void updateSelection()
     {
-        UiPreviewNodeGeometry? geometry = nodes
-            .Where(node => string.Equals(node.NodeName, selectedNodeName, StringComparison.Ordinal))
-            .OrderByDescending(node => node.DrawOrder)
-            .FirstOrDefault();
+        UiPreviewNodeGeometry? geometry = selectedGeometry();
         if (geometry is null)
         {
             selectionBorder.IsVisible = false;

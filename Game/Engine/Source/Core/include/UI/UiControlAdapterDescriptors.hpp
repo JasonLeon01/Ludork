@@ -155,6 +155,14 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("fixItemHeight", "Fix Item Height", "bool", false, \
                             "false"),                                          \
         UI_CONTROL_PROPERTY("columns", "Columns", "int", false, "1"))          \
+    BIND_UI_CONTROL(WrapBoxUiControlAdapterTag, "Engine.WrapBox",              \
+                    "Engine.WrapBox", "Wrap Box", "Layout",                    \
+                    UiChildPolicy::Single, UiControlSlotType::List,            \
+                    UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2f", false,  \
+                                        "[100.0,100.0]"),                      \
+                    UI_CONTROL_PROPERTY("count", "Count", "int", false, "1"),  \
+                    UI_CONTROL_PROPERTY("spacing", "Spacing", "sf.Vector2f",   \
+                                        false, "[0.0,0.0]"))                   \
     BIND_UI_CONTROL(                                                           \
         WindowUiControlAdapterTag, "Engine.Window", "Engine.Window", "Window", \
         "Visual", UiChildPolicy::None, UiControlSlotType::None,                \
@@ -205,6 +213,8 @@ struct UiControlAdapterTraits;
     BIND_UI_CONTROL(                                                           \
         ImageUiControlAdapterTag, "Engine.Image", "Engine.Image", "Image",     \
         "Visual", UiChildPolicy::None, UiControlSlotType::None,                \
+        UI_CONTROL_PROPERTY("drawAs", "Draw As", "Engine.ImageDrawAs", false,  \
+                            "\"Image\""),                                      \
         UI_CONTROL_PROPERTY("texture", "Texture", "string", false, "\"\""),    \
         UI_CONTROL_PROPERTY("textureRect", "Texture Rect", "sf.IntRect",       \
                             false, "null"),                                    \
@@ -290,6 +300,8 @@ struct UiControlAdapterTraits;
         FunctionalImageUiControlAdapterTag, "Engine.FunctionalImage",          \
         "Engine.FunctionalImage", "Functional Image", "Input",                 \
         UiChildPolicy::None, UiControlSlotType::None,                          \
+        UI_CONTROL_PROPERTY("drawAs", "Draw As", "Engine.ImageDrawAs", false,  \
+                            "\"Image\""),                                      \
         UI_CONTROL_PROPERTY("texture", "Texture", "string", false, "\"\""),    \
         UI_CONTROL_PROPERTY("textureRect", "Texture Rect", "sf.IntRect",       \
                             false, "null"),                                    \

@@ -185,7 +185,7 @@ public static class UiAssetSchema
         return copy;
     }
 
-    public static IEnumerable<JsonObject> EnumerateNodes(JsonObject asset)
+    public static IEnumerable<JsonObject> EnumerateNodes(JsonObject asset, bool includeTemplates = true)
     {
         if (asset["root"] is not JsonObject root)
             yield break;
@@ -195,6 +195,11 @@ public static class UiAssetSchema
         {
             JsonObject node = pending.Pop();
             yield return node;
+            if (!includeTemplates
+                && node["controlId"] is JsonValue controlValue
+                && controlValue.TryGetValue(out string? controlId)
+                && controlId == "Engine.WrapBox")
+                continue;
             if (node["children"] is not JsonArray children)
                 continue;
             for (int index = children.Count - 1; index >= 0; index--)

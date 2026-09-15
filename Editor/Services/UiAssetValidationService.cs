@@ -161,7 +161,10 @@ public sealed class UiAssetValidationService
         }
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
         validateNode(assetKey, root, "root", true, null, controls, names, issues, structuralOnly, dependencies);
-        validateAnimations(data["animations"], names, issues);
+        HashSet<string> animationTargets = UiAssetSchema.EnumerateNodes(data, false)
+            .Select(node => getString(node["name"]) ?? string.Empty)
+            .ToHashSet(StringComparer.Ordinal);
+        validateAnimations(data["animations"], animationTargets, issues);
     }
 
     private void validateNode(
@@ -303,7 +306,7 @@ public sealed class UiAssetValidationService
 
         if (descriptor?.ChildPolicy == "none" && children.Count != 0)
             add(issues, "childPolicy", path + ".children", $"{controlId} cannot contain child nodes");
-        if (descriptor?.ChildPolicy == "single" && children.Count > 1)
+        if ((descriptor?.ChildPolicy == "single" || controlId == "Engine.WrapBox") && children.Count > 1)
             add(issues, "childPolicy", path + ".children", $"{controlId} can contain only one child node");
         if (descriptor is not null && descriptor.ChildPolicy is not ("none" or "single" or "multiple"))
             add(issues, "childPolicy", path + ".controlId", $"{controlId} declares an invalid child policy");
@@ -509,6 +512,7 @@ public sealed class UiAssetValidationService
             "string" => getString(value) is not null,
             "sf.Text.LineAlignment" => getString(value) is "default" or "left" or "center" or "right",
             "Engine.TextGradientDirection" => getString(value) is "vertical" or "horizontal",
+            "Engine.ImageDrawAs" => getString(value) is "Image" or "Tile",
             "string[]" => value is JsonArray strings
                 && strings.All(item => getString(item) is not null),
             "sf.Vector2f" => validatePair(value, string.Empty, false, null) is not null,
@@ -526,6 +530,13 @@ public sealed class UiAssetValidationService
         string path,
         ICollection<UiValidationIssue> issues)
     {
+        if (controlId == "Engine.WrapBox"
+            && propertyId == "count"
+            && tryGetInteger(value, out long count)
+            && count < 0)
+        {
+            add(issues, "propertyRange", path, "WrapBox count cannot be negative");
+        }
         if (controlId == "Engine.ListView"
             && propertyId == "columns"
             && tryGetInteger(value, out long columns)
@@ -551,13 +562,13 @@ public sealed class UiAssetValidationService
         {
             add(issues, "propertyRange", path, $"Canvas and Window size components must not exceed {int.MaxValue}");
         }
-        if (propertyId == "scale"
+        if ((propertyId == "scale" || controlId == "Engine.WrapBox" && propertyId == "size")
             && value is JsonArray scale
             && scale.Any(component =>
                 tryGetFloatNumber(component, out double number)
                 && number < 0.0))
         {
-            add(issues, "propertyRange", path, "Scale components cannot be negative");
+            add(issues, "propertyRange", path, "Components cannot be negative");
         }
         (double Minimum, double Maximum)? range = propertyId switch
         {

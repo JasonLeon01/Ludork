@@ -46,6 +46,8 @@ public:
     virtual sf::RenderStates getRenderStates() const override;
 
 protected:
+    virtual void onTextureChanged();
+
     void setPremultipliedTexture(bool premultiplied);
 
     sf::Color presentedColour() const;

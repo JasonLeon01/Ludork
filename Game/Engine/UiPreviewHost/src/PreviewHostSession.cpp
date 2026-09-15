@@ -49,6 +49,9 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
     if (type == "hitTest") {
         return uiSession_.hitTest(request);
     }
+    if (type == "resolveReparent") {
+        return uiSession_.resolveReparent(request);
+    }
     if (type == "renderActorBatch") {
         engineState().setScale(1.0f);
         return actorRenderer_.render(request, frameFiles_);

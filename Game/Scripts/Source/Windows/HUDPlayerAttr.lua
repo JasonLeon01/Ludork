@@ -31,9 +31,7 @@ local _STATE_GAP = 4
 local _ROW_SHIFT = 64
 local _HEADER_ROW_Y = 0
 local _HP_ROW_Y = 68 + _ROW_SHIFT
-local _HP_BAR_HEIGHT = 8
 local _HP_TEXT_LAYOUT_HEIGHT = 12
-local _HP_BAR_WIDTH = 96
 local _STAT_VALUE_X = 128
 local _DEBUFF_TEXT_OFFSET_X = 2
 local _KEY_ROW_Y = 288 + _ROW_SHIFT
@@ -78,10 +76,8 @@ function Controller:init(player, openMenuCallback)
     self._avatarRect = nil
     self._avatarSize = _AVATAR_MIN_SIZE
     self._infoStartX = _AVATAR_MIN_SIZE
-    self._hpBarWidth = _HP_BAR_WIDTH
     self._stateSignature = nil
     self._stateDisplaySignature = nil
-    self._hpRate = 0.0
     self._language = ""
     self._headerSignature = nil
     self._combatSignature = nil
@@ -92,9 +88,6 @@ function Controller:init(player, openMenuCallback)
     self._keySignature = nil
     self._layoutDirty = false
     self:_initialiseAvatar(player)
-    self:_initialiseLayout()
-    self.host:resize(self._logicalSize)
-    self.host:setView(self.host:getDefaultView())
     self._states = self:createCollection(self.ui.controls["StateHost"], PlayerStateRowController)
 end
 
@@ -105,7 +98,7 @@ end
 function Controller:onTick(_deltaTime)
     self:refresh()
     if self._layoutDirty then
-        self.view:reflow(self._logicalSize)
+        self.view:reflow()
         self:_applyGeometry()
         self._layoutDirty = false
     end
@@ -137,20 +130,6 @@ function Controller:_initialiseAvatar(player)
     self._avatarRect = avatarRect
     self._avatarSize = math.max(self._avatarSize, frameSize)
     self._infoStartX = math.max(self._infoStartX, self._avatarSize)
-end
-
-function Controller:_initialiseLayout()
-    local hudWidth = math.max(
-        self._infoStartX + self._hpBarWidth, self._hpBarWidth + _AVATAR_MIN_SIZE, _STAT_VALUE_X + 16
-    )
-    self._hpBarWidth = hudWidth
-    local keyRowHeight = math.max(_FONT_SIZE, _KEY_ICON_HEIGHT)
-    local hudHeight = _KEY_ROW_Y + keyRowHeight + 4
-    ---@cast hudWidth integer
-    ---@cast hudHeight integer
-    local logicalSize = sf.Vector2u.new(hudWidth, hudHeight)
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
 end
 
 function Controller:bind()
@@ -232,7 +211,7 @@ function Controller:refresh()
         self:setText("MapName", LOC(tostring(mapName)))
         self:setText(
             "PlayerName",
-            Engine.TextLayout.fitPlainText(playerName, self._logicalSize.x, self.ui.controls["PlayerName"])
+            Engine.TextLayout.fitPlainText(playerName, self.root:getSize().x, self.ui.controls["PlayerName"])
         )
         self:setText("HpLabel", LOC("HP"))
         self:setText("AtkLabel", LOC("ATK"))
@@ -257,7 +236,10 @@ function Controller:refresh()
                 "#default#" .. tostring(ToShortNumber(self:getPlayer().attributes.HP)) .. "/#max#"
                     .. tostring(ToShortNumber(self:getPlayer().attributes.MAXHP)) .. "#default#"
             )
-            self._hpRate = self:getPlayer().attributes.HP / self:getPlayer().attributes.MAXHP
+            self.ui.controls["HpBar"]:setProgress(
+                self:getPlayer().attributes.MAXHP > 0 and self:getPlayer().attributes.HP
+                        / self:getPlayer().attributes.MAXHP or 0.0
+            )
             layoutDirty = true
         end
 
@@ -318,7 +300,6 @@ function Controller:_applyGeometry()
     self.ui.controls["PlayerName"]:setPosition(sf.Vector2f.new(0.0, self._avatarSize))
     self.ui.controls["Level"]:setPosition(sf.Vector2f.new(0.0, self._avatarSize + 32))
     self.ui.controls["StateHost"]:setPosition(sf.Vector2f.new(0.0, self._avatarSize + _ROW_SHIFT))
-    self.ui.controls["HpFill"]:setSize(sf.Vector2f.new(self._hpBarWidth * self._hpRate, _HP_BAR_HEIGHT))
 
     local hpBounds = self.ui.controls["HpValue"]:getLocalBounds()
     local textY = _HP_ROW_Y + (_HP_TEXT_LAYOUT_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
@@ -337,7 +318,7 @@ function Controller:_applyGeometry()
 end
 
 function Controller:prepare(logicalSize)
-    local root = super(Controller, self).prepare(logicalSize or self._logicalSize)
+    local root = super(Controller, self).prepare(logicalSize)
     self:_applyGeometry()
     self._layoutDirty = false
     return root

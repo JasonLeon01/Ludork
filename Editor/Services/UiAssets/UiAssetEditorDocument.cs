@@ -159,7 +159,8 @@ public sealed class UiAssetEditorDocument : IDisposable
     public string? AddControl(
         string? selectedNodeName,
         string controlId,
-        out UiAssetEditingService.Failure failure)
+        out UiAssetEditingService.Failure failure,
+        int? index = null)
     {
         if (!editing.TryCreateControl(
                 this,
@@ -177,7 +178,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         node["name"] = name;
         JsonObject before = (JsonObject)data.DeepClone();
         JsonArray children = ensureArray(parent, "children");
-        children.Add(node);
+        children.Insert(Math.Clamp(index ?? children.Count, 0, children.Count), node);
         completeMutation(before);
         return name;
     }
@@ -238,7 +239,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         return editing.CanDuplicateNode(this, nodeName);
     }
 
-    public bool MoveNode(string nodeName, string parentName, int index)
+    public bool MoveNode(string nodeName, string parentName, int index, JsonObject? reparentSlot = null)
     {
         if (!editing.TryGetMoveLocation(this, nodeName, parentName, index, out int targetIndex))
         {
@@ -249,11 +250,12 @@ public sealed class UiAssetEditorDocument : IDisposable
         JsonObject destination = FindNode(parentName)!;
         JsonArray sourceChildren = (JsonArray)sourceParent["children"]!;
         bool changedParent = !ReferenceEquals(sourceParent, destination);
-        JsonObject? slot = changedParent ? editing.CreateSlot(destination) : null;
+        if (changedParent && reparentSlot is null)
+            return false;
         JsonObject before = (JsonObject)data.DeepClone();
         sourceChildren.Remove(node);
-        if (slot is not null)
-            node["slot"] = slot;
+        if (changedParent)
+            node["slot"] = reparentSlot!.DeepClone();
         JsonArray children = ensureArray(destination, "children");
         children.Insert(targetIndex, node);
         completeMutation(before);
@@ -266,16 +268,14 @@ public sealed class UiAssetEditorDocument : IDisposable
             && MoveNode(nodeName, parentName, index);
     }
 
-    public bool IndentNode(string nodeName)
+    public bool TryGetIndentLocation(string nodeName, out string parentName, out int index)
     {
-        return editing.TryGetIndentLocation(this, nodeName, out string parentName, out int index)
-            && MoveNode(nodeName, parentName, index);
+        return editing.TryGetIndentLocation(this, nodeName, out parentName, out index);
     }
 
-    public bool OutdentNode(string nodeName)
+    public bool TryGetOutdentLocation(string nodeName, out string parentName, out int index)
     {
-        return editing.TryGetOutdentLocation(this, nodeName, out string parentName, out int index)
-            && MoveNode(nodeName, parentName, index);
+        return editing.TryGetOutdentLocation(this, nodeName, out parentName, out index);
     }
 
     public bool TryGetDropLocation(
@@ -286,6 +286,18 @@ public sealed class UiAssetEditorDocument : IDisposable
         out int index)
     {
         return editing.TryGetDropLocation(this, nodeName, targetNodeName, position, out parentName, out index);
+    }
+
+    public bool TryGetControlDropLocation(
+        string controlId,
+        string targetNodeName,
+        UiAssetEditingService.DropPosition position,
+        out string parentName,
+        out int index,
+        out UiAssetEditingService.Failure failure)
+    {
+        return editing.TryGetControlDropLocation(this, controlId, targetNodeName, position,
+            out parentName, out index, out failure);
     }
 
     public bool RenameNode(string nodeName, string name)
@@ -345,10 +357,14 @@ public sealed class UiAssetEditorDocument : IDisposable
         }
         width = Math.Round(width);
         height = Math.Round(height);
+        if (width < 1 || height < 1 || width > int.MaxValue || height > int.MaxValue)
+            return false;
+        int logicalWidth = (int)width;
+        int logicalHeight = (int)height;
         JsonObject size = new()
         {
-            ["width"] = width,
-            ["height"] = height,
+            ["width"] = logicalWidth,
+            ["height"] = logicalHeight,
         };
         JsonObject before = (JsonObject)data.DeepClone();
         data["designSize"] = size;
@@ -360,7 +376,7 @@ public sealed class UiAssetEditorDocument : IDisposable
                 StringComparison.Ordinal))
         {
             JsonObject properties = ensureObject(root, "properties");
-            properties["size"] = new JsonArray(width, height);
+            properties["size"] = new JsonArray(logicalWidth, logicalHeight);
         }
         if (JsonNode.DeepEquals(before, data))
             return false;

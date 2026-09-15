@@ -116,6 +116,47 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         }
     }
 
+    public async Task<bool> MoveNodeAsync(string nodeName, string parentName, int index)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        if (disposed)
+            return false;
+        if (ReferenceEquals(document.FindParent(nodeName), document.FindNode(parentName)))
+            return document.MoveNode(nodeName, parentName, index);
+        UiPreviewRuntimeSnapshot? snapshot = runtime.Current;
+        if (!runtime.IsReady || snapshot is null)
+            return false;
+        AssetSnapshot source = captureAssetSnapshot();
+        JsonObject? slot;
+        try
+        {
+            slot = await client.ResolveReparentSlotAsync(source.Key, source.Asset, source.Dependencies,
+                nodeName, parentName, index, lifetime.Token);
+        }
+        catch (OperationCanceledException) when (disposed)
+        {
+            return false;
+        }
+        if (slot is null || disposed || !runtime.IsReady || snapshot.BuildId != runtime.Current?.BuildId
+            || snapshot.RegistryHash != runtime.Current?.RegistryHash || snapshot.HostPath != runtime.Current?.HostPath
+            || source.Key != document.AssetKey || !JsonNode.DeepEquals(source.Asset, document.Data))
+        {
+            return false;
+        }
+        AssetSnapshot current = captureAssetSnapshot();
+        if (source.Dependencies.Count != current.Dependencies.Count)
+            return false;
+        foreach (KeyValuePair<string, JsonObject> pair in source.Dependencies)
+        {
+            if (!current.Dependencies.TryGetValue(pair.Key, out JsonObject? dependency)
+                || !JsonNode.DeepEquals(pair.Value, dependency))
+            {
+                return false;
+            }
+        }
+        return document.MoveNode(nodeName, parentName, index, slot);
+    }
+
     public ValueTask DisposeAsync()
     {
         Dispatcher.UIThread.VerifyAccess();

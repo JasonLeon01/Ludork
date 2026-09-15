@@ -39,6 +39,17 @@ UiControlPropertyValue propertyValue(const RuntimeData& value,
         return static_cast<double>(
             ludork::runtime::value_reader::requireFloat(value, source));
     }
+    if (type == "Engine.ImageDrawAs") {
+        const std::string& name =
+            ludork::runtime::value_reader::requireString(value, source);
+        if (name == "Image") {
+            return Image::DrawAs::Image;
+        }
+        if (name == "Tile") {
+            return Image::DrawAs::Tile;
+        }
+        throw std::invalid_argument(source + " must be Image or Tile");
+    }
     if (type == "string" || type == "sf.Text.LineAlignment" ||
         type == "Engine.TextGradientDirection") {
         return ludork::runtime::value_reader::requireString(value, source);
