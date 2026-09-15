@@ -189,6 +189,15 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2f", false,              \
                             "[100.0,12.0]"),                                   \
         UI_CONTROL_PROPERTY("progress", "Progress", "float", false, "0.0"),    \
+        UI_CONTROL_PROPERTY("backgroundTexture", "Background Texture",         \
+                            "string", false, "\"\""),                          \
+        UI_CONTROL_PROPERTY("fillTexture", "Fill Texture", "string", false,    \
+                            "\"\""),                                           \
+        UI_CONTROL_PROPERTY("backgroundTextureRect",                           \
+                            "Background Texture Rect", "sf.IntRect", false,    \
+                            "null"),                                           \
+        UI_CONTROL_PROPERTY("fillTextureRect", "Fill Texture Rect",            \
+                            "sf.IntRect", false, "null"),                      \
         UI_CONTROL_PROPERTY("backgroundColor", "Background Color", "sf.Color", \
                             false, "[255,255,255,64]"),                        \
         UI_CONTROL_PROPERTY("fillColor", "Fill Color", "sf.Color", false,      \

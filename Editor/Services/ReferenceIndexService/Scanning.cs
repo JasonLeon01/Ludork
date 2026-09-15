@@ -62,6 +62,8 @@ public sealed partial class ReferenceIndexService
             foreach (string propertyName in new[]
                      {
                          "texture",
+                         "backgroundTexture",
+                         "fillTexture",
                          "windowSkin",
                          "lineTexture",
                          "handleTexture",

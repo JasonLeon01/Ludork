@@ -261,6 +261,8 @@ def _validate_property_reference(
     text = value
     if property_id in {
         "texture",
+        "backgroundTexture",
+        "fillTexture",
         "windowSkin",
         "lineTexture",
         "handleTexture",

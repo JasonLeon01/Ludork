@@ -125,6 +125,11 @@ public sealed class UiAnimationTimelineEditor : UserControl
         rebuildChoices(identity);
     }
 
+    public void FlushPendingChanges()
+    {
+        commitName();
+    }
+
     public void StopPlayback()
     {
         playing = false;

@@ -71,6 +71,7 @@ std::optional<sf::IntRect> optionalIntRectProperty(
     const UiControlProperties& properties, const std::string& name);
 
 std::shared_ptr<sf::Texture> loadTexture(const std::string& assetKey);
+std::shared_ptr<sf::Texture> loadOptionalTexture(const std::string& assetKey);
 sf::Image loadWindowSkin(const std::string& requestedKey);
 std::shared_ptr<PlainTextConfig> plainTextConfig(
     const std::string& textConfigKey);

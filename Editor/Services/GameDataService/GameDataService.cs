@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Unicode;
 using System.Threading.Tasks;
 using Ludork.Models;
 
@@ -16,6 +18,7 @@ public sealed partial class GameDataService : IDisposable
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
     };
     private readonly Dictionary<string, DataSection> sections = new(StringComparer.Ordinal)
     {

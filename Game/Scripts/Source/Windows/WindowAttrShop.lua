@@ -377,9 +377,8 @@ function Controller:purchaseAttribute(key)
         return false
     end
     local abilitySystem = self._player:getAbilitySystemComponent()
-    local changedAttributes = { [self._moneyName] = abilitySystem:getNumericAttributeBase(self._moneyName) - price }
-    changedAttributes[key] = (changedAttributes[key] or abilitySystem:getNumericAttributeBase(key))
-        + self._abilities[key]
+    local changedAttributes = { [self._moneyName] = self._player:getAttr(self._moneyName, true) - price }
+    changedAttributes[key] = (changedAttributes[key] or self._player:getAttr(key, true)) + self._abilities[key]
     abilitySystem:setNumericAttributeBases(changedAttributes)
     self:_increasePrice(abilityIndex)
     return true

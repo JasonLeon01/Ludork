@@ -31,6 +31,22 @@ function Battler:getAbilitySystemComponent()
     return self._abilitySystemComponent
 end
 
+function Battler:getAttr(name, base)
+    local abilitySystem = self:getAbilitySystemComponent()
+    if base then
+        return abilitySystem:getNumericAttributeBase(name)
+    end
+    return abilitySystem:getNumericAttribute(name)
+end
+
+function Battler:setAttr(name, value)
+    self:getAbilitySystemComponent():setNumericAttributeBase(name, value)
+end
+
+function Battler:addAttr(name, delta)
+    self:setAttr(name, self:getAttr(name, true) + delta)
+end
+
 function Battler:playAttackAnimationAt(scene, targetPosition)
     if not bool(self.attributes.ANIMATION_KEY) then
         return nil

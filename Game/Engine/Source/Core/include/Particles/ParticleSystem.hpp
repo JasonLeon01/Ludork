@@ -63,6 +63,9 @@ public:
     BIND_METHOD()
     void addText(const std::shared_ptr<TextParticle>& text);
 
+    BIND_METHOD()
+    void clear();
+
     ////////////////////////////////////////////////////////////
     /// \brief Remove a sprite particle from the system
     ///

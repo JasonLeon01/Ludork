@@ -26,7 +26,7 @@ local function resolveAttack(attacker, defender)
     return math.max(
         0,
         dispatchValue(abilitySystem, GameplayConstants.COMBAT_RESOLVE_ATTACK_EVENT, attacker, defender, {
-            value = abilitySystem:getNumericAttribute("ATK"),
+            value = attacker:getAttr("ATK"),
             opponentAbilitySystem = defender:getAbilitySystemComponent()
         })
     )
@@ -37,7 +37,7 @@ local function resolveDefense(defender, attacker, attackerATK)
     return math.max(
         0,
         dispatchValue(abilitySystem, GameplayConstants.COMBAT_RESOLVE_DEFENSE_EVENT, defender, attacker, {
-            value = abilitySystem:getNumericAttribute("DEF"),
+            value = defender:getAttr("DEF"),
             attackerATK = attackerATK
         })
     )

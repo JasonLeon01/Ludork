@@ -30,6 +30,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
     private bool hasRequest;
     private bool pending;
     private bool immediate;
+    private bool interactiveRefresh;
     private bool workerRunning;
     private bool disposed;
 
@@ -61,15 +62,20 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
     public void RequestRefresh(
         double renderScale,
         UiPreviewAnimationSample? sample,
-        bool immediate = false)
+        bool immediate = false,
+        bool interactive = false)
     {
         Dispatcher.UIThread.VerifyAccess();
         if (disposed)
             return;
-        frameEpoch++;
+        bool continueInteraction = interactive && interactiveRefresh
+            && this.renderScale == renderScale && animationSample == sample;
+        if (!continueInteraction)
+            frameEpoch++;
+        interactiveRefresh = interactive;
         assetSnapshot = null;
-        setRequest(renderScale, sample);
-        schedule(immediate);
+        setRequest(renderScale, sample, !continueInteraction);
+        schedule(immediate || interactive);
     }
 
     public void RequestAnimationSample(double renderScale, UiPreviewAnimationSample? sample)
@@ -77,6 +83,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         Dispatcher.UIThread.VerifyAccess();
         if (disposed)
             return;
+        interactiveRefresh = false;
         if (this.renderScale != renderScale
             || !string.Equals(animationSample?.Name, sample?.Name, StringComparison.Ordinal)
             || !string.Equals(animationSample?.Target, sample?.Target, StringComparison.Ordinal))
@@ -138,9 +145,10 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         }
     }
 
-    private void setRequest(double scale, UiPreviewAnimationSample? sample)
+    private void setRequest(double scale, UiPreviewAnimationSample? sample, bool cancelRender = true)
     {
-        renderCancellation?.Cancel();
+        if (cancelRender)
+            renderCancellation?.Cancel();
         if (!double.IsFinite(scale) || scale <= 0)
             throw new ArgumentOutOfRangeException(nameof(scale));
         renderScale = scale;

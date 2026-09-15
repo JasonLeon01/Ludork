@@ -21,6 +21,12 @@ Canvas::Canvas(const sf::IntRect& rect)
     setPosition(toVector2f(rect.position));
 }
 
+Canvas::~Canvas() {
+    if (particleSystem_ != nullptr) {
+        particleSystem_->clear();
+    }
+}
+
 sf::Vector2f Canvas::getOrigin() const {
     return SpriteBase::getOrigin() / engineState().getScale();
 }
@@ -134,6 +140,13 @@ std::vector<std::shared_ptr<AnimSprite>> Canvas::getAnims() const {
     return animations_;
 }
 
+std::shared_ptr<ParticleSystem> Canvas::getParticleSystem() {
+    if (particleSystem_ == nullptr) {
+        particleSystem_ = std::make_shared<ParticleSystem>();
+    }
+    return particleSystem_;
+}
+
 void Canvas::setZOrder(int zOrder) {
     zOrder_ = zOrder;
 }
@@ -163,6 +176,9 @@ void Canvas::update(float deltaTime) {
     for (const std::shared_ptr<AnimSprite>& animation : snapshot) {
         animation->update(deltaTime);
     }
+    if (particleSystem_ != nullptr) {
+        particleSystem_->onTick(deltaTime);
+    }
     FunctionalBase::update(deltaTime);
 }
 
@@ -180,6 +196,9 @@ void Canvas::render() {
         if (animation != nullptr) {
             canvas_->draw(*animation, _getAnimRenderStates());
         }
+    }
+    if (particleSystem_ != nullptr) {
+        canvas_->draw(*particleSystem_, _getAnimRenderStates());
     }
     if (!hasCanvasAncestor()) {
         buildOverlayQueue();
@@ -203,6 +222,9 @@ void Canvas::lateUpdate(float deltaTime) {
             functional->lateUpdate(deltaTime);
         }
     }
+    if (particleSystem_ != nullptr) {
+        particleSystem_->onLateTick(deltaTime);
+    }
     FunctionalBase::lateUpdate(deltaTime);
 }
 
@@ -215,6 +237,9 @@ void Canvas::fixedUpdate(float fixedDelta) {
         if (functional != nullptr) {
             functional->fixedUpdate(fixedDelta);
         }
+    }
+    if (particleSystem_ != nullptr) {
+        particleSystem_->onFixedTick(fixedDelta);
     }
     FunctionalBase::fixedUpdate(fixedDelta);
 }

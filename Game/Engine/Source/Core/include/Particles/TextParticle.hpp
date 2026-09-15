@@ -20,7 +20,7 @@ public:
 
     BIND_INIT()
     TextParticle(std::shared_ptr<ParticleSystem> parent,
-                 std::function<void(float, float, ParticleBase*)> moveFunction,
+                 std::function<void(float, float, TextParticle*)> moveFunction,
                  float countTime, const std::string& text,
                  std::shared_ptr<PlainTextConfig> config,
                  bool logicalCoordinates = false);

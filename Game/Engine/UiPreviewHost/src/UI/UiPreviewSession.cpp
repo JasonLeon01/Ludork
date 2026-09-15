@@ -115,6 +115,12 @@ UiPreviewSession::~UiPreviewSession() {
 }
 
 void UiPreviewSession::reset() noexcept {
+    resetContent();
+    target_.reset();
+    context_.reset();
+}
+
+void UiPreviewSession::resetContent() noexcept {
     if (context_ != nullptr) {
         static_cast<void>(context_->setActive(true));
     }
@@ -128,8 +134,6 @@ void UiPreviewSession::reset() noexcept {
     instance_.reset();
     Emitter::collectGarbage();
     emitterScheduler_.reset();
-    target_.reset();
-    context_.reset();
     snapshot_.clear();
     particleResources_.clear();
     animationName_.clear();
@@ -214,9 +218,13 @@ RuntimeData UiPreviewSession::render(const RuntimeData::Map& request,
     })));
     if (snapshot_ != snapshot ||
         particleResources_ != particleResourceStamp(emitterViews_)) {
-        reset();
-        context_ = std::make_unique<sf::Context>();
-        target_ = std::make_unique<sf::RenderTexture>(targetSpec.size);
+        resetContent();
+        if (context_ == nullptr) {
+            context_ = std::make_unique<sf::Context>();
+        }
+        if (target_ == nullptr || target_->getSize() != targetSpec.size) {
+            target_ = std::make_unique<sf::RenderTexture>(targetSpec.size);
+        }
         if (!target_->setActive(true)) {
             throw std::runtime_error("Failed to activate UI preview target");
         }

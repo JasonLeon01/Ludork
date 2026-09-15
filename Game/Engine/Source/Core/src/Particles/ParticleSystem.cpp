@@ -112,6 +112,28 @@ void ParticleSystem::addText(const std::shared_ptr<TextParticle>& text) {
     texts_.push_back(text);
 }
 
+void ParticleSystem::clear() {
+    for (const auto& [resourcePath, particles] : particles_) {
+        static_cast<void>(resourcePath);
+        for (const std::shared_ptr<Particle>& particle : particles) {
+            if (particle != nullptr && particle->getParent().get() == this) {
+                particle->setParent(nullptr);
+            }
+        }
+    }
+    for (const std::shared_ptr<TextParticle>& text : texts_) {
+        if (text != nullptr && text->getParent().get() == this) {
+            text->setParent(nullptr);
+        }
+    }
+    particles_.clear();
+    texts_.clear();
+    vertexArrays_.clear();
+    resourceDict_.clear();
+    textureUV_.clear();
+    updateFlags_.clear();
+}
+
 void ParticleSystem::removeParticle(Particle* particle) {
     assert(particle != nullptr);
     if (particle == nullptr) {

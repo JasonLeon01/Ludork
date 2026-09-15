@@ -4,7 +4,31 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
+#include <utility>
+
+namespace {
+void updateQuad(std::array<sf::Vertex, 4>& vertices, const sf::Vector2f& size,
+                const std::shared_ptr<sf::Texture>& texture,
+                const std::optional<sf::IntRect>& textureRect, float progress) {
+    const sf::FloatRect source =
+        textureRect.has_value()
+            ? sf::FloatRect(*textureRect)
+            : sf::FloatRect({0.0f, 0.0f}, texture != nullptr
+                                              ? sf::Vector2f(texture->getSize())
+                                              : sf::Vector2f{});
+    const float width = size.x * progress;
+    const float right = source.position.x + source.size.x * progress;
+    const float bottom = source.position.y + source.size.y;
+    vertices[0].position = {0.0f, 0.0f};
+    vertices[1].position = {width, 0.0f};
+    vertices[2].position = {0.0f, size.y};
+    vertices[3].position = {width, size.y};
+    vertices[0].texCoords = source.position;
+    vertices[1].texCoords = {right, source.position.y};
+    vertices[2].texCoords = {source.position.x, bottom};
+    vertices[3].texCoords = {right, bottom};
+}
+}  // namespace
 
 ProgressBar::ProgressBar(const sf::Vector2f& size, float progress,
                          const sf::Color& backgroundColor,
@@ -60,6 +84,42 @@ void ProgressBar::setFillColor(const sf::Color& color) {
     applyColours();
 }
 
+std::shared_ptr<sf::Texture> ProgressBar::getBackgroundTexture() const {
+    return backgroundTexture_;
+}
+
+void ProgressBar::setBackgroundTexture(std::shared_ptr<sf::Texture> texture) {
+    backgroundTexture_ = std::move(texture);
+    updateGeometry();
+}
+
+std::shared_ptr<sf::Texture> ProgressBar::getFillTexture() const {
+    return fillTexture_;
+}
+
+void ProgressBar::setFillTexture(std::shared_ptr<sf::Texture> texture) {
+    fillTexture_ = std::move(texture);
+    updateGeometry();
+}
+
+std::optional<sf::IntRect> ProgressBar::getBackgroundTextureRect() const {
+    return backgroundTextureRect_;
+}
+
+void ProgressBar::setBackgroundTextureRect(std::optional<sf::IntRect> rect) {
+    backgroundTextureRect_ = rect;
+    updateGeometry();
+}
+
+std::optional<sf::IntRect> ProgressBar::getFillTextureRect() const {
+    return fillTextureRect_;
+}
+
+void ProgressBar::setFillTextureRect(std::optional<sf::IntRect> rect) {
+    fillTextureRect_ = rect;
+    updateGeometry();
+}
+
 sf::FloatRect ProgressBar::getLocalBounds() const {
     return {{0.0f, 0.0f}, size_};
 }
@@ -70,8 +130,13 @@ void ProgressBar::draw(sf::RenderTarget& target,
     if (!getVisible()) {
         return;
     }
-    target.draw(background_, states);
-    target.draw(fill_, states);
+    states.coordinateType = sf::CoordinateType::Pixels;
+    states.texture = backgroundTexture_.get();
+    target.draw(background_.data(), background_.size(),
+                sf::PrimitiveType::TriangleStrip, states);
+    states.texture = fillTexture_.get();
+    target.draw(fill_.data(), fill_.size(), sf::PrimitiveType::TriangleStrip,
+                states);
 }
 
 sf::Vector2f ProgressBar::normalizedSize(const sf::Vector2f& size) {
@@ -86,9 +151,10 @@ float ProgressBar::normalizedProgress(float progress) {
 }
 
 void ProgressBar::updateGeometry() {
-    background_.setSize(size_ * engineState().getScale());
-    fill_.setSize({size_.x * progress_ * engineState().getScale(),
-                   size_.y * engineState().getScale()});
+    const sf::Vector2f size = size_ * engineState().getScale();
+    updateQuad(background_, size, backgroundTexture_, backgroundTextureRect_,
+               1.0f);
+    updateQuad(fill_, size, fillTexture_, fillTextureRect_, progress_);
 }
 
 void ProgressBar::refreshDisplayScale() {
@@ -101,6 +167,10 @@ void ProgressBar::_refreshPresentationColour() {
 }
 
 void ProgressBar::applyColours() {
-    background_.setFillColor(modulatePresentationColour(backgroundColor_));
-    fill_.setFillColor(modulatePresentationColour(fillColor_));
+    for (sf::Vertex& vertex : background_) {
+        vertex.color = modulatePresentationColour(backgroundColor_);
+    }
+    for (sf::Vertex& vertex : fill_) {
+        vertex.color = modulatePresentationColour(fillColor_);
+    }
 }

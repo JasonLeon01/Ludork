@@ -5,6 +5,10 @@
 #include <EngineRuntimeApi.hpp>
 #include <UI/ControlBase.hpp>
 
+#include <array>
+#include <memory>
+#include <optional>
+
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API ProgressBar : public ControlBase {
 public:
@@ -40,6 +44,30 @@ public:
     void setFillColor(const sf::Color& color);
 
     BIND_METHOD(Pure = true)
+    std::shared_ptr<sf::Texture> getBackgroundTexture() const;
+
+    BIND_METHOD()
+    void setBackgroundTexture(std::shared_ptr<sf::Texture> texture);
+
+    BIND_METHOD(Pure = true)
+    std::shared_ptr<sf::Texture> getFillTexture() const;
+
+    BIND_METHOD()
+    void setFillTexture(std::shared_ptr<sf::Texture> texture);
+
+    BIND_METHOD(Pure = true)
+    std::optional<sf::IntRect> getBackgroundTextureRect() const;
+
+    BIND_METHOD()
+    void setBackgroundTextureRect(std::optional<sf::IntRect> rect);
+
+    BIND_METHOD(Pure = true)
+    std::optional<sf::IntRect> getFillTextureRect() const;
+
+    BIND_METHOD()
+    void setFillTextureRect(std::optional<sf::IntRect> rect);
+
+    BIND_METHOD(Pure = true)
     virtual sf::FloatRect getLocalBounds() const override;
 
     void refreshDisplayScale() override;
@@ -59,8 +87,12 @@ private:
 
     sf::Vector2f size_;
     float progress_ = 0.0f;
-    sf::RectangleShape background_;
-    sf::RectangleShape fill_;
+    std::array<sf::Vertex, 4> background_;
+    std::array<sf::Vertex, 4> fill_;
+    std::shared_ptr<sf::Texture> backgroundTexture_;
+    std::shared_ptr<sf::Texture> fillTexture_;
+    std::optional<sf::IntRect> backgroundTextureRect_;
+    std::optional<sf::IntRect> fillTextureRect_;
     sf::Color backgroundColor_;
     sf::Color fillColor_;
 };

@@ -189,6 +189,10 @@ std::shared_ptr<sf::Texture> loadTexture(const std::string& assetKey) {
     return texture;
 }
 
+std::shared_ptr<sf::Texture> loadOptionalTexture(const std::string& assetKey) {
+    return assetKey.empty() ? nullptr : loadTexture(assetKey);
+}
+
 sf::Image loadWindowSkin(const std::string& requestedKey) {
     std::string assetKey = requestedKey;
     if (assetKey.empty() && defaultWindowskinName.has_value()) {

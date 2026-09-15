@@ -93,12 +93,21 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
 
     UiControlAdapterRegistry::Adapter progressBar;
     progressBar.factory = [](const UiControlProperties& properties) {
-        return std::make_shared<ProgressBar>(
+        std::shared_ptr<ProgressBar> result = std::make_shared<ProgressBar>(
             vector2fProperty(properties, "size", {100.0f, 12.0f}),
             floatProperty(properties, "progress", 0.0f),
             colorProperty(properties, "backgroundColor",
                           sf::Color(255, 255, 255, 64)),
             colorProperty(properties, "fillColor", sf::Color::White));
+        result->setBackgroundTexture(loadOptionalTexture(
+            stringProperty(properties, "backgroundTexture")));
+        result->setFillTexture(
+            loadOptionalTexture(stringProperty(properties, "fillTexture")));
+        result->setBackgroundTextureRect(
+            optionalIntRectProperty(properties, "backgroundTextureRect"));
+        result->setFillTextureRect(
+            optionalIntRectProperty(properties, "fillTextureRect"));
+        return result;
     };
     progressBar.setter = [](ControlBase& control, const std::string& propertyId,
                             const UiControlPropertyValue& value) {
@@ -112,6 +121,22 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             progress.setBackgroundColor(requireColor(value, "backgroundColor"));
         } else if (propertyId == "fillColor") {
             progress.setFillColor(requireColor(value, "fillColor"));
+        } else if (propertyId == "backgroundTexture") {
+            progress.setBackgroundTexture(
+                loadOptionalTexture(requireString(value, "backgroundTexture")));
+        } else if (propertyId == "fillTexture") {
+            progress.setFillTexture(
+                loadOptionalTexture(requireString(value, "fillTexture")));
+        } else if (propertyId == "backgroundTextureRect") {
+            progress.setBackgroundTextureRect(
+                isNil(value) ? std::nullopt
+                             : std::optional<sf::IntRect>(requireIntRect(
+                                   value, "backgroundTextureRect")));
+        } else if (propertyId == "fillTextureRect") {
+            progress.setFillTextureRect(
+                isNil(value) ? std::nullopt
+                             : std::optional<sf::IntRect>(
+                                   requireIntRect(value, "fillTextureRect")));
         } else {
             throw std::invalid_argument("Unknown ProgressBar property " +
                                         propertyId);

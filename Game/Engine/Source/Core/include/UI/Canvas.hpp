@@ -5,6 +5,7 @@
 #include <EngineRuntimeApi.hpp>
 
 #include <AnimSprite.hpp>
+#include <Particles/ParticleSystem.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/SpriteBase.hpp>
 
@@ -15,7 +16,7 @@ public:
 
     BIND_INIT()
     explicit Canvas(const sf::IntRect& rect);
-    virtual ~Canvas() = default;
+    virtual ~Canvas();
 
     BIND_METHOD(Pure = true)
     sf::Vector2f getOrigin() const override;
@@ -67,6 +68,9 @@ public:
 
     BIND_METHOD(Pure = true)
     std::vector<std::shared_ptr<AnimSprite>> getAnims() const;
+
+    BIND_METHOD()
+    std::shared_ptr<ParticleSystem> getParticleSystem();
 
     BIND_METHOD()
     void setZOrder(int zOrder);
@@ -128,6 +132,7 @@ private:
     std::vector<RenderEntry> renderQueue_;
     std::vector<std::shared_ptr<ControlBase>> overlayQueue_;
     std::vector<std::shared_ptr<AnimSprite>> animations_;
+    std::shared_ptr<ParticleSystem> particleSystem_;
     int zOrder_ = 0;
     float displayScale_ = 1.0f;
 };

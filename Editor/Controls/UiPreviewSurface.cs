@@ -34,12 +34,17 @@ public sealed class UiPreviewSurface : UserControl
     private WriteableBitmap? bitmap;
     private string? selectedNodeName;
     private Point pointerStart;
+    private Point pointerCurrent;
     private Point panStart;
     private bool transforming;
     private bool resizing;
     private bool panning;
+    private bool hitTesting;
+    private bool hitTestPointerDown;
+    private bool releasingHitTestCapture;
     private double zoom = 1;
     private long frameGeneration;
+    private long hitTestRequest;
 
     public UiPreviewSurface()
     {
@@ -232,6 +237,11 @@ public sealed class UiPreviewSurface : UserControl
         PointerPoint point = args.GetCurrentPoint(viewport);
         if (statusText.IsVisible)
             return;
+        if (point.Properties.IsMiddleButtonPressed || point.Properties.IsLeftButtonPressed)
+        {
+            hitTestRequest++;
+            hitTesting = false;
+        }
         if (point.Properties.IsMiddleButtonPressed)
         {
             panning = true;
@@ -259,27 +269,36 @@ public sealed class UiPreviewSurface : UserControl
         if (HitTestResolver is null || frameGeneration == 0)
             return;
         long hitTestGeneration = frameGeneration;
+        long request = hitTestRequest;
+        hitTesting = true;
+        hitTestPointerDown = true;
+        pointerCurrent = point.Position;
+        args.Pointer.Capture(viewport);
+        args.Handled = true;
         string? hitNodeName = await HitTestResolver(
             hitTestGeneration,
             designPoint.X,
             designPoint.Y);
-        if (hitNodeName is null || frameGeneration != hitTestGeneration)
+        if (request != hitTestRequest)
             return;
-        if (string.Equals(hitNodeName, selectedNodeName, StringComparison.Ordinal))
+        hitTesting = false;
+        if (hitNodeName is null || frameGeneration != hitTestGeneration)
         {
-            if (!TransformEnabled)
-                return;
-            PointerPoint currentPoint = args.GetCurrentPoint(viewport);
-            if (currentPoint.Properties.IsLeftButtonPressed)
-            {
-                beginTransform(
-                    args,
-                    currentPoint,
-                    hitNodeName,
-                    toDesignPoint(currentPoint.Position));
-            }
+            args.Pointer.Capture(null);
             return;
         }
+        if (string.Equals(hitNodeName, selectedNodeName, StringComparison.Ordinal))
+        {
+            if (!TransformEnabled || !hitTestPointerDown)
+            {
+                args.Pointer.Capture(null);
+                return;
+            }
+            beginTransform(args, point, hitNodeName, designPoint);
+            updateTransform(pointerCurrent);
+            return;
+        }
+        args.Pointer.Capture(null);
         selectedNodeName = hitNodeName;
         updateSelection();
         NodeSelected?.Invoke(this, new UiPreviewNodeEventArgs(hitNodeName));
@@ -304,6 +323,7 @@ public sealed class UiPreviewSurface : UserControl
     private void onPointerMoved(object? sender, PointerEventArgs args)
     {
         Point current = args.GetPosition(viewport);
+        pointerCurrent = current;
         if (panning)
         {
             translateTransform.X = panStart.X + current.X - pointerStart.X;
@@ -313,16 +333,32 @@ public sealed class UiPreviewSurface : UserControl
         }
         if (!transforming || selectedNodeName is null)
             return;
+        updateTransform(current);
+        args.Handled = true;
+    }
+
+    private void updateTransform(Point current)
+    {
+        if (selectedNodeName is null)
+            return;
         double deltaX = (current.X - pointerStart.X) / zoom;
         double deltaY = (current.Y - pointerStart.Y) / zoom;
         TransformChanged?.Invoke(
             this,
             new UiPreviewTransformEventArgs(selectedNodeName, deltaX, deltaY, resizing));
-        args.Handled = true;
     }
 
     private void onPointerReleased(object? sender, PointerReleasedEventArgs args)
     {
+        if (hitTesting)
+        {
+            hitTestPointerDown = false;
+            releasingHitTestCapture = true;
+            args.Pointer.Capture(null);
+            releasingHitTestCapture = false;
+            args.Handled = true;
+            return;
+        }
         if (panning)
         {
             panning = false;
@@ -345,7 +381,11 @@ public sealed class UiPreviewSurface : UserControl
 
     private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
     {
+        if (releasingHitTestCapture)
+            return;
         bool cancelTransform = transforming;
+        hitTesting = false;
+        hitTestRequest++;
         panning = false;
         transforming = false;
         if (cancelTransform)
@@ -413,9 +453,7 @@ public sealed class UiPreviewSurface : UserControl
 
     private Point toDesignPoint(Point point)
     {
-        return new Point(
-            (point.X - translateTransform.X) / zoom,
-            (point.Y - translateTransform.Y) / zoom);
+        return viewport.TranslatePoint(point, content) ?? default;
     }
 
     private void updateSelection()

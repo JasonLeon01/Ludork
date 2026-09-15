@@ -10,12 +10,21 @@
 
 TextParticle::TextParticle(
     std::shared_ptr<ParticleSystem> parent,
-    std::function<void(float, float, ParticleBase*)> moveFunction,
+    std::function<void(float, float, TextParticle*)> moveFunction,
     float countTime, const std::string& text,
     std::shared_ptr<PlainTextConfig> config, bool logicalCoordinates)
-    : ParticleBase(std::move(parent), std::move(moveFunction), countTime),
+    : ParticleBase(std::move(parent), nullptr, countTime),
       text_(std::make_shared<PlainText>(std::move(config), text)),
-      logicalCoordinates_(logicalCoordinates) {}
+      logicalCoordinates_(logicalCoordinates) {
+    if (moveFunction) {
+        moveFunction_ = [moveFunction = std::move(moveFunction)](
+                            float deltaTime, float countTime,
+                            ParticleBase* particle) {
+            moveFunction(deltaTime, countTime,
+                         ludork::Cast<TextParticle>(particle));
+        };
+    }
+}
 
 std::shared_ptr<PlainTextConfig> TextParticle::getConfig() const {
     return text_->getConfig();

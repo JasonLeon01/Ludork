@@ -260,8 +260,7 @@ function Controller:_buyItem(itemID)
         self:_refreshItems()
         return
     end
-    local abilitySystem = self._player:getAbilitySystemComponent()
-    abilitySystem:setNumericAttributeBase("GOLD", abilitySystem:getNumericAttributeBase("GOLD") - price)
+    self._player:addAttr("GOLD", -price)
     self._player:addItem(itemID, 1)
     AudioManager.playSound(GameSystem.GetShopSE())
     self:_refreshItems()
@@ -275,8 +274,7 @@ function Controller:_sellItem(itemID)
         self:_refreshItems()
         return
     end
-    local abilitySystem = self._player:getAbilitySystemComponent()
-    abilitySystem:setNumericAttributeBase("GOLD", abilitySystem:getNumericAttributeBase("GOLD") + price)
+    self._player:addAttr("GOLD", price)
     AudioManager.playSound(GameSystem.GetShopSE())
     self:_refreshItems()
 end

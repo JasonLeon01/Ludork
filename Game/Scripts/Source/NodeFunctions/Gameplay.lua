@@ -37,11 +37,11 @@ function Gameplay.HasTag(target, tag)
 end
 
 function Gameplay.GetNumericAttribute(target, attribute)
-    return target:getAbilitySystemComponent():getNumericAttribute(attribute)
+    return target:getAttr(attribute)
 end
 
 function Gameplay.SetNumericAttributeBase(target, attribute, value)
-    target:getAbilitySystemComponent():setNumericAttributeBase(attribute, value)
+    target:setAttr(attribute, value)
 end
 
 function Gameplay.ApplyAttributeDelta(target, attribute, magnitude)

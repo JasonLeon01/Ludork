@@ -3,6 +3,7 @@ include_guard(GLOBAL)
 function(ludork_add_ui_preview_host_runtime target)
     file(GLOB_RECURSE preview_runtime_sources CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Particles/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/UI/*.cpp")
     list(APPEND preview_runtime_sources
         "${CMAKE_CURRENT_SOURCE_DIR}/src/AnimSprite.cpp"

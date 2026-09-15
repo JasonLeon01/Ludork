@@ -71,6 +71,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private JsonObject? transformStartSlot;
     private bool startingHierarchyDrag;
     private bool refreshing;
+    private bool committingDetails;
+    private bool detailsRefreshPending;
     private bool contentInitialized;
     private bool closed;
     private bool refreshPending;
@@ -80,6 +82,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private string? animationSignature;
     private string? relatedAssetsRevision;
     private IReadOnlyList<UiControlDescriptor> paletteDescriptors = [];
+    private readonly List<Control> textStyleFields = [];
 
     public UiAssetEditorWindow()
     {
@@ -124,6 +127,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             detailsSignature = null;
             animationSignature = null;
             InitializeComponent();
+            DetailsPanel.LostFocus += onDetailsLostFocus;
             toast = new Toast(this);
             previewSession = new UiAssetPreviewSession(document, gameData, controlRegistry.Runtime);
             previewSurface = new UiPreviewSurface
@@ -292,8 +296,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         updateTitle();
         if (closed || refreshing || !initializer.IsInitialized)
             return;
+        if (transformStartSlot is not null)
+        {
+            requestPreview();
+            return;
+        }
         if (timelineEditor.IsCommitting)
         {
+            animationSignature = hierarchySignature + "\n" + document.Data["animations"]?.ToJsonString();
             requestPreview();
             return;
         }
@@ -371,7 +381,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         refreshPalette();
     }
 
-    private void refreshAll()
+    private void refreshAll(bool immediatePreview = false)
     {
         refreshing = true;
         try
@@ -398,7 +408,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         {
             refreshing = false;
         }
-        requestPreview();
+        requestPreview(immediatePreview);
     }
 
     private void refreshPalette()
@@ -764,7 +774,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (!force && signature == detailsSignature)
             return;
         detailsSignature = signature;
+        if (committingDetails && !force)
+        {
+            updateTextStyleFields(node);
+            return;
+        }
+        detailsRefreshPending = false;
         pendingFieldCommit = null;
+        textStyleFields.Clear();
         DetailsPanel.Children.Clear();
         if (node is null)
             return;
@@ -773,6 +790,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         addWidgetDetails(node);
         if (!isRoot)
             addSlotDetails(node);
+    }
+
+    private void onDetailsLostFocus(object? sender, RoutedEventArgs args)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!closed && detailsRefreshPending && !DetailsPanel.IsKeyboardFocusWithin)
+                refreshDetails(true);
+        }, DispatcherPriority.Background);
     }
 
     private void addAssetDetails()
@@ -869,7 +895,6 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 descriptor.ControlId,
                 "Engine.Canvas",
                 StringComparison.Ordinal);
-        bool usesTextConfig = !string.IsNullOrEmpty(getString(properties["textConfig"]));
         foreach (UiControlPropertyDescriptor property in descriptor.Properties)
         {
             if (rootCanvas && string.Equals(property.Id, "size", StringComparison.Ordinal))
@@ -878,13 +903,20 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             JsonNode? value = source[property.Id] ?? property.Default;
             int fieldIndex = DetailsPanel.Children.Count;
             addPropertyField(nodeName, descriptor.ControlId, property, value);
-            if (usesTextConfig
-                && TextStylePropertyIds.Contains(property.Id)
+            if (TextStylePropertyIds.Contains(property.Id)
                 && DetailsPanel.Children.Count > fieldIndex)
             {
-                DetailsPanel.Children[fieldIndex].IsEnabled = false;
+                textStyleFields.Add(DetailsPanel.Children[fieldIndex]);
             }
         }
+        updateTextStyleFields(node);
+    }
+
+    private void updateTextStyleFields(JsonObject? node)
+    {
+        bool usesTextConfig = !string.IsNullOrEmpty(getString(node?["properties"]?["textConfig"]));
+        foreach (Control field in textStyleFields)
+            field.IsEnabled = !usesTextConfig;
     }
 
     private void renameNode(string nodeName, string value)
@@ -913,6 +945,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
         if (string.Equals(selectedNodeName, nodeName, StringComparison.Ordinal))
             selectedNodeName = nextName;
+        refreshDetails(true);
         refreshAll();
     }
 
@@ -966,6 +999,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                     next => commit(JsonValue.Create(next)));
                 break;
             case "string" when property.Id is "texture"
+                or "backgroundTexture"
+                or "fillTexture"
                 or "windowSkin"
                 or "lineTexture"
                 or "handleTexture":
@@ -1259,6 +1294,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         Action<string> commit)
     {
         TextBox box = EditorInputs.CreateEditableTextBox(value);
+        bindTextField(box, commit);
+        DetailsPanel.Children.Add(createField(label, box));
+    }
+
+    private void bindTextField(TextBox box, Action<string> commit)
+    {
         string displayed = box.Text ?? string.Empty;
         Action commitValue = () =>
         {
@@ -1266,7 +1307,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             if (string.Equals(displayed, next, StringComparison.Ordinal))
                 return;
             displayed = next;
-            commit(next);
+            commitDetailsField(() => commit(next));
         };
         box.GotFocus += (_, _) => pendingFieldCommit = commitValue;
         box.LostFocus += (_, _) =>
@@ -1278,15 +1319,13 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         };
         box.KeyDown += (_, args) =>
         {
-            if (args.Key != Key.Enter)
+            if (args.Key != Key.Enter || box.AcceptsReturn)
                 return;
             if (!ReferenceEquals(pendingFieldCommit, commitValue))
                 return;
-            pendingFieldCommit = null;
             commitValue();
             args.Handled = true;
         };
-        DetailsPanel.Children.Add(createField(label, box));
     }
 
     private void addChoiceField(
@@ -1323,13 +1362,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         box.AcceptsReturn = true;
         box.MinHeight = 96;
         box.TextWrapping = TextWrapping.Wrap;
-        string displayed = box.Text ?? string.Empty;
-        Action commitValue = () =>
+        bindTextField(box, next =>
         {
-            string next = box.Text ?? string.Empty;
-            if (string.Equals(displayed, next, StringComparison.Ordinal))
-                return;
-            displayed = next;
             JsonArray result = new();
             foreach (string item in next.Length == 0 ? Array.Empty<string>() : next.Split(
                          ["\r\n", "\n", "\r"],
@@ -1338,15 +1372,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 result.Add(item);
             }
             commit(result);
-        };
-        box.GotFocus += (_, _) => pendingFieldCommit = commitValue;
-        box.LostFocus += (_, _) =>
-        {
-            if (!ReferenceEquals(pendingFieldCommit, commitValue))
-                return;
-            pendingFieldCommit = null;
-            commitValue();
-        };
+        });
         DetailsPanel.Children.Add(createField(label, box));
     }
 
@@ -1474,7 +1500,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         box.ValueChanged += (_, _) =>
         {
             if (!refreshing && box.Value is decimal number)
-                commit((double)number);
+                commitDetailsField(() => commit((double)number));
         };
         DetailsPanel.Children.Add(createField(label, box));
     }
@@ -1591,7 +1617,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                     .Select(candidate => (double)(candidate.Value ?? 0))
                     .ToArray();
                 next[valueIndex] = (double)number;
-                commit(next);
+                commitDetailsField(() => commit(next));
             };
             boxes[index] = box;
             Control editor = box;
@@ -1667,9 +1693,24 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void flushPendingField()
     {
-        Action? commit = pendingFieldCommit;
-        pendingFieldCommit = null;
-        commit?.Invoke();
+        pendingFieldCommit?.Invoke();
+        if (contentInitialized)
+            timelineEditor.FlushPendingChanges();
+    }
+
+    private void commitDetailsField(Action commit)
+    {
+        bool wasCommitting = committingDetails;
+        committingDetails = true;
+        detailsRefreshPending = true;
+        try
+        {
+            commit();
+        }
+        finally
+        {
+            committingDetails = wasCommitting;
+        }
     }
 
     private void onResetView(object? sender, RoutedEventArgs args)
@@ -1706,7 +1747,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private void requestPreview(bool immediate = false)
     {
         if (!closed && contentInitialized)
-            previewSession.RequestRefresh(previewSurface.RenderScale, timelineEditor.CurrentSample, immediate);
+            previewSession.RequestRefresh(previewSurface.RenderScale, timelineEditor.CurrentSample,
+                immediate, transformStartSlot is not null);
     }
 
     private void onPreviewFrameReady(object? sender, UiPreviewFrame frame)
@@ -1789,6 +1831,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         applyPreviewTransform(args);
         transformStartSlot = null;
         document.CommitGesture();
+        refreshAll(true);
     }
 
     private void onPreviewTransformCancelled(object? sender, EventArgs args)
@@ -1797,6 +1840,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         transformStartSlot = null;
         document.CancelGesture();
+        requestPreview(true);
     }
 
     private void applyPreviewTransform(UiPreviewTransformEventArgs args)

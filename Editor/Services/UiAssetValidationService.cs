@@ -592,7 +592,8 @@ public sealed class UiAssetValidationService
         string? text = getString(value);
         if (text is null || text.Length == 0)
             return;
-        if (propertyId is not ("texture" or "windowSkin" or "lineTexture" or "handleTexture"
+        if (propertyId is not ("texture" or "backgroundTexture" or "fillTexture"
+            or "windowSkin" or "lineTexture" or "handleTexture"
             or "font" or "shader" or "textConfig" or "opacityCurve" or "gradientCurve" or "particle"))
         {
             return;
@@ -603,6 +604,8 @@ public sealed class UiAssetValidationService
             return;
         }
         if (propertyId is "texture"
+            or "backgroundTexture"
+            or "fillTexture"
             or "windowSkin"
             or "lineTexture"
             or "handleTexture"

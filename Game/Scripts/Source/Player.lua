@@ -27,11 +27,11 @@ local function onHPChange(_old, _new, change, player)
     if change.source ~= "Base" then
         return
     end
-    local base = player:getAbilitySystemComponent():getNumericAttributeBase("HP")
+    local base = player:getAttr("HP", true)
     if base < 0 then
-        player:getAbilitySystemComponent():setNumericAttributeBase("HP", 0)
+        player:setAttr("HP", 0)
     elseif base > player.attributes.MAXHP then
-        player:getAbilitySystemComponent():setNumericAttributeBase("HP", player.attributes.MAXHP)
+        player:setAttr("HP", player.attributes.MAXHP)
     end
 end
 
@@ -46,9 +46,8 @@ local function onMAXHPChange(_old, _new, change, player)
     if change.source ~= "Base" then
         return
     end
-    local abilitySystem = player:getAbilitySystemComponent()
-    if abilitySystem:getNumericAttributeBase("HP") > player.attributes.MAXHP then
-        abilitySystem:setNumericAttributeBase("HP", player.attributes.MAXHP)
+    if player:getAttr("HP", true) > player.attributes.MAXHP then
+        player:setAttr("HP", player.attributes.MAXHP)
     end
     if not player:getLoading() then
         local oldBase = change.oldBase == Class.MISSING and 0 or change.oldBase
@@ -58,7 +57,7 @@ local function onMAXHPChange(_old, _new, change, player)
         local delta = newBase - oldBase
         ---@cast delta integer
         if delta > 0 then
-            abilitySystem:setNumericAttributeBase("HP", abilitySystem:getNumericAttributeBase("HP") + delta)
+            player:addAttr("HP", delta)
         end
     end
 end
@@ -104,16 +103,9 @@ function Player:init(texture, tag)
         ---@cast newBase integer
         local delta = newBase - oldBase
         ---@cast delta integer
-        local playerAbilitySystem = self:getAbilitySystemComponent()
-        playerAbilitySystem:setNumericAttributeBase(
-            "HP", playerAbilitySystem:getNumericAttributeBase("HP") + delta * LEVEL_HP_GAIN
-        )
-        playerAbilitySystem:setNumericAttributeBase(
-            "ATK", playerAbilitySystem:getNumericAttributeBase("ATK") + delta * LEVEL_ATK_GAIN
-        )
-        playerAbilitySystem:setNumericAttributeBase(
-            "DEF", playerAbilitySystem:getNumericAttributeBase("DEF") + delta * LEVEL_DEF_GAIN
-        )
+        self:addAttr("HP", delta * LEVEL_HP_GAIN)
+        self:addAttr("ATK", delta * LEVEL_ATK_GAIN)
+        self:addAttr("DEF", delta * LEVEL_DEF_GAIN)
     end)
     self._items = {}
     self._equips = {}

@@ -119,7 +119,7 @@ function Player.SetPlayerAttr(attrName, value)
     local schema = player.attributes:getAttributeSchema(attrName)
     if schema ~= nil then
         if schema.type == "int" or schema.type == "float" then
-            player:getAbilitySystemComponent():setNumericAttributeBase(attrName, value)
+            player:setAttr(attrName, value)
         else
             player.attributes[attrName] = value
         end

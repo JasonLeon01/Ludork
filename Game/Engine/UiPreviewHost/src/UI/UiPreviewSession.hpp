@@ -38,6 +38,7 @@ public:
     RuntimeData hitTest(const RuntimeData::Map& request) const;
 
 private:
+    void resetContent() noexcept;
     bool sampleParticles(double time);
 
     std::unique_ptr<sf::Context> context_;
