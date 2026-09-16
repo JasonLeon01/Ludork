@@ -66,6 +66,30 @@
                                     <Style Selector="TreeViewItem /template/ ContentPresenter#PART_HeaderPresenter">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                     </Style>
+                                    <Style Selector="TreeViewItem.drop-inside">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="2" />
+                                    </Style>
+                                    <Style Selector="TreeViewItem.drop-before">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="0,2,0,0" />
+                                    </Style>
+                                    <Style Selector="TreeViewItem.drop-after">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="0,0,0,2" />
+                                    </Style>
+                                    <Style Selector="TreeViewItem.drop-inside /template/ Border#TreeViewItemLayoutRoot">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="2" />
+                                    </Style>
+                                    <Style Selector="TreeViewItem.drop-before /template/ Border#TreeViewItemLayoutRoot">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="0,2,0,0" />
+                                    </Style>
+                                    <Style Selector="TreeViewItem.drop-after /template/ Border#TreeViewItemLayoutRoot">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Editor.AccentBrush}" />
+                                        <Setter Property="BorderThickness" Value="0,0,0,2" />
+                                    </Style>
                                     <Style Selector="ToggleButton.hierarchy-visibility">
                                         <Setter Property="Width" Value="28" />
                                         <Setter Property="Height" Value="28" />

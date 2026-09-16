@@ -22,7 +22,6 @@
 ---@field _stackSignature        tuple<any> | nil
 ---@field _progressSignature     tuple<any> | nil
 ---@field _keySignature          tuple<any> | nil
----@field _layoutDirty           boolean
 ---@field _states                Source.UIBase.UiCollection<Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller>
 local Controller = {}
 
@@ -40,11 +39,11 @@ function Controller:init(player, openMenuCallback) end
 ---@param player Source.Player.Player
 function Controller:setPlayer(player) end
 
---- Poll lightweight player signatures every frame and refresh only the HUD groups whose displayed values changed.
+--- Ignore Ability System and player events from other battlers, then refresh the HUD.
 ---
---- - @param deltaTime  Elapsed frame time in seconds
----@param deltaTime number
-function Controller:onTick(deltaTime) end
+--- - @param payload EventBus payload. Locale events have no owner; player and ability events include `owner`.
+---@param payload Source.Configs.EventKeys.ChangePayload | { language: string } | nil
+function Controller:refreshFromEvent(payload) end
 
 ---@return Source.Player.Player
 function Controller:getPlayer() end

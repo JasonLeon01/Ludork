@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 import sys
 
+from .file_replace import remove_file, replace_path
 from .resource_constants import LUA_SOURCE_EXTENSION, LUA_COMPILED_EXTENSION
 
 
@@ -57,7 +58,7 @@ def compile_scripts(scripts_dir: pathlib.Path, luac: pathlib.Path) -> int:
     ]
     for temporary in temporaries:
         if temporary.exists():
-            temporary.unlink()
+            remove_file(temporary)
     for script, temporary in zip(scripts, temporaries, strict=True):
         result = subprocess.run(
             [str(luac), "-s", "-o", str(temporary), str(script)],
@@ -66,20 +67,20 @@ def compile_scripts(scripts_dir: pathlib.Path, luac: pathlib.Path) -> int:
         if result.returncode != 0:
             for pending in temporaries:
                 if pending.exists():
-                    pending.unlink()
+                    remove_file(pending, missing_ok=True)
             raise RuntimeError(
                 f"luac failed with exit code {result.returncode}: {script}"
             )
         if temporary.read_bytes()[:4] != b"\x1bLua":
             for pending in temporaries:
                 if pending.exists():
-                    pending.unlink()
+                    remove_file(pending, missing_ok=True)
             raise RuntimeError(f"luac did not produce Lua bytecode: {script}")
     for script, destination, temporary in zip(
         scripts, destinations, temporaries, strict=True
     ):
-        os.replace(temporary, destination)
-        script.unlink()
+        replace_path(temporary, destination)
+        remove_file(script)
     return len(scripts)
 
 

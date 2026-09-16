@@ -29,7 +29,7 @@ public:
                        const std::vector<sf::Vector2f>& cornerPositions);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Draw edge textures stretched between corners
+    /// \brief Tile repeating edge textures between corners, one draw per edge
     ///
     /// - \param dst Destination render target
     /// - \param areaCaches Edge textures

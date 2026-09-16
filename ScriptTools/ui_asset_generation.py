@@ -4,11 +4,11 @@ import hashlib
 import os
 import pathlib
 import re
-import shutil
 import tempfile
 
 from ScriptTools.lua_syntax.constants import LUA_RESERVED_WORDS
 
+from .file_replace import copy_file, remove_file, replace_path
 from .ui_assets import (
     ASSETS_RELATIVE_PATH,
     _asset_key_from_path,
@@ -270,7 +270,7 @@ def _install(
             target = root / relative
             if target.exists():
                 backup = staging / f"{index}.backup"
-                shutil.copy2(target, backup)
+                copy_file(str(target), str(backup))
                 backups[relative] = backup
             if data is not None:
                 output = staging / f"{index}.new"
@@ -280,12 +280,12 @@ def _install(
                 prepared[relative] = output
         try:
             for original, target in directory_moves:
-                original.rename(target)
+                replace_path(original, target)
                 moved_directories.append((original, target))
             for relative, data in sorted(changes.items(), key=lambda item: (item[1] is not None, item[0])):
                 target = root / relative
                 if data is None:
-                    target.unlink()
+                    remove_file(target)
                 else:
                     missing: list[pathlib.Path] = []
                     parent = target.parent
@@ -295,16 +295,16 @@ def _install(
                     for directory in reversed(missing):
                         directory.mkdir()
                         created_directories.append(directory)
-                    os.replace(prepared[relative], target)
+                    replace_path(prepared[relative], target)
                 installed.append(relative)
         except OSError as exception:
             failures: list[str] = []
             for relative in reversed(installed):
                 try:
                     if relative in backups:
-                        os.replace(backups[relative], root / relative)
+                        replace_path(backups[relative], root / relative)
                     else:
-                        (root / relative).unlink(missing_ok=True)
+                        remove_file(root / relative, missing_ok=True)
                 except OSError as rollback_error:
                     failures.append(f"{relative}: {rollback_error}")
             for directory in reversed(created_directories):
@@ -314,7 +314,7 @@ def _install(
                     failures.append(f"{directory}: {rollback_error}")
             for original, target in reversed(moved_directories):
                 try:
-                    target.rename(original)
+                    replace_path(target, original)
                 except OSError as rollback_error:
                     failures.append(f"{target}: {rollback_error}")
             if failures:

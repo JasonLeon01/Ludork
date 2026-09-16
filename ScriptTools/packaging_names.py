@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pathlib
 import re
-import shutil
 import unicodedata
 
+from .file_replace import remove_tree
 from .pack_error import PackError
 from .packaging_constants import (
     EXIT_APP_NAME_UNCHANGED,
@@ -172,6 +172,12 @@ def prepare_directory(project: pathlib.Path, output: pathlib.Path) -> pathlib.Pa
     if output.exists():
         if not output.is_dir():
             raise PackError(f"Package directory conflicts with a file: {output}", EXIT_PROJECT)
-        shutil.rmtree(output)
+        try:
+            remove_tree(output)
+        except OSError as error:
+            raise PackError(
+                f"Unable to replace the existing package directory {output}: {error}",
+                EXIT_PROJECT,
+            ) from error
     output.mkdir(parents=True)
     return output

@@ -29,6 +29,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 {
     private const string DragPrefix = "ludork-ui-node-name:";
     private const string PaletteDragPrefix = "ludork-ui-control-id:";
+    private const string DropInsideClass = "drop-inside";
+    private const string DropBeforeClass = "drop-before";
+    private const string DropAfterClass = "drop-after";
     private static readonly HashSet<string> TextStylePropertyIds = new(StringComparer.Ordinal)
     {
         "font",
@@ -71,6 +74,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private Point? hierarchyDragStart;
     private string? hierarchyDragText;
     private DragDropEffects hierarchyDragEffects;
+    private TreeViewItem? hierarchyDropIndicatorItem;
+    private string? hierarchyDropIndicatorClass;
     private JsonObject? transformStartSlot;
     private bool startingHierarchyDrag;
     private bool refreshing;
@@ -495,6 +500,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         }
         hierarchySignature = nextSignature;
+        clearHierarchyDropIndicator();
         if (root is null)
         {
             HierarchyTree.ItemsSource = Array.Empty<UiHierarchyItem>();
@@ -816,9 +822,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         if (isRoot)
             addAssetDetails();
-        addWidgetDetails(node);
         if (!isRoot)
             addSlotDetails(node);
+        addWidgetDetails(node);
     }
 
     private void onDetailsLostFocus(object? sender, RoutedEventArgs args)
@@ -1984,6 +1990,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         HierarchyTree.PointerReleased += onHierarchyPointerReleased;
         DragDrop.SetAllowDrop(HierarchyTree, true);
         HierarchyTree.AddHandler(DragDrop.DragOverEvent, onHierarchyDragOver);
+        HierarchyTree.AddHandler(DragDrop.DragLeaveEvent, onHierarchyDragLeave);
         HierarchyTree.AddHandler(DragDrop.DropEvent, onHierarchyDrop);
     }
 
@@ -2062,6 +2069,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             data,
             hierarchyDragEffects);
         startingHierarchyDrag = false;
+        clearHierarchyDropIndicator();
         clearHierarchyDrag();
     }
 
@@ -2077,26 +2085,57 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         string? nodeName = getDraggedValue(args, DragPrefix);
         string? controlId = getDraggedValue(args, PaletteDragPrefix);
         UiHierarchyItem? target = getHierarchyDropTarget(args.Source);
-        UiAssetEditingService.DropPosition position = getDropPosition(args);
+        TreeViewItem? container = getHierarchyDropContainer(args.Source, target);
         args.DragEffects = DragDropEffects.None;
-        if (target is not null)
+        if (target is null)
         {
-            if (nodeName is not null
-                && document.TryGetDropLocation(nodeName, target.NodeName, position, out _, out _))
+            clearHierarchyDropIndicator();
+            args.Handled = true;
+            return;
+        }
+        UiAssetEditingService.DropPosition position = resolveHierarchyDropPosition(
+            args, target, nodeName, controlId);
+        string? parentName = null;
+        if (nodeName is not null
+            && document.TryGetDropLocation(nodeName, target.NodeName, position, out parentName, out _))
+        {
+            args.DragEffects = DragDropEffects.Move;
+        }
+        else if (controlId is not null
+            && document.TryGetControlDropLocation(
+                controlId, target.NodeName, position, out parentName, out _, out _))
+        {
+            args.DragEffects = DragDropEffects.Copy;
+        }
+        setHierarchyDropIndicator(
+            container,
+            getHierarchyDropIndicatorClass(
+                target.NodeName,
+                parentName,
+                position,
+                args.DragEffects != DragDropEffects.None));
+        args.Handled = true;
+    }
+
+    private void onHierarchyDragLeave(object? sender, RoutedEventArgs args)
+    {
+        if (args is DragEventArgs drag)
+        {
+            Point position = drag.GetPosition(HierarchyTree);
+            if (position.X >= 0
+                && position.Y >= 0
+                && position.X <= HierarchyTree.Bounds.Width
+                && position.Y <= HierarchyTree.Bounds.Height)
             {
-                args.DragEffects = DragDropEffects.Move;
-            }
-            else if (controlId is not null
-                && document.TryGetControlDropLocation(controlId, target.NodeName, position, out _, out _, out _))
-            {
-                args.DragEffects = DragDropEffects.Copy;
+                return;
             }
         }
-        args.Handled = true;
+        clearHierarchyDropIndicator();
     }
 
     private async void onHierarchyDrop(object? sender, DragEventArgs args)
     {
+        clearHierarchyDropIndicator();
         string? nodeName = getDraggedValue(args, DragPrefix);
         string? controlId = getDraggedValue(args, PaletteDragPrefix);
         UiHierarchyItem? target = getHierarchyDropTarget(args.Source);
@@ -2105,7 +2144,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         args.Handled = true;
         args.DragEffects = DragDropEffects.None;
         flushPendingField();
-        UiAssetEditingService.DropPosition position = getDropPosition(args);
+        UiAssetEditingService.DropPosition position = resolveHierarchyDropPosition(
+            args, target, nodeName, controlId);
         if (controlId is not null
             && controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor)
             && document.TryGetControlDropLocation(controlId, target.NodeName, position,
@@ -2123,13 +2163,59 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
     }
 
-    private static UiAssetEditingService.DropPosition getDropPosition(DragEventArgs args)
+    private UiAssetEditingService.DropPosition resolveHierarchyDropPosition(
+        DragEventArgs args,
+        UiHierarchyItem target,
+        string? nodeName,
+        string? controlId)
+    {
+        UiAssetEditingService.DropPosition position = getDropPosition(args, out double relativeY);
+        if (position != UiAssetEditingService.DropPosition.Inside
+            || isHierarchyInsideChildDrop(target.NodeName, nodeName, controlId))
+        {
+            return position;
+        }
+        return relativeY < 0.5
+            ? UiAssetEditingService.DropPosition.Before
+            : UiAssetEditingService.DropPosition.After;
+    }
+
+    private bool isHierarchyInsideChildDrop(
+        string targetNodeName,
+        string? nodeName,
+        string? controlId)
+    {
+        if (nodeName is not null
+            && document.TryGetDropLocation(
+                nodeName,
+                targetNodeName,
+                UiAssetEditingService.DropPosition.Inside,
+                out string parentName,
+                out _)
+            && string.Equals(parentName, targetNodeName, StringComparison.Ordinal))
+        {
+            return true;
+        }
+        return controlId is not null
+            && document.TryGetControlDropLocation(
+                controlId,
+                targetNodeName,
+                UiAssetEditingService.DropPosition.Inside,
+                out string controlParentName,
+                out _,
+                out _)
+            && string.Equals(controlParentName, targetNodeName, StringComparison.Ordinal);
+    }
+
+    private static UiAssetEditingService.DropPosition getDropPosition(
+        DragEventArgs args,
+        out double relativeY)
     {
         TreeViewItem? container = getHierarchyContainer(args.Source);
         Control? header = container?.GetVisualDescendants().OfType<ContentPresenter>()
             .FirstOrDefault(presenter => presenter.Name == "PART_HeaderPresenter"
                 && ReferenceEquals(presenter.TemplatedParent, container));
-        double relativeY = header is null
+        relativeY = header is null
             ? 0.5
             : args.GetPosition(header).Y / Math.Max(1, header.Bounds.Height);
         return relativeY < 0.25
@@ -2137,6 +2223,44 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             : relativeY > 0.75
                 ? UiAssetEditingService.DropPosition.After
                 : UiAssetEditingService.DropPosition.Inside;
+    }
+
+    private static string? getHierarchyDropIndicatorClass(
+        string targetNodeName,
+        string? parentName,
+        UiAssetEditingService.DropPosition position,
+        bool valid)
+    {
+        if (!valid || string.IsNullOrEmpty(parentName))
+            return null;
+        if (string.Equals(parentName, targetNodeName, StringComparison.Ordinal))
+            return DropInsideClass;
+        return position == UiAssetEditingService.DropPosition.After
+            ? DropAfterClass
+            : DropBeforeClass;
+    }
+
+    private void setHierarchyDropIndicator(TreeViewItem? container, string? className)
+    {
+        if (ReferenceEquals(hierarchyDropIndicatorItem, container)
+            && string.Equals(hierarchyDropIndicatorClass, className, StringComparison.Ordinal))
+        {
+            return;
+        }
+        clearHierarchyDropIndicator();
+        if (container is null || className is null)
+            return;
+        container.Classes.Add(className);
+        hierarchyDropIndicatorItem = container;
+        hierarchyDropIndicatorClass = className;
+    }
+
+    private void clearHierarchyDropIndicator()
+    {
+        if (hierarchyDropIndicatorItem is not null && hierarchyDropIndicatorClass is not null)
+            hierarchyDropIndicatorItem.Classes.Remove(hierarchyDropIndicatorClass);
+        hierarchyDropIndicatorItem = null;
+        hierarchyDropIndicatorClass = null;
     }
 
     private UiHierarchyItem? getHierarchyDropTarget(object? source)
@@ -2165,6 +2289,19 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             .GetVisualAncestors()
             .OfType<TreeViewItem>()
             .FirstOrDefault();
+    }
+
+    private TreeViewItem? getHierarchyDropContainer(object? source, UiHierarchyItem? target)
+    {
+        TreeViewItem? container = getHierarchyContainer(source);
+        if (container is not null)
+            return container;
+        if (target is null)
+            return null;
+        return HierarchyTree.GetVisualDescendants()
+            .OfType<TreeViewItem>()
+            .FirstOrDefault(item => item.DataContext is UiHierarchyItem current
+                && string.Equals(current.NodeName, target.NodeName, StringComparison.Ordinal));
     }
 
     private static string? getDraggedValue(DragEventArgs args, string prefix)

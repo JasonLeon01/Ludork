@@ -89,7 +89,7 @@ function Player:onFixedTick(fixedDelta) end
 ---
 ---@brief Serialize player information for serialization.
 ---
---- - @return A dictionary containing player class path, tag, position, attributes, and inventory.
+--- - @return A dictionary containing player class path, tag, position, all numeric Base attributes, and inventory.
 ---
 ---@return Source.Player.SaveData
 function Player:asDict() end

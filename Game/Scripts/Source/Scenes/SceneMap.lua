@@ -268,6 +268,10 @@ function Scene:loadMap(mapPath, initialPosition)
             }))
     end
     self:_updateCurrentRegion(mapFile)
+    Engine.publish(EventKeys.PlayerChanged, {
+        owner = self.player,
+        kind = EventKeys.PlayerChangeKind.Map
+    })
     Logging.info("Loaded map %s in %.3fs", mapFile, perfCounter() - startTime)
     return mapFile
 end

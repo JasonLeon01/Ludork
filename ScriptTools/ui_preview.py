@@ -12,10 +12,11 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from .file_replace import replace_path, wait_until_writable
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
 from .ui_control_registry import (
     UiControlRegistry,
@@ -427,45 +428,14 @@ def _build_info(host: pathlib.Path, project: pathlib.Path) -> dict[str, object]:
     return info
 
 
-def _retry_file_operation(operation: Callable[[], object]) -> None:
-    deadline = time.monotonic() + 10
-    delay = 0.05
-    while True:
-        try:
-            operation()
-            return
-        except OSError as error:
-            if (
-                os.name != "nt"
-                or (
-                    not isinstance(error, PermissionError)
-                    and getattr(error, "winerror", None) not in (5, 32, 33)
-                )
-                or time.monotonic() >= deadline
-            ):
-                raise
-            time.sleep(min(delay, max(0, deadline - time.monotonic())))
-            delay = min(delay * 2, 0.4)
-
-
 def _replace(source: pathlib.Path, destination: pathlib.Path) -> None:
-    _retry_file_operation(lambda: source.replace(destination))
+    replace_path(source, destination)
 
 
 def _wait_for_runtime_release(
     directory: pathlib.Path, files: list[pathlib.Path] | None = None
 ) -> None:
-    if os.name != "nt":
-        return
-
-    def check_files() -> None:
-        for path in files if files is not None else directory.rglob("*"):
-            if path.is_file() and not _is_link(path):
-                # A mapped DLL can survive a directory rename but cannot be opened for writing.
-                with path.open("r+b"):
-                    pass
-
-    _retry_file_operation(check_files)
+    wait_until_writable(directory, files)
 
 
 def _temporary_root(project: pathlib.Path) -> pathlib.Path:

@@ -103,7 +103,7 @@ internal sealed class EditorFileSaveBatch
                 currentPath = path;
                 if (!File.Exists(path))
                     continue;
-                File.Delete(path);
+                EditorFileRetry.DeleteFile(path);
                 changedFiles.Add(path);
             }
             committed = true;
@@ -119,7 +119,7 @@ internal sealed class EditorFileSaveBatch
                     if (original is null)
                     {
                         if (File.Exists(path))
-                            File.Delete(path);
+                            EditorFileRetry.DeleteFile(path);
                     }
                     else
                     {
@@ -189,7 +189,7 @@ internal sealed class EditorFileSaveBatch
     private static void moveDirectory(string source, string destination,
         ICollection<(string Source, string Destination)> completed)
     {
-        Directory.Move(source, destination);
+        EditorFileRetry.MoveDirectory(source, destination);
         completed.Add((source, destination));
     }
 
@@ -221,14 +221,14 @@ internal sealed class EditorFileSaveBatch
                 input.CopyTo(output);
                 output.Flush(true);
             }
-            File.Move(temporary, destination, true);
+            EditorFileRetry.MoveFile(temporary, destination, true);
         }
         finally
         {
             cleanup(temporary, () =>
             {
                 if (File.Exists(temporary))
-                    File.Delete(temporary);
+                    EditorFileRetry.DeleteFile(temporary);
             }, errors);
         }
     }

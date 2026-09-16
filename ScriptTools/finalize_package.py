@@ -10,6 +10,14 @@ import tempfile
 import zlib
 
 from .compile_lua import compile_scripts, lua_source_paths, resolve_luac
+from .file_replace import (
+    copy_file,
+    package_lock_candidates,
+    remove_file,
+    remove_tree,
+    replace_path,
+    wait_until_writable,
+)
 from .ldpak import (
     pack_ldpak,
     validate_ldpak_source,
@@ -170,13 +178,13 @@ def _replace_sources(
             temporary_path.write_bytes(encoded)
             temporary_paths.append(temporary_path)
         for (_, target_path, _), temporary_path in zip(jobs, temporary_paths):
-            temporary_path.replace(target_path)
+            replace_path(temporary_path, target_path)
         for source_path, _, _ in jobs:
-            source_path.unlink()
+            remove_file(source_path)
     finally:
         for temporary_path in temporary_paths:
             if temporary_path.exists():
-                temporary_path.unlink()
+                remove_file(temporary_path, missing_ok=True)
 
 
 def encrypt_shaders(shader_root: pathlib.Path) -> int:
@@ -308,10 +316,10 @@ def strip_ui_editor_data(data_root: pathlib.Path) -> int:
 
 def _remove_path(path: pathlib.Path) -> bool:
     if path.is_symlink() or path.is_file():
-        path.unlink()
+        remove_file(path)
         return True
     if path.is_dir():
-        shutil.rmtree(path)
+        remove_tree(path)
         return True
     return False
 
@@ -497,7 +505,7 @@ def finalize_package(
     original_backup = transaction_root / "original"
     preserve_transaction = False
     try:
-        shutil.copytree(root, working_root, symlinks=True)
+        shutil.copytree(root, working_root, symlinks=True, copy_function=copy_file)
         result = _finalize_package_in_place(
             working_root,
             encrypt_shaders_enabled,
@@ -508,12 +516,15 @@ def finalize_package(
             use_ldpak,
             registry,
         )
-        root.replace(original_backup)
+        wait_until_writable(root, package_lock_candidates(root))
+        replace_path(root, original_backup)
         try:
-            working_root.replace(root)
+            wait_until_writable(original_backup, package_lock_candidates(original_backup))
+            wait_until_writable(working_root, package_lock_candidates(working_root))
+            replace_path(working_root, root)
         except BaseException:
             try:
-                original_backup.replace(root)
+                replace_path(original_backup, root)
             except BaseException as rollback_exception:
                 preserve_transaction = True
                 raise RuntimeError(
@@ -524,7 +535,7 @@ def finalize_package(
         return result
     finally:
         if not preserve_transaction and transaction_root.exists():
-            shutil.rmtree(transaction_root, ignore_errors=True)
+            remove_tree(transaction_root, ignore_errors=True)
 
 
 def main(arguments: list[str] | None = None) -> int:

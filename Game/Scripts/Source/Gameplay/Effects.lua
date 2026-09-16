@@ -1,12 +1,27 @@
+local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local Data = require("Source.Data")
+local EventKeys = require("Source.Configs.EventKeys")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayEffect = GlobalCore.GameplayEffect
 local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local Effects = {}
+
+---@param target  Source.Battler.Battler
+---@param stateID? string
+local function publishStateChanged(target, stateID)
+    if target.getLoading ~= nil and target:getLoading() then
+        return
+    end
+    Engine.publish(EventKeys.AbilitySystemChanged, {
+        owner = target,
+        kind = EventKeys.AbilitySystemChangeKind.State,
+        name = stateID
+    })
+end
 
 function Effects.CreateInstantModifierSpec(effectID, attribute, operation, magnitude, eventData)
     local effect = GameplayEffect.new({
@@ -75,9 +90,11 @@ function Effects.CreateStateEffect(stateID)
 end
 
 function Effects.ApplyState(target, stateID, stacks, eventData)
-    return target
+    local handle = target
         :getAbilitySystemComponent()
         :applyGameplayEffectSpec(Effects.CreateStateSpec(stateID, stacks, eventData))
+    publishStateChanged(target, stateID)
+    return handle
 end
 
 function Effects.CreateStateSpec(stateID, stacks, eventData)
@@ -93,7 +110,11 @@ function Effects.RemoveState(target, stateID)
     if handle == nil then
         return false
     end
-    return abilitySystem:removeActiveGameplayEffect(handle)
+    local removed = abilitySystem:removeActiveGameplayEffect(handle)
+    if removed then
+        publishStateChanged(target, stateID)
+    end
+    return removed
 end
 
 function Effects.ReduceState(target, stateID, stacks)
@@ -103,7 +124,11 @@ function Effects.ReduceState(target, stateID, stacks)
     if handle == nil then
         return false
     end
-    return abilitySystem:removeActiveGameplayEffect(handle, stacks)
+    local removed = abilitySystem:removeActiveGameplayEffect(handle, stacks)
+    if removed then
+        publishStateChanged(target, stateID)
+    end
+    return removed
 end
 
 function Effects.ClearStates(target)
@@ -116,9 +141,13 @@ function Effects.ClearStates(target)
             handles[#handles + 1] = activeEffect.handle
         end
     end
+    if #handles == 0 then
+        return
+    end
     for _, handle in ipairs(handles) do
         abilitySystem:removeActiveGameplayEffect(handle)
     end
+    publishStateChanged(target)
 end
 
 function Effects.GetStateStacks(target)

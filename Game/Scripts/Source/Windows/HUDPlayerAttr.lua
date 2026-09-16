@@ -67,7 +67,11 @@ local Controller = {}
 
 Controller.windowOptions = { position = sf.Vector2f.new(16, 16) }
 
-Controller.refreshEvents = { EventKeys.LocaleChanged }
+Controller.refreshEvents = {
+    EventKeys.LocaleChanged,
+    EventKeys.AbilitySystemChanged,
+    EventKeys.PlayerChanged
+}
 
 function Controller:init(player, openMenuCallback)
     self._player = player
@@ -86,22 +90,21 @@ function Controller:init(player, openMenuCallback)
     self._stackSignature = nil
     self._progressSignature = nil
     self._keySignature = nil
-    self._layoutDirty = false
     self:_initialiseAvatar(player)
     self._states = self:createCollection(self.ui.controls["StateHost"], PlayerStateRowController)
 end
 
 function Controller:setPlayer(player)
     self._player = player
+    self:refresh()
 end
 
-function Controller:onTick(_deltaTime)
-    self:refresh()
-    if self._layoutDirty then
-        self.view:reflow()
-        self:_applyGeometry()
-        self._layoutDirty = false
+---@param payload Source.Configs.EventKeys.ChangePayload | { language: string } | nil
+function Controller:refreshFromEvent(payload)
+    if payload ~= nil and payload.owner ~= nil and payload.owner ~= self:getPlayer() then
+        return
     end
+    super(Controller, self).refreshFromEvent(payload)
 end
 
 function Controller:getPlayer()
@@ -292,7 +295,10 @@ function Controller:refresh()
     if refreshStateRows then
         self:refreshStates(language)
     end
-    self._layoutDirty = layoutDirty
+    if layoutDirty then
+        self.view:reflow()
+        self:_applyGeometry()
+    end
 end
 
 function Controller:_applyGeometry()
@@ -320,7 +326,6 @@ end
 function Controller:prepare(logicalSize)
     local root = super(Controller, self).prepare(logicalSize)
     self:_applyGeometry()
-    self._layoutDirty = false
     return root
 end
 

@@ -235,11 +235,11 @@ public sealed class ProjectExportService : IDisposable
         {
             await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(record, jsonOptions), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            File.Move(temporaryPath, recordPath, true);
+            EditorFileRetry.MoveFile(temporaryPath, recordPath, true);
         }
         finally
         {
-            File.Delete(temporaryPath);
+            EditorFileRetry.DeleteFile(temporaryPath);
         }
     }
 

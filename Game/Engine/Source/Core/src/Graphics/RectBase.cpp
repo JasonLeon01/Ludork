@@ -4,8 +4,6 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
 
-#include <algorithm>
-
 void RectBase::renderCorners(sf::RenderTarget& dst,
                              const std::vector<sf::Texture*>& areaCaches,
                              const std::vector<sf::Vector2f>& cornerPositions) {
@@ -39,27 +37,10 @@ void RectBase::renderEdges(sf::RenderTarget& dst,
             continue;
         }
 
-        int drawn = 0;
-        const bool horizontal = (i < 2);
-        const int total = horizontal ? totalW : totalH;
-        const int step = horizontal ? tileW : tileH;
-        while (drawn < total) {
-            int chunk = std::min(step, total - drawn);
-            sf::Sprite edgeSprite(*areaCaches[i]);
-            if (horizontal) {
-                edgeSprite.setTextureRect(sf::IntRect(
-                    sf::Vector2i(0, 0), sf::Vector2i(chunk, tileH)));
-                edgeSprite.setPosition(edgePositions[i] +
-                                       sf::Vector2f(float(drawn), 0.f));
-            } else {
-                edgeSprite.setTextureRect(sf::IntRect(
-                    sf::Vector2i(0, 0), sf::Vector2i(tileW, chunk)));
-                edgeSprite.setPosition(edgePositions[i] +
-                                       sf::Vector2f(0.f, float(drawn)));
-            }
-            dst.draw(edgeSprite);
-            drawn += chunk;
-        }
+        sf::Sprite edgeSprite(*areaCaches[i]);
+        edgeSprite.setTextureRect(sf::IntRect({0, 0}, {totalW, totalH}));
+        edgeSprite.setPosition(edgePositions[i]);
+        dst.draw(edgeSprite);
     }
 }
 

@@ -126,7 +126,6 @@ function WindowBase:attachPreparedView(controller, viewParts)
     self._window = viewParts.windowFrame
     self.content = viewParts.content
     self._visualRoot = viewParts.root
-    self._window:setWindowSkin(self._windowSkin, self._repeated)
     if viewParts.returnButton ~= nil then
         self._returnButton = viewParts.returnButton
         self._pauseMark = assert(viewParts.pauseMark)
