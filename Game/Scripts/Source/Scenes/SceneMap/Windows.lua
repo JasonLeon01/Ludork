@@ -59,16 +59,16 @@ function Windows.Create(self)
     local manager = assert(self:getUIManager(), "Scene map UI manager is unavailable")
     local groups = createFocusGroups(manager)
     local function onSubMenuClose()
-        local menu = self._windowMenu:peek()
-        if menu ~= nil then
-            menu:onSubMenuClose()
-        end
+        self:_onHotkeySubMenuClose()
     end
     self._playerNameMoveEnabledBeforeOpen = true
     self._shopMoveEnabledBeforeOpen = true
     self._attrShopMoveEnabledBeforeOpen = true
     self._enemyBookMoveEnabledBeforeOpen = true
     self._floorTeleporterMoveEnabledBeforeOpen = true
+    self._itemMoveEnabledBeforeOpen = true
+    self._equipMoveEnabledBeforeOpen = true
+    self._saveLoadMoveEnabledBeforeOpen = true
     self._messageWindow = LazyWindow.new(function ()
         local WindowMessage = require("Source.Windows.WindowMessage")
 
@@ -96,10 +96,7 @@ function Windows.Create(self)
         window:setZOrder(MENU_Z_ORDER)
         window:setOnCloseCallback(onSubMenuClose)
         window:setOnUseCallback(function ()
-            local menu = self._windowMenu:peek()
-            if menu ~= nil then
-                menu:close()
-            end
+            self:_onHotkeyItemUsed()
         end)
         bindFocusControl(groups.item, window)
         window:mount(manager)
@@ -243,7 +240,8 @@ function Windows.Create(self)
     end)
     self._blockingWindows = {
         self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
-        self._windowFloorTeleporter, self._windowPlayerName
+        self._windowFloorTeleporter, self._windowPlayerName, self._windowItem, self._windowEquip, self._windowSaveLoad,
+        self._configWindow
     }
 end
 

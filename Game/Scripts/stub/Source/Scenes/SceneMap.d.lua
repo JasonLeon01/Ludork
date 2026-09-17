@@ -62,6 +62,8 @@
 ---@field _mapClickMoveBlockedUntilLateTick     boolean
 ---@field _mapInputBlockFrames                  integer
 ---@field _pendingMenuOpen                      boolean
+---@field _pendingSaveLoadOpen                  "load" | "save" | nil
+---@field _pendingQuickSave                     boolean
 ---@field _pendingTeleporterTransfer            Source.Scenes.SceneMap.PendingTeleporterTransfer | nil
 ---@field _pendingWorldTransfer                 Source.Scenes.SceneMap.PendingWorldTransfer | nil
 ---@field _mapTransferInProgress                boolean
@@ -73,6 +75,9 @@
 ---@field _attrShopMoveEnabledBeforeOpen        boolean
 ---@field _enemyBookMoveEnabledBeforeOpen       boolean
 ---@field _floorTeleporterMoveEnabledBeforeOpen boolean
+---@field _itemMoveEnabledBeforeOpen            boolean
+---@field _equipMoveEnabledBeforeOpen           boolean
+---@field _saveLoadMoveEnabledBeforeOpen        boolean
 local Scene = {}
 
 ---@return boolean
@@ -200,13 +205,40 @@ function Scene:applyLoadedGame(inst) end
 function Scene:applyPrimaryPlayer() end
 
 ---@brief Show the current-map monster handbook.
+---@return boolean
 function Scene:showEnemyBook() end
 
 ---@brief Show the visited-floor teleporter preview window.
+---@return boolean
 function Scene:showFloorTeleporter() end
 
 ---@brief Request the in-game menu to open on the next render pass.
+---@return boolean
 function Scene:openMenu() end
+
+---@brief Open the save/load UI on the Save tab without the menu.
+---@return boolean
+function Scene:openSaveUI() end
+
+---@brief Open the save/load UI on the Load tab without the menu.
+---@return boolean
+function Scene:openLoadUI() end
+
+---@brief Open the item window without the menu.
+---@return boolean
+function Scene:openItemUI() end
+
+---@brief Open the equipment window without the menu.
+---@return boolean
+function Scene:openEquipUI() end
+
+---@brief Quick-save to the next empty standard slot after the next render pass.
+---@return boolean
+function Scene:quickSave() end
+
+---@brief Quick-load the most recently modified standard save.
+---@return boolean
+function Scene:quickLoad() end
 
 ---@brief Open the map-bound shop and wait until it closes.
 ---

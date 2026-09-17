@@ -41,4 +41,15 @@ function Save.GetSavePath(slot) end
 ---@return integer | nil
 function Save.FindLatestSlot(maxSlots) end
 
+---@brief Find the first unused standard save slot, or the oldest slot when all are full.
+---@param maxSlots integer
+---@return integer
+function Save.FindNextEmptySlot(maxSlots) end
+
+---@brief Write a standard save slot, attaching an optional PNG screenshot.
+---@param slot        integer
+---@param instance    Source.GameInstance.GameInstance
+---@param screenImage sf.Image | nil
+function Save.SaveSlot(slot, instance, screenImage) end
+
 return Save

@@ -8,6 +8,14 @@ local UiLayout = {}
 ---@return sf.IntRect
 function UiLayout.GetCenteredRect(width, height) end
 
+---@return sf.Vector2f
+function UiLayout.GetMenuDockPosition() end
+
+---@param width  integer
+---@param height integer
+---@return sf.Vector2f
+function UiLayout.GetCenteredPosition(width, height) end
+
 --- Resize a Canvas and restore its default view to match the new dimensions.
 ---@param target Engine.Canvas
 ---@param width  integer

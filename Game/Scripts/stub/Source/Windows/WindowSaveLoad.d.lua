@@ -54,11 +54,13 @@ function Controller:getVisible() end
 ---@param visible boolean
 function Controller:setVisible(visible) end
 
----@brief Open the save/load UI in Load mode with the slot list focused.
+---@brief Open the save/load UI with the slot list focused.
 ---
+--- Defaults to Load. Pass `"save"` to open the Save tab when tabs are present.
 --- Selects the latest existing save, or the first slot when none exists.
 ---@param transitionProfile string | nil
-function Controller:open(transitionProfile) end
+---@param initialMode       "load" | "save" | nil
+function Controller:open(transitionProfile, initialMode) end
 
 ---@brief Close the save/load UI and deactivate all child windows.
 ---@param onHidden function | nil

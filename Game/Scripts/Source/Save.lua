@@ -70,4 +70,38 @@ function Save.FindLatestSlot(maxSlots)
     return latestSlot
 end
 
+function Save.FindNextEmptySlot(maxSlots)
+    for slot = 1, maxSlots do
+        if not os.path.isfile(Save.GetSavePath(slot)) then
+            return slot
+        end
+    end
+    ---@type integer | nil
+    local oldestSlot = nil
+    ---@type number | nil
+    local oldestModificationTime = nil
+    for slot = 1, maxSlots do
+        local filePath = Save.GetSavePath(slot)
+        if os.path.isfile(filePath) then
+            local modificationTime = os.path.getmtime(filePath)
+            if oldestModificationTime == nil or modificationTime < oldestModificationTime then
+                oldestSlot = slot
+                oldestModificationTime = modificationTime
+            end
+        end
+    end
+    return oldestSlot or 1
+end
+
+function Save.SaveSlot(slot, instance, screenImage)
+    if screenImage ~= nil then
+        local encoded = screenImage:saveToMemory("png")
+        assert(bool(encoded), "Failed to encode save screenshot as PNG")
+        instance:setScreenshot(encoded)
+    else
+        instance:setScreenshot(nil)
+    end
+    Save.SaveGame(Save.GetSavePath(slot), instance)
+end
+
 return Save

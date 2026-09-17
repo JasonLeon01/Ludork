@@ -1,5 +1,7 @@
 local Engine = require("Engine")
 local Ui = require("Source.UIBase.Ui")
+local UiLayout = require("Source.UIBase.UiLayout")
+local WindowTransition = require("Source.UIBase.WindowTransition")
 local View = require("Source.UI.WindowEquip")
 local WindowEquipSelect = require("Source.Windows.WindowEquip.Select")
 local WindowEquipSlot = require("Source.Windows.WindowEquip.Slot")
@@ -14,6 +16,7 @@ Controller.windowOptions = { position = sf.Vector2f.new(192, 0), hidden = true }
 
 function Controller:init(player)
     self._onCloseCallback = nil
+    self._transitionProfile = WindowTransition.MENU
     self._slotWindow = self:createChild("SlotAsset", WindowEquipSlot, player)
     self._selectWindow = self:createChild("SelectAsset", WindowEquipSelect, player, self._slotWindow)
     self._statusWindow = self:createChild("StatusPaneAsset", WindowEquipStatus, player)
@@ -36,10 +39,18 @@ function Controller:setOnCloseCallback(callback)
     self._onCloseCallback = callback
 end
 
-function Controller:open()
+function Controller:open(transitionProfile)
+    self._transitionProfile = transitionProfile or WindowTransition.MENU
+    local size = self.ui.root:getSize()
+    if self._transitionProfile == WindowTransition.MENU then
+        self.host:setPosition(UiLayout.GetMenuDockPosition())
+    else
+        self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))
+    end
     self._selectWindow:open()
     self._slotWindow:open()
-    self._transition:show("FadeIn_Menu", function ()
+    local fadeIn = WindowTransition.GetAnimationNames(self._transitionProfile)
+    self._transition:show(fadeIn, function ()
         self.host:setActive(true)
         self._slotWindow:requestKeyboardFocusAtCursor()
     end)
@@ -49,7 +60,8 @@ function Controller:close(onHidden)
     self.host:setActive(false)
     self._slotWindow:setActive(false)
     self._selectWindow:setActive(false)
-    self._transition:hide("FadeOut_Menu", function ()
+    local _, fadeOut = WindowTransition.GetAnimationNames(self._transitionProfile)
+    self._transition:hide(fadeOut, function ()
         self._slotWindow:close()
         if onHidden ~= nil then
             onHidden()

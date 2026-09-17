@@ -5,6 +5,8 @@ local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
 local IconTexture = require("Source.UIBase.IconTexture")
 local Ui = require("Source.UIBase.Ui")
+local UiLayout = require("Source.UIBase.UiLayout")
+local WindowTransition = require("Source.UIBase.WindowTransition")
 local View = require("Source.UI.WindowItem")
 local ItemRowController = require("Source.Windows.WindowItem.ItemRow.Controller")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
@@ -45,6 +47,7 @@ function Controller:init(player, onClose)
     self._itemList = {}
     self._lastDescIndex = nil
     self._descMaxWidth = 1
+    self._transitionProfile = WindowTransition.MENU
     self._rows = self:createCollection(self.ui.controls["ItemList"], ItemRowController)
 end
 
@@ -62,9 +65,17 @@ function Controller:onTick(deltaTime)
     self:tick()
 end
 
-function Controller:open()
+function Controller:open(transitionProfile)
+    self._transitionProfile = transitionProfile or WindowTransition.MENU
+    local size = self.ui.root:getSize()
+    if self._transitionProfile == WindowTransition.MENU then
+        self.host:setPosition(UiLayout.GetMenuDockPosition())
+    else
+        self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))
+    end
     self:refreshItems()
-    self.host:showWithAnimation("FadeIn_Menu", function ()
+    local fadeIn = WindowTransition.GetAnimationNames(self._transitionProfile)
+    self.host:showWithAnimation(fadeIn, function ()
         self.host:setActive(true)
         self.host:requestKeyboardFocusAtCursor()
     end)
@@ -76,7 +87,8 @@ end
 
 function Controller:close(onHidden)
     self.host:setActive(false)
-    self.host:hideWithAnimation("FadeOut_Menu", onHidden)
+    local _, fadeOut = WindowTransition.GetAnimationNames(self._transitionProfile)
+    self.host:hideWithAnimation(fadeOut, onHidden)
 end
 
 function Controller:onReturn()

@@ -82,6 +82,8 @@ function Scene:onCreate()
     self._mapClickMoveBlockedUntilLateTick = false
     self._mapInputBlockFrames = 0
     self._pendingMenuOpen = false
+    self._pendingSaveLoadOpen = nil
+    self._pendingQuickSave = false
     self._pendingTeleporterTransfer = nil
     self._pendingWorldTransfer = nil
     self._mapTransferInProgress = false
@@ -169,13 +171,15 @@ function Scene:onInput()
             and table.contains(hotKeyConfig.Filter, "casual") then
             local functionWhenPressed = hotKeyConfig.FunctionWhenPressed
             if functionWhenPressed ~= nil and Input.getKeyPressed(key, false) then
-                functionWhenPressed(self)
-                Input.getKeyPressed(key, true)
+                if functionWhenPressed(self) then
+                    Input.getKeyPressed(key, true)
+                end
             end
             local functionWhenReleased = hotKeyConfig.FunctionWhenReleased
             if functionWhenReleased ~= nil and Input.getKeyReleased(key, false) then
-                functionWhenReleased(self)
-                Input.getKeyReleased(key, true)
+                if functionWhenReleased(self) then
+                    Input.getKeyReleased(key, true)
+                end
             end
         end
     end
@@ -367,6 +371,10 @@ function Scene:_renderHandle(deltaTime)
         self._pendingMenuOpen = false
         Scene.CaptureScreenSnapshot()
         self._windowMenu:get():open()
+    elseif self._pendingSaveLoadOpen ~= nil or self._pendingQuickSave then
+        Scene.CaptureScreenSnapshot()
+        self:_processPendingSaveLoadOpen()
+        self:_processPendingQuickSave()
     end
 end
 
@@ -396,7 +404,8 @@ end
 
 ---@return boolean
 function Scene:_canOpenMenu()
-    return not self._pendingMenuOpen and not self:_isMenuBlocking()
+    return not self._pendingMenuOpen and self._pendingSaveLoadOpen == nil and not self._pendingQuickSave
+        and not self:_isMenuBlocking()
         and not self:_isInDialogue() and not self:_hasVisibleBlockingWindow()
 end
 
@@ -405,7 +414,6 @@ function Scene:_canOpenItemOverlay()
     local menu = self._windowMenu:peek()
     local item = self._windowItem:peek()
     return menu ~= nil and menu:getVisible() and item ~= nil and item:getVisible() and not self:_isInDialogue()
-        and not self:_hasVisibleBlockingWindow()
 end
 
 ---@return boolean
@@ -641,6 +649,30 @@ function Scene:openMenu()
     return SceneMapInteractions.OpenMenu(self)
 end
 
+function Scene:openSaveUI()
+    return SceneMapInteractions.OpenSaveUI(self)
+end
+
+function Scene:openLoadUI()
+    return SceneMapInteractions.OpenLoadUI(self)
+end
+
+function Scene:openItemUI()
+    return SceneMapInteractions.OpenItemUI(self)
+end
+
+function Scene:openEquipUI()
+    return SceneMapInteractions.OpenEquipUI(self)
+end
+
+function Scene:quickSave()
+    return SceneMapInteractions.QuickSave(self)
+end
+
+function Scene:quickLoad()
+    return SceneMapInteractions.QuickLoad(self)
+end
+
 function Scene:openShop(buyItemIDs, canSell)
     return SceneMapInteractions.OpenShop(self, buyItemIDs, canSell)
 end
@@ -743,6 +775,22 @@ end
 
 function Scene:_onSaveLoadClose(reason)
     return SceneMapInteractions.OnSaveLoadClose(self, reason)
+end
+
+function Scene:_onHotkeySubMenuClose()
+    return SceneMapInteractions.OnHotkeySubMenuClose(self)
+end
+
+function Scene:_onHotkeyItemUsed()
+    return SceneMapInteractions.OnHotkeyItemUsed(self)
+end
+
+function Scene:_processPendingSaveLoadOpen()
+    return SceneMapInteractions.ProcessPendingSaveLoadOpen(self)
+end
+
+function Scene:_processPendingQuickSave()
+    return SceneMapInteractions.ProcessPendingQuickSave(self)
 end
 
 function Scene:_onConfigClose()

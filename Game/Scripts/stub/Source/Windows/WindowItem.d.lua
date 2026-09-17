@@ -14,6 +14,7 @@
 ---@field _descMaxWidth    integer
 ---@field _logicalSize     sf.Vector2u | nil
 ---@field _rows            Source.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
+---@field _transitionProfile string
 local Controller = {}
 
 ---@brief Construct the item window.
@@ -35,7 +36,10 @@ function Controller:setPlayer(player) end
 function Controller:onTick(deltaTime) end
 
 ---@brief Open the item window, refreshing inventory and selecting its first item.
-function Controller:open() end
+---
+--- Defaults to Menu dock + FadeIn_Menu. Pass DEFAULT to center with scale fade.
+---@param transitionProfile string | nil
+function Controller:open(transitionProfile) end
 
 ---@brief Refresh the currently selected item's localised name and description.
 function Controller:refreshLocale() end

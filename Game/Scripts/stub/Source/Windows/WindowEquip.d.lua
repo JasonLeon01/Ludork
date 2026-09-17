@@ -6,6 +6,7 @@
 ---@field _selectWindow Source.Windows.WindowEquipSelect
 ---@field _statusWindow Source.Windows.WindowEquipStatus
 ---@field ui            Source.UI.WindowEquip
+---@field _transitionProfile string
 local Controller = {}
 
 ---@param player Source.Player.Player
@@ -17,7 +18,8 @@ function Controller:setPlayer(player) end
 ---@param callback function | nil
 function Controller:setOnCloseCallback(callback) end
 
-function Controller:open() end
+---@param transitionProfile string | nil
+function Controller:open(transitionProfile) end
 
 ---@param onHidden function | nil
 function Controller:close(onHidden) end

@@ -73,11 +73,15 @@ function Controller:setVisible(visible)
     self._detailWindow:setVisible(visible)
 end
 
-function Controller:open(transitionProfile)
+function Controller:open(transitionProfile, initialMode)
     self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
-    self._mode = "load"
+    local mode = "load"
+    if not self._loadOnly and initialMode == "save" then
+        mode = "save"
+    end
+    self._mode = mode
     if self._tabWindow ~= nil then
-        self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(0)
+        self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(mode == "save" and 1 or 0)
     end
     self._slotWindow:resetSelection()
     local latestSlot = Save.FindLatestSlot(WindowSaveSlot.MAX_SAVE_SLOTS)
@@ -87,6 +91,14 @@ function Controller:open(transitionProfile)
         self._slotWindow:selectIndex(latestSlotIndex)
     end
     self._lastSlotIndex = nil
+    if not self._loadOnly then
+        local size = self.ui.root:getSize()
+        if self._transitionProfile == WindowTransition.MENU then
+            self.host:setPosition(UiLayout.GetMenuDockPosition())
+        else
+            self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))
+        end
+    end
     if self._tabWindow ~= nil then
         self._tabWindow:setActive(false)
     end
@@ -167,16 +179,7 @@ function Controller:_handleSave(slotNumber)
         AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
-    local filePath = Save.GetSavePath(slotNumber)
-    local screenImage = GameSystem.GetSavedScreenImage()
-    if screenImage ~= nil then
-        local encoded = screenImage:saveToMemory("png")
-        assert(bool(encoded), "Failed to encode save screenshot as PNG")
-        instance:setScreenshot(encoded)
-    else
-        instance:setScreenshot(nil)
-    end
-    Save.SaveGame(filePath, instance)
+    Save.SaveSlot(slotNumber, instance, GameSystem.GetSavedScreenImage())
     AudioManager.playSound(GameSystem.GetSaveSE())
     self._detailWindow:refresh()
     self:_closeWithReason(CLOSE_REASON_SAVED)

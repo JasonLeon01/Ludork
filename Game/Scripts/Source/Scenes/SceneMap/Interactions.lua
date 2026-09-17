@@ -9,6 +9,11 @@ local Teleporter = require("Source.Teleporter")
 local RegionDict = require("Source.Configs.RegionDict")
 local MapConstants = require("Source.Configs.MapConstants")
 
+local AudioManager = GlobalCore.AudioManager
+local Save = require("Source.Save")
+local WindowTransition = require("Source.UIBase.WindowTransition")
+local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
+
 local Node = Engine.Node
 local GlobalSystem = GlobalCore.System
 ---@type fun(value: string): string
@@ -75,6 +80,23 @@ local function formatDialogueText(text, context)
     text = Engine.ApplyStringMappingFormat(text, context.localVars)
     text = Engine.ApplyStringMappingFormat(text, context.instanceVars)
     return text
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+local function menuIsVisible(self)
+    local menu = self._windowMenu:peek()
+    return menu ~= nil and menu:getVisible()
+end
+
+---@param self             Source.Scenes.SceneMap.SceneMap
+---@param previousEnabled  boolean
+local function restoreHotkeyOverlayMove(self, previousEnabled)
+    if menuIsVisible(self) then
+        return
+    end
+    self.player:setMoveEnabled(previousEnabled)
+    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -185,9 +207,10 @@ function Scene.RebindPlayerToUI(self)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
 function Scene.ShowEnemyBook(self)
     if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(ENEMY_BOOK_ITEM_ID) then
-        return
+        return false
     end
     local window = self._windowEnemyBook:get()
     if not window:getVisible() then
@@ -196,12 +219,14 @@ function Scene.ShowEnemyBook(self)
     end
     window:open(self:getGameMap())
     self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
 function Scene.ShowFloorTeleporter(self)
     if (not self:_canOpenMenu() and not self:_canOpenItemOverlay()) or not self.player:hasItem(FLOOR_TELEPORTER_ITEM_ID) then
-        return
+        return false
     end
     local window = self._windowFloorTeleporter:get()
     if not window:getVisible() then
@@ -210,13 +235,150 @@ function Scene.ShowFloorTeleporter(self)
     end
     window:open(self.inst)
     self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
 function Scene.OpenMenu(self)
-    if self:_canOpenMenu() then
-        self._pendingMenuOpen = true
+    if not self:_canOpenMenu() then
+        return false
     end
+    self._pendingMenuOpen = true
+    return true
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@param mode "load" | "save"
+---@return boolean
+function Scene.OpenSaveLoadUI(self, mode)
+    if not self:_canOpenMenu() then
+        return false
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self._pendingSaveLoadOpen = mode
+    return true
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+function Scene.OpenSaveUI(self)
+    return Scene.OpenSaveLoadUI(self, "save")
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+function Scene.OpenLoadUI(self)
+    return Scene.OpenSaveLoadUI(self, "load")
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ProcessPendingSaveLoadOpen(self)
+    local mode = self._pendingSaveLoadOpen
+    if mode == nil then
+        return
+    end
+    self._pendingSaveLoadOpen = nil
+    self._saveLoadMoveEnabledBeforeOpen = self.player:getMoveEnabled()
+    self.player:setMoveEnabled(false)
+    self._windowSaveLoad:get():open(WindowTransition.DEFAULT, mode)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+function Scene.OpenItemUI(self)
+    if not self:_canOpenMenu() then
+        return false
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self._itemMoveEnabledBeforeOpen = self.player:getMoveEnabled()
+    self.player:setMoveEnabled(false)
+    self._windowItem:get():open(WindowTransition.DEFAULT)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+function Scene.OpenEquipUI(self)
+    if not self:_canOpenMenu() then
+        return false
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self._equipMoveEnabledBeforeOpen = self.player:getMoveEnabled()
+    self.player:setMoveEnabled(false)
+    self._windowEquip:get():open(WindowTransition.DEFAULT)
+    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+function Scene.QuickSave(self)
+    if not self:_canOpenMenu() then
+        return false
+    end
+    self._pendingQuickSave = true
+    return true
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ProcessPendingQuickSave(self)
+    if not self._pendingQuickSave then
+        return
+    end
+    self._pendingQuickSave = false
+    local instance = self:_getSaveSource()
+    if instance == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return
+    end
+    local slot = Save.FindNextEmptySlot(WindowSaveSlot.MAX_SAVE_SLOTS)
+    Save.SaveSlot(slot, instance, GameSystem.GetSavedScreenImage())
+    AudioManager.playSound(GameSystem.GetSaveSE())
+    self:showMessage("", "{QUICK_SAVE}", nil, { slot = slot })
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+---@return boolean
+function Scene.QuickLoad(self)
+    if not self:_canOpenMenu() then
+        return false
+    end
+    local slot = Save.FindLatestSlot(WindowSaveSlot.MAX_SAVE_SLOTS)
+    if slot == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return true
+    end
+    local instance = Save.LoadGame(Save.GetSavePath(slot))
+    if instance == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return true
+    end
+    AudioManager.playSound(GameSystem.GetLoadSE())
+    self:applyLoadedGame(instance)
+    return true
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnHotkeySubMenuClose(self)
+    local menu = self._windowMenu:peek()
+    if menu ~= nil and menu:getVisible() then
+        menu:onSubMenuClose()
+        return
+    end
+    restoreHotkeyOverlayMove(self, true)
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.OnHotkeyItemUsed(self)
+    local menu = self._windowMenu:peek()
+    if menu ~= nil and menu:getVisible() then
+        menu:close()
+        return
+    end
+    restoreHotkeyOverlayMove(self, true)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -491,14 +653,15 @@ end
 ---@param self   Source.Scenes.SceneMap.SceneMap
 function Scene.OnSaveLoadClose(self, reason)
     local menu = self._windowMenu:peek()
-    if menu == nil then
+    if menu ~= nil and menu:getVisible() then
+        if reason == "cancel" then
+            menu:onSaveLoadClose()
+            return
+        end
+        menu:close()
         return
     end
-    if reason == "cancel" then
-        menu:onSaveLoadClose()
-        return
-    end
-    menu:close()
+    restoreHotkeyOverlayMove(self, self._saveLoadMoveEnabledBeforeOpen)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
