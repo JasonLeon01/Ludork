@@ -46,11 +46,11 @@
 ---@field playerKeys       string[]
 ---@field players          table<string, Source.Player.SaveData>
 ---@field variables        table<string, Source.GameInstance.RecordValue>
----@field map              string
+---@field map              table<string, string>
 ---@field obtainedItems    table<string, boolean>
 ---@field addedActors      table<string, Source.GameInstance.SavedAddedActorRecord[]>
 ---@field actorPositions   table<string, table<string, integer[]>>
----@field worldMovedActors table<string, Source.GameInstance.SavedWorldMovedActorRecord[]> | nil        Required when `map` is a world manifest or the save retains moved-world state.
+---@field worldMovedActors table<string, Source.GameInstance.SavedWorldMovedActorRecord[]> | nil        Required when any stored player map is a world manifest or the save retains moved-world state.
 ---@field destroyedActors  table<string, string[]>
 ---@field destroyedTerrain table<string, table<string, Source.GameInstance.SavedTerrainChangeRecord[]>>
 ---@field telepoints       table<string, Source.GameInstance.SavedTelepointRecord[]>
@@ -64,7 +64,7 @@
 ---@class Source.GameInstance.GameInstance
 ---@field _playerKeys                 string[]
 ---@field _players                    table<string, Source.Player.Player>
----@field _cachedMap                  string | nil
+---@field _cachedMaps                 table<string, string>
 ---@field _cachedTelepoints           table<string, Source.GameInstance.TelepointRecord[]>
 ---@field _cachedWorldMovedActors     table<string, Source.GameInstance.WorldMovedActorRecord[]>
 ---@field new                         fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
@@ -99,6 +99,7 @@ function GameInstance:getTelepointsForMap(mapKey) end
 ---@param data Source.GameInstance.SaveData
 function GameInstance:restoreFromData(data) end
 
+---@brief Get the primary player's stored map path.
 ---@return string | nil
 function GameInstance:getCurrentMapPath() end
 
@@ -212,11 +213,21 @@ function GameInstance:getPlayerByIndex(index) end
 ---@return Source.Player.Player | nil
 function GameInstance:getPlayerByTag(tag) end
 
----@brief Add a new player by class path.
+---@brief Make an existing party member the primary player by class path.
+---
+--- - @param playerClass The class path of the party member to make primary.
+---@param playerClass string
+function GameInstance:setPlayerByClass(playerClass) end
+
+---@brief Add a new player by class path at a stored map and position.
 ---
 --- - @param playerClass The class path for the player blueprint.
+--- - @param mapPath The map path stored for this player.
+--- - @param position The map cell stored for this player.
 ---@param playerClass string
-function GameInstance:addPlayerByClass(playerClass) end
+---@param mapPath     string
+---@param position    sf.Vector2i
+function GameInstance:addPlayerByClass(playerClass, mapPath, position) end
 
 ---@brief Remove a player by class path.
 ---
@@ -225,6 +236,8 @@ function GameInstance:addPlayerByClass(playerClass) end
 function GameInstance:removePlayerByClass(playerClass) end
 
 ---@brief Apply map information for scene transitions.
+---
+--- Stores the map against the primary player key.
 ---
 --- - @param mapPath The new map path to cache.
 --- - @param pos The position to set the primary player to.

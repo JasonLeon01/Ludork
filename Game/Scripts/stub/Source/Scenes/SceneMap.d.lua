@@ -196,6 +196,9 @@ function Scene:showSelection(name, options, refActor, allowCancel, localeArgs) e
 ---@param inst Source.GameInstance.GameInstance
 function Scene:applyLoadedGame(inst) end
 
+---@brief Bind the primary player, rebind UI, and load that player's stored map.
+function Scene:applyPrimaryPlayer() end
+
 ---@brief Show the current-map monster handbook.
 function Scene:showEnemyBook() end
 

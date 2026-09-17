@@ -120,11 +120,21 @@ function Utils.GetGameVariable(valueName, default) end
 ---@return Source.NodeFunctions.Utils.LocalRef<Source.GameInstance.RecordValue>
 function Utils.GetGameVariableRef(valueName, default) end
 
----@brief Add a new player by class path.
+---@brief Add a new player by class path at a stored map and position.
 ---
 --- - @param playerClass The class path for the player blueprint.
+--- - @param mapPath The map path stored for this player.
+--- - @param position The map cell stored for this player.
 ---@param playerClass string
-function Utils.AddPlayerByClass(playerClass) end
+---@param mapPath     string
+---@param position    sf.Vector2i
+function Utils.AddPlayerByClass(playerClass, mapPath, position) end
+
+---@brief Make an existing party member the primary player and load that player's stored map.
+---
+--- - @param playerClass The class path of the party member to make primary.
+---@param playerClass string
+function Utils.SetPlayerByClass(playerClass) end
 
 ---@brief Remove a player by class path.
 ---

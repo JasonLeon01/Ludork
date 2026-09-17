@@ -137,6 +137,37 @@ local _METADATA = {
             type = "function",
             parameters = {
                 "playerClass",
+                "mapPath",
+                "position",
+                playerClass = "string",
+                mapPath = "string",
+                position = "sf.Vector2i",
+            },
+            default = {
+                [1] = "",
+                [2] = "",
+            },
+            ["return"] = {},
+            ExecSplit = {
+                "default",
+                default = "nil",
+            },
+            Meta = {
+                BlueprintClassVars = {
+                    "playerClass",
+                },
+                Transfer = {
+                    {
+                        "position",
+                        "mapPath",
+                    },
+                },
+            },
+        },
+        SetPlayerByClass = {
+            type = "function",
+            parameters = {
+                "playerClass",
                 playerClass = "string",
             },
             default = {

@@ -5,7 +5,7 @@
 ---@field players             table<string, Source.Player.Player>
 ---@field currentRegion       string
 ---@field variables           table<string, Source.GameInstance.RecordValue>
----@field currentMap          string | nil
+---@field currentMaps         table<string, string>
 ---@field addedActors         table<string, Source.GameInstance.AddedActorRecord[]>
 ---@field actorPositions      table<string, table<string, sf.Vector2i>>
 ---@field worldMovedActors    table<string, Source.GameInstance.WorldMovedActorRecord[]>

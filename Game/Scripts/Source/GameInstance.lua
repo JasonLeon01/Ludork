@@ -12,7 +12,7 @@ function GameInstance:init(skipDefaultPlayer)
     self._currentRegion = ""
     ---@type table<string, Source.GameInstance.RecordValue>
     self._variables = deepcopy(GameVariables)
-    self._cachedMap = nil
+    self._cachedMaps = {}
     self._cachedNewItem = {}
     self._cachedAddedActors = {}
     self._cachedActorPositions = {}
@@ -31,6 +31,7 @@ function GameInstance:init(skipDefaultPlayer)
     local firstPlayer = Player.InitPlayer(GameSystem.GetStartPlayerClassPath())
     firstPlayer:setMapPosition(GameSystem.GetStartPos())
     GameInstanceRecords.AppendPlayer(self._players, self._playerKeys, firstPlayer)
+    self._cachedMaps[GameInstanceRecords.RequirePlayerKey(firstPlayer)] = MapPath.Normalise(GameSystem.GetStartMap())
 end
 
 function GameInstance:asDict()
@@ -39,7 +40,7 @@ function GameInstance:asDict()
         players = self._players,
         currentRegion = self._currentRegion,
         variables = self._variables,
-        currentMap = self._cachedMap,
+        currentMaps = self._cachedMaps,
         addedActors = self._cachedAddedActors,
         actorPositions = self._cachedActorPositions,
         worldMovedActors = self._cachedWorldMovedActors,
@@ -64,7 +65,7 @@ function GameInstance:restoreFromData(data)
     self._players = state.players
     self._currentRegion = state.currentRegion
     self._variables = state.variables
-    self._cachedMap = state.currentMap
+    self._cachedMaps = state.currentMaps
     self._cachedAddedActors = state.addedActors
     self._cachedActorPositions = state.actorPositions
     self._cachedWorldMovedActors = state.worldMovedActors
@@ -76,7 +77,7 @@ function GameInstance:restoreFromData(data)
 end
 
 function GameInstance:getCurrentMapPath()
-    return self._cachedMap
+    return self._cachedMaps[self._playerKeys[1]]
 end
 
 function GameInstance:getVisitedMapPaths()
@@ -128,6 +129,17 @@ function GameInstance:setPlayer(playerKey)
     error("Player key is missing from playerKeys: " .. playerKey)
 end
 
+function GameInstance:setPlayerByClass(playerClass)
+    for index, playerKey in ipairs(self._playerKeys) do
+        local player = self:getPlayerByIndex(index - 1)
+        if player:getClassPath() == playerClass then
+            self:setPlayer(playerKey)
+            return
+        end
+    end
+    error("Player class is not in the party: " .. tostring(playerClass))
+end
+
 function GameInstance:getPlayers()
     return self._players
 end
@@ -151,10 +163,14 @@ function GameInstance:getPlayerByTag(tag)
     return nil
 end
 
-function GameInstance:addPlayerByClass(playerClass)
+function GameInstance:addPlayerByClass(playerClass, mapPath, position)
+    assert(Class.isInstance(mapPath, "string") and bool(mapPath), "Added player map path must be a non-empty string")
+    assert(position ~= nil, "Added player position is required")
     local Player = require("Source.Player")
-
-    GameInstanceRecords.AppendPlayer(self._players, self._playerKeys, Player.InitPlayer(playerClass))
+    local player = Player.InitPlayer(playerClass)
+    player:setMapPosition(position)
+    GameInstanceRecords.AppendPlayer(self._players, self._playerKeys, player)
+    self._cachedMaps[GameInstanceRecords.RequirePlayerKey(player)] = MapPath.Normalise(mapPath)
 end
 
 function GameInstance:removePlayerByClass(playerClass)
@@ -166,6 +182,7 @@ function GameInstance:removePlayerByClass(playerClass)
         if player:getClassPath() == playerClass then
             table.remove(self._playerKeys, index)
             self._players[playerKey] = nil
+            self._cachedMaps[playerKey] = nil
             return
         end
     end
@@ -173,7 +190,7 @@ end
 
 function GameInstance:applyMapInfo(mapPath, position)
     if bool(mapPath) then
-        self._cachedMap = mapPath
+        self._cachedMaps[self._playerKeys[1]] = MapPath.Normalise(mapPath)
     end
     if position ~= nil then
         self:getPlayer():setMapPosition(position)

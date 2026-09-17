@@ -207,9 +207,16 @@ function Utils.GetGameVariableRef(valueName, default)
     return Utils.CreateLocalRef(Context.RequireGameInstance():getVariables(), valueName, default)
 end
 
-function Utils.AddPlayerByClass(playerClass)
+function Utils.AddPlayerByClass(playerClass, mapPath, position)
     playerClass = playerClass == nil and "" or playerClass
-    Context.RequireGameInstance():addPlayerByClass(playerClass)
+    mapPath = mapPath == nil and "" or mapPath
+    Context.RequireGameInstance():addPlayerByClass(playerClass, mapPath, position)
+end
+
+function Utils.SetPlayerByClass(playerClass)
+    playerClass = playerClass == nil and "" or playerClass
+    Context.RequireGameInstance():setPlayerByClass(playerClass)
+    Context.RequireSceneMap():applyPrimaryPlayer()
 end
 
 function Utils.RemovePlayerByClass(playerClass)

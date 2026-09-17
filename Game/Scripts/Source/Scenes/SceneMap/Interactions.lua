@@ -159,6 +159,17 @@ function Scene.ApplyLoadedGame(self, inst)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ApplyPrimaryPlayer(self)
+    self.player = self.inst:getPlayer()
+    self:_rebindPlayerToUI()
+    local mapPath = assert(self.inst:getCurrentMapPath(), "Primary player has no stored map")
+    local position = self.player:getMapPosition()
+    self._cachedMapFile = nil
+    self._currentRegion = nil
+    self:gotoMapAndPos(mapPath, position)
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.RebindPlayerToUI(self)
     local windows = {
         self._windowItem, self._windowEquip, self._windowMenu, self._windowShop, self._windowAttrShop,

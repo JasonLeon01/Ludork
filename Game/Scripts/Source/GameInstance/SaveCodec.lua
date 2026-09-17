@@ -283,6 +283,49 @@ local function normaliseObtainedItems(obtainedItems)
     return result
 end
 
+local function containsWorldManifest(maps)
+    for _, mapPath in pairs(maps) do
+        if os.path.basename(mapPath) == MapConstants.WORLD_MANIFEST_FILE then
+            return true
+        end
+    end
+    return false
+end
+
+local function serialisePlayerMaps(playerKeys, currentMaps)
+    assert(Class.isInstance(currentMaps, "table"), "Cannot serialise a GameInstance before its current map is set")
+    local maps = {}
+    for _, playerKey in ipairs(playerKeys) do
+        local mapPath = currentMaps[playerKey]
+        assert(
+            Class.isInstance(mapPath, "string") and bool(mapPath),
+            "Cannot serialise a GameInstance before map is set for player: " .. playerKey
+        )
+        maps[playerKey] = MapPath.Normalise(mapPath)
+    end
+    for playerKey in pairs(currentMaps) do
+        assert(maps[playerKey] ~= nil, "Map is stored for a player key missing from playerKeys: " .. playerKey)
+    end
+    return maps
+end
+
+local function normalisePlayerMaps(savedMaps, playerKeys)
+    assert(Class.isInstance(savedMaps, "table"), "map must be an object keyed by player key")
+    local maps = {}
+    for _, playerKey in ipairs(playerKeys) do
+        local mapPath = savedMaps[playerKey]
+        assert(
+            Class.isInstance(mapPath, "string") and bool(mapPath),
+            "Map is missing for player key: " .. playerKey
+        )
+        maps[playerKey] = MapPath.Normalise(mapPath)
+    end
+    for playerKey in pairs(savedMaps) do
+        assert(maps[playerKey] ~= nil, "Map is stored for a player key missing from playerKeys: " .. playerKey)
+    end
+    return maps
+end
+
 function SaveCodec.Encode(state)
     local players = {}
     for _, playerKey in ipairs(state.playerKeys) do
@@ -297,7 +340,7 @@ function SaveCodec.Encode(state)
     for playerKey in pairs(state.players) do
         assert(players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
-    local cachedMap = assert(state.currentMap, "Cannot serialise a GameInstance before its current map is set")
+    local maps = serialisePlayerMaps(state.playerKeys, state.currentMaps)
     local worldMovedActors = serialiseWorldMovedActors(state.worldMovedActors)
     local saveData = {
         version = SAVE_VERSION,
@@ -305,7 +348,7 @@ function SaveCodec.Encode(state)
         playerKeys = copy(state.playerKeys),
         players = players,
         variables = deepcopy(state.variables),
-        map = cachedMap,
+        map = maps,
         obtainedItems = deepcopy(state.obtainedItems),
         addedActors = serialiseAddedActors(state.addedActors),
         actorPositions = serialiseActorPositions(state.actorPositions),
@@ -314,7 +357,7 @@ function SaveCodec.Encode(state)
         telepoints = serialiseTelepoints(state.telepoints),
         screenshot = deepcopy(state.screenshot)
     }
-    if bool(worldMovedActors) or os.path.basename(cachedMap) == MapConstants.WORLD_MANIFEST_FILE then
+    if bool(worldMovedActors) or containsWorldManifest(maps) then
         saveData.worldMovedActors = worldMovedActors
     end
     return saveData
@@ -343,14 +386,11 @@ function SaveCodec.Decode(data)
         assert(state.players[playerKey] ~= nil, "Player key is missing from playerKeys: " .. playerKey)
     end
     state.variables = data.variables
-    state.currentMap = data.map
+    state.currentMaps = normalisePlayerMaps(data.map, state.playerKeys)
     state.addedActors = normaliseAddedActors(data.addedActors)
     state.actorPositions = normaliseActorPositions(data.actorPositions)
     if data.worldMovedActors == nil then
-        assert(
-            os.path.basename(MapPath.Normalise(data.map)) ~= MapConstants.WORLD_MANIFEST_FILE,
-            "worldMovedActors must be an object for a world save"
-        )
+        assert(not containsWorldManifest(state.currentMaps), "worldMovedActors must be an object for a world save")
         state.worldMovedActors = {}
     else
         state.worldMovedActors = normaliseWorldMovedActors(data.worldMovedActors)
