@@ -21,6 +21,12 @@ function Save.SaveGame(filePath, instance) end
 ---@return Source.GameInstance.GameInstance | nil
 function Save.LoadGame(filePath) end
 
+---@brief Read screenshot bytes without restoring game state or players.
+--- Returns nil when the file or screenshot is absent. Uses the configured save format.
+---@param filePath string
+---@return integer[] | nil
+function Save.LoadScreenshot(filePath) end
+
 ---@brief Get the platform-specific save file path.
 ---
 --- - @param slot Save slot number (1-based).

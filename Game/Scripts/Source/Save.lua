@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local cjson = require("cjson")
 local Logging = require("Global.Utils.Logging")
 
 local ResourceFileConstants = Engine.ResourceFileConstants
@@ -32,6 +33,18 @@ function Save.LoadGame(filePath)
     local instance = GameInstance.FromDict(Engine.getJSONData(filePath))
     Logging.info("Loaded game from %s", filePath)
     return instance
+end
+
+function Save.LoadScreenshot(filePath)
+    assertConfiguredSavePath(filePath)
+    if not os.path.isfile(filePath) then
+        return nil
+    end
+    local screenshot = Engine.getJSONData(filePath).screenshot
+    if screenshot == cjson.null then
+        return nil
+    end
+    return screenshot
 end
 
 function Save.GetSavePath(slot)

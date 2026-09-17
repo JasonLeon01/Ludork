@@ -131,6 +131,42 @@
             "children": []
           },
           {
+            "name": "PriceLabel",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 220.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 1
+            },
+            "editor": {
+              "previewText": "Price"
+            },
+            "children": []
+          },
+          {
             "name": "Price",
             "controlId": "Engine.PlainText",
             "properties": {

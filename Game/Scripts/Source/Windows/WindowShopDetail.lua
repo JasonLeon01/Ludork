@@ -22,10 +22,12 @@ end
 function Controller:refresh()
     if self._itemInfo == nil then
         self:setText("ItemName", "")
+        self:setText("PriceLabel", "")
         self:setText("Price", "")
         self:setText("Description", "")
     else
         self:setText("ItemName", LOC(self._itemInfo.name or ""))
+        self:setText("PriceLabel", LOC("price"))
         self:setText("Price", tostring(self._price or 0))
         local description = LOC(self._itemInfo.desc or ""):gsub("\\n", "\n")
         self:setText(

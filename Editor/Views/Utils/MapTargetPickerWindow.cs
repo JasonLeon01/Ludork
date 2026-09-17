@@ -19,6 +19,7 @@ internal sealed class MapTargetPickerWindow : Window
 {
     private readonly GameDataService gameData;
     private readonly bool pickPosition;
+    private readonly bool requirePosition;
     private readonly TreeView mapTree;
     private readonly TransferPositionMapReferenceView mapView;
     private readonly WorldMapCanvas worldView;
@@ -32,10 +33,12 @@ internal sealed class MapTargetPickerWindow : Window
         GameDataService gameData,
         string preferredRuntimePath,
         JsonNode? position,
-        bool pickPosition)
+        bool pickPosition,
+        bool requirePosition = false)
     {
         this.gameData = gameData;
         this.pickPosition = pickPosition;
+        this.requirePosition = requirePosition;
         initialPosition = position?.DeepClone();
         Title = pickPosition
             ? LocaleService.Get("TRANSFER_POS_EDITOR_TITLE")
@@ -141,13 +144,15 @@ internal sealed class MapTargetPickerWindow : Window
         Window owner,
         GameDataService gameData,
         string preferredRuntimePath,
-        JsonNode? position)
+        JsonNode? position,
+        bool requirePosition = false)
     {
         MapTargetPickerWindow window = new(
             gameData,
             preferredRuntimePath,
             position,
-            true);
+            true,
+            requirePosition);
         return window.ShowDialog<MapTargetPickerResult?>(owner);
     }
 
@@ -441,13 +446,14 @@ internal sealed class MapTargetPickerWindow : Window
 
     private void refreshPositionLabel()
     {
+        confirmButton.IsEnabled = selectedTarget is not null && (!requirePosition || getPosition() is not null);
         if (pickPosition)
             positionLabel.Text = BlueprintNodeParameterValues.FormatPosition(getPosition());
     }
 
     private void confirm()
     {
-        if (selectedTarget is null)
+        if (selectedTarget is null || (requirePosition && getPosition() is null))
             return;
         Close(new MapTargetPickerResult(selectedTarget.RuntimePath, getPosition()));
     }

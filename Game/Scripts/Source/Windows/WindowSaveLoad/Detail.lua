@@ -84,12 +84,7 @@ end
 ---@param filePath         string
 ---@param modificationTime number
 function Controller:_loadAndDisplay(filePath, modificationTime)
-    local instance = Save.LoadGame(filePath)
-    if instance == nil then
-        self:_hideContent()
-        return
-    end
-    local screenshot = instance:getScreenshot()
+    local screenshot = Save.LoadScreenshot(filePath)
     if not self:_applyScreenshot(screenshot) then
         self.ui.controls["Thumbnail"]:setVisible(false)
     end

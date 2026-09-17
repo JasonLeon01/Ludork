@@ -289,6 +289,20 @@ public sealed class ConfigDictPanel : Border
         Button browse = new() { Content = "..." };
         browse.Click += async (_, _) =>
         {
+            if (fileName == "System" && fieldNames[value] == "startMap" && values is null)
+            {
+                MapTargetPickerResult? target = await MapTargetPickerWindow.ShowPositionAsync(
+                    owner, gameData, edit.Text ?? string.Empty, data["startPos"]?["value"], requirePosition: true);
+                if (target?.Position is not JsonArray position
+                    || !gameData.UpdateStartMap(target.RuntimePath, position))
+                {
+                    return;
+                }
+                if (resourceDocument?.Data is JsonObject current)
+                    data = current;
+                rebuild();
+                return;
+            }
             string? selected = await selectFileName(value, edit.Text ?? string.Empty);
             if (selected is null)
                 return;

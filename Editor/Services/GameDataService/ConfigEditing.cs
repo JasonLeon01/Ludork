@@ -25,6 +25,24 @@ public sealed partial class GameDataService
         return true;
     }
 
+    public bool UpdateStartMap(string runtimePath, JsonArray position)
+    {
+        if (!sections["Configs"].Data.TryGetValue("System", out JsonObject? data)
+            || data["startMap"] is not JsonObject mapField
+            || data["startPos"] is not JsonObject positionField
+            || (JsonNode.DeepEquals(mapField["value"], JsonValue.Create(runtimePath))
+                && JsonNode.DeepEquals(positionField["value"], position)))
+        {
+            return false;
+        }
+        JsonArray nextPosition = (JsonArray)position.DeepClone();
+        RecordDocumentSnapshot("Configs", "System");
+        mapField["value"] = runtimePath;
+        positionField["value"] = nextPosition;
+        refreshModifiedState();
+        return true;
+    }
+
     public bool UpdateConfigArrayValue(string fileKey, string name, int index, JsonNode? value)
     {
         JsonArray? values = getConfigArrayForEdit(fileKey, name, out _);

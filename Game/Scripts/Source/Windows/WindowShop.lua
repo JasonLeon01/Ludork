@@ -192,11 +192,12 @@ function Controller:_refreshItems()
     local itemIDs = nil
     local availableMap = {}
     local valueMap = {}
-    local showValues = self._mode == self.SHOP_MODE_SELL
+    local showValues = true
     if self._mode == self.SHOP_MODE_BUY then
         itemIDs = self._buyItemIDs
         for _, itemID in ipairs(itemIDs) do
             availableMap[itemID] = self:_canBuy(itemID)
+            valueMap[itemID] = self._player:getItemCount(itemID)
         end
     else
         itemIDs = self:_getSellableItems()
