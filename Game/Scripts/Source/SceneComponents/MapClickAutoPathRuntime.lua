@@ -1,19 +1,9 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local Teleporter = require("Source.Teleporter")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayEventData = GlobalCore.GameplayEventData
 local MapClickAutoPathRuntime = {}
-
-function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal)
-    for _, actor in ipairs(gameMap:getActorsAt(goal.x, goal.y)) do
-        if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
-            return true
-        end
-    end
-    return false
-end
 
 function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(
     gameMap, dangerState, route, goal, ignoredGoalEnemies, player

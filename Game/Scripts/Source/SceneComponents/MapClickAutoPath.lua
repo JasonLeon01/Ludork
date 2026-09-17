@@ -295,13 +295,6 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
         return nil
     end
     if direct ~= nil and direct.route[#direct.route] == goal then
-        if goalActuallyPassable and not goalPassable and not MapClickAutoPathRuntime.HasTeleporterAt(self._parent, goal) then
-            local routeSteps = deepcopy(direct.routeSteps) ---@type sf.Vector2i[]
-            table.remove(routeSteps)
-            local route = deepcopy(direct.route) ---@type sf.Vector2i[]
-            table.remove(route)
-            return { routeSteps = routeSteps, route = route, goalPassable = false }
-        end
         return { routeSteps = direct.routeSteps, route = direct.route, goalPassable = goalActuallyPassable }
     end
     if goalPassable then

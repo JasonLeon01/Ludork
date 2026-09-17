@@ -2,11 +2,6 @@
 
 local MapClickAutoPathRuntime = {}
 
----@param gameMap GameMap
----@param goal    sf.Vector2i
----@return boolean
-function MapClickAutoPathRuntime.HasTeleporterAt(gameMap, goal) end
-
 ---@param gameMap            GameMap
 ---@param dangerState        Source.SceneComponents.MovementDangerState
 ---@param route              sf.Vector2i[]

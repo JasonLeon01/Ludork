@@ -273,9 +273,18 @@ public partial class FileExplorerPanel : UserControl
         );
     }
 
+    private static bool isScrollBarSource(object? source)
+    {
+        if (source is ScrollBar)
+            return true;
+        return (source as Visual)?.GetVisualAncestors().OfType<ScrollBar>().Any() == true;
+    }
+
     private void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
         if (DataContext is not FileExplorerViewModel viewModel)
+            return;
+        if (isScrollBarSource(args.Source))
             return;
         ListBox list = sender as ListBox ?? activeEntries;
         PointerPoint point = args.GetCurrentPoint(list);
@@ -652,6 +661,13 @@ public partial class FileExplorerPanel : UserControl
     {
         if (DataContext is FileExplorerViewModel { IsReadOnly: true })
             return;
+        if (isScrollBarSource(args.Source))
+        {
+            dragStart = null;
+            dragSource = null;
+            dragPress = null;
+            return;
+        }
         if (startingDrag
             || dragStart is not Point start
             || dragSource is not ListBox list

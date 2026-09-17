@@ -438,16 +438,18 @@ function GameMap:findPathResult(start, goal, actor, excludedAnchors) end
 ---@return sf.Vector2i[]
 function GameMap:findPath(start, goal, actor, excludedAnchors) end
 
----@brief Check if a target position is passable for automatic pathfinding.
+---@brief Check if a target position is passable for automatic pathfinding transit.
 ---
 --- Automatic pathfinding treats non-colliding actors with an implemented
---- `onOverlap` event as blockers so routes do not step onto interactive
+--- `onOverlap` event as transit blockers so routes do not step onto interactive
 --- triggers by accident. Actors whose `onOverlap` has no executable content
---- do not block.
+--- do not block. Note: this check applies to intermediate route cells only.
+--- When the player explicitly clicks an overlap-actor cell as a destination,
+--- the click planner keeps the full route and enters that cell regardless.
 ---
 --- - @param actor The moving actor.
 --- - @param targetPosition The target map position.
---- - @return True if automatic pathfinding may route through the position.
+--- - @return True if automatic pathfinding may route through the position as a transit cell.
 ---@param actor          Engine.Actor
 ---@param targetPosition sf.Vector2i
 ---@return boolean
