@@ -54,7 +54,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
 elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
     target_include_directories(GlobalCore PRIVATE
-        "${LUDORK_LUASF_SOURCE_DIR}/third_party/SFML/src")
+        "${LUDORK_SFML_SOURCE_DIR}/src")
     target_link_libraries(GlobalCore PRIVATE "${APPKIT_FRAMEWORK}")
 endif()
 if(LUDORK_ENABLE_FFMPEG)

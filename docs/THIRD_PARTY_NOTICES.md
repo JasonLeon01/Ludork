@@ -49,10 +49,10 @@ Every release package records the ScriptTools build mode and its exact CPython, 
 
 | Component | Version or revision | Purpose and distribution | Licence | Complete text | Official source |
 | --- | --- | --- | --- | --- | --- |
-| LuaSF | v3.1.0.5-ME-OH-2in1-support | SFML bindings in all project templates and the UI preview host | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
+| LuaSF | v3.1.0.7 | SFML bindings in all project templates and the UI preview host | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
 | Lua | 5.5.0 | Game scripting runtime and `luac` | MIT | `Licenses/Lua/LICENSE.txt` | [Lua.org](https://www.lua.org/) |
-| SFML | 3.1.0, SFML-ME branch 310ME-OH | Graphics, windowing, audio, system, and network runtime | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME `310ME-OH`](https://github.com/JasonLeon01/SFML-ME/tree/310ME-OH) |
-| sol2 | 3.2.3 in the distributed LuaSF source | C++/Lua binding headers | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |
+| SFML | SFML-ME `310-ME-OH-GLESVER` tag | Graphics, windowing, audio, system, and network runtime | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME](https://github.com/JasonLeon01/SFML-ME/releases/tag/310-ME-OH-GLESVER) |
+| sol2 | 3.3.0 | C++/Lua binding headers used by LuaSF and the game runtime | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |
 | lua-cjson | Source release 2.1.0.19; the upstream runtime constant reports 2.1.0.11 | JSON module linked into the game runtime | MIT | `Licenses/lua-cjson/LICENSE.txt` | [openresty/lua-cjson](https://github.com/openresty/lua-cjson) |
 | zlib | 1.3.1 | Compression support in the game runtime | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
 | Microsoft.Web.WebView2 | 1.0.4191.47 | Windows native web overlay; statically linked SDK Loader using the installed Evergreen Runtime, without a bundled browser engine | Microsoft Software License Terms | `Licenses/NativeDependencies/WebView2-LICENSE.txt` | [Microsoft NuGet](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4191.47) |

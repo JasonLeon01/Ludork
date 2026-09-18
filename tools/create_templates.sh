@@ -304,10 +304,17 @@ if [ ! -x "$SCRIPT_TOOLS" ]; then
     echo "ScriptTools was not found. Run tools/init.sh first." >&2
     exit 1
 fi
-if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/LuaSF" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/lua-cjson" ] || [ ! -d "$SOURCE_DIR/Engine/ThirdParty/zlib" ]; then
-    echo "Game dependencies were not found. Prepare the C++ dependencies before creating templates." >&2
+if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ]; then
+    echo "Game CMakeLists.txt was not found: $SOURCE_DIR" >&2
     exit 1
 fi
+for dependency_dir in LuaSF SFML sol2 Lua lua-cjson zlib; do
+    if [ ! -d "$SOURCE_DIR/Engine/ThirdParty/$dependency_dir" ]; then
+        echo "Game dependency was not found: Engine/ThirdParty/$dependency_dir" >&2
+        echo "Prepare the C++ dependencies before creating templates." >&2
+        exit 1
+    fi
+done
 for licence_path in \
     README.md \
     README_zh_CN.md \

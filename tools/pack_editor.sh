@@ -1017,6 +1017,9 @@ if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
 fi
 require_file "$PROJECT_ROOT/Game/CMakeLists.txt"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaSF"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/SFML"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/sol2"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/Lua"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/lua-cjson"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/zlib"
 require_file "$PROJECT_ROOT/Game/Engine/ThirdParty/ffmpeg/configure"

@@ -2335,6 +2335,14 @@
     "zh_CN": "取消起始节点",
     "en_GB": "Cancel Start Node"
   },
+  "DISCONNECT_ALL_INPUTS": {
+    "zh_CN": "断开所有输入连线",
+    "en_GB": "Disconnect All Inputs"
+  },
+  "DISCONNECT_ALL_OUTPUTS": {
+    "zh_CN": "断开所有输出连线",
+    "en_GB": "Disconnect All Outputs"
+  },
   "NEW_COMMON_FUNC": {
     "zh_CN": "新建公共函数",
     "en_GB": "New Common Function"

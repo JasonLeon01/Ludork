@@ -127,6 +127,9 @@ for %%F in (
 )
 for %%D in (
     "%ROOT_DIR%\Game\Engine\ThirdParty\LuaSF"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\SFML"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\sol2"
+    "%ROOT_DIR%\Game\Engine\ThirdParty\Lua"
     "%ROOT_DIR%\Game\Engine\ThirdParty\lua-cjson"
     "%ROOT_DIR%\Game\Engine\ThirdParty\zlib"
 ) do (

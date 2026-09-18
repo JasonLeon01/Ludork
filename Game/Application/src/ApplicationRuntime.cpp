@@ -13,6 +13,7 @@
 extern "C" {
 #include <lauxlib.h>
 #include <lua.h>
+#include <lualib.h>
 }
 
 #include <filesystem>
@@ -103,11 +104,19 @@ std::string luaErrorMessage(lua_State* state) {
 
 int runRuntime(const std::filesystem::path& executablePath, int argc,
                char** argv) {
-    lua_State* state = LuaSF_create_state();
+    lua_State* state = luaL_newstate();
     if (state == nullptr) {
         reportStartupError("Unable to create the Lua runtime state.");
         return 1;
     }
+
+    luaL_openlibs(state);
+    if (LuaSF_initialize_state(state) != 0 || LuaSF_register(state) != 0) {
+        lua_close(state);
+        reportStartupError("Unable to initialize the Lua runtime state.");
+        return 1;
+    }
+
     RuntimeOwner runtime(state);
 
     registerRuntimeModules(state);

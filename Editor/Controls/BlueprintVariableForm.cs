@@ -647,11 +647,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (valueType.Kind == LuaMetadataTypeKind.Named && valueType.Name == "nil")
             return EditorInputs.CreateReadOnlyTextBox("null");
 
-        if (valueType.IsAny
-            && (displayValue is null || tryGetString(displayValue, out string _)))
-        {
+        if (valueType.IsAny)
             return createAnyEditor(displayValue, changed);
-        }
 
         if (isBoolType(type, displayValue))
             return createBoolEditor(displayValue, changed);
@@ -868,13 +865,13 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     {
         TextBox box = EditorInputs.CreateEditableTextBox(value is null ? "null" : getText(value));
         box.HorizontalAlignment = HorizontalAlignment.Stretch;
+        box.LostFocus += (_, _) => changed(parseAnyValue(box.Text ?? string.Empty), false);
         attachHistory(box);
         box.PropertyChanged += (_, args) =>
         {
             if (args.Property != TextBox.TextProperty)
                 return;
-            string text = box.Text ?? string.Empty;
-            changed(parseAnyValue(text), false);
+            changed(JsonValue.Create(box.Text ?? string.Empty), false);
         };
         return box;
     }

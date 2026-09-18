@@ -26,6 +26,10 @@ public sealed class BlueprintGraphDocument
             || (IsTypeAssignable?.Invoke(source.TypeName, target.TypeName)
                 ?? LuaMetadataType.Parse(source.TypeName).IsAssignableTo(LuaMetadataType.Parse(target.TypeName))));
     }
+    public static BlueprintGraphPort GetExclusivePin(BlueprintGraphPort source, BlueprintGraphPort target)
+    {
+        return source.Kind == BlueprintGraphPortKind.Exec ? source : target;
+    }
     public JsonObject RawEventGraph { get; }
     public ObservableCollection<BlueprintGraphNode> Nodes { get; } = [];
     public ObservableCollection<BlueprintGraphConnection> Connections { get; } = [];
@@ -79,7 +83,7 @@ public sealed class BlueprintGraphDocument
             || source.Kind != target.Kind
             || source.Kind != connection.Kind
             || !ArePortTypesCompatible(source, target)
-            || target.ConnectionCount > 0)
+            || GetExclusivePin(source, target).ConnectionCount > 0)
         {
             return false;
         }

@@ -101,12 +101,6 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             port.SetReadOnly(value);
     }
 
-    public bool CanConnectType(BlueprintGraphPort source, BlueprintGraphPortDefinition target)
-    {
-        return source.Kind == target.Kind && (source.Kind == BlueprintGraphPortKind.Exec
-            || fieldBuilder.IsTypeAssignable(source.TypeName, target.TypeName));
-    }
-
     public override void Connect(ConnectorViewModelBase first, ConnectorViewModelBase second)
     {
         if (IsReadOnly
@@ -126,9 +120,11 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         {
             return;
         }
+        BlueprintGraphPort exclusive = BlueprintGraphDocument.GetExclusivePin(source.Model, target.Model);
         foreach (BlueprintGraphConnectionViewModel existing in Connections
             .OfType<BlueprintGraphConnectionViewModel>()
-            .Where(connection => connection.Model.TargetPortId == target.Model.Id)
+            .Where(connection => connection.Model.SourcePortId == exclusive.Id
+                || connection.Model.TargetPortId == exclusive.Id)
             .ToArray())
         {
             removeConnection(existing);
@@ -172,39 +168,6 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         return viewModel;
     }
 
-    public BlueprintGraphNodeViewModel? AddNodeAndConnect(
-        BlueprintGraphNodeDefinition definition,
-        Point location,
-        BlueprintGraphPortViewModel source)
-    {
-        if (IsReadOnly)
-            return null;
-        BlueprintGraphNodeViewModel node = addNode(definition, location);
-        BlueprintGraphPortViewModel[] candidates = node.Input
-            .OfType<BlueprintGraphPortViewModel>()
-            .Where(port => document.ArePortTypesCompatible(source.Model, port.Model))
-            .OrderBy(port => port.Model.PinIndex)
-            .ToArray();
-        BlueprintGraphPortViewModel? target = source.Model.Kind == BlueprintGraphPortKind.Params
-            ? candidates
-                .Where(port => string.Equals(
-                    port.Model.TypeName,
-                    source.Model.TypeName,
-                    StringComparison.Ordinal))
-                .LastOrDefault() ?? candidates.FirstOrDefault()
-            : candidates.FirstOrDefault();
-        if (target is null)
-        {
-            removeNode(node);
-            return null;
-        }
-        Connect(source, target);
-        SelectedNodes.Clear();
-        SelectedNodes.Add(node);
-        document.NotifyChanged();
-        return node;
-    }
-
     public void DeleteSelected()
     {
         if (IsReadOnly)
@@ -239,6 +202,49 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         }
         SelectedNodes.Clear();
         document.NotifyChanged();
+    }
+
+    public bool CanDisconnectNode(BlueprintGraphNodeViewModel? node, BlueprintGraphPortDirection direction)
+    {
+        if (IsReadOnly || node is null)
+            return false;
+        HashSet<Guid> portIds = getNodePortIds(node, direction);
+        return Connections
+            .OfType<BlueprintGraphConnectionViewModel>()
+            .Any(connection => portIds.Contains(getConnectionPortId(connection, direction)));
+    }
+
+    public void DisconnectNode(BlueprintGraphNodeViewModel node, BlueprintGraphPortDirection direction)
+    {
+        if (IsReadOnly)
+            return;
+        HashSet<Guid> portIds = getNodePortIds(node, direction);
+        foreach (BlueprintGraphConnectionViewModel connection in Connections
+            .OfType<BlueprintGraphConnectionViewModel>()
+            .Where(connection => portIds.Contains(getConnectionPortId(connection, direction)))
+            .ToArray())
+        {
+            removeConnection(connection);
+        }
+    }
+
+    private static Guid getConnectionPortId(
+        BlueprintGraphConnectionViewModel connection,
+        BlueprintGraphPortDirection direction)
+    {
+        return direction == BlueprintGraphPortDirection.Input
+            ? connection.Model.TargetPortId
+            : connection.Model.SourcePortId;
+    }
+
+    private static HashSet<Guid> getNodePortIds(
+        BlueprintGraphNodeViewModel node,
+        BlueprintGraphPortDirection direction)
+    {
+        return (direction == BlueprintGraphPortDirection.Input ? node.Input : node.Output)
+            .OfType<BlueprintGraphPortViewModel>()
+            .Select(port => port.Model.Id)
+            .ToHashSet();
     }
 
     public bool CanSetAsStart(BlueprintGraphNodeViewModel? node)
@@ -491,21 +497,6 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphNode node = createNode(definition, rawData, parameters, location, true);
         document.Nodes.Add(node);
         return addNodeViewModel(node);
-    }
-
-    private void removeNode(BlueprintGraphNodeViewModel node)
-    {
-        Nodes.Remove(node);
-        document.Nodes.Remove(node.Model);
-        nodesById.Remove(node.Model.Id);
-        foreach (BlueprintGraphPortViewModel port in node.Input
-            .Concat(node.Output)
-            .OfType<BlueprintGraphPortViewModel>())
-        {
-            portsById.Remove(port.Model.Id);
-            port.Dispose();
-        }
-        node.Dispose();
     }
 
     private void synchronizeNodeParameters(Guid nodeId)

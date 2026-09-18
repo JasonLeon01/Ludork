@@ -502,6 +502,7 @@ public sealed class BlueprintValidationService
                 }
             }
 
+            HashSet<(int Node, int Pin)> linkedExecOutputPins = [];
             for (int linkIndex = 0; linkIndex < links.Count; linkIndex++)
             {
                 JsonObject link = (JsonObject)links[linkIndex]!;
@@ -509,6 +510,14 @@ public sealed class BlueprintValidationService
                 string? linkType = getString(link["linkType"]);
                 if (linkType is not "Exec" and not "Params")
                     continue;
+                if (linkType == "Exec"
+                    && tryGetInteger(link["left"], out int execLeftIndex)
+                    && tryGetInteger(link["leftOutPin"], out int execLeftPin)
+                    && !linkedExecOutputPins.Add((execLeftIndex, execLeftPin)))
+                {
+                    errors.Add($"graph.nodeGraph[\"{pair.Key}\"].links[{linkIndex}]"
+                        + $": execution output pin {execLeftPin} of node {execLeftIndex} is already linked");
+                }
                 if (!tryGetInteger(link["leftOutPin"], out int leftOutPin))
                 {
                     errors.Add($"graph.nodeGraph[\"{pair.Key}\"].links[{linkIndex}].leftOutPin must be an integer");

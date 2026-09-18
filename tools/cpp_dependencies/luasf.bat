@@ -14,12 +14,24 @@ if not defined LUASF_VERSION (
     exit /b 1
 )
 for /f "delims=" %%V in ("!LUASF_VERSION!") do set "LUASF_VERSION=%%V"
+if not defined LUASF_VARIANT set "LUASF_VARIANT="
+for /f "delims=" %%V in ("!LUASF_VARIANT!") do set "LUASF_VARIANT=%%V"
+
+rem The released source packages are variant-specific: the generated bindings
+rem follow the SFML the variant was built from, and the SFML-ME forks bind more
+rem than upstream SFML. Ludork tracks the same variant as its SFML pin.
+set "LUASF_SOURCE_NAME=LuaSF-source"
+set "LUASF_MARKER=!LUASF_VERSION!"
+if not "!LUASF_VARIANT!"=="" (
+    set "LUASF_SOURCE_NAME=LuaSF-source-!LUASF_VARIANT!"
+    set "LUASF_MARKER=!LUASF_VERSION!-!LUASF_VARIANT!"
+)
 
 set "LUASF_DIR=%CPP_DIR%\Engine\ThirdParty\LuaSF"
 set "INSTALLED_LUASF_VERSION="
 if exist "%LUASF_DIR%\.ludork-version" set /p INSTALLED_LUASF_VERSION=<"%LUASF_DIR%\.ludork-version"
-if "!INSTALLED_LUASF_VERSION!"=="!LUASF_VERSION!" if exist "%LUASF_DIR%\CMakeLists.txt" (
-    echo Using existing LuaSF !LUASF_VERSION!.
+if "!INSTALLED_LUASF_VERSION!"=="!LUASF_MARKER!" if exist "%LUASF_DIR%\CMakeLists.txt" (
+    echo Using existing LuaSF !LUASF_MARKER!.
     exit /b 0
 )
 
@@ -39,13 +51,13 @@ if not exist "%WORK%\extract" (
     exit /b 1
 )
 
-echo Downloading LuaSF %LUASF_VERSION%...
-curl.exe -L --fail --show-error -o "%WORK%\LuaSF-source.zip" "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/%LUASF_VERSION%/LuaSF-source.zip"
+echo Downloading LuaSF %LUASF_MARKER%...
+curl.exe -L --fail --show-error -o "%WORK%\!LUASF_SOURCE_NAME!.zip" "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/%LUASF_VERSION%/!LUASF_SOURCE_NAME!.zip"
 if errorlevel 1 exit /b %errorlevel%
-powershell -NoProfile -Command "Expand-Archive -Path '%WORK%\LuaSF-source.zip' -DestinationPath '%WORK%\extract' -Force"
+powershell -NoProfile -Command "Expand-Archive -Path '%WORK%\!LUASF_SOURCE_NAME!.zip' -DestinationPath '%WORK%\extract' -Force"
 if errorlevel 1 exit /b %errorlevel%
 set "LUASF_SOURCE=%WORK%\extract"
-if exist "%WORK%\extract\LuaSF-source\CMakeLists.txt" set "LUASF_SOURCE=%WORK%\extract\LuaSF-source"
+if exist "%WORK%\extract\!LUASF_SOURCE_NAME!\CMakeLists.txt" set "LUASF_SOURCE=%WORK%\extract\!LUASF_SOURCE_NAME!"
 if not exist "%LUASF_SOURCE%\CMakeLists.txt" (
     echo LuaSF source folder was not found after extraction.
     exit /b 1
@@ -57,6 +69,6 @@ if exist "%LUASF_DIR%" (
 )
 move /Y "%LUASF_SOURCE%" "%LUASF_DIR%" >nul
 if errorlevel 1 exit /b %errorlevel%
-> "%LUASF_DIR%\.ludork-version" echo %LUASF_VERSION%
+> "%LUASF_DIR%\.ludork-version" echo !LUASF_MARKER!
 rmdir /S /Q "%WORK%"
 exit /b 0

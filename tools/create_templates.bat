@@ -99,6 +99,9 @@ if not exist "%SCRIPT_TOOLS%" (
     exit /b 1
 )
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\LuaSF" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\SFML" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\sol2" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\Lua" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\lua-cjson" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\zlib" set "MISSING_DEPENDENCIES=1"
 if defined MISSING_DEPENDENCIES (

@@ -76,7 +76,6 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         DataContext = viewModel;
         document.Changed += onDocumentChanged;
         viewModel.ParameterEdited += onParameterEdited;
-        viewModel.BlueprintPendingConnection.EmptyDropRequested += onEmptyDropRequested;
     }
 
     public event EventHandler? GraphChanged;
@@ -153,7 +152,6 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         Loaded -= onLoaded;
         Document.Changed -= onDocumentChanged;
         viewModel.ParameterEdited -= onParameterEdited;
-        viewModel.BlueprintPendingConnection.EmptyDropRequested -= onEmptyDropRequested;
         RemoveHandler(PointerPressedEvent, onPointerPressed);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
         RemoveHandler(PointerMovedEvent, onPointerMoved);
@@ -470,6 +468,30 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         };
         menu.Items.Add(cancelStart);
 
+        MenuItem disconnectInputs = new()
+        {
+            Header = LocaleService.Get("DISCONNECT_ALL_INPUTS"),
+            IsEnabled = viewModel.CanDisconnectNode(contextNode, BlueprintGraphPortDirection.Input),
+        };
+        disconnectInputs.Click += (_, _) =>
+        {
+            if (contextNode is not null)
+                viewModel.DisconnectNode(contextNode, BlueprintGraphPortDirection.Input);
+        };
+        menu.Items.Add(disconnectInputs);
+
+        MenuItem disconnectOutputs = new()
+        {
+            Header = LocaleService.Get("DISCONNECT_ALL_OUTPUTS"),
+            IsEnabled = viewModel.CanDisconnectNode(contextNode, BlueprintGraphPortDirection.Output),
+        };
+        disconnectOutputs.Click += (_, _) =>
+        {
+            if (contextNode is not null)
+                viewModel.DisconnectNode(contextNode, BlueprintGraphPortDirection.Output);
+        };
+        menu.Items.Add(disconnectOutputs);
+
         MenuItem organize = new()
         {
             Header = LocaleService.Get("ORGANIZE_GRAPH"),
@@ -517,31 +539,6 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         pickerOpen = false;
         if (!disposed && selected is not null)
             viewModel.AddNode(selected, insertionTarget.GraphPoint);
-    }
-
-    private async void onEmptyDropRequested(
-        object? sender,
-        BlueprintConnectionDropEventArgs args)
-    {
-        if (viewModel.IsReadOnly || pickerOpen)
-            return;
-        BlueprintGraphNodeDefinition[] compatible = viewModel.Definitions
-            .Where(definition => definition.Ports.Any(port =>
-                port.Direction == BlueprintGraphPortDirection.Input
-                && viewModel.CanConnectType(args.Source.Model, port)))
-            .ToArray();
-        Window? owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner is null || compatible.Length == 0)
-            return;
-        (Point GraphPoint, PixelPoint ScreenPoint) insertionTarget = getInsertionTarget();
-        pickerOpen = true;
-        BlueprintGraphNodeDefinition? selected = await BlueprintNodePickerWindow.ShowAsync(
-            owner,
-            compatible,
-            insertionTarget.ScreenPoint);
-        pickerOpen = false;
-        if (!disposed && selected is not null)
-            viewModel.AddNodeAndConnect(selected, insertionTarget.GraphPoint, args.Source);
     }
 
     private (Point GraphPoint, PixelPoint ScreenPoint) getInsertionTarget()

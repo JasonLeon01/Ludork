@@ -58,7 +58,7 @@ target_sources(entry PRIVATE napi_init.cpp TextInputHostHarmony.cpp WebViewHostH
 target_compile_features(entry PRIVATE cxx_std_20)
 target_include_directories(entry PRIVATE
     "${LUDORK_PROJECT_DIR}/Application/include"
-    "${LUDORK_PROJECT_DIR}/Engine/ThirdParty/LuaSF/third_party/SFML/src")
+    "${LUDORK_PROJECT_DIR}/Engine/ThirdParty/SFML/src")
 target_link_libraries(entry PRIVATE
     SFML::Main
     ace_napi.z

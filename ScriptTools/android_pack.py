@@ -868,8 +868,6 @@ def prepare_gradle_stage(
         context.project_dir
         / "Engine"
         / "ThirdParty"
-        / "LuaSF"
-        / "third_party"
         / "SFML"
         / "examples"
         / "projects"
@@ -1810,8 +1808,6 @@ def validate_template_source(context: PackContext) -> None:
         context.project_dir
         / "Engine"
         / "ThirdParty"
-        / "LuaSF"
-        / "third_party"
         / "SFML"
         / "examples"
         / "projects"

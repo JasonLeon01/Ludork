@@ -14,6 +14,8 @@ ENVIRONMENT_INPUTS = (
     "requirements.txt",
     "versions.conf",
     "patches/luasf-value-copy.patch",
+    "patches/sol2-pr1606.patch",
+    "tools/cpp_dependencies/*",
     "tools/setup_python.*",
     "tools/build_script_tools.*",
     "tools/init_cpp_dependencies.*",

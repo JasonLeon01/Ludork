@@ -31,6 +31,12 @@ mkdir -p "$CPP_DIR/Engine/ThirdParty"
 
 sh "$DEPS_DIR/luasf.sh" "$CPP_DIR" &
 CHILD_PIDS="$CHILD_PIDS $!"
+sh "$DEPS_DIR/sfml.sh" "$CPP_DIR" &
+CHILD_PIDS="$CHILD_PIDS $!"
+sh "$DEPS_DIR/sol2.sh" "$CPP_DIR" &
+CHILD_PIDS="$CHILD_PIDS $!"
+sh "$DEPS_DIR/lua.sh" "$CPP_DIR" &
+CHILD_PIDS="$CHILD_PIDS $!"
 sh "$DEPS_DIR/lua_cjson.sh" "$CPP_DIR" &
 CHILD_PIDS="$CHILD_PIDS $!"
 sh "$DEPS_DIR/zlib.sh" "$CPP_DIR" &
@@ -48,32 +54,50 @@ if [ "$status" -ne 0 ]; then
     exit 1
 fi
 
-LUASF_DIR="$CPP_DIR/Engine/ThirdParty/LuaSF"
-LUASF_GIT_ROOT=$(git -C "$LUASF_DIR" rev-parse --show-toplevel 2>/dev/null || true)
-LUASF_GIT_DIRECTORY=
-if [ -n "$LUASF_GIT_ROOT" ]; then
-    case "$LUASF_DIR" in
-        "$LUASF_GIT_ROOT"/*)
-            LUASF_GIT_DIRECTORY=${LUASF_DIR#"$LUASF_GIT_ROOT"/}
-            ;;
-    esac
-fi
-apply_luasf_patch() {
-    if [ -n "$LUASF_GIT_DIRECTORY" ]; then
-        git -C "$LUASF_GIT_ROOT" apply --unidiff-zero \
-            --directory="$LUASF_GIT_DIRECTORY" "$@"
-    else
-        (cd "$LUASF_DIR" && git apply --unidiff-zero "$@")
+apply_patch() {
+    patch_file=$1
+    target_dir=$2
+    shift 2
+
+    git_root=$(git -C "$target_dir" rev-parse --show-toplevel 2>/dev/null || true)
+    if [ -n "$git_root" ]; then
+        case "$target_dir" in
+            "$git_root"/*)
+                git -C "$git_root" apply --directory="${target_dir#"$git_root"/}" "$@" "$patch_file"
+                return
+                ;;
+        esac
     fi
+    (cd "$target_dir" && git apply "$@" "$patch_file")
 }
 
-VALUE_COPY_PATCH="$PROJECT_ROOT/patches/luasf-value-copy.patch"
-echo "Applying LuaSF native value copy patch if needed..."
-if apply_luasf_patch --reverse --check "$VALUE_COPY_PATCH" >/dev/null 2>&1; then
-    echo "LuaSF native value copy patch is already applied."
-else
-    apply_luasf_patch --check "$VALUE_COPY_PATCH"
-    apply_luasf_patch "$VALUE_COPY_PATCH"
-fi
+apply_patch_if_needed() {
+    label=$1
+    patch_file=$2
+    target_dir=$3
+    shift 3
+
+    echo "Applying $label patch if needed..."
+    if apply_patch "$patch_file" "$target_dir" --reverse --check "$@" >/dev/null 2>&1; then
+        echo "$label patch is already applied."
+        return
+    fi
+    apply_patch "$patch_file" "$target_dir" --check "$@"
+    apply_patch "$patch_file" "$target_dir" "$@"
+}
+
+apply_patch_if_needed \
+    "LuaSF native value copy" \
+    "$PROJECT_ROOT/patches/luasf-value-copy.patch" \
+    "$CPP_DIR/Engine/ThirdParty/LuaSF" \
+    --unidiff-zero
+
+# The published sol2 headers use CRLF line endings, so this patch has to
+# ignore whitespace to match.
+apply_patch_if_needed \
+    "sol2 PR #1606" \
+    "$PROJECT_ROOT/patches/sol2-pr1606.patch" \
+    "$CPP_DIR/Engine/ThirdParty/sol2" \
+    --ignore-whitespace
 
 echo "C++ dependencies are ready in $CPP_DIR"

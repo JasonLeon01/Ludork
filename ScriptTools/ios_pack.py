@@ -19,6 +19,7 @@ from .packaging_constants import (
     EXIT_PROJECT,
     EXIT_TOOLCHAIN,
     MOBILE_DEPENDENCY_NAMES,
+    MOBILE_PROJECT_DIRECTORIES,
 )
 from .packaging_names import artifact_name, read_app_name
 from .resource_constants import RESOURCE_GROUPS
@@ -124,18 +125,7 @@ def resolve_project(project_folder: str) -> pathlib.Path:
         )
     if not cmake_file.is_file():
         raise PackError(f"CMakeLists.txt was not found: {cmake_file}", EXIT_PROJECT)
-    for directory_name in (
-        "Assets",
-        "Engine/Source",
-        "Engine/Runtime",
-        "Data",
-        "Application",
-        "Engine/ThirdParty/LuaSF",
-        "Engine/ThirdParty/lua-cjson",
-        "Scripts",
-        "Engine/Standard",
-        "Engine/ThirdParty/zlib",
-    ):
+    for directory_name in MOBILE_PROJECT_DIRECTORIES:
         directory = project_dir / directory_name
         if not directory.is_dir():
             raise PackError(

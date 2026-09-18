@@ -1,7 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
-using Ludork.Models;
 using NodifyM.Avalonia.ViewModelBase;
-using System;
 
 namespace Ludork.Views.Utils.BlueprintGraph;
 
@@ -16,7 +14,6 @@ public sealed class BlueprintPendingConnectionViewModel : PendingConnectionViewM
     }
 
     public RelayCommand<ConnectorViewModelBase?> CompleteCommand { get; }
-    public event EventHandler<BlueprintConnectionDropEventArgs>? EmptyDropRequested;
 
     private void complete(ConnectorViewModelBase? target)
     {
@@ -28,17 +25,7 @@ public sealed class BlueprintPendingConnectionViewModel : PendingConnectionViewM
         ConnectorViewModelBase? source = Source;
         if (source is null)
             return;
-        if (target is null)
-        {
-            if (source is BlueprintGraphPortViewModel port
-                && port.Model.Direction == BlueprintGraphPortDirection.Output)
-            {
-                EmptyDropRequested?.Invoke(this, new BlueprintConnectionDropEventArgs(port));
-            }
-            Source = null;
-            return;
-        }
-        if (!ReferenceEquals(source, target))
+        if (target is not null && !ReferenceEquals(source, target))
             editor.Connect(source, target);
         Source = null;
     }
