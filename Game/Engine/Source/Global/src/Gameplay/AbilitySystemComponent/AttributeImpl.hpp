@@ -1,6 +1,7 @@
 #pragma once
 #include "AbilitySystemImpl.hpp"
 #include <Gameplay/GameplayEventData.hpp>
+#include <vector>
 
 namespace ludork::global::ability_system_impl {
 
@@ -39,11 +40,27 @@ void notify(const AbilitySystemImpl& state, const std::string& name,
             const RuntimeValue& oldValue, const RuntimeValue& newValue,
             const AbilitySystemImpl::AttributeChange& change);
 
-bool applyCurrentValues(AbilitySystemImpl& state, const GameplayNumbers& values,
-                        AbilitySystemImpl::AttributeChangeSource source,
-                        const GameplayNumbers* oldBases = nullptr,
-                        const GameplayNumbers* newBases = nullptr,
-                        const RuntimeValue::Map* oldValueOverrides = nullptr);
+struct AppliedCurrentValues {
+    struct Notification {
+        std::string name;
+        RuntimeValue oldValue;
+        RuntimeValue newValue;
+        AbilitySystemImpl::AttributeChange change;
+    };
+
+    bool changed = false;
+    std::vector<Notification> pending;
+};
+
+AppliedCurrentValues applyCurrentValues(
+    AbilitySystemImpl& state, const GameplayNumbers& values,
+    AbilitySystemImpl::AttributeChangeSource source,
+    const GameplayNumbers* oldBases = nullptr,
+    const GameplayNumbers* newBases = nullptr,
+    const RuntimeValue::Map* oldValueOverrides = nullptr);
+
+void flushAppliedCurrentValues(AbilitySystemImpl& state,
+                               AppliedCurrentValues applied, bool bumpRevision);
 
 void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
                  const RuntimeValue::Map* oldValueOverrides = nullptr);

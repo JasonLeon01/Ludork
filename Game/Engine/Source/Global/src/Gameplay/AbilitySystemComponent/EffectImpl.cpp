@@ -196,10 +196,12 @@ std::optional<int> applyGameplayEffectSpec(
                 preview(state, state.baseValues, {}, existing->handle,
                         replacementStacks);
             existing->stacks = replacementStacks;
-            applyCurrentValues(
-                state, current,
-                AbilitySystemImpl::AttributeChangeSource::Effect);
-            ++state.revision;
+            flushAppliedCurrentValues(
+                state,
+                applyCurrentValues(
+                    state, current,
+                    AbilitySystemImpl::AttributeChangeSource::Effect),
+                true);
         }
         return existing->handle;
     }
@@ -219,9 +221,11 @@ std::optional<int> applyGameplayEffectSpec(
         active->grantedAbilitySpecs.push_back(
             giveAbility(state, ability, runtimeObject(active)));
     }
-    applyCurrentValues(state, current,
-                       AbilitySystemImpl::AttributeChangeSource::Effect);
-    ++state.revision;
+    flushAppliedCurrentValues(
+        state,
+        applyCurrentValues(state, current,
+                           AbilitySystemImpl::AttributeChangeSource::Effect),
+        true);
     return handle;
 }
 
@@ -242,9 +246,12 @@ bool removeActiveGameplayEffect(AbilitySystemImpl& state, int handle,
         const GameplayNumbers current = preview(
             state, state.baseValues, {}, active->handle, replacementStacks);
         active->stacks = replacementStacks;
-        applyCurrentValues(state, current,
-                           AbilitySystemImpl::AttributeChangeSource::Effect);
-        ++state.revision;
+        flushAppliedCurrentValues(
+            state,
+            applyCurrentValues(
+                state, current,
+                AbilitySystemImpl::AttributeChangeSource::Effect),
+            true);
         return true;
     }
 
@@ -256,9 +263,11 @@ bool removeActiveGameplayEffect(AbilitySystemImpl& state, int handle,
         changeTagCount(state, tag, -1);
     }
     removeAbilitiesBySource(state, runtimeObject(active));
-    applyCurrentValues(state, current,
-                       AbilitySystemImpl::AttributeChangeSource::Effect);
-    ++state.revision;
+    flushAppliedCurrentValues(
+        state,
+        applyCurrentValues(state, current,
+                           AbilitySystemImpl::AttributeChangeSource::Effect),
+        true);
     return true;
 }
 

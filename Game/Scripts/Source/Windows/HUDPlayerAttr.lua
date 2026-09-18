@@ -265,17 +265,17 @@ function Controller:refresh()
             self:setText("HpPoison", poisonStacks > 0 and "(" .. tostring(poisonStacks) .. ")" or "")
             layoutDirty = true
         end
-    end
 
-    local progressSignature = createSignature(
-        self:getPlayer().attributes.LEVEL, self:getPlayer().attributes.EXP, self:getPlayer().attributes.GOLD
-    )
-    if self._progressSignature ~= progressSignature then
-        self._progressSignature = progressSignature
-        self:setText("Level", "Lv. " .. tostring(self:getPlayer().attributes.LEVEL))
-        self:setText("ExpValue", tostring(ToShortNumber(self:getPlayer().attributes.EXP)))
-        self:setText("GoldValue", tostring(ToShortNumber(self:getPlayer().attributes.GOLD)))
-        layoutDirty = true
+        local progressSignature = createSignature(
+            self:getPlayer().attributes.LEVEL, self:getPlayer().attributes.EXP, self:getPlayer().attributes.GOLD
+        )
+        if self._progressSignature ~= progressSignature then
+            self._progressSignature = progressSignature
+            self:setText("Level", "Lv. " .. tostring(self:getPlayer().attributes.LEVEL))
+            self:setText("ExpValue", tostring(ToShortNumber(self:getPlayer().attributes.EXP)))
+            self:setText("GoldValue", tostring(ToShortNumber(self:getPlayer().attributes.GOLD)))
+            layoutDirty = true
+        end
     end
 
     local keyYCount = self:getPlayer():getItemCount(Item.KEY_Y)

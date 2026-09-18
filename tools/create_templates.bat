@@ -269,7 +269,7 @@ exit /b 0
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\%EDITOR_CACHE_DIRECTORY%" "%SOURCE_DIR%\Cache" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Scripts\Source\UI" "%SOURCE_DIR%\Scripts\stub\Source\UI" "%SOURCE_DIR%\Scripts\stub\Source\UIWindows" "%SOURCE_DIR%\Scripts\Source\Locale"
 if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
-robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh standalone-launch.json standalone-extensions.json /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 if exist "%SOURCE_DIR%\Scripts\Source\Locale\Core.lua" (
     if not exist "%~1\Scripts\Source\Locale" mkdir "%~1\Scripts\Source\Locale"
@@ -289,6 +289,10 @@ set "COPY_SOURCE=%~1"
 set "COPY_TARGET=%~2"
 if not exist "%COPY_TARGET%\.vscode" mkdir "%COPY_TARGET%\.vscode"
 copy /Y "%COPY_SOURCE%\.vscode\settings.json" "%COPY_TARGET%\.vscode\settings.json" >nul
+if errorlevel 1 exit /b %errorlevel%
+copy /Y "%SOURCE_DIR%\.vscode\standalone-launch.json" "%COPY_TARGET%\.vscode\launch.json" >nul
+if errorlevel 1 exit /b %errorlevel%
+copy /Y "%SOURCE_DIR%\.vscode\standalone-extensions.json" "%COPY_TARGET%\.vscode\extensions.json" >nul
 if errorlevel 1 exit /b %errorlevel%
 copy /Y "%COPY_SOURCE%\.emmyrc.json" "%COPY_TARGET%\.emmyrc.json" >nul
 if errorlevel 1 exit /b %errorlevel%

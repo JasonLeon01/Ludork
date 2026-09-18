@@ -192,11 +192,11 @@ void notify(const AbilitySystemImpl& state, const std::string& name,
     }
 }
 
-bool applyCurrentValues(AbilitySystemImpl& state, const GameplayNumbers& values,
-                        AbilitySystemImpl::AttributeChangeSource source,
-                        const GameplayNumbers* oldBases,
-                        const GameplayNumbers* newBases,
-                        const RuntimeValue::Map* oldValueOverrides) {
+AppliedCurrentValues applyCurrentValues(
+    AbilitySystemImpl& state, const GameplayNumbers& values,
+    AbilitySystemImpl::AttributeChangeSource source,
+    const GameplayNumbers* oldBases, const GameplayNumbers* newBases,
+    const RuntimeValue::Map* oldValueOverrides) {
     RuntimeValue::Map oldValues;
     for (const std::string& name : state.numericAttributes) {
         const auto overrideValue = oldValueOverrides == nullptr
@@ -233,7 +233,7 @@ bool applyCurrentValues(AbilitySystemImpl& state, const GameplayNumbers& values,
     state.internalAttributeWrite = false;
     state.suppressAttributeListeners = false;
 
-    bool changed = false;
+    AppliedCurrentValues applied;
     for (const std::string& name : state.numericAttributes) {
         AbilitySystemImpl::AttributeChange change{source};
         if (source == AbilitySystemImpl::AttributeChangeSource::Base) {
@@ -245,10 +245,24 @@ bool applyCurrentValues(AbilitySystemImpl& state, const GameplayNumbers& values,
             state.attributeSet->getAttributeValue(name);
         const bool fieldChanged =
             !runtimeEqual(oldValues.at(name), current) || change.force;
-        changed = changed || fieldChanged;
-        notify(state, name, oldValues.at(name), current, change);
+        applied.changed = applied.changed || fieldChanged;
+        applied.pending.push_back(
+            {name, oldValues.at(name), current, std::move(change)});
     }
-    return changed;
+    return applied;
+}
+
+void flushAppliedCurrentValues(AbilitySystemImpl& state,
+                               AppliedCurrentValues applied,
+                               bool bumpRevision) {
+    if (bumpRevision) {
+        ++state.revision;
+    }
+    for (const AppliedCurrentValues::Notification& notification :
+         applied.pending) {
+        notify(state, notification.name, notification.oldValue,
+               notification.newValue, notification.change);
+    }
 }
 
 void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
@@ -263,12 +277,11 @@ void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
         }
     }
     state.baseValues = bases;
-    const bool currentChanged = applyCurrentValues(
+    AppliedCurrentValues applied = applyCurrentValues(
         state, currentValues, AbilitySystemImpl::AttributeChangeSource::Base,
         &oldBases, &state.baseValues, oldValueOverrides);
-    if (baseChanged || currentChanged) {
-        ++state.revision;
-    }
+    const bool bumpRevision = baseChanged || applied.changed;
+    flushAppliedCurrentValues(state, std::move(applied), bumpRevision);
 }
 
 std::shared_ptr<AttributeSet> getAttributeSet(const AbilitySystemImpl& state) {
@@ -328,11 +341,10 @@ void addAttributeChangeListener(AbilitySystemImpl& state,
 
 void refreshConstraints(AbilitySystemImpl& state) {
     const GameplayNumbers current = preview(state, state.baseValues);
-    if (applyCurrentValues(
-            state, current,
-            AbilitySystemImpl::AttributeChangeSource::Constraint)) {
-        ++state.revision;
-    }
+    AppliedCurrentValues applied = applyCurrentValues(
+        state, current, AbilitySystemImpl::AttributeChangeSource::Constraint);
+    const bool bumpRevision = applied.changed;
+    flushAppliedCurrentValues(state, std::move(applied), bumpRevision);
 }
 
 int getRevision(const AbilitySystemImpl& state) {

@@ -201,6 +201,8 @@ copy_cpp_template() {
         --exclude 'CMakeUserPresets.json' \
         --exclude 'generate_vs2022.bat' \
         --exclude 'generate_clion.bat' \
+        --exclude 'standalone-launch.json' \
+        --exclude 'standalone-extensions.json' \
         --exclude 'ThirdPartySource/' \
         --exclude '/Binaries/' \
         --exclude '/Scripts/Source/UI/' \
@@ -223,6 +225,8 @@ copy_standalone_files() {
     target_dir=$2
     mkdir -p "$target_dir/.vscode"
     cp "$source_dir/.vscode/settings.json" "$target_dir/.vscode/settings.json"
+    cp "$SOURCE_DIR/.vscode/standalone-launch.json" "$target_dir/.vscode/launch.json"
+    cp "$SOURCE_DIR/.vscode/standalone-extensions.json" "$target_dir/.vscode/extensions.json"
     cp "$source_dir/.emmyrc.json" "$target_dir/.emmyrc.json"
     cp "$source_dir/.gitignore" "$target_dir/.gitignore"
 }

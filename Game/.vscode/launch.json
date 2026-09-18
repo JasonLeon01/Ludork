@@ -20,6 +20,19 @@
             "processId": "${command:pickProcess}"
         },
         {
+            "name": "Ludork: EmmyLua Attach (Windows)",
+            "type": "emmylua_attach",
+            "request": "attach",
+            "pid": 0,
+            "processName": "Main.exe",
+            "captureLog": false,
+            "ext": [
+                ".lua",
+                ".lua.txt",
+                ".lua.bytes"
+            ]
+        },
+        {
             "name": "Ludork: Build and Launch Debug (macOS)",
             "type": "lldb",
             "request": "launch",
