@@ -43,6 +43,7 @@ public sealed class EditorDocumentBinding : IDisposable
     }
 
     public EditorDocument? Document => document;
+    public Func<bool>? HasPendingInputs { get; set; }
 
     public void Refresh()
     {
@@ -87,7 +88,7 @@ public sealed class EditorDocumentBinding : IDisposable
 
     private void updateTitle()
     {
-        owner.Title = (document?.IsModified == true ? "* " : string.Empty) + title();
+        owner.Title = (document?.IsModified == true || HasPendingInputs?.Invoke() == true ? "* " : string.Empty) + title();
     }
 
     private void onDocumentChanged(object? sender, EventArgs args)

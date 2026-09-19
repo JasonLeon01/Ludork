@@ -1,4 +1,52 @@
 {
+  "BLUEPRINT_PLAIN_INPUTS": {
+    "zh_CN": "转换为普通输入框",
+    "en_GB": "Convert to Plain Text Inputs"
+  },
+  "BLUEPRINT_TYPED_INPUTS": {
+    "zh_CN": "恢复类型输入框",
+    "en_GB": "Restore Typed Inputs"
+  },
+  "BLUEPRINT_TEXT_SAVE_BLOCKED": {
+    "zh_CN": "请先修正普通输入框中的错误，再保存：",
+    "en_GB": "Correct the plain text input errors before saving:"
+  },
+  "BLUEPRINT_TEXT_DRAFT_TITLE": {
+    "zh_CN": "未保存的输入",
+    "en_GB": "Unsaved Inputs"
+  },
+  "BLUEPRINT_TEXT_DISCARD_DRAFT": {
+    "zh_CN": "普通输入框中仍有无效内容，无法保存。关闭将丢弃这些无效输入，是否关闭？",
+    "en_GB": "Some plain text inputs are invalid and cannot be saved. Close and discard these invalid inputs?"
+  },
+  "BLUEPRINT_TEXT_VALUE_INTEGER_ERROR": {
+    "zh_CN": "输入 64 位整数（不接受小数）。",
+    "en_GB": "Enter a 64-bit integer (no fractional values)."
+  },
+  "BLUEPRINT_TEXT_VALUE_NUMBER_ERROR": {
+    "zh_CN": "输入有限数字，使用小数点。",
+    "en_GB": "Enter a finite number using a decimal point."
+  },
+  "BLUEPRINT_TEXT_VALUE_BOOLEAN_ERROR": {
+    "zh_CN": "输入 true 或 false。",
+    "en_GB": "Enter true or false."
+  },
+  "BLUEPRINT_TEXT_VALUE_JSON_ERROR": {
+    "zh_CN": "JSON 无效：{reason}",
+    "en_GB": "Invalid JSON: {reason}"
+  },
+  "BLUEPRINT_TEXT_VALUE_TYPE_ERROR": {
+    "zh_CN": "值不符合 {type}：{reason}",
+    "en_GB": "Value does not match {type}: {reason}"
+  },
+  "LIGHT_SELECT_ACTORS": {
+    "zh_CN": "可选中 Actor",
+    "en_GB": "Select Actors"
+  },
+  "LIGHT_SELECT_ACTORS_HINT": {
+    "zh_CN": "允许选择当前图层中带光源的 Actor，按格移动并编辑实例属性",
+    "en_GB": "Select Actors with lights on the current layer, move them on the grid and edit instance properties"
+  },
   "RETRY": {
     "zh_CN": "重试",
     "en_GB": "Retry"

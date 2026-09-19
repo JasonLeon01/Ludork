@@ -8,11 +8,12 @@ local MOVE_X = 32.0
 local DURATION = 0.5
 local active = {}
 
-function DamageTextParticle:init(particleSystem, text, position, textConfig, speedCurve)
+function DamageTextParticle:init(particleSystem, text, position, textConfig, speedCurve, isVisible)
     assert(speedCurve ~= nil, "DamageTextParticle speed curve must not be nil")
     assert(textConfig ~= nil, "DamageTextParticle text config must not be nil")
     self._particleSystem = particleSystem
     self._speedCurve = speedCurve
+    self._isVisible = isVisible
     self._textParticle = nil
     self._startPosition = copy(position)
     self._destroyRequested = false
@@ -58,7 +59,7 @@ function DamageTextParticle:destroy()
 end
 
 function DamageTextParticle:update(countTime)
-    if self._destroyed then
+    if self._destroyed or self._destroyRequested then
         return
     end
     self:_applyPosition(countTime)
@@ -94,6 +95,9 @@ function DamageTextParticle:_applyPosition(countTime)
         y = self._startPosition.y + yOffset
     })
     self._textParticle:setPosition(position)
+    if self._isVisible ~= nil then
+        self._textParticle:setColour(sf.Color.new(255, 255, 255, self._isVisible() and 255 or 0))
+    end
     Pool.Put("sf.Vector2f", position)
 end
 

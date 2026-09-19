@@ -43,6 +43,7 @@ public sealed partial class MapPanel
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        CancelInteractions();
         LayoutUpdated -= onLayoutUpdated;
         pendingMapZoomAnchor = null;
         bindHostScrollViewer(null);
@@ -91,7 +92,7 @@ public sealed partial class MapPanel
     {
         base.OnPointerPressed(args);
         Focus();
-        endMapGesture();
+        cancelMapGesture();
         if (CurrentMapData is null || gameData is null || !tryGetMapSize(out int width, out int height))
             return;
 
@@ -155,6 +156,12 @@ public sealed partial class MapPanel
         if (CurrentMapData is null || !tryGetMapSize(out int width, out int height))
             return;
         Point position = args.GetPosition(this);
+        if (actorPropertyDrag is not null)
+        {
+            updateActorPropertyDrag(position);
+            args.Handled = true;
+            return;
+        }
         (int X, int Y)? grid = getGridPosition(position, width, height);
         if (grid != hoverGrid)
         {
@@ -163,7 +170,10 @@ public sealed partial class MapPanel
         }
         if (EditMode == MapEditMode.Light)
         {
-            updateLightDrag(position, width, height);
+            if (LightActorSelectionEnabled && grid is not null && actorMoveIndex is not null)
+                moveSelectedActor(grid.Value);
+            else
+                updateLightDrag(position, width, height);
             return;
         }
         if (grid is null)
@@ -193,6 +203,7 @@ public sealed partial class MapPanel
         actorMoveIndex = null;
         actorMoveLayer = null;
         movingRuntimeActorId = null;
+        actorPropertyDrag = null;
         endMapGesture();
         args.Pointer.Capture(null);
         capturedPointer = null;
@@ -201,6 +212,7 @@ public sealed partial class MapPanel
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)
     {
+        actorPropertyDrag = null;
         endMapGesture();
         tileBrushDragging = false;
         lightMoveDragging = false;
@@ -220,6 +232,7 @@ public sealed partial class MapPanel
             && rectangleStart is null
             && !lightMoveDragging
             && !lightRadiusDragging
+            && actorPropertyDrag is null
             && actorMoveIndex is null)
         {
             hoverGrid = null;
@@ -264,6 +277,13 @@ public sealed partial class MapPanel
             args.Handled = true;
             return;
         }
+        if (tryAdjustSelectedProperty(args.KeyModifiers, Math.Pow(1.1, args.Delta.Y), args.Delta.Y * ActorRotationWheelStep))
+        {
+            args.Handled = true;
+            return;
+        }
+        if (propertyWheelTarget is not null)
+            endMapGesture();
         if (!EditorZoomInput.ShouldZoomWheel(args.KeyModifiers, true))
             return;
         int steps = args.Delta.Y > 0 ? 1 : args.Delta.Y < 0 ? -1 : 0;
@@ -283,6 +303,14 @@ public sealed partial class MapPanel
         if (!EditorZoomInput.IsMacOS)
             return;
         zoomInput.MarkMagnify();
+        if (tryAdjustSelectedProperty(args.KeyModifiers, EditorZoomInput.GetMagnifyFactor(args.Delta.Y),
+                args.Delta.Y * ActorRotationMagnifyDegrees))
+        {
+            args.Handled = true;
+            return;
+        }
+        if (propertyWheelTarget is not null)
+            endMapGesture();
         double nextTileSize = EditorZoomInput.ScaleByFactor(
             continuousTileSize,
             EditorZoomInput.GetMagnifyFactor(args.Delta.Y),

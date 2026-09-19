@@ -139,12 +139,14 @@
 ---@field panorama     string
 
 ---@class Source.SceneComponents.SingleFloorMapPreview
----@field gameMap GameMap
----@field mapData Source.SceneComponents.MapData
+---@field visibilityRevision integer
+---@field gameMap            GameMap
+---@field mapData            Source.SceneComponents.MapData
 
 ---@class Source.SceneComponents.WorldFloorMapPreview
----@field mapData Source.SceneComponents.WorldMapData
----@field regions table<string, GameMap>
+---@field visibilityRevision integer
+---@field mapData            Source.SceneComponents.WorldMapData
+---@field regions            table<string, GameMap>
 
 ---@alias Source.SceneComponents.FloorMapPreview Source.SceneComponents.SingleFloorMapPreview | Source.SceneComponents.WorldFloorMapPreview
 
@@ -227,8 +229,9 @@ function SceneMapBuilder.GenerateActors(data) end
 ---@param camera            GlobalCore.Camera | nil
 ---@param emitCreateEvents? boolean
 ---@param previewOnly       boolean | nil
+---@param tilemap           Engine.Tilemap | nil           Prebuilt terrain snapshot; omitted to generate from serialized map data.
 ---@return GameMap
-function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly) end
+function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap) end
 
 ---@param worldData    Source.SceneComponents.WorldMapData
 ---@param region       Source.SceneComponents.WorldRegionData
@@ -272,9 +275,10 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
 ---@param previewSize         integer
 ---@param previewScale        number
 ---@param showTelepointMarker boolean
+---@param activeMap           GameMap | nil                    Current live map supplying visibility and terrain invalidation.
 ---@return sf.Texture
 function SceneMapBuilder:buildFloorMapPreview(
-    inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker
+    inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker, activeMap
 ) end
 
 ---@brief Resolve a region map key to a map data path.

@@ -18,7 +18,7 @@ local Controller = {}
 ---
 --- - @param owner The parent floor teleporter coordinator.
 --- - @param loadPreview Callback that builds a preview texture for a map key.
---- - @param resolvePreviewMapPath Callback that resolves a map key for caching.
+--- - @param resolvePreviewMapPath Callback returning the resolved map path and current visibility revision for caching.
 ---@param owner                 Source.Windows.WindowFloorTeleporter
 ---@param loadPreview           function
 ---@param resolvePreviewMapPath function | nil

@@ -101,7 +101,8 @@ public partial class MainWindow
         viewModel?.ProjectSave.FlushPendingChanges();
         if (viewModel?.IsModified != true)
             return true;
-        UnsavedChangesResult result = await new UnsavedChangesDialog(viewModel.GameData.GetUnsavedDocumentPaths(), ProjectPath).ShowDialog<UnsavedChangesResult>(this);
+        UnsavedChangesResult result = await new UnsavedChangesDialog(viewModel.GameData.GetUnsavedDocumentPaths()
+                .Concat(viewModel.ProjectSave.PendingInputPaths).Distinct(StringComparer.Ordinal).ToArray(), ProjectPath).ShowDialog<UnsavedChangesResult>(this);
         if (result == UnsavedChangesResult.Cancel)
             return false;
         if (result == UnsavedChangesResult.Save)
@@ -119,16 +120,18 @@ public partial class MainWindow
         bool tileMode = mode == MapEditMode.Tile;
         bool lightMode = mode == MapEditMode.Light;
         bool actorMode = mode == MapEditMode.Actor;
-        LayerTabs.IsEnabled = !lightMode && viewModel?.CanUseMapTools == true;
-        if (lightMode && viewModel is not null)
-            viewModel.SelectedLayerTab = null;
+        bool wasLightMode = EditorPanel.EditMode == MapEditMode.Light;
+        if (lightMode && LightActorSelectionToggle.IsChecked != true)
+            suspendLightLayerSelection();
+        else if (wasLightMode && !lightMode && viewModel?.SelectedLayerTab is null
+            || lightMode && !wasLightMode)
+            restoreLightLayerSelection();
         TileModeToggle.IsChecked = tileMode;
         LightModeToggle.IsChecked = lightMode;
         ActorModeToggle.IsChecked = actorMode;
         EditorPanel.setEditMode(mode);
-        RightList.IsVisible = tileMode;
-        LightInfoPanel.IsVisible = false;
-        ActorModePanel.IsVisible = actorMode;
+        updateLightModeControls();
+        updateMapModePanels();
         if (lightMode)
         {
             EditorPanel.clearLightSelection();
@@ -137,6 +140,63 @@ public partial class MainWindow
         if (actorMode)
             viewModel?.refreshActorOutliner();
         refreshMapPanelState();
+    }
+
+    private void onLightActorSelectionClick(object? sender, RoutedEventArgs args)
+    {
+        EditorPanel.setLightActorSelectionEnabled(LightActorSelectionToggle.IsChecked == true);
+        if (LightActorSelectionToggle.IsChecked == true)
+            restoreLightLayerSelection();
+        else
+            suspendLightLayerSelection();
+        updateLightModeControls();
+        updateMapModePanels();
+        refreshMapPanelState();
+    }
+
+    private void suspendLightLayerSelection()
+    {
+        if (viewModel is null)
+            return;
+        if (viewModel.SelectedLayerTab is { IsOverview: false } layer)
+        {
+            lightSelectionMapKey = viewModel.SelectedMap?.Key;
+            lightSelectionLayerName = layer.Name;
+        }
+        viewModel.SelectedLayerTab = null;
+    }
+
+    private void restoreLightLayerSelection()
+    {
+        if (viewModel is null || viewModel.SelectedLayerTab is { IsOverview: false })
+            return;
+        viewModel.SelectedLayerTab = viewModel.LayerTabs.FirstOrDefault(layer =>
+            !layer.IsOverview
+            && lightSelectionMapKey == viewModel.SelectedMap?.Key && layer.Name == lightSelectionLayerName)
+            ?? viewModel.LayerTabs.FirstOrDefault(layer => layer.IsOverview);
+    }
+
+    private void updateLightModeControls()
+    {
+        bool lightMode = EditorPanel.EditMode == MapEditMode.Light;
+        LightActorSelectionToggle.IsVisible = lightMode && viewModel?.SelectedMap is { IsMap: true };
+        LightActorSelectionToggle.IsEnabled = viewModel?.CanEdit == true;
+        LayerTabs.IsEnabled = viewModel?.CanUseMapTools == true
+            && (!lightMode || LightActorSelectionToggle.IsChecked == true);
+    }
+
+    private void updateMapModePanels()
+    {
+        bool actorMode = EditorPanel.EditMode == MapEditMode.Actor;
+        bool lightActorSelected = EditorPanel.EditMode == MapEditMode.Light
+            && EditorPanel.LightActorSelectionEnabled && EditorPanel.SelectedActorIndex is not null;
+        RightList.IsVisible = EditorPanel.EditMode == MapEditMode.Tile;
+        LightInfoPanel.IsVisible = false;
+        ActorModePanel.IsVisible = actorMode || lightActorSelected;
+        ActorOutlinerPanel.IsVisible = actorMode;
+        ActorOutlinerSplitter.IsVisible = actorMode;
+        Grid.SetRow(ActorInfoPanel, actorMode ? 2 : 0);
+        Grid.SetRowSpan(ActorInfoPanel, actorMode ? 1 : 3);
     }
 
     private void onLayerPointerPressed(object? sender, PointerPressedEventArgs args)
@@ -448,7 +508,8 @@ public partial class MainWindow
         closingPrompt = true;
         if (viewModel?.IsModified == true)
         {
-            UnsavedChangesResult result = await new UnsavedChangesDialog(viewModel.GameData.GetUnsavedDocumentPaths(), ProjectPath).ShowDialog<UnsavedChangesResult>(this);
+            UnsavedChangesResult result = await new UnsavedChangesDialog(viewModel.GameData.GetUnsavedDocumentPaths()
+                .Concat(viewModel.ProjectSave.PendingInputPaths).Distinct(StringComparer.Ordinal).ToArray(), ProjectPath).ShowDialog<UnsavedChangesResult>(this);
             if (result == UnsavedChangesResult.Cancel)
             {
                 closingPrompt = false;

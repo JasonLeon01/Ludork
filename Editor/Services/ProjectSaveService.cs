@@ -31,6 +31,8 @@ public sealed record ProjectSaveAttempt(
 public interface IProjectSaveParticipant
 {
     void FlushPendingChanges();
+    IReadOnlyList<string> PendingInputErrors => [];
+    IReadOnlyList<string> PendingInputPaths => [];
 }
 
 public sealed class ProjectSaveService
@@ -58,6 +60,11 @@ public sealed class ProjectSaveService
     }
 
     public event EventHandler? SavePreparing;
+    public event EventHandler? PendingInputsChanged;
+    public bool HasPendingInputErrors => participants.Any(participant => participant.PendingInputErrors.Count != 0);
+    public IReadOnlyList<string> PendingInputErrors => participants.SelectMany(participant => participant.PendingInputErrors).ToArray();
+    public IReadOnlyList<string> PendingInputPaths => participants.SelectMany(participant => participant.PendingInputPaths).Distinct(StringComparer.Ordinal).ToArray();
+    public void NotifyPendingInputsChanged() => PendingInputsChanged?.Invoke(this, EventArgs.Empty);
     public UiControlRegistryService UiControlRegistry => uiControlRegistry;
     public UiAssetValidationService UiAssetValidation => uiAssetValidation;
     public GameVariableService GameVariables => gameVariables;
@@ -71,6 +78,7 @@ public sealed class ProjectSaveService
     public void UnregisterParticipant(IProjectSaveParticipant participant)
     {
         participants.Remove(participant);
+        NotifyPendingInputsChanged();
     }
 
     public void FlushPendingChanges()
@@ -84,6 +92,12 @@ public sealed class ProjectSaveService
     public ProjectSaveAttempt TrySave(bool allowInvalidBlueprints = false, bool beforeNativeBuild = false)
     {
         FlushPendingChanges();
+        IReadOnlyList<string> inputErrors = PendingInputErrors;
+        if (inputErrors.Count != 0)
+        {
+            return new ProjectSaveAttempt(false, false, [],
+                new SaveResult(false, LocaleService.Get("BLUEPRINT_TEXT_SAVE_BLOCKED") + Environment.NewLine + string.Join(Environment.NewLine, inputErrors)));
+        }
         GameVariableSaveResult gameVariableResult = GameVariableSaveResult.Completed(string.Empty);
         bool structuralOnly = beforeNativeBuild || !uiControlRegistry.IsReady && !projectConfig.IsStandalone;
         IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll(structuralOnly);

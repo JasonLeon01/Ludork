@@ -94,6 +94,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         FileExplorerPanel.FileOpened += onExplorerFileOpened;
         FileExplorerPanel.FilesChanged += onExplorerFilesChanged;
         GameData.ModifiedChanged += onModifiedChanged;
+        ProjectSave.PendingInputsChanged += onModifiedChanged;
         GameConfig.Changed += onModifiedChanged;
         GameVariables.Changed += onModifiedChanged;
         GameVariables.Saved += onGameVariablesSaved;
@@ -204,7 +205,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     }
     public bool CanConfigureIndividualWindow => CanEdit && ProjectConfig.CanConfigureIndividualWindow;
     public event EventHandler? LanguageChangeRequested;
-    public bool IsModified => GameData.IsModified || GameData.Documents.IsModified;
+    public bool IsModified => GameData.IsModified || GameData.Documents.IsModified || ProjectSave.HasPendingInputErrors;
     public EditorDocument? ActiveDocument => activeDocument is { Exists: true } ? activeDocument : null;
     public void SetActiveDocument(EditorDocument? document)
     {
@@ -496,6 +497,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        ProjectSave.PendingInputsChanged -= onModifiedChanged;
         if (disposed)
             return;
         disposed = true;

@@ -67,6 +67,8 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         documentBinding = new EditorDocumentBinding(this, gameData,
             () => currentDocument?.ResourceDocument,
             () => LocaleService.Get("COMMON_FUNCTIONS"));
+        documentBinding.HasPendingInputs = () => PendingInputErrors.Count != 0;
+        BlueprintInputDraftCloseGuard.Attach(this, () => PendingInputErrors.Count != 0);
         projectSave.RegisterParticipant(this);
         gameData.Documents.Changed += onDocumentsChanged;
         gameData.DataReloaded += onDataReloaded;
@@ -125,6 +127,29 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         flushGraph();
     }
 
+    public IReadOnlyList<string> PendingInputErrors => gameData.Documents.All
+        .Where(resource => resource.Section == "CommonFunctions" && resource.Exists)
+        .SelectMany(resource => (resource.Id == currentDocument?.ResourceDocument?.Id && graphControl is not null
+            ? graphControl.GetInputErrors()
+            : graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state)
+                ? BlueprintGraphControl.GetInputErrors("common", state, gameData.CommonFunctionsData[resource.Key]["nodeGraph"]?["common"]?["nodes"] as JsonArray ?? [])
+                : []).Select(error => $"CommonFunctions/{resource.Key} / {error}"))
+        .ToArray();
+
+    public IReadOnlyList<string> PendingInputPaths => gameData.Documents.All
+        .Where(resource => resource.Section == "CommonFunctions" && resource.Exists
+            && (resource.Id == currentDocument?.ResourceDocument?.Id && graphControl is not null
+                ? graphControl.GetInputErrors().Count != 0
+                : graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state)
+                    && BlueprintGraphControl.GetInputErrors("common", state, gameData.CommonFunctionsData[resource.Key]["nodeGraph"]?["common"]?["nodes"] as JsonArray ?? []).Any()))
+        .Select(resource => resource.Path).ToArray();
+
+    private void onInputDraftChanged(object? sender, EventArgs args)
+    {
+        documentBinding.Refresh();
+        projectSave.NotifyPendingInputsChanged();
+    }
+
     public void SelectFunction(string? name)
     {
         if (name is null)
@@ -175,7 +200,9 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
             graphControl.RestoreViewState(state);
         graphControl.GraphChanged += onGraphChanged;
+        graphControl.InputDraftChanged += onInputDraftChanged;
         graphHost.Child = graphControl;
+        onInputDraftChanged(this, EventArgs.Empty);
     }
 
     private void onGraphChanged(object? sender, EventArgs args)
@@ -183,6 +210,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         if (graphControl is null || currentDocument is null)
             return;
         currentDocument.CommitGraph(BlueprintGraphCodec.Save(graphControl.Document));
+        onInputDraftChanged(sender, args);
     }
 
     private void onListContextRequested(object? sender, ContextRequestedEventArgs args)

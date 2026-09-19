@@ -55,6 +55,8 @@ public partial class MainWindow
 
     private void initializeInteraction()
     {
+        LightActorSelectionToggle.Content = LocaleService.Get("LIGHT_SELECT_ACTORS");
+        ToolTip.SetTip(LightActorSelectionToggle, LocaleService.Get("LIGHT_SELECT_ACTORS_HINT"));
         EditorInputs.ApplyEditable(ConsoleInput);
         ConsoleInput.PlaceholderText = LocaleService.Get("SEND_HINT");
         ConsoleSendButton.Content = LocaleService.Get("SEND");
@@ -70,7 +72,11 @@ public partial class MainWindow
         LayerTabs.AddHandler(PointerCaptureLostEvent, onLayerPointerCaptureLost, RoutingStrategies.Tunnel);
         AddHandler(GotFocusEvent, onHistoryContextFocus, RoutingStrategies.Bubble);
         AddHandler(PointerPressedEvent, onHistoryContextPointer, RoutingStrategies.Tunnel);
-        Deactivated += (_, _) => viewModel?.GameData.BreakHistoryGesture();
+        Deactivated += (_, _) =>
+        {
+            EditorPanel.CancelInteractions();
+            viewModel?.GameData.BreakHistoryGesture();
+        };
         Activated += onMainWindowActivated;
         Closing += onClosing;
         Opened += onOpened;
@@ -87,6 +93,7 @@ public partial class MainWindow
         EditorPanel.TileSelectionPicked += onTileSelectionPicked;
         EditorPanel.ActorSelectionChanged += onMapActorSelectionChanged;
         EditorPanel.ActorDataChanged += onActorDataChanged;
+        EditorPanel.ActorPropertiesChanged += (_, _) => ActorInfoPanel.refreshActorProperties();
         EditorPanel.LightSelectionChanged += onLightSelectionChanged;
         EditorPanel.LightDataChanged += onLightDataChanged;
         EditorPanel.EditFeedbackRequested += (_, message) => toast.ShowMessage(message, 3000);
@@ -413,6 +420,7 @@ public partial class MainWindow
             && viewModel.SelectedLayerTab?.Name != args.LayerName)
             viewModel.SelectedLayerTab = viewModel.LayerTabs.FirstOrDefault(layer => layer.Name == args.LayerName);
         ActorInfoPanel.setActor(args.MapKey, args.LayerName, args.Index, args.ActorData);
+        updateMapModePanels();
         liveDebugSession?.SelectActor(args.ActorData?["runtimeId"]?.GetValue<string>());
         if (viewModel?.CanEdit == true && !string.IsNullOrWhiteSpace(args.BlueprintReference))
             viewModel?.ActorQueue.AddOrPromote(args.BlueprintReference);

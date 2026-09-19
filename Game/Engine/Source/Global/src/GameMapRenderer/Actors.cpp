@@ -28,6 +28,7 @@ void GameMapRendererImpl::drawContent(
     sf::RenderTarget& target, const sf::RenderStates& states,
     bool applyPlayerCover, float shaderTime, int materialRevision,
     const std::function<void(const std::string&)>& drawLayerEffects) {
+    prepareVisibleLayers();
     const int playerLayer = applyPlayerCover ? playerLayerIndex() : -1;
     sf::Vector2i playerPosition;
     const bool refreshCover =
@@ -165,7 +166,8 @@ void GameMapRendererImpl::drawLayerActors(sf::RenderTarget& target,
     }
     const std::shared_ptr<Actor>& player = map.getPlayerActorForRenderer();
     for (const std::shared_ptr<Actor>& actor : layerIt->second) {
-        if (!actor || actor->isDestroyed() || !actor->isVisibleInHierarchy() ||
+        if (!actor || actor->isDestroyed() ||
+            !map.isActorVisibleOnMap(*actor) ||
             effectHiddenActors.contains(actor.get())) {
             continue;
         }
@@ -185,7 +187,7 @@ void GameMapRendererImpl::drawActor(sf::RenderTarget& target,
                                     const sf::RenderStates& states,
                                     const std::shared_ptr<Actor>& actor,
                                     int actorAlpha, float shaderTime) {
-    if (!actor || !actor->isVisibleInHierarchy()) {
+    if (!actor || !map.isActorVisibleOnMap(*actor)) {
         return;
     }
     const std::uint8_t alpha =

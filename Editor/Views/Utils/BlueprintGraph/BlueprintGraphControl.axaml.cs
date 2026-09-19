@@ -14,6 +14,7 @@ using NodifyM.Avalonia.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils.BlueprintGraph;
@@ -76,26 +77,47 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         DataContext = viewModel;
         document.Changed += onDocumentChanged;
         viewModel.ParameterEdited += onParameterEdited;
+        viewModel.InputDraftChanged += onInputDraftChanged;
     }
 
     public event EventHandler? GraphChanged;
+    public event EventHandler? InputDraftChanged;
+
+    public IReadOnlyList<string> GetInputErrors() => viewModel.GetInputErrors();
+
+    public static IEnumerable<string> GetInputErrors(string graphName, ViewState state, JsonArray nodes)
+    {
+        return BlueprintNodeInputState.Match(state.InputStates, nodes).SelectMany(match => match.State.Drafts
+            .Where(entry => entry.Value.Error is not null && entry.Value.ParameterIndex is int parameterIndex
+                && JsonNode.DeepEquals(entry.Value.Value, (nodes[match.Index]?["params"] as JsonArray)?.ElementAtOrDefault(parameterIndex)))
+            .Select(entry => $"{graphName} / {match.Index + 1}: {match.State.Node["nodeFunction"]} / {entry.Key}: {entry.Value.Error}"));
+    }
+
+    private void onInputDraftChanged(object? sender, EventArgs args) => InputDraftChanged?.Invoke(this, EventArgs.Empty);
 
     public BlueprintGraphDocument Document => viewModel.Document;
 
     public sealed record ViewState(double Zoom, double OffsetX, double OffsetY,
-        IReadOnlyList<(int? Index, string NodeFunction, string? ExternalKey)> Selection);
+        IReadOnlyList<(int? Index, string NodeFunction, string? ExternalKey)> Selection)
+    {
+        public IReadOnlyList<BlueprintNodeInputState> InputStates { get; init; } = [];
+    }
 
     public ViewState CaptureViewState()
     {
         if (pendingViewState is not null)
-            return pendingViewState;
+            return pendingViewState with { InputStates = viewModel.CaptureInputStates() };
         return new ViewState(editor.Zoom, editor.OffsetX, editor.OffsetY,
             viewModel.SelectedNodes.OfType<BlueprintGraphNodeViewModel>()
-                .Select(node => (node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)).ToArray());
+                .Select(node => (node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)).ToArray())
+        {
+            InputStates = viewModel.CaptureInputStates(),
+        };
     }
 
     public void RestoreViewState(ViewState state)
     {
+        viewModel.RestoreInputStates(state.InputStates);
         if (!viewportInitialized)
         {
             pendingViewState = state;
@@ -152,6 +174,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         Loaded -= onLoaded;
         Document.Changed -= onDocumentChanged;
         viewModel.ParameterEdited -= onParameterEdited;
+        viewModel.InputDraftChanged -= onInputDraftChanged;
         RemoveHandler(PointerPressedEvent, onPointerPressed);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
         RemoveHandler(PointerMovedEvent, onPointerMoved);
@@ -443,6 +466,17 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         };
         add.Click += async (_, _) => await addNodeAsync(insertionTarget);
         menu.Items.Add(add);
+
+        if (isRegularNode)
+        {
+            MenuItem plainInputs = new()
+            {
+                Header = LocaleService.Get(contextNode!.UsePlainTextInputs ? "BLUEPRINT_TYPED_INPUTS" : "BLUEPRINT_PLAIN_INPUTS"),
+                IsEnabled = viewModel.CanTogglePlainTextInputs(contextNode),
+            };
+            plainInputs.Click += (_, _) => viewModel.TogglePlainTextInputs(contextNode);
+            menu.Items.Add(plainInputs);
+        }
 
         MenuItem setStart = new()
         {

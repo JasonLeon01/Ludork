@@ -453,7 +453,8 @@ end
 ---@return sf.Texture
 function Scene:_buildFloorMapPreview(mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
     return self._mapBuilder:buildFloorMapPreview(
-        self.inst, self:_getCurrentRegionMap(), mapKey, telepoint, previewSize, previewScale, showTelepointMarker
+        self.inst, self:_getCurrentRegionMap(), mapKey, telepoint, previewSize, previewScale, showTelepointMarker,
+        self:getGameMap()
     )
 end
 

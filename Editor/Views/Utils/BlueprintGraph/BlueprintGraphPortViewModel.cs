@@ -32,6 +32,8 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     private BlueprintVariableField? parameterField;
     private BlueprintVariableForm? parameterForm;
     private bool disposed;
+    private bool usePlainTextInputs;
+    private BlueprintParameterTextDraft? textDraft;
 
     public BlueprintGraphPortViewModel(
         GameDataService gameData,
@@ -92,11 +94,28 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     }
     public event EventHandler? ParameterValueChanged;
     public event EventHandler? ParameterEdited;
+    public event EventHandler? InputDraftChanged;
+    public BlueprintParameterTextDraft? TextDraft => textDraft;
+    public bool HasInputError => textDraft?.Error is not null;
+
+    public void SetPlainTextInputs(bool enabled, BlueprintParameterTextDraft? draft = null)
+    {
+        usePlainTextInputs = enabled;
+        textDraft = enabled && draft is not null && JsonNode.DeepEquals(draft.Value, Model.Value)
+            ? draft
+            : null;
+        if (parameterForm is not null)
+        {
+            parameterForm.PlainTextEditorFactory = enabled ? createPlainTextEditor : null;
+            parameterForm.RefreshEditors();
+        }
+        notifyInputDraftProperties();
+    }
     public string DisplayTitle => Model.Kind == BlueprintGraphPortKind.Params
-        ? $"{Title} ({displayTypeName})" + (Model.ValueDiagnostic is string diagnostic ? Environment.NewLine + diagnostic : string.Empty)
+        ? $"{Title} ({displayTypeName})" + ((textDraft?.Error ?? Model.ValueDiagnostic) is string diagnostic ? Environment.NewLine + diagnostic : string.Empty)
         : Title;
-    public bool IsEditorVisible => Model.IsEditorVisible;
-    public IBrush Brush => Model.ValueDiagnostic is not null ? Brushes.OrangeRed : Model.Kind == BlueprintGraphPortKind.Exec
+    public bool IsEditorVisible => Model.IsEditorVisible || HasInputError;
+    public IBrush Brush => HasInputError || Model.ValueDiagnostic is not null ? Brushes.OrangeRed : Model.Kind == BlueprintGraphPortKind.Exec
         ? BlueprintGraphBrushes.Execution
         : BlueprintGraphBrushes.Parameter;
 
@@ -140,7 +159,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
 
     private void ensureParameterEditor()
     {
-        if (disposed || parameterForm is not null || !Model.IsEditorVisible)
+        if (disposed || parameterForm is not null || !IsEditorVisible)
             return;
         parameterField ??= fieldBuilder.BuildNodeParameter(Model);
         BlueprintVariableForm form = new()
@@ -160,6 +179,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
             getRawSiblingValue,
             setRawSiblingValue,
             () => !disposed);
+        form.PlainTextEditorFactory = usePlainTextInputs ? createPlainTextEditor : null;
         form.PointerPressed += onParameterEditorPointerPressed;
         form.SetFields([parameterField]);
         parameterForm = form;
@@ -177,6 +197,44 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         };
         OnPropertyChanged(nameof(Editor));
         OnPropertyChanged(nameof(ParameterForm));
+    }
+
+    private Control createPlainTextEditor(BlueprintVariableEditorRequest request)
+    {
+        string type = request.Field.UseJsonTableEditor ? Model.TypeName : request.Field.Type;
+        if (textDraft is null || !JsonNode.DeepEquals(textDraft.Value, request.Value))
+            textDraft = new BlueprintParameterTextDraft(BlueprintNodeTextValues.Format(type, request.Value), request.Value?.DeepClone(), null);
+        BlueprintNodeTextValues.TryParse(type, textDraft.Text, out JsonNode? _, out string? error);
+        textDraft = textDraft with { Error = error };
+        TextBox input = EditorInputs.CreateEditableTextBox(textDraft.Text);
+        IBrush? normalBorder = input.BorderBrush;
+        void showError()
+        {
+            input.BorderBrush = textDraft?.Error is null ? normalBorder : Brushes.OrangeRed;
+            ToolTip.SetTip(input, textDraft?.Error);
+        }
+        showError();
+        input.PropertyChanged += (_, args) =>
+        {
+            if (args.Property != TextBox.TextProperty || disposed || isReadOnly())
+                return;
+            string text = input.Text ?? string.Empty;
+            bool valid = BlueprintNodeTextValues.TryParse(type, text, out JsonNode? value, out string? diagnostic);
+            textDraft = new BlueprintParameterTextDraft(text, valid ? value?.DeepClone() : Model.Value?.DeepClone(), diagnostic);
+            showError();
+            notifyInputDraftProperties();
+            if (valid)
+                request.Commit(value, false);
+            InputDraftChanged?.Invoke(this, EventArgs.Empty);
+        };
+        return input;
+    }
+
+    private void notifyInputDraftProperties()
+    {
+        OnPropertyChanged(nameof(DisplayTitle));
+        OnPropertyChanged(nameof(IsEditorVisible));
+        OnPropertyChanged(nameof(Brush));
     }
 
     private void synchronizeParameterFormDependencies()

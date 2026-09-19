@@ -76,6 +76,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
     public Func<BlueprintVariableField, Control?>? FieldActionFactory { get; set; }
     public Func<BlueprintVariableEditorRequest, Control?>? CustomValueEditorFactory { get; set; }
+    public Func<BlueprintVariableEditorRequest, Control>? PlainTextEditorFactory { get; set; }
     public Func<BlueprintVariableField, bool>? CanRemoveComponent { get; set; }
 
     public IGameVariableCatalog? GameVariables
@@ -489,7 +490,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (!string.IsNullOrWhiteSpace(tooltip))
         {
             ToolTip.SetTip(label, tooltip);
-            ToolTip.SetTip(editor, tooltip);
+            if (PlainTextEditorFactory is null)
+                ToolTip.SetTip(editor, tooltip);
         }
         rows[field.Name] = new BlueprintVariableRow(field, label, editor, description, dependency);
         addGridRow(label, editor, FieldActionFactory?.Invoke(field), target);
@@ -529,6 +531,14 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         string? dictionaryKey = null,
         IReadOnlySet<string>? excludedInstanceVariableNames = null)
     {
+        if (PlainTextEditorFactory is not null)
+        {
+            BlueprintVariableField resolved = resolveInstanceVariableValueField(field, dictionaryKey);
+            Control plainEditor = PlainTextEditorFactory(new BlueprintVariableEditorRequest(resolved, cloneNode(displayValue), changed));
+            if (plainEditor is TextBox text)
+                attachHistory(text);
+            return plainEditor;
+        }
         if (getMetadataNode(field, "InstVar") is not null)
         {
             return createInstanceVariableEditor(
@@ -1696,7 +1706,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             if (!string.IsNullOrWhiteSpace(tooltip))
             {
                 ToolTip.SetTip(row.Label, tooltip);
-                ToolTip.SetTip(row.Editor, tooltip);
+                if (PlainTextEditorFactory is null)
+                    ToolTip.SetTip(row.Editor, tooltip);
             }
         }
     }

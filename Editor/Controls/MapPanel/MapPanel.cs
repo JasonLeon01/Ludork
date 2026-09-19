@@ -108,6 +108,8 @@ public sealed partial class MapPanel : Control
         animationTimer.Tick += onAnimationTick;
         tileBrushRenderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(TileBrushRenderInterval) };
         tileBrushRenderTimer.Tick += onTileBrushRenderTick;
+        propertyWheelTimer.Tick += (_, _) => endMapGesture();
+        LostFocus += onPropertyInputLostFocus;
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
         EffectiveViewportChanged += (_, _) => scheduleActorPreviewActivityUpdate();
         Unloaded += (_, _) => disposeRenderResources();
@@ -120,6 +122,7 @@ public sealed partial class MapPanel : Control
     public string? SelectedActorLayer => selectedActorLayer;
     public int? SelectedActorIndex => selectedActorIndex;
     public string? SelectedRuntimeActorId => selectedRuntimeActorId;
+    public bool LightActorSelectionEnabled { get; private set; }
     public bool IsSelectedLayerEditable => selectedLayerEditable;
     public bool IsRuntimeEditing => editingContext?.IsRuntime == true;
     private bool canEditMap => selectedLayerEditable && editingContext?.IsEditable == true;
@@ -232,6 +235,8 @@ public sealed partial class MapPanel : Control
 
     public void setSelectedLayer(string? layerName)
     {
+        if (!string.Equals(selectedLayerName, layerName, StringComparison.Ordinal))
+            CancelInteractions();
         selectedLayerName = layerName;
         if (!string.Equals(selectedActorLayer, layerName, StringComparison.Ordinal))
             setSelectedActor(null, null, true);
@@ -241,6 +246,13 @@ public sealed partial class MapPanel : Control
     public void setSelectedLayerEditable(bool editable)
     {
         selectedLayerEditable = editable;
+        if (!editable && (actorPropertyDrag is not null || propertyWheelTarget is not null))
+            CancelInteractions();
+        if (!editable && EditMode == MapEditMode.Light)
+        {
+            CancelInteractions();
+            setSelectedActor(null, null, true);
+        }
         flushPendingBrushLayers();
         disposeMapRenderCaches();
         scheduleActorPreviewActivityUpdate();
@@ -267,6 +279,17 @@ public sealed partial class MapPanel : Control
         actorMoveLayer = null;
         movingRuntimeActorId = null;
         if (mode != MapEditMode.Actor)
+            setSelectedActor(null, null, true);
+        InvalidateVisual();
+    }
+
+    public void setLightActorSelectionEnabled(bool enabled)
+    {
+        if (LightActorSelectionEnabled == enabled)
+            return;
+        CancelInteractions();
+        LightActorSelectionEnabled = enabled;
+        if (EditMode == MapEditMode.Light)
             setSelectedActor(null, null, true);
         InvalidateVisual();
     }

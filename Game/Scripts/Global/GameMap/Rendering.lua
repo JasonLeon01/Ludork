@@ -48,7 +48,14 @@ function GameMapRendering.DrawActorPixelShatterEffects(self, target, layerName)
         return
     end
     for _, effect in ipairs(self._actorPixelShatterEffects[layerName]) do
-        if not effect:isFinished() then
+        local visible = not effect:isFinished()
+        for _, position in ipairs(effect:getSourcePositions()) do
+            if not self:isCellVisible(position) then
+                visible = false
+                break
+            end
+        end
+        if visible then
             effect:draw(target)
         end
     end

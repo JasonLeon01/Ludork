@@ -214,7 +214,7 @@ function Enemy:onCollision(other)
         end
         damageTime = damageTime or 0
         scene:addTimer(damageTime, function ()
-            scene:getGameMap():addDamageText(tostring(result.data.damage), player:getPosition())
+            scene:getGameMap():addDamageText(tostring(result.data.damage), player:getPosition(), player)
         end)
     end
     local animationLength = math.max(

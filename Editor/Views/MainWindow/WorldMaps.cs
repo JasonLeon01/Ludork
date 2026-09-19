@@ -97,6 +97,7 @@ public partial class MainWindow
             EditorPanel.refreshMap(viewModel?.SelectedMap?.Key, viewModel?.SelectedMapData);
             selectPreviewMode(EditorPanel.EditMode);
         }
+        updateLightModeControls();
         refreshMapPanelState();
     }
 

@@ -3,13 +3,18 @@ local _METADATA = {
         moduleReturn = true,
         attrs = {
             "DefaultCoverAlpha",
-            "MapViewRect"
+            "MapViewRect",
+            "HideDisconnectedRegions"
         },
         bases = {
             { "GlobalCore", "GameMapBase" }
         },
         DefaultCoverAlpha = {
             type = "int"
+        },
+        HideDisconnectedRegions = {
+            type = "bool",
+            default = false
         },
         MapViewRect = {
             type = "sf.IntRect",
@@ -732,9 +737,11 @@ local _METADATA = {
                 "self",
                 "text",
                 "position",
+                "sourceActor",
                 self = { "Global.GameMap", "GameMap" },
                 text = "string",
-                position = "sf.Vector2f"
+                position = "sf.Vector2f",
+                sourceActor = { "Engine", "Actor" }
             },
             default = {
                 [1] = "self"

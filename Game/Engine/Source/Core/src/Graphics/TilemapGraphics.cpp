@@ -312,6 +312,36 @@ void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
     }
 }
 
+void TileLayerGraphics::copyDisplayAutoTileMasks(
+    const TileLayerGraphics& source,
+    const std::vector<std::vector<sf::Vector2i>>& sources) {
+    for (TileChunk& chunk : chunks_) {
+        for (std::size_t pool = 0; pool < chunk.autoTileCells.size(); ++pool) {
+            for (std::size_t cell = 0; cell < chunk.autoTileCells[pool].size();
+                 ++cell) {
+                const auto [x, y] = chunk.autoTileCells[pool][cell];
+                const sf::Vector2i origin = sources[y][x];
+                chunk.autoTileMasks[pool][cell] =
+                    ludork::engine::tilemap_graphics_impl::autoTileMask(
+                        source.autoTiles_, origin.x, origin.y,
+                        static_cast<int>(pool));
+            }
+            refreshAutoTileTexCoords(chunk, static_cast<int>(pool));
+        }
+    }
+}
+
+void TileLayerGraphics::copyAutoTileAnimation(const TileLayerGraphics& source) {
+    autoTileAnimationAccum_ = source.autoTileAnimationAccum_;
+    for (std::size_t pool = 0; pool < autoTileCurrentFrames_.size(); ++pool) {
+        if (autoTileCurrentFrames_[pool] !=
+            source.autoTileCurrentFrames_[pool]) {
+            autoTileCurrentFrames_[pool] = source.autoTileCurrentFrames_[pool];
+            refreshAutoTileTexCoords(static_cast<int>(pool));
+        }
+    }
+}
+
 int TileLayerGraphics::getLastVisibleChunkCount() const {
     return lastVisibleChunkCount_.load(std::memory_order_relaxed);
 }

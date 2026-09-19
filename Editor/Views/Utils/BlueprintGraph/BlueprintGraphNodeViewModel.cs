@@ -29,6 +29,7 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
     }
 
     public BlueprintGraphNode Model { get; }
+    public bool UsePlainTextInputs { get; internal set; }
     public string StartMarker => Model.IsStart ? "S" : string.Empty;
     public bool IsUnresolved => !Model.IsResolved;
     public string ToolTip => Model.IsResolved

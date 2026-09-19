@@ -91,6 +91,17 @@ public sealed partial class BlueprintPreviewService : IDisposable
         return tryResolveActorVisual(reference, overrides);
     }
 
+    internal ResolvedBlueprintClass? tryResolveMapActorClass(JsonObject map, JsonObject actor)
+    {
+        string reference = actor["bp"]?.GetValue<string>() ?? string.Empty;
+        const string prefix = "Data.Blueprints.";
+        if (reference.Length == 0 || reference.StartsWith(prefix, StringComparison.Ordinal)
+            && !gameData.BlueprintsData.ContainsKey(reference[prefix.Length..].Replace('.', '/')))
+            return null;
+        string tag = actor["tag"]?.GetValue<string>() ?? string.Empty;
+        return classResolver.Resolve(reference, map["BPClassVarChanged"]?[tag] as JsonObject);
+    }
+
     public void Dispose()
     {
         gameData.DataReloaded -= onVisualSourceDataChanged;

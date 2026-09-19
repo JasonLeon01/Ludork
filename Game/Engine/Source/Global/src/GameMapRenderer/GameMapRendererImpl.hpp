@@ -81,6 +81,7 @@ public:
                         std::size_t maximumShaderLights);
 
     void setCamera(std::shared_ptr<Camera> value);
+    void prepareVisibleLayers();
     void drawContent(
         sf::RenderTarget& target, const sf::RenderStates& states,
         bool applyPlayerCover, float shaderTime, int materialRevision,
@@ -186,6 +187,8 @@ public:
 
     GameMapBase& map;
     std::shared_ptr<Tilemap> tilemap;
+    std::shared_ptr<Tilemap> sourceTilemap;
+    std::optional<std::size_t> displayVisibilityRevision;
     std::shared_ptr<Camera> camera;
     std::vector<std::string> layerNames;
     std::uint8_t coverAlpha;

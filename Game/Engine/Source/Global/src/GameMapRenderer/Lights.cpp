@@ -58,7 +58,12 @@ GameMapRendererImpl::collectActiveLights(
     const sf::Angle rotation =
         camera ? camera->getViewRotation() : sf::degrees(0.0f);
     for (const Light& light : mapLights) {
-        if (light.radius > 0.0f && lightVisible(light, viewport, rotation)) {
+        const sf::Vector2i cell{static_cast<int>(std::floor(
+                                    light.position.x / EngineState::CellSize)),
+                                static_cast<int>(std::floor(
+                                    light.position.y / EngineState::CellSize))};
+        if (light.radius > 0.0f && map.isCellVisible(cell) &&
+            lightVisible(light, viewport, rotation)) {
             result.push_back({light, nullptr});
         }
     }
@@ -67,7 +72,7 @@ GameMapRendererImpl::collectActiveLights(
     for (const auto& [_, actorList] : actors) {
         for (const std::shared_ptr<Actor>& actor : actorList) {
             if (!actor || actor->isDestroyed() ||
-                !actor->isVisibleInHierarchy() || !actor->lightComp ||
+                !map.isActorVisibleOnMap(*actor) || !actor->lightComp ||
                 actor->lightComp->lightRadius <= 0.0f) {
                 continue;
             }
@@ -141,6 +146,7 @@ void GameMapRendererImpl::renderLighting(const std::vector<Light>& mapLights,
         !surfaceMask) {
         return;
     }
+    prepareVisibleLayers();
     const std::vector<std::shared_ptr<Actor>> visibleActors =
         renderSurfaceMask(materialRevision);
     auto [dynamicActors, staticActors] =

@@ -212,7 +212,7 @@ function MovementSpecials.Commit(player, pathPositions)
         allSources[1].enemy, player, "Event.Movement.HazardDamage", { sources = allSources }
     )
     Effects.ApplyInstantModifier(player, "Movement.HazardDamage", "HP", "Add", -totalDamage, eventData)
-    gameMap:addDamageText(tostring(totalDamage), player:getPosition())
+    gameMap:addDamageText(tostring(totalDamage), player:getPosition(), player)
     if player.attributes.HP <= 0 then
         scene:requestGameOver(player, animationLength)
     end

@@ -103,6 +103,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
         document.ExternalChanged += onDataRestored;
         documentBinding = new EditorDocumentBinding(this, gameData, () => document.ResourceDocument, () => document.Title, closeWhenDeleted: true);
+        documentBinding.HasPendingInputs = () => PendingInputErrors.Count != 0;
+        BlueprintInputDraftCloseGuard.Attach(this, () => PendingInputErrors.Count != 0);
         projectSave.RegisterParticipant(this);
         gameData.DataReloaded += onDataReloaded;
         gameData.Documents.ContentChanged += onProjectContentChanged;
@@ -287,6 +289,29 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         flushGraphViews();
     }
 
+    public IReadOnlyList<string> PendingInputErrors => document.ResourceDocument?.Exists == false ? [] : getInputErrors().ToArray();
+    public IReadOnlyList<string> PendingInputPaths => PendingInputErrors.Count != 0 && document.ResourceDocument is EditorDocument resource ? [resource.Path] : [];
+
+    private IEnumerable<string> getInputErrors()
+    {
+        foreach (string name in document.GetGraphNames())
+        {
+            IEnumerable<string> errors = graphViews.TryGetValue(name, out Control? content) && content is BlueprintGraphControl graph
+                ? graph.GetInputErrors()
+                : graphViewStates.TryGetValue(name, out BlueprintGraphControl.ViewState? state)
+                    ? BlueprintGraphControl.GetInputErrors(name, state, document.GetEventGraph(name)["nodes"] as JsonArray ?? [])
+                    : [];
+            foreach (string error in errors)
+                yield return document.Title + " / " + error;
+        }
+    }
+
+    private void onInputDraftChanged(object? sender, EventArgs args)
+    {
+        documentBinding.Refresh();
+        projectSave.NotifyPendingInputsChanged();
+    }
+
     public bool RekeyBlueprint(string key)
     {
         if (!document.RekeyBlueprint(key))
@@ -295,6 +320,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         documentBinding.Refresh();
         if (initializer.IsInitialized)
             refreshAll();
+        onInputDraftChanged(this, EventArgs.Empty);
         return true;
     }
 
@@ -303,6 +329,12 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         FlushPendingChanges();
         if (document.BlueprintKey is not string key)
             return;
+        if (PendingInputErrors.Count != 0)
+        {
+            await BlueprintValidationDialog.ShowResultsAsync(this,
+                [new BlueprintValidationResult(key, false, PendingInputErrors)]);
+            return;
+        }
         BlueprintValidationResult result = validationService.ValidateBlueprint(key);
         if (result.IsValid)
         {
@@ -322,6 +354,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
         if (initializer.IsInitialized)
             refreshAll();
+        onInputDraftChanged(this, EventArgs.Empty);
         return true;
     }
 
@@ -980,7 +1013,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         control.GraphChanged += (_, _) =>
         {
             document.CommitEventGraph(eventName, BlueprintGraphCodec.Save(control.Document));
+            onInputDraftChanged(control, EventArgs.Empty);
         };
+        control.InputDraftChanged += onInputDraftChanged;
         return control;
     }
 
@@ -1153,13 +1188,19 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         if (string.IsNullOrWhiteSpace(name))
             return;
         flushGraphView(selected.EventName);
+        BlueprintGraphControl.ViewState? inputState = graphViews.TryGetValue(selected.EventName, out Control? content)
+            && content is BlueprintGraphControl graphControl ? graphControl.CaptureViewState()
+            : graphViewStates.GetValueOrDefault(selected.EventName);
         if (!document.RenameEvent(selected.EventName, name))
         {
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("EVENT_EXISTS"));
             return;
         }
         removeGraphView(selected.EventName);
+        if (inputState is not null)
+            graphViewStates[name.Trim()] = inputState;
         refreshGraphList(name.Trim(), false);
+        onInputDraftChanged(this, EventArgs.Empty);
     }
 
     private async Task deleteSelectedEventAsync()
@@ -1308,11 +1349,13 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void removeGraphView(string eventName)
     {
+        graphViewStates.Remove(eventName);
         if (!graphViews.Remove(eventName, out Control? content))
             return;
         contentHost.Children.Remove(content);
         if (content is IDisposable disposable)
             disposable.Dispose();
+        onInputDraftChanged(this, EventArgs.Empty);
     }
 
     private void clearGraphViews(bool discardPendingChanges = false)

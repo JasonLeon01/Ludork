@@ -575,7 +575,7 @@ public partial class MainWindow
         EditorPanel.IsEnabled = !active;
         WorldEditorPanel.IsEnabled = !active;
         MapList.IsEnabled = !active;
-        LayerTabs.IsEnabled = !active && EditorPanel.EditMode != MapEditMode.Light;
+        updateLightModeControls();
         RightList.IsEnabled = !active;
         LightInfoPanel.IsEnabled = !active;
         ActorInfoPanel.IsEnabled = !active;

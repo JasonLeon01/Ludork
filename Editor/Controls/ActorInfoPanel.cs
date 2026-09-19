@@ -344,6 +344,8 @@ public sealed partial class ActorInfoPanel : UserControl
         updateEditableState();
     }
 
+    internal void refreshActorProperties() => refreshClassDetail();
+
     public void refreshActorPosition()
     {
         if (isRuntime)

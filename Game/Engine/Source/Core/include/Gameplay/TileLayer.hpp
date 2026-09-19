@@ -54,6 +54,11 @@ public:
         const std::vector<std::shared_ptr<sf::Texture>>& autoTileTextures,
         const std::vector<int>& autoTileFrameCounts) const;
 
+    std::size_t getContentRevision() const;
+    std::shared_ptr<TileLayer> createDisplayLayer(
+        const std::vector<std::vector<sf::Vector2i>>& sources) const;
+    void syncDisplayAnimation(const TileLayer& source);
+
     BIND_METHOD(Pure = true)
     virtual bool getVisible() const;
 
@@ -141,6 +146,7 @@ private:
         const std::vector<std::vector<float>>& values) const;
 
     TileLayerData data_;
+    std::size_t contentRevision_ = 0;
     int width_ = 0;
     int height_ = 0;
     std::shared_ptr<sf::Texture> texture_;

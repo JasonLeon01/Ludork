@@ -26,18 +26,36 @@ public sealed partial class MapPanel
     private void handleLightPointerPressed(PointerPressedEventArgs args, Point position, int width, int height)
     {
         PointerPoint pointer = args.GetCurrentPoint(this);
+        if (!pointer.Properties.IsLeftButtonPressed && !pointer.Properties.IsRightButtonPressed
+            || getMapBasePosition(position, width, height) is not { } basePosition)
+            return;
+        int? actorHit = hitTestLightActor(position, basePosition, width, height, out int? hit);
+        if (actorHit is int actorIndex && selectedLayerName is not null)
+        {
+            setSelectedLightIndex(null);
+            setSelectedActor(selectedLayerName, actorIndex, true);
+            if (pointer.Properties.IsLeftButtonPressed && canEditMap
+                && getGridPosition(position, width, height) is { } grid
+                && getSelectedActor() is JsonObject actor
+                && tryGetActorPosition(actor, out int actorX, out int actorY))
+            {
+                actorMoveIndex = actorIndex;
+                actorMoveLayer = selectedLayerName;
+                actorMoveOffset = (grid.X - actorX, grid.Y - actorY);
+                capturePointer(args.Pointer);
+            }
+            args.Handled = true;
+            InvalidateVisual();
+            return;
+        }
+        setSelectedActor(null, null, true);
+        setSelectedLightIndex(hit);
         if (pointer.Properties.IsRightButtonPressed)
         {
-            if (getMapBasePosition(position, width, height) is { } contextPosition)
-                setSelectedLightIndex(hitTestLight(contextPosition));
             showLightContextMenu(position, width, height);
             args.Handled = true;
             return;
         }
-        if (!pointer.Properties.IsLeftButtonPressed || getMapBasePosition(position, width, height) is not { } basePosition)
-            return;
-        int? hit = hitTestLight(basePosition);
-        setSelectedLightIndex(hit);
         if (hit is not int index || CurrentMapData?["lights"] is not JsonArray lights || lights[index] is not JsonObject light || !tryGetLight(light, out Point center, out double radius))
         {
             InvalidateVisual();
@@ -100,6 +118,12 @@ public sealed partial class MapPanel
             setSelectedActor(selected.Layer, selected.Index, true);
             if (canEditMap)
             {
+                if (beginActorPropertyDrag(args))
+                {
+                    args.Handled = true;
+                    InvalidateVisual();
+                    return;
+                }
                 actorMoveIndex = selected.Index;
                 actorMoveLayer = selected.Layer;
                 movingRuntimeActorId = selectedRuntimeActorId;
@@ -126,8 +150,9 @@ public sealed partial class MapPanel
         {
             if (actor["parentRuntimeId"] is not null)
                 return;
-            grid = (grid.X - actorMoveOffset.X, grid.Y - actorMoveOffset.Y);
         }
+        if (IsRuntimeEditing || EditMode == MapEditMode.Light)
+            grid = (grid.X - actorMoveOffset.X, grid.Y - actorMoveOffset.Y);
         if (tryGetActorPosition(actor, out int oldX, out int oldY) && oldX == grid.X && oldY == grid.Y)
             return;
         string actorId = IsRuntimeEditing ? movingRuntimeActorId ?? string.Empty : actor["tag"]?.GetValue<string>() ?? string.Empty;
@@ -307,6 +332,8 @@ public sealed partial class MapPanel
             index = null;
         }
         bool changed = !string.Equals(selectedActorLayer, layerName, StringComparison.Ordinal) || selectedActorIndex != index;
+        if (changed && (actorPropertyDrag is not null || propertyWheelTarget is not null))
+            cancelMapGesture();
         selectedActorLayer = layerName;
         selectedActorIndex = index;
         selectedRuntimeActorId = IsRuntimeEditing ? actor?["runtimeId"]?.GetValue<string>() : null;

@@ -133,8 +133,7 @@ void GameMapRendererImpl::rebuildStaticTransmission(
         staticTransmission->draw(*actor, transmissionActorStates);
     }
     staticTransmission->display();
-    staticOccupancy = map.rebuildStaticLightOccupancy(
-        {0, 0}, tilemap->getSize(), staticActors);
+    staticOccupancy = map.rebuildRenderLightOccupancy(tilemap, staticActors);
     staticTransmissionActors = captureActors(staticActors);
     staticTransmissionLayers = captureLayerVisibility();
     staticTransmissionCoverPosition = coverPlayerPosition;
@@ -160,7 +159,7 @@ std::vector<std::shared_ptr<Actor>> GameMapRendererImpl::renderSurfaceMask(
         }
         for (const std::shared_ptr<Actor>& actor : layerIt->second) {
             if (actor && !actor->isDestroyed() &&
-                actor->isVisibleInHierarchy() &&
+                map.isActorVisibleOnMap(*actor) &&
                 visibleActorSet.insert(actor.get()).second) {
                 visibleActors.push_back(actor);
             }
@@ -186,7 +185,7 @@ std::vector<std::shared_ptr<Actor>> GameMapRendererImpl::renderSurfaceMask(
         }
         for (const std::shared_ptr<Actor>& actor : layerIt->second) {
             if (!actor || actor->isDestroyed() ||
-                !actor->isVisibleInHierarchy()) {
+                !map.isActorVisibleOnMap(*actor)) {
                 continue;
             }
             setActorMaskUniforms(*actor);

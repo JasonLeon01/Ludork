@@ -43,6 +43,7 @@
 
 ---@class (partial) GameMap: GlobalCore.GameMapBase
 ---@field DefaultCoverAlpha         integer
+---@field HideDisconnectedRegions   boolean                                                                                                                                                         Hide tile-disconnected areas outside the player or preview observer region; defaults to false.
 ---@field MapViewRect               sf.IntRect                                                                                                                                                      Logical-screen rectangle occupied by the map canvas; defaults to `(192, 32, 416, 416)`.
 ---@field _tilemap                  Engine.Tilemap
 ---@field _camera                   GlobalCore.Camera | nil
@@ -490,9 +491,10 @@ function GameMap:addCommonTip(text) end
 ---
 --- - @param text Damage text content.
 --- - @param position World position used as the spawn point.
----@param text     string
----@param position sf.Vector2f
-function GameMap:addDamageText(text, position) end
+---@param text        string
+---@param position    sf.Vector2f
+---@param sourceActor Engine.Actor Actor whose map visibility governs the text throughout its lifetime.
+function GameMap:addDamageText(text, position, sourceActor) end
 
 ---@brief Convert a world position for drawing while the map view is active.
 ---

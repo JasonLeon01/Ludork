@@ -65,6 +65,7 @@ void TileLayer::writeBlock(int x, int y, const TileGrid& tileBlock,
     data_.validateBlock(x, y, tileBlock, autoTileBlock);
     writePendingBlock(x, y, tileBlock, autoTileBlock);
     data_.writeBlock(x, y, tileBlock, autoTileBlock);
+    ++contentRevision_;
     lightBlockMapCache_.reset();
     reflectionStrengthMapCache_.reset();
     ignoreLightingMapCache_.reset();
@@ -88,6 +89,53 @@ std::shared_ptr<TileLayer> TileLayer::rebuild(
     const std::vector<int>& autoTileFrameCounts) const {
     return std::make_shared<TileLayer>(data, texture_, autoTileTextures,
                                        autoTileFrameCounts, visible);
+}
+
+std::size_t TileLayer::getContentRevision() const {
+    return contentRevision_;
+}
+
+std::shared_ptr<TileLayer> TileLayer::createDisplayLayer(
+    const std::vector<std::vector<sf::Vector2i>>& sources) const {
+    if (sources.size() != static_cast<std::size_t>(height_)) {
+        throw std::invalid_argument(
+            "Display source grid height must match the layer");
+    }
+    TileLayerData displayData = data_;
+    displayData.autoTiles.assign(height_, std::vector<AutoTileCell>(width_));
+    for (int y = 0; y < height_; ++y) {
+        if (sources[y].size() != static_cast<std::size_t>(width_)) {
+            throw std::invalid_argument(
+                "Display source grid width must match the layer");
+        }
+        for (int x = 0; x < width_; ++x) {
+            const sf::Vector2i source = sources[y][x];
+            if (source == sf::Vector2i{-1, -1}) {
+                displayData.tiles[y][x] = std::nullopt;
+                continue;
+            }
+            if (source.x < 0 || source.y < 0 || source.x >= width_ ||
+                source.y >= height_) {
+                throw std::invalid_argument(
+                    "Display source cell is outside the layer");
+            }
+            displayData.tiles[y][x] = data_.tiles[source.y][source.x];
+            if (source.y < static_cast<int>(data_.autoTiles.size()) &&
+                source.x < static_cast<int>(data_.autoTiles[source.y].size())) {
+                displayData.autoTiles[y][x] =
+                    data_.autoTiles[source.y][source.x];
+            }
+        }
+    }
+    auto result = rebuild(displayData, autoTileTextures_, autoTileFrameCounts_);
+    result->copyDisplayAutoTileMasks(*this, sources);
+    result->syncDisplayAnimation(*this);
+    return result;
+}
+
+void TileLayer::syncDisplayAnimation(const TileLayer& source) {
+    copyAutoTileAnimation(source);
+    shaderTime_ = source.shaderTime_;
 }
 
 bool TileLayer::getVisible() const {

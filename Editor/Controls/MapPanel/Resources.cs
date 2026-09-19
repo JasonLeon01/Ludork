@@ -190,7 +190,8 @@ public sealed partial class MapPanel
             if (lights[index] is not JsonObject light || !tryGetLight(light, out Point center, out double radius))
                 continue;
             double distance = getDistance(position, center);
-            if (distance <= radius && distance < bestDistance)
+            if (distance <= radius && (distance < bestDistance
+                || LightActorSelectionEnabled && distance == bestDistance))
             {
                 best = index;
                 bestDistance = distance;
@@ -207,12 +208,14 @@ public sealed partial class MapPanel
         int? nextIndex = light is null ? null : index;
         if (selectedLightIndex == nextIndex)
             return;
+        if (propertyWheelTarget is not null)
+            endMapGesture();
         selectedLightIndex = nextIndex;
         LightSelectionChanged?.Invoke(this, new LightSelectionChangedEventArgs(CurrentMapKey ?? string.Empty, selectedLightIndex, light));
         InvalidateVisual();
     }
 
-    private int? hitTestActor(string layerName, Point mapPosition)
+    private int? hitTestActor(string layerName, Point mapPosition, HashSet<JsonObject>? allowedActors = null)
     {
         ensureActorRenderStates();
         if (!actorRenderStates.TryGetValue(layerName, out List<ActorRenderState>? actors))
@@ -220,6 +223,8 @@ public sealed partial class MapPanel
         for (int index = actors.Count - 1; index >= 0; index--)
         {
             ActorRenderState actor = actors[index];
+            if (allowedActors is not null && !allowedActors.Contains(actor.Actor))
+                continue;
             if (!tryGetActorPosition(actor.Actor, out int x, out int y))
                 continue;
             Bitmap? image = actor.PreviewLease?.Frame ?? actor.Image;
@@ -481,6 +486,8 @@ public sealed partial class MapPanel
 
     private void endMapGesture()
     {
+        propertyWheelTimer.Stop();
+        propertyWheelTarget = null;
         if (mapEditGesture != 0)
             gameData?.EndHistoryGesture(mapEditGesture);
         mapEditGesture = 0;
@@ -489,6 +496,7 @@ public sealed partial class MapPanel
     private void cancelMapGesture()
     {
         endMapGesture();
+        actorPropertyDrag = null;
         rectangleStart = null;
         tileBrushDragging = false;
         lightMoveDragging = false;
@@ -507,7 +515,11 @@ public sealed partial class MapPanel
         {
             args.Edit.ApplyTo(CurrentMapData);
             if (!IsRuntimeEditing && args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors" or "lights"))
+            {
                 cancelMapGesture();
+                if (EditMode == MapEditMode.Light)
+                    setSelectedActor(null, null, true);
+            }
             foreach (string layer in args.Edit.Layers)
                 scheduleBrushLayerRefresh(layer);
             if (args.Edit.ChangesActors)
@@ -515,6 +527,7 @@ public sealed partial class MapPanel
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
                 invalidateActorRenderStates();
+                reconcileLightActorSelection();
                 ActorDataChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -524,6 +537,8 @@ public sealed partial class MapPanel
             {
                 cancelMapGesture();
                 CurrentMapData = editingContext?.ReadMapSnapshot(CurrentMapKey);
+                if (EditMode == MapEditMode.Light)
+                    setSelectedActor(null, null, true);
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
             }

@@ -218,6 +218,11 @@ public:
     bool isBuildComplete() const;
 
 protected:
+    void copyDisplayAutoTileMasks(
+        const TileLayerGraphics& source,
+        const std::vector<std::vector<sf::Vector2i>>& sources);
+    void copyAutoTileAnimation(const TileLayerGraphics& source);
+
     void writePendingBlock(int x, int y, const TileGrid& tileBlock,
                            const AutoTileGrid& autoTileBlock);
 

@@ -10,6 +10,7 @@ namespace Ludork.Controls;
 public sealed partial class MapPanel
 {
     private static readonly Pen ActorLightPen = new(Brushes.Gray, 2, DashStyle.Dash);
+    private static readonly Pen SelectedActorLightPen = new(Brushes.Gold, 2, DashStyle.Dash);
     private readonly List<ActorLightRenderState> actorLightRenderStates = [];
     private bool actorLightRenderStatesDirty = true;
 
@@ -29,9 +30,75 @@ public sealed partial class MapPanel
                 .Transform(light.LocalPosition);
             center = new Point(snapToDevicePixel(center.X), snapToDevicePixel(center.Y));
             double radius = light.Radius * displayScale;
-            context.DrawEllipse(new SolidColorBrush(getLightFill(light.Colour)), ActorLightPen, center, radius, radius);
-            context.DrawEllipse(Brushes.Gray, null, center, 3, 3);
+            bool selected = selectedActorLayer == state.Layer && ReferenceEquals(getSelectedActor(), state.Actor);
+            context.DrawEllipse(new SolidColorBrush(getLightFill(light.Colour)), selected ? SelectedActorLightPen : ActorLightPen, center, radius, radius);
+            context.DrawEllipse(selected ? Brushes.Gold : Brushes.Gray, null, center, 3, 3);
         }
+    }
+
+    private int? hitTestLightActor(Point position, Point basePosition, int width, int height, out int? fixedLight)
+    {
+        fixedLight = hitTestLight(basePosition);
+        if (!LightActorSelectionEnabled || !canEditMap || selectedLayerName is null || IsRuntimeEditing)
+            return null;
+        ensureActorLightRenderStates();
+        HashSet<JsonObject> allowedActors = [];
+        foreach (ActorLightRenderState state in actorLightRenderStates)
+            if (state.Layer == selectedLayerName)
+                allowedActors.Add(state.Actor);
+        Rect mapRect = getMapRect(width, height);
+        Point displayPosition = new(position.X - mapRect.X, position.Y - mapRect.Y);
+        if (hitTestActor(selectedLayerName, displayPosition, allowedActors) is int bodyHit)
+        {
+            fixedLight = null;
+            return bodyHit;
+        }
+        if (selectedLightIndex is int selectedIndex
+            && CurrentMapData?["lights"] is JsonArray lights
+            && selectedIndex >= 0 && selectedIndex < lights.Count
+            && lights[selectedIndex] is JsonObject selectedLight
+            && tryGetLight(selectedLight, out Point selectedCenter, out double selectedRadius)
+            && Math.Abs(getDistance(basePosition, selectedCenter) - selectedRadius) <= LightEdgeTolerance)
+        {
+            fixedLight = selectedIndex;
+            return null;
+        }
+        double displayScale = tileSize / (double)SourceTileSize;
+        double bestDistance = double.MaxValue;
+        if (fixedLight is int fixedIndex && CurrentMapData?["lights"]?[fixedIndex] is JsonObject mapLight
+            && tryGetLight(mapLight, out Point fixedCenter, out _))
+            bestDistance = getDistance(basePosition, fixedCenter) * displayScale;
+        int? bestActor = null;
+        for (int index = actorLightRenderStates.Count - 1; index >= 0; index--)
+        {
+            ActorLightRenderState state = actorLightRenderStates[index];
+            if (state.Layer != selectedLayerName || !tryGetActorPosition(state.Actor, out int x, out int y))
+                continue;
+            ActorLightDescriptor light = state.Light;
+            Point center = createActorTransform(x, y, light.Translation, light.Scale, light.Rotation)
+                .Transform(light.LocalPosition);
+            double distance = getDistance(displayPosition, center);
+            if (distance > light.Radius * displayScale || distance >= bestDistance)
+                continue;
+            bestDistance = distance;
+            bestActor = getActorList(state.Layer)?.IndexOf(state.Actor);
+        }
+        if (bestActor is not null)
+            fixedLight = null;
+        return bestActor;
+    }
+
+    private void reconcileLightActorSelection()
+    {
+        if (EditMode != MapEditMode.Light || selectedActorIndex is null)
+            return;
+        ensureActorLightRenderStates();
+        JsonObject? selected = getSelectedActor();
+        foreach (ActorLightRenderState state in actorLightRenderStates)
+            if (state.Layer == selectedLayerName && ReferenceEquals(state.Actor, selected))
+                return;
+        cancelMapGesture();
+        setSelectedActor(null, null, true);
     }
 
     private void ensureActorLightRenderStates()
@@ -82,6 +149,7 @@ public sealed partial class MapPanel
         if (!args.AffectsSection("Blueprints"))
             return;
         invalidateActorLightRenderStates();
+        reconcileLightActorSelection();
         InvalidateVisual();
     }
 

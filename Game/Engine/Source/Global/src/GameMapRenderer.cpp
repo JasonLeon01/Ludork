@@ -80,6 +80,7 @@ GameMapRendererImpl::GameMapRendererImpl(
     int coverAlpha, bool previewOnly, std::size_t maximumShaderLights)
     : map(map),
       tilemap(std::move(tilemap)),
+      sourceTilemap(this->tilemap),
       camera(std::move(camera)),
       layerNames(layerNames),
       coverAlpha(static_cast<std::uint8_t>(std::clamp(coverAlpha, 0, 255))),

@@ -241,11 +241,11 @@ function SceneMapBuilder:_configureInteractiveMap(gameMap)
 end
 
 ---@diagnostic disable-next-line: unused
-function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly)
+function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap)
     if emitCreateEvents == nil then
         emitCreateEvents = true
     end
-    local tilemap = SceneMapBuilder.GenerateTilemap(data.layers, data.layerOrder, data.width, data.height)
+    tilemap = tilemap or SceneMapBuilder.GenerateTilemap(data.layers, data.layerOrder, data.width, data.height)
     local result = GameMap.new(data.mapName, tilemap, camera, previewOnly)
     result:setAutoTileResolver(Data.GetAutoTile)
     if not previewOnly then
@@ -305,22 +305,52 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
 end
 
 function SceneMapBuilder:buildFloorMapPreview(
-    inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker
+    inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker, activeMap
 )
     local mapPath = self:resolveMapPath(mapKey, currentMap)
+    local isCurrentMap = currentMap ~= nil and mapPath == self:resolveMapPath(currentMap, nil)
+    local visibilityRevision = isCurrentMap and activeMap ~= nil and activeMap:getVisibilityRevision() or 0
+    local cached = self._floorMapPreviewGameMaps[mapPath]
+    if cached ~= nil and cached.visibilityRevision ~= visibilityRevision then
+        self._floorMapPreviewGameMaps[mapPath] = nil
+    end
     if self._floorMapPreviewGameMaps[mapPath] == nil then
         local resolvedPath, mapData = self:loadMapData(mapPath, currentMap)
         mapPath = resolvedPath
         if mapData.type == "worldMap" then
-            self._floorMapPreviewGameMaps[mapPath] = { mapData = mapData, regions = {} }
+            self._floorMapPreviewGameMaps[mapPath] = {
+                mapData = mapData,
+                regions = {},
+                visibilityRevision = visibilityRevision
+            }
         else
             ---@cast mapData Source.SceneComponents.MapData
-            local gameMap = self:generateGameMap(mapData, nil, false, true)
-            gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
+            local tilemap = nil
+            if isCurrentMap and activeMap ~= nil and not activeMap:isWorldMap() then
+                local layers = {}
+                for _, name in ipairs(activeMap:getTilemap():getLayerNameList()) do
+                    local layer = assert(activeMap:getTilemap():getLayer(name))
+                    layers[#layers + 1] = layer:rebuild(
+                        layer:getData(), layer:getAutoTileTextures(), layer:getAutoTileFrameCounts()
+                    )
+                end
+                tilemap = Engine.Tilemap.new(layers)
+            end
+            local gameMap = self:generateGameMap(mapData, nil, false, true, tilemap)
+            if isCurrentMap and activeMap ~= nil then
+                gameMap:setHideDisconnectedRegions(activeMap:getHideDisconnectedRegions())
+            end
+            if tilemap == nil then
+                gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
+            end
             self:applyAddedActors(gameMap, inst:getAddedActors(mapPath), false)
             gameMap:applyActorPositions(inst:getActorPositions(mapPath))
             gameMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
-            self._floorMapPreviewGameMaps[mapPath] = { gameMap = gameMap, mapData = mapData }
+            self._floorMapPreviewGameMaps[mapPath] = {
+                gameMap = gameMap,
+                mapData = mapData,
+                visibilityRevision = visibilityRevision
+            }
         end
     end
     local scale = previewScale > 0.0 and previewScale or 1.0
@@ -378,6 +408,7 @@ function SceneMapBuilder:buildFloorMapPreview(
                     )
                     ---@cast regionData Source.SceneComponents.MapData
                     local regionMap = self:generateGameMap(regionData, nil, false, true)
+                    regionMap:setHideDisconnectedRegions(false)
                     regionMap:applyTerrainDestructions(inst:getTerrainDestructions(region.path))
                     regionMap:removeActorsByTags(movedActorTags)
                     local persistedActors = {}
@@ -427,6 +458,12 @@ function SceneMapBuilder:buildFloorMapPreview(
         end
     else
         ---@cast preview Source.SceneComponents.SingleFloorMapPreview
+        local observer = sf.Vector2i.new(telepoint.x, telepoint.y)
+        ---@cast observer sf.Vector2i
+        if isCurrentMap then
+            observer = inst:getPlayer():getMapPosition()
+        end
+        preview.gameMap:setVisibilityObserver(observer)
         preview.gameMap:drawMapContent(target, states)
     end
     if showTelepointMarker then

@@ -1,6 +1,7 @@
 ---@meta Global.CustomParticles.DamageTextParticle
 ---@class DamageTextParticle
 ---@field _particleSystem   Engine.ParticleSystem
+---@field _isVisible        (fun(): boolean) | nil
 ---@field _speedCurve       Engine.Curve
 ---@field _textParticle     Engine.TextParticle | nil
 ---@field _startPosition    sf.Vector2f
@@ -11,12 +12,12 @@ local DamageTextParticle = {}
 ---@return DamageTextParticle
 function DamageTextParticle.new(...) end
 
---- @brief Floating damage text particle for the map particle system.
+---@brief Floating damage text particle for the map particle system.
 ---
 --- The particle starts from the given map-view position, moves 32px right at a fixed
 --- speed, animates vertical offset via a curve, and removes itself after 0.5 seconds.
 
---- @brief Construct and add a damage text particle to a particle system.
+---@brief Construct and add a damage text particle to a particle system.
 --- - @param particleSystem Target particle system used to render the text.
 --- - @param text Text content, usually a damage number.
 --- - @param position Initial map-view position.
@@ -26,9 +27,10 @@ function DamageTextParticle.new(...) end
 ---@param position       sf.Vector2f
 ---@param textConfig     Engine.PlainTextConfig
 ---@param speedCurve     Engine.Curve
-function DamageTextParticle:init(particleSystem, text, position, textConfig, speedCurve) end
+---@param isVisible      fun(): boolean         ) | nil  Rechecked while the text is alive to hide its source region.
+function DamageTextParticle:init(particleSystem, text, position, textConfig, speedCurve, isVisible) end
 
---- @brief Remove this damage text from its particle system.
+---@brief Remove this damage text from its particle system.
 function DamageTextParticle:destroy() end
 
 ---@param countTime number

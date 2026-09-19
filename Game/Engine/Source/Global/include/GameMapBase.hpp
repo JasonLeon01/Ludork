@@ -21,6 +21,7 @@ class ActorRegistryImpl;
 class OccupancyIndexImpl;
 class SparseWorldImpl;
 class LightOcclusionImpl;
+class RegionVisibilityImpl;
 }  // namespace ludork::global::game_map_base_impl
 
 ////////////////////////////////////////////////////////////
@@ -324,6 +325,37 @@ public:
     BIND_METHOD(name = "_fixedUpdateActors", metadata = false)
     void fixedUpdateActors(float fixedDelta);
 
+    /// \brief Enable tile-only disconnected-region hiding on ordinary maps.
+    BIND_METHOD()
+    void setHideDisconnectedRegions(bool enabled);
+
+    /// \brief Override the observation cell for previews; nil follows the
+    /// player.
+    BIND_METHOD(defaults = {nil})
+    void setVisibilityObserver(
+        std::optional<sf::Vector2i> position = std::nullopt);
+
+    /// \brief Query current map presentation without changing gameplay
+    /// visibility.
+    BIND_METHOD(Pure = true)
+    bool isCellVisible(const sf::Vector2i& position) const;
+
+    /// \brief Include the actor's own visibility and every ancestor's map cell.
+    BIND_METHOD(Pure = true)
+    bool isActorVisibleOnMap(const Actor& actor) const;
+
+    /// \brief Revision of terrain and the observed connected region, refreshed
+    /// on query.
+    BIND_METHOD(Pure = true)
+    std::size_t getVisibilityRevision() const;
+
+    BIND_METHOD(metadata = false)
+    bool getHideDisconnectedRegions() const;
+    std::vector<std::vector<sf::Vector2i>> getDisplayTileSources() const;
+    std::shared_ptr<sf::Texture> rebuildRenderLightOccupancy(
+        const std::shared_ptr<Tilemap>& displayTilemap,
+        const std::vector<std::shared_ptr<Actor>>& actors);
+
     const ActorDict& getMaterialActorsForRenderer() const;
 
     const ActorPtr& getPlayerActorForRenderer() const;
@@ -430,6 +462,21 @@ private:
     ////////////////////////////////////////////////////////////
     int getTopmostOccupantLayerIndex(const std::vector<Actor*>& actorsAtCell,
                                      const Actor* selfActor) const;
+
+    struct VisibilityLayerState {
+        std::shared_ptr<TileLayer> layer;
+        bool visible = false;
+        std::size_t revision = 0;
+        bool operator==(const VisibilityLayerState&) const = default;
+    };
+    void ensureVisibilityCache() const;
+    std::unique_ptr<ludork::global::game_map_base_impl::RegionVisibilityImpl>
+        regionVisibility_;
+    bool hideDisconnectedRegions_ = false;
+    std::optional<sf::Vector2i> visibilityObserver_;
+    mutable bool visibilityDirty_ = true;
+    mutable std::size_t visibilityRevision_ = 0;
+    mutable std::vector<VisibilityLayerState> visibilityLayers_;
 
     std::shared_ptr<Tilemap> tilemap_;
     std::unique_ptr<ludork::global::game_map_base_impl::SparseWorldImpl>

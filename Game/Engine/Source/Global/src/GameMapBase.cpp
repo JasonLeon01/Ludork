@@ -1,4 +1,5 @@
 #include "GameMapBase/ActorRegistryImpl.hpp"
+#include "GameMapBase/RegionVisibilityImpl.hpp"
 #include "GameMapBase/LightOcclusionImpl.hpp"
 #include "GameMapBase/OccupancyIndexImpl.hpp"
 #include "GameMapBase/SparseWorldImpl.hpp"
@@ -50,7 +51,10 @@ float materialValueToFloat(const MaterialValue& value) {
 }  // namespace
 
 GameMapBase::GameMapBase()
-    : sparseWorld_(std::make_unique<
+    : regionVisibility_(
+          std::make_unique<
+              ludork::global::game_map_base_impl::RegionVisibilityImpl>()),
+      sparseWorld_(std::make_unique<
                    ludork::global::game_map_base_impl::SparseWorldImpl>()),
       lightOcclusion_(
           std::make_unique<
@@ -89,6 +93,7 @@ const ActorPtr& GameMapBase::getPlayerActorForRenderer() const {
 
 void GameMapBase::setTilemap(std::shared_ptr<Tilemap> tilemap) {
     tilemap_ = std::move(tilemap);
+    visibilityDirty_ = true;
     tilePassableGrid_.clear();
     passabilityDirty_ = true;
 }
@@ -401,6 +406,10 @@ bool GameMapBase::isDirectionPassable(const sf::Vector2i& fromPosition,
 void GameMapBase::configureSparseWorld(
     const sf::Vector2u& size, const std::vector<std::string>& layerOrder,
     const std::vector<sf::IntRect>& regionRects) {
+    if (hideDisconnectedRegions_) {
+        throw std::invalid_argument(
+            "Disconnected-region hiding requires an ordinary tile map");
+    }
     sparseWorld_->configureSparseWorld(size, layerOrder, regionRects);
     lightOcclusion_->clearStaticLightOccupancy();
     occupancy_->clearActorOccupancy();
@@ -512,6 +521,7 @@ std::vector<std::vector<bool>> GameMapBase::rebuildPassabilityCache(
 }
 
 void GameMapBase::invalidatePassabilityCache() {
+    visibilityDirty_ = true;
     passabilityDirty_ = true;
 }
 
@@ -933,4 +943,119 @@ MaterialValue GameMapBase::getMaterialProperty(
         return value.value_or(invalidValue);
     }
     return invalidValue;
+}
+
+void GameMapBase::setHideDisconnectedRegions(bool enabled) {
+    if (enabled && sparseWorld_->size().has_value()) {
+        throw std::invalid_argument(
+            "Disconnected-region hiding requires an ordinary tile map");
+    }
+    if (hideDisconnectedRegions_ != enabled) {
+        hideDisconnectedRegions_ = enabled;
+        visibilityDirty_ = true;
+        ++visibilityRevision_;
+    }
+}
+
+bool GameMapBase::getHideDisconnectedRegions() const {
+    return hideDisconnectedRegions_;
+}
+
+void GameMapBase::setVisibilityObserver(std::optional<sf::Vector2i> position) {
+    visibilityObserver_ = position;
+}
+
+void GameMapBase::ensureVisibilityCache() const {
+    std::vector<VisibilityLayerState> layers;
+    if (tilemap_) {
+        for (const std::string& name : tilemap_->getLayerNameList()) {
+            const auto layer = tilemap_->getLayer(name);
+            layers.push_back({layer, layer && layer->getVisible(),
+                              layer ? layer->getContentRevision() : 0});
+        }
+    }
+    if (visibilityDirty_ || layers != visibilityLayers_) {
+        if (hideDisconnectedRegions_) {
+            auto* self = const_cast<GameMapBase*>(this);
+            self->rebuildPassabilityCache(getSize());
+            regionVisibility_->rebuild(tilePassableGrid_);
+        }
+        visibilityLayers_ = std::move(layers);
+        visibilityDirty_ = false;
+        ++visibilityRevision_;
+    }
+    if (!hideDisconnectedRegions_) {
+        return;
+    }
+    auto observer = visibilityObserver_;
+    if (!observer) {
+        const auto& player = getPlayerActorForRenderer();
+        if (player && !player->isDestroyed()) {
+            observer = player->getMapPosition();
+        }
+    }
+    if (regionVisibility_->setObserver(observer)) {
+        ++visibilityRevision_;
+    }
+}
+
+bool GameMapBase::isCellVisible(const sf::Vector2i& position) const {
+    if (!hideDisconnectedRegions_) {
+        return true;
+    }
+    ensureVisibilityCache();
+    return regionVisibility_->isCellVisible(position);
+}
+
+bool GameMapBase::isActorVisibleOnMap(const Actor& actor) const {
+    if (actor.isDestroyed() || !actor.isVisibleInHierarchy()) {
+        return false;
+    }
+    if (!hideDisconnectedRegions_) {
+        return true;
+    }
+    ensureVisibilityCache();
+    std::shared_ptr<Actor> parent;
+    for (const Actor* current = &actor; current != nullptr;
+         current = parent.get()) {
+        if (!regionVisibility_->isCellVisible(current->getMapPosition())) {
+            return false;
+        }
+        parent = current->getParent();
+    }
+    return true;
+}
+
+std::size_t GameMapBase::getVisibilityRevision() const {
+    ensureVisibilityCache();
+    return visibilityRevision_;
+}
+
+std::vector<std::vector<sf::Vector2i>> GameMapBase::getDisplayTileSources()
+    const {
+    ensureVisibilityCache();
+    const sf::Vector2u size = getSize();
+    std::vector<std::vector<sf::Vector2i>> sources(
+        size.y, std::vector<sf::Vector2i>(size.x));
+    for (unsigned int y = 0; y < size.y; ++y) {
+        for (unsigned int x = 0; x < size.x; ++x) {
+            const sf::Vector2i position{static_cast<int>(x),
+                                        static_cast<int>(y)};
+            sources[y][x] =
+                hideDisconnectedRegions_ &&
+                        !regionVisibility_->isCellVisible(position)
+                    ? regionVisibility_->replacementSource(position).value_or(
+                          sf::Vector2i{-1, -1})
+                    : position;
+        }
+    }
+    return sources;
+}
+
+std::shared_ptr<sf::Texture> GameMapBase::rebuildRenderLightOccupancy(
+    const std::shared_ptr<Tilemap>& displayTilemap,
+    const std::vector<std::shared_ptr<Actor>>& actors) {
+    return lightOcclusion_->rebuildStaticLightOccupancy(
+        {0, 0}, displayTilemap->getSize(), actors, *sparseWorld_,
+        displayTilemap, EngineState::CellSize);
 }

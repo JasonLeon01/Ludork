@@ -26,6 +26,7 @@ local GameMap = {}
 local defaultMapViewRect = sf.IntRect.new(192, 32, 416, 416)
 ---@cast defaultMapViewRect sf.IntRect
 GameMap.MapViewRect = defaultMapViewRect
+GameMap.HideDisconnectedRegions = false
 
 ---@param gameMap GameMap
 ---@return sf.IntRect
@@ -63,6 +64,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
         )
     end
     GameMapBase.init(self)
+    self:setHideDisconnectedRegions(self.HideDisconnectedRegions and sparseWorldConfig == nil)
     if sparseWorldConfig ~= nil then
         self:configureSparseWorld(sparseWorldConfig.size, sparseWorldConfig.layerOrder, sparseWorldConfig.regionRects)
     end
@@ -236,11 +238,23 @@ function GameMap:addCommonTip(text)
     end
 end
 
-function GameMap:addDamageText(text, position)
+function GameMap:addDamageText(text, position, sourceActor)
     assert(self._damageTextSpeedCurve ~= nil, "DamageText speed curve is not configured")
     assert(self._damageTextConfig ~= nil, "DamageText config is not configured")
+    if not self:isActorVisibleOnMap(sourceActor) then
+        return
+    end
     local drawPosition = self:worldToMapViewPosition(position)
-    DamageTextParticle.new(self._particleSystem, text, drawPosition, self._damageTextConfig, self._damageTextSpeedCurve)
+    DamageTextParticle.new(
+        self._particleSystem,
+        text,
+        drawPosition,
+        self._damageTextConfig,
+        self._damageTextSpeedCurve,
+        function ()
+            return self:isActorVisibleOnMap(sourceActor)
+        end
+    )
 end
 
 function GameMap:onTick(deltaTime)

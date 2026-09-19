@@ -5,6 +5,12 @@ local ActorPixelShatterEffect = {}
 
 function ActorPixelShatterEffect:init(actor, shader, seed)
     self._sourceActor = actor
+    self._sourcePositions = {}
+    local source = actor
+    while source ~= nil do
+        self._sourcePositions[#self._sourcePositions + 1] = source:getMapPosition()
+        source = source:getParent()
+    end
     self._shader = shader
     self._seed = seed
     self._elapsed = 0.0
@@ -18,6 +24,10 @@ end
 
 function ActorPixelShatterEffect:getSourceActor()
     return self._sourceActor
+end
+
+function ActorPixelShatterEffect:getSourcePositions()
+    return self._sourcePositions
 end
 
 function ActorPixelShatterEffect:isPrepared()

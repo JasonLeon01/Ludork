@@ -56,12 +56,69 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
     public IReadOnlyList<BlueprintGraphNodeDefinition> Definitions => definitions;
     public BlueprintPendingConnectionViewModel BlueprintPendingConnection { get; }
     public event EventHandler? ParameterEdited;
+    public event EventHandler? InputDraftChanged;
     public bool IsReadOnly { get; private set; }
     public bool CanPaste => !IsReadOnly && clipboard is not null && clipboard.Nodes.Count != 0;
     public bool CanCopySelected => SelectedNodes
         .OfType<BlueprintGraphNodeViewModel>()
         .Any(node => !node.Model.IsVirtual);
     public bool CanDeleteSelected => !IsReadOnly && CanCopySelected;
+
+    internal IReadOnlyList<string> GetInputErrors()
+    {
+        return document.Nodes.SelectMany((node, index) => node.Inputs
+            .Where(port => portsById.TryGetValue(port.Id, out BlueprintGraphPortViewModel? view) && view.HasInputError)
+            .Select(port => $"{document.EventName} / {index + 1}: {node.Title} / {port.Name}: {portsById[port.Id].TextDraft!.Error}"))
+            .ToArray();
+    }
+
+    internal bool CanTogglePlainTextInputs(BlueprintGraphNodeViewModel? node)
+    {
+        return !IsReadOnly && node is not null && !node.Model.IsVirtual
+            && node.Model.Inputs.Any(port => port.SupportsEditor)
+            && !node.Input.OfType<BlueprintGraphPortViewModel>().Any(port => port.HasInputError);
+    }
+
+    internal void TogglePlainTextInputs(BlueprintGraphNodeViewModel node)
+    {
+        if (!CanTogglePlainTextInputs(node))
+            return;
+        node.UsePlainTextInputs = !node.UsePlainTextInputs;
+        foreach (BlueprintGraphPortViewModel port in node.Input.OfType<BlueprintGraphPortViewModel>())
+            port.SetPlainTextInputs(node.UsePlainTextInputs);
+        InputDraftChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal IReadOnlyList<BlueprintNodeInputState> CaptureInputStates()
+    {
+        JsonArray savedNodes = (JsonArray)BlueprintGraphCodec.Save(document).EventGraph["nodes"]!;
+        return document.Nodes.Where(node => !node.IsVirtual)
+            .Select((node, index) => (Node: nodesById[node.Id], Index: index))
+            .Where(entry => entry.Node.UsePlainTextInputs && savedNodes[entry.Index] is JsonObject)
+            .Select(entry => new BlueprintNodeInputState(entry.Index, savedNodes.Count,
+                (JsonObject)savedNodes[entry.Index]!.DeepClone(),
+                entry.Node.Input.OfType<BlueprintGraphPortViewModel>()
+                    .Where(port => port.TextDraft is not null)
+                    .ToDictionary(port => port.Model.Name,
+                        port => port.TextDraft! with { ParameterIndex = port.Model.ParameterIndex }, StringComparer.Ordinal)))
+            .ToArray();
+    }
+
+    internal void RestoreInputStates(IReadOnlyList<BlueprintNodeInputState> states)
+    {
+        BlueprintGraphNode[] nodes = document.Nodes.Where(node => !node.IsVirtual).ToArray();
+        JsonArray savedNodes = (JsonArray)BlueprintGraphCodec.Save(document).EventGraph["nodes"]!;
+        foreach ((BlueprintNodeInputState state, int index) in BlueprintNodeInputState.Match(states, savedNodes))
+        {
+            BlueprintGraphNodeViewModel node = nodesById[nodes[index].Id];
+            node.UsePlainTextInputs = true;
+            foreach (BlueprintGraphPortViewModel port in node.Input.OfType<BlueprintGraphPortViewModel>())
+            {
+                state.Drafts.TryGetValue(port.Model.Name, out BlueprintParameterTextDraft? draft);
+                port.SetPlainTextInputs(true, draft);
+            }
+        }
+    }
 
     internal void SelectAllNodes()
     {
@@ -476,6 +533,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         {
             port.ParameterValueChanged += (_, _) => synchronizeNodeParameters(node.Id);
             port.ParameterEdited += (_, _) => ParameterEdited?.Invoke(this, EventArgs.Empty);
+            port.InputDraftChanged += (_, _) => InputDraftChanged?.Invoke(this, EventArgs.Empty);
         }
         Nodes.Add(viewModel);
         nodesById[node.Id] = viewModel;

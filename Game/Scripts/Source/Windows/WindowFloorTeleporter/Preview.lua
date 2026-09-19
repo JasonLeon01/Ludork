@@ -72,6 +72,7 @@ function Controller:onTick(deltaTime)
     local previousIndex = self.host.index ~= nil and self.host.index or nil
     WindowSelectable.onTick(self.host, deltaTime)
     self:afterSelectionUpdate(previousIndex)
+    self:refreshSelectedPreview()
 end
 
 function Controller:onKeyDown(kwargs)
@@ -146,10 +147,13 @@ function Controller:refreshSelectedPreview()
     local telepoint = self:getSelectedTelepoint()
     local showMarker = self.host:getActive()
     local mapPath = tostring(self._mapKey or "")
+    local visibilityRevision = 0
     if self._resolvePreviewMapPath ~= nil and bool(mapPath) then
-        mapPath = self._resolvePreviewMapPath(mapPath)
+        mapPath, visibilityRevision = self._resolvePreviewMapPath(mapPath)
     end
-    local currentKey = tuple { tostring(mapPath or ""), TelepointKey.FromPoint(telepoint), showMarker }
+    local currentKey = tuple {
+        tostring(mapPath or ""), TelepointKey.FromPoint(telepoint), showMarker, visibilityRevision
+    }
     if currentKey == self._currentPreviewKey then
         return
     end
