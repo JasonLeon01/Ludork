@@ -79,7 +79,7 @@ end
 function Controller:refresh()
     for slotIndex, rowUI in ipairs(self._rows.items) do
         rowUI.model.text = LOC("SAVEFILE"):pformat(slotIndex)
-        rowUI:refresh()
+        rowUI:prepare()
     end
 end
 

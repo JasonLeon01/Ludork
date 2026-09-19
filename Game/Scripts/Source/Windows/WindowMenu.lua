@@ -171,7 +171,7 @@ end
 
 function Controller:refreshRows()
     for _, row in ipairs(self._commands.items) do
-        row:refresh()
+        row:prepare()
     end
 end
 

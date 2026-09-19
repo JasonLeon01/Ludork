@@ -41,7 +41,7 @@ end
 
 function WindowCommand:refreshRows()
     for _, controller in ipairs(self._rows.items) do
-        controller:refresh()
+        controller:prepare()
     end
 end
 
