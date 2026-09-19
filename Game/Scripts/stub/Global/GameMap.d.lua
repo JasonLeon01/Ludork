@@ -30,6 +30,7 @@
 ---@class Global.GameMap.ActiveLight: GlobalCore.LightOcclusionInput
 ---@field light GlobalCore.Light
 ---@field owner Engine.Actor | nil
+---@field rank  number | nil
 
 ---@class Global.GameMap.LightCacheEntry
 ---@field [1] number

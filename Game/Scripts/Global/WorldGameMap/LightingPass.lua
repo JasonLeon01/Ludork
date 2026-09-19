@@ -35,6 +35,42 @@ local function hasRelevantLightBlockingActors(analyses)
     return false
 end
 
+---@param lights   Global.GameMap.ActiveLight[]
+---@param viewport sf.FloatRect | nil
+---@return Global.GameMap.ActiveLight[]
+local function rankActiveLights(lights, viewport)
+    if #lights <= Light.MAX_SHADER_LIGHTS then
+        return lights
+    end
+    if viewport == nil then
+        for index = #lights, Light.MAX_SHADER_LIGHTS + 1, -1 do
+            lights[index] = nil
+        end
+        return lights
+    end
+    local centreX = viewport.position.x + viewport.size.x * 0.5
+    local centreY = viewport.position.y + viewport.size.y * 0.5
+    for _, entry in ipairs(lights) do
+        local lightPosition = entry.light.position
+        local deltaX = lightPosition.x - centreX
+        local deltaY = lightPosition.y - centreY
+        entry.rank = deltaX * deltaX + deltaY * deltaY
+    end
+    table.sort(lights, function (left, right)
+        if left.rank ~= right.rank then
+            return left.rank < right.rank
+        end
+        if left.light.position.x ~= right.light.position.x then
+            return left.light.position.x < right.light.position.x
+        end
+        return left.light.position.y < right.light.position.y
+    end)
+    for index = #lights, Light.MAX_SHADER_LIGHTS + 1, -1 do
+        lights[index] = nil
+    end
+    return lights
+end
+
 ---@param activeLights Global.GameMap.ActiveLight[]
 ---@param self         WorldGameMapImplState
 function GameMapLighting.RenderLighting(self, activeLights)
@@ -452,9 +488,6 @@ function GameMapLighting.GetActiveLights(self)
     for _, light in ipairs(self._lights) do
         if light.radius > 0.0 and self:_isLightVisible(light.position, light.radius, viewport) then
             lights[#lights + 1] = { light = light }
-            if #lights >= Light.MAX_SHADER_LIGHTS then
-                return lights
-            end
         end
     end
     ---@type sf.Vector2f | nil
@@ -477,9 +510,6 @@ function GameMapLighting.GetActiveLights(self)
                         light = Light.new(position, lightComp.lightColour, radius, 1.0),
                         owner = actor
                     }
-                    if #lights >= Light.MAX_SHADER_LIGHTS then
-                        break
-                    end
                 end
             end
         end
@@ -487,7 +517,7 @@ function GameMapLighting.GetActiveLights(self)
     if position ~= nil then
         Pool.Put("sf.Vector2f", position)
     end
-    return lights
+    return rankActiveLights(lights, viewport)
 end
 
 ---@param actor     Engine.Actor

@@ -7,7 +7,7 @@ varying vec4 sf_FrontColor;
 varying vec4 sf_TexCoord0;
 #endif
 
-#define LUDORK_MAX_SHADER_LIGHTS 16
+#define LUDORK_MAX_SHADER_LIGHTS 64
 
 uniform float lightIntensity[LUDORK_MAX_SHADER_LIGHTS];
 

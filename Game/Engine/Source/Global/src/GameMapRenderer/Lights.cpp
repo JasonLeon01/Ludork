@@ -8,7 +8,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <utility>
+
+namespace {
+
+float distanceSquared(const sf::Vector2f& left, const sf::Vector2f& right) {
+    const sf::Vector2f delta = left - right;
+    return delta.x * delta.x + delta.y * delta.y;
+}
+
+}  // namespace
 
 bool GameMapRendererImpl::LightState::matches(const ActiveLight& value) const {
     return owner == value.owner.get() &&
@@ -43,7 +53,6 @@ std::vector<GameMapRendererImpl::ActiveLight>
 GameMapRendererImpl::collectActiveLights(
     const std::vector<Light>& mapLights) const {
     std::vector<ActiveLight> result;
-    result.reserve(maximumShaderLights);
     const std::optional<sf::FloatRect> viewport =
         camera ? camera->getViewport() : std::nullopt;
     const sf::Angle rotation =
@@ -51,9 +60,6 @@ GameMapRendererImpl::collectActiveLights(
     for (const Light& light : mapLights) {
         if (light.radius > 0.0f && lightVisible(light, viewport, rotation)) {
             result.push_back({light, nullptr});
-            if (result.size() == maximumShaderLights) {
-                return result;
-            }
         }
     }
 
@@ -78,11 +84,33 @@ GameMapRendererImpl::collectActiveLights(
                 continue;
             }
             result.push_back({light, actor});
-            if (result.size() == maximumShaderLights) {
-                return result;
-            }
         }
     }
+
+    if (result.size() <= maximumShaderLights) {
+        return result;
+    }
+    if (!viewport) {
+        result.resize(maximumShaderLights);
+        return result;
+    }
+    const sf::Vector2f centre = viewport->position + viewport->size * 0.5f;
+    std::stable_sort(
+        result.begin(), result.end(),
+        [&centre](const ActiveLight& left, const ActiveLight& right) {
+            const float leftDistance =
+                distanceSquared(left.light.position, centre);
+            const float rightDistance =
+                distanceSquared(right.light.position, centre);
+            if (leftDistance != rightDistance) {
+                return leftDistance < rightDistance;
+            }
+            if (left.light.position.x != right.light.position.x) {
+                return left.light.position.x < right.light.position.x;
+            }
+            return left.light.position.y < right.light.position.y;
+        });
+    result.resize(maximumShaderLights);
     return result;
 }
 

@@ -106,6 +106,7 @@ function Controller:refreshLocale()
     self.ui.controls["NameInput"]:setInputDialogLabels(
         LOC("PLAYER_NAME_PROMPT"), LOC("PLAYER_NAME_DONE"), LOC("PLAYER_NAME_CANCEL")
     )
+    self.view:reflow()
 end
 
 function Controller:setError(key)
