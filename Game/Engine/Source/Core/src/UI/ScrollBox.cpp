@@ -42,7 +42,7 @@ sf::Vector2f ScrollBox::getSize() const {
 }
 
 void ScrollBox::resize(const sf::Vector2f& size) {
-    Canvas::resize(roundedSize(size));
+    Canvas::resizeForLayout(roundedSize(size));
     clampOffsets();
     applyView();
 }

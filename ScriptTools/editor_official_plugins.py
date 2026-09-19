@@ -13,6 +13,7 @@ OFFICIAL_PLUGIN_DIRECTORIES = (
     "OfficialBlueprintAI",
     "OfficialLocaleTools",
     "OfficialRandomMap",
+    "OfficialResourceCleanup",
 )
 
 EXCLUDED_DIRECTORY_NAMES = frozenset(

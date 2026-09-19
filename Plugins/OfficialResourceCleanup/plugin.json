@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "Ludork.OfficialResourceCleanup",
+  "name": "Official Resource Cleanup",
+  "version": "1.0.0",
+  "minimumEditorVersion": "1.0.0",
+  "entryType": "Ludork.Plugins.OfficialResourceCleanup.OfficialResourceCleanupPlugin"
+}

@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local Logging = require("Global.Utils.Logging")
 local LazyWindow = require("Source.UIBase.LazyWindow")
 
 local Direction = Engine.FocusDirection
@@ -184,6 +185,7 @@ function Windows.Create(self)
         return window
     end)
     self._windowSaveLoad = LazyWindow.new(function ()
+        local constructionClock = sf.Clock.new()
         local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
 
         local window = WindowSaveLoad.new(
@@ -201,6 +203,7 @@ function Windows.Create(self)
         window:setZOrder(MENU_Z_ORDER)
         bindFocusControl(groups["save-slot"], window:getSlotWindow())
         window:mount(manager)
+        Logging.info("Save window construction: %.2f ms", constructionClock:getElapsedTime():asMicroseconds() / 1000)
         return window
     end)
     self._configWindow = LazyWindow.new(function ()

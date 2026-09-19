@@ -264,7 +264,8 @@ arguments, standard streams and the editor's exit code. Packaging invokes
 replacing `dist`, and restores the previous package if replacement fails. MSI
 shortcuts and `.proj` associations also target the root launcher.
 
-`OfficialBlueprintAI`, `OfficialLocaleTools`, and `OfficialRandomMap` are placed
+`OfficialBlueprintAI`, `OfficialLocaleTools`, `OfficialRandomMap`, and
+`OfficialResourceCleanup` are placed
 below the root `Plugins` directory, with `plugins.json` generated beside it from
 their manifests. The published editor resolves its resources, plug-ins and
 configuration against the installation root even when started directly from

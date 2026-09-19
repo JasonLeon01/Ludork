@@ -147,37 +147,10 @@
                   {
                     "name": "SaveSlotPlaceholder1",
                     "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
-                  },
-                  {
-                    "name": "SaveSlotPlaceholder2",
-                    "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
-                  },
-                  {
-                    "name": "SaveSlotPlaceholder3",
-                    "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
-                  },
-                  {
-                    "name": "SaveSlotPlaceholder4",
-                    "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
-                  },
-                  {
-                    "name": "SaveSlotPlaceholder5",
-                    "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
-                  },
-                  {
-                    "name": "SaveSlotPlaceholder6",
-                    "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
-                  },
-                  {
-                    "name": "SaveSlotPlaceholder7",
-                    "controlId": "Project:Parts/WindowSaveLoad/WindowSaveSlotRow",
-                    "properties": {}, "slot": {}, "editor": {}, "children": []
+                    "properties": {},
+                    "slot": {},
+                    "editor": {},
+                    "children": []
                   }
                 ]
               }

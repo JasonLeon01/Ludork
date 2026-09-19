@@ -126,6 +126,8 @@ public sealed partial class ReferenceIndexService
     private void scanDocumentReferences(string section, string key, JsonObject data,
         BlueprintNodeDefinitionSet? globalDefinitions)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Invoke($"Data/{section}/{key}.json");
         switch (section)
         {
             case "Configs":

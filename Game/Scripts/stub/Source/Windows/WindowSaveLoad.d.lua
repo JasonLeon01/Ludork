@@ -6,10 +6,18 @@
 --- instead of being referenced directly, so the same UI can serve the in-game
 --- menu, the title screen, or any other entry point.
 ---@class Source.Windows.WindowSaveLoad.Controller: Source.UIBase.UiController
----@field host       Source.Windows.WindowSaveLoad
----@field _mode      "load" | "save"
----@field _tabWindow Source.Windows.WindowSaveTabs | nil
----@field ui         Source.UI.WindowSaveLoad
+---@field host              Source.Windows.WindowSaveLoad
+---@field _mode             "load" | "save"
+---@field _tabWindow        Source.Windows.WindowSaveTabs | nil
+---@field ui                Source.UI.WindowSaveLoad
+---@field _scanReader       Engine.SavePreviewReader
+---@field _scanPending      boolean
+---@field _latestSlot       integer | nil
+---@field _selectionTouched boolean
+---@field _opening          boolean
+---@field _openClock        sf.Clock
+---@field _openedBefore     boolean
+---@field _reportedOpen     boolean
 local Controller = {}
 
 ---@brief Construct the save/load UI coordinator and child windows.
@@ -61,6 +69,13 @@ function Controller:setVisible(visible) end
 ---@param transitionProfile string | nil
 ---@param initialMode       "load" | "save" | nil
 function Controller:open(transitionProfile, initialMode) end
+
+---@param _ number
+function Controller:onTick(_) end
+
+function Controller:onSlotsReady() end
+
+function Controller:_applyLatestSlot() end
 
 ---@brief Close the save/load UI and deactivate all child windows.
 ---@param onHidden function | nil

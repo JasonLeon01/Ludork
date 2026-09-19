@@ -466,7 +466,12 @@ public sealed partial class MapPanel
         byte g = (byte)Math.Clamp((int)getDouble(color[1], 255), 0, 255);
         byte b = (byte)Math.Clamp((int)getDouble(color[2], 255), 0, 255);
         byte a = color.Count > 3 ? (byte)Math.Clamp((int)getDouble(color[3], 255), 0, 255) : (byte)255;
-        return Color.FromArgb((byte)Math.Clamp((int)(a * 0.15), 12, 80), r, g, b);
+        return getLightFill(Color.FromArgb(a, r, g, b));
+    }
+
+    private static Color getLightFill(Color colour)
+    {
+        return Color.FromArgb((byte)Math.Clamp((int)(colour.A * 0.15), 12, 80), colour.R, colour.G, colour.B);
     }
 
     private static double getDouble(JsonNode? node, double fallback)
@@ -534,6 +539,7 @@ public sealed partial class MapPanel
 
     private void invalidateActorRenderStates()
     {
+        invalidateActorLightRenderStates();
         disposeActorPreviewLeases();
         actorRenderStates.Clear();
         actorRenderStatesDirty = true;
@@ -578,6 +584,8 @@ public sealed partial class MapPanel
     private void disposeRenderResources()
     {
         cancelMapGesture();
+        if (gameData is not null)
+            gameData.Documents.ContentChanged -= onActorLightSourcesChanged;
         if (editingContext is not null)
             editingContext.Changed -= onMapDataChanged;
         disposeMapRenderCaches();

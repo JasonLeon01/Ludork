@@ -9,6 +9,7 @@
 #include <EngineRuntimeServices.hpp>
 #include <EngineState.hpp>
 #include <Runtime/RuntimeSession.hpp>
+#include <Save/SavePreviewReader.hpp>
 #include <RuntimeSession.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/Rect.hpp>
@@ -74,6 +75,7 @@ void shutdown(lua_State* state) noexcept {
     if (!execution.active()) {
         return;
     }
+    shutdownSavePreviews();
     ludork::standard::clearFileBatchJson(state);
     unregisterEditorCommands(state);
     engineState().setGameRunning(false);

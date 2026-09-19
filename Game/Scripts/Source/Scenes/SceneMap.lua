@@ -379,21 +379,27 @@ function Scene:_renderHandle(deltaTime)
 end
 
 function Scene.CaptureScreenSnapshot()
+    local clock = sf.Clock.new()
     local canvas = GlobalSystem.getCanvas()
     local sourceTexture = canvas:getTexture()
     local sourceSize = sourceTexture:getSize()
-    local gameSize = GlobalSystem.getGameSize()
     if sourceSize.x == 0 or sourceSize.y == 0 then
         GameSystem.SetSavedScreenImage(nil)
         return
     end
-    local scaled = sf.RenderTexture.new(gameSize)
+    local scale = math.min(224 / sourceSize.x, 168 / sourceSize.y, 1)
+    local previewSize = sf.Vector2u.new(
+        math.max(1, math.floor(sourceSize.x * scale)), math.max(1, math.floor(sourceSize.y * scale))
+    )
+    ---@cast previewSize sf.Vector2u
+    local scaled = sf.RenderTexture.new(previewSize)
     scaled:clear(sf.Color.Black)
     local sprite = sf.Sprite.new(sourceTexture)
-    sprite:setScale(sf.Vector2f.new(gameSize.x / sourceSize.x, gameSize.y / sourceSize.y))
+    sprite:setScale(sf.Vector2f.new(previewSize.x / sourceSize.x, previewSize.y / sourceSize.y))
     scaled:draw(sprite)
     scaled:display()
     GameSystem.SetSavedScreenImage(scaled:getTexture():copyToImage())
+    Logging.info("Save screenshot capture: %.2f ms", clock:getElapsedTime():asMicroseconds() / 1000)
 end
 
 ---@return boolean
@@ -405,8 +411,7 @@ end
 ---@return boolean
 function Scene:_canOpenMenu()
     return not self._pendingMenuOpen and self._pendingSaveLoadOpen == nil and not self._pendingQuickSave
-        and not self:_isMenuBlocking()
-        and not self:_isInDialogue() and not self:_hasVisibleBlockingWindow()
+        and not self:_isMenuBlocking() and not self:_isInDialogue() and not self:_hasVisibleBlockingWindow()
 end
 
 ---@return boolean

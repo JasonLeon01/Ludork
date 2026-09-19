@@ -185,7 +185,7 @@ copy_cpp_template() {
         --exclude '/Cache/' \
         --exclude 'bin/' \
         --exclude 'Log/' \
-        --exclude 'Save/' \
+        --exclude '/Save/' \
         --exclude '__pycache__/' \
         --exclude '*.anim.json' \
         --exclude '*.py' \

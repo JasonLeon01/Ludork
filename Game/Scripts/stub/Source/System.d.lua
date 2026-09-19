@@ -183,13 +183,13 @@ function System.GetTitleBGM() end
 
 ---@brief Get the most recently captured screen snapshot.
 ---
---- - @return The captured Image scaled to game size, or nil if no snapshot exists.
+--- - @return The captured Image bounded to 224 x 168 pixels, or nil if no snapshot exists.
 ---@return sf.Image | nil
 function System.GetSavedScreenImage() end
 
 ---@brief Set the captured screen snapshot used for save thumbnails.
 ---
---- - @param image The captured Image scaled to game size, or nil to clear.
+--- - @param image The captured Image bounded to 224 x 168 pixels, or nil to clear.
 ---@param image sf.Image | nil
 function System.SetSavedScreenImage(image) end
 

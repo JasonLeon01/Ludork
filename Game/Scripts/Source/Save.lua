@@ -1,11 +1,11 @@
 local Engine = require("Engine")
-local cjson = require("cjson")
 local Logging = require("Global.Utils.Logging")
 
 local ResourceFileConstants = Engine.ResourceFileConstants
 
 local Save = {}
-local SAVE_FILE_EXTENSION = bool(SAVE_AS_LDC) and ResourceFileConstants.ENCRYPTED_DATA_EXTENSION or ResourceFileConstants.DATA_EXTENSION
+local SAVE_FILE_EXTENSION = bool(SAVE_AS_LDC) and ResourceFileConstants.ENCRYPTED_DATA_EXTENSION
+    or ResourceFileConstants.DATA_EXTENSION
 
 local function assertConfiguredSavePath(filePath)
     local _, fileExtension = os.path.splitext(filePath)
@@ -20,6 +20,7 @@ function Save.SaveGame(filePath, instance)
     local directory = os.path.dirname(os.path.abspath(filePath))
     os.createDirectories(directory)
     Engine.writeJSON(filePath, instance:asDict())
+    Engine.SavePreviewReader.invalidate(filePath)
     Logging.info("Saved game to %s", filePath)
 end
 
@@ -33,18 +34,6 @@ function Save.LoadGame(filePath)
     local instance = GameInstance.FromDict(Engine.getJSONData(filePath))
     Logging.info("Loaded game from %s", filePath)
     return instance
-end
-
-function Save.LoadScreenshot(filePath)
-    assertConfiguredSavePath(filePath)
-    if not os.path.isfile(filePath) then
-        return nil
-    end
-    local screenshot = Engine.getJSONData(filePath).screenshot
-    if screenshot == cjson.null then
-        return nil
-    end
-    return screenshot
 end
 
 function Save.GetSavePath(slot)

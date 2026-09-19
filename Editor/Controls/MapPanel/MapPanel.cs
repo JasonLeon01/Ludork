@@ -137,6 +137,8 @@ public sealed partial class MapPanel : Control
             return;
         if (previewService is not null)
             previewService.VisualsInvalidated -= onActorVisualsInvalidated;
+        if (gameData is not null)
+            gameData.Documents.ContentChanged -= onActorLightSourcesChanged;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();
@@ -144,6 +146,7 @@ public sealed partial class MapPanel : Control
         autoTileRenderer?.Dispose();
         endMapGesture();
         gameData = nextGameData;
+        gameData.Documents.ContentChanged += onActorLightSourcesChanged;
         ConfigureEditingContext(new ProjectMapEditingContext(nextGameData));
         tilesetPaths.Clear();
         previewService = nextPreviewService;
@@ -275,6 +278,7 @@ public sealed partial class MapPanel : Control
 
     public void refreshSelectedActor()
     {
+        invalidateActorLightRenderStates();
         if (actorRenderStatesDirty)
         {
             InvalidateVisual();

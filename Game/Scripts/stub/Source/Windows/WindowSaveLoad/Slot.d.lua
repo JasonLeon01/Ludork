@@ -6,6 +6,7 @@
 ---@field MAX_SAVE_SLOTS integer
 ---@field ui             Source.UI.Parts.WindowSaveLoad.WindowSaveSlot
 ---@field _rows          Source.UIBase.UiCollection<Source.Windows.WindowSaveLoad.WindowSaveSlotRow.Controller>
+---@field _buildClock    sf.Clock
 local Controller = {}
 
 ---@brief Construct the save slot list window.
@@ -28,5 +29,10 @@ function Controller:dispose() end
 function Controller:confirmSlot(slot) end
 
 function Controller:bind() end
+
+---@return boolean
+function Controller:isReady() end
+
+function Controller:_buildRows() end
 
 function Controller:refresh() end

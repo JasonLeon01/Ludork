@@ -28,9 +28,17 @@ Controller.refreshEvents = { EventKeys.LocaleChanged }
 function Controller:init(owner)
     self._owner = owner
     self._rows = self:createCollection(self.ui.controls["SlotList"], WindowSaveSlotRowController)
+    self._buildClock = sf.Clock.new()
 end
 
 function Controller:onTick(deltaTime)
+    if self.host:getVisible() and not self:isReady() then
+        if Input.isActionTriggered(Input.getCancelKeys(), true) then
+            self:onReturn()
+            return
+        end
+        self:_buildRows()
+    end
     WindowSelectable.onTick(self.host, deltaTime)
     self._owner:notifySlotIndexMaybeChanged(self.host.index)
 end
@@ -42,6 +50,9 @@ function Controller:onKeyDown(kwargs)
         return
     end
     if self._owner:handleTabNavigationInput() then
+        return
+    end
+    if not self:isReady() then
         return
     end
     WindowSelectable.onKeyDown(self.host, kwargs)
@@ -58,12 +69,23 @@ function Controller:dispose()
 end
 
 function Controller:confirmSlot(slot)
-    self._owner:onSlotConfirm(slot)
+    if self:isReady() then
+        self._owner:onSlotConfirm(slot)
+    end
 end
 
 function Controller:bind()
-    for slotIndex = 0, self.MAX_SAVE_SLOTS - 1 do
-        local slot = slotIndex
+    self.host:setSelectionInputPaused(true)
+end
+
+function Controller:isReady()
+    return #self._rows.items == self.MAX_SAVE_SLOTS
+end
+
+function Controller:_buildRows()
+    self._buildClock:restart()
+    repeat
+        local slot = #self._rows.items
         local rowUI = self._rows:add({
             text = LOC("SAVEFILE"):pformat(slot + 1),
             callback = function (_obj, _kwargs)
@@ -72,8 +94,13 @@ function Controller:bind()
         })
         local root = rowUI.ui.root
         self.host:applyItem(root)
-    end
+    until self:isReady() or self._buildClock:getElapsedTime():asMicroseconds() >= 2000
     self._rows:layout()
+    if self:isReady() then
+        self.host:resetSelection()
+        self.host:setSelectionInputPaused(false)
+        self._owner:onSlotsReady()
+    end
 end
 
 function Controller:refresh()

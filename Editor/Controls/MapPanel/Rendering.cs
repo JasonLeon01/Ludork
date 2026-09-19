@@ -70,6 +70,7 @@ public sealed partial class MapPanel
 
     private void drawLightOverlay(DrawingContext context)
     {
+        drawActorLightOverlay(context);
         if (CurrentMapData?["lights"] is not JsonArray lights)
             return;
         double scale = tileSize / (double)SourceTileSize;

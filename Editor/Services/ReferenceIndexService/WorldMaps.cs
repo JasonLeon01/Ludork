@@ -305,6 +305,8 @@ public sealed partial class ReferenceIndexService
 
     private void scanAndCacheMapReferences(MapCatalogEntry entry)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Invoke($"Data/Maps/{entry.Key}.json");
         string sourceId = nodeId("map", entry.Key);
         JsonObject? map = gameData.ReadMapSnapshotWithoutCaching(entry.Key);
         if (map is null)
@@ -332,6 +334,8 @@ public sealed partial class ReferenceIndexService
 
     private void scanMapReferences(string sourceId, string key, JsonObject data)
     {
+        JsonObject? overrides = data["BPClassVarChanged"] as JsonObject;
+        string overridesPath = $"Maps/{key}.BPClassVarChanged";
         if (data["layers"] is JsonObject layers)
         {
             foreach (KeyValuePair<string, JsonNode?> pair in layers)
@@ -359,7 +363,7 @@ public sealed partial class ReferenceIndexService
                 scanMapActorReferences(
                     sourceId,
                     layer["actors"],
-                    $"Maps/{key}.layers.{pair.Key}.actors");
+                    $"Maps/{key}.layers.{pair.Key}.actors", overrides, overridesPath);
                 scanKnownMapNodeReferences(
                     sourceId,
                     layer["actors"],
@@ -370,13 +374,13 @@ public sealed partial class ReferenceIndexService
         {
             foreach (KeyValuePair<string, JsonNode?> pair in actorsByLayer)
             {
-                scanMapActorReferences(sourceId, pair.Value, $"Maps/{key}.actors.{pair.Key}");
+                scanMapActorReferences(sourceId, pair.Value, $"Maps/{key}.actors.{pair.Key}", overrides, overridesPath);
                 scanKnownMapNodeReferences(sourceId, pair.Value, $"Maps/{key}.actors.{pair.Key}");
             }
         }
         else
         {
-            scanMapActorReferences(sourceId, data["actors"], $"Maps/{key}.actors");
+            scanMapActorReferences(sourceId, data["actors"], $"Maps/{key}.actors", overrides, overridesPath);
             scanKnownMapNodeReferences(sourceId, data["actors"], $"Maps/{key}.actors");
         }
         addAssetReference(sourceId, data["bgm"], "asset", $"Maps/{key}.bgm");

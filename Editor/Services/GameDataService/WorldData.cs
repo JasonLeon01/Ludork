@@ -53,6 +53,7 @@ public sealed partial class GameDataService
 
     private void loadWorldDirectory(string directory)
     {
+        reportDataRead(directory);
         string worldKey = Path.GetFileName(directory);
         string[] directJsonFiles = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
             .Where(path => string.Equals(
@@ -107,6 +108,7 @@ public sealed partial class GameDataService
                          StringComparison.OrdinalIgnoreCase))
                      .OrderBy(value => value, StringComparer.Ordinal))
         {
+            reportDataRead(path);
             MapCatalogEntry? child = readMapCatalogEntry(path, worldKey);
             if (child is null)
             {

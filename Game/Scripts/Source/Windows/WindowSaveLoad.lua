@@ -2,6 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
+local Logging = require("Global.Utils.Logging")
 local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.WindowSaveLoad")
 local UiLayout = require("Source.UIBase.UiLayout")
@@ -46,6 +47,14 @@ function Controller:init(loadOnly, getSaveSource, onClose, onLoaded)
         self._detailWindow:setPosition(self._detailWindow:getPosition() - sf.Vector2f.new(0, tabHeight))
     end
     self._lastSlotIndex = nil
+    self._scanReader = Engine.SavePreviewReader.new()
+    self._scanPending = false
+    self._latestSlot = nil
+    self._selectionTouched = false
+    self._opening = false
+    self._openClock = sf.Clock.new()
+    self._openedBefore = false
+    self._reportedOpen = false
 end
 
 function Controller:getTabWindow()
@@ -74,7 +83,13 @@ function Controller:setVisible(visible)
 end
 
 function Controller:open(transitionProfile, initialMode)
+    self._openClock:restart()
+    self._reportedOpen = false
+    self._opening = true
+    self._selectionTouched = false
+    self._latestSlot = nil
     self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
+    ---@type "load" | "save"
     local mode = "load"
     if not self._loadOnly and initialMode == "save" then
         mode = "save"
@@ -84,12 +99,12 @@ function Controller:open(transitionProfile, initialMode)
         self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(mode == "save" and 1 or 0)
     end
     self._slotWindow:resetSelection()
-    local latestSlot = Save.FindLatestSlot(WindowSaveSlot.MAX_SAVE_SLOTS)
-    if latestSlot ~= nil then
-        local latestSlotIndex = latestSlot - 1
-        ---@cast latestSlotIndex integer
-        self._slotWindow:selectIndex(latestSlotIndex)
+    local paths = {}
+    for slot = 1, WindowSaveSlot.MAX_SAVE_SLOTS do
+        paths[slot] = Save.GetSavePath(slot)
     end
+    self._scanReader:requestScan(paths)
+    self._scanPending = true
     self._lastSlotIndex = nil
     if not self._loadOnly then
         local size = self.ui.root:getSize()
@@ -113,10 +128,60 @@ function Controller:open(transitionProfile, initialMode)
         self._slotWindow:setActive(true)
         self._slotWindow:requestKeyboardFocusAtCursor()
     end)
-    self:notifySlotIndexMaybeChanged(self._slotWindow.index)
+    self._lastSlotIndex = self._slotWindow.index
+    self._detailWindow:setSlot(self._lastSlotIndex or 0)
+    self._detailWindow:setPreviewEnabled(true)
+end
+
+function Controller:onTick(_)
+    if not self._opening then
+        return
+    end
+    if self._scanPending and self._scanReader:pollScan() then
+        self._scanPending = false
+        local error = self._scanReader:getScanError()
+        if error ~= "" then
+            Logging.warning("Save slot scan failed: %s", error)
+        elseif not self._selectionTouched then
+            self._latestSlot = self._scanReader:getLatestSlot()
+            self:_applyLatestSlot()
+        end
+    end
+    if not self._reportedOpen and self._slotWindow:isReady() then
+        Logging.info(
+            "Save window %s open: %.2f ms until slot list ready", self._openedBefore and "repeat" or "first",
+            self._openClock:getElapsedTime():asMicroseconds() / 1000
+        )
+        self._reportedOpen = true
+        self._openedBefore = true
+    end
+end
+
+function Controller:onSlotsReady()
+    self._lastSlotIndex = self._slotWindow.index
+    self:_applyLatestSlot()
+    self._detailWindow:setSlot(self._slotWindow.index)
+end
+
+function Controller:_applyLatestSlot()
+    if self._slotWindow:isReady() and self._slotWindow.index ~= self._lastSlotIndex then
+        self._selectionTouched = true
+    end
+    if self._selectionTouched or not self._slotWindow:isReady() or self._latestSlot == nil or self._latestSlot <= 0 then
+        return
+    end
+    local latestSlotIndex = self._latestSlot - 1
+    ---@cast latestSlotIndex integer
+    self._slotWindow:selectIndex(latestSlotIndex)
+    self._lastSlotIndex = latestSlotIndex
+    self._detailWindow:setSlot(latestSlotIndex)
 end
 
 function Controller:close(onHidden)
+    self._opening = false
+    self._scanPending = false
+    self._scanReader:cancel()
+    self._detailWindow:setPreviewEnabled(false)
     if self._tabWindow ~= nil then
         self._tabWindow:setActive(false)
     end
@@ -154,6 +219,9 @@ end
 function Controller:notifySlotIndexMaybeChanged(index)
     if index == self._lastSlotIndex then
         return
+    end
+    if self._opening and self._slotWindow:isReady() then
+        self._selectionTouched = true
     end
     self._lastSlotIndex = index
     self._detailWindow:setSlot(index)
@@ -219,6 +287,8 @@ function Controller:_closeWithReason(reason, onHidden)
 end
 
 function Controller:dispose()
+    self._scanReader:cancel()
+    self._opening = false
     self._transition:hideImmediate()
     self._getSaveSource = nil
     self._onCloseCallback = nil

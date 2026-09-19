@@ -33,6 +33,7 @@ public sealed partial class GameDataService
                          .Where(path => !DataConfig.isAnimationCache(path))
                          .OrderBy(path => path, StringComparer.Ordinal))
             {
+                reportDataRead(path);
                 if (pair.Key == "UI" && !hasDataFileExtension(pair.Key, path))
                 {
                     invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
@@ -200,4 +201,3 @@ public sealed partial class GameDataService
 
 
 }
-

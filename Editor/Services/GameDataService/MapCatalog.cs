@@ -16,6 +16,8 @@ public sealed partial class GameDataService
     {
         loadedMapCatalogCache.Clear();
         nextMapCatalogCache.Clear();
+        if (!cacheMapCatalog)
+            return;
         string path = getMapCatalogCachePath();
         if (!File.Exists(path))
             return;
@@ -43,6 +45,8 @@ public sealed partial class GameDataService
 
     private void saveMapCatalogCache()
     {
+        if (!cacheMapCatalog)
+            return;
         string path = getMapCatalogCachePath();
         try
         {
@@ -71,6 +75,7 @@ public sealed partial class GameDataService
 
     private JsonObject? readMapFile(string path, bool requireType)
     {
+        reportDataRead(path);
         try
         {
             if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject data)

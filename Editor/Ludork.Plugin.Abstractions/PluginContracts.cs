@@ -243,6 +243,7 @@ public sealed record PluginMenuContext(
     ITextHintRefresh TextHints,
     IPluginSecretStore SecretStore,
     IBlueprintAssistantHost? BlueprintAssistantHost,
+    IResourceCleanupHost? ResourceCleanupHost,
     CancellationToken CancellationToken)
 {
     public PluginMenuContext(
@@ -260,6 +261,7 @@ public sealed record PluginMenuContext(
             userInterface,
             textHints,
             UnavailablePluginSecretStore.Instance,
+            null,
             null,
             cancellationToken)
     {

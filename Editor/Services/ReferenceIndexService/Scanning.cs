@@ -133,6 +133,25 @@ public sealed partial class ReferenceIndexService
                 {
                     addMapReference(sourceId, values[index], "configFile", path);
                 }
+                else if (root.Equals("Data", StringComparison.OrdinalIgnoreCase)
+                    && normalizeReferenceParam(values[index]) is string dataReference
+                    && dataReference.Length != 0)
+                {
+                    if (baseDirectory.Equals("Blueprints", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string normalized = normalizeDataReference(dataReference, "Blueprints");
+                        string target = normalized.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
+                            ? nodeId("blueprint", normalized)
+                            : blueprintNodeIdFromKey(normalized);
+                        addReference(sourceId, target, "configFile", path);
+                    }
+                    else if (getDataSection(baseDirectory) is { } section)
+                    {
+                        addReference(sourceId,
+                            nodeId(section.Type, normalizeDataReference(dataReference, baseDirectory)),
+                            "configFile", path);
+                    }
+                }
                 else if (string.IsNullOrWhiteSpace(root)
                     || root.Equals("Assets", StringComparison.Ordinal))
                 {
@@ -156,7 +175,8 @@ public sealed partial class ReferenceIndexService
             scanAutoTileReferences(sourceId, array[index], $"{path}[{index}]");
     }
 
-    private void scanMapActorReferences(string sourceId, JsonNode? value, string path)
+    private void scanMapActorReferences(string sourceId, JsonNode? value, string path,
+        JsonObject? overrides, string overridesPath)
     {
         if (value is not JsonArray actors)
             return;
@@ -167,6 +187,16 @@ public sealed partial class ReferenceIndexService
             string? blueprintId = blueprintNodeIdFromClassPath(actor["bp"]);
             if (blueprintId is not null)
                 addReference(sourceId, blueprintId, "mapActor", $"{path}[{index}].bp");
+            string? classReference = getString(actor["bp"]);
+            string? tag = getString(actor["tag"]);
+            JsonObject? actorOverrides = tag is null ? null : overrides?[tag] as JsonObject;
+            if (!string.IsNullOrWhiteSpace(classReference) && (actorOverrides is not null || blueprintId is null))
+            {
+                ResolvedBlueprintClass resolved = classResolver.Resolve(classReference, actorOverrides);
+                scanResolvedFieldReferences(sourceId, resolved,
+                    actorOverrides is null ? $"{path}[{index}]" : $"{overridesPath}.{tag}",
+                    "mapActor", actorOverrides);
+            }
             scanGenericReferences(sourceId, actor, $"{path}[{index}]");
         }
     }
@@ -178,40 +208,22 @@ public sealed partial class ReferenceIndexService
         if (parentId is not null)
             addReference(sourceId, parentId, "parent", $"Blueprints/{key}.parent");
 
-        if (data["attrs"] is JsonObject attrs)
+        JsonObject attrs = data["attrs"] as JsonObject ?? [];
+        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
+        scanResolvedFieldReferences(sourceId, resolved, $"Blueprints/{key}.attrs", "attribute");
+        foreach (string name in new[] { "texturePath", "shaderPath" })
         {
-            HashSet<string> pathVariables = new(StringComparer.Ordinal)
+            JsonNode? value = attrs[name] ?? resolved.GetValue(name);
+            if (value is not null)
             {
-                "texturePath",
-                "shaderPath",
-            };
-            ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
-            collectPathVariables(resolved.Meta["PathVars"], pathVariables);
-            foreach (ResolvedBlueprintField field in resolved.Fields)
-            {
-                if (field.Metadata is null)
-                    continue;
-                if (string.Equals(getMetaReference(field.Metadata.Meta["GeneralDataVars"], field.Name), "PARTICLE", StringComparison.OrdinalIgnoreCase)
-                    && normalizeReferenceParam(attrs[field.Name]) is string particle && particle.Length != 0)
-                    addReference(sourceId, nodeId("particle", particle), "particle", $"Blueprints/{key}.attrs.{field.Name}");
-                if (getMetaReference(field.Metadata.Meta["PathRoot"], field.Name) == "Project")
-                    continue;
-                if (getMetaReference(field.Metadata.Meta["PathVars"], field.Name) is not null)
-                    pathVariables.Add(field.Name);
+                addAssetReference(
+                    sourceId,
+                    value,
+                    "asset",
+                    $"Blueprints/{key}.attrs.{name}");
             }
-            foreach (string name in pathVariables)
-            {
-                if (attrs.ContainsKey(name))
-                {
-                    addAssetReference(
-                        sourceId,
-                        attrs[name],
-                        "asset",
-                        $"Blueprints/{key}.attrs.{name}");
-                }
-            }
-            scanGenericReferences(sourceId, attrs, $"Blueprints/{key}.attrs");
         }
+        scanGenericReferences(sourceId, attrs, $"Blueprints/{key}.attrs");
 
         if (data["graph"] is JsonObject graph)
         {
@@ -414,43 +426,16 @@ public sealed partial class ReferenceIndexService
             if (port.Direction != BlueprintGraphPortDirection.Input
                 || port.Kind != BlueprintGraphPortKind.Params
                 || port.ParameterIndex is not int parameterIndex
-                || parameterIndex < 0
-                || parameterIndex >= parameters.Count)
+                || parameterIndex < 0)
             {
                 continue;
             }
-            JsonNode? value = parameters[parameterIndex];
+            JsonNode? value = parameterIndex < parameters.Count
+                ? parameters[parameterIndex] ?? port.DefaultValue
+                : port.DefaultValue;
             string referencePath = $"{path}.params[{parameterIndex}]";
-            if (getMetaReference(port.Meta["PathVars"], port.Name) is not null
-                && getMetaReference(port.Meta["PathRoot"], port.Name) != "Project")
-            {
-                addAssetReference(sourceId, value, "nodeParam", referencePath);
-            }
-            if (hasMetaReference(port.Meta["BlueprintClassVars"], port.Name))
-            {
-                string? blueprintId = blueprintNodeIdFromClassPath(value);
-                if (blueprintId is not null)
-                    addReference(sourceId, blueprintId, "nodeParam", referencePath);
-            }
-            if (hasMetaReference(port.Meta["CommonFunctionVars"], port.Name)
-                && normalizeReferenceParam(value) is string functionName)
-            {
-                addReference(sourceId, nodeId("commonFunction", functionName), "nodeParam", referencePath);
-            }
-            if (getMetaReference(port.Meta["GeneralDataVars"], port.Name) is string generalType)
-            {
-                string? generalValue = normalizeReferenceParam(value);
-                if (generalValue is not null)
-                {
-                    string targetId = generalType.ToUpperInvariant() switch
-                    {
-                        "ANIMATION" => nodeId("animation", generalValue),
-                        "PARTICLE" => nodeId("particle", generalValue),
-                        _ => generalMemberNodeId(generalType, generalValue),
-                    };
-                    addReference(sourceId, targetId, "nodeParam", referencePath);
-                }
-            }
+            scanTypedReferences(sourceId, LuaMetadataType.Parse(port.TypeName), value, port.Name,
+                port.Meta, null, null, referencePath, "nodeParam", []);
         }
     }
 
@@ -509,6 +494,7 @@ public sealed partial class ReferenceIndexService
 
     private void scanGenericReferences(string sourceId, JsonNode? value, string path)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (getString(value) is string text)
         {
             string? blueprintId = blueprintNodeIdFromClassPath(value);

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -30,6 +31,8 @@ public sealed partial class ReferenceIndexService : IDisposable
     private readonly GameDataService gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
+    private readonly CancellationToken cancellationToken;
+    private readonly Action<string>? progress;
     private readonly Dictionary<string, ReferenceNode> nodes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> generalMemberTypes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<ReferenceRecord>> referencesBySource = new(StringComparer.Ordinal);
@@ -46,11 +49,15 @@ public sealed partial class ReferenceIndexService : IDisposable
     public ReferenceIndexService(
         GameDataService gameData,
         LuaMetadataService metadataService,
-        BlueprintClassResolver classResolver)
+        BlueprintClassResolver classResolver,
+        CancellationToken cancellationToken = default,
+        Action<string>? progress = null)
     {
         this.gameData = gameData;
         this.metadataService = metadataService;
         this.classResolver = classResolver;
+        this.cancellationToken = cancellationToken;
+        this.progress = progress;
         gameData.Documents.ContentInvalidated += onContentInvalidated;
     }
 
@@ -227,6 +234,24 @@ public sealed partial class ReferenceIndexService : IDisposable
             : [];
     }
 
+    public IReadOnlyList<ReferenceNode> GetAllNodes()
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        ensureBuilt();
+        ensureAllWorldChildMapReferences();
+        return nodes.Values.OrderBy(node => node.Id, StringComparer.Ordinal).ToArray();
+    }
+
+    public IReadOnlyList<ReferenceRecord> GetAllReferences()
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        ensureBuilt();
+        ensureAllWorldChildMapReferences();
+        return seen.OrderBy(record => record.Source, StringComparer.Ordinal)
+            .ThenBy(record => record.Target, StringComparer.Ordinal)
+            .ThenBy(record => record.Path, StringComparer.Ordinal).ToArray();
+    }
+
     public IReadOnlyList<ReferenceRecord> GetOutgoingForDocumentPath(string path)
     {
         using IDisposable metadataRead = metadataService.BeginRead();
@@ -360,6 +385,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private string addNode(string type, string key)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         string id = nodeId(type, key);
         declaredNodes.Add(id);
         nodes[id] = new ReferenceNode(id, type, key.Replace('\\', '/'));
@@ -368,6 +394,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private void ensureNode(string id)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (nodes.ContainsKey(id))
             return;
         int separator = id.IndexOf(':');
@@ -592,39 +619,6 @@ public sealed partial class ReferenceIndexService : IDisposable
             }
         }
         return null;
-    }
-
-    private static bool hasMetaReference(JsonNode? value, string name)
-    {
-        return getMetaReference(value, name) is not null;
-    }
-
-    private static void collectPathVariables(
-        JsonNode? value,
-        ISet<string> target)
-    {
-        if (value is JsonObject objectValue)
-        {
-            foreach (KeyValuePair<string, JsonNode?> pair in objectValue)
-                target.Add(pair.Key);
-            return;
-        }
-        if (value is not JsonArray array)
-            return;
-        foreach (JsonNode? item in array)
-        {
-            if (getString(item) is string name)
-            {
-                target.Add(name);
-                continue;
-            }
-            if (item is JsonArray tuple
-                && tuple.Count != 0
-                && getString(tuple[0]) is string tupleName)
-            {
-                target.Add(tupleName);
-            }
-        }
     }
 
     private static string normalizeAssetPath(JsonNode? value)

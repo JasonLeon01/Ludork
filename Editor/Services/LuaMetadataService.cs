@@ -6,12 +6,15 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace Ludork.Services;
 
 public sealed class LuaMetadataService
 {
     private readonly string scriptsPath;
+    private readonly bool strictReads;
+    private readonly CancellationToken cancellationToken;
     private readonly Dictionary<string, CachedMetadataFile> fileCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CachedScriptMixinMetadata> scriptMixinCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, IReadOnlyList<LuaTypeMetadata>> mroCache = new(StringComparer.Ordinal);
@@ -26,8 +29,10 @@ public sealed class LuaMetadataService
     private int readScopeDepth;
     private long revision;
 
-    public LuaMetadataService(string projectPath)
+    public LuaMetadataService(string projectPath, bool strictReads = false, CancellationToken cancellationToken = default)
     {
+        this.strictReads = strictReads;
+        this.cancellationToken = cancellationToken;
         ProjectPath = Path.GetFullPath(projectPath);
         scriptsPath = Path.Combine(ProjectPath, "Scripts");
     }
@@ -520,6 +525,7 @@ public sealed class LuaMetadataService
 
     private IReadOnlyDictionary<string, LuaTypeMetadata> getFileTypes(string path, string moduleName)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (readScopeDepth != 0
             && fileCache.TryGetValue(path, out CachedMetadataFile? scopedCached)
             && string.Equals(scopedCached.ModuleName, moduleName, StringComparison.Ordinal))
@@ -552,19 +558,19 @@ public sealed class LuaMetadataService
                 validateMetadataRoot(result);
                 types = parseMetadataFile(result.Table, moduleName);
             }
-            catch (InterpreterException)
+            catch (InterpreterException) when (!strictReads)
             {
                 types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
             }
-            catch (InvalidDataException)
+            catch (InvalidDataException) when (!strictReads)
             {
                 types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
             }
-            catch (IOException)
+            catch (IOException) when (!strictReads)
             {
                 types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException) when (!strictReads)
             {
                 types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
             }

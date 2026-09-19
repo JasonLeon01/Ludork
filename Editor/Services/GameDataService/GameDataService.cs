@@ -8,6 +8,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Unicode;
+using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Models;
 
@@ -41,6 +42,9 @@ public sealed partial class GameDataService : IDisposable
     private Dictionary<string, Dictionary<string, JsonObject>> originData = new(StringComparer.Ordinal);
     private readonly List<string> invalidLoadPaths = [];
     private readonly GeneralEnumService generalEnums;
+    private readonly bool cacheMapCatalog;
+    private readonly CancellationToken loadCancellationToken;
+    private readonly Action<string>? loadProgress;
     private readonly LazyMapDataDictionary mapData;
     private readonly WorldMapValidationService worldMapValidation = new();
     private readonly Dictionary<string, long> mapAccessOrder = new(StringComparer.Ordinal);
@@ -55,13 +59,23 @@ public sealed partial class GameDataService : IDisposable
     private bool generalDataGenerationPending;
     private bool disposed;
 
-    public GameDataService(string projectPath)
+    public GameDataService(string projectPath, bool cacheMapCatalog = true,
+        CancellationToken loadCancellationToken = default, Action<string>? loadProgress = null)
     {
+        this.cacheMapCatalog = cacheMapCatalog;
+        this.loadCancellationToken = loadCancellationToken;
+        this.loadProgress = loadProgress;
         ProjectPath = Path.GetFullPath(projectPath);
         generalEnums = new GeneralEnumService(ProjectPath);
         MapPathPolicy = new WorldMapPathPolicy(ProjectPath);
         mapData = new LazyMapDataDictionary(this);
         loadAll();
+    }
+
+    private void reportDataRead(string path)
+    {
+        loadCancellationToken.ThrowIfCancellationRequested();
+        loadProgress?.Invoke(path);
     }
 
     public event EventHandler? ModifiedChanged;
