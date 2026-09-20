@@ -197,12 +197,8 @@ for %%D in (Locale docs Licenses) do (
     move "%BINARIES_DIR%\%%D" "%STAGE_DIR%\%%D" >nul
     if errorlevel 1 goto failed
 )
-for %%F in (LICENSE.md README.md README_zh_CN.md THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md) do (
+for %%F in (LICENSE.md README.md README_zh_CN.md) do (
     move "%BINARIES_DIR%\%%F" "%STAGE_DIR%\" >nul
-    if errorlevel 1 goto failed
-)
-for %%F in ("%BINARIES_DIR%\About_*.md") do (
-    move "%%~fF" "%STAGE_DIR%\" >nul
     if errorlevel 1 goto failed
 )
 if exist "%BINARIES_DIR%\Page" rmdir /S /Q "%BINARIES_DIR%\Page"
@@ -380,16 +376,16 @@ call :require_file "%PACKAGE_DIR%\README.md"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\README_zh_CN.md"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\THIRD_PARTY_NOTICES.md"
+call :require_file "%PACKAGE_DIR%\docs\THIRD_PARTY_NOTICES.md"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\THIRD_PARTY_NOTICES_zh_CN.md"
+call :require_file "%PACKAGE_DIR%\docs\THIRD_PARTY_NOTICES_zh_CN.md"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\About_en_GB.md"
+call :require_file "%PACKAGE_DIR%\docs\About_en_GB.md"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\About_zh_CN.md"
+call :require_file "%PACKAGE_DIR%\docs\About_zh_CN.md"
 if errorlevel 1 exit /b 1
 for %%F in ("%ROOT_DIR%\docs\About_*.md") do (
-    call :require_file "%PACKAGE_DIR%\%%~nxF"
+    call :require_file "%PACKAGE_DIR%\docs\%%~nxF"
     if errorlevel 1 exit /b 1
 )
 call :require_directory "%PACKAGE_DIR%\docs\_images"
@@ -516,7 +512,11 @@ for %%P in (
     )
 )
 for /f "delims=" %%D in ('dir /B /A "%PACKAGE_DIR%\docs"') do (
-    if /I not "%%D"=="_images" if /I not "%%D"=="en_GB" if /I not "%%D"=="zh_CN" (
+    set "PUBLIC_DOC_ENTRY="
+    for %%F in (_images en_GB zh_CN THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md "%ROOT_DIR%\docs\About_*.md") do (
+        if /I "%%D"=="%%~nxF" set "PUBLIC_DOC_ENTRY=1"
+    )
+    if not defined PUBLIC_DOC_ENTRY (
         echo Non-public documentation was found in the editor package: %PACKAGE_DIR%\docs\%%D
         exit /b 1
     )

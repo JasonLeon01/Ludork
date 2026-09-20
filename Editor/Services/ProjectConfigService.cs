@@ -71,6 +71,18 @@ public sealed class ProjectConfigService
         set => setValue("lastFileExplorerPath", value);
     }
 
+    public string? LastOpenedMapKey
+    {
+        get => data["lastOpenedMapKey"] is JsonValue value && value.TryGetValue(out string? key) ? key : null;
+        set
+        {
+            string? key = string.IsNullOrWhiteSpace(value) ? null : value.Replace('\\', '/');
+            if (LastOpenedMapKey == key)
+                return;
+            setValue("lastOpenedMapKey", key);
+        }
+    }
+
     public bool IndividualWindow
     {
         get

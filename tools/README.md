@@ -76,9 +76,8 @@ and shared About text in `docs/About_*.md`. The editor notices are sourced from
 `docs/THIRD_PARTY_NOTICES.md` and `docs/THIRD_PARTY_NOTICES_zh_CN.md`. Frontend
 translations live in the typed `ludorkSiteMessages.ts` module. The editor packages
 the two documentation language trees and their images; About and notice sources
-are mapped to the editor's resource root through MSBuild and the platform
-packaging scripts. Website HTML, JavaScript, and build sources are not included
-in editor packages.
+retain their `docs/` paths through MSBuild and the platform packaging scripts.
+Website HTML, JavaScript, and build sources are not included in editor packages.
 
 The homepage uses `src/Ludork/assets/hero/home-hero.png` as its replaceable main
 image. Its acknowledgements list is defined in `ludorkDependencies.ts`; platform
@@ -87,8 +86,8 @@ when reduced motion is requested. Icon sources are recorded in
 `src/Ludork/assets/credits.md`.
 
 `ScriptTools legal-resources editor <repository-root> <output-root>` writes the
-editor's root licence, READMEs, notices and licence indexes, relocating their
-Markdown links for the distribution layout. MSBuild and editor packaging invoke
+editor's root licence and READMEs, notices under `docs/`, and licence indexes,
+preserving their source-relative Markdown links. MSBuild and editor packaging invoke
 it after copying resources. `legal-resources template-index` takes the same two
 paths and writes only the two licence indexes so they point to the template's
 own root runtime notices. Both commands leave the source documents unchanged;
@@ -525,7 +524,7 @@ The 2in1 OpenGL HAP requires the target image to provide HarmonyOS desktop OpenG
 
 `pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-android-arm64-v8a-unsigned.apk` without installing or launching it.
 
-The complete Gradle wrapper lives in `Game/Engine/PlatformHosts/Android` alongside the Android host template and is included in both C++ Source template variants. Packaging copies and validates that template without reading third-party examples. `gradle/wrapper/gradle-wrapper.properties` selects Gradle 9.5.0; Android Gradle Plugin remains 9.3.0. The wrapper’s licence and source notice travel with it under `gradle/wrapper`.
+The Gradle wrapper lives in `Game/Engine/PlatformHosts/Android` alongside the Android host template and is included in both C++ Source template variants. Packaging copies and validates that template without reading third-party examples. `gradle/wrapper/gradle-wrapper.properties` selects Gradle 9.5.0; Android Gradle Plugin remains 9.3.0. The wrapper’s licence and source notice travel with it under `gradle/wrapper`. macOS packages retain `gradlew`, the wrapper JAR, configuration and notices; they omit the Windows-only `gradlew.bat`.
 
 Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
 

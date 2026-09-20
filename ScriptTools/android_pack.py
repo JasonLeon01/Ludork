@@ -1785,7 +1785,6 @@ def validate_template_source(context: PackContext) -> None:
     )
     required += (
         context.template_dir / "gradlew",
-        context.template_dir / "gradlew.bat",
         context.template_dir / "gradle" / "wrapper" / "gradle-wrapper.jar",
         context.template_dir / "gradle" / "wrapper" / "LICENSE.txt",
         context.template_dir / "gradle" / "wrapper" / "NOTICE.md",

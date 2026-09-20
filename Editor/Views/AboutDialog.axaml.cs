@@ -17,7 +17,7 @@ public partial class AboutDialog : Window
         AppNameText.Text = "Ludork";
         VersionText.Text = $"Version {getVersion()}";
         string aboutFileName = $"About_{LocaleService.CurrentLanguage}.md";
-        string aboutPath = EditorRuntimePaths.FindFile(aboutFileName)
+        string aboutPath = EditorRuntimePaths.FindFile("docs", aboutFileName)
             ?? throw new FileNotFoundException("About resource was not found.", aboutFileName);
         DescriptionText.Text = File.ReadAllText(aboutPath, Encoding.UTF8).Trim();
         CopyrightText.Text = LocaleService.Get("ABOUT_COPYRIGHT");
@@ -34,8 +34,8 @@ public partial class AboutDialog : Window
     private void onOpenLicenses(object? sender, RoutedEventArgs args)
     {
         string noticesFileName = $"THIRD_PARTY_NOTICES_{LocaleService.CurrentLanguage}.md";
-        string licensePath = EditorRuntimePaths.FindFile(noticesFileName)
-            ?? EditorRuntimePaths.FindFile("THIRD_PARTY_NOTICES.md")
+        string licensePath = EditorRuntimePaths.FindFile("docs", noticesFileName)
+            ?? EditorRuntimePaths.FindFile("docs", "THIRD_PARTY_NOTICES.md")
             ?? throw new FileNotFoundException("Licence resource was not found.", noticesFileName);
         string imageRoot = Path.GetDirectoryName(licensePath)
             ?? throw new InvalidOperationException("Licence resource directory was not found.");

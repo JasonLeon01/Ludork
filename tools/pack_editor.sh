@@ -589,7 +589,6 @@ validate_package() {
         require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
         for wrapper_path in \
             gradlew \
-            gradlew.bat \
             gradle/wrapper/gradle-wrapper.jar \
             gradle/wrapper/gradle-wrapper.properties \
             gradle/wrapper/LICENSE.txt \
@@ -605,8 +604,8 @@ validate_package() {
     require_package_file "$package_resources/LICENSE.md"
     require_package_file "$package_resources/README.md"
     require_package_file "$package_resources/README_zh_CN.md"
-    require_package_file "$package_resources/THIRD_PARTY_NOTICES.md"
-    require_package_file "$package_resources/THIRD_PARTY_NOTICES_zh_CN.md"
+    require_package_file "$package_resources/docs/THIRD_PARTY_NOTICES.md"
+    require_package_file "$package_resources/docs/THIRD_PARTY_NOTICES_zh_CN.md"
     require_package_directory "$package_resources/docs/_images"
     require_package_directory "$package_resources/docs/en_GB"
     require_package_directory "$package_resources/docs/zh_CN"
@@ -695,6 +694,8 @@ validate_package() {
         ! -name _images \
         ! -name en_GB \
         ! -name zh_CN \
+        ! -name 'About_*.md' \
+        ! -name 'THIRD_PARTY_NOTICES*.md' \
         -print \
         -quit)
     if [ -n "$unexpected_docs_path" ]; then
@@ -704,11 +705,11 @@ validate_package() {
 
     for source_path in "$PROJECT_ROOT"/docs/About_*.md; do
         if [ -f "$source_path" ]; then
-            require_package_file "$package_resources/$(basename -- "$source_path")"
+            require_package_file "$package_resources/docs/$(basename -- "$source_path")"
         fi
     done
-    require_package_file "$package_resources/About_en_GB.md"
-    require_package_file "$package_resources/About_zh_CN.md"
+    require_package_file "$package_resources/docs/About_en_GB.md"
+    require_package_file "$package_resources/docs/About_zh_CN.md"
 
     plutil -lint "$info_plist" >/dev/null
     if [ "$(plutil -extract CFBundleExecutable raw -o - "$info_plist")" != "Ludork" ]; then
@@ -759,6 +760,8 @@ validate_package() {
         "$package_macos/tools" \
         "$package_macos/Ludork.ini" \
         "$package_resources/Locale/locale.json" \
+        "$package_resources"/About_*.md \
+        "$package_resources"/THIRD_PARTY_NOTICES*.md \
         "$package_resources/Page" \
         "$package_resources/tools/ScriptTools-runtime-versions.txt" \
         "$package_resources/tools/pack_editor.sh" \
@@ -1118,7 +1121,7 @@ rm -rf "$RESOURCES_DIR/docs" "$RESOURCES_DIR/Page" "$RESOURCES_DIR/Licenses"
 copy_public_docs "$RESOURCES_DIR/docs"
 copy_directory "$PROJECT_ROOT/Licenses" "$RESOURCES_DIR/Licenses"
 "$SCRIPT_TOOLS" legal-resources editor "$PROJECT_ROOT" "$RESOURCES_DIR"
-copy_about_files "$RESOURCES_DIR"
+copy_about_files "$RESOURCES_DIR/docs"
 
 mkdir -p "$RESOURCES_DIR/tools"
 cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/tools/common.sh"

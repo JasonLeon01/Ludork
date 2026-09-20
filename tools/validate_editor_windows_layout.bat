@@ -21,13 +21,15 @@ for %%F in (
 )
 
 for %%F in (
+    "%PACKAGE_DIR%\About_*.md"
+    "%PACKAGE_DIR%\THIRD_PARTY_NOTICES*.md"
     "%PACKAGE_DIR%\*.dll"
     "%PACKAGE_DIR%\*.so"
     "%PACKAGE_DIR%\*.dylib"
     "%PACKAGE_DIR%\*.deps.json"
     "%PACKAGE_DIR%\*.runtimeconfig*.json"
 ) do if exist "%%~fF" (
-    echo Editor runtime file exists outside Binaries: %%~fF
+    echo Unexpected file at the editor package root: %%~fF
     exit /b 1
 )
 for %%F in ("%PACKAGE_DIR%\*.exe") do if exist "%%~fF" (

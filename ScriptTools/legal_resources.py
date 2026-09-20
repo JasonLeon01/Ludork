@@ -30,20 +30,17 @@ def copy_resources(source_root: pathlib.Path, output_root: pathlib.Path, mode: s
             copy_markdown(
                 source_root / readme_name,
                 output_root / readme_name,
-                {f"docs/{notice_name}": notice_name},
+                {},
             )
             copy_markdown(
                 source_root / "docs" / notice_name,
-                output_root / notice_name,
-                {
-                    "../LICENSE.md": "LICENSE.md",
-                    f"../Licenses/{readme_name}": f"Licenses/{readme_name}",
-                },
+                output_root / "docs" / notice_name,
+                {},
             )
         copy_markdown(
             source_root / "Licenses" / readme_name,
             output_root / "Licenses" / readme_name,
-            {f"../docs/{notice_name}": f"../{notice_name}"},
+            {f"../docs/{notice_name}": f"../{notice_name}"} if mode == "template-index" else {},
         )
 
 

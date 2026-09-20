@@ -49,11 +49,11 @@
     <Content Include="docs\_images\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\en_GB\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="docs\zh_CN\**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\About_*.md" TargetPath="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\About_*.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\THIRD_PARTY_NOTICES*.md" TargetPath="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="docs\THIRD_PARTY_NOTICES*.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Licenses\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
@@ -130,6 +130,10 @@
       BeforeTargets="GetCopyToOutputDirectoryItems"
       Condition="'$(DesignTimeBuild)' != 'true'">
     <RemoveDir Directories="$(TargetDir)docs;$(TargetDir)Page" />
+    <ItemGroup>
+      <StaleDocumentationOutput Include="$(TargetDir)About_*.md;$(TargetDir)THIRD_PARTY_NOTICES*.md" />
+    </ItemGroup>
+    <Delete Files="@(StaleDocumentationOutput)" />
   </Target>
 
   <Target
@@ -137,6 +141,10 @@
       BeforeTargets="ComputeFilesToPublish"
       Condition="'$(DesignTimeBuild)' != 'true'">
     <RemoveDir Directories="$(PublishDir)docs;$(PublishDir)Page" />
+    <ItemGroup>
+      <StaleDocumentationPublishOutput Include="$(PublishDir)About_*.md;$(PublishDir)THIRD_PARTY_NOTICES*.md" />
+    </ItemGroup>
+    <Delete Files="@(StaleDocumentationPublishOutput)" />
   </Target>
 
   <Target

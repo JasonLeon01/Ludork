@@ -102,7 +102,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameData.DataRestored += onDataRestored;
         GameData.MapPreviewChanged += onMapPreviewChanged;
         rebuildMapTree();
-        SelectedMap = Maps.FirstOrDefault();
+        SelectedMap = findMapItem(ProjectConfig.LastOpenedMapKey) ?? Maps.FirstOrDefault();
     }
 
     public event EventHandler? SelectedMapChanged;
@@ -226,6 +226,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 return;
             if (!SetProperty(ref selectedMap, value))
                 return;
+            if (liveDebugSession is null && !selectingRuntimeMap)
+                ProjectConfig.LastOpenedMapKey = value?.Key;
             refreshLayerTabs();
             IReadOnlyCollection<string> pinnedMaps = value is { IsWorldChild: true }
                 ? new[] { value.Key }
