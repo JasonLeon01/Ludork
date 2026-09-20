@@ -8,7 +8,7 @@
 #include "Native/NativeRuntime.hpp"
 
 #include <LuaError.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -26,20 +26,20 @@ namespace ludork::standard::class_runtime::detail {
 // ── Callable introspection
 // ────────────────────────────────────────────────────
 
-CallableInfo inspectCallable(const sol::object& callable) {
+CallableInfo inspectCallable(const lua_glue::Object& callable) {
     CallableInfo result;
-    if (callable.get_type() != sol::type::function) {
+    if (callable.get_type() != lua_glue::Type::Function) {
         return result;
     }
     lua_State* state = callable.lua_state();
-    callable.push();
+    callable.push(state);
     lua_Debug info{};
     if (lua_getinfo(state, ">u", &info) == 0) {
         return result;
     }
     result.parameterCount = static_cast<int>(info.nparams);
     result.vararg = info.isvararg != 0;
-    callable.push();
+    callable.push(state);
     result.parameterNames.reserve(info.nparams);
     for (int index = 1; index <= static_cast<int>(info.nparams); ++index) {
         const char* name = lua_getlocal(state, nullptr, index);
@@ -51,17 +51,17 @@ CallableInfo inspectCallable(const sol::object& callable) {
     return result;
 }
 
-sol::table constructorClass(lua_State* state) {
-    return sol::stack::get<sol::table>(state, lua_upvalueindex(1));
+lua_glue::Table constructorClass(lua_State* state) {
+    return lua_glue::Read<lua_glue::Table>(state, lua_upvalueindex(1));
 }
 
 // ── Class construction entry points ──────────────────────────────────────────
 
 namespace {
 
-void callConstructorFunction(lua_State* state, const sol::object& function,
-                             const sol::object& instance, int firstArgument,
-                             int originalTop) {
+void callConstructorFunction(lua_State* state, const lua_glue::Object& function,
+                             const lua_glue::Object& instance,
+                             int firstArgument, int originalTop) {
     const CallableInfo info = inspectCallable(function);
     const int argumentCount =
         firstArgument <= originalTop ? originalTop - firstArgument + 1 : 0;
@@ -72,8 +72,8 @@ void callConstructorFunction(lua_State* state, const sol::object& function,
     }
     ensureRuntimeLuaStack(state, static_cast<std::size_t>(argumentCount) + 2,
                           "class initializer arguments");
-    function.push();
-    instance.push();
+    function.push(state);
+    instance.push(state);
     for (int index = firstArgument; index <= originalTop; ++index) {
         lua_pushvalue(state, index);
     }
@@ -90,29 +90,30 @@ void callConstructorFunction(lua_State* state, const sol::object& function,
 }
 
 int constructClassInstance(lua_State* state, int firstArgument) {
-    sol::state_view lua(state);
+    lua_glue::StateView lua(state);
     const int originalTop = lua_gettop(state);
-    const sol::table classTable = constructorClass(state);
-    const sol::object initializer =
-        findScriptMember(lua, classTable, sol::make_object(lua, "init"));
-    const bool hasInitializer = initializer.is<sol::function>();
-    sol::object instance;
+    const lua_glue::Table classTable = constructorClass(state);
+    const lua_glue::Object initializer =
+        findScriptMember(lua, classTable, lua_glue::MakeObject(lua, "init"));
+    const bool hasInitializer = initializer.is<lua_glue::Function>();
+    lua_glue::Object instance;
     if (!hasInitializer && firstArgument <= originalTop) {
-        const std::vector<sol::table> roots = nativeRoots(lua, classTable);
+        const std::vector<lua_glue::Table> roots = nativeRoots(lua, classTable);
         if (roots.size() > 1) {
             throw std::invalid_argument(
                 "Class with multiple native roots and constructor arguments "
                 "must define init");
         }
         if (roots.size() == 1) {
-            sol::table arguments = lua.create_table();
+            lua_glue::Table arguments = lua.create_table();
             const int argumentCount = originalTop - firstArgument + 1;
             arguments.raw_set("n", argumentCount);
             for (int index = firstArgument; index <= originalTop; ++index) {
-                arguments.raw_set(index - firstArgument + 1,
-                                  sol::stack::get<sol::object>(state, index));
+                arguments.raw_set(
+                    index - firstArgument + 1,
+                    lua_glue::Read<lua_glue::Object>(state, index));
             }
-            sol::table constructorArguments = lua.create_table();
+            lua_glue::Table constructorArguments = lua.create_table();
             constructorArguments.raw_set(roots.front(), arguments);
             instance = allocateInstance(lua, classTable, constructorArguments);
         } else {
@@ -120,8 +121,8 @@ int constructClassInstance(lua_State* state, int firstArgument) {
                 "Class without init does not accept constructor arguments");
         }
     } else {
-        instance =
-            allocateInstance(lua, classTable, sol::object(), hasInitializer);
+        instance = allocateInstance(lua, classTable, lua_glue::Object(),
+                                    hasInitializer);
     }
     try {
         validateNativeInstanceShape(lua, classTable, instance);
@@ -139,26 +140,22 @@ int constructClassInstance(lua_State* state, int firstArgument) {
         failNativeConstruction(lua, classTable, instance);
         throw;
     }
-    instance.push();
+    instance.push(state);
     return 1;
 }
 
 }  // namespace
 
 int classNew(lua_State* state) {
-    try {
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
         return constructClassInstance(state, 1);
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 int classCall(lua_State* state) {
-    try {
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
         return constructClassInstance(state, 2);
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 }  // namespace ludork::standard::class_runtime::detail

@@ -32,11 +32,12 @@ struct LuaVariadicFunctionAdapter<Return(Arguments...)> {
     static_assert(std::is_same_v<typename ReturnVector::value_type,
                                  typename VariadicVector::value_type>);
 
-    static std::function<Return(Arguments...)> read(const sol::object& value) {
+    static std::function<Return(Arguments...)> read(
+        const lua_glue::Object& value) {
         if (isNil(value)) {
             return {};
         }
-        if (!value.is<sol::protected_function>()) {
+        if (!value.is<lua_glue::Function>()) {
             throw std::invalid_argument("expected a Lua function");
         }
         const ludork::standard::LuaRegistryReference callbackReference =
@@ -62,7 +63,7 @@ private:
                        std::index_sequence<Index...>) {
         const int stackBase = lua_gettop(state) - 1;
         try {
-            sol::state_view lua(state);
+            lua_glue::StateView lua(state);
             const VariadicVector& variadic =
                 std::get<argumentCount - 1>(values);
             constexpr std::size_t fixedCount = sizeof...(Index);
@@ -78,9 +79,9 @@ private:
                 throw std::runtime_error(
                     "Lua stack cannot grow for callable arguments");
             }
-            (writeLuaValue(lua, std::get<Index>(values)).push(), ...);
+            (writeLuaValue(lua, std::get<Index>(values)).push(state), ...);
             for (const typename VariadicVector::value_type& value : variadic) {
-                writeLuaValue(lua, value).push();
+                writeLuaValue(lua, value).push(state);
             }
             const int status = ludork::standard::protectedLuaCall(
                 state, static_cast<int>(pushedCount), LUA_MULTRET);
@@ -99,7 +100,7 @@ private:
                  ++index) {
                 result.push_back(
                     readLuaValue<typename ReturnVector::value_type>(
-                        sol::stack::get<sol::object>(state, index)));
+                        lua_glue::Read<lua_glue::Object>(state, index)));
             }
             lua_settop(state, stackBase);
             return result;
@@ -111,7 +112,8 @@ private:
 };
 
 template <typename Signature>
-std::function<Signature> variadicFunctionFromLua(const sol::object& value) {
+std::function<Signature> variadicFunctionFromLua(
+    const lua_glue::Object& value) {
     return LuaVariadicFunctionAdapter<Signature>::read(value);
 }
 

@@ -39,8 +39,8 @@ const char* providerName(RuntimeProviderSlot slot) {
     throw std::logic_error("Unknown runtime provider slot");
 }
 
-sol::protected_function providerFunction(sol::state_view lua,
-                                         RuntimeProviderSlot slot) {
+lua_glue::Function providerFunction(lua_glue::StateView lua,
+                                    RuntimeProviderSlot slot) {
     RuntimeIdentityPtr provider;
     {
         std::lock_guard<std::mutex> lock(providerState().mutex);
@@ -50,31 +50,31 @@ sol::protected_function providerFunction(sol::state_view lua,
         throw std::runtime_error(std::string("Runtime ") + providerName(slot) +
                                  " is not installed");
     }
-    const sol::object value =
+    const lua_glue::Object value =
         ludork::runtime::binding::writeOpaqueIdentity(lua, provider);
-    if (!value.is<sol::protected_function>()) {
+    if (!value.is<lua_glue::Function>()) {
         throw std::runtime_error(std::string("Runtime ") + providerName(slot) +
                                  " is unavailable in the active Lua VM");
     }
-    return value.as<sol::protected_function>();
+    return value.as<lua_glue::Function>();
 }
 
-void validateProvider(sol::state_view lua, RuntimeProviderSlot slot,
+void validateProvider(lua_glue::StateView lua, RuntimeProviderSlot slot,
                       const RuntimeIdentityPtr& provider) {
     if (!provider) {
         throw std::invalid_argument(std::string("Runtime ") +
                                     providerName(slot) + " must not be nil");
     }
-    const sol::object value =
+    const lua_glue::Object value =
         ludork::runtime::binding::writeOpaqueIdentity(lua, provider);
-    if (!value.is<sol::protected_function>()) {
+    if (!value.is<lua_glue::Function>()) {
         throw std::invalid_argument(
             std::string("Runtime ") + providerName(slot) +
             " must be a function from the active Lua VM");
     }
 }
 
-void installProvider(sol::state_view lua, RuntimeProviderSlot slot,
+void installProvider(lua_glue::StateView lua, RuntimeProviderSlot slot,
                      const RuntimeIdentityPtr& provider) {
     validateProvider(lua, slot, provider);
     std::lock_guard<std::mutex> lock(providerState().mutex);
@@ -87,7 +87,7 @@ void installProvider(sol::state_view lua, RuntimeProviderSlot slot,
 }
 
 void installProviderGroup(
-    sol::state_view lua,
+    lua_glue::StateView lua,
     const std::vector<std::pair<RuntimeProviderSlot, RuntimeIdentityPtr>>&
         providers) {
     for (const auto& [slot, provider] : providers) {
@@ -107,17 +107,17 @@ void installProviderGroup(
     }
 }
 
-int invokeProvider(sol::state_view lua, RuntimeProviderSlot slot,
-                   const std::vector<sol::object>& arguments) {
+int invokeProvider(lua_glue::StateView lua, RuntimeProviderSlot slot,
+                   const std::vector<lua_glue::Object>& arguments) {
     return invokeRuntimeFunction(lua.lua_state(), providerFunction(lua, slot),
                                  arguments, providerName(slot));
 }
 
 }  // namespace
 
-sol::object invokeRuntimeProviderOne(
-    sol::state_view lua, RuntimeProviderSlot slot,
-    const std::vector<sol::object>& arguments) {
+lua_glue::Object invokeRuntimeProviderOne(
+    lua_glue::StateView lua, RuntimeProviderSlot slot,
+    const std::vector<lua_glue::Object>& arguments) {
     lua_State* state = lua.lua_state();
     const int stackBase = lua_gettop(state);
     try {
@@ -128,7 +128,8 @@ sol::object invokeRuntimeProviderOne(
                                      " must return exactly one value, got " +
                                      std::to_string(resultCount));
         }
-        sol::object result = sol::stack::get<sol::object>(state, stackBase + 1);
+        lua_glue::Object result =
+            lua_glue::Read<lua_glue::Object>(state, stackBase + 1);
         lua_settop(state, stackBase);
         return result;
     } catch (...) {
@@ -147,7 +148,7 @@ void installDataRuntimeProviders(
     const RuntimeIdentityPtr& plainTextConfigResolver) {
     RuntimeScope runtime;
     installProviderGroup(
-        sol::state_view(runtime.state()),
+        lua_glue::StateView(runtime.state()),
         {{RuntimeProviderSlot::Curve, curveResolver},
          {RuntimeProviderSlot::PlainTextConfig, plainTextConfigResolver}});
 }
@@ -158,7 +159,7 @@ void installBlueprintRuntimeProviders(
     const RuntimeIdentityPtr& instantiateGraphTemplate) {
     RuntimeScope runtime;
     installProviderGroup(
-        sol::state_view(runtime.state()),
+        lua_glue::StateView(runtime.state()),
         {{RuntimeProviderSlot::BlueprintClassDataByPath, classDataByPath},
          {RuntimeProviderSlot::BlueprintCompileGraph, compileGraph},
          {RuntimeProviderSlot::BlueprintInstantiateGraphTemplate,
@@ -167,7 +168,7 @@ void installBlueprintRuntimeProviders(
 
 void installConfigRuntimeProvider(const RuntimeIdentityPtr& configResolver) {
     RuntimeScope runtime;
-    installProvider(sol::state_view(runtime.state()),
+    installProvider(lua_glue::StateView(runtime.state()),
                     RuntimeProviderSlot::Config, configResolver);
 }
 

@@ -19,6 +19,7 @@ SAVE_AS_LDC = SAVE_AS_LDC or false
 function bool(value) end
 
 --- Shallow-copy a Lua table or supported native value.
+--- For a known bound value type, call value:copy() directly.
 --- Lua table metatables are preserved. Native resources without an explicit
 --- value-copy strategy retain their identity.
 --- Monitored tables copy their current logical fields and original metatable, without subscriptions.
@@ -28,6 +29,7 @@ function bool(value) end
 function copy(value) end
 
 --- Recursively copy Lua table keys and values, preserving aliases and cycles.
+--- For a known bound value type, call value:deepcopy() directly.
 --- Supported native values are copied; native resources without an explicit
 --- value-copy strategy retain their identity.
 --- Monitored tables copy their current logical fields and original metatable, without subscriptions.

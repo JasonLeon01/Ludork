@@ -1,6 +1,6 @@
 #include <LuaError.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -8,6 +8,8 @@ extern "C" {
 }
 
 #include <stdexcept>
+#include <cstdio>
+#include <charconv>
 #include <string>
 #include <unordered_set>
 
@@ -23,15 +25,21 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
     if (valueType == LUA_TBOOLEAN) {
         return lua_toboolean(state, absoluteIndex) != 0 ? "true" : "false";
     }
-    if (valueType == LUA_TSTRING || valueType == LUA_TNUMBER) {
-        lua_pushvalue(state, absoluteIndex);
+    if (valueType == LUA_TSTRING) {
         std::size_t length = 0;
-        const char* raw = lua_tolstring(state, -1, &length);
-        const std::string result = raw == nullptr
-                                       ? lua_typename(state, valueType)
-                                       : std::string(raw, length);
-        lua_pop(state, 1);
-        return result;
+        const char* raw = lua_tolstring(state, absoluteIndex, &length);
+        return std::string(raw, length);
+    }
+    if (valueType == LUA_TNUMBER) {
+        char buffer[128]{};
+        const auto converted =
+            lua_isinteger(state, absoluteIndex)
+                ? std::to_chars(buffer, buffer + sizeof(buffer),
+                                lua_tointeger(state, absoluteIndex))
+                : std::to_chars(buffer, buffer + sizeof(buffer),
+                                lua_tonumber(state, absoluteIndex));
+        return converted.ec == std::errc{} ? std::string(buffer, converted.ptr)
+                                           : "<number>";
     }
     if (valueType != LUA_TTABLE) {
         return lua_typename(state, valueType);
@@ -70,15 +78,65 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
 }
 
 int luaTracebackHandler(lua_State* state) {
-    std::unordered_set<const void*> visited;
-    const std::string message = describeLuaValue(state, 1, 0, visited);
-    luaL_traceback(state, state, message.c_str(), 1);
-    return 1;
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        std::unordered_set<const void*> visited;
+        const std::string message = describeLuaValue(state, 1, 0, visited);
+        struct TracebackContext {
+            const char* message;
+        } context{message.c_str()};
+        lua_glue::detail::ProtectedCallOperation(
+            state,
+            [](lua_State* target) {
+                const auto* context = static_cast<const TracebackContext*>(
+                    lua_touserdata(target, 1));
+                luaL_traceback(target, target, context->message, 2);
+                return 1;
+            },
+            &context, 1);
+        return 1;
+    });
 }
 
 }  // namespace
 
 namespace ludork::standard {
+
+bool compareLuaValues(lua_State* state, int leftIndex, int rightIndex,
+                      int operation) {
+    const int left = lua_absindex(state, leftIndex);
+    const int right = lua_absindex(state, rightIndex);
+    lua_glue::StackGuard stack(state);
+    if (!lua_checkstack(state, 5)) {
+        throw std::runtime_error("Lua stack cannot grow for comparison");
+    }
+    lua_pushcfunction(state, [](lua_State* target) {
+        const int operation = static_cast<int>(lua_tointeger(target, 3));
+        lua_pushboolean(target, lua_compare(target, 1, 2, operation));
+        return 1;
+    });
+    lua_pushvalue(state, left);
+    lua_pushvalue(state, right);
+    lua_pushinteger(state, operation);
+    if (protectedLuaCall(state, 3, 1) != LUA_OK) {
+        throw std::runtime_error(luaErrorMessage(state, -1));
+    }
+    return lua_toboolean(state, -1) != 0;
+}
+
+int invokeLuaCallback(lua_State* state, const void* context,
+                      int (*callback)(const void*)) {
+    char message[4096]{};
+    try {
+        return callback(context);
+    } catch (const std::exception& error) {
+        std::snprintf(message, sizeof(message), "%s", error.what());
+    } catch (...) {
+        std::snprintf(message, sizeof(message), "%s",
+                      "Native Lua callback failed");
+    }
+    lua_pushstring(state, message);
+    return lua_error(state);
+}
 
 std::string luaErrorMessage(lua_State* state, int index) {
     std::unordered_set<const void*> visited;
@@ -89,9 +147,7 @@ void installLuaErrorHandler(lua_State* state) {
     if (state == nullptr) {
         return;
     }
-    lua_pushcfunction(state, luaTracebackHandler);
-    sol::protected_function::set_default_handler(sol::stack_object(state, -1));
-    lua_pop(state, 1);
+    lua_glue::SetErrorHandler(state, luaTracebackHandler);
 }
 
 int protectedLuaCall(lua_State* state, int argumentCount, int resultCount) {

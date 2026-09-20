@@ -301,11 +301,11 @@ function Scene:_updateWorldEnvironment(deltaTime, force)
             targetColour = mapData.ambientLight
         end
         if self._worldAmbientTargetColour == nil then
-            self._worldAmbientTargetColour = copy(targetColour)
+            self._worldAmbientTargetColour = targetColour:copy()
             worldMap:setAmbientLight(self._worldAmbientTargetColour)
         elseif self._worldAmbientTargetColour ~= targetColour then
-            self._worldAmbientStartColour = copy(worldMap:getAmbientLight())
-            self._worldAmbientTargetColour = copy(targetColour)
+            self._worldAmbientStartColour = worldMap:getAmbientLight():copy()
+            self._worldAmbientTargetColour = targetColour:copy()
             self._worldAmbientTransitionElapsed = 0
         end
     end

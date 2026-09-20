@@ -100,7 +100,7 @@ if not exist "%SCRIPT_TOOLS%" (
 )
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\LuaSF" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\SFML" set "MISSING_DEPENDENCIES=1"
-if not exist "%SOURCE_DIR%\Engine\ThirdParty\sol2" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\LuaGlue" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\Lua" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\lua-cjson" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\zlib" set "MISSING_DEPENDENCIES=1"
@@ -241,7 +241,7 @@ for %%F in (%GENERATED_SCRIPTS%) do (
 exit /b %errorlevel%
 
 :validate_native_cache
-for %%F in (Main.exe Engine.dll GlobalCore.dll GlobalFunctions.dll LuaSF.dll lua.dll) do (
+for %%F in (Main.exe Engine.dll GlobalCore.dll GlobalFunctions.dll LuaSF.dll LuaGlue.dll lua.dll) do (
     call :require_native_file "%~1\bin\%CONFIG%\%%F"
     if errorlevel 1 exit /b 1
 )
@@ -307,7 +307,7 @@ mkdir "%LEGAL_TARGET%\Licenses"
 if errorlevel 1 exit /b 1
 "%SCRIPT_TOOLS%" legal-resources template-index "%ROOT_DIR%" "%LEGAL_TARGET%"
 if errorlevel 1 exit /b 1
-for %%D in (Lua LuaSF SFML sol2 lua-cjson zlib NativeDependencies) do (
+for %%D in (Lua LuaSF SFML LuaGlue lua-cjson zlib NativeDependencies) do (
     robocopy "%LICENSES_DIR%\%%D" "%LEGAL_TARGET%\Licenses\%%D" /E /NFL /NDL /NJH /NJS /NP
     if errorlevel 8 exit /b 1
 )

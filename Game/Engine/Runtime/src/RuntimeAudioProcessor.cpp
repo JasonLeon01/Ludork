@@ -4,7 +4,7 @@
 #include <LuaCallbackCodec.hpp>
 #include <LuaStateLifecycle.hpp>
 #include <LuaSF.hpp>
-#include <luasf_sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -29,13 +29,13 @@ void closeState(lua_State* state) noexcept {
     lua_close(state);
 }
 
-void requireProtectedResult(const sol::protected_function_result& result,
+void requireProtectedResult(const lua_glue::CallResult& result,
                             const std::string& operation) {
     if (result.valid()) {
         return;
     }
-    const sol::error error = result;
-    throw std::runtime_error(operation + ": " + error.what());
+    const std::string error = result.error();
+    throw std::runtime_error(operation + ": " + error.c_str());
 }
 
 }  // namespace
@@ -72,58 +72,57 @@ AudioProcessor::Impl::Impl(AudioProcessorOptions options) {
             throw std::runtime_error(
                 "Unable to enter the isolated audio-effect Lua state");
         }
-        sol::state_view lua(state_);
-        sol::table package = lua["package"];
+        lua_glue::StateView lua(state_);
+        lua_glue::Table package = lua["package"];
         package["path"] = options.packagePath;
         ludork::standard::initializeMath(state_);
         ludork::runtime::scriptStore().registerPreloadedModules(state_);
 
-        lua.new_usertype<AudioControlImpl>(
-            "LudorkAudioEffectControl", sol::no_constructor, "isCancelled",
-            &AudioControlImpl::isCancelled, "beginTail",
-            &AudioControlImpl::beginTail, "finishTail",
-            &AudioControlImpl::finishTail);
-        lua_sf::register_external_usertype<AudioControlImpl>(lua);
+        auto audioControl = lua_glue::BindClass<AudioControlImpl>(
+            lua.globals(), "LudorkAudioEffectControl");
+        lua_glue::BindMethod<bool>(audioControl, "isCancelled",
+                                   &AudioControlImpl::isCancelled);
+        lua_glue::BindMethod<void>(audioControl, "beginTail",
+                                   &AudioControlImpl::beginTail);
+        lua_glue::BindMethod<void>(audioControl, "finishTail",
+                                   &AudioControlImpl::finishTail);
 
-        sol::protected_function require = lua["require"];
-        sol::protected_function_result moduleResult =
-            require(options.moduleName);
+        lua_glue::Function require = lua["require"];
+        lua_glue::CallResult moduleResult = require(options.moduleName);
         requireProtectedResult(moduleResult,
                                "Failed to load " + options.moduleName);
-        const sol::object moduleObject = moduleResult;
-        if (!moduleObject.is<sol::table>()) {
+        const lua_glue::Object moduleObject = moduleResult;
+        if (!moduleObject.is<lua_glue::Table>()) {
             throw std::runtime_error(options.moduleName +
                                      " did not return a module table");
         }
-        const sol::table module = moduleObject.as<sol::table>();
-        const sol::object getObject = module[options.resolverName];
-        if (!getObject.is<sol::protected_function>()) {
+        const lua_glue::Table module = moduleObject.as<lua_glue::Table>();
+        const lua_glue::Object getObject = module[options.resolverName];
+        if (!getObject.is<lua_glue::Function>()) {
             throw std::runtime_error(options.moduleName + "." +
                                      options.resolverName + " is unavailable");
         }
-        const sol::protected_function get =
-            getObject.as<sol::protected_function>();
-        sol::protected_function_result attacherResult = get(options.effectName);
+        const lua_glue::Function get = getObject.as<lua_glue::Function>();
+        lua_glue::CallResult attacherResult = get(options.effectName);
         requireProtectedResult(
             attacherResult,
             "Failed to resolve audio effect " + options.effectName);
-        const sol::object attacherObject = attacherResult;
-        if (!attacherObject.is<sol::protected_function>()) {
+        const lua_glue::Object attacherObject = attacherResult;
+        if (!attacherObject.is<lua_glue::Function>()) {
             throw std::runtime_error(
                 options.moduleName + "." + options.resolverName +
                 " did not return an attacher for " + options.effectName);
         }
-        const sol::protected_function attacher =
-            attacherObject.as<sol::protected_function>();
-        sol::protected_function_result processorResult = attacher(
-            sol::lua_nil,
-            lua_sf::wrapLuaSharedObject(
-                std::make_shared<AudioControlImpl>(std::move(options.control))),
+        const lua_glue::Function attacher =
+            attacherObject.as<lua_glue::Function>();
+        lua_glue::CallResult processorResult = attacher(
+            lua_glue::nil,
+            std::make_shared<AudioControlImpl>(std::move(options.control)),
             options.sampleRate);
         requireProtectedResult(
             processorResult,
             "Failed to create audio effect " + options.effectName);
-        const sol::object processorObject = processorResult;
+        const lua_glue::Object processorObject = processorResult;
         processor_ = lua_sf::callback::from_object<
             sf::SoundSource::EffectProcessor,
             lua_sf::callback::InterleavedFloatTransformCodec>(

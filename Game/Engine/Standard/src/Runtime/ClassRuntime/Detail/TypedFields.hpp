@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sol2/forward.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 struct lua_State;
 
@@ -8,16 +8,22 @@ namespace ludork::standard::class_runtime::detail {
 
 bool hasExplicitNilField(lua_State* state, int targetIndex, int keyIndex);
 void clearExplicitNilField(lua_State* state, int targetIndex, int keyIndex);
-bool hasExplicitNilField(sol::state_view lua, const sol::object& target,
-                         const sol::object& key);
-void clearExplicitNilField(sol::state_view lua, const sol::object& target,
-                           const sol::object& key);
-void markExplicitNilField(sol::state_view lua, const sol::object& target,
-                          const sol::object& key);
-sol::table explicitNilFieldKeys(sol::state_view lua, const sol::object& target);
-void copyExplicitNilFields(sol::state_view lua, const sol::object& source,
-                           const sol::object& target);
-void clearExplicitNilFields(sol::state_view lua, const sol::object& target);
+bool hasExplicitNilField(lua_glue::StateView lua,
+                         const lua_glue::Object& target,
+                         const lua_glue::Object& key);
+void clearExplicitNilField(lua_glue::StateView lua,
+                           const lua_glue::Object& target,
+                           const lua_glue::Object& key);
+void markExplicitNilField(lua_glue::StateView lua,
+                          const lua_glue::Object& target,
+                          const lua_glue::Object& key);
+lua_glue::Table explicitNilFieldKeys(lua_glue::StateView lua,
+                                     const lua_glue::Object& target);
+void copyExplicitNilFields(lua_glue::StateView lua,
+                           const lua_glue::Object& source,
+                           const lua_glue::Object& target);
+void clearExplicitNilFields(lua_glue::StateView lua,
+                            const lua_glue::Object& target);
 void clearExplicitNilFields(lua_State* state);
 
 }  // namespace ludork::standard::class_runtime::detail

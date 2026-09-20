@@ -42,14 +42,14 @@ def reverse_table_binding_lines(
     source = f"bindingReverseSource{index}"
     target = f"bindingReverseTable{index}"
     lines = [
-        f"const sol::object {source} = {source_expression};",
+        f"const lua_glue::Object {source} = {source_expression};",
         (
-            f"if (!{source}.is<sol::table>()) return luaL_error(state, "
+            f"if (!{source}.is<lua_glue::Table>()) return luaL_error(state, "
             f'"reverse-map source for {path} is not a table");'
         ),
         (
-            f"sol::table {target} = ludork::runtime::binding::reverseLuaTable("
-            f"lua, {source}.as<sol::table>());"
+            f"lua_glue::Table {target} = ludork::runtime::binding::reverseLuaTable("
+            f"lua, {source}.as<lua_glue::Table>());"
         ),
     ]
     assignment_lines, next_index = binding_path_assignment_lines(
@@ -78,7 +78,7 @@ def lua_helper_binding_lines(
     factory = LUA_HELPER_FACTORIES[kind]
     value = f"bindingLuaHelperValue{index}"
     lines = [
-        f"const sol::object {value} = ludork::runtime::binding::{factory}(lua);",
+        f"const lua_glue::Object {value} = ludork::runtime::binding::{factory}(lua);",
     ]
     assignment_lines, next_index = binding_path_assignment_lines(
         root_name,
@@ -116,7 +116,7 @@ def injection_lines(
     source_name = f"bindingInjectionSource{index}"
     value_name = f"bindingInjectionValue{index}"
     lines = [
-        f'sol::object {source_name} = lua.globals().raw_get<sol::object>("{source}");'
+        f'lua_glue::Object {source_name} = lua.globals().raw_get<lua_glue::Object>("{source}");'
     ]
     if is_std_function(context, value_type):
         signature = std_function_signature(context, value_type)
@@ -244,7 +244,7 @@ def lua_emit_block(info: TypeInfo, emit: LuaEmit, index: int) -> list[str]:
         array_size = len(emit.values) if emit.shape == "array" else 0
         map_size = len(emit.values) if emit.shape == "fields" else 0
         lines.append(
-            f"        sol::table {table_name} = lua.create_table("
+            f"        lua_glue::Table {table_name} = lua.create_table("
             f"{array_size}, {map_size});"
         )
         if emit.shape == "array":
@@ -252,7 +252,7 @@ def lua_emit_block(info: TypeInfo, emit: LuaEmit, index: int) -> list[str]:
         for key, expression in emit.values:
             output = f"emittedValue{index}_{key or 'value'}"
             lines.append(
-                f"        const sol::object {output} = writeLuaValue(lua, "
+                f"        const lua_glue::Object {output} = writeLuaValue(lua, "
                 f"{lua_emit_expression(expression)});"
             )
             key_expression = key if emit.shape == "array" else f'"{key}"'
@@ -260,21 +260,21 @@ def lua_emit_block(info: TypeInfo, emit: LuaEmit, index: int) -> list[str]:
             lines.append(
                 f"            {table_name}.raw_set({key_expression}, {output});"
             )
-        lines.append(f"        return sol::make_object(lua, {table_name});")
+        lines.append(f"        return lua_glue::MakeObject(lua, {table_name});")
     lines.append("    }")
     return lines
 
 
 def lua_alternative_shape_condition(alternative: LuaAlternative) -> str:
     conditions = {
-        "number": "value.get_type() == sol::type::number",
-        "integer": "value.is<lua_sf::LuaIntegral<std::int64_t>>()",
+        "number": "value.get_type() == lua_glue::Type::Number",
+        "integer": "value.is<std::int64_t>()",
         "string": "value.is<std::string>()",
         "boolean": "value.is<bool>()",
-        "function": "value.is<sol::protected_function>()",
-        "table": "(value.get_type() == sol::type::table)",
-        "userdata": "value.get_type() == sol::type::userdata",
-        "thread": "value.get_type() == sol::type::thread",
+        "function": "value.is<lua_glue::Function>()",
+        "table": "(value.get_type() == lua_glue::Type::Table)",
+        "userdata": "value.get_type() == lua_glue::Type::Userdata",
+        "thread": "value.get_type() == lua_glue::Type::Thread",
     }
     if alternative.shape == "type":
         return f"canReadLuaValue<{alternative.sources[0]}>(value)"
@@ -296,10 +296,10 @@ def lua_alternative_block(
     if alternative.shape in {"fields", "array"}:
         lines.extend(
             [
-                "    if ((value.get_type() == sol::type::table)) {",
+                "    if ((value.get_type() == lua_glue::Type::Table)) {",
                 (
-                    f"        const sol::table alternativeTable{index} = "
-                    "value.as<sol::table>();"
+                    f"        const lua_glue::Table alternativeTable{index} = "
+                    "value.as<lua_glue::Table>();"
                 ),
             ]
         )
@@ -322,8 +322,8 @@ def lua_alternative_block(
             key = source_index + 1 if alternative.shape == "array" else source
             key_value = str(key) if isinstance(key, int) else f'"{key}"'
             lines.append(
-                f"        const sol::object {variable} = "
-                f"alternativeTable{index}.raw_get<sol::object>({key_value});"
+                f"        const lua_glue::Object {variable} = "
+                f"alternativeTable{index}.raw_get<lua_glue::Object>({key_value});"
             )
             source_values[source] = variable
             conditions.append(f"!isNil({variable})")
@@ -362,11 +362,11 @@ def table_value_trait_declaration_lines(types: list[TypeInfo]) -> list[str]:
             [
                 f"template <> struct TableValueTraits<{info.cpp_name}> {{",
                 "    static constexpr bool enabled = true;",
-                "    static bool canRead(const sol::object &value);",
-                f"    static void readInto({info.cpp_name} &result, const sol::table &value);",
-                f"    static {info.cpp_name} read(const sol::object &value);",
+                "    static bool canRead(const lua_glue::Object &value);",
+                f"    static void readInto({info.cpp_name} &result, const lua_glue::Table &value);",
+                f"    static {info.cpp_name} read(const lua_glue::Object &value);",
                 (
-                    "    static sol::object write(sol::state_view lua, "
+                    "    static lua_glue::Object write(lua_glue::StateView lua, "
                     f"const {info.cpp_name} &value);"
                 ),
                 "};",
@@ -409,9 +409,9 @@ def table_value_trait_lines(
         writable = [prop for prop in properties if not is_read_only_property(prop)]
         lines.extend(
             [
-                f"inline bool TableValueTraits<{info.cpp_name}>::canRead(const sol::object &value) {{",
+                f"inline bool TableValueTraits<{info.cpp_name}>::canRead(const lua_glue::Object &value) {{",
                 (
-                    "    if (value.get_type() == sol::type::userdata && "
+                    "    if (value.get_type() == lua_glue::Type::Userdata && "
                     f"value.is<{info.cpp_name}>())"
                 ),
                 "        return true;",
@@ -430,9 +430,9 @@ def table_value_trait_lines(
             )
         lines.extend(
             [
-                "    if (!(value.get_type() == sol::type::table))",
+                "    if (!(value.get_type() == lua_glue::Type::Table))",
                 "        return false;",
-                "    const sol::table table = value.as<sol::table>();",
+                "    const lua_glue::Table table = value.as<lua_glue::Table>();",
             ]
         )
         for index, prop in enumerate(writable):
@@ -441,8 +441,8 @@ def table_value_trait_lines(
             lines.extend(
                 [
                     (
-                        f"    const sol::object {value_name} = "
-                        f'table.raw_get<sol::object>("{prop.name}");'
+                        f"    const lua_glue::Object {value_name} = "
+                        f'table.raw_get<lua_glue::Object>("{prop.name}");'
                     ),
                     (
                         f"    if (!isNil({value_name}) && "
@@ -453,27 +453,27 @@ def table_value_trait_lines(
             )
         if info.options.get("strict_fields", "false").lower() == "true":
             names = " && ".join(f'key != "{prop.name}"' for prop in properties) or "true"
-            lines.extend(["    for (const auto& entry : table) {", '        if (entry.first.get_type() != sol::type::string) return false;', "        const std::string key = entry.first.as<std::string>();", f"        if ({names}) return false;", "    }"])
+            lines.extend(["    for (const auto& entry : table) {", '        if (entry.first.get_type() != lua_glue::Type::String) return false;', "        const std::string key = entry.first.as<std::string>();", f"        if ({names}) return false;", "    }"])
         lines.extend(["    return true;", "}", ""])
         lines.extend(
             [
                 (
                     f"inline void TableValueTraits<{info.cpp_name}>::readInto("
-                    f"{info.cpp_name} &result, const sol::table &value) {{"
+                    f"{info.cpp_name} &result, const lua_glue::Table &value) {{"
                 ),
             ]
         )
         if info.options.get("strict_fields", "false").lower() == "true":
             names = " && ".join(f'key != "{prop.name}"' for prop in properties) or "true"
-            lines.extend(["    for (const auto& entry : value) {", '        if (entry.first.get_type() != sol::type::string) throw std::invalid_argument("Unknown table initializer field");', "        const std::string key = entry.first.as<std::string>();", f'        if ({names}) throw std::invalid_argument("Unknown table initializer field: " + key);', "    }"])
+            lines.extend(["    for (const auto& entry : value) {", '        if (entry.first.get_type() != lua_glue::Type::String) throw std::invalid_argument("Unknown table initializer field");', "        const std::string key = entry.first.as<std::string>();", f'        if ({names}) throw std::invalid_argument("Unknown table initializer field: " + key);', "    }"])
         for index, prop in enumerate(writable):
             value_name = f"propertyValue{index}"
             value_type = property_type(context, prop)
             lines.extend(
                 [
                     (
-                        f"    const sol::object {value_name} = "
-                        f'value.raw_get<sol::object>("{prop.name}");'
+                        f"    const lua_glue::Object {value_name} = "
+                        f'value.raw_get<lua_glue::Object>("{prop.name}");'
                     ),
                     f"    if (!isNil({value_name}))",
                     "    {",
@@ -491,12 +491,12 @@ def table_value_trait_lines(
             )
         lines.extend(["}", ""])
         lines.append(
-            f"inline {info.cpp_name} TableValueTraits<{info.cpp_name}>::read(const sol::object &value) {{"
+            f"inline {info.cpp_name} TableValueTraits<{info.cpp_name}>::read(const lua_glue::Object &value) {{"
         )
         lines.extend(
             [
                 (
-                    "    if (value.get_type() == sol::type::userdata && "
+                    "    if (value.get_type() == lua_glue::Type::Userdata && "
                     f"value.is<{info.cpp_name}>())"
                 ),
                 f"        return value.as<{info.cpp_name}>();",
@@ -515,30 +515,30 @@ def table_value_trait_lines(
             )
         lines.extend(
             [
-                "    if (!(value.get_type() == sol::type::table))",
+                "    if (!(value.get_type() == lua_glue::Type::Table))",
                 '        throw std::invalid_argument("expected a Lua table initializer");',
                 f"    {info.cpp_name} result{{}};",
-                "    readInto(result, value.as<sol::table>());",
+                "    readInto(result, value.as<lua_glue::Table>());",
                 "    return result;",
                 "}",
                 "",
                 (
-                    f"inline sol::object TableValueTraits<{info.cpp_name}>::write("
-                    f"sol::state_view lua, const {info.cpp_name} &value) {{"
+                    f"inline lua_glue::Object TableValueTraits<{info.cpp_name}>::write("
+                    f"lua_glue::StateView lua, const {info.cpp_name} &value) {{"
                 ),
             ]
         )
         for index, emit in enumerate(emits):
             lines.extend(lua_emit_block(info, emit, index))
-        lines.append(f"    sol::table table = lua.create_table(0, {len(properties)});")
+        lines.append(f"    lua_glue::Table table = lua.create_table(0, {len(properties)});")
         for prop in properties:
             lines.extend(
                 [
                     (
-                        f"    const sol::object {prop.name}Value = "
+                        f"    const lua_glue::Object {prop.name}Value = "
                         f"writeLuaValue(lua, value.{prop.options['getter']}());"
                         if "getter" in prop.options else
-                        f"    const sol::object {prop.name}Value = writeLuaValue(lua, value.{prop.name});"
+                        f"    const lua_glue::Object {prop.name}Value = writeLuaValue(lua, value.{prop.name});"
                     ),
                     f"    if (!isNil({prop.name}Value))",
                     f'        table.raw_set("{prop.name}", {prop.name}Value);',
@@ -547,23 +547,23 @@ def table_value_trait_lines(
         if tostring_member:
             lines.extend(
                 [
-                    "    sol::table tostringMetatable = lua.create_table();",
+                    "    lua_glue::Table tostringMetatable = lua.create_table();",
                     (
-                        "    tostringMetatable[sol::meta_function::to_string] = "
-                        f"[](sol::table self) {{ const sol::object displayValue = "
-                        f'self.raw_get<sol::object>("{tostring_member}"); '
+                        '    tostringMetatable["__tostring"] = '
+                        f"[](lua_glue::Table self) {{ const lua_glue::Object displayValue = "
+                        f'self.raw_get<lua_glue::Object>("{tostring_member}"); '
                         "lua_State *state = displayValue.lua_state(); displayValue.push(); "
                         "std::size_t length = 0; const char *text = "
                         "luaL_tolstring(state, -1, &length); "
                         'std::string result(text == nullptr ? "" : '
                         "std::string(text, length)); lua_pop(state, 2); return result; };"
                     ),
-                    "    table[sol::metatable_key] = tostringMetatable;",
+                    "    lua_glue::SetMetatable(table, tostringMetatable);",
                 ]
             )
         lines.extend(
             [
-                "    return sol::make_object(lua, table);",
+                "    return lua_glue::MakeObject(lua, table);",
                 "}",
                 "",
             ]
@@ -576,7 +576,7 @@ def table_initializer_factory(info: TypeInfo, owning_bases: list[str]) -> str:
     owner_types = [info.cpp_name, *owning_bases]
     base_arguments = f"<{', '.join(owner_types)}>"
     return (
-        "[lua](sol::table values) -> sol::object { "
+        "[lua](lua_glue::Table values) -> lua_glue::Object { "
         f"auto result = std::make_shared<{info.cpp_name}>(); "
         f"ludork::runtime::binding::TableValueTraits<{info.cpp_name}>::readInto(*result, values); "
         "return ludork::runtime::binding::writeOwningLuaObject"
@@ -588,7 +588,7 @@ def table_default_factory(info: TypeInfo, owning_bases: list[str]) -> str:
     owner_types = [info.cpp_name, *owning_bases]
     base_arguments = f"<{', '.join(owner_types)}>"
     return (
-        "[lua]() -> sol::object { "
+        "[lua]() -> lua_glue::Object { "
         "return ludork::runtime::binding::writeOwningLuaObject"
         f"{base_arguments}(lua, std::make_shared<{info.cpp_name}>()); }}"
     )

@@ -25,9 +25,9 @@ target_include_directories(LudorkStandardClassRuntime
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../include
-        ${LUDORK_LUASF_CONSUMER_INCLUDES})
+        ${LUDORK_LUA_SOURCE_DIR}/src)
 target_link_libraries(LudorkStandardClassRuntime
     PRIVATE
-        Ludork::SolConfig
+        LuaGlue::LuaGlue
         LuaSF::LuaSF
         LuaSF::Lua)

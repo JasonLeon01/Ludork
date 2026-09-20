@@ -4,11 +4,11 @@
 
 #include <LudorkRuntimeBinding/NativeObjectCodec.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 RuntimeIdentityPtr createRuntimeMapIdentity() {
     ludork::runtime::RuntimeScope scope;
-    sol::state_view lua = sol::state_view(scope.state());
+    lua_glue::StateView lua = lua_glue::StateView(scope.state());
     return ludork::runtime::binding::readOpaqueIdentity<RuntimeIdentityPtr>(
-        sol::make_object(lua, lua.create_table()));
+        lua_glue::MakeObject(lua, lua.create_table()));
 }

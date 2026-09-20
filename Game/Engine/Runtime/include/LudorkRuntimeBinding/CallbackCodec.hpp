@@ -41,16 +41,16 @@ struct LuaCodecAdapter;
 
 template <typename Native>
 struct LuaCodecAdapter<Native, LuaNativeCodecPolicy> {
-    static bool canRead(const sol::object& value) {
+    static bool canRead(const lua_glue::Object& value) {
         return canReadLuaValue<Native>(value);
     }
 
-    static Native read(const sol::object& value, std::string_view) {
+    static Native read(const lua_glue::Object& value, std::string_view) {
         return readLuaValue<Native>(value);
     }
 
-    static sol::object write(sol::state_view lua, const Native& value,
-                             std::string_view) {
+    static lua_glue::Object write(lua_glue::StateView lua, const Native& value,
+                                  std::string_view) {
         return writeLuaValue(lua, value);
     }
 };
@@ -60,12 +60,11 @@ struct LuaCodecAdapter<Native,
                        LuaSfCallbackCodecPolicy<Expected, Codec, AllowNil>> {
     static_assert(std::is_same_v<Native, Expected>);
 
-    static bool canRead(const sol::object& value) {
-        return (AllowNil && isNil(value)) ||
-               value.is<sol::protected_function>();
+    static bool canRead(const lua_glue::Object& value) {
+        return (AllowNil && isNil(value)) || value.is<lua_glue::Function>();
     }
 
-    static Native read(const sol::object& value, std::string_view label) {
+    static Native read(const lua_glue::Object& value, std::string_view label) {
         if (isNil(value)) {
             if constexpr (AllowNil) {
                 return Native{};
@@ -73,18 +72,18 @@ struct LuaCodecAdapter<Native,
             throw std::invalid_argument(std::string(label) +
                                         " does not allow nil");
         }
-        if (!value.is<sol::protected_function>()) {
+        if (!value.is<lua_glue::Function>()) {
             throw std::invalid_argument(std::string("expected ") +
                                         std::string(label));
         }
         return lua_sf::callback::from_object<Expected, Codec>(value, label);
     }
 
-    static sol::object write(sol::state_view lua, const Native& value,
-                             std::string_view label) {
+    static lua_glue::Object write(lua_glue::StateView lua, const Native& value,
+                                  std::string_view label) {
         if (!value) {
             if constexpr (AllowNil) {
-                return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+                return lua_glue::MakeObject(lua, lua_glue::nil);
             }
             throw std::invalid_argument(std::string(label) +
                                         " does not allow nil");
@@ -99,11 +98,11 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
 
     static_assert(IsVector<Sequence>::value || IsArray<Sequence>::value);
 
-    static bool canRead(const sol::object& value) {
-        if (!(value.get_type() == sol::type::table)) {
+    static bool canRead(const lua_glue::Object& value) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             return false;
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         if (!trySequenceLength(table, length)) {
             return false;
@@ -115,18 +114,19 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
         }
         for (std::size_t index = 1; index <= length; ++index) {
             if (!LuaCodecAdapter<Item, ItemPolicy>::canRead(
-                    table.raw_get<sol::object>(index))) {
+                    table.raw_get<lua_glue::Object>(index))) {
                 return false;
             }
         }
         return true;
     }
 
-    static Sequence read(const sol::object& value, std::string_view label) {
-        if (!(value.get_type() == sol::type::table)) {
+    static Sequence read(const lua_glue::Object& value,
+                         std::string_view label) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             throw std::invalid_argument("expected a Lua sequence table");
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         if (!trySequenceLength(table, length)) {
             throw std::invalid_argument(
@@ -145,7 +145,7 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
         for (std::size_t index = 1; index <= length; ++index) {
             try {
                 Item item = LuaCodecAdapter<Item, ItemPolicy>::read(
-                    table.raw_get<sol::object>(index), label);
+                    table.raw_get<lua_glue::Object>(index), label);
                 if constexpr (IsVector<Sequence>::value) {
                     result.push_back(std::move(item));
                 } else {
@@ -160,13 +160,15 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
         return result;
     }
 
-    static sol::object write(sol::state_view lua, const Sequence& value,
-                             std::string_view label) {
-        sol::table table = lua.create_table(static_cast<int>(value.size()), 1);
+    static lua_glue::Object write(lua_glue::StateView lua,
+                                  const Sequence& value,
+                                  std::string_view label) {
+        lua_glue::Table table =
+            lua.create_table(static_cast<int>(value.size()), 1);
         table.raw_set("n", value.size());
         std::size_t index = 1;
         for (const auto& rawItem : value) {
-            sol::object output;
+            lua_glue::Object output;
             if constexpr (std::is_same_v<Item, bool>) {
                 const bool item = static_cast<bool>(rawItem);
                 output =
@@ -180,7 +182,7 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
             }
             ++index;
         }
-        return sol::make_object(lua, table);
+        return lua_glue::MakeObject(lua, table);
     }
 };
 
@@ -191,11 +193,11 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
 
     static_assert(IsMap<Map>::value);
 
-    static bool canRead(const sol::object& value) {
-        if (!(value.get_type() == sol::type::table)) {
+    static bool canRead(const lua_glue::Object& value) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             return false;
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         for (const auto& entry : table) {
             if (!LuaCodecAdapter<Key, KeyPolicy>::canRead(entry.first) ||
                 !LuaCodecAdapter<Item, ItemPolicy>::canRead(entry.second)) {
@@ -205,11 +207,11 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
         return true;
     }
 
-    static Map read(const sol::object& value, std::string_view label) {
-        if (!(value.get_type() == sol::type::table)) {
+    static Map read(const lua_glue::Object& value, std::string_view label) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             throw std::invalid_argument("expected a Lua map table");
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         Map result;
         for (const auto& entry : table) {
             result.emplace(
@@ -219,19 +221,21 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
         return result;
     }
 
-    static sol::object write(sol::state_view lua, const Map& value,
-                             std::string_view label) {
-        sol::table table = lua.create_table(0, static_cast<int>(value.size()));
+    static lua_glue::Object write(lua_glue::StateView lua, const Map& value,
+                                  std::string_view label) {
+        lua_glue::Table table =
+            lua.create_table(0, static_cast<int>(value.size()));
         for (const auto& entry : value) {
-            const sol::object key =
+            const lua_glue::Object key =
                 LuaCodecAdapter<Key, KeyPolicy>::write(lua, entry.first, label);
-            const sol::object item = LuaCodecAdapter<Item, ItemPolicy>::write(
-                lua, entry.second, label);
+            const lua_glue::Object item =
+                LuaCodecAdapter<Item, ItemPolicy>::write(lua, entry.second,
+                                                         label);
             if (!isNil(item)) {
                 table.raw_set(key, item);
             }
         }
-        return sol::make_object(lua, table);
+        return lua_glue::MakeObject(lua, table);
     }
 };
 
@@ -241,22 +245,24 @@ struct LuaCodecAdapter<Optional, LuaOptionalCodecPolicy<ItemPolicy>> {
 
     static_assert(IsOptional<Optional>::value);
 
-    static bool canRead(const sol::object& value) {
+    static bool canRead(const lua_glue::Object& value) {
         return isNil(value) ||
                LuaCodecAdapter<Item, ItemPolicy>::canRead(value);
     }
 
-    static Optional read(const sol::object& value, std::string_view label) {
+    static Optional read(const lua_glue::Object& value,
+                         std::string_view label) {
         if (isNil(value)) {
             return std::nullopt;
         }
         return Optional(LuaCodecAdapter<Item, ItemPolicy>::read(value, label));
     }
 
-    static sol::object write(sol::state_view lua, const Optional& value,
-                             std::string_view label) {
+    static lua_glue::Object write(lua_glue::StateView lua,
+                                  const Optional& value,
+                                  std::string_view label) {
         if (!value.has_value()) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            return lua_glue::MakeObject(lua, lua_glue::nil);
         }
         return LuaCodecAdapter<Item, ItemPolicy>::write(lua, *value, label);
     }
@@ -269,12 +275,12 @@ struct LuaCodecAdapter<Variant, LuaVariantCodecPolicy<Policies...>> {
     static_assert(IsVariant<Variant>::value);
     static_assert(std::variant_size_v<Variant> == sizeof...(Policies));
 
-    static bool canRead(const sol::object& value) {
+    static bool canRead(const lua_glue::Object& value) {
         return select<sizeof...(Policies)>(value, true).has_value() ||
                select<sizeof...(Policies)>(value, false).has_value();
     }
 
-    static Variant read(const sol::object& value, std::string_view label) {
+    static Variant read(const lua_glue::Object& value, std::string_view label) {
         auto selected = select<sizeof...(Policies)>(value, true);
         if (!selected) {
             selected = select<sizeof...(Policies)>(value, false);
@@ -286,8 +292,8 @@ struct LuaCodecAdapter<Variant, LuaVariantCodecPolicy<Policies...>> {
         return readAt<sizeof...(Policies)>(value, label, *selected);
     }
 
-    static sol::object write(sol::state_view lua, const Variant& value,
-                             std::string_view label) {
+    static lua_glue::Object write(lua_glue::StateView lua, const Variant& value,
+                                  std::string_view label) {
         if (value.valueless_by_exception()) {
             throw std::invalid_argument("cannot write a valueless variant");
         }
@@ -296,7 +302,7 @@ struct LuaCodecAdapter<Variant, LuaVariantCodecPolicy<Policies...>> {
 
 private:
     template <std::size_t Index>
-    static std::optional<std::size_t> select(const sol::object& value,
+    static std::optional<std::size_t> select(const lua_glue::Object& value,
                                              bool exact) {
         if constexpr (Index == 0) {
             return std::nullopt;
@@ -312,7 +318,7 @@ private:
     }
 
     template <std::size_t Index>
-    static Variant readAt(const sol::object& value, std::string_view label,
+    static Variant readAt(const lua_glue::Object& value, std::string_view label,
                           std::size_t selected) {
         if constexpr (Index == 0) {
             throw std::invalid_argument(
@@ -330,8 +336,9 @@ private:
     }
 
     template <std::size_t Index>
-    static sol::object writeAt(sol::state_view lua, const Variant& value,
-                               std::string_view label) {
+    static lua_glue::Object writeAt(lua_glue::StateView lua,
+                                    const Variant& value,
+                                    std::string_view label) {
         if constexpr (Index == sizeof...(Policies)) {
             throw std::invalid_argument("variant index is out of range");
         } else {
@@ -353,46 +360,47 @@ struct LuaCodecAdapter<Pair, LuaPairCodecPolicy<FirstPolicy, SecondPolicy>> {
 
     static_assert(IsPair<Pair>::value);
 
-    static bool canRead(const sol::object& value) {
-        if (!(value.get_type() == sol::type::table)) {
+    static bool canRead(const lua_glue::Object& value) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             return false;
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         return trySequenceLength(table, length) && length == 2 &&
                LuaCodecAdapter<First, FirstPolicy>::canRead(
-                   table.raw_get<sol::object>(1)) &&
+                   table.raw_get<lua_glue::Object>(1)) &&
                LuaCodecAdapter<Second, SecondPolicy>::canRead(
-                   table.raw_get<sol::object>(2));
+                   table.raw_get<lua_glue::Object>(2));
     }
 
-    static Pair read(const sol::object& value, std::string_view label) {
+    static Pair read(const lua_glue::Object& value, std::string_view label) {
         if (!canRead(value)) {
             throw std::invalid_argument(
                 "expected a compatible two-element Lua table");
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         return Pair{LuaCodecAdapter<First, FirstPolicy>::read(
-                        table.raw_get<sol::object>(1), label),
+                        table.raw_get<lua_glue::Object>(1), label),
                     LuaCodecAdapter<Second, SecondPolicy>::read(
-                        table.raw_get<sol::object>(2), label)};
+                        table.raw_get<lua_glue::Object>(2), label)};
     }
 
-    static sol::object write(sol::state_view lua, const Pair& value,
-                             std::string_view label) {
-        sol::table table = lua.create_table(2, 1);
+    static lua_glue::Object write(lua_glue::StateView lua, const Pair& value,
+                                  std::string_view label) {
+        lua_glue::Table table = lua.create_table(2, 1);
         table.raw_set("n", 2);
-        const sol::object first =
+        const lua_glue::Object first =
             LuaCodecAdapter<First, FirstPolicy>::write(lua, value.first, label);
-        const sol::object second = LuaCodecAdapter<Second, SecondPolicy>::write(
-            lua, value.second, label);
+        const lua_glue::Object second =
+            LuaCodecAdapter<Second, SecondPolicy>::write(lua, value.second,
+                                                         label);
         if (!isNil(first)) {
             table.raw_set(1, first);
         }
         if (!isNil(second)) {
             table.raw_set(2, second);
         }
-        return sol::make_object(lua, table);
+        return lua_glue::MakeObject(lua, table);
     }
 };
 
@@ -403,11 +411,11 @@ struct LuaCodecAdapter<Tuple, LuaTupleCodecPolicy<Policies...>> {
     static_assert(IsTuple<Tuple>::value);
     static_assert(std::tuple_size_v<Tuple> == sizeof...(Policies));
 
-    static bool canRead(const sol::object& value) {
-        if (!(value.get_type() == sol::type::table)) {
+    static bool canRead(const lua_glue::Object& value) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             return false;
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         return trySequenceLength(table, length) &&
                length == sizeof...(Policies) &&
@@ -415,49 +423,50 @@ struct LuaCodecAdapter<Tuple, LuaTupleCodecPolicy<Policies...>> {
                             std::make_index_sequence<sizeof...(Policies)>{});
     }
 
-    static Tuple read(const sol::object& value, std::string_view label) {
+    static Tuple read(const lua_glue::Object& value, std::string_view label) {
         if (!canRead(value)) {
             throw std::invalid_argument(
                 "expected a compatible Lua tuple table");
         }
-        return readItems(value.as<sol::table>(), label,
+        return readItems(value.as<lua_glue::Table>(), label,
                          std::make_index_sequence<sizeof...(Policies)>{});
     }
 
-    static sol::object write(sol::state_view lua, const Tuple& value,
-                             std::string_view label) {
-        sol::table table = lua.create_table(sizeof...(Policies), 1);
+    static lua_glue::Object write(lua_glue::StateView lua, const Tuple& value,
+                                  std::string_view label) {
+        lua_glue::Table table = lua.create_table(sizeof...(Policies), 1);
         table.raw_set("n", sizeof...(Policies));
         writeItems(lua, table, value, label,
                    std::make_index_sequence<sizeof...(Policies)>{});
-        return sol::make_object(lua, table);
+        return lua_glue::MakeObject(lua, table);
     }
 
 private:
     template <std::size_t... Index>
-    static bool canReadItems(const sol::table& table,
+    static bool canReadItems(const lua_glue::Table& table,
                              std::index_sequence<Index...>) {
         return (LuaCodecAdapter<std::tuple_element_t<Index, Tuple>,
                                 std::tuple_element_t<Index, PolicyTuple>>::
-                    canRead(table.raw_get<sol::object>(Index + 1)) &&
+                    canRead(table.raw_get<lua_glue::Object>(Index + 1)) &&
                 ...);
     }
 
     template <std::size_t... Index>
-    static Tuple readItems(const sol::table& table, std::string_view label,
+    static Tuple readItems(const lua_glue::Table& table, std::string_view label,
                            std::index_sequence<Index...>) {
-        return Tuple{LuaCodecAdapter<std::tuple_element_t<Index, Tuple>,
-                                     std::tuple_element_t<Index, PolicyTuple>>::
-                         read(table.raw_get<sol::object>(Index + 1), label)...};
+        return Tuple{
+            LuaCodecAdapter<std::tuple_element_t<Index, Tuple>,
+                            std::tuple_element_t<Index, PolicyTuple>>::
+                read(table.raw_get<lua_glue::Object>(Index + 1), label)...};
     }
 
     template <std::size_t... Index>
-    static void writeItems(sol::state_view lua, sol::table& table,
+    static void writeItems(lua_glue::StateView lua, lua_glue::Table& table,
                            const Tuple& value, std::string_view label,
                            std::index_sequence<Index...>) {
         (
             [&]() {
-                const sol::object item =
+                const lua_glue::Object item =
                     LuaCodecAdapter<std::tuple_element_t<Index, Tuple>,
                                     std::tuple_element_t<Index, PolicyTuple>>::
                         write(lua, std::get<Index>(value), label);
@@ -470,19 +479,19 @@ private:
 };
 
 template <typename T, typename Policy>
-bool canReadLuaCodecValue(const sol::object& value) {
+bool canReadLuaCodecValue(const lua_glue::Object& value) {
     return LuaCodecAdapter<LuaValueType<T>, Policy>::canRead(value);
 }
 
 template <typename T, typename Policy>
-LuaValueType<T> readLuaCodecValue(const sol::object& value,
+LuaValueType<T> readLuaCodecValue(const lua_glue::Object& value,
                                   std::string_view label) {
     return LuaCodecAdapter<LuaValueType<T>, Policy>::read(value, label);
 }
 
 template <typename T, typename Policy>
-sol::object writeLuaCodecValue(sol::state_view lua, const T& value,
-                               std::string_view label) {
+lua_glue::Object writeLuaCodecValue(lua_glue::StateView lua, const T& value,
+                                    std::string_view label) {
     return LuaCodecAdapter<LuaValueType<T>, Policy>::write(lua, value, label);
 }
 
@@ -500,13 +509,12 @@ struct LuaCodecReturnPolicies<LuaTupleCodecPolicy<Items...>> {
 };
 
 template <typename Values, typename Policy, std::size_t... Index>
-LuaReturnTuple<Values> writeLuaCodecReturnsImpl(sol::state_view lua,
-                                                const Values& values,
-                                                std::string_view label,
-                                                std::index_sequence<Index...>) {
+lua_glue::MultipleResults writeLuaCodecReturnsImpl(
+    lua_glue::StateView lua, const Values& values, std::string_view label,
+    std::index_sequence<Index...>) {
     using Value = LuaValueType<Values>;
     using Policies = typename LuaCodecReturnPolicies<Policy>::Type;
-    return LuaReturnTuple<Value>{LuaCodecAdapter<
+    return lua_glue::MultipleResults{LuaCodecAdapter<
         std::tuple_element_t<Index, Value>,
         std::tuple_element_t<Index, Policies>>::write(lua,
                                                       std::get<Index>(values),
@@ -514,9 +522,9 @@ LuaReturnTuple<Values> writeLuaCodecReturnsImpl(sol::state_view lua,
 }
 
 template <typename Values, typename Policy>
-LuaReturnTuple<Values> writeLuaCodecReturns(sol::state_view lua,
-                                            const Values& values,
-                                            std::string_view label) {
+lua_glue::MultipleResults writeLuaCodecReturns(lua_glue::StateView lua,
+                                               const Values& values,
+                                               std::string_view label) {
     using Value = LuaValueType<Values>;
     using Policies = typename LuaCodecReturnPolicies<Policy>::Type;
     static_assert(std::tuple_size_v<Value> == std::tuple_size_v<Policies>);

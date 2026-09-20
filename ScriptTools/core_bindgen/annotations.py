@@ -1079,6 +1079,7 @@ def parse_header(
             ("INIT", "METHOD", "PROPERTY", "CLASS_PROPERTY", "INJECT"),
         )
         previous_marker_end = 0
+        bound_spans: list[tuple[int, int]] = []
         for member_match in markers:
             position = body_start + member_match.start
             if scopes.enclosing_brace(position) != native.opening:
@@ -1088,6 +1089,7 @@ def parse_header(
             )
             if not raw_declaration:
                 continue
+            bound_spans.append((member_match.start, declaration_end))
             declaration = strip_leading_binding_macros(raw_declaration)
             kind = member_match.kind
             doc = documentation_before(body, member_match.start)
@@ -1263,6 +1265,18 @@ def parse_header(
             *info.class_properties, *info.injectors,
         ):
             qualify_member(context, member)
+        unbound_body = list(code_mask(direct_body))
+        for start, stop in bound_spans:
+            unbound_body[start:stop] = " " * (stop - start)
+        remainder = re.sub(r"\b(?:public|protected|private)\s*:", "", "".join(unbound_body))
+        info.fully_bound_record = (
+            not remainder.strip()
+            and not info.bases
+            and not info.methods
+            and not info.constructors
+            and not info.injectors
+            and all(member.access == "public" and "getter" not in member.options for member in info.properties)
+        )
         types.append(info)
     function_markers = macro_invocations(
         text,

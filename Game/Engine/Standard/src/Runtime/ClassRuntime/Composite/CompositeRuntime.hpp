@@ -2,7 +2,7 @@
 
 #include "Detail/RuntimeState.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <string>
 
@@ -10,22 +10,24 @@ struct lua_State;
 
 namespace ludork::standard::class_runtime::detail {
 
-sol::object compositeIndexSlow(sol::object target, sol::object key,
-                               sol::this_state state);
+lua_glue::Object compositeIndexSlow(lua_glue::Object target,
+                                    lua_glue::Object key,
+                                    lua_glue::ThisState state);
 void invalidateFastIndexEntry(lua_State* state, int cacheIndex);
 int compositeIndex(lua_State* state);
 int compositeNewIndex(lua_State* state);
-sol::table compositeMetatable(sol::state_view lua);
-sol::table constructingCompositeMetatable(sol::state_view lua);
-void invokeMonitorCallbacks(sol::state_view lua, const sol::table& entry,
-                            const sol::object& oldValue,
-                            const sol::object& newValue);
-void registerMonitor(sol::this_state state, const sol::object& target,
+lua_glue::Table compositeMetatable(lua_glue::StateView lua);
+lua_glue::Table constructingCompositeMetatable(lua_glue::StateView lua);
+void invokeMonitorCallbacks(lua_glue::StateView lua,
+                            const lua_glue::Table& entry,
+                            const lua_glue::Object& oldValue,
+                            const lua_glue::Object& newValue);
+void registerMonitor(lua_glue::ThisState state, const lua_glue::Object& target,
                      const std::string& name,
-                     const sol::protected_function& callback,
-                     sol::variadic_args options);
-void unregisterMonitor(sol::this_state state, const sol::object& target,
-                       const std::string& name,
-                       sol::optional<std::string> identifier);
+                     const lua_glue::Function& callback,
+                     lua_glue::Arguments options);
+void unregisterMonitor(lua_glue::ThisState state,
+                       const lua_glue::Object& target, const std::string& name,
+                       std::optional<std::string> identifier);
 
 }  // namespace ludork::standard::class_runtime::detail

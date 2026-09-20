@@ -5,14 +5,14 @@
 
 namespace ludork::runtime::detail {
 
-RuntimeValue readRuntimeReference(const sol::object& value) {
+RuntimeValue readRuntimeReference(const lua_glue::Object& value) {
     switch (value.get_type()) {
-        case sol::type::none:
-        case sol::type::lua_nil:
+        case lua_glue::Type::None:
+        case lua_glue::Type::Nil:
             return {};
-        case sol::type::boolean:
-        case sol::type::number:
-        case sol::type::string:
+        case lua_glue::Type::Boolean:
+        case lua_glue::Type::Number:
+        case lua_glue::Type::String:
             return binding::readLuaValue<RuntimeValue>(value);
         default:
             return RuntimeValue(

@@ -332,7 +332,7 @@ def metadata_type(
         return MetadataType("any")
     if parsed.name == "std::function":
         return MetadataType("function")
-    if parsed.name in OPTIONAL_TYPES | {"sol::optional"} and parsed.arguments:
+    if parsed.name in OPTIONAL_TYPES | {"std::optional"} and parsed.arguments:
         return metadata_type(
             context, render_parsed_type(parsed.arguments[0]), type_modules
         )
@@ -364,9 +364,9 @@ def metadata_type(
         "function": "function",
         "any": "any",
         "table": "table",
-        "sol::function": "function",
-        "sol::object": "any",
-        "sol::table": "table",
+        "lua_glue::Function": "function",
+        "lua_glue::Object": "any",
+        "lua_glue::Table": "table",
     }
     if value in substitutions:
         return MetadataType(substitutions[value])
@@ -701,7 +701,7 @@ def lua_default_value(value: str) -> str:
         return "nil"
     if stripped in {"true", "false"}:
         return stripped
-    if stripped in {"{}", "sol::nullopt"}:
+    if stripped in {"{}", "std::nullopt"}:
         return "{}" if stripped == "{}" else "nil"
     if re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?[fF]?", stripped):
         return stripped.removesuffix("f").removesuffix("F")

@@ -1,6 +1,6 @@
 #include "Detail/TypedFields.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -102,40 +102,44 @@ void clearExplicitNilField(lua_State* state, int targetIndex, int keyIndex) {
     }
 }
 
-bool hasExplicitNilField(sol::state_view lua, const sol::object& target,
-                         const sol::object& key) {
-    target.push();
-    key.push();
+bool hasExplicitNilField(lua_glue::StateView lua,
+                         const lua_glue::Object& target,
+                         const lua_glue::Object& key) {
+    target.push(lua.lua_state());
+    key.push(lua.lua_state());
     const bool present = hasExplicitNilField(lua.lua_state(), -2, -1);
     lua_pop(lua.lua_state(), 2);
     return present;
 }
 
-void clearExplicitNilField(sol::state_view lua, const sol::object& target,
-                           const sol::object& key) {
-    target.push();
-    key.push();
+void clearExplicitNilField(lua_glue::StateView lua,
+                           const lua_glue::Object& target,
+                           const lua_glue::Object& key) {
+    target.push(lua.lua_state());
+    key.push(lua.lua_state());
     clearExplicitNilField(lua.lua_state(), -2, -1);
     lua_pop(lua.lua_state(), 2);
 }
 
-void markExplicitNilField(sol::state_view lua, const sol::object& target,
-                          const sol::object& key) {
-    target.push();
+void markExplicitNilField(lua_glue::StateView lua,
+                          const lua_glue::Object& target,
+                          const lua_glue::Object& key) {
+    target.push(lua.lua_state());
     pushExplicitNilFields(lua.lua_state(), -1, true);
-    key.push();
+    key.push(lua.lua_state());
     lua_pushboolean(lua.lua_state(), true);
     lua_rawset(lua.lua_state(), -3);
     lua_pop(lua.lua_state(), 2);
 }
 
-sol::table explicitNilFieldKeys(sol::state_view lua,
-                                const sol::object& target) {
-    sol::table result = lua.create_table();
+lua_glue::Table explicitNilFieldKeys(lua_glue::StateView lua,
+                                     const lua_glue::Object& target) {
+    lua_glue::Table result = lua.create_table();
     lua_State* state = lua.lua_state();
-    target.push();
+    target.push(lua.lua_state());
     if (pushExplicitNilFields(state, -1, false)) {
-        const sol::table fields = sol::stack::get<sol::table>(state, -1);
+        const lua_glue::Table fields =
+            lua_glue::Read<lua_glue::Table>(state, -1);
         lua_pop(state, 1);
         for (const auto& entry : fields) {
             if (hasExplicitNilField(lua, target, entry.first)) {
@@ -147,10 +151,11 @@ sol::table explicitNilFieldKeys(sol::state_view lua,
     return result;
 }
 
-void copyExplicitNilFields(sol::state_view lua, const sol::object& source,
-                           const sol::object& target) {
-    if (target.get_type() != sol::type::table &&
-        target.get_type() != sol::type::userdata) {
+void copyExplicitNilFields(lua_glue::StateView lua,
+                           const lua_glue::Object& source,
+                           const lua_glue::Object& target) {
+    if (target.get_type() != lua_glue::Type::Table &&
+        target.get_type() != lua_glue::Type::Userdata) {
         return;
     }
     for (const auto& entry : explicitNilFieldKeys(lua, source)) {
@@ -158,11 +163,12 @@ void copyExplicitNilFields(sol::state_view lua, const sol::object& source,
     }
 }
 
-void clearExplicitNilFields(sol::state_view lua, const sol::object& target) {
+void clearExplicitNilFields(lua_glue::StateView lua,
+                            const lua_glue::Object& target) {
     lua_State* state = lua.lua_state();
     lua_rawgetp(state, LUA_REGISTRYINDEX, &explicitNilFieldsKey);
     if (lua_istable(state, -1)) {
-        target.push();
+        target.push(lua.lua_state());
         lua_pushnil(state);
         lua_rawset(state, -3);
     }

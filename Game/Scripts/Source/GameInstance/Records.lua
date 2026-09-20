@@ -68,7 +68,7 @@ local function storeLayerTerrainChange(mapChanges, layerName, position, tileID)
         layerChanges = {}
         mapChanges[layerName] = layerChanges
     end
-    layerChanges[WorldGeometry.GridKey(position.x, position.y)] = { position = copy(position), tileID = tileID }
+    layerChanges[WorldGeometry.GridKey(position.x, position.y)] = { position = position:copy(), tileID = tileID }
 end
 
 function Records.RequirePlayerKey(player)
@@ -105,7 +105,7 @@ function Records.AppendUniqueTelepoint(points, position, tag)
             return
         end
     end
-    points[#points + 1] = { position = copy(position), tag = tag }
+    points[#points + 1] = { position = position:copy(), tag = tag }
 end
 
 function Records.BuildAddedActorRecord(actor, layerName)
@@ -118,7 +118,7 @@ function Records.BuildAddedActorRecord(actor, layerName)
     if not bool(blueprintPath) then
         return nil
     end
-    local actorRecord = { bp = blueprintPath, layer = layerName, position = copy(actorPosition), tag = actorTag }
+    local actorRecord = { bp = blueprintPath, layer = layerName, position = actorPosition:copy(), tag = actorTag }
     ---@cast actor Source.Data.GeneratedActor
     local classVarChanges = Records.NormaliseClassVarChanges(actor.classVarChanges)
     if bool(classVarChanges) then
@@ -135,7 +135,7 @@ function Records.BuildWorldMovedActorRecord(actor, definitionRegion, currentRegi
     local movedRecord = {
         bp = actorRecord.bp,
         layer = actorRecord.layer,
-        position = copy(actorPosition),
+        position = actorPosition:copy(),
         tag = actorRecord.tag,
         definitionRegion = definitionRegion,
         currentRegion = currentRegion

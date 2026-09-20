@@ -28,9 +28,12 @@ if not "!LUASF_VARIANT!"=="" (
 )
 
 set "LUASF_DIR=%CPP_DIR%\Engine\ThirdParty\LuaSF"
+set "LUAGLUE_DIR=%CPP_DIR%\Engine\ThirdParty\LuaGlue"
+set "INSTALLED_LUAGLUE_VERSION="
+if exist "%LUAGLUE_DIR%\.ludork-version" set /p INSTALLED_LUAGLUE_VERSION=<"%LUAGLUE_DIR%\.ludork-version"
 set "INSTALLED_LUASF_VERSION="
 if exist "%LUASF_DIR%\.ludork-version" set /p INSTALLED_LUASF_VERSION=<"%LUASF_DIR%\.ludork-version"
-if "!INSTALLED_LUASF_VERSION!"=="!LUASF_MARKER!" if exist "%LUASF_DIR%\CMakeLists.txt" (
+if not defined LUASF_SOURCE_ARCHIVE if "!INSTALLED_LUASF_VERSION!"=="!LUASF_MARKER!" if "!INSTALLED_LUAGLUE_VERSION!"=="!LUASF_MARKER!" if exist "%LUAGLUE_DIR%\CMakeLists.txt" if exist "%LUASF_DIR%\CMakeLists.txt" (
     echo Using existing LuaSF !LUASF_MARKER!.
     exit /b 0
 )
@@ -52,23 +55,25 @@ if not exist "%WORK%\extract" (
 )
 
 echo Downloading LuaSF %LUASF_MARKER%...
-curl.exe -L --fail --show-error -o "%WORK%\!LUASF_SOURCE_NAME!.zip" "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/%LUASF_VERSION%/!LUASF_SOURCE_NAME!.zip"
+if defined LUASF_SOURCE_ARCHIVE (
+    copy /Y "%LUASF_SOURCE_ARCHIVE%" "%WORK%\!LUASF_SOURCE_NAME!.zip" >nul
+) else (
+    curl.exe -L --fail --show-error -o "%WORK%\!LUASF_SOURCE_NAME!.zip" "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/%LUASF_VERSION%/!LUASF_SOURCE_NAME!.zip"
+)
 if errorlevel 1 exit /b %errorlevel%
 powershell -NoProfile -Command "Expand-Archive -Path '%WORK%\!LUASF_SOURCE_NAME!.zip' -DestinationPath '%WORK%\extract' -Force"
 if errorlevel 1 exit /b %errorlevel%
-set "LUASF_SOURCE=%WORK%\extract"
-if exist "%WORK%\extract\!LUASF_SOURCE_NAME!\CMakeLists.txt" set "LUASF_SOURCE=%WORK%\extract\!LUASF_SOURCE_NAME!"
-if not exist "%LUASF_SOURCE%\CMakeLists.txt" (
-    echo LuaSF source folder was not found after extraction.
-    exit /b 1
+for %%P in (LuaSF LuaGlue) do (
+    if not exist "%WORK%\extract\%%P\CMakeLists.txt" (
+        echo The source archive must contain LuaSF and LuaGlue projects. Set LUASF_SOURCE_ARCHIVE to a current local source archive.
+        exit /b 1
+    )
 )
-if exist "%LUASF_DIR%" rmdir /S /Q "%LUASF_DIR%"
-if exist "%LUASF_DIR%" (
-    echo Failed to replace LuaSF.
-    exit /b 1
+for %%P in (LuaSF LuaGlue) do (
+    if exist "%CPP_DIR%\Engine\ThirdParty\%%P" rmdir /S /Q "%CPP_DIR%\Engine\ThirdParty\%%P"
+    move /Y "%WORK%\extract\%%P" "%CPP_DIR%\Engine\ThirdParty\%%P" >nul
+    if errorlevel 1 exit /b 1
+    > "%CPP_DIR%\Engine\ThirdParty\%%P\.ludork-version" echo !LUASF_MARKER!
 )
-move /Y "%LUASF_SOURCE%" "%LUASF_DIR%" >nul
-if errorlevel 1 exit /b %errorlevel%
-> "%LUASF_DIR%\.ludork-version" echo !LUASF_MARKER!
 rmdir /S /Q "%WORK%"
 exit /b 0

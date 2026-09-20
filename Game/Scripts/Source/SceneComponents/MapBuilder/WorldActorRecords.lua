@@ -12,7 +12,7 @@ local function findRegion(worldData, position)
 end
 
 local function resolveAddedRecord(record, position)
-    local resolved = { bp = record.bp, layer = record.layer, position = copy(position), tag = record.tag }
+    local resolved = { bp = record.bp, layer = record.layer, position = position:copy(), tag = record.tag }
     if record.classVarChanges ~= nil then
         resolved.classVarChanges = record.classVarChanges
     end

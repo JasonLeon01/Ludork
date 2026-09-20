@@ -33,7 +33,7 @@ function GameInstanceWorldPersistence.RecordActorPosition(self, mapPath, actor, 
         actorPosition = actor:getMapPosition()
     end
     self._cachedActorPositions[mapPath] = self._cachedActorPositions[mapPath] or {}
-    self._cachedActorPositions[mapPath][actorTag] = copy(actorPosition)
+    self._cachedActorPositions[mapPath][actorTag] = actorPosition:copy()
 end
 
 ---@param self Source.GameInstance.GameInstance
@@ -75,7 +75,7 @@ function GameInstanceWorldPersistence.RecordWorldMovedActor(
             end
             record.currentRegion = currentRegion
             record.layer = layerName
-            record.position = copy(actorPosition)
+            record.position = actorPosition:copy()
             return
         end
     end

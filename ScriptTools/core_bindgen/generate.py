@@ -95,7 +95,7 @@ def binding_output_path(bindings_directory: Path, name: str) -> Path:
 
 def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Generate Ludork Core sol2 bindings and LuaLS stub"
+        description="Generate Ludork Core LuaGlue bindings and LuaLS stub"
     )
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--header-directory", action="append", type=Path, required=True)
@@ -107,6 +107,11 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--bindings-manifest", type=Path, required=True)
     parser.add_argument("--bindings-stamp", type=Path, required=True)
     parser.add_argument("--stub", type=Path, required=True)
+    parser.add_argument(
+        "--preserve-existing-stub",
+        action="store_true",
+        help="Preserve a prebuilt native-verified stub during cross-compilation",
+    )
     parser.add_argument("--scripts-directory", type=Path, required=True)
     parser.add_argument("--metadata-stamp", type=Path, required=True)
     parser.add_argument("--callback-codecs", type=Path, required=True)
@@ -276,7 +281,8 @@ def main(arguments: list[str] | None = None) -> int:
         ),
     )
     write_metadata(metadata_path, metadata)
-    write_if_different(arguments.stub, stub)
+    if not arguments.preserve_existing_stub or not arguments.stub.exists():
+        write_if_different(arguments.stub, stub)
     write_if_different(arguments.metadata_stamp, str(metadata_path) + "\n")
     for previous_path in previous_binding_outputs - current_binding_outputs:
         if not previous_path.exists():

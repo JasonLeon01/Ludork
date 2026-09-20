@@ -6,7 +6,7 @@ This is the canonical `Licenses` tree. The editor package receives it in full; t
 
 - `DotNet`, `DotNetPackages`, `Avalonia`, and `EditorPackages`: editor and managed-runtime notices.
 - `ScriptTools`: CPython, Nuitka runtime, OpenSSL, and Pillow with its incorporated-component notices for the packaged build tool runtime directory.
-- `Lua`, `LuaSF`, `SFML`, `sol2`, `lua-cjson`, `zlib`, and `NativeDependencies`: common template runtime notices.
+- `Lua`, `LuaSF`, `SFML`, `LuaGlue`, `lua-cjson`, `zlib`, and `NativeDependencies`: common template runtime notices.
 - `FFmpeg`: optional video-runtime notices for FFmpeg templates.
 - `GNUMake` and `MicrosoftVisualCppRuntime`: editor/external redistribution terms, excluded from templates.
 - `HarmonyOSSans` and `SampleMusic`: canonical asset notices; template copies stay beside the assets.

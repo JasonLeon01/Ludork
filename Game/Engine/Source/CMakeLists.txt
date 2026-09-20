@@ -69,10 +69,36 @@ ludork_discover_lua_binding_layouts(
     GlobalCore "${CMAKE_CURRENT_SOURCE_DIR}/Global/include"
     GlobalFunctions "${CMAKE_CURRENT_SOURCE_DIR}/GlobalFunctions/include")
 
+if(LUDORK_WITH_LUA AND NOT CMAKE_CROSSCOMPILING AND NOT LUDORK_STATIC_LUA_MODULES)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../Tools/NativeStubDump"
+        "${CMAKE_CURRENT_BINARY_DIR}/NativeStubDump")
+endif()
+
 function(ludork_configure_core_library
          target generated_bindings generated_traits)
     ludork_configure_core_target(${target})
     add_dependencies(${target} ${target}Stub)
+    if(TARGET LudorkNativeStubDump)
+        add_dependencies(${target} LudorkNativeStubDump)
+        ludork_copy_runtime_libraries(${target})
+        ludork_add_macos_runtime_symlinks(${target})
+        if(LUDORK_ENABLE_FFMPEG AND COMMAND ludork_copy_ffmpeg_runtime)
+            ludork_copy_ffmpeg_runtime(${target})
+        endif()
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "$<TARGET_FILE:LudorkNativeStubDump>"
+                "$<TARGET_FILE:${target}>"
+                "${target}_write_stub"
+                "${LUDORK_BINDING_SCRIPTS_DIRECTORY}/stub/${target}.d.lua"
+            VERBATIM)
+        add_custom_target(${target}NativeStub
+            COMMAND "$<TARGET_FILE:LudorkNativeStubDump>"
+                "$<TARGET_FILE:${target}>"
+                "${target}_write_stub"
+                "${LUDORK_BINDING_SCRIPTS_DIRECTORY}/stub/${target}.d.lua"
+            DEPENDS ${target} LudorkNativeStubDump
+            VERBATIM)
+    endif()
     if(NOT LUDORK_STATIC_LUA_MODULES)
         set_target_properties(${target} PROPERTIES
             SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}")
@@ -91,10 +117,11 @@ function(ludork_configure_core_library
         endif()
     endif()
     if(MSVC)
-        target_compile_options(${target} PRIVATE "/FI${generated_traits}")
+        set_property(SOURCE ${generated_bindings} APPEND PROPERTY
+            COMPILE_OPTIONS "/FI${generated_traits}")
     else()
-        target_compile_options(${target} PRIVATE
-            -include "${generated_traits}")
+        set_property(SOURCE ${generated_bindings} APPEND PROPERTY
+            COMPILE_OPTIONS -include "${generated_traits}")
     endif()
     if(MSVC)
         foreach(generated_binding IN LISTS generated_bindings)
@@ -111,6 +138,10 @@ add_subdirectory(GlobalFunctions)
 add_custom_target(LudorkCoreModules)
 add_dependencies(LudorkCoreModules
     Engine GlobalCore GlobalFunctions)
+if(TARGET LudorkNativeStubDump)
+    add_dependencies(LudorkCoreModules
+        EngineNativeStub GlobalCoreNativeStub GlobalFunctionsNativeStub)
+endif()
 
 function(ludork_copy_core_runtime target)
     add_dependencies(${target} LudorkCoreModules)

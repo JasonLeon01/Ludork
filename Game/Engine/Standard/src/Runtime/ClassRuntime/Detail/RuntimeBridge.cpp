@@ -25,8 +25,9 @@ void ensureRuntimeLuaStack(lua_State* state, std::size_t count,
     }
 }
 
-int invokeRuntimeFunction(sol::state_view lua, const sol::object& rawCallable,
-                          const std::vector<sol::object>& arguments,
+int invokeRuntimeFunction(lua_glue::StateView lua,
+                          const lua_glue::Object& rawCallable,
+                          const std::vector<lua_glue::Object>& arguments,
                           const char* context) {
     lua_State* state = lua.lua_state();
     const int stackBase = lua_gettop(state);
@@ -35,9 +36,9 @@ int invokeRuntimeFunction(sol::state_view lua, const sol::object& rawCallable,
             throw std::length_error(std::string(context) + " count overflow");
         }
         ensureRuntimeLuaStack(state, arguments.size() + 1, context);
-        rawCallable.push();
-        for (const sol::object& argument : arguments) {
-            argument.push();
+        rawCallable.push(state);
+        for (const lua_glue::Object& argument : arguments) {
+            argument.push(state);
         }
         const int status = ludork::standard::protectedLuaCall(
             state, static_cast<int>(arguments.size()), LUA_MULTRET);
@@ -57,17 +58,18 @@ int invokeRuntimeFunction(sol::state_view lua, const sol::object& rawCallable,
 
 namespace ludork::standard::class_runtime {
 
-int invoke(lua_State* state, const sol::object& callable, int argumentCount) {
+int invoke(lua_State* state, const lua_glue::Object& callable,
+           int argumentCount) {
     if (state == nullptr || argumentCount < 0 ||
         argumentCount > lua_gettop(state)) {
         throw std::invalid_argument("Invalid Lua invocation arguments");
     }
-    if (!callable.is<sol::protected_function>()) {
+    if (!callable.is<lua_glue::Function>()) {
         throw std::invalid_argument("Runtime callable must be a function");
     }
     const int stackBase = lua_gettop(state) - argumentCount;
     detail::ensureRuntimeLuaStack(state, 1, "runtime callable");
-    callable.push();
+    callable.push(state);
     lua_insert(state, stackBase + 1);
     const int status =
         ludork::standard::protectedLuaCall(state, argumentCount, LUA_MULTRET);

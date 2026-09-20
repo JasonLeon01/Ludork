@@ -146,7 +146,7 @@ end
 
 function Player:_onArrivedAtMapCell()
     local position = self:getMapPosition()
-    self._movementSpecialPath[#self._movementSpecialPath + 1] = copy(position)
+    self._movementSpecialPath[#self._movementSpecialPath + 1] = position:copy()
 end
 
 function Player:consumeMovementSpecialPath()

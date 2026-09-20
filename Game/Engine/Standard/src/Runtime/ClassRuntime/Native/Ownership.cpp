@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "Native/NativeRuntime.hpp"
 
 #include "Detail/Hierarchy.hpp"
@@ -6,7 +7,7 @@
 #include "Detail/TypeQueries.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -17,26 +18,27 @@ extern "C" {
 
 namespace ludork::standard::class_runtime::detail {
 
-bool nativeTypeAccepts(sol::state_view lua, const sol::table& nativeType,
-                       const sol::object& value) {
-    const sol::object rawTypeInfo = typeInfoOf(lua, nativeType);
-    if (!rawTypeInfo.is<sol::table>()) {
+bool nativeTypeAccepts(lua_glue::StateView lua,
+                       const lua_glue::Table& nativeType,
+                       const lua_glue::Object& value) {
+    const lua_glue::Object rawTypeInfo = typeInfoOf(lua, nativeType);
+    if (!rawTypeInfo.is<lua_glue::Table>()) {
         return false;
     }
-    const sol::object rawIs =
-        rawTypeInfo.as<sol::table>().raw_get<sol::object>("is");
-    if (!rawIs.is<sol::protected_function>()) {
+    const lua_glue::Object rawIs =
+        rawTypeInfo.as<lua_glue::Table>().raw_get<lua_glue::Object>("is");
+    if (!rawIs.is<lua_glue::Function>()) {
         return false;
     }
-    sol::protected_function_result result =
-        rawIs.as<sol::protected_function>()(value);
-    return result.valid() && result.get_type() == sol::type::boolean &&
+    lua_glue::CallResult result = rawIs.as<lua_glue::Function>()(value);
+    return result.valid() && result.get_type() == lua_glue::Type::Boolean &&
            result.get<bool>();
 }
 
-void registerMethodOwner(sol::state_view lua, const sol::table& classTable,
-                         const sol::object& value) {
-    if (!value.is<sol::function>()) {
+void registerMethodOwner(lua_glue::StateView lua,
+                         const lua_glue::Table& classTable,
+                         const lua_glue::Object& value) {
+    if (!value.is<lua_glue::Function>()) {
         return;
     }
     registryTable(lua, METHOD_OWNERS_KEY, "k").raw_set(value, classTable);
@@ -59,76 +61,151 @@ void* nativePointer(lua_State* state, int index) {
     if (composite || !native) {
         return nullptr;
     }
-    void* memory = lua_touserdata(state, absoluteIndex);
-    if (memory == nullptr) {
+    return lua_glue::NativePointer(state, absoluteIndex);
+}
+
+bool pushCompositeNatives(lua_State* state, int index) {
+    const int absoluteIndex = lua_absindex(state, index);
+    if (lua_type(state, absoluteIndex) != LUA_TUSERDATA ||
+        lua_getmetatable(state, absoluteIndex) == 0) {
+        return false;
+    }
+    lua_getfield(state, -1, protocol::COMPOSITE_MARKER_FIELD);
+    const bool composite = lua_toboolean(state, -1) != 0;
+    lua_pop(state, 2);
+    if (!composite) {
+        return false;
+    }
+    if (lua_getiuservalue(state, absoluteIndex, 1) != LUA_TTABLE) {
+        lua_pop(state, 1);
+        return false;
+    }
+    lua_getfield(state, -1, protocol::NATIVE_OBJECTS_FIELD);
+    lua_remove(state, -2);
+    if (!lua_istable(state, -1)) {
+        lua_pop(state, 1);
+        return false;
+    }
+    return true;
+}
+
+void* resolveCompositePointer(lua_State* state, int index,
+                              std::string_view typeKey) {
+    lua_glue::StackGuard stack(state);
+    if (!pushCompositeNatives(state, index)) {
         return nullptr;
     }
-    void* rawData = sol::detail::align_usertype_pointer(memory);
-    return *static_cast<void**>(rawData);
+    const int natives = lua_absindex(state, -1);
+    lua_pushnil(state);
+    while (lua_next(state, natives) != 0) {
+        if (lua_glue::NativeTypeTable(state, -1).valid()) {
+            if (void* pointer = lua_glue::NativePointer(state, -1, typeKey)) {
+                return pointer;
+            }
+        }
+        lua_pop(state, 1);
+    }
+    return nullptr;
+}
+
+std::shared_ptr<void> resolveCompositeOwner(lua_State* state, int index,
+                                            std::string_view typeKey) {
+    lua_glue::StackGuard stack(state);
+    if (!pushCompositeNatives(state, index)) {
+        return {};
+    }
+    const int natives = lua_absindex(state, -1);
+    lua_pushnil(state);
+    while (lua_next(state, natives) != 0) {
+        if (lua_glue::NativeTypeTable(state, -1).valid() &&
+            lua_glue::NativePointer(state, -1, typeKey) != nullptr) {
+            return lua_glue::NativeSharedOwner(state, -1, typeKey);
+        }
+        lua_pop(state, 1);
+    }
+    return {};
 }
 
 int boundMethodCall(lua_State* state) {
-    const int argumentCount = lua_gettop(state);
-    lua_pushvalue(state, lua_upvalueindex(1));
-    lua_insert(state, 1);
-    lua_pushvalue(state, lua_upvalueindex(2));
-    lua_insert(state, 2);
-    lua_call(state, argumentCount + 1, LUA_MULTRET);
-    restoreNativeOwners(state);
-    return lua_gettop(state);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        const int argumentCount = lua_gettop(state);
+        lua_pushvalue(state, lua_upvalueindex(1));
+        lua_insert(state, 1);
+        lua_pushvalue(state, lua_upvalueindex(2));
+        lua_insert(state, 2);
+        if (ludork::standard::protectedLuaCall(state, argumentCount + 1,
+                                               LUA_MULTRET) != LUA_OK) {
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
+        }
+        restoreNativeOwners(state);
+        return lua_gettop(state);
+    });
 }
 
 int nativeMethodCall(lua_State* state) {
-    const int argumentCount = lua_gettop(state);
-    if (argumentCount == 0) {
-        return luaL_error(state, "Native instance method requires a receiver");
-    }
-    lua_pushvalue(state, lua_upvalueindex(1));
-    lua_insert(state, 1);
-    lua_pushvalue(state, lua_upvalueindex(2));
-    lua_replace(state, 2);
-    lua_call(state, argumentCount, LUA_MULTRET);
-    restoreNativeOwners(state);
-    return lua_gettop(state);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        const int argumentCount = lua_gettop(state);
+        if (argumentCount == 0) {
+            throw std::invalid_argument(
+                "Native instance method requires a receiver");
+        }
+        lua_pushvalue(state, lua_upvalueindex(1));
+        lua_insert(state, 1);
+        lua_pushvalue(state, lua_upvalueindex(2));
+        lua_replace(state, 2);
+        if (ludork::standard::protectedLuaCall(state, argumentCount,
+                                               LUA_MULTRET) != LUA_OK) {
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
+        }
+        restoreNativeOwners(state);
+        return lua_gettop(state);
+    });
 }
 
 }  // namespace
 
-void registerNativePointerOwner(sol::state_view lua,
-                                const sol::object& nativeObject,
-                                const sol::object& owner) {
+void registerNativeInterop(lua_State* state) {
+    lua_glue::RegisterExternalResolver(state, &resolveCompositePointer,
+                                       &resolveCompositeOwner);
+}
+
+void registerNativePointerOwner(lua_glue::StateView lua,
+                                const lua_glue::Object& nativeObject,
+                                const lua_glue::Object& owner) {
     lua_State* state = lua.lua_state();
-    nativeObject.push();
+    nativeObject.push(lua.lua_state());
     void* pointer = nativePointer(state, -1);
     lua_pop(state, 1);
     if (pointer == nullptr) {
         return;
     }
     registryTable(lua, protocol::NATIVE_POINTER_OWNERS_REGISTRY_KEY, "v")
-        .push();
+        .push(lua.lua_state());
     lua_pushlightuserdata(state, pointer);
-    owner.push();
+    owner.push(lua.lua_state());
     lua_rawset(state, -3);
     lua_pop(state, 1);
 }
 
-void unregisterNativePointerOwner(sol::state_view lua,
-                                  const sol::object& nativeObject,
-                                  const sol::object& owner) {
+void unregisterNativePointerOwner(lua_glue::StateView lua,
+                                  const lua_glue::Object& nativeObject,
+                                  const lua_glue::Object& owner) {
     lua_State* state = lua.lua_state();
-    nativeObject.push();
+    nativeObject.push(lua.lua_state());
     void* pointer = nativePointer(state, -1);
     lua_pop(state, 1);
     if (pointer == nullptr) {
         return;
     }
-    sol::table owners =
+    lua_glue::Table owners =
         registryTable(lua, protocol::NATIVE_POINTER_OWNERS_REGISTRY_KEY, "v");
-    owners.push();
+    owners.push(lua.lua_state());
     const int ownersIndex = lua_absindex(state, -1);
     lua_pushlightuserdata(state, pointer);
     lua_rawget(state, ownersIndex);
-    owner.push();
+    owner.push(lua.lua_state());
     const bool matches = lua_rawequal(state, -1, -2) != 0;
     lua_pop(state, 2);
     if (!matches) {
@@ -143,8 +220,8 @@ void unregisterNativePointerOwner(sol::state_view lua,
 
 bool pushNativeOwner(lua_State* state, int nativeIndex) {
     const int absoluteNativeIndex = lua_absindex(state, nativeIndex);
-    sol::state_view lua(state);
-    registryTable(lua, NATIVE_OWNERS_KEY, "kv").push();
+    lua_glue::StateView lua(state);
+    registryTable(lua, NATIVE_OWNERS_KEY, "kv").push(lua.lua_state());
     const int ownersIndex = lua_absindex(state, -1);
     lua_pushvalue(state, absoluteNativeIndex);
     lua_rawget(state, ownersIndex);
@@ -158,7 +235,7 @@ bool pushNativeOwner(lua_State* state, int nativeIndex) {
         return false;
     }
     registryTable(lua, protocol::NATIVE_POINTER_OWNERS_REGISTRY_KEY, "v")
-        .push();
+        .push(lua.lua_state());
     const int pointerOwnersIndex = lua_absindex(state, -1);
     lua_pushlightuserdata(state, pointer);
     lua_rawget(state, pointerOwnersIndex);
@@ -194,23 +271,26 @@ void restoreNativeOwners(lua_State* state) {
     }
 }
 
-sol::object bindMethod(sol::state_view lua, const sol::object& method,
-                       const sol::object& self) {
+lua_glue::Object bindMethod(lua_glue::StateView lua,
+                            const lua_glue::Object& method,
+                            const lua_glue::Object& self) {
     lua_State* state = lua.lua_state();
-    method.push();
-    self.push();
+    method.push(lua.lua_state());
+    self.push(lua.lua_state());
     lua_pushcclosure(state, boundMethodCall, 2);
-    sol::object result = sol::stack::get<sol::object>(state, -1);
+    lua_glue::Object result = lua_glue::Read<lua_glue::Object>(state, -1);
     lua_pop(state, 1);
     return result;
 }
 
-sol::object wrapNativeMethod(sol::state_view lua, const sol::object& method,
-                             const sol::object& nativeObject) {
-    method.push();
-    nativeObject.push();
+lua_glue::Object wrapNativeMethod(lua_glue::StateView lua,
+                                  const lua_glue::Object& method,
+                                  const lua_glue::Object& nativeObject) {
+    method.push(lua.lua_state());
+    nativeObject.push(lua.lua_state());
     lua_pushcclosure(lua.lua_state(), nativeMethodCall, 2);
-    sol::object result = sol::stack::get<sol::object>(lua.lua_state(), -1);
+    lua_glue::Object result =
+        lua_glue::Read<lua_glue::Object>(lua.lua_state(), -1);
     lua_pop(lua.lua_state(), 1);
     return result;
 }

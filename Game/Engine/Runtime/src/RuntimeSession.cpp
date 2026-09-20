@@ -48,7 +48,7 @@ void clearRuntimeState(lua_State* state) noexcept {
     node_graph_detail::clearNodeGraphRuntimeCaches(state);
     componentRuntimeCache().clear(state);
     detail::clearRuntimeProviders();
-    detail::clearRuntimeCaches(sol::state_view(state));
+    detail::clearRuntimeCaches(lua_glue::StateView(state));
 }
 
 }  // namespace
@@ -78,7 +78,7 @@ void initialize(lua_State* state) {
     setModuleState(state,
                    ludork::runtime::RuntimeScope::RuntimeModuleState::attached);
     try {
-        detail::clearRuntimeCaches(sol::state_view(state));
+        detail::clearRuntimeCaches(lua_glue::StateView(state));
         detail::clearRuntimeProviders();
         blueprint_detail::clearBlueprintRuntimeCaches(state);
         node_graph_detail::clearNodeGraphRuntimeCaches(state);

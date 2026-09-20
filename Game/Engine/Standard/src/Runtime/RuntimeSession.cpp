@@ -1,4 +1,5 @@
 #include <RuntimeSession.hpp>
+#include <LuaGlue/Lifecycle.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -161,14 +162,23 @@ struct RuntimeRegistryReferenceState {
 LuaExecutionScope::LuaExecutionScope()
     : active_(enterSession(nullptr, true, true) != 0) {
     state_ = active_ ? enteredSession.state : nullptr;
+    if (active_) {
+        glueEntered_ = lua_glue::EnterState(state_) != 0;
+    }
 }
 
 LuaExecutionScope::LuaExecutionScope(lua_State* state)
     : active_(enterRuntimeSession(state) != 0) {
     state_ = active_ ? enteredSession.state : nullptr;
+    if (active_) {
+        glueEntered_ = lua_glue::EnterState(state_) != 0;
+    }
 }
 
 LuaExecutionScope::~LuaExecutionScope() {
+    if (glueEntered_) {
+        lua_glue::LeaveState(state_);
+    }
     if (active_) {
         leaveRuntimeSession(state_);
     }
@@ -416,6 +426,13 @@ int enterRuntimeSession(lua_State* state) noexcept {
 
 int tryEnterRuntimeSession(lua_State* state) noexcept {
     return enterSession(state, false);
+}
+
+bool ownsRuntimeSessionExecution(lua_State* state) noexcept {
+    return state != nullptr && enteredSession.depth != 0 &&
+           enteredSession.session != nullptr && enteredSession.state == state &&
+           enteredSession.session->state == state &&
+           sessionAllowsCurrentThread(*enteredSession.session);
 }
 
 void leaveRuntimeSession(lua_State* state) noexcept {

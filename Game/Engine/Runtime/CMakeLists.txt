@@ -80,9 +80,9 @@ target_link_libraries(LudorkRuntime
     PRIVATE zlibstatic)
 if(LUDORK_WITH_LUA)
     target_include_directories(LudorkRuntime
-        PUBLIC ${LUDORK_LUASF_CONSUMER_INCLUDES})
+        PUBLIC ${LUDORK_LUA_SOURCE_DIR}/src)
     target_link_libraries(LudorkRuntime
-        PUBLIC Ludork::SolConfig LuaSF::LuaSF LuaSF::Lua SFML::Audio SFML::Network)
+        PUBLIC LuaGlue::LuaGlue LuaSF::LuaSF LuaSF::Lua SFML::Audio SFML::Network)
 endif()
 
 set_target_properties(LudorkRuntime PROPERTIES

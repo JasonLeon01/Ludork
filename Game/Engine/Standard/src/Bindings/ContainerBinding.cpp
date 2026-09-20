@@ -2,11 +2,11 @@
 
 #include "Runtime/ContainerRuntime.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 namespace ludork::standard::binding {
 
-void registerContainers(sol::state_view lua) {
+void registerContainers(lua_glue::StateView lua) {
     container_runtime::registerContainers(lua);
 }
 

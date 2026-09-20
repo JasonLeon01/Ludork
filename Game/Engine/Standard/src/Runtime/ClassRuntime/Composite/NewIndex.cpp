@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "Composite/CompositeRuntime.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
@@ -9,7 +10,7 @@
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -27,67 +28,74 @@ namespace ludork::standard::class_runtime::detail {
 // callbacks. Does NOT clear FAST_INDEX_CACHE; instead populates it on success.
 namespace {
 
-void compositeNewIndexSlow(lua_State* state, const sol::object& target,
-                           const sol::object& key, const sol::object& value) {
-    sol::state_view lua(state);
-    sol::table fields = class_native::getUserFields(lua, target, true);
+void compositeNewIndexSlow(lua_State* state, const lua_glue::Object& target,
+                           const lua_glue::Object& key,
+                           const lua_glue::Object& value) {
+    lua_glue::StateView lua(state);
+    lua_glue::Table fields = class_native::getUserFields(lua, target, true);
     if (rawBool(fields, NATIVE_CONSTRUCTION_FAILED_FIELD)) {
         throw std::runtime_error("Class instance construction failed");
     }
-    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
+    const lua_glue::Object rawClass =
+        fields.raw_get<lua_glue::Object>(CLASS_FIELD);
     auto assignValue = [&]() {
-        if (!rawClass.is<sol::table>()) {
+        if (!rawClass.is<lua_glue::Table>()) {
             fields.raw_set(key, value);
             clearExplicitNilField(lua, target, key);
             return;
         }
-        const sol::table classTable = rawClass.as<sol::table>();
-        const sol::object setter =
+        const lua_glue::Table classTable = rawClass.as<lua_glue::Table>();
+        const lua_glue::Object setter =
             findAccessor(lua, classTable, protocol::CLASS_SETTERS_FIELD, key);
-        if (setter.is<sol::function>()) {
-            setter.as<sol::function>()(target, value);
+        if (setter.is<lua_glue::Function>()) {
+            const lua_glue::CallResult result =
+                setter.as<lua_glue::Function>()(target, value);
+            if (!result.valid()) {
+                throw std::runtime_error(result.error());
+            }
             clearExplicitNilField(lua, target, key);
             cacheFastClassOwner(lua, fields, classTable, key,
                                 protocol::CLASS_GETTERS_FIELD,
                                 FastIndexKind::Getter);
             return;
         }
-        sol::object assignedObject = nilObject(lua);
+        lua_glue::Object assignedObject = nilObject(lua);
         if (setNativeMember(lua, fields, classTable, key, value,
                             &assignedObject)) {
             clearExplicitNilField(lua, target, key);
             markNativePropertyDirty(lua, fields, assignedObject, key);
-            const sol::object rawType = nativeTypeOf(lua, assignedObject);
-            if (rawType.is<sol::table>()) {
+            const lua_glue::Object rawType = nativeTypeOf(lua, assignedObject);
+            if (rawType.is<lua_glue::Table>()) {
                 cacheFastIndex(
                     lua, fields, classTable, key, FastIndexKind::NativeMember,
-                    sol::make_object(
-                        lua, nativeTypeName(lua, rawType.as<sol::table>())));
+                    lua_glue::MakeObject(
+                        lua,
+                        nativeTypeName(lua, rawType.as<lua_glue::Table>())));
             }
             return;
         }
         fields.raw_set(key, value);
         clearExplicitNilField(lua, target, key);
     };
-    const sol::object rawCallbacks =
-        fields.raw_get<sol::object>("__monitorCallbacks");
-    if (!rawCallbacks.is<sol::table>()) {
+    const lua_glue::Object rawCallbacks =
+        fields.raw_get<lua_glue::Object>("__monitorCallbacks");
+    if (!rawCallbacks.is<lua_glue::Table>()) {
         assignValue();
         return;
     }
-    const sol::object rawEntry =
-        rawCallbacks.as<sol::table>().raw_get<sol::object>(key);
-    if (!rawEntry.is<sol::table>()) {
+    const lua_glue::Object rawEntry =
+        rawCallbacks.as<lua_glue::Table>().raw_get<lua_glue::Object>(key);
+    if (!rawEntry.is<lua_glue::Table>()) {
         assignValue();
         return;
     }
-    sol::table entry = rawEntry.as<sol::table>();
-    if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+    lua_glue::Table entry = rawEntry.as<lua_glue::Table>();
+    if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
         throw std::invalid_argument("Monitored fields cannot be assigned nil");
     }
-    sol::object oldValue = compositeIndexSlow(target, key, state);
-    if (!oldValue.valid() || oldValue.get_type() == sol::type::lua_nil) {
-        oldValue = entry.raw_get<sol::object>("missing");
+    lua_glue::Object oldValue = compositeIndexSlow(target, key, state);
+    if (!oldValue.valid() || oldValue.get_type() == lua_glue::Type::Nil) {
+        oldValue = entry.raw_get<lua_glue::Object>("missing");
     }
     assignValue();
     invokeMonitorCallbacks(lua, entry, oldValue, value);
@@ -95,11 +103,11 @@ void compositeNewIndexSlow(lua_State* state, const sol::object& target,
 
 }  // namespace
 
-// C fast path: NativeMember and Getter cache hits bypass sol entirely.
+// C fast path: NativeMember and Getter cache hits use the Lua stack directly.
 // Degrades to compositeNewIndexSlow for monitors, cache misses, or
 // initializing state (where dirty tracking is needed).
 int compositeNewIndex(lua_State* state) {
-    try {
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
         if (lua_type(state, 1) == LUA_TUSERDATA &&
             lua_getiuservalue(state, 1, 1) == LUA_TTABLE) {
             const int fieldsIndex = lua_absindex(state, -1);
@@ -108,7 +116,8 @@ int compositeNewIndex(lua_State* state) {
             const bool failed = lua_toboolean(state, -1) != 0;
             lua_pop(state, 1);
             if (failed) {
-                return luaL_error(state, "Class instance construction failed");
+                throw std::invalid_argument(
+                    "Class instance construction failed");
             }
 
             // Monitored writes need per-subscription dispatch and validation.
@@ -196,7 +205,15 @@ int compositeNewIndex(lua_State* state) {
                                         if (lua_isfunction(state, -1)) {
                                             lua_pushvalue(state, 1);
                                             lua_pushvalue(state, 3);
-                                            lua_call(state, 2, 0);
+                                            if (ludork::standard::
+                                                    protectedLuaCall(state, 2,
+                                                                     0) !=
+                                                LUA_OK) {
+                                                throw std::runtime_error(
+                                                    ludork::standard::
+                                                        luaErrorMessage(state,
+                                                                        -1));
+                                            }
                                             clearExplicitNilField(state, 1, 2);
                                             lua_settop(state, 0);
                                             return 0;
@@ -217,14 +234,12 @@ int compositeNewIndex(lua_State* state) {
             }
         }
         lua_settop(state, 3);
-        sol::state_view lua(state);
-        compositeNewIndexSlow(state, sol::stack::get<sol::object>(state, 1),
-                              sol::stack::get<sol::object>(state, 2),
-                              sol::stack::get<sol::object>(state, 3));
+        lua_glue::StateView lua(state);
+        compositeNewIndexSlow(state, lua_glue::Read<lua_glue::Object>(state, 1),
+                              lua_glue::Read<lua_glue::Object>(state, 2),
+                              lua_glue::Read<lua_glue::Object>(state, 3));
         return 0;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 }  // namespace ludork::standard::class_runtime::detail

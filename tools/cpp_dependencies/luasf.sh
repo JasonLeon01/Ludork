@@ -32,7 +32,8 @@ if [ -n "$LUASF_VARIANT" ]; then
 fi
 
 LUASF_DIR="$CPP_DIR/Engine/ThirdParty/LuaSF"
-if dependency_ready "$LUASF_DIR" "$LUASF_MARKER" "CMakeLists.txt"; then
+LUAGLUE_DIR="$CPP_DIR/Engine/ThirdParty/LuaGlue"
+if [ -z "${LUASF_SOURCE_ARCHIVE:-}" ] && dependency_ready "$LUASF_DIR" "$LUASF_MARKER" "CMakeLists.txt" && dependency_ready "$LUAGLUE_DIR" "$LUASF_MARKER" "CMakeLists.txt"; then
     echo "Using existing LuaSF $LUASF_MARKER."
     exit 0
 fi
@@ -44,18 +45,23 @@ echo "Downloading LuaSF $LUASF_MARKER..."
 mkdir -p "$TEMP_DIR/extract" "$CPP_DIR/Engine/ThirdParty"
 archive="$TEMP_DIR/$LUASF_SOURCE_NAME.tar.gz"
 extract_dir="$TEMP_DIR/extract"
-curl -L --fail --show-error \
-    "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/$LUASF_VERSION/$LUASF_SOURCE_NAME.tar.gz" \
-    -o "$archive"
-tar -xzf "$archive" -C "$extract_dir"
-if [ -f "$extract_dir/CMakeLists.txt" ]; then
-    source_dir="$extract_dir"
-elif [ -f "$extract_dir/$LUASF_SOURCE_NAME/CMakeLists.txt" ]; then
-    source_dir="$extract_dir/$LUASF_SOURCE_NAME"
+if [ -n "${LUASF_SOURCE_ARCHIVE:-}" ]; then
+    cp "$LUASF_SOURCE_ARCHIVE" "$archive"
 else
-    echo "LuaSF source folder was not found after extraction." >&2
-    exit 1
+    curl -L --fail --show-error \
+        "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/$LUASF_VERSION/$LUASF_SOURCE_NAME.tar.gz" \
+        -o "$archive"
 fi
-rm -rf "$LUASF_DIR"
-mv "$source_dir" "$LUASF_DIR"
-printf '%s\n' "$LUASF_MARKER" > "$LUASF_DIR/.ludork-version"
+tar -xzf "$archive" -C "$extract_dir"
+for source_project in LuaSF LuaGlue; do
+    if [ ! -f "$extract_dir/$source_project/CMakeLists.txt" ]; then
+        echo "The source archive must contain LuaSF/ and LuaGlue/ projects. Set LUASF_SOURCE_ARCHIVE to a current local source archive." >&2
+        exit 1
+    fi
+done
+for source_project in LuaSF LuaGlue; do
+    destination="$CPP_DIR/Engine/ThirdParty/$source_project"
+    rm -rf "$destination"
+    mv "$extract_dir/$source_project" "$destination"
+    printf '%s\n' "$LUASF_MARKER" > "$destination/.ludork-version"
+done

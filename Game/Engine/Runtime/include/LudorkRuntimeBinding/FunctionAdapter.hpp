@@ -22,11 +22,12 @@ struct LuaFunctionAdapter;
 template <typename Return, typename... Arguments>
 struct LuaFunctionAdapter<Return(Arguments...)> {
     template <bool Exact = false>
-    static std::function<Return(Arguments...)> read(const sol::object& value) {
+    static std::function<Return(Arguments...)> read(
+        const lua_glue::Object& value) {
         if (isNil(value)) {
             return {};
         }
-        if (!value.is<sol::protected_function>()) {
+        if (!value.is<lua_glue::Function>()) {
             throw std::invalid_argument("expected a Lua function");
         }
         const ludork::standard::LuaRegistryReference callbackReference =
@@ -51,14 +52,15 @@ struct LuaFunctionAdapter<Return(Arguments...)> {
         };
     }
 
-    static sol::object write(
-        sol::state_view lua,
+    static lua_glue::Object write(
+        lua_glue::StateView lua,
         const std::function<Return(Arguments...)>& function) {
         if (!function) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            return lua_glue::MakeObject(lua, lua_glue::nil);
         }
-        auto wrapper = [function](sol::this_state currentState,
-                                  sol::variadic_args arguments) -> sol::object {
+        auto wrapper = [function](
+                           lua_glue::ThisState currentState,
+                           lua_glue::Arguments arguments) -> lua_glue::Object {
             lua_State* state = currentState;
             ludork::standard::LuaExecutionScope execution(state);
             if (!execution.active()) {
@@ -68,25 +70,25 @@ struct LuaFunctionAdapter<Return(Arguments...)> {
                 throw std::invalid_argument(
                     "Lua callable argument count mismatch");
             }
-            return invoke(sol::state_view(state), function, arguments,
+            return invoke(lua_glue::StateView(state), function, arguments,
                           std::index_sequence_for<Arguments...>{});
         };
-        return sol::make_object(lua, sol::as_function(std::move(wrapper)));
+        return lua_glue::MakeObject(lua, std::move(wrapper));
     }
 
 private:
     template <std::size_t... Index>
-    static sol::object invoke(
-        sol::state_view lua,
+    static lua_glue::Object invoke(
+        lua_glue::StateView lua,
         const std::function<Return(Arguments...)>& function,
-        const sol::variadic_args& arguments, std::index_sequence<Index...>) {
+        const lua_glue::Arguments& arguments, std::index_sequence<Index...>) {
         std::tuple<LuaValueType<Arguments>...> values{
             readLuaValue<LuaValueType<Arguments>>(
-                arguments.get<sol::object>(Index))...};
+                arguments.get<lua_glue::Object>(Index))...};
         if constexpr (std::is_void_v<Return>) {
             std::invoke(function,
                         static_cast<Arguments>(std::get<Index>(values))...);
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            return lua_glue::MakeObject(lua, lua_glue::nil);
         } else {
             return writeLuaValue(
                 lua, std::invoke(function, static_cast<Arguments>(
@@ -96,18 +98,18 @@ private:
 };
 
 template <typename Signature>
-std::function<Signature> functionFromLua(const sol::object& value) {
+std::function<Signature> functionFromLua(const lua_glue::Object& value) {
     return LuaFunctionAdapter<Signature>::read(value);
 }
 
 template <typename Signature>
-sol::object functionToLua(sol::state_view lua,
-                          const std::function<Signature>& value) {
+lua_glue::Object functionToLua(lua_glue::StateView lua,
+                               const std::function<Signature>& value) {
     return LuaFunctionAdapter<Signature>::write(lua, value);
 }
 
 template <typename T>
-sol::object writeLuaCallbackArgument(sol::state_view lua, T&& value) {
+lua_glue::Object writeLuaCallbackArgument(lua_glue::StateView lua, T&& value) {
     using Value = LuaValueType<T>;
     constexpr bool converted =
         IsDynamicValue<Value> || IsPureDataValue<Value> ||
@@ -117,21 +119,21 @@ sol::object writeLuaCallbackArgument(sol::state_view lua, T&& value) {
         IsOptional<Value>::value || IsVariant<Value>::value ||
         IsSharedPointer<Value>::value || std::is_pointer_v<Value> ||
         std::is_same_v<Value, std::string> ||
-        std::is_same_v<Value, sol::object>;
+        std::is_same_v<Value, lua_glue::Object>;
     if constexpr (converted) {
         return writeLuaValue(lua, value);
     } else if constexpr (std::is_lvalue_reference_v<T> &&
                          std::is_class_v<Value>) {
-        const sol::object owner =
+        const lua_glue::Object owner =
             nativePointerOwner(lua, std::addressof(value));
         if (!isNil(owner)) {
             return owner;
         }
         using Reference = std::remove_reference_t<T>;
         if constexpr (std::is_const_v<Reference>) {
-            return sol::make_object(lua, std::cref(value));
+            return lua_glue::MakeObject(lua, std::cref(value));
         } else {
-            return sol::make_object(lua, std::ref(value));
+            return lua_glue::MakeObject(lua, std::ref(value));
         }
     } else {
         return writeLuaValue(lua, value);
@@ -143,9 +145,9 @@ Return callPushedLuaFunctionWithPolicy(lua_State* state,
                                        Arguments&&... arguments) {
     const int stackBase = lua_gettop(state) - 1;
     try {
-        sol::state_view lua(state);
+        lua_glue::StateView lua(state);
         (writeLuaCallbackArgument(lua, std::forward<Arguments>(arguments))
-             .push(),
+             .push(state),
          ...);
         constexpr int resultCount =
             Exact ? LUA_MULTRET : (std::is_void_v<Return> ? 0 : 1);
@@ -167,8 +169,8 @@ Return callPushedLuaFunctionWithPolicy(lua_State* state,
             lua_settop(state, stackBase);
             return;
         } else {
-            const sol::object rawResult =
-                sol::stack::get<sol::object>(state, -1);
+            const lua_glue::Object rawResult =
+                lua_glue::Read<lua_glue::Object>(state, -1);
             Return result = readLuaValue<Return>(rawResult);
             lua_settop(state, stackBase);
             return result;
@@ -187,7 +189,7 @@ Return callPushedLuaFunction(lua_State* state, Arguments&&... arguments) {
 
 template <typename Signature>
 ludork::runtime::StrictFunction<Signature> strictFunctionFromLua(
-    const sol::object& value) {
+    const lua_glue::Object& value) {
     if (isNil(value)) {
         return {};
     }
@@ -206,11 +208,11 @@ ludork::runtime::StrictFunction<Signature> strictFunctionFromLua(
 }
 
 template <typename Signature>
-sol::object strictFunctionToLua(
-    sol::state_view lua,
+lua_glue::Object strictFunctionToLua(
+    lua_glue::StateView lua,
     const ludork::runtime::StrictFunction<Signature>& value) {
     if (!value) {
-        return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+        return lua_glue::MakeObject(lua, lua_glue::nil);
     }
     if (!value.reference()) {
         return functionToLua(lua, value.function());
@@ -220,7 +222,8 @@ sol::object strictFunctionToLua(
         throw std::runtime_error(
             "Lua callback belongs to an unavailable session");
     }
-    sol::object result = sol::stack::get<sol::object>(lua.lua_state(), -1);
+    lua_glue::Object result =
+        lua_glue::Read<lua_glue::Object>(lua.lua_state(), -1);
     lua_pop(lua.lua_state(), 1);
     return result;
 }

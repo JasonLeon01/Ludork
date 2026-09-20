@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.21)
+project(LudorkNativeStubDump LANGUAGES CXX)
+
+add_executable(LudorkNativeStubDump main.cpp)
+target_compile_features(LudorkNativeStubDump PRIVATE cxx_std_20)
+target_link_libraries(LudorkNativeStubDump PRIVATE ${CMAKE_DL_LIBS})
+if(MSVC)
+    target_compile_options(LudorkNativeStubDump PRIVATE /GR- /EHsc /utf-8)
+else()
+    target_compile_options(LudorkNativeStubDump PRIVATE -fno-rtti)
+endif()
+
+if(MINGW)
+    target_link_options(LudorkNativeStubDump PRIVATE -municode)
+endif()

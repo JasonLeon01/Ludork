@@ -1,14 +1,19 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 namespace ludork::standard::class_runtime::detail {
 
-bool isNativeType(sol::state_view lua, const sol::table& value);
-bool isCompositeInstance(sol::state_view lua, const sol::object& instance);
-sol::object scriptClassOf(sol::state_view lua, const sol::object& value);
-sol::object typeInfoOf(sol::state_view lua, const sol::table& nativeType);
-sol::object nativeTypeOf(sol::state_view lua, const sol::object& value);
-sol::object actualClassOf(sol::state_view lua, const sol::object& value);
+bool isNativeType(lua_glue::StateView lua, const lua_glue::Table& value);
+bool isCompositeInstance(lua_glue::StateView lua,
+                         const lua_glue::Object& instance);
+lua_glue::Object scriptClassOf(lua_glue::StateView lua,
+                               const lua_glue::Object& value);
+lua_glue::Object typeInfoOf(lua_glue::StateView lua,
+                            const lua_glue::Table& nativeType);
+lua_glue::Object nativeTypeOf(lua_glue::StateView lua,
+                              const lua_glue::Object& value);
+lua_glue::Object actualClassOf(lua_glue::StateView lua,
+                               const lua_glue::Object& value);
 
 }  // namespace ludork::standard::class_runtime::detail

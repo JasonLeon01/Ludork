@@ -2,7 +2,7 @@
 
 #include "Detail/RuntimeState.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <string>
 #include <vector>
@@ -11,75 +11,94 @@ struct lua_State;
 
 namespace ludork::standard::class_runtime::detail {
 
-sol::object rawMember(sol::state_view lua, const sol::table& type,
-                      const sol::object& key);
-sol::object findInClass(sol::state_view lua, const sol::table& classTable,
-                        const sol::object& key, bool includeClass = true);
-bool nativeTypeAccepts(sol::state_view lua, const sol::table& nativeType,
-                       const sol::object& value);
-void registerMethodOwner(sol::state_view lua, const sol::table& classTable,
-                         const sol::object& value);
-void registerNativePointerOwner(sol::state_view lua,
-                                const sol::object& nativeObject,
-                                const sol::object& owner);
-void unregisterNativePointerOwner(sol::state_view lua,
-                                  const sol::object& nativeObject,
-                                  const sol::object& owner);
+lua_glue::Object rawMember(lua_glue::StateView lua, const lua_glue::Table& type,
+                           const lua_glue::Object& key);
+lua_glue::Object findInClass(lua_glue::StateView lua,
+                             const lua_glue::Table& classTable,
+                             const lua_glue::Object& key,
+                             bool includeClass = true);
+bool nativeTypeAccepts(lua_glue::StateView lua,
+                       const lua_glue::Table& nativeType,
+                       const lua_glue::Object& value);
+void registerMethodOwner(lua_glue::StateView lua,
+                         const lua_glue::Table& classTable,
+                         const lua_glue::Object& value);
+void registerNativePointerOwner(lua_glue::StateView lua,
+                                const lua_glue::Object& nativeObject,
+                                const lua_glue::Object& owner);
+void unregisterNativePointerOwner(lua_glue::StateView lua,
+                                  const lua_glue::Object& nativeObject,
+                                  const lua_glue::Object& owner);
 bool pushNativeOwner(lua_State* state, int nativeIndex);
 void restoreNativeOwners(lua_State* state);
-sol::object bindMethod(sol::state_view lua, const sol::object& method,
-                       const sol::object& self);
-sol::object wrapNativeMethod(sol::state_view lua, const sol::object& method,
-                             const sol::object& nativeObject);
-bool isNativeInitializer(const sol::table& nativeType,
-                         const sol::object& member);
-std::string nativeTypeName(sol::state_view lua, const sol::table& nativeType);
-sol::object nativeTypeDefinition(sol::state_view lua,
-                                 const sol::table& nativeType,
-                                 const sol::object& key);
-bool nativeTypeDeclaresProperty(const sol::table& nativeType,
-                                const sol::object& key);
-bool nativeClassProperty(sol::state_view lua, const sol::table& nativeType,
-                         const sol::object& key, sol::object& value);
-bool nativeFallbackMemberEligible(const sol::object& key);
-std::vector<sol::table> nativeRoots(sol::state_view lua,
-                                    const sol::table& classTable);
-sol::object nativeObjectForType(sol::state_view lua, const sol::table& fields,
-                                const sol::table& nativeType);
-sol::object cachedNativeMethod(sol::state_view lua, sol::table fields,
-                               const sol::object& key,
-                               const sol::object& method,
-                               const sol::object& nativeObject,
-                               const sol::table& nativeType, bool objectMember);
-sol::object findCachedNativeMethod(sol::state_view lua, sol::table fields,
-                                   const sol::object& key);
-lua_Integer classLookupVersion(const sol::table& classTable);
-sol::table fastIndexCache(sol::state_view lua, sol::table fields);
-void cacheFastIndex(sol::state_view lua, sol::table fields,
-                    const sol::table& classTable, const sol::object& key,
-                    FastIndexKind kind, const sol::object& route);
-void cacheFastClassOwner(sol::state_view lua, sol::table fields,
-                         const sol::table& classTable, const sol::object& key,
-                         const char* category, FastIndexKind kind);
+void registerNativeInterop(lua_State* state);
+lua_glue::Object bindMethod(lua_glue::StateView lua,
+                            const lua_glue::Object& method,
+                            const lua_glue::Object& self);
+lua_glue::Object wrapNativeMethod(lua_glue::StateView lua,
+                                  const lua_glue::Object& method,
+                                  const lua_glue::Object& nativeObject);
+bool isNativeInitializer(const lua_glue::Table& nativeType,
+                         const lua_glue::Object& member);
+std::string nativeTypeName(lua_glue::StateView lua,
+                           const lua_glue::Table& nativeType);
+lua_glue::Object nativeTypeDefinition(lua_glue::StateView lua,
+                                      const lua_glue::Table& nativeType,
+                                      const lua_glue::Object& key);
+bool nativeTypeDeclaresProperty(const lua_glue::Table& nativeType,
+                                const lua_glue::Object& key);
+bool nativeClassProperty(lua_glue::StateView lua,
+                         const lua_glue::Table& nativeType,
+                         const lua_glue::Object& key, lua_glue::Object& value);
+bool nativeFallbackMemberEligible(const lua_glue::Object& key);
+std::vector<lua_glue::Table> nativeRoots(lua_glue::StateView lua,
+                                         const lua_glue::Table& classTable);
+lua_glue::Object nativeObjectForType(lua_glue::StateView lua,
+                                     const lua_glue::Table& fields,
+                                     const lua_glue::Table& nativeType);
+lua_glue::Object cachedNativeMethod(lua_glue::StateView lua,
+                                    lua_glue::Table fields,
+                                    const lua_glue::Object& key,
+                                    const lua_glue::Object& method,
+                                    const lua_glue::Object& nativeObject,
+                                    const lua_glue::Table& nativeType,
+                                    bool objectMember);
+lua_glue::Object findCachedNativeMethod(lua_glue::StateView lua,
+                                        lua_glue::Table fields,
+                                        const lua_glue::Object& key);
+lua_Integer classLookupVersion(const lua_glue::Table& classTable);
+lua_glue::Table fastIndexCache(lua_glue::StateView lua, lua_glue::Table fields);
+void cacheFastIndex(lua_glue::StateView lua, lua_glue::Table fields,
+                    const lua_glue::Table& classTable,
+                    const lua_glue::Object& key, FastIndexKind kind,
+                    const lua_glue::Object& route);
+void cacheFastClassOwner(lua_glue::StateView lua, lua_glue::Table fields,
+                         const lua_glue::Table& classTable,
+                         const lua_glue::Object& key, const char* category,
+                         FastIndexKind kind);
 
-bool setNativeMember(sol::state_view lua, const sol::table& fields,
-                     const sol::table& classTable, const sol::object& key,
-                     const sol::object& value,
-                     sol::object* assignedObject = nullptr);
-void markNativePropertyDirty(sol::state_view lua, sol::table fields,
-                             const sol::object& nativeObject,
-                             const sol::object& key);
-void syncNativeRootDefaults(sol::state_view lua, const sol::table& classTable,
-                            const sol::object& instance, const sol::table& root,
-                            const sol::object& nativeObject,
+bool setNativeMember(lua_glue::StateView lua, const lua_glue::Table& fields,
+                     const lua_glue::Table& classTable,
+                     const lua_glue::Object& key, const lua_glue::Object& value,
+                     lua_glue::Object* assignedObject = nullptr);
+void markNativePropertyDirty(lua_glue::StateView lua, lua_glue::Table fields,
+                             const lua_glue::Object& nativeObject,
+                             const lua_glue::Object& key);
+void syncNativeRootDefaults(lua_glue::StateView lua,
+                            const lua_glue::Table& classTable,
+                            const lua_glue::Object& instance,
+                            const lua_glue::Table& root,
+                            const lua_glue::Object& nativeObject,
                             NativeShadowSnapshot& shadowSnapshot);
-void replayNativeDirtyProperties(sol::state_view lua, const sol::table& fields,
-                                 const sol::table& root,
-                                 const sol::object& source,
-                                 const sol::object& destination);
-void syncNativeClassDefaults(sol::state_view lua, const sol::table& classTable,
-                             const sol::object& instance);
-void restoreNativeShadows(sol::table fields,
+void replayNativeDirtyProperties(lua_glue::StateView lua,
+                                 const lua_glue::Table& fields,
+                                 const lua_glue::Table& root,
+                                 const lua_glue::Object& source,
+                                 const lua_glue::Object& destination);
+void syncNativeClassDefaults(lua_glue::StateView lua,
+                             const lua_glue::Table& classTable,
+                             const lua_glue::Object& instance);
+void restoreNativeShadows(lua_glue::Table fields,
                           const NativeShadowSnapshot& snapshot);
 
 }  // namespace ludork::standard::class_runtime::detail

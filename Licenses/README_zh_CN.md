@@ -6,7 +6,7 @@ Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组�
 
 - `DotNet`、`DotNetPackages`、`Avalonia` 与 `EditorPackages`：编辑器和托管运行时声明。
 - `ScriptTools`：发行版构建工具运行时目录所含 CPython、Nuitka runtime、OpenSSL，以及 Pillow 与其随附组件声明。
-- `Lua`、`LuaSF`、`SFML`、`sol2`、`lua-cjson`、`zlib` 与 `NativeDependencies`：模板公共运行时声明。
+- `Lua`、`LuaSF`、`SFML`、`LuaGlue`、`lua-cjson`、`zlib` 与 `NativeDependencies`：模板公共运行时声明。
 - `FFmpeg`：FFmpeg 模板的可选视频运行时声明。
 - `GNUMake` 与 `MicrosoftVisualCppRuntime`：不进入模板的编辑器/外部再分发条款。
 - `HarmonyOSSans` 与 `SampleMusic`：权威资产声明；模板副本留在资产旁。

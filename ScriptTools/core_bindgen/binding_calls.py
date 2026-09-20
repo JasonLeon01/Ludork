@@ -57,7 +57,12 @@ def order_types(types: list[TypeInfo]) -> list[TypeInfo]:
             raise ValueError(f"cyclic BIND_CLASS runtime bases for {info.cpp_name}")
         visiting.add(info.cpp_name)
         dependencies = list(
-            dict.fromkeys([*info.bases, *runtime_bases(info), *native_bases(info)])
+            dict.fromkeys([
+                *info.bases,
+                *runtime_bases(info),
+                *native_bases(info),
+                *cast_bases(info),
+            ])
         )
         for base in dependencies:
             base_name = remove_type_qualifiers(base)
@@ -155,15 +160,15 @@ def indexer_registration(
     identifier = binding_identifier(info.cpp_name)
     type_table = f"{identifier}IndexerTypeTable"
     return (
-        f'sol::table {type_table} = root["{public_name}"].get<sol::table>(); '
-        f"{identifier}Type[sol::meta_function::index] = "
-        f"[lua, {type_table}]({self_type}, sol::object key) -> sol::object {{ "
-        f"const sol::object memberValue = {type_table}.get<sol::object>(key); "
+        f'lua_glue::Table {type_table} = root["{public_name}"].get<lua_glue::Table>(); '
+        f'lua_glue::BindMetamethod({identifier}Type, "__index", '
+        f"[lua, {type_table}]({self_type}, lua_glue::Object key) -> lua_glue::Object {{ "
+        f"const lua_glue::Object memberValue = {type_table}.get<lua_glue::Object>(key); "
         "if (!ludork::runtime::binding::isNil(memberValue)) return memberValue; "
         f"if (!ludork::runtime::binding::canReadLuaValue<{key_type}>(key)) "
-        "return sol::make_object(lua, lua_sf::LUASF_SOL_NIL); "
+        "return lua_glue::MakeObject(lua, lua_glue::nil); "
         f"return ludork::runtime::binding::writeLuaValue(lua, self.{member.name}("
-        f"ludork::runtime::binding::readLuaValue<{key_type}>(key))); }};"
+        f"ludork::runtime::binding::readLuaValue<{key_type}>(key))); }});"
     )
 
 
@@ -183,7 +188,7 @@ def parameter_plan(
     default_expression: str | None = None,
     allow_nil: bool = False,
 ) -> ParameterPlan:
-    if type_name in {"sol::this_state", "sol::variadic_args"}:
+    if type_name in {"lua_glue::ThisState", "lua_glue::Arguments"}:
         if default_expression is not None:
             raise ValueError(f"{type_name} parameter {name} cannot have a default")
         return ParameterPlan(f"{type_name} {name}", name)
@@ -225,7 +230,7 @@ def parameter_plan(
             )
         prelude.append(f"auto {name}Value = {conversion};")
         return ParameterPlan(
-            f"sol::object {name}",
+            f"lua_glue::Object {name}",
             f"{name}Value",
             prelude,
         )
@@ -248,8 +253,8 @@ def parameter_plan(
     )
     if is_integer_type(context, value_type):
         return ParameterPlan(
-            f"lua_sf::LuaIntegral<{value_type}> {name}",
-            f"{name}.value()",
+            f"{value_type} {name}",
+            name,
         )
     if is_std_function(context, value_type):
         return ParameterPlan(
@@ -372,9 +377,9 @@ def callable_lambda(
     )
     capture = "[lua]" if converted_return else "[]"
     trailing_return = (
-        f"ludork::runtime::binding::LuaReturnTuple<{return_type}>"
+        "lua_glue::MultipleResults"
         if multiple_return
-        else ("sol::object" if converted_return else return_type)
+        else ("lua_glue::Object" if converted_return else return_type)
     )
     body = list(preludes)
     if constructor:
@@ -434,9 +439,9 @@ def callable_candidates(
                 )
             ]
             generic_parameters = sum(
-                plan.declaration.startswith("sol::object ")
+                plan.declaration.startswith("lua_glue::Object ")
                 or plan.declaration.startswith(
-                    "ludork::runtime::binding::LuaArgument<sol::object"
+                    "ludork::runtime::binding::LuaArgument<lua_glue::Object"
                 )
                 for plan in plans
             )
@@ -475,14 +480,6 @@ def callable_overloads(
     return result
 
 
-def wrap_overloads(values: list[str], wrapper: str = "sol::overload") -> str:
-    if not values:
-        raise ValueError("at least one callable is required")
-    if len(values) == 1:
-        return values[0]
-    return f"{wrapper}({', '.join(values)})"
-
-
 def function_registrations(
     context: GeneratorContext,
     members: list[Member],
@@ -495,7 +492,7 @@ def function_registrations(
         groups.setdefault(exposed_name, []).append(member)
     registrations: list[str] = []
     for name, group in groups.items():
-        callable_value = wrap_overloads(callable_overloads(context, group, type_name))
+        policy = ""
         policies = {
             member.options.get("return_policy")
             for member in group
@@ -510,10 +507,11 @@ def function_registrations(
                 raise ValueError(
                     f"reference_internal requires an instance method: {name}"
                 )
-            callable_value = (
-                f"sol::policies({callable_value}, sol::self_dependency{{}})"
+            policy = ", lua_glue::ReturnPolicy::ReferenceInternal"
+        for value in callable_overloads(context, group, type_name):
+            registrations.append(
+                f'lua_glue::BindCallable({target}, "{name}", {value}{policy});'
             )
-        registrations.append(f'{target}.set_function("{name}", {callable_value});')
     return registrations
 
 
@@ -576,37 +574,39 @@ def property_registration(
             else f"{type_info.cpp_name} &self"
         )
         getter = (
-            f"[lua]({self_type}) -> sol::object {{ "
+            f"[lua]({self_type}) -> lua_glue::Object {{ "
             f"return ludork::runtime::binding::writeLuaValue(lua, "
             f"self.{computed_getter}()); }}"
         )
         computed_setter = member.options.get("setter")
         if computed_setter is None:
-            return f'{target}.set("{member.name}", sol::readonly_property({getter}));'
+            return f'lua_glue::BindProperty({target}, "{member.name}", {getter});'
         setter = (
-            f"[]({type_info.cpp_name} &self, sol::object value) {{ "
+            f"[]({type_info.cpp_name} &self, lua_glue::Object value) {{ "
             f"self.{computed_setter}("
             f"ludork::runtime::binding::readLuaValue<{value_type}>(value)); }}"
         )
-        return f'{target}.set("{member.name}", sol::property({getter}, {setter}));'
+        return f'lua_glue::BindProperty({target}, "{member.name}", {getter}, {setter});'
     if (
         not is_data_type(context, value_type)
         and not is_shared_pointer(context, value_type)
         and not is_bound_pointer(context, value_type)
     ):
         return (
-            f'{target}.set("{member.name}", sol::policies('
-            f"&{type_info.cpp_name}::{member.name}, sol::self_dependency{{}}));"
+            f'lua_glue::BindAttr<{value_type}>({target}, "{member.name}", '
+            f"&{type_info.cpp_name}::{member.name});"
         )
     getter = (
-        f"[lua](const {type_info.cpp_name} &self) -> sol::object {{ "
+        f"[lua](const {type_info.cpp_name} &self) -> lua_glue::Object {{ "
         f"return ludork::runtime::binding::writeLuaValue(lua, self.{member.name}); }}"
     )
     setter = (
-        f"[]({type_info.cpp_name} &self, sol::object value) {{ "
+        f"[]({type_info.cpp_name} &self, lua_glue::Object value) {{ "
         f"self.{member.name} = ludork::runtime::binding::readLuaValue<{value_type}>(value); }}"
     )
-    return f'{target}.set("{member.name}", sol::property({getter}, {setter}));'
+    if is_read_only_property(member):
+        return f'lua_glue::BindProperty({target}, "{member.name}", {getter});'
+    return f'lua_glue::BindProperty({target}, "{member.name}", {getter}, {setter});'
 
 
 def class_property_registration(
@@ -625,71 +625,14 @@ def class_property_registration(
             f"{exposed_name}"
         )
     getter = (
-        f"[lua]() -> sol::object {{ return ludork::runtime::binding::writeLuaValue("
+        f"[lua]() -> lua_glue::Object {{ return ludork::runtime::binding::writeLuaValue("
         f"lua, {type_info.cpp_name}::{member.name}); }}"
     )
-    return f'{target}.set("{exposed_name}", sol::readonly_property({getter}));'
-
-
-def class_property_new_index_lines(
-    context: GeneratorContext, type_info: TypeInfo, properties: list[Member]
-) -> list[str]:
-    if not properties:
-        return []
-    prefix = type_info.cpp_name + "ClassProperty"
-    lines = [
-        (
-            f'sol::table {prefix}Table = root["{exposed_type_name(type_info)}"]'
-            ".get<sol::table>();"
-        ),
-        (f"sol::table {prefix}Metatable = {prefix}Table[sol::metatable_key];"),
-        (
-            f"sol::object {prefix}PreviousNewIndex = "
-            f"{prefix}Metatable.raw_get<sol::object>("
-            "sol::meta_function::new_index);"
-        ),
-        (
-            f"{prefix}Metatable[sol::meta_function::new_index] = "
-            f"[{prefix}PreviousNewIndex](sol::table self, sol::object key, "
-            "sol::object value) {"
-        ),
-        "    if (key.is<std::string>()) {",
-        "        const std::string name = key.as<std::string>();",
-    ]
-    for member in properties:
-        exposed_name = member.options.get("name", member.name)
-        if is_read_only_property(member):
-            lines.append(
-                f'        if (name == "{exposed_name}") throw sol::error('
-                f'"class property {exposed_type_name(type_info)}.'
-                f'{exposed_name} is read-only");'
-            )
-        else:
-            value_type = class_property_type(context, member)
-            require_binding_type_features(context, value_type)
-            lines.append(
-                f'        if (name == "{exposed_name}") {{ '
-                f"{type_info.cpp_name}::{member.name} = "
-                f"ludork::runtime::binding::readLuaValue<{value_type}>(value); return; }}"
-            )
-    lines.extend(
-        [
-            "    }",
-            (f"    if ({prefix}PreviousNewIndex.get_type() == sol::type::function) {{"),
-            (
-                f"        sol::protected_function handler = "
-                f"{prefix}PreviousNewIndex.as<sol::protected_function>();"
-            ),
-            "        sol::protected_function_result result = handler(self, key, value);",
-            "        lua_sf::throw_on_lua_error(result);",
-            "        return;",
-            "    }",
-            (f"    if ({prefix}PreviousNewIndex.get_type() == sol::type::table) {{"),
-            (f"        {prefix}PreviousNewIndex.as<sol::table>().raw_set(key, value);"),
-            "        return;",
-            "    }",
-            "    self.raw_set(key, value);",
-            "};",
-        ]
+    if is_read_only_property(member):
+        return f'lua_glue::BindStaticProperty({target}, "{exposed_name}", {getter});'
+    value_type = class_property_type(context, member)
+    setter = (
+        f"[lua](lua_glue::Object value) {{ {type_info.cpp_name}::{member.name} = "
+        f"ludork::runtime::binding::readLuaValue<{value_type}>(value); }}"
     )
-    return lines
+    return f'lua_glue::BindStaticProperty({target}, "{exposed_name}", {getter}, {setter});'

@@ -17,7 +17,7 @@ function WorldGameMapStreaming.SyncStreamingCamera(self)
     end
     self._camera:syncFollowTarget()
     local position = self._camera:getViewPosition()
-    self._worldStreamingCameraPosition = position ~= nil and copy(position) or nil
+    self._worldStreamingCameraPosition = position ~= nil and position:copy() or nil
 end
 
 ---@return Global.WorldGeometry.CellRect
@@ -270,7 +270,7 @@ function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
     self._worldStreamJobRegions[item.category] = nil
 end
 
----@param self WorldGameMapImplState
+---@param self                 WorldGameMapImplState
 ---@param publishBudgetSeconds number
 function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
     if self._worldDisposed then

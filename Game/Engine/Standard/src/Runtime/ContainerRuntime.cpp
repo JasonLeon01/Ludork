@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "ContainerRuntime.hpp"
 #include <JsonRuntimeProtocol.hpp>
 
@@ -23,42 +24,36 @@ namespace detail {
 
 unsigned char nilSentinelStorage;
 
-sol::object nilObject(sol::state_view lua) {
-    return sol::make_object(lua, sol::lua_nil);
+lua_glue::Object nilObject(lua_glue::StateView lua) {
+    return lua_glue::MakeObject(lua, lua_glue::nil);
 }
 
-sol::object nilSentinel(sol::state_view lua) {
-    return sol::make_object(
-        lua, sol::lightuserdata_value(static_cast<void*>(&nilSentinelStorage)));
+lua_glue::Object nilSentinel(lua_glue::StateView lua) {
+    return lua_glue::MakeObject(
+        lua, lua_glue::LightUserdata(static_cast<void*>(&nilSentinelStorage)));
 }
 
-const void* objectIdentity(const sol::object& value) {
+const void* objectIdentity(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
-    value.push();
+    value.push(state);
     const void* result = lua_topointer(state, -1);
     lua_pop(state, 1);
     return result;
 }
 
-bool rawEqual(const sol::object& left, const sol::object& right) {
-    lua_State* state = left.lua_state();
-    left.push();
-    right.push();
-    const bool result = lua_rawequal(state, -2, -1) != 0;
-    lua_pop(state, 2);
-    return result;
+bool rawEqual(const lua_glue::Object& left, const lua_glue::Object& right) {
+    return left == right;
 }
 
-bool luaEqual(const sol::object& left, const sol::object& right) {
+bool luaEqual(const lua_glue::Object& left, const lua_glue::Object& right) {
     lua_State* state = left.lua_state();
-    left.push();
-    right.push();
-    const bool result = lua_compare(state, -2, -1, LUA_OPEQ) != 0;
-    lua_pop(state, 2);
-    return result;
+    lua_glue::StackGuard stack(state);
+    left.push(state);
+    right.push(state);
+    return ludork::standard::compareLuaValues(state, -2, -1, LUA_OPEQ);
 }
 
-ContainerKind containerKind(const sol::object& value) {
+ContainerKind containerKind(const lua_glue::Object& value) {
     if (value.is<NativeList>()) {
         return ContainerKind::List;
     }
@@ -71,42 +66,45 @@ ContainerKind containerKind(const sol::object& value) {
     return ContainerKind::None;
 }
 
-bool isStoredNil(const sol::object& value) {
-    if (value.get_type() != sol::type::lightuserdata) {
+bool isStoredNil(const lua_glue::Object& value) {
+    if (value.get_type() != lua_glue::Type::LightUserdata) {
         return false;
     }
     lua_State* state = value.lua_state();
-    value.push();
+    value.push(state);
     const bool result =
         lua_touserdata(state, -1) == static_cast<void*>(&nilSentinelStorage);
     lua_pop(state, 1);
     return result;
 }
 
-bool isJsonNull(sol::state_view lua, const sol::object& value) {
-    const sol::object sentinel = lua.registry().raw_get<sol::object>(
+bool isJsonNull(lua_glue::StateView lua, const lua_glue::Object& value) {
+    const lua_glue::Object sentinel = lua.registry().raw_get<lua_glue::Object>(
         ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
-    return sentinel.valid() && sentinel.get_type() != sol::type::lua_nil &&
+    return sentinel.valid() && sentinel.get_type() != lua_glue::Type::Nil &&
            rawEqual(value, sentinel);
 }
 
-sol::object storedValue(sol::state_view lua, const sol::object& value,
-                        bool decodeJsonNull) {
-    if (value.get_type() == sol::type::lua_nil ||
+lua_glue::Object storedValue(lua_glue::StateView lua,
+                             const lua_glue::Object& value,
+                             bool decodeJsonNull) {
+    if (value.get_type() == lua_glue::Type::Nil ||
         (decodeJsonNull && isJsonNull(lua, value))) {
         return nilSentinel(lua);
     }
     return value;
 }
 
-sol::object exposedValue(sol::state_view lua, const sol::object& value) {
+lua_glue::Object exposedValue(lua_glue::StateView lua,
+                              const lua_glue::Object& value) {
     return isStoredNil(value) ? nilObject(lua) : value;
 }
 
-void setUservalueRoot(const sol::object& value, const sol::table& root) {
+void setUservalueRoot(const lua_glue::Object& value,
+                      const lua_glue::Table& root) {
     lua_State* state = value.lua_state();
-    value.push();
-    root.push();
+    value.push(state);
+    root.push(state);
     if (lua_setiuservalue(state, -2, 1) == 0) {
         lua_pop(state, 1);
         throw std::runtime_error("Native container has no uservalue slot");
@@ -114,73 +112,73 @@ void setUservalueRoot(const sol::object& value, const sol::table& root) {
     lua_pop(state, 1);
 }
 
-sol::table uservalueRoot(const sol::object& value) {
+lua_glue::Table uservalueRoot(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
-    value.push();
+    value.push(state);
     if (lua_getiuservalue(state, -1, 1) != LUA_TTABLE) {
         lua_pop(state, 2);
         throw std::runtime_error("Native container backing table is missing");
     }
-    sol::table result = sol::stack::get<sol::table>(state, -1);
+    lua_glue::Table result = lua_glue::Read<lua_glue::Table>(state, -1);
     lua_pop(state, 2);
     return result;
 }
 
-sol::table sequenceValues(const sol::object& value) {
-    const sol::object rawValues =
-        uservalueRoot(value).raw_get<sol::object>("values");
-    if (!rawValues.is<sol::table>()) {
+lua_glue::Table sequenceValues(const lua_glue::Object& value) {
+    const lua_glue::Object rawValues =
+        uservalueRoot(value).raw_get<lua_glue::Object>("values");
+    if (!rawValues.is<lua_glue::Table>()) {
         throw std::runtime_error("Native sequence backing values are missing");
     }
-    return rawValues.as<sol::table>();
+    return rawValues.as<lua_glue::Table>();
 }
 
-sol::table dictKeys(const sol::object& value) {
-    const sol::object rawKeys =
-        uservalueRoot(value).raw_get<sol::object>("keys");
-    if (!rawKeys.is<sol::table>()) {
+lua_glue::Table dictKeys(const lua_glue::Object& value) {
+    const lua_glue::Object rawKeys =
+        uservalueRoot(value).raw_get<lua_glue::Object>("keys");
+    if (!rawKeys.is<lua_glue::Table>()) {
         throw std::runtime_error("Native dictionary backing keys are missing");
     }
-    return rawKeys.as<sol::table>();
+    return rawKeys.as<lua_glue::Table>();
 }
 
-sol::table dictValues(const sol::object& value) {
-    const sol::object rawValues =
-        uservalueRoot(value).raw_get<sol::object>("values");
-    if (!rawValues.is<sol::table>()) {
+lua_glue::Table dictValues(const lua_glue::Object& value) {
+    const lua_glue::Object rawValues =
+        uservalueRoot(value).raw_get<lua_glue::Object>("values");
+    if (!rawValues.is<lua_glue::Table>()) {
         throw std::runtime_error(
             "Native dictionary backing values are missing");
     }
-    return rawValues.as<sol::table>();
+    return rawValues.as<lua_glue::Table>();
 }
 
-sol::object createList(sol::state_view lua) {
-    sol::object result = sol::make_object(lua, NativeList{});
-    sol::table root = lua.create_table();
+lua_glue::Object createList(lua_glue::StateView lua) {
+    lua_glue::Object result = lua_glue::MakeObject(lua, NativeList{});
+    lua_glue::Table root = lua.create_table();
     root.raw_set("values", lua.create_table());
     setUservalueRoot(result, root);
     return result;
 }
 
-sol::object createTuple(sol::state_view lua) {
-    sol::object result = sol::make_object(lua, NativeTuple{});
-    sol::table root = lua.create_table();
+lua_glue::Object createTuple(lua_glue::StateView lua) {
+    lua_glue::Object result = lua_glue::MakeObject(lua, NativeTuple{});
+    lua_glue::Table root = lua.create_table();
     root.raw_set("values", lua.create_table());
     setUservalueRoot(result, root);
     return result;
 }
 
-sol::object createDict(sol::state_view lua) {
-    sol::object result = sol::make_object(lua, NativeDict{});
-    sol::table root = lua.create_table();
+lua_glue::Object createDict(lua_glue::StateView lua) {
+    lua_glue::Object result = lua_glue::MakeObject(lua, NativeDict{});
+    lua_glue::Table root = lua.create_table();
     root.raw_set("keys", lua.create_table());
     root.raw_set("values", lua.create_table());
     setUservalueRoot(result, root);
     return result;
 }
 
-std::size_t rawSequenceLength(const sol::table& source) {
-    const sol::object rawLength = source.raw_get<sol::object>("n");
+std::size_t rawSequenceLength(const lua_glue::Table& source) {
+    const lua_glue::Object rawLength = source.raw_get<lua_glue::Object>("n");
     if (rawLength.is<lua_Integer>()) {
         const lua_Integer length = rawLength.as<lua_Integer>();
         if (length >= 0) {
@@ -188,37 +186,38 @@ std::size_t rawSequenceLength(const sol::table& source) {
         }
     }
     lua_State* state = source.lua_state();
-    source.push();
+    source.push(state);
     const std::size_t result = lua_rawlen(state, -1);
     lua_pop(state, 1);
     return result;
 }
 
-std::size_t sequenceLength(const sol::object& source) {
+std::size_t sequenceLength(const lua_glue::Object& source) {
     if (source.is<NativeList>()) {
         return source.as<NativeList&>().length;
     }
     if (source.is<NativeTuple>()) {
         return source.as<NativeTuple&>().length;
     }
-    if (source.get_type() == sol::type::table) {
-        return rawSequenceLength(source.as<sol::table>());
+    if (source.get_type() == lua_glue::Type::Table) {
+        return rawSequenceLength(source.as<lua_glue::Table>());
     }
     throw std::invalid_argument(
         "Sequence source must be a table, list, or tuple");
 }
 
-bool isSequenceSource(const sol::object& source) {
-    return source.get_type() == sol::type::table || source.is<NativeList>() ||
-           source.is<NativeTuple>();
+bool isSequenceSource(const lua_glue::Object& source) {
+    return source.get_type() == lua_glue::Type::Table ||
+           source.is<NativeList>() || source.is<NativeTuple>();
 }
 
-sol::object sequenceItem(sol::state_view lua, const sol::object& source,
-                         std::size_t index, bool decodeRawJsonNull) {
-    const bool rawTable = source.get_type() == sol::type::table;
-    sol::object value =
-        rawTable ? source.as<sol::table>().raw_get<sol::object>(index)
-                 : sequenceValues(source).raw_get<sol::object>(index);
+lua_glue::Object sequenceItem(lua_glue::StateView lua,
+                              const lua_glue::Object& source, std::size_t index,
+                              bool decodeRawJsonNull) {
+    const bool rawTable = source.get_type() == lua_glue::Type::Table;
+    lua_glue::Object value =
+        rawTable ? source.as<lua_glue::Table>().raw_get<lua_glue::Object>(index)
+                 : sequenceValues(source).raw_get<lua_glue::Object>(index);
     if (!rawTable) {
         return exposedValue(lua, value);
     }
@@ -228,8 +227,8 @@ sol::object sequenceItem(sol::state_view lua, const sol::object& source,
     return value;
 }
 
-void appendListValue(sol::state_view lua, const sol::object& target,
-                     const sol::object& value, bool decodeJsonNull,
+void appendListValue(lua_glue::StateView lua, const lua_glue::Object& target,
+                     const lua_glue::Object& value, bool decodeJsonNull,
                      bool structuralChange) {
     NativeList& list = target.as<NativeList&>();
     sequenceValues(target).raw_set(list.length + 1,
@@ -240,9 +239,9 @@ void appendListValue(sol::state_view lua, const sol::object& target,
     }
 }
 
-void appendTupleValue(sol::state_view lua, const sol::object& target,
-                      const sol::object& value, bool decodeJsonNull) {
-    if (value.get_type() == sol::type::lua_nil ||
+void appendTupleValue(lua_glue::StateView lua, const lua_glue::Object& target,
+                      const lua_glue::Object& value, bool decodeJsonNull) {
+    if (value.get_type() == lua_glue::Type::Nil ||
         (decodeJsonNull && isJsonNull(lua, value))) {
         throw std::invalid_argument("tuple elements cannot be nil");
     }
@@ -251,17 +250,17 @@ void appendTupleValue(sol::state_view lua, const sol::object& target,
     ++tuple.length;
 }
 
-std::vector<sol::object> constructorValues(sol::state_view lua,
-                                           sol::variadic_args arguments,
-                                           bool& decodedFromRawTable) {
+std::vector<lua_glue::Object> constructorValues(lua_glue::StateView lua,
+                                                lua_glue::Arguments arguments,
+                                                bool& decodedFromRawTable) {
     decodedFromRawTable = false;
-    std::vector<sol::object> result;
+    std::vector<lua_glue::Object> result;
     if (arguments.size() == 1) {
-        const sol::object source = arguments.begin()->get<sol::object>();
+        const lua_glue::Object source = arguments.get<lua_glue::Object>();
         if (isSequenceSource(source)) {
             const std::size_t length = sequenceLength(source);
             result.reserve(length);
-            decodedFromRawTable = source.get_type() == sol::type::table;
+            decodedFromRawTable = source.get_type() == lua_glue::Type::Table;
             for (std::size_t index = 1; index <= length; ++index) {
                 result.push_back(sequenceItem(lua, source, index, true));
             }
@@ -269,8 +268,8 @@ std::vector<sol::object> constructorValues(sol::state_view lua,
         }
     }
     result.reserve(arguments.size());
-    for (const sol::stack_proxy& argument : arguments) {
-        result.push_back(argument.get<sol::object>());
+    for (const lua_glue::StackValue& argument : arguments) {
+        result.push_back(argument.get<lua_glue::Object>());
     }
     return result;
 }
@@ -279,10 +278,10 @@ std::vector<sol::object> constructorValues(sol::state_view lua,
 
 using namespace detail;
 
-void registerContainers(sol::state_view lua) {
+void registerContainers(lua_glue::StateView lua) {
     lua_pushcfunction(lua.lua_state(), lessThan);
-    lua.registry().raw_set(LESS_THAN_KEY,
-                           sol::stack::get<sol::object>(lua.lua_state(), -1));
+    lua.registry().raw_set(
+        LESS_THAN_KEY, lua_glue::Read<lua_glue::Object>(lua.lua_state(), -1));
     lua_pop(lua.lua_state(), 1);
     registerList(lua);
     registerTuple(lua);
@@ -315,7 +314,8 @@ void shutdownContainers(lua_State* state) noexcept {
 }
 
 bool containerLength(lua_State* state, int index, std::size_t& length) {
-    const sol::object value = sol::stack::get<sol::object>(state, index);
+    const lua_glue::Object value =
+        lua_glue::Read<lua_glue::Object>(state, index);
     if (value.is<NativeList>()) {
         length = value.as<NativeList&>().length;
         return true;
@@ -331,11 +331,11 @@ bool containerLength(lua_State* state, int index, std::size_t& length) {
     return false;
 }
 
-bool isContainer(const sol::object& value) {
+bool isContainer(const lua_glue::Object& value) {
     return containerKind(value) != ContainerKind::None;
 }
 
-std::size_t containerStorageSize(const sol::object& value) {
+std::size_t containerStorageSize(const lua_glue::Object& value) {
     if (value.is<NativeList>()) {
         const NativeList& list = value.as<NativeList&>();
         return sizeof(NativeList) + list.length * sizeof(void*) * 2;
@@ -358,37 +358,37 @@ std::size_t containerStorageSize(const sol::object& value) {
     return 0;
 }
 
-std::vector<sol::object> containerChildren(const sol::object& value) {
-    sol::state_view lua(value.lua_state());
-    std::vector<sol::object> result;
+std::vector<lua_glue::Object> containerChildren(const lua_glue::Object& value) {
+    lua_glue::StateView lua(value.lua_state());
+    std::vector<lua_glue::Object> result;
     if (value.is<NativeList>()) {
         const NativeList& list = value.as<NativeList&>();
         result.reserve(list.length);
-        const sol::table values = sequenceValues(value);
+        const lua_glue::Table values = sequenceValues(value);
         for (std::size_t index = 1; index <= list.length; ++index) {
             result.push_back(
-                exposedValue(lua, values.raw_get<sol::object>(index)));
+                exposedValue(lua, values.raw_get<lua_glue::Object>(index)));
         }
         return result;
     }
     if (value.is<NativeTuple>()) {
         const NativeTuple& tuple = value.as<NativeTuple&>();
         result.reserve(tuple.length);
-        const sol::table values = sequenceValues(value);
+        const lua_glue::Table values = sequenceValues(value);
         for (std::size_t index = 1; index <= tuple.length; ++index) {
-            result.push_back(values.raw_get<sol::object>(index));
+            result.push_back(values.raw_get<lua_glue::Object>(index));
         }
         return result;
     }
     if (value.is<NativeDict>()) {
         const NativeDict& dict = value.as<NativeDict&>();
         result.reserve(dict.length * 2);
-        const sol::table keys = dictKeys(value);
+        const lua_glue::Table keys = dictKeys(value);
         for (std::size_t index = 0; index < dict.entries.size(); ++index) {
             if (!dict.entries[index].alive) {
                 continue;
             }
-            result.push_back(keys.raw_get<sol::object>(index + 1));
+            result.push_back(keys.raw_get<lua_glue::Object>(index + 1));
             result.push_back(dictEntryValue(lua, value, index));
         }
     }

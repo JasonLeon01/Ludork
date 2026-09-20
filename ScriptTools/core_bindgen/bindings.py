@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .annotations import (
+    binding_base_lua_path,
     cast_bases,
     native_bases,
     native_cast_base_name,
@@ -23,7 +24,6 @@ from .binding_adapters import (
 )
 from .binding_calls import (
     callable_overloads,
-    class_property_new_index_lines,
     class_property_registration,
     function_registrations,
     indexer_registration,
@@ -33,7 +33,6 @@ from .binding_calls import (
     property_registration,
     table_value_properties,
     transitive_binding_bases,
-    wrap_overloads,
 )
 from .binding_values import (
     injection_lines,
@@ -46,9 +45,12 @@ from .binding_values import (
 from .constants import CPP_GENERATED_FILE_MARKER
 from .context import GeneratorContext
 from .cpp_types import (
+    INTEGER_TYPES,
     exposed_type_name,
     option_list,
+    parse_cpp_type,
     property_type,
+    render_parsed_type,
     require_binding_type_features,
 )
 from .layout import (
@@ -71,7 +73,7 @@ def enum_binding_lines(enums: list[EnumInfo]) -> list[str]:
         public_name = exposed_type_name(info)
         variable = f"bindingEnum{index}"
         output.append(
-            f"sol::table {variable} = lua.create_table(0, {len(info.values)});"
+            f"lua_glue::Table {variable} = lua.create_table(0, {len(info.values)});"
         )
         for value in info.values:
             output.append(
@@ -83,12 +85,63 @@ def enum_binding_lines(enums: list[EnumInfo]) -> list[str]:
     return output
 
 
+def independent_record_types(context: GeneratorContext, types: list[TypeInfo]) -> list[tuple[TypeInfo, str]]:
+    candidates = {
+        info.cpp_name: info
+        for info in types
+        if info.fully_bound_record
+        and info.options.get("copyable", "false").lower() == "true"
+        and not any(info.options.get(mode, "false").lower() == "true"
+                    for mode in ("dynamic_value", "pure_data", "opaque_identity", "callbacks"))
+    }
+    result: list[tuple[TypeInfo, str]] = []
+    emitted: set[str] = set()
+    visiting: set[str] = set()
+
+    def expression(value: str) -> str:
+        parsed = parse_cpp_type(context, value)
+        name = parsed.name
+        if "*" in name or "&" in name:
+            return "false"
+        if name in INTEGER_TYPES | {"bool", "float", "double", "long double", "std::string", "std::monostate"} | context.enum_types:
+            return "true"
+        arities = {"std::vector": 1, "std::array": 2, "std::optional": 1,
+                   "std::map": 2, "std::unordered_map": 2, "std::pair": 2}
+        if name in arities:
+            if len(parsed.arguments) != arities[name]:
+                return "false"
+            fields = parsed.arguments[:1] if name == "std::array" else parsed.arguments
+            return " && ".join(f"({expression(render_parsed_type(field))})" for field in fields)
+        if name in {"std::tuple", "std::variant"}:
+            return " && ".join(f"({expression(render_parsed_type(field))})" for field in parsed.arguments) or "true"
+        if name in candidates:
+            emit(name)
+        return f"lua_glue::StructTraits<{render_parsed_type(parsed)}>::enabled"
+
+    def emit(name: str) -> None:
+        if name in emitted:
+            return
+        if name in visiting:
+            raise ValueError(f"cyclic native record value fields: {name}")
+        visiting.add(name)
+        info = candidates[name]
+        fields = [expression(property_type(context, member)) for member in info.properties]
+        result.append((info, " && ".join(f"({field})" for field in fields) or "true"))
+        visiting.remove(name)
+        emitted.add(name)
+
+    for name in candidates:
+        emit(name)
+    return result
+
+
 def generate_binding_traits_header(
     context: GeneratorContext,
     types: list[TypeInfo],
     include_directories: list[Path],
 ) -> str:
     unique_types = {info.cpp_name: info for info in types}
+    records = independent_record_types(context, types)
     dynamic_types = sorted(
         info.cpp_name
         for info in unique_types.values()
@@ -106,8 +159,18 @@ def generate_binding_traits_header(
         "#pragma once",
         "",
         "#include <LudorkRuntimeBinding/ValueTraits.hpp>",
+        "#include <LuaSF.hpp>",
+        "#include <LuaGlue/LuaGlue.hpp>",
         "",
     ]
+    output.extend(include_lines({info.source for info, _ in records}, include_directories))
+    for info, condition in records:
+        output.extend([
+            f"template <> struct lua_glue::StructTraits<{info.cpp_name}> {{",
+            f"    static constexpr bool enabled = ({condition}) && std::is_copy_constructible_v<{info.cpp_name}>;",
+            f"    static {info.cpp_name} DeepCopy(const {info.cpp_name}& value) {{ return {info.cpp_name}(value); }}",
+            "};",
+        ])
     nested_headers: set[Path] = set()
     forwards: list[str] = []
     for name in declared_types:
@@ -271,13 +334,14 @@ def compose_source(
     output = [
         CPP_GENERATED_FILE_MARKER,
         "#include <LuaSF.hpp>",
-        "#include <luasf_sol.hpp>",
+        "#include <LuaGlue/LuaGlue.hpp>",
         "#include <LudorkRuntimeBinding/ModuleApi.hpp>",
         *(["#include <ClassServices.hpp>"] if class_binding else []),
         *[f"#include <{header}>" for header in context.binding_feature_headers()],
         *include_lines(sources, include_directories),
-        *(["#include <fstream>"] if stub_binding else []),
+        *(["#include <fstream>", "#include <LuaError.hpp>"] if stub_binding else []),
         "#include <memory>",
+        "#include <stdexcept>",
         "#include <string>",
         "#include <string_view>",
         "#include <type_traits>",
@@ -297,6 +361,7 @@ def class_binding_body(
     module_types: list[TypeInfo],
     trait_types: list[TypeInfo],
 ) -> tuple[list[str], list[str]]:
+    context.require_binding_feature("native")
     type_map = {value.cpp_name: value for value in trait_types}
     local_types = {value.cpp_name for value in module_types}
     public_names = {value.cpp_name: exposed_type_name(value) for value in module_types}
@@ -313,25 +378,17 @@ def class_binding_body(
         for item in cast_bases(info)
         if (cast_base := native_cast_base_name(context, item)) is not None
     ]
-    conversion_bases = list(
-        dict.fromkeys(
-            transitive_binding_bases(context, declared_bases, type_map)
-            + explicit_cast_bases
-        )
-    )
+    binding_bases = transitive_binding_bases(context, declared_bases, type_map)
+    conversion_bases = list(dict.fromkeys(binding_bases + explicit_cast_bases))
     for type_name in conversion_bases:
         require_binding_type_features(context, type_name)
     adapter_output, adapter = adapter_class_lines(context, info, type_map)
     output = [
         f"void {class_binder_name(module, info.cpp_name)}(",
-        "    sol::state_view lua, sol::table root,",
-        "    sol::table bindingRuntimeMetadata)",
+        "    lua_glue::StateView lua, lua_glue::Table root,",
+        "    lua_glue::Table bindingRuntimeMetadata)",
         "{",
     ]
-    base = ""
-    if conversion_bases:
-        base = ", sol::base_classes, sol::bases<" + ", ".join(conversion_bases) + ">()"
-    constructor = ", sol::no_constructor"
     public_constructors = [
         member for member in info.constructors if member.access == "public"
     ]
@@ -343,13 +400,22 @@ def class_binding_body(
         factories.insert(0, table_initializer_factory(info, conversion_bases))
         if not any(0 in member_arities(member) for member in public_constructors):
             factories.insert(0, table_default_factory(info, conversion_bases))
-    if factories:
-        constructor = ", sol::factories(" + ", ".join(factories) + ")"
     output.append(
-        f'    auto {identifier}Type = root.new_usertype<{info.cpp_name}>("{public_name}"{constructor}{base});'
+        f'    auto {identifier}Type = ludork::runtime::binding::bindNativeType<{info.cpp_name}>(root, "{public_name}");'
     )
-    external_types = ", ".join([info.cpp_name, *conversion_bases])
-    output.append(f"    lua_sf::register_external_usertype<{external_types}>(lua);")
+    for base_name in conversion_bases:
+        registration = (
+            "BindBase"
+            if binding_base_lua_path(context, base_name) is not None
+            else "BindCast"
+        )
+        output.append(
+            f"    lua_glue::{registration}<{info.cpp_name}, {base_name}>({identifier}Type);"
+        )
+    for factory in factories:
+        output.append(
+            f'    lua_glue::BindCallable({identifier}Type, "new", {factory});'
+        )
     if conversion_bases:
         context.require_binding_feature("native")
         writer_types = ", ".join([info.cpp_name, info.cpp_name, *conversion_bases])
@@ -364,23 +430,23 @@ def class_binding_body(
                 f"{adapter_writer_types}>(lua);"
             )
     output.append(
-        f'    root["{public_name}"].get<sol::table>().raw_set("__metadataModule", "{module}");'
+        f'    root["{public_name}"].get<lua_glue::Table>().raw_set("__metadataModule", "{module}");'
     )
     output.extend(
         [
             (
-                f"    sol::object {identifier}RuntimeMetadataValue = "
-                f'bindingRuntimeMetadata.raw_get<sol::object>("{public_name}");'
+                f"    lua_glue::Object {identifier}RuntimeMetadataValue = "
+                f'bindingRuntimeMetadata.raw_get<lua_glue::Object>("{public_name}");'
             ),
             (
-                f"    sol::table {identifier}RuntimeMetadata = "
-                f"{identifier}RuntimeMetadataValue.is<sol::table>() "
-                f"? {identifier}RuntimeMetadataValue.as<sol::table>() "
+                f"    lua_glue::Table {identifier}RuntimeMetadata = "
+                f"{identifier}RuntimeMetadataValue.is<lua_glue::Table>() "
+                f"? {identifier}RuntimeMetadataValue.as<lua_glue::Table>() "
                 ": lua.create_table();"
             ),
             f'    {identifier}RuntimeMetadata.raw_set("module", "{module}");',
             (
-                f'    root["{public_name}"].get<sol::table>().raw_set('
+                f'    root["{public_name}"].get<lua_glue::Table>().raw_set('
                 f'"__runtimeMetadata", {identifier}RuntimeMetadata);'
             ),
         ]
@@ -395,24 +461,23 @@ def class_binding_body(
     callbacks, base_members = adapter_members(info, type_map)
     callback_names = [member.name for member in callbacks]
     if callback_names:
-        output.append(f"    sol::table {identifier}Callbacks = lua.create_table();")
+        output.append(f"    lua_glue::Table {identifier}Callbacks = lua.create_table();")
         for callback_name in callback_names:
             output.append(f'    {identifier}Callbacks.add("{callback_name}");')
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set("__classCallbacks", {identifier}Callbacks);'
+            f'    root["{public_name}"].get<lua_glue::Table>().raw_set("__classCallbacks", {identifier}Callbacks);'
         )
     if adapter is not None:
         class_factories = adapter_factories(context, info, adapter, conversion_bases)
-        output.append(
-            f'    root["{public_name}"].get<sol::table>().set_function("__classFactory", '
-            + wrap_overloads(class_factories, "sol::overload")
-            + ");"
+        output.extend(
+            f'    lua_glue::BindCallable({identifier}Type, "__classFactory", {factory});'
+            for factory in class_factories
         )
         if callback_names:
             output.extend(
                 [
                     (
-                        f'    root["{public_name}"].get<sol::table>().set_function('
+                        f'    root["{public_name}"].get<lua_glue::Table>().set_function('
                         '"__classRelease", '
                     ),
                     (
@@ -446,7 +511,7 @@ def class_binding_body(
             minimum_factory_arity = minimum_member_arity(public_constructors)
     if minimum_factory_arity is not None:
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set('
+            f'    root["{public_name}"].get<lua_glue::Table>().raw_set('
             f'"__classFactoryMinArgs", {minimum_factory_arity});'
         )
     visible_runtime_bases = []
@@ -459,11 +524,11 @@ def class_binding_body(
                 raise ValueError(f"unknown runtime base {runtime_base} on {info.cpp_name}")
             continue
         visible_runtime_bases.append(expression)
-    output.append(f"    sol::table {identifier}RuntimeBases = lua.create_table();")
+    output.append(f"    lua_glue::Table {identifier}RuntimeBases = lua.create_table();")
     for expression in visible_runtime_bases:
         output.append(f"    {identifier}RuntimeBases.add({expression});")
     output.append(
-        f'    root["{public_name}"].get<sol::table>().raw_set('
+        f'    root["{public_name}"].get<lua_glue::Table>().raw_set('
         f'"__runtimeBases", {identifier}RuntimeBases);'
     )
     visible_native_bases = []
@@ -476,11 +541,11 @@ def class_binding_body(
                 raise ValueError(f"unknown native base {native_base} on {info.cpp_name}")
             continue
         visible_native_bases.append(expression)
-    output.append(f"    sol::table {identifier}NativeBases = lua.create_table();")
+    output.append(f"    lua_glue::Table {identifier}NativeBases = lua.create_table();")
     for expression in visible_native_bases:
         output.append(f"    {identifier}NativeBases.add({expression});")
     output.append(
-        f'    root["{public_name}"].get<sol::table>().raw_set('
+        f'    root["{public_name}"].get<lua_glue::Table>().raw_set('
         f'"__nativeBases", {identifier}NativeBases);'
     )
     public_methods = [member for member in info.methods if member.access == "public"]
@@ -509,28 +574,22 @@ def class_binding_body(
     ]
     for prop in public_class_properties:
         output.append("    " + class_property_registration(context, info, prop))
-    output.extend(
-        "    " + line
-        for line in class_property_new_index_lines(
-            context, info, public_class_properties
-        )
-    )
     for prop in public_properties:
         output.append("    " + property_registration(context, info, prop))
     if public_properties:
         output.append(
-            f"    sol::table {identifier}NativeProperties = lua.create_table();"
+            f"    lua_glue::Table {identifier}NativeProperties = lua.create_table();"
         )
         for prop in public_properties:
             output.append(f'    {identifier}NativeProperties.add("{prop.name}");')
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set("__nativeProperties", {identifier}NativeProperties);'
+            f'    root["{public_name}"].get<lua_glue::Table>().raw_set("__nativeProperties", {identifier}NativeProperties);'
         )
     indexer_line = indexer_registration(context, info, public_name)
     if indexer_line is not None:
         output.append("    " + indexer_line)
     if adapter is not None and base_members:
-        output.append(f"    sol::table {identifier}BaseMethods = lua.create_table();")
+        output.append(f"    lua_glue::Table {identifier}BaseMethods = lua.create_table();")
         for member in base_members:
             output.append(
                 f'    {identifier}BaseMethods.set_function("{member.name}", '
@@ -538,11 +597,11 @@ def class_binding_body(
                 + ");"
             )
         output.append(
-            f'    root["{public_name}"].get<sol::table>().raw_set("__classBaseMethods", {identifier}BaseMethods);'
+            f'    root["{public_name}"].get<lua_glue::Table>().raw_set("__classBaseMethods", {identifier}BaseMethods);'
         )
     output.append(
         "    ludork::standard::class_runtime::registerNativeClass("
-        f'root["{public_name}"].get<sol::table>(), '
+        f'root["{public_name}"].get<lua_glue::Table>(), '
         f"{identifier}RuntimeMetadata);"
     )
     output.extend(["}", ""])
@@ -585,12 +644,12 @@ def generate_stub_binding(
 ) -> str:
     context = base_context.fork_translation_unit()
     output = [
-        "LUDORK_LUA_API int luaopen_" + module + "(lua_State* state)",
+        "static int open_" + module + "(lua_State* state)",
         "{",
         "    if (state == nullptr)",
         "        return 1;",
-        "    sol::state_view lua(state);",
-        f'    sol::table root = lua["{module}"].get_or_create<sol::table>();',
+        "    lua_glue::StateView lua(state);",
+        f'    lua_glue::Table root = lua["{module}"].get_or_create<lua_glue::Table>();',
         "    std::string bindingRuntimeMetadataSource;",
         f"    bindingRuntimeMetadataSource.reserve({len(metadata.encode('utf-8'))});",
     ]
@@ -598,14 +657,20 @@ def generate_stub_binding(
         output.append(f"    bindingRuntimeMetadataSource.append({chunk});")
     output.extend(
         [
-            "    sol::protected_function_result bindingRuntimeMetadataResult =",
-            "        lua.safe_script(bindingRuntimeMetadataSource, sol::script_pass_on_error);",
-            "    lua_sf::throw_on_lua_error(bindingRuntimeMetadataResult);",
-            "    sol::table bindingRuntimeMetadata = bindingRuntimeMetadataResult.get<sol::table>();",
+            "    lua_glue::CallResult bindingRuntimeMetadataResult =",
+            "        lua.script(bindingRuntimeMetadataSource);",
+            "    if (!bindingRuntimeMetadataResult.valid()) throw std::runtime_error(bindingRuntimeMetadataResult.error());",
+            "    lua_glue::Table bindingRuntimeMetadata = bindingRuntimeMetadataResult.get<lua_glue::Table>();",
             '    root.raw_set("__runtimeMetadata", bindingRuntimeMetadata);',
         ]
     )
     output.extend("    " + line for line in enum_binding_lines(enums))
+    ordered_types = order_types(types)
+    for info in ordered_types:
+        output.append(
+            f"    {class_binder_name(module, info.cpp_name)}("
+            "lua, root, bindingRuntimeMetadata);"
+        )
     module_property_lines, module_property_values = module_property_bindings(
         context, functions
     )
@@ -658,12 +723,6 @@ def generate_stub_binding(
             for line in injection_lines(context, injector, injection_index)
         )
         injection_index += 1
-    ordered_types = order_types(types)
-    for info in ordered_types:
-        output.append(
-            f"    {class_binder_name(module, info.cpp_name)}("
-            "lua, root, bindingRuntimeMetadata);"
-        )
     for initializer in [member for member in functions if member.kind == "MODULE_INIT"]:
         output.append(f"    {initializer.cpp_name}(state);")
     output.extend(
@@ -672,7 +731,14 @@ def generate_stub_binding(
             "    return 1;",
             "}",
             "",
-            "int " + module + "_write_stub(const char* path)",
+            "LUDORK_LUA_API int luaopen_" + module + "(lua_State* state)",
+            "{",
+            "    return ludork::standard::protectedLuaCallback(state, [&]() -> int {",
+            "        return open_" + module + "(state);",
+            "    });",
+            "}",
+            "",
+            "LUDORK_LUA_API int " + module + "_write_stub(const char* path)",
             "{",
             "    if (path == nullptr)",
             "        return 1;",
@@ -681,7 +747,28 @@ def generate_stub_binding(
             "        return 1;",
         ]
     )
-    for chunk in raw_string_chunks(stub, "STUB"):
+    return_statement = f"return {module}\n"
+    stub_body = stub.removesuffix(return_statement)
+    if stub_body == stub:
+        raise ValueError(f"module stub has no final return: {module}")
+    for chunk in raw_string_chunks(stub_body, "STUB"):
+        output.append(f"    output << {chunk};")
+    records = {info.cpp_name for info, _ in independent_record_types(context, trait_types)}
+    for info in types:
+        if info.cpp_name not in records:
+            continue
+        public_name = exposed_type_name(info)
+        copy_stub = (
+            f"\n---@return {module}.{public_name}\n"
+            f"function {module}.{public_name}:copy() end\n"
+            f"---@return {module}.{public_name}\n"
+            f"function {module}.{public_name}:deepcopy() end\n"
+        )
+        output.append(f"    if constexpr (lua_glue::StructTraits<{info.cpp_name}>::enabled) {{")
+        for chunk in raw_string_chunks(copy_stub, "COPYSTUB"):
+            output.append(f"        output << {chunk};")
+        output.append("    }")
+    for chunk in raw_string_chunks(return_statement, "STUBRETURN"):
         output.append(f"    output << {chunk};")
     output.extend(
         [
@@ -693,8 +780,8 @@ def generate_stub_binding(
     declarations = [
         (
             f"void {class_binder_name(module, info.cpp_name)}("
-            "sol::state_view lua, sol::table root, "
-            "sol::table bindingRuntimeMetadata);"
+            "lua_glue::StateView lua, lua_glue::Table root, "
+            "lua_glue::Table bindingRuntimeMetadata);"
         )
         for info in ordered_types
     ]

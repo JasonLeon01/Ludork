@@ -6,7 +6,7 @@
 #include "Detail/TypeQueries.hpp"
 #include "Native/NativeRuntime.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -21,35 +21,41 @@ namespace ludork::standard::class_runtime {
 
 namespace {
 
-sol::table requireClass(lua_State* state, int index) {
+lua_glue::Table requireClass(lua_State* state, int index) {
     if (!isHotReloadClass(state, index)) {
         throw std::invalid_argument("Hot reload requires a finalized class");
     }
-    return sol::stack::get<sol::table>(state, index);
+    return lua_glue::Read<lua_glue::Table>(state, index);
 }
 
-sol::object mappedClass(const sol::table& candidateToLive,
-                        const sol::object& candidate) {
-    const sol::object mapped = candidateToLive.raw_get<sol::object>(candidate);
-    return mapped.is<sol::table>() ? mapped : candidate;
+lua_glue::Object mappedClass(const lua_glue::Table& candidateToLive,
+                             const lua_glue::Object& candidate) {
+    const lua_glue::Object mapped =
+        candidateToLive.raw_get<lua_glue::Object>(candidate);
+    return mapped.is<lua_glue::Table>() ? mapped : candidate;
 }
 
-void validateHierarchy(const sol::table& previous, const sol::table& candidate,
-                       const sol::table& candidateToLive, const char* field) {
-    const sol::object oldValue = previous.raw_get<sol::object>(field);
-    const sol::object newValue = candidate.raw_get<sol::object>(field);
-    if (!oldValue.is<sol::table>() || !newValue.is<sol::table>()) {
+void validateHierarchy(const lua_glue::Table& previous,
+                       const lua_glue::Table& candidate,
+                       const lua_glue::Table& candidateToLive,
+                       const char* field) {
+    const lua_glue::Object oldValue = previous.raw_get<lua_glue::Object>(field);
+    const lua_glue::Object newValue =
+        candidate.raw_get<lua_glue::Object>(field);
+    if (!oldValue.is<lua_glue::Table>() || !newValue.is<lua_glue::Table>()) {
         throw std::invalid_argument(
             "Hot reload requires finalized class metadata");
     }
-    const sol::table oldTypes = oldValue.as<sol::table>();
-    const sol::table newTypes = newValue.as<sol::table>();
+    const lua_glue::Table oldTypes = oldValue.as<lua_glue::Table>();
+    const lua_glue::Table newTypes = newValue.as<lua_glue::Table>();
     if (oldTypes.size() != newTypes.size()) {
         throw std::runtime_error("Class inheritance changed; restart the game");
     }
     for (std::size_t index = 1; index <= oldTypes.size(); ++index) {
-        const sol::object oldType = oldTypes.raw_get<sol::object>(index);
-        const sol::object newType = newTypes.raw_get<sol::object>(index);
+        const lua_glue::Object oldType =
+            oldTypes.raw_get<lua_glue::Object>(index);
+        const lua_glue::Object newType =
+            newTypes.raw_get<lua_glue::Object>(index);
         if (detail::objectsRawEqual(oldType, previous) &&
             detail::objectsRawEqual(newType, candidate)) {
             continue;
@@ -62,74 +68,75 @@ void validateHierarchy(const sol::table& previous, const sol::table& candidate,
     }
 }
 
-sol::table candidateClass(const sol::table& candidateToLive,
-                          const sol::table& live) {
+lua_glue::Table candidateClass(const lua_glue::Table& candidateToLive,
+                               const lua_glue::Table& live) {
     for (const auto& entry : candidateToLive) {
-        if (entry.first.is<sol::table>() && entry.second.is<sol::table>() &&
+        if (entry.first.is<lua_glue::Table>() &&
+            entry.second.is<lua_glue::Table>() &&
             detail::objectsRawEqual(entry.second, live) &&
-            detail::isClass(entry.first.as<sol::table>())) {
-            return entry.first.as<sol::table>();
+            detail::isClass(entry.first.as<lua_glue::Table>())) {
+            return entry.first.as<lua_glue::Table>();
         }
     }
     return live;
 }
 
-bool mixinHasCallback(sol::state_view lua, const sol::table& previous,
-                      const sol::table& candidate,
-                      const sol::table& candidateToLive,
-                      const sol::object& key) {
-    const sol::object own = candidate.raw_get<sol::object>(key);
-    if (own.valid() && own.get_type() != sol::type::lua_nil) {
-        return own.is<sol::function>();
+bool mixinHasCallback(lua_glue::StateView lua, const lua_glue::Table& previous,
+                      const lua_glue::Table& candidate,
+                      const lua_glue::Table& candidateToLive,
+                      const lua_glue::Object& key) {
+    const lua_glue::Object own = candidate.raw_get<lua_glue::Object>(key);
+    if (own.valid() && own.get_type() != lua_glue::Type::Nil) {
+        return own.is<lua_glue::Function>();
     }
-    const sol::table mro = detail::getMro(lua, previous);
+    const lua_glue::Table mro = detail::getMro(lua, previous);
     for (std::size_t index = 2; index <= mro.size(); ++index) {
-        const sol::object rawType = mro.raw_get<sol::object>(index);
-        if (!rawType.is<sol::table>() ||
-            !detail::isClass(rawType.as<sol::table>())) {
+        const lua_glue::Object rawType = mro.raw_get<lua_glue::Object>(index);
+        if (!rawType.is<lua_glue::Table>() ||
+            !detail::isClass(rawType.as<lua_glue::Table>())) {
             continue;
         }
-        const sol::table type =
-            candidateClass(candidateToLive, rawType.as<sol::table>());
-        const sol::object member = type.raw_get<sol::object>(key);
-        if (member.valid() && member.get_type() != sol::type::lua_nil) {
-            return member.is<sol::function>();
+        const lua_glue::Table type =
+            candidateClass(candidateToLive, rawType.as<lua_glue::Table>());
+        const lua_glue::Object member = type.raw_get<lua_glue::Object>(key);
+        if (member.valid() && member.get_type() != lua_glue::Type::Nil) {
+            return member.is<lua_glue::Function>();
         }
     }
     return false;
 }
 
-void validateCallbacks(sol::state_view lua, const sol::table& previous,
-                       const sol::table& candidate,
-                       const sol::table& candidateToLive) {
+void validateCallbacks(lua_glue::StateView lua, const lua_glue::Table& previous,
+                       const lua_glue::Table& candidate,
+                       const lua_glue::Table& candidateToLive) {
     std::unordered_set<std::string> names;
-    const sol::table mro = detail::getMro(lua, previous);
+    const lua_glue::Table mro = detail::getMro(lua, previous);
     for (std::size_t index = 1; index <= mro.size(); ++index) {
-        const sol::object rawType = mro.raw_get<sol::object>(index);
-        if (!rawType.is<sol::table>() ||
-            !detail::isNativeType(lua, rawType.as<sol::table>())) {
+        const lua_glue::Object rawType = mro.raw_get<lua_glue::Object>(index);
+        if (!rawType.is<lua_glue::Table>() ||
+            !detail::isNativeType(lua, rawType.as<lua_glue::Table>())) {
             continue;
         }
-        const sol::object callbacks = detail::rawMember(
-            lua, rawType.as<sol::table>(),
-            sol::make_object(lua, detail::CLASS_CALLBACKS_FIELD));
-        if (!callbacks.is<sol::table>()) {
+        const lua_glue::Object callbacks = detail::rawMember(
+            lua, rawType.as<lua_glue::Table>(),
+            lua_glue::MakeObject(lua, detail::CLASS_CALLBACKS_FIELD));
+        if (!callbacks.is<lua_glue::Table>()) {
             continue;
         }
-        for (const auto& entry : callbacks.as<sol::table>()) {
+        for (const auto& entry : callbacks.as<lua_glue::Table>()) {
             if (entry.second.is<std::string>()) {
                 names.insert(entry.second.as<std::string>());
             }
         }
     }
     for (const std::string& name : names) {
-        const sol::object key = sol::make_object(lua, name);
-        const bool oldCallback =
-            detail::findScriptMember(lua, previous, key).is<sol::function>();
+        const lua_glue::Object key = lua_glue::MakeObject(lua, name);
+        const bool oldCallback = detail::findScriptMember(lua, previous, key)
+                                     .is<lua_glue::Function>();
         const bool newCallback =
             detail::isClass(candidate)
                 ? detail::findScriptMember(lua, candidate, key)
-                      .is<sol::function>()
+                      .is<lua_glue::Function>()
                 : mixinHasCallback(lua, previous, candidate, candidateToLive,
                                    key);
         if (oldCallback != newCallback) {
@@ -140,8 +147,9 @@ void validateCallbacks(sol::state_view lua, const sol::table& previous,
     }
 }
 
-bool isBusinessMethod(const sol::object& key, const sol::object& value) {
-    if (!key.is<std::string>() || !value.is<sol::function>()) {
+bool isBusinessMethod(const lua_glue::Object& key,
+                      const lua_glue::Object& value) {
+    if (!key.is<std::string>() || !value.is<lua_glue::Function>()) {
         return false;
     }
     const std::string name = key.as<std::string>();
@@ -152,7 +160,7 @@ bool isBusinessMethod(const sol::object& key, const sol::object& value) {
 
 bool isHotReloadClass(lua_State* state, int index) {
     return lua_istable(state, index) != 0 &&
-           detail::isClass(sol::stack::get<sol::table>(state, index));
+           detail::isClass(lua_glue::Read<lua_glue::Table>(state, index));
 }
 
 bool isHotReloadProtectedTable(lua_State* state, int index) {
@@ -169,15 +177,16 @@ bool isHotReloadProtectedTable(lua_State* state, int index) {
 
 void validateHotReloadClass(lua_State* state, int oldIndex, int newIndex,
                             int candidateToLiveTableIndex) {
-    const sol::table previous = requireClass(state, oldIndex);
+    const lua_glue::Table previous = requireClass(state, oldIndex);
     if (lua_istable(state, newIndex) == 0 ||
         lua_istable(state, candidateToLiveTableIndex) == 0) {
         throw std::invalid_argument(
             "Hot reload requires candidate and identity tables");
     }
-    const sol::table candidate = sol::stack::get<sol::table>(state, newIndex);
-    const sol::table candidateToLive =
-        sol::stack::get<sol::table>(state, candidateToLiveTableIndex);
+    const lua_glue::Table candidate =
+        lua_glue::Read<lua_glue::Table>(state, newIndex);
+    const lua_glue::Table candidateToLive =
+        lua_glue::Read<lua_glue::Table>(state, candidateToLiveTableIndex);
     if (detail::isClass(candidate)) {
         validateHierarchy(previous, candidate, candidateToLive,
                           detail::BASES_FIELD);
@@ -186,22 +195,22 @@ void validateHotReloadClass(lua_State* state, int oldIndex, int newIndex,
     } else if (!detail::rawBool(previous, "_GENERATED_CLASS")) {
         throw std::runtime_error("Class export changed kind; restart the game");
     }
-    validateCallbacks(sol::state_view(state), previous, candidate,
+    validateCallbacks(lua_glue::StateView(state), previous, candidate,
                       candidateToLive);
 }
 
 void commitHotReloadClass(lua_State* state, int oldIndex, int newIndex) {
-    sol::table previous = requireClass(state, oldIndex);
+    lua_glue::Table previous = requireClass(state, oldIndex);
     if (lua_istable(state, newIndex) == 0) {
         throw std::invalid_argument("Hot reload requires a candidate table");
     }
-    sol::state_view lua(state);
+    lua_glue::StateView lua(state);
     for (const auto& entry : previous) {
         if (isBusinessMethod(entry.first, entry.second)) {
             detail::registerMethodOwner(lua, previous, entry.second);
         }
     }
-    previous.raw_set("_hasImplementationOwner", sol::lua_nil);
+    previous.raw_set("_hasImplementationOwner", lua_glue::nil);
     detail::invalidateClassLookup(lua, previous);
 }
 

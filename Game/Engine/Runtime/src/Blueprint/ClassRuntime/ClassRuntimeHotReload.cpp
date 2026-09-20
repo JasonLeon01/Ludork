@@ -8,7 +8,7 @@
 #include <Runtime/RuntimeIdentity.hpp>
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeValue.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -23,22 +23,22 @@ namespace ludork::runtime::class_runtime_detail {
 
 namespace {
 
-RuntimeValue runtimeReference(const sol::object& value) {
+RuntimeValue runtimeReference(const lua_glue::Object& value) {
     return RuntimeValue(
         RuntimeHandle(binding::readOpaqueIdentity<RuntimeIdentityPtr>(value)));
 }
 
-sol::table existingResolver(sol::state_view lua) {
-    const sol::object resolver =
-        lua.registry().raw_get<sol::object>(CLASS_RESOLVER_STATE_KEY);
-    if (!resolver.is<sol::table>()) {
+lua_glue::Table existingResolver(lua_glue::StateView lua) {
+    const lua_glue::Object resolver =
+        lua.registry().raw_get<lua_glue::Object>(CLASS_RESOLVER_STATE_KEY);
+    if (!resolver.is<lua_glue::Table>()) {
         throw std::runtime_error("Blueprint class resolver is unavailable");
     }
-    return resolver.as<sol::table>();
+    return resolver.as<lua_glue::Table>();
 }
 
 void validateDefinitionStructure(
-    const sol::object& previous, const sol::object& candidate,
+    const lua_glue::Object& previous, const lua_glue::Object& candidate,
     const std::string& path,
     std::unordered_map<const void*, const void*>& oldToNew,
     std::unordered_map<const void*, const void*>& newToOld) {
@@ -47,7 +47,7 @@ void validateDefinitionStructure(
             "Mixin " + path +
             ": field was added, removed or changed type; restart required");
     }
-    if (!previous.is<sol::table>()) {
+    if (!previous.is<lua_glue::Table>()) {
         return;
     }
     const void* oldIdentity = binding::luaValueIdentity(previous);
@@ -63,23 +63,23 @@ void validateDefinitionStructure(
     if (!added && !reverseAdded) {
         return;
     }
-    const sol::table oldMembers = previous.as<sol::table>();
-    const sol::table newMembers = candidate.as<sol::table>();
+    const lua_glue::Table oldMembers = previous.as<lua_glue::Table>();
+    const lua_glue::Table newMembers = candidate.as<lua_glue::Table>();
     for (const auto& entry : oldMembers) {
         const std::string name =
             entry.first.is<std::string>()
                 ? entry.first.as<std::string>()
                 : "[" +
-                      std::string(sol::type_name(previous.lua_state(),
-                                                 entry.first.get_type())) +
+                      std::string(lua_glue::TypeName(previous.lua_state(),
+                                                     entry.first.get_type())) +
                       "]";
         validateDefinitionStructure(
-            entry.second, newMembers.raw_get<sol::object>(entry.first),
+            entry.second, newMembers.raw_get<lua_glue::Object>(entry.first),
             path + "." + name, oldToNew, newToOld);
     }
     for (const auto& entry : newMembers) {
-        if (oldMembers.raw_get<sol::object>(entry.first).get_type() ==
-            sol::type::lua_nil) {
+        if (oldMembers.raw_get<lua_glue::Object>(entry.first).get_type() ==
+            lua_glue::Type::Nil) {
             const std::string name = entry.first.is<std::string>()
                                          ? entry.first.as<std::string>()
                                          : "[non-string key]";
@@ -92,40 +92,44 @@ void validateDefinitionStructure(
 }  // namespace
 
 int pushHotReloadMixins(lua_State* state) {
-    sol::state_view lua(state);
-    sol::table output = lua.create_table();
-    const sol::object rawResolver =
-        lua.registry().raw_get<sol::object>(CLASS_RESOLVER_STATE_KEY);
-    if (!rawResolver.is<sol::table>()) {
-        output.push();
+    lua_glue::StateView lua(state);
+    lua_glue::Table output = lua.create_table();
+    const lua_glue::Object rawResolver =
+        lua.registry().raw_get<lua_glue::Object>(CLASS_RESOLVER_STATE_KEY);
+    if (!rawResolver.is<lua_glue::Table>()) {
+        output.push(state);
         return 1;
     }
-    const sol::table resolver = rawResolver.as<sol::table>();
-    const sol::table records = resolver.raw_get<sol::table>("records");
-    const sol::table classes = resolver.raw_get<sol::table>("classes");
+    const lua_glue::Table resolver = rawResolver.as<lua_glue::Table>();
+    const lua_glue::Table records =
+        resolver.raw_get<lua_glue::Table>("records");
+    const lua_glue::Table classes =
+        resolver.raw_get<lua_glue::Table>("classes");
     for (const auto& entry : records) {
-        if (!entry.first.is<std::string>() || !entry.second.is<sol::table>()) {
+        if (!entry.first.is<std::string>() ||
+            !entry.second.is<lua_glue::Table>()) {
             continue;
         }
-        const sol::table record = entry.second.as<sol::table>();
-        const sol::object definition =
-            record.raw_get<sol::object>("scriptTable");
-        const sol::object path = record.raw_get<sol::object>("scriptPath");
-        if (!definition.is<sol::table>() || !path.is<std::string>()) {
+        const lua_glue::Table record = entry.second.as<lua_glue::Table>();
+        const lua_glue::Object definition =
+            record.raw_get<lua_glue::Object>("scriptTable");
+        const lua_glue::Object path =
+            record.raw_get<lua_glue::Object>("scriptPath");
+        if (!definition.is<lua_glue::Table>() || !path.is<std::string>()) {
             continue;
         }
         const std::string scriptPath =
             normalizeScriptMixinPath(path.as<std::string>());
         std::string modulePath = scriptPath.substr(0, scriptPath.size() - 4);
         std::replace(modulePath.begin(), modulePath.end(), '/', '.');
-        sol::table item = lua.create_table();
+        lua_glue::Table item = lua.create_table();
         item.raw_set("modulePath", "Mixins." + modulePath);
         item.raw_set("scriptPath", "Scripts/Mixins/" + scriptPath);
         item.raw_set("definition", definition);
-        item.raw_set("class", classes.raw_get<sol::object>(entry.first));
+        item.raw_set("class", classes.raw_get<lua_glue::Object>(entry.first));
         output.add(item);
     }
-    output.push();
+    output.push(state);
     return 1;
 }
 
@@ -135,37 +139,42 @@ void validateHotReloadMixin(lua_State* state, int classIndex,
         throw std::invalid_argument(
             "Mixin hot reload requires a generated class");
     }
-    sol::state_view lua(state);
-    const sol::table target = sol::stack::get<sol::table>(state, classIndex);
-    const sol::object rawPath =
-        target.raw_get<sol::object>("__blueprintClassPath");
+    lua_glue::StateView lua(state);
+    const lua_glue::Table target =
+        lua_glue::Read<lua_glue::Table>(state, classIndex);
+    const lua_glue::Object rawPath =
+        target.raw_get<lua_glue::Object>("__blueprintClassPath");
     if (!rawPath.is<std::string>()) {
         throw std::invalid_argument(
             "Mixin hot reload requires a generated class");
     }
     const std::string classPath = rawPath.as<std::string>();
-    const sol::table resolver = existingResolver(lua);
-    const sol::table records = resolver.raw_get<sol::table>("records");
-    const sol::object rawRecord = records.raw_get<sol::object>(classPath);
-    if (!rawRecord.is<sol::table>()) {
+    const lua_glue::Table resolver = existingResolver(lua);
+    const lua_glue::Table records =
+        resolver.raw_get<lua_glue::Table>("records");
+    const lua_glue::Object rawRecord =
+        records.raw_get<lua_glue::Object>(classPath);
+    if (!rawRecord.is<lua_glue::Table>()) {
         throw std::runtime_error("Mixin class record is unavailable: " +
                                  classPath);
     }
-    const sol::table record = rawRecord.as<sol::table>();
-    const sol::object oldDefinition =
-        record.raw_get<sol::object>("scriptTable");
-    const sol::object rawScriptPath = record.raw_get<sol::object>("scriptPath");
-    if (!oldDefinition.is<sol::table>() || !rawScriptPath.is<std::string>()) {
+    const lua_glue::Table record = rawRecord.as<lua_glue::Table>();
+    const lua_glue::Object oldDefinition =
+        record.raw_get<lua_glue::Object>("scriptTable");
+    const lua_glue::Object rawScriptPath =
+        record.raw_get<lua_glue::Object>("scriptPath");
+    if (!oldDefinition.is<lua_glue::Table>() ||
+        !rawScriptPath.is<std::string>()) {
         throw std::runtime_error("Class has no directly attached Mixin: " +
                                  classPath);
     }
     const std::string scriptPath = rawScriptPath.as<std::string>();
-    const sol::object newDefinition =
-        sol::stack::get<sol::object>(state, definitionIndex);
+    const lua_glue::Object newDefinition =
+        lua_glue::Read<lua_glue::Object>(state, definitionIndex);
     const RuntimeValue mixin = runtimeReference(newDefinition);
     validateScriptMixin(mixin, classPath, scriptPath);
     validateScriptMixinMembers(
-        runtimeReference(record.raw_get<sol::object>("parent")), mixin,
+        runtimeReference(record.raw_get<lua_glue::Object>("parent")), mixin,
         classPath, scriptPath);
 
     std::unordered_map<const void*, const void*> oldToNew;
@@ -173,17 +182,19 @@ void validateHotReloadMixin(lua_State* state, int classIndex,
     validateDefinitionStructure(oldDefinition, newDefinition,
                                 classPath + " (" + scriptPath + ")", oldToNew,
                                 newToOld);
-    const sol::table candidate = newDefinition.as<sol::table>();
-    const sol::table classData = resolver.raw_get<sol::table>("classData");
-    const sol::table data = classData.raw_get<sol::table>(classPath);
-    const sol::object rawAttrs = data.raw_get<sol::object>("attrs");
+    const lua_glue::Table candidate = newDefinition.as<lua_glue::Table>();
+    const lua_glue::Table classData =
+        resolver.raw_get<lua_glue::Table>("classData");
+    const lua_glue::Table data = classData.raw_get<lua_glue::Table>(classPath);
+    const lua_glue::Object rawAttrs = data.raw_get<lua_glue::Object>("attrs");
     for (const auto& entry : candidate) {
         const std::string name = entry.first.as<std::string>();
-        if (entry.second.is<sol::function>() && rawAttrs.is<sol::table>()) {
-            const sol::object attribute =
-                rawAttrs.as<sol::table>().raw_get<sol::object>(name);
+        if (entry.second.is<lua_glue::Function>() &&
+            rawAttrs.is<lua_glue::Table>()) {
+            const lua_glue::Object attribute =
+                rawAttrs.as<lua_glue::Table>().raw_get<lua_glue::Object>(name);
             if (attribute.valid() &&
-                attribute.get_type() != sol::type::lua_nil) {
+                attribute.get_type() != lua_glue::Type::Nil) {
                 throw std::runtime_error(
                     "Blueprint attr cannot replace Mixin method '" + name +
                     "': " + classPath);

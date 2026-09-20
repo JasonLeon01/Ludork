@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "Class/ClassRuntimeInternals.hpp"
 #include "Detail/RuntimeState.hpp"
 
@@ -9,7 +10,7 @@
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -30,48 +31,53 @@ namespace ludork::standard::class_runtime::detail {
 namespace {
 
 int classInstanceIndex(lua_State* state) {
-    try {
-        sol::state_view lua(state);
-        const sol::table classTable = constructorClass(state);
-        const sol::object target = sol::stack::get<sol::object>(state, 1);
-        const sol::object key = sol::stack::get<sol::object>(state, 2);
-        const sol::object disposeMethod =
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        lua_glue::StateView lua(state);
+        const lua_glue::Table classTable = constructorClass(state);
+        const lua_glue::Object target =
+            lua_glue::Read<lua_glue::Object>(state, 1);
+        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
+        const lua_glue::Object disposeMethod =
             instanceDisposeMethod(lua, classTable, key);
-        if (disposeMethod.is<sol::function>()) {
-            disposeMethod.push();
+        if (disposeMethod.is<lua_glue::Function>()) {
+            disposeMethod.push(state);
             return 1;
         }
-        const sol::object getter =
+        const lua_glue::Object getter =
             findAccessor(lua, classTable, protocol::CLASS_GETTERS_FIELD, key);
-        if (getter.is<sol::function>()) {
-            getter.push();
-            target.push();
-            lua_call(state, 1, 1);
+        if (getter.is<lua_glue::Function>()) {
+            getter.push(state);
+            target.push(state);
+            if (ludork::standard::protectedLuaCall(state, 1, 1) != LUA_OK) {
+                throw std::runtime_error(
+                    ludork::standard::luaErrorMessage(state, -1));
+            }
             return 1;
         }
         if (hasExplicitNilField(lua, target, key)) {
             lua_pushnil(state);
         } else {
-            findInClass(lua, classTable, key).push();
+            findInClass(lua, classTable, key).push(state);
         }
         return 1;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 int classInstanceNewIndex(lua_State* state) {
-    try {
-        sol::state_view lua(state);
-        sol::table classTable = constructorClass(state);
-        const sol::object key = sol::stack::get<sol::object>(state, 2);
-        const sol::object setter =
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        lua_glue::StateView lua(state);
+        lua_glue::Table classTable = constructorClass(state);
+        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
+        const lua_glue::Object setter =
             findAccessor(lua, classTable, protocol::CLASS_SETTERS_FIELD, key);
-        if (setter.is<sol::function>()) {
-            setter.push();
+        if (setter.is<lua_glue::Function>()) {
+            setter.push(state);
             lua_pushvalue(state, 1);
             lua_pushvalue(state, 3);
-            lua_call(state, 2, 0);
+            if (ludork::standard::protectedLuaCall(state, 2, 0) != LUA_OK) {
+                throw std::runtime_error(
+                    ludork::standard::luaErrorMessage(state, -1));
+            }
             clearExplicitNilField(state, 1, 2);
             return 0;
         }
@@ -80,69 +86,67 @@ int classInstanceNewIndex(lua_State* state) {
         lua_rawset(state, 1);
         clearExplicitNilField(state, 1, 2);
         invalidateClassLookup(lua, classTable);
-        const sol::object value = sol::stack::get<sol::object>(state, 3);
-        if (value.is<sol::function>()) {
-            const sol::object implementationOwner =
-                classTable.raw_get<sol::object>("_hasImplementationOwner");
+        const lua_glue::Object value =
+            lua_glue::Read<lua_glue::Object>(state, 3);
+        if (value.is<lua_glue::Function>()) {
+            const lua_glue::Object implementationOwner =
+                classTable.raw_get<lua_glue::Object>("_hasImplementationOwner");
             if (implementationOwner.valid() &&
-                implementationOwner.get_type() != sol::type::lua_nil) {
-                classTable.raw_set("_hasImplementationOwner", sol::lua_nil);
+                implementationOwner.get_type() != lua_glue::Type::Nil) {
+                classTable.raw_set("_hasImplementationOwner", lua_glue::nil);
             }
         }
         registerMethodOwner(lua, classTable, value);
         return 0;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 int classMetatableIndex(lua_State* state) {
-    try {
-        sol::state_view lua(state);
-        const sol::object key = sol::stack::get<sol::object>(state, 2);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        lua_glue::StateView lua(state);
+        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
         if (hasExplicitNilField(state, 1, 2)) {
             lua_pushnil(state);
         } else {
-            findInClass(lua, constructorClass(state), key, false).push();
+            findInClass(lua, constructorClass(state), key, false).push(state);
         }
         return 1;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 int classMetatableNewIndex(lua_State* state) {
-    try {
-        sol::state_view lua(state);
-        sol::table classTable = constructorClass(state);
-        const sol::object value = sol::stack::get<sol::object>(state, 3);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        lua_glue::StateView lua(state);
+        lua_glue::Table classTable = constructorClass(state);
+        const lua_glue::Object value =
+            lua_glue::Read<lua_glue::Object>(state, 3);
         lua_pushvalue(state, 2);
         lua_pushvalue(state, 3);
         lua_rawset(state, 1);
         clearExplicitNilField(state, 1, 2);
         invalidateClassLookup(lua, classTable);
-        if (value.is<sol::function>()) {
-            const sol::object implementationOwner =
-                classTable.raw_get<sol::object>("_hasImplementationOwner");
+        if (value.is<lua_glue::Function>()) {
+            const lua_glue::Object implementationOwner =
+                classTable.raw_get<lua_glue::Object>("_hasImplementationOwner");
             if (implementationOwner.valid() &&
-                implementationOwner.get_type() != sol::type::lua_nil) {
-                classTable.raw_set("_hasImplementationOwner", sol::lua_nil);
+                implementationOwner.get_type() != lua_glue::Type::Nil) {
+                classTable.raw_set("_hasImplementationOwner", lua_glue::nil);
             }
         }
         registerMethodOwner(lua, classTable, value);
         return 0;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
-bool isFinalizedClass(const sol::table& value) {
+bool isFinalizedClass(const lua_glue::Table& value) {
     return isClass(value) && tableHasMetatable(value) &&
-           value.raw_get<sol::object>(BASES_FIELD).is<sol::table>() &&
-           value.raw_get<sol::object>(MRO_FIELD).is<sol::table>() &&
-           value.raw_get<sol::object>("__index").is<sol::function>() &&
-           value.raw_get<sol::object>("__newindex").is<sol::function>() &&
-           value.raw_get<sol::object>("new").is<sol::function>();
+           value.raw_get<lua_glue::Object>(BASES_FIELD).is<lua_glue::Table>() &&
+           value.raw_get<lua_glue::Object>(MRO_FIELD).is<lua_glue::Table>() &&
+           value.raw_get<lua_glue::Object>("__index")
+               .is<lua_glue::Function>() &&
+           value.raw_get<lua_glue::Object>("__newindex")
+               .is<lua_glue::Function>() &&
+           value.raw_get<lua_glue::Object>("new").is<lua_glue::Function>();
 }
 
 constexpr const char* CLASS_RESERVED_FIELDS[] = {
@@ -179,7 +183,7 @@ constexpr const char* CLASS_RESERVED_FIELDS[] = {
     NATIVE_PROPERTIES_FIELD,
 };
 
-void validateClassDefinition(const sol::table& definition) {
+void validateClassDefinition(const lua_glue::Table& definition) {
     if (rawBool(definition, protocol::CLASS_MARKER_FIELD)) {
         throw std::invalid_argument("Class definition is already finalized");
     }
@@ -188,8 +192,9 @@ void validateClassDefinition(const sol::table& definition) {
             "Class definition must be a plain table without a metatable");
     }
     for (const char* name : CLASS_RESERVED_FIELDS) {
-        const sol::object value = definition.raw_get<sol::object>(name);
-        if (value.valid() && value.get_type() != sol::type::lua_nil) {
+        const lua_glue::Object value =
+            definition.raw_get<lua_glue::Object>(name);
+        if (value.valid() && value.get_type() != lua_glue::Type::Nil) {
             throw std::invalid_argument(
                 "Class definition contains reserved field '" +
                 std::string(name) + "'");
@@ -197,23 +202,24 @@ void validateClassDefinition(const sol::table& definition) {
     }
 }
 
-sol::table normalizeClassBases(sol::state_view lua, const sol::table& bases) {
-    sol::table result = lua.create_table();
-    std::vector<sol::table> accepted;
+lua_glue::Table normalizeClassBases(lua_glue::StateView lua,
+                                    const lua_glue::Table& bases) {
+    lua_glue::Table result = lua.create_table();
+    std::vector<lua_glue::Table> accepted;
     accepted.reserve(bases.size());
     for (std::size_t index = 1; index <= bases.size(); ++index) {
-        const sol::object rawBase = bases.raw_get<sol::object>(index);
-        if (!rawBase.is<sol::table>()) {
+        const lua_glue::Object rawBase = bases.raw_get<lua_glue::Object>(index);
+        if (!rawBase.is<lua_glue::Table>()) {
             throw std::invalid_argument(
                 "Class bases must be finalized class tables or native types");
         }
-        const sol::table base = rawBase.as<sol::table>();
+        const lua_glue::Table base = rawBase.as<lua_glue::Table>();
         if (!isFinalizedClass(base) && !isNativeType(lua, base)) {
             throw std::invalid_argument(
                 "Class bases must be finalized class tables or native types");
         }
         bool duplicate = false;
-        for (const sol::table& existing : accepted) {
+        for (const lua_glue::Table& existing : accepted) {
             if (objectsRawEqual(existing, base)) {
                 duplicate = true;
                 break;
@@ -229,12 +235,12 @@ sol::table normalizeClassBases(sol::state_view lua, const sol::table& bases) {
 
 }  // namespace
 
-void setClassClosure(lua_State* state, const sol::table& target,
-                     const char* name, const sol::table& classTable,
+void setClassClosure(lua_State* state, const lua_glue::Table& target,
+                     const char* name, const lua_glue::Table& classTable,
                      lua_CFunction function) {
-    target.push();
+    target.push(state);
     lua_pushstring(state, name);
-    classTable.push();
+    classTable.push(state);
     lua_pushcclosure(state, function, 1);
     lua_rawset(state, -3);
     lua_pop(state, 1);
@@ -243,28 +249,29 @@ void setClassClosure(lua_State* state, const sol::table& target,
 // ── Class finalization
 // ────────────────────────────────────────────────────────
 
-sol::table finalizeClassImpl(sol::table definition, const sol::table& bases) {
-    sol::state_view lua(definition.lua_state());
+lua_glue::Table finalizeClassImpl(lua_glue::Table definition,
+                                  const lua_glue::Table& bases) {
+    lua_glue::StateView lua(definition.lua_state());
     validateClassDefinition(definition);
-    const sol::table baseList = normalizeClassBases(lua, bases);
-    const std::vector<sol::table> linearization =
+    const lua_glue::Table baseList = normalizeClassBases(lua, bases);
+    const std::vector<lua_glue::Table> linearization =
         createMro(definition, baseList, MroKind::Runtime);
     for (std::size_t index = 1; index < linearization.size(); ++index) {
         if (isNativeType(lua, linearization[index])) {
             ensureNativeInitializer(lua, linearization[index]);
         }
     }
-    std::vector<sol::object> ownMethods;
+    std::vector<lua_glue::Object> ownMethods;
     for (const auto& entry : definition) {
-        if (entry.second.is<sol::function>()) {
+        if (entry.second.is<lua_glue::Function>()) {
             ownMethods.push_back(entry.second);
         }
     }
-    sol::table mro = lua.create_table();
-    for (const sol::table& type : linearization) {
+    lua_glue::Table mro = lua.create_table();
+    for (const lua_glue::Table& type : linearization) {
         mro.add(type);
     }
-    sol::table classTable = definition;
+    lua_glue::Table classTable = definition;
     classTable.raw_set(protocol::CLASS_MARKER_FIELD, true);
     classTable.raw_set(LOOKUP_VERSION_FIELD, 1);
     classTable.raw_set(BASES_FIELD, baseList);
@@ -273,7 +280,7 @@ sol::table finalizeClassImpl(sol::table definition, const sol::table& bases) {
     }
     classTable.raw_set(MRO_FIELD, mro);
     ensureMroSet(lua, classTable, mro, MRO_SET_FIELD);
-    for (const sol::table& base : tableList(baseList)) {
+    for (const lua_glue::Table& base : tableList(baseList)) {
         registerSubclass(lua, base, classTable);
     }
     setClassClosure(lua.lua_state(), classTable, "__index", classTable,
@@ -283,15 +290,15 @@ sol::table finalizeClassImpl(sol::table definition, const sol::table& bases) {
     setClassClosure(lua.lua_state(), classTable, "__gc", classTable,
                     classInstanceGc);
     setClassClosure(lua.lua_state(), classTable, "new", classTable, classNew);
-    sol::table classMetatable = lua.create_table();
+    lua_glue::Table classMetatable = lua.create_table();
     setClassClosure(lua.lua_state(), classMetatable, "__index", classTable,
                     classMetatableIndex);
     setClassClosure(lua.lua_state(), classMetatable, "__newindex", classTable,
                     classMetatableNewIndex);
     setClassClosure(lua.lua_state(), classMetatable, "__call", classTable,
                     classCall);
-    classTable[sol::metatable_key] = classMetatable;
-    for (const sol::object& method : ownMethods) {
+    lua_glue::SetMetatable(classTable, classMetatable);
+    for (const lua_glue::Object& method : ownMethods) {
         registerMethodOwner(lua, classTable, method);
     }
     return classTable;

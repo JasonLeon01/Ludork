@@ -14,7 +14,7 @@ function ChildActorComponent:init(values)
     self.className = values.className == nil and ChildActorComponent.className or values.className
     local relativePosition = values.relativePosition == nil and ChildActorComponent.relativePosition
         or values.relativePosition
-    self.relativePosition = copy(relativePosition)
+    self.relativePosition = relativePosition:copy()
     ---@type Engine.Actor | nil
     self._childActor = nil
 end

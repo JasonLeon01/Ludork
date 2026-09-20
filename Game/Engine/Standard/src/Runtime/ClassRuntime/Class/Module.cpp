@@ -11,7 +11,7 @@
 
 #include <ClassRuntimeProtocol.hpp>
 #include <ClassServices.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -24,22 +24,23 @@ extern "C" {
 
 namespace ludork::standard::class_runtime::detail {
 
-sol::table classFunction(sol::this_state state, const sol::object& definition,
-                         sol::variadic_args bases) {
-    sol::state_view lua(state);
-    if (!definition.is<sol::table>()) {
+lua_glue::Table classFunction(lua_glue::ThisState state,
+                              const lua_glue::Object& definition,
+                              lua_glue::Arguments bases) {
+    lua_glue::StateView lua(state);
+    if (!definition.is<lua_glue::Table>()) {
         throw std::invalid_argument("Class definition must be a table");
     }
-    sol::table baseList = lua.create_table();
-    for (const sol::stack_proxy& rawBase : bases) {
-        const sol::object base = sol::make_object(lua, rawBase);
-        if (!base.is<sol::table>()) {
+    lua_glue::Table baseList = lua.create_table();
+    for (const lua_glue::StackValue& rawBase : bases) {
+        const lua_glue::Object base = lua_glue::MakeObject(lua, rawBase);
+        if (!base.is<lua_glue::Table>()) {
             throw std::invalid_argument(
                 "Class bases must be finalized class tables or native types");
         }
         baseList.add(base);
     }
-    return finalizeClassImpl(definition.as<sol::table>(), baseList);
+    return finalizeClassImpl(definition.as<lua_glue::Table>(), baseList);
 }
 
 // ── Module-level functions (exposed on Class table)
@@ -47,45 +48,47 @@ sol::table classFunction(sol::this_state state, const sol::object& definition,
 
 namespace {
 
-sol::table getParameterNames(const sol::object& callable) {
-    sol::state_view lua(callable.lua_state());
-    if (callable.get_type() != sol::type::function) {
+lua_glue::Table getParameterNames(const lua_glue::Object& callable) {
+    lua_glue::StateView lua(callable.lua_state());
+    if (callable.get_type() != lua_glue::Type::Function) {
         throw std::invalid_argument(
             "Class.getParameterNames requires a function");
     }
     const CallableInfo info = inspectCallable(callable);
-    sol::table result = lua.create_table();
+    lua_glue::Table result = lua.create_table();
     for (const std::string& name : info.parameterNames) {
         result.add(name);
     }
     return result;
 }
 
-sol::object constructNamed(sol::this_state state, const sol::object& rawType,
-                           const sol::object& rawArguments) {
-    sol::state_view lua(state);
-    if (!rawType.is<sol::table>()) {
+lua_glue::Object constructNamed(lua_glue::ThisState state,
+                                const lua_glue::Object& rawType,
+                                const lua_glue::Object& rawArguments) {
+    lua_glue::StateView lua(state);
+    if (!rawType.is<lua_glue::Table>()) {
         throw std::invalid_argument(
             "Class.constructNamed requires a class type");
     }
-    sol::table arguments = lua.create_table();
-    if (rawArguments.valid() && rawArguments.get_type() != sol::type::lua_nil) {
-        if (!rawArguments.is<sol::table>()) {
+    lua_glue::Table arguments = lua.create_table();
+    if (rawArguments.valid() &&
+        rawArguments.get_type() != lua_glue::Type::Nil) {
+        if (!rawArguments.is<lua_glue::Table>()) {
             throw std::invalid_argument(
                 "Class.constructNamed arguments must be a table");
         }
-        arguments = rawArguments.as<sol::table>();
+        arguments = rawArguments.as<lua_glue::Table>();
     }
-    const sol::table type = rawType.as<sol::table>();
-    sol::object initializer = nilObject(lua);
+    const lua_glue::Table type = rawType.as<lua_glue::Table>();
+    lua_glue::Object initializer = nilObject(lua);
     if (isClass(type)) {
         initializer =
-            findScriptMember(lua, type, sol::make_object(lua, "init"));
+            findScriptMember(lua, type, lua_glue::MakeObject(lua, "init"));
     } else {
-        initializer = rawMember(lua, type, sol::make_object(lua, "init"));
+        initializer = rawMember(lua, type, lua_glue::MakeObject(lua, "init"));
     }
-    std::vector<sol::object> values;
-    if (initializer.get_type() == sol::type::function) {
+    std::vector<lua_glue::Object> values;
+    if (initializer.get_type() == lua_glue::Type::Function) {
         const CallableInfo info = inspectCallable(initializer);
         if (info.parameterNames.empty() && !tableIsEmpty(arguments)) {
             throw std::invalid_argument(
@@ -93,18 +96,18 @@ sol::object constructNamed(sol::this_state state, const sol::object& rawType,
         }
         values.reserve(info.parameterNames.size());
         for (const std::string& name : info.parameterNames) {
-            const sol::object value =
-                protectedIndex(lua, sol::make_object(lua, arguments),
-                               sol::make_object(lua, name));
+            const lua_glue::Object value =
+                protectedIndex(lua, lua_glue::MakeObject(lua, arguments),
+                               lua_glue::MakeObject(lua, name));
             values.push_back(value.valid() ? value : nilObject(lua));
         }
     } else if (!tableIsEmpty(arguments)) {
         throw std::invalid_argument(
             "Class without init does not accept named arguments");
     }
-    const sol::object rawConstructor =
-        protectedIndex(lua, rawType, sol::make_object(lua, "new"));
-    if (!rawConstructor.is<sol::protected_function>()) {
+    const lua_glue::Object rawConstructor =
+        protectedIndex(lua, rawType, lua_glue::MakeObject(lua, "new"));
+    if (!rawConstructor.is<lua_glue::Function>()) {
         throw std::runtime_error("Class type has no new constructor");
     }
     lua_State* luaState = lua.lua_state();
@@ -112,9 +115,10 @@ sol::object constructNamed(sol::this_state state, const sol::object& rawType,
     try {
         const int resultCount = invokeRuntimeFunction(
             lua, rawConstructor, values, "named constructor arguments");
-        sol::object result = resultCount == 0 ? nilObject(lua)
-                                              : sol::stack::get<sol::object>(
-                                                    luaState, stackBase + 1);
+        lua_glue::Object result =
+            resultCount == 0
+                ? nilObject(lua)
+                : lua_glue::Read<lua_glue::Object>(luaState, stackBase + 1);
         lua_settop(luaState, stackBase);
         return result;
     } catch (...) {
@@ -123,47 +127,52 @@ sol::object constructNamed(sol::this_state state, const sol::object& rawType,
     }
 }
 
-bool isSubclass(sol::this_state state, const sol::table& value,
-                const sol::table& targetClass) {
-    return ludork::standard::class_runtime::isSubclassOf(sol::state_view(state),
-                                                         value, targetClass);
+bool isSubclass(lua_glue::ThisState state, const lua_glue::Table& value,
+                const lua_glue::Table& targetClass) {
+    return ludork::standard::class_runtime::isSubclassOf(
+        lua_glue::StateView(state), value, targetClass);
 }
 
-bool isInstance(sol::this_state state, const sol::object& value,
-                const sol::object& target) {
-    sol::state_view lua(state);
+bool isInstance(lua_glue::ThisState state, const lua_glue::Object& value,
+                const lua_glue::Object& target) {
+    lua_glue::StateView lua(state);
     if (target.is<std::string>()) {
         return target.as<std::string>() ==
-               sol::type_name(lua.lua_state(), value.get_type());
+               lua_glue::TypeName(lua.lua_state(), value.get_type());
     }
-    if (!target.is<sol::table>()) {
+    if (!target.is<lua_glue::Table>()) {
         throw std::invalid_argument(
             "Class.isInstance target must be a class or Lua type name");
     }
     return ludork::standard::class_runtime::isInstanceOf(
-        lua, value, target.as<sol::table>());
+        lua, value, target.as<lua_glue::Table>());
 }
 
-sol::object classType(sol::this_state state, const sol::object& value) {
-    return ludork::standard::class_runtime::typeOf(sol::state_view(state),
+lua_glue::Object classType(lua_glue::ThisState state,
+                           const lua_glue::Object& value) {
+    return ludork::standard::class_runtime::typeOf(lua_glue::StateView(state),
                                                    value);
 }
 
-bool hasOwnFieldFunction(sol::this_state state, const sol::object& target,
-                         const sol::object& key) {
-    return hasRawOwnField(sol::state_view(state), target, key);
+bool hasOwnFieldFunction(lua_glue::ThisState state,
+                         const lua_glue::Object& target,
+                         const lua_glue::Object& key) {
+    return hasRawOwnField(lua_glue::StateView(state), target, key);
 }
 
-sol::table getMroFunction(sol::this_state state, const sol::object& value) {
-    return mroCopy(sol::state_view(state), value);
+lua_glue::Table getMroFunction(lua_glue::ThisState state,
+                               const lua_glue::Object& value) {
+    return mroCopy(lua_glue::StateView(state), value);
 }
 
-sol::object copyFunction(sol::this_state state, const sol::object& value) {
-    return class_runtime::shallowCopy(sol::state_view(state), value);
+lua_glue::Object copyFunction(lua_glue::ThisState state,
+                              const lua_glue::Object& value) {
+    return class_runtime::shallowCopy(lua_glue::StateView(state), value);
 }
 
-sol::object deepCopyFunction(sol::this_state state, const sol::object& value) {
-    return class_runtime::deepCopy(sol::state_view(state), value);
+lua_glue::Object deepCopyFunction(lua_glue::ThisState state,
+                                  const lua_glue::Object& value) {
+    return class_runtime::deepCopy(lua_glue::StateView(state), value);
 }
 
 }  // namespace
@@ -171,9 +180,10 @@ sol::object deepCopyFunction(sol::this_state state, const sol::object& value) {
 // ── Module entry point
 // ────────────────────────────────────────────────────────
 
-sol::table createModule(sol::state_view lua) {
-    lua.registry().raw_set(SHUTTING_DOWN_KEY, sol::lua_nil);
-    sol::table root = lua.create_table();
+lua_glue::Table createModule(lua_glue::StateView lua) {
+    registerNativeInterop(lua.lua_state());
+    lua.registry().raw_set(SHUTTING_DOWN_KEY, lua_glue::nil);
+    lua_glue::Table root = lua.create_table();
     root.set_function("isInstance", &isInstance);
     root.set_function("isSubclass", &isSubclass);
     root.set_function("type", &classType);
@@ -196,7 +206,7 @@ sol::table createModule(sol::state_view lua) {
 
 namespace ludork::standard::class_runtime {
 
-sol::table createModule(sol::state_view lua) {
+lua_glue::Table createModule(lua_glue::StateView lua) {
     return detail::createModule(lua);
 }
 
@@ -211,7 +221,6 @@ void shutdown(lua_State* state) noexcept {
     lua_setfield(state, LUA_REGISTRYINDEX, SHUTTING_DOWN_KEY);
     constexpr const char* registryKeys[] = {
         METHOD_OWNERS_KEY,
-        NATIVE_TYPE_CACHE_KEY,
         NATIVE_PROPERTY_CACHE_KEY,
         INSTANCES_KEY,
         COMPOSITE_METATABLE_KEY,

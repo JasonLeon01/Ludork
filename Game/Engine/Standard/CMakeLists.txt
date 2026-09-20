@@ -45,9 +45,9 @@ target_include_directories(LudorkStandard
 target_link_libraries(LudorkStandard PRIVATE Threads::Threads zlibstatic utf8proc)
 if(LUDORK_WITH_LUA)
     target_include_directories(LudorkStandard
-        PUBLIC ${LUDORK_LUASF_CONSUMER_INCLUDES})
+        PUBLIC ${LUDORK_LUA_SOURCE_DIR}/src)
     target_link_libraries(LudorkStandard
-        PUBLIC Ludork::SolConfig
+        PUBLIC LuaGlue::LuaGlue
         PRIVATE LuaSF::LuaSF LuaSF::Lua SFML::Network)
     if(WIN32)
         target_link_libraries(LudorkStandard PRIVATE Psapi)

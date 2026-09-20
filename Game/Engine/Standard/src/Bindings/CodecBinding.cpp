@@ -3,7 +3,7 @@
 #include <Base64.hpp>
 #include <Compression.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 #include <zlib.h>
 
 #include <cstdint>
@@ -15,8 +15,8 @@
 
 namespace ludork::standard::binding {
 
-void registerCodecs(sol::state_view lua) {
-    sol::table zlib = lua.create_table();
+void registerCodecs(lua_glue::StateView lua) {
+    lua_glue::Table zlib = lua.create_table();
     zlib.set_function("compress", [](const std::string& value) {
         const std::vector<std::uint8_t> bytes = compressZlib(
             std::span<const std::uint8_t>(
@@ -35,7 +35,7 @@ void registerCodecs(sol::state_view lua) {
     });
     lua["zlib"] = std::move(zlib);
 
-    sol::table base64 = lua.create_table();
+    lua_glue::Table base64 = lua.create_table();
     base64.set_function("encode", [](const std::string& value) {
         return encodeBase64(std::span<const std::uint8_t>(
             reinterpret_cast<const std::uint8_t*>(value.data()), value.size()));

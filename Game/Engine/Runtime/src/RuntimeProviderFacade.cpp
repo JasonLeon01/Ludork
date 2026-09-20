@@ -13,15 +13,15 @@ RuntimeIdentityPtr invokeIdentityProvider(
     const std::vector<RuntimeIdentityPtr>& identityArguments,
     const std::vector<std::string>& stringArguments = {}) {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    std::vector<sol::object> arguments;
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    std::vector<lua_glue::Object> arguments;
     arguments.reserve(identityArguments.size() + stringArguments.size());
     for (const RuntimeIdentityPtr& argument : identityArguments) {
         arguments.push_back(
             ludork::runtime::binding::writeOpaqueIdentity(lua, argument));
     }
     for (const std::string& argument : stringArguments) {
-        arguments.push_back(sol::make_object(lua, argument));
+        arguments.push_back(lua_glue::MakeObject(lua, argument));
     }
     return ludork::runtime::binding::readOpaqueIdentity<RuntimeIdentityPtr>(
         ludork::runtime::detail::invokeRuntimeProviderOne(lua, slot,
@@ -68,11 +68,12 @@ RuntimeIdentityPtr RuntimeProviderFacade::instantiateBlueprintGraph(
 std::string RuntimeProviderFacade::config(
     const std::string& configName, const std::string& settingName) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object value = ludork::runtime::detail::invokeRuntimeProviderOne(
-        lua, ludork::runtime::detail::RuntimeProviderSlot::Config,
-        {sol::make_object(lua, configName),
-         sol::make_object(lua, settingName)});
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object value =
+        ludork::runtime::detail::invokeRuntimeProviderOne(
+            lua, ludork::runtime::detail::RuntimeProviderSlot::Config,
+            {lua_glue::MakeObject(lua, configName),
+             lua_glue::MakeObject(lua, settingName)});
     if (!value.is<std::string>()) {
         throw std::runtime_error(
             "Runtime config resolver must return a string");

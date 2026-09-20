@@ -153,7 +153,7 @@ copy_runtime_legal_files() {
         Lua \
         LuaSF \
         SFML \
-        sol2 \
+        LuaGlue \
         lua-cjson \
         zlib \
         NativeDependencies; do
@@ -312,7 +312,7 @@ if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ]; then
     echo "Game CMakeLists.txt was not found: $SOURCE_DIR" >&2
     exit 1
 fi
-for dependency_dir in LuaSF SFML sol2 Lua lua-cjson zlib; do
+for dependency_dir in LuaSF SFML LuaGlue Lua lua-cjson zlib; do
     if [ ! -d "$SOURCE_DIR/Engine/ThirdParty/$dependency_dir" ]; then
         echo "Game dependency was not found: Engine/ThirdParty/$dependency_dir" >&2
         echo "Prepare the C++ dependencies before creating templates." >&2
@@ -325,7 +325,7 @@ for licence_path in \
     Lua \
     LuaSF \
     SFML \
-    sol2 \
+    LuaGlue \
     lua-cjson \
     zlib \
     NativeDependencies; do

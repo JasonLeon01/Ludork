@@ -37,9 +37,9 @@ std::uint64_t hashTag(std::uint64_t seed, unsigned char tag) {
     return hashBytes(seed, &tag, sizeof(tag));
 }
 
-std::uint64_t hashObject(const sol::object& value);
+std::uint64_t hashObject(const lua_glue::Object& value);
 
-std::uint64_t hashNumber(const sol::object& value) {
+std::uint64_t hashNumber(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
     value.push();
     if (lua_isinteger(state, -1)) {
@@ -67,45 +67,45 @@ std::uint64_t hashNumber(const sol::object& value) {
     return hashBytes(result, &bits, sizeof(bits));
 }
 
-std::uint64_t hashTuple(const sol::object& value) {
+std::uint64_t hashTuple(const lua_glue::Object& value) {
     const NativeTuple& tuple = value.as<NativeTuple&>();
-    const sol::table values = sequenceValues(value);
+    const lua_glue::Table values = sequenceValues(value);
     std::uint64_t result = hashTag(HASH_OFFSET, 7);
     result = hashBytes(result, &tuple.length, sizeof(tuple.length));
     for (std::size_t index = 1; index <= tuple.length; ++index) {
         const std::uint64_t itemHash =
-            hashObject(values.raw_get<sol::object>(index));
+            hashObject(values.raw_get<lua_glue::Object>(index));
         result = hashBytes(result, &itemHash, sizeof(itemHash));
     }
     return result;
 }
 
-std::uint64_t hashObject(const sol::object& value) {
+std::uint64_t hashObject(const lua_glue::Object& value) {
     switch (value.get_type()) {
-        case sol::type::none:
-        case sol::type::lua_nil:
+        case lua_glue::Type::None:
+        case lua_glue::Type::Nil:
             throw std::invalid_argument("dict keys cannot be nil");
-        case sol::type::boolean: {
+        case lua_glue::Type::Boolean: {
             const bool boolean = value.as<bool>();
             std::uint64_t result = hashTag(HASH_OFFSET, 2);
             return hashBytes(result, &boolean, sizeof(boolean));
         }
-        case sol::type::number:
+        case lua_glue::Type::Number:
             return hashNumber(value);
-        case sol::type::string: {
-            const sol::string_view text = value.as<sol::string_view>();
+        case lua_glue::Type::String: {
+            const std::string_view text = value.as<std::string_view>();
             std::uint64_t result = hashTag(HASH_OFFSET, 5);
             return hashBytes(result, text.data(), text.size());
         }
-        case sol::type::userdata:
+        case lua_glue::Type::Userdata:
             if (value.is<NativeTuple>()) {
                 return hashTuple(value);
             }
             [[fallthrough]];
-        case sol::type::table:
-        case sol::type::function:
-        case sol::type::thread:
-        case sol::type::lightuserdata: {
+        case lua_glue::Type::Table:
+        case lua_glue::Type::Function:
+        case lua_glue::Type::Thread:
+        case lua_glue::Type::LightUserdata: {
             const int type = static_cast<int>(value.get_type());
             const void* pointer = objectIdentity(value);
             std::uint64_t result = hashTag(HASH_OFFSET, 8);
@@ -117,7 +117,7 @@ std::uint64_t hashObject(const sol::object& value) {
     }
 }
 
-bool keyEqual(const sol::object& left, const sol::object& right) {
+bool keyEqual(const lua_glue::Object& left, const lua_glue::Object& right) {
     if (left.is<NativeTuple>() || right.is<NativeTuple>()) {
         if (!left.is<NativeTuple>() || !right.is<NativeTuple>()) {
             return false;
@@ -127,11 +127,11 @@ bool keyEqual(const sol::object& left, const sol::object& right) {
         if (leftTuple.length != rightTuple.length) {
             return false;
         }
-        const sol::table leftValues = sequenceValues(left);
-        const sol::table rightValues = sequenceValues(right);
+        const lua_glue::Table leftValues = sequenceValues(left);
+        const lua_glue::Table rightValues = sequenceValues(right);
         for (std::size_t index = 1; index <= leftTuple.length; ++index) {
-            if (!keyEqual(leftValues.raw_get<sol::object>(index),
-                          rightValues.raw_get<sol::object>(index))) {
+            if (!keyEqual(leftValues.raw_get<lua_glue::Object>(index),
+                          rightValues.raw_get<lua_glue::Object>(index))) {
                 return false;
             }
         }
@@ -140,36 +140,37 @@ bool keyEqual(const sol::object& left, const sol::object& right) {
     return rawEqual(left, right);
 }
 
-std::size_t findDictEntry(const sol::object& target, const sol::object& key,
-                          std::uint64_t hash) {
+std::size_t findDictEntry(const lua_glue::Object& target,
+                          const lua_glue::Object& key, std::uint64_t hash) {
     const NativeDict& dict = target.as<NativeDict&>();
     const auto bucket = dict.buckets.find(hash);
     if (bucket == dict.buckets.end()) {
         return std::numeric_limits<std::size_t>::max();
     }
-    const sol::table keys = dictKeys(target);
+    const lua_glue::Table keys = dictKeys(target);
     for (const std::size_t index : bucket->second) {
         if (index >= dict.entries.size() || !dict.entries[index].alive) {
             continue;
         }
-        if (keyEqual(keys.raw_get<sol::object>(index + 1), key)) {
+        if (keyEqual(keys.raw_get<lua_glue::Object>(index + 1), key)) {
             return index;
         }
     }
     return std::numeric_limits<std::size_t>::max();
 }
 
-std::size_t findDictEntry(const sol::object& target, const sol::object& key) {
+std::size_t findDictEntry(const lua_glue::Object& target,
+                          const lua_glue::Object& key) {
     return findDictEntry(target, key, hashObject(key));
 }
 
-void setDictEntry(sol::state_view lua, const sol::object& target,
-                  const sol::object& key, const sol::object& value,
+void setDictEntry(lua_glue::StateView lua, const lua_glue::Object& target,
+                  const lua_glue::Object& key, const lua_glue::Object& value,
                   bool decodeJsonNull) {
     NativeDict& dict = target.as<NativeDict&>();
     const std::uint64_t hash = hashObject(key);
     const std::size_t existing = findDictEntry(target, key, hash);
-    sol::table values = dictValues(target);
+    lua_glue::Table values = dictValues(target);
     if (existing != std::numeric_limits<std::size_t>::max()) {
         values.raw_set(existing + 1, storedValue(lua, value, decodeJsonNull));
         return;
@@ -183,15 +184,16 @@ void setDictEntry(sol::state_view lua, const sol::object& target,
     ++dict.version;
 }
 
-sol::object dictEntryValue(sol::state_view lua, const sol::object& target,
-                           std::size_t index) {
-    return exposedValue(lua,
-                        dictValues(target).raw_get<sol::object>(index + 1));
+lua_glue::Object dictEntryValue(lua_glue::StateView lua,
+                                const lua_glue::Object& target,
+                                std::size_t index) {
+    return exposedValue(
+        lua, dictValues(target).raw_get<lua_glue::Object>(index + 1));
 }
 
-void releaseDictStorage(const sol::object& target) {
-    sol::state_view lua(target.lua_state());
-    sol::table root = uservalueRoot(target);
+void releaseDictStorage(const lua_glue::Object& target) {
+    lua_glue::StateView lua(target.lua_state());
+    lua_glue::Table root = uservalueRoot(target);
     root.raw_set("keys", lua.create_table());
     root.raw_set("values", lua.create_table());
     NativeDict& dict = target.as<NativeDict&>();
@@ -201,13 +203,13 @@ void releaseDictStorage(const sol::object& target) {
     dict.length = 0;
 }
 
-void compactDict(const sol::object& target) {
+void compactDict(const lua_glue::Object& target) {
     NativeDict& dict = target.as<NativeDict&>();
-    sol::state_view lua(target.lua_state());
-    const sol::table oldKeys = dictKeys(target);
-    const sol::table oldValues = dictValues(target);
-    sol::table newKeys = lua.create_table();
-    sol::table newValues = lua.create_table();
+    lua_glue::StateView lua(target.lua_state());
+    const lua_glue::Table oldKeys = dictKeys(target);
+    const lua_glue::Table oldValues = dictValues(target);
+    lua_glue::Table newKeys = lua.create_table();
+    lua_glue::Table newValues = lua.create_table();
     std::vector<NativeDict::Entry> entries;
     entries.reserve(dict.length);
     std::unordered_map<std::uint64_t, std::vector<std::size_t>> buckets;
@@ -221,27 +223,28 @@ void compactDict(const sol::object& target) {
         entries.push_back(entry);
         buckets[entry.hash].push_back(newIndex);
         newKeys.raw_set(newIndex + 1,
-                        oldKeys.raw_get<sol::object>(oldIndex + 1));
+                        oldKeys.raw_get<lua_glue::Object>(oldIndex + 1));
         newValues.raw_set(newIndex + 1,
-                          oldValues.raw_get<sol::object>(oldIndex + 1));
+                          oldValues.raw_get<lua_glue::Object>(oldIndex + 1));
     }
-    sol::table root = uservalueRoot(target);
+    lua_glue::Table root = uservalueRoot(target);
     root.raw_set("keys", newKeys);
     root.raw_set("values", newValues);
     dict.entries.swap(entries);
     dict.buckets.swap(buckets);
 }
 
-bool removeDictEntry(const sol::object& target, const sol::object& key,
-                     sol::object* removedValue) {
+bool removeDictEntry(const lua_glue::Object& target,
+                     const lua_glue::Object& key,
+                     lua_glue::Object* removedValue) {
     NativeDict& dict = target.as<NativeDict&>();
     const std::size_t index = findDictEntry(target, key);
     if (index == std::numeric_limits<std::size_t>::max()) {
         return false;
     }
     if (removedValue != nullptr) {
-        *removedValue =
-            dictEntryValue(sol::state_view(target.lua_state()), target, index);
+        *removedValue = dictEntryValue(lua_glue::StateView(target.lua_state()),
+                                       target, index);
     }
     NativeDict::Entry& entry = dict.entries[index];
     auto bucket = dict.buckets.find(entry.hash);
@@ -256,8 +259,8 @@ bool removeDictEntry(const sol::object& target, const sol::object& key,
         }
     }
     entry.alive = false;
-    dictKeys(target).raw_set(index + 1, sol::lua_nil);
-    dictValues(target).raw_set(index + 1, sol::lua_nil);
+    dictKeys(target).raw_set(index + 1, lua_glue::nil);
+    dictValues(target).raw_set(index + 1, lua_glue::nil);
     --dict.length;
     if (dict.length == 0) {
         releaseDictStorage(target);
@@ -268,7 +271,8 @@ bool removeDictEntry(const sol::object& target, const sol::object& key,
     return true;
 }
 
-ObjectPair comparisonPair(const sol::object& left, const sol::object& right) {
+ObjectPair comparisonPair(const lua_glue::Object& left,
+                          const lua_glue::Object& right) {
     const void* leftIdentity = objectIdentity(left);
     const void* rightIdentity = objectIdentity(right);
     return std::less<const void*>{}(leftIdentity, rightIdentity)
@@ -276,10 +280,10 @@ ObjectPair comparisonPair(const sol::object& left, const sol::object& right) {
                : ObjectPair{rightIdentity, leftIdentity};
 }
 
-bool valueEqual(const sol::object& left, const sol::object& right,
+bool valueEqual(const lua_glue::Object& left, const lua_glue::Object& right,
                 EqualityContext& context);
 
-bool listEqual(const sol::object& left, const sol::object& right,
+bool listEqual(const lua_glue::Object& left, const lua_glue::Object& right,
                EqualityContext& context) {
     if (rawEqual(left, right)) {
         return true;
@@ -292,15 +296,15 @@ bool listEqual(const sol::object& left, const sol::object& right,
     if (!context.visited.insert(comparisonPair(left, right)).second) {
         return true;
     }
-    const sol::table leftValues = sequenceValues(left);
-    const sol::table rightValues = sequenceValues(right);
+    const lua_glue::Table leftValues = sequenceValues(left);
+    const lua_glue::Table rightValues = sequenceValues(right);
     for (std::size_t index = 1; index <= leftList.length; ++index) {
-        const sol::object leftValue =
-            exposedValue(sol::state_view(left.lua_state()),
-                         leftValues.raw_get<sol::object>(index));
-        const sol::object rightValue =
-            exposedValue(sol::state_view(right.lua_state()),
-                         rightValues.raw_get<sol::object>(index));
+        const lua_glue::Object leftValue =
+            exposedValue(lua_glue::StateView(left.lua_state()),
+                         leftValues.raw_get<lua_glue::Object>(index));
+        const lua_glue::Object rightValue =
+            exposedValue(lua_glue::StateView(right.lua_state()),
+                         rightValues.raw_get<lua_glue::Object>(index));
         if (!valueEqual(leftValue, rightValue, context)) {
             return false;
         }
@@ -308,7 +312,7 @@ bool listEqual(const sol::object& left, const sol::object& right,
     return true;
 }
 
-bool dictEqual(const sol::object& left, const sol::object& right,
+bool dictEqual(const lua_glue::Object& left, const lua_glue::Object& right,
                EqualityContext& context) {
     if (rawEqual(left, right)) {
         return true;
@@ -321,29 +325,30 @@ bool dictEqual(const sol::object& left, const sol::object& right,
     if (!context.visited.insert(comparisonPair(left, right)).second) {
         return true;
     }
-    const sol::table leftKeys = dictKeys(left);
+    const lua_glue::Table leftKeys = dictKeys(left);
     for (std::size_t index = 0; index < leftDict.entries.size(); ++index) {
         if (!leftDict.entries[index].alive) {
             continue;
         }
-        const sol::object key = leftKeys.raw_get<sol::object>(index + 1);
+        const lua_glue::Object key =
+            leftKeys.raw_get<lua_glue::Object>(index + 1);
         const std::size_t rightIndex =
             findDictEntry(right, key, leftDict.entries[index].hash);
         if (rightIndex == std::numeric_limits<std::size_t>::max()) {
             return false;
         }
-        if (!valueEqual(
-                dictEntryValue(sol::state_view(left.lua_state()), left, index),
-                dictEntryValue(sol::state_view(right.lua_state()), right,
-                               rightIndex),
-                context)) {
+        if (!valueEqual(dictEntryValue(lua_glue::StateView(left.lua_state()),
+                                       left, index),
+                        dictEntryValue(lua_glue::StateView(right.lua_state()),
+                                       right, rightIndex),
+                        context)) {
             return false;
         }
     }
     return true;
 }
 
-bool valueEqual(const sol::object& left, const sol::object& right,
+bool valueEqual(const lua_glue::Object& left, const lua_glue::Object& right,
                 EqualityContext& context) {
     const ContainerKind leftKind = containerKind(left);
     const ContainerKind rightKind = containerKind(right);
@@ -365,7 +370,7 @@ bool valueEqual(const sol::object& left, const sol::object& right,
     return luaEqual(left, right);
 }
 
-bool valueEqual(const sol::object& left, const sol::object& right) {
+bool valueEqual(const lua_glue::Object& left, const lua_glue::Object& right) {
     EqualityContext context;
     return valueEqual(left, right, context);
 }

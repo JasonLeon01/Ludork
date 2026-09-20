@@ -15,7 +15,7 @@ function DamageTextParticle:init(particleSystem, text, position, textConfig, spe
     self._speedCurve = speedCurve
     self._isVisible = isVisible
     self._textParticle = nil
-    self._startPosition = copy(position)
+    self._startPosition = position:copy()
     self._destroyRequested = false
     self._destroyed = false
     local message = tostring(text)

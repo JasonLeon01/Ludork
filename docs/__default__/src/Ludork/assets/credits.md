@@ -52,7 +52,7 @@ Sources and notices checked on 2026-09-12. / 来源与声明核对日期：2026-
 
 ## Text cards / 文字卡片
 
-[LuaSF](https://github.com/JasonLeon01/LuaSF-AutoGenerator) and [sol2](https://github.com/ThePhD/sol2) are identified with text rather than image assets. / LuaSF 与 sol2 使用文字标识，不使用图像素材。
+[LuaSF](https://github.com/JasonLeon01/LuaSF-AutoGenerator) and LuaGlue are identified with text rather than image assets. / LuaSF 与 LuaGlue 使用文字标识，不使用图像素材。
 
 # Platform icon credits / 平台图标来源
 

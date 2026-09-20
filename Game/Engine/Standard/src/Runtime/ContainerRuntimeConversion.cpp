@@ -17,15 +17,15 @@
 namespace ludork::standard::container_runtime::detail {
 
 struct TableConversionContext {
-    explicit TableConversionContext(sol::state_view state) : lua(state) {}
+    explicit TableConversionContext(lua_glue::StateView state) : lua(state) {}
 
-    sol::state_view lua;
-    std::unordered_map<const void*, sol::table> converted;
+    lua_glue::StateView lua;
+    std::unordered_map<const void*, lua_glue::Table> converted;
 };
 
-std::string luaStringValue(const sol::object& value) {
+std::string luaStringValue(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
-    value.push();
+    value.push(state);
     std::size_t length = 0;
     const char* raw = luaL_tolstring(state, -1, &length);
     std::string result(raw, length);
@@ -33,9 +33,9 @@ std::string luaStringValue(const sol::object& value) {
     return result;
 }
 
-std::string tupleNumberString(const sol::object& value) {
+std::string tupleNumberString(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
-    value.push();
+    value.push(state);
     int integerValid = 0;
     const lua_Integer integer = lua_tointegerx(state, -1, &integerValid);
     lua_pop(state, 1);
@@ -45,7 +45,7 @@ std::string tupleNumberString(const sol::object& value) {
     return luaStringValue(value);
 }
 
-std::string quotedString(sol::string_view value) {
+std::string quotedString(std::string_view value) {
     static constexpr char digits[] = "0123456789abcdef";
     std::string result;
     result.reserve(value.size() + 2);
@@ -82,24 +82,24 @@ std::string quotedString(sol::string_view value) {
     return result;
 }
 
-std::string tupleItemString(const sol::object& value);
+std::string tupleItemString(const lua_glue::Object& value);
 
-std::string referenceString(const sol::object& value) {
+std::string referenceString(const lua_glue::Object& value) {
     const char* typeName = "reference";
     switch (value.get_type()) {
-        case sol::type::table:
+        case lua_glue::Type::Table:
             typeName = "table";
             break;
-        case sol::type::function:
+        case lua_glue::Type::Function:
             typeName = "function";
             break;
-        case sol::type::thread:
+        case lua_glue::Type::Thread:
             typeName = "thread";
             break;
-        case sol::type::userdata:
+        case lua_glue::Type::Userdata:
             typeName = "userdata";
             break;
-        case sol::type::lightuserdata:
+        case lua_glue::Type::LightUserdata:
             typeName = "lightuserdata";
             break;
         default:
@@ -110,15 +110,15 @@ std::string referenceString(const sol::object& value) {
     return "<" + std::string(typeName) + ":" + address + ">";
 }
 
-std::string tupleString(const sol::object& value) {
+std::string tupleString(const lua_glue::Object& value) {
     const NativeTuple& tuple = value.as<NativeTuple&>();
-    const sol::table values = sequenceValues(value);
+    const lua_glue::Table values = sequenceValues(value);
     std::string result = "(";
     for (std::size_t index = 1; index <= tuple.length; ++index) {
         if (index > 1) {
             result.push_back(',');
         }
-        result += tupleItemString(values.raw_get<sol::object>(index));
+        result += tupleItemString(values.raw_get<lua_glue::Object>(index));
     }
     if (tuple.length == 1) {
         result.push_back(',');
@@ -127,85 +127,88 @@ std::string tupleString(const sol::object& value) {
     return result;
 }
 
-std::string tupleItemString(const sol::object& value) {
+std::string tupleItemString(const lua_glue::Object& value) {
     switch (value.get_type()) {
-        case sol::type::boolean:
+        case lua_glue::Type::Boolean:
             return value.as<bool>() ? "true" : "false";
-        case sol::type::number:
+        case lua_glue::Type::Number:
             return tupleNumberString(value);
-        case sol::type::string:
-            return quotedString(value.as<sol::string_view>());
-        case sol::type::userdata:
+        case lua_glue::Type::String:
+            return quotedString(value.as<std::string_view>());
+        case lua_glue::Type::Userdata:
             if (value.is<NativeTuple>()) {
                 return tupleString(value);
             }
             [[fallthrough]];
-        case sol::type::table:
-        case sol::type::function:
-        case sol::type::thread:
-        case sol::type::lightuserdata:
+        case lua_glue::Type::Table:
+        case lua_glue::Type::Function:
+        case lua_glue::Type::Thread:
+        case lua_glue::Type::LightUserdata:
             return referenceString(value);
-        case sol::type::lua_nil:
-        case sol::type::none:
+        case lua_glue::Type::Nil:
+        case lua_glue::Type::None:
             throw std::invalid_argument("tuple elements cannot be nil");
         default:
             return luaStringValue(value);
     }
 }
 
-sol::object convertToTable(const sol::object& value,
-                           TableConversionContext& context);
+lua_glue::Object convertToTable(const lua_glue::Object& value,
+                                TableConversionContext& context);
 
-sol::object convertedSequence(const sol::object& value,
-                              TableConversionContext& context,
-                              std::size_t length) {
+lua_glue::Object convertedSequence(const lua_glue::Object& value,
+                                   TableConversionContext& context,
+                                   std::size_t length) {
     const void* identity = objectIdentity(value);
     const auto existing = context.converted.find(identity);
     if (existing != context.converted.end()) {
-        return sol::make_object(context.lua, existing->second);
+        return lua_glue::MakeObject(context.lua, existing->second);
     }
-    sol::table result = context.lua.create_table(static_cast<int>(length), 0);
-    const sol::object arrayMetatable =
-        context.lua.registry().raw_get<sol::object>(
+    lua_glue::Table result =
+        context.lua.create_table(static_cast<int>(length), 0);
+    const lua_glue::Object arrayMetatable =
+        context.lua.registry().raw_get<lua_glue::Object>(
             ludork::standard::json_runtime::protocol::JSON_ARRAY_METATABLE_KEY);
-    if (arrayMetatable.get_type() != sol::type::table) {
+    if (arrayMetatable.get_type() != lua_glue::Type::Table) {
         throw std::runtime_error("cjson array metatable is not registered");
     }
-    result[sol::metatable_key] = arrayMetatable.as<sol::table>();
+    lua_glue::SetMetatable(result, arrayMetatable.as<lua_glue::Table>());
     context.converted.emplace(identity, result);
-    const sol::table values = sequenceValues(value);
+    const lua_glue::Table values = sequenceValues(value);
     for (std::size_t index = 1; index <= length; ++index) {
         result.raw_set(
-            index,
-            convertToTable(
-                exposedValue(context.lua, values.raw_get<sol::object>(index)),
-                context));
+            index, convertToTable(
+                       exposedValue(context.lua,
+                                    values.raw_get<lua_glue::Object>(index)),
+                       context));
     }
-    return sol::make_object(context.lua, result);
+    return lua_glue::MakeObject(context.lua, result);
 }
 
-sol::object convertedDict(const sol::object& value,
-                          TableConversionContext& context) {
+lua_glue::Object convertedDict(const lua_glue::Object& value,
+                               TableConversionContext& context) {
     const void* identity = objectIdentity(value);
     const auto existing = context.converted.find(identity);
     if (existing != context.converted.end()) {
-        return sol::make_object(context.lua, existing->second);
+        return lua_glue::MakeObject(context.lua, existing->second);
     }
-    sol::table result = context.lua.create_table();
+    lua_glue::Table result = context.lua.create_table();
     context.converted.emplace(identity, result);
     const NativeDict& dict = value.as<NativeDict&>();
-    const sol::table keys = dictKeys(value);
+    const lua_glue::Table keys = dictKeys(value);
     for (std::size_t index = 0; index < dict.entries.size(); ++index) {
         if (!dict.entries[index].alive) {
             continue;
         }
-        const sol::object sourceKey = keys.raw_get<sol::object>(index + 1);
-        const sol::object targetKey =
+        const lua_glue::Object sourceKey =
+            keys.raw_get<lua_glue::Object>(index + 1);
+        const lua_glue::Object targetKey =
             sourceKey.is<NativeTuple>()
-                ? sol::make_object(context.lua, tupleString(sourceKey))
+                ? lua_glue::MakeObject(context.lua, tupleString(sourceKey))
                 : convertToTable(sourceKey, context);
-        const sol::object occupied = result.raw_get<sol::object>(targetKey);
-        if (occupied.valid() && occupied.get_type() != sol::type::lua_nil) {
+        const lua_glue::Object occupied =
+            result.raw_get<lua_glue::Object>(targetKey);
+        if (occupied.valid() && occupied.get_type() != lua_glue::Type::Nil) {
             throw std::invalid_argument(
                 "dict.toTable key conversion would overwrite an existing key");
         }
@@ -213,66 +216,67 @@ sol::object convertedDict(const sol::object& value,
             targetKey,
             convertToTable(dictEntryValue(context.lua, value, index), context));
     }
-    return sol::make_object(context.lua, result);
+    return lua_glue::MakeObject(context.lua, result);
 }
 
-sol::object convertedRawTable(const sol::table& value,
-                              TableConversionContext& context) {
-    const sol::object source = sol::make_object(context.lua, value);
+lua_glue::Object convertedRawTable(const lua_glue::Table& value,
+                                   TableConversionContext& context) {
+    const lua_glue::Object source = lua_glue::MakeObject(context.lua, value);
     const void* identity = objectIdentity(source);
     const auto existing = context.converted.find(identity);
     if (existing != context.converted.end()) {
-        return sol::make_object(context.lua, existing->second);
+        return lua_glue::MakeObject(context.lua, existing->second);
     }
-    sol::table result = context.lua.create_table();
-    const sol::object arrayMetatable =
-        context.lua.registry().raw_get<sol::object>(
+    lua_glue::Table result = context.lua.create_table();
+    const lua_glue::Object arrayMetatable =
+        context.lua.registry().raw_get<lua_glue::Object>(
             ludork::standard::json_runtime::protocol::JSON_ARRAY_METATABLE_KEY);
-    if (arrayMetatable.get_type() != sol::type::table) {
+    if (arrayMetatable.get_type() != lua_glue::Type::Table) {
         throw std::runtime_error("cjson array metatable is not registered");
     }
-    const sol::object emptyArrayMetatable =
-        context.lua.registry().raw_get<sol::object>(
+    const lua_glue::Object emptyArrayMetatable =
+        context.lua.registry().raw_get<lua_glue::Object>(
             ludork::standard::json_runtime::protocol::
                 JSON_EMPTY_ARRAY_METATABLE_KEY);
-    if (emptyArrayMetatable.get_type() != sol::type::table) {
+    if (emptyArrayMetatable.get_type() != lua_glue::Type::Table) {
         throw std::runtime_error(
             "cjson empty-array metatable is not registered");
     }
     lua_State* state = context.lua.lua_state();
     const int originalTop = lua_gettop(state);
-    value.push();
+    value.push(state);
     const bool hasMetatable = lua_getmetatable(state, -1) != 0;
     bool isJsonArray = false;
     bool isJsonEmptyArray = false;
     if (hasMetatable) {
-        arrayMetatable.push();
+        arrayMetatable.push(state);
         isJsonArray = lua_rawequal(state, -1, -2) != 0;
         lua_pop(state, 1);
-        emptyArrayMetatable.push();
+        emptyArrayMetatable.push(state);
         isJsonEmptyArray = lua_rawequal(state, -1, -2) != 0;
     }
     lua_settop(state, originalTop);
     if (isJsonArray) {
-        result[sol::metatable_key] = arrayMetatable.as<sol::table>();
+        lua_glue::SetMetatable(result, arrayMetatable.as<lua_glue::Table>());
     } else if (isJsonEmptyArray) {
-        result[sol::metatable_key] = emptyArrayMetatable.as<sol::table>();
+        lua_glue::SetMetatable(result,
+                               emptyArrayMetatable.as<lua_glue::Table>());
     }
     context.converted.emplace(identity, result);
     for (const auto& entry : value) {
         result.raw_set(convertToTable(entry.first, context),
                        convertToTable(entry.second, context));
     }
-    return sol::make_object(context.lua, result);
+    return lua_glue::MakeObject(context.lua, result);
 }
 
-sol::object convertToTable(const sol::object& value,
-                           TableConversionContext& context) {
-    if (value.get_type() == sol::type::lua_nil) {
-        const sol::object nullValue =
-            context.lua.registry().raw_get<sol::object>(
+lua_glue::Object convertToTable(const lua_glue::Object& value,
+                                TableConversionContext& context) {
+    if (value.get_type() == lua_glue::Type::Nil) {
+        const lua_glue::Object nullValue =
+            context.lua.registry().raw_get<lua_glue::Object>(
                 ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
-        if (!nullValue.valid() || nullValue.get_type() == sol::type::lua_nil) {
+        if (!nullValue.valid() || nullValue.get_type() == lua_glue::Type::Nil) {
             throw std::runtime_error("cjson.null is not registered");
         }
         return nullValue;
@@ -288,14 +292,15 @@ sol::object convertToTable(const sol::object& value,
     if (value.is<NativeDict>()) {
         return convertedDict(value, context);
     }
-    if (value.get_type() == sol::type::table) {
-        return convertedRawTable(value.as<sol::table>(), context);
+    if (value.get_type() == lua_glue::Type::Table) {
+        return convertedRawTable(value.as<lua_glue::Table>(), context);
     }
     return value;
 }
 
-sol::object containerToTable(const sol::object& value, sol::this_state state) {
-    TableConversionContext context{sol::state_view(state)};
+lua_glue::Object containerToTable(const lua_glue::Object& value,
+                                  lua_glue::ThisState state) {
+    TableConversionContext context{lua_glue::StateView(state)};
     return convertToTable(value, context);
 }
 

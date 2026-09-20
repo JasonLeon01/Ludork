@@ -252,11 +252,13 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
 
     applyConfigValues(parentClass, classAttrs, configReferences(parentClass));
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    const sol::object metadataOwner = binding::writeLuaValue(lua, parentClass);
-    const RuntimeValue rawMetadata = detail::readRuntimeReference(
-        sol::make_object(lua, detail::collectRuntimeAttrMetadata(
-                                  lua, metadataOwner.as<sol::table>())));
+    lua_glue::StateView lua(scope.state());
+    const lua_glue::Object metadataOwner =
+        binding::writeLuaValue(lua, parentClass);
+    const RuntimeValue rawMetadata =
+        detail::readRuntimeReference(lua_glue::MakeObject(
+            lua, detail::collectRuntimeAttrMetadata(
+                     lua, metadataOwner.as<lua_glue::Table>())));
     const RuntimeValue attrMetadata =
         isTable(rawMetadata) ? rawMetadata : table();
     RuntimeHandle attrTypes = table();

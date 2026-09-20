@@ -8,7 +8,7 @@
 #include <ClassServices.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -21,11 +21,12 @@ extern "C" {
 
 namespace {
 
-sol::object writeValue(sol::state_view lua, const RuntimeValue& value) {
+lua_glue::Object writeValue(lua_glue::StateView lua,
+                            const RuntimeValue& value) {
     return ludork::runtime::binding::writeLuaValue(lua, value);
 }
 
-RuntimeValue readValue(const sol::object& value) {
+RuntimeValue readValue(const lua_glue::Object& value) {
     return ludork::runtime::binding::readLuaValue<RuntimeValue>(value);
 }
 }  // namespace
@@ -38,9 +39,10 @@ RuntimeValue::Map MetadataRuntimeFacade::configVars(
 std::optional<std::string> MetadataRuntimeFacade::classModulePath(
     const RuntimeValue& classReference) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object module = ludork::runtime::detail::findRuntimeClassModule(
-        lua, writeValue(lua, classReference));
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object module =
+        ludork::runtime::detail::findRuntimeClassModule(
+            lua, writeValue(lua, classReference));
     return module.is<std::string>()
                ? std::optional<std::string>(module.as<std::string>())
                : std::nullopt;
@@ -49,21 +51,22 @@ std::optional<std::string> MetadataRuntimeFacade::classModulePath(
 std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::classTypeMetadata(
     const RuntimeValue& classReference) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawClass = writeValue(lua, classReference);
-    if (!rawClass.is<sol::table>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawClass = writeValue(lua, classReference);
+    if (!rawClass.is<lua_glue::Table>()) {
         return {};
     }
-    const sol::table descriptor =
+    const lua_glue::Table descriptor =
         ludork::runtime::detail::runtimeClassTypeDescriptor(
-            lua, rawClass.as<sol::table>());
-    const sol::object hasMetadata =
-        descriptor.raw_get<sol::object>("hasMetadata");
-    const sol::object metadata =
+            lua, rawClass.as<lua_glue::Table>());
+    const lua_glue::Object hasMetadata =
+        descriptor.raw_get<lua_glue::Object>("hasMetadata");
+    const lua_glue::Object metadata =
         hasMetadata.is<bool>() && hasMetadata.as<bool>()
-            ? descriptor.raw_get<sol::object>("metadata")
+            ? descriptor.raw_get<lua_glue::Object>("metadata")
             : ludork::runtime::detail::nilObject(lua);
-    const sol::object module = descriptor.raw_get<sol::object>("module");
+    const lua_glue::Object module =
+        descriptor.raw_get<lua_glue::Object>("module");
     return {
         readValue(metadata),
         readValue(module.valid() ? module
@@ -73,33 +76,33 @@ std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::classTypeMetadata(
 RuntimeValue MetadataRuntimeFacade::attrMetadata(
     const RuntimeValue& owner) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawOwner = writeValue(lua, owner);
-    if (!rawOwner.is<sol::table>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawOwner = writeValue(lua, owner);
+    if (!rawOwner.is<lua_glue::Table>()) {
         return RuntimeValue(RuntimeValue::Map{});
     }
-    return readValue(sol::make_object(
+    return readValue(lua_glue::MakeObject(
         lua, ludork::runtime::detail::collectRuntimeAttrMetadata(
-                 lua, rawOwner.as<sol::table>())));
+                 lua, rawOwner.as<lua_glue::Table>())));
 }
 
 RuntimeValue MetadataRuntimeFacade::resolveAttrMetadata(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawOwner = writeValue(lua, owner);
-    if (!rawOwner.is<sol::table>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawOwner = writeValue(lua, owner);
+    if (!rawOwner.is<lua_glue::Table>()) {
         return {};
     }
     return readValue(ludork::runtime::detail::collectRuntimeAttrMetadata(
-                         lua, rawOwner.as<sol::table>())
-                         .raw_get<sol::object>(key));
+                         lua, rawOwner.as<lua_glue::Table>())
+                         .raw_get<lua_glue::Object>(key));
 }
 
 RuntimeValue MetadataRuntimeFacade::resolveAttrValueType(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua(runtime.state());
+    lua_glue::StateView lua(runtime.state());
     return readValue(ludork::runtime::detail::resolveRuntimeAttrValueType(
         lua, writeValue(lua, owner), key));
 }
@@ -107,10 +110,10 @@ RuntimeValue MetadataRuntimeFacade::resolveAttrValueType(
 std::pair<RuntimeValue, RuntimeValue> MetadataRuntimeFacade::resolveConfigVar(
     const RuntimeValue& owner, const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     const auto [configName, settingName] =
         ludork::runtime::detail::resolveRuntimeConfigVar(
-            lua, writeValue(lua, owner), sol::make_object(lua, key));
+            lua, writeValue(lua, owner), lua_glue::MakeObject(lua, key));
     return {readValue(configName), readValue(settingName)};
 }
 
@@ -118,17 +121,17 @@ std::pair<RuntimeValue, RuntimeValue>
 MetadataRuntimeFacade::resolveMemberMetadata(const RuntimeValue& owner,
                                              const std::string& key) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     const auto [metadata, declaringModule] =
         ludork::runtime::detail::resolveRuntimeMemberMetadata(
-            lua, writeValue(lua, owner), sol::make_object(lua, key));
+            lua, writeValue(lua, owner), lua_glue::MakeObject(lua, key));
     return {readValue(metadata), readValue(declaringModule)};
 }
 
 RuntimeValue MetadataRuntimeFacade::evaluateExpression(
     const RuntimeValue& value, const RuntimeValue::Map& environment) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     return readValue(ludork::runtime::detail::evaluateRuntimeExpression(
         lua, writeValue(lua, value),
         writeValue(lua, RuntimeValue(environment))));
@@ -138,53 +141,53 @@ RuntimeValue MetadataRuntimeFacade::resolveType(
     const RuntimeValue& typeReference,
     const std::string& declaringModule) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     return readValue(ludork::runtime::detail::resolveRuntimeMetadataType(
         lua, writeValue(lua, typeReference),
-        sol::make_object(lua, declaringModule)));
+        lua_glue::MakeObject(lua, declaringModule)));
 }
 
 RuntimeValue MetadataRuntimeFacade::constructTypedValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawValue = writeValue(lua, value);
-    const sol::object target =
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawValue = writeValue(lua, value);
+    const lua_glue::Object target =
         ludork::runtime::detail::resolveRuntimeMetadataType(
             lua, writeValue(lua, valueType),
-            sol::make_object(lua, declaringModule));
-    if (!target.valid() || target.get_type() == sol::type::lua_nil) {
+            lua_glue::MakeObject(lua, declaringModule));
+    if (!target.valid() || target.get_type() == lua_glue::Type::Nil) {
         throw std::runtime_error("Cannot resolve runtime metadata type");
     }
-    if (target.get_type() == sol::type::table &&
+    if (target.get_type() == lua_glue::Type::Table &&
         ludork::standard::class_runtime::isInstanceOf(
-            lua, rawValue, target.as<sol::table>())) {
+            lua, rawValue, target.as<lua_glue::Table>())) {
         return value;
     }
-    if (rawValue.get_type() != sol::type::table) {
+    if (rawValue.get_type() != lua_glue::Type::Table) {
         return value;
     }
-    std::vector<sol::object> constructorArguments;
-    if (!ludork::runtime::detail::runtimeSequence(rawValue.as<sol::table>(),
-                                                  constructorArguments)) {
+    std::vector<lua_glue::Object> constructorArguments;
+    if (!ludork::runtime::detail::runtimeSequence(
+            rawValue.as<lua_glue::Table>(), constructorArguments)) {
         constructorArguments = {rawValue};
     }
     if (constructorArguments.size() == 1 &&
-        constructorArguments.front().get_type() == sol::type::table) {
-        std::vector<sol::object> nested;
+        constructorArguments.front().get_type() == lua_glue::Type::Table) {
+        std::vector<lua_glue::Object> nested;
         if (ludork::runtime::detail::runtimeSequence(
-                constructorArguments.front().as<sol::table>(), nested)) {
+                constructorArguments.front().as<lua_glue::Table>(), nested)) {
             constructorArguments = std::move(nested);
         }
     }
-    if (target.get_type() != sol::type::table) {
+    if (target.get_type() != lua_glue::Type::Table) {
         throw std::runtime_error("Runtime metadata type is not constructible");
     }
-    const sol::object constructor =
+    const lua_glue::Object constructor =
         ludork::standard::class_runtime::protectedGet(
-            lua, target, sol::make_object(lua, "new"));
-    if (!constructor.is<sol::protected_function>()) {
+            lua, target, lua_glue::MakeObject(lua, "new"));
+    if (!constructor.is<lua_glue::Function>()) {
         throw std::runtime_error(
             "Runtime metadata type has no new constructor");
     }
@@ -195,10 +198,10 @@ RuntimeValue MetadataRuntimeFacade::constructTypedValue(
         const int resultCount = ludork::runtime::detail::invokeRuntimeFunction(
             state, constructor, constructorArguments,
             "runtime constructor arguments");
-        RuntimeValue result =
-            resultCount == 0
-                ? RuntimeValue()
-                : readValue(sol::stack::get<sol::object>(state, stackBase + 1));
+        RuntimeValue result = resultCount == 0
+                                  ? RuntimeValue()
+                                  : readValue(lua_glue::Read<lua_glue::Object>(
+                                        state, stackBase + 1));
         lua_settop(state, stackBase);
         return result;
     } catch (...) {

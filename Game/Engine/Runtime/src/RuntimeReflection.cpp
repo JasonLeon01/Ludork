@@ -7,7 +7,7 @@
 #include <ClassServices.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -19,11 +19,12 @@ extern "C" {
 
 namespace {
 
-sol::object writeValue(sol::state_view lua, const RuntimeValue& value) {
+lua_glue::Object writeValue(lua_glue::StateView lua,
+                            const RuntimeValue& value) {
     return ludork::runtime::binding::writeLuaValue(lua, value);
 }
 
-RuntimeValue readValue(const sol::object& value) {
+RuntimeValue readValue(const lua_glue::Object& value) {
     return ludork::runtime::binding::readLuaValue<RuntimeValue>(value);
 }
 
@@ -33,15 +34,14 @@ RuntimeValue::Array collectResults(lua_State* state, int stackBase,
     values.reserve(static_cast<std::size_t>(resultCount));
     for (int index = 0; index < resultCount; ++index) {
         values.push_back(readValue(
-            sol::stack::get<sol::object>(state, stackBase + index + 1)));
+            lua_glue::Read<lua_glue::Object>(state, stackBase + index + 1)));
     }
     return values;
 }
 
-RuntimeValue::Array invokeAndRead(sol::state_view lua,
-                                  const sol::object& callable,
-                                  const std::vector<sol::object>& arguments,
-                                  const char* context) {
+RuntimeValue::Array invokeAndRead(
+    lua_glue::StateView lua, const lua_glue::Object& callable,
+    const std::vector<lua_glue::Object>& arguments, const char* context) {
     lua_State* state = lua.lua_state();
     const int stackBase = lua_gettop(state);
     try {
@@ -57,9 +57,9 @@ RuntimeValue::Array invokeAndRead(sol::state_view lua,
     }
 }
 
-std::vector<sol::object> writeArguments(sol::state_view lua,
-                                        const RuntimeValue::Array& arguments) {
-    std::vector<sol::object> result;
+std::vector<lua_glue::Object> writeArguments(
+    lua_glue::StateView lua, const RuntimeValue::Array& arguments) {
+    std::vector<lua_glue::Object> result;
     result.reserve(arguments.size());
     for (const RuntimeValue& argument : arguments) {
         result.push_back(writeValue(lua, argument));
@@ -67,25 +67,25 @@ std::vector<sol::object> writeArguments(sol::state_view lua,
     return result;
 }
 
-std::string valueKind(const sol::object& value) {
+std::string valueKind(const lua_glue::Object& value) {
     switch (value.get_type()) {
-        case sol::type::none:
-        case sol::type::lua_nil:
+        case lua_glue::Type::None:
+        case lua_glue::Type::Nil:
             return "nil";
-        case sol::type::boolean:
+        case lua_glue::Type::Boolean:
             return "boolean";
-        case sol::type::number:
+        case lua_glue::Type::Number:
             return "number";
-        case sol::type::string:
+        case lua_glue::Type::String:
             return "string";
-        case sol::type::table:
+        case lua_glue::Type::Table:
             return "table";
-        case sol::type::function:
+        case lua_glue::Type::Function:
             return "function";
-        case sol::type::userdata:
-        case sol::type::lightuserdata:
+        case lua_glue::Type::Userdata:
+        case lua_glue::Type::LightUserdata:
             return "userdata";
-        case sol::type::thread:
+        case lua_glue::Type::Thread:
             return "thread";
         default:
             return "nil";
@@ -112,41 +112,42 @@ std::string RuntimeReflectionFacade::kind(const RuntimeValue& value) const {
     if (value.view().array() || value.view().map()) {
         return "table";
     }
-    return valueKind(writeValue(sol::state_view(runtime.state()), value));
+    return valueKind(writeValue(lua_glue::StateView(runtime.state()), value));
 }
 
 RuntimeValue RuntimeReflectionFacade::typeOf(const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
     return readValue(ludork::standard::class_runtime::typeOf(
-        sol::state_view(runtime.state()),
-        writeValue(sol::state_view(runtime.state()), value)));
+        lua_glue::StateView(runtime.state()),
+        writeValue(lua_glue::StateView(runtime.state()), value)));
 }
 
 bool RuntimeReflectionFacade::isSubclass(
     const RuntimeValue& value, const RuntimeValue& targetClass) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawValue = writeValue(lua, value);
-    const sol::object rawTarget = writeValue(lua, targetClass);
-    return rawValue.is<sol::table>() && rawTarget.is<sol::table>() &&
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawValue = writeValue(lua, value);
+    const lua_glue::Object rawTarget = writeValue(lua, targetClass);
+    return rawValue.is<lua_glue::Table>() && rawTarget.is<lua_glue::Table>() &&
            ludork::standard::class_runtime::isSubclassOf(
-               lua, rawValue.as<sol::table>(), rawTarget.as<sol::table>());
+               lua, rawValue.as<lua_glue::Table>(),
+               rawTarget.as<lua_glue::Table>());
 }
 
 bool RuntimeReflectionFacade::isInstance(
     const RuntimeValue& value, const RuntimeValue& targetClass) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawTarget = writeValue(lua, targetClass);
-    return rawTarget.is<sol::table>() &&
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawTarget = writeValue(lua, targetClass);
+    return rawTarget.is<lua_glue::Table>() &&
            ludork::standard::class_runtime::isInstanceOf(
-               lua, writeValue(lua, value), rawTarget.as<sol::table>());
+               lua, writeValue(lua, value), rawTarget.as<lua_glue::Table>());
 }
 
 bool RuntimeReflectionFacade::equal(const RuntimeValue& left,
                                     const RuntimeValue& right) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     return ludork::standard::class_runtime::rawEqual(writeValue(lua, left),
                                                      writeValue(lua, right));
 }
@@ -154,17 +155,17 @@ bool RuntimeReflectionFacade::equal(const RuntimeValue& left,
 RuntimeValue::Array RuntimeReflectionFacade::mro(
     const RuntimeHandle& classType) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawType = writeValue(lua, classType);
-    if (!rawType.is<sol::table>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawType = writeValue(lua, classType);
+    if (!rawType.is<lua_glue::Table>()) {
         return {};
     }
-    const sol::table values =
+    const lua_glue::Table values =
         ludork::standard::class_runtime::getMroCopy(lua, rawType);
     RuntimeValue::Array result;
     result.reserve(values.size());
     for (std::size_t index = 1; index <= values.size(); ++index) {
-        result.push_back(readValue(values.raw_get<sol::object>(index)));
+        result.push_back(readValue(values.raw_get<lua_glue::Object>(index)));
     }
     return result;
 }
@@ -173,14 +174,14 @@ std::vector<std::string> RuntimeReflectionFacade::keys(
     const RuntimeHandle& value,
     RuntimeReflectionFacade::RuntimeLookupMode mode) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const std::vector<sol::object> rawKeys =
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const std::vector<lua_glue::Object> rawKeys =
         ludork::runtime::detail::runtimeKeys(
             lua, writeValue(lua, value),
             mode == RuntimeReflectionFacade::RuntimeLookupMode::Own);
     std::vector<std::string> result;
     result.reserve(rawKeys.size());
-    for (const sol::object& key : rawKeys) {
+    for (const lua_glue::Object& key : rawKeys) {
         if (key.is<std::string>()) {
             result.push_back(key.as<std::string>());
         }
@@ -192,9 +193,9 @@ RuntimeValue RuntimeReflectionFacade::get(
     const RuntimeHandle& value, const std::string& name,
     RuntimeReflectionFacade::RuntimeLookupMode mode) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     return readValue(ludork::runtime::detail::runtimeIndex(
-        lua, writeValue(lua, value), sol::make_object(lua, name),
+        lua, writeValue(lua, value), lua_glue::MakeObject(lua, name),
         mode == RuntimeReflectionFacade::RuntimeLookupMode::Own));
 }
 
@@ -202,9 +203,9 @@ void RuntimeReflectionFacade::set(const RuntimeHandle& value,
                                   const std::string& name,
                                   const RuntimeValue& member) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     ludork::runtime::detail::runtimeAssign(lua, writeValue(lua, value),
-                                           sol::make_object(lua, name),
+                                           lua_glue::MakeObject(lua, name),
                                            writeValue(lua, member), false);
 }
 
@@ -212,18 +213,18 @@ void RuntimeReflectionFacade::setTyped(const RuntimeHandle& value,
                                        const std::string& name,
                                        const RuntimeValue& member) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua(runtime.state());
+    lua_glue::StateView lua(runtime.state());
     ludork::standard::class_runtime::protectedSetTyped(
-        lua, writeValue(lua, value), sol::make_object(lua, name),
+        lua, writeValue(lua, value), lua_glue::MakeObject(lua, name),
         writeValue(lua, member));
 }
 
 std::string RuntimeReflectionFacade::toString(const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawToString =
-        lua.globals().raw_get<sol::object>("tostring");
-    if (!rawToString.is<sol::protected_function>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawToString =
+        lua.globals().raw_get<lua_glue::Object>("tostring");
+    if (!rawToString.is<lua_glue::Function>()) {
         throw std::runtime_error("Lua tostring function is not defined");
     }
     const RuntimeValue::Array result = invokeAndRead(
@@ -238,16 +239,16 @@ RuntimeValue RuntimeReflectionFacade::construct(
     const RuntimeHandle& classType,
     const RuntimeValue::Array& arguments) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawClass = writeValue(lua, classType);
-    if (!rawClass.is<sol::table>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawClass = writeValue(lua, classType);
+    if (!rawClass.is<lua_glue::Table>()) {
         throw std::invalid_argument(
             "Runtime class constructor requires a class");
     }
-    const sol::object constructor =
+    const lua_glue::Object constructor =
         ludork::standard::class_runtime::protectedGet(
-            lua, rawClass, sol::make_object(lua, "new"));
-    if (!constructor.is<sol::protected_function>()) {
+            lua, rawClass, lua_glue::MakeObject(lua, "new"));
+    if (!constructor.is<lua_glue::Function>()) {
         throw std::runtime_error("Runtime class has no new constructor");
     }
     RuntimeValue::Array results =
@@ -264,14 +265,15 @@ RuntimeValue::Array RuntimeReflectionFacade::call(
     const RuntimeHandle& receiver, const std::string& name,
     const RuntimeValue::Array& arguments) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawReceiver = writeValue(lua, receiver);
-    const sol::object callable = ludork::standard::class_runtime::protectedGet(
-        lua, rawReceiver, sol::make_object(lua, name));
-    if (!callable.is<sol::protected_function>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawReceiver = writeValue(lua, receiver);
+    const lua_glue::Object callable =
+        ludork::standard::class_runtime::protectedGet(
+            lua, rawReceiver, lua_glue::MakeObject(lua, name));
+    if (!callable.is<lua_glue::Function>()) {
         throw std::runtime_error("Runtime method is not defined: " + name);
     }
-    std::vector<sol::object> rawArguments;
+    std::vector<lua_glue::Object> rawArguments;
     rawArguments.reserve(arguments.size() + 1);
     rawArguments.push_back(rawReceiver);
     for (const RuntimeValue& argument : arguments) {
@@ -284,9 +286,9 @@ RuntimeValue::Array RuntimeReflectionFacade::call(
 RuntimeValue::Array RuntimeReflectionFacade::invoke(
     const RuntimeHandle& callable, const RuntimeValue::Array& arguments) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
-    const sol::object rawCallable = writeValue(lua, callable);
-    if (!rawCallable.is<sol::protected_function>()) {
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
+    const lua_glue::Object rawCallable = writeValue(lua, callable);
+    if (!rawCallable.is<lua_glue::Function>()) {
         throw std::invalid_argument("Runtime callable must be a function");
     }
     return invokeAndRead(lua, rawCallable, writeArguments(lua, arguments),
@@ -295,7 +297,7 @@ RuntimeValue::Array RuntimeReflectionFacade::invoke(
 
 RuntimeValue RuntimeReflectionFacade::clone(const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua = sol::state_view(runtime.state());
+    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
     return readValue(
         ludork::standard::class_runtime::deepCopy(lua, writeValue(lua, value)));
 }

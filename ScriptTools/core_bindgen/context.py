@@ -54,6 +54,8 @@ class GeneratorContext:
     required_dynamic_traits: set[str] = field(default_factory=set)
     required_table_traits: set[str] = field(default_factory=set)
     required_opaque_traits: set[str] = field(default_factory=set)
+    stub_alias_namespace: str | None = None
+    stub_array_aliases: dict[str, str] = field(default_factory=dict)
 
     def for_scope(self, scope: tuple[str, ...]) -> GeneratorContext:
         return replace(self, cpp_scope=scope)

@@ -654,7 +654,7 @@ validate_package() {
         LuaSF/LICENSE.txt \
         Lua/LICENSE.txt \
         SFML/LICENSE.txt \
-        sol2/LICENSE.txt \
+        LuaGlue/LICENSE \
         lua-cjson/LICENSE.txt \
         zlib/LICENSE.txt \
         FFmpeg/COPYING.GPLv2.txt \
@@ -841,7 +841,7 @@ validate_package() {
             Lua/LICENSE.txt \
             LuaSF/LICENSE.txt \
             SFML/LICENSE.txt \
-            sol2/LICENSE.txt \
+            LuaGlue/LICENSE \
             lua-cjson/LICENSE.txt \
             zlib/LICENSE.txt \
             NativeDependencies/FLAC-COPYING.Xiph.txt \
@@ -1030,7 +1030,7 @@ fi
 require_file "$PROJECT_ROOT/Game/CMakeLists.txt"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaSF"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/SFML"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/sol2"
+require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaGlue"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/Lua"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/lua-cjson"
 require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/zlib"

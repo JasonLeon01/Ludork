@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ClassRuntimeProtocol.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -14,8 +14,6 @@ extern "C" {
 namespace ludork::standard::class_runtime::detail {
 
 inline constexpr const char* METHOD_OWNERS_KEY = "Ludork.Class.methodOwners";
-inline constexpr const char* NATIVE_TYPE_CACHE_KEY =
-    "Ludork.Class.nativeTypeCache";
 inline constexpr const char* NATIVE_PROPERTY_CACHE_KEY =
     "Ludork.Class.nativePropertyCache";
 inline constexpr const char* INSTANCES_KEY = "Ludork.Class.instances";
@@ -99,6 +97,7 @@ enum class MroKind {
     Native,
 };
 
-using NativeShadowSnapshot = std::vector<std::pair<sol::object, sol::object>>;
+using NativeShadowSnapshot =
+    std::vector<std::pair<lua_glue::Object, lua_glue::Object>>;
 
 }  // namespace ludork::standard::class_runtime::detail

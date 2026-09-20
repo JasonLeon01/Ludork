@@ -23,7 +23,7 @@ MOBILE_PROJECT_DIRECTORIES = (
     "Assets", "Engine/Source", "Engine/Runtime", "Data", "Application",
     "Engine/ThirdParty/LuaSF", "Engine/ThirdParty/lua-cjson", "Scripts",
     "Engine/Standard", "Engine/ThirdParty/zlib",
-    "Engine/ThirdParty/SFML", "Engine/ThirdParty/sol2", "Engine/ThirdParty/Lua",
+    "Engine/ThirdParty/SFML", "Engine/ThirdParty/LuaGlue", "Engine/ThirdParty/Lua",
 )
 MOBILE_DEPENDENCY_NAMES = (
     "flac", "freetype", "harfbuzz", "libssh2", "mbedtls", "ogg", "sheenbidi", "vorbis",

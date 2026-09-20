@@ -6,7 +6,7 @@
 #include "Detail/RuntimeState.hpp"
 #include "Detail/TypedFields.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -22,94 +22,106 @@ namespace ludork::standard::class_runtime::detail {
 // ── Monitor
 // ───────────────────────────────────────────────────────────────────
 
-sol::object monitorMissing(sol::state_view lua) {
-    const sol::object rawClass = lua.globals().raw_get<sol::object>("Class");
-    if (rawClass.is<sol::table>()) {
-        sol::table classModule = rawClass.as<sol::table>();
-        const sol::object missing = classModule.raw_get<sol::object>("MISSING");
-        if (missing.is<sol::table>()) {
+lua_glue::Object monitorMissing(lua_glue::StateView lua) {
+    const lua_glue::Object rawClass =
+        lua.globals().raw_get<lua_glue::Object>("Class");
+    if (rawClass.is<lua_glue::Table>()) {
+        lua_glue::Table classModule = rawClass.as<lua_glue::Table>();
+        const lua_glue::Object missing =
+            classModule.raw_get<lua_glue::Object>("MISSING");
+        if (missing.is<lua_glue::Table>()) {
             return missing;
         }
-        sol::table created = lua.create_table();
+        lua_glue::Table created = lua.create_table();
         classModule.raw_set("MISSING", created);
         return created;
     }
     return lua.create_table();
 }
 
-sol::table monitorState(sol::state_view lua, const sol::object& target) {
-    const sol::object rawState = registryTable(lua, MONITOR_STATES_KEY, "k")
-                                     .raw_get<sol::object>(target);
-    return rawState.is<sol::table>() ? rawState.as<sol::table>()
-                                     : lua.create_table();
+lua_glue::Table monitorState(lua_glue::StateView lua,
+                             const lua_glue::Object& target) {
+    const lua_glue::Object rawState =
+        registryTable(lua, MONITOR_STATES_KEY, "k")
+            .raw_get<lua_glue::Object>(target);
+    return rawState.is<lua_glue::Table>() ? rawState.as<lua_glue::Table>()
+                                          : lua.create_table();
 }
 
-sol::object originalMonitoredIndex(sol::state_view lua, const sol::table& state,
-                                   const sol::object& target,
-                                   const sol::object& key) {
-    const sol::object originalIndex = state.raw_get<sol::object>("index");
-    if (originalIndex.is<sol::protected_function>()) {
-        sol::protected_function_result result =
-            originalIndex.as<sol::protected_function>()(target, key);
+lua_glue::Object originalMonitoredIndex(lua_glue::StateView lua,
+                                        const lua_glue::Table& state,
+                                        const lua_glue::Object& target,
+                                        const lua_glue::Object& key) {
+    const lua_glue::Object originalIndex =
+        state.raw_get<lua_glue::Object>("index");
+    if (originalIndex.is<lua_glue::Function>()) {
+        lua_glue::CallResult result =
+            originalIndex.as<lua_glue::Function>()(target, key);
         if (!result.valid()) {
-            const sol::error error = result;
-            throw std::runtime_error(error.what());
+            const std::string error = result.error();
+            throw std::runtime_error(error.c_str());
         }
-        return result.get<sol::object>();
+        return result.get<lua_glue::Object>();
     }
-    if (originalIndex.is<sol::table>()) {
-        return originalIndex.as<sol::table>().raw_get<sol::object>(key);
+    if (originalIndex.is<lua_glue::Table>()) {
+        return originalIndex.as<lua_glue::Table>().raw_get<lua_glue::Object>(
+            key);
     }
-    return target.as<sol::table>().raw_get<sol::object>(key);
+    return target.as<lua_glue::Table>().raw_get<lua_glue::Object>(key);
 }
 
-void originalMonitoredNewIndex(sol::state_view lua, const sol::table& state,
-                               const sol::object& target,
-                               const sol::object& key,
-                               const sol::object& value) {
-    const sol::object originalNewIndex = state.raw_get<sol::object>("newIndex");
-    if (originalNewIndex.is<sol::protected_function>()) {
-        sol::protected_function_result result =
-            originalNewIndex.as<sol::protected_function>()(target, key, value);
+void originalMonitoredNewIndex(lua_glue::StateView lua,
+                               const lua_glue::Table& state,
+                               const lua_glue::Object& target,
+                               const lua_glue::Object& key,
+                               const lua_glue::Object& value) {
+    const lua_glue::Object originalNewIndex =
+        state.raw_get<lua_glue::Object>("newIndex");
+    if (originalNewIndex.is<lua_glue::Function>()) {
+        lua_glue::CallResult result =
+            originalNewIndex.as<lua_glue::Function>()(target, key, value);
         if (!result.valid()) {
-            const sol::error error = result;
-            throw std::runtime_error(error.what());
+            const std::string error = result.error();
+            throw std::runtime_error(error.c_str());
         }
         return;
     }
-    if (originalNewIndex.is<sol::table>()) {
-        originalNewIndex.as<sol::table>().raw_set(key, value);
+    if (originalNewIndex.is<lua_glue::Table>()) {
+        originalNewIndex.as<lua_glue::Table>().raw_set(key, value);
         return;
     }
-    target.as<sol::table>().raw_set(key, value);
+    target.as<lua_glue::Table>().raw_set(key, value);
 }
 
-void invokeMonitorCallback(sol::state_view lua, sol::table entry,
-                           const sol::object& oldValue,
-                           const sol::object& newValue) {
+void invokeMonitorCallback(lua_glue::StateView lua, lua_glue::Table entry,
+                           const lua_glue::Object& oldValue,
+                           const lua_glue::Object& newValue) {
     if (!rawBool(entry, "notifyEqualWrites") &&
         luaValuesEqual(lua, oldValue, newValue)) {
         return;
     }
-    const sol::object rawRunning = entry.raw_get<sol::object>("running");
+    const lua_glue::Object rawRunning =
+        entry.raw_get<lua_glue::Object>("running");
     if (rawRunning.is<bool>() && rawRunning.as<bool>()) {
         return;
     }
-    const sol::object rawCallback = entry.raw_get<sol::object>("callback");
-    if (!rawCallback.is<sol::protected_function>()) {
+    const lua_glue::Object rawCallback =
+        entry.raw_get<lua_glue::Object>("callback");
+    if (!rawCallback.is<lua_glue::Function>()) {
         return;
     }
-    std::vector<sol::object> arguments{oldValue, newValue};
-    const sol::object rawParams = entry.raw_get<sol::object>("params");
-    if (rawParams.is<sol::table>()) {
-        const sol::table params = rawParams.as<sol::table>();
+    std::vector<lua_glue::Object> arguments{oldValue, newValue};
+    const lua_glue::Object rawParams =
+        entry.raw_get<lua_glue::Object>("params");
+    if (rawParams.is<lua_glue::Table>()) {
+        const lua_glue::Table params = rawParams.as<lua_glue::Table>();
         if (params.size() >
             static_cast<std::size_t>(INT_MAX) - arguments.size()) {
             throw std::length_error("Monitor callback argument count overflow");
         }
         arguments.reserve(arguments.size() + params.size());
         for (std::size_t index = 1; index <= params.size(); ++index) {
-            arguments.push_back(params.raw_get<sol::object>(index));
+            arguments.push_back(params.raw_get<lua_glue::Object>(index));
         }
     }
     entry.raw_set("running", true);
@@ -127,41 +139,45 @@ void invokeMonitorCallback(sol::state_view lua, sol::table entry,
     }
 }
 
-void invokeMonitorCallbacks(sol::state_view lua, const sol::table& entry,
-                            const sol::object& oldValue,
-                            const sol::object& newValue) {
-    const sol::table callbacks = entry.raw_get<sol::table>("callbacks");
-    std::vector<sol::table> snapshot;
+void invokeMonitorCallbacks(lua_glue::StateView lua,
+                            const lua_glue::Table& entry,
+                            const lua_glue::Object& oldValue,
+                            const lua_glue::Object& newValue) {
+    const lua_glue::Table callbacks =
+        entry.raw_get<lua_glue::Table>("callbacks");
+    std::vector<lua_glue::Table> snapshot;
     snapshot.reserve(callbacks.size());
     for (std::size_t index = 1; index <= callbacks.size(); ++index) {
-        snapshot.push_back(callbacks.raw_get<sol::table>(index));
+        snapshot.push_back(callbacks.raw_get<lua_glue::Table>(index));
     }
-    for (const sol::table& callback : snapshot) {
+    for (const lua_glue::Table& callback : snapshot) {
         if (rawBool(callback, "active")) {
             invokeMonitorCallback(lua, callback, oldValue, newValue);
         }
     }
 }
 
-void registerMonitorCallback(sol::state_view lua, sol::table entry,
-                             const sol::protected_function& callback,
-                             const sol::table& params, bool notifyEqualWrites,
+void registerMonitorCallback(lua_glue::StateView lua, lua_glue::Table entry,
+                             const lua_glue::Function& callback,
+                             const lua_glue::Table& params,
+                             bool notifyEqualWrites,
                              const std::string& identifier) {
-    const sol::object rawCallbacks = entry.raw_get<sol::object>("callbacks");
-    sol::table callbacks = rawCallbacks.is<sol::table>()
-                               ? rawCallbacks.as<sol::table>()
-                               : lua.create_table();
+    const lua_glue::Object rawCallbacks =
+        entry.raw_get<lua_glue::Object>("callbacks");
+    lua_glue::Table callbacks = rawCallbacks.is<lua_glue::Table>()
+                                    ? rawCallbacks.as<lua_glue::Table>()
+                                    : lua.create_table();
     entry.raw_set("callbacks", callbacks);
     std::size_t position = callbacks.size() + 1;
     for (std::size_t index = 1; index <= callbacks.size(); ++index) {
-        sol::table existing = callbacks.raw_get<sol::table>(index);
+        lua_glue::Table existing = callbacks.raw_get<lua_glue::Table>(index);
         if (existing.raw_get<std::string>("identifier") == identifier) {
             existing.raw_set("active", false);
             position = index;
             break;
         }
     }
-    sol::table subscription = lua.create_table();
+    lua_glue::Table subscription = lua.create_table();
     subscription.raw_set("identifier", identifier);
     subscription.raw_set("callback", callback);
     subscription.raw_set("params", params);
@@ -171,39 +187,42 @@ void registerMonitorCallback(sol::state_view lua, sol::table entry,
     callbacks.raw_set(position, subscription);
 }
 
-bool unregisterMonitorCallback(const sol::table& entry,
+bool unregisterMonitorCallback(const lua_glue::Table& entry,
                                const std::string& identifier) {
-    sol::table callbacks = entry.raw_get<sol::table>("callbacks");
+    lua_glue::Table callbacks = entry.raw_get<lua_glue::Table>("callbacks");
     const std::size_t count = callbacks.size();
     for (std::size_t index = 1; index <= count; ++index) {
-        sol::table existing = callbacks.raw_get<sol::table>(index);
+        lua_glue::Table existing = callbacks.raw_get<lua_glue::Table>(index);
         if (existing.raw_get<std::string>("identifier") != identifier) {
             continue;
         }
         existing.raw_set("active", false);
         for (std::size_t next = index + 1; next <= count; ++next) {
-            callbacks.raw_set(next - 1, callbacks.raw_get<sol::table>(next));
+            callbacks.raw_set(next - 1,
+                              callbacks.raw_get<lua_glue::Table>(next));
         }
-        callbacks.raw_set(count, sol::lua_nil);
+        callbacks.raw_set(count, lua_glue::nil);
         return count == 1;
     }
     return false;
 }
 
-sol::object monitoredTableIndex(sol::object target, sol::object key,
-                                sol::this_state state) {
-    sol::state_view lua(state);
-    const sol::table monitor = monitorState(lua, target);
-    const sol::object rawFields = monitor.raw_get<sol::object>("fields");
-    if (rawFields.is<sol::table>()) {
-        const sol::object rawEntry =
-            rawFields.as<sol::table>().raw_get<sol::object>(key);
-        if (rawEntry.is<sol::table>()) {
-            const sol::table entry = rawEntry.as<sol::table>();
-            const sol::object rawHasValue =
-                entry.raw_get<sol::object>("hasValue");
+lua_glue::Object monitoredTableIndex(lua_glue::Object target,
+                                     lua_glue::Object key,
+                                     lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    const lua_glue::Table monitor = monitorState(lua, target);
+    const lua_glue::Object rawFields =
+        monitor.raw_get<lua_glue::Object>("fields");
+    if (rawFields.is<lua_glue::Table>()) {
+        const lua_glue::Object rawEntry =
+            rawFields.as<lua_glue::Table>().raw_get<lua_glue::Object>(key);
+        if (rawEntry.is<lua_glue::Table>()) {
+            const lua_glue::Table entry = rawEntry.as<lua_glue::Table>();
+            const lua_glue::Object rawHasValue =
+                entry.raw_get<lua_glue::Object>("hasValue");
             if (rawHasValue.is<bool>() && rawHasValue.as<bool>()) {
-                return entry.raw_get<sol::object>("value");
+                return entry.raw_get<lua_glue::Object>("value");
             }
             return nilObject(lua);
         }
@@ -211,29 +230,31 @@ sol::object monitoredTableIndex(sol::object target, sol::object key,
     return originalMonitoredIndex(lua, monitor, target, key);
 }
 
-void monitoredTableNewIndex(sol::object target, sol::object key,
-                            sol::object value, sol::this_state state) {
-    sol::state_view lua(state);
-    const sol::table monitor = monitorState(lua, target);
-    const sol::object rawFields = monitor.raw_get<sol::object>("fields");
-    const sol::object rawEntry =
-        rawFields.is<sol::table>()
-            ? rawFields.as<sol::table>().raw_get<sol::object>(key)
+void monitoredTableNewIndex(lua_glue::Object target, lua_glue::Object key,
+                            lua_glue::Object value, lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    const lua_glue::Table monitor = monitorState(lua, target);
+    const lua_glue::Object rawFields =
+        monitor.raw_get<lua_glue::Object>("fields");
+    const lua_glue::Object rawEntry =
+        rawFields.is<lua_glue::Table>()
+            ? rawFields.as<lua_glue::Table>().raw_get<lua_glue::Object>(key)
             : nilObject(lua);
-    if (!rawEntry.is<sol::table>()) {
+    if (!rawEntry.is<lua_glue::Table>()) {
         originalMonitoredNewIndex(lua, monitor, target, key, value);
         clearExplicitNilField(lua, target, key);
         return;
     }
-    if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+    if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
         throw std::invalid_argument("Monitored fields cannot be assigned nil");
     }
-    sol::table entry = rawEntry.as<sol::table>();
-    const sol::object rawHasValue = entry.raw_get<sol::object>("hasValue");
-    const sol::object oldValue =
+    lua_glue::Table entry = rawEntry.as<lua_glue::Table>();
+    const lua_glue::Object rawHasValue =
+        entry.raw_get<lua_glue::Object>("hasValue");
+    const lua_glue::Object oldValue =
         rawHasValue.is<bool>() && rawHasValue.as<bool>()
-            ? entry.raw_get<sol::object>("value")
-            : entry.raw_get<sol::object>("missing");
+            ? entry.raw_get<lua_glue::Object>("value")
+            : entry.raw_get<lua_glue::Object>("missing");
     entry.raw_set("value", value);
     entry.raw_set("hasValue", true);
     entry.raw_set("assigned", true);
@@ -241,50 +262,51 @@ void monitoredTableNewIndex(sol::object target, sol::object key,
     invokeMonitorCallbacks(lua, entry, oldValue, value);
 }
 
-sol::table createTableMonitorState(sol::state_view lua, sol::table target) {
+lua_glue::Table createTableMonitorState(lua_glue::StateView lua,
+                                        lua_glue::Table target) {
     lua_State* state = lua.lua_state();
-    target.push();
-    sol::object originalMetatable = nilObject(lua);
+    target.push(lua.lua_state());
+    lua_glue::Object originalMetatable = nilObject(lua);
     if (lua_getmetatable(state, -1) != 0) {
-        originalMetatable = sol::stack::get<sol::object>(state, -1);
+        originalMetatable = lua_glue::Read<lua_glue::Object>(state, -1);
         lua_pop(state, 1);
     }
     lua_pop(state, 1);
-    if (originalMetatable.is<sol::table>()) {
-        const sol::object protection =
-            originalMetatable.as<sol::table>().raw_get<sol::object>(
+    if (originalMetatable.is<lua_glue::Table>()) {
+        const lua_glue::Object protection =
+            originalMetatable.as<lua_glue::Table>().raw_get<lua_glue::Object>(
                 "__metatable");
-        if (protection.valid() && protection.get_type() != sol::type::lua_nil) {
+        if (protection.valid() &&
+            protection.get_type() != lua_glue::Type::Nil) {
             throw std::invalid_argument(
                 "Lua monitors cannot replace a protected metatable");
         }
     }
-    sol::table monitor = lua.create_table();
-    sol::table fields = lua.create_table();
+    lua_glue::Table monitor = lua.create_table();
+    lua_glue::Table fields = lua.create_table();
     monitor.raw_set("meta", originalMetatable);
     monitor.raw_set("fields", fields);
-    if (originalMetatable.is<sol::table>()) {
-        sol::table original = originalMetatable.as<sol::table>();
-        monitor.raw_set("index", original.raw_get<sol::object>("__index"));
+    if (originalMetatable.is<lua_glue::Table>()) {
+        lua_glue::Table original = originalMetatable.as<lua_glue::Table>();
+        monitor.raw_set("index", original.raw_get<lua_glue::Object>("__index"));
         monitor.raw_set("newIndex",
-                        original.raw_get<sol::object>("__newindex"));
+                        original.raw_get<lua_glue::Object>("__newindex"));
     }
-    sol::table proxy = lua.create_table();
+    lua_glue::Table proxy = lua.create_table();
     proxy.set_function("__index", &monitoredTableIndex);
     proxy.set_function("__newindex", &monitoredTableNewIndex);
-    target.push();
-    proxy.push();
+    target.push(lua.lua_state());
+    proxy.push(lua.lua_state());
     lua_setmetatable(state, -2);
     lua_pop(state, 1);
     registryTable(lua, MONITOR_STATES_KEY, "k").raw_set(target, monitor);
     return monitor;
 }
 
-void registerMonitor(sol::this_state state, const sol::object& target,
+void registerMonitor(lua_glue::ThisState state, const lua_glue::Object& target,
                      const std::string& name,
-                     const sol::protected_function& callback,
-                     sol::variadic_args) {
-    sol::state_view lua(state);
+                     const lua_glue::Function& callback, lua_glue::Arguments) {
+    lua_glue::StateView lua(state);
     if (!lua_isnoneornil(state, 4) && !lua_istable(state, 4)) {
         throw std::invalid_argument("Monitor params must be a table or nil");
     }
@@ -296,37 +318,41 @@ void registerMonitor(sol::this_state state, const sol::object& target,
         throw std::invalid_argument(
             "Monitor identifier must be a string or nil");
     }
-    const sol::table params = lua_isnoneornil(state, 4)
-                                  ? lua.create_table()
-                                  : sol::stack::get<sol::table>(state, 4);
+    const lua_glue::Table params =
+        lua_isnoneornil(state, 4) ? lua.create_table()
+                                  : lua_glue::Read<lua_glue::Table>(state, 4);
     const bool notifyEqualWrites = lua_toboolean(state, 5) != 0;
     const std::string identifier =
-        lua_isnoneornil(state, 6) ? "" : sol::stack::get<std::string>(state, 6);
+        lua_isnoneornil(state, 6) ? "" : lua_glue::Read<std::string>(state, 6);
     if (name.empty()) {
         throw std::invalid_argument("Monitor field name must not be empty");
     }
-    if (target.get_type() == sol::type::table) {
-        sol::table object = target.as<sol::table>();
-        sol::table monitor = monitorState(lua, target);
-        if (!monitor.raw_get<sol::object>("fields").is<sol::table>()) {
+    if (target.get_type() == lua_glue::Type::Table) {
+        lua_glue::Table object = target.as<lua_glue::Table>();
+        lua_glue::Table monitor = monitorState(lua, target);
+        if (!monitor.raw_get<lua_glue::Object>("fields")
+                 .is<lua_glue::Table>()) {
             monitor = createTableMonitorState(lua, object);
         }
-        sol::table fields = monitor.raw_get<sol::table>("fields");
-        const sol::object rawEntry = fields.raw_get<sol::object>(name);
-        if (rawEntry.is<sol::table>()) {
-            registerMonitorCallback(lua, rawEntry.as<sol::table>(), callback,
-                                    params, notifyEqualWrites, identifier);
+        lua_glue::Table fields = monitor.raw_get<lua_glue::Table>("fields");
+        const lua_glue::Object rawEntry =
+            fields.raw_get<lua_glue::Object>(name);
+        if (rawEntry.is<lua_glue::Table>()) {
+            registerMonitorCallback(lua, rawEntry.as<lua_glue::Table>(),
+                                    callback, params, notifyEqualWrites,
+                                    identifier);
             return;
         }
-        const sol::object rawValue = object.raw_get<sol::object>(name);
-        sol::object value = rawValue;
-        if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+        const lua_glue::Object rawValue =
+            object.raw_get<lua_glue::Object>(name);
+        lua_glue::Object value = rawValue;
+        if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
             value = originalMonitoredIndex(lua, monitor, target,
-                                           sol::make_object(lua, name));
+                                           lua_glue::MakeObject(lua, name));
         }
-        sol::table entry = lua.create_table();
+        lua_glue::Table entry = lua.create_table();
         const bool hasValue =
-            value.valid() && value.get_type() != sol::type::lua_nil;
+            value.valid() && value.get_type() != lua_glue::Type::Nil;
         entry.raw_set("hasValue", hasValue);
         if (hasValue) {
             entry.raw_set("value", value);
@@ -334,100 +360,104 @@ void registerMonitor(sol::this_state state, const sol::object& target,
         registerMonitorCallback(lua, entry, callback, params, notifyEqualWrites,
                                 identifier);
         entry.raw_set("raw", rawValue.valid() &&
-                                 rawValue.get_type() != sol::type::lua_nil);
+                                 rawValue.get_type() != lua_glue::Type::Nil);
         entry.raw_set("assigned", false);
         entry.raw_set("missing", monitorMissing(lua));
         fields.raw_set(name, entry);
-        object.raw_set(name, sol::lua_nil);
+        object.raw_set(name, lua_glue::nil);
         return;
     }
-    if (target.get_type() != sol::type::userdata) {
+    if (target.get_type() != lua_glue::Type::Userdata) {
         throw std::invalid_argument(
             "Monitors require a table or userdata target");
     }
-    sol::table fields = class_native::getUserFields(lua, target, true);
-    const sol::object rawMonitors =
-        fields.raw_get<sol::object>("__monitorCallbacks");
-    sol::table monitors = rawMonitors.is<sol::table>()
-                              ? rawMonitors.as<sol::table>()
-                              : lua.create_table();
-    if (!rawMonitors.is<sol::table>()) {
+    lua_glue::Table fields = class_native::getUserFields(lua, target, true);
+    const lua_glue::Object rawMonitors =
+        fields.raw_get<lua_glue::Object>("__monitorCallbacks");
+    lua_glue::Table monitors = rawMonitors.is<lua_glue::Table>()
+                                   ? rawMonitors.as<lua_glue::Table>()
+                                   : lua.create_table();
+    if (!rawMonitors.is<lua_glue::Table>()) {
         fields.raw_set("__monitorCallbacks", monitors);
     }
-    const sol::object rawEntry = monitors.raw_get<sol::object>(name);
-    sol::table entry = rawEntry.is<sol::table>() ? rawEntry.as<sol::table>()
-                                                 : lua.create_table();
+    const lua_glue::Object rawEntry = monitors.raw_get<lua_glue::Object>(name);
+    lua_glue::Table entry = rawEntry.is<lua_glue::Table>()
+                                ? rawEntry.as<lua_glue::Table>()
+                                : lua.create_table();
     registerMonitorCallback(lua, entry, callback, params, notifyEqualWrites,
                             identifier);
     entry.raw_set("missing", monitorMissing(lua));
     monitors.raw_set(name, entry);
 }
 
-void unregisterMonitor(sol::this_state state, const sol::object& target,
-                       const std::string& name,
-                       sol::optional<std::string> identifier) {
-    sol::state_view lua(state);
-    if (target.get_type() == sol::type::table) {
-        sol::table object = target.as<sol::table>();
-        sol::table monitor = monitorState(lua, target);
-        const sol::object rawFields = monitor.raw_get<sol::object>("fields");
-        if (!rawFields.is<sol::table>()) {
+void unregisterMonitor(lua_glue::ThisState state,
+                       const lua_glue::Object& target, const std::string& name,
+                       std::optional<std::string> identifier) {
+    lua_glue::StateView lua(state);
+    if (target.get_type() == lua_glue::Type::Table) {
+        lua_glue::Table object = target.as<lua_glue::Table>();
+        lua_glue::Table monitor = monitorState(lua, target);
+        const lua_glue::Object rawFields =
+            monitor.raw_get<lua_glue::Object>("fields");
+        if (!rawFields.is<lua_glue::Table>()) {
             return;
         }
-        sol::table fields = rawFields.as<sol::table>();
-        const sol::object rawEntry = fields.raw_get<sol::object>(name);
-        if (!rawEntry.is<sol::table>()) {
+        lua_glue::Table fields = rawFields.as<lua_glue::Table>();
+        const lua_glue::Object rawEntry =
+            fields.raw_get<lua_glue::Object>(name);
+        if (!rawEntry.is<lua_glue::Table>()) {
             return;
         }
-        sol::table entry = rawEntry.as<sol::table>();
+        lua_glue::Table entry = rawEntry.as<lua_glue::Table>();
         if (!unregisterMonitorCallback(entry, identifier.value_or(""))) {
             return;
         }
-        fields.raw_set(name, sol::lua_nil);
+        fields.raw_set(name, lua_glue::nil);
         const bool restore =
             rawBool(entry, "raw") || rawBool(entry, "assigned");
         if (restore) {
             const bool hasValue = rawBool(entry, "hasValue");
-            object.raw_set(name, hasValue ? entry.raw_get<sol::object>("value")
-                                          : nilObject(lua));
+            object.raw_set(name, hasValue
+                                     ? entry.raw_get<lua_glue::Object>("value")
+                                     : nilObject(lua));
         }
         if (!tableIsEmpty(fields)) {
             return;
         }
-        const sol::object originalMetatable =
-            monitor.raw_get<sol::object>("meta");
-        object.push();
+        const lua_glue::Object originalMetatable =
+            monitor.raw_get<lua_glue::Object>("meta");
+        object.push(lua.lua_state());
         if (originalMetatable.valid() &&
-            originalMetatable.get_type() != sol::type::lua_nil) {
-            originalMetatable.push();
+            originalMetatable.get_type() != lua_glue::Type::Nil) {
+            originalMetatable.push(lua.lua_state());
         } else {
             lua_pushnil(lua.lua_state());
         }
         lua_setmetatable(lua.lua_state(), -2);
         lua_pop(lua.lua_state(), 1);
         registryTable(lua, MONITOR_STATES_KEY, "k")
-            .raw_set(object, sol::lua_nil);
+            .raw_set(object, lua_glue::nil);
         return;
     }
-    if (target.get_type() != sol::type::userdata) {
+    if (target.get_type() != lua_glue::Type::Userdata) {
         return;
     }
-    sol::table fields = class_native::getUserFields(lua, target, true);
-    const sol::object rawCallbacks =
-        fields.raw_get<sol::object>("__monitorCallbacks");
-    if (!rawCallbacks.is<sol::table>()) {
+    lua_glue::Table fields = class_native::getUserFields(lua, target, true);
+    const lua_glue::Object rawCallbacks =
+        fields.raw_get<lua_glue::Object>("__monitorCallbacks");
+    if (!rawCallbacks.is<lua_glue::Table>()) {
         return;
     }
-    sol::table callbacks = rawCallbacks.as<sol::table>();
-    const sol::object rawEntry = callbacks.raw_get<sol::object>(name);
-    if (!rawEntry.is<sol::table>() ||
-        !unregisterMonitorCallback(rawEntry.as<sol::table>(),
+    lua_glue::Table callbacks = rawCallbacks.as<lua_glue::Table>();
+    const lua_glue::Object rawEntry = callbacks.raw_get<lua_glue::Object>(name);
+    if (!rawEntry.is<lua_glue::Table>() ||
+        !unregisterMonitorCallback(rawEntry.as<lua_glue::Table>(),
                                    identifier.value_or(""))) {
         return;
     }
-    callbacks.raw_set(name, sol::lua_nil);
+    callbacks.raw_set(name, lua_glue::nil);
     if (tableIsEmpty(callbacks)) {
-        fields.raw_set("__monitorCallbacks", sol::lua_nil);
+        fields.raw_set("__monitorCallbacks", lua_glue::nil);
     }
 }
 

@@ -9,9 +9,9 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | 组件 | 版本或 revision | 用途与分发范围 | 许可证 | 完整正文 | 官方来源 |
 | --- | --- | --- | --- | --- | --- |
 | LuaSF | v3.1.0.7 | Game 项目与所有工程模板中的 SFML 绑定 | MIT | `Licenses/LuaSF/LICENSE.txt` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
+| LuaGlue | 1.0.0 | LuaSF 与游戏运行时共用的 Lua 绑定运行时 | MIT | `Licenses/LuaGlue/LICENSE` | [JasonLeon01/LuaSF-AutoGenerator](https://github.com/JasonLeon01/LuaSF-AutoGenerator) |
 | Lua | 5.5.0 | 游戏脚本运行时与 `luac` | MIT | `Licenses/Lua/LICENSE.txt` | [Lua.org](https://www.lua.org/) |
 | SFML | SFML-ME `310-ME-OH-GLESVER` 标签 | 图形、窗口、音频、系统与网络运行时 | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME](https://github.com/JasonLeon01/SFML-ME/releases/tag/310-ME-OH-GLESVER) |
-| sol2 | 3.3.0 | LuaSF 与游戏运行时使用的 C++/Lua 绑定头文件 | MIT | `Licenses/sol2/LICENSE.txt` | [ThePhD/sol2](https://github.com/ThePhD/sol2) |
 | lua-cjson | 源码发行版本 2.1.0.19；上游运行时常量报告为 2.1.0.11 | 链接到游戏运行时的 JSON 模块 | MIT | `Licenses/lua-cjson/LICENSE.txt` | [openresty/lua-cjson](https://github.com/openresty/lua-cjson) |
 | zlib | 1.3.1 | 游戏运行时压缩支持 | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
 | Microsoft.Web.WebView2 | 1.0.4191.47 | Windows 原生网页覆盖层；静态链接 SDK Loader，使用系统已有 Evergreen Runtime，不分发浏览器内核 | Microsoft Software License Terms | `Licenses/NativeDependencies/WebView2-LICENSE.txt` | [Microsoft NuGet](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4191.47) |

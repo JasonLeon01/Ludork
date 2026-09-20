@@ -8,14 +8,14 @@
 
 void EditorLiveDebug::install(const RuntimeIdentityPtr& handler) {
     ludork::runtime::RuntimeScope runtime;
-    sol::state_view lua(runtime.state());
-    const sol::object function =
+    lua_glue::StateView lua(runtime.state());
+    const lua_glue::Object function =
         ludork::runtime::binding::writeOpaqueIdentity(lua, handler);
-    if (!function.is<sol::protected_function>()) {
+    if (!function.is<lua_glue::Function>()) {
         throw std::invalid_argument(
             "Editor live debug handler must be a function");
     }
-    function.push();
+    function.push(runtime.state());
     ludork::standard::registerEditorLiveDebugHandler(runtime.state(), -1);
     lua_pop(runtime.state(), 1);
 }

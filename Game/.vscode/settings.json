@@ -10,7 +10,7 @@
         "${workspaceFolder}/Engine/Standard/src",
         "${workspaceFolder}/build/LuaSF/generated_include",
         "${workspaceFolder}/Engine/ThirdParty/LuaSF/include",
-        "${workspaceFolder}/Engine/ThirdParty/sol2/include",
+        "${workspaceFolder}/Engine/ThirdParty/LuaGlue/include",
         "${workspaceFolder}/Engine/ThirdParty/Lua/src",
         "${workspaceFolder}/Engine/ThirdParty/SFML/include",
         "${workspaceFolder}/Engine/ThirdParty/SFML/src",

@@ -637,3 +637,7 @@ refreshes those materials in C++ templates and derives Standalone templates
 from them. Editor, managed-runtime and build-tool notices remain in the editor
 distribution. Final game packages remove only preview-specific files from
 `Binaries`, retain shared libraries, and exclude root `EditorCache` and `Cache`.
+
+LuaSF source archives contain two sibling CMake projects, `LuaSF/` and `LuaGlue/`. For local dependency and template checks, set `LUASF_SOURCE_ARCHIVE` to the generated `.tar.gz` (`.zip` on Windows) before `init_cpp_dependencies`. For an existing build, configure `LUDORK_LUASF_SOURCE_DIR` with the generator's `output/LuaSF` directory; LuaGlue is found next to it. Desktop native packages include the shared LuaGlue runtime; mobile builds use its static target.
+
+Desktop Core builds use `Game/Engine/Tools/NativeStubDump` to load each module's exported stub writer after linking and from the aggregate native build. The tool does not create a Lua VM and publishes the compiler-verified copy methods into the existing native `.d.lua` files. Its sources travel with the Engine tree in project templates.

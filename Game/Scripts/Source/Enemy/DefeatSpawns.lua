@@ -28,7 +28,7 @@ local function createContext(enemy, scene)
         gameMap = gameMap,
         layerName = layerName,
         originalTag = originalTag,
-        position = copy(enemy:getMapPosition()),
+        position = enemy:getMapPosition():copy(),
         reservedTags = {}
     }
 end
@@ -62,7 +62,7 @@ local function prepareActor(context, blueprintPath, kind, tagSuffix)
         Data.GenActorFromClassPath(blueprintPath), "Enemy " .. kind .. " Blueprint class not found: " .. blueprintPath
     )
     actor:setMapTag(reserveTag(context, tagSuffix))
-    actor:setMapPosition(copy(context.position))
+    actor:setMapPosition(context.position:copy())
     return actor
 end
 

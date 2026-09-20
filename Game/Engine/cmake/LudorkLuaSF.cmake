@@ -51,30 +51,20 @@ if(NOT EXISTS "${LUDORK_LUA_SOURCE_DIR}/src/lua.h")
     message(FATAL_ERROR
         "Lua source directory was not found: ${LUDORK_LUA_SOURCE_DIR}")
 endif()
-set(
-    LUDORK_SOL2_SOURCE_DIR
-    ""
-    CACHE PATH
-    "sol2 source directory used by Ludork and LuaSF; empty uses Engine/ThirdParty/sol2")
-if(NOT LUDORK_SOL2_SOURCE_DIR)
-    set(LUDORK_SOL2_SOURCE_DIR
-        "${CMAKE_CURRENT_SOURCE_DIR}/Engine/ThirdParty/sol2")
+set(LUDORK_LUAGLUE_SOURCE_DIR "" CACHE PATH "LuaGlue source project; empty uses the LuaSF sibling directory")
+if(NOT LUDORK_LUAGLUE_SOURCE_DIR)
+    get_filename_component(LUDORK_LUAGLUE_SOURCE_DIR "${LUDORK_LUASF_SOURCE_DIR}/../LuaGlue" ABSOLUTE)
 endif()
-get_filename_component(
-    LUDORK_SOL2_SOURCE_DIR
-    "${LUDORK_SOL2_SOURCE_DIR}"
-    ABSOLUTE)
-if(NOT EXISTS "${LUDORK_SOL2_SOURCE_DIR}/include/sol2/sol.hpp")
-    message(FATAL_ERROR
-        "sol2 source directory was not found: ${LUDORK_SOL2_SOURCE_DIR}")
+if(NOT EXISTS "${LUDORK_LUAGLUE_SOURCE_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR "LuaGlue source project was not found: ${LUDORK_LUAGLUE_SOURCE_DIR}")
 endif()
 
 set(LUASF_SFML_ROOT "${LUDORK_SFML_SOURCE_DIR}" CACHE PATH
     "External SFML source project used by LuaSF" FORCE)
 set(LUASF_LUA_ROOT "${LUDORK_LUA_SOURCE_DIR}" CACHE PATH
     "External Lua source directory used by LuaSF" FORCE)
-set(LUASF_SOL2_ROOT "${LUDORK_SOL2_SOURCE_DIR}" CACHE PATH
-    "External sol2 source directory used by LuaSF" FORCE)
+set(LUASF_GLUE_ROOT "${LUDORK_LUAGLUE_SOURCE_DIR}" CACHE PATH
+    "LuaGlue source project used by LuaSF" FORCE)
 
 function(ludork_add_external_sfml)
     if(CMAKE_SYSTEM_NAME STREQUAL "iOS"
@@ -163,29 +153,13 @@ if(TARGET LuaSF)
             ${LUDORK_OPTIMIZE_DEBUG})
 endif()
 
-# The bindings compile into their own object library, so sol2 definitions and
-# the stub writer both have to be configured on that target.
-if(TARGET LuaSF_bindings)
-    set_property(
-        TARGET LuaSF_bindings
-        PROPERTY INTERPROCEDURAL_OPTIMIZATION_DEBUG
-            ${LUDORK_OPTIMIZE_DEBUG})
-    target_compile_definitions(LuaSF_bindings PRIVATE SOL_NO_RTTI=1)
-    if(NOT LUDORK_DEBUG_SOL_SAFETIES)
-        get_target_property(
-            luasf_compile_definitions
-            LuaSF_bindings
-            COMPILE_DEFINITIONS)
-        list(
-            REMOVE_ITEM
-            luasf_compile_definitions
-            "$<$<CONFIG:Debug>:SOL_ALL_SAFETIES_ON=1>")
-        set_property(
-            TARGET LuaSF_bindings
-            PROPERTY COMPILE_DEFINITIONS
-                "${luasf_compile_definitions}")
+# Binding objects and their shared runtime follow the host debug policy.
+foreach(binding_target IN ITEMS LuaSF_bindings LuaGlue)
+    if(TARGET ${binding_target})
+        set_property(TARGET ${binding_target} PROPERTY
+            INTERPROCEDURAL_OPTIMIZATION_DEBUG ${LUDORK_OPTIMIZE_DEBUG})
     endif()
-endif()
+endforeach()
 
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_compile_definitions(LuaSF_lua_shared PRIVATE LUA_USE_MACOSX)
@@ -194,7 +168,3 @@ endif()
 if(NOT TARGET LuaSF::Lua)
     add_library(LuaSF::Lua ALIAS LuaSF_lua_shared)
 endif()
-
-set(LUDORK_LUASF_CONSUMER_INCLUDES
-    "${CMAKE_CURRENT_BINARY_DIR}/LuaSF/generated_include"
-    "${LUDORK_SOL2_SOURCE_DIR}/include")

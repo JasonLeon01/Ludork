@@ -1,14 +1,15 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <cstddef>
 
 namespace ludork::standard::class_native {
 
-std::size_t nextInstanceId(sol::state_view lua);
-sol::table getUserFields(sol::state_view lua, const sol::object& value,
-                         bool create);
-sol::table getObjectMetatable(sol::state_view lua, const sol::object& value);
+std::size_t nextInstanceId(lua_glue::StateView lua);
+lua_glue::Table getUserFields(lua_glue::StateView lua,
+                              const lua_glue::Object& value, bool create);
+lua_glue::Table getObjectMetatable(lua_glue::StateView lua,
+                                   const lua_glue::Object& value);
 
 }  // namespace ludork::standard::class_native

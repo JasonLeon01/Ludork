@@ -173,7 +173,7 @@ function MapClickAutoPath:_startAutoPath(player, start, goal, plan)
     self:_trimPreviewRoute(start)
     self._previewMapX = start.x
     self._previewMapY = start.y
-    self._activeGoal = copy(goal)
+    self._activeGoal = goal:copy()
     self._routeDangerRevision = self._dangerState:getPathfindingRevision()
     player:setRoute(plan.routeSteps)
     self._autoPathing = true
@@ -181,7 +181,7 @@ end
 
 ---@param player Source.Player.Player
 function MapClickAutoPath:_replanForDangerChange(player)
-    local goal = self._activeGoal ~= nil and copy(self._activeGoal) or nil
+    local goal = self._activeGoal ~= nil and self._activeGoal:copy() or nil
     local stablePosition = player:getMapPosition()
     player:stop()
     player:setMapPosition(stablePosition)
@@ -216,7 +216,7 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     if not bool(route) then
         player:stop()
         self:_dispatchInstantMoveOverlaps(player)
-        local pathPositions = bool(walkedPath) and walkedPath or { copy(start) }
+        local pathPositions = bool(walkedPath) and walkedPath or { start:copy() }
         MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
         return
     end
@@ -253,7 +253,7 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
         pathPositions[#pathPositions + 1] = point
     end
     if not bool(pathPositions) then
-        pathPositions[1] = copy(destination)
+        pathPositions[1] = destination:copy()
     end
     MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
 end
@@ -281,7 +281,7 @@ end
 function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     if start == goal then
         local routeSteps = {} ---@type sf.Vector2i[]
-        local routeStart = copy(start)
+        local routeStart = start:copy()
         local route = { routeStart } ---@type sf.Vector2i[]
         return { routeSteps = routeSteps, route = route, goalPassable = true }
     end
@@ -314,7 +314,7 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
             ---@cast route sf.Vector2i[] | nil
             if neighbour == start then
                 local emptyRouteSteps = {} ---@type sf.Vector2i[]
-                local routeStart = copy(start)
+                local routeStart = start:copy()
                 local startRoute = { routeStart } ---@type sf.Vector2i[]
                 routeSteps = emptyRouteSteps
                 route = startRoute
@@ -339,12 +339,12 @@ function MapClickAutoPath:_buildAutoPathPlan(actor, start, goal)
     end
     local fullRoute = {}
     for _, point in ipairs(bestPlan.route) do
-        fullRoute[#fullRoute + 1] = copy(point)
+        fullRoute[#fullRoute + 1] = point:copy()
     end
-    fullRoute[#fullRoute + 1] = copy(goal)
+    fullRoute[#fullRoute + 1] = goal:copy()
     local routeSteps = {}
     for _, point in ipairs(bestPlan.routeSteps) do
-        routeSteps[#routeSteps + 1] = copy(point)
+        routeSteps[#routeSteps + 1] = point:copy()
     end
     local stopPos = assert(fullRoute[#fullRoute - 1])
     ---@cast stopPos sf.Vector2i

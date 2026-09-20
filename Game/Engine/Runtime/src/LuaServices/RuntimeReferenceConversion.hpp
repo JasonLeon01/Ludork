@@ -2,10 +2,10 @@
 
 #include <Runtime/RuntimeValue.hpp>
 
-#include <sol2/forward.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 namespace ludork::runtime::detail {
 
-RuntimeValue readRuntimeReference(const sol::object& value);
+RuntimeValue readRuntimeReference(const lua_glue::Object& value);
 
 }  // namespace ludork::runtime::detail

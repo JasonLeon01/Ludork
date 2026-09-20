@@ -11,23 +11,6 @@ option(
     LUDORK_OPTIMIZE_DEBUG
     "Build Debug with release-grade optimization while retaining debug symbols"
     ON)
-option(
-    LUDORK_DEBUG_SOL_SAFETIES
-    "Enable full sol2 safety checks in Debug builds"
-    OFF)
-
-if(LUDORK_WITH_LUA)
-    add_library(LudorkSolConfig INTERFACE)
-    add_library(Ludork::SolConfig ALIAS LudorkSolConfig)
-    target_compile_definitions(LudorkSolConfig INTERFACE
-        $<$<AND:$<CONFIG:Debug>,$<BOOL:${LUDORK_DEBUG_SOL_SAFETIES}>>:SOL_ALL_SAFETIES_ON=1>
-        SOL_SAFE_NUMERICS=1
-        SOL_NO_RTTI=1
-        SOL_USE_INTEROP=1
-        SOL_DEFAULT_AUTOMAGICAL_USERTYPES=0
-        SOL_USERTYPE_TYPE_BINDING_INFO=0)
-endif()
-
 function(ludork_require_android_package_contract)
     if(NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
         message(FATAL_ERROR

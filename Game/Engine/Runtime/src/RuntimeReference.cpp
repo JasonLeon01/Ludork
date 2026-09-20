@@ -16,7 +16,7 @@ extern "C" {
 #include <lua.h>
 }
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 ludork::runtime::binding::LuaRegistryReferenceOwner::
     ~LuaRegistryReferenceOwner() = default;
@@ -24,11 +24,11 @@ ludork::runtime::binding::LuaRegistryReferenceOwner::
 namespace ludork::runtime::reference {
 namespace {
 
-sol::object write(sol::state_view lua, const RuntimeValue& value) {
+lua_glue::Object write(lua_glue::StateView lua, const RuntimeValue& value) {
     return binding::writeLuaValue(lua, value);
 }
 
-RuntimeHandle capture(const sol::object& value) {
+RuntimeHandle capture(const lua_glue::Object& value) {
     return RuntimeHandle(
         binding::readOpaqueIdentity<RuntimeIdentityPtr>(value));
 }
@@ -52,7 +52,7 @@ RuntimeValue::Array collect(lua_State* state, int base, int count) {
     values.reserve(static_cast<std::size_t>(count));
     for (int index = 1; index <= count; ++index) {
         values.push_back(detail::readRuntimeReference(
-            sol::stack::get<sol::object>(state, base + index)));
+            lua_glue::Read<lua_glue::Object>(state, base + index)));
     }
     return values;
 }
@@ -67,7 +67,7 @@ RuntimeHandle intern(const RuntimeValue& value) {
         return {};
     }
     RuntimeScope scope;
-    return capture(write(sol::state_view(scope.state()), value));
+    return capture(write(lua_glue::StateView(scope.state()), value));
 }
 
 RuntimeData data(const RuntimeValue& value) {
@@ -82,13 +82,14 @@ RuntimeValue retain(const RuntimeValue& value) {
         data->getIf<RuntimeData::Map>() == nullptr) {
         return value;
     }
-    const sol::object raw = write(sol::state_view(scope.state()), value);
+    const lua_glue::Object raw =
+        write(lua_glue::StateView(scope.state()), value);
     if (value.getIf<RuntimeHandle>() != nullptr &&
-        raw.get_type() != sol::type::none &&
-        raw.get_type() != sol::type::lua_nil &&
-        raw.get_type() != sol::type::boolean &&
-        raw.get_type() != sol::type::number &&
-        raw.get_type() != sol::type::string) {
+        raw.get_type() != lua_glue::Type::None &&
+        raw.get_type() != lua_glue::Type::Nil &&
+        raw.get_type() != lua_glue::Type::Boolean &&
+        raw.get_type() != lua_glue::Type::Number &&
+        raw.get_type() != lua_glue::Type::String) {
         return value;
     }
     return detail::readRuntimeReference(raw);
@@ -102,7 +103,7 @@ RuntimeValue snapshot(const RuntimeValue& value) {
         return value;
     }
     return binding::readLuaValue<RuntimeValue>(
-        write(sol::state_view(scope.state()), value));
+        write(lua_glue::StateView(scope.state()), value));
 }
 
 std::optional<RuntimeValue::Array> arrayValues(const RuntimeValue& value) {
@@ -115,24 +116,25 @@ std::optional<RuntimeValue::Array> arrayValues(const RuntimeValue& value) {
     }
     RuntimeScope scope;
     lua_State* state = scope.state();
-    sol::state_view lua(state);
-    const sol::object raw = write(lua, value);
-    if (raw.get_type() != sol::type::table) {
+    lua_glue::StateView lua(state);
+    const lua_glue::Object raw = write(lua, value);
+    if (raw.get_type() != lua_glue::Type::Table) {
         return std::nullopt;
     }
     if (binding::luaValueHasMetatable(raw)) {
-        const sol::object metatable =
-            sol::make_object(lua, detail::objectMetatable(lua, raw));
+        const lua_glue::Object metatable =
+            lua_glue::MakeObject(lua, detail::objectMetatable(lua, raw));
         bool jsonArray = false;
         for (const char* key : {ludork::standard::json_runtime::protocol::
                                     JSON_ARRAY_METATABLE_KEY,
                                 ludork::standard::json_runtime::protocol::
                                     JSON_EMPTY_ARRAY_METATABLE_KEY}) {
-            const sol::object known = lua.registry().raw_get<sol::object>(key);
-            auto pushedMetatable = sol::stack::push_pop(metatable);
-            auto pushedKnown = sol::stack::push_pop(known);
-            if (lua_rawequal(state, pushedMetatable.index_of(metatable),
-                             pushedKnown.index_of(known))) {
+            const lua_glue::Object known =
+                lua.registry().raw_get<lua_glue::Object>(key);
+            auto pushedMetatable = lua_glue::PushGuard(metatable);
+            auto pushedKnown = lua_glue::PushGuard(known);
+            if (lua_rawequal(state, pushedMetatable.index(),
+                             pushedKnown.index())) {
                 jsonArray = true;
                 break;
             }
@@ -141,7 +143,7 @@ std::optional<RuntimeValue::Array> arrayValues(const RuntimeValue& value) {
             return std::nullopt;
         }
     }
-    const sol::table table = raw.as<sol::table>();
+    const lua_glue::Table table = raw.as<lua_glue::Table>();
     std::size_t length = 0;
     if (!binding::dynamicTableIsArray<RuntimeValue>(table, length) &&
         table.begin() != table.end()) {
@@ -150,7 +152,7 @@ std::optional<RuntimeValue::Array> arrayValues(const RuntimeValue& value) {
     RuntimeValue::Array result;
     result.reserve(length);
     for (std::size_t index = 1; index <= length; ++index) {
-        const sol::object item = table.raw_get<sol::object>(index);
+        const lua_glue::Object item = table.raw_get<lua_glue::Object>(index);
         result.push_back(binding::isJsonNull(item)
                              ? RuntimeValue()
                              : detail::readRuntimeReference(item));
@@ -167,19 +169,20 @@ std::optional<RuntimeValue::Map> mapValues(const RuntimeValue& value) {
                                : std::nullopt;
     }
     RuntimeScope scope;
-    const sol::object raw = write(sol::state_view(scope.state()), value);
-    if (raw.get_type() != sol::type::table ||
+    const lua_glue::Object raw =
+        write(lua_glue::StateView(scope.state()), value);
+    if (raw.get_type() != lua_glue::Type::Table ||
         binding::luaValueHasMetatable(raw)) {
         return std::nullopt;
     }
-    const sol::table table = raw.as<sol::table>();
+    const lua_glue::Table table = raw.as<lua_glue::Table>();
     std::size_t length = 0;
     if (binding::dynamicTableIsArray<RuntimeValue>(table, length)) {
         return length == 0 ? std::optional(RuntimeValue::Map{}) : std::nullopt;
     }
     RuntimeValue::Map result;
     for (const auto& [key, item] : table) {
-        if (key.get_type() != sol::type::string) {
+        if (key.get_type() != lua_glue::Type::String) {
             return std::nullopt;
         }
         result.emplace(key.as<std::string>(),
@@ -196,14 +199,14 @@ RuntimeIdentityPtr identity(const RuntimeValue& value) {
     }
     RuntimeScope scope;
     return binding::readOpaqueIdentity<RuntimeIdentityPtr>(
-        write(sol::state_view(scope.state()), value));
+        write(lua_glue::StateView(scope.state()), value));
 }
 
 std::shared_ptr<RuntimeObject> object(const RuntimeValue& value) {
     RuntimeScope scope;
     std::shared_ptr<RuntimeObject> result;
     if (!binding::tryReadSharedPointer(
-            write(sol::state_view(scope.state()), value), result)) {
+            write(lua_glue::StateView(scope.state()), value), result)) {
         return nullptr;
     }
     return result;
@@ -211,42 +214,42 @@ std::shared_ptr<RuntimeObject> object(const RuntimeValue& value) {
 
 RuntimeHandle table(WeakMode mode) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     const char* weak = weakMode(mode);
-    return capture(sol::make_object(
+    return capture(lua_glue::MakeObject(
         lua, weak == nullptr ? lua.create_table()
                              : detail::createWeakTable(lua, weak)));
 }
 
 RuntimeHandle globals() {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    return capture(sol::make_object(lua, lua.globals()));
+    lua_glue::StateView lua(scope.state());
+    return capture(lua_glue::MakeObject(lua, lua.globals()));
 }
 
 RuntimeHandle registry() {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    return capture(sol::make_object(lua, lua.registry()));
+    lua_glue::StateView lua(scope.state());
+    return capture(lua_glue::MakeObject(lua, lua.registry()));
 }
 
 RuntimeHandle registryTable(const std::string& key, WeakMode mode) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    return capture(sol::make_object(
+    lua_glue::StateView lua(scope.state());
+    return capture(lua_glue::MakeObject(
         lua, detail::registryTable(lua, key.c_str(), weakMode(mode))));
 }
 
 RuntimeValue get(const RuntimeHandle& target, const RuntimeValue& key) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     return detail::readRuntimeReference(
         detail::runtimeIndex(lua, write(lua, target), write(lua, key), false));
 }
 
 RuntimeValue rawGet(const RuntimeHandle& target, const RuntimeValue& key) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     return detail::readRuntimeReference(
         detail::runtimeIndex(lua, write(lua, target), write(lua, key), true));
 }
@@ -254,7 +257,7 @@ RuntimeValue rawGet(const RuntimeHandle& target, const RuntimeValue& key) {
 void set(const RuntimeHandle& target, const RuntimeValue& key,
          const RuntimeValue& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     detail::runtimeAssign(lua, write(lua, target), write(lua, key),
                           write(lua, value), false);
 }
@@ -262,20 +265,20 @@ void set(const RuntimeHandle& target, const RuntimeValue& key,
 void rawSet(const RuntimeHandle& target, const RuntimeValue& key,
             const RuntimeValue& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     detail::runtimeAssign(lua, write(lua, target), write(lua, key),
                           write(lua, value), true);
 }
 
 Entries entries(const RuntimeHandle& target) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    const sol::object raw = write(lua, target);
-    if (!raw.is<sol::table>()) {
+    lua_glue::StateView lua(scope.state());
+    const lua_glue::Object raw = write(lua, target);
+    if (!raw.is<lua_glue::Table>()) {
         throw std::invalid_argument("Runtime entries require a table");
     }
     Entries result;
-    for (const auto& entry : raw.as<sol::table>()) {
+    for (const auto& entry : raw.as<lua_glue::Table>()) {
         result.emplace_back(detail::readRuntimeReference(entry.first),
                             detail::readRuntimeReference(entry.second));
     }
@@ -285,9 +288,9 @@ Entries entries(const RuntimeHandle& target) {
 RuntimeValue::Array keys(const RuntimeHandle& target,
                          RuntimeReflectionFacade::RuntimeLookupMode mode) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     RuntimeValue::Array result;
-    for (const sol::object& key : detail::runtimeKeys(
+    for (const lua_glue::Object& key : detail::runtimeKeys(
              lua, write(lua, target),
              mode == RuntimeReflectionFacade::RuntimeLookupMode::Own)) {
         result.push_back(detail::readRuntimeReference(key));
@@ -297,11 +300,12 @@ RuntimeValue::Array keys(const RuntimeHandle& target,
 
 std::size_t length(const RuntimeHandle& target) {
     RuntimeScope scope;
-    const sol::object raw = write(sol::state_view(scope.state()), target);
-    if (!raw.is<sol::table>()) {
+    const lua_glue::Object raw =
+        write(lua_glue::StateView(scope.state()), target);
+    if (!raw.is<lua_glue::Table>()) {
         throw std::invalid_argument("Runtime length requires a table");
     }
-    return raw.as<sol::table>().size();
+    return raw.as<lua_glue::Table>().size();
 }
 
 std::string kind(const RuntimeValue& value) {
@@ -311,7 +315,7 @@ std::string kind(const RuntimeValue& value) {
 bool hasMetatable(const RuntimeHandle& value) {
     RuntimeScope scope;
     lua_State* state = scope.state();
-    write(sol::state_view(state), value).push();
+    write(lua_glue::StateView(state), value).push(state);
     const bool present = lua_getmetatable(state, -1) != 0;
     lua_pop(state, present ? 2 : 1);
     return present;
@@ -319,23 +323,24 @@ bool hasMetatable(const RuntimeHandle& value) {
 
 RuntimeHandle metatable(const RuntimeHandle& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    return capture(
-        sol::make_object(lua, detail::objectMetatable(lua, write(lua, value))));
+    lua_glue::StateView lua(scope.state());
+    return capture(lua_glue::MakeObject(
+        lua, detail::objectMetatable(lua, write(lua, value))));
 }
 
 void setMetatable(const RuntimeHandle& value,
                   const RuntimeHandle& valueMetatable) {
     RuntimeScope scope;
     lua_State* state = scope.state();
-    const sol::object target = write(sol::state_view(state), value);
-    const sol::object meta = write(sol::state_view(state), valueMetatable);
-    if (!target.is<sol::table>() || !meta.is<sol::table>()) {
+    const lua_glue::Object target = write(lua_glue::StateView(state), value);
+    const lua_glue::Object meta =
+        write(lua_glue::StateView(state), valueMetatable);
+    if (!target.is<lua_glue::Table>() || !meta.is<lua_glue::Table>()) {
         throw std::invalid_argument(
             "Runtime metatable assignment requires tables");
     }
-    target.push();
-    meta.push();
+    target.push(state);
+    meta.push(state);
     lua_setmetatable(state, -2);
     lua_pop(state, 1);
 }
@@ -353,11 +358,11 @@ bool isCallable(const RuntimeValue& value) {
 RuntimeValue::Array invoke(const RuntimeHandle& callable,
                            const RuntimeValue::Array& arguments) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     if (!isCallable(callable)) {
         throw std::invalid_argument("Runtime value is not callable");
     }
-    std::vector<sol::object> values;
+    std::vector<lua_glue::Object> values;
     values.reserve(arguments.size());
     for (const RuntimeValue& argument : arguments) {
         values.push_back(write(lua, argument));
@@ -378,9 +383,10 @@ RuntimeValue::Array invoke(const RuntimeHandle& callable,
 
 RuntimeHandle callback(Callback function) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     auto wrapper = [function = std::move(function)](
-                       sol::this_state state, sol::variadic_args arguments) {
+                       lua_glue::ThisState state,
+                       lua_glue::Arguments arguments) {
         standard::LuaExecutionScope execution(state);
         if (!execution.active()) {
             throw std::runtime_error("Lua runtime session is stopping");
@@ -389,17 +395,17 @@ RuntimeHandle callback(Callback function) {
         values.reserve(arguments.size());
         for (const auto& argument : arguments) {
             values.push_back(
-                detail::readRuntimeReference(argument.get<sol::object>()));
+                detail::readRuntimeReference(argument.get<lua_glue::Object>()));
         }
         const RuntimeValue::Array results = function(values);
-        sol::variadic_results output;
+        lua_glue::MultipleResults output;
         output.reserve(results.size());
         for (const RuntimeValue& result : results) {
-            output.push_back(write(sol::state_view(state), result));
+            output.push_back(write(lua_glue::StateView(state), result));
         }
         return output;
     };
-    return capture(sol::make_object(lua, sol::as_function(std::move(wrapper))));
+    return capture(lua_glue::MakeObject(lua, std::move(wrapper)));
 }
 
 std::vector<std::string> functionParameterNames(const RuntimeValue& method) {
@@ -492,7 +498,7 @@ std::optional<FunctionSource> functionSource(const RuntimeValue& callable) {
 
 RuntimeValue deepCopy(const RuntimeValue& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     return detail::readRuntimeReference(
         standard::class_runtime::deepCopy(lua, write(lua, value)));
 }
@@ -500,7 +506,7 @@ RuntimeValue deepCopy(const RuntimeValue& value) {
 RuntimeValue requireModule(const std::string& module) {
     RuntimeScope scope;
     return detail::readRuntimeReference(standard::class_runtime::requireModule(
-        sol::state_view(scope.state()), module));
+        lua_glue::StateView(scope.state()), module));
 }
 
 bool moduleExists(const std::string& module) {
@@ -561,38 +567,38 @@ RuntimeValue::Array executeScript(const std::string& path) {
 RuntimeHandle finalizeClass(const RuntimeHandle& definition,
                             const RuntimeHandle& bases) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    return capture(
-        sol::make_object(lua, standard::class_runtime::finalizeClass(
-                                  write(lua, definition).as<sol::table>(),
-                                  write(lua, bases).as<sol::table>())));
+    lua_glue::StateView lua(scope.state());
+    return capture(lua_glue::MakeObject(
+        lua, standard::class_runtime::finalizeClass(
+                 write(lua, definition).as<lua_glue::Table>(),
+                 write(lua, bases).as<lua_glue::Table>())));
 }
 
 RuntimeValue classType(const RuntimeValue& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     return detail::readRuntimeReference(
         standard::class_runtime::typeOf(lua, write(lua, value)));
 }
 
 RuntimeValue::Array classMro(const RuntimeHandle& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    const sol::table mro =
+    lua_glue::StateView lua(scope.state());
+    const lua_glue::Table mro =
         standard::class_runtime::getMroCopy(lua, write(lua, value));
     RuntimeValue::Array result;
     for (std::size_t index = 1; index <= mro.size(); ++index) {
         result.push_back(
-            detail::readRuntimeReference(mro.raw_get<sol::object>(index)));
+            detail::readRuntimeReference(mro.raw_get<lua_glue::Object>(index)));
     }
     return result;
 }
 
 RuntimeValue typeMetadata(const RuntimeHandle& value) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
-    return detail::readRuntimeReference(
-        detail::runtimeTypeMetadata(lua, write(lua, value).as<sol::table>()));
+    lua_glue::StateView lua(scope.state());
+    return detail::readRuntimeReference(detail::runtimeTypeMetadata(
+        lua, write(lua, value).as<lua_glue::Table>()));
 }
 
 bool isClass(const RuntimeValue& value) {
@@ -618,7 +624,7 @@ bool isInstance(const RuntimeValue& value, const RuntimeValue& type) {
 
 bool hasOwnField(const RuntimeHandle& target, const RuntimeValue& key) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     return standard::class_runtime::hasOwnField(lua, write(lua, target),
                                                 write(lua, key));
 }
@@ -629,15 +635,15 @@ bool rawEqual(const RuntimeValue& left, const RuntimeValue& right) {
 
 void setNativeDefaultResolver(Callback resolver) {
     RuntimeScope scope;
-    sol::state_view lua(scope.state());
+    lua_glue::StateView lua(scope.state());
     const RuntimeHandle function = callback(std::move(resolver));
     standard::class_runtime::registerNativeClassDefaultResolver(
-        lua, write(lua, function).as<sol::protected_function>());
+        lua, write(lua, function).as<lua_glue::Function>());
 }
 
 void clearNativeDefaultResolver(lua_State* state) {
     standard::class_runtime::unregisterNativeClassDefaultResolver(
-        sol::state_view(state));
+        lua_glue::StateView(state));
 }
 
 }  // namespace ludork::runtime::reference

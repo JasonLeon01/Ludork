@@ -250,7 +250,7 @@ function MovementDangerState:getExcludedAnchors(goal, ignoredGoalEnemies, allowG
         local isGoal = position == goal
         local damage = MovementDangerGrid.GetEntryDamage(entry, ignoredEnemySet)
         if damage > 0 and not (isGoal and allowGoal) then
-            result[#result + 1] = copy(position)
+            result[#result + 1] = position:copy()
         end
     end
     return result

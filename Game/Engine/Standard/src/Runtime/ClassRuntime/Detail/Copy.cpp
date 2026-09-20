@@ -9,7 +9,7 @@
 
 #include <ClassServices.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -23,8 +23,9 @@ extern "C" {
 
 namespace ludork::standard::class_runtime::detail {
 
-bool isAtomicClassTable(sol::state_view lua, const sol::table& value);
-sol::object copyNativeValue(sol::state_view lua, const sol::object& value);
+bool isAtomicClassTable(lua_glue::StateView lua, const lua_glue::Table& value);
+lua_glue::Object copyNativeValue(lua_glue::StateView lua,
+                                 const lua_glue::Object& value);
 
 }  // namespace ludork::standard::class_runtime::detail
 
@@ -32,61 +33,68 @@ namespace {
 
 using namespace ludork::standard::class_runtime::detail;
 
-sol::object checkedResult(sol::state_view lua,
-                          sol::protected_function_result& result) {
+lua_glue::Object checkedResult(lua_glue::StateView lua,
+                               lua_glue::CallResult& result) {
     if (!result.valid()) {
-        const sol::error error = result;
-        throw std::runtime_error(error.what());
+        const std::string error = result.error();
+        throw std::runtime_error(error.c_str());
     }
     return result.return_count() == 0 ? nilObject(lua)
-                                      : result.get<sol::object>();
+                                      : result.get<lua_glue::Object>();
 }
 
-void copyTableMetatable(const sol::table& source, const sol::table& target) {
+void copyTableMetatable(const lua_glue::Table& source,
+                        const lua_glue::Table& target) {
     lua_State* state = source.lua_state();
-    source.push();
+    source.push(state);
     if (lua_getmetatable(state, -1) == 0) {
         lua_pop(state, 1);
         return;
     }
-    target.push();
+    target.push(state);
     lua_pushvalue(state, -2);
     lua_setmetatable(state, -2);
     lua_pop(state, 3);
 }
 
-sol::table tableCopySource(sol::state_view lua, const sol::table& source) {
-    const sol::object rawMonitor = registryTable(lua, MONITOR_STATES_KEY, "k")
-                                       .raw_get<sol::object>(source);
-    if (!rawMonitor.is<sol::table>()) {
+lua_glue::Table tableCopySource(lua_glue::StateView lua,
+                                const lua_glue::Table& source) {
+    const lua_glue::Object rawMonitor =
+        registryTable(lua, MONITOR_STATES_KEY, "k")
+            .raw_get<lua_glue::Object>(source);
+    if (!rawMonitor.is<lua_glue::Table>()) {
         return source;
     }
-    const sol::table monitor = rawMonitor.as<sol::table>();
-    sol::table snapshot = lua.create_table();
+    const lua_glue::Table monitor = rawMonitor.as<lua_glue::Table>();
+    lua_glue::Table snapshot = lua.create_table();
     for (const auto& entry : source) {
         snapshot.raw_set(entry.first, entry.second);
     }
-    const sol::table fields = monitor.raw_get<sol::table>("fields");
+    const lua_glue::Table fields = monitor.raw_get<lua_glue::Table>("fields");
     for (const auto& field : fields) {
-        const sol::table entry = field.second.as<sol::table>();
+        const lua_glue::Table entry = field.second.as<lua_glue::Table>();
         if (rawBool(entry, "hasValue")) {
-            snapshot.raw_set(field.first, entry.raw_get<sol::object>("value"));
+            snapshot.raw_set(field.first,
+                             entry.raw_get<lua_glue::Object>("value"));
         }
     }
-    const sol::object originalMetatable = monitor.raw_get<sol::object>("meta");
-    if (originalMetatable.is<sol::table>()) {
-        snapshot.push();
-        originalMetatable.push();
+    const lua_glue::Object originalMetatable =
+        monitor.raw_get<lua_glue::Object>("meta");
+    if (originalMetatable.is<lua_glue::Table>()) {
+        snapshot.push(lua.lua_state());
+        originalMetatable.push(lua.lua_state());
         lua_setmetatable(lua.lua_state(), -2);
         lua_pop(lua.lua_state(), 1);
     }
     return snapshot;
 }
 
-sol::object deepCopyImpl(sol::state_view lua, const sol::object& value,
-                         std::unordered_map<const void*, sol::object>& visited);
+lua_glue::Object deepCopyImpl(
+    lua_glue::StateView lua, const lua_glue::Object& value,
+    std::unordered_map<const void*, lua_glue::Object>& visited);
 
-sol::object deepCopyNativeChild(void* rawContext, const sol::object& value) {
+lua_glue::Object deepCopyNativeChild(void* rawContext,
+                                     const lua_glue::Object& value) {
     auto* context = static_cast<NativeDeepCopyContext*>(rawContext);
     if (context == nullptr || context->visited == nullptr) {
         throw std::runtime_error("Native deep-copy context is unavailable");
@@ -94,17 +102,29 @@ sol::object deepCopyNativeChild(void* rawContext, const sol::object& value) {
     return deepCopyImpl(context->lua, value, *context->visited);
 }
 
-sol::object deepCopyNativeValue(
-    sol::state_view lua, const sol::object& value, const void* identity,
-    std::unordered_map<const void*, sol::object>& visited) {
-    const sol::object rawType = nativeTypeOf(lua, value);
-    if (rawType.get_type() != sol::type::table) {
+lua_glue::Object deepCopyNativeValue(
+    lua_glue::StateView lua, const lua_glue::Object& value,
+    const void* identity,
+    std::unordered_map<const void*, lua_glue::Object>& visited) {
+    const lua_glue::Object rawType = nativeTypeOf(lua, value);
+    if (rawType.get_type() != lua_glue::Type::Table) {
         visited.emplace(identity, value);
         return value;
     }
     const auto protocol = findNativeDeepCopyProtocol(lua, rawType);
     if (!protocol.has_value()) {
-        const sol::object result = copyNativeValue(lua, value);
+        const lua_glue::Object copier =
+            rawType.as<lua_glue::Table>().raw_get<lua_glue::Object>(
+                "__deepcopy");
+        lua_glue::Object result;
+        if (copier.is<lua_glue::Function>()) {
+            lua_glue::CallResult copied =
+                copier.as<lua_glue::Function>()(value);
+            result = checkedResult(lua, copied);
+            copyExplicitNilFields(lua, value, result);
+        } else {
+            result = copyNativeValue(lua, value);
+        }
         visited.emplace(identity, result);
         return result;
     }
@@ -116,7 +136,7 @@ sol::object deepCopyNativeValue(
             throw std::runtime_error(
                 "Native two-phase deep-copy protocol is incomplete");
         }
-        const sol::object result = protocol->create(lua, value);
+        const lua_glue::Object result = protocol->create(lua, value);
         visited.emplace(identity, result);
         protocol->populate(lua, value, result, &deepCopyNativeChild, &context);
         copyExplicitNilFields(lua, value, result);
@@ -126,7 +146,7 @@ sol::object deepCopyNativeValue(
         throw std::runtime_error(
             "Native deferred deep-copy protocol is incomplete");
     }
-    const sol::object result =
+    const lua_glue::Object result =
         protocol->build(lua, value, &deepCopyNativeChild, &context);
     const auto existing = visited.find(identity);
     if (existing != visited.end()) {
@@ -137,15 +157,15 @@ sol::object deepCopyNativeValue(
     return result;
 }
 
-sol::object deepCopyImpl(
-    sol::state_view lua, const sol::object& value,
-    std::unordered_map<const void*, sol::object>& visited) {
-    if (value.get_type() != sol::type::table) {
-        if (value.get_type() != sol::type::userdata) {
+lua_glue::Object deepCopyImpl(
+    lua_glue::StateView lua, const lua_glue::Object& value,
+    std::unordered_map<const void*, lua_glue::Object>& visited) {
+    if (value.get_type() != lua_glue::Type::Table) {
+        if (value.get_type() != lua_glue::Type::Userdata) {
             return value;
         }
         lua_State* state = lua.lua_state();
-        value.push();
+        value.push(lua.lua_state());
         const void* identity = lua_topointer(state, -1);
         lua_pop(state, 1);
         const auto existing = visited.find(identity);
@@ -154,102 +174,106 @@ sol::object deepCopyImpl(
         }
         return deepCopyNativeValue(lua, value, identity, visited);
     }
-    const sol::table source = value.as<sol::table>();
+    const lua_glue::Table source = value.as<lua_glue::Table>();
     if (isAtomicClassTable(lua, source)) {
         return value;
     }
     lua_State* state = lua.lua_state();
-    source.push();
+    source.push(lua.lua_state());
     const void* identity = lua_topointer(state, -1);
     lua_pop(state, 1);
     const auto existing = visited.find(identity);
     if (existing != visited.end()) {
         return existing->second;
     }
-    sol::table result = lua.create_table();
-    visited.emplace(identity, sol::make_object(lua, result));
-    const sol::table copySource = tableCopySource(lua, source);
+    lua_glue::Table result = lua.create_table();
+    visited.emplace(identity, lua_glue::MakeObject(lua, result));
+    const lua_glue::Table copySource = tableCopySource(lua, source);
     for (const auto& entry : copySource) {
         result.raw_set(entry.first, deepCopyImpl(lua, entry.second, visited));
     }
     copyTableMetatable(copySource, result);
-    copyExplicitNilFields(lua, value, sol::make_object(lua, result));
-    return sol::make_object(lua, result);
+    copyExplicitNilFields(lua, value, lua_glue::MakeObject(lua, result));
+    return lua_glue::MakeObject(lua, result);
 }
 
-sol::object clonePlainDataImpl(sol::state_view lua, const sol::object& value) {
-    if (value.get_type() != sol::type::table) {
+lua_glue::Object clonePlainDataImpl(lua_glue::StateView lua,
+                                    const lua_glue::Object& value) {
+    if (value.get_type() != lua_glue::Type::Table) {
         return value;
     }
-    const sol::table source = value.as<sol::table>();
+    const lua_glue::Table source = value.as<lua_glue::Table>();
     if (isAtomicClassTable(lua, source)) {
         return value;
     }
-    sol::table result = lua.create_table();
-    const sol::table copySource = tableCopySource(lua, source);
+    lua_glue::Table result = lua.create_table();
+    const lua_glue::Table copySource = tableCopySource(lua, source);
     for (const auto& entry : copySource) {
         result.raw_set(entry.first, clonePlainDataImpl(lua, entry.second));
     }
     copyTableMetatable(copySource, result);
-    copyExplicitNilFields(lua, value, sol::make_object(lua, result));
-    return sol::make_object(lua, result);
+    copyExplicitNilFields(lua, value, lua_glue::MakeObject(lua, result));
+    return lua_glue::MakeObject(lua, result);
 }
 
 }  // namespace
 
 namespace ludork::standard::class_runtime::detail {
 
-bool isAtomicClassTable(sol::state_view lua, const sol::table& value) {
+bool isAtomicClassTable(lua_glue::StateView lua, const lua_glue::Table& value) {
     return isClass(value) || isNativeType(lua, value);
 }
 
-sol::object copyNativeValue(sol::state_view lua, const sol::object& value) {
-    if (value.get_type() != sol::type::userdata) {
+lua_glue::Object copyNativeValue(lua_glue::StateView lua,
+                                 const lua_glue::Object& value) {
+    if (value.get_type() != lua_glue::Type::Userdata) {
         return value;
     }
-    const sol::object rawType = nativeTypeOf(lua, value);
-    if (!rawType.is<sol::table>()) {
+    const lua_glue::Object rawType = nativeTypeOf(lua, value);
+    if (!rawType.is<lua_glue::Table>()) {
         return value;
     }
-    const sol::object rawCopy = protectedIndex(
+    const lua_glue::Object rawCopy = protectedIndex(
         lua, rawType,
-        sol::make_object(lua, std::string(protocol::NATIVE_COPY_FIELD)));
-    if (!rawCopy.is<sol::protected_function>()) {
+        lua_glue::MakeObject(lua, std::string(protocol::NATIVE_COPY_FIELD)));
+    if (!rawCopy.is<lua_glue::Function>()) {
         return value;
     }
-    sol::protected_function copy = rawCopy.as<sol::protected_function>();
-    sol::protected_function_result result = copy(value);
-    const sol::object copied = checkedResult(lua, result);
+    lua_glue::Function copy = rawCopy.as<lua_glue::Function>();
+    lua_glue::CallResult result = copy(value);
+    const lua_glue::Object copied = checkedResult(lua, result);
     copyExplicitNilFields(lua, value, copied);
     return copied;
 }
 
-sol::object shallowCopyImpl(sol::state_view lua, const sol::object& value) {
-    if (value.get_type() != sol::type::table) {
+lua_glue::Object shallowCopyImpl(lua_glue::StateView lua,
+                                 const lua_glue::Object& value) {
+    if (value.get_type() != lua_glue::Type::Table) {
         return copyNativeValue(lua, value);
     }
-    const sol::table source = value.as<sol::table>();
+    const lua_glue::Table source = value.as<lua_glue::Table>();
     if (isAtomicClassTable(lua, source)) {
         return value;
     }
-    sol::table result = lua.create_table();
-    const sol::table copySource = tableCopySource(lua, source);
+    lua_glue::Table result = lua.create_table();
+    const lua_glue::Table copySource = tableCopySource(lua, source);
     for (const auto& entry : copySource) {
         result.raw_set(entry.first, entry.second);
     }
     copyTableMetatable(copySource, result);
-    copyExplicitNilFields(lua, value, sol::make_object(lua, result));
-    return sol::make_object(lua, result);
+    copyExplicitNilFields(lua, value, lua_glue::MakeObject(lua, result));
+    return lua_glue::MakeObject(lua, result);
 }
 
-sol::object deepCopyImpl(
-    sol::state_view lua, const sol::object& value,
-    std::unordered_map<const void*, sol::object>& visited) {
+lua_glue::Object deepCopyImpl(
+    lua_glue::StateView lua, const lua_glue::Object& value,
+    std::unordered_map<const void*, lua_glue::Object>& visited) {
     return ::deepCopyImpl(lua, value, visited);
 }
 
-sol::object deepCopyImpl(sol::state_view lua, const sol::object& value) {
-    std::unordered_map<const void*, sol::object> visited;
+lua_glue::Object deepCopyImpl(lua_glue::StateView lua,
+                              const lua_glue::Object& value) {
+    std::unordered_map<const void*, lua_glue::Object> visited;
     return ::deepCopyImpl(lua, value, visited);
 }
 
@@ -257,20 +281,23 @@ sol::object deepCopyImpl(sol::state_view lua, const sol::object& value) {
 
 namespace ludork::standard::class_runtime {
 
-sol::object clonePlainData(sol::state_view lua, const sol::object& value) {
+lua_glue::Object clonePlainData(lua_glue::StateView lua,
+                                const lua_glue::Object& value) {
     return ::clonePlainDataImpl(lua, value);
 }
 
-sol::object shallowCopy(sol::state_view lua, const sol::object& value) {
+lua_glue::Object shallowCopy(lua_glue::StateView lua,
+                             const lua_glue::Object& value) {
     return detail::shallowCopyImpl(lua, value);
 }
 
-sol::object deepCopy(sol::state_view lua, const sol::object& value) {
+lua_glue::Object deepCopy(lua_glue::StateView lua,
+                          const lua_glue::Object& value) {
     return detail::deepCopyImpl(lua, value);
 }
 
-void registerNativeDeepCopyProtocol(sol::state_view lua,
-                                    const sol::table& nativeType,
+void registerNativeDeepCopyProtocol(lua_glue::StateView lua,
+                                    const lua_glue::Table& nativeType,
                                     const NativeDeepCopyProtocol& protocol) {
     if (protocol.mode == NativeDeepCopyProtocol::NativeDeepCopyMode::TwoPhase) {
         if (protocol.create == nullptr || protocol.populate == nullptr ||
@@ -284,9 +311,9 @@ void registerNativeDeepCopyProtocol(sol::state_view lua,
             "Invalid native deferred deep-copy protocol");
     }
     lua_State* state = lua.lua_state();
-    sol::table protocols = detail::nativeDeepCopyProtocols(lua);
-    protocols.push();
-    nativeType.push();
+    lua_glue::Table protocols = detail::nativeDeepCopyProtocols(lua);
+    protocols.push(lua.lua_state());
+    nativeType.push(lua.lua_state());
     void* storage = lua_newuserdatauv(state, sizeof(NativeDeepCopyProtocol), 0);
     new (storage) NativeDeepCopyProtocol(protocol);
     lua_rawset(state, -3);

@@ -14,8 +14,12 @@ endif()
 set(preview_runtime_targets LudorkRuntime LudorkStandard
     sfml-system sfml-window sfml-graphics)
 if(LUDORK_WITH_LUA)
+    get_target_property(preview_glue_target LuaGlue::LuaGlue ALIASED_TARGET)
+    if(NOT preview_glue_target)
+        set(preview_glue_target LuaGlue::LuaGlue)
+    endif()
     list(APPEND preview_runtime_targets
-        LuaSF LuaSF_lua_shared sfml-audio sfml-network)
+        LuaSF LuaSF_lua_shared ${preview_glue_target} sfml-audio sfml-network)
 endif()
 add_custom_target(UiPreviewPrepare
     COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"

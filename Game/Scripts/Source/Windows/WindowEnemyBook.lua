@@ -119,8 +119,8 @@ function Controller:buildEntry(enemy, visual)
         :calculate(abilitySystem, GameplayEventData.new(nil, self:getPlayer()))
     local battleData = battleResult.data
     local special = enemy.attributes.special
-    local textureRect = copy(assert(visual.rect or visual.textureRect))
-    local scale = copy(visual.scale)
+    local textureRect = assert(visual.rect or visual.textureRect):copy()
+    local scale = visual.scale:copy()
     local nameSource = tostring(enemy.attributes.name or enemy.attributes.ID)
     local descSource = enemy.attributes.desc
     return {

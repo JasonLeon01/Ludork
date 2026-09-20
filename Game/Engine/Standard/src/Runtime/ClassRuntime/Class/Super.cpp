@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "Class/ClassRuntimeInternals.hpp"
 #include <ClassRuntimeProtocol.hpp>
 
@@ -9,7 +10,7 @@
 #include "Instance/InstanceRuntime.hpp"
 #include "Native/NativeRuntime.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -23,29 +24,35 @@ namespace ludork::standard::class_runtime::detail {
 
 namespace {
 
-sol::object cachedBoundMethod(sol::state_view lua, sol::table proxy,
-                              const sol::object& key, const sol::object& method,
-                              const sol::object& receiver) {
-    sol::object rawCache = proxy.raw_get<sol::object>(4);
-    sol::table cache = rawCache.is<sol::table>() ? rawCache.as<sol::table>()
-                                                 : lua.create_table();
-    if (!rawCache.is<sol::table>()) {
+lua_glue::Object cachedBoundMethod(lua_glue::StateView lua,
+                                   lua_glue::Table proxy,
+                                   const lua_glue::Object& key,
+                                   const lua_glue::Object& method,
+                                   const lua_glue::Object& receiver) {
+    lua_glue::Object rawCache = proxy.raw_get<lua_glue::Object>(4);
+    lua_glue::Table cache = rawCache.is<lua_glue::Table>()
+                                ? rawCache.as<lua_glue::Table>()
+                                : lua.create_table();
+    if (!rawCache.is<lua_glue::Table>()) {
         proxy.raw_set(4, cache);
     }
-    const sol::object rawEntry = cache.raw_get<sol::object>(key);
-    if (rawEntry.is<sol::table>()) {
-        const sol::table entry = rawEntry.as<sol::table>();
-        const sol::object cachedMethod = entry.raw_get<sol::object>(1);
-        const sol::object cachedReceiver = entry.raw_get<sol::object>(2);
-        const sol::object cachedWrapper = entry.raw_get<sol::object>(3);
-        if (cachedWrapper.is<sol::function>() &&
+    const lua_glue::Object rawEntry = cache.raw_get<lua_glue::Object>(key);
+    if (rawEntry.is<lua_glue::Table>()) {
+        const lua_glue::Table entry = rawEntry.as<lua_glue::Table>();
+        const lua_glue::Object cachedMethod =
+            entry.raw_get<lua_glue::Object>(1);
+        const lua_glue::Object cachedReceiver =
+            entry.raw_get<lua_glue::Object>(2);
+        const lua_glue::Object cachedWrapper =
+            entry.raw_get<lua_glue::Object>(3);
+        if (cachedWrapper.is<lua_glue::Function>() &&
             objectsRawEqual(cachedMethod, method) &&
             objectsRawEqual(cachedReceiver, receiver)) {
             return cachedWrapper;
         }
     }
-    sol::table entry = lua.create_table();
-    const sol::object wrapper = bindMethod(lua, method, receiver);
+    lua_glue::Table entry = lua.create_table();
+    const lua_glue::Object wrapper = bindMethod(lua, method, receiver);
     entry.raw_set(1, method);
     entry.raw_set(2, receiver);
     entry.raw_set(3, wrapper);
@@ -54,85 +61,88 @@ sol::object cachedBoundMethod(sol::state_view lua, sol::table proxy,
 }
 
 int superProxyIndex(lua_State* state) {
-    try {
-        sol::state_view lua(state);
-        const sol::table proxy = sol::stack::get<sol::table>(state, 1);
-        const sol::object key = sol::stack::get<sol::object>(state, 2);
-        const sol::object self = proxy.raw_get<sol::object>(1);
-        const sol::table actualClass = proxy.raw_get<sol::table>(2);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        lua_glue::StateView lua(state);
+        const lua_glue::Table proxy = lua_glue::Read<lua_glue::Table>(state, 1);
+        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
+        const lua_glue::Object self = proxy.raw_get<lua_glue::Object>(1);
+        const lua_glue::Table actualClass = proxy.raw_get<lua_glue::Table>(2);
         const std::size_t currentIndex = proxy.raw_get<std::size_t>(3);
-        const sol::table mro = getMro(lua, actualClass);
+        const lua_glue::Table mro = getMro(lua, actualClass);
         for (std::size_t index = currentIndex + 1; index <= mro.size();
              ++index) {
-            const sol::object rawType = mro.raw_get<sol::object>(index);
-            if (!rawType.is<sol::table>()) {
+            const lua_glue::Object rawType =
+                mro.raw_get<lua_glue::Object>(index);
+            if (!rawType.is<lua_glue::Table>()) {
                 continue;
             }
-            const sol::table type = rawType.as<sol::table>();
-            const sol::object rawGetters =
-                type.raw_get<sol::object>(protocol::CLASS_GETTERS_FIELD);
-            if (rawGetters.is<sol::table>()) {
-                const sol::object getter =
-                    rawGetters.as<sol::table>().raw_get<sol::object>(key);
-                if (getter.is<sol::function>()) {
-                    getter.push();
-                    self.push();
-                    lua_call(state, 1, 1);
+            const lua_glue::Table type = rawType.as<lua_glue::Table>();
+            const lua_glue::Object rawGetters =
+                type.raw_get<lua_glue::Object>(protocol::CLASS_GETTERS_FIELD);
+            if (rawGetters.is<lua_glue::Table>()) {
+                const lua_glue::Object getter =
+                    rawGetters.as<lua_glue::Table>().raw_get<lua_glue::Object>(
+                        key);
+                if (getter.is<lua_glue::Function>()) {
+                    getter.push(state);
+                    self.push(state);
+                    if (ludork::standard::protectedLuaCall(state, 1, 1) !=
+                        LUA_OK) {
+                        throw std::runtime_error(
+                            ludork::standard::luaErrorMessage(state, -1));
+                    }
                     return 1;
                 }
             }
-            sol::object member = nilObject(lua);
+            lua_glue::Object member = nilObject(lua);
             if (isNativeType(lua, type)) {
-                const sol::object rawBaseMethods =
-                    type.raw_get<sol::object>(CLASS_BASE_METHODS_FIELD);
-                if (rawBaseMethods.is<sol::table>()) {
-                    member =
-                        rawBaseMethods.as<sol::table>().raw_get<sol::object>(
-                            key);
+                const lua_glue::Object rawBaseMethods =
+                    type.raw_get<lua_glue::Object>(CLASS_BASE_METHODS_FIELD);
+                if (rawBaseMethods.is<lua_glue::Table>()) {
+                    member = rawBaseMethods.as<lua_glue::Table>()
+                                 .raw_get<lua_glue::Object>(key);
                 }
             }
-            if (!member.valid() || member.get_type() == sol::type::lua_nil) {
+            if (!member.valid() || member.get_type() == lua_glue::Type::Nil) {
                 member = rawMember(lua, type, key);
             }
-            if (!member.valid() || member.get_type() == sol::type::lua_nil) {
+            if (!member.valid() || member.get_type() == lua_glue::Type::Nil) {
                 continue;
             }
-            if (!member.is<sol::function>()) {
-                member.push();
+            if (!member.is<lua_glue::Function>()) {
+                member.push(state);
                 return 1;
             }
-            sol::object receiver = self;
+            lua_glue::Object receiver = self;
             if (isNativeType(lua, type) && !isNativeInitializer(type, member)) {
-                const sol::table fields =
+                const lua_glue::Table fields =
                     class_native::getUserFields(lua, self, false);
-                sol::object nativeObject =
+                lua_glue::Object nativeObject =
                     nativeObjectForType(lua, fields, type);
-                if (!nativeObject.is<sol::userdata>()) {
+                if ((nativeObject.get_type() != lua_glue::Type::Userdata)) {
                     nativeObject = ensureDefaultNativeObject(lua, self, type);
                 }
-                if (nativeObject.is<sol::userdata>()) {
+                if ((nativeObject.get_type() == lua_glue::Type::Userdata)) {
                     receiver = nativeObject;
                 }
             }
-            cachedBoundMethod(lua, proxy, key, member, receiver).push();
+            cachedBoundMethod(lua, proxy, key, member, receiver).push(state);
             return 1;
         }
         lua_pushnil(state);
         return 1;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
-sol::table superProxyMetatable(sol::state_view lua) {
-    sol::table registry = lua.registry();
-    const sol::object rawMetatable =
-        registry.raw_get<sol::object>(SUPER_PROXY_METATABLE_KEY);
-    if (rawMetatable.is<sol::table>()) {
-        return rawMetatable.as<sol::table>();
+lua_glue::Table superProxyMetatable(lua_glue::StateView lua) {
+    lua_glue::Table registry = lua.registry();
+    const lua_glue::Object rawMetatable =
+        registry.raw_get<lua_glue::Object>(SUPER_PROXY_METATABLE_KEY);
+    if (rawMetatable.is<lua_glue::Table>()) {
+        return rawMetatable.as<lua_glue::Table>();
     }
-    sol::table metatable = lua.create_table();
-    metatable.push();
+    lua_glue::Table metatable = lua.create_table();
+    metatable.push(lua.lua_state());
     lua_pushcfunction(lua.lua_state(), superProxyIndex);
     lua_setfield(lua.lua_state(), -2, "__index");
     lua_pop(lua.lua_state(), 1);
@@ -140,19 +150,20 @@ sol::table superProxyMetatable(sol::state_view lua) {
     return metatable;
 }
 
-sol::table createSuperProxy(sol::state_view lua, const sol::table& currentClass,
-                            const sol::object& self) {
-    const sol::object rawActualClass = actualClassOf(lua, self);
-    if (!rawActualClass.is<sol::table>()) {
+lua_glue::Table createSuperProxy(lua_glue::StateView lua,
+                                 const lua_glue::Table& currentClass,
+                                 const lua_glue::Object& self) {
+    const lua_glue::Object rawActualClass = actualClassOf(lua, self);
+    if (!rawActualClass.is<lua_glue::Table>()) {
         throw std::invalid_argument("super() requires a class instance");
     }
-    const sol::table actualClass = rawActualClass.as<sol::table>();
-    const sol::table mro = getMro(lua, actualClass);
+    const lua_glue::Table actualClass = rawActualClass.as<lua_glue::Table>();
+    const lua_glue::Table mro = getMro(lua, actualClass);
     std::size_t currentIndex = 0;
     for (std::size_t index = 1; index <= mro.size(); ++index) {
-        const sol::object rawType = mro[index];
-        if (rawType.is<sol::table>() &&
-            objectsRawEqual(rawType.as<sol::table>(), currentClass)) {
+        const lua_glue::Object rawType = mro[index];
+        if (rawType.is<lua_glue::Table>() &&
+            objectsRawEqual(rawType.as<lua_glue::Table>(), currentClass)) {
             currentIndex = index;
             break;
         }
@@ -161,48 +172,49 @@ sol::table createSuperProxy(sol::state_view lua, const sol::table& currentClass,
         throw std::invalid_argument(
             "super() current class is not in the instance MRO");
     }
-    sol::table cache = registryTable(lua, SUPER_PROXY_CACHE_KEY, "k");
-    const sol::object rawInstanceCache = cache.raw_get<sol::object>(self);
-    sol::table instanceCache = rawInstanceCache.is<sol::table>()
-                                   ? rawInstanceCache.as<sol::table>()
-                                   : createWeakTable(lua, "v");
-    if (!rawInstanceCache.is<sol::table>()) {
+    lua_glue::Table cache = registryTable(lua, SUPER_PROXY_CACHE_KEY, "k");
+    const lua_glue::Object rawInstanceCache =
+        cache.raw_get<lua_glue::Object>(self);
+    lua_glue::Table instanceCache = rawInstanceCache.is<lua_glue::Table>()
+                                        ? rawInstanceCache.as<lua_glue::Table>()
+                                        : createWeakTable(lua, "v");
+    if (!rawInstanceCache.is<lua_glue::Table>()) {
         cache.raw_set(self, instanceCache);
     }
-    const sol::object rawProxy =
-        instanceCache.raw_get<sol::object>(currentClass);
-    if (rawProxy.is<sol::table>()) {
-        return rawProxy.as<sol::table>();
+    const lua_glue::Object rawProxy =
+        instanceCache.raw_get<lua_glue::Object>(currentClass);
+    if (rawProxy.is<lua_glue::Table>()) {
+        return rawProxy.as<lua_glue::Table>();
     }
-    sol::table proxy = lua.create_table();
+    lua_glue::Table proxy = lua.create_table();
     proxy.raw_set(1, self);
     proxy.raw_set(2, actualClass);
     proxy.raw_set(3, currentIndex);
-    proxy[sol::metatable_key] = superProxyMetatable(lua);
+    lua_glue::SetMetatable(proxy, superProxyMetatable(lua));
     instanceCache.raw_set(currentClass, proxy);
     return proxy;
 }
 
-bool inferSuperContext(lua_State* state, sol::table& currentClass,
-                       sol::object& self) {
+bool inferSuperContext(lua_State* state, lua_glue::Table& currentClass,
+                       lua_glue::Object& self) {
     lua_Debug record{};
     if (lua_getstack(state, 1, &record) == 0 ||
         lua_getinfo(state, "f", &record) == 0) {
         return false;
     }
-    sol::state_view lua(state);
-    const sol::object caller = sol::stack::get<sol::object>(state, -1);
+    lua_glue::StateView lua(state);
+    const lua_glue::Object caller = lua_glue::Read<lua_glue::Object>(state, -1);
     lua_pop(state, 1);
-    const sol::object rawOwner =
-        registryTable(lua, METHOD_OWNERS_KEY, "k").raw_get<sol::object>(caller);
-    if (!rawOwner.is<sol::table>()) {
+    const lua_glue::Object rawOwner = registryTable(lua, METHOD_OWNERS_KEY, "k")
+                                          .raw_get<lua_glue::Object>(caller);
+    if (!rawOwner.is<lua_glue::Table>()) {
         return false;
     }
-    currentClass = rawOwner.as<sol::table>();
+    currentClass = rawOwner.as<lua_glue::Table>();
     if (lua_getlocal(state, &record, 1) == nullptr) {
         return false;
     }
-    self = sol::stack::get<sol::object>(state, -1);
+    self = lua_glue::Read<lua_glue::Object>(state, -1);
     lua_pop(state, 1);
     return true;
 }
@@ -210,31 +222,35 @@ bool inferSuperContext(lua_State* state, sol::table& currentClass,
 }  // namespace
 
 int superFunction(lua_State* state) {
-    sol::state_view lua(state);
-    const int argumentCount = lua_gettop(state);
-    if (argumentCount == 2) {
-        if (!lua_istable(state, 1)) {
-            return luaL_error(state, "super() first argument must be a class");
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        lua_glue::StateView lua(state);
+        const int argumentCount = lua_gettop(state);
+        if (argumentCount == 2) {
+            if (!lua_istable(state, 1)) {
+                throw std::invalid_argument(
+                    "super() first argument must be a class");
+            }
+            createSuperProxy(lua, lua_glue::Read<lua_glue::Table>(state, 1),
+                             lua_glue::Read<lua_glue::Object>(state, 2))
+                .push(state);
+            return 1;
         }
-        createSuperProxy(lua, sol::stack::get<sol::table>(state, 1),
-                         sol::stack::get<sol::object>(state, 2))
-            .push();
+        if (argumentCount != 0 && argumentCount != 1) {
+            throw std::invalid_argument(
+                "super() expects zero, one, or two arguments");
+        }
+        lua_glue::Table currentClass = lua.create_table();
+        lua_glue::Object inferredSelf = nilObject(lua);
+        if (!inferSuperContext(state, currentClass, inferredSelf)) {
+            throw std::invalid_argument(
+                "super() could not determine the defining class");
+        }
+        const lua_glue::Object self =
+            argumentCount == 1 ? lua_glue::Read<lua_glue::Object>(state, 1)
+                               : inferredSelf;
+        createSuperProxy(lua, currentClass, self).push(state);
         return 1;
-    }
-    if (argumentCount != 0 && argumentCount != 1) {
-        return luaL_error(state, "super() expects zero, one, or two arguments");
-    }
-    sol::table currentClass = lua.create_table();
-    sol::object inferredSelf = nilObject(lua);
-    if (!inferSuperContext(state, currentClass, inferredSelf)) {
-        return luaL_error(state,
-                          "super() could not determine the defining class");
-    }
-    const sol::object self = argumentCount == 1
-                                 ? sol::stack::get<sol::object>(state, 1)
-                                 : inferredSelf;
-    createSuperProxy(lua, currentClass, self).push();
-    return 1;
+    });
 }
 
 }  // namespace ludork::standard::class_runtime::detail

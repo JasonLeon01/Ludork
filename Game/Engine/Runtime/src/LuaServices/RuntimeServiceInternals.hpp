@@ -4,11 +4,11 @@
 
 namespace ludork::runtime::detail {
 
-sol::table runtimeClassTypeDescriptor(sol::state_view lua,
-                                      const sol::table& classReference);
+lua_glue::Table runtimeClassTypeDescriptor(
+    lua_glue::StateView lua, const lua_glue::Table& classReference);
 
-sol::object resolveRuntimeAttrValueType(sol::state_view lua,
-                                        const sol::object& owner,
-                                        const std::string& key);
+lua_glue::Object resolveRuntimeAttrValueType(lua_glue::StateView lua,
+                                             const lua_glue::Object& owner,
+                                             const std::string& key);
 
 }  // namespace ludork::runtime::detail

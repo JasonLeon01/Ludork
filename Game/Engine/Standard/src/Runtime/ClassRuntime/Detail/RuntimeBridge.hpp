@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <cstddef>
 #include <vector>
@@ -11,9 +11,11 @@ namespace ludork::standard::class_runtime::detail {
 
 void ensureRuntimeLuaStack(lua_State* state, std::size_t count,
                            const char* context);
-int invokeRuntimeFunction(sol::state_view lua, const sol::object& rawCallable,
-                          const std::vector<sol::object>& arguments,
+int invokeRuntimeFunction(lua_glue::StateView lua,
+                          const lua_glue::Object& rawCallable,
+                          const std::vector<lua_glue::Object>& arguments,
                           const char* context);
-sol::table resolverMro(sol::state_view lua, const sol::table& classTable);
+lua_glue::Table resolverMro(lua_glue::StateView lua,
+                            const lua_glue::Table& classTable);
 
 }  // namespace ludork::standard::class_runtime::detail

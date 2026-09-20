@@ -4,7 +4,7 @@
 #include <LudorkRuntimeBinding/ValueTraits.hpp>
 #include <Runtime/StrictFunction.hpp>
 #include <cmath>
-#include <utils.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <array>
 #include <cstdint>
@@ -76,24 +76,6 @@ template <typename... Values>
 struct IsTuple<std::tuple<Values...>> : std::true_type {};
 
 template <typename T>
-struct LuaReturnTupleType;
-
-template <typename... Values>
-struct LuaReturnTupleType<std::tuple<Values...>> {
-    template <typename>
-    using Object = sol::object;
-    using Type = std::tuple<Object<Values>...>;
-};
-
-template <typename First, typename Second>
-struct LuaReturnTupleType<std::pair<First, Second>> {
-    using Type = std::tuple<sol::object, sol::object>;
-};
-
-template <typename T>
-using LuaReturnTuple = typename LuaReturnTupleType<LuaValueType<T>>::Type;
-
-template <typename T>
 struct IsMap : std::false_type {};
 
 template <typename Key, typename Value, typename Compare, typename Allocator>
@@ -153,11 +135,11 @@ struct AcceptsNilValue<std::variant<T...>>
     : std::bool_constant<(AcceptsNilValue<T>::value || ...)> {};
 
 template <typename Data>
-bool canReadPureDataValue(const sol::object& value);
+bool canReadPureDataValue(const lua_glue::Object& value);
 template <typename Data>
-Data readPureDataValue(const sol::object& value);
+Data readPureDataValue(const lua_glue::Object& value);
 template <typename Data>
-sol::object writePureDataValue(sol::state_view lua, const Data& value);
+lua_glue::Object writePureDataValue(lua_glue::StateView lua, const Data& value);
 
 template <typename T>
 inline constexpr bool IsTableValue = TableValueTraits<LuaValueType<T>>::enabled;
@@ -167,91 +149,95 @@ inline constexpr bool IsStdFunction =
     StdFunctionTraits<LuaValueType<T>>::enabled;
 
 template <typename DynamicValue>
-bool canReadDynamicValue(const sol::object& value);
+bool canReadDynamicValue(const lua_glue::Object& value);
 
 template <typename DynamicValue>
-DynamicValue readDynamicValue(const sol::object& value);
+DynamicValue readDynamicValue(const lua_glue::Object& value);
 
 template <typename DynamicValue>
-sol::object writeDynamicValue(sol::state_view lua, const DynamicValue& value);
+lua_glue::Object writeDynamicValue(lua_glue::StateView lua,
+                                   const DynamicValue& value);
 
 template <typename Native>
-bool tryReadNativeValue(const sol::object& value, Native& result);
+bool tryReadNativeValue(const lua_glue::Object& value, Native& result);
 
 template <typename Pointer>
-Pointer readOpaqueIdentity(const sol::object& value);
+Pointer readOpaqueIdentity(const lua_glue::Object& value);
 
 template <typename Pointer>
-sol::object writeOpaqueIdentity(sol::state_view lua, const Pointer& value);
+lua_glue::Object writeOpaqueIdentity(lua_glue::StateView lua,
+                                     const Pointer& value);
 
 template <typename Pointer>
-Pointer readSharedPointer(const sol::object& value);
+Pointer readSharedPointer(const lua_glue::Object& value);
 
 template <typename Pointer>
-bool tryReadPointer(const sol::object& value, Pointer& result);
+bool tryReadPointer(const lua_glue::Object& value, Pointer& result);
 
 template <typename Pointer>
-Pointer readPointer(const sol::object& value);
+Pointer readPointer(const lua_glue::Object& value);
 
-sol::object nativePointerOwner(sol::state_view lua, const void* pointer);
+lua_glue::Object nativePointerOwner(lua_glue::StateView lua,
+                                    const void* pointer);
 
-int pushNativePointerOwnerTable(sol::state_view lua);
+int pushNativePointerOwnerTable(lua_glue::StateView lua);
 
 bool pushNativePointerOwnerFromTable(lua_State* state, int tableIndex,
                                      const void* pointer);
 
 template <typename T, typename... Bases>
-sol::object writeOwningLuaObject(sol::state_view lua,
-                                 const std::shared_ptr<T>& value);
+lua_glue::Object writeOwningLuaObject(lua_glue::StateView lua,
+                                      const std::shared_ptr<T>& value);
 
-bool tryWriteDynamicNativeObject(sol::state_view lua,
+bool tryWriteDynamicNativeObject(lua_glue::StateView lua,
                                  std::string_view dynamicType,
                                  std::string_view sourceType,
                                  const std::shared_ptr<void>& owner,
-                                 sol::object& result);
+                                 lua_glue::Object& result);
 
 template <typename Signature>
-std::function<Signature> functionFromLua(const sol::object& value);
+std::function<Signature> functionFromLua(const lua_glue::Object& value);
 
 template <typename Signature>
-sol::object functionToLua(sol::state_view lua,
-                          const std::function<Signature>& value);
+lua_glue::Object functionToLua(lua_glue::StateView lua,
+                               const std::function<Signature>& value);
 
 template <typename Signature>
 ludork::runtime::StrictFunction<Signature> strictFunctionFromLua(
-    const sol::object& value);
+    const lua_glue::Object& value);
 
 template <typename Signature>
-sol::object strictFunctionToLua(
-    sol::state_view lua,
+lua_glue::Object strictFunctionToLua(
+    lua_glue::StateView lua,
     const ludork::runtime::StrictFunction<Signature>& value);
 
-inline bool isNil(const sol::object& value) {
-    return !value.valid() || value.get_type() == sol::type::none ||
-           value.get_type() == sol::type::lua_nil;
+inline bool isNil(const lua_glue::Object& value) {
+    return !value.valid() || value.get_type() == lua_glue::Type::None ||
+           value.get_type() == lua_glue::Type::Nil;
 }
 
-inline bool trySequenceLength(const sol::table& value, std::size_t& length) {
-    const sol::object rawLength = value.raw_get<sol::object>("n");
+inline bool trySequenceLength(const lua_glue::Table& value,
+                              std::size_t& length) {
+    const lua_glue::Object rawLength = value.raw_get<lua_glue::Object>("n");
     if (isNil(rawLength)) {
         length = value.size();
         return true;
     }
-    if (!rawLength.is<lua_sf::LuaIntegral<std::size_t>>()) {
+    if (!rawLength.is<std::size_t>()) {
         return false;
     }
-    length = rawLength.as<lua_sf::LuaIntegral<std::size_t>>().value();
+    length = rawLength.as<std::size_t>();
     return true;
 }
 
 template <typename T>
-bool canReadLuaValue(const sol::object& value);
+bool canReadLuaValue(const lua_glue::Object& value);
 
 template <typename T>
-T readLuaValue(const sol::object& value);
+T readLuaValue(const lua_glue::Object& value);
 
 template <typename T>
-sol::object writeLuaValue(sol::state_view lua, const T& value);
+lua_glue::Object writeLuaValue(lua_glue::StateView lua, const T& value);
 
 template <typename Return, typename... Arguments>
 Return callPushedLuaFunction(lua_State* state, Arguments&&... arguments);
@@ -259,49 +245,21 @@ Return callPushedLuaFunction(lua_State* state, Arguments&&... arguments);
 template <typename T, bool AllowNil = false>
 class LuaArgument {
 public:
-    explicit LuaArgument(sol::object value) : value_(std::move(value)) {}
+    explicit LuaArgument(lua_glue::Object value) : value_(std::move(value)) {}
 
     [[nodiscard]] T value() const {
         return readLuaValue<T>(value_);
     }
-    [[nodiscard]] const sol::object& object() const {
+    [[nodiscard]] const lua_glue::Object& object() const {
         return value_;
     }
 
 private:
-    sol::object value_;
+    lua_glue::Object value_;
 };
 
-template <typename T, bool AllowNil, typename Handler>
-bool sol_lua_check(sol::types<LuaArgument<T, AllowNil>>, lua_State* state,
-                   int index, Handler&& handler, sol::stack::record& tracking) {
-    tracking.use(1);
-    bool success = false;
-    {
-        const sol::object value = sol::stack::get<sol::object>(state, index);
-        success = (AllowNil && isNil(value)) || canReadLuaValue<T>(value);
-    }
-    if (!success) {
-        handler(state, index, sol::type::poly, sol::type_of(state, index),
-                "value is not compatible with the requested C++ type");
-    }
-    return success;
-}
-
-template <typename T, bool AllowNil>
-LuaArgument<T, AllowNil> sol_lua_get(sol::types<LuaArgument<T, AllowNil>>,
-                                     lua_State* state, int index,
-                                     sol::stack::record& tracking) {
-    tracking.use(1);
-    sol::object value = sol::stack::get<sol::object>(state, index);
-    if (!((AllowNil && isNil(value)) || canReadLuaValue<T>(value))) {
-        throw std::invalid_argument(
-            "value is not compatible with the requested C++ type");
-    }
-    return LuaArgument<T, AllowNil>(std::move(value));
-}
-
-inline bool luaIntegerValue(const sol::object& value, std::int64_t& result) {
+inline bool luaIntegerValue(const lua_glue::Object& value,
+                            std::int64_t& result) {
     lua_State* state = value.lua_state();
     value.push();
     const bool isInteger = lua_isinteger(state, -1) != 0;
@@ -313,22 +271,22 @@ inline bool luaIntegerValue(const sol::object& value, std::int64_t& result) {
 }
 
 template <typename Values>
-LuaReturnTuple<Values> writeLuaReturns(sol::state_view lua,
-                                       const Values& values) {
+lua_glue::MultipleResults writeLuaReturns(lua_glue::StateView lua,
+                                          const Values& values) {
     return std::apply(
         [lua](const auto&... items) {
-            return LuaReturnTuple<Values>{writeLuaValue(lua, items)...};
+            return lua_glue::MultipleResults{writeLuaValue(lua, items)...};
         },
         values);
 }
 
 template <typename Sequence>
-bool canReadSequence(const sol::object& value,
+bool canReadSequence(const lua_glue::Object& value,
                      std::optional<std::size_t> fixedLength = std::nullopt) {
-    if (!(value.get_type() == sol::type::table)) {
+    if (!(value.get_type() == lua_glue::Type::Table)) {
         return false;
     }
-    const sol::table table = value.as<sol::table>();
+    const lua_glue::Table table = value.as<lua_glue::Table>();
     std::size_t length = 0;
     if (!trySequenceLength(table, length)) {
         return false;
@@ -338,7 +296,7 @@ bool canReadSequence(const sol::object& value,
     }
     using Item = typename Sequence::value_type;
     for (std::size_t index = 1; index <= length; ++index) {
-        const sol::object item = table.raw_get<sol::object>(index);
+        const lua_glue::Object item = table.raw_get<lua_glue::Object>(index);
         if (isNil(item)) {
             if constexpr (!AcceptsNilValue<Item>::value) {
                 return false;
@@ -353,16 +311,16 @@ bool canReadSequence(const sol::object& value,
 }
 
 template <typename Map>
-bool canReadMap(const sol::object& value) {
-    if (!(value.get_type() == sol::type::table)) {
+bool canReadMap(const lua_glue::Object& value) {
+    if (!(value.get_type() == lua_glue::Type::Table)) {
         return false;
     }
-    const sol::table table = value.as<sol::table>();
+    const lua_glue::Table table = value.as<lua_glue::Table>();
     using Key = typename Map::key_type;
     using Value = typename Map::mapped_type;
     for (const auto& entry : table) {
-        const sol::object key = entry.first;
-        const sol::object item = entry.second;
+        const lua_glue::Object key = entry.first;
+        const lua_glue::Object item = entry.second;
         if (!canReadLuaValue<Key>(key)) {
             return false;
         }
@@ -380,36 +338,36 @@ bool canReadMap(const sol::object& value) {
 }
 
 template <typename T>
-bool exactVariantAlternative(const sol::object& value) {
+bool exactVariantAlternative(const lua_glue::Object& value) {
     using Value = LuaValueType<T>;
     if constexpr (std::is_same_v<Value, std::monostate>) {
         return isNil(value);
     } else if constexpr (std::is_integral_v<Value> &&
                          !std::is_same_v<Value, bool>) {
-        if (value.get_type() != sol::type::number) {
+        if (value.get_type() != lua_glue::Type::Number) {
             return false;
         }
-        auto pushed = sol::stack::push_pop(value);
-        return lua_isinteger(value.lua_state(), pushed.index_of(value)) != 0;
+        auto pushed = lua_glue::PushGuard(value);
+        return lua_isinteger(value.lua_state(), pushed.index()) != 0;
     } else if constexpr (std::is_floating_point_v<Value>) {
-        if (value.get_type() != sol::type::number) {
+        if (value.get_type() != lua_glue::Type::Number) {
             return false;
         }
-        auto pushed = sol::stack::push_pop(value);
-        return lua_isinteger(value.lua_state(), pushed.index_of(value)) == 0;
+        auto pushed = lua_glue::PushGuard(value);
+        return lua_isinteger(value.lua_state(), pushed.index()) == 0;
     } else if constexpr (std::is_same_v<Value, bool>) {
-        return value.get_type() == sol::type::boolean;
+        return value.get_type() == lua_glue::Type::Boolean;
     } else if constexpr (std::is_same_v<Value, std::string>) {
-        return value.get_type() == sol::type::string;
+        return value.get_type() == lua_glue::Type::String;
     } else if constexpr (IsStdFunction<Value>) {
-        return value.get_type() == sol::type::function;
+        return value.get_type() == lua_glue::Type::Function;
     } else if constexpr (IsDynamicValue<Value> || IsPureDataValue<Value>) {
         return false;
     } else if constexpr (IsOptionalValue<Value>) {
         return isNil(value) ||
                exactVariantAlternative<typename Value::value_type>(value);
     } else if constexpr (IsTableValue<Value>) {
-        return value.get_type() == sol::type::userdata &&
+        return value.get_type() == lua_glue::Type::Userdata &&
                canReadLuaValue<Value>(value);
     } else {
         return canReadLuaValue<Value>(value);
@@ -417,7 +375,7 @@ bool exactVariantAlternative(const sol::object& value) {
 }
 
 template <typename T>
-bool compatibleVariantAlternative(const sol::object& value, bool exact) {
+bool compatibleVariantAlternative(const lua_glue::Object& value, bool exact) {
     using Value = LuaValueType<T>;
     if (exact) {
         return exactVariantAlternative<Value>(value);
@@ -427,7 +385,7 @@ bool compatibleVariantAlternative(const sol::object& value, bool exact) {
                compatibleVariantAlternative<typename Value::value_type>(value,
                                                                         false);
     } else if constexpr (std::is_floating_point_v<Value>) {
-        return value.get_type() == sol::type::number;
+        return value.get_type() == lua_glue::Type::Number;
     } else if constexpr (std::is_arithmetic_v<Value> ||
                          std::is_same_v<Value, std::string>) {
         return exactVariantAlternative<Value>(value);
@@ -437,7 +395,7 @@ bool compatibleVariantAlternative(const sol::object& value, bool exact) {
 }
 
 template <typename Variant, std::size_t Index>
-std::optional<std::size_t> variantAlternative(const sol::object& value,
+std::optional<std::size_t> variantAlternative(const lua_glue::Object& value,
                                               bool exact) {
     if constexpr (Index == 0) {
         return std::nullopt;
@@ -452,20 +410,20 @@ std::optional<std::size_t> variantAlternative(const sol::object& value,
 }
 
 template <typename Variant, std::size_t Index>
-bool canReadVariant(const sol::object& value) {
+bool canReadVariant(const lua_glue::Object& value) {
     return variantAlternative<Variant, Index>(value, true).has_value() ||
            variantAlternative<Variant, Index>(value, false).has_value();
 }
 
 template <typename Tuple, std::size_t... Index>
-bool canReadTuple(const sol::table& table, std::index_sequence<Index...>) {
+bool canReadTuple(const lua_glue::Table& table, std::index_sequence<Index...>) {
     return (canReadLuaValue<std::tuple_element_t<Index, Tuple>>(
-                table.raw_get<sol::object>(Index + 1)) &&
+                table.raw_get<lua_glue::Object>(Index + 1)) &&
             ...);
 }
 
 template <typename T>
-bool canReadLuaValue(const sol::object& value) {
+bool canReadLuaValue(const lua_glue::Object& value) {
     using Value = LuaValueType<T>;
     if constexpr (IsPureDataValue<Value>) {
         return canReadPureDataValue<Value>(value);
@@ -487,29 +445,29 @@ bool canReadLuaValue(const sol::object& value) {
         Value pointer = nullptr;
         return tryReadPointer(value, pointer);
     } else if constexpr (IsStdFunction<Value>) {
-        return isNil(value) || value.is<sol::protected_function>();
+        return isNil(value) || value.is<lua_glue::Function>();
     } else if constexpr (IsVector<Value>::value) {
         return canReadSequence<Value>(value);
     } else if constexpr (IsArray<Value>::value) {
         return canReadSequence<Value>(value, std::tuple_size_v<Value>);
     } else if constexpr (IsPair<Value>::value) {
-        if (!(value.get_type() == sol::type::table)) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             return false;
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         if (!trySequenceLength(table, length) || length != 2) {
             return false;
         }
         return canReadLuaValue<typename Value::first_type>(
-                   table.raw_get<sol::object>(1)) &&
+                   table.raw_get<lua_glue::Object>(1)) &&
                canReadLuaValue<typename Value::second_type>(
-                   table.raw_get<sol::object>(2));
+                   table.raw_get<lua_glue::Object>(2));
     } else if constexpr (IsTuple<Value>::value) {
-        if (!(value.get_type() == sol::type::table)) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             return false;
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         if (!trySequenceLength(table, length) ||
             length != std::tuple_size_v<Value>) {
@@ -524,16 +482,17 @@ bool canReadLuaValue(const sol::object& value) {
                canReadLuaValue<typename Value::value_type>(value);
     } else if constexpr (IsVariant<Value>::value) {
         return canReadVariant<Value, std::variant_size_v<Value>>(value);
-    } else if constexpr (std::is_same_v<Value, sol::object>) {
+    } else if constexpr (std::is_same_v<Value, lua_glue::Object>) {
         return value.valid();
-    } else if constexpr (std::is_same_v<Value, sol::table>) {
-        return (value.get_type() == sol::type::table);
+    } else if constexpr (std::is_same_v<Value, lua_glue::Table>) {
+        return (value.get_type() == lua_glue::Type::Table);
     } else if constexpr (std::is_enum_v<Value>) {
         return canReadLuaValue<std::underlying_type_t<Value>>(value);
-    } else if constexpr (lua_sf::is_lua_integral_v<Value>) {
-        return value.is<lua_sf::LuaIntegral<Value>>();
+    } else if constexpr ((std::is_integral_v<Value> &&
+                          !std::is_same_v<Value, bool>)) {
+        return value.is<Value>();
     } else if constexpr (std::is_floating_point_v<Value>) {
-        if (value.get_type() != sol::type::number) {
+        if (value.get_type() != lua_glue::Type::Number) {
             return false;
         }
         const double number = value.as<double>();
@@ -546,12 +505,12 @@ bool canReadLuaValue(const sol::object& value) {
 }
 
 template <typename Sequence>
-Sequence readSequence(const sol::object& value,
+Sequence readSequence(const lua_glue::Object& value,
                       std::optional<std::size_t> fixedLength = std::nullopt) {
-    if (!(value.get_type() == sol::type::table)) {
+    if (!(value.get_type() == lua_glue::Type::Table)) {
         throw std::invalid_argument("expected a Lua sequence table");
     }
-    const sol::table table = value.as<sol::table>();
+    const lua_glue::Table table = value.as<lua_glue::Table>();
     std::size_t length = 0;
     if (!trySequenceLength(table, length)) {
         throw std::invalid_argument(
@@ -567,7 +526,7 @@ Sequence readSequence(const sol::object& value,
     }
     using Item = typename Sequence::value_type;
     for (std::size_t index = 1; index <= length; ++index) {
-        const sol::object item = table.raw_get<sol::object>(index);
+        const lua_glue::Object item = table.raw_get<lua_glue::Object>(index);
         if (isNil(item) && !AcceptsNilValue<Item>::value) {
             throw std::invalid_argument("Lua sequence contains nil at index " +
                                         std::to_string(index));
@@ -588,17 +547,17 @@ Sequence readSequence(const sol::object& value,
 }
 
 template <typename Map>
-Map readMap(const sol::object& value) {
-    if (!(value.get_type() == sol::type::table)) {
+Map readMap(const lua_glue::Object& value) {
+    if (!(value.get_type() == lua_glue::Type::Table)) {
         throw std::invalid_argument("expected a Lua map table");
     }
-    const sol::table table = value.as<sol::table>();
+    const lua_glue::Table table = value.as<lua_glue::Table>();
     Map result;
     using Key = typename Map::key_type;
     using Item = typename Map::mapped_type;
     for (const auto& entry : table) {
-        const sol::object key = entry.first;
-        const sol::object item = entry.second;
+        const lua_glue::Object key = entry.first;
+        const lua_glue::Object item = entry.second;
         if (isNil(item) && !IsOptionalValue<Item>) {
             throw std::invalid_argument("Lua map contains a nil value");
         }
@@ -608,7 +567,7 @@ Map readMap(const sol::object& value) {
 }
 
 template <typename Variant, std::size_t Index>
-Variant readVariantAt(const sol::object& value, std::size_t selected) {
+Variant readVariantAt(const lua_glue::Object& value, std::size_t selected) {
     if constexpr (Index == 0) {
         throw std::invalid_argument(
             "Lua value does not match any variant alternative");
@@ -623,7 +582,7 @@ Variant readVariantAt(const sol::object& value, std::size_t selected) {
 }
 
 template <typename Variant, std::size_t Index>
-Variant readVariant(const sol::object& value) {
+Variant readVariant(const lua_glue::Object& value) {
     std::optional<std::size_t> selected =
         variantAlternative<Variant, Index>(value, true);
     if (!selected) {
@@ -637,13 +596,13 @@ Variant readVariant(const sol::object& value) {
 }
 
 template <typename Tuple, std::size_t... Index>
-Tuple readTuple(const sol::table& table, std::index_sequence<Index...>) {
+Tuple readTuple(const lua_glue::Table& table, std::index_sequence<Index...>) {
     return Tuple{readLuaValue<std::tuple_element_t<Index, Tuple>>(
-        table.raw_get<sol::object>(Index + 1))...};
+        table.raw_get<lua_glue::Object>(Index + 1))...};
 }
 
 template <typename T>
-T readLuaValue(const sol::object& value) {
+T readLuaValue(const lua_glue::Object& value) {
     using Value = LuaValueType<T>;
     if constexpr (IsPureDataValue<Value>) {
         return readPureDataValue<Value>(value);
@@ -674,10 +633,10 @@ T readLuaValue(const sol::object& value) {
     } else if constexpr (IsArray<Value>::value) {
         return readSequence<Value>(value, std::tuple_size_v<Value>);
     } else if constexpr (IsPair<Value>::value) {
-        if (!(value.get_type() == sol::type::table)) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             throw std::invalid_argument("expected a two-element Lua table");
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         if (!trySequenceLength(table, length) || length != 2) {
             throw std::invalid_argument(
@@ -686,7 +645,7 @@ T readLuaValue(const sol::object& value) {
         auto first = [&table]() {
             try {
                 return readLuaValue<typename Value::first_type>(
-                    table.raw_get<sol::object>(1));
+                    table.raw_get<lua_glue::Object>(1));
             } catch (const std::exception& error) {
                 throw std::invalid_argument("Lua pair element at index 1: " +
                                             std::string(error.what()));
@@ -695,7 +654,7 @@ T readLuaValue(const sol::object& value) {
         auto second = [&table]() {
             try {
                 return readLuaValue<typename Value::second_type>(
-                    table.raw_get<sol::object>(2));
+                    table.raw_get<lua_glue::Object>(2));
             } catch (const std::exception& error) {
                 throw std::invalid_argument("Lua pair element at index 2: " +
                                             std::string(error.what()));
@@ -703,10 +662,10 @@ T readLuaValue(const sol::object& value) {
         }();
         return Value(std::move(first), std::move(second));
     } else if constexpr (IsTuple<Value>::value) {
-        if (!(value.get_type() == sol::type::table)) {
+        if (!(value.get_type() == lua_glue::Type::Table)) {
             throw std::invalid_argument("expected a Lua tuple table");
         }
-        const sol::table table = value.as<sol::table>();
+        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
         if (!trySequenceLength(table, length) ||
             length != std::tuple_size_v<Value>) {
@@ -724,7 +683,7 @@ T readLuaValue(const sol::object& value) {
         return Value(readLuaValue<typename Value::value_type>(value));
     } else if constexpr (IsVariant<Value>::value) {
         return readVariant<Value, std::variant_size_v<Value>>(value);
-    } else if constexpr (std::is_same_v<Value, sol::object>) {
+    } else if constexpr (std::is_same_v<Value, lua_glue::Object>) {
         return value;
     } else if constexpr (std::is_enum_v<Value>) {
         return static_cast<Value>(
@@ -734,12 +693,12 @@ T readLuaValue(const sol::object& value) {
             throw std::invalid_argument(
                 "Lua value is not compatible with the requested native type");
         }
-        return lua_sf::object_as<Value>(value);
+        return value.as<Value>();
     }
 }
 
 template <typename Sequence>
-sol::object writeSequence(sol::state_view lua, const Sequence& value) {
+lua_glue::Object writeSequence(lua_glue::StateView lua, const Sequence& value) {
     lua_State* state = lua.lua_state();
     const int stackTop = lua_gettop(state);
     struct StackRestore {
@@ -782,7 +741,7 @@ sol::object writeSequence(sol::state_view lua, const Sequence& value) {
             pushed = pushNativePointerOwnerFromTable(state, ownerTableIndex,
                                                      pointer);
         }
-        sol::object output;
+        lua_glue::Object output;
         if constexpr (std::is_same_v<Item, bool>) {
             const bool converted = static_cast<bool>(item);
             output = writeLuaValue(lua, converted);
@@ -798,40 +757,42 @@ sol::object writeSequence(sol::state_view lua, const Sequence& value) {
         }
         ++index;
     }
-    sol::object result = sol::stack::get<sol::object>(state, tableIndex);
+    lua_glue::Object result =
+        lua_glue::Read<lua_glue::Object>(state, tableIndex);
     return result;
 }
 
 template <typename Map>
-sol::object writeMap(sol::state_view lua, const Map& value) {
-    sol::table table = lua.create_table(0, static_cast<int>(value.size()));
+lua_glue::Object writeMap(lua_glue::StateView lua, const Map& value) {
+    lua_glue::Table table = lua.create_table(0, static_cast<int>(value.size()));
     for (const auto& entry : value) {
-        const sol::object key = writeLuaValue(lua, entry.first);
-        const sol::object item = writeLuaValue(lua, entry.second);
+        const lua_glue::Object key = writeLuaValue(lua, entry.first);
+        const lua_glue::Object item = writeLuaValue(lua, entry.second);
         if (!isNil(item)) {
             table.raw_set(key, item);
         }
     }
-    return sol::make_object(lua, table);
+    return lua_glue::MakeObject(lua, table);
 }
 
 template <typename Tuple, std::size_t... Index>
-sol::object writeTuple(sol::state_view lua, const Tuple& value,
-                       std::index_sequence<Index...>) {
-    sol::table table = lua.create_table(static_cast<int>(sizeof...(Index)), 1);
+lua_glue::Object writeTuple(lua_glue::StateView lua, const Tuple& value,
+                            std::index_sequence<Index...>) {
+    lua_glue::Table table =
+        lua.create_table(static_cast<int>(sizeof...(Index)), 1);
     table.raw_set("n", sizeof...(Index));
     ((table.raw_set(Index + 1, writeLuaValue(lua, std::get<Index>(value)))),
      ...);
-    return sol::make_object(lua, table);
+    return lua_glue::MakeObject(lua, table);
 }
 
 template <typename T>
-sol::object writeLuaValue(sol::state_view lua, const T& value) {
+lua_glue::Object writeLuaValue(lua_glue::StateView lua, const T& value) {
     using Value = LuaValueType<T>;
     if constexpr (IsPureDataValue<Value>) {
         return writePureDataValue(lua, value);
     } else if constexpr (std::is_same_v<Value, std::monostate>) {
-        return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+        return lua_glue::MakeObject(lua, lua_glue::nil);
     } else if constexpr (IsDynamicValue<Value>) {
         return writeDynamicValue(lua, value);
     } else if constexpr (IsTableValue<Value>) {
@@ -848,11 +809,11 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
     } else if constexpr (IsVector<Value>::value || IsArray<Value>::value) {
         return writeSequence(lua, value);
     } else if constexpr (IsPair<Value>::value) {
-        sol::table table = lua.create_table(2, 0);
+        lua_glue::Table table = lua.create_table(2, 0);
         table.raw_set("n", 2);
         table.raw_set(1, writeLuaValue(lua, value.first));
         table.raw_set(2, writeLuaValue(lua, value.second));
-        return sol::make_object(lua, table);
+        return lua_glue::MakeObject(lua, table);
     } else if constexpr (IsTuple<Value>::value) {
         return writeTuple(lua, value,
                           std::make_index_sequence<std::tuple_size_v<Value>>{});
@@ -860,7 +821,7 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
         return writeMap(lua, value);
     } else if constexpr (IsOptional<Value>::value) {
         if (!value.has_value()) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            return lua_glue::MakeObject(lua, lua_glue::nil);
         }
         return writeLuaValue(lua, *value);
     } else if constexpr (IsVariant<Value>::value) {
@@ -869,16 +830,16 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
                 return writeLuaValue(lua, item);
             },
             value);
-    } else if constexpr (std::is_same_v<Value, sol::object>) {
+    } else if constexpr (std::is_same_v<Value, lua_glue::Object>) {
         return value;
     } else if constexpr (std::is_enum_v<Value>) {
         return writeLuaValue(lua,
                              static_cast<std::underlying_type_t<Value>>(value));
     } else if constexpr (IsSharedPointer<Value>::value) {
         if (!value) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            return lua_glue::MakeObject(lua, lua_glue::nil);
         }
-        const sol::object owner = nativePointerOwner(lua, value.get());
+        const lua_glue::Object owner = nativePointerOwner(lua, value.get());
         if (!isNil(owner)) {
             return owner;
         }
@@ -886,7 +847,7 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
         if constexpr (ludork::detail::RegisteredCastType<Element> &&
                       !std::is_const_v<Element>) {
             const std::shared_ptr<void> dynamicOwner(value, value.get());
-            sol::object dynamicValue;
+            lua_glue::Object dynamicValue;
             if (tryWriteDynamicNativeObject(
                     lua, value->ludorkDynamicTypeKey(),
                     ludork::detail::CastTypeKey<Element>(), dynamicOwner,
@@ -897,16 +858,44 @@ sol::object writeLuaValue(sol::state_view lua, const T& value) {
         return writeOwningLuaObject<Element>(lua, value);
     } else if constexpr (std::is_pointer_v<Value>) {
         if (value == nullptr) {
-            return sol::make_object(lua, lua_sf::LUASF_SOL_NIL);
+            return lua_glue::MakeObject(lua, lua_glue::nil);
         }
-        const sol::object owner = nativePointerOwner(lua, value);
+        const lua_glue::Object owner = nativePointerOwner(lua, value);
         if (!isNil(owner)) {
             return owner;
         }
-        return lua_sf::as_lua_object(lua, value);
+        return lua_glue::MakeObject(lua, value);
     } else {
-        return lua_sf::as_lua_object(lua, value);
+        return lua_glue::MakeObject(lua, value);
     }
 }
 
 }  // namespace ludork::runtime::binding
+
+namespace lua_glue {
+
+template <typename T, bool AllowNil>
+struct Codec<ludork::runtime::binding::LuaArgument<T, AllowNil>> {
+    using Argument = ludork::runtime::binding::LuaArgument<T, AllowNil>;
+    static constexpr bool native = false;
+
+    static bool Check(lua_State* state, int index) {
+        const Object value = lua_glue::Read<Object>(state, index);
+        return (AllowNil && ludork::runtime::binding::isNil(value)) ||
+               ludork::runtime::binding::canReadLuaValue<T>(value);
+    }
+
+    static Argument Read(lua_State* state, int index) {
+        if (!Check(state, index)) {
+            throw std::invalid_argument(
+                "value is not compatible with the requested C++ type");
+        }
+        return Argument(lua_glue::Read<Object>(state, index));
+    }
+
+    static int Push(lua_State* state, const Argument& value) {
+        return value.object().push(state);
+    }
+};
+
+}  // namespace lua_glue

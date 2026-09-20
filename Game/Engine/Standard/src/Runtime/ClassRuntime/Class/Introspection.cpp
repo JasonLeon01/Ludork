@@ -7,7 +7,7 @@
 #include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -18,47 +18,50 @@ extern "C" {
 
 namespace ludork::standard::class_runtime::detail {
 
-sol::table ownFields(sol::state_view lua, const sol::object& target) {
-    if (target.is<sol::table>()) {
-        return target.as<sol::table>();
+lua_glue::Table ownFields(lua_glue::StateView lua,
+                          const lua_glue::Object& target) {
+    if (target.is<lua_glue::Table>()) {
+        return target.as<lua_glue::Table>();
     }
-    if (target.get_type() == sol::type::userdata) {
+    if (target.get_type() == lua_glue::Type::Userdata) {
         return class_native::getUserFields(lua, target, false);
     }
     return lua.create_table();
 }
 
-sol::object rawOwnField(sol::state_view lua, const sol::object& target,
-                        const sol::object& key) {
-    if (target.get_type() == sol::type::userdata) {
+lua_glue::Object rawOwnField(lua_glue::StateView lua,
+                             const lua_glue::Object& target,
+                             const lua_glue::Object& key) {
+    if (target.get_type() == lua_glue::Type::Userdata) {
         lua_State* state = lua.lua_state();
-        target.push();
+        target.push(lua.lua_state());
         if (lua_getiuservalue(state, -1, 1) != LUA_TTABLE) {
             lua_pop(state, 2);
             return nilObject(lua);
         }
-        key.push();
+        key.push(lua.lua_state());
         lua_rawget(state, -2);
-        sol::object result = sol::stack::get<sol::object>(state, -1);
+        lua_glue::Object result = lua_glue::Read<lua_glue::Object>(state, -1);
         lua_pop(state, 3);
         return result;
     }
-    if (target.is<sol::table>()) {
-        return target.as<sol::table>().raw_get<sol::object>(key);
+    if (target.is<lua_glue::Table>()) {
+        return target.as<lua_glue::Table>().raw_get<lua_glue::Object>(key);
     }
     return nilObject(lua);
 }
 
-bool hasRawOwnField(sol::state_view lua, const sol::object& target,
-                    const sol::object& key) {
-    const sol::object value = rawOwnField(lua, target, key);
+bool hasRawOwnField(lua_glue::StateView lua, const lua_glue::Object& target,
+                    const lua_glue::Object& key) {
+    const lua_glue::Object value = rawOwnField(lua, target, key);
     const bool explicitNil = hasExplicitNilField(lua, target, key);
     return explicitNil ||
-           (value.valid() && value.get_type() != sol::type::lua_nil);
+           (value.valid() && value.get_type() != lua_glue::Type::Nil);
 }
 
-sol::table ownKeyList(sol::state_view lua, const sol::object& target) {
-    sol::table result = lua.create_table();
+lua_glue::Table ownKeyList(lua_glue::StateView lua,
+                           const lua_glue::Object& target) {
+    lua_glue::Table result = lua.create_table();
     for (const auto& entry : ownFields(lua, target)) {
         result.add(entry.first);
     }
@@ -68,21 +71,22 @@ sol::table ownKeyList(sol::state_view lua, const sol::object& target) {
     return result;
 }
 
-sol::table mroCopy(sol::state_view lua, const sol::object& value) {
-    sol::object rawClass = value;
-    if (!value.is<sol::table>() ||
-        (!isClass(value.as<sol::table>()) &&
-         !isNativeType(lua, value.as<sol::table>()))) {
+lua_glue::Table mroCopy(lua_glue::StateView lua,
+                        const lua_glue::Object& value) {
+    lua_glue::Object rawClass = value;
+    if (!value.is<lua_glue::Table>() ||
+        (!isClass(value.as<lua_glue::Table>()) &&
+         !isNativeType(lua, value.as<lua_glue::Table>()))) {
         rawClass = actualClassOf(lua, value);
     }
-    if (!rawClass.is<sol::table>()) {
+    if (!rawClass.is<lua_glue::Table>()) {
         throw std::invalid_argument(
             "Class.getMro requires a class or class instance");
     }
-    const sol::table mro = getMro(lua, rawClass.as<sol::table>());
-    sol::table result = lua.create_table();
+    const lua_glue::Table mro = getMro(lua, rawClass.as<lua_glue::Table>());
+    lua_glue::Table result = lua.create_table();
     for (std::size_t index = 1; index <= mro.size(); ++index) {
-        result.add(mro.raw_get<sol::object>(index));
+        result.add(mro.raw_get<lua_glue::Object>(index));
     }
     return result;
 }

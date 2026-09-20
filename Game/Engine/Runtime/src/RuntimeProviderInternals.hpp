@@ -2,7 +2,7 @@
 
 #include <Runtime/RuntimeValue.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <array>
 #include <cstddef>
@@ -37,8 +37,8 @@ void installBlueprintRuntimeProviders(
     const RuntimeIdentityPtr& instantiateGraphTemplate);
 void installConfigRuntimeProvider(const RuntimeIdentityPtr& configResolver);
 
-sol::object invokeRuntimeProviderOne(
-    sol::state_view lua, RuntimeProviderSlot slot,
-    const std::vector<sol::object>& arguments = {});
+lua_glue::Object invokeRuntimeProviderOne(
+    lua_glue::StateView lua, RuntimeProviderSlot slot,
+    const std::vector<lua_glue::Object>& arguments = {});
 
 }  // namespace ludork::runtime::detail

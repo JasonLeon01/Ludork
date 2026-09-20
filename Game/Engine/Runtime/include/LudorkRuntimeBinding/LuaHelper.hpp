@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #pragma once
 
 #include <ClassRuntimeProtocol.hpp>
@@ -16,47 +17,47 @@ namespace ludork::runtime::binding {
 
 namespace detail {
 
-inline sol::object checkedResultValue(sol::state_view lua,
-                                      sol::protected_function_result& result,
-                                      int index) {
+inline lua_glue::Object checkedResultValue(lua_glue::StateView lua,
+                                           lua_glue::CallResult& result,
+                                           int index) {
     if (!result.valid()) {
-        const sol::error error = result;
-        throw std::runtime_error(error.what());
+        const std::string error = result.error();
+        throw std::runtime_error(error.c_str());
     }
     if (result.return_count() <= index) {
-        return sol::make_object(lua, sol::lua_nil);
+        return lua_glue::MakeObject(lua, lua_glue::nil);
     }
-    return result.get<sol::object>(index);
+    return result.get<lua_glue::Object>(index);
 }
 
 }  // namespace detail
 
-inline sol::table reverseLuaTable(sol::state_view lua,
-                                  const sol::table& source) {
-    sol::table result = lua.create_table();
-    const sol::object rawPairs = lua.globals().raw_get<sol::object>("pairs");
-    if (!rawPairs.is<sol::protected_function>()) {
+inline lua_glue::Table reverseLuaTable(lua_glue::StateView lua,
+                                       const lua_glue::Table& source) {
+    lua_glue::Table result = lua.create_table();
+    const lua_glue::Object rawPairs =
+        lua.globals().raw_get<lua_glue::Object>("pairs");
+    if (!rawPairs.is<lua_glue::Function>()) {
         throw std::runtime_error("Lua pairs function is not defined");
     }
-    sol::protected_function pairs = rawPairs.as<sol::protected_function>();
-    sol::protected_function_result initialized = pairs(source);
-    const sol::object rawIterator =
+    lua_glue::Function pairs = rawPairs.as<lua_glue::Function>();
+    lua_glue::CallResult initialized = pairs(source);
+    const lua_glue::Object rawIterator =
         detail::checkedResultValue(lua, initialized, 0);
-    sol::object iterationState =
+    lua_glue::Object iterationState =
         detail::checkedResultValue(lua, initialized, 1);
-    sol::object control = detail::checkedResultValue(lua, initialized, 2);
-    if (!rawIterator.is<sol::protected_function>()) {
+    lua_glue::Object control = detail::checkedResultValue(lua, initialized, 2);
+    if (!rawIterator.is<lua_glue::Function>()) {
         throw std::runtime_error("Lua pairs iterator is not a function");
     }
-    sol::protected_function iterator =
-        rawIterator.as<sol::protected_function>();
+    lua_glue::Function iterator = rawIterator.as<lua_glue::Function>();
     while (true) {
-        sol::protected_function_result next = iterator(iterationState, control);
-        sol::object name = detail::checkedResultValue(lua, next, 0);
+        lua_glue::CallResult next = iterator(iterationState, control);
+        lua_glue::Object name = detail::checkedResultValue(lua, next, 0);
         if (isNil(name)) {
             break;
         }
-        sol::object value = detail::checkedResultValue(lua, next, 1);
+        lua_glue::Object value = detail::checkedResultValue(lua, next, 1);
         if (!isNil(name) && !isNil(value)) {
             result.raw_set(value, name);
         }
@@ -91,7 +92,9 @@ inline void pushToString(lua_State* state, int index) {
     const int absoluteIndex = lua_absindex(state, index);
     lua_getglobal(state, "tostring");
     lua_pushvalue(state, absoluteIndex);
-    lua_call(state, 1, 1);
+    if (ludork::standard::protectedLuaCall(state, 1, 1) != LUA_OK) {
+        throw std::runtime_error(ludork::standard::luaErrorMessage(state, -1));
+    }
 }
 
 inline bool pushExpectedTypeName(lua_State* state, int expectedTypeIndex) {
@@ -126,68 +129,78 @@ inline bool pushExpectedTypeName(lua_State* state, int expectedTypeIndex) {
 }
 
 inline int luaCastHelper(lua_State* state) {
-    if (lua_type(state, 1) == LUA_TNONE || lua_isnil(state, 1)) {
-        return luaL_error(state,
-                          "Error: targetType must be a type, but got nil");
-    }
-    pushArgumentOrNil(state, 2);
-    return 1;
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        if (lua_type(state, 1) == LUA_TNONE || lua_isnil(state, 1)) {
+            throw std::invalid_argument(
+                "Error: targetType must be a type, but got nil");
+        }
+        pushArgumentOrNil(state, 2);
+        return 1;
+    });
 }
 
 inline int luaAssertTypeHelper(lua_State* state) {
-    const int expectedType = lua_type(state, 2);
-    if (expectedType == LUA_TSTRING) {
-        int actualType = lua_type(state, 1);
-        if (actualType == LUA_TNONE) {
-            actualType = LUA_TNIL;
-        }
-        lua_pushstring(state, lua_typename(state, actualType));
-        const bool matches = lua_compare(state, 2, -1, LUA_OPEQ) != 0;
-        lua_pop(state, 1);
-        if (matches) {
-            return 0;
-        }
-        lua_pushliteral(state, "Assert failed: expected ");
-        lua_pushvalue(state, 2);
-        lua_pushliteral(state, ", got ");
-        lua_pushstring(state, lua_typename(state, actualType));
-        lua_concat(state, 4);
-        return lua_error(state);
-    }
-
-    if (expectedType == LUA_TTABLE) {
-        lua_getglobal(state, "Class");
-        lua_getfield(state, -1, "isInstance");
-        lua_remove(state, -2);
-        pushArgumentOrNil(state, 1);
-        lua_pushvalue(state, 2);
-        lua_call(state, 2, 1);
-        const bool matches = lua_toboolean(state, -1) != 0;
-        lua_pop(state, 1);
-        if (matches) {
-            return 0;
-        }
-
-        const bool hasExpectedName = pushExpectedTypeName(state, 2);
-        if (!hasExpectedName || lua_toboolean(state, -1) == 0) {
-            if (hasExpectedName) {
-                lua_pop(state, 1);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        const int expectedType = lua_type(state, 2);
+        if (expectedType == LUA_TSTRING) {
+            int actualType = lua_type(state, 1);
+            if (actualType == LUA_TNONE) {
+                actualType = LUA_TNIL;
             }
+            lua_pushstring(state, lua_typename(state, actualType));
+            const bool matches =
+                ludork::standard::compareLuaValues(state, 2, -1, LUA_OPEQ);
+            lua_pop(state, 1);
+            if (matches) {
+                return 0;
+            }
+            lua_pushliteral(state, "Assert failed: expected ");
             lua_pushvalue(state, 2);
+            lua_pushliteral(state, ", got ");
+            lua_pushstring(state, lua_typename(state, actualType));
+            lua_concat(state, 4);
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
         }
+
+        if (expectedType == LUA_TTABLE) {
+            lua_getglobal(state, "Class");
+            lua_getfield(state, -1, "isInstance");
+            lua_remove(state, -2);
+            pushArgumentOrNil(state, 1);
+            lua_pushvalue(state, 2);
+            if (ludork::standard::protectedLuaCall(state, 2, 1) != LUA_OK) {
+                throw std::runtime_error(
+                    ludork::standard::luaErrorMessage(state, -1));
+            }
+            const bool matches = lua_toboolean(state, -1) != 0;
+            lua_pop(state, 1);
+            if (matches) {
+                return 0;
+            }
+
+            const bool hasExpectedName = pushExpectedTypeName(state, 2);
+            if (!hasExpectedName || lua_toboolean(state, -1) == 0) {
+                if (hasExpectedName) {
+                    lua_pop(state, 1);
+                }
+                lua_pushvalue(state, 2);
+            }
+            pushToString(state, -1);
+            lua_pushliteral(state, "Assert failed: value does not match ");
+            lua_insert(state, -2);
+            lua_concat(state, 2);
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
+        }
+
+        pushArgumentOrNil(state, 2);
         pushToString(state, -1);
-        lua_pushliteral(state, "Assert failed: value does not match ");
+        lua_pushliteral(state, "Assert failed: invalid type ");
         lua_insert(state, -2);
         lua_concat(state, 2);
-        return lua_error(state);
-    }
-
-    pushArgumentOrNil(state, 2);
-    pushToString(state, -1);
-    lua_pushliteral(state, "Assert failed: invalid type ");
-    lua_insert(state, -2);
-    lua_concat(state, 2);
-    return lua_error(state);
+        throw std::runtime_error(ludork::standard::luaErrorMessage(state, -1));
+    });
 }
 
 inline int loadEvalChunk(lua_State* state, const char* expression,
@@ -199,72 +212,80 @@ inline int loadEvalChunk(lua_State* state, const char* expression,
 }
 
 inline int luaEvalHelper(lua_State* state) {
-    const int argumentTop = lua_gettop(state);
-    if (lua_type(state, 1) != LUA_TSTRING) {
-        lua_pushnil(state);
-        return 1;
-    }
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        const int argumentTop = lua_gettop(state);
+        if (lua_type(state, 1) != LUA_TSTRING) {
+            lua_pushnil(state);
+            return 1;
+        }
 
-    std::size_t expressionLength = 0;
-    const char* expression = lua_tolstring(state, 1, &expressionLength);
-    if (expressionLength == 0) {
-        lua_pushnil(state);
-        return 1;
-    }
-    if (lua_isyieldable(state) != 0) {
-        return luaL_error(state, "Eval cannot run from a yieldable coroutine");
-    }
+        std::size_t expressionLength = 0;
+        const char* expression = lua_tolstring(state, 1, &expressionLength);
+        if (expressionLength == 0) {
+            lua_pushnil(state);
+            return 1;
+        }
+        if (lua_isyieldable(state) != 0) {
+            throw std::invalid_argument(
+                "Eval cannot run from a yieldable coroutine");
+        }
 
-    lua_getglobal(state, "setmetatable");
-    if (argumentTop >= 2 && lua_toboolean(state, 2) != 0) {
-        lua_pushvalue(state, 2);
-    } else {
-        lua_createtable(state, 0, 0);
-    }
-    lua_createtable(state, 0, 1);
-    lua_getglobal(state, "_G");
-    lua_setfield(state, -2, "__index");
-    lua_call(state, 2, 1);
-    const int environmentIndex = lua_gettop(state);
+        lua_getglobal(state, "setmetatable");
+        if (argumentTop >= 2 && lua_toboolean(state, 2) != 0) {
+            lua_pushvalue(state, 2);
+        } else {
+            lua_createtable(state, 0, 0);
+        }
+        lua_createtable(state, 0, 1);
+        lua_getglobal(state, "_G");
+        lua_setfield(state, -2, "__index");
+        if (ludork::standard::protectedLuaCall(state, 2, 1) != LUA_OK) {
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
+        }
+        const int environmentIndex = lua_gettop(state);
 
-    if (loadEvalChunk(state, expression, expressionLength) != LUA_OK) {
-        return lua_error(state);
-    }
-    const int functionIndex = lua_gettop(state);
-    lua_pushvalue(state, environmentIndex);
-    if (lua_setupvalue(state, functionIndex, 1) == nullptr) {
-        lua_pop(state, 1);
-        return luaL_error(state, "Eval chunk has no environment");
-    }
+        if (loadEvalChunk(state, expression, expressionLength) != LUA_OK) {
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
+        }
+        const int functionIndex = lua_gettop(state);
+        lua_pushvalue(state, environmentIndex);
+        if (lua_setupvalue(state, functionIndex, 1) == nullptr) {
+            lua_pop(state, 1);
+            throw std::invalid_argument("Eval chunk has no environment");
+        }
 
-    lua_replace(state, 1);
-    lua_settop(state, 1);
-    if (lua_pcall(state, 0, LUA_MULTRET, 0) != LUA_OK) {
-        return lua_error(state);
-    }
-    return lua_gettop(state);
+        lua_replace(state, 1);
+        lua_settop(state, 1);
+        if (lua_pcall(state, 0, LUA_MULTRET, 0) != LUA_OK) {
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
+        }
+        return lua_gettop(state);
+    });
 }
 
-inline sol::object luaCFunctionObject(sol::state_view lua,
-                                      lua_CFunction function) {
+inline lua_glue::Object luaCFunctionObject(lua_glue::StateView lua,
+                                           lua_CFunction function) {
     lua_State* state = lua.lua_state();
     lua_pushcfunction(state, function);
-    sol::object result = sol::stack::get<sol::object>(state, -1);
+    lua_glue::Object result = lua_glue::Read<lua_glue::Object>(state, -1);
     lua_pop(state, 1);
     return result;
 }
 
 }  // namespace detail
 
-inline sol::object makeLuaCastHelper(sol::state_view lua) {
+inline lua_glue::Object makeLuaCastHelper(lua_glue::StateView lua) {
     return detail::luaCFunctionObject(lua, detail::luaCastHelper);
 }
 
-inline sol::object makeLuaAssertTypeHelper(sol::state_view lua) {
+inline lua_glue::Object makeLuaAssertTypeHelper(lua_glue::StateView lua) {
     return detail::luaCFunctionObject(lua, detail::luaAssertTypeHelper);
 }
 
-inline sol::object makeLuaEvalHelper(sol::state_view lua) {
+inline lua_glue::Object makeLuaEvalHelper(lua_glue::StateView lua) {
     return detail::luaCFunctionObject(lua, detail::luaEvalHelper);
 }
 

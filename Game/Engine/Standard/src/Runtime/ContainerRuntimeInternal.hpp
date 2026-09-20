@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -72,70 +72,79 @@ struct EqualityContext {
     std::unordered_set<ObjectPair, ObjectPairHash> visited;
 };
 
-sol::object nilObject(sol::state_view lua);
-const void* objectIdentity(const sol::object& value);
-bool rawEqual(const sol::object& left, const sol::object& right);
-bool luaEqual(const sol::object& left, const sol::object& right);
-ContainerKind containerKind(const sol::object& value);
-bool isJsonNull(sol::state_view lua, const sol::object& value);
-sol::object storedValue(sol::state_view lua, const sol::object& value,
-                        bool decodeJsonNull);
-sol::object exposedValue(sol::state_view lua, const sol::object& value);
-sol::table uservalueRoot(const sol::object& value);
-sol::table sequenceValues(const sol::object& value);
-sol::table dictKeys(const sol::object& value);
-sol::table dictValues(const sol::object& value);
-sol::object createList(sol::state_view lua);
-sol::object createTuple(sol::state_view lua);
-sol::object createDict(sol::state_view lua);
-std::size_t sequenceLength(const sol::object& source);
-bool isSequenceSource(const sol::object& source);
-sol::object sequenceItem(sol::state_view lua, const sol::object& source,
-                         std::size_t index, bool exposeNil);
-void appendListValue(sol::state_view lua, const sol::object& target,
-                     const sol::object& value, bool decodeJsonNull,
+lua_glue::Object nilObject(lua_glue::StateView lua);
+const void* objectIdentity(const lua_glue::Object& value);
+bool rawEqual(const lua_glue::Object& left, const lua_glue::Object& right);
+bool luaEqual(const lua_glue::Object& left, const lua_glue::Object& right);
+ContainerKind containerKind(const lua_glue::Object& value);
+bool isJsonNull(lua_glue::StateView lua, const lua_glue::Object& value);
+lua_glue::Object storedValue(lua_glue::StateView lua,
+                             const lua_glue::Object& value,
+                             bool decodeJsonNull);
+lua_glue::Object exposedValue(lua_glue::StateView lua,
+                              const lua_glue::Object& value);
+lua_glue::Table uservalueRoot(const lua_glue::Object& value);
+lua_glue::Table sequenceValues(const lua_glue::Object& value);
+lua_glue::Table dictKeys(const lua_glue::Object& value);
+lua_glue::Table dictValues(const lua_glue::Object& value);
+lua_glue::Object createList(lua_glue::StateView lua);
+lua_glue::Object createTuple(lua_glue::StateView lua);
+lua_glue::Object createDict(lua_glue::StateView lua);
+std::size_t sequenceLength(const lua_glue::Object& source);
+bool isSequenceSource(const lua_glue::Object& source);
+lua_glue::Object sequenceItem(lua_glue::StateView lua,
+                              const lua_glue::Object& source, std::size_t index,
+                              bool exposeNil);
+void appendListValue(lua_glue::StateView lua, const lua_glue::Object& target,
+                     const lua_glue::Object& value, bool decodeJsonNull,
                      bool structural = true);
-void appendTupleValue(sol::state_view lua, const sol::object& target,
-                      const sol::object& value, bool decodeJsonNull);
-std::vector<sol::object> constructorValues(sol::state_view lua,
-                                           sol::variadic_args arguments,
-                                           bool& decodedFromRawTable);
-std::size_t findDictEntry(const sol::object& target, const sol::object& key);
-void setDictEntry(sol::state_view lua, const sol::object& target,
-                  const sol::object& key, const sol::object& value,
+void appendTupleValue(lua_glue::StateView lua, const lua_glue::Object& target,
+                      const lua_glue::Object& value, bool decodeJsonNull);
+std::vector<lua_glue::Object> constructorValues(lua_glue::StateView lua,
+                                                lua_glue::Arguments arguments,
+                                                bool& decodedFromRawTable);
+std::size_t findDictEntry(const lua_glue::Object& target,
+                          const lua_glue::Object& key);
+void setDictEntry(lua_glue::StateView lua, const lua_glue::Object& target,
+                  const lua_glue::Object& key, const lua_glue::Object& value,
                   bool decodeJsonNull);
-sol::object dictEntryValue(sol::state_view lua, const sol::object& target,
-                           std::size_t index);
-void releaseDictStorage(const sol::object& target);
-bool removeDictEntry(const sol::object& target, const sol::object& key,
-                     sol::object* removedValue);
-bool keyEqual(const sol::object& left, const sol::object& right);
-bool listEqual(const sol::object& left, const sol::object& right,
+lua_glue::Object dictEntryValue(lua_glue::StateView lua,
+                                const lua_glue::Object& target,
+                                std::size_t index);
+void releaseDictStorage(const lua_glue::Object& target);
+bool removeDictEntry(const lua_glue::Object& target,
+                     const lua_glue::Object& key,
+                     lua_glue::Object* removedValue);
+bool keyEqual(const lua_glue::Object& left, const lua_glue::Object& right);
+bool listEqual(const lua_glue::Object& left, const lua_glue::Object& right,
                EqualityContext& context);
-bool dictEqual(const sol::object& left, const sol::object& right,
+bool dictEqual(const lua_glue::Object& left, const lua_glue::Object& right,
                EqualityContext& context);
-bool valueEqual(const sol::object& left, const sol::object& right);
-lua_Integer checkedIndex(const sol::object& value, const char* name);
-sol::object typeMember(sol::state_view lua, const char* typeName,
-                       const sol::object& key);
-sol::object sequenceIndex(sol::this_state state, const sol::object& self,
-                          const sol::object& key, const char* typeName,
-                          std::size_t length);
-bool callComparator(const sol::protected_function& comparator,
-                    const sol::object& left, const sol::object& right);
+bool valueEqual(const lua_glue::Object& left, const lua_glue::Object& right);
+lua_Integer checkedIndex(const lua_glue::Object& value, const char* name);
+lua_glue::Object typeMember(lua_glue::StateView lua, const char* typeName,
+                            const lua_glue::Object& key);
+lua_glue::Object sequenceIndex(lua_glue::ThisState state,
+                               const lua_glue::Object& self,
+                               const lua_glue::Object& key,
+                               const char* typeName, std::size_t length);
+bool callComparator(const lua_glue::Function& comparator,
+                    const lua_glue::Object& left,
+                    const lua_glue::Object& right);
 int lessThan(lua_State* state);
-std::tuple<sol::function, sol::object, sol::object> sequencePairs(
-    const sol::object& self, sol::this_state state);
-std::tuple<sol::function, sol::object, sol::object> nativeDictPairs(
-    const sol::object& self, sol::this_state state);
-void maskNewConstructor(sol::table typeTable);
-void overrideNewIndex(const sol::object& sample, lua_CFunction newIndex);
-std::string tupleString(const sol::object& value);
-sol::object containerToTable(const sol::object& value, sol::this_state state);
-void registerIpairs(sol::state_view lua);
+lua_glue::MultipleResults sequencePairs(const lua_glue::Object& self,
+                                        lua_glue::ThisState state);
+lua_glue::MultipleResults nativeDictPairs(const lua_glue::Object& self,
+                                          lua_glue::ThisState state);
+void maskNewConstructor(lua_glue::Table typeTable);
+void overrideNewIndex(const lua_glue::Object& sample, lua_CFunction newIndex);
+std::string tupleString(const lua_glue::Object& value);
+lua_glue::Object containerToTable(const lua_glue::Object& value,
+                                  lua_glue::ThisState state);
+void registerIpairs(lua_glue::StateView lua);
 
-void registerList(sol::state_view lua);
-void registerTuple(sol::state_view lua);
-void registerDict(sol::state_view lua);
+void registerList(lua_glue::StateView lua);
+void registerTuple(lua_glue::StateView lua);
+void registerDict(lua_glue::StateView lua);
 
 }  // namespace ludork::standard::container_runtime::detail

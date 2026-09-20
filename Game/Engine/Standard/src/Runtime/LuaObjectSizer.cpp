@@ -2,7 +2,7 @@
 
 #include "ContainerRuntime.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -16,7 +16,7 @@ namespace ludork::standard {
 
 namespace {
 
-const void* identity(const sol::object& value) {
+const void* identity(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
     value.push();
     const void* result = lua_topointer(state, -1);
@@ -24,7 +24,7 @@ const void* identity(const sol::object& value) {
     return result;
 }
 
-std::size_t userdataSize(const sol::object& value) {
+std::size_t userdataSize(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
     value.push();
     const std::size_t result = lua_rawlen(state, -1);
@@ -32,7 +32,7 @@ std::size_t userdataSize(const sol::object& value) {
     return result;
 }
 
-bool isInteger(const sol::object& value) {
+bool isInteger(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
     value.push();
     const bool result = lua_isinteger(state, -1) != 0;
@@ -40,25 +40,25 @@ bool isInteger(const sol::object& value) {
     return result;
 }
 
-std::size_t objectSize(const sol::object& value,
+std::size_t objectSize(const lua_glue::Object& value,
                        std::unordered_set<const void*>& visited) {
     switch (value.get_type()) {
-        case sol::type::none:
-        case sol::type::lua_nil:
+        case lua_glue::Type::None:
+        case lua_glue::Type::Nil:
             return 0;
-        case sol::type::boolean:
+        case lua_glue::Type::Boolean:
             return sizeof(bool);
-        case sol::type::number:
+        case lua_glue::Type::Number:
             return isInteger(value) ? sizeof(lua_Integer) : sizeof(lua_Number);
-        case sol::type::string:
-            return sizeof(void*) + value.as<sol::string_view>().size() + 1;
-        case sol::type::table: {
+        case lua_glue::Type::String:
+            return sizeof(void*) + value.as<std::string_view>().size() + 1;
+        case lua_glue::Type::Table: {
             const void* pointer = identity(value);
             if (!visited.insert(pointer).second) {
                 return 0;
             }
             std::size_t result = sizeof(void*);
-            const sol::table table = value.as<sol::table>();
+            const lua_glue::Table table = value.as<lua_glue::Table>();
             for (const auto& entry : table) {
                 result += objectSize(entry.first, visited);
                 result += objectSize(entry.second, visited);
@@ -66,7 +66,7 @@ std::size_t objectSize(const sol::object& value,
             }
             return result;
         }
-        case sol::type::userdata: {
+        case lua_glue::Type::Userdata: {
             const void* pointer = identity(value);
             if (!visited.insert(pointer).second) {
                 return 0;
@@ -75,7 +75,7 @@ std::size_t objectSize(const sol::object& value,
                 std::size_t result =
                     sizeof(void*) +
                     container_runtime::containerStorageSize(value);
-                for (const sol::object& child :
+                for (const lua_glue::Object& child :
                      container_runtime::containerChildren(value)) {
                     result += objectSize(child, visited);
                 }
@@ -83,9 +83,9 @@ std::size_t objectSize(const sol::object& value,
             }
             return sizeof(void*) + userdataSize(value);
         }
-        case sol::type::function:
-        case sol::type::thread:
-        case sol::type::lightuserdata:
+        case lua_glue::Type::Function:
+        case lua_glue::Type::Thread:
+        case lua_glue::Type::LightUserdata:
             return visited.insert(identity(value)).second ? sizeof(void*) : 0;
         default:
             return 0;
@@ -94,7 +94,7 @@ std::size_t objectSize(const sol::object& value,
 
 }  // namespace
 
-std::int64_t luaObjectSize(const sol::object& value) {
+std::int64_t luaObjectSize(const lua_glue::Object& value) {
     std::unordered_set<const void*> visited;
     return static_cast<std::int64_t>(objectSize(value, visited));
 }

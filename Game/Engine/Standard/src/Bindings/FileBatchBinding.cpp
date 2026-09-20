@@ -4,7 +4,7 @@
 
 #include <Utf8Path.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -130,8 +130,8 @@ private:
     std::shared_ptr<FileBatchJsonConversionState> conversion_;
 };
 
-std::string requiredString(const sol::table& table, const char* name) {
-    const sol::object value = table.raw_get<sol::object>(name);
+std::string requiredString(const lua_glue::Table& table, const char* name) {
+    const lua_glue::Object value = table.raw_get<lua_glue::Object>(name);
     if (!value.is<std::string>()) {
         throw std::invalid_argument(std::string("file batch field '") + name +
                                     "' must be a string");
@@ -144,9 +144,9 @@ std::string requiredString(const sol::table& table, const char* name) {
     return result;
 }
 
-std::string optionalString(const sol::table& table, const char* name) {
-    const sol::object value = table.raw_get<sol::object>(name);
-    if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+std::string optionalString(const lua_glue::Table& table, const char* name) {
+    const lua_glue::Object value = table.raw_get<lua_glue::Object>(name);
+    if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
         return "";
     }
     if (!value.is<std::string>()) {
@@ -156,10 +156,10 @@ std::string optionalString(const sol::table& table, const char* name) {
     return value.as<std::string>();
 }
 
-bool optionalBoolean(const sol::table& table, const char* name,
+bool optionalBoolean(const lua_glue::Table& table, const char* name,
                      bool defaultValue) {
-    const sol::object value = table.raw_get<sol::object>(name);
-    if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+    const lua_glue::Object value = table.raw_get<lua_glue::Object>(name);
+    if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
         return defaultValue;
     }
     if (!value.is<bool>()) {
@@ -169,11 +169,11 @@ bool optionalBoolean(const sol::table& table, const char* name,
     return value.as<bool>();
 }
 
-std::vector<FileBatchSpec> readSpecs(const sol::object& value) {
-    if (!value.is<sol::table>()) {
+std::vector<FileBatchSpec> readSpecs(const lua_glue::Object& value) {
+    if (!value.is<lua_glue::Table>()) {
         throw std::invalid_argument("file batch specs must be an array table");
     }
-    const sol::table table = value.as<sol::table>();
+    const lua_glue::Table table = value.as<lua_glue::Table>();
     std::vector<FileBatchSpec> specs;
     specs.reserve(table.size());
     std::unordered_set<std::string> categories;
@@ -186,11 +186,11 @@ std::vector<FileBatchSpec> readSpecs(const sol::object& value) {
             currentPathError.message());
     }
     for (std::size_t index = 1; index <= table.size(); ++index) {
-        const sol::object entry = table.raw_get<sol::object>(index);
-        if (!entry.is<sol::table>()) {
+        const lua_glue::Object entry = table.raw_get<lua_glue::Object>(index);
+        if (!entry.is<lua_glue::Table>()) {
             throw std::invalid_argument("each file batch spec must be a table");
         }
-        const sol::table specTable = entry.as<sol::table>();
+        const lua_glue::Table specTable = entry.as<lua_glue::Table>();
         FileBatchSpec spec;
         spec.category = requiredString(specTable, "category");
         if (!categories.insert(spec.category).second) {
@@ -217,8 +217,8 @@ std::vector<FileBatchSpec> readSpecs(const sol::object& value) {
     return specs;
 }
 
-std::size_t readMaximum(const sol::optional<sol::object>& value) {
-    if (!value.has_value() || value->get_type() == sol::type::lua_nil) {
+std::size_t readMaximum(const std::optional<lua_glue::Object>& value) {
+    if (!value.has_value() || value->get_type() == lua_glue::Type::Nil) {
         return 1;
     }
     lua_State* state = value->lua_state();
@@ -235,7 +235,8 @@ std::size_t readMaximum(const sol::optional<sol::object>& value) {
     return static_cast<std::size_t>(maximum);
 }
 
-std::size_t readPositiveInteger(const sol::object& value, const char* name) {
+std::size_t readPositiveInteger(const lua_glue::Object& value,
+                                const char* name) {
     lua_State* state = value.lua_state();
     value.push();
     const bool integer = lua_isinteger(state, -1) != 0;
@@ -251,7 +252,7 @@ std::size_t readPositiveInteger(const sol::object& value, const char* name) {
     return static_cast<std::size_t>(raw);
 }
 
-double readPositiveNumber(const sol::object& value, const char* name) {
+double readPositiveNumber(const lua_glue::Object& value, const char* name) {
     lua_State* state = value.lua_state();
     value.push();
     const bool number = lua_type(state, -1) == LUA_TNUMBER;
@@ -265,17 +266,18 @@ double readPositiveNumber(const sol::object& value, const char* name) {
     return raw;
 }
 
-sol::table writeError(sol::state_view lua, const FileBatchError& error) {
+lua_glue::Table writeError(lua_glue::StateView lua,
+                           const FileBatchError& error) {
     return lua.create_table_with("operation", error.operation, "category",
                                  error.category, "path", error.path, "code",
                                  error.code, "message", error.message);
 }
 
-sol::table writeItem(sol::state_view lua,
-                     const std::shared_ptr<FileBatchRuntime>& runtime,
-                     const std::shared_ptr<FileBatchJob>& job,
-                     const FileBatchItem& item) {
-    sol::table result = lua.create_table_with(
+lua_glue::Table writeItem(lua_glue::StateView lua,
+                          const std::shared_ptr<FileBatchRuntime>& runtime,
+                          const std::shared_ptr<FileBatchJob>& job,
+                          const FileBatchItem& item) {
+    lua_glue::Table result = lua.create_table_with(
         "index", item.index, "category", item.category, "relativePath",
         item.relativePath, "encryptedData", item.encryptedData);
     if (item.parsedJson) {
@@ -289,15 +291,15 @@ sol::table writeItem(sol::state_view lua,
     return result;
 }
 
-sol::table writeSnapshot(sol::state_view lua,
-                         const std::shared_ptr<FileBatchRuntime>& runtime,
-                         const std::shared_ptr<FileBatchJob>& job,
-                         const FileBatchSnapshot& snapshot) {
-    sol::table result = lua.create_table_with(
+lua_glue::Table writeSnapshot(lua_glue::StateView lua,
+                              const std::shared_ptr<FileBatchRuntime>& runtime,
+                              const std::shared_ptr<FileBatchJob>& job,
+                              const FileBatchSnapshot& snapshot) {
+    lua_glue::Table result = lua.create_table_with(
         "state", fileBatchStateName(snapshot.state), "total", snapshot.total,
         "completed", snapshot.completed, "delivered", snapshot.delivered,
         "drained", snapshot.drained);
-    sol::table items = lua.create_table();
+    lua_glue::Table items = lua.create_table();
     for (const FileBatchItem& item : snapshot.items) {
         items.add(writeItem(lua, runtime, job, item));
     }
@@ -308,8 +310,9 @@ sol::table writeSnapshot(sol::state_view lua,
     return result;
 }
 
-std::shared_ptr<FileBatchRuntime> runtimeFromRegistry(sol::state_view lua) {
-    const sol::object value = lua.registry().raw_get<sol::object>(RUNTIME_KEY);
+std::shared_ptr<FileBatchRuntime> runtimeFromRegistry(lua_glue::StateView lua) {
+    const lua_glue::Object value =
+        lua.registry().raw_get<lua_glue::Object>(RUNTIME_KEY);
     if (!value.is<std::shared_ptr<FileBatchRuntime>>()) {
         return nullptr;
     }
@@ -318,33 +321,33 @@ std::shared_ptr<FileBatchRuntime> runtimeFromRegistry(sol::state_view lua) {
 
 }  // namespace
 
-void registerFileBatch(sol::state_view lua) {
-    lua.new_usertype<FileBatchRuntime>("LudorkStandardFileBatchRuntime",
-                                       sol::no_constructor);
-    lua.new_usertype<FileBatchHandle>("LudorkStandardFileBatchJob",
-                                      sol::no_constructor);
-    lua.new_usertype<FileBatchJsonHandle>(
-        "LudorkStandardFileBatchJsonConversion", sol::no_constructor);
-    lua["LudorkStandardFileBatchRuntime"] = sol::lua_nil;
-    lua["LudorkStandardFileBatchJob"] = sol::lua_nil;
-    lua["LudorkStandardFileBatchJsonConversion"] = sol::lua_nil;
+void registerFileBatch(lua_glue::StateView lua) {
+    lua_glue::BindClass<FileBatchRuntime>(lua.globals(),
+                                          "LudorkStandardFileBatchRuntime");
+    lua_glue::BindClass<FileBatchHandle>(lua.globals(),
+                                         "LudorkStandardFileBatchJob");
+    lua_glue::BindClass<FileBatchJsonHandle>(
+        lua.globals(), "LudorkStandardFileBatchJsonConversion");
+    lua["LudorkStandardFileBatchRuntime"] = lua_glue::nil;
+    lua["LudorkStandardFileBatchJob"] = lua_glue::nil;
+    lua["LudorkStandardFileBatchJsonConversion"] = lua_glue::nil;
 
     std::shared_ptr<FileBatchRuntime> runtime = runtimeFromRegistry(lua);
     if (!runtime) {
         runtime = std::make_shared<FileBatchRuntime>();
         lua.registry().raw_set(RUNTIME_KEY, runtime);
     }
-    sol::table asyncio = lua["asyncio"].get_or_create<sol::table>();
+    lua_glue::Table asyncio = lua["asyncio"].get_or_create<lua_glue::Table>();
     asyncio.set_function(
-        "start_file_batch", [runtime](const sol::object& specs) {
+        "start_file_batch", [runtime](const lua_glue::Object& specs) {
             return FileBatchHandle(runtime, runtime->start(readSpecs(specs)));
         });
     asyncio.set_function(
-        "poll_file_batch",
-        [runtime](FileBatchHandle& handle, sol::optional<sol::object> maximum,
-                  sol::this_state state) {
+        "poll_file_batch", [runtime](FileBatchHandle& handle,
+                                     std::optional<lua_glue::Object> maximum,
+                                     lua_glue::ThisState state) {
             return writeSnapshot(
-                sol::state_view(state), runtime, handle.job(),
+                lua_glue::StateView(state), runtime, handle.job(),
                 runtime->poll(handle.job(), readMaximum(maximum)));
         });
     asyncio.set_function("cancel_file_batch",
@@ -352,22 +355,25 @@ void registerFileBatch(sol::state_view lua) {
                              return runtime->cancel(handle.job());
                          });
     asyncio.set_function(
-        "step_file_batch_json",
-        [](FileBatchJsonHandle& conversion, const sol::object& maximumNodes,
-           const sol::object& maximumMilliseconds, sol::this_state state) {
+        "step_file_batch_json", [](FileBatchJsonHandle& conversion,
+                                   const lua_glue::Object& maximumNodes,
+                                   const lua_glue::Object& maximumMilliseconds,
+                                   lua_glue::ThisState state) {
             lua_State* target = state;
             ScopedLuaGarbageCollectorPause garbageCollectorPause(target);
             const FileBatchJsonStepResult step = conversion.step(
                 target, readPositiveInteger(maximumNodes, "maxNodes"),
                 readPositiveNumber(maximumMilliseconds, "maxMilliseconds"));
-            sol::state_view lua(target);
-            sol::object data = sol::make_object(lua, sol::lua_nil);
+            lua_glue::StateView lua(target);
+            lua_glue::Object data = lua_glue::MakeObject(lua, lua_glue::nil);
             if (step.completed) {
-                data = sol::stack::get<sol::object>(target, -1);
+                data = lua_glue::Read<lua_glue::Object>(target, -1);
                 lua_pop(target, 1);
             }
-            return std::make_tuple(step.completed, step.processedNodes,
-                                   std::move(data));
+            return lua_glue::MultipleResults{
+                lua_glue::MakeObject(lua, step.completed),
+                lua_glue::MakeObject(lua, step.processedNodes),
+                std::move(data)};
         });
     asyncio.set_function("clear_file_batch_json",
                          [](FileBatchJsonHandle& conversion) {
@@ -384,7 +390,7 @@ void configureFileBatchJsonRuntime(lua_State* state, FileBatchJsonParser parser,
         throw std::invalid_argument("file batch Lua state must not be null");
     }
     std::shared_ptr<FileBatchRuntime> runtime =
-        runtimeFromRegistry(sol::state_view(state));
+        runtimeFromRegistry(lua_glue::StateView(state));
     if (!runtime) {
         throw std::runtime_error("file batch runtime is not registered");
     }
@@ -397,13 +403,13 @@ void clearFileBatchJsonRuntime(lua_State* state) noexcept {
         return;
     }
     std::shared_ptr<FileBatchRuntime> runtime =
-        runtimeFromRegistry(sol::state_view(state));
+        runtimeFromRegistry(lua_glue::StateView(state));
     if (runtime) {
         runtime->clearJson();
     }
 }
 
-void shutdownFileBatch(sol::state_view lua) noexcept {
+void shutdownFileBatch(lua_glue::StateView lua) noexcept {
     std::shared_ptr<FileBatchRuntime> runtime = runtimeFromRegistry(lua);
     if (runtime) {
         runtime->clearJson();

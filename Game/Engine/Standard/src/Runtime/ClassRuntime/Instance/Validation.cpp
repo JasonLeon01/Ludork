@@ -7,7 +7,7 @@
 #include "Detail/TypeQueries.hpp"
 #include "Native/NativeRuntime.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <stdexcept>
 #include <vector>
@@ -17,10 +17,10 @@ namespace ludork::standard::class_runtime::detail {
 // ── Instance validation
 // ───────────────────────────────────────────────────────
 
-void validateNativeInstanceShape(sol::state_view lua,
-                                 const sol::table& classTable,
-                                 const sol::object& instance) {
-    const std::vector<sol::table> roots = nativeRoots(lua, classTable);
+void validateNativeInstanceShape(lua_glue::StateView lua,
+                                 const lua_glue::Table& classTable,
+                                 const lua_glue::Object& instance) {
+    const std::vector<lua_glue::Table> roots = nativeRoots(lua, classTable);
     if (roots.empty()) {
         return;
     }
@@ -28,24 +28,29 @@ void validateNativeInstanceShape(sol::state_view lua,
         throw std::runtime_error(
             "Class with native bases must return its composite instance");
     }
-    const sol::table fields = class_native::getUserFields(lua, instance, false);
-    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
-    if (!rawClass.is<sol::table>() ||
-        !objectsRawEqual(rawClass.as<sol::table>(), classTable)) {
+    const lua_glue::Table fields =
+        class_native::getUserFields(lua, instance, false);
+    const lua_glue::Object rawClass =
+        fields.raw_get<lua_glue::Object>(CLASS_FIELD);
+    if (!rawClass.is<lua_glue::Table>() ||
+        !objectsRawEqual(rawClass.as<lua_glue::Table>(), classTable)) {
         throw std::runtime_error("Composite instance belongs to another class");
     }
 }
 
-void validateNativeRoots(sol::state_view lua, const sol::table& classTable,
-                         const sol::object& instance) {
+void validateNativeRoots(lua_glue::StateView lua,
+                         const lua_glue::Table& classTable,
+                         const lua_glue::Object& instance) {
     validateNativeInstanceShape(lua, classTable, instance);
-    const std::vector<sol::table> roots = nativeRoots(lua, classTable);
+    const std::vector<lua_glue::Table> roots = nativeRoots(lua, classTable);
     if (roots.empty()) {
         return;
     }
-    const sol::table fields = class_native::getUserFields(lua, instance, false);
-    for (const sol::table& root : roots) {
-        if (!nativeObjectForType(lua, fields, root).is<sol::userdata>()) {
+    const lua_glue::Table fields =
+        class_native::getUserFields(lua, instance, false);
+    for (const lua_glue::Table& root : roots) {
+        if ((nativeObjectForType(lua, fields, root).get_type() !=
+             lua_glue::Type::Userdata)) {
             throw std::runtime_error("Lua class initializer must call " +
                                      nativeTypeName(lua, root) +
                                      ".init(self, ...)");
@@ -53,16 +58,17 @@ void validateNativeRoots(sol::state_view lua, const sol::table& classTable,
     }
 }
 
-bool compositeBelongsToClass(sol::state_view lua, const sol::object& instance,
-                             const sol::table& classTable) {
+bool compositeBelongsToClass(lua_glue::StateView lua,
+                             const lua_glue::Object& instance,
+                             const lua_glue::Table& classTable) {
     if (!isCompositeInstance(lua, instance)) {
         return false;
     }
-    const sol::object rawClass =
+    const lua_glue::Object rawClass =
         class_native::getUserFields(lua, instance, false)
-            .raw_get<sol::object>(CLASS_FIELD);
-    return rawClass.is<sol::table>() &&
-           objectsRawEqual(rawClass.as<sol::table>(), classTable);
+            .raw_get<lua_glue::Object>(CLASS_FIELD);
+    return rawClass.is<lua_glue::Table>() &&
+           objectsRawEqual(rawClass.as<lua_glue::Table>(), classTable);
 }
 
 }  // namespace ludork::standard::class_runtime::detail

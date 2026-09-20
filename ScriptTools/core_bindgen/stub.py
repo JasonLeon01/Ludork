@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 
 from .constants import GENERATED_FILE_MARKER
 from .context import GeneratorContext
@@ -94,7 +95,7 @@ def optional_parameter_names(
             parameter_declarations(member.declaration),
             parameter_types(member.declaration),
         )
-        if type_name not in {"sol::this_state", "sol::variadic_args"}
+        if type_name not in {"lua_glue::ThisState", "lua_glue::Arguments"}
     ]
     return {
         name
@@ -175,6 +176,7 @@ def generate_stub(
     enums: list[EnumInfo],
     functions: list[Member],
 ) -> str:
+    context = replace(context, stub_alias_namespace=module, stub_array_aliases={})
     output = [GENERATED_FILE_MARKER, f"---@meta {module}", ""]
     cast_base_aliases: dict[str, list[str]] = {}
     for info in types:
@@ -396,4 +398,9 @@ def generate_stub(
     output.extend(singleton_lines)
     output.append("return " + module)
     output.append("")
+    if context.stub_array_aliases:
+        output[3:3] = [
+            *(f"---@alias {alias} {item}" for item, alias in sorted(context.stub_array_aliases.items())),
+            "",
+        ]
     return "\n".join(output)

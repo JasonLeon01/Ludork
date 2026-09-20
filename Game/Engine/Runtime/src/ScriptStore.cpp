@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include <Runtime/ScriptStore.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 
@@ -275,44 +276,34 @@ int loadScriptEntry(
 }
 
 int preloadScript(lua_State* state) {
-    ScriptStore* store =
-        static_cast<ScriptStore*>(lua_touserdata(state, lua_upvalueindex(1)));
-    std::size_t moduleLength = 0;
-    const char* moduleValue =
-        lua_tolstring(state, lua_upvalueindex(2), &moduleLength);
-    int status = LUA_ERRFILE;
-    try {
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        ScriptStore* store = static_cast<ScriptStore*>(
+            lua_touserdata(state, lua_upvalueindex(1)));
+        std::size_t moduleLength = 0;
+        const char* moduleValue =
+            lua_tolstring(state, lua_upvalueindex(2), &moduleLength);
         if (store == nullptr || moduleValue == nullptr) {
-            lua_pushliteral(state, "Invalid Script preload closure");
-        } else {
-            status = store->loadModule(state,
-                                       std::string(moduleValue, moduleLength));
+            throw std::runtime_error("Invalid Script preload closure");
         }
-    } catch (const std::exception& exception) {
-        lua_pushstring(state, exception.what());
-    }
-    if (status != LUA_OK) {
-        return lua_error(state);
-    }
-    const int argumentCount = lua_gettop(state) - 1;
-    lua_insert(state, 1);
-    status = lua_pcall(state, argumentCount, LUA_MULTRET, 0);
-    if (status != LUA_OK) {
-        return lua_error(state);
-    }
-    if (lua_toboolean(state, lua_upvalueindex(3)) && lua_gettop(state) > 0) {
-        try {
-            captureScriptModuleShape(state,
-                                     std::string(moduleValue, moduleLength), 1);
-        } catch (const std::exception& exception) {
-            lua_pushstring(state, exception.what());
-            status = LUA_ERRRUN;
+        int status =
+            store->loadModule(state, std::string(moduleValue, moduleLength));
+        if (status != LUA_OK) {
+            throw std::runtime_error(
+                ludork::standard::luaErrorMessage(state, -1));
         }
+        const int argumentCount = lua_gettop(state) - 1;
+        lua_insert(state, 1);
+        status = lua_pcall(state, argumentCount, LUA_MULTRET, 0);
         if (status != LUA_OK) {
             return lua_error(state);
         }
-    }
-    return lua_gettop(state);
+        if (lua_toboolean(state, lua_upvalueindex(3)) &&
+            lua_gettop(state) > 0) {
+            captureScriptModuleShape(state,
+                                     std::string(moduleValue, moduleLength), 1);
+        }
+        return lua_gettop(state);
+    });
 }
 
 }  // namespace

@@ -12,7 +12,6 @@ export const LUDORK_DEPENDENCIES: readonly LudorkLogoItem[] = [
   { name: 'Lua', website: 'https://www.lua.org/', icon: lua },
   { name: 'LuaSF', website: 'https://github.com/JasonLeon01/LuaSF-AutoGenerator' },
   { name: 'SFML', website: 'https://www.sfml-dev.org/', icon: sfml, wide: true },
-  { name: 'sol2', website: 'https://github.com/ThePhD/sol2' },
   { name: 'React', website: 'https://react.dev/', icon: react },
   { name: 'MUI', website: 'https://mui.com/', icon: mui },
 ]

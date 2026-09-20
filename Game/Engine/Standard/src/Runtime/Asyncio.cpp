@@ -1,8 +1,9 @@
+#include <LuaError.hpp>
 #include "Bindings/Bindings.hpp"
 
 #include "Core/SystemServices.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -20,55 +21,65 @@ namespace {
 
 constexpr const char* TASKS_KEY = "Ludork.Standard.AsyncTasks";
 
-sol::table tasks(sol::state_view lua) {
-    sol::table registry = lua.registry();
-    const sol::object value = registry.raw_get<sol::object>(TASKS_KEY);
-    if (value.is<sol::table>()) {
-        return value.as<sol::table>();
+lua_glue::Table tasks(lua_glue::StateView lua) {
+    lua_glue::Table registry = lua.registry();
+    const lua_glue::Object value =
+        registry.raw_get<lua_glue::Object>(TASKS_KEY);
+    if (value.is<lua_glue::Table>()) {
+        return value.as<lua_glue::Table>();
     }
-    sol::table result = lua.create_table();
+    lua_glue::Table result = lua.create_table();
     registry.raw_set(TASKS_KEY, result);
     return result;
 }
 
 int createTask(lua_State* state) {
-    luaL_checktype(state, 1, LUA_TFUNCTION);
-    const int argumentCount = lua_gettop(state) - 1;
-    sol::state_view lua(state);
-    sol::thread thread = sol::thread::create(state);
-    lua_State* threadState = thread.thread_state();
-    lua_pushvalue(state, 1);
-    lua_xmove(state, threadState, 1);
-    for (int index = 2; index <= argumentCount + 1; ++index) {
-        lua_pushvalue(state, index);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        luaL_checktype(state, 1, LUA_TFUNCTION);
+        const int argumentCount = lua_gettop(state) - 1;
+        lua_glue::StateView lua(state);
+        lua_State* threadState = lua_newthread(state);
+        const lua_glue::Object thread =
+            lua_glue::Read<lua_glue::Object>(state, -1);
+        lua_pop(state, 1);
+        lua_pushvalue(state, 1);
         lua_xmove(state, threadState, 1);
-    }
-    sol::table task = lua.create_table_with(
-        "thread", thread, "nargs", argumentCount, "started", false, "done",
-        false, "cancelled", false, "__asyncioTask", true, "deadline", 0.0);
-    tasks(lua).add(task);
-    task.push();
-    return 1;
+        for (int index = 2; index <= argumentCount + 1; ++index) {
+            lua_pushvalue(state, index);
+            lua_xmove(state, threadState, 1);
+        }
+        lua_glue::Table task = lua.create_table_with(
+            "thread", thread, "nargs", argumentCount, "started", false, "done",
+            false, "cancelled", false, "__asyncioTask", true, "deadline", 0.0);
+        tasks(lua).add(task);
+        task.push(state);
+        return 1;
+    });
 }
 
 int cancelTask(lua_State* state) {
-    if (lua_type(state, 1) != LUA_TTABLE) {
-        return luaL_error(state, "asyncio.cancel_task expects an asyncio task");
-    }
-    sol::table task = sol::stack::get<sol::table>(state, 1);
-    const sol::object marker = task.raw_get<sol::object>("__asyncioTask");
-    if (!marker.is<bool>() || !marker.as<bool>()) {
-        return luaL_error(state, "asyncio.cancel_task expects an asyncio task");
-    }
-    if (task.raw_get<bool>("done") || task.raw_get<bool>("cancelled")) {
-        lua_pushboolean(state, false);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        if (lua_type(state, 1) != LUA_TTABLE) {
+            throw std::invalid_argument(
+                "asyncio.cancel_task expects an asyncio task");
+        }
+        lua_glue::Table task = lua_glue::Read<lua_glue::Table>(state, 1);
+        const lua_glue::Object marker =
+            task.raw_get<lua_glue::Object>("__asyncioTask");
+        if (!marker.is<bool>() || !marker.as<bool>()) {
+            throw std::invalid_argument(
+                "asyncio.cancel_task expects an asyncio task");
+        }
+        if (task.raw_get<bool>("done") || task.raw_get<bool>("cancelled")) {
+            lua_pushboolean(state, false);
+            return 1;
+        }
+        task.raw_set("cancelled", true);
+        task.raw_set("done", true);
+        task.raw_set("deadline", 0.0);
+        lua_pushboolean(state, true);
         return 1;
-    }
-    task.raw_set("cancelled", true);
-    task.raw_set("done", true);
-    task.raw_set("deadline", 0.0);
-    lua_pushboolean(state, true);
-    return 1;
+    });
 }
 
 int sleepTask(lua_State* state) {
@@ -87,35 +98,41 @@ void clearThread(lua_State* thread) {
 
 }  // namespace
 
-void registerAsyncio(sol::state_view lua) {
-    sol::table asyncio = lua.create_table();
+void registerAsyncio(lua_glue::StateView lua) {
+    lua_glue::Table asyncio = lua.create_table();
     asyncio.set_function("create_task", createTask);
     asyncio.set_function("cancel_task", cancelTask);
     asyncio.set_function("sleep", sleepTask);
     lua["asyncio"] = std::move(asyncio);
 }
 
-void updateAsyncio(sol::state_view lua) {
+void updateAsyncio(lua_glue::StateView lua) {
     lua_State* state = lua.lua_state();
     const int baseTop = lua_gettop(state);
-    sol::table taskList = tasks(lua);
+    lua_glue::Table taskList = tasks(lua);
     const std::size_t originalCount = taskList.size();
     std::size_t writeIndex = 1;
     std::string taskError;
     const double now = performanceCounter();
     for (std::size_t index = 1; index <= originalCount; ++index) {
-        const sol::object value = taskList.raw_get<sol::object>(index);
-        if (!value.is<sol::table>()) {
+        const lua_glue::Object value =
+            taskList.raw_get<lua_glue::Object>(index);
+        if (!value.is<lua_glue::Table>()) {
             continue;
         }
-        sol::table task = value.as<sol::table>();
+        lua_glue::Table task = value.as<lua_glue::Table>();
         const bool done = task.raw_get<bool>("done");
         const bool cancelled = task.raw_get<bool>("cancelled");
         const double deadline = task.raw_get<double>("deadline");
         bool keep = !done && !cancelled;
         if (keep && deadline <= now) {
-            const sol::thread thread = task.raw_get<sol::thread>("thread");
-            lua_State* threadState = thread.thread_state();
+            const lua_glue::Object thread =
+                task.raw_get<lua_glue::Object>("thread");
+            auto pushedThread = lua_glue::PushGuard(thread);
+            lua_State* threadState = lua_tothread(state, pushedThread.index());
+            if (threadState == nullptr) {
+                throw std::runtime_error("asyncio task thread is unavailable");
+            }
             const bool started = task.raw_get<bool>("started");
             int argumentCount = 0;
             if (!started) {
@@ -160,10 +177,10 @@ void updateAsyncio(sol::state_view lua) {
         for (std::size_t index = originalCount + 1; index <= currentCount;
              ++index) {
             taskList.raw_set(writeIndex++,
-                             taskList.raw_get<sol::object>(index));
+                             taskList.raw_get<lua_glue::Object>(index));
         }
         for (std::size_t index = writeIndex; index <= currentCount; ++index) {
-            taskList.raw_set(index, sol::lua_nil);
+            taskList.raw_set(index, lua_glue::nil);
         }
     }
     lua_settop(state, baseTop);
@@ -172,8 +189,8 @@ void updateAsyncio(sol::state_view lua) {
     }
 }
 
-void shutdownAsyncio(sol::state_view lua) noexcept {
-    lua.registry().raw_set(TASKS_KEY, sol::lua_nil);
+void shutdownAsyncio(lua_glue::StateView lua) noexcept {
+    lua.registry().raw_set(TASKS_KEY, lua_glue::nil);
 }
 
 }  // namespace ludork::standard::binding

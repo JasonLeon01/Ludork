@@ -3,7 +3,7 @@
 #include <Cast.hpp>
 #include <RuntimeSession.hpp>
 #include <RuntimeApi.hpp>
-#include <utils.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <stdexcept>
 #include <utility>
@@ -20,28 +20,27 @@ public:
 };
 
 inline ludork::standard::LuaRegistryReference makeLuaRegistryReference(
-    const sol::object& value) {
+    const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
     ludork::standard::LuaExecutionScope execution(state);
     if (!execution.active()) {
         throw std::runtime_error("Lua runtime session is stopping");
     }
-    auto pushed = sol::stack::push_pop(value);
-    return ludork::standard::LuaRegistryReference(state,
-                                                  pushed.index_of(value));
+    auto pushed = lua_glue::PushGuard(value);
+    return ludork::standard::LuaRegistryReference(state, pushed.index());
 }
 
 inline ludork::standard::LuaRegistryReference makeLuaCallbackReference(
-    const sol::table& callbacks, const char* name) {
-    const sol::object callback = callbacks.raw_get<sol::object>(name);
-    if (!callback.is<sol::protected_function>()) {
+    const lua_glue::Table& callbacks, const char* name) {
+    const lua_glue::Object callback = callbacks.raw_get<lua_glue::Object>(name);
+    if (!callback.is<lua_glue::Function>()) {
         return {};
     }
     return makeLuaRegistryReference(callback);
 }
 
-inline sol::object readLuaRegistryReference(
-    sol::state_view lua,
+inline lua_glue::Object readLuaRegistryReference(
+    lua_glue::StateView lua,
     const ludork::standard::LuaRegistryReference& reference) {
     lua_State* state = lua.lua_state();
     ludork::standard::LuaExecutionScope execution(state);
@@ -52,8 +51,8 @@ inline sol::object readLuaRegistryReference(
         throw std::runtime_error(
             "Lua registry reference is no longer available");
     }
-    auto popper = sol::stack::pop_n(state, 1);
-    return sol::stack::get<sol::object>(state, -1);
+    auto popper = lua_glue::PopGuard(state, 1);
+    return lua_glue::Read<lua_glue::Object>(state, -1);
 }
 
 template <typename Base>
@@ -61,7 +60,7 @@ class LuaOpaqueObject final : public Base, public LuaRegistryReferenceOwner {
 public:
     LUDORK_CAST_DERIVED(LuaOpaqueObject, Base, LuaRegistryReferenceOwner)
 
-    explicit LuaOpaqueObject(const sol::object& value)
+    explicit LuaOpaqueObject(const lua_glue::Object& value)
         : value_(makeLuaRegistryReference(value)) {
         ludork::standard::registerRuntimeOpaqueValue(this, value_);
     }
@@ -84,7 +83,7 @@ class LuaOpaqueIdentity final : public Base, public LuaRegistryReferenceOwner {
 public:
     LUDORK_CAST_DERIVED(LuaOpaqueIdentity, Base, LuaRegistryReferenceOwner)
 
-    explicit LuaOpaqueIdentity(const sol::object& value)
+    explicit LuaOpaqueIdentity(const lua_glue::Object& value)
         : value_(makeLuaRegistryReference(value)) {
         ludork::standard::registerRuntimeOpaqueValue(this, value_);
     }

@@ -45,14 +45,14 @@ function Render.CaptureActorVisual(actor)
     if not shaderError then
         shader = actor:getShader()
     end
-    local visualRect = copy(rect)
+    local visualRect = rect:copy()
     return {
         texture = texture,
         texturePath = tostring(actor.texturePath or ""),
         textureNativeHandle = texture:getNativeHandle(),
         rect = visualRect,
         textureRect = visualRect,
-        scale = copy(scale),
+        scale = scale:copy(),
         shader = shader,
         shaderPath = tostring(actor:getShaderPath() or ""),
         shaderError = shaderError,

@@ -31,7 +31,6 @@ from .binding_calls import (
     callable_candidates,
     is_read_only_module_property,
     member_parameter_plan,
-    wrap_overloads,
 )
 
 
@@ -195,9 +194,9 @@ def singleton_callable_lambda(
         body.append(f"return {call};")
     capture = "[lua]" if converted_return else "[]"
     trailing_return = (
-        f"ludork::runtime::binding::LuaReturnTuple<{return_type}>"
+        "lua_glue::MultipleResults"
         if multiple_return
-        else ("sol::object" if converted_return else return_type)
+        else ("lua_glue::Object" if converted_return else return_type)
     )
     return (
         f"{capture}({', '.join(parameters)}) -> {trailing_return} "
@@ -226,7 +225,7 @@ def singleton_registrations(
             )
             if value not in values:
                 values.append(value)
-        result.append(f'{target}.set_function("{name}", {wrap_overloads(values)});')
+        result.extend(f'lua_glue::BindCallable({target}, "{name}", {value});' for value in values)
     return result
 
 
@@ -351,7 +350,7 @@ def adapter_class_lines(
         declarations = parameter_declarations(constructor.declaration)
         names = parameter_names(constructor.declaration)
         callback_parameter = (
-            "sol::table callbacks" if callbacks else "const sol::table &"
+            "lua_glue::Table callbacks" if callbacks else "const lua_glue::Table &"
         )
         parameters = ", ".join([callback_parameter, *declarations])
         initializers = [f"{info.cpp_name}({', '.join(names)})"]
@@ -443,7 +442,7 @@ def adapter_factory_lambda(
         member_parameter_plan(context, constructor, type_name, name, declaration)
         for name, type_name, declaration in zip(names, types, declarations)
     ]
-    parameters = ["sol::table callbacks", *(plan.declaration for plan in plans)]
+    parameters = ["lua_glue::Table callbacks", *(plan.declaration for plan in plans)]
     arguments = [plan.argument for plan in plans]
     body = [line for plan in plans for line in plan.prelude]
     owner_types = [info.cpp_name, *owning_bases]
@@ -456,18 +455,29 @@ def adapter_factory_lambda(
     body.append(
         f"return ludork::runtime::binding::writeOwningLuaObject{base_arguments}(lua, result);"
     )
-    return f"[lua]({', '.join(parameters)}) -> sol::object {{ {' '.join(body)} }}"
+    return f"[lua]({', '.join(parameters)}) -> lua_glue::Object {{ {' '.join(body)} }}"
 
 
 def adapter_factories(
     context: GeneratorContext, info: TypeInfo, adapter: str, owning_bases: list[str]
 ) -> list[str]:
+    result: list[str] = []
+    if info.options.get("table_init", "false").lower() == "true":
+        owner_types = ", ".join([info.cpp_name, *owning_bases])
+        result.append(
+            "[lua](lua_glue::Table callbacks, lua_glue::Table values) -> lua_glue::Object { "
+            f"auto result = std::static_pointer_cast<{info.cpp_name}>("
+            f"std::make_shared<{adapter}>(std::move(callbacks))); "
+            f"ludork::runtime::binding::TableValueTraits<{info.cpp_name}>::readInto(*result, values); "
+            "return ludork::runtime::binding::writeOwningLuaObject"
+            f"<{owner_types}>(lua, result); }}"
+        )
     if not info.constructors:
         constructor = Member(info.name, f"{info.name}()", "", "INIT", cpp_scope=tuple(info.cpp_name.split("::")))
-        return [
+        result.append(
             adapter_factory_lambda(context, info, adapter, constructor, 0, owning_bases)
-        ]
-    result: list[str] = []
+        )
+        return result
     for constructor, parameter_count in callable_candidates(context, info.constructors):
         factory = adapter_factory_lambda(
             context, info, adapter, constructor, parameter_count, owning_bases
@@ -522,9 +532,9 @@ def base_method_lambda(
         body.append(f"return {call};")
     capture = "[lua]" if converted_return else "[]"
     trailing_return = (
-        f"ludork::runtime::binding::LuaReturnTuple<{return_type}>"
+        "lua_glue::MultipleResults"
         if multiple_return
-        else ("sol::object" if converted_return else return_type)
+        else ("lua_glue::Object" if converted_return else return_type)
     )
     return (
         f"{capture}({', '.join(parameters)}) -> {trailing_return} "
@@ -540,14 +550,14 @@ def native_base_expression(
 ) -> str | None:
     base_name = remove_type_qualifiers(base)
     if base_name in local_types:
-        return f'root["{public_names.get(base_name, base_name)}"].get<sol::table>()'
+        return f'root["{public_names.get(base_name, base_name)}"].get<lua_glue::Table>()'
     type_module = context.type_modules.get(base_name)
     if type_module is not None:
         exposed_name = context.exposed_type_names.get(base_name, base_name)
-        return f'lua["{type_module}"]["{exposed_name}"].get<sol::table>()'
+        return f'lua["{type_module}"]["{exposed_name}"].get<lua_glue::Table>()'
     parts = base_name.split("::")
     if len(parts) == 2 and parts[0] == "sf":
-        return f'lua["{parts[0]}"]["{parts[1]}"].get<sol::table>()'
+        return f'lua["{parts[0]}"]["{parts[1]}"].get<lua_glue::Table>()'
     return None
 
 
@@ -565,7 +575,7 @@ def binding_path_assignment_lines(
     for part in parts[:-1]:
         variable = f"{variable_prefix}{index}"
         output.append(
-            f'sol::table {variable} = {parent}["{part}"].get_or_create<sol::table>();'
+            f'lua_glue::Table {variable} = {parent}["{part}"].get_or_create<lua_glue::Table>();'
         )
         parent = variable
         index += 1
@@ -583,7 +593,7 @@ def binding_scope_lines(
     for index, part in enumerate(validate_lua_path(path)):
         variable = f"{variable_prefix}{index}"
         output.append(
-            f'sol::table {variable} = {parent}["{part}"].get_or_create<sol::table>();'
+            f'lua_glue::Table {variable} = {parent}["{part}"].get_or_create<lua_glue::Table>();'
         )
         parent = variable
     return output, parent
@@ -598,15 +608,15 @@ def lua_path_expression(
     if parts == [module]:
         return root_name
     if len(parts) == 1:
-        return f'{root_name}.raw_get<sol::object>("{parts[0]}")'
+        return f'{root_name}.raw_get<lua_glue::Object>("{parts[0]}")'
     if parts[0] == module:
         expression = root_name
         parts = parts[1:]
     else:
         expression = "lua.globals()"
     for part in parts[:-1]:
-        expression += f'.raw_get<sol::table>("{part}")'
-    return expression + f'.raw_get<sol::object>("{parts[-1]}")'
+        expression += f'.raw_get<lua_glue::Table>("{part}")'
+    return expression + f'.raw_get<lua_glue::Object>("{parts[-1]}")'
 
 
 def module_property_bindings(
@@ -640,7 +650,7 @@ def module_property_bindings(
             raise ValueError(f"cached module property {member.name} must be read-only")
         variable = f"bindingModulePropertyValue{index}"
         lines.append(
-            f"sol::object {variable} = ludork::runtime::binding::writeLuaValue(lua, {member.cpp_name});"
+            f"lua_glue::Object {variable} = ludork::runtime::binding::writeLuaValue(lua, {member.cpp_name});"
         )
         cached_values[member.cpp_name] = variable
     entries = sorted(properties.items(), key=lambda item: item[0])
@@ -653,13 +663,13 @@ def module_property_bindings(
             if member.cpp_name in cached_values
         )
     )
-    lines.append(f"sol::table {metatable} = lua.create_table();")
+    lines.append(f"lua_glue::Table {metatable} = lua.create_table();")
     lines.append(
-        f"{metatable}[sol::meta_function::index] = "
-        f"[{', '.join(captures)}](sol::table, sol::object key) -> sol::object {{"
+        f'{metatable}["__index"] = '
+        f"[{', '.join(captures)}](lua_glue::Table, lua_glue::Object key) -> lua_glue::Object {{"
     )
     lines.append("    if (!key.is<std::string>())")
-    lines.append("        return sol::make_object(lua, sol::lua_nil);")
+    lines.append("        return lua_glue::MakeObject(lua, lua_glue::nil);")
     lines.append("    const std::string name = key.as<std::string>();")
     for name, member in entries:
         value_expression = cached_values.get(
@@ -667,18 +677,18 @@ def module_property_bindings(
             f"ludork::runtime::binding::writeLuaValue(lua, {member.cpp_name})",
         )
         lines.append(f'    if (name == "{name}") return {value_expression};')
-    lines.append("    return sol::make_object(lua, sol::lua_nil);")
+    lines.append("    return lua_glue::MakeObject(lua, lua_glue::nil);")
     lines.append("};")
     lines.append(
-        f"{metatable}[sol::meta_function::new_index] = "
-        "[](sol::table self, sol::object key, sol::object value) {"
+        f'{metatable}["__newindex"] = '
+        "[](lua_glue::Table self, lua_glue::Object key, lua_glue::Object value) {"
     )
     lines.append("    if (key.is<std::string>()) {")
     lines.append("        const std::string name = key.as<std::string>();")
     for name, member in entries:
         if is_read_only_module_property(member):
             lines.append(
-                f'        if (name == "{name}") throw sol::error("module property {name} is read-only");'
+                f'        if (name == "{name}") throw std::runtime_error("module property {name} is read-only");'
             )
         else:
             value_type = module_property_type(context, member)
@@ -688,5 +698,5 @@ def module_property_bindings(
     lines.append("    }")
     lines.append("    self.raw_set(key, value);")
     lines.append("};")
-    lines.append(f"root[sol::metatable_key] = {metatable};")
+    lines.append(f"lua_glue::SetMetatable(root, {metatable});")
     return lines, cached_values

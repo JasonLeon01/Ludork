@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <cstddef>
 #include <optional>
@@ -10,13 +10,13 @@ namespace ludork::standard::class_runtime::detail {
 
 struct DisposeSnapshot {
     struct NativeDisposeTarget {
-        sol::table root;
-        sol::object nativeObject;
+        lua_glue::Table root;
+        lua_glue::Object nativeObject;
         bool requiresHook{};
     };
 
-    sol::table fields;
-    sol::table classTable;
+    lua_glue::Table fields;
+    lua_glue::Table classTable;
     std::optional<std::size_t> instanceId;
     std::vector<NativeDisposeTarget> nativeTargets;
 };

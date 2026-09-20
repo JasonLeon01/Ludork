@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -19,28 +19,33 @@ struct CallableInfo {
     std::vector<std::string> parameterNames;
 };
 
-CallableInfo inspectCallable(const sol::object& callable);
-sol::table constructorClass(lua_State* state);
-void setClassClosure(lua_State* state, const sol::table& target,
-                     const char* name, const sol::table& classTable,
+CallableInfo inspectCallable(const lua_glue::Object& callable);
+lua_glue::Table constructorClass(lua_State* state);
+void setClassClosure(lua_State* state, const lua_glue::Table& target,
+                     const char* name, const lua_glue::Table& classTable,
                      lua_CFunction function);
-sol::table finalizeClassImpl(sol::table definition, const sol::table& bases);
-sol::table ownFields(sol::state_view lua, const sol::object& target);
-sol::object rawOwnField(sol::state_view lua, const sol::object& target,
-                        const sol::object& key);
-bool hasRawOwnField(sol::state_view lua, const sol::object& target,
-                    const sol::object& key);
-sol::table ownKeyList(sol::state_view lua, const sol::object& target);
-sol::table mroCopy(sol::state_view lua, const sol::object& value);
+lua_glue::Table finalizeClassImpl(lua_glue::Table definition,
+                                  const lua_glue::Table& bases);
+lua_glue::Table ownFields(lua_glue::StateView lua,
+                          const lua_glue::Object& target);
+lua_glue::Object rawOwnField(lua_glue::StateView lua,
+                             const lua_glue::Object& target,
+                             const lua_glue::Object& key);
+bool hasRawOwnField(lua_glue::StateView lua, const lua_glue::Object& target,
+                    const lua_glue::Object& key);
+lua_glue::Table ownKeyList(lua_glue::StateView lua,
+                           const lua_glue::Object& target);
+lua_glue::Table mroCopy(lua_glue::StateView lua, const lua_glue::Object& value);
 int classNew(lua_State* state);
 int classCall(lua_State* state);
 
-sol::object allocateInstance(
-    sol::state_view lua, const sol::table& classTable,
-    const sol::object& constructorArguments = sol::object(),
+lua_glue::Object allocateInstance(
+    lua_glue::StateView lua, const lua_glue::Table& classTable,
+    const lua_glue::Object& constructorArguments = lua_glue::Object(),
     bool allowDeferredRoots = false);
-void finishNativeConstruction(sol::state_view lua, const sol::table& classTable,
-                              const sol::object& instance);
+void finishNativeConstruction(lua_glue::StateView lua,
+                              const lua_glue::Table& classTable,
+                              const lua_glue::Object& instance);
 int superFunction(lua_State* state);
 
 }  // namespace ludork::standard::class_runtime::detail

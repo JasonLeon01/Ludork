@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "ClassRuntime/ClassRuntime.hpp"
 #include <ClassRuntimeProtocol.hpp>
 #include "ContainerRuntimeInternal.hpp"
@@ -10,42 +11,42 @@
 namespace ludork::standard::container_runtime::detail {
 
 int rawDictNewIndex(lua_State* state) {
-    try {
-        const sol::object self = sol::stack::get<sol::object>(state, 1);
-        setDictEntry(sol::state_view(state), self,
-                     sol::stack::get<sol::object>(state, 2),
-                     sol::stack::get<sol::object>(state, 3), false);
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
+        const lua_glue::Object self =
+            lua_glue::Read<lua_glue::Object>(state, 1);
+        setDictEntry(lua_glue::StateView(state), self,
+                     lua_glue::Read<lua_glue::Object>(state, 2),
+                     lua_glue::Read<lua_glue::Object>(state, 3), false);
         return 0;
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
-sol::object copyDict(const sol::object& source, sol::this_state state) {
-    sol::state_view lua(state);
-    sol::object result = createDict(lua);
+lua_glue::Object copyDict(const lua_glue::Object& source,
+                          lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    lua_glue::Object result = createDict(lua);
     const NativeDict& sourceDict = source.as<NativeDict&>();
-    const sol::table keys = dictKeys(source);
+    const lua_glue::Table keys = dictKeys(source);
     for (std::size_t index = 0; index < sourceDict.entries.size(); ++index) {
         if (!sourceDict.entries[index].alive) {
             continue;
         }
-        setDictEntry(lua, result, keys.raw_get<sol::object>(index + 1),
+        setDictEntry(lua, result, keys.raw_get<lua_glue::Object>(index + 1),
                      dictEntryValue(lua, source, index), false);
     }
     return result;
 }
 
 void collectMappingEntries(
-    sol::state_view lua, const sol::object& source,
-    std::vector<std::pair<sol::object, sol::object>>& entries,
+    lua_glue::StateView lua, const lua_glue::Object& source,
+    std::vector<std::pair<lua_glue::Object, lua_glue::Object>>& entries,
     bool& decodeJsonNull) {
     decodeJsonNull = false;
-    if (source.get_type() == sol::type::table) {
+    if (source.get_type() == lua_glue::Type::Table) {
         decodeJsonNull = true;
-        const sol::table table = source.as<sol::table>();
+        const lua_glue::Table table = source.as<lua_glue::Table>();
         for (const auto& entry : table) {
-            sol::object value = entry.second;
+            lua_glue::Object value = entry.second;
             if (isJsonNull(lua, value)) {
                 value = nilObject(lua);
             }
@@ -58,29 +59,30 @@ void collectMappingEntries(
             "dict mapping source must be a table or dict");
     }
     const NativeDict& dict = source.as<NativeDict&>();
-    const sol::table keys = dictKeys(source);
+    const lua_glue::Table keys = dictKeys(source);
     entries.reserve(dict.length);
     for (std::size_t index = 0; index < dict.entries.size(); ++index) {
         if (!dict.entries[index].alive) {
             continue;
         }
-        entries.emplace_back(keys.raw_get<sol::object>(index + 1),
+        entries.emplace_back(keys.raw_get<lua_glue::Object>(index + 1),
                              dictEntryValue(lua, source, index));
     }
 }
 
-sol::object constructDict(sol::variadic_args arguments, sol::this_state state) {
+lua_glue::Object constructDict(lua_glue::Arguments arguments,
+                               lua_glue::ThisState state) {
     if (arguments.size() > 1) {
         throw std::invalid_argument(
             "dict expects zero arguments or one mapping");
     }
-    sol::state_view lua(state);
-    sol::object result = createDict(lua);
+    lua_glue::StateView lua(state);
+    lua_glue::Object result = createDict(lua);
     if (arguments.size() == 0) {
         return result;
     }
-    const sol::object source = arguments.get<sol::object>();
-    std::vector<std::pair<sol::object, sol::object>> entries;
+    const lua_glue::Object source = arguments.get<lua_glue::Object>();
+    std::vector<std::pair<lua_glue::Object, lua_glue::Object>> entries;
     bool decodeJsonNull = false;
     collectMappingEntries(lua, source, entries, decodeJsonNull);
     for (const auto& entry : entries) {
@@ -89,17 +91,18 @@ sol::object constructDict(sol::variadic_args arguments, sol::this_state state) {
     return result;
 }
 
-sol::object dictIndex(sol::this_state state, const sol::object& self,
-                      const sol::object& key) {
-    sol::state_view lua(state);
-    if (key.get_type() == sol::type::number) {
+lua_glue::Object dictIndex(lua_glue::ThisState state,
+                           const lua_glue::Object& self,
+                           const lua_glue::Object& key) {
+    lua_glue::StateView lua(state);
+    if (key.get_type() == lua_glue::Type::Number) {
         const std::size_t index = findDictEntry(self, key);
         return index == std::numeric_limits<std::size_t>::max()
                    ? nilObject(lua)
                    : dictEntryValue(lua, self, index);
     }
-    const sol::object member = typeMember(lua, "dict", key);
-    if (member.valid() && member.get_type() != sol::type::lua_nil) {
+    const lua_glue::Object member = typeMember(lua, "dict", key);
+    if (member.valid() && member.get_type() != lua_glue::Type::Nil) {
         return member;
     }
     const std::size_t index = findDictEntry(self, key);
@@ -108,50 +111,52 @@ sol::object dictIndex(sol::this_state state, const sol::object& self,
                : dictEntryValue(lua, self, index);
 }
 
-void dictNewIndex(const sol::object& self, const sol::object& key,
-                  const sol::object& value, sol::this_state state) {
-    setDictEntry(sol::state_view(state), self, key, value, false);
+void dictNewIndex(const lua_glue::Object& self, const lua_glue::Object& key,
+                  const lua_glue::Object& value, lua_glue::ThisState state) {
+    setDictEntry(lua_glue::StateView(state), self, key, value, false);
 }
 
-sol::object dictGet(const sol::object& self, sol::variadic_args arguments,
-                    sol::this_state state) {
+lua_glue::Object dictGet(const lua_glue::Object& self,
+                         lua_glue::Arguments arguments,
+                         lua_glue::ThisState state) {
     if (arguments.size() < 1 || arguments.size() > 2) {
         throw std::invalid_argument(
             "dict.get expects a key and optional default");
     }
-    sol::state_view lua(state);
-    const sol::object key = arguments.get<sol::object>();
+    lua_glue::StateView lua(state);
+    const lua_glue::Object key = arguments.get<lua_glue::Object>();
     const std::size_t index = findDictEntry(self, key);
     if (index != std::numeric_limits<std::size_t>::max()) {
         return dictEntryValue(lua, self, index);
     }
-    return arguments.size() == 2 ? arguments.get<sol::object>(1)
+    return arguments.size() == 2 ? arguments.get<lua_glue::Object>(1)
                                  : nilObject(lua);
 }
 
-sol::object dictSetDefault(const sol::object& self,
-                           sol::variadic_args arguments,
-                           sol::this_state state) {
+lua_glue::Object dictSetDefault(const lua_glue::Object& self,
+                                lua_glue::Arguments arguments,
+                                lua_glue::ThisState state) {
     if (arguments.size() < 1 || arguments.size() > 2) {
         throw std::invalid_argument(
             "dict.setdefault expects a key and optional default");
     }
-    sol::state_view lua(state);
-    const sol::object key = arguments.get<sol::object>();
+    lua_glue::StateView lua(state);
+    const lua_glue::Object key = arguments.get<lua_glue::Object>();
     const std::size_t index = findDictEntry(self, key);
     if (index != std::numeric_limits<std::size_t>::max()) {
         return dictEntryValue(lua, self, index);
     }
-    const sol::object value =
-        arguments.size() == 2 ? arguments.get<sol::object>(1) : nilObject(lua);
+    const lua_glue::Object value = arguments.size() == 2
+                                       ? arguments.get<lua_glue::Object>(1)
+                                       : nilObject(lua);
     setDictEntry(lua, self, key, value, false);
     return value;
 }
 
-void dictUpdate(const sol::object& self, const sol::object& source,
-                sol::this_state state) {
-    sol::state_view lua(state);
-    std::vector<std::pair<sol::object, sol::object>> entries;
+void dictUpdate(const lua_glue::Object& self, const lua_glue::Object& source,
+                lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    std::vector<std::pair<lua_glue::Object, lua_glue::Object>> entries;
     bool decodeJsonNull = false;
     collectMappingEntries(lua, source, entries, decodeJsonNull);
     for (const auto& entry : entries) {
@@ -159,29 +164,30 @@ void dictUpdate(const sol::object& self, const sol::object& source,
     }
 }
 
-sol::object dictPop(const sol::object& self, sol::variadic_args arguments,
-                    sol::this_state state) {
+lua_glue::Object dictPop(const lua_glue::Object& self,
+                         lua_glue::Arguments arguments,
+                         lua_glue::ThisState state) {
     if (arguments.size() < 1 || arguments.size() > 2) {
         throw std::invalid_argument(
             "dict.pop expects a key and optional default");
     }
-    sol::state_view lua(state);
-    const sol::object key = arguments.get<sol::object>();
-    sol::object result = nilObject(lua);
+    lua_glue::StateView lua(state);
+    const lua_glue::Object key = arguments.get<lua_glue::Object>();
+    lua_glue::Object result = nilObject(lua);
     if (removeDictEntry(self, key, &result)) {
         return result;
     }
     if (arguments.size() == 2) {
-        return arguments.get<sol::object>(1);
+        return arguments.get<lua_glue::Object>(1);
     }
     throw std::out_of_range("dict.pop key was not found");
 }
 
-bool dictRemove(const sol::object& self, const sol::object& key) {
+bool dictRemove(const lua_glue::Object& self, const lua_glue::Object& key) {
     return removeDictEntry(self, key, nullptr);
 }
 
-void dictClear(const sol::object& self) {
+void dictClear(const lua_glue::Object& self) {
     NativeDict& dict = self.as<NativeDict&>();
     const bool changed = dict.length != 0;
     releaseDictStorage(self);
@@ -190,27 +196,30 @@ void dictClear(const sol::object& self) {
     }
 }
 
-bool dictContains(const sol::object& self, const sol::object& key) {
+bool dictContains(const lua_glue::Object& self, const lua_glue::Object& key) {
     return findDictEntry(self, key) != std::numeric_limits<std::size_t>::max();
 }
 
-sol::object dictKeysList(const sol::object& self, sol::this_state state) {
-    sol::state_view lua(state);
-    sol::object result = createList(lua);
+lua_glue::Object dictKeysList(const lua_glue::Object& self,
+                              lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    lua_glue::Object result = createList(lua);
     const NativeDict& dict = self.as<NativeDict&>();
-    const sol::table keys = dictKeys(self);
+    const lua_glue::Table keys = dictKeys(self);
     for (std::size_t index = 0; index < dict.entries.size(); ++index) {
         if (dict.entries[index].alive) {
-            appendListValue(lua, result, keys.raw_get<sol::object>(index + 1),
-                            false, false);
+            appendListValue(lua, result,
+                            keys.raw_get<lua_glue::Object>(index + 1), false,
+                            false);
         }
     }
     return result;
 }
 
-sol::object dictValuesList(const sol::object& self, sol::this_state state) {
-    sol::state_view lua(state);
-    sol::object result = createList(lua);
+lua_glue::Object dictValuesList(const lua_glue::Object& self,
+                                lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    lua_glue::Object result = createList(lua);
     const NativeDict& dict = self.as<NativeDict&>();
     for (std::size_t index = 0; index < dict.entries.size(); ++index) {
         if (dict.entries[index].alive) {
@@ -221,30 +230,31 @@ sol::object dictValuesList(const sol::object& self, sol::this_state state) {
     return result;
 }
 
-sol::object createDictDeepCopy(sol::state_view lua, const sol::object&) {
+lua_glue::Object createDictDeepCopy(lua_glue::StateView lua,
+                                    const lua_glue::Object&) {
     return createDict(lua);
 }
 
-void populateDictDeepCopy(sol::state_view lua, const sol::object& source,
-                          const sol::object& destination,
+void populateDictDeepCopy(lua_glue::StateView lua,
+                          const lua_glue::Object& source,
+                          const lua_glue::Object& destination,
                           class_runtime::NativeDeepCopyRecurse recurse,
                           void* context) {
     const NativeDict& dict = source.as<NativeDict&>();
-    const sol::table keys = dictKeys(source);
+    const lua_glue::Table keys = dictKeys(source);
     for (std::size_t index = 0; index < dict.entries.size(); ++index) {
         if (!dict.entries[index].alive) {
             continue;
         }
-        setDictEntry(lua, destination,
-                     recurse(context, keys.raw_get<sol::object>(index + 1)),
-                     recurse(context, dictEntryValue(lua, source, index)),
-                     false);
+        setDictEntry(
+            lua, destination,
+            recurse(context, keys.raw_get<lua_glue::Object>(index + 1)),
+            recurse(context, dictEntryValue(lua, source, index)), false);
     }
 }
 
-void registerDict(sol::state_view lua) {
-    sol::usertype<NativeDict> type =
-        lua.new_usertype<NativeDict>("dict", sol::no_constructor);
+void registerDict(lua_glue::StateView lua) {
+    auto type = lua_glue::BindClass<NativeDict>(lua.globals(), "dict");
     type.set_function("get", &dictGet);
     type.set_function("setdefault", &dictSetDefault);
     type.set_function("update", &dictUpdate);
@@ -260,28 +270,29 @@ void registerDict(sol::state_view lua) {
     type.set_function(
         ludork::standard::class_runtime::protocol::NATIVE_COPY_FIELD,
         &copyDict);
-    type[sol::meta_function::index] = &dictIndex;
-    type[sol::meta_function::new_index] = &dictNewIndex;
-    type[sol::meta_function::length] = [](const NativeDict& self) {
+    lua_glue::BindMetamethod(type, "__index", &dictIndex);
+    lua_glue::BindMetamethod(type, "__newindex", &dictNewIndex);
+    lua_glue::BindMetamethod(type, "__len", [](const NativeDict& self) {
         return self.length;
-    };
-    type[sol::meta_function::equal_to] = [](const sol::object& left,
-                                            const sol::object& right) {
-        if (!left.is<NativeDict>() || !right.is<NativeDict>()) {
-            return false;
-        }
-        EqualityContext context;
-        return dictEqual(left, right, context);
-    };
-    type[sol::meta_function::pairs] = &nativeDictPairs;
-    sol::table typeTable = lua.globals().get<sol::table>("dict");
-    sol::table metatable = typeTable[sol::metatable_key];
-    metatable.set_function("__call",
-                           [](const sol::object&, sol::variadic_args arguments,
-                              sol::this_state state) {
-                               return constructDict(arguments, state);
-                           });
-    typeTable.raw_set("new", sol::lua_nil);
+    });
+    lua_glue::BindMetamethod(
+        type, "__eq",
+        [](const lua_glue::Object& left, const lua_glue::Object& right) {
+            if (!left.is<NativeDict>() || !right.is<NativeDict>()) {
+                return false;
+            }
+            EqualityContext context;
+            return dictEqual(left, right, context);
+        });
+    lua_glue::BindMetamethod(type, "__pairs", &nativeDictPairs);
+    lua_glue::Table typeTable = lua.globals().get<lua_glue::Table>("dict");
+    lua_glue::Table metatable = lua_glue::GetMetatable(typeTable);
+    metatable.set_function(
+        "__call", [](const lua_glue::Object&, lua_glue::Arguments arguments,
+                     lua_glue::ThisState state) {
+            return constructDict(arguments, state);
+        });
+    typeTable.raw_set("new", lua_glue::nil);
     maskNewConstructor(typeTable);
     overrideNewIndex(createDict(lua), &rawDictNewIndex);
     class_runtime::registerNativeDeepCopyProtocol(

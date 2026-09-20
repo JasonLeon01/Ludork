@@ -7,48 +7,50 @@
 
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 #include <Runtime/RuntimeSession.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 namespace ludork::runtime::detail {
 
 RuntimeValue::Map classConfigReferences(const RuntimeValue& owner) {
     RuntimeScope runtime;
-    sol::state_view lua(runtime.state());
-    const sol::object rawOwner = binding::writeLuaValue(lua, owner);
-    if (!rawOwner.is<sol::table>()) {
+    lua_glue::StateView lua(runtime.state());
+    const lua_glue::Object rawOwner = binding::writeLuaValue(lua, owner);
+    if (!rawOwner.is<lua_glue::Table>()) {
         return {};
     }
-    const sol::table descriptor =
-        runtimeClassTypeDescriptor(lua, rawOwner.as<sol::table>());
-    const sol::object metadata = descriptor.raw_get<sol::object>("metadata");
-    if (!metadata.is<sol::table>()) {
+    const lua_glue::Table descriptor =
+        runtimeClassTypeDescriptor(lua, rawOwner.as<lua_glue::Table>());
+    const lua_glue::Object metadata =
+        descriptor.raw_get<lua_glue::Object>("metadata");
+    if (!metadata.is<lua_glue::Table>()) {
         return {};
     }
-    const sol::object meta =
-        metadata.as<sol::table>().raw_get<sol::object>("Meta");
+    const lua_glue::Object meta =
+        metadata.as<lua_glue::Table>().raw_get<lua_glue::Object>("Meta");
     return parseConfigVarReferences(binding::readLuaValue<RuntimeValue>(meta));
 }
 
 std::vector<ComponentTypeReference> componentTypeReferences(
     const RuntimeValue& owner) {
     RuntimeScope runtime;
-    sol::state_view lua(runtime.state());
-    const sol::object rawOwner = binding::writeLuaValue(lua, owner);
-    if (!rawOwner.is<sol::table>()) {
+    lua_glue::StateView lua(runtime.state());
+    const lua_glue::Object rawOwner = binding::writeLuaValue(lua, owner);
+    if (!rawOwner.is<lua_glue::Table>()) {
         return {};
     }
-    const sol::table metadata =
-        collectRuntimeAttrMetadata(lua, rawOwner.as<sol::table>());
+    const lua_glue::Table metadata =
+        collectRuntimeAttrMetadata(lua, rawOwner.as<lua_glue::Table>());
     std::vector<ComponentTypeReference> result;
     for (const auto& [name, rawDescriptor] : metadata) {
-        const sol::table descriptor = rawDescriptor.as<sol::table>();
+        const lua_glue::Table descriptor = rawDescriptor.as<lua_glue::Table>();
         if (!rawBool(descriptor, "component")) {
             continue;
         }
-        const sol::object module = descriptor.raw_get<sol::object>("module");
+        const lua_glue::Object module =
+            descriptor.raw_get<lua_glue::Object>("module");
         result.push_back(
             {name.as<std::string>(),
-             readRuntimeReference(descriptor.raw_get<sol::object>("type")),
+             readRuntimeReference(descriptor.raw_get<lua_glue::Object>("type")),
              module.is<std::string>() ? module.as<std::string>()
                                       : std::string()});
     }

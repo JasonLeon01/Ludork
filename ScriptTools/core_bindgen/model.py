@@ -65,6 +65,7 @@ class TypeInfo:
     line: int = 0
     cpp_name: str = ""
     cpp_scope: tuple[str, ...] = ()
+    fully_bound_record: bool = False
 
     def __post_init__(self) -> None:
         if not self.cpp_name:

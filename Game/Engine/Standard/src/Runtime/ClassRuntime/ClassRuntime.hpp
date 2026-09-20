@@ -2,13 +2,13 @@
 
 #include "Detail/CopyRuntime.hpp"
 
-#include <sol2/forward.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 struct lua_State;
 
 namespace ludork::standard::class_runtime {
 
-sol::table createModule(sol::state_view lua);
+lua_glue::Table createModule(lua_glue::StateView lua);
 void shutdown(lua_State* state) noexcept;
 
 }  // namespace ludork::standard::class_runtime

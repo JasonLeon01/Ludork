@@ -1,11 +1,11 @@
 #pragma once
 
-#include <sol2/forward.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 namespace ludork::standard::class_runtime {
 
-using NativeDeepCopyRecurse = sol::object (*)(void* context,
-                                              const sol::object& value);
+using NativeDeepCopyRecurse =
+    lua_glue::Object (*)(void* context, const lua_glue::Object& value);
 
 struct NativeDeepCopyProtocol {
     enum class NativeDeepCopyMode {
@@ -13,14 +13,16 @@ struct NativeDeepCopyProtocol {
         Deferred,
     };
 
-    using Create = sol::object (*)(sol::state_view lua,
-                                   const sol::object& source);
-    using Populate = void (*)(sol::state_view lua, const sol::object& source,
-                              const sol::object& destination,
+    using Create = lua_glue::Object (*)(lua_glue::StateView lua,
+                                        const lua_glue::Object& source);
+    using Populate = void (*)(lua_glue::StateView lua,
+                              const lua_glue::Object& source,
+                              const lua_glue::Object& destination,
                               NativeDeepCopyRecurse recurse, void* context);
-    using Build = sol::object (*)(sol::state_view lua,
-                                  const sol::object& source,
-                                  NativeDeepCopyRecurse recurse, void* context);
+    using Build = lua_glue::Object (*)(lua_glue::StateView lua,
+                                       const lua_glue::Object& source,
+                                       NativeDeepCopyRecurse recurse,
+                                       void* context);
 
     NativeDeepCopyMode mode = NativeDeepCopyMode::TwoPhase;
     Create create = nullptr;
@@ -28,8 +30,8 @@ struct NativeDeepCopyProtocol {
     Build build = nullptr;
 };
 
-void registerNativeDeepCopyProtocol(sol::state_view lua,
-                                    const sol::table& nativeType,
+void registerNativeDeepCopyProtocol(lua_glue::StateView lua,
+                                    const lua_glue::Table& nativeType,
                                     const NativeDeepCopyProtocol& protocol);
 
 }  // namespace ludork::standard::class_runtime

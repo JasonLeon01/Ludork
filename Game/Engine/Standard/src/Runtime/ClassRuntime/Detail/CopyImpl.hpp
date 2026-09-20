@@ -1,14 +1,14 @@
 #pragma once
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <unordered_map>
 
 namespace ludork::standard::class_runtime::detail {
 
 struct NativeDeepCopyContext {
-    sol::state_view lua;
-    std::unordered_map<const void*, sol::object>* visited = nullptr;
+    lua_glue::StateView lua;
+    std::unordered_map<const void*, lua_glue::Object>* visited = nullptr;
 };
 
 }  // namespace ludork::standard::class_runtime::detail

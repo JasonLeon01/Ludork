@@ -135,7 +135,7 @@ function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemie
     return assert(GameplayAbilityResult.Success("MovementHazard", {
             damage = totalDamage,
             sources = sources,
-            playerPosition = copy(playerPosition)
+            playerPosition = playerPosition:copy()
         }))
 end
 
@@ -177,7 +177,7 @@ function MovementSpecials.Commit(player, pathPositions)
             if source.special == Special.Blockade then
                 blockadeRetreats[#blockadeRetreats + 1] = {
                     enemy = source.enemy,
-                    playerPosition = copy(playerPosition)
+                    playerPosition = playerPosition:copy()
                 }
             end
         end

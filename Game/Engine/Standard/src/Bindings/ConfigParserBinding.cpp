@@ -4,8 +4,7 @@
 
 #include <Utf8Path.hpp>
 
-#include <luasf_sol.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -22,7 +21,7 @@ namespace ludork::standard::binding {
 
 namespace {
 
-std::string luaString(const sol::object& value) {
+std::string luaString(const lua_glue::Object& value) {
     lua_State* state = value.lua_state();
     value.push();
     std::size_t size = 0;
@@ -33,74 +32,78 @@ std::string luaString(const sol::object& value) {
 }
 
 template <typename T>
-sol::object valueOrFallback(sol::state_view lua, const std::optional<T>& value,
-                            const sol::optional<sol::object>& fallback) {
+lua_glue::Object valueOrFallback(
+    lua_glue::StateView lua, const std::optional<T>& value,
+    const std::optional<lua_glue::Object>& fallback) {
     if (value.has_value()) {
-        return sol::make_object(lua, *value);
+        return lua_glue::MakeObject(lua, *value);
     }
     if (fallback.has_value()) {
         return *fallback;
     }
-    return sol::make_object(lua, sol::lua_nil);
+    return lua_glue::MakeObject(lua, lua_glue::nil);
 }
 
 }  // namespace
 
-void registerConfigParser(sol::state_view lua) {
-    sol::usertype<ConfigParser> parserType = lua.new_usertype<ConfigParser>(
-        "LudorkStandardConfigParser", sol::no_constructor);
-    lua_sf::mark_shared_usertype<ConfigParser>(lua);
+void registerConfigParser(lua_glue::StateView lua) {
+    auto parserType = lua_glue::BindClass<ConfigParser>(
+        lua.globals(), "LudorkStandardConfigParser");
+
     parserType.set_function("read",
                             [](ConfigParser& parser, const std::string& path) {
                                 return parser.read(pathFromUtf8(path));
                             });
-    parserType.set_function("has_section", &ConfigParser::hasSection);
-    parserType.set_function("add_section", &ConfigParser::addSection);
+    lua_glue::BindMethod<bool, const std::string&>(parserType, "has_section",
+                                                   &ConfigParser::hasSection);
+    lua_glue::BindMethod<void, const std::string&>(parserType, "add_section",
+                                                   &ConfigParser::addSection);
     parserType.set_function(
-        "get", [](ConfigParser& parser, const std::string& section,
-                  const std::string& key, sol::optional<sol::object> fallback,
-                  sol::this_state state) {
-            return valueOrFallback(sol::state_view(state),
+        "get",
+        [](ConfigParser& parser, const std::string& section,
+           const std::string& key, std::optional<lua_glue::Object> fallback,
+           lua_glue::ThisState state) {
+            return valueOrFallback(lua_glue::StateView(state),
                                    parser.get(section, key), fallback);
         });
     parserType.set_function(
         "getfloat",
         [](ConfigParser& parser, const std::string& section,
-           const std::string& key, sol::optional<sol::object> fallback,
-           sol::this_state state) {
-            return valueOrFallback(sol::state_view(state),
+           const std::string& key, std::optional<lua_glue::Object> fallback,
+           lua_glue::ThisState state) {
+            return valueOrFallback(lua_glue::StateView(state),
                                    parser.getFloat(section, key), fallback);
         });
     parserType.set_function(
         "getint",
         [](ConfigParser& parser, const std::string& section,
-           const std::string& key, sol::optional<sol::object> fallback,
-           sol::this_state state) {
-            return valueOrFallback(sol::state_view(state),
+           const std::string& key, std::optional<lua_glue::Object> fallback,
+           lua_glue::ThisState state) {
+            return valueOrFallback(lua_glue::StateView(state),
                                    parser.getInt(section, key), fallback);
         });
     parserType.set_function(
         "getboolean",
         [](ConfigParser& parser, const std::string& section,
-           const std::string& key, sol::optional<sol::object> fallback,
-           sol::this_state state) {
-            return valueOrFallback(sol::state_view(state),
+           const std::string& key, std::optional<lua_glue::Object> fallback,
+           lua_glue::ThisState state) {
+            return valueOrFallback(lua_glue::StateView(state),
                                    parser.getBoolean(section, key), fallback);
         });
     parserType.set_function(
         "set", [](ConfigParser& parser, const std::string& section,
-                  const std::string& key, const sol::object& value) {
+                  const std::string& key, const lua_glue::Object& value) {
             parser.set(section, key, luaString(value));
         });
     parserType.set_function(
         "write", [](const ConfigParser& parser, const std::string& path) {
             parser.write(pathFromUtf8(path));
         });
-    lua["LudorkStandardConfigParser"] = sol::lua_nil;
+    lua["LudorkStandardConfigParser"] = lua_glue::nil;
 
-    sol::table module = lua.create_table();
+    lua_glue::Table module = lua.create_table();
     module.set_function("ConfigParser", []() {
-        return lua_sf::makeLuaSharedObject<ConfigParser>();
+        return std::make_shared<ConfigParser>();
     });
     lua["configparser"] = std::move(module);
 }

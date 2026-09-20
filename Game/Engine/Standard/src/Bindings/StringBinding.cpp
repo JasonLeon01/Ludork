@@ -5,7 +5,7 @@
 
 #include <UnicodeText.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 #include <stdexcept>
 #include <string>
@@ -124,15 +124,15 @@ string_binding_detail::ParsedFormat parseFormat(const std::string& format) {
     return result;
 }
 
-std::string stringify(const sol::object& value,
-                      sol::protected_function& toString) {
-    sol::protected_function_result converted = toString(value);
+std::string stringify(const lua_glue::Object& value,
+                      lua_glue::Function& toString) {
+    lua_glue::CallResult converted = toString(value);
     if (!converted.valid()) {
-        const sol::error error = converted;
+        const std::string error = converted.error();
         throw std::invalid_argument(std::string("pformat tostring failed: ") +
-                                    error.what());
+                                    error.c_str());
     }
-    const sol::object result = converted.get<sol::object>();
+    const lua_glue::Object result = converted.get<lua_glue::Object>();
     if (!result.is<std::string>()) {
         throw std::invalid_argument("pformat tostring did not return a string");
     }
@@ -141,27 +141,26 @@ std::string stringify(const sol::object& value,
     return text;
 }
 
-std::string pformat(sol::this_state current, const std::string& format,
-                    sol::variadic_args arguments) {
-    sol::state_view lua(current);
-    const sol::object rawToString =
-        lua.globals().raw_get<sol::object>("tostring");
-    if (!rawToString.is<sol::protected_function>()) {
+std::string pformat(lua_glue::ThisState current, const std::string& format,
+                    lua_glue::Arguments arguments) {
+    lua_glue::StateView lua(current);
+    const lua_glue::Object rawToString =
+        lua.globals().raw_get<lua_glue::Object>("tostring");
+    if (!rawToString.is<lua_glue::Function>()) {
         throw std::runtime_error("Lua tostring function is not defined");
     }
-    sol::protected_function toString =
-        rawToString.as<sol::protected_function>();
+    lua_glue::Function toString = rawToString.as<lua_glue::Function>();
     const string_binding_detail::ParsedFormat parsed = parseFormat(format);
     const std::size_t argumentCount = arguments.size();
     std::size_t positionalCount = argumentCount;
-    sol::table mapping;
+    lua_glue::Table mapping;
     if (parsed.hasNamed) {
         if (argumentCount == 0 ||
-            arguments.get_type(argumentCount - 1) != sol::type::table) {
+            arguments[argumentCount - 1].get_type() != lua_glue::Type::Table) {
             throw std::invalid_argument(
                 "pformat named fields require a final mapping table");
         }
-        mapping = arguments[argumentCount - 1].get<sol::table>();
+        mapping = arguments[argumentCount - 1].get<lua_glue::Table>();
         positionalCount -= 1;
     }
 
@@ -180,14 +179,15 @@ std::string pformat(sol::this_state current, const std::string& format,
                 throw std::invalid_argument(
                     "pformat is missing a positional argument");
             }
-            const sol::object value =
-                arguments[positionalIndex].get<sol::object>();
+            const lua_glue::Object value =
+                arguments[positionalIndex].get<lua_glue::Object>();
             result += stringify(value, toString);
             ++positionalIndex;
             continue;
         }
-        const sol::object value = mapping.raw_get<sol::object>(part.value);
-        if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+        const lua_glue::Object value =
+            mapping.raw_get<lua_glue::Object>(part.value);
+        if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
             throw std::invalid_argument("pformat mapping is missing key '" +
                                         part.value + "'");
         }
@@ -321,15 +321,16 @@ std::string utf8Slice(const std::string& value, lua_Integer start,
 
 }  // namespace
 
-void registerString(sol::state_view lua) {
-    const sol::object rawString = lua.globals().raw_get<sol::object>("string");
-    if (!rawString.is<sol::table>()) {
+void registerString(lua_glue::StateView lua) {
+    const lua_glue::Object rawString =
+        lua.globals().raw_get<lua_glue::Object>("string");
+    if (!rawString.is<lua_glue::Table>()) {
         throw std::runtime_error("Lua string library is not defined");
     }
-    sol::table stringTable = rawString.as<sol::table>();
+    lua_glue::Table stringTable = rawString.as<lua_glue::Table>();
     stringTable.set_function(
-        "pformat", [](sol::this_state current, const std::string& format,
-                      sol::variadic_args arguments) {
+        "pformat", [](lua_glue::ThisState current, const std::string& format,
+                      lua_glue::Arguments arguments) {
             return pformat(current, format, arguments);
         });
     stringTable.set_function(
@@ -379,7 +380,7 @@ void registerString(sol::state_view lua) {
     stringTable.set_function("replace", &replaceLiteral);
     stringTable.set_function(
         "split", [](const std::string& value, const std::string& separator) {
-            return sol::as_table(splitLiteral(value, separator));
+            return splitLiteral(value, separator);
         });
     stringTable.set_function("utf8Length", &utf8Length);
     stringTable.set_function("graphemeLength", [](const std::string& value) {

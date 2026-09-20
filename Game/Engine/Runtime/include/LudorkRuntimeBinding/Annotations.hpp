@@ -1,7 +1,7 @@
 #pragma once
 
 // These declarations are intentionally empty at C++ compile time. The Core
-// bindgen reads the annotations from public headers and emits the sol2
+// bindgen reads the annotations from public headers and emits the LuaGlue
 // registration source.
 #define BIND_CLASS(...)
 #define BIND_ENUM(...)

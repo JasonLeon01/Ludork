@@ -35,7 +35,7 @@ end
 function MapClickAutoPathRuntime.GetTeleportPathPositions(route, destination)
     local path = {}
     for _, point in ipairs(route) do
-        path[#path + 1] = copy(point)
+        path[#path + 1] = point:copy()
         if point == destination then
             break
         end

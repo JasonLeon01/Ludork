@@ -213,6 +213,17 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
         "${published_scripts_directory}/stub/${module_name}.d.lua")
     set(published_metadata
         "${published_scripts_directory}/${module_name}_meta.lua")
+    set(stub_options)
+    set(stub_byproducts "${stub}")
+    set(publish_stub_commands
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${stub}" "${published_stub}")
+    if(CMAKE_CROSSCOMPILING)
+        set(stub "${published_stub}")
+        set(stub_options --preserve-existing-stub)
+        set(stub_byproducts)
+        set(publish_stub_commands)
+    endif()
     get_filename_component(callback_codecs_directory
         "${LUASF_CALLBACK_CODECS_FILE}" DIRECTORY)
     set(callback_codecs_api "${callback_codecs_directory}/sfml_api.json")
@@ -223,7 +234,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
             ${bindings}
             "${bindings_manifest}"
             "${binding_traits}"
-            "${stub}"
+            ${stub_byproducts}
             "${metadata}"
             "${metadata_stamp}"
         COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
@@ -236,6 +247,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
             --bindings-manifest "${bindings_manifest}"
             --bindings-stamp "${bindings_stamp}"
             --stub "${stub}"
+            ${stub_options}
             --scripts-directory "${generated_scripts_directory}"
             --metadata-stamp "${metadata_stamp}"
             --callback-codecs "${LUASF_CALLBACK_CODECS_FILE}"
@@ -253,9 +265,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
     add_custom_target(${module_name}Stub
         COMMAND "${CMAKE_COMMAND}" -E make_directory
             "${published_scripts_directory}/stub"
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-            "${stub}"
-            "${published_stub}"
+        ${publish_stub_commands}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             "${metadata}"
             "${published_metadata}"

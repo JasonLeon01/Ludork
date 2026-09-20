@@ -5,7 +5,7 @@
 #include "Detail/TypedFields.hpp"
 
 #include <LuaError.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -18,8 +18,8 @@ extern "C" {
 
 namespace ludork::standard::class_runtime::detail {
 
-sol::object nilObject(sol::state_view lua) {
-    return sol::make_object(lua, sol::lua_nil);
+lua_glue::Object nilObject(lua_glue::StateView lua) {
+    return lua_glue::MakeObject(lua, lua_glue::nil);
 }
 
 namespace {
@@ -49,27 +49,29 @@ std::string popLuaError(lua_State* state, const char* fallback) {
     return result;
 }
 
-sol::object protectedIndex(sol::state_view lua, const sol::object& target,
-                           const sol::object& key) {
+lua_glue::Object protectedIndex(lua_glue::StateView lua,
+                                const lua_glue::Object& target,
+                                const lua_glue::Object& key) {
     lua_State* state = lua.lua_state();
     lua_pushcfunction(state, protectedIndexThunk);
-    target.push();
-    key.push();
+    target.push(state);
+    key.push(state);
     if (ludork::standard::protectedLuaCall(state, 2, 1) != LUA_OK) {
         throw std::runtime_error(popLuaError(state, "Lua indexed read failed"));
     }
-    sol::object result = sol::stack::get<sol::object>(state, -1);
+    lua_glue::Object result = lua_glue::Read<lua_glue::Object>(state, -1);
     lua_pop(state, 1);
     return result;
 }
 
-void protectedAssign(sol::state_view lua, const sol::object& target,
-                     const sol::object& key, const sol::object& value) {
+void protectedAssign(lua_glue::StateView lua, const lua_glue::Object& target,
+                     const lua_glue::Object& key,
+                     const lua_glue::Object& value) {
     lua_State* state = lua.lua_state();
     lua_pushcfunction(state, protectedAssignThunk);
-    target.push();
-    key.push();
-    value.push();
+    target.push(state);
+    key.push(state);
+    value.push(state);
     if (ludork::standard::protectedLuaCall(state, 3, 0) != LUA_OK) {
         throw std::runtime_error(
             popLuaError(state, "Lua indexed write failed"));
@@ -77,72 +79,75 @@ void protectedAssign(sol::state_view lua, const sol::object& target,
     clearExplicitNilField(lua, target, key);
 }
 
-bool isClass(const sol::table& value) {
-    const sol::object marker =
-        value.raw_get<sol::object>(protocol::CLASS_MARKER_FIELD);
+bool isClass(const lua_glue::Table& value) {
+    const lua_glue::Object marker =
+        value.raw_get<lua_glue::Object>(protocol::CLASS_MARKER_FIELD);
     return marker.is<bool>() && marker.as<bool>();
 }
 
-bool tableHasMetatable(const sol::table& value) {
+bool tableHasMetatable(const lua_glue::Table& value) {
     lua_State* state = value.lua_state();
-    value.push();
+    value.push(state);
     const bool result = lua_getmetatable(state, -1) != 0;
     lua_pop(state, result ? 2 : 1);
     return result;
 }
 
-sol::table createWeakTable(sol::state_view lua, const char* mode) {
-    sol::table result = lua.create_table();
-    sol::table metatable = lua.create_table();
+lua_glue::Table createWeakTable(lua_glue::StateView lua, const char* mode) {
+    lua_glue::Table result = lua.create_table();
+    lua_glue::Table metatable = lua.create_table();
     metatable["__mode"] = mode;
-    result[sol::metatable_key] = metatable;
+    lua_glue::SetMetatable(result, metatable);
     return result;
 }
 
-sol::table registryTable(sol::state_view lua, const char* key,
-                         const char* weakMode) {
-    sol::table registry = lua.registry();
-    const sol::object value = registry.raw_get<sol::object>(key);
-    if (value.is<sol::table>()) {
-        return value.as<sol::table>();
+lua_glue::Table registryTable(lua_glue::StateView lua, const char* key,
+                              const char* weakMode) {
+    lua_glue::Table registry = lua.registry();
+    const lua_glue::Object value = registry.raw_get<lua_glue::Object>(key);
+    if (value.is<lua_glue::Table>()) {
+        return value.as<lua_glue::Table>();
     }
-    sol::table result = weakMode == nullptr ? lua.create_table()
-                                            : createWeakTable(lua, weakMode);
+    lua_glue::Table result = weakMode == nullptr
+                                 ? lua.create_table()
+                                 : createWeakTable(lua, weakMode);
     registry.raw_set(key, result);
     return result;
 }
 
-sol::object nativeDeepCopyProtocolsKey(sol::state_view lua) {
-    return sol::make_object(lua, sol::lightuserdata_value(static_cast<void*>(
-                                     &nativeDeepCopyProtocolsKeyStorage)));
+lua_glue::Object nativeDeepCopyProtocolsKey(lua_glue::StateView lua) {
+    return lua_glue::MakeObject(lua, lua_glue::LightUserdata(static_cast<void*>(
+                                         &nativeDeepCopyProtocolsKeyStorage)));
 }
 
-sol::table nativeDeepCopyProtocols(sol::state_view lua) {
-    sol::table registry = lua.registry();
-    const sol::object key = nativeDeepCopyProtocolsKey(lua);
-    const sol::object existing = registry.raw_get<sol::object>(key);
-    if (existing.get_type() == sol::type::table) {
-        return existing.as<sol::table>();
+lua_glue::Table nativeDeepCopyProtocols(lua_glue::StateView lua) {
+    lua_glue::Table registry = lua.registry();
+    const lua_glue::Object key = nativeDeepCopyProtocolsKey(lua);
+    const lua_glue::Object existing = registry.raw_get<lua_glue::Object>(key);
+    if (existing.get_type() == lua_glue::Type::Table) {
+        return existing.as<lua_glue::Table>();
     }
-    sol::table result = lua.create_table();
+    lua_glue::Table result = lua.create_table();
     registry.raw_set(key, result);
     return result;
 }
 
 std::optional<NativeDeepCopyProtocol> findNativeDeepCopyProtocol(
-    sol::state_view lua, const sol::object& nativeType) {
-    const sol::object rawProtocols =
-        lua.registry().raw_get<sol::object>(nativeDeepCopyProtocolsKey(lua));
-    if (rawProtocols.get_type() != sol::type::table) {
+    lua_glue::StateView lua, const lua_glue::Object& nativeType) {
+    const lua_glue::Object rawProtocols =
+        lua.registry().raw_get<lua_glue::Object>(
+            nativeDeepCopyProtocolsKey(lua));
+    if (rawProtocols.get_type() != lua_glue::Type::Table) {
         return std::nullopt;
     }
-    const sol::object rawProtocol =
-        rawProtocols.as<sol::table>().raw_get<sol::object>(nativeType);
-    if (rawProtocol.get_type() != sol::type::userdata) {
+    const lua_glue::Object rawProtocol =
+        rawProtocols.as<lua_glue::Table>().raw_get<lua_glue::Object>(
+            nativeType);
+    if (rawProtocol.get_type() != lua_glue::Type::Userdata) {
         return std::nullopt;
     }
     lua_State* state = lua.lua_state();
-    rawProtocol.push();
+    rawProtocol.push(state);
     if (lua_rawlen(state, -1) != sizeof(NativeDeepCopyProtocol)) {
         lua_pop(state, 1);
         return std::nullopt;
@@ -154,7 +159,7 @@ std::optional<NativeDeepCopyProtocol> findNativeDeepCopyProtocol(
     return result;
 }
 
-bool tableIsEmpty(const sol::table& table) {
+bool tableIsEmpty(const lua_glue::Table& table) {
     for (const auto& entry : table) {
         static_cast<void>(entry);
         return false;
@@ -162,27 +167,23 @@ bool tableIsEmpty(const sol::table& table) {
     return true;
 }
 
-bool rawBool(const sol::table& table, const char* name) {
-    const sol::object value = table.raw_get<sol::object>(name);
+bool rawBool(const lua_glue::Table& table, const char* name) {
+    const lua_glue::Object value = table.raw_get<lua_glue::Object>(name);
     return value.is<bool>() && value.as<bool>();
 }
 
-bool luaValuesEqual(sol::state_view lua, const sol::object& left,
-                    const sol::object& right) {
-    left.push();
-    right.push();
-    const bool equal = lua_compare(lua.lua_state(), -2, -1, LUA_OPEQ) != 0;
-    lua_pop(lua.lua_state(), 2);
-    return equal;
+bool luaValuesEqual(lua_glue::StateView lua, const lua_glue::Object& left,
+                    const lua_glue::Object& right) {
+    lua_State* state = lua.lua_state();
+    lua_glue::StackGuard stack(state);
+    left.push(state);
+    right.push(state);
+    return ludork::standard::compareLuaValues(state, -2, -1, LUA_OPEQ);
 }
 
-bool objectsRawEqual(const sol::object& left, const sol::object& right) {
-    lua_State* state = left.lua_state();
-    left.push();
-    right.push();
-    const bool result = lua_rawequal(state, -2, -1) != 0;
-    lua_pop(state, 2);
-    return result;
+bool objectsRawEqual(const lua_glue::Object& left,
+                     const lua_glue::Object& right) {
+    return left == right;
 }
 
 }  // namespace ludork::standard::class_runtime::detail

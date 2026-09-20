@@ -1,3 +1,4 @@
+#include <LuaError.hpp>
 #include "Composite/CompositeRuntime.hpp"
 
 #include "Detail/ClassNativeInterop.hpp"
@@ -10,7 +11,7 @@
 #include "Native/NativeRuntime.hpp"
 
 #include <ClassRuntimeProtocol.hpp>
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -26,44 +27,47 @@ namespace ludork::standard::class_runtime::detail {
 // ── Read fast path
 // ────────────────────────────────────────────────────────────
 
-sol::object compositeIndexSlow(sol::object target, sol::object key,
-                               sol::this_state state) {
-    sol::state_view lua(state);
-    const sol::table fields = class_native::getUserFields(lua, target, false);
+lua_glue::Object compositeIndexSlow(lua_glue::Object target,
+                                    lua_glue::Object key,
+                                    lua_glue::ThisState state) {
+    lua_glue::StateView lua(state);
+    const lua_glue::Table fields =
+        class_native::getUserFields(lua, target, false);
     if (rawBool(fields, NATIVE_CONSTRUCTION_FAILED_FIELD)) {
         throw std::runtime_error("Class instance construction failed");
     }
-    const sol::object field = fields.raw_get<sol::object>(key);
-    if (field.valid() && field.get_type() != sol::type::lua_nil) {
+    const lua_glue::Object field = fields.raw_get<lua_glue::Object>(key);
+    if (field.valid() && field.get_type() != lua_glue::Type::Nil) {
         return field;
     }
-    const sol::object rawClass = fields.raw_get<sol::object>(CLASS_FIELD);
-    if (!rawClass.is<sol::table>()) {
+    const lua_glue::Object rawClass =
+        fields.raw_get<lua_glue::Object>(CLASS_FIELD);
+    if (!rawClass.is<lua_glue::Table>()) {
         return nilObject(lua);
     }
-    const sol::table classTable = rawClass.as<sol::table>();
-    const sol::object disposeMethod =
+    const lua_glue::Table classTable = rawClass.as<lua_glue::Table>();
+    const lua_glue::Object disposeMethod =
         instanceDisposeMethod(lua, classTable, key);
-    if (disposeMethod.is<sol::function>()) {
+    if (disposeMethod.is<lua_glue::Function>()) {
         cacheFastIndex(lua, fields, classTable, key, FastIndexKind::Value,
                        disposeMethod);
         return disposeMethod;
     }
-    const sol::object getter =
+    const lua_glue::Object getter =
         findAccessor(lua, classTable, protocol::CLASS_GETTERS_FIELD, key);
-    if (getter.is<sol::function>()) {
+    if (getter.is<lua_glue::Function>()) {
         cacheFastClassOwner(lua, fields, classTable, key,
                             protocol::CLASS_GETTERS_FIELD,
                             FastIndexKind::Getter);
-        return getter.as<sol::function>()(target);
+        return getter.as<lua_glue::Function>()(target);
     }
-    const sol::table mro = getMro(lua, classTable);
+    const lua_glue::Table mro = getMro(lua, classTable);
     for (std::size_t index = 2; index <= mro.size(); ++index) {
-        const sol::object rawType = mro[index];
-        if (!rawType.is<sol::table>()) {
+        const lua_glue::Object rawType = mro[index];
+        if (!rawType.is<lua_glue::Table>()) {
             continue;
         }
-        const sol::table nativeType = rawType.as<sol::table>();
+        const lua_glue::Table nativeType = rawType.as<lua_glue::Table>();
         if (!isNativeType(lua, nativeType)) {
             continue;
         }
@@ -72,27 +76,30 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
         if (!declaredProperty && !nativeFallbackMemberEligible(key)) {
             continue;
         }
-        const sol::object nativeDefinition =
+        const lua_glue::Object nativeDefinition =
             nativeTypeDefinition(lua, nativeType, key);
         if (!nativeDefinition.valid() ||
-            nativeDefinition.get_type() == sol::type::lua_nil) {
+            nativeDefinition.get_type() == lua_glue::Type::Nil) {
             continue;
         }
-        if (!declaredProperty && !nativeDefinition.is<sol::function>()) {
+        if (!declaredProperty && !nativeDefinition.is<lua_glue::Function>()) {
             continue;
         }
-        sol::object nativeObject = nativeObjectForType(lua, fields, nativeType);
-        if (!nativeObject.is<sol::userdata>() && declaredProperty) {
+        lua_glue::Object nativeObject =
+            nativeObjectForType(lua, fields, nativeType);
+        if ((nativeObject.get_type() != lua_glue::Type::Userdata) &&
+            declaredProperty) {
             nativeObject = ensureDefaultNativeObject(lua, target, nativeType);
         }
-        if (!nativeObject.is<sol::userdata>()) {
+        if ((nativeObject.get_type() != lua_glue::Type::Userdata)) {
             continue;
         }
-        const sol::object nativeValue = protectedIndex(lua, nativeObject, key);
-        if (declaredProperty || !nativeValue.is<sol::function>()) {
+        const lua_glue::Object nativeValue =
+            protectedIndex(lua, nativeObject, key);
+        if (declaredProperty || !nativeValue.is<lua_glue::Function>()) {
             cacheFastIndex(
                 lua, fields, classTable, key, FastIndexKind::NativeMember,
-                sol::make_object(lua, nativeTypeName(lua, nativeType)));
+                lua_glue::MakeObject(lua, nativeTypeName(lua, nativeType)));
             return nativeValue;
         }
     }
@@ -100,25 +107,26 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
         return nilObject(lua);
     }
     bool foundScriptMember = false;
-    const sol::object scriptMember =
+    const lua_glue::Object scriptMember =
         findScriptMember(lua, classTable, key, &foundScriptMember);
     if (foundScriptMember) {
         cacheFastClassOwner(lua, fields, classTable, key, "scriptMembers",
                             FastIndexKind::ScriptMember);
         return scriptMember;
     }
-    const sol::object cachedNative = findCachedNativeMethod(lua, fields, key);
-    if (cachedNative.is<sol::function>()) {
+    const lua_glue::Object cachedNative =
+        findCachedNativeMethod(lua, fields, key);
+    if (cachedNative.is<lua_glue::Function>()) {
         cacheFastIndex(lua, fields, classTable, key, FastIndexKind::Value,
                        cachedNative);
         return cachedNative;
     }
     for (std::size_t index = 2; index <= mro.size(); ++index) {
-        const sol::object rawType = mro[index];
-        if (!rawType.is<sol::table>()) {
+        const lua_glue::Object rawType = mro[index];
+        if (!rawType.is<lua_glue::Table>()) {
             continue;
         }
-        const sol::table nativeType = rawType.as<sol::table>();
+        const lua_glue::Table nativeType = rawType.as<lua_glue::Table>();
         if (!isNativeType(lua, nativeType)) {
             continue;
         }
@@ -127,35 +135,37 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
         if (!declaredProperty && !nativeFallbackMemberEligible(key)) {
             continue;
         }
-        sol::object nativeObject = nativeObjectForType(lua, fields, nativeType);
-        sol::object nativeValue = nilObject(lua);
-        if (nativeObject.is<sol::userdata>()) {
-            const sol::object nativeDefinition =
+        lua_glue::Object nativeObject =
+            nativeObjectForType(lua, fields, nativeType);
+        lua_glue::Object nativeValue = nilObject(lua);
+        if ((nativeObject.get_type() == lua_glue::Type::Userdata)) {
+            const lua_glue::Object nativeDefinition =
                 nativeTypeDefinition(lua, nativeType, key);
             if (nativeDefinition.valid() &&
-                nativeDefinition.get_type() != sol::type::lua_nil &&
-                (declaredProperty || nativeDefinition.is<sol::function>())) {
+                nativeDefinition.get_type() != lua_glue::Type::Nil &&
+                (declaredProperty ||
+                 nativeDefinition.is<lua_glue::Function>())) {
                 nativeValue = protectedIndex(lua, nativeObject, key);
-                if (!nativeValue.is<sol::function>()) {
+                if (!nativeValue.is<lua_glue::Function>()) {
                     return nativeValue;
                 }
             }
         }
-        const sol::object member = rawMember(lua, nativeType, key);
-        if (member.valid() && member.get_type() != sol::type::lua_nil) {
+        const lua_glue::Object member = rawMember(lua, nativeType, key);
+        if (member.valid() && member.get_type() != lua_glue::Type::Nil) {
             if (isNativeInitializer(nativeType, member)) {
-                const sol::object wrapper = cachedNativeMethod(
+                const lua_glue::Object wrapper = cachedNativeMethod(
                     lua, fields, key, member, target, nativeType, false);
                 cacheFastIndex(lua, fields, classTable, key,
                                FastIndexKind::Value, wrapper);
                 return wrapper;
             }
-            if (member.is<sol::function>()) {
-                if (!nativeObject.is<sol::userdata>()) {
+            if (member.is<lua_glue::Function>()) {
+                if ((nativeObject.get_type() != lua_glue::Type::Userdata)) {
                     nativeObject =
                         ensureDefaultNativeObject(lua, target, nativeType);
                 }
-                const sol::object wrapper = cachedNativeMethod(
+                const lua_glue::Object wrapper = cachedNativeMethod(
                     lua, fields, key, member, nativeObject, nativeType, false);
                 cacheFastIndex(lua, fields, classTable, key,
                                FastIndexKind::Value, wrapper);
@@ -163,8 +173,8 @@ sol::object compositeIndexSlow(sol::object target, sol::object key,
             }
             return member;
         }
-        if (nativeValue.is<sol::function>()) {
-            const sol::object wrapper = cachedNativeMethod(
+        if (nativeValue.is<lua_glue::Function>()) {
+            const lua_glue::Object wrapper = cachedNativeMethod(
                 lua, fields, key, nativeValue, nativeObject, nativeType, true);
             cacheFastIndex(lua, fields, classTable, key, FastIndexKind::Value,
                            wrapper);
@@ -182,23 +192,24 @@ int returnTopValue(lua_State* state) {
     return 1;
 }
 
-sol::table createCompositeMetatable(sol::state_view lua, const char* key,
-                                    bool finalized) {
-    sol::table registry = lua.registry();
-    const sol::object rawMetatable = registry.raw_get<sol::object>(key);
-    if (rawMetatable.is<sol::table>()) {
-        return rawMetatable.as<sol::table>();
+lua_glue::Table createCompositeMetatable(lua_glue::StateView lua,
+                                         const char* key, bool finalized) {
+    lua_glue::Table registry = lua.registry();
+    const lua_glue::Object rawMetatable =
+        registry.raw_get<lua_glue::Object>(key);
+    if (rawMetatable.is<lua_glue::Table>()) {
+        return rawMetatable.as<lua_glue::Table>();
     }
-    sol::table metatable = lua.create_table();
+    lua_glue::Table metatable = lua.create_table();
     metatable.raw_set(protocol::COMPOSITE_MARKER_FIELD, true);
-    metatable.push();
+    metatable.push(lua.lua_state());
     lua_pushcfunction(lua.lua_state(), compositeIndex);
     lua_setfield(lua.lua_state(), -2, "__index");
     lua_pushcfunction(lua.lua_state(), compositeNewIndex);
     lua_setfield(lua.lua_state(), -2, "__newindex");
     lua_pop(lua.lua_state(), 1);
     if (finalized) {
-        metatable.push();
+        metatable.push(lua.lua_state());
         lua_pushcfunction(lua.lua_state(), classInstanceGc);
         lua_setfield(lua.lua_state(), -2, "__gc");
         lua_pop(lua.lua_state(), 1);
@@ -216,7 +227,7 @@ void invalidateFastIndexEntry(lua_State* state, int cacheIndex) {
 }
 
 int compositeIndex(lua_State* state) {
-    try {
+    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
         if (lua_type(state, 1) == LUA_TUSERDATA &&
             lua_getiuservalue(state, 1, 1) == LUA_TTABLE) {
             const int fieldsIndex = lua_absindex(state, -1);
@@ -224,7 +235,8 @@ int compositeIndex(lua_State* state) {
             const bool constructionFailed = lua_toboolean(state, -1) != 0;
             lua_pop(state, 1);
             if (constructionFailed) {
-                return luaL_error(state, "Class instance construction failed");
+                throw std::invalid_argument(
+                    "Class instance construction failed");
             }
 
             lua_pushvalue(state, 2);
@@ -295,7 +307,15 @@ int compositeIndex(lua_State* state) {
                                         lua_rawget(state, -2);
                                         if (lua_isfunction(state, -1)) {
                                             lua_pushvalue(state, 1);
-                                            lua_call(state, 1, 1);
+                                            if (ludork::standard::
+                                                    protectedLuaCall(state, 1,
+                                                                     1) !=
+                                                LUA_OK) {
+                                                throw std::runtime_error(
+                                                    ludork::standard::
+                                                        luaErrorMessage(state,
+                                                                        -1));
+                                            }
                                             return returnTopValue(state);
                                         }
                                         lua_pop(state, 1);
@@ -330,25 +350,24 @@ int compositeIndex(lua_State* state) {
             }
         }
         lua_settop(state, 2);
-        sol::state_view lua(state);
-        const sol::object target = sol::stack::get<sol::object>(state, 1);
-        const sol::object key = sol::stack::get<sol::object>(state, 2);
-        const sol::object result = compositeIndexSlow(target, key, state);
-        result.push();
+        lua_glue::StateView lua(state);
+        const lua_glue::Object target =
+            lua_glue::Read<lua_glue::Object>(state, 1);
+        const lua_glue::Object key = lua_glue::Read<lua_glue::Object>(state, 2);
+        const lua_glue::Object result = compositeIndexSlow(target, key, state);
+        result.push(state);
         return returnTopValue(state);
-    } catch (const std::exception& error) {
-        return luaL_error(state, "%s", error.what());
-    }
+    });
 }
 
 // ── Composite metatable creation
 // ──────────────────────────────────────────────
 
-sol::table compositeMetatable(sol::state_view lua) {
+lua_glue::Table compositeMetatable(lua_glue::StateView lua) {
     return createCompositeMetatable(lua, COMPOSITE_METATABLE_KEY, true);
 }
 
-sol::table constructingCompositeMetatable(sol::state_view lua) {
+lua_glue::Table constructingCompositeMetatable(lua_glue::StateView lua) {
     return createCompositeMetatable(lua, CONSTRUCTING_COMPOSITE_METATABLE_KEY,
                                     false);
 }

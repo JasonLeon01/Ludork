@@ -53,7 +53,7 @@ function WorldGameMapRendering.DrawWorldTileMaskLayer(
         region.lightingRevision
     )
     local regionStates = sf.RenderStates.new(baseStates.blendMode)
-    regionStates.transform = copy(baseStates.transform)
+    regionStates.transform = baseStates.transform:copy()
     regionStates.texture = baseStates.texture
     regionStates.shader = self._tilemapLightMaskShader
     regionStates.transform:translate(sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize()))
@@ -108,8 +108,8 @@ function WorldGameMapRendering.RebuildStaticTransmission(self, activeLights, _st
     ---@cast viewPosition sf.Vector2f
     ---@cast viewSize sf.Vector2f
     ---@cast viewCentre sf.Vector2f
-    self._staticTextureOrigin = copy(viewPosition)
-    self._staticTextureSize = copy(viewSize)
+    self._staticTextureOrigin = viewPosition:copy()
+    self._staticTextureSize = viewSize:copy()
     self._staticOccupancyOrigin = sf.Vector2f.new(lightingRect.x, lightingRect.y)
     self._staticOccupancySize = sf.Vector2f.new(lightingRect.width, lightingRect.height)
     self._staticTransmission:setView(sf.View.new(viewCentre, viewSize))
@@ -326,12 +326,12 @@ function WorldGameMapRendering.PrepareCameraFrame(self)
     self._camera:syncFollowTarget()
     local desiredPosition = self._camera:getViewPosition()
     if self:_prepareWorldCameraPosition(desiredPosition) then
-        self._worldLastReadyCameraPosition = desiredPosition ~= nil and copy(desiredPosition) or nil
+        self._worldLastReadyCameraPosition = desiredPosition ~= nil and desiredPosition:copy() or nil
         return true
     end
     if self._worldStreamingCameraPosition ~= nil
         and self:_prepareWorldCameraPosition(self._worldStreamingCameraPosition) then
-        self._worldLastReadyCameraPosition = copy(self._worldStreamingCameraPosition)
+        self._worldLastReadyCameraPosition = self._worldStreamingCameraPosition:copy()
         return true
     end
     if self._worldLastReadyCameraPosition ~= nil then
@@ -448,7 +448,7 @@ function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayer
                 local layer = region.payload.tilemap:getLayer(layerName)
                 if layer ~= nil and layer.visible then
                     local regionStates = sf.RenderStates.new(states.blendMode)
-                    regionStates.transform = copy(states.transform)
+                    regionStates.transform = states.transform:copy()
                     regionStates.texture = states.texture
                     regionStates.shader = layer.shader
                     regionStates.transform:translate(

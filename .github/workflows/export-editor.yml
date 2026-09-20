@@ -119,7 +119,7 @@ jobs:
       - name: Archive prepared environment
         if: steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\sol2 Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
+        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\LuaGlue Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
 
       - name: Save prepared environment cache
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -441,7 +441,7 @@ jobs:
 
       - name: Archive prepared environment
         if: steps.environment-cache.outputs.cache-hit != 'true'
-        run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/sol2 Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
+        run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/LuaGlue Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
 
       - name: Save prepared environment cache
         if: steps.environment-cache.outputs.cache-hit != 'true'

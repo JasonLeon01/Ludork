@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 
 from .context import GeneratorContext
@@ -789,7 +790,7 @@ def exposed_parameters(member: Member) -> list[tuple[str, str]]:
             parameter_names(member.declaration),
             parameter_types(member.declaration),
         )
-        if type_name not in {"sol::this_state", "sol::variadic_args"}
+        if type_name not in {"lua_glue::ThisState", "lua_glue::Arguments"}
     ]
     overrides = ordered_option_list(member.options, "parameter_types")
     if overrides:
@@ -811,9 +812,9 @@ def lua_parameters(context: GeneratorContext, member: Member) -> list[tuple[str,
     for name, type_name in zip(
         parameter_names(member.declaration), parameter_types(member.declaration)
     ):
-        if type_name == "sol::this_state":
+        if type_name == "lua_glue::ThisState":
             continue
-        if type_name == "sol::variadic_args":
+        if type_name == "lua_glue::Arguments":
             result.append(("...", "any"))
         else:
             parameter_type = lua_type(context, overrides.get(name, type_name))
@@ -868,11 +869,18 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
     if parsed.name in SEQUENCE_TYPES and parsed.arguments:
         item = lua_type_name(context, parsed.arguments[0])
         if has_top_level_union(item):
-            item = f"({item})"
+            if context.stub_alias_namespace is not None:
+                # Named elements preserve array compatibility without the
+                # parenthesized unions that Emmy formatting can corrupt.
+                digest = hashlib.sha256(item.encode("utf-8")).hexdigest()[:12]
+                alias = f"{context.stub_alias_namespace}.__ArrayElement_{digest}"
+                item = context.stub_array_aliases.setdefault(item, alias)
+            else:
+                item = f"({item})"
         return item + "[]"
     if parsed.name in MAP_TYPES:
         return (f"table<{lua_type_name(context, parsed.arguments[0])}, {lua_type_name(context, parsed.arguments[1])}>" if len(parsed.arguments) >= 2 else "table")
-    if parsed.name in OPTIONAL_TYPES | {"sol::optional"} and parsed.arguments:
+    if parsed.name in OPTIONAL_TYPES | {"std::optional"} and parsed.arguments:
         inner = lua_type_name(context, parsed.arguments[0])
         if inner.startswith("fun("):
             inner = f"({inner})"
@@ -910,9 +918,9 @@ def lua_type(context: GeneratorContext, cpp: str) -> str:
         "float": "number",
         "double": "number",
         "std::string": "string",
-        "sol::object": "any",
-        "sol::table": "table",
-        "sol::function": "fun(...: any): any",
+        "lua_glue::Object": "any",
+        "lua_glue::Table": "table",
+        "lua_glue::Function": "fun(...: any): any",
     }
     substituted = substitutions.get(value)
     if substituted is not None:

@@ -440,7 +440,7 @@ def _check_lua(boundary: LuaBoundary, project_root: pathlib.Path) -> list[str]:
     return diagnostics
 
 
-def _check_core_sol(project_root: pathlib.Path) -> list[str]:
+def _check_core_glue(project_root: pathlib.Path) -> list[str]:
     core = project_root / "Engine" / "Source"
     if not core.is_dir():
         return []
@@ -469,8 +469,8 @@ def _check_core_sol(project_root: pathlib.Path) -> list[str]:
             return parsed[path]
         text = path.read_text(encoding="utf-8")
         code = comment_pattern.sub(mask, text)
-        usage = re.search(r"\bsol\s*::", code)
-        violation = (_line_number(code, usage.start()), "sol namespace") if usage else None
+        usage = re.search(r"\blua_glue\s*::", code)
+        violation = (_line_number(code, usage.start()), "LuaGlue namespace") if usage else None
         uncommented = comment_pattern.sub(
             lambda match: mask(match)
             if match[0].startswith(("//", "/*")) else match[0],
@@ -480,10 +480,7 @@ def _check_core_sol(project_root: pathlib.Path) -> list[str]:
         for match in include_pattern.finditer(uncommented):
             name = match[1]
             line = _line_number(uncommented, match.start())
-            if (
-                re.match(r"^sol2?/", name)
-                or pathlib.PurePosixPath(name).name == "luasf_sol.hpp"
-            ):
+            if name.startswith("LuaGlue/"):
                 violation = (line, name)
                 break
             for directory in (path.parent, *include_roots):
@@ -512,8 +509,8 @@ def _check_core_sol(project_root: pathlib.Path) -> list[str]:
                     for item in (*chain, path)
                 )
                 diagnostics.append(
-                    f"{source}:{line if not chain else 1}: handwritten Core must not depend on sol "
-                    f"({route}:{line}: {reason}); use a sol-free Runtime interface"
+                    f"{source}:{line if not chain else 1}: handwritten Core must not depend on LuaGlue "
+                    f"({route}:{line}: {reason}); use a Runtime interface without binding dependencies"
                 )
                 break
             pending.extend((child, (*chain, path)) for child in includes)
@@ -526,7 +523,7 @@ def verify_impl_boundaries(project_root: pathlib.Path) -> None:
         raise ImplBoundaryError(f"Project root was not found: {root}")
     cpp = _discover_cpp_boundaries(root)
     lua = _discover_lua_boundaries(root)
-    diagnostics = _check_core_sol(root)
+    diagnostics = _check_core_glue(root)
     diagnostics.extend(_check_standard_layers(root))
     for boundary in cpp:
         diagnostics.extend(_check_cpp(boundary, root))

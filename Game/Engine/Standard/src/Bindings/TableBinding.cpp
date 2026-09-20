@@ -1,6 +1,7 @@
+#include <LuaError.hpp>
 #include "Bindings.hpp"
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -16,34 +17,32 @@ namespace ludork::standard::binding {
 
 namespace {
 
-sol::optional<lua_Integer> tableIndex(const sol::table& values,
-                                      const sol::object& expected) {
+std::optional<lua_Integer> tableIndex(const lua_glue::Table& values,
+                                      const lua_glue::Object& expected) {
     lua_State* state = values.lua_state();
-    values.push();
-    const int valuesIndex = lua_gettop(state);
     for (lua_Integer index = 1;; ++index) {
-        lua_geti(state, valuesIndex, index);
-        if (lua_isnil(state, -1)) {
-            lua_pop(state, 2);
-            return sol::nullopt;
+        const auto value = values.get<lua_glue::Object>(index);
+        if (value == lua_glue::nil) {
+            return std::nullopt;
         }
-        expected.push();
-        const bool equal = lua_compare(state, -2, -1, LUA_OPEQ) != 0;
-        lua_pop(state, 2);
-        if (equal) {
-            lua_pop(state, 1);
+        lua_glue::StackGuard stack(state);
+        value.push(state);
+        expected.push(state);
+        if (ludork::standard::compareLuaValues(state, -2, -1, LUA_OPEQ)) {
             return index;
         }
     }
 }
 
-bool tableContains(const sol::table& values, const sol::object& expected) {
+bool tableContains(const lua_glue::Table& values,
+                   const lua_glue::Object& expected) {
     return tableIndex(values, expected).has_value();
 }
 
-sol::table orderedStringKeys(const sol::table& values,
-                             const sol::optional<sol::table>& preferredOrder,
-                             sol::this_state state) {
+lua_glue::Table orderedStringKeys(
+    const lua_glue::Table& values,
+    const std::optional<lua_glue::Table>& preferredOrder,
+    lua_glue::ThisState state) {
     std::unordered_set<std::string> remaining;
     for (const auto& entry : values) {
         if (!entry.first.is<std::string>()) {
@@ -56,10 +55,11 @@ sol::table orderedStringKeys(const sol::table& values,
     std::vector<std::string> ordered;
     ordered.reserve(remaining.size());
     if (preferredOrder.has_value()) {
-        const sol::table preferred = *preferredOrder;
+        const lua_glue::Table preferred = *preferredOrder;
         for (lua_Integer index = 1;; ++index) {
-            const sol::object value = preferred.get<sol::object>(index);
-            if (!value.valid() || value.get_type() == sol::type::lua_nil) {
+            const lua_glue::Object value =
+                preferred.get<lua_glue::Object>(index);
+            if (!value.valid() || value.get_type() == lua_glue::Type::Nil) {
                 break;
             }
             if (!value.is<std::string>()) {
@@ -78,8 +78,9 @@ sol::table orderedStringKeys(const sol::table& values,
     std::sort(extras.begin(), extras.end());
     ordered.insert(ordered.end(), extras.begin(), extras.end());
 
-    sol::state_view lua(state);
-    sol::table result = lua.create_table(static_cast<int>(ordered.size()), 0);
+    lua_glue::StateView lua(state);
+    lua_glue::Table result =
+        lua.create_table(static_cast<int>(ordered.size()), 0);
     for (std::size_t index = 0; index < ordered.size(); ++index) {
         result.raw_set(index + 1, ordered[index]);
     }
@@ -88,12 +89,13 @@ sol::table orderedStringKeys(const sol::table& values,
 
 }  // namespace
 
-void registerTable(sol::state_view lua) {
-    const sol::object rawTable = lua.globals().raw_get<sol::object>("table");
-    if (!rawTable.is<sol::table>()) {
+void registerTable(lua_glue::StateView lua) {
+    const lua_glue::Object rawTable =
+        lua.globals().raw_get<lua_glue::Object>("table");
+    if (!rawTable.is<lua_glue::Table>()) {
         throw std::runtime_error("Lua table library is not defined");
     }
-    sol::table tableLibrary = rawTable.as<sol::table>();
+    lua_glue::Table tableLibrary = rawTable.as<lua_glue::Table>();
     tableLibrary.set_function("contains", &tableContains);
     tableLibrary.set_function("index", &tableIndex);
     tableLibrary.set_function("orderedStringKeys", &orderedStringKeys);

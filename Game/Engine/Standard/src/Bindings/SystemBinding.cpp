@@ -6,7 +6,7 @@
 
 #include <Utf8Path.hpp>
 
-#include <sol2/sol.hpp>
+#include <LuaGlue/LuaGlue.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -59,9 +59,9 @@ int luaBool(lua_State* state) {
     return 1;
 }
 
-std::string luaString(const sol::object& value) {
-    if (value.get_type() != sol::type::string &&
-        value.get_type() != sol::type::number) {
+std::string luaString(const lua_glue::Object& value) {
+    if (value.get_type() != lua_glue::Type::String &&
+        value.get_type() != lua_glue::Type::Number) {
         throw std::invalid_argument("string expected");
     }
     lua_State* state = value.lua_state();
@@ -75,18 +75,18 @@ std::string luaString(const sol::object& value) {
 
 }  // namespace
 
-void registerSystemServices(sol::state_view lua) {
+void registerSystemServices(lua_glue::StateView lua) {
     lua_pushcfunction(lua.lua_state(), luaBool);
     lua_setglobal(lua.lua_state(), "bool");
     lua["perfCounter"] = &performanceCounter;
     lua["processMemoryMB"] = &processMemoryMegabytes;
     lua.set_function("asizeof", &luaObjectSize);
 
-    sol::table locale = lua.create_table();
+    lua_glue::Table locale = lua.create_table();
     locale.set_function("getdefaultlocale", &defaultLocale);
     lua["locale"] = std::move(locale);
 
-    sol::table os = lua["os"].get_or_create<sol::table>();
+    lua_glue::Table os = lua["os"].get_or_create<lua_glue::Table>();
     os.set_function("getcwd", []() {
         return pathToUtf8(currentWorkingDirectory());
     });
@@ -106,37 +106,39 @@ void registerSystemServices(sol::state_view lua) {
         }
         return result;
     });
-    sol::table path = lua.create_table();
-    path.set_function("join", [](sol::variadic_args arguments) {
+    lua_glue::Table path = lua.create_table();
+    path.set_function("join", [](lua_glue::Arguments arguments) {
         std::vector<std::filesystem::path> parts;
         parts.reserve(arguments.size());
-        for (const sol::stack_proxy& argument : arguments) {
+        for (const lua_glue::StackValue& argument : arguments) {
             parts.push_back(
-                pathFromUtf8(luaString(argument.get<sol::object>())));
+                pathFromUtf8(luaString(argument.get<lua_glue::Object>())));
         }
         return pathToUtf8(joinPath(parts));
     });
-    path.set_function("splitext", [](const sol::object& value) {
+    path.set_function("splitext", [](const lua_glue::Object& value) {
         const auto [root, extension] =
             splitExtension(pathFromUtf8(luaString(value)));
-        return std::make_tuple(pathToUtf8(root), pathToUtf8(extension));
+        return lua_glue::MultipleResults{
+            lua_glue::MakeObject(value.lua_state(), pathToUtf8(root)),
+            lua_glue::MakeObject(value.lua_state(), pathToUtf8(extension))};
     });
-    path.set_function("basename", [](const sol::object& value) {
+    path.set_function("basename", [](const lua_glue::Object& value) {
         return pathToUtf8(baseName(pathFromUtf8(luaString(value))));
     });
-    path.set_function("dirname", [](const sol::object& value) {
+    path.set_function("dirname", [](const lua_glue::Object& value) {
         return pathToUtf8(directoryName(pathFromUtf8(luaString(value))));
     });
-    path.set_function("abspath", [](const sol::object& value) {
+    path.set_function("abspath", [](const lua_glue::Object& value) {
         return pathToUtf8(absolutePath(pathFromUtf8(luaString(value))));
     });
-    path.set_function("isdir", [](const sol::object& value) {
+    path.set_function("isdir", [](const lua_glue::Object& value) {
         return isDirectory(pathFromUtf8(luaString(value)));
     });
-    path.set_function("isfile", [](const sol::object& value) {
+    path.set_function("isfile", [](const lua_glue::Object& value) {
         return isRegularFile(pathFromUtf8(luaString(value)));
     });
-    path.set_function("getmtime", [](const sol::object& value) {
+    path.set_function("getmtime", [](const lua_glue::Object& value) {
         return modificationTime(pathFromUtf8(luaString(value)));
     });
     os["path"] = std::move(path);

@@ -191,7 +191,7 @@ function Controller:refreshAvatar(shopActor)
         return
     end
     local sourceRect = shopActor:getTextureRect()
-    local textureRect = copy(sourceRect)
+    local textureRect = sourceRect:copy()
     local frameSize = textureRect.size
     if frameSize.x <= 0 or frameSize.y <= 0 then
         self:_reflow()

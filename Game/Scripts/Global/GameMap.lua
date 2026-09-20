@@ -31,7 +31,7 @@ GameMap.HideDisconnectedRegions = false
 ---@param gameMap GameMap
 ---@return sf.IntRect
 local function validateMapViewRect(gameMap)
-    local rect = copy(gameMap.MapViewRect)
+    local rect = gameMap.MapViewRect:copy()
     ---@cast rect sf.IntRect
     local gameSize = System.getGameSize()
     assert(rect.position.x >= 0 and rect.position.y >= 0, "MapViewRect position must not be negative")
