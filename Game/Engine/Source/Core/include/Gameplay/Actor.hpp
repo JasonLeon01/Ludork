@@ -557,8 +557,6 @@ private:
 
     void ensureShaderLoaded() const;
 
-    static RuntimeValue actorListValue(const std::vector<Actor*>& actors);
-
     std::weak_ptr<ActorMapService> map_;
     std::shared_ptr<EmitterComponent> emitterComp_;
     bool pathfindingBlocks_ = false;

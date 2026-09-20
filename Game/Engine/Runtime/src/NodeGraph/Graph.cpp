@@ -226,10 +226,9 @@ void Graph::buildNodesForEvent(const std::string& key) {
     nodes.reserve(event->second.size());
     for (const std::shared_ptr<DataNode>& dataNode : event->second) {
         ludork::runtime::graph_detail::requireCompiledDataNode(dataNode);
-        std::shared_ptr<Node> node(
-            new Node(*this, getParent(), dataNode->nodeFunction,
-                     dataNode->getResolvedDefinition(),
-                     RuntimeValue(dataNode->getParams())));
+        std::shared_ptr<Node> node(new Node(
+            *this, getParent(), dataNode->nodeFunction,
+            dataNode->getDefinition(), RuntimeValue(dataNode->getParams())));
         node->position = dataNode->position;
         if (node->getCallable() == nullptr) {
             throw std::runtime_error("Function " + dataNode->nodeFunction +

@@ -9,14 +9,15 @@ namespace ludork::runtime::blueprint_detail {
 
 using namespace ludork::runtime::reference;
 
-std::function<RuntimeValue(const RuntimeValue&)>& objectGraphResolver() {
-    static std::function<RuntimeValue(const RuntimeValue&)> resolver;
+ObjectGraphResolver& objectGraphResolver() {
+    static ObjectGraphResolver resolver;
     return resolver;
 }
 
-RuntimeValue objectGraph(const RuntimeValue& object) {
-    const auto resolver = objectGraphResolver();
-    return resolver ? resolver(object) : RuntimeValue();
+std::shared_ptr<Graph> objectGraph(const RuntimeValue& object) {
+    const auto& resolver = objectGraphResolver();
+    return resolver ? resolver(ludork::runtime::reference::object(object))
+                    : nullptr;
 }
 
 void clearBlueprintRuntimeCaches(lua_State* state) noexcept {

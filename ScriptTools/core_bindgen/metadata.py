@@ -330,7 +330,7 @@ def metadata_type(
         and parsed.arguments[0].name in context.opaque_identity_types
     ):
         return MetadataType("any")
-    if parsed.name == "std::function":
+    if parsed.name in {"std::function", "ludork::runtime::StrictFunction"}:
         return MetadataType("function")
     if parsed.name in OPTIONAL_TYPES | {"std::optional"} and parsed.arguments:
         return metadata_type(

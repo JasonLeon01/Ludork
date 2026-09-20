@@ -1,6 +1,7 @@
 #include <Runtime/Components/ComponentRuntime.hpp>
 
 #include <Components/ComponentRuntimeCache.hpp>
+#include <Components/ComponentFieldTarget.hpp>
 #include "LuaServices/RuntimeMetadataReferences.hpp"
 #include <Runtime/RuntimeReflection.hpp>
 #include <Runtime/RuntimeReference.hpp>
@@ -134,30 +135,15 @@ RuntimeValue cloneComponentRuntimeValue(RuntimeValueView value) {
     return value.toValue();
 }
 
-RuntimeValue::Map encodeCachedFields(const RuntimeValue::Map& values) {
-    RuntimeValue::Map result;
-    for (const auto& [name, value] : values) {
-        result.emplace(name, RuntimeValue(RuntimeValue::Array{value}));
-    }
-    return result;
-}
+void loadComponentTypes(ComponentRuntimeCache::Lease& cache,
+                        const RuntimeValue& classValue);
+void loadComponentFieldMap(ComponentRuntimeCache::Lease& cache,
+                           const RuntimeValue& classValue);
 
-RuntimeValue cachedComponentFieldValue(const RuntimeValue& packed,
-                                       const std::string& name) {
-    const std::optional<RuntimeValue::Array> fields =
-        ludork::runtime::reference::arrayValues(packed);
-    if (!fields || fields->size() != 1) {
-        throw std::logic_error("Invalid cached component field: " + name);
-    }
-    return fields->front();
-}
-
-RuntimeValue componentFieldDefaults(const RuntimeValue& componentType) {
-    const RuntimeValue cached = componentRuntimeCache().getReference(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldDefaults,
-        componentType);
-    if (ludork::runtime::reference::isTable(cached)) {
-        return cached;
+void loadComponentFieldDefaults(ComponentRuntimeCache::Lease& cache,
+                                const RuntimeValue& componentType) {
+    if (cache.initialized()) {
+        return;
     }
     RuntimeValue::Map defaults;
     RuntimeValue::Array mro = runtimeMro(componentType);
@@ -181,17 +167,28 @@ RuntimeValue componentFieldDefaults(const RuntimeValue& componentType) {
                 cloneComponentFieldValue(componentType, name, defaultValue);
         }
     }
-    componentRuntimeCache().set(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldDefaults,
-        componentType, RuntimeValue(encodeCachedFields(defaults)));
-    return componentRuntimeCache().getReference(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldDefaults,
-        componentType);
+    auto& values =
+        cache.descriptor<ComponentRuntimeCache::FieldDefaults>().values;
+    values.clear();
+    for (const auto& [name, value] : defaults) {
+        values.emplace(name, cache.store(value));
+    }
+    cache.complete();
 }
 
 std::vector<std::string> componentFieldNames(
     const RuntimeValue& componentType) {
-    return runtimeKeys(componentFieldDefaults(componentType), true);
+    ComponentRuntimeCache::Lease cache(
+        ComponentRuntimeCache::Kind::FieldDefaults, componentType);
+    loadComponentFieldDefaults(cache, componentType);
+    std::vector<std::string> names;
+    const auto& values =
+        cache.descriptor<ComponentRuntimeCache::FieldDefaults>().values;
+    names.reserve(values.size());
+    for (const auto& [name, slot] : values) {
+        names.push_back(name);
+    }
+    return names;
 }
 
 RuntimeValue cloneRuntimeComponentFieldValue(const RuntimeValue& componentType,
@@ -230,32 +227,20 @@ RuntimeValue::Map runtimeStringMap(const RuntimeValue& value) {
     return result;
 }
 
-std::unordered_map<std::string, std::string> componentFieldMapFromValue(
-    const RuntimeValue& value) {
-    std::unordered_map<std::string, std::string> result;
-    const RuntimeValue::Map values = runtimeStringMap(value);
-    result.reserve(values.size());
-    for (const auto& [fieldName, componentValue] : values) {
-        if (const std::string* componentName =
-                componentValue.getIf<std::string>()) {
-            result.emplace(fieldName, *componentName);
-        }
+void loadInheritedComponentDefaults(ComponentRuntimeCache::Lease& cache,
+                                    const RuntimeValue& classValue,
+                                    ComponentRuntimeCache::Lease& types) {
+    if (cache.initialized()) {
+        return;
     }
-    return result;
-}
-
-RuntimeValue inheritedComponentDefaults(
-    const RuntimeValue& classValue, const RuntimeValue::Map& componentTypes) {
-    const RuntimeValue cached = componentRuntimeCache().getReference(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::InheritedDefaults,
-        classValue);
-    if (ludork::runtime::reference::isTable(cached)) {
-        return cached;
-    }
-    RuntimeValue::Map result;
+    auto& result =
+        cache.descriptor<ComponentRuntimeCache::InheritedDefaults>().values;
+    result.clear();
     const RuntimeValue::Array mro = runtimeMro(classValue);
-    for (const auto& [componentName, componentType] : componentTypes) {
-        RuntimeValue::Map componentDefaults;
+    for (const auto& [componentName, typeSlot] :
+         types.descriptor<ComponentRuntimeCache::Types>().values) {
+        const RuntimeValue componentType = types.value(typeSlot);
+        std::unordered_map<std::string, int> componentDefaults;
         std::optional<std::vector<std::string>> fieldNames;
         for (std::size_t index = 1; index < mro.size(); ++index) {
             const RuntimeValue parentValue =
@@ -278,36 +263,29 @@ RuntimeValue inheritedComponentDefaults(
                     (parent.isNil() &&
                      runtimeHasOwnField(parentComponent, fieldName))) {
                     componentDefaults.emplace(
-                        fieldName, cloneRuntimeComponentFieldValue(
-                                       componentType, fieldName, parent));
+                        fieldName, cache.store(cloneRuntimeComponentFieldValue(
+                                       componentType, fieldName, parent)));
                 }
             }
         }
         if (!componentDefaults.empty()) {
-            result.emplace(componentName,
-                           RuntimeValue(std::move(componentDefaults)));
+            result.emplace(componentName, std::move(componentDefaults));
         }
     }
-    RuntimeValue::Map cachedValues;
-    for (const auto& [name, fields] : result) {
-        cachedValues.emplace(
-            name,
-            RuntimeValue(encodeCachedFields(fields.view().map()->toMap())));
-    }
-    componentRuntimeCache().set(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::InheritedDefaults,
-        classValue, RuntimeValue(std::move(cachedValues)));
-    return componentRuntimeCache().getReference(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::InheritedDefaults,
-        classValue);
+    cache.complete();
 }
 
 void mergeComponentDefaultsImpl(const RuntimeValue& object,
                                 const RuntimeValue& objectType,
-                                const RuntimeValue::Map& componentTypes) {
-    const RuntimeHandle inheritedDefaults = ludork::runtime::reference::intern(
-        inheritedComponentDefaults(objectType, componentTypes));
-    for (const auto& [componentName, componentType] : componentTypes) {
+                                ComponentRuntimeCache::Lease& types) {
+    ComponentRuntimeCache::Lease inherited(
+        ComponentRuntimeCache::Kind::InheritedDefaults, objectType);
+    loadInheritedComponentDefaults(inherited, objectType, types);
+    const auto& inheritedValues =
+        inherited.descriptor<ComponentRuntimeCache::InheritedDefaults>().values;
+    for (const auto& [componentName, typeSlot] :
+         types.descriptor<ComponentRuntimeCache::Types>().values) {
+        const RuntimeValue componentType = types.value(typeSlot);
         RuntimeValue value = runtimeGet(object, componentName);
         if (value.isNil()) {
             continue;
@@ -316,28 +294,18 @@ void mergeComponentDefaultsImpl(const RuntimeValue& object,
             value = componentFromData(componentType, value);
             runtimeSet(object, componentName, value);
         }
-        const RuntimeValue componentDefaults =
-            ludork::runtime::reference::rawGet(inheritedDefaults,
-                                               componentName);
-        if (componentDefaults.isNil()) {
+        const auto componentDefaults = inheritedValues.find(componentName);
+        if (componentDefaults == inheritedValues.end()) {
             continue;
         }
-        if (!ludork::runtime::reference::isTable(componentDefaults)) {
-            throw std::logic_error("Invalid inherited component cache: " +
-                                   componentName);
-        }
-        for (const auto& [key, packed] : ludork::runtime::reference::entries(
-                 ludork::runtime::reference::intern(componentDefaults))) {
-            const std::string fieldName =
-                ludork::runtime::reference::as<std::string>(key);
+        for (const auto& [fieldName, slot] : componentDefaults->second) {
             const RuntimeValue current = runtimeGet(value, fieldName);
             if (isBlankComponentValue(current) &&
                 !(current.isNil() && runtimeHasOwnField(value, fieldName))) {
                 runtimeSetTyped(
                     value, fieldName,
-                    cloneRuntimeComponentFieldValue(
-                        componentType, fieldName,
-                        cachedComponentFieldValue(packed, fieldName)));
+                    cloneRuntimeComponentFieldValue(componentType, fieldName,
+                                                    inherited.value(slot)));
             }
         }
     }
@@ -345,33 +313,36 @@ void mergeComponentDefaultsImpl(const RuntimeValue& object,
 
 void normaliseInstanceComponentsImpl(const RuntimeValue& object,
                                      const RuntimeValue& objectType,
-                                     const RuntimeValue::Map& componentTypes) {
-    for (const auto& [componentName, componentType] : componentTypes) {
+                                     ComponentRuntimeCache::Lease& types) {
+    for (const auto& [componentName, typeSlot] :
+         types.descriptor<ComponentRuntimeCache::Types>().values) {
+        const RuntimeValue componentType = types.value(typeSlot);
         RuntimeValue value = runtimeGet(object, componentName);
         if (!value.isNil() && !runtimeIsInstance(value, componentType)) {
             runtimeSet(object, componentName,
                        componentFromData(componentType, value));
         }
     }
-    mergeComponentDefaultsImpl(object, objectType, componentTypes);
+    mergeComponentDefaultsImpl(object, objectType, types);
 }
-
-struct ComponentFieldTarget {
-    RuntimeValue component;
-    RuntimeValue componentType;
-    bool found = false;
-};
 
 ComponentFieldTarget resolveComponentFieldTarget(const RuntimeValue& object,
                                                  const std::string& fieldName) {
     const RuntimeValue objectType = runtimeType(object);
-    const std::unordered_map<std::string, std::string> fieldMap =
-        getComponentFieldMap(objectType);
+    ComponentRuntimeCache::Lease fields(ComponentRuntimeCache::Kind::FieldMap,
+                                        objectType);
+    loadComponentFieldMap(fields, objectType);
+    const auto& fieldMap =
+        fields.descriptor<ComponentRuntimeCache::FieldMap>().values;
     const auto fieldIterator = fieldMap.find(fieldName);
     if (fieldIterator == fieldMap.end()) {
         return {};
     }
-    const RuntimeValue::Map componentTypes = getComponentTypes(objectType);
+    ComponentRuntimeCache::Lease types(ComponentRuntimeCache::Kind::Types,
+                                       objectType);
+    loadComponentTypes(types, objectType);
+    const auto& componentTypes =
+        types.descriptor<ComponentRuntimeCache::Types>().values;
     const auto typeIterator = componentTypes.find(fieldIterator->second);
     if (typeIterator == componentTypes.end()) {
         return {};
@@ -383,14 +354,66 @@ ComponentFieldTarget resolveComponentFieldTarget(const RuntimeValue& object,
                                  "' is missing while resolving member '" +
                                  fieldName + "'");
     }
-    if (!runtimeIsInstance(component, typeIterator->second)) {
+    const RuntimeValue componentType = types.value(typeIterator->second);
+    if (!runtimeIsInstance(component, componentType)) {
         throw std::runtime_error(
             "Component field '" + componentName +
             "' has the wrong type while resolving member '" + fieldName + "'");
     }
-    return {std::move(component), typeIterator->second, true};
+    return {std::move(component), componentType, true};
 }
 
+void loadComponentTypes(ComponentRuntimeCache::Lease& cache,
+                        const RuntimeValue& classValue) {
+    if (cache.initialized()) {
+        return;
+    }
+    RuntimeValue::Map result;
+    RuntimeValue::Array mro = runtimeMro(classValue);
+    for (auto iterator = mro.rbegin(); iterator != mro.rend(); ++iterator) {
+        const RuntimeValue declared =
+            runtimeGet(*iterator, "_componentTypes", true);
+        for (auto& [name, componentType] : runtimeStringMap(declared)) {
+            if (isComponentType(componentType)) {
+                result[name] = std::move(componentType);
+            }
+        }
+    }
+    for (const detail::ComponentTypeReference& reference :
+         detail::componentTypeReferences(classValue)) {
+        RuntimeValue componentType = typedDataService().resolveMetadataType(
+            reference.type, reference.module);
+        if (isComponentType(componentType)) {
+            result[reference.name] = std::move(componentType);
+        }
+    }
+    auto& values = cache.descriptor<ComponentRuntimeCache::Types>().values;
+    values.clear();
+    for (const auto& [name, value] : result) {
+        values.emplace(name, cache.store(value));
+    }
+    cache.complete();
+}
+
+void loadComponentFieldMap(ComponentRuntimeCache::Lease& cache,
+                           const RuntimeValue& classValue) {
+    if (cache.initialized()) {
+        return;
+    }
+    ComponentRuntimeCache::Lease types(ComponentRuntimeCache::Kind::Types,
+                                       classValue);
+    loadComponentTypes(types, classValue);
+    auto& result = cache.descriptor<ComponentRuntimeCache::FieldMap>().values;
+    result.clear();
+    for (const auto& [componentName, typeSlot] :
+         types.descriptor<ComponentRuntimeCache::Types>().values) {
+        for (const std::string& fieldName :
+             componentFieldNames(types.value(typeSlot))) {
+            result[fieldName] = componentName;
+        }
+    }
+    cache.complete();
+}
 }  // namespace
 
 RuntimeValue cloneComponentValue(const RuntimeValue& value,
@@ -431,45 +454,25 @@ RuntimeValue::Map getComponentTypes(const RuntimeValue& classValue) {
     if (runtimeKind(classValue) != "table") {
         return {};
     }
-    const RuntimeValue cached = componentRuntimeCache().get(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::Types, classValue);
-    if (std::optional<RuntimeMapView> types = RuntimeValueView(cached).map()) {
-        return types->toMap();
-    }
+    ComponentRuntimeCache::Lease cache(ComponentRuntimeCache::Kind::Types,
+                                       classValue);
+    loadComponentTypes(cache, classValue);
     RuntimeValue::Map result;
-    RuntimeValue::Array mro = runtimeMro(classValue);
-    for (auto iterator = mro.rbegin(); iterator != mro.rend(); ++iterator) {
-        const RuntimeValue declared =
-            runtimeGet(*iterator, "_componentTypes", true);
-        for (auto& [name, componentType] : runtimeStringMap(declared)) {
-            if (isComponentType(componentType)) {
-                result[name] = std::move(componentType);
-            }
-        }
+    for (const auto& [name, slot] :
+         cache.descriptor<ComponentRuntimeCache::Types>().values) {
+        result.emplace(name, cache.value(slot));
     }
-    for (const detail::ComponentTypeReference& reference :
-         detail::componentTypeReferences(classValue)) {
-        RuntimeValue componentType = typedDataService().resolveMetadataType(
-            reference.type, reference.module);
-        if (isComponentType(componentType)) {
-            result[reference.name] = std::move(componentType);
-        }
-    }
-    componentRuntimeCache().set(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::Types, classValue,
-        RuntimeValue(result));
     return result;
 }
 
 RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
-    const RuntimeHandle defaults = ludork::runtime::reference::intern(
-        componentFieldDefaults(componentType));
+    ComponentRuntimeCache::Lease cache(
+        ComponentRuntimeCache::Kind::FieldDefaults, componentType);
+    loadComponentFieldDefaults(cache, componentType);
     RuntimeValue::Map result;
-    for (const auto& [key, packed] :
-         ludork::runtime::reference::entries(defaults)) {
-        const std::string name =
-            ludork::runtime::reference::as<std::string>(key);
-        const RuntimeValue value = cachedComponentFieldValue(packed, name);
+    for (const auto& [name, slot] :
+         cache.descriptor<ComponentRuntimeCache::FieldDefaults>().values) {
+        const RuntimeValue value = cache.value(slot);
         result.emplace(name, cloneComponentRuntimeValue(value));
     }
     return result;
@@ -477,28 +480,10 @@ RuntimeValue::Map getComponentFieldDefaults(const RuntimeValue& componentType) {
 
 std::unordered_map<std::string, std::string> getComponentFieldMap(
     const RuntimeValue& classValue) {
-    const RuntimeValue cached = componentRuntimeCache().get(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldMap, classValue);
-    if (RuntimeValueView(cached).map().has_value()) {
-        return componentFieldMapFromValue(cached);
-    }
-    std::unordered_map<std::string, std::string> result;
-    for (const auto& [componentName, componentType] :
-         getComponentTypes(classValue)) {
-        for (const std::string& fieldName :
-             componentFieldNames(componentType)) {
-            result[fieldName] = componentName;
-        }
-    }
-    RuntimeValue::Map cachedMap;
-    cachedMap.reserve(result.size());
-    for (const auto& [fieldName, componentName] : result) {
-        cachedMap.emplace(fieldName, RuntimeValue(componentName));
-    }
-    componentRuntimeCache().set(
-        ComponentRuntimeCache::ComponentRuntimeCacheKind::FieldMap, classValue,
-        RuntimeValue(std::move(cachedMap)));
-    return result;
+    ComponentRuntimeCache::Lease cache(ComponentRuntimeCache::Kind::FieldMap,
+                                       classValue);
+    loadComponentFieldMap(cache, classValue);
+    return cache.descriptor<ComponentRuntimeCache::FieldMap>().values;
 }
 
 RuntimeValue componentFromData(const RuntimeValue& componentType,
@@ -507,13 +492,12 @@ RuntimeValue componentFromData(const RuntimeValue& componentType,
     const bool runtimeSource = runtimeIsInstance(source, componentType);
     const bool hasSourceFields =
         runtimeSource || runtimeKind(source) == "table";
-    const RuntimeHandle defaults = ludork::runtime::reference::intern(
-        componentFieldDefaults(componentType));
+    ComponentRuntimeCache::Lease defaults(
+        ComponentRuntimeCache::Kind::FieldDefaults, componentType);
+    loadComponentFieldDefaults(defaults, componentType);
     RuntimeValue::Map values;
-    for (const auto& [key, packed] :
-         ludork::runtime::reference::entries(defaults)) {
-        const std::string name =
-            ludork::runtime::reference::as<std::string>(key);
+    for (const auto& [name, slot] :
+         defaults.descriptor<ComponentRuntimeCache::FieldDefaults>().values) {
         const RuntimeValue supplied =
             hasSourceFields ? runtimeGet(source, name) : RuntimeValue();
         if (runtimeSource || !supplied.isNil()) {
@@ -523,8 +507,7 @@ RuntimeValue componentFromData(const RuntimeValue& componentType,
                                      : cloneComponentFieldValue(
                                            componentType, name, supplied));
         } else {
-            const RuntimeValue defaultValue =
-                cachedComponentFieldValue(packed, name);
+            const RuntimeValue defaultValue = defaults.value(slot);
             values.emplace(name, cloneComponentRuntimeValue(defaultValue));
         }
     }
@@ -624,23 +607,30 @@ bool isBlankComponentValue(const RuntimeValue& value) {
 
 void mergeComponentDefaults(const RuntimeValue& object) {
     const RuntimeValue objectType = runtimeType(object);
-    const RuntimeValue::Map componentTypes = getComponentTypes(objectType);
-    mergeComponentDefaultsImpl(object, objectType, componentTypes);
+    ComponentRuntimeCache::Lease types(ComponentRuntimeCache::Kind::Types,
+                                       objectType);
+    loadComponentTypes(types, objectType);
+    mergeComponentDefaultsImpl(object, objectType, types);
 }
 
 void normaliseInstanceComponents(const RuntimeValue& object) {
     const RuntimeValue objectType = runtimeType(object);
-    const RuntimeValue::Map componentTypes = getComponentTypes(objectType);
-    normaliseInstanceComponentsImpl(object, objectType, componentTypes);
+    ComponentRuntimeCache::Lease types(ComponentRuntimeCache::Kind::Types,
+                                       objectType);
+    loadComponentTypes(types, objectType);
+    normaliseInstanceComponentsImpl(object, objectType, types);
 }
 
 RuntimeValue::Array attachInstanceComponents(const RuntimeValue& object) {
     const RuntimeValue objectType = runtimeType(object);
-    const RuntimeValue::Map componentTypes = getComponentTypes(objectType);
-    normaliseInstanceComponentsImpl(object, objectType, componentTypes);
+    ComponentRuntimeCache::Lease types(ComponentRuntimeCache::Kind::Types,
+                                       objectType);
+    loadComponentTypes(types, objectType);
+    normaliseInstanceComponentsImpl(object, objectType, types);
     RuntimeValue::Array spawned;
     const RuntimeValue componentBase = resolveRuntimeType("Component");
-    for (const auto& [componentName, _] : componentTypes) {
+    for (const auto& [componentName, slot] :
+         types.descriptor<ComponentRuntimeCache::Types>().values) {
         const RuntimeValue component = runtimeGet(object, componentName);
         if (!runtimeIsInstance(component, componentBase)) {
             continue;

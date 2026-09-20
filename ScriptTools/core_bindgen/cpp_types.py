@@ -480,6 +480,12 @@ def is_std_function(context: GeneratorContext, value: str) -> bool:
     return parse_cpp_type(context, value).name == "std::function"
 
 
+def is_function_type(context: GeneratorContext, value: str) -> bool:
+    return parse_cpp_type(context, value).name in {
+        "std::function", "ludork::runtime::StrictFunction"
+    }
+
+
 def is_shared_pointer(context: GeneratorContext, value: str) -> bool:
     return parse_cpp_type(context, value).name == "std::shared_ptr"
 

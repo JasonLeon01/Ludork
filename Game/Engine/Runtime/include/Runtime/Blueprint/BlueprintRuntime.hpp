@@ -5,11 +5,21 @@
 
 #include <functional>
 #include <string>
+#include <vector>
+
+class Graph;
+class RuntimeObject;
 
 class LUDORK_RUNTIME_API BlueprintRuntimeFacade {
 public:
-    void setObjectGraphResolver(
-        std::function<RuntimeValue(const RuntimeValue&)> resolver) const;
+    struct EventArgument {
+        std::string name;
+        RuntimeValue value;
+    };
+
+    void setObjectGraphResolver(std::function<std::shared_ptr<Graph>(
+                                    const std::shared_ptr<RuntimeObject>&)>
+                                    resolver) const;
     void validateEvent(const RuntimeValue& object,
                        const std::string& eventName) const;
     void dispatchEvent(const RuntimeValue& object,
@@ -17,11 +27,15 @@ public:
                        const std::string& eventName,
                        const RuntimeValue& keywordArguments,
                        const RuntimeIdentityPtr& onComplete) const;
+    void dispatchEventArguments(
+        const std::shared_ptr<RuntimeObject>& object,
+        const std::string& eventName,
+        const std::vector<EventArgument>& arguments) const;
     bool hasEvent(const RuntimeValue& object,
                   const std::string& eventName) const;
     bool classHasEvent(const RuntimeIdentityPtr& classType,
                        const std::string& eventName) const;
-    bool graphHasExecutableEvent(const RuntimeIdentityPtr& graph,
+    bool graphHasExecutableEvent(const std::shared_ptr<Graph>& graph,
                                  const std::string& eventName) const;
     bool graphDataHasExecutableEvent(const RuntimeValue& graphData,
                                      const std::string& eventName) const;
@@ -32,7 +46,7 @@ public:
                             const RuntimeValue& keywordArguments,
                             const RuntimeIdentityPtr& localGraph,
                             const RuntimeIdentityPtr& onComplete) const;
-    bool executeGraph(const RuntimeIdentityPtr& graph,
+    bool executeGraph(const std::shared_ptr<Graph>& graph,
                       const std::string& eventName,
                       const RuntimeValue& keywordArguments,
                       const RuntimeIdentityPtr& localGraph,

@@ -8,7 +8,7 @@
 #include "NodeGraph/NodeGraphRuntime/NodeGraphRuntimeInternal.hpp"
 
 #include <Runtime/NodeGraph/LatentManager.hpp>
-#include <Runtime/RuntimeProviders.hpp>
+#include <Runtime/RuntimeProviderFacade.hpp>
 
 #include <stdexcept>
 

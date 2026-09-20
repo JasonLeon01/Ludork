@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Runtime/RuntimeReference.hpp>
+#include "ClassRuntimeRecords.hpp"
 
 #include <Runtime/RuntimeValue.hpp>
 
@@ -11,8 +12,6 @@
 
 namespace ludork::runtime::class_runtime_detail {
 
-using namespace ludork::runtime::reference;
-
 void initializeClassRuntime(lua_State* state);
 void shutdownClassRuntime(lua_State* state) noexcept;
 
@@ -20,13 +19,15 @@ inline constexpr const char* CLASS_RESOLVER_STATE_KEY =
     "Ludork.Runtime.classResolverState";
 
 RuntimeHandle requireModuleTable(const std::string& moduleName);
-RuntimeHandle resolverState();
-RuntimeValue compileGraphTemplate(const RuntimeValue& data,
-                                  const RuntimeValue& classType);
+ClassRuntimeState& resolverState();
+ClassRuntimeState* existingResolverState(lua_State* state) noexcept;
+void clearResolverState(lua_State* state) noexcept;
+std::shared_ptr<Graph> compileGraphTemplate(const RuntimeValue& data,
+                                            const RuntimeValue& classType);
 bool classGraphHasExecutableEvent(const std::string& classPath,
                                   const std::string& eventName);
-RuntimeValue instantiateClassGraph(const std::string& classPath,
-                                   const RuntimeValue& parent);
+std::shared_ptr<Graph> instantiateClassGraph(const std::string& classPath,
+                                             const RuntimeValue& parent);
 std::string declaringModule(const RuntimeValue& value);
 RuntimeValue cloneMetadataValue(const RuntimeValue& value,
                                 const RuntimeValue& fieldMetadata,
@@ -37,7 +38,12 @@ RuntimeValue cloneAttrValue(const RuntimeValue& parentClass,
                             const RuntimeValue& rawMetadata,
                             const RuntimeValue& rawTargetType,
                             bool stored = true);
-RuntimeValue configReferences(const RuntimeValue& owner);
+std::vector<ClassRuntimeState::ClassRecord::ConfigReference> configReferences(
+    const RuntimeValue& owner);
+ClassRuntimeState::ClassRecord::InstanceAttributePlan compileAttributePlan(
+    const std::string& name, const RuntimeValue& value,
+    const RuntimeValue& parentClass, const RuntimeValue& fieldMetadata,
+    const RuntimeValue& targetType, bool copyOnly);
 std::string normalizeScriptMixinPath(const std::string& value);
 RuntimeValue loadScriptMixin(const std::string& classPath,
                              const std::string& scriptPath);
@@ -52,8 +58,10 @@ void mergeScriptMixin(const RuntimeValue& parentClass,
                       const RuntimeValue& mixin, RuntimeValue definition,
                       RuntimeValue instanceAttrs, const std::string& classPath,
                       const std::string& scriptPath);
-void applyConfigValues(const RuntimeValue& parentClass, RuntimeValue classAttrs,
-                       const RuntimeValue& references);
+void applyConfigValues(
+    const RuntimeValue& parentClass, RuntimeValue classAttrs,
+    const std::vector<ClassRuntimeState::ClassRecord::ConfigReference>&
+        references);
 void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
                                  const RuntimeValue& self,
                                  const RuntimeValue::Array& arguments);

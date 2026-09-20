@@ -161,6 +161,9 @@ function Controller:onSlotsReady()
     self._lastSlotIndex = self._slotWindow.index
     self:_applyLatestSlot()
     self._detailWindow:setSlot(self._slotWindow.index)
+    if self._opening and self._transition:isOpen() then
+        self._slotWindow:requestKeyboardFocusAtCursor()
+    end
 end
 
 function Controller:_applyLatestSlot()

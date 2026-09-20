@@ -44,15 +44,6 @@ void invokeCompletion(const std::function<void()>& callback) {
     }
 }
 
-bool hasBlueprintEvent(const RuntimeValue& object,
-                       const std::string& eventName);
-
-void dispatchBlueprintEvent(const RuntimeValue& object,
-                            const RuntimeValue& rawObjectType,
-                            const std::string& eventName,
-                            const RuntimeValue& rawKeywordArguments,
-                            const std::function<void()>& onComplete);
-
 void validateBlueprintEvent(const RuntimeValue& object,
                             const std::string& eventName) {
     if (object.isNil()) {
@@ -66,7 +57,7 @@ void validateBlueprintEvent(const RuntimeValue& object,
 
 void invokeBlueprintEvent(const RuntimeValue& object,
                           const std::string& eventName) {
-    dispatchBlueprintEvent(object, classType(object), eventName, table(), {});
+    dispatchBlueprintEvent(object, classType(object), eventName, {}, {});
 }
 
 bool classHasBlueprintEvent(const RuntimeValue& rawClass,
@@ -105,7 +96,9 @@ bool classHasBlueprintEvent(const RuntimeValue& rawClass,
     }
     const RuntimeValue graph =
         rawGet(ludork::runtime::reference::intern(classType), "_graph");
-    if (blueprintGraphHasExecutableEvent(graph, eventName)) {
+    if (blueprintGraphHasExecutableEvent(
+            graph.isNil() ? nullptr : requireBlueprintGraph(graph),
+            eventName)) {
         return true;
     }
     const RuntimeValue method =
@@ -131,8 +124,8 @@ bool hasBlueprintEvent(const RuntimeValue& object,
             get(ludork::runtime::reference::intern(rawClass), "scriptMixin")) &&
         as<bool>(
             get(ludork::runtime::reference::intern(rawClass), "scriptMixin"));
-    const RuntimeValue actorGraph =
-        !scriptMixin ? objectGraph(object) : RuntimeValue();
+    const std::shared_ptr<Graph> actorGraph =
+        !scriptMixin ? objectGraph(object) : nullptr;
     if (blueprintGraphHasExecutableEvent(actorGraph, eventName)) {
         return true;
     }
@@ -149,7 +142,7 @@ bool executeParentBlueprintEvent(const RuntimeValue& object,
                                  const RuntimeValue& rawClass,
                                  const std::string& eventName,
                                  const RuntimeValue& arguments,
-                                 const RuntimeValue& keywordArguments,
+                                 const EventArguments& keywordArguments,
                                  const RuntimeValue& localGraph,
                                  const std::function<void()>& onComplete) {
     if (!isTable(rawClass)) {
@@ -162,14 +155,15 @@ bool executeParentBlueprintEvent(const RuntimeValue& object,
         return false;
     }
     const RuntimeValue parent = rawParent;
-    RuntimeValue eventArguments = blueprintEventKeywordArguments(
-        parent, eventName, arguments, keywordArguments);
+    EventArguments eventArguments =
+        blueprintEventArguments(parent, eventName, arguments, keywordArguments);
     mergeBlueprintLocalArguments(parent, eventName, eventArguments, localGraph);
     if (boolean(rawGet(ludork::runtime::reference::intern(parent),
                        "_GENERATED_CLASS"))) {
         if (generatedBlueprintGraphHasExecutableEvent(parent, eventName)) {
-            const RuntimeValue graph = generatedBlueprintGraph(object, parent);
-            if (!graph.isNil()) {
+            const std::shared_ptr<Graph> graph =
+                generatedBlueprintGraph(object, parent);
+            if (graph != nullptr) {
                 if (!executeBlueprintGraph(graph, eventName, eventArguments,
                                            localGraph, onComplete)) {
                     invokeCompletion(onComplete);
@@ -182,10 +176,11 @@ bool executeParentBlueprintEvent(const RuntimeValue& object,
                                            localGraph, onComplete);
     }
 
-    const RuntimeValue graph =
-        get(ludork::runtime::reference::intern(parent), "_graph");
-    if (!graph.isNil() && requireBlueprintGraph(graph)->hasKey(eventName)) {
-        if (requireBlueprintGraph(graph)->startNodes.contains(eventName)) {
+    const RuntimeValue rawGraph = get(intern(parent), "_graph");
+    const std::shared_ptr<Graph> graph =
+        rawGraph.isNil() ? nullptr : requireBlueprintGraph(rawGraph);
+    if (graph != nullptr && graph->hasKey(eventName)) {
+        if (graph->startNodes.contains(eventName)) {
             if (!executeBlueprintGraph(graph, eventName, eventArguments,
                                        localGraph, onComplete)) {
                 invokeCompletion(onComplete);
@@ -212,8 +207,9 @@ bool executeParentBlueprintEvent(const RuntimeValue& object,
 void dispatchBlueprintEvent(const RuntimeValue& object,
                             const RuntimeValue& rawObjectType,
                             const std::string& eventName,
-                            const RuntimeValue& rawKeywordArguments,
-                            const std::function<void()>& onComplete) {
+                            const EventArguments& keywordArguments,
+                            const std::function<void()>& onComplete,
+                            const RuntimeHandle& keywordSource) {
     const RuntimeValue isDestroyed =
         get(ludork::runtime::reference::intern(object), "isDestroyed");
     if (isFunction(isDestroyed) &&
@@ -227,8 +223,6 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
         invokeCompletion(onComplete);
         return;
     }
-    const RuntimeValue keywordArguments =
-        isTable(rawKeywordArguments) ? intern(rawKeywordArguments) : table();
     const RuntimeValue rawClass = classType(object);
     const bool scriptMixin =
         isTable(rawClass) &&
@@ -240,18 +234,18 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
         const RuntimeValue method =
             get(ludork::runtime::reference::intern(object), eventName);
         invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                                 keywordArguments);
+                                 keywordArguments, keywordSource);
         invokeCompletion(onComplete);
         return;
     }
-    const RuntimeValue graph = objectGraph(object);
+    const std::shared_ptr<Graph> graph = objectGraph(object);
     const bool generated =
         isTable(rawClass) &&
         boolean(rawGet(ludork::runtime::reference::intern(rawClass),
                        "_GENERATED_CLASS"));
-    if (generated && !graph.isNil()) {
-        if (requireBlueprintGraph(graph)->hasKey(eventName)) {
-            if (requireBlueprintGraph(graph)->startNodes.contains(eventName)) {
+    if (generated && graph != nullptr) {
+        if (graph->hasKey(eventName)) {
+            if (graph->startNodes.contains(eventName)) {
                 if (!executeBlueprintGraph(graph, eventName, keywordArguments,
                                            RuntimeValue(), onComplete)) {
                     invokeCompletion(onComplete);
@@ -267,14 +261,14 @@ void dispatchBlueprintEvent(const RuntimeValue& object,
         const RuntimeValue method =
             get(ludork::runtime::reference::intern(object), eventName);
         invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                                 keywordArguments);
+                                 keywordArguments, keywordSource);
         invokeCompletion(onComplete);
         return;
     }
     const RuntimeValue method =
         get(ludork::runtime::reference::intern(object), eventName);
     invokeNamedRuntimeMethod(object, method, rawClass, eventName,
-                             keywordArguments);
+                             keywordArguments, keywordSource);
     invokeCompletion(onComplete);
 }
 

@@ -230,6 +230,15 @@ int AbilitySystemComponent::getRevision() const {
 void AbilitySystemComponent::onAttributeWrite(const std::string& name,
                                               const RuntimeValue& oldValue,
                                               const RuntimeValue& newValue) {
-    ludork::global::ability_system_impl::onAttributeWrite(impl_->state, name,
-                                                          oldValue, newValue);
+    if (impl_->state.internalAttributeWrite) {
+        return;
+    }
+    ludork::global::ability_system_impl::requireNumericAttribute(impl_->state,
+                                                                 name);
+    static_cast<void>(ludork::global::ability_system_impl::validateNumeric(
+        impl_->state, name, newValue, "Numeric attribute assignment"));
+    ludork::global::ability_system_impl::onAttributeWrite(
+        impl_->state, name,
+        ludork::global::ability_system_impl::attributeNumber(oldValue),
+        ludork::global::ability_system_impl::attributeNumber(newValue));
 }

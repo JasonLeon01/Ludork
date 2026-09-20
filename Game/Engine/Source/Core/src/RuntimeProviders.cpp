@@ -1,12 +1,15 @@
-#include <Runtime/RuntimeProviders.hpp>
+#include <RuntimeProviders.hpp>
 
-#include "RuntimeProviderInternals.hpp"
+#include <EngineDataProviders.hpp>
+#include <Runtime/RuntimeProviderFacade.hpp>
+
+#include <utility>
 
 void RuntimeProviders::installData(
-    const RuntimeIdentityPtr& curveResolver,
-    const RuntimeIdentityPtr& plainTextConfigResolver) {
-    ludork::runtime::detail::installDataRuntimeProviders(
-        curveResolver, plainTextConfigResolver);
+    EngineDataProviders::CurveResolver curveResolver,
+    EngineDataProviders::TextConfigResolver plainTextConfigResolver) {
+    EngineDataProviders::install(std::move(curveResolver),
+                                 std::move(plainTextConfigResolver));
 }
 
 void RuntimeProviders::installBlueprint(

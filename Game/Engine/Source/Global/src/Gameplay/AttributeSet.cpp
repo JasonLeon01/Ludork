@@ -131,15 +131,16 @@ std::optional<AttributeSet::AttributeSchema> AttributeSet::getAttributeSchema(
                : std::optional<AttributeSchema>(iterator->second);
 }
 
-RuntimeValue AttributeSet::getAttributeValue(const std::string& name) const {
-    return runtimeReflection().get(
+GameplayNumber AttributeSet::getNumericAttributeValue(
+    const std::string& name) const {
+    return runtimeReflection().getNumber(
         ludork::runtime::reference::intern(selfValue()), name);
 }
 
-void AttributeSet::setAttributeValue(const std::string& name,
-                                     const RuntimeValue& value) {
-    runtimeReflection().set(ludork::runtime::reference::intern(selfValue()),
-                            name, value);
+void AttributeSet::setNumericAttributeValue(const std::string& name,
+                                            const GameplayNumber& value) {
+    runtimeReflection().setNumber(
+        ludork::runtime::reference::intern(selfValue()), name, value);
 }
 
 std::optional<AttributeSet::NumericType> AttributeSet::getNumericAttributeType(

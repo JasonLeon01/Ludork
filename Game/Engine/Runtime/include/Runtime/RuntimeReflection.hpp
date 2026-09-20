@@ -2,6 +2,7 @@
 
 #include <RuntimeApi.hpp>
 #include <Runtime/RuntimeValue.hpp>
+#include <Runtime/RuntimeNumber.hpp>
 
 #include <string>
 #include <vector>
@@ -30,6 +31,10 @@ public:
              const RuntimeValue& member) const;
     void setTyped(const RuntimeHandle& value, const std::string& name,
                   const RuntimeValue& member) const;
+    RuntimeNumber getNumber(const RuntimeHandle& value,
+                            const std::string& name) const;
+    void setNumber(const RuntimeHandle& value, const std::string& name,
+                   const RuntimeNumber& member) const;
     std::string toString(const RuntimeValue& value) const;
     RuntimeValue construct(const RuntimeHandle& classType,
                            const RuntimeValue::Array& arguments = {}) const;

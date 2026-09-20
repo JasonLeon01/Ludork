@@ -29,7 +29,7 @@ bool BPBase::ClassHasBlueprintEvent(const RuntimeIdentityPtr& classType,
     return blueprintRuntime().classHasEvent(classType, eventName);
 }
 
-bool BPBase::GraphHasExecutableEvent(const RuntimeIdentityPtr& graph,
+bool BPBase::GraphHasExecutableEvent(const std::shared_ptr<Graph>& graph,
                                      const std::string& eventName) {
     return blueprintRuntime().graphHasExecutableEvent(graph, eventName);
 }
@@ -51,7 +51,7 @@ bool BPBase::ExecuteParentEvent(const RuntimeIdentityPtr& object,
         RuntimeValue(keywordArguments), localGraph, onComplete);
 }
 
-bool BPBase::ExecuteGraph(const RuntimeIdentityPtr& graph,
+bool BPBase::ExecuteGraph(const std::shared_ptr<Graph>& graph,
                           const std::string& eventName,
                           const RuntimeIdentityPtr& keywordArguments,
                           const RuntimeIdentityPtr& localGraph,

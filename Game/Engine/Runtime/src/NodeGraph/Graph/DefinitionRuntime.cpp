@@ -38,7 +38,7 @@ const DataNode& requireCompiledDataNode(
     if (dataNode == nullptr) {
         throw std::runtime_error("Graph contains a nil DataNode");
     }
-    if (dataNode->getResolvedDefinition().isNil()) {
+    if (dataNode->getDefinition() == nullptr) {
         throw std::runtime_error("DataNode '" + dataNode->nodeFunction +
                                  "' is not compiled");
     }

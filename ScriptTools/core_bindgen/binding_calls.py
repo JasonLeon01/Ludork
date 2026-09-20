@@ -24,7 +24,7 @@ from .cpp_types import (
     is_multiple_return,
     is_shared_pointer,
     is_static_method,
-    is_std_function,
+    is_function_type,
     option_list,
     parameter_declarations,
     parameter_default,
@@ -256,7 +256,7 @@ def parameter_plan(
             f"{value_type} {name}",
             name,
         )
-    if is_std_function(context, value_type):
+    if is_function_type(context, value_type):
         return ParameterPlan(
             f"{lua_argument} {name}",
             f"{name}.value()",
@@ -363,7 +363,7 @@ def callable_lambda(
             return_type != "void"
             and (
                 is_data_type(context, return_type)
-                or is_std_function(context, return_type)
+                or is_function_type(context, return_type)
                 or is_shared_pointer(context, return_type)
                 or is_bound_pointer(context, return_type)
                 or (
@@ -589,6 +589,7 @@ def property_registration(
         return f'lua_glue::BindProperty({target}, "{member.name}", {getter}, {setter});'
     if (
         not is_data_type(context, value_type)
+        and not is_function_type(context, value_type)
         and not is_shared_pointer(context, value_type)
         and not is_bound_pointer(context, value_type)
     ):

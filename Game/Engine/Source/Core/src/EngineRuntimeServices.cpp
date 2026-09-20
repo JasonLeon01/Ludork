@@ -14,12 +14,44 @@
 
 namespace {
 
-RuntimeValue actorGraph(const RuntimeValue& object) {
-    const std::shared_ptr<Actor> actor =
-        ludork::Cast<Actor>(ludork::runtime::reference::object(object));
-    const std::shared_ptr<Graph> graph =
-        actor == nullptr ? nullptr : actor->getGraph();
-    return graph == nullptr ? RuntimeValue() : RuntimeValue(graph);
+std::shared_ptr<Graph> actorGraph(
+    const std::shared_ptr<RuntimeObject>& object) {
+    const std::shared_ptr<Actor> actor = ludork::Cast<Actor>(object);
+    return actor == nullptr ? nullptr : actor->getGraph();
+}
+
+std::shared_ptr<RuntimeObject> actorOwner(Actor& actor) {
+    std::shared_ptr<RuntimeObject> owner = actor.runtimeOwner();
+    return owner != nullptr ? owner : actor.weak_from_this().lock();
+}
+
+void dispatchActorTimeEvent(Actor& actor, const char* eventName,
+                            const char* parameterName, float value) {
+    const std::shared_ptr<RuntimeObject> owner = actorOwner(actor);
+    if (owner != nullptr) {
+        blueprintRuntime().dispatchEventArguments(
+            owner, eventName, {{parameterName, RuntimeValue(value)}});
+    }
+}
+
+void dispatchActorContactEvent(Actor& actor, const char* eventName,
+                               const std::vector<Actor*>& others) {
+    const std::shared_ptr<RuntimeObject> owner = actorOwner(actor);
+    if (owner == nullptr) {
+        return;
+    }
+    RuntimeValue::Array values;
+    values.reserve(others.size());
+    for (Actor* other : others) {
+        if (other != nullptr) {
+            if (std::shared_ptr<RuntimeObject> otherOwner =
+                    actorOwner(*other)) {
+                values.emplace_back(std::move(otherOwner));
+            }
+        }
+    }
+    blueprintRuntime().dispatchEventArguments(
+        owner, eventName, {{"other", RuntimeValue(std::move(values))}});
 }
 
 }  // namespace
@@ -80,4 +112,24 @@ void shutdownEngineRuntimeServices(lua_State* state) noexcept {
     EventBus::setBlueprintEventValidator({});
     EventBus::setBlueprintEventInvoker({});
     inputService().setFrameCompletionCallback({});
+}
+
+void dispatchActorTick(Actor& actor, float deltaTime) {
+    dispatchActorTimeEvent(actor, "onTick", "deltaTime", deltaTime);
+}
+
+void dispatchActorLateTick(Actor& actor, float deltaTime) {
+    dispatchActorTimeEvent(actor, "onLateTick", "deltaTime", deltaTime);
+}
+
+void dispatchActorFixedTick(Actor& actor, float fixedDelta) {
+    dispatchActorTimeEvent(actor, "onFixedTick", "fixedDelta", fixedDelta);
+}
+
+void dispatchActorCollision(Actor& actor, const std::vector<Actor*>& others) {
+    dispatchActorContactEvent(actor, "onCollision", others);
+}
+
+void dispatchActorOverlap(Actor& actor, const std::vector<Actor*>& others) {
+    dispatchActorContactEvent(actor, "onOverlap", others);
 }

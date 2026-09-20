@@ -1,6 +1,6 @@
 # Ludork native runtime library
 
-`Game/Engine/Runtime` is the native foundation shared by Core modules and the editor preview host. It owns `RuntimeData`, `RuntimeHandle`, `RuntimeValue`, VM sessions, reflection, metadata and binding services. Blueprint class generation, Script Mixins, graph execution, latent scheduling, component data, typed-value conversion and JSON also live here.
+`Game/Engine/Runtime` is the native foundation shared by Core modules and the editor preview host. It owns `RuntimeData`, `RuntimeHandle`, `RuntimeValue`, VM sessions, reflection, metadata and binding services. Blueprint class generation, Script Mixins, graph execution, latent scheduling, component data, typed-value conversion and JSON also live here. Compiled node definitions, ordered parameter schemas, generated-class initialization plans and weak component/event descriptors use native records; open script values remain dynamic. Engine owns the RuntimeProviders Lua facade and its typed data providers, delegating Blueprint and config providers to Runtime.
 
 The CMake target is `LudorkRuntime`, exposed as `Ludork::Runtime`. Desktop builds produce a shared `LudorkRuntime` library; iOS, HarmonyOS and Android use the same sources as a static library.
 

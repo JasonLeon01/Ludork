@@ -112,6 +112,8 @@ int runRuntime(const std::filesystem::path& executablePath, int argc,
 
     luaL_openlibs(state);
     if (LuaSF_initialize_state(state) != 0 || LuaSF_register(state) != 0) {
+        LuaSF_quiesce_state(state);
+        LuaSF_shutdown_state(state);
         lua_close(state);
         reportStartupError("Unable to initialize the Lua runtime state.");
         return 1;

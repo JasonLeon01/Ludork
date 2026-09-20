@@ -10,7 +10,6 @@
 
 #include <Runtime/Components/ComponentRuntime.hpp>
 #include <Runtime/RuntimeValue.hpp>
-#include <Runtime/RuntimeProviders.hpp>
 #include <Runtime/RuntimeSession.hpp>
 #include <Runtime/TypedDataService.hpp>
 #include <Runtime/Json.hpp>
@@ -26,6 +25,11 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <new>
+
+extern "C" {
+#include <lauxlib.h>
+}
 
 namespace ludork::runtime::class_runtime_detail {
 
@@ -40,30 +44,18 @@ RuntimeHandle requireModuleTable(const std::string& moduleName) {
     return intern(module);
 }
 
-RuntimeHandle resolverState() {
-    RuntimeHandle registry = ludork::runtime::reference::registry();
-    const RuntimeValue existing = rawGet(registry, CLASS_RESOLVER_STATE_KEY);
-    if (isTable(existing)) {
-        return intern(existing);
-    }
-    RuntimeHandle state = table();
-    RuntimeHandle classes = table();
-    rawSet(state, "classes", classes);
-    rawSet(state, "classData", table());
-    rawSet(state, "records", table());
-    rawSet(state, "classNames", table());
-    RuntimeHandle configReferenceCache = table();
-    RuntimeHandle configReferenceCacheMetatable = table();
-    rawSet(configReferenceCacheMetatable, "__mode", "k");
-    setMetatable(configReferenceCache, configReferenceCacheMetatable);
-    rawSet(state, "configReferences", configReferenceCache);
-    rawSet(registry, CLASS_RESOLVER_STATE_KEY, state);
-    return state;
-}
-
 namespace {
 
-void indexClassPath(const RuntimeHandle& state, const std::string& classPath,
+constexpr const char* resolverMetatable = "Ludork.Runtime.ClassRuntimeState";
+
+int destroyResolver(lua_State* state) {
+    auto* storage = static_cast<std::unique_ptr<ClassRuntimeState>*>(
+        luaL_checkudata(state, 1, resolverMetatable));
+    storage->~unique_ptr();
+    return 0;
+}
+
+void indexClassPath(ClassRuntimeState& state, const std::string& classPath,
                     bool dataBacked) {
     std::string className;
     if (dataBacked) {
@@ -72,10 +64,53 @@ void indexClassPath(const RuntimeHandle& state, const std::string& classPath,
     } else {
         className = classPath.substr(classPath.find_last_of('.') + 1);
     }
-    rawSet(requireTable(rawGet(state, "classNames")), className, classPath);
+    state.classNames.insert_or_assign(std::move(className), classPath);
 }
 
 }  // namespace
+
+ClassRuntimeState* existingResolverState(lua_State* state) noexcept {
+    lua_getfield(state, LUA_REGISTRYINDEX, CLASS_RESOLVER_STATE_KEY);
+    auto* storage = static_cast<std::unique_ptr<ClassRuntimeState>*>(
+        luaL_testudata(state, -1, resolverMetatable));
+    ClassRuntimeState* result = storage == nullptr ? nullptr : storage->get();
+    lua_pop(state, 1);
+    return result;
+}
+
+ClassRuntimeState& resolverState() {
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    if (ClassRuntimeState* existing = existingResolverState(state)) {
+        return *existing;
+    }
+    const RuntimeHandle configReferenceCache = table(WeakMode::Keys);
+    if (luaL_newmetatable(state, resolverMetatable)) {
+        lua_pushcfunction(state, destroyResolver);
+        lua_setfield(state, -2, "__gc");
+    }
+    lua_pop(state, 1);
+    auto* storage = new (
+        lua_newuserdatauv(state, sizeof(std::unique_ptr<ClassRuntimeState>), 0))
+        std::unique_ptr<ClassRuntimeState>(
+            std::make_unique<ClassRuntimeState>());
+    (*storage)->configReferenceCache = configReferenceCache;
+    luaL_setmetatable(state, resolverMetatable);
+    lua_setfield(state, LUA_REGISTRYINDEX, CLASS_RESOLVER_STATE_KEY);
+    return **storage;
+}
+
+void clearResolverState(lua_State* state) noexcept {
+    lua_getfield(state, LUA_REGISTRYINDEX, CLASS_RESOLVER_STATE_KEY);
+    auto* storage = static_cast<std::unique_ptr<ClassRuntimeState>*>(
+        luaL_testudata(state, -1, resolverMetatable));
+    if (storage != nullptr) {
+        storage->reset();
+    }
+    lua_pop(state, 1);
+    lua_pushnil(state);
+    lua_setfield(state, LUA_REGISTRYINDEX, CLASS_RESOLVER_STATE_KEY);
+}
 
 std::optional<std::string> directModuleMetadataType(
     const std::string& moduleName) {
@@ -140,12 +175,11 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         return {RuntimeValue(), RuntimeValue()};
     }
     const std::string classPath = as<std::string>(rawPath);
-    RuntimeHandle state = resolverState();
-    RuntimeHandle classes = requireTable(rawGet(state, "classes"));
-    RuntimeHandle classData = requireTable(rawGet(state, "classData"));
-    const RuntimeValue cached = rawGet(classes, classPath);
-    if (!cached.isNil()) {
-        return {cached, rawGet(classData, classPath)};
+    ClassRuntimeState& state = resolverState();
+    const auto cached = state.records.find(classPath);
+    if (cached != state.records.end()) {
+        return {RuntimeValue(cached->second->classType),
+                cached->second->definition};
     }
 
     const std::size_t separator = classPath.find_last_of('.');
@@ -170,7 +204,9 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
                                       modulePath, className);
         }
         if (!targetClass.isNil()) {
-            rawSet(classes, classPath, targetClass);
+            auto record = std::make_shared<ClassRuntimeState::ClassRecord>();
+            record->classType = intern(targetClass);
+            state.records.emplace(classPath, std::move(record));
             indexClassPath(state, classPath, false);
             return {targetClass, RuntimeValue()};
         }
@@ -190,14 +226,17 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         throw std::runtime_error("Class data must be a table: " + classPath);
     }
     RuntimeValue definitionData = rawData;
-    rawSet(classData, classPath, definitionData);
     const RuntimeValue rawParentPath =
         rawGet(ludork::runtime::reference::intern(definitionData), "parent");
     if (!is<std::string>(rawParentPath)) {
         throw std::runtime_error("Class parent is missing: " + classPath);
     }
     const std::string parentPath = as<std::string>(rawParentPath);
-    RuntimeValue parentClass = rawGet(classes, parentPath);
+    const auto parentEntry = state.records.find(parentPath);
+    RuntimeValue parentClass =
+        parentEntry != state.records.end()
+            ? RuntimeValue(parentEntry->second->classType)
+            : RuntimeValue();
     if (!isTable(parentClass)) {
         parentClass = std::get<0>(resolveClass(rawParentPath, rawRoot));
     }
@@ -250,7 +289,9 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
                                  classPath);
     }
 
-    applyConfigValues(parentClass, classAttrs, configReferences(parentClass));
+    const std::vector<ClassRuntimeState::ClassRecord::ConfigReference>
+        references = configReferences(parentClass);
+    applyConfigValues(parentClass, classAttrs, references);
     RuntimeScope scope;
     lua_glue::StateView lua(scope.state());
     const lua_glue::Object metadataOwner =
@@ -340,37 +381,41 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     RuntimeValue generatedClass = finalizeClass(definition, bases);
     targetClass = generatedClass;
 
-    RuntimeHandle record = table();
-    const RuntimeValue parentRecord =
-        rawGet(requireTable(rawGet(state, "records")), parentPath);
-    rawSet(record, "attrs", instanceAttrs);
-    rawSet(record, "copyAttrs", copyAttrs);
-    rawSet(record, "nilAttrs", nilAttrs);
-    rawSet(record, "parent", parentClass);
-    rawSet(record, "parentRecord", parentRecord);
-    rawSet(record, "metadata", attrMetadata);
-    rawSet(record, "types", attrTypes);
-    rawSet(record, "scriptMixin", scriptMixin);
-    if (isTable(rawMixin)) {
-        rawSet(record, "scriptTable", rawMixin);
-    }
-    if (!normalizedScriptPath.empty()) {
-        rawSet(record, "scriptPath", normalizedScriptPath);
-    }
-    rawSet(record, "parentInit",
-           isTable(parentRecord)
-               ? rawGet(ludork::runtime::reference::intern(parentRecord),
-                        "parentInit")
-               : get(ludork::runtime::reference::intern(parentClass), "init"));
-    if (!scriptMixin) {
-        const RuntimeValue graphTemplate =
-            compileGraphTemplate(definitionData, targetClass);
-        if (!graphTemplate.isNil()) {
-            rawSet(record, "graphTemplate", graphTemplate);
+    auto record = std::make_shared<ClassRuntimeState::ClassRecord>();
+    record->classType = intern(generatedClass);
+    record->definition = definitionData;
+    record->parentClass = intern(parentClass);
+    record->parentRecord = state.records.at(parentPath);
+    record->configReferences = references;
+    for (const auto& [key, value] : entries(instanceAttrs)) {
+        if (is<std::string>(key)) {
+            record->attributes.push_back(compileAttributePlan(
+                as<std::string>(key), value, parentClass,
+                rawGet(intern(attrMetadata), key), rawGet(attrTypes, key),
+                boolean(rawGet(copyAttrs, key))));
         }
     }
-    rawSet(requireTable(rawGet(state, "records")), classPath, record);
-    rawSet(classes, classPath, generatedClass);
+    for (const auto& [key, value] : entries(nilAttrs)) {
+        if (is<std::string>(key)) {
+            record->attributes.push_back({as<std::string>(key),
+                                          RuntimeValue(),
+                                          std::nullopt,
+                                          {},
+                                          RuntimeValue()});
+        }
+    }
+    record->scriptMixin = scriptMixin;
+    record->scriptTable = rawMixin;
+    record->scriptPath = normalizedScriptPath;
+    record->parentInit =
+        !RuntimeValue(record->parentRecord->parentClass).isNil()
+            ? record->parentRecord->parentInit
+            : intern(get(intern(parentClass), "init"));
+    if (!scriptMixin) {
+        record->graphTemplate =
+            compileGraphTemplate(definitionData, targetClass);
+    }
+    state.records.emplace(classPath, std::move(record));
     indexClassPath(state, classPath, true);
     return {generatedClass, definitionData};
 }

@@ -32,10 +32,14 @@ using namespace ludork::runtime::reference;
 using namespace ludork::runtime::node_graph_detail;
 
 std::shared_ptr<Graph> requireBlueprintGraph(const RuntimeValue& graph) {
+    const RuntimeValue::Object* native = graph.getIf<RuntimeValue::Object>();
     const std::shared_ptr<Graph> nativeGraph =
-        kind(graph) == "userdata"
-            ? ludork::Cast<Graph>(ludork::runtime::reference::object(graph))
-            : nullptr;
+        native != nullptr
+            ? ludork::Cast<Graph>(*native)
+            : (kind(graph) == "userdata"
+                   ? ludork::Cast<Graph>(
+                         ludork::runtime::reference::object(graph))
+                   : nullptr);
     if (nativeGraph == nullptr) {
         throw std::invalid_argument("Blueprint graph must be an Engine.Graph");
     }
@@ -74,12 +78,9 @@ std::optional<double> runtimeNumber(const RuntimeValue& value) {
                               : std::nullopt;
 }
 
-bool blueprintGraphHasExecutableEvent(const RuntimeValue& graph,
+bool blueprintGraphHasExecutableEvent(const std::shared_ptr<Graph>& graph,
                                       const std::string& eventName) {
-    if (graph.isNil()) {
-        return false;
-    }
-    return requireBlueprintGraph(graph)->hasExecutableEvent(eventName);
+    return graph != nullptr && graph->hasExecutableEvent(eventName);
 }
 
 bool blueprintGraphDataHasExecutableEvent(const RuntimeValue& graphData,
@@ -126,8 +127,8 @@ bool generatedBlueprintGraphHasExecutableEvent(const RuntimeValue& classType,
         as<std::string>(rawPath), eventName);
 }
 
-RuntimeValue generatedBlueprintGraph(const RuntimeValue& object,
-                                     const RuntimeValue& classType) {
+std::shared_ptr<Graph> generatedBlueprintGraph(const RuntimeValue& object,
+                                               const RuntimeValue& classType) {
     RuntimeValue rawCache =
         get(ludork::runtime::reference::intern(object), "_parentGraphs");
     RuntimeValue cache = isTable(rawCache) ? rawCache : table();
@@ -141,53 +142,53 @@ RuntimeValue generatedBlueprintGraph(const RuntimeValue& object,
             rawGet(ludork::runtime::reference::intern(classType),
                    "__blueprintClassPath");
         if (!is<std::string>(rawPath)) {
-            return RuntimeValue();
+            return nullptr;
         }
-        graph = ludork::runtime::class_runtime_detail::instantiateClassGraph(
-            as<std::string>(rawPath), object);
+        graph = RuntimeValue(
+            ludork::runtime::class_runtime_detail::instantiateClassGraph(
+                as<std::string>(rawPath), object));
         if (!graph.isNil()) {
             rawSet(ludork::runtime::reference::intern(cache), classType, graph);
         }
     }
-    return graph;
+    return graph.isNil() ? nullptr : requireBlueprintGraph(graph);
 }
 
-RuntimeValue blueprintEventKeywordArguments(
-    const RuntimeValue& classType, const std::string& eventName,
-    const RuntimeValue& rawArguments, const RuntimeValue& rawKeywordArguments) {
-    RuntimeHandle result = table();
-    if (isTable(rawKeywordArguments)) {
-        for (const auto& entry :
-             entries(ludork::runtime::reference::intern(rawKeywordArguments))) {
-            rawSet(ludork::runtime::reference::intern(result), entry.first,
-                   entry.second);
-        }
-    }
+EventArguments blueprintEventArguments(const RuntimeValue& classType,
+                                       const std::string& eventName,
+                                       const RuntimeValue& rawArguments,
+                                       const EventArguments& arguments) {
+    EventArguments result = arguments;
     if (!isTable(rawArguments)) {
         return result;
     }
-    const RuntimeHandle arguments = intern(rawArguments);
-    if (length(arguments) == 0) {
+    const RuntimeHandle positional = intern(rawArguments);
+    if (length(positional) == 0) {
         return result;
     }
-    const RuntimeValue method =
-        get(ludork::runtime::reference::intern(classType), eventName);
+    const RuntimeValue method = get(intern(classType), eventName);
     if (!isFunction(method)) {
         return result;
     }
-    const RuntimeHandle names = runtimeDescriptorParameters(
-        runtimeEventDescriptor(method, classType, eventName));
-    const std::size_t count = std::min(length(arguments), length(names));
-    for (std::size_t index = 1; index <= count; ++index) {
-        const RuntimeValue rawName = rawGet(names, index);
-        if (!is<std::string>(rawName)) {
-            continue;
-        }
-        const std::string name = as<std::string>(rawName);
-        if (kind(get(ludork::runtime::reference::intern(result), name)) ==
-            "nil") {
-            set(ludork::runtime::reference::intern(result), name,
-                get(arguments, index));
+    const auto descriptor =
+        runtimeEventDescriptor(method, classType, eventName);
+    const std::size_t count =
+        std::min(length(positional), descriptor->parameters.size());
+    for (std::size_t index = 0; index < count; ++index) {
+        const std::string& name = descriptor->parameters[index];
+        const auto found = std::find_if(
+            result.begin(), result.end(),
+            [&name](const BlueprintRuntimeFacade::EventArgument& argument) {
+                return argument.name == name;
+            });
+        if (found == result.end() || found->value.isNil()) {
+            const RuntimeValue value = get(positional, index + 1);
+            if (found != result.end()) {
+                result.erase(found);
+            }
+            if (!value.isNil()) {
+                result.push_back({name, value});
+            }
         }
     }
     return result;
@@ -195,33 +196,33 @@ RuntimeValue blueprintEventKeywordArguments(
 
 void mergeBlueprintLocalArguments(const RuntimeValue& classType,
                                   const std::string& eventName,
-                                  RuntimeValue keywordArguments,
+                                  EventArguments& arguments,
                                   const RuntimeValue& localGraph) {
     if (!isTable(localGraph)) {
         return;
     }
-    const RuntimeValue method =
-        get(ludork::runtime::reference::intern(classType), eventName);
+    const RuntimeValue method = get(intern(classType), eventName);
     if (!isFunction(method)) {
         return;
     }
-    const RuntimeHandle names = runtimeDescriptorParameters(
-        runtimeEventDescriptor(method, classType, eventName));
-    for (std::size_t index = 1; index <= length(names); ++index) {
-        const RuntimeValue rawName = rawGet(names, index);
-        if (!is<std::string>(rawName)) {
+    const auto descriptor =
+        runtimeEventDescriptor(method, classType, eventName);
+    for (const std::string& name : descriptor->parameters) {
+        const auto found = std::find_if(
+            arguments.begin(), arguments.end(),
+            [&name](const BlueprintRuntimeFacade::EventArgument& argument) {
+                return argument.name == name;
+            });
+        if (found != arguments.end() && !found->value.isNil()) {
             continue;
         }
-        const std::string name = as<std::string>(rawName);
-        if (kind(get(ludork::runtime::reference::intern(keywordArguments),
-                     name)) != "nil") {
-            continue;
-        }
-        const RuntimeValue value = get(
-            ludork::runtime::reference::intern(localGraph), "__" + name + "__");
+        const RuntimeValue value = get(intern(localGraph), "__" + name + "__");
         if (!value.isNil()) {
-            set(ludork::runtime::reference::intern(keywordArguments), name,
-                value);
+            if (found == arguments.end()) {
+                arguments.push_back({name, value});
+            } else {
+                found->value = value;
+            }
         }
     }
 }
@@ -257,12 +258,14 @@ void logBlueprintCompletionFailure(const std::string& eventName,
     }
 }
 
-bool executeBlueprintGraph(const RuntimeValue& graph,
+bool executeBlueprintGraph(const std::shared_ptr<Graph>& nativeGraph,
                            const std::string& eventName,
-                           const RuntimeValue& rawKeywordArguments,
+                           const EventArguments& arguments,
                            const RuntimeValue& localGraph,
                            const std::function<void()>& onComplete) {
-    const std::shared_ptr<Graph> nativeGraph = requireBlueprintGraph(graph);
+    if (nativeGraph == nullptr) {
+        throw std::invalid_argument("Blueprint graph must be an Engine.Graph");
+    }
     if (nativeGraph->getLatentPendingCount(eventName) > 0) {
         return false;
     }
@@ -305,18 +308,12 @@ bool executeBlueprintGraph(const RuntimeValue& graph,
         setNodeGraphContextValue(scope, context, "__graph__",
                                  nativeGraph->getGraphContext());
         contextGraphSet = true;
-        if (isTable(rawKeywordArguments)) {
-            for (const auto& entry : entries(
-                     ludork::runtime::reference::intern(rawKeywordArguments))) {
-                if (!is<std::string>(entry.first)) {
-                    continue;
-                }
-                const std::string name =
-                    "__" + as<std::string>(entry.first) + "__";
-                oldEventParameters.emplace_back(
-                    name, getNodeGraphContextValue(scope, context, name));
-                setNodeGraphContextValue(scope, context, name, entry.second);
-            }
+        for (const BlueprintRuntimeFacade::EventArgument& argument :
+             arguments) {
+            const std::string name = "__" + argument.name + "__";
+            oldEventParameters.emplace_back(
+                name, getNodeGraphContextValue(scope, context, name));
+            setNodeGraphContextValue(scope, context, name, argument.value);
         }
         nativeGraph->execute(eventName);
     } catch (...) {

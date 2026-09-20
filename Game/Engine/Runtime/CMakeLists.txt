@@ -27,9 +27,8 @@ endif()
 
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/MetadataRuntime.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviders.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviderFacade.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviderInternals.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeProviderImpl.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/RuntimeReflection.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeServiceCommon.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaServices/RuntimeServiceInternals.cpp"

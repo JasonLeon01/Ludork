@@ -10,7 +10,8 @@
 using namespace ludork::runtime::reference;
 
 void BlueprintRuntimeFacade::setObjectGraphResolver(
-    std::function<RuntimeValue(const RuntimeValue&)> resolver) const {
+    std::function<std::shared_ptr<Graph>(const std::shared_ptr<RuntimeObject>&)>
+        resolver) const {
     ludork::runtime::RuntimeScope runtime;
     ludork::runtime::blueprint_detail::objectGraphResolver() =
         std::move(resolver);
@@ -29,9 +30,19 @@ void BlueprintRuntimeFacade::dispatchEvent(
     const RuntimeIdentityPtr& onComplete) const {
     ludork::runtime::RuntimeScope runtime;
     ludork::runtime::blueprint_detail::dispatchBlueprintEvent(
-        intern(object), RuntimeValue(objectType), eventName, keywordArguments,
+        intern(object), RuntimeValue(objectType), eventName,
+        ludork::runtime::blueprint_detail::eventArguments(keywordArguments),
         ludork::runtime::blueprint_detail::completionCallback(
-            RuntimeValue(onComplete)));
+            RuntimeValue(onComplete)),
+        isTable(keywordArguments) ? intern(keywordArguments) : RuntimeHandle());
+}
+
+void BlueprintRuntimeFacade::dispatchEventArguments(
+    const std::shared_ptr<RuntimeObject>& object, const std::string& eventName,
+    const std::vector<BlueprintRuntimeFacade::EventArgument>& arguments) const {
+    ludork::runtime::RuntimeScope runtime;
+    ludork::runtime::blueprint_detail::dispatchBlueprintEvent(
+        intern(RuntimeValue(object)), RuntimeValue(), eventName, arguments, {});
 }
 
 bool BlueprintRuntimeFacade::hasEvent(const RuntimeValue& object,
@@ -49,10 +60,10 @@ bool BlueprintRuntimeFacade::classHasEvent(const RuntimeIdentityPtr& classType,
 }
 
 bool BlueprintRuntimeFacade::graphHasExecutableEvent(
-    const RuntimeIdentityPtr& graph, const std::string& eventName) const {
+    const std::shared_ptr<Graph>& graph, const std::string& eventName) const {
     ludork::runtime::RuntimeScope runtime;
     return ludork::runtime::blueprint_detail::blueprintGraphHasExecutableEvent(
-        RuntimeValue(graph), eventName);
+        graph, eventName);
 }
 
 bool BlueprintRuntimeFacade::graphDataHasExecutableEvent(
@@ -70,18 +81,20 @@ bool BlueprintRuntimeFacade::executeParentEvent(
     ludork::runtime::RuntimeScope runtime;
     return ludork::runtime::blueprint_detail::executeParentBlueprintEvent(
         intern(object), RuntimeValue(classType), eventName, arguments,
-        keywordArguments, RuntimeValue(localGraph),
+        ludork::runtime::blueprint_detail::eventArguments(keywordArguments),
+        RuntimeValue(localGraph),
         ludork::runtime::blueprint_detail::completionCallback(
             RuntimeValue(onComplete)));
 }
 
 bool BlueprintRuntimeFacade::executeGraph(
-    const RuntimeIdentityPtr& graph, const std::string& eventName,
+    const std::shared_ptr<Graph>& graph, const std::string& eventName,
     const RuntimeValue& keywordArguments, const RuntimeIdentityPtr& localGraph,
     const RuntimeIdentityPtr& onComplete) const {
     ludork::runtime::RuntimeScope runtime;
     return ludork::runtime::blueprint_detail::executeBlueprintGraph(
-        RuntimeValue(graph), eventName, keywordArguments,
+        graph, eventName,
+        ludork::runtime::blueprint_detail::eventArguments(keywordArguments),
         RuntimeValue(localGraph),
         ludork::runtime::blueprint_detail::completionCallback(
             RuntimeValue(onComplete)));

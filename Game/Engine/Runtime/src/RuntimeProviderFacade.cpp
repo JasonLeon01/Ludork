@@ -1,87 +1,54 @@
 #include <Runtime/RuntimeProviderFacade.hpp>
 
-#include "RuntimeProviderInternals.hpp"
-#include <Runtime/RuntimeSession.hpp>
-#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
-
-#include <stdexcept>
-
-namespace {
-
-RuntimeIdentityPtr invokeIdentityProvider(
-    ludork::runtime::detail::RuntimeProviderSlot slot,
-    const std::vector<RuntimeIdentityPtr>& identityArguments,
-    const std::vector<std::string>& stringArguments = {}) {
-    ludork::runtime::RuntimeScope runtime;
-    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
-    std::vector<lua_glue::Object> arguments;
-    arguments.reserve(identityArguments.size() + stringArguments.size());
-    for (const RuntimeIdentityPtr& argument : identityArguments) {
-        arguments.push_back(
-            ludork::runtime::binding::writeOpaqueIdentity(lua, argument));
-    }
-    for (const std::string& argument : stringArguments) {
-        arguments.push_back(lua_glue::MakeObject(lua, argument));
-    }
-    return ludork::runtime::binding::readOpaqueIdentity<RuntimeIdentityPtr>(
-        ludork::runtime::detail::invokeRuntimeProviderOne(lua, slot,
-                                                          arguments));
-}
-
-}  // namespace
-
-RuntimeIdentityPtr RuntimeProviderFacade::curve(const std::string& name) const {
-    return invokeIdentityProvider(
-        ludork::runtime::detail::RuntimeProviderSlot::Curve, {}, {name});
-}
-
-RuntimeIdentityPtr RuntimeProviderFacade::plainTextConfig(
-    const std::string& name) const {
-    return invokeIdentityProvider(
-        ludork::runtime::detail::RuntimeProviderSlot::PlainTextConfig, {},
-        {name});
-}
+#include "RuntimeProviderImpl.hpp"
 
 RuntimeIdentityPtr RuntimeProviderFacade::blueprintClassData(
     const std::string& classPath) const {
-    return invokeIdentityProvider(
-        ludork::runtime::detail::RuntimeProviderSlot::BlueprintClassDataByPath,
-        {}, {classPath});
+    return ludork::runtime::detail::RuntimeProviderImpl::instance().classData(
+        classPath);
 }
 
-RuntimeIdentityPtr RuntimeProviderFacade::compileBlueprintGraph(
+std::shared_ptr<Graph> RuntimeProviderFacade::compileBlueprintGraph(
     const RuntimeIdentityPtr& graphData,
     const RuntimeIdentityPtr& classType) const {
-    return invokeIdentityProvider(
-        ludork::runtime::detail::RuntimeProviderSlot::BlueprintCompileGraph,
-        {graphData, classType});
+    return ludork::runtime::detail::RuntimeProviderImpl::instance()
+        .compileGraph(graphData, classType);
 }
 
-RuntimeIdentityPtr RuntimeProviderFacade::instantiateBlueprintGraph(
-    const RuntimeIdentityPtr& graphTemplate,
+std::shared_ptr<Graph> RuntimeProviderFacade::instantiateBlueprintGraph(
+    const std::shared_ptr<Graph>& graphTemplate,
     const RuntimeIdentityPtr& parent) const {
-    return invokeIdentityProvider(ludork::runtime::detail::RuntimeProviderSlot::
-                                      BlueprintInstantiateGraphTemplate,
-                                  {graphTemplate, parent});
+    return ludork::runtime::detail::RuntimeProviderImpl::instance()
+        .instantiateGraph(graphTemplate, parent);
 }
 
 std::string RuntimeProviderFacade::config(
     const std::string& configName, const std::string& settingName) const {
-    ludork::runtime::RuntimeScope runtime;
-    lua_glue::StateView lua = lua_glue::StateView(runtime.state());
-    const lua_glue::Object value =
-        ludork::runtime::detail::invokeRuntimeProviderOne(
-            lua, ludork::runtime::detail::RuntimeProviderSlot::Config,
-            {lua_glue::MakeObject(lua, configName),
-             lua_glue::MakeObject(lua, settingName)});
-    if (!value.is<std::string>()) {
-        throw std::runtime_error(
-            "Runtime config resolver must return a string");
-    }
-    return value.as<std::string>();
+    return ludork::runtime::detail::RuntimeProviderImpl::instance().config(
+        configName, settingName);
 }
 
 RuntimeProviderFacade& runtimeProviders() {
     static RuntimeProviderFacade providers;
     return providers;
 }
+
+namespace ludork::runtime::detail {
+
+void installBlueprintRuntimeProviders(
+    const RuntimeIdentityPtr& classDataByPath,
+    const RuntimeIdentityPtr& compileGraph,
+    const RuntimeIdentityPtr& instantiateGraphTemplate) {
+    RuntimeProviderImpl::instance().installBlueprint(
+        classDataByPath, compileGraph, instantiateGraphTemplate);
+}
+
+void installConfigRuntimeProvider(const RuntimeIdentityPtr& configResolver) {
+    RuntimeProviderImpl::instance().installConfig(configResolver);
+}
+
+void clearRuntimeProviders() noexcept {
+    RuntimeProviderImpl::instance().clear();
+}
+
+}  // namespace ludork::runtime::detail

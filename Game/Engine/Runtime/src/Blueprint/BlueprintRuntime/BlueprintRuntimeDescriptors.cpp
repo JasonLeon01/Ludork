@@ -7,6 +7,14 @@
 #include <RuntimeSession.hpp>
 #include <Utf8Path.hpp>
 #include <Runtime/TypedDataService.hpp>
+#include <Runtime/RuntimeSession.hpp>
+#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
+#include "LuaServices/RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeReferenceConversion.hpp"
+
+extern "C" {
+#include <lauxlib.h>
+}
 
 #include <algorithm>
 #include <climits>
@@ -14,6 +22,7 @@
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <new>
 #include <optional>
 #include <regex>
 #include <stdexcept>
@@ -26,181 +35,209 @@ namespace ludork::runtime::blueprint_detail {
 
 using namespace ludork::runtime::reference;
 
-RuntimeHandle createRuntimeParameterDescriptor(
-    const std::vector<std::string>& names) {
-    RuntimeHandle descriptor = table();
-    RuntimeHandle parameters = table();
-    RuntimeHandle accepted = table();
-    std::size_t index = 1;
-    for (const std::string& name : names) {
-        rawSet(ludork::runtime::reference::intern(parameters), index++, name);
-        rawSet(accepted, name, true);
-    }
-    rawSet(ludork::runtime::reference::intern(descriptor), "parameters",
-           parameters);
-    rawSet(ludork::runtime::reference::intern(descriptor), "accepted",
-           accepted);
-    return descriptor;
+namespace {
+
+constexpr const char* descriptorMetatable = "Ludork.Runtime.EventDescriptor";
+using DescriptorOwner = std::shared_ptr<const EventDescriptor>;
+
+int destroyDescriptor(lua_State* state) {
+    auto* owner = static_cast<DescriptorOwner*>(
+        luaL_checkudata(state, 1, descriptorMetatable));
+    owner->~shared_ptr();
+    return 0;
 }
 
-RuntimeHandle callableRuntimeParameterDescriptor(const RuntimeValue& method) {
+RuntimeValue storeDescriptor(const DescriptorOwner& descriptor,
+                             const RuntimeValue& sourceMethod) {
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    lua_glue::StateView lua(state);
+    const lua_glue::Object method = binding::writeLuaValue(lua, sourceMethod);
+    if (luaL_newmetatable(state, descriptorMetatable)) {
+        lua_pushcfunction(state, destroyDescriptor);
+        lua_setfield(state, -2, "__gc");
+    }
+    lua_pop(state, 1);
+    new (lua_newuserdatauv(state, sizeof(DescriptorOwner), 1))
+        DescriptorOwner(descriptor);
+    luaL_setmetatable(state, descriptorMetatable);
+    method.push(state);
+    lua_setiuservalue(state, -2, 1);
+    const lua_glue::Object stored = lua_glue::Read<lua_glue::Object>(state, -1);
+    lua_pop(state, 1);
+    return detail::readRuntimeReference(stored);
+}
+
+DescriptorOwner loadDescriptor(const RuntimeValue& value,
+                               const RuntimeValue* sourceMethod = nullptr) {
+    if (value.isNil()) {
+        return nullptr;
+    }
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    lua_glue::StateView lua(state);
+    const lua_glue::Object stored = binding::writeLuaValue(lua, value);
+    const lua_glue::Object method = binding::writeLuaValue(
+        lua, sourceMethod == nullptr ? RuntimeValue() : *sourceMethod);
+    stored.push(state);
+    auto* owner = static_cast<DescriptorOwner*>(
+        luaL_testudata(state, -1, descriptorMetatable));
+    DescriptorOwner result = owner == nullptr ? nullptr : *owner;
+    if (result != nullptr && sourceMethod != nullptr &&
+        !result->metadataFound) {
+        lua_getiuservalue(state, -1, 1);
+        method.push(state);
+        if (!lua_rawequal(state, -1, -2)) {
+            result.reset();
+        }
+        lua_pop(state, 2);
+    }
+    lua_pop(state, 1);
+    return result;
+}
+
+std::shared_ptr<EventDescriptor> createDescriptor(
+    std::vector<std::string> names) {
+    auto result = std::make_shared<EventDescriptor>();
+    result->parameters = std::move(names);
+    result->accepted.insert(result->parameters.begin(),
+                            result->parameters.end());
+    return result;
+}
+
+DescriptorOwner callableRuntimeParameterDescriptor(const RuntimeValue& method) {
     if (!isFunction(method)) {
-        return createRuntimeParameterDescriptor(std::vector<std::string>{});
+        return createDescriptor({});
     }
     RuntimeHandle cache =
         registryTable(BLUEPRINT_CALLABLE_PARAMETER_CACHE_KEY, WeakMode::Keys);
-    const RuntimeValue cached = rawGet(cache, method);
-    if (isTable(cached)) {
-        return intern(cached);
+    if (DescriptorOwner cached = loadDescriptor(rawGet(cache, method))) {
+        return cached;
     }
-    RuntimeHandle descriptor =
-        createRuntimeParameterDescriptor(functionParameterNames(method));
-    rawSet(cache, method, descriptor);
+    DescriptorOwner descriptor =
+        createDescriptor(functionParameterNames(method));
+    rawSet(cache, method, storeDescriptor(descriptor, RuntimeValue()));
     return descriptor;
 }
 
 RuntimeHandle classRuntimeEventCache(const RuntimeValue& classType) {
     RuntimeHandle cache =
         registryTable(BLUEPRINT_EVENT_DESCRIPTOR_CACHE_KEY, WeakMode::Keys);
-    const RuntimeHandle classObject = intern(classType);
-    const RuntimeValue cached = rawGet(cache, classObject);
+    const RuntimeValue cached = rawGet(cache, classType);
     if (isTable(cached)) {
         return intern(cached);
     }
     RuntimeHandle result = table();
-    rawSet(result, "members", table());
-    rawSet(cache, classObject, result);
+    rawSet(cache, classType, result);
     return result;
 }
 
-RuntimeHandle buildRuntimeEventDescriptor(const RuntimeValue& classType,
-                                          const std::string& eventName) {
-    for (const RuntimeValue& current :
-         classMro(ludork::runtime::reference::intern(classType))) {
-        const RuntimeValue rawMetadata =
-            typeMetadata(ludork::runtime::reference::intern(current));
-        if (!isTable(rawMetadata)) {
+RuntimeValue buildRuntimeEventDescriptor(const RuntimeValue& classType,
+                                         const std::string& eventName) {
+    for (const RuntimeValue& current : classMro(intern(classType))) {
+        const RuntimeValue metadata = typeMetadata(intern(current));
+        if (!isTable(metadata)) {
             continue;
         }
-        const RuntimeValue rawEvent =
-            rawGet(ludork::runtime::reference::intern(rawMetadata), eventName);
-        if (!isTable(rawEvent)) {
+        const RuntimeValue event = rawGet(intern(metadata), eventName);
+        if (!isTable(event)) {
             continue;
         }
         std::vector<std::string> names;
-        const RuntimeValue rawParameters =
-            rawGet(ludork::runtime::reference::intern(rawEvent), "parameters");
-        if (isTable(rawParameters)) {
-            const RuntimeValue parameters = rawParameters;
-            names.reserve(
-                length(ludork::runtime::reference::intern(parameters)));
-            for (std::size_t index = 1;
-                 index <=
-                 length(ludork::runtime::reference::intern(parameters));
-                 ++index) {
-                const RuntimeValue rawName = rawGet(
-                    ludork::runtime::reference::intern(parameters), index);
-                if (is<std::string>(rawName)) {
-                    names.push_back(as<std::string>(rawName));
+        const RuntimeValue parameters = rawGet(intern(event), "parameters");
+        if (isTable(parameters)) {
+            const RuntimeHandle list = intern(parameters);
+            const std::size_t count = length(list);
+            names.reserve(count);
+            for (std::size_t index = 1; index <= count; ++index) {
+                const RuntimeValue name = rawGet(list, index);
+                if (is<std::string>(name)) {
+                    names.push_back(as<std::string>(name));
                 }
             }
         }
-        RuntimeHandle descriptor = createRuntimeParameterDescriptor(names);
-        rawSet(ludork::runtime::reference::intern(descriptor), "metadataFound",
-               true);
-        rawSet(ludork::runtime::reference::intern(descriptor), "metadata",
-               rawEvent);
+        auto descriptor = createDescriptor(std::move(names));
+        descriptor->metadataFound = true;
+        return storeDescriptor(descriptor, RuntimeValue());
+    }
+    const RuntimeValue method = get(intern(classType), eventName);
+    return storeDescriptor(callableRuntimeParameterDescriptor(method), method);
+}
+
+}  // namespace
+
+std::shared_ptr<const EventDescriptor> runtimeEventDescriptor(
+    const RuntimeValue& method, const RuntimeValue& classType,
+    const std::string& eventName) {
+    RuntimeHandle members = classRuntimeEventCache(classType);
+    RuntimeValue stored = rawGet(members, eventName);
+    if (stored.isNil()) {
+        stored = buildRuntimeEventDescriptor(classType, eventName);
+        rawSet(members, eventName, stored);
+    }
+    if (auto descriptor = loadDescriptor(stored, &method)) {
         return descriptor;
     }
-
-    const RuntimeValue classMethod =
-        get(ludork::runtime::reference::intern(classType), eventName);
-    RuntimeHandle descriptor = callableRuntimeParameterDescriptor(classMethod);
-    rawSet(ludork::runtime::reference::intern(descriptor), "metadataFound",
-           false);
-    if (isFunction(classMethod)) {
-        rawSet(ludork::runtime::reference::intern(descriptor), "sourceMethod",
-               classMethod);
-    }
-    return descriptor;
+    return callableRuntimeParameterDescriptor(method);
 }
 
-RuntimeHandle runtimeEventDescriptor(const RuntimeValue& method,
-                                     const RuntimeValue& classType,
-                                     const std::string& eventName) {
-    RuntimeHandle classCache = classRuntimeEventCache(classType);
-    RuntimeHandle members = requireTable(rawGet(classCache, "members"));
-    RuntimeValue rawDescriptor = rawGet(members, eventName);
-    if (!isTable(rawDescriptor)) {
-        RuntimeHandle descriptor =
-            buildRuntimeEventDescriptor(classType, eventName);
-        rawSet(members, eventName, descriptor);
-        rawDescriptor = descriptor;
+EventArguments eventArguments(const RuntimeValue& keywordArguments) {
+    EventArguments result;
+    if (isTable(keywordArguments)) {
+        for (const auto& [key, value] : entries(intern(keywordArguments))) {
+            if (is<std::string>(key)) {
+                result.push_back({as<std::string>(key), value});
+            }
+        }
     }
-
-    const RuntimeHandle descriptor = intern(rawDescriptor);
-    const RuntimeValue rawMetadataFound =
-        rawGet(ludork::runtime::reference::intern(descriptor), "metadataFound");
-    if (is<bool>(rawMetadataFound) && as<bool>(rawMetadataFound)) {
-        return descriptor;
-    }
-    const RuntimeValue sourceMethod =
-        rawGet(ludork::runtime::reference::intern(descriptor), "sourceMethod");
-    return rawEqual(sourceMethod, method)
-               ? descriptor
-               : callableRuntimeParameterDescriptor(method);
-}
-
-RuntimeHandle runtimeDescriptorParameters(const RuntimeValue& descriptor) {
-    const RuntimeValue rawParameters =
-        rawGet(ludork::runtime::reference::intern(descriptor), "parameters");
-    return isTable(rawParameters) ? intern(rawParameters) : table();
-}
-
-RuntimeHandle runtimeDescriptorAccepted(const RuntimeValue& descriptor) {
-    const RuntimeValue rawAccepted =
-        rawGet(ludork::runtime::reference::intern(descriptor), "accepted");
-    return isTable(rawAccepted) ? intern(rawAccepted) : table();
+    return result;
 }
 
 void invokeNamedRuntimeMethod(const RuntimeValue& object,
                               const RuntimeValue& method,
                               const RuntimeValue& classType,
                               const std::string& eventName,
-                              const RuntimeValue& rawKeywordArguments) {
+                              const EventArguments& values,
+                              const RuntimeHandle& keywordSource) {
     if (!isFunction(method)) {
         return;
     }
-    const RuntimeHandle keywordArguments =
-        isTable(rawKeywordArguments) ? intern(rawKeywordArguments) : table();
-    const RuntimeHandle descriptor =
+    const auto descriptor =
         runtimeEventDescriptor(method, classType, eventName);
-    const RuntimeHandle names = runtimeDescriptorParameters(descriptor);
-    const RuntimeHandle accepted = runtimeDescriptorAccepted(descriptor);
-    for (const RuntimeValue& key :
-         keys(keywordArguments,
-              RuntimeReflectionFacade::RuntimeLookupMode::Visible)) {
-        if (!is<std::string>(key)) {
-            continue;
+    if (!keywordSource.isNil()) {
+        for (const RuntimeValue& key : keys(keywordSource)) {
+            if (is<std::string>(key) &&
+                !descriptor->accepted.contains(as<std::string>(key))) {
+                throw std::invalid_argument(
+                    "Unexpected blueprint event argument '" +
+                    as<std::string>(key) + "'");
+            }
         }
-        const RuntimeValue acceptedValue =
-            rawGet(accepted, as<std::string>(key));
-        if (!is<bool>(acceptedValue) || !as<bool>(acceptedValue)) {
-            throw std::invalid_argument(
-                "Unexpected blueprint event argument '" + as<std::string>(key) +
-                "'");
+    } else {
+        for (const BlueprintRuntimeFacade::EventArgument& argument : values) {
+            if (!descriptor->accepted.contains(argument.name)) {
+                throw std::invalid_argument(
+                    "Unexpected blueprint event argument '" + argument.name +
+                    "'");
+            }
         }
     }
     RuntimeValue::Array arguments{object};
-    arguments.reserve(length(names) + 1);
-    for (std::size_t index = 1; index <= length(names); ++index) {
-        const RuntimeValue rawName = rawGet(names, index);
-        if (is<std::string>(rawName)) {
-            arguments.push_back(get(keywordArguments, rawName));
+    arguments.reserve(descriptor->parameters.size() + 1);
+    for (const std::string& name : descriptor->parameters) {
+        if (!keywordSource.isNil()) {
+            arguments.push_back(get(keywordSource, name));
+            continue;
         }
+        const auto found = std::find_if(
+            values.begin(), values.end(),
+            [&name](const BlueprintRuntimeFacade::EventArgument& argument) {
+                return argument.name == name;
+            });
+        arguments.push_back(found == values.end() ? RuntimeValue()
+                                                  : found->value);
     }
-    static_cast<void>(
-        invoke(ludork::runtime::reference::intern(method), arguments));
+    static_cast<void>(invoke(intern(method), arguments));
 }
 
 bool calculateRuntimeMethodHasImplementation(const RuntimeValue& method) {

@@ -3,9 +3,12 @@
 #include <CoreMinimal.hpp>
 
 #include <RuntimeApi.hpp>
+#include <Runtime/TypeSchema.hpp>
 
 class LUDORK_RUNTIME_API TypedDataService {
 public:
+    ludork::runtime::TypeSchema compileType(RuntimeValueView valueType) const;
+
     bool isContainerValueType(RuntimeValueView valueType) const;
     bool isStandardValueType(RuntimeValueView valueType) const;
     bool shouldEvalValueType(RuntimeValueView valueType) const;
@@ -43,6 +46,14 @@ public:
         bool evaluateAnyExpressions = true) const;
     RuntimeValue resolveRuntimeTypedValue(
         const RuntimeValue& value, const RuntimeValue& valueType,
+        const std::string& declaringModule = std::string()) const;
+    RuntimeValue resolveTypedDataValue(
+        const RuntimeValue& value, const ludork::runtime::TypeSchema& valueType,
+        const RuntimeValue::Map& environment = RuntimeValue::Map{},
+        const std::string& declaringModule = std::string(),
+        bool evaluateAnyExpressions = true) const;
+    RuntimeValue resolveRuntimeTypedValue(
+        const RuntimeValue& value, const ludork::runtime::TypeSchema& valueType,
         const std::string& declaringModule = std::string()) const;
 
 private:

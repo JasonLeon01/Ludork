@@ -1,4 +1,5 @@
 #include <Gameplay/Actor.hpp>
+#include <EngineRuntimeServices.hpp>
 
 #include <Runtime/Blueprint/BPBase.hpp>
 
@@ -46,8 +47,7 @@ void ActorUpdateBatch::update(float deltaTime) {
         const auto events = tickEvents_.find(actor.get());
         if (actor->getTickable() && events != tickEvents_.end() &&
             (events->second & actorTickEvent) != 0U) {
-            BPBase::BlueprintEventNative(
-                *actor, "onTick", {{"deltaTime", RuntimeValue(deltaTime)}});
+            dispatchActorTick(*actor, deltaTime);
         }
     }
 }
@@ -61,8 +61,7 @@ void ActorUpdateBatch::lateUpdate(float deltaTime) {
         const auto events = tickEvents_.find(actor.get());
         if (actor->getTickable() && events != tickEvents_.end() &&
             (events->second & actorLateTickEvent) != 0U) {
-            BPBase::BlueprintEventNative(
-                *actor, "onLateTick", {{"deltaTime", RuntimeValue(deltaTime)}});
+            dispatchActorLateTick(*actor, deltaTime);
         }
     }
 }
@@ -76,9 +75,7 @@ void ActorUpdateBatch::fixedUpdate(float fixedDelta) {
         const auto events = tickEvents_.find(actor.get());
         if (actor->getTickable() && events != tickEvents_.end() &&
             (events->second & actorFixedTickEvent) != 0U) {
-            BPBase::BlueprintEventNative(
-                *actor, "onFixedTick",
-                {{"fixedDelta", RuntimeValue(fixedDelta)}});
+            dispatchActorFixedTick(*actor, fixedDelta);
         }
     }
 }

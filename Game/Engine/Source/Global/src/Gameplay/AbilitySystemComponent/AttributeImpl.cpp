@@ -81,11 +81,12 @@ void initialize(AbilitySystemImpl& state,
         if (!type.has_value()) {
             continue;
         }
-        RuntimeValue value = state.attributeSet->getAttributeValue(name);
+        GameplayNumber value =
+            state.attributeSet->getNumericAttributeValue(name);
         static_cast<void>(
             numericValue(value, *type, "Numeric attribute default", name));
         state.numericAttributes.push_back(name);
-        state.baseValues.emplace(name, attributeNumber(value));
+        state.baseValues.emplace(name, value);
     }
 }
 
@@ -172,7 +173,7 @@ GameplayNumbers preview(const AbilitySystemImpl& state,
 }
 
 void notify(const AbilitySystemImpl& state, const std::string& name,
-            const RuntimeValue& oldValue, const RuntimeValue& newValue,
+            const GameplayNumber& oldValue, const GameplayNumber& newValue,
             const AbilitySystemImpl::AttributeChange& change) {
     if (state.suppressAttributeListeners ||
         (runtimeEqual(oldValue, newValue) && !change.force)) {
@@ -183,7 +184,8 @@ void notify(const AbilitySystemImpl& state, const std::string& name,
         return;
     }
     for (const AbilitySystemImpl::Listener& listener : entries->second) {
-        RuntimeValue::Array arguments{oldValue, newValue,
+        RuntimeValue::Array arguments{runtimeNumber(oldValue),
+                                      runtimeNumber(newValue),
                                       attributeChangeValue(change)};
         arguments.insert(arguments.end(), listener.params.begin(),
                          listener.params.end());
@@ -196,18 +198,18 @@ AppliedCurrentValues applyCurrentValues(
     AbilitySystemImpl& state, const GameplayNumbers& values,
     AbilitySystemImpl::AttributeChangeSource source,
     const GameplayNumbers* oldBases, const GameplayNumbers* newBases,
-    const RuntimeValue::Map* oldValueOverrides) {
-    RuntimeValue::Map oldValues;
+    const GameplayNumbers* oldValueOverrides) {
+    GameplayNumbers oldValues;
     for (const std::string& name : state.numericAttributes) {
         const auto overrideValue = oldValueOverrides == nullptr
-                                       ? RuntimeValue::Map::const_iterator{}
+                                       ? GameplayNumbers::const_iterator{}
                                        : oldValueOverrides->find(name);
         if (oldValueOverrides != nullptr &&
             overrideValue != oldValueOverrides->end()) {
             oldValues.emplace(name, overrideValue->second);
         } else {
-            oldValues.emplace(name,
-                              state.attributeSet->getAttributeValue(name));
+            oldValues.emplace(
+                name, state.attributeSet->getNumericAttributeValue(name));
         }
     }
 
@@ -222,8 +224,7 @@ AppliedCurrentValues applyCurrentValues(
             }
             static_cast<void>(validateNumeric(
                 state, name, value->second, "Numeric attribute current value"));
-            state.attributeSet->setAttributeValue(name,
-                                                  runtimeNumber(value->second));
+            state.attributeSet->setNumericAttributeValue(name, value->second);
         }
     } catch (...) {
         state.internalAttributeWrite = false;
@@ -241,8 +242,8 @@ AppliedCurrentValues applyCurrentValues(
             change.newBase = newBases->at(name);
             change.force = !runtimeEqual(*change.oldBase, *change.newBase);
         }
-        const RuntimeValue current =
-            state.attributeSet->getAttributeValue(name);
+        const GameplayNumber current =
+            state.attributeSet->getNumericAttributeValue(name);
         const bool fieldChanged =
             !runtimeEqual(oldValues.at(name), current) || change.force;
         applied.changed = applied.changed || fieldChanged;
@@ -266,7 +267,7 @@ void flushAppliedCurrentValues(AbilitySystemImpl& state,
 }
 
 void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
-                 const RuntimeValue::Map* oldValueOverrides) {
+                 const GameplayNumbers* oldValueOverrides) {
     const GameplayNumbers oldBases = state.baseValues;
     const GameplayNumbers currentValues = preview(state, bases);
     bool baseChanged = false;
@@ -291,7 +292,7 @@ std::shared_ptr<AttributeSet> getAttributeSet(const AbilitySystemImpl& state) {
 GameplayNumber getNumericAttribute(const AbilitySystemImpl& state,
                                    const std::string& name) {
     requireNumericAttribute(state, name);
-    return attributeNumber(state.attributeSet->getAttributeValue(name));
+    return state.attributeSet->getNumericAttributeValue(name);
 }
 
 GameplayNumber getNumericAttributeBase(const AbilitySystemImpl& state,
@@ -352,17 +353,11 @@ int getRevision(const AbilitySystemImpl& state) {
 }
 
 void onAttributeWrite(AbilitySystemImpl& state, const std::string& name,
-                      const RuntimeValue& oldValue,
-                      const RuntimeValue& newValue) {
-    if (state.internalAttributeWrite) {
-        return;
-    }
-    requireNumericAttribute(state, name);
-    static_cast<void>(
-        validateNumeric(state, name, newValue, "Numeric attribute assignment"));
+                      const GameplayNumber& oldValue,
+                      const GameplayNumber& newValue) {
     GameplayNumbers bases = state.baseValues;
-    bases[name] = attributeNumber(newValue);
-    const RuntimeValue::Map overrides{{name, oldValue}};
+    bases[name] = newValue;
+    const GameplayNumbers overrides{{name, oldValue}};
     commitBases(state, bases, &overrides);
 }
 

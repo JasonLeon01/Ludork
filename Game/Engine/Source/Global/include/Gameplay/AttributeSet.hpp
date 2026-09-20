@@ -4,6 +4,7 @@
 
 #include <CoreMinimal.hpp>
 #include <GlobalRuntimeApi.hpp>
+#include <Gameplay/GameplayNumber.hpp>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_GLOBAL_API AttributeSet : public RuntimeObject {
@@ -44,8 +45,9 @@ public:
     std::optional<AttributeSchema> getAttributeSchema(
         const std::string& name) const;
 
-    RuntimeValue getAttributeValue(const std::string& name) const;
-    void setAttributeValue(const std::string& name, const RuntimeValue& value);
+    GameplayNumber getNumericAttributeValue(const std::string& name) const;
+    void setNumericAttributeValue(const std::string& name,
+                                  const GameplayNumber& value);
     std::optional<NumericType> getNumericAttributeType(
         const std::string& name) const;
 

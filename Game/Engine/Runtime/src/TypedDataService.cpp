@@ -88,10 +88,10 @@ bool parseFloat(const std::string& text, double& result) {
     return end == text.c_str() + text.size() && std::isfinite(result);
 }
 
+using ludork::runtime::TypeSchema;
 using ludork::runtime::typed_data_impl::parseSchema;
 using ludork::runtime::typed_data_impl::schemaName;
 using ludork::runtime::typed_data_impl::schemaValue;
-using ludork::runtime::typed_data_impl::TypeSchema;
 
 RuntimeValue snapshotContainer(const RuntimeValue& value) {
     return value.getIf<RuntimeHandle>() == nullptr
@@ -388,6 +388,11 @@ RuntimeValue resolveStored(const TypedDataService& service,
 
 }  // namespace
 
+ludork::runtime::TypeSchema TypedDataService::compileType(
+    RuntimeValueView valueType) const {
+    return parseSchema(valueType);
+}
+
 bool TypedDataService::isContainerValueType(RuntimeValueView valueType) const {
     return ludork::runtime::typed_data_impl::isContainerSchema(
         parseSchema(valueType));
@@ -511,15 +516,28 @@ RuntimeValue TypedDataService::resolveTypedDataValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const RuntimeValue::Map& environment, const std::string& declaringModule,
     bool evaluateAnyExpressions) const {
-    return resolveStored(*this, value, parseSchema(valueType), environment,
-                         declaringModule, "value", true,
-                         evaluateAnyExpressions);
+    return resolveTypedDataValue(value, compileType(valueType), environment,
+                                 declaringModule, evaluateAnyExpressions);
 }
 
 RuntimeValue TypedDataService::resolveRuntimeTypedValue(
     const RuntimeValue& value, const RuntimeValue& valueType,
     const std::string& declaringModule) const {
-    const TypeSchema schema = parseSchema(valueType);
+    return resolveRuntimeTypedValue(value, compileType(valueType),
+                                    declaringModule);
+}
+
+RuntimeValue TypedDataService::resolveTypedDataValue(
+    const RuntimeValue& value, const TypeSchema& valueType,
+    const RuntimeValue::Map& environment, const std::string& declaringModule,
+    bool evaluateAnyExpressions) const {
+    return resolveStored(*this, value, valueType, environment, declaringModule,
+                         "value", true, evaluateAnyExpressions);
+}
+
+RuntimeValue TypedDataService::resolveRuntimeTypedValue(
+    const RuntimeValue& value, const TypeSchema& schema,
+    const std::string& declaringModule) const {
     if ((!value.isNil() || schema.kind == TypeSchema::Kind::Union) &&
         !matchesRuntime(value, schema, declaringModule)) {
         valueTypeError("runtime value", schema);

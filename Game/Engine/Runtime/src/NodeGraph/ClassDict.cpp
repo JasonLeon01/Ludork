@@ -14,8 +14,8 @@ RuntimeValue ClassDict::getData(const std::string& classPath) {
     return classRuntime().classData(classPath);
 }
 
-RuntimeValue ClassDict::instantiateGraph(const std::string& classPath,
-                                         RuntimeValue parent) {
+std::shared_ptr<Graph> ClassDict::instantiateGraph(const std::string& classPath,
+                                                   RuntimeValue parent) {
     return classRuntime().instantiateGraph(classPath, parent);
 }
 

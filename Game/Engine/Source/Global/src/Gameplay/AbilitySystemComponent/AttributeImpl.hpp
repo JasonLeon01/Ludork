@@ -37,14 +37,14 @@ GameplayNumbers preview(
     std::optional<int> replacementStacks = std::nullopt);
 
 void notify(const AbilitySystemImpl& state, const std::string& name,
-            const RuntimeValue& oldValue, const RuntimeValue& newValue,
+            const GameplayNumber& oldValue, const GameplayNumber& newValue,
             const AbilitySystemImpl::AttributeChange& change);
 
 struct AppliedCurrentValues {
     struct Notification {
         std::string name;
-        RuntimeValue oldValue;
-        RuntimeValue newValue;
+        GameplayNumber oldValue;
+        GameplayNumber newValue;
         AbilitySystemImpl::AttributeChange change;
     };
 
@@ -57,13 +57,13 @@ AppliedCurrentValues applyCurrentValues(
     AbilitySystemImpl::AttributeChangeSource source,
     const GameplayNumbers* oldBases = nullptr,
     const GameplayNumbers* newBases = nullptr,
-    const RuntimeValue::Map* oldValueOverrides = nullptr);
+    const GameplayNumbers* oldValueOverrides = nullptr);
 
 void flushAppliedCurrentValues(AbilitySystemImpl& state,
                                AppliedCurrentValues applied, bool bumpRevision);
 
 void commitBases(AbilitySystemImpl& state, const GameplayNumbers& bases,
-                 const RuntimeValue::Map* oldValueOverrides = nullptr);
+                 const GameplayNumbers* oldValueOverrides = nullptr);
 
 std::shared_ptr<AttributeSet> getAttributeSet(const AbilitySystemImpl& state);
 
@@ -91,6 +91,6 @@ void refreshConstraints(AbilitySystemImpl& state);
 int getRevision(const AbilitySystemImpl& state);
 
 void onAttributeWrite(AbilitySystemImpl& state, const std::string& name,
-                      const RuntimeValue& oldValue,
-                      const RuntimeValue& newValue);
+                      const GameplayNumber& oldValue,
+                      const GameplayNumber& newValue);
 }  // namespace ludork::global::ability_system_impl

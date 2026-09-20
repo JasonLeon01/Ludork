@@ -192,8 +192,7 @@ function Controller:useSelectedItem()
     local itemID = assert(self._itemList[self.host.index + 1])[1]
     local result = self:getPlayer():activateItem(itemID)
     assert(result.ok, "Item Ability failed: " .. tostring(result.code))
-    self:close()
-    self:onItemUsed()
+    self:close(self:bindCallback(Controller.onItemUsed))
 end
 
 function Controller:closeByCancel()

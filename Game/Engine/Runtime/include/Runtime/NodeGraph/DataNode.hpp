@@ -4,6 +4,11 @@
 #include <CoreMinimal.hpp>
 #include <RuntimeApi.hpp>
 
+#include <memory>
+#include <variant>
+
+class NodeDefinition;
+
 BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API DataNode : public RuntimeObject {
 public:
@@ -26,8 +31,9 @@ public:
 
     RuntimeValue::Array getParams() const;
 
-    const RuntimeValue& getResolvedDefinition() const;
+    std::shared_ptr<const NodeDefinition> getDefinition() const;
 
 private:
-    RuntimeValue resolvedDefinition_;
+    mutable std::variant<RuntimeValue, std::shared_ptr<const NodeDefinition>>
+        definition_;
 };

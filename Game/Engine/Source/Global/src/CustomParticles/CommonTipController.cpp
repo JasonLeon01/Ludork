@@ -1,12 +1,10 @@
-#include <Runtime/RuntimeProviderFacade.hpp>
+#include <EngineDataProviders.hpp>
 #include <CustomParticles/CommonTipController.hpp>
 #include <Curve.hpp>
 #include <UI/PlainTextConfig.hpp>
 
 #include <EngineState.hpp>
-#include <Runtime/RuntimeProviders.hpp>
 #include <System.hpp>
-#include <Utils/RuntimeProvider.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -238,10 +236,11 @@ std::shared_ptr<Curve> CommonTipController::getCurve(const std::string& key) {
     if (iterator != curves_.end()) {
         return iterator->second;
     }
-    std::shared_ptr<Curve> curve =
-        ludork::engine::requireRuntimeProviderObject<Curve>(
-            runtimeProviders().curve(key),
+    std::shared_ptr<Curve> curve = EngineDataProviders::curve(key);
+    if (curve == nullptr) {
+        throw std::runtime_error(
             "Runtime curve provider must return a non-nil Curve");
+    }
     curves_.emplace(key, curve);
     return curve;
 }
@@ -250,9 +249,11 @@ std::shared_ptr<PlainTextConfig> CommonTipController::getTextConfig() {
     if (textConfig_ != nullptr) {
         return textConfig_;
     }
-    textConfig_ = ludork::engine::requireRuntimeProviderObject<PlainTextConfig>(
-        runtimeProviders().plainTextConfig(TextConfigKey),
-        "Plain text config provider did not resolve Global/CommonTip");
+    textConfig_ = EngineDataProviders::plainTextConfig(TextConfigKey);
+    if (textConfig_ == nullptr) {
+        throw std::runtime_error(
+            "Plain text config provider did not resolve Global/CommonTip");
+    }
     return textConfig_;
 }
 

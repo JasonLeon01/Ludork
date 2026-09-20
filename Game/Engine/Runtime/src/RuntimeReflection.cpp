@@ -219,6 +219,39 @@ void RuntimeReflectionFacade::setTyped(const RuntimeHandle& value,
         writeValue(lua, member));
 }
 
+RuntimeNumber RuntimeReflectionFacade::getNumber(
+    const RuntimeHandle& value, const std::string& name) const {
+    ludork::runtime::RuntimeScope runtime;
+    lua_glue::StateView lua(runtime.state());
+    const lua_glue::Object member = ludork::runtime::detail::runtimeIndex(
+        lua, writeValue(lua, value), lua_glue::MakeObject(lua, name), false);
+    const lua_glue::PushGuard pushed(member);
+    lua_State* state = runtime.state();
+    if (lua_type(state, pushed.index()) != LUA_TNUMBER) {
+        throw std::logic_error("Numeric attribute has an incompatible value: " +
+                               name);
+    }
+    if (lua_isinteger(state, pushed.index())) {
+        return static_cast<std::int64_t>(lua_tointeger(state, pushed.index()));
+    }
+    return static_cast<double>(lua_tonumber(state, pushed.index()));
+}
+
+void RuntimeReflectionFacade::setNumber(const RuntimeHandle& value,
+                                        const std::string& name,
+                                        const RuntimeNumber& member) const {
+    ludork::runtime::RuntimeScope runtime;
+    lua_glue::StateView lua(runtime.state());
+    const lua_glue::Object rawMember = std::visit(
+        [lua](auto number) {
+            return lua_glue::MakeObject(lua, number);
+        },
+        member);
+    ludork::runtime::detail::runtimeAssign(lua, writeValue(lua, value),
+                                           lua_glue::MakeObject(lua, name),
+                                           rawMember, false);
+}
+
 std::string RuntimeReflectionFacade::toString(const RuntimeValue& value) const {
     ludork::runtime::RuntimeScope runtime;
     lua_glue::StateView lua = lua_glue::StateView(runtime.state());

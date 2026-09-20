@@ -1,4 +1,5 @@
 #include <Gameplay/Actor.hpp>
+#include <EngineRuntimeServices.hpp>
 #include <Filters/SoundFilter.hpp>
 #include <Gameplay/ActorMapService.hpp>
 #include <Gameplay/AutoSoundParams.hpp>
@@ -370,8 +371,7 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
     if (!map->isPassable(*this, target)) {
         const std::vector<Actor*> collisions = map->getCollision(*this, target);
         if (!collisions.empty()) {
-            BPBase::BlueprintEventNative(
-                *this, "onCollision", {{"other", actorListValue(collisions)}});
+            dispatchActorCollision(*this, collisions);
             if (isDestroyed() || !isVisibleInHierarchy()) {
                 return false;
             }
@@ -381,8 +381,7 @@ bool Actor::MapMove(const sf::Vector2i& requestedOffset) {
                     !collision->isVisibleInHierarchy()) {
                     continue;
                 }
-                BPBase::BlueprintEventNative(*collision, "onCollision",
-                                             {{"other", actorListValue(self)}});
+                dispatchActorCollision(*collision, self);
                 if (isDestroyed() || !isVisibleInHierarchy() ||
                     collision->isDestroyed() ||
                     !collision->isVisibleInHierarchy()) {
@@ -478,8 +477,7 @@ float Actor::processMoving(float deltaTime) {
     autoFixMapPosition();
     const std::vector<Actor*> overlaps = map->getOverlaps(*this);
     if (!overlaps.empty()) {
-        BPBase::BlueprintEventNative(*this, "onOverlap",
-                                     {{"other", actorListValue(overlaps)}});
+        dispatchActorOverlap(*this, overlaps);
         const std::vector<Actor*> self{this};
         for (Actor* overlap : overlaps) {
             if (isDestroyed() || !isVisibleInHierarchy()) {
@@ -487,8 +485,7 @@ float Actor::processMoving(float deltaTime) {
             }
             if (overlap != nullptr && !overlap->isDestroyed() &&
                 overlap->isVisibleInHierarchy()) {
-                BPBase::BlueprintEventNative(*overlap, "onOverlap",
-                                             {{"other", actorListValue(self)}});
+                dispatchActorOverlap(*overlap, self);
             }
         }
     }
@@ -513,21 +510,6 @@ void Actor::autoFixMapPosition() {
     if (map) {
         map->updateActorOccupancy(*this);
     }
-}
-
-RuntimeValue Actor::actorListValue(const std::vector<Actor*>& actors) {
-    RuntimeValue::Array values;
-    values.reserve(actors.size());
-    for (Actor* actor : actors) {
-        if (actor == nullptr) {
-            continue;
-        }
-        std::shared_ptr<RuntimeObject> owner = actor->weak_from_this().lock();
-        if (owner) {
-            values.emplace_back(std::move(owner));
-        }
-    }
-    return RuntimeValue(std::move(values));
 }
 
 sf::Vector2f Actor::getPosition() const {

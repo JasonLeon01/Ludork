@@ -13,13 +13,14 @@ extern "C" {
 #include <utility>
 
 using namespace ludork::runtime::class_runtime_detail;
+using namespace ludork::runtime::reference;
 
 void ludork::runtime::class_runtime_detail::initializeClassRuntime(
     lua_State* state) {
     if (state == nullptr) {
         return;
     }
-    rawSet(registry(), CLASS_RESOLVER_STATE_KEY, RuntimeValue());
+    clearResolverState(state);
     resolverState();
     setNativeDefaultResolver(
         [state](const RuntimeValue::Array& arguments) -> RuntimeValue::Array {
@@ -42,8 +43,7 @@ void ludork::runtime::class_runtime_detail::shutdownClassRuntime(
         return;
     }
     clearNativeDefaultResolver(state);
-    lua_pushnil(state);
-    lua_setfield(state, LUA_REGISTRYINDEX, CLASS_RESOLVER_STATE_KEY);
+    clearResolverState(state);
 }
 
 ResolvedClass ClassRuntimeFacade::resolve(
@@ -61,7 +61,7 @@ RuntimeValue ClassRuntimeFacade::classData(const std::string& classPath) const {
     return std::get<1>(resolveClass(RuntimeValue(classPath), RuntimeValue()));
 }
 
-RuntimeValue ClassRuntimeFacade::instantiateGraph(
+std::shared_ptr<Graph> ClassRuntimeFacade::instantiateGraph(
     const std::string& classPath, const RuntimeValue& parent) const {
     ludork::runtime::RuntimeScope runtime;
     return instantiateClassGraph(classPath, parent);
@@ -75,17 +75,16 @@ bool ClassRuntimeFacade::graphHasExecutableEvent(
 
 bool ClassRuntimeFacade::containsCached(const std::string& classPath) const {
     ludork::runtime::RuntimeScope runtime;
-    return !rawGet(requireTable(rawGet(resolverState(), "classes")), classPath)
-                .isNil();
+    return resolverState().records.contains(classPath);
 }
 
 std::optional<std::string> ClassRuntimeFacade::findCachedPathByName(
     const std::string& className) const {
     ludork::runtime::RuntimeScope runtime;
-    const RuntimeValue path =
-        rawGet(requireTable(rawGet(resolverState(), "classNames")), className);
-    return path.isNil() ? std::nullopt
-                        : std::optional<std::string>(as<std::string>(path));
+    const auto& names = resolverState().classNames;
+    const auto found = names.find(className);
+    return found == names.end() ? std::nullopt
+                                : std::optional<std::string>(found->second);
 }
 
 ClassRuntimeFacade& classRuntime() {

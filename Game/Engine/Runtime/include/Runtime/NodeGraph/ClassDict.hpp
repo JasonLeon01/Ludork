@@ -2,6 +2,7 @@
 
 #include <CoreMinimal.hpp>
 #include <RuntimeApi.hpp>
+#include <Runtime/NodeGraph/Graph.hpp>
 
 BIND_CLASS(metadata = false)
 class LUDORK_RUNTIME_API ClassDict {
@@ -21,8 +22,8 @@ public:
     RuntimeValue getData(const std::string& classPath);
 
     BIND_METHOD(metadata = false, allow_nil = "parent")
-    RuntimeValue instantiateGraph(const std::string& classPath,
-                                  RuntimeValue parent);
+    std::shared_ptr<Graph> instantiateGraph(const std::string& classPath,
+                                            RuntimeValue parent);
 
     BIND_METHOD(metadata = false)
     bool containsCached(const std::string& classPath) const;

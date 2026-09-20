@@ -6,26 +6,9 @@
 #include <RuntimeApi.hpp>
 
 #include <Runtime/NodeGraph/Types.hpp>
+#include <Runtime/NodeGraph/NodeDefinition.hpp>
 
 class Graph;
-
-struct NodeNamedValues {
-    std::string name;
-    RuntimeValue::Array values;
-};
-
-struct NodeMemberMetadata {
-    std::vector<std::string> parameterOrder;
-    RuntimeValue::Map parameterTypes;
-    RuntimeValue::Map parameterDefaults;
-    std::vector<NodeNamedValues> execSplits;
-    std::vector<NodeNamedValues> latentStates;
-    bool latent = false;
-    bool loop = false;
-    bool pure = false;
-    std::string loopNode;
-    std::string kind;
-};
 
 BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API Node : public RuntimeObject {
@@ -80,41 +63,18 @@ public:
 private:
     friend class Graph;
 
-    struct ResolvedCallable {
-        RuntimeIdentityPtr callable;
-        RuntimeValue::Map descriptor;
-        NodeMemberMetadata metadata;
-        std::vector<std::string> parameterNames;
-        std::string declaringModule;
-        std::string displayName;
-    };
-
-    static ResolvedCallable resolvedCallable(
-        const RuntimeValue& resolvedDefinition);
-    static NodeMemberMetadata parseMemberMetadata(
-        RuntimeValueView metadataValue);
-
     Node(Graph& parentGraph, RuntimeValue parent, std::string functionName,
-         RuntimeValue resolvedDefinition, RuntimeValue params);
+         std::shared_ptr<const NodeDefinition> definition, RuntimeValue params);
     Node(Graph& parentGraph, RuntimeValue parent,
          std::shared_ptr<const Node> definition);
-    void initialise(RuntimeValue params, RuntimeValue resolvedDefinition);
+    void initialise(RuntimeValue params);
     void attachParentGraph(const std::shared_ptr<Graph>& parentGraph);
-    void analyseFunction(const RuntimeValue& resolvedDefinition);
     RuntimeValue getParent() const;
     RuntimeValue::Array resolveStoredParams(
         const RuntimeValue::Array& rawParams);
-    const Node& compiledDefinition() const;
 
     std::weak_ptr<Graph> parentGraph_;
-    std::shared_ptr<const Node> definition_;
-    RuntimeIdentityPtr nodeFunction_;
-    RuntimeValue::Map paramList_;
-    RuntimeValue::Map paramDefaults_;
-    NodeMemberMetadata memberMetadata_;
-    std::vector<std::string> paramOrder_;
-    std::string declaringModule_;
+    std::shared_ptr<const NodeDefinition> definition_;
     std::string funcInfo_;
-    bool hasSelfParameter_ = false;
     std::size_t paramCount_ = 0;
 };

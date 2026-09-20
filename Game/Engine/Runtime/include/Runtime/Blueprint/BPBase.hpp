@@ -3,6 +3,7 @@
 
 #include <CoreMinimal.hpp>
 #include <RuntimeApi.hpp>
+#include <Runtime/NodeGraph/Graph.hpp>
 
 BIND_CLASS()
 class LUDORK_RUNTIME_API BPBase {
@@ -33,7 +34,7 @@ public:
 
     BIND_METHOD(name = "_graphHasExecutableEvent", metadata = false,
                 allow_nil = "graph")
-    static bool GraphHasExecutableEvent(const RuntimeIdentityPtr& graph,
+    static bool GraphHasExecutableEvent(const std::shared_ptr<Graph>& graph,
                                         const std::string& eventName);
 
     BIND_METHOD(name = "_graphDataHasExecutableEvent", metadata = false)
@@ -51,7 +52,7 @@ public:
 
     BIND_METHOD(defaults = {nil, nil, nil}, metadata = false)
     static bool ExecuteGraph(
-        const RuntimeIdentityPtr& graph, const std::string& eventName,
+        const std::shared_ptr<Graph>& graph, const std::string& eventName,
         const RuntimeIdentityPtr& keywordArguments = nullptr,
         const RuntimeIdentityPtr& localGraph = nullptr,
         const RuntimeIdentityPtr& onComplete = nullptr);

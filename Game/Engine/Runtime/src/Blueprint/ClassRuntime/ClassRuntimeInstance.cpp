@@ -3,12 +3,20 @@
 #include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
 #include "LuaServices/RuntimeMetadataReferences.hpp"
+#include "LuaServices/RuntimeBindingTraits.hpp"
+#include "LuaServices/RuntimeReferenceConversion.hpp"
+#include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
+#include <new>
+
+extern "C" {
+#include <lauxlib.h>
+}
 
 #include <Runtime/Components/ComponentRuntime.hpp>
 #include <Runtime/NodeGraph/Graph.hpp>
-#include <Runtime/RuntimeProviders.hpp>
 #include <Runtime/RuntimeValue.hpp>
 #include <RuntimeSession.hpp>
+#include <Runtime/RuntimeSession.hpp>
 #include <Runtime/TypedDataService.hpp>
 
 #include <algorithm>
@@ -29,62 +37,91 @@ namespace ludork::runtime::class_runtime_detail {
 
 using namespace ludork::runtime::reference;
 
-RuntimeValue compileGraphTemplate(const RuntimeValue& data,
-                                  const RuntimeValue& classType) {
-    const RuntimeValue graphData =
-        rawGet(ludork::runtime::reference::intern(data), "graph");
-    if (!isTable(graphData)) {
-        return RuntimeValue();
+namespace {
+
+constexpr const char* configReferenceMetatable =
+    "Ludork.Runtime.ClassConfigReferences";
+
+int destroyConfigReferences(lua_State* state) {
+    auto* references = static_cast<
+        std::vector<ClassRuntimeState::ClassRecord::ConfigReference>*>(
+        luaL_checkudata(state, 1, configReferenceMetatable));
+    references->~vector();
+    return 0;
+}
+
+std::optional<std::vector<ClassRuntimeState::ClassRecord::ConfigReference>>
+cachedConfigReferences(const RuntimeValue& cached) {
+    if (cached.isNil()) {
+        return std::nullopt;
     }
-    return RuntimeValue(runtimeProviders().compileBlueprintGraph(
-        identity(graphData), identity(classType)));
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    const lua_glue::Object value =
+        binding::writeLuaValue(lua_glue::StateView(state), cached);
+    value.push(state);
+    const auto* references = static_cast<
+        const std::vector<ClassRuntimeState::ClassRecord::ConfigReference>*>(
+        luaL_testudata(state, -1, configReferenceMetatable));
+    lua_pop(state, 1);
+    return references == nullptr ? std::nullopt : std::optional(*references);
+}
+
+RuntimeValue storeConfigReferences(
+    const std::vector<ClassRuntimeState::ClassRecord::ConfigReference>&
+        references) {
+    RuntimeScope scope;
+    lua_State* state = scope.state();
+    if (luaL_newmetatable(state, configReferenceMetatable)) {
+        lua_pushcfunction(state, destroyConfigReferences);
+        lua_setfield(state, -2, "__gc");
+    }
+    lua_pop(state, 1);
+    new (lua_newuserdatauv(
+        state,
+        sizeof(std::vector<ClassRuntimeState::ClassRecord::ConfigReference>),
+        0))
+        std::vector<ClassRuntimeState::ClassRecord::ConfigReference>(
+            references);
+    luaL_setmetatable(state, configReferenceMetatable);
+    const lua_glue::Object stored = lua_glue::Read<lua_glue::Object>(state, -1);
+    lua_pop(state, 1);
+    return detail::readRuntimeReference(stored);
+}
+
+}  // namespace
+
+std::shared_ptr<Graph> compileGraphTemplate(const RuntimeValue& data,
+                                            const RuntimeValue& classType) {
+    const RuntimeValue graphData = rawGet(intern(data), "graph");
+    return isTable(graphData) ? runtimeProviders().compileBlueprintGraph(
+                                    identity(graphData), identity(classType))
+                              : nullptr;
 }
 
 bool classGraphHasExecutableEvent(const std::string& classPath,
                                   const std::string& eventName) {
-    const RuntimeValue record =
-        rawGet(requireTable(rawGet(resolverState(), "records")), classPath);
-    if (record.isNil()) {
-        return false;
-    }
-    const RuntimeValue graphTemplate = rawGet(intern(record), "graphTemplate");
-    if (graphTemplate.isNil()) {
-        return false;
-    }
-    const std::shared_ptr<Graph> graph =
-        ludork::Cast<Graph>(ludork::runtime::reference::object(graphTemplate));
-    if (graph == nullptr) {
-        throw std::runtime_error(
-            "Blueprint graph template must be an Engine.Graph");
-    }
-    return graph->hasExecutableEvent(eventName);
+    const auto& records = resolverState().records;
+    const auto record = records.find(classPath);
+    return record != records.end() &&
+           record->second->graphTemplate != nullptr &&
+           record->second->graphTemplate->hasExecutableEvent(eventName);
 }
 
-RuntimeValue instantiateClassGraph(const std::string& classPath,
-                                   const RuntimeValue& parent) {
-    RuntimeHandle state = resolverState();
-    RuntimeHandle records = requireTable(rawGet(state, "records"));
-    RuntimeValue rawRecord = rawGet(records, classPath);
-    if (!isTable(rawRecord)) {
+std::shared_ptr<Graph> instantiateClassGraph(const std::string& classPath,
+                                             const RuntimeValue& parent) {
+    auto& records = resolverState().records;
+    auto found = records.find(classPath);
+    if (found == records.end()) {
         resolveClass(RuntimeValue(classPath), RuntimeValue());
-        rawRecord = rawGet(records, classPath);
+        found = records.find(classPath);
     }
-    if (!isTable(rawRecord)) {
-        return RuntimeValue();
+    if (found == records.end() || found->second->scriptMixin ||
+        found->second->graphTemplate == nullptr) {
+        return nullptr;
     }
-    RuntimeValue record = rawRecord;
-    const RuntimeValue rawScriptMixin =
-        rawGet(ludork::runtime::reference::intern(record), "scriptMixin");
-    if (is<bool>(rawScriptMixin) && as<bool>(rawScriptMixin)) {
-        return RuntimeValue();
-    }
-    RuntimeValue graphTemplate =
-        rawGet(ludork::runtime::reference::intern(record), "graphTemplate");
-    if (graphTemplate.isNil()) {
-        return RuntimeValue();
-    }
-    return RuntimeValue(runtimeProviders().instantiateBlueprintGraph(
-        identity(graphTemplate), identity(parent)));
+    return runtimeProviders().instantiateBlueprintGraph(
+        found->second->graphTemplate, identity(parent));
 }
 
 std::string declaringModule(const RuntimeValue& value) {
@@ -154,68 +191,100 @@ RuntimeValue cloneAttrValue(const RuntimeValue& parentClass,
     return deepCopy(value);
 }
 
-RuntimeValue configReferences(const RuntimeValue& owner) {
-    RuntimeHandle cache =
-        requireTable(rawGet(ludork::runtime::reference::intern(resolverState()),
-                            "configReferences"));
-    const RuntimeValue cached = rawGet(cache, owner);
-    if (isTable(cached)) {
-        return cached;
+ClassRuntimeState::ClassRecord::InstanceAttributePlan compileAttributePlan(
+    const std::string& name, const RuntimeValue& value,
+    const RuntimeValue& parentClass, const RuntimeValue& fieldMetadata,
+    const RuntimeValue& targetType, bool copyOnly) {
+    ClassRuntimeState::ClassRecord::InstanceAttributePlan plan{
+        name, value, std::nullopt, {}, RuntimeValue()};
+    if (copyOnly) {
+        return plan;
     }
-    RuntimeHandle result = table();
-    std::vector<RuntimeValue> mro =
-        classMro(ludork::runtime::reference::intern(owner));
+    RuntimeValue type;
+    if (isTable(fieldMetadata)) {
+        type = snapshot(rawGet(intern(fieldMetadata), "type"));
+        plan.declaringModule =
+            declaringModule(rawGet(intern(fieldMetadata), "module"));
+        if (boolean(rawGet(intern(fieldMetadata), "component"))) {
+            plan.componentType = typedDataService().resolveMetadataType(
+                type, plan.declaringModule);
+            return plan;
+        }
+    } else {
+        type = targetType.isNil()
+                   ? typedDataService().resolveAttrValueType(parentClass, name)
+                   : snapshot(targetType);
+    }
+    const std::string* typeName = type.getIf<std::string>();
+    if (!type.isNil() && (typeName == nullptr || *typeName != "any")) {
+        plan.schema = typedDataService().compileType(type.view());
+    }
+    return plan;
+}
+
+std::vector<ClassRuntimeState::ClassRecord::ConfigReference> configReferences(
+    const RuntimeValue& owner) {
+    const RuntimeHandle cache = resolverState().configReferenceCache;
+    if (auto cached = cachedConfigReferences(rawGet(cache, owner))) {
+        return std::move(*cached);
+    }
+
+    std::unordered_map<std::string,
+                       ClassRuntimeState::ClassRecord::ConfigReference>
+        references;
+    std::vector<RuntimeValue> mro = classMro(intern(owner));
     for (auto current = mro.rbegin(); current != mro.rend(); ++current) {
         for (const auto& [name, reference] :
              detail::classConfigReferences(*current)) {
-            rawSet(result, name, reference);
+            const RuntimeValue config = rawGet(intern(reference), 1);
+            const RuntimeValue setting = rawGet(intern(reference), 2);
+            if (is<std::string>(config) && is<std::string>(setting)) {
+                references.insert_or_assign(
+                    name, ClassRuntimeState::ClassRecord::ConfigReference{
+                              name, as<std::string>(config),
+                              as<std::string>(setting)});
+            }
         }
     }
-    rawSet(cache, owner, result);
+    std::vector<ClassRuntimeState::ClassRecord::ConfigReference> result;
+    result.reserve(references.size());
+    for (auto& [name, reference] : references) {
+        result.push_back(std::move(reference));
+    }
+    rawSet(cache, owner, storeConfigReferences(result));
     return result;
 }
 
-RuntimeValue resolveConfigValue(const RuntimeValue& value,
-                                const RuntimeValue& reference) {
+RuntimeValue resolveConfigValue(
+    const RuntimeValue& value,
+    const ClassRuntimeState::ClassRecord::ConfigReference& reference) {
     if (!is<std::string>(value) || !as<std::string>(value).empty()) {
         return value;
     }
-    const RuntimeValue rawConfig =
-        rawGet(ludork::runtime::reference::intern(reference), 1);
-    const RuntimeValue rawSetting =
-        rawGet(ludork::runtime::reference::intern(reference), 2);
-    if (!is<std::string>(rawConfig) || !is<std::string>(rawSetting)) {
-        return value;
-    }
-    return RuntimeValue(runtimeProviders().config(as<std::string>(rawConfig),
-                                                  as<std::string>(rawSetting)));
+    return RuntimeValue(
+        runtimeProviders().config(reference.config, reference.setting));
 }
 
-void applyConfigValues(const RuntimeValue& parentClass, RuntimeValue classAttrs,
-                       const RuntimeValue& references) {
-    for (const auto& entry :
-         entries(ludork::runtime::reference::intern(references))) {
-        if (!is<std::string>(entry.first) || !isTable(entry.second)) {
-            continue;
-        }
-        const std::string name = as<std::string>(entry.first);
-        const RuntimeValue current =
-            rawGet(ludork::runtime::reference::intern(classAttrs), name);
+void applyConfigValues(
+    const RuntimeValue& parentClass, RuntimeValue classAttrs,
+    const std::vector<ClassRuntimeState::ClassRecord::ConfigReference>&
+        references) {
+    for (const ClassRuntimeState::ClassRecord::ConfigReference& reference :
+         references) {
+        const RuntimeValue current = rawGet(intern(classAttrs), reference.name);
         if (!current.isNil()) {
-            rawSet(ludork::runtime::reference::intern(classAttrs), name,
-                   resolveConfigValue(current, entry.second));
+            rawSet(intern(classAttrs), reference.name,
+                   resolveConfigValue(current, reference));
             continue;
         }
-        RuntimeValue parentValue =
-            get(ludork::runtime::reference::intern(parentClass), name);
+        RuntimeValue parentValue = get(intern(parentClass), reference.name);
         if (parentValue.isNil()) {
             parentValue = RuntimeValue(std::string());
         }
         const RuntimeValue resolved =
-            resolveConfigValue(parentValue, entry.second);
+            resolveConfigValue(parentValue, reference);
         if (!rawEqual(parentValue, resolved)) {
-            rawSet(ludork::runtime::reference::intern(classAttrs), name,
-                   resolved);
+            rawSet(intern(classAttrs), reference.name, resolved);
         }
     }
 }
@@ -227,67 +296,42 @@ void initializeGeneratedInstance(lua_State* state, const std::string& classPath,
     if (!execution.active()) {
         return;
     }
-    const RuntimeHandle records = requireTable(
-        rawGet(ludork::runtime::reference::intern(resolverState()), "records"));
-    RuntimeValue rawRecord = rawGet(records, classPath);
-    if (!isTable(rawRecord)) {
+    const auto& records = resolverState().records;
+    const auto found = records.find(classPath);
+    if (found == records.end()) {
         return;
     }
-    const RuntimeValue record = rawRecord;
+    const std::shared_ptr<const ClassRuntimeState::ClassRecord> record =
+        found->second;
     std::unordered_set<std::string> appliedAttrs;
-    while (isTable(rawRecord)) {
-        const RuntimeValue current = rawRecord;
-        const RuntimeHandle classAttrs = requireTable(
-            rawGet(ludork::runtime::reference::intern(current), "attrs"));
-        const RuntimeHandle copyAttrs = requireTable(
-            rawGet(ludork::runtime::reference::intern(current), "copyAttrs"));
-        const RuntimeHandle nilAttrs = requireTable(
-            rawGet(ludork::runtime::reference::intern(current), "nilAttrs"));
-        const RuntimeHandle parentClass = requireTable(
-            rawGet(ludork::runtime::reference::intern(current), "parent"));
-        const RuntimeHandle attrMetadata = requireTable(
-            rawGet(ludork::runtime::reference::intern(current), "metadata"));
-        const RuntimeHandle attrTypes = requireTable(
-            rawGet(ludork::runtime::reference::intern(current), "types"));
-        for (const auto& entry :
-             entries(ludork::runtime::reference::intern(classAttrs))) {
-            if (is<std::string>(entry.first) &&
-                appliedAttrs.insert(as<std::string>(entry.first)).second &&
-                !hasOwnField(ludork::runtime::reference::intern(self),
-                             entry.first)) {
-                const RuntimeValue value =
-                    boolean(rawGet(copyAttrs, entry.first))
-                        ? deepCopy(entry.second)
-                        : cloneAttrValue(parentClass, entry.first, entry.second,
-                                         rawGet(attrMetadata, entry.first),
-                                         rawGet(attrTypes, entry.first), false);
-                runtimeReflection().setTyped(
-                    ludork::runtime::reference::intern(self),
-                    as<std::string>(entry.first), value);
+    const RuntimeHandle instance = intern(self);
+    for (auto current = record; current != nullptr;
+         current = current->parentRecord) {
+        for (const ClassRuntimeState::ClassRecord::InstanceAttributePlan& plan :
+             current->attributes) {
+            if (!appliedAttrs.insert(plan.name).second ||
+                hasOwnField(instance, RuntimeValue(plan.name))) {
+                continue;
             }
-        }
-        for (const auto& entry : entries(nilAttrs)) {
-            if (is<std::string>(entry.first) &&
-                appliedAttrs.insert(as<std::string>(entry.first)).second &&
-                !hasOwnField(ludork::runtime::reference::intern(self),
-                             entry.first)) {
-                runtimeReflection().setTyped(
-                    ludork::runtime::reference::intern(self),
-                    as<std::string>(entry.first), RuntimeValue());
+            RuntimeValue value;
+            if (!plan.componentType.isNil()) {
+                value = components::componentFromData(plan.componentType,
+                                                      plan.defaultValue);
+            } else if (plan.schema.has_value()) {
+                value = deepCopy(typedDataService().resolveRuntimeTypedValue(
+                    plan.defaultValue, *plan.schema, plan.declaringModule));
+            } else {
+                value = deepCopy(plan.defaultValue);
             }
+            runtimeReflection().setTyped(instance, plan.name, value);
         }
-        rawRecord =
-            rawGet(ludork::runtime::reference::intern(current), "parentRecord");
     }
-    const RuntimeValue rawInit =
-        rawGet(ludork::runtime::reference::intern(record), "parentInit");
-    if (isFunction(rawInit)) {
+    if (isFunction(record->parentInit)) {
         RuntimeValue::Array values;
         values.reserve(arguments.size() + 1);
         values.push_back(self);
         values.insert(values.end(), arguments.begin(), arguments.end());
-        static_cast<void>(
-            invoke(ludork::runtime::reference::intern(rawInit), values));
+        static_cast<void>(invoke(record->parentInit, values));
     }
 }
 

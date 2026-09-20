@@ -1,4 +1,5 @@
 #include <EngineLifecycle.hpp>
+#include <EngineDataProviders.hpp>
 #include <Gameplay/ActorAudioService.hpp>
 
 #include <AnimSprite.hpp>
@@ -80,6 +81,7 @@ void shutdown(lua_State* state) noexcept {
     unregisterEditorCommands(state);
     engineState().setGameRunning(false);
     shutdownEngineRuntimeServices(state);
+    EngineDataProviders::clear();
     inputService().shutdown();
     shutdownEventBus();
     FunctionalBase::resetRuntimeCallbacks();
