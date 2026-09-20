@@ -11,6 +11,8 @@ This is the canonical `Licenses` tree. The editor package receives it in full; t
 - `GNUMake` and `MicrosoftVisualCppRuntime`: editor/external redistribution terms, excluded from templates.
 - `HarmonyOSSans` and `SampleMusic`: canonical asset notices; template copies stay beside the assets.
 
+The Gradle wrapper used by Android packaging keeps its complete licence and bilingual source notice beside the tool in each C++ Source template, under `Engine/PlatformHosts/Android/gradle/wrapper`.
+
 The editor SVG dependencies use [Svg.Skia's MIT text](EditorPackages/Svg.Skia-LICENSE.txt) for `Svg.Controls.Avalonia`, `Svg.Model`, `Svg.SceneGraph`, and `ShimSkiaSharp`; [Svg.Custom's Microsoft Public License](EditorPackages/Svg.Custom-LICENSE.txt) for `Svg.Custom`; and [ExCSS's MIT text](EditorPackages/ExCSS-LICENSE.txt) for `ExCSS`. These texts are copied unchanged from the repository commits identified by the restored NuGet packages and linked in the notices table.
 
 Legal texts are retained in their supplied language and are not translated or rewritten. Explanatory indexes do not replace those texts.

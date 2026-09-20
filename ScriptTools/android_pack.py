@@ -864,27 +864,6 @@ def prepare_gradle_stage(
     if context.stage_dir.exists():
         shutil.rmtree(context.stage_dir)
     shutil.copytree(context.template_dir, context.stage_dir)
-    wrapper_source = (
-        context.project_dir
-        / "Engine"
-        / "ThirdParty"
-        / "SFML"
-        / "examples"
-        / "projects"
-        / "android"
-    )
-    wrapper_files = (
-        pathlib.Path("gradlew"),
-        pathlib.Path("gradlew.bat"),
-        pathlib.Path("gradle/wrapper/gradle-wrapper.jar"),
-    )
-    for relative in wrapper_files:
-        source = wrapper_source / relative
-        if not source.is_file():
-            raise PackError(f"SFML Android Gradle wrapper file was not found: {source}", EXIT_PROJECT)
-        destination = context.stage_dir / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
     os.chmod(context.stage_dir / "gradlew", 0o755)
     assets_dir = context.stage_dir / "app" / "src" / "main" / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
@@ -1804,24 +1783,17 @@ def validate_template_source(context: PackContext) -> None:
         / "android"
         / "LudorkActivity.java",
     )
-    wrapper_root = (
-        context.project_dir
-        / "Engine"
-        / "ThirdParty"
-        / "SFML"
-        / "examples"
-        / "projects"
-        / "android"
-    )
     required += (
-        wrapper_root / "gradlew",
-        wrapper_root / "gradlew.bat",
-        wrapper_root / "gradle" / "wrapper" / "gradle-wrapper.jar",
+        context.template_dir / "gradlew",
+        context.template_dir / "gradlew.bat",
+        context.template_dir / "gradle" / "wrapper" / "gradle-wrapper.jar",
+        context.template_dir / "gradle" / "wrapper" / "LICENSE.txt",
+        context.template_dir / "gradle" / "wrapper" / "NOTICE.md",
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise PackError(
-            "Android Gradle template or wrapper files are incomplete:\n" + "\n".join(missing),
+            "Ludork Android Gradle template files are incomplete:\n" + "\n".join(missing),
             EXIT_PROJECT,
         )
     validate_template_manifest(

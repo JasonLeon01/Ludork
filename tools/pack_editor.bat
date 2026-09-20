@@ -639,6 +639,17 @@ for %%T in (%CPP_TEMPLATE_NAMES%) do (
     if exist "%PACKAGE_DIR%\Templates\%%T\%EDITOR_CACHE_DIRECTORY%" exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\Engine\UiPreviewHost\CMakeLists.txt"
     if errorlevel 1 exit /b 1
+    for %%F in (
+        "gradlew"
+        "gradlew.bat"
+        "gradle\wrapper\gradle-wrapper.jar"
+        "gradle\wrapper\gradle-wrapper.properties"
+        "gradle\wrapper\LICENSE.txt"
+        "gradle\wrapper\NOTICE.md"
+    ) do (
+        call :require_file "%PACKAGE_DIR%\Templates\%%T\Engine\PlatformHosts\Android\%%~F"
+        if errorlevel 1 exit /b 1
+    )
     call :require_file "%PACKAGE_DIR%\Templates\%%T\generate_vs2022.bat"
     if errorlevel 1 exit /b 1
     call :require_file "%PACKAGE_DIR%\Templates\%%T\generate_clion.bat"

@@ -11,6 +11,8 @@ Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组�
 - `GNUMake` 与 `MicrosoftVisualCppRuntime`：不进入模板的编辑器/外部再分发条款。
 - `HarmonyOSSans` 与 `SampleMusic`：权威资产声明；模板副本留在资产旁。
 
+Android 打包使用的 Gradle wrapper 在各 C++ Source 模板的 `Engine/PlatformHosts/Android/gradle/wrapper` 下随工具保留完整许可证与中英文来源说明。
+
 编辑器 SVG 依赖中，`Svg.Controls.Avalonia`、`Svg.Model`、`Svg.SceneGraph` 与 `ShimSkiaSharp` 使用 [Svg.Skia 的 MIT 正文](EditorPackages/Svg.Skia-LICENSE.txt)；`Svg.Custom` 使用 [Microsoft Public License 正文](EditorPackages/Svg.Custom-LICENSE.txt)；`ExCSS` 使用其 [MIT 正文](EditorPackages/ExCSS-LICENSE.txt)。这些正文均从已还原 NuGet 包标识的仓库提交原样复制，对应提交链接列在第三方声明表中。
 
 法律正文保持其随附语言，不翻译、不改写。说明性索引不能替代法律正文。

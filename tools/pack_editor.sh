@@ -587,6 +587,15 @@ validate_package() {
     done
     for template_name in $CPP_TEMPLATE_NAMES; do
         require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
+        for wrapper_path in \
+            gradlew \
+            gradlew.bat \
+            gradle/wrapper/gradle-wrapper.jar \
+            gradle/wrapper/gradle-wrapper.properties \
+            gradle/wrapper/LICENSE.txt \
+            gradle/wrapper/NOTICE.md; do
+            require_package_file "$package_resources/Templates/$template_name/Engine/PlatformHosts/Android/$wrapper_path"
+        done
         if [ -e "$package_resources/Templates/$template_name/Binaries" ] \
             || [ -e "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" ]; then
             echo "Source template contains a prebuilt UI preview snapshot." >&2
