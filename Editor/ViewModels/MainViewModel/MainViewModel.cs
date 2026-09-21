@@ -11,60 +11,49 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.ViewModels;
 
-public partial class MainViewModel : ViewModelBase, IDisposable
+public sealed class MainViewModel : ViewModelBase, IDisposable
 {
-    private MapListItemViewModel? selectedMap;
-    private LayerTabViewModel? selectedLayerTab;
-    private JsonObject? copiedLayer;
-    private string? copiedLayerName;
     private string selectedLanguage = LocaleService.CurrentLanguage;
     private bool disposed;
     private EditorDocument? activeDocument;
     private bool canEdit = true;
-    private (string? MapKey, LiveDebugSession? Session, string? Context) actorOutlinerSource;
     private readonly IRelayCommand[] editingCommands;
 
-    public MainViewModel(string projectPath)
+    public MainViewModel(
+        ProjectDataStore gameData,
+        ProjectConfigService projectConfig,
+        GameVariableService gameVariables,
+        BlueprintClassResolver blueprintClasses,
+        GameConfigService gameConfig,
+        ProjectSaveService projectSave,
+        ReferenceIndexService referenceIndex,
+        TileSelectViewModel tileSelect,
+        ActorQueueViewModel actorQueue,
+        FileExplorerViewModel fileExplorerPanel,
+        EditorActionRouter actions,
+        MapWorkspaceViewModel mapWorkspace)
     {
-        GameData = new GameDataService(projectPath);
-        TileSelect = new TileSelectViewModel(GameData);
-        TileSelect.TilesetSelected += onTilesetSelected;
-        ProjectConfig = new ProjectConfigService(projectPath);
-        Metadata = new LuaMetadataService(projectPath);
-        GameVariables = new GameVariableService(projectPath, Metadata, GameData.Documents);
-        BlueprintClasses = new BlueprintClassResolver(GameData, Metadata);
-        GameConfig = new GameConfigService(projectPath);
-        BlueprintValidation = new BlueprintValidationService(GameData, Metadata, BlueprintClasses);
-        ProjectSave = new ProjectSaveService(
-            GameData,
-            GameVariables,
-            BlueprintValidation,
-            ProjectConfig);
-        ReferenceIndex = new ReferenceIndexService(GameData, Metadata, BlueprintClasses);
-        UiControlRegistry = ProjectSave.UiControlRegistry;
-        UiAssetValidation = ProjectSave.UiAssetValidation;
-        BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
-        PreviewService = new BlueprintPreviewService(projectPath, GameData, BlueprintClasses, UiControlRegistry.Runtime);
-        IconService = new FileIconService();
-        ActorQueue = new ActorQueueViewModel(
-            GameData,
-            ProjectConfig,
-            BlueprintClasses,
-            PreviewService);
-        FileExplorerPanel = new FileExplorerViewModel(
-            projectPath,
-            ProjectConfig,
-            GameData,
-            PreviewService,
-            ReferenceIndex);
-        Actions = new EditorActionRouter(projectPath);
+        GameData = gameData;
+        ProjectConfig = projectConfig;
+        GameVariables = gameVariables;
+        BlueprintClasses = blueprintClasses;
+        GameConfig = gameConfig;
+        ProjectSave = projectSave;
+        ReferenceIndex = referenceIndex;
+        TileSelect = tileSelect;
+        ActorQueue = actorQueue;
+        FileExplorerPanel = fileExplorerPanel;
+        Actions = actions;
+        MapWorkspace = mapWorkspace;
+        MapWorkspace.PropertyChanged += onMapWorkspacePropertyChanged;
+        MapWorkspace.SelectedMapChanged += onUndoRedoStateChanged;
         SaveCommand = new RelayCommand(() => SaveRequested?.Invoke(this, EventArgs.Empty), () => CanEdit && IsModified);
         NewProjectCommand = new RelayCommand(() => NewProjectRequested?.Invoke(this, EventArgs.Empty));
         OpenProjectCommand = new RelayCommand(() => OpenProjectRequested?.Invoke(this, EventArgs.Empty));
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
-        TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => CanUseMapTools);
+        TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => MapWorkspace.CanUseMapTools);
         LightModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 1), () => CanEdit);
-        ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => CanUseMapTools);
+        ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => MapWorkspace.CanUseMapTools);
         HelpCommand = new RelayCommand(Actions.OpenHelp);
         NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
         NewAnimationCommand = new RelayCommand(Actions.NewAnimation, () => CanEdit);
@@ -100,12 +89,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameVariables.Saved += onGameVariablesSaved;
         GameData.Documents.Changed += onDocumentsChanged;
         GameData.DataRestored += onDataRestored;
-        GameData.MapPreviewChanged += onMapPreviewChanged;
-        rebuildMapTree();
-        SelectedMap = findMapItem(ProjectConfig.LastOpenedMapKey) ?? Maps.FirstOrDefault();
     }
 
-    public event EventHandler? SelectedMapChanged;
     public event EventHandler? SaveRequested;
     public event EventHandler<SaveResult>? SaveCompleted;
     public event EventHandler<HistoryCompletedEventArgs>? HistoryCompleted;
@@ -114,30 +99,19 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     public event EventHandler? ExitRequested;
     public event EventHandler<int>? PreviewModeRequested;
     public event EventHandler<string>? FileOpenFailed;
-    public event EventHandler? ActorOutlinerChanged;
-    public event EventHandler? LayerDisplayStateChanged;
 
-    public GameDataService GameData { get; }
+    public MapWorkspaceViewModel MapWorkspace { get; }
+    public ProjectDataStore GameData { get; }
     public ProjectConfigService ProjectConfig { get; }
-    public LuaMetadataService Metadata { get; }
     public GameVariableService GameVariables { get; }
     public BlueprintClassResolver BlueprintClasses { get; }
     public GameConfigService GameConfig { get; }
-    public BlueprintValidationService BlueprintValidation { get; }
     public ProjectSaveService ProjectSave { get; }
     public ReferenceIndexService ReferenceIndex { get; }
-    public UiControlRegistryService UiControlRegistry { get; }
-    public UiAssetValidationService UiAssetValidation { get; }
-    public BlueprintCreationService BlueprintCreation { get; }
-    public BlueprintPreviewService PreviewService { get; }
-    public FileIconService IconService { get; }
     public ActorQueueViewModel ActorQueue { get; }
     public FileExplorerViewModel FileExplorerPanel { get; }
     public EditorActionRouter Actions { get; }
     public TileSelectViewModel TileSelect { get; }
-    public ObservableCollection<MapListItemViewModel> Maps { get; } = [];
-    public ObservableCollection<LayerTabViewModel> LayerTabs { get; } = [];
-    public ObservableCollection<ActorOutlinerItemViewModel> ActorOutlinerItems { get; } = [];
     public IRelayCommand SaveCommand { get; }
     public IRelayCommand NewProjectCommand { get; }
     public IRelayCommand OpenProjectCommand { get; }
@@ -186,8 +160,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 return;
             ProjectConfig.IndividualWindow = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(LiveDebug));
-            OnPropertyChanged(nameof(CanConfigureLiveDebug));
+            MapWorkspace.RefreshConfiguration();
         }
     }
     public bool CanEdit
@@ -198,7 +171,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             if (!SetProperty(ref canEdit, value))
                 return;
             OnPropertyChanged(nameof(CanConfigureIndividualWindow));
-            OnPropertyChanged(nameof(CanConfigureLiveDebug));
+            MapWorkspace.CanEdit = value;
             foreach (IRelayCommand command in editingCommands)
                 command.NotifyCanExecuteChanged();
         }
@@ -215,259 +188,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         GameData.BreakHistoryGesture();
         onUndoRedoStateChanged(this, EventArgs.Empty);
     }
-    public string WindowTitle => GameData.getGameTitle() + (IsModified ? " *" : string.Empty);
-
-    public MapListItemViewModel? SelectedMap
-    {
-        get => selectedMap;
-        set
-        {
-            if (liveDebugSession is not null && !selectingRuntimeMap)
-                return;
-            if (!SetProperty(ref selectedMap, value))
-                return;
-            if (liveDebugSession is null && !selectingRuntimeMap)
-                ProjectConfig.LastOpenedMapKey = value?.Key;
-            refreshLayerTabs();
-            IReadOnlyCollection<string> pinnedMaps = value is { IsWorldChild: true }
-                ? new[] { value.Key }
-                : Array.Empty<string>();
-            if (liveDebugSession is null)
-                GameData.TrimWorldChildCache(pinnedMaps);
-            onUndoRedoStateChanged(this, EventArgs.Empty);
-            SelectedMapChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public LayerTabViewModel? SelectedLayerTab
-    {
-        get => selectedLayerTab;
-        set
-        {
-            if (!SetProperty(ref selectedLayerTab, value))
-                return;
-            bool hasLayer = value is not null && !value.IsOverview && SelectedMap is not null;
-            TileSelect.IsLayerSelected = hasLayer;
-            if (hasLayer && liveDebugSession is null)
-                TileSelect.setCurrentTilesetKey(GameData.getLayerTilesetKey(SelectedMap!.Key, value!.Name));
-            else if (hasLayer)
-                restoreRuntimeTileset();
-            LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public bool IsSelectedLayerEditable => SelectedLayerTab is
-        {
-            IsOverview: false,
-            LayerVisible: true,
-        };
-
-    public bool canEditLayer(string mapKey, string layerName)
-    {
-        if (GameData.MapData.GetValueOrDefault(mapKey)?["layers"]?[layerName] is not JsonObject layer)
-            return false;
-        return layer["visible"]?.GetValue<bool?>() ?? true;
-    }
-
-    public bool moveLayer(LayerTabViewModel moving, LayerTabViewModel target)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || moving.IsOverview || target.IsOverview || moving == target)
-            return false;
-        if (!GameData.reorderLayers(SelectedMap.Key, moving.Name, target.Name))
-            return false;
-        int fromIndex = LayerTabs.IndexOf(moving);
-        int targetIndex = LayerTabs.IndexOf(target);
-        LayerTabs.Move(fromIndex, targetIndex);
-        SelectedLayerTab = moving;
-        refreshActorOutliner();
-        return true;
-    }
-
-    public bool addLayer(string name, string? insertAfterLayer)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || !GameData.addEmptyLayer(SelectedMap.Key, name, insertAfterLayer))
-            return false;
-        refreshLayerTabs(name);
-        return true;
-    }
-
-    public bool renameLayer(string oldName, string newName)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || !GameData.renameLayer(SelectedMap.Key, oldName, newName))
-            return false;
-        refreshLayerTabs(newName);
-        return true;
-    }
-
-    public bool deleteLayer(string layerName)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || !GameData.removeLayer(SelectedMap.Key, layerName))
-            return false;
-        refreshLayerTabs();
-        return true;
-    }
-
-    public bool copyLayer(string layerName)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || GameData.copyLayer(SelectedMap.Key, layerName) is not { } copy)
-            return false;
-        copiedLayer = copy;
-        copiedLayerName = layerName;
-        OnPropertyChanged(nameof(CanPasteLayer));
-        return true;
-    }
-
-    public bool pasteLayer(string insertAfterLayer)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || copiedLayer is null || string.IsNullOrWhiteSpace(copiedLayerName))
-            return false;
-        string name = getUniqueLayerName($"{copiedLayerName}_copy");
-        if (!GameData.pasteLayer(SelectedMap.Key, name, copiedLayer, insertAfterLayer))
-            return false;
-        refreshLayerTabs(name);
-        return true;
-    }
-
-    public bool CanPasteLayer => copiedLayer is not null;
-
-    public bool setLayerVisible(LayerTabViewModel layer, bool visible)
-    {
-        if (!CanEdit)
-            return false;
-        if (SelectedMap is null || layer.IsOverview || layer.LayerVisible == visible)
-            return false;
-        if (!GameData.SetLayerVisible(SelectedMap.Key, layer.Name, visible))
-            return false;
-        layer.LayerVisible = visible;
-        updateLayerEditability();
-        return true;
-    }
-
-    public string getLayerShaderPath(string layerName)
-    {
-        return SelectedMap is null ? string.Empty : GameData.getLayerShaderPath(SelectedMap.Key, layerName);
-    }
-
-    public bool setLayerShaderPath(string layerName, string shaderPath)
-    {
-        if (!CanEdit)
-            return false;
-        return SelectedMap is not null && GameData.setLayerShaderPath(SelectedMap.Key, layerName, shaderPath);
-    }
-
-    public bool layerNameExists(string name, string? except = null)
-    {
-        return LayerTabs.Any(item => !item.IsOverview && item.Name == name && item.Name != except);
-    }
-
-    public void refreshActorOutliner()
-    {
-        IsRefreshingActorOutliner = true;
-        (string? MapKey, LiveDebugSession? Session, string? Context) source =
-            (SelectedMap?.Key, liveDebugSession, liveDebugSession?.Context);
-        if (actorOutlinerSource != source)
-        {
-            ActorOutlinerItems.Clear();
-            actorOutlinerSource = source;
-        }
-        ActorOutlinerItemViewModel[] previousItems = ActorOutlinerItems
-            .SelectMany(layer => layer.EnumerateDescendants().Prepend(layer)).ToArray();
-        Dictionary<string, ActorOutlinerItemViewModel> runtimeActors = previousItems
-            .Where(actor => actor.RuntimeId is not null)
-            .ToDictionary(actor => actor.RuntimeId!, StringComparer.Ordinal);
-        Dictionary<string, ActorOutlinerItemViewModel> currentActors = new(StringComparer.Ordinal);
-        List<ActorOutlinerItemViewModel> layers = [];
-        Dictionary<ActorOutlinerItemViewModel, List<ActorOutlinerItemViewModel>> childrenToKeep = [];
-        List<(ActorOutlinerItemViewModel Item, ActorOutlinerItemViewModel Layer, string? ParentId)> actorEntries = [];
-        JsonObject? actorGroups = SelectedMapData?["actors"] as JsonObject;
-        foreach (LayerTabViewModel layer in LayerTabs)
-        {
-            if (layer.IsOverview)
-                continue;
-            ActorOutlinerItemViewModel layerItem = ActorOutlinerItems.FirstOrDefault(item => item.LayerName == layer.Name)
-                ?? new(layer.Name, layer.Name, layer.Name, null, []);
-            layers.Add(layerItem);
-            childrenToKeep[layerItem] = [];
-            if (actorGroups?[layer.Name] is JsonArray layerActors)
-            {
-                for (int index = 0; index < layerActors.Count; index += 1)
-                {
-                    if (layerActors[index] is not JsonObject actor)
-                        continue;
-                    string tag = getString(actor["tag"]);
-                    string reference = getString(actor["bp"]);
-                    string? runtimeId = actor["runtimeId"]?.GetValue<string>();
-                    string name = !string.IsNullOrWhiteSpace(tag)
-                        ? tag
-                        : !string.IsNullOrWhiteSpace(reference)
-                            ? reference
-                            : $"#{index + 1}";
-                    ActorOutlinerItemViewModel? item = runtimeId is not null
-                        ? runtimeActors.GetValueOrDefault(runtimeId)
-                        : layerItem.Children.FirstOrDefault(child => child.ActorIndex == index);
-                    item ??= new(name, reference, layer.Name, index, [], runtimeId);
-                    item.Update(name, reference, layer.Name, index);
-                    childrenToKeep[item] = [];
-                    if (runtimeId is not null)
-                        currentActors[runtimeId] = item;
-                    actorEntries.Add((item, layerItem, actor["parentRuntimeId"]?.GetValue<string>()));
-                }
-            }
-        }
-        foreach ((ActorOutlinerItemViewModel item, ActorOutlinerItemViewModel layer, string? parentId) in actorEntries)
-        {
-            ActorOutlinerItemViewModel parent = liveDebugSession is not null && parentId is not null
-                && currentActors.TryGetValue(parentId, out ActorOutlinerItemViewModel? owner) && owner != item
-                ? owner : layer;
-            childrenToKeep[parent].Add(item);
-        }
-        if (liveDebugSession is not null)
-            foreach (ActorOutlinerItemViewModel parent in childrenToKeep.Keys.ToArray())
-            {
-                List<ActorOutlinerItemViewModel> children = childrenToKeep[parent];
-                childrenToKeep[parent] = parent.Children.Where(children.Contains).Concat(children.Except(parent.Children)).ToList();
-            }
-        foreach (ActorOutlinerItemViewModel parent in previousItems)
-            foreach (ActorOutlinerItemViewModel child in parent.Children.ToArray())
-                if (!childrenToKeep.TryGetValue(parent, out List<ActorOutlinerItemViewModel>? kept) || !kept.Contains(child))
-                    parent.Children.Remove(child);
-        reconcileOutlinerItems(ActorOutlinerItems, layers);
-        foreach ((ActorOutlinerItemViewModel parent, List<ActorOutlinerItemViewModel> children) in childrenToKeep)
-            reconcileOutlinerItems(parent.Children, children);
-        IsRefreshingActorOutliner = false;
-        ActorOutlinerChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    public bool IsRefreshingActorOutliner { get; private set; }
-
-    private static void reconcileOutlinerItems(
-        ObservableCollection<ActorOutlinerItemViewModel> items, IReadOnlyList<ActorOutlinerItemViewModel> expected)
-    {
-        for (int index = items.Count - 1; index >= 0; index--)
-            if (!expected.Contains(items[index]))
-                items.RemoveAt(index);
-        for (int index = 0; index < expected.Count; index++)
-        {
-            ActorOutlinerItemViewModel item = expected[index];
-            int previous = items.IndexOf(item);
-            if (previous < 0)
-                items.Insert(index, item);
-            else if (previous != index)
-                items.Move(previous, index);
-        }
-    }
+    public string WindowTitle => GameData.Configs.getGameTitle() + (IsModified ? " *" : string.Empty);
 
     public SaveResult SaveChanges(bool notify = true)
     {
@@ -499,99 +220,41 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
-        ProjectSave.PendingInputsChanged -= onModifiedChanged;
         if (disposed)
             return;
         disposed = true;
+        ProjectSave.PendingInputsChanged -= onModifiedChanged;
+        GameData.ModifiedChanged -= onModifiedChanged;
         GameData.Documents.Changed -= onDocumentsChanged;
+        GameData.DataRestored -= onDataRestored;
         GameConfig.Changed -= onModifiedChanged;
         GameVariables.Changed -= onModifiedChanged;
         GameVariables.Saved -= onGameVariablesSaved;
-        TileSelect.TilesetSelected -= onTilesetSelected;
-        TileSelect.Dispose();
-        ActorQueue.Dispose();
-        FileExplorerPanel.Dispose();
-        PreviewService.Dispose();
-        UiControlRegistry.Dispose();
-        ReferenceIndex.Dispose();
-        BlueprintClasses.Dispose();
-        GameData.MapPreviewChanged -= onMapPreviewChanged;
-        GameData.Dispose();
+        MapWorkspace.PropertyChanged -= onMapWorkspacePropertyChanged;
+        MapWorkspace.SelectedMapChanged -= onUndoRedoStateChanged;
+        FileExplorerPanel.FileClicked -= onExplorerFileClicked;
+        FileExplorerPanel.FileOpened -= onExplorerFileOpened;
+        FileExplorerPanel.FilesChanged -= onExplorerFilesChanged;
+    }
+
+    private void onMapWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(MapWorkspaceViewModel.CanUseMapTools))
+        {
+            TileModeCommand.NotifyCanExecuteChanged();
+            ActorModeCommand.NotifyCanExecuteChanged();
+        }
     }
 
     private void executeUndo() => UndoChanges();
 
     private void executeRedo() => RedoChanges();
 
-    private void refreshLayerTabs(string? preferredLayerName = null)
-    {
-        string? previousName = preferredLayerName ?? (SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null);
-        LayerTabs.Clear();
-        if (SelectedMap is not { IsMap: true })
-        {
-            SelectedLayerTab = null;
-            refreshActorOutliner();
-            updateLayerEditability();
-            return;
-        }
-        LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true));
-        if (SelectedMap is not null)
-        {
-            foreach (string name in displayedLayerNames())
-            {
-                bool visible = SelectedMapData?["layers"]?[name]?["visible"]?.GetValue<bool?>() ?? true;
-                LayerTabs.Add(new LayerTabViewModel(
-                    name,
-                    false,
-                    visible));
-            }
-        }
-        SelectedLayerTab = previousName is null
-            ? LayerTabs[0]
-            : LayerTabs.FirstOrDefault(item => !item.IsOverview && item.Name == previousName) ?? LayerTabs[0];
-        refreshActorOutliner();
-        updateLayerEditability();
-    }
-
-    private void updateLayerEditability()
-    {
-        LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private static string getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text)
-            ? text ?? string.Empty
-            : string.Empty;
-    }
-
-    private string getUniqueLayerName(string baseName)
-    {
-        string candidate = baseName;
-        int suffix = 2;
-        while (layerNameExists(candidate))
-            candidate = $"{baseName}_{suffix++}";
-        return candidate;
-    }
-
     private void onModifiedChanged(object? sender, EventArgs args)
     {
         OnPropertyChanged(nameof(IsModified));
         OnPropertyChanged(nameof(WindowTitle));
         SaveCommand.NotifyCanExecuteChanged();
-    }
-
-    private void onTilesetSelected(object? sender, string tilesetKey)
-    {
-        if (!CanEdit)
-        {
-            restoreRuntimeTileset();
-            return;
-        }
-        if (SelectedMap is null || SelectedLayerTab is not { IsOverview: false } layer)
-            return;
-        if (GameData.setLayerTilesetKey(SelectedMap.Key, layer.Name, tilesetKey))
-            LayerDisplayStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void onGameVariablesSaved(object? sender, EventArgs args)
@@ -604,8 +267,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     {
         onModifiedChanged(sender, args);
         onUndoRedoStateChanged(sender, args);
-        foreach (MapListItemViewModel item in Maps.SelectMany(root => root.Children.Prepend(root)))
-            item.IsModified = GameData.Documents.Find(item.IsWorld ? "WorldMaps" : "Maps", item.Key)?.IsModified == true;
     }
 
     private void onUndoRedoStateChanged(object? sender, EventArgs args)
@@ -617,9 +278,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void onDataRestored(object? sender, EventArgs args)
     {
         ActorQueue.PurgeStale();
-        refreshMaps();
+        MapWorkspace.refreshMaps();
         TileSelect.RefreshData();
-        SelectedMapChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void onExplorerFileClicked(object? sender, FileExplorerFileEventArgs args)
@@ -640,7 +300,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         remapExplorerMoves(args.Moved);
         ReferenceIndex.MarkDirty();
         ActorQueue.PurgeStale();
-        refreshMaps();
+        MapWorkspace.refreshMaps();
         TileSelect.RefreshData();
     }
 
@@ -736,7 +396,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
                 Actions.OpenAutoTiles(info.Key);
                 break;
             case EditorDataOpenTarget.Map:
-                SelectedMap = findMapItem(info.Key);
+                MapWorkspace.SelectedMap = MapWorkspace.findMapItem(info.Key);
                 break;
             case EditorDataOpenTarget.CommonFunctions:
                 Actions.OpenCommonFunctions(info.Key);
@@ -788,7 +448,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             || !LocaleService.SetLanguage(language))
             return;
         SelectedLanguage = language;
-        refreshMaps();
+        MapWorkspace.refreshMaps();
         LanguageChangeRequested?.Invoke(this, EventArgs.Empty);
     }
 

@@ -14,13 +14,13 @@ namespace Ludork.Views.Utils;
 
 internal sealed class MoveRouteEditWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ListBox mapList;
     private readonly MoveRouteMapReferenceView mapView;
     private readonly TextBlock routeLabel;
 
     private MoveRouteEditWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         JsonNode? initial)
     {
         this.gameData = gameData;
@@ -75,7 +75,7 @@ internal sealed class MoveRouteEditWindow : Window
 
     public static Task<JsonArray?> ShowAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         JsonNode? initial)
     {
         MoveRouteEditWindow window = new(gameData, initial);
@@ -85,7 +85,7 @@ internal sealed class MoveRouteEditWindow : Window
     private void loadMaps(string preferredKey)
     {
         ListBoxItem? preferred = null;
-        foreach (MapCatalogEntry entry in gameData.MapCatalog
+        foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog
                      .Where(item => item.Kind != MapCatalogEntryKind.WorldMap)
                      .OrderBy(item => item.Key, StringComparer.Ordinal))
         {
@@ -113,7 +113,7 @@ internal sealed class MoveRouteEditWindow : Window
             mapView.SetMap(null, null);
             return;
         }
-        mapView.SetMap(key, gameData.ReadMapSnapshot(key));
+        mapView.SetMap(key, gameData.Maps.ReadMapSnapshot(key));
     }
 
     private void refreshRouteLabel()

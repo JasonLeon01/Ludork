@@ -22,7 +22,7 @@ public partial class MainWindow
             current.GameData.AcceptTrashedResources(paths);
             current.ReferenceIndex.MarkDirty();
             current.FileExplorerPanel.RequestRefresh();
-            onFileChangesApplied(this, new FileExplorerFilesChangedEventArgs([], [], paths));
+            documentWindows?.ApplyFileChanges(this, new FileExplorerFilesChangedEventArgs([], [], paths));
         });
     }
 }

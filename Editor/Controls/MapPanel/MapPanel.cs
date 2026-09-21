@@ -24,7 +24,7 @@ public enum MapEditMode
 
 public interface IMapLayerShaderRenderer
 {
-    void renderLayer(DrawingContext context, JsonObject layer, Rect layerBounds);
+    void renderLayer(DrawingContext context, MapLayerSnapshot layer, Rect layerBounds);
 }
 
 public sealed partial class MapPanel : Control
@@ -56,7 +56,7 @@ public sealed partial class MapPanel : Control
     private readonly HashSet<string> pendingBrushLayerNames = new(StringComparer.Ordinal);
     private readonly HashSet<string> animatedAutoTileLayerNames = new(StringComparer.Ordinal);
     private readonly EditorZoomInput zoomInput = new();
-    private GameDataService? gameData;
+    private ProjectDataStore? gameData;
     private IMapEditingContext? editingContext;
     private BlueprintPreviewService? previewService;
     private AutoTileRenderer? autoTileRenderer;
@@ -86,7 +86,7 @@ public sealed partial class MapPanel : Control
     private string? actorMoveLayer;
     private string? movingRuntimeActorId;
     private (int X, int Y) actorMoveOffset;
-    private JsonObject? actorClipboard;
+    private MapActorSnapshot? actorClipboard;
     private JsonObject? actorClassVarChangesClipboard;
     private ViewportRenderCache? checkerboardRenderCache;
     private CacheGeometry? cacheGeometry;
@@ -116,7 +116,7 @@ public sealed partial class MapPanel : Control
     }
 
     public string? CurrentMapKey { get; private set; }
-    public JsonObject? CurrentMapData { get; private set; }
+    public MapDocumentSnapshot? CurrentMapDocument { get; private set; }
     public int RefreshCount { get; private set; }
     public string? PendingActor => pendingActor;
     public string? SelectedActorLayer => selectedActorLayer;
@@ -134,7 +134,7 @@ public sealed partial class MapPanel : Control
     public event EventHandler<LightDataChangedEventArgs>? LightDataChanged;
     public event EventHandler<string>? EditFeedbackRequested;
 
-    public void configure(GameDataService nextGameData, BlueprintPreviewService nextPreviewService)
+    public void configure(ProjectDataStore nextGameData, BlueprintPreviewService nextPreviewService)
     {
         if (ReferenceEquals(gameData, nextGameData) && ReferenceEquals(previewService, nextPreviewService))
             return;
@@ -155,7 +155,7 @@ public sealed partial class MapPanel : Control
         previewService = nextPreviewService;
         previewService.VisualsInvalidated += onActorVisualsInvalidated;
         autoTileRenderer = new AutoTileRenderer(nextGameData);
-        tileSize = Math.Clamp(nextGameData.getCellSize(), MinTileSize, MaxTileSize);
+        tileSize = Math.Clamp(nextGameData.Configs.getCellSize(), MinTileSize, MaxTileSize);
         continuousTileSize = tileSize;
         InvalidateMeasure();
         InvalidateVisual();
@@ -179,7 +179,7 @@ public sealed partial class MapPanel : Control
         setPendingActor(null);
         setSelectedActor(null, null, true, true);
         if (CurrentMapKey is not null)
-            refreshMap(CurrentMapKey, context.ReadMapSnapshot(CurrentMapKey));
+            refreshMapDocument(CurrentMapKey, context.ReadMapDocument(CurrentMapKey));
     }
 
     public void CancelInteractions()
@@ -217,10 +217,13 @@ public sealed partial class MapPanel : Control
     }
 
     public void refreshMap(string? mapKey, JsonObject? mapData)
+        => refreshMapDocument(mapKey, mapData is null ? null : MapDocumentCodec.Decode(mapData));
+
+    private void refreshMapDocument(string? mapKey, MapDocumentSnapshot? document)
     {
         cancelMapGesture();
         CurrentMapKey = mapKey;
-        CurrentMapData = mapData?.DeepClone() as JsonObject;
+        CurrentMapDocument = document;
         RefreshCount += 1;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
@@ -309,12 +312,12 @@ public sealed partial class MapPanel : Control
         }
         if (selectedActorLayer is not string layerName
             || selectedActorIndex is not int index
-            || getActorList(layerName) is not JsonArray actors
+            || getActorList(layerName) is not IReadOnlyList<MapActorSnapshot> actors
             || !actorRenderStates.TryGetValue(layerName, out List<ActorRenderState>? states)
             || actors.Count != states.Count
             || index < 0
             || index >= actors.Count
-            || actors[index] is not JsonObject actor
+            || actors[index] is not MapActorSnapshot actor
             || !ReferenceEquals(states[index].Actor, actor))
         {
             invalidateActorRenderStates();
@@ -343,12 +346,12 @@ public sealed partial class MapPanel : Control
     {
         if (IsRuntimeEditing || editingContext?.IsEditable != true)
             return;
-        if (selectedLightIndex is not int index || CurrentMapData?["lights"] is not JsonArray lights || index < 0 || index >= lights.Count || lights[index] is not JsonObject light)
+        if (selectedLightIndex is not int index || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || index < 0 || index >= lights.Count || lights[index] is not MapLightSnapshot light)
             return;
         JsonObject next = (JsonObject)lightData.DeepClone();
-        if (JsonNode.DeepEquals(light, next))
+        if (JsonNode.DeepEquals(light.ToJson(), next))
             return;
-        if (gameData is null || CurrentMapKey is null || !gameData.UpdateMapLight(CurrentMapKey, index, light, next))
+        if (gameData is null || CurrentMapKey is null || !gameData.Maps.UpdateMapLight(CurrentMapKey, index, light.ToJson(), next))
             return;
         LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey ?? string.Empty, index, next));
         InvalidateVisual();

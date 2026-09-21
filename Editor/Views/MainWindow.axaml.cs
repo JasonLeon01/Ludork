@@ -1,3 +1,4 @@
+using Ludork.Composition;
 using Avalonia.Controls;
 using Avalonia;
 using Avalonia.Controls.Primitives;
@@ -14,6 +15,7 @@ using Ludork.Services.BlueprintAssistant;
 using Ludork.Services.Plugins;
 using Ludork.ViewModels;
 using Ludork.Views.Utils;
+using Ludork.Views.Coordination;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -26,10 +28,16 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IProjectOperationInteraction
 {
     private readonly EditorSettings? editorSettings;
+    private readonly PluginMenuCoordinator pluginMenus;
+    private readonly EditorProjectSession? projectSession;
+    private DocumentWindowCoordinator? documentWindows;
     private readonly ProjectRunnerService? projectRunner;
+    private readonly ProjectOperationCoordinator? projectOperations;
+    private readonly ProjectPackCoordinator? projectPack;
+    private readonly LiveDebugCoordinator? liveDebug;
     private readonly ConsoleLogSession consoleLogSession = new();
     private readonly object consoleOutputSync = new();
     private readonly LogTextViewController consoleLogView;
@@ -44,22 +52,9 @@ public partial class MainWindow : Window
     private bool layoutReady;
     private bool layoutSavePending;
     private TileSelectViewModel? tileSelect;
-    private AnimationOverviewWindow? animationOverview;
-    private ParticleOverviewWindow? particleOverview;
-    private TilesetEditorWindow? tilesetEditor;
-    private GeneralDataEditorWindow? generalDataEditor;
-    private CommonFunctionWindow? commonFunctionWindow;
-    private GameVariableManagerWindow? gameVariableManager;
     private PerformanceMonitorWindow? performanceMonitorWindow;
-    private PackSelectionDialog? packSelectionDialog;
-    private PackLogDialog? packLogDialog;
     private readonly Toast toast;
-    private readonly Dictionary<string, CurveWindow> curveWindows = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, TextConfigEditorWindow> textConfigWindows = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, BlueprintEditorWindow> blueprintWindows = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, UiAssetEditorWindow> uiAssetWindows = new(StringComparer.Ordinal);
     private readonly List<string> consoleHistory = new();
-    private MapClipboard? mapClipboard;
     private int consoleHistoryIndex;
     private string consoleDraft = string.Empty;
     private bool settingConsoleHistoryText;
@@ -68,14 +63,8 @@ public partial class MainWindow : Window
     private ActorPreviewService? actorPreviewService;
     private bool actorPreviewFallbackNotified;
     private Task gameInputSendTail = Task.CompletedTask;
-    private ProjectRunState projectOperationState;
-    private bool projectLaunchPending;
-    private CancellationTokenSource? projectLaunchCancellation;
-    private TaskCompletionSource? projectOperationCompletion;
     private bool projectRunReachedRunning;
     private bool gameLayoutLocked;
-    private bool uiAssetRefreshPending;
-    private string? lastActiveBlueprintKey;
     private ProjectWindowMode? activeWindowMode;
     private GridLength previousCenterWidth;
     private double previousCenterMinWidth;
@@ -93,27 +82,40 @@ public partial class MainWindow : Window
 
     public string ProjectPath { get; } = string.Empty;
 
+    internal IBlueprintAssistantHost? CreateBlueprintAssistantHost() => documentWindows?.CreateBlueprintAssistantHost();
+
     public MainWindow()
     {
         InitializeComponent();
         consoleLogView = new LogTextViewController(ConsoleOutput);
-        installPluginMenus();
+        pluginMenus = new PluginMenuCoordinator(this, ProjectPath);
         toast = new Toast(this);
         initializeInteraction();
     }
 
-    public MainWindow(EditorSettings settings, string projectPath)
+    public MainWindow(EditorSettings settings, EditorProjectSession session)
     {
         editorSettings = settings;
-        if (!Path.IsPathFullyQualified(projectPath))
-            throw new ArgumentException(nameof(projectPath));
-        ProjectPath = Path.GetFullPath(projectPath);
-        projectRunner = new ProjectRunnerService(ProjectPath);
+        projectSession = session;
+        ProjectPath = session.ProjectPath;
+        projectRunner = session.ProjectRunner;
+        projectOperations = new ProjectOperationCoordinator(projectRunner, session.ProjectConfig, this);
+        projectOperations.StateChanged += onProjectOperationStateChanged;
+        projectPack = new ProjectPackCoordinator(this, session, projectOperations);
+        liveDebug = new LiveDebugCoordinator(session.MapWorkspace, session.GameData, projectRunner);
+        liveDebug.EditingContextChanged += onLiveDebugEditingContextChanged;
+        liveDebug.Started += onLiveDebugStarted;
+        liveDebug.Ended += onLiveDebugEnded;
+        liveDebug.ContextChanged += onLiveDebugContextChanged;
+        liveDebug.StatusChanged += onLiveDebugStatusChanged;
+        liveDebug.ErrorReceived += onLiveDebugError;
         InitializeComponent();
         consoleLogView = new LogTextViewController(ConsoleOutput);
-        installPluginMenus();
+        pluginMenus = new PluginMenuCoordinator(this, ProjectPath);
         toast = new Toast(this);
         initializeInteraction();
+        documentWindows = new DocumentWindowCoordinator(this, session, showHelp);
+        DataContext = session.MainViewModel;
         Width = Math.Max(MinWidth, settings.Width);
         Height = Math.Max(MinHeight, settings.Height);
         leftColumn.Width = new GridLength(Math.Max(160, settings.UpperLeftWidth));
@@ -122,5 +124,3 @@ public partial class MainWindow : Window
     }
 
 }
-
-internal sealed record MapClipboard(string SourceKey, JsonObject Data);

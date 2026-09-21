@@ -58,7 +58,7 @@ public partial class MainWindow
                 ?? visual.GetVisualAncestors().OfType<Control>()
                     .Select(ancestor => ancestor.DataContext).OfType<MapListItemViewModel>().FirstOrDefault();
             if (!pointer)
-                item ??= viewModel.SelectedMap;
+                item ??= viewModel.MapWorkspace.SelectedMap;
             viewModel.SetActiveDocument(item is null ? null
                 : viewModel.GameData.GetDocument(item.IsWorld ? "WorldMaps" : "Maps", item.Key));
             return;
@@ -71,7 +71,7 @@ public partial class MainWindow
             || isInsideHistoryControl(visual, EditModeToggles)
             || isInsideHistoryControl(visual, LightInfoPanel)
             || isInsideHistoryControl(visual, RightList);
-        MapListItemViewModel? selected = viewModel.SelectedMap;
+        MapListItemViewModel? selected = viewModel.MapWorkspace.SelectedMap;
         viewModel.SetActiveDocument(mapContext && selected is not null
             ? viewModel.GameData.GetDocument(selected.IsWorld ? "WorldMaps" : "Maps", selected.Key) : null);
     }

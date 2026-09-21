@@ -2,7 +2,7 @@
 #include <Graphics/HueConstants.hpp>
 #include <UI/FunctionalImage.hpp>
 
-#include "Graphics/SpriteVisuals.hpp"
+#include <CoreShared/SpriteVisuals.hpp>
 
 #include <SFML/Graphics/Glsl.hpp>
 #include <SFML/Graphics/Sprite.hpp>

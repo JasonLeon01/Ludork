@@ -17,7 +17,7 @@ internal sealed record MapTargetPickerResult(string RuntimePath, JsonArray? Posi
 
 internal sealed class MapTargetPickerWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly bool pickPosition;
     private readonly bool requirePosition;
     private readonly TreeView mapTree;
@@ -30,7 +30,7 @@ internal sealed class MapTargetPickerWindow : Window
     private MapTargetItem? selectedTarget;
 
     private MapTargetPickerWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string preferredRuntimePath,
         JsonNode? position,
         bool pickPosition,
@@ -142,7 +142,7 @@ internal sealed class MapTargetPickerWindow : Window
 
     public static Task<MapTargetPickerResult?> ShowPositionAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string preferredRuntimePath,
         JsonNode? position,
         bool requirePosition = false)
@@ -158,7 +158,7 @@ internal sealed class MapTargetPickerWindow : Window
 
     public static async Task<string?> ShowPathAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string preferredRuntimePath)
     {
         MapTargetPickerWindow window = new(
@@ -173,7 +173,7 @@ internal sealed class MapTargetPickerWindow : Window
     private void loadTargets(string preferredRuntimePath)
     {
         TreeViewItem? preferred = null;
-        IReadOnlyList<MapCatalogEntry> catalog = gameData.MapCatalog;
+        IReadOnlyList<MapCatalogEntry> catalog = gameData.Maps.MapCatalog;
         foreach (MapCatalogEntry entry in catalog
                      .Where(item => item.Kind == MapCatalogEntryKind.StandaloneMap)
                      .OrderBy(item => item.Key, StringComparer.Ordinal))
@@ -197,7 +197,7 @@ internal sealed class MapTargetPickerWindow : Window
                 world.Key,
                 world.DisplayName,
                 MapCatalogEntryKind.WorldMap,
-                gameData.GetWorldManifestRuntimePath(world.Key),
+                gameData.Worlds.GetWorldManifestRuntimePath(world.Key),
                 world.Key,
                 true);
             TreeViewItem worldItem = createTreeItem(worldTarget);
@@ -212,7 +212,7 @@ internal sealed class MapTargetPickerWindow : Window
                     child.Key,
                     child.DisplayName,
                     MapCatalogEntryKind.WorldChildMap,
-                    gameData.GetMapRuntimePath(child.Key),
+                    gameData.Maps.GetMapRuntimePath(child.Key),
                     world.Key,
                     placed);
                 TreeViewItem childItem = createTreeItem(childTarget);
@@ -267,7 +267,7 @@ internal sealed class MapTargetPickerWindow : Window
             entry.Key,
             entry.DisplayName,
             entry.Kind,
-            gameData.GetMapRuntimePath(entry.Key),
+            gameData.Maps.GetMapRuntimePath(entry.Key),
             entry.WorldKey,
             true);
     }
@@ -275,7 +275,7 @@ internal sealed class MapTargetPickerWindow : Window
     private HashSet<string> getPlacedChildren(string worldKey)
     {
         HashSet<string> result = new(StringComparer.Ordinal);
-        if (gameData.ReadWorldMapSnapshot(worldKey)?["placements"] is not JsonArray placements)
+        if (gameData.Worlds.ReadWorldMapSnapshot(worldKey)?["placements"] is not JsonArray placements)
             return result;
         foreach (JsonNode? node in placements)
         {
@@ -314,7 +314,7 @@ internal sealed class MapTargetPickerWindow : Window
         }
         if (selectedTarget.Kind == MapCatalogEntryKind.WorldMap)
         {
-            IReadOnlyList<WorldMapChildSource> children = gameData.MapCatalog
+            IReadOnlyList<WorldMapChildSource> children = gameData.Maps.MapCatalog
                 .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap
                     && string.Equals(entry.WorldKey, selectedTarget.WorldKey, StringComparison.Ordinal))
                 .OrderBy(entry => entry.Key, StringComparer.Ordinal)
@@ -322,7 +322,7 @@ internal sealed class MapTargetPickerWindow : Window
                 .ToArray();
             worldView.SetWorld(
                 selectedTarget.WorldKey,
-                gameData.ReadWorldMapSnapshot(selectedTarget.WorldKey ?? string.Empty),
+                gameData.Worlds.ReadWorldMapSnapshot(selectedTarget.WorldKey ?? string.Empty),
                 children);
             worldView.SetSelectedWorldCell(position);
             worldScroll.IsVisible = true;
@@ -331,7 +331,7 @@ internal sealed class MapTargetPickerWindow : Window
         else
         {
             worldView.SetWorld(null, null, []);
-            mapView.SetMap(selectedTarget.Key, gameData.ReadMapSnapshot(selectedTarget.Key));
+            mapView.SetMap(selectedTarget.Key, gameData.Maps.ReadMapSnapshot(selectedTarget.Key));
             mapView.SetPosition(position);
             mapView.IsVisible = true;
             worldScroll.IsVisible = false;
@@ -386,7 +386,7 @@ internal sealed class MapTargetPickerWindow : Window
     {
         rect = default;
         if (target.WorldKey is null
-            || gameData.ReadWorldMapSnapshot(target.WorldKey)?["placements"] is not JsonArray placements)
+            || gameData.Worlds.ReadWorldMapSnapshot(target.WorldKey)?["placements"] is not JsonArray placements)
         {
             return false;
         }

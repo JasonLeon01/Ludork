@@ -11,7 +11,7 @@ namespace Ludork.Services.UiAssets;
 internal sealed class UiAssetPreviewSession : IAsyncDisposable
 {
     private readonly UiAssetEditorDocument document;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly UiPreviewRuntimeService runtime;
     private readonly UiPreviewClient client;
     private readonly CancellationTokenSource lifetime = new();
@@ -36,7 +36,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
 
     public UiAssetPreviewSession(
         UiAssetEditorDocument document,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         UiPreviewRuntimeService runtime)
     {
         Dispatcher.UIThread.VerifyAccess();
@@ -310,7 +310,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
     {
         string assetKey = document.AssetKey;
         JsonObject asset = (JsonObject)document.Data.DeepClone();
-        UiAssetDependencyGraph dependencyGraph = new(gameData.UiAssetsData, assetKey, asset);
+        UiAssetDependencyGraph dependencyGraph = new(gameData.UiAssets.UiAssetsData, assetKey, asset);
         return new AssetSnapshot(assetKey, asset, dependencyGraph.CollectDependencies(assetKey));
     }
 

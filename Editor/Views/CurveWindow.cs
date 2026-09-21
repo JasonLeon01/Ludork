@@ -12,7 +12,7 @@ namespace Ludork.Views;
 public sealed class CurveWindow : Window
 {
     private readonly CurveEditor editor;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly EditorDocument? resourceDocument;
     private readonly EditorDocumentBinding documentBinding;
@@ -20,7 +20,7 @@ public sealed class CurveWindow : Window
     private readonly Toast toast;
 
     public CurveWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         string key,
         JsonObject data)

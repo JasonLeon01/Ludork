@@ -4,7 +4,7 @@
 #include <UI/PlainTextConfig.hpp>
 #include <UI/RichText.hpp>
 
-#include <Text/TextConfigCodec.hpp>
+#include <CoreShared/TextConfigCodec.hpp>
 
 #include <UI/UIState.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>

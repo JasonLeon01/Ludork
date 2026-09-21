@@ -28,7 +28,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             ["general"] = "General",
         };
 
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
     private readonly CancellationToken cancellationToken;
@@ -47,7 +47,7 @@ public sealed partial class ReferenceIndexService : IDisposable
     private bool disposed;
 
     public ReferenceIndexService(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
         CancellationToken cancellationToken = default,
@@ -113,7 +113,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             && lower.StartsWith("data/maps/", StringComparison.Ordinal))
         {
             string worldKey = normalized["Data/Maps/".Length..].Trim('/');
-            if (!worldKey.Contains('/') && gameData.WorldMapData.ContainsKey(worldKey))
+            if (!worldKey.Contains('/') && gameData.Worlds.WorldMapData.ContainsKey(worldKey))
                 return nodeId("worldMap", worldKey);
         }
         if (lower.StartsWith("assets/", StringComparison.Ordinal))
@@ -146,7 +146,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         key = key[..^DataConfig.DataFileExtension.Length];
         if (section.Equals("Blueprints", StringComparison.OrdinalIgnoreCase))
         {
-            return gameData.BlueprintsData.ContainsKey(key)
+            return gameData.Blueprints.BlueprintsData.ContainsKey(key)
                 ? blueprintNodeIdFromKey(key)
                 : null;
         }
@@ -155,7 +155,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             && key.EndsWith("/_world", StringComparison.OrdinalIgnoreCase))
         {
             string worldKey = key[..^"/_world".Length];
-            return gameData.WorldMapData.ContainsKey(worldKey)
+            return gameData.Worlds.WorldMapData.ContainsKey(worldKey)
                 ? nodeId("worldMap", worldKey)
                 : null;
         }
@@ -346,24 +346,24 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private void buildNodes()
     {
-        addSectionNodes("config", gameData.SystemConfigData.Keys);
-        addSectionNodes("tileset", gameData.TilesetData.Keys);
-        addSectionNodes("autoTile", gameData.AutoTileData.Keys);
+        addSectionNodes("config", gameData.Configs.SystemConfigData.Keys);
+        addSectionNodes("tileset", gameData.Assets.TilesetData.Keys);
+        addSectionNodes("autoTile", gameData.Assets.AutoTileData.Keys);
         addSectionNodes(
             "map",
-            gameData.MapCatalog
+            gameData.Maps.MapCatalog
                 .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
                 .Select(entry => entry.Key));
-        addSectionNodes("worldMap", gameData.WorldMapData.Keys);
-        addSectionNodes("commonFunction", gameData.CommonFunctionsData.Keys);
-        foreach (string key in gameData.BlueprintsData.Keys)
+        addSectionNodes("worldMap", gameData.Worlds.WorldMapData.Keys);
+        addSectionNodes("commonFunction", gameData.Blueprints.CommonFunctionsData.Keys);
+        foreach (string key in gameData.Blueprints.BlueprintsData.Keys)
             addNode("blueprint", BlueprintPrefix + key.Replace('/', '.'));
-        addSectionNodes("animation", gameData.AnimationsData.Keys);
-        addSectionNodes("particle", gameData.ParticlesData.Keys);
-        addSectionNodes("curve", gameData.CurvesData.Keys);
-        addSectionNodes("textConfig", gameData.TextConfigsData.Keys);
-        addSectionNodes("uiAsset", gameData.UiAssetsData.Keys);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.GeneralData)
+        addSectionNodes("animation", gameData.Assets.AnimationsData.Keys);
+        addSectionNodes("particle", gameData.Assets.ParticlesData.Keys);
+        addSectionNodes("curve", gameData.Assets.CurvesData.Keys);
+        addSectionNodes("textConfig", gameData.Assets.TextConfigsData.Keys);
+        addSectionNodes("uiAsset", gameData.UiAssets.UiAssetsData.Keys);
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.General.GeneralData))
         {
             addNode("general", pair.Key);
             if (pair.Value["members"] is not JsonObject members)
@@ -410,17 +410,17 @@ public sealed partial class ReferenceIndexService : IDisposable
     {
         BlueprintNodeDefinitionSet globalDefinitions =
             new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet();
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.SystemConfigData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Configs.SystemConfigData))
             scanDocumentReferences("Configs", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.TilesetData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.TilesetData))
             scanDocumentReferences("Tilesets", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.AutoTileData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.AutoTileData))
             scanDocumentReferences("AutoTiles", pair.Key, pair.Value, globalDefinitions);
-        foreach (MapCatalogEntry entry in gameData.MapCatalog
+        foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog
                      .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap))
         {
             if (entry.Kind == MapCatalogEntryKind.WorldChildMap
-                && !gameData.LoadedMapData.ContainsKey(entry.Key))
+                && !gameData.Maps.LoadedMapData.ContainsKey(entry.Key))
             {
                 if (mapReferenceCache.TryGetValue(entry.Key, out IReadOnlyList<ReferenceRecord>? cached))
                     replayMapReferences(cached);
@@ -428,26 +428,26 @@ public sealed partial class ReferenceIndexService : IDisposable
             }
             scanAndCacheMapReferences(entry);
         }
-        allWorldChildMapReferencesBuilt = gameData.MapCatalog
+        allWorldChildMapReferencesBuilt = gameData.Maps.MapCatalog
             .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap)
             .All(entry => mapReferenceCache.ContainsKey(entry.Key));
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.WorldMapData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Worlds.WorldMapData))
             scanDocumentReferences("WorldMaps", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.CommonFunctionsData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Blueprints.CommonFunctionsData))
             scanDocumentReferences("CommonFunctions", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.BlueprintsData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Blueprints.BlueprintsData))
             scanDocumentReferences("Blueprints", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.AnimationsData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.AnimationsData))
             scanDocumentReferences("Animations", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.ParticlesData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.ParticlesData))
             scanDocumentReferences("Particles", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.CurvesData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.CurvesData))
             scanDocumentReferences("Curves", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.TextConfigsData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.TextConfigsData))
             scanDocumentReferences("TextConfigs", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.UiAssetsData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.UiAssets.UiAssetsData))
             scanDocumentReferences("UI", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.GeneralData)
+        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.General.GeneralData))
             scanDocumentReferences("General", pair.Key, pair.Value, globalDefinitions);
     }
 
@@ -524,29 +524,29 @@ public sealed partial class ReferenceIndexService : IDisposable
     private (string Type, IReadOnlyDictionary<string, JsonObject> Data)? getDataSection(string section)
     {
         if (section.Equals("Configs", StringComparison.OrdinalIgnoreCase))
-            return ("config", gameData.SystemConfigData);
+            return ("config", SnapshotJson.ToDictionary(gameData.Configs.SystemConfigData));
         if (section.Equals("Tilesets", StringComparison.OrdinalIgnoreCase))
-            return ("tileset", gameData.TilesetData);
+            return ("tileset", SnapshotJson.ToDictionary(gameData.Assets.TilesetData));
         if (section.Equals("AutoTiles", StringComparison.OrdinalIgnoreCase))
-            return ("autoTile", gameData.AutoTileData);
+            return ("autoTile", SnapshotJson.ToDictionary(gameData.Assets.AutoTileData));
         if (section.Equals("Maps", StringComparison.OrdinalIgnoreCase))
-            return ("map", gameData.MapData);
+            return ("map", SnapshotJson.ToDictionary(gameData.Maps.MapData));
         if (section.Equals("WorldMaps", StringComparison.OrdinalIgnoreCase))
-            return ("worldMap", gameData.WorldMapData);
+            return ("worldMap", SnapshotJson.ToDictionary(gameData.Worlds.WorldMapData));
         if (section.Equals("CommonFunctions", StringComparison.OrdinalIgnoreCase))
-            return ("commonFunction", gameData.CommonFunctionsData);
+            return ("commonFunction", SnapshotJson.ToDictionary(gameData.Blueprints.CommonFunctionsData));
         if (section.Equals("Animations", StringComparison.OrdinalIgnoreCase))
-            return ("animation", gameData.AnimationsData);
+            return ("animation", SnapshotJson.ToDictionary(gameData.Assets.AnimationsData));
         if (section.Equals("Particles", StringComparison.OrdinalIgnoreCase))
-            return ("particle", gameData.ParticlesData);
+            return ("particle", SnapshotJson.ToDictionary(gameData.Assets.ParticlesData));
         if (section.Equals("Curves", StringComparison.OrdinalIgnoreCase))
-            return ("curve", gameData.CurvesData);
+            return ("curve", SnapshotJson.ToDictionary(gameData.Assets.CurvesData));
         if (section.Equals("TextConfigs", StringComparison.OrdinalIgnoreCase))
-            return ("textConfig", gameData.TextConfigsData);
+            return ("textConfig", SnapshotJson.ToDictionary(gameData.Assets.TextConfigsData));
         if (section.Equals("UI", StringComparison.OrdinalIgnoreCase))
-            return ("uiAsset", gameData.UiAssetsData);
+            return ("uiAsset", SnapshotJson.ToDictionary(gameData.UiAssets.UiAssetsData));
         if (section.Equals("General", StringComparison.OrdinalIgnoreCase))
-            return ("general", gameData.GeneralData);
+            return ("general", SnapshotJson.ToDictionary(gameData.General.GeneralData));
         return null;
     }
 

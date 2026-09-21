@@ -3,7 +3,7 @@
 #include <UI/RichText.hpp>
 #include <UnicodeText.hpp>
 
-#include "Text/TextConfigCodec.hpp"
+#include <CoreShared/TextConfigCodec.hpp>
 
 #include <algorithm>
 #include <cmath>

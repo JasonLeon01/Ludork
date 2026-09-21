@@ -29,7 +29,7 @@ public partial class MainWindow
 {
     private void onPreviewModeRequested(object? sender, int modeIndex)
     {
-        if (viewModel?.CanUseMapTools != true)
+        if (viewModel?.MapWorkspace.CanUseMapTools != true)
             return;
         MapEditMode mode = modeIndex switch
         {
@@ -86,12 +86,17 @@ public partial class MainWindow
 
     public async void CloseForProjectSwitch()
     {
+        closingPrompt = true;
+        Task completion = projectOperations?.Completion ?? Task.CompletedTask;
+        projectOperations?.Cancel();
         if (projectRunner is not null && projectRunner.State != ProjectRunState.Idle)
         {
             long generation = projectRunner.RunGeneration;
             await projectRunner.SetPerformanceMonitoringAsync(false, generation);
             await projectRunner.StopAsync(generation);
         }
+        await completion;
+        closingPrompt = false;
         closeConfirmed = true;
         Close();
     }
@@ -115,7 +120,7 @@ public partial class MainWindow
 
     private void selectPreviewMode(MapEditMode mode)
     {
-        if (viewModel?.IsLiveDebugActive == true && mode == MapEditMode.Light)
+        if (viewModel?.MapWorkspace.IsLiveDebugActive == true && mode == MapEditMode.Light)
             return;
         bool tileMode = mode == MapEditMode.Tile;
         bool lightMode = mode == MapEditMode.Light;
@@ -123,7 +128,7 @@ public partial class MainWindow
         bool wasLightMode = EditorPanel.EditMode == MapEditMode.Light;
         if (lightMode && LightActorSelectionToggle.IsChecked != true)
             suspendLightLayerSelection();
-        else if (wasLightMode && !lightMode && viewModel?.SelectedLayerTab is null
+        else if (wasLightMode && !lightMode && viewModel?.MapWorkspace.SelectedLayerTab is null
             || lightMode && !wasLightMode)
             restoreLightLayerSelection();
         TileModeToggle.IsChecked = tileMode;
@@ -138,7 +143,7 @@ public partial class MainWindow
             LightInfoPanel.setLight(null);
         }
         if (actorMode)
-            viewModel?.refreshActorOutliner();
+            viewModel?.MapWorkspace.refreshActorOutliner();
         refreshMapPanelState();
     }
 
@@ -158,30 +163,30 @@ public partial class MainWindow
     {
         if (viewModel is null)
             return;
-        if (viewModel.SelectedLayerTab is { IsOverview: false } layer)
+        if (viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false } layer)
         {
-            lightSelectionMapKey = viewModel.SelectedMap?.Key;
+            lightSelectionMapKey = viewModel.MapWorkspace.SelectedMap?.Key;
             lightSelectionLayerName = layer.Name;
         }
-        viewModel.SelectedLayerTab = null;
+        viewModel.MapWorkspace.SelectedLayerTab = null;
     }
 
     private void restoreLightLayerSelection()
     {
-        if (viewModel is null || viewModel.SelectedLayerTab is { IsOverview: false })
+        if (viewModel is null || viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false })
             return;
-        viewModel.SelectedLayerTab = viewModel.LayerTabs.FirstOrDefault(layer =>
+        viewModel.MapWorkspace.SelectedLayerTab = viewModel.MapWorkspace.LayerTabs.FirstOrDefault(layer =>
             !layer.IsOverview
-            && lightSelectionMapKey == viewModel.SelectedMap?.Key && layer.Name == lightSelectionLayerName)
-            ?? viewModel.LayerTabs.FirstOrDefault(layer => layer.IsOverview);
+            && lightSelectionMapKey == viewModel.MapWorkspace.SelectedMap?.Key && layer.Name == lightSelectionLayerName)
+            ?? viewModel.MapWorkspace.LayerTabs.FirstOrDefault(layer => layer.IsOverview);
     }
 
     private void updateLightModeControls()
     {
         bool lightMode = EditorPanel.EditMode == MapEditMode.Light;
-        LightActorSelectionToggle.IsVisible = lightMode && viewModel?.SelectedMap is { IsMap: true };
+        LightActorSelectionToggle.IsVisible = lightMode && viewModel?.MapWorkspace.SelectedMap is { IsMap: true };
         LightActorSelectionToggle.IsEnabled = viewModel?.CanEdit == true;
-        LayerTabs.IsEnabled = viewModel?.CanUseMapTools == true
+        LayerTabs.IsEnabled = viewModel?.MapWorkspace.CanUseMapTools == true
             && (!lightMode || LightActorSelectionToggle.IsChecked == true);
     }
 
@@ -231,56 +236,34 @@ public partial class MainWindow
             return;
         if (viewModel is null || (sender as Control)?.DataContext is not LayerTabViewModel layer)
             return;
-        viewModel.SelectedLayerTab = layer;
-        viewModel.setLayerVisible(layer, !layer.LayerVisible);
+        viewModel.MapWorkspace.SelectedLayerTab = layer;
+        viewModel.MapWorkspace.setLayerVisible(layer, !layer.LayerVisible);
         args.Handled = true;
-    }
-
-    private static bool tryGetUiAssetKey(
-        string uiRoot,
-        string path,
-        GameDataService gameData,
-        out string key)
-    {
-        string relative = Path.GetRelativePath(uiRoot, Path.GetFullPath(path));
-        if (!isRelativePathInside(relative)
-            || !string.Equals(
-                Path.GetExtension(relative),
-                DataConfig.DataFileExtension,
-                StringComparison.Ordinal))
-        {
-            key = string.Empty;
-            return false;
-        }
-        key = UiAssetSchema.NormalizeAssetKey(
-            Path.ChangeExtension(relative, null)!.Replace('\\', '/'));
-        return key.Length != 0
-            && gameData.UiAssetsData.ContainsKey(UiAssetSchema.ToAssetDataKey(key));
     }
 
     private IMapEditorHost createMapEditorHost(string mapKey)
     {
         return new MapEditorHostBridge(
             viewModel!.GameData,
-            viewModel.PreviewService,
+            projectSession!.PreviewService,
             mapKey,
             refreshPluginMap,
-            viewModel.canEditLayer);
+            viewModel.MapWorkspace.canEditLayer);
     }
 
     private void refreshPluginMap(string mapKey, string layerName)
     {
         if (viewModel is null)
             return;
-        MapListItemViewModel? map = viewModel.findMapItem(mapKey);
+        MapListItemViewModel? map = viewModel.MapWorkspace.findMapItem(mapKey);
         if (map is null)
             return;
-        viewModel.SelectedMap = map;
-        LayerTabViewModel? layer = viewModel.LayerTabs.FirstOrDefault(
+        viewModel.MapWorkspace.SelectedMap = map;
+        LayerTabViewModel? layer = viewModel.MapWorkspace.LayerTabs.FirstOrDefault(
             item => !item.IsOverview
                 && string.Equals(item.Name, layerName, StringComparison.Ordinal));
         if (layer is not null)
-            viewModel.SelectedLayerTab = layer;
+            viewModel.MapWorkspace.SelectedLayerTab = layer;
         selectPreviewMode(MapEditMode.Tile);
         refreshMapPanel();
     }
@@ -308,7 +291,7 @@ public partial class MainWindow
         LayerTabViewModel? target = targetItem?.Content as LayerTabViewModel ?? targetItem?.DataContext as LayerTabViewModel;
         if (target is null || target.IsOverview || target == draggedLayer)
             return;
-        viewModel.moveLayer(draggedLayer, target);
+        viewModel.MapWorkspace.moveLayer(draggedLayer, target);
         dragStart = position;
     }
 
@@ -337,7 +320,7 @@ public partial class MainWindow
         if (viewModel is null)
             return;
         if (layer is { IsOverview: false })
-            viewModel.SelectedLayerTab = layer;
+            viewModel.MapWorkspace.SelectedLayerTab = layer;
         ContextMenu menu = new ContextMenu();
         if (layer is null || layer.IsOverview)
         {
@@ -351,23 +334,23 @@ public partial class MainWindow
             {
                 Header = LocaleService.Get(layer.LayerVisible ? "HIDE_LAYER" : "SHOW_LAYER"),
             };
-            visibilityItem.Click += (_, _) => viewModel.setLayerVisible(layer, !layer.LayerVisible);
+            visibilityItem.Click += (_, _) => viewModel.MapWorkspace.setLayerVisible(layer, !layer.LayerVisible);
             MenuItem addItem = new MenuItem { Header = LocaleService.Get("ADD_LAYER") };
             addItem.Click += async (_, _) => await addLayerAsync(layer.Name);
             MenuItem renameItem = new MenuItem { Header = LocaleService.Get("RENAME_LAYER") };
             renameItem.Click += async (_, _) => await renameLayerAsync(layer.Name);
             MenuItem copyItem = new MenuItem { Header = LocaleService.Get("COPY") };
-            copyItem.Click += (_, _) => viewModel.copyLayer(layer.Name);
-            MenuItem pasteItem = new MenuItem { Header = LocaleService.Get("PASTE"), IsEnabled = viewModel.CanPasteLayer };
-            pasteItem.Click += (_, _) => viewModel.pasteLayer(layer.Name);
+            copyItem.Click += (_, _) => viewModel.MapWorkspace.copyLayer(layer.Name);
+            MenuItem pasteItem = new MenuItem { Header = LocaleService.Get("PASTE"), IsEnabled = viewModel.MapWorkspace.CanPasteLayer };
+            pasteItem.Click += (_, _) => viewModel.MapWorkspace.pasteLayer(layer.Name);
             MenuItem selectShaderItem = new MenuItem { Header = LocaleService.Get("SELECT_LAYER_SHADER") };
             selectShaderItem.Click += async (_, _) => await selectLayerShaderAsync(layer.Name);
             MenuItem clearShaderItem = new MenuItem
             {
                 Header = LocaleService.Get("CLEAR_LAYER_SHADER"),
-                IsEnabled = !string.IsNullOrWhiteSpace(viewModel.getLayerShaderPath(layer.Name)),
+                IsEnabled = !string.IsNullOrWhiteSpace(viewModel.MapWorkspace.getLayerShaderPath(layer.Name)),
             };
-            clearShaderItem.Click += (_, _) => viewModel.setLayerShaderPath(layer.Name, string.Empty);
+            clearShaderItem.Click += (_, _) => viewModel.MapWorkspace.setLayerShaderPath(layer.Name, string.Empty);
             MenuItem deleteItem = new MenuItem { Header = LocaleService.Get("DELETE") };
             deleteItem.Click += async (_, _) => await deleteLayerAsync(layer.Name);
             menu.Items.Add(visibilityItem);
@@ -394,9 +377,9 @@ public partial class MainWindow
             this,
             LocaleService.Get("ADD_LAYER"),
             LocaleService.Get("ADD_MESSAGE"),
-            viewModel.LayerTabs.Where(item => !item.IsOverview).Select(item => item.Name));
+            viewModel.MapWorkspace.LayerTabs.Where(item => !item.IsOverview).Select(item => item.Name));
         if (name is not null)
-            viewModel.addLayer(name, insertAfterLayer);
+            viewModel.MapWorkspace.addLayer(name, insertAfterLayer);
     }
 
     private async System.Threading.Tasks.Task renameLayerAsync(string oldName)
@@ -407,11 +390,11 @@ public partial class MainWindow
             this,
             LocaleService.Get("RENAME_LAYER"),
             LocaleService.Get("RENAME_MESSAGE"),
-            viewModel.LayerTabs.Where(item => !item.IsOverview && item.Name != oldName).Select(item => item.Name),
+            viewModel.MapWorkspace.LayerTabs.Where(item => !item.IsOverview && item.Name != oldName).Select(item => item.Name),
             oldName);
         if (name is not null
             && !string.Equals(name, oldName, StringComparison.Ordinal)
-            && viewModel.renameLayer(oldName, name))
+            && viewModel.MapWorkspace.renameLayer(oldName, name))
         {
             EditorPanel.refreshSelectedActor();
         }
@@ -424,9 +407,9 @@ public partial class MainWindow
         string? shaderPath = await FileSelectorDialog.SelectLayerShaderAsync(
             this,
             viewModel.GameData.ProjectPath,
-            viewModel.getLayerShaderPath(layerName));
+            viewModel.MapWorkspace.getLayerShaderPath(layerName));
         if (shaderPath is not null)
-            viewModel.setLayerShaderPath(layerName, shaderPath);
+            viewModel.MapWorkspace.setLayerShaderPath(layerName, shaderPath);
     }
 
     private async System.Threading.Tasks.Task deleteLayerAsync(string layerName)
@@ -438,7 +421,7 @@ public partial class MainWindow
             LocaleService.Get("CONFIRM_DELETE"),
             LocaleService.Get("CONFIRM_DELETE_LAYER").Replace("{name}", layerName, StringComparison.Ordinal));
         if (confirmed)
-            viewModel.deleteLayer(layerName);
+            viewModel.MapWorkspace.deleteLayer(layerName);
     }
 
     private static TabStripItem? getTabStripItem(object? source)
@@ -462,12 +445,6 @@ public partial class MainWindow
         return (source as Visual)?.GetVisualAncestors().OfType<TreeViewItem>().FirstOrDefault();
     }
 
-    private static string normaliseMapKey(string fileName)
-    {
-        string key = fileName.Replace('\\', '/').Trim().Trim('/');
-        return key.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? key[..^5] : key;
-    }
-
     private bool containsPoint(TabStripItem item, Point point)
     {
         Point? origin = item.TranslatePoint(new Point(), LayerTabs);
@@ -478,14 +455,14 @@ public partial class MainWindow
     {
         if (closeConfirmed)
             return;
-        if (projectLaunchPending && projectOperationCompletion is not null)
+        if (projectOperations?.IsPending == true)
         {
             args.Cancel = true;
             if (closingPrompt)
                 return;
             closingPrompt = true;
-            Task completion = projectOperationCompletion.Task;
-            projectLaunchCancellation?.Cancel();
+            Task completion = projectOperations.Completion;
+            projectOperations.Cancel();
             if (projectRunner is not null && projectRunner.State != ProjectRunState.Idle)
             {
                 long generation = projectRunner.RunGeneration;
@@ -555,10 +532,24 @@ public partial class MainWindow
             projectRunner.CommandAvailabilityChanged -= onCommandAvailabilityChanged;
             projectRunner.PerformanceSampleReceived -= onPerformanceSampleReceived;
             projectRunner.TextInputReceived -= onRuntimeTextInputReceived;
-            projectRunner.Dispose();
         }
         GamePanel.InputBatchReady -= onGameInputBatchReady;
-        viewModel?.Dispose();
+        if (liveDebug is not null)
+        {
+            liveDebug.EditingContextChanged -= onLiveDebugEditingContextChanged;
+            liveDebug.Started -= onLiveDebugStarted;
+            liveDebug.Ended -= onLiveDebugEnded;
+            liveDebug.ContextChanged -= onLiveDebugContextChanged;
+            liveDebug.StatusChanged -= onLiveDebugStatusChanged;
+            liveDebug.ErrorReceived -= onLiveDebugError;
+            liveDebug.Dispose();
+        }
+        projectOperations?.Dispose();
+        if (projectOperations is not null)
+            projectOperations.StateChanged -= onProjectOperationStateChanged;
+        documentWindows?.Dispose();
+        attachViewModel(null);
+        projectSession?.Dispose();
         base.OnClosed(args);
     }
 }

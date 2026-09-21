@@ -23,7 +23,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
 {
     private static readonly string[] TrackNames = ["translation", "rotation", "scale", "colour"];
     private readonly UiAssetEditorDocument document;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ListBox animationList = new()
     {
         MinWidth = 200,
@@ -66,7 +66,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
 
     public UiAnimationTimelineEditor(
         UiAssetEditorDocument document,
-        GameDataService gameData)
+        ProjectDataStore gameData)
     {
         this.document = document;
         this.gameData = gameData;
@@ -396,16 +396,15 @@ public sealed class UiAnimationTimelineEditor : UserControl
                 continue;
             string target = stringValue(node["name"]);
             string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-            if (!gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? asset)
-                || asset["animations"] is not JsonArray animations)
+            if (!gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? asset))
             {
                 continue;
             }
-            foreach (JsonObject animation in animations.OfType<JsonObject>())
+            foreach (UiAnimationSnapshot animation in asset.Animations)
             {
-                if (animation["target"] is not null)
+                if (animation.HasTarget)
                     continue;
-                string name = stringValue(animation["name"]);
+                string name = animation.Name ?? string.Empty;
                 bool overridden = choices.Any(choice => !choice.Inherited
                     && string.Equals(choice.Target, target, StringComparison.Ordinal)
                     && string.Equals(choice.Name, name, StringComparison.Ordinal));
@@ -415,7 +414,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
                     -1,
                     name,
                     target,
-                    (JsonObject)animation.DeepClone(),
+                    animation.ToJson(),
                     true,
                     assetKey));
             }

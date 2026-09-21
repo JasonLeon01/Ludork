@@ -16,13 +16,13 @@ namespace Ludork.Services.Plugins;
 
 internal sealed class MapEditorHostBridge : IMapEditorHost
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly BlueprintPreviewService previewService;
     private readonly Action<string, string> refreshMap;
     private readonly Func<string, string, bool> canWriteLayer;
 
     public MapEditorHostBridge(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         BlueprintPreviewService previewService,
         string? suggestedMapKey,
         Action<string, string> refreshMap,
@@ -37,7 +37,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     public string ProjectPath => gameData.ProjectPath;
 
-    public int CellSize => gameData.getCellSize();
+    public int CellSize => gameData.Configs.getCellSize();
 
     public string? SuggestedMapKey { get; }
 
@@ -80,7 +80,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     private IReadOnlyList<PluginMapSummary> listMaps()
     {
-        List<PluginMapSummary> maps = gameData.MapCatalog
+        List<PluginMapSummary> maps = gameData.Maps.MapCatalog
             .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
             .Select(entry => new PluginMapSummary(entry.Key, entry.DisplayName))
             .ToList();
@@ -90,7 +90,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     private PluginMapSnapshot readMap(string mapKey)
     {
-        if (gameData.ReadMapSnapshot(mapKey) is not JsonObject map)
+        if (gameData.Maps.ReadMapSnapshot(mapKey) is not JsonObject map)
             throw new KeyNotFoundException($"Map '{mapKey}' does not exist.");
         int width = Math.Max(1, readInt(map["width"], 13));
         int height = Math.Max(1, readInt(map["height"], 13));
@@ -114,7 +114,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         }
         return new PluginMapSnapshot(
             mapKey,
-            gameData.getMapDisplayName(mapKey),
+            gameData.Maps.getMapDisplayName(mapKey),
             width,
             height,
             createRevision(map),
@@ -259,12 +259,12 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     private PluginTilesetSnapshot readTileset(string tilesetKey)
     {
-        if (!gameData.TilesetData.TryGetValue(tilesetKey, out JsonObject? tileset))
+        if (!SnapshotJson.ToDictionary(gameData.Assets.TilesetData).TryGetValue(tilesetKey, out JsonObject? tileset))
             throw new KeyNotFoundException($"Tileset '{tilesetKey}' does not exist.");
         string assetPath = getTilesetAssetPath(tileset);
         JsonArray? sourcePassable = tileset["passable"] as JsonArray;
         List<bool> passable = [];
-        int tileSize = Math.Max(1, gameData.getCellSize());
+        int tileSize = Math.Max(1, gameData.Configs.getCellSize());
         int tileCount = getTileCount(
             assetPath,
             tileSize,
@@ -291,7 +291,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         PluginMapLayerWriteRequest request,
         CancellationToken cancellationToken)
     {
-        if (!gameData.MapData.TryGetValue(request.MapKey, out JsonObject? map))
+        if (!SnapshotJson.ToDictionary(gameData.Maps.MapData).TryGetValue(request.MapKey, out JsonObject? map))
             return PluginMapWriteResult.Failed("The selected map no longer exists.", string.Empty);
         string currentRevision = createRevision(map);
         if (!string.Equals(request.BaseRevision, currentRevision, StringComparison.Ordinal))
@@ -312,12 +312,12 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         {
             return PluginMapWriteResult.Conflicted(currentRevision);
         }
-        if (!gameData.TilesetData.TryGetValue(tilesetKey, out JsonObject? tileset))
+        if (!SnapshotJson.ToDictionary(gameData.Assets.TilesetData).TryGetValue(tilesetKey, out JsonObject? tileset))
             return PluginMapWriteResult.Failed("The layer tileset no longer exists.", currentRevision);
         string assetPath = getTilesetAssetPath(tileset);
         int tileCount = getTileCount(
             assetPath,
-            Math.Max(1, gameData.getCellSize()),
+            Math.Max(1, gameData.Configs.getCellSize()),
             (tileset["passable"] as JsonArray)?.Count ?? 0);
         string? tilesError = validateTiles(request.Tiles, width, height, tileCount);
         if (tilesError is not null)
@@ -337,7 +337,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
         if (!saveResult.Success)
             return PluginMapWriteResult.Failed(saveResult.Details, currentRevision);
 
-        JsonObject savedMap = gameData.MapData[request.MapKey];
+        JsonObject savedMap = SnapshotJson.ToDictionary(gameData.Maps.MapData)[request.MapKey];
         string savedRevision = createRevision(savedMap);
         refreshMap(request.MapKey, request.LayerName);
         return PluginMapWriteResult.Completed(savedRevision);
@@ -381,7 +381,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             for (int x = 0; x < width; x += 1)
             {
                 string? value = row[x];
-                if (value is not null && !gameData.AutoTileData.ContainsKey(value))
+                if (value is not null && !gameData.Assets.AutoTileData.ContainsKey(value))
                     return $"AutoTile at ({x}, {y}) does not exist.";
             }
         }

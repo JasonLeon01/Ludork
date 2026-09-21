@@ -37,7 +37,7 @@ public interface IProjectSaveParticipant
 
 public sealed class ProjectSaveService
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectConfigService projectConfig;
     private readonly GameVariableService gameVariables;
     private readonly BlueprintValidationService blueprintValidation;
@@ -46,7 +46,7 @@ public sealed class ProjectSaveService
     private readonly List<IProjectSaveParticipant> participants = [];
 
     public ProjectSaveService(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         GameVariableService gameVariables,
         BlueprintValidationService blueprintValidation,
         ProjectConfigService projectConfig)
@@ -120,7 +120,7 @@ public sealed class ProjectSaveService
             };
         }
         IReadOnlyList<BlueprintValidationResult> blueprintValidationResults =
-            blueprintValidation.ValidateBlueprints(gameData.GetModifiedBlueprintKeys());
+            blueprintValidation.ValidateBlueprints(gameData.Blueprints.GetModifiedBlueprintKeys());
         IReadOnlyList<BlueprintValidationResult> generalDataValidationResults =
             blueprintValidation.ValidateGeneralDataGraphs();
         BlueprintValidationResult[] validationResults = blueprintValidationResults

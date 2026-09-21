@@ -41,10 +41,10 @@
                                             IsChecked="{Binding IndividualWindow, Mode=OneWay}"
                                             IsEnabled="{Binding CanConfigureIndividualWindow}"
                                             Click="onIndividualWindowClicked" />
-                            <NativeMenuItem Header="{Binding LiveDebugLabel}"
+                            <NativeMenuItem Header="{Binding MapWorkspace.LiveDebugLabel}"
                                             ToggleType="CheckBox"
-                                            IsChecked="{Binding LiveDebug, Mode=OneWay}"
-                                            IsEnabled="{Binding CanConfigureLiveDebug}"
+                                            IsChecked="{Binding MapWorkspace.LiveDebug, Mode=OneWay}"
+                                            IsEnabled="{Binding MapWorkspace.CanConfigureLiveDebug}"
                                             Click="onLiveDebugClicked" />
                             <NativeMenuItem Header="{Binding PerformanceMonitor}" Click="onOpenPerformanceMonitor" />
                         </NativeMenu>
@@ -217,8 +217,8 @@
                     <TreeView x:Name="MapList"
                               Classes="mapList"
                               Grid.Row="1"
-                              ItemsSource="{Binding Maps}"
-                              SelectedItem="{Binding SelectedMap}"
+                              ItemsSource="{Binding MapWorkspace.Maps}"
+                              SelectedItem="{Binding MapWorkspace.SelectedMap}"
                               DoubleTapped="onMapListDoubleTapped"
                               KeyDown="onMapListKeyDown">
                         <TreeView.ItemTemplate>
@@ -263,8 +263,8 @@
                                       Height="{DynamicResource Editor.TabHeight}"
                                       MinWidth="120"
                                       HorizontalAlignment="Left"
-                                      ItemsSource="{Binding LayerTabs}"
-                                      SelectedItem="{Binding SelectedLayerTab, Mode=TwoWay}">
+                                      ItemsSource="{Binding MapWorkspace.LayerTabs}"
+                                      SelectedItem="{Binding MapWorkspace.SelectedLayerTab, Mode=TwoWay}">
                                 <TabStrip.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LayerTabViewModel">
                                         <Grid ColumnDefinitions="*,Auto"
@@ -463,7 +463,7 @@
                         <TreeView x:Name="ActorOutliner"
                                   Grid.Row="1"
                                   Classes="actorOutliner"
-                                  ItemsSource="{Binding ActorOutlinerItems}"
+                                  ItemsSource="{Binding MapWorkspace.ActorOutlinerItems}"
                                   SelectionChanged="onActorOutlinerSelectionChanged">
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate x:DataType="vm:ActorOutlinerItemViewModel"

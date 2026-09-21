@@ -9,7 +9,7 @@
 #include "Actor/MovementImpl.hpp"
 #include "Actor/SpatialImpl.hpp"
 #include "Actor/VisualImpl.hpp"
-#include "Graphics/SpriteVisuals.hpp"
+#include <CoreShared/SpriteVisuals.hpp>
 
 #include <Runtime/Blueprint/BPBase.hpp>
 #include <EngineState.hpp>

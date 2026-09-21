@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Ludork.Controls"
+             x:Class="Ludork.Controls.ActorInfoPanel"
+             FontSize="12" Background="#31363b">
+    <Grid Margin="4" RowDefinitions="Auto,*" RowSpacing="4">
+        <Border x:Name="TitleContainer" Height="24" CornerRadius="4" Padding="4">
+            <TextBlock x:Name="TitleLabel" FontWeight="Bold" HorizontalAlignment="Center" TextAlignment="Center" />
+        </Border>
+        <ScrollViewer x:Name="ScrollArea" Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="DetailContent" Width="379" Spacing="4">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                    <TextBlock x:Name="TagLabel" VerticalAlignment="Center" />
+                    <TextBox x:Name="TagEdit" Grid.Column="1" HorizontalAlignment="Stretch" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="4">
+                    <TextBlock x:Name="BlueprintLabel" VerticalAlignment="Center" />
+                    <TextBox x:Name="BlueprintPath" Grid.Column="1" HorizontalAlignment="Stretch" />
+                    <Button x:Name="BlueprintOpenButton" Grid.Column="2" Height="28" Padding="8,0" />
+                    <Button x:Name="BlueprintLocateButton" Grid.Column="3" Height="28" Padding="8,0" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                    <TextBlock x:Name="PositionLabel" VerticalAlignment="Center" />
+                    <Grid Grid.Column="1" ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="4">
+                        <TextBlock Text="X" VerticalAlignment="Center" />
+                        <NumericUpDown x:Name="PositionX" Grid.Column="1" Value="0" Minimum="0" Maximum="0" Increment="1" />
+                        <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
+                        <NumericUpDown x:Name="PositionY" Grid.Column="3" Value="0" Minimum="0" Maximum="0" Increment="1" />
+                    </Grid>
+                </Grid>
+                <TextBlock x:Name="LayerReadOnlyLabel" Foreground="#d9a441" TextWrapping="Wrap" IsVisible="False" />
+                <Border x:Name="ClassSeparator" Height="3" Background="#464646" />
+                <Grid x:Name="ClassTitleContainer" ColumnDefinitions="*,Auto" Margin="0,4,0,2">
+                    <TextBlock x:Name="ClassTitleLabel" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Button x:Name="ResetAllButton" Grid.Column="1" Height="28" Padding="8,0" HorizontalAlignment="Right" />
+                </Grid>
+                <controls:BlueprintVariableForm x:Name="ClassForm" />
+            </StackPanel>
+        </ScrollViewer>
+        <TextBlock x:Name="NoSelectionLabel" Grid.Row="1" FontStyle="Italic"
+                   HorizontalAlignment="Center" TextAlignment="Center" VerticalAlignment="Center" Margin="0,20,0,0" />
+    </Grid>
+</UserControl>

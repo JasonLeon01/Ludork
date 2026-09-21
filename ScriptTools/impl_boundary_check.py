@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import posixpath
 import re
 from dataclasses import dataclass
 
@@ -61,6 +62,102 @@ def _cpp_include_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
         if include_root.is_dir():
             roots.append(include_root)
     return roots
+
+
+def _cpp_private_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
+    roots = sorted((project_root / "Engine" / "Source").glob("*/src"))
+    roots.extend(project_root / "Engine" / module / "src" for module in ("Runtime", "Standard"))
+    return [root.resolve() for root in roots if root.is_dir()]
+
+
+def _cpp_includes(text: str) -> list[tuple[int, str, bool]]:
+    characters: list[str] = []
+    positions: list[int] = []
+    offset = 0
+    for splice in re.finditer(r"\\\r?\n", text):
+        characters.extend(text[offset:splice.start()])
+        positions.extend(range(offset, splice.start()))
+        offset = splice.end()
+    characters.extend(text[offset:])
+    positions.extend(range(offset, len(text)))
+    spliced = "".join(characters)
+    comments = re.compile(
+        r'R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\(.*?\)(?P=delimiter)"|'
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+    uncommented = comments.sub(
+        lambda match: "".join("\n" if ch == "\n" else " " for ch in match[0])
+        if match[0].startswith(("//", "/*", 'R"')) else match[0],
+        spliced,
+    )
+    pattern = r'^[ \t]*#[ \t]*include[ \t]*(?:[<"]([^>"]+)[>"]|([A-Za-z_]\w*))'
+    return [(positions[match.start()], match[1] or match[2], match[1] is not None)
+            for match in re.finditer(pattern, uncommented, re.MULTILINE)]
+
+
+def _check_private_includes(project_root: pathlib.Path) -> list[str]:
+    private_roots = _cpp_private_roots(project_root)
+    public_roots = [root.resolve() for root in _cpp_include_roots(project_root)]
+    shared_roots = sorted(root for private in private_roots for root in private.rglob("include") if root.is_dir())
+    private_directories = sorted({path.parent for root in private_roots for path in _cpp_files(root)})
+    lookup_roots = [*public_roots, *shared_roots, *private_roots, *private_directories]
+    paths = sorted({path.resolve() for root in (*public_roots, *private_roots) for path in _cpp_files(root)})
+    contents = {path: path.read_text(encoding="utf-8") for path in paths}
+    include_targets: dict[pathlib.Path, pathlib.Path] = {}
+    for root in lookup_roots:
+        for path in paths:
+            if path.is_relative_to(root):
+                include_targets.setdefault(path.relative_to(root), path)
+    companions: dict[pathlib.Path, str] = {}
+    for path, text in contents.items():
+        if path.suffix not in {".h", ".hh", ".hpp", ".hxx"}:
+            continue
+        declaration = re.search(r"\b(?:class|struct)\s+(?:\w+::)*(\w+)::Impl\b", _without_cpp_comments_and_literals(text))
+        if declaration:
+            companions[path] = declaration[1]
+    diagnostics: list[str] = []
+    for path, text in contents.items():
+        source_public = any(path.is_relative_to(root) for root in public_roots)
+        source_interface = any(path.is_relative_to(root) for root in shared_roots)
+        source_private = next((root for root in private_roots if path.is_relative_to(root)), None)
+        source_shared = next((root.parent for root in shared_roots if path.is_relative_to(root.parent)), None)
+        for position, included_name, literal in _cpp_includes(text):
+            if not literal:
+                diagnostics.append(_diagnostic(path, text, position,
+                    "include must use a literal header path so implementation boundaries can be resolved"))
+                continue
+            name = included_name.replace("\\", "/")
+            local_target = (path.parent / name).resolve()
+            target = local_target if local_target in contents else include_targets.get(pathlib.Path(posixpath.normpath(name)))
+            if target is None and ".." in pathlib.PurePosixPath(name).parts:
+                target = next((candidate for root in lookup_roots
+                               if (candidate := (root / name).resolve()) in contents), None)
+            if target is None:
+                continue
+            target_private = next((root for root in private_roots if target.is_relative_to(root)), None)
+            if target_private is None:
+                continue
+            target_interface = any(target.is_relative_to(root) for root in shared_roots)
+            shared_implementation = next((root.parent / "src" for root in shared_roots
+                                          if target.is_relative_to(root.parent / "src")), None)
+            message = None
+            if source_public or (source_interface and not target_interface):
+                message = f"public interface must not include private header {name}"
+            elif shared_implementation and not path.is_relative_to(shared_implementation):
+                message = f"shared implementation must be accessed through its interface: {name}"
+            elif source_shared and not target_interface and not target.is_relative_to(source_shared):
+                message = f"shared layer must not include host-private header {name}"
+            elif source_private and not target_interface and target.parent in path.parent.parents:
+                message = f"implementation must not include parent-private header {name} (resolved to {target})"
+            elif target in companions:
+                host = companions[target]
+                host_members = {name for name, _ in _member_definitions(_without_cpp_comments_and_literals(text))}
+                if path.parent != target.parent or host not in host_members:
+                    message = f"only {host} host sources may include companion {name}"
+            if message:
+                diagnostics.append(_diagnostic(path, text, position, message))
+    return diagnostics
 
 
 def _check_standard_layers(project_root: pathlib.Path) -> list[str]:
@@ -523,7 +620,8 @@ def verify_impl_boundaries(project_root: pathlib.Path) -> None:
         raise ImplBoundaryError(f"Project root was not found: {root}")
     cpp = _discover_cpp_boundaries(root)
     lua = _discover_lua_boundaries(root)
-    diagnostics = _check_core_glue(root)
+    diagnostics = _check_private_includes(root)
+    diagnostics.extend(_check_core_glue(root))
     diagnostics.extend(_check_standard_layers(root))
     for boundary in cpp:
         diagnostics.extend(_check_cpp(boundary, root))

@@ -25,16 +25,16 @@ public sealed partial class MapPanel
     private sealed record ActorPropertyDrag(
         string Layer, string Tag, string Property, Point Start, Vector Value, Matrix Inverse);
 
-    private bool tryGetEditableActorClass(out JsonObject actor, out ResolvedBlueprintClass resolved)
+    private bool tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved)
     {
         actor = null!;
         resolved = null!;
-        if (IsRuntimeEditing || !canEditMap || CurrentMapData is null || CurrentMapKey is null
+        if (IsRuntimeEditing || !canEditMap || CurrentMapDocument is null || CurrentMapKey is null
             || selectedActorLayer is null || selectedActorLayer != selectedLayerName
-            || CurrentMapData["layers"]?[selectedActorLayer] is not JsonObject layer || !isLayerVisible(layer)
-            || getSelectedActor() is not JsonObject selected
-            || selected["tag"]?.GetValue<string>() is not { Length: > 0 }
-            || previewService?.tryResolveMapActorClass(CurrentMapData, selected) is not ResolvedBlueprintClass value)
+            || getLayer(selectedActorLayer) is not MapLayerSnapshot layer || !isLayerVisible(layer)
+            || getSelectedActor() is not MapActorSnapshot selected
+            || selected.Tag is not { Length: > 0 }
+            || previewService?.tryResolveMapActorClass(CurrentMapDocument, selected) is not ResolvedBlueprintClass value)
             return false;
         actor = selected;
         resolved = value;
@@ -46,7 +46,7 @@ public sealed partial class MapPanel
         if (IsRuntimeEditing || !args.KeyModifiers.HasFlag(KeyModifiers.Alt)
             && !EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
             return false;
-        if (!tryGetEditableActorClass(out JsonObject actor, out ResolvedBlueprintClass resolved))
+        if (!tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
             return true;
         bool origin = args.KeyModifiers.HasFlag(KeyModifiers.Alt);
         string property = origin ? "defaultOrigin" : "defaultTranslation";
@@ -67,7 +67,7 @@ public sealed partial class MapPanel
         }
         if (!transform.TryInvert(out Matrix inverse))
             return true;
-        actorPropertyDrag = new ActorPropertyDrag(selectedActorLayer!, actor["tag"]!.GetValue<string>(),
+        actorPropertyDrag = new ActorPropertyDrag(selectedActorLayer!, actor.Tag,
             property, args.GetPosition(this), value, inverse);
         capturePointer(args.Pointer);
         return true;
@@ -77,8 +77,8 @@ public sealed partial class MapPanel
     {
         if (actorPropertyDrag is not ActorPropertyDrag drag)
             return;
-        if (!tryGetEditableActorClass(out JsonObject actor, out ResolvedBlueprintClass resolved)
-            || selectedActorLayer != drag.Layer || actor["tag"]!.GetValue<string>() != drag.Tag)
+        if (!tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved)
+            || selectedActorLayer != drag.Layer || actor.Tag != drag.Tag)
         {
             cancelMapGesture();
             return;
@@ -101,10 +101,10 @@ public sealed partial class MapPanel
             || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null)
             return false;
         if (EditMode == MapEditMode.Light && selectedActorIndex is null
-            && selectedLightIndex is int index && CurrentMapData?["lights"] is JsonArray lights
-            && index >= 0 && index < lights.Count && lights[index] is JsonObject light)
+            && selectedLightIndex is int index && CurrentMapDocument?.Lights is IReadOnlyList<MapLightSnapshot> lights
+            && index >= 0 && index < lights.Count && lights[index] is MapLightSnapshot light)
         {
-            double radius = getDouble(light["radius"], double.NaN);
+            double radius = light.Radius;
             if (!double.IsFinite(radius) || radius < 0)
                 return false;
             if (!canScaleProperty(factor))
@@ -113,14 +113,13 @@ public sealed partial class MapPanel
             if (!double.IsFinite(nextRadius) || nextRadius == radius)
                 return true;
             beginPropertyWheelGesture((null, null, index, "radius"));
-            JsonObject next = (JsonObject)light.DeepClone();
-            next["radius"] = nextRadius;
-            if (gameData.UpdateMapLight(CurrentMapKey, index, light, next))
-                LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey, index, next));
+            if (gameData.Maps.UpdateMapLight(CurrentMapKey, index, light, radius: nextRadius)
+                && getLight(index) is MapLightSnapshot changedLight)
+                LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey, index, changedLight.ToJson()));
             return true;
         }
         if (EditMode != MapEditMode.Actor && (EditMode != MapEditMode.Light || !LightActorSelectionEnabled)
-            || !tryGetEditableActorClass(out JsonObject actor, out ResolvedBlueprintClass resolved))
+            || !tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
             return false;
         string property;
         JsonNode value;
@@ -140,8 +139,8 @@ public sealed partial class MapPanel
         {
             property = "lightComp";
             if (resolved.GetField(property) is not ResolvedBlueprintField field || field.Value is not JsonObject component
-                || previewService?.tryResolveActorLight(actor["bp"]!.GetValue<string>(),
-                    CurrentMapData?["BPClassVarChanged"]?[actor["tag"]!.GetValue<string>()] as JsonObject) is not ActorLightDescriptor descriptor)
+                || previewService?.tryResolveActorLight(actor.Blueprint,
+                    CurrentMapDocument?.ReadActorOverrides(actor.Tag)) is not ActorLightDescriptor descriptor)
                 return false;
             if (!canScaleProperty(factor))
                 return true;
@@ -154,14 +153,14 @@ public sealed partial class MapPanel
             next["lightRadius"] = nextRadius;
             value = next;
         }
-        beginPropertyWheelGesture((selectedActorLayer, actor["tag"]!.GetValue<string>(), null, property));
+        beginPropertyWheelGesture((selectedActorLayer, actor.Tag, null, property));
         setActorProperty(actor, property, value);
         return true;
     }
 
     private bool tryRotateSelectedActor(double delta)
     {
-        if (!tryGetEditableActorClass(out JsonObject actor, out ResolvedBlueprintClass resolved))
+        if (!tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
             return false;
         const string property = "defaultRotation";
         double rotation = getDouble(resolved.GetValue(property), double.NaN);
@@ -173,7 +172,7 @@ public sealed partial class MapPanel
         double next = rotation + delta;
         if (!double.IsFinite(next) || next == rotation)
             return true;
-        beginPropertyWheelGesture((selectedActorLayer, actor["tag"]!.GetValue<string>(), null, property));
+        beginPropertyWheelGesture((selectedActorLayer, actor.Tag, null, property));
         setActorProperty(actor, property, JsonValue.Create(next)!);
         return true;
     }
@@ -184,12 +183,12 @@ public sealed partial class MapPanel
             && actorPropertyDrag is null && actorMoveIndex is null && !lightMoveDragging && !lightRadiusDragging;
     }
 
-    private void setActorProperty(JsonObject actor, string property, JsonNode value)
+    private void setActorProperty(MapActorSnapshot actor, string property, JsonNode value)
     {
         if (CurrentMapKey is null || selectedActorLayer is null)
             return;
         if (editingContext?.SetActorVariable(CurrentMapKey, selectedActorLayer,
-                actor["tag"]!.GetValue<string>(), property, value) == true)
+                actor.Tag, property, value) == true)
             ActorPropertiesChanged?.Invoke(this, EventArgs.Empty);
     }
 

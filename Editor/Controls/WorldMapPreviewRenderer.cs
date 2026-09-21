@@ -18,7 +18,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
     private static readonly IBrush MissingTilesetBrush = new SolidColorBrush(Color.FromArgb(90, 90, 120, 150));
     private static readonly IBrush ActorMarkerBrush = new SolidColorBrush(Color.FromArgb(220, 255, 196, 64));
     private static readonly Pen ActorMarkerPen = new(new SolidColorBrush(Color.FromArgb(230, 40, 30, 10)), 1);
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly AutoTileRenderer autoTileRenderer;
     private readonly WorldMapActorPreviewRenderer? actorRenderer;
     private readonly Dictionary<PreviewChunkKey, CachedPreviewChunk> previewCache = [];
@@ -30,7 +30,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
     private bool disposed;
 
     public WorldMapPreviewRenderer(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         BlueprintPreviewService? previewService = null)
     {
         this.gameData = gameData;
@@ -40,7 +40,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
             actorRenderer = new WorldMapActorPreviewRenderer(previewService);
             actorRenderer.PreviewChanged += onActorPreviewChanged;
         }
-        gameData.MapPreviewChanged += onMapPreviewChanged;
+        gameData.Maps.MapPreviewChanged += onMapPreviewChanged;
         initializeResourceWatcher();
     }
 
@@ -171,7 +171,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
 
     public void TrimMapCache(IReadOnlyCollection<string> pinnedMapKeys)
     {
-        gameData.TrimWorldChildCache(pinnedMapKeys);
+        gameData.Maps.TrimWorldChildCache(pinnedMapKeys);
     }
 
     public void Dispose()
@@ -181,7 +181,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
         disposed = true;
         disposeResourceWatcher();
         ClearPendingWork();
-        gameData.MapPreviewChanged -= onMapPreviewChanged;
+        gameData.Maps.MapPreviewChanged -= onMapPreviewChanged;
         if (actorRenderer is not null)
         {
             actorRenderer.PreviewChanged -= onActorPreviewChanged;
@@ -384,7 +384,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
         JsonArray? tiles = layer["tiles"] as JsonArray;
         JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
         Bitmap? tileset = getResourceImage(false, getString(layer["layerTileset"]));
-        int sourceTileSize = Math.Max(1, gameData.getCellSize());
+        int sourceTileSize = Math.Max(1, gameData.Configs.getCellSize());
         for (int y = minY; y < maxY; y++)
         {
             JsonArray? tileRow = getRow(tiles, y);

@@ -11,14 +11,14 @@ namespace Ludork.Controls;
 
 public sealed class WorldMapChildSource : IDisposable
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly HashSet<object> consumers = new(ReferenceEqualityComparer.Instance);
     private CancellationTokenSource? pendingLoad;
     private JsonObject? snapshot;
     private bool loadFailed;
     private bool disposed;
 
-    public WorldMapChildSource(GameDataService gameData, MapCatalogEntry entry)
+    public WorldMapChildSource(ProjectDataStore gameData, MapCatalogEntry entry)
     {
         this.gameData = gameData;
         Key = entry.Key;
@@ -26,7 +26,7 @@ public sealed class WorldMapChildSource : IDisposable
         Width = entry.Width;
         Height = entry.Height;
         LayerOrder = entry.LayerOrder;
-        gameData.MapPreviewChanged += onMapPreviewChanged;
+        gameData.Maps.MapPreviewChanged += onMapPreviewChanged;
     }
 
     public event EventHandler? DataChanged;
@@ -62,7 +62,7 @@ public sealed class WorldMapChildSource : IDisposable
         if (disposed)
             return;
         disposed = true;
-        gameData.MapPreviewChanged -= onMapPreviewChanged;
+        gameData.Maps.MapPreviewChanged -= onMapPreviewChanged;
         clearData();
         consumers.Clear();
         DataChanged = null;
@@ -74,7 +74,7 @@ public sealed class WorldMapChildSource : IDisposable
         try
         {
             if (!request.IsCancellationRequested)
-                loaded = await gameData.ReadWorldChildMapSnapshotAsync(Key, request.Token).ConfigureAwait(false);
+                loaded = await gameData.Maps.ReadWorldChildMapSnapshotAsync(Key, request.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested)
         {
@@ -94,7 +94,7 @@ public sealed class WorldMapChildSource : IDisposable
             request.Dispose();
             try
             {
-                snapshot = loaded is null ? null : gameData.InstallWorldChildMapSnapshot(Key, loaded);
+                snapshot = loaded is null ? null : gameData.Maps.InstallWorldChildMapSnapshot(Key, loaded);
             }
             catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException)
             {

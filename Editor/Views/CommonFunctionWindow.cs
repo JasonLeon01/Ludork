@@ -23,7 +23,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
 {
     private static string? clipboardName;
     private static JsonObject? clipboardData;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly EditorDocumentBinding documentBinding;
     private readonly BlueprintVariableFieldBuilder fieldBuilder;
@@ -40,7 +40,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     private readonly Dictionary<Guid, BlueprintGraphControl.ViewState> graphViewStates = [];
 
     public CommonFunctionWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
@@ -132,7 +132,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         .SelectMany(resource => (resource.Id == currentDocument?.ResourceDocument?.Id && graphControl is not null
             ? graphControl.GetInputErrors()
             : graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state)
-                ? BlueprintGraphControl.GetInputErrors("common", state, gameData.CommonFunctionsData[resource.Key]["nodeGraph"]?["common"]?["nodes"] as JsonArray ?? [])
+                ? BlueprintGraphControl.GetInputErrors("common", state, gameData.Blueprints.CommonFunctionsData[resource.Key].Graph.Events.GetValueOrDefault("common")?.GetNodeJson() ?? [])
                 : []).Select(error => $"CommonFunctions/{resource.Key} / {error}"))
         .ToArray();
 
@@ -141,7 +141,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             && (resource.Id == currentDocument?.ResourceDocument?.Id && graphControl is not null
                 ? graphControl.GetInputErrors().Count != 0
                 : graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state)
-                    && BlueprintGraphControl.GetInputErrors("common", state, gameData.CommonFunctionsData[resource.Key]["nodeGraph"]?["common"]?["nodes"] as JsonArray ?? []).Any()))
+                    && BlueprintGraphControl.GetInputErrors("common", state, gameData.Blueprints.CommonFunctionsData[resource.Key].Graph.Events.GetValueOrDefault("common")?.GetNodeJson() ?? []).Any()))
         .Select(resource => resource.Path).ToArray();
 
     private void onInputDraftChanged(object? sender, EventArgs args)
@@ -195,7 +195,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             parameterEditorFactory,
             projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
-            gameData.getCellSize());
+            gameData.Configs.getCellSize());
         if (currentDocument.ResourceDocument is EditorDocument resource
             && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
             graphControl.RestoreViewState(state);
@@ -279,11 +279,11 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             this,
             LocaleService.Get("NEW_COMMON_FUNC"),
             LocaleService.Get("ENTER_FUNC_NAME"),
-            gameData.CommonFunctionsData.Keys);
+            gameData.Blueprints.CommonFunctionsData.Keys);
         if (string.IsNullOrWhiteSpace(name))
             return;
         flushGraph();
-        if (!gameData.CreateCommonFunction(name))
+        if (!gameData.Blueprints.CreateCommonFunction(name))
         {
             toast.ShowMessage(LocaleService.Get("FUNC_NAME_EXISTS"));
             return;
@@ -295,12 +295,12 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     {
         flushGraph();
         if (functionList.SelectedItem is not string name
-            || !gameData.CommonFunctionsData.TryGetValue(name, out JsonObject? data))
+            || !gameData.Blueprints.CommonFunctionsData.TryGetValue(name, out CommonFunctionSnapshot? data))
         {
             return;
         }
         clipboardName = name;
-        clipboardData = (JsonObject)data.DeepClone();
+        clipboardData = data.ToJson();
     }
 
     private void pasteFunction()
@@ -309,14 +309,14 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             return;
         flushGraph();
         string name = clipboardName + " (copy)";
-        if (gameData.CommonFunctionsData.ContainsKey(name))
+        if (gameData.Blueprints.CommonFunctionsData.ContainsKey(name))
         {
             int index = 1;
-            while (gameData.CommonFunctionsData.ContainsKey($"{name}_{index}"))
+            while (gameData.Blueprints.CommonFunctionsData.ContainsKey($"{name}_{index}"))
                 index += 1;
             name = $"{name}_{index}";
         }
-        if (gameData.CreateCommonFunction(name, clipboardData))
+        if (gameData.Blueprints.CreateCommonFunction(name, clipboardData))
             refreshList(name);
     }
 
@@ -328,7 +328,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             this,
             LocaleService.Get("RENAME_FUNC"),
             LocaleService.Get("ENTER_FUNC_NAME"),
-            gameData.CommonFunctionsData.Keys.Where(name =>
+            gameData.Blueprints.CommonFunctionsData.Keys.Where(name =>
                 !string.Equals(name, oldName, StringComparison.Ordinal)),
             oldName);
         if (string.IsNullOrWhiteSpace(newName)
@@ -337,7 +337,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             return;
         }
         flushGraph();
-        if (!gameData.RenameCommonFunction(oldName, newName))
+        if (!gameData.Blueprints.RenameCommonFunction(oldName, newName))
         {
             toast.ShowMessage(LocaleService.Get("FUNC_NAME_EXISTS"));
             return;
@@ -358,7 +358,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         if (!confirmed)
             return;
         flushGraph();
-        if (await EditorResourceOperations.DeleteAsync(this, () => gameData.DeleteCommonFunction(name)))
+        if (await EditorResourceOperations.DeleteAsync(this, () => gameData.Blueprints.DeleteCommonFunction(name)))
             refreshList(null);
     }
 
@@ -421,7 +421,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     private void refreshList(string? preferredName)
     {
         string? selectedName = preferredName ?? functionList.SelectedItem as string;
-        string[] names = gameData.CommonFunctionsData.Keys
+        string[] names = gameData.Blueprints.CommonFunctionsData.Keys
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
         refreshing = true;
@@ -438,7 +438,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     {
         if (!initializer.IsInitialized)
             return;
-        string[] keys = gameData.CommonFunctionsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        string[] keys = gameData.Blueprints.CommonFunctionsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         if (!keys.SequenceEqual(functionList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
             refreshList(currentDocument?.Name);
     }

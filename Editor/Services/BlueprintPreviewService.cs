@@ -14,13 +14,13 @@ namespace Ludork.Services;
 public sealed partial class BlueprintPreviewService : IDisposable
 {
     private readonly string projectPath;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly BlueprintClassResolver classResolver;
     private readonly Dictionary<string, SourceImageInfo> sourceImageInfoCache = new(StringComparer.OrdinalIgnoreCase);
 
     public BlueprintPreviewService(
         string projectPath,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         BlueprintClassResolver classResolver,
         UiPreviewRuntimeService runtime)
     {
@@ -57,7 +57,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
             return createActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference);
         string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        return gameData.BlueprintsData.ContainsKey(key)
+        return gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? tryResolveActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference)
             : null;
     }
@@ -92,14 +92,19 @@ public sealed partial class BlueprintPreviewService : IDisposable
     }
 
     internal ResolvedBlueprintClass? tryResolveMapActorClass(JsonObject map, JsonObject actor)
+        => resolveMapActorClass(actor["bp"]?.GetValue<string>() ?? string.Empty,
+            map["BPClassVarChanged"]?[actor["tag"]?.GetValue<string>() ?? string.Empty] as JsonObject);
+
+    internal ResolvedBlueprintClass? tryResolveMapActorClass(MapDocumentSnapshot map, MapActorSnapshot actor)
+        => resolveMapActorClass(actor.Blueprint, map.ReadActorOverrides(actor.Tag));
+
+    private ResolvedBlueprintClass? resolveMapActorClass(string reference, JsonObject? overrides)
     {
-        string reference = actor["bp"]?.GetValue<string>() ?? string.Empty;
         const string prefix = "Data.Blueprints.";
         if (reference.Length == 0 || reference.StartsWith(prefix, StringComparison.Ordinal)
-            && !gameData.BlueprintsData.ContainsKey(reference[prefix.Length..].Replace('.', '/')))
+            && !gameData.Blueprints.BlueprintsData.ContainsKey(reference[prefix.Length..].Replace('.', '/')))
             return null;
-        string tag = actor["tag"]?.GetValue<string>() ?? string.Empty;
-        return classResolver.Resolve(reference, map["BPClassVarChanged"]?[tag] as JsonObject);
+        return classResolver.Resolve(reference, overrides);
     }
 
     public void Dispose()
@@ -168,7 +173,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
             return null;
         string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        return gameData.BlueprintsData.ContainsKey(key)
+        return gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? tryLoadPreview(classResolver.Resolve(blueprintReference), size)
             : null;
     }
@@ -179,7 +184,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
             return null;
         string key = blueprintReference[prefix.Length..].Replace('.', '/');
-        return gameData.BlueprintsData.ContainsKey(key)
+        return gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? classResolver.Resolve(blueprintReference).GetValue(attrName)
             : null;
     }

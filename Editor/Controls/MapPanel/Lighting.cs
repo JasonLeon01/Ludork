@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Media;
 using Ludork.Services;
+using Ludork.Models;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 
@@ -22,7 +24,7 @@ public sealed partial class MapPanel
         double displayScale = tileSize / (double)SourceTileSize;
         foreach (ActorLightRenderState state in actorLightRenderStates)
         {
-            if (CurrentMapData?["layers"]?[state.Layer] is not JsonObject layer || !isLayerVisible(layer)
+            if (getLayer(state.Layer) is not MapLayerSnapshot layer || !isLayerVisible(layer)
                 || !tryGetActorPosition(state.Actor, out int x, out int y))
                 continue;
             ActorLightDescriptor light = state.Light;
@@ -42,7 +44,7 @@ public sealed partial class MapPanel
         if (!LightActorSelectionEnabled || !canEditMap || selectedLayerName is null || IsRuntimeEditing)
             return null;
         ensureActorLightRenderStates();
-        HashSet<JsonObject> allowedActors = [];
+        HashSet<MapActorSnapshot> allowedActors = [];
         foreach (ActorLightRenderState state in actorLightRenderStates)
             if (state.Layer == selectedLayerName)
                 allowedActors.Add(state.Actor);
@@ -54,9 +56,9 @@ public sealed partial class MapPanel
             return bodyHit;
         }
         if (selectedLightIndex is int selectedIndex
-            && CurrentMapData?["lights"] is JsonArray lights
+            && CurrentMapDocument?.Lights is IReadOnlyList<MapLightSnapshot> lights
             && selectedIndex >= 0 && selectedIndex < lights.Count
-            && lights[selectedIndex] is JsonObject selectedLight
+            && lights[selectedIndex] is MapLightSnapshot selectedLight
             && tryGetLight(selectedLight, out Point selectedCenter, out double selectedRadius)
             && Math.Abs(getDistance(basePosition, selectedCenter) - selectedRadius) <= LightEdgeTolerance)
         {
@@ -65,7 +67,7 @@ public sealed partial class MapPanel
         }
         double displayScale = tileSize / (double)SourceTileSize;
         double bestDistance = double.MaxValue;
-        if (fixedLight is int fixedIndex && CurrentMapData?["lights"]?[fixedIndex] is JsonObject mapLight
+        if (fixedLight is int fixedIndex && getLight(fixedIndex) is MapLightSnapshot mapLight
             && tryGetLight(mapLight, out Point fixedCenter, out _))
             bestDistance = getDistance(basePosition, fixedCenter) * displayScale;
         int? bestActor = null;
@@ -81,7 +83,7 @@ public sealed partial class MapPanel
             if (distance > light.Radius * displayScale || distance >= bestDistance)
                 continue;
             bestDistance = distance;
-            bestActor = getActorList(state.Layer)?.IndexOf(state.Actor);
+            bestActor = getActorList(state.Layer)?.ToList().IndexOf(state.Actor);
         }
         if (bestActor is not null)
             fixedLight = null;
@@ -93,7 +95,7 @@ public sealed partial class MapPanel
         if (EditMode != MapEditMode.Light || selectedActorIndex is null)
             return;
         ensureActorLightRenderStates();
-        JsonObject? selected = getSelectedActor();
+        MapActorSnapshot? selected = getSelectedActor();
         foreach (ActorLightRenderState state in actorLightRenderStates)
             if (state.Layer == selectedLayerName && ReferenceEquals(state.Actor, selected))
                 return;
@@ -106,22 +108,19 @@ public sealed partial class MapPanel
         if (!actorLightRenderStatesDirty)
             return;
         actorLightRenderStates.Clear();
-        if (previewService is not null && CurrentMapData?["actors"] is JsonObject groups
-            && CurrentMapData["layerOrder"] is JsonArray order)
+        if (previewService is not null && CurrentMapDocument is MapDocumentSnapshot map)
         {
             Dictionary<string, ActorLightDescriptor?> sharedLights = new(StringComparer.Ordinal);
             using IDisposable resolutionBatch = previewService.BeginResolutionBatch();
-            foreach (JsonNode? name in order)
+            foreach (string layer in map.LayerOrder)
             {
-                if (name?.GetValue<string>() is not string layer || groups[layer] is not JsonArray actors)
+                if (!map.Actors.TryGetValue(layer, out IReadOnlyList<MapActorSnapshot>? actors))
                     continue;
-                foreach (JsonNode? node in actors)
+                foreach (MapActorSnapshot actor in actors)
                 {
-                    if (node is not JsonObject actor)
-                        continue;
-                    string reference = actor["bp"]?.GetValue<string>() ?? string.Empty;
-                    string tag = actor["tag"]?.GetValue<string>() ?? string.Empty;
-                    JsonObject? overrides = tag.Length == 0 ? null : CurrentMapData["BPClassVarChanged"]?[tag] as JsonObject;
+                    string reference = actor.Blueprint;
+                    string tag = actor.Tag;
+                    JsonObject? overrides = tag.Length == 0 ? null : CurrentMapDocument.ReadActorOverrides(tag);
                     ActorLightDescriptor? light;
                     if (overrides is { Count: > 0 })
                         light = previewService.tryResolveActorLight(reference, overrides);
@@ -153,5 +152,5 @@ public sealed partial class MapPanel
         InvalidateVisual();
     }
 
-    private sealed record ActorLightRenderState(string Layer, JsonObject Actor, ActorLightDescriptor Light);
+    private sealed record ActorLightRenderState(string Layer, MapActorSnapshot Actor, ActorLightDescriptor Light);
 }

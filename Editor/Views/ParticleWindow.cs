@@ -15,7 +15,7 @@ public sealed class ParticleWindow : Window
     private readonly EditorDocumentBinding binding;
     private readonly Toast toast;
 
-    public ParticleWindow(GameDataService gameData, ProjectSaveService projectSave,
+    public ParticleWindow(ProjectDataStore gameData, ProjectSaveService projectSave,
         UiPreviewRuntimeService runtime, string key)
     {
         this.projectSave = projectSave;

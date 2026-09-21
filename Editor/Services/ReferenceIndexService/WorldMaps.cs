@@ -53,10 +53,10 @@ public sealed partial class ReferenceIndexService
             ensureBuilt();
             ensureAllWorldChildMapReferences();
             List<ReferenceRewrite> result = prepareMapReferenceRewrites(normalized);
-            appendReferenceRewrites(result, "Configs", gameData.SystemConfigData, normalized, true);
-            appendReferenceRewrites(result, "CommonFunctions", gameData.CommonFunctionsData, normalized, false);
-            appendReferenceRewrites(result, "Blueprints", gameData.BlueprintsData, normalized, false);
-            appendReferenceRewrites(result, "General", gameData.GeneralData, normalized, false);
+            appendReferenceRewrites(result, "Configs", SnapshotJson.ToDictionary(gameData.Configs.SystemConfigData), normalized, true);
+            appendReferenceRewrites(result, "CommonFunctions", SnapshotJson.ToDictionary(gameData.Blueprints.CommonFunctionsData), normalized, false);
+            appendReferenceRewrites(result, "Blueprints", SnapshotJson.ToDictionary(gameData.Blueprints.BlueprintsData), normalized, false);
+            appendReferenceRewrites(result, "General", SnapshotJson.ToDictionary(gameData.General.GeneralData), normalized, false);
             return result;
         }
         finally
@@ -81,12 +81,12 @@ public sealed partial class ReferenceIndexService
             .ToHashSet(StringComparer.Ordinal);
         mapKeys.UnionWith(targetIds
             .Select(tryGetMapKeyFromNodeId)
-            .Where(key => key is not null && gameData.MapData.ContainsKey(key))
+            .Where(key => key is not null && gameData.Maps.MapData.ContainsKey(key))
             .Select(key => key!));
         List<ReferenceRewrite> result = [];
         foreach (string mapKey in mapKeys.OrderBy(item => item, StringComparer.Ordinal))
         {
-            JsonObject? original = gameData.ReadMapSnapshotWithoutCaching(mapKey);
+            JsonObject? original = gameData.Maps.ReadMapSnapshotWithoutCaching(mapKey);
             if (original is null)
                 throw new InvalidDataException($"The indexed map could not be read: {mapKey}.");
             JsonObject candidate = (JsonObject)original.DeepClone();
@@ -108,7 +108,7 @@ public sealed partial class ReferenceIndexService
         IReadOnlyList<(string OldPath, string NewPath)> moves)
     {
         Dictionary<string, string> result = new(StringComparer.Ordinal);
-        string mapsRoot = gameData.MapPathPolicy.MapsRoot;
+        string mapsRoot = gameData.Worlds.MapPathPolicy.MapsRoot;
         foreach ((string oldPath, string newPath) in moves)
         {
             if (!tryGetMapsRelativePath(mapsRoot, oldPath, out string oldRelative)
@@ -292,7 +292,7 @@ public sealed partial class ReferenceIndexService
     {
         if (allWorldChildMapReferencesBuilt)
             return;
-        foreach (MapCatalogEntry entry in gameData.MapCatalog
+        foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog
                      .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap))
         {
             if (mapReferenceCache.TryGetValue(entry.Key, out IReadOnlyList<ReferenceRecord>? cached))
@@ -308,7 +308,7 @@ public sealed partial class ReferenceIndexService
         cancellationToken.ThrowIfCancellationRequested();
         progress?.Invoke($"Data/Maps/{entry.Key}.json");
         string sourceId = nodeId("map", entry.Key);
-        JsonObject? map = gameData.ReadMapSnapshotWithoutCaching(entry.Key);
+        JsonObject? map = gameData.Maps.ReadMapSnapshotWithoutCaching(entry.Key);
         if (map is null)
         {
             if (entry.Kind == MapCatalogEntryKind.WorldChildMap)

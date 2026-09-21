@@ -198,7 +198,7 @@ public sealed class FileSelectorDialog : Window
 
         _upButton = new Button
         {
-            Content = EditorIconResources.CreateImage("EditorImage.NavigateUp", 16, 16),
+            Content = EditorIconView.CreateImage("EditorImage.NavigateUp", 16, 16),
             Classes = { "toolbar" },
             Width = 28,
             Height = 28,
@@ -534,11 +534,11 @@ public sealed class FileSelectorDialog : Window
 
         Panel iconArea = new() { Margin = new Thickness(0, 0, 0, 2), HorizontalAlignment = HorizontalAlignment.Center };
         if (isDirectory)
-            iconArea.Children.Add(EditorIconResources.CreateImage("EditorImage.Folder", 54, 44));
+            iconArea.Children.Add(EditorIconView.CreateImage("EditorImage.Folder", 54, 44));
         else if (isImage)
             iconArea.Children.Add(createThumbnail(path));
         else
-            iconArea.Children.Add(EditorIconResources.CreateImage("EditorImage.File", 40, 50));
+            iconArea.Children.Add(EditorIconView.CreateImage("EditorImage.File", 40, 50));
         inner.Children.Add(iconArea);
 
         TextBlock nameText = new()

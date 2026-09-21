@@ -1,3 +1,4 @@
+using Ludork.Composition;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -139,10 +140,8 @@ public partial class App : Application
             return null;
 
         TextHintService.SetProjectPath(projectPath);
-        MainWindow mainWindow = new MainWindow(editorSettings, projectPath)
-        {
-            DataContext = new MainViewModel(projectPath),
-        };
+        EditorProjectSession session = new EditorProjectSession(projectPath);
+        MainWindow mainWindow = new MainWindow(editorSettings, session);
         registerPluginFailureNotification(mainWindow);
         editorSettings.recordOpenedProject(fullPath);
         return mainWindow;

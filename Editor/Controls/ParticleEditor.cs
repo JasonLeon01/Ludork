@@ -16,7 +16,7 @@ namespace Ludork.Controls;
 
 public sealed partial class ParticleEditor : UserControl
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly UiPreviewRuntimeService runtime;
     private readonly EditorDocument document;
     private readonly ListBox trackList = new();
@@ -28,7 +28,7 @@ public sealed partial class ParticleEditor : UserControl
     private bool refreshing;
     private bool committing;
 
-    public ParticleEditor(GameDataService gameData, UiPreviewRuntimeService runtime, string key)
+    public ParticleEditor(ProjectDataStore gameData, UiPreviewRuntimeService runtime, string key)
     {
         this.gameData = gameData;
         this.runtime = runtime;
@@ -220,7 +220,7 @@ public sealed partial class ParticleEditor : UserControl
     private void commit()
     {
         committing = true;
-        gameData.UpdateParticle(Key, data);
+        gameData.Assets.UpdateParticle(Key, data);
         committing = false;
         requestLoad();
     }

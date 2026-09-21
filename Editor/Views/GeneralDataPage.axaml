@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Ludork.ViewModels"
+             x:Class="Ludork.Views.GeneralDataPage"
+             x:ClassModifier="internal"
+             x:DataType="vm:GeneralDataPageViewModel">
+    <Grid ColumnDefinitions="240,4,*">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <TextBox x:Name="SearchBox" Margin="4" Text="{Binding SearchText, Mode=TwoWay}" />
+            <ListBox x:Name="MemberList" Grid.Row="1" SelectionMode="Single"
+                     Background="{DynamicResource Editor.SurfaceBrush}" />
+            <Button x:Name="AddMemberButton" Grid.Row="2" Margin="4" HorizontalAlignment="Stretch" />
+        </Grid>
+        <GridSplitter Grid.Column="1" Width="4" VerticalAlignment="Stretch"
+                      Background="{DynamicResource Editor.InputBrush}" />
+        <Grid Grid.Column="2" RowDefinitions="Auto,*">
+            <Border Padding="8,6" Background="{DynamicResource Editor.SurfaceBrush}">
+                <Grid ColumnDefinitions="*,Auto,8,Auto,4,Auto">
+                    <Button x:Name="EditAbilityGraphButton" Grid.Column="1"
+                            IsVisible="{Binding HasEvents}" IsEnabled="{Binding CanEditSelectedAbilityGraph}" />
+                    <Button x:Name="FormViewButton" Grid.Column="3" MinWidth="72"
+                            Command="{Binding FormViewCommand}" IsEnabled="{Binding IsTableView}" />
+                    <Button x:Name="TableViewButton" Grid.Column="5" MinWidth="72"
+                            Command="{Binding TableViewCommand}" IsEnabled="{Binding IsFormView}" />
+                </Grid>
+            </Border>
+            <ScrollViewer x:Name="FormScroll" Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding IsFormView}">
+                <StackPanel x:Name="FormContent" Spacing="6" Margin="8" />
+            </ScrollViewer>
+            <ScrollViewer x:Name="TableScroll" Grid.Row="1" HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled" IsVisible="{Binding IsTableView}">
+                <Grid x:Name="TableSurface" RowDefinitions="Auto,*" HorizontalAlignment="Left">
+                    <Grid x:Name="TableHeader" Background="{DynamicResource Editor.InputBrush}" />
+                    <ListBox x:Name="TableList" Grid.Row="1" SelectionMode="Single"
+                             Background="{DynamicResource Editor.SurfaceBrush}" />
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

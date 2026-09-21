@@ -32,7 +32,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private readonly List<BlueprintVariableForm> nestedHistoryForms = [];
     private string assetsDirectory = string.Empty;
     private string projectDirectory = string.Empty;
-    private GameDataService? historyGameData;
+    private ProjectDataStore? historyGameData;
     private IGameVariableCatalog? gameVariables;
     private int cellSize = EngineConstants.CellSize;
     private bool isReadOnly;
@@ -96,7 +96,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
     }
 
-    public GameDataService? HistoryGameData
+    public ProjectDataStore? HistoryGameData
     {
         get => historyGameData;
         set
@@ -1653,14 +1653,14 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private void attachHistory(TextBox control)
     {
         historyControls.Add(control);
-        if (HistoryGameData is GameDataService gameData)
+        if (HistoryGameData is ProjectDataStore gameData)
             HistoryMergeBehavior.Attach(control, gameData);
     }
 
     private void attachHistory(NumericUpDown control)
     {
         historyControls.Add(control);
-        if (HistoryGameData is GameDataService gameData)
+        if (HistoryGameData is ProjectDataStore gameData)
             HistoryMergeBehavior.Attach(control, gameData);
     }
 
@@ -2549,27 +2549,4 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         BlueprintVariableDependency? Dependency);
 
     private readonly record struct VectorSpec(int Count, bool IsInteger, decimal Minimum, decimal Maximum);
-}
-
-public enum BlueprintVariableEditorKind
-{
-    Default,
-    MoveRoute,
-    TransferPosition,
-    BlueprintClass,
-    CommonFunction,
-    ObjectReference,
-}
-
-public sealed record BlueprintVariableRange(double Minimum, double Maximum, double Step)
-{
-    public BlueprintVariableRange Normalize()
-    {
-        double minimum = Minimum;
-        double maximum = Maximum;
-        if (maximum < minimum)
-            (minimum, maximum) = (maximum, minimum);
-        double step = Step > 0 ? Step : 1;
-        return new BlueprintVariableRange(minimum, maximum, step);
-    }
 }

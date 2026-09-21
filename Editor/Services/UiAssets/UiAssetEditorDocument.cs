@@ -10,7 +10,7 @@ namespace Ludork.Services.UiAssets;
 public sealed class UiAssetEditorDocument : IDisposable
 {
     private static readonly ConditionalWeakTable<EditorDocument, GestureOwnership> gestureOwners = new();
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly UiAssetEditingService editing;
     private JsonObject data;
     private JsonObject? gestureStart;
@@ -22,7 +22,7 @@ public sealed class UiAssetEditorDocument : IDisposable
     private bool committing;
 
     private UiAssetEditorDocument(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         UiControlRegistryService controlRegistry,
         string assetKey,
         JsonObject data)
@@ -48,14 +48,14 @@ public sealed class UiAssetEditorDocument : IDisposable
     public bool IsGestureActive => gestureStart is not null && gameData.IsHistoryGestureActive(gestureId);
 
     public static UiAssetEditorDocument? Create(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         UiControlRegistryService controlRegistry,
         string key)
     {
         string normalizedKey = NormalizeKey(key);
         string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
-        return gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? asset)
-            ? new UiAssetEditorDocument(gameData, controlRegistry, normalizedKey, asset)
+        return gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? asset)
+            ? new UiAssetEditorDocument(gameData, controlRegistry, normalizedKey, asset.ToJson())
             : null;
     }
 
@@ -69,7 +69,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         string normalizedKey = NormalizeKey(key);
         string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         if (normalizedKey.Length == 0
-            || !gameData.UiAssetsData.ContainsKey(dataKey))
+            || !gameData.UiAssets.UiAssetsData.ContainsKey(dataKey))
         {
             return false;
         }
@@ -80,10 +80,10 @@ public sealed class UiAssetEditorDocument : IDisposable
     {
         endGesture();
         string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-        if (!gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? stored))
+        if (!gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? stored))
             return false;
-        data = (JsonObject)stored.DeepClone();
-        sourceData = (JsonObject)stored.DeepClone();
+        data = stored.ToJson();
+        sourceData = stored.ToJson();
         gestureStart = null;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -425,15 +425,15 @@ public sealed class UiAssetEditorDocument : IDisposable
     private bool commitWorking()
     {
         string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-        if (!gameData.UiAssetsData.TryGetValue(dataKey, out JsonObject? stored)
-            || JsonNode.DeepEquals(stored, data))
+        if (!gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? stored)
+            || JsonNode.DeepEquals(stored.ToJson(), data))
         {
             return false;
         }
         committing = true;
         try
         {
-            gameData.UpdateUiAsset(assetKey, (JsonObject)data.DeepClone());
+            gameData.UiAssets.UpdateUiAsset(assetKey, (JsonObject)data.DeepClone());
             sourceData = resourceDocument?.Data ?? (JsonObject)data.DeepClone();
         }
         finally

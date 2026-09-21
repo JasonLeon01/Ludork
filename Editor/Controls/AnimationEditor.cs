@@ -27,7 +27,7 @@ namespace Ludork.Controls;
 public sealed class AnimationEditor : UserControl
 {
     private const double AssetMarqueeThreshold = 4;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly EditorDocument? resourceDocument;
     private readonly string initialKey;
     private string key => resourceDocument?.Key ?? initialKey;
@@ -84,7 +84,7 @@ public sealed class AnimationEditor : UserControl
     private bool updatingZoomSlider;
     private static (int Track, JsonObject Segment)? segmentClipboard;
 
-    public AnimationEditor(GameDataService gameData, string key, JsonObject data)
+    public AnimationEditor(ProjectDataStore gameData, string key, JsonObject data)
     {
         this.gameData = gameData;
         initialKey = key;
@@ -818,7 +818,7 @@ public sealed class AnimationEditor : UserControl
         committing = true;
         try
         {
-            gameData.UpdateAnimation(key, data);
+            gameData.Assets.UpdateAnimation(key, data);
             documentRevision = resourceDocument?.Revision ?? 0;
         }
         finally

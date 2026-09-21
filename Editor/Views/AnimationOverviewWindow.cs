@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -13,7 +14,7 @@ namespace Ludork.Views;
 
 public sealed class AnimationOverviewWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly ListBox animationList = new()
     {
@@ -25,7 +26,7 @@ public sealed class AnimationOverviewWindow : Window
     private readonly Toast toast;
     private readonly EditorDocumentBinding documentBinding;
 
-    public AnimationOverviewWindow(GameDataService gameData, ProjectSaveService projectSave)
+    public AnimationOverviewWindow(ProjectDataStore gameData, ProjectSaveService projectSave)
     {
         this.gameData = gameData;
         this.projectSave = projectSave;
@@ -64,7 +65,7 @@ public sealed class AnimationOverviewWindow : Window
     {
         if (!initializer.IsInitialized)
             return;
-        string[] keys = gameData.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        string[] keys = gameData.Assets.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         if (!keys.SequenceEqual(animationList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
         {
             currentKey = (editorHost.Content as AnimationEditor)?.Key ?? currentKey;
@@ -82,7 +83,7 @@ public sealed class AnimationOverviewWindow : Window
     private void refreshCore()
     {
         string previous = currentKey;
-        string[] keys = gameData.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        string[] keys = gameData.Assets.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         animationList.ItemsSource = keys;
         string? selected = keys.Contains(previous, StringComparer.Ordinal) ? previous : keys.FirstOrDefault();
         animationList.SelectedItem = selected;
@@ -93,7 +94,7 @@ public sealed class AnimationOverviewWindow : Window
     {
         if (currentKey == key && editorHost.Content is AnimationEditor)
             return;
-        if (string.IsNullOrWhiteSpace(key) || !gameData.AnimationsData.TryGetValue(key, out JsonObject? data))
+        if (string.IsNullOrWhiteSpace(key) || !gameData.Assets.AnimationsData.TryGetValue(key, out AnimationSnapshot? data))
         {
             currentKey = string.Empty;
             editorHost.Content = null;
@@ -102,7 +103,7 @@ public sealed class AnimationOverviewWindow : Window
         }
         currentKey = key;
         documentBinding.Refresh();
-        editorHost.Content = new AnimationEditor(gameData, key, data);
+        editorHost.Content = new AnimationEditor(gameData, key, data.ToJson());
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)

@@ -58,7 +58,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private readonly UiAssetEditorDocument document = null!;
     private readonly EditorDocumentBinding documentBinding = null!;
     private Toast? toast;
-    private readonly GameDataService gameData = null!;
+    private readonly ProjectDataStore gameData = null!;
     private readonly UiControlRegistryService controlRegistry = null!;
     private readonly UiAssetValidationService validationService = null!;
     private readonly ProjectSaveService projectSave = null!;
@@ -99,7 +99,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     public UiAssetEditorWindow(
         UiAssetEditorDocument document,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         UiControlRegistryService controlRegistry,
         UiAssetValidationService validationService) : this()
@@ -1003,7 +1003,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 addChoiceField(
                     property.DisplayName,
                     getString(value),
-                    gameData.ParticlesData.Keys.Prepend(string.Empty).OrderBy(key => key, StringComparer.Ordinal).ToArray(),
+                    gameData.Assets.ParticlesData.Keys.Prepend(string.Empty).OrderBy(key => key, StringComparer.Ordinal).ToArray(),
                     next => commit(JsonValue.Create(next)));
                 break;
             case "sf.Text.LineAlignment":

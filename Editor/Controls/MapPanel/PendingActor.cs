@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Ludork.Services;
+using Ludork.Models;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -22,19 +23,19 @@ public sealed partial class MapPanel
             return;
         pendingActorRenderStateDirty = false;
         if (string.IsNullOrWhiteSpace(pendingActor) || gameData is null || previewService is null
-            || CurrentMapData is null || IsRuntimeEditing || VisualRoot is null)
+            || CurrentMapDocument is null || IsRuntimeEditing || VisualRoot is null)
             return;
         pendingActorRequest = new CancellationTokenSource();
         string reference = pendingActor;
         string? mapKey = CurrentMapKey;
-        GameDataService data = gameData;
+        ProjectDataStore data = gameData;
         BlueprintPreviewService previews = previewService;
         CancellationToken cancellationToken = pendingActorRequest.Token;
         Dispatcher.UIThread.Post(() => preparePendingActor(reference, mapKey, data, previews, cancellationToken),
             DispatcherPriority.Background);
     }
 
-    private async void preparePendingActor(string reference, string? mapKey, GameDataService data,
+    private async void preparePendingActor(string reference, string? mapKey, ProjectDataStore data,
         BlueprintPreviewService previews, CancellationToken cancellationToken)
     {
         EditorThumbnailLease? loaded = null;
@@ -76,7 +77,7 @@ public sealed partial class MapPanel
             }
             pendingActorImage = loaded;
             loaded = null;
-            pendingActorRenderState = new ActorRenderState(new JsonObject { ["bp"] = reference },
+            pendingActorRenderState = new ActorRenderState(MapDocumentCodec.CreateActor(reference),
                 pendingActorImage.Bitmap, new Rect(rect.X, rect.Y, rect.Width, rect.Height),
                 descriptor.Translation, descriptor.Scale, descriptor.Origin, descriptor.Rotation,
                 descriptor.MapPreviewOpacity, descriptor.Animated, descriptor.SwitchInterval,

@@ -10,49 +10,40 @@ namespace Ludork.Views;
 
 public partial class MainWindow
 {
-    private LiveDebugSession? liveDebugSession;
     private LiveDebugViewState? liveDebugViewState;
-    private bool liveDebugRequested;
-    private string? liveDebugContext;
 
     private void onLiveDebugClicked(object? sender, EventArgs args)
     {
-        if (viewModel?.CanConfigureLiveDebug == true)
-            viewModel.LiveDebug = !viewModel.LiveDebug;
+        if (viewModel?.MapWorkspace.CanConfigureLiveDebug == true)
+            viewModel.MapWorkspace.LiveDebug = !viewModel.MapWorkspace.LiveDebug;
     }
 
     private void prepareLiveDebug()
     {
-        if (viewModel?.LiveDebug != true)
+        if (viewModel?.MapWorkspace.LiveDebug != true)
             return;
-        liveDebugRequested = true;
-        liveDebugViewState = new(viewModel.SelectedMap?.Key,
-            viewModel.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null,
+        liveDebug?.Prepare();
+        liveDebugViewState = new(viewModel.MapWorkspace.SelectedMap?.Key,
+            viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null,
             EditorPanel.EditMode, EditorPanel.CaptureViewport(), WorldEditorPanel.CaptureViewport());
         EditorPanel.CancelInteractions();
     }
 
-    private void updateLiveDebugRunState(ProjectRunState state)
+    private void onLiveDebugEditingContextChanged(object? sender, IMapEditingContext context)
     {
-        if (state == ProjectRunState.Idle)
-        {
-            endLiveDebug();
-            return;
-        }
-        if (state != ProjectRunState.Running || !liveDebugRequested
-            || liveDebugSession is not null || projectRunner is null || viewModel is null)
-            return;
-        liveDebugSession = new LiveDebugSession(projectRunner);
-        viewModel.SetLiveDebugSession(liveDebugSession);
-        EditorPanel.ConfigureEditingContext(liveDebugSession);
-        ActorInfoPanel.ConfigureEditingContext(liveDebugSession);
-        liveDebugSession.StateChanged += onLiveDebugStateChanged;
-        liveDebugSession.ErrorReceived += onLiveDebugError;
+        EditorPanel.ConfigureEditingContext(context);
+        ActorInfoPanel.ConfigureEditingContext(context);
+    }
+
+    private void onLiveDebugStarted(object? sender, EventArgs args)
+    {
         refreshMapPanel();
         if (EditorPanel.EditMode == MapEditMode.Light)
             selectPreviewMode(MapEditMode.Tile);
-        liveDebugSession.SetConnection(projectRunner.CanSendCommand);
     }
+
+    private void onLiveDebugContextChanged(object? sender, EventArgs args) => EditorPanel.CancelInteractions();
+    private void onLiveDebugStatusChanged(object? sender, EventArgs args) => updateLiveDebugControls();
 
     private void onLiveDebugError(object? sender, string error)
     {
@@ -60,25 +51,12 @@ public partial class MainWindow
         appendConsoleLine("[Live Debug] " + error);
     }
 
-    private void onLiveDebugStateChanged(object? sender, EventArgs args)
-    {
-        if (liveDebugSession is null || viewModel is null)
-            return;
-        if (liveDebugContext != liveDebugSession.Context)
-        {
-            liveDebugContext = liveDebugSession.Context;
-            EditorPanel.CancelInteractions();
-        }
-        viewModel.RefreshLiveDebugState();
-        updateLiveDebugControls();
-    }
-
     private void updateLiveDebugControls()
     {
         if (viewModel is null)
             return;
-        bool active = liveDebugSession is not null;
-        bool editable = liveDebugSession?.IsEditable == true;
+        bool active = liveDebug?.IsActive == true;
+        bool editable = liveDebug?.IsEditable == true;
         if (active)
         {
             EditModeToggles.IsEnabled = editable;
@@ -104,7 +82,7 @@ public partial class MainWindow
         }
         LiveDebugBanner.IsVisible = active;
         LiveDebugStatus.Text = active
-            ? LocaleService.Get(editable ? "LIVE_DEBUG_ACTIVE" : liveDebugSession!.Status switch
+            ? LocaleService.Get(editable ? "LIVE_DEBUG_ACTIVE" : liveDebug!.Status switch
             {
                 "disconnected" => "LIVE_DEBUG_DISCONNECTED",
                 "unavailable" => "LIVE_DEBUG_UNAVAILABLE",
@@ -116,32 +94,16 @@ public partial class MainWindow
             }) : string.Empty;
     }
 
-    private void endLiveDebug()
+    private void onLiveDebugEnded(object? sender, EventArgs args)
     {
-        if (liveDebugSession is not null)
-        {
-            liveDebugSession.StateChanged -= onLiveDebugStateChanged;
-            liveDebugSession.ErrorReceived -= onLiveDebugError;
-            liveDebugSession.Dispose();
-            liveDebugSession = null;
-            if (viewModel is not null)
-            {
-                viewModel.SetLiveDebugSession(null);
-                ProjectMapEditingContext context = new(viewModel.GameData);
-                EditorPanel.ConfigureEditingContext(context);
-                ActorInfoPanel.ConfigureEditingContext(context);
-            }
-        }
-        liveDebugRequested = false;
-        liveDebugContext = null;
         if (liveDebugViewState is not null && viewModel is not null)
         {
             LiveDebugViewState previous = liveDebugViewState;
             liveDebugViewState = null;
-            viewModel.SelectedMap = viewModel.findMapItem(previous.MapKey);
+            viewModel.MapWorkspace.SelectedMap = viewModel.MapWorkspace.findMapItem(previous.MapKey);
             refreshMapPanel();
-            viewModel.SelectedLayerTab = viewModel.LayerTabs.FirstOrDefault(
-                layer => !layer.IsOverview && layer.Name == previous.LayerName) ?? viewModel.LayerTabs.FirstOrDefault();
+            viewModel.MapWorkspace.SelectedLayerTab = viewModel.MapWorkspace.LayerTabs.FirstOrDefault(
+                layer => !layer.IsOverview && layer.Name == previous.LayerName) ?? viewModel.MapWorkspace.LayerTabs.FirstOrDefault();
             selectPreviewMode(previous.Mode);
             Dispatcher.UIThread.Post(() =>
             {

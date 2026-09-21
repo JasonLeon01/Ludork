@@ -66,7 +66,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
     public int WorldHeight { get; private set; }
     public (int X, int Y)? SelectedWorldCell { get; private set; }
 
-    public void Configure(GameDataService gameData)
+    public void Configure(ProjectDataStore gameData)
     {
         setRenderer(new WorldMapPreviewRenderer(gameData), true);
     }

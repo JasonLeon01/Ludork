@@ -9,7 +9,7 @@ internal static class TransferPositionPickWindow
 {
     public static async Task<TransferPositionSelection?> ShowAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         JsonNode? initial,
         string mapReference)
     {

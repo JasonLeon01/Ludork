@@ -3,8 +3,9 @@
              xmlns:nodify="clr-namespace:NodifyM.Avalonia.Controls;assembly=NodifyM.Avalonia"
              xmlns:converters="clr-namespace:NodifyM.Avalonia.Converters;assembly=NodifyM.Avalonia"
              xmlns:local="clr-namespace:Ludork.Views.Utils.BlueprintGraph"
+             xmlns:vm="clr-namespace:Ludork.ViewModels.BlueprintGraph"
              x:Class="Ludork.Views.Utils.BlueprintGraph.BlueprintGraphControl"
-             x:DataType="local:BlueprintGraphEditorViewModel"
+             x:DataType="vm:BlueprintGraphEditorViewModel"
              Focusable="True">
     <Grid Background="{DynamicResource Editor.BackgroundBrush}">
         <nodify:NodifyEditor x:Name="Editor"
@@ -34,7 +35,7 @@
                 </DataTemplate>
             </nodify:NodifyEditor.GridLineTemplate>
             <nodify:NodifyEditor.ConnectionTemplate>
-                <DataTemplate x:DataType="local:BlueprintGraphConnectionViewModel">
+                <DataTemplate x:DataType="vm:BlueprintGraphConnectionViewModel">
                     <nodify:Connection Source="{Binding Source.Anchor}"
                                        Target="{Binding Target.Anchor}"
                                        Stroke="{Binding Stroke}"
@@ -46,7 +47,7 @@
                 </DataTemplate>
             </nodify:NodifyEditor.ConnectionTemplate>
             <nodify:NodifyEditor.PendingConnectionTemplate>
-                <DataTemplate x:DataType="local:BlueprintPendingConnectionViewModel">
+                <DataTemplate x:DataType="vm:BlueprintPendingConnectionViewModel">
                     <nodify:PendingConnection StartedCommand="{Binding StartCommand}"
                                               CompletedCommand="{Binding CompleteCommand}"
                                               EnablePreview="True"
@@ -58,7 +59,7 @@
                 </DataTemplate>
             </nodify:NodifyEditor.PendingConnectionTemplate>
             <nodify:NodifyEditor.ItemTemplate>
-                <DataTemplate x:DataType="local:BlueprintGraphNodeViewModel">
+                <DataTemplate x:DataType="vm:BlueprintGraphNodeViewModel">
                     <nodify:Node Input="{Binding Input}"
                                  Output="{Binding Output}"
                                  Location="{Binding Location, Mode=TwoWay}"
@@ -92,7 +93,7 @@
                             </Grid>
                         </nodify:Node.Header>
                         <nodify:Node.InputConnectorTemplate>
-                            <DataTemplate x:DataType="local:BlueprintGraphPortViewModel">
+                            <DataTemplate x:DataType="vm:BlueprintGraphPortViewModel">
                                 <nodify:NodeInput IsConnected="{Binding IsConnected}"
                                                   Anchor="{Binding Anchor, Mode=OneWayToSource}"
                                                   BorderBrush="{Binding Brush}">
@@ -103,7 +104,7 @@
                                             <TextBlock Text="{Binding DisplayTitle}"
                                                        Foreground="{DynamicResource Editor.TextBrush}"
                                                        TextWrapping="Wrap" />
-                                            <ContentControl Content="{Binding Editor}"
+                                            <local:BlueprintGraphParameterEditor
                                                             IsVisible="{Binding IsEditorVisible}"
                                                             HorizontalContentAlignment="Stretch" />
                                         </StackPanel>
@@ -112,7 +113,7 @@
                             </DataTemplate>
                         </nodify:Node.InputConnectorTemplate>
                         <nodify:Node.OutputConnectorTemplate>
-                            <DataTemplate x:DataType="local:BlueprintGraphPortViewModel">
+                            <DataTemplate x:DataType="vm:BlueprintGraphPortViewModel">
                                 <nodify:NodeOutput IsConnected="{Binding IsConnected}"
                                                    Anchor="{Binding Anchor, Mode=OneWayToSource}"
                                                    BorderBrush="{Binding Brush}">

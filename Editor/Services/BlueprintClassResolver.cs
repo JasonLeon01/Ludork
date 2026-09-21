@@ -11,14 +11,14 @@ namespace Ludork.Services;
 public sealed class BlueprintClassResolver : IDisposable
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly Dictionary<string, ResolvedBlueprintTemplate> templateCache = new(StringComparer.Ordinal);
     private long metadataRevision = -1;
     private long revision;
     private bool disposed;
 
-    public BlueprintClassResolver(GameDataService gameData, LuaMetadataService metadataService)
+    public BlueprintClassResolver(ProjectDataStore gameData, LuaMetadataService metadataService)
     {
         this.gameData = gameData;
         this.metadataService = metadataService;
@@ -135,8 +135,8 @@ public sealed class BlueprintClassResolver : IDisposable
         if (reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
         {
             string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
-            if (gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
-                return createBlueprintTemplate(blueprint, reference, key);
+            if (gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
+                return createBlueprintTemplate(blueprint.ToJson(), reference, key);
             return createResolvedTemplate(
                 reference,
                 null,
@@ -174,13 +174,13 @@ public sealed class BlueprintClassResolver : IDisposable
         while (!string.IsNullOrWhiteSpace(parent) && parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
         {
             string key = parent[BlueprintPrefix.Length..].Replace('.', '/');
-            if (!visited.Add(key) || !gameData.BlueprintsData.TryGetValue(key, out JsonObject? parentBlueprint))
+            if (!visited.Add(key) || !gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? parentBlueprint))
             {
                 parent = null;
                 break;
             }
-            chain.Add((parent, parentBlueprint));
-            parent = getParent(parentBlueprint);
+            chain.Add((parent, parentBlueprint.ToJson()));
+            parent = parentBlueprint.Parent;
         }
 
         chain.Reverse();
@@ -462,7 +462,7 @@ public sealed class BlueprintClassResolver : IDisposable
             );
         }
 
-        LuaMetadataService.DependencySet dependencies = metadataService.CaptureDependencies(
+        LuaMetadataDependencySnapshot dependencies = metadataService.CaptureDependencies(
             dependencyTypes,
             dependencyMixins);
         return new ResolvedBlueprintTemplate(
@@ -827,7 +827,7 @@ public sealed class BlueprintClassResolver : IDisposable
         private readonly bool parentScriptMixin;
         private readonly IReadOnlyList<string> localMixinFieldNames;
         private readonly string? scriptMixinError;
-        private readonly LuaMetadataService.DependencySet dependencies;
+        private readonly LuaMetadataDependencySnapshot dependencies;
         private readonly IReadOnlySet<string> blueprintDependencies;
 
         public ResolvedBlueprintTemplate(
@@ -851,7 +851,7 @@ public sealed class BlueprintClassResolver : IDisposable
             IReadOnlyList<string> localMixinFieldNames,
             string? scriptMixinError,
             long metadataRevision,
-            LuaMetadataService.DependencySet dependencies,
+            LuaMetadataDependencySnapshot dependencies,
             IReadOnlySet<string> blueprintDependencies)
         {
             this.classReference = classReference;

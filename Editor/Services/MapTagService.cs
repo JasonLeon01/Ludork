@@ -8,14 +8,14 @@ namespace Ludork.Services;
 public static class MapTagService
 {
     public static string CreateDefault(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string mapKey,
         string blueprintReference,
         int x,
         int y)
     {
         string candidate = CreateDefaultBody(blueprintReference, x, y);
-        if (gameData.TryGetWorldForMap(mapKey, out _))
+        if (gameData.Worlds.TryGetWorldForMap(mapKey, out _))
             candidate = $"{getMapStem(mapKey)}.{candidate}";
         return MakeUnique(gameData, mapKey, candidate);
     }
@@ -32,7 +32,7 @@ public static class MapTagService
     }
 
     public static string MakeUnique(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string mapKey,
         string tag,
         string? ignoredLayerName = null,
@@ -64,22 +64,22 @@ public static class MapTagService
     }
 
     public static bool Exists(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string mapKey,
         string tag,
         string? ignoredLayerName = null,
         int? ignoredActorIndex = null)
     {
-        if (gameData.TryGetWorldForMap(mapKey, out string worldKey))
+        if (gameData.Worlds.TryGetWorldForMap(mapKey, out string worldKey))
         {
-            return gameData.WorldActorTagExists(
+            return gameData.Worlds.WorldActorTagExists(
                 worldKey,
                 tag,
                 mapKey,
                 ignoredLayerName,
                 ignoredActorIndex ?? -1);
         }
-        return gameData.MapActorTagExists(mapKey, tag, ignoredLayerName, ignoredActorIndex);
+        return gameData.Maps.MapActorTagExists(mapKey, tag, ignoredLayerName, ignoredActorIndex);
     }
 
     internal static bool ContainsTag(

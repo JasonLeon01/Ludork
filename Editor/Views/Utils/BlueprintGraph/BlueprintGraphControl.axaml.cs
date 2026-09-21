@@ -1,3 +1,4 @@
+using Ludork.ViewModels.BlueprintGraph;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -54,7 +55,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     }
 
     public BlueprintGraphControl(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         BlueprintGraphDocument document,
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         BlueprintVariableFieldBuilder fieldBuilder,
@@ -64,21 +65,19 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         int cellSize,
         bool isReadOnly = false) : this()
     {
+        ParameterContext = new BlueprintGraphParameterContext(gameData, parameterEditorFactory, gameVariables, assetsDirectory, cellSize);
         viewModel = new BlueprintGraphEditorViewModel(
-            gameData,
             document,
             definitions,
             fieldBuilder,
-            parameterEditorFactory,
-            gameVariables,
-            assetsDirectory,
-            cellSize,
             isReadOnly);
         DataContext = viewModel;
         document.Changed += onDocumentChanged;
         viewModel.ParameterEdited += onParameterEdited;
         viewModel.InputDraftChanged += onInputDraftChanged;
     }
+
+    internal BlueprintGraphParameterContext? ParameterContext { get; }
 
     public event EventHandler? GraphChanged;
     public event EventHandler? InputDraftChanged;

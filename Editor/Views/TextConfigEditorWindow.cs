@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -19,7 +20,7 @@ namespace Ludork.Views;
 
 public sealed class TextConfigEditorWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly EditorDocument? resourceDocument;
     private readonly EditorDocumentBinding documentBinding;
@@ -39,7 +40,7 @@ public sealed class TextConfigEditorWindow : Window
     private bool syncing;
 
     public TextConfigEditorWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         string key,
         JsonObject data)
@@ -848,8 +849,8 @@ public sealed class TextConfigEditorWindow : Window
                 this,
                 LocaleService.Get("TEXT_CONFIG_CURVE"),
                 LocaleService.Get("TEXT_CONFIG_CURVE"),
-                gameData.CurvesData
-                    .Where(item => stringValue(item.Value["type"]) == "vector4Curve")
+                gameData.Assets.CurvesData
+                    .Where(item => item.Value.Type == "vector4Curve")
                     .Select(item => item.Key)
                     .OrderBy(item => item, StringComparer.Ordinal),
                 current);
@@ -884,7 +885,7 @@ public sealed class TextConfigEditorWindow : Window
         updateValidation(errors);
         if (errors.Count != 0)
             return;
-        if (!gameData.TextConfigsData.ContainsKey(key))
+        if (!gameData.Assets.TextConfigsData.ContainsKey(key))
         {
             Close();
             return;
@@ -895,7 +896,7 @@ public sealed class TextConfigEditorWindow : Window
             return;
         sourceData = changed;
         displayBaseline = (JsonObject)data.DeepClone();
-        gameData.UpdateTextConfig(key, sourceData);
+        gameData.Assets.UpdateTextConfig(key, sourceData);
     }
 
     private static void applyEditedFields(JsonObject target, JsonObject before, JsonObject after)
@@ -957,8 +958,8 @@ public sealed class TextConfigEditorWindow : Window
         if (enabled && curve.Length == 0)
             errors.Add(LocaleService.Get("TEXT_CONFIG_CURVE"));
         else if (curve.Length != 0
-            && (!gameData.CurvesData.TryGetValue(curve, out JsonObject? curveData)
-                || stringValue(curveData["type"]) != "vector4Curve"))
+            && (!gameData.Assets.CurvesData.TryGetValue(curve, out CurveSnapshot? curveData)
+                || curveData.Type != "vector4Curve"))
         {
             errors.Add($"{LocaleService.Get("TEXT_CONFIG_CURVE")}: {curve}");
         }
@@ -982,7 +983,7 @@ public sealed class TextConfigEditorWindow : Window
             }
             else
             {
-                if (!gameData.TextConfigsData.ContainsKey(key))
+                if (!gameData.Assets.TextConfigsData.ContainsKey(key))
                 {
                     await AlertDialog.ShowAsync(
                         this,
@@ -1011,7 +1012,7 @@ public sealed class TextConfigEditorWindow : Window
         if (!args.Reset && !args.Changes.Any(change => change.Section == "Curves"
                 && (change.PreviousKey == curve || change.Key == curve)))
             return;
-        if (!gameData.TextConfigsData.ContainsKey(key))
+        if (!gameData.Assets.TextConfigsData.ContainsKey(key))
         {
             Close();
             return;

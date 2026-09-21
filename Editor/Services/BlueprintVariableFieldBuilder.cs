@@ -1,0 +1,563 @@
+using Ludork.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Nodes;
+
+namespace Ludork.Services;
+
+public sealed class BlueprintVariableFieldBuilder
+{
+    private readonly ProjectDataStore gameData;
+    private readonly LuaMetadataService metadataService;
+
+    public BlueprintVariableFieldBuilder(
+        ProjectDataStore gameData,
+        LuaMetadataService metadataService)
+    {
+        this.gameData = gameData;
+        this.metadataService = metadataService;
+    }
+
+    public IReadOnlyList<BlueprintVariableField> Build(
+        ResolvedBlueprintClass resolved,
+        bool readOnlyGeneralDataFields = false)
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        HashSet<string> invalidVars = new(resolved.InvalidVars, StringComparer.Ordinal);
+        GeneralDataFieldSource? generalDataFields = readOnlyGeneralDataFields
+            ? getGeneralDataFields(resolved)
+            : null;
+        List<BlueprintVariableField> result = [];
+        bool addedGeneralDataPreview = false;
+        foreach (ResolvedBlueprintField field in resolved.Fields)
+        {
+            if (invalidVars.Contains(field.Name)
+                || field.IsUnknown && !field.HasBlueprintDefaultValue
+                || !field.HasBlueprintDefaultValue && field.Metadata?.Component != true)
+            {
+                continue;
+            }
+            if (generalDataFields is not null
+                && string.Equals(field.Name, "attributes", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            string? rectSource = getString(resolved.RectRangeVars[field.Name]);
+            result.Add(createFormField(
+                field,
+                field.BlueprintDefaultValue,
+                field.HasBlueprintDefaultValue,
+                rectSource,
+                new HashSet<string>(StringComparer.Ordinal),
+                field.Name == "scriptMixin" && resolved.HasBlueprintParent));
+            if (generalDataFields is not null
+                && string.Equals(field.Name, "ID", StringComparison.Ordinal))
+            {
+                result.Add(createGeneralDataAttributesField(generalDataFields, field.SourceClass));
+                addedGeneralDataPreview = true;
+            }
+        }
+        if (generalDataFields is not null && !addedGeneralDataPreview)
+            result.Add(createGeneralDataAttributesField(generalDataFields, resolved.GetField("ID")?.SourceClass));
+        return result;
+    }
+
+    public bool IsTypeAssignable(string source, string target)
+    {
+        return metadataService.IsTypeAssignable(source, target);
+    }
+
+    public bool IsGeneralDataSelector(ResolvedBlueprintClass resolved, string fieldName)
+    {
+        if (!string.Equals(fieldName, "ID", StringComparison.Ordinal))
+            return false;
+        ResolvedBlueprintField? field = resolved.GetField(fieldName);
+        string? dataType = getGeneralDataType(field?.Metadata?.Meta["GeneralDataVars"]);
+        return dataType is not null && gameData.General.GeneralData.ContainsKey(dataType);
+    }
+
+    public BlueprintVariableField BuildNodeParameter(BlueprintGraphPort port)
+    {
+        LuaMetadataType type = LuaMetadataType.Parse(port.TypeName);
+        LuaTypeReference? namedReference = type.Kind == LuaMetadataTypeKind.Named
+            ? LuaTypeReference.Parse(type.Name)
+            : null;
+        JsonObject meta = port.Meta.DeepClone() as JsonObject ?? [];
+        string? assetSubdirectory = getNodeAssetSubdirectory(meta["PathVars"]);
+        string? relatedFieldName = getString(meta["Transfer"]);
+        BlueprintVariableEditorKind editorKind = getNodeEditorKind(
+            meta,
+            assetSubdirectory,
+            relatedFieldName);
+        JsonNode? value = port.Value?.DeepClone();
+        bool receiver = port.ParameterIndex == 0
+            && port.Name == "self"
+            && namedReference?.ModuleName is not null;
+        bool constructedType = !receiver && isConstructedNodeType(type);
+        string editorType = constructedType ? "any[]" : type.ToString();
+        return new BlueprintVariableField(port.Name, editorType, value)
+        {
+            Module = namedReference?.ModuleName,
+            TypeName = constructedType ? "any[]" : namedReference?.TypeName ?? type.ToString(),
+            DefaultValue = value?.DeepClone(),
+            Meta = meta,
+            UseJsonTableEditor = constructedType,
+            PreserveNullValue = true,
+            EditorKind = receiver ? BlueprintVariableEditorKind.ObjectReference : editorKind,
+            RelatedFieldName = relatedFieldName,
+            AssetSubdirectory = assetSubdirectory,
+            Options = getNodeParameterOptions(port.Name, meta),
+        };
+    }
+
+    public string GetNodeParameterDisplayTypeName(BlueprintGraphPort port)
+    {
+        JsonObject meta = port.Meta;
+        string? assetSubdirectory = getNodeAssetSubdirectory(meta["PathVars"]);
+        string? relatedFieldName = getString(meta["Transfer"]);
+        BlueprintVariableEditorKind editorKind = getNodeEditorKind(
+            meta,
+            assetSubdirectory,
+            relatedFieldName);
+        return editorKind switch
+        {
+            BlueprintVariableEditorKind.MoveRoute => "MoveRoute",
+            BlueprintVariableEditorKind.TransferPosition => "TransferPos",
+            BlueprintVariableEditorKind.BlueprintClass => "BlueprintClass",
+            BlueprintVariableEditorKind.CommonFunction => "CommonFunction",
+            _ => port.TypeName,
+        };
+    }
+
+    private static BlueprintVariableEditorKind getNodeEditorKind(
+        JsonObject meta,
+        string? assetSubdirectory,
+        string? relatedFieldName)
+    {
+        if (!string.IsNullOrWhiteSpace(relatedFieldName))
+            return BlueprintVariableEditorKind.TransferPosition;
+        if (getBool(meta["MoveRouteVars"]))
+            return BlueprintVariableEditorKind.MoveRoute;
+        if (assetSubdirectory is not null)
+            return BlueprintVariableEditorKind.Default;
+        if (getBool(meta["BlueprintClassVars"]))
+            return BlueprintVariableEditorKind.BlueprintClass;
+        if (getBool(meta["CommonFunctionVars"]))
+            return BlueprintVariableEditorKind.CommonFunction;
+        return BlueprintVariableEditorKind.Default;
+    }
+
+    private static bool isConstructedNodeType(LuaMetadataType valueType)
+    {
+        if (valueType.Kind != LuaMetadataTypeKind.Named)
+            return false;
+        string type = valueType.Name;
+        if (type.EndsWith("Vector2f", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Vector2i", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Vector2u", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Vector3f", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Vector3i", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Vector3u", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Color", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("Colour", StringComparison.OrdinalIgnoreCase)
+            || type.EndsWith("IntRect", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        string normalized = type.ToLowerInvariant();
+        return normalized is not "pair"
+            and not "bool"
+            and not "int"
+            and not "float"
+            and not "double"
+            and not "number"
+            and not "string"
+            and not "any"
+            and not "nil"
+            and not "table"
+            and not "list"
+            and not "array"
+            and not "dict"
+            and not "function"
+            and not "event";
+    }
+
+    private BlueprintVariableField createFormField(
+        ResolvedBlueprintField field,
+        JsonNode? defaultValue,
+        bool hasDefault,
+        string? rectSource,
+        HashSet<string> resolving,
+        bool isReadOnly = false)
+    {
+        BlueprintFieldMetadata? fieldMetadata = field.Metadata;
+        string? defaultModule = fieldMetadata?.DeclaringType.ModuleName;
+        IReadOnlyList<BlueprintVariableField> nestedFields = createStructuredFields(
+            field.Type,
+            defaultModule,
+            field.Value,
+            resolving);
+        LuaTypeReference displayType = field.Type.WithDefaultModule(defaultModule);
+        JsonObject meta = fieldMetadata?.Meta.DeepClone() as JsonObject ?? [];
+        return new BlueprintVariableField(field.Name, displayType.QualifiedName, field.Value)
+        {
+            Module = displayType.ModuleName,
+            TypeName = displayType.TypeName,
+            SourceClass = field.SourceClass,
+            DefaultValue = hasDefault ? cloneNode(defaultValue) : null,
+            DisplayValue = getConfigDisplayValue(field.Name, field.Value, meta),
+            Meta = meta,
+            IsComponent = fieldMetadata?.Component == true,
+            IsReadOnly = isReadOnly,
+            PreserveNullValue = field.Value is null,
+            RectSourceField = rectSource,
+            Options = getGeneralDataOptions(meta),
+            Fields = nestedFields,
+        };
+    }
+
+    private IReadOnlyList<BlueprintVariableField> createStructuredFields(
+        LuaTypeReference fieldType,
+        string? defaultModule,
+        JsonNode? value,
+        HashSet<string> resolving)
+    {
+        LuaTypeReference type = fieldType.WithDefaultModule(defaultModule);
+        if (metadataService.GetType(type) is null || !resolving.Add(type.QualifiedName))
+            return [];
+
+        IReadOnlyList<LuaTypeMetadata> mro = metadataService.ResolveMro(type);
+        List<string> order = [];
+        Dictionary<string, BlueprintFieldMetadata> schema = new(StringComparer.Ordinal);
+        HashSet<string> invalidVars = new(StringComparer.Ordinal);
+        Dictionary<string, string> rectSources = new(StringComparer.Ordinal);
+        foreach (LuaTypeMetadata metadata in mro.Reverse())
+        {
+            foreach (string invalidVar in metadata.InvalidVars)
+                invalidVars.Add(invalidVar);
+            foreach (KeyValuePair<string, JsonNode?> pair in metadata.RectRangeVars)
+            {
+                string? source = getString(pair.Value);
+                if (source is not null)
+                    rectSources[pair.Key] = source;
+            }
+            foreach (string name in metadata.Attrs)
+            {
+                if (!metadata.Fields.TryGetValue(name, out BlueprintFieldMetadata? nestedMetadata))
+                    continue;
+                if (!schema.ContainsKey(name))
+                    order.Add(name);
+                schema[name] = nestedMetadata;
+            }
+        }
+
+        JsonObject valueObject = value as JsonObject ?? [];
+        List<BlueprintVariableField> result = [];
+        HashSet<string> added = new(StringComparer.Ordinal);
+        foreach (string name in order)
+        {
+            if (invalidVars.Contains(name))
+                continue;
+            BlueprintFieldMetadata metadata = schema[name];
+            bool hasValue = valueObject.TryGetPropertyValue(name, out JsonNode? childValue);
+            bool hasDefaultValue = metadata.HasDefaultValue;
+            JsonNode? childDefault = metadata.DefaultValue;
+            if (!hasValue && !hasDefaultValue)
+                continue;
+            if (!hasValue)
+                childValue = childDefault;
+            ResolvedBlueprintField nestedField = new(
+                name,
+                metadata.Type,
+                childValue,
+                childDefault,
+                metadata,
+                false,
+                hasDefaultValue);
+            rectSources.TryGetValue(name, out string? rectSource);
+            result.Add(createFormField(
+                nestedField,
+                childDefault,
+                hasDefaultValue,
+                rectSource,
+                resolving));
+            added.Add(name);
+        }
+
+        foreach (KeyValuePair<string, JsonNode?> pair in valueObject)
+        {
+            if (added.Contains(pair.Key) || invalidVars.Contains(pair.Key))
+                continue;
+            ResolvedBlueprintField nestedField = new(
+                pair.Key,
+                inferType(pair.Value),
+                pair.Value,
+                null,
+                null,
+                true,
+                false);
+            result.Add(createFormField(
+                nestedField,
+                null,
+                false,
+                null,
+                resolving));
+        }
+        resolving.Remove(type.QualifiedName);
+        return result;
+    }
+
+    private static BlueprintVariableField createGeneralDataAttributesField(
+        GeneralDataFieldSource source,
+        string? sourceClass)
+    {
+        List<BlueprintVariableField> fields = [];
+        foreach (GeneralDataPreviewField preview in source.Fields)
+        {
+            fields.Add(new BlueprintVariableField(
+                preview.Name,
+                getGeneralDataPreviewType(preview.Definition),
+                preview.Value)
+            {
+                Description = getString(preview.Definition["comment"]) ?? string.Empty,
+                DefaultValue = preview.DefaultValue?.DeepClone(),
+                DisplayValue = preview.Value?.DeepClone(),
+                IsReadOnly = true,
+                PreserveNullValue = preview.Value is null,
+            });
+        }
+        return new BlueprintVariableField(
+            "attributes",
+            "Global.Gameplay.AttributeSet",
+            source.Values)
+        {
+            Module = "Global.Gameplay",
+            TypeName = "AttributeSet",
+            SourceClass = sourceClass,
+            DefaultValue = source.Values.DeepClone(),
+            DisplayValue = source.Values.DeepClone(),
+            IsReadOnly = true,
+            Fields = fields,
+        };
+    }
+
+    private static string getGeneralDataPreviewType(JsonObject definition)
+    {
+        if (definition["type"] is JsonObject schema)
+            return LuaMetadataType.Parse(schema).ToString();
+        string type = getString(definition["type"]) ?? "any";
+        return type switch
+        {
+            "list" => (definition["itemType"] is JsonNode itemType ? LuaMetadataType.Parse(itemType).ToString() : "any") + "[]",
+            "dict" => "Dict[string, " + (definition["valueType"] is JsonNode valueType ? LuaMetadataType.Parse(valueType).ToString() : "any") + "]",
+            "file" => "string",
+            _ => type,
+        };
+    }
+
+    private GeneralDataFieldSource? getGeneralDataFields(ResolvedBlueprintClass resolved)
+    {
+        ResolvedBlueprintField? idField = resolved.GetField("ID");
+        string? dataType = getGeneralDataType(idField?.Metadata?.Meta["GeneralDataVars"]);
+        if (dataType is null
+            || !gameData.General.GeneralData.TryGetValue(dataType, out GeneralDataTypeSnapshot? data)
+            || !data.HasParameters)
+        {
+            return null;
+        }
+        JsonObject previewValues = [];
+        List<GeneralDataPreviewField> fields = [];
+        string? memberId = getString(idField?.Value);
+        JsonObject? member = memberId is not null
+            ? data.Members.GetValueOrDefault(memberId)
+            : null;
+        foreach (KeyValuePair<string, GeneralDataParameterSnapshot> parameter in data.Parameters)
+        {
+            JsonObject definition = parameter.Value.ToJson();
+            JsonNode? defaultValue = parameter.Value.DefaultValue;
+            JsonNode? value;
+            if (member?.TryGetPropertyValue(parameter.Key, out JsonNode? memberValue) == true)
+            {
+                value = cloneNode(memberValue);
+            }
+            else
+            {
+                value = cloneNode(defaultValue);
+            }
+            previewValues[parameter.Key] = cloneNode(value);
+            fields.Add(new GeneralDataPreviewField(
+                parameter.Key,
+                (JsonObject)definition.DeepClone(),
+                cloneNode(value),
+                defaultValue));
+        }
+        return new GeneralDataFieldSource(previewValues, fields);
+    }
+
+    private IReadOnlyList<BlueprintVariableOption> getGeneralDataOptions(JsonObject meta)
+    {
+        string? dataType = getGeneralDataType(meta["GeneralDataVars"]);
+        if (dataType is null)
+            return [];
+        List<BlueprintVariableOption> options =
+        [
+            new BlueprintVariableOption(
+                LocaleService.Get("GENERAL_DATA_PLACEHOLDER"),
+                JsonValue.Create(string.Empty)),
+        ];
+        IEnumerable<string> keys;
+        if (string.Equals(dataType, "ANIMATION", StringComparison.OrdinalIgnoreCase))
+        {
+            keys = gameData.Assets.AnimationsData.Keys;
+        }
+        else if (string.Equals(dataType, "PARTICLE", StringComparison.OrdinalIgnoreCase))
+        {
+            keys = gameData.Assets.ParticlesData.Keys;
+        }
+        else if (gameData.General.GeneralData.TryGetValue(dataType, out GeneralDataTypeSnapshot? data))
+        {
+            keys = data.Members.Keys;
+        }
+        else
+        {
+            keys = [];
+        }
+        foreach (string key in keys)
+            options.Add(new BlueprintVariableOption(key, JsonValue.Create(key)));
+        return options;
+    }
+
+    private IReadOnlyList<BlueprintVariableOption> getNodeParameterOptions(
+        string parameterName,
+        JsonObject meta)
+    {
+        JsonNode? dropBox = meta["DropBox"];
+        if (dropBox is JsonObject map)
+            dropBox = map[parameterName];
+        if (dropBox is JsonArray values)
+        {
+            List<BlueprintVariableOption> options = [];
+            foreach (JsonNode? value in values)
+            {
+                string label = getString(value) ?? value?.ToJsonString() ?? string.Empty;
+                options.Add(new BlueprintVariableOption(label, value));
+            }
+            return options;
+        }
+        return getGeneralDataOptions(meta);
+    }
+
+    private static string? getNodeAssetSubdirectory(JsonNode? value)
+    {
+        if (getString(value) is string path)
+            return path;
+        return value is JsonValue scalar
+            && scalar.TryGetValue(out bool enabled)
+            && enabled
+            ? string.Empty
+            : null;
+    }
+
+    private JsonNode? getConfigDisplayValue(string fieldName, JsonNode? value, JsonObject meta)
+    {
+        if (getString(value) is not string text || text.Length != 0)
+            return cloneNode(value);
+        (string Config, string Setting)? reference = getConfigReference(meta["ConfigVars"], fieldName);
+        if (reference is not { } configReference
+            || !gameData.Configs.SystemConfigData.TryGetValue(configReference.Config, out ConfigSnapshot? config)
+            || !config.Fields.TryGetValue(configReference.Setting, out ConfigFieldSnapshot? setting)
+            || !setting.HasValue)
+        {
+            return cloneNode(value);
+        }
+        return setting.CurrentValue;
+    }
+
+    private static LuaTypeReference inferType(JsonNode? value)
+    {
+        if (value is JsonObject)
+            return new LuaTypeReference(null, "table");
+        if (value is JsonArray)
+            return new LuaTypeReference(null, "any[]");
+        if (value is JsonValue scalar)
+        {
+            if (scalar.TryGetValue(out bool _))
+                return new LuaTypeReference(null, "bool");
+            if (scalar.TryGetValue(out string? _))
+                return new LuaTypeReference(null, "string");
+            if (scalar.TryGetValue(out int _) || scalar.TryGetValue(out long _))
+                return new LuaTypeReference(null, "int");
+            if (scalar.TryGetValue(out double _) || scalar.TryGetValue(out decimal _))
+                return new LuaTypeReference(null, "float");
+        }
+        return new LuaTypeReference(null, "any");
+    }
+
+    private static string? getGeneralDataType(JsonNode? value)
+    {
+        if (getString(value) is string direct)
+            return direct;
+        if (value is JsonArray array)
+        {
+            if (array.Count == 1)
+                return getString(array[0]);
+            if (array.Count >= 2)
+                return getString(array[1]) ?? getString(array[0]);
+        }
+        if (value is JsonObject data)
+            return getString(data["type"] ?? data["dataType"] ?? data["key"]);
+        return null;
+    }
+
+    private static (string Config, string Setting)? getConfigReference(JsonNode? value, string fieldName)
+    {
+        if (getString(value) is string direct)
+        {
+            int separator = direct.IndexOf('.');
+            return separator > 0 && separator < direct.Length - 1
+                ? (direct[..separator], direct[(separator + 1)..])
+                : (direct, fieldName);
+        }
+        if (value is JsonArray array && array.Count >= 2
+            && getString(array[^2]) is string config
+            && getString(array[^1]) is string setting)
+        {
+            return (config, setting);
+        }
+        if (value is JsonObject reference
+            && getString(reference["config"] ?? reference["file"]) is string configName
+            && getString(reference["setting"] ?? reference["key"] ?? reference["name"]) is string settingName)
+        {
+            return (configName, settingName);
+        }
+        return null;
+    }
+
+    private static string? getString(JsonNode? value)
+    {
+        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
+    }
+
+    private static bool getBool(JsonNode? value)
+    {
+        return value is JsonValue scalar
+            && scalar.TryGetValue(out bool result)
+            && result;
+    }
+
+    private static JsonNode? cloneNode(JsonNode? value)
+    {
+        return value?.DeepClone();
+    }
+
+    private sealed record GeneralDataFieldSource(
+        JsonObject Values,
+        IReadOnlyList<GeneralDataPreviewField> Fields);
+
+    private sealed record GeneralDataPreviewField(
+        string Name,
+        JsonObject Definition,
+        JsonNode? Value,
+        JsonNode? DefaultValue);
+}

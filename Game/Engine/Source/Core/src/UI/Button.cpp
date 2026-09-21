@@ -1,7 +1,7 @@
 #include <UI/Button.hpp>
 #include "ButtonImpl.hpp"
 #include "Interaction/JoystickState.hpp"
-#include "Text/TextConfigCodec.hpp"
+#include <CoreShared/TextConfigCodec.hpp>
 
 #include <Input/InputService.hpp>
 #include <UI/PlainTextConfig.hpp>

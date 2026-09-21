@@ -17,7 +17,7 @@ namespace Ludork.Views;
 
 public sealed class TilesetEditorWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly TileSelectViewModel tileSelect;
     private readonly List<TilesetEditorTab> editorTabs = [];
@@ -37,7 +37,7 @@ public sealed class TilesetEditorWindow : Window
     private bool closed;
 
     public TilesetEditorWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         TileSelectViewModel tileSelect)
     {

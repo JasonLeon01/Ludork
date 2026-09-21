@@ -91,7 +91,7 @@ public sealed partial class ReferenceIndexService
             (string section, string key) = pending.Value;
             if (section == "Maps")
             {
-                MapCatalogEntry? entry = gameData.MapCatalog.FirstOrDefault(entry => entry.Key == key
+                MapCatalogEntry? entry = gameData.Maps.MapCatalog.FirstOrDefault(entry => entry.Key == key
                     && entry.Kind != MapCatalogEntryKind.WorldMap);
                 if (entry is not null)
                 {
@@ -115,7 +115,7 @@ public sealed partial class ReferenceIndexService
             nodes.Remove(id);
             generalMemberTypes.Remove(id);
         }
-        allWorldChildMapReferencesBuilt = gameData.MapCatalog
+        allWorldChildMapReferencesBuilt = gameData.Maps.MapCatalog
             .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap)
             .All(entry => mapReferenceCache.ContainsKey(entry.Key));
         pendingDocuments.Clear();

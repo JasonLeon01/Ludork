@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Ludork.Services;
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
@@ -14,7 +15,7 @@ public sealed partial class MapPanel
         if (movingRuntimeActorId is not null)
         {
             (string Layer, int Index)? moving = findRuntimeActor(movingRuntimeActorId);
-            if (moving is { } candidate && getActorList(candidate.Layer)?[candidate.Index]?["parentRuntimeId"] is not null)
+            if (moving is { } candidate && getActorList(candidate.Layer)?[candidate.Index].ParentRuntimeId is not null)
             {
                 moving = null;
                 capturedPointer?.Capture(null);
@@ -32,14 +33,13 @@ public sealed partial class MapPanel
 
     private (string Layer, int Index)? findRuntimeActor(string actorId)
     {
-        if (CurrentMapData?["actors"] is not JsonObject groups)
+        if (CurrentMapDocument?.Actors is not IReadOnlyDictionary<string, IReadOnlyList<MapActorSnapshot>> groups)
             return null;
-        foreach (KeyValuePair<string, JsonNode?> group in groups)
+        foreach (KeyValuePair<string, IReadOnlyList<MapActorSnapshot>> group in groups)
         {
-            if (group.Value is not JsonArray actors)
-                continue;
+            IReadOnlyList<MapActorSnapshot> actors = group.Value;
             for (int index = 0; index < actors.Count; index++)
-                if (string.Equals(actors[index]?["runtimeId"]?.GetValue<string>(), actorId, StringComparison.Ordinal))
+                if (string.Equals(actors[index].RuntimeId, actorId, StringComparison.Ordinal))
                     return (group.Key, index);
         }
         return null;
@@ -53,7 +53,7 @@ public sealed partial class MapPanel
         if (!IsRuntimeEditing)
             return target;
         HashSet<string> ancestors = new(StringComparer.Ordinal);
-        while (getActorList(target.Layer)?[target.Index]?["parentRuntimeId"]?.GetValue<string>() is string parentId)
+        while (getActorList(target.Layer)?[target.Index].ParentRuntimeId is string parentId)
         {
             if (!ancestors.Add(parentId) || findRuntimeActor(parentId) is not { } parent)
                 return null;
@@ -62,9 +62,9 @@ public sealed partial class MapPanel
         return target;
     }
 
-    private ActorVisualDescriptor? resolveRuntimeActorVisual(JsonObject actor)
+    private ActorVisualDescriptor? resolveRuntimeActorVisual(MapActorSnapshot actor)
     {
-        if (actor["visual"] is not JsonObject visual
+        if (actor.ReadVisual() is not JsonObject visual
             || visual["texturePath"]?.GetValue<string>() is not string path
             || visual["textureRect"] is not JsonArray rectangle || rectangle.Count != 4
             || getActorBitmap(path) is not Bitmap texture)
@@ -72,7 +72,7 @@ public sealed partial class MapPanel
         PixelRect rect = new(readRuntimeInt(rectangle[0]), readRuntimeInt(rectangle[1]),
             readRuntimeInt(rectangle[2]), readRuntimeInt(rectangle[3]));
         return new ActorVisualDescriptor(
-            actor["bp"]?.GetValue<string>() ?? actor["type"]?.GetValue<string>() ?? string.Empty,
+            string.IsNullOrEmpty(actor.Blueprint) ? actor.Type : actor.Blueprint,
             path,
             texture.PixelSize,
             rect,

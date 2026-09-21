@@ -1,23 +1,15 @@
 using System;
-using System.IO;
 
 namespace Ludork.Services;
 
 public sealed class EditorActionRouter
 {
-    private readonly string projectPath;
-
-    public EditorActionRouter(string projectPath)
-    {
-        this.projectPath = Path.GetFullPath(projectPath);
-    }
-
-    public event EventHandler<string>? ActionRequested;
+    public event EventHandler<EditorActionRequest>? ActionRequested;
     public event EventHandler<EditorDataCreationRequest>? DataCreationRequested;
 
     public void OpenHelp()
     {
-        request("Help");
+        request(EditorActionKind.Help);
     }
 
     public void NewBlueprint(string? destinationPath = null, string? parentClass = null)
@@ -72,46 +64,30 @@ public sealed class EditorActionRouter
     {
         requestCreation(new EditorDataCreationRequest(EditorDataKind.UiAsset, destinationPath));
     }
-    public void OpenSystemConfig() => request("SystemConfig");
-    public void OpenGameConfig() => request("GameConfig");
-    public void OpenAnimationOverview() => request("AnimationOverview");
-    public void OpenParticleOverview() => request("ParticleOverview");
-    public void OpenParticle(string key) => request($"Particle:{key}");
-    public void OpenAnimation(string key) => request($"Animation:{key}");
-    public void OpenCurve(string key) => request($"Curve:{key}");
-    public void OpenTextConfig(string key) => request($"TextConfig:{key}");
-    public void OpenUiAsset(string key) => request($"UiAsset:{key}");
-    public void OpenTilesets(string? key = null) => request(key is null ? "Tilesets" : $"Tilesets:{key}");
-    public void OpenAutoTiles(string? key = null) => request(key is null ? "AutoTiles" : $"AutoTiles:{key}");
-    public void OpenCommonFunctions(string? key = null) => request(key is null ? "CommonFunctions" : $"CommonFunctions:{key}");
-    public void OpenGameVariables() => request("GameVariables");
-    public void OpenGeneralData(string? key = null) => request(key is null ? "GeneralData" : $"GeneralData:{key}");
-    public void OpenBlueprint(string reference) => request($"Blueprint:{reference}");
-    public void Undo() => request("Undo");
-    public void Redo() => request("Redo");
+    public void OpenSystemConfig() => request(EditorActionKind.SystemConfig);
+    public void OpenGameConfig() => request(EditorActionKind.GameConfig);
+    public void OpenAnimationOverview() => request(EditorActionKind.AnimationOverview);
+    public void OpenParticleOverview() => request(EditorActionKind.ParticleOverview);
+    public void OpenParticle(string key) => request(EditorActionKind.Particle, key);
+    public void OpenAnimation(string key) => request(EditorActionKind.Animation, key);
+    public void OpenCurve(string key) => request(EditorActionKind.Curve, key);
+    public void OpenTextConfig(string key) => request(EditorActionKind.TextConfig, key);
+    public void OpenUiAsset(string key) => request(EditorActionKind.UiAsset, key);
+    public void OpenTilesets(string? key = null) => request(EditorActionKind.Tilesets, key);
+    public void OpenAutoTiles(string? key = null) => request(EditorActionKind.AutoTiles, key);
+    public void OpenCommonFunctions(string? key = null) => request(EditorActionKind.CommonFunctions, key);
+    public void OpenGameVariables() => request(EditorActionKind.GameVariables);
+    public void OpenGeneralData(string? key = null) => request(EditorActionKind.GeneralData, key);
+    public void OpenBlueprint(string reference) => request(EditorActionKind.Blueprint, reference);
+    public void Undo() => request(EditorActionKind.Undo);
+    public void Redo() => request(EditorActionKind.Redo);
 
-    private void request(string action) => ActionRequested?.Invoke(this, action);
+    private void request(EditorActionKind kind, string? resourceKey = null)
+    {
+        ActionRequested?.Invoke(this, new EditorActionRequest(kind, resourceKey));
+    }
     private void requestCreation(EditorDataCreationRequest request)
     {
         DataCreationRequested?.Invoke(this, request);
     }
 }
-
-public enum EditorDataKind
-{
-    Blueprint,
-    Animation,
-    Particle,
-    Curve,
-    TextConfig,
-    PlainTextConfig,
-    RichTextConfig,
-    UiAsset,
-}
-
-public sealed record EditorDataCreationRequest(
-    EditorDataKind Kind,
-    string? DestinationPath = null,
-    string? ParentClass = null,
-    string? DataType = null,
-    string? InitialDirectory = null);

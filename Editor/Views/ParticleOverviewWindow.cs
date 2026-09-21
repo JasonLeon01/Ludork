@@ -15,7 +15,7 @@ namespace Ludork.Views;
 
 public sealed class ParticleOverviewWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly UiPreviewRuntimeService runtime;
     private readonly ListBox resources = new();
@@ -26,7 +26,7 @@ public sealed class ParticleOverviewWindow : Window
     private string currentKey = string.Empty;
     private bool refreshing;
 
-    public ParticleOverviewWindow(GameDataService gameData, ProjectSaveService projectSave,
+    public ParticleOverviewWindow(ProjectDataStore gameData, ProjectSaveService projectSave,
         UiPreviewRuntimeService runtime, Func<Task> create)
     {
         this.gameData = gameData;
@@ -87,7 +87,7 @@ public sealed class ParticleOverviewWindow : Window
     private void refresh()
     {
         string filter = search.Text?.Trim() ?? string.Empty;
-        string[] keys = gameData.ParticlesData.Keys.Where(key => key.Contains(filter, StringComparison.OrdinalIgnoreCase))
+        string[] keys = gameData.Assets.ParticlesData.Keys.Where(key => key.Contains(filter, StringComparison.OrdinalIgnoreCase))
             .OrderBy(key => key, StringComparer.Ordinal).ToArray();
         string previous = (editorHost.Content as ParticleEditor)?.Key ?? currentKey;
         if (keys.SequenceEqual(resources.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal)
@@ -142,7 +142,7 @@ public sealed class ParticleOverviewWindow : Window
     private async Task<string?> askNameAsync(string title, string initial, bool renaming)
     {
         string? key = await SingleRowDialog.ShowAsync(this, title, LocaleService.Get("PARTICLE_ENTER_NAME"),
-            gameData.ParticlesData.Keys.Where(key => !renaming || key != currentKey), initial);
+            gameData.Assets.ParticlesData.Keys.Where(key => !renaming || key != currentKey), initial);
         if (string.IsNullOrWhiteSpace(key))
             return null;
         key = key.Trim().Replace('\\', '/');

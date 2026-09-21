@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Ludork.Controls;
@@ -10,12 +11,12 @@ namespace Ludork.Views.Utils;
 
 public sealed class BlueprintNodeParameterEditorFactory
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
 
     public BlueprintNodeParameterEditorFactory(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
     {
@@ -175,7 +176,7 @@ public sealed class BlueprintNodeParameterEditorFactory
             string? selected = await SearchSelectorDialog.ShowAsync(
                 owner,
                 LocaleService.Get("COMMON_FUNCTIONS"),
-                gameData.CommonFunctionsData.Keys.OrderBy(value => value, StringComparer.Ordinal),
+                gameData.Blueprints.CommonFunctionsData.Keys.OrderBy(value => value, StringComparer.Ordinal),
                 current);
             if (string.IsNullOrWhiteSpace(selected)
                 || !isControlAlive(editor, isAlive)

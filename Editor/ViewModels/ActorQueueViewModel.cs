@@ -3,7 +3,6 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Ludork.Models;
 using Ludork.Services;
-using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -24,7 +23,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 {
     private const int MaximumRecentItems = 20;
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectConfigService projectConfig;
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintPreviewService previewService;
@@ -42,7 +41,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string? selectedCategory;
 
     public ActorQueueViewModel(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectConfigService projectConfig,
         BlueprintClassResolver classResolver,
         BlueprintPreviewService previewService)
@@ -244,7 +243,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
         using IDisposable resolutionBatch = classResolver.BeginBatch();
         bool selectedRemoved = false;
         HashSet<string> validReferences = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string key in gameData.BlueprintsData.Keys)
+        foreach (string key in gameData.Blueprints.BlueprintsData.Keys)
         {
             string reference = BlueprintPrefix + key.Replace('/', '.');
             ResolvedBlueprintClass resolved = classResolver.Resolve(reference);

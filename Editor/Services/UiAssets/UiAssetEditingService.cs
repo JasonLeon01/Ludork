@@ -24,10 +24,10 @@ public sealed class UiAssetEditingService
         After,
     }
 
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly UiControlRegistryService controlRegistry;
 
-    public UiAssetEditingService(GameDataService gameData, UiControlRegistryService controlRegistry)
+    public UiAssetEditingService(ProjectDataStore gameData, UiControlRegistryService controlRegistry)
     {
         this.gameData = gameData;
         this.controlRegistry = controlRegistry;
@@ -60,7 +60,7 @@ public sealed class UiAssetEditingService
             failure = Failure.ContainerRejectsChild;
             return false;
         }
-        UiAssetDependencyGraph graph = new(gameData.UiAssetsData, document.AssetKey, document.Data);
+        UiAssetDependencyGraph graph = new(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
         if (!canInsertControl(document, descriptor, graph, out failure))
             return false;
         JsonObject properties = new();
@@ -93,7 +93,7 @@ public sealed class UiAssetEditingService
         IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
         if (source is null || parent is null || !canAcceptChild(parent, null, controls))
             return false;
-        UiAssetDependencyGraph graph = new(gameData.UiAssetsData, document.AssetKey, document.Data);
+        UiAssetDependencyGraph graph = new(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
         return canCopySubtree(document, source, controls, graph);
     }
 
@@ -248,7 +248,7 @@ public sealed class UiAssetEditingService
         {
             return false;
         }
-        UiAssetDependencyGraph graph = new(gameData.UiAssetsData, document.AssetKey, document.Data);
+        UiAssetDependencyGraph graph = new(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
         return canInsertControl(document, descriptor, graph, out failure);
     }
 

@@ -11,7 +11,7 @@ namespace Ludork.Views;
 
 public sealed class AnimationWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly EditorDocument? resourceDocument;
     private readonly EditorDocumentBinding documentBinding;
@@ -19,7 +19,7 @@ public sealed class AnimationWindow : Window
     private readonly Toast toast;
 
     public AnimationWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         string key,
         JsonObject data)

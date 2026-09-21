@@ -7,6 +7,8 @@ using Avalonia.Media;
 using Avalonia.VisualTree;
 using Ludork.Controls;
 using Ludork.Services;
+using Ludork.Models;
+using Ludork.ViewModels;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
@@ -18,7 +20,7 @@ namespace Ludork.Views;
 
 public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
@@ -33,7 +35,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
     private bool buildingTabs;
 
     public GeneralDataEditorWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
@@ -130,7 +132,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
     {
         buildingTabs = true;
         tabControl.Items.Clear();
-        foreach (string key in gameData.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal))
+        foreach (string key in gameData.General.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal))
         {
             TabItem tab = new()
             {
@@ -146,7 +148,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         buildingTabs = false;
         ensureSelectedPage();
         documentBinding.Refresh();
-        foreach (string staleKey in pageStates.Keys.Except(gameData.GeneralData.Keys, StringComparer.Ordinal).ToArray())
+        foreach (string staleKey in pageStates.Keys.Except(gameData.General.GeneralData.Keys, StringComparer.Ordinal).ToArray())
             pageStates.Remove(staleKey);
     }
 
@@ -154,7 +156,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
     {
         if (tabControl.SelectedItem is not TabItem { Tag: string typeKey } tab
             || tab.Content is not null
-            || !gameData.GeneralData.TryGetValue(typeKey, out JsonObject? data))
+            || !gameData.General.GeneralData.TryGetValue(typeKey, out GeneralDataTypeSnapshot? data))
         {
             return;
         }
@@ -184,7 +186,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             blueprintWindows[window.Document.DocumentKey] = window;
         if (!initializer.IsInitialized)
             return;
-        string[] keys = gameData.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        string[] keys = gameData.General.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         if (!keys.SequenceEqual(tabControl.Items.OfType<TabItem>().Select(tab => tab.Tag as string), StringComparer.Ordinal))
             buildTabs(documentBinding.Document?.Key);
     }
@@ -314,7 +316,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             MenuItem addEventItem = new() { Header = LocaleService.Get("NEW_EVENT") };
             addEventItem.Click += async (_, _) => await onAddEventAsync(typeKey);
             menu.Items.Add(addEventItem);
-            if (getEventNames(gameData.GeneralData[typeKey]).Count != 0)
+            if (gameData.General.GeneralData[typeKey].Events.Count != 0)
             {
                 MenuItem renameEventItem = new() { Header = LocaleService.Get("RENAME_EVENT") };
                 renameEventItem.Click += async (_, _) => await onRenameEventAsync(typeKey);
@@ -337,10 +339,10 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             this,
             LocaleService.Get("NEW_DATA_TYPE"),
             LocaleService.Get("ENTER_DATA_TYPE_NAME"),
-            gameData.GeneralData.Keys);
+            gameData.General.GeneralData.Keys);
         if (string.IsNullOrWhiteSpace(name))
             return;
-        gameData.CreateGeneralType(name);
+        gameData.General.CreateGeneralType(name);
         buildTabs(name);
     }
 
@@ -350,11 +352,11 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             this,
             LocaleService.Get("RENAME_DATA_TYPE"),
             LocaleService.Get("ENTER_DATA_TYPE_NAME"),
-            gameData.GeneralData.Keys.Where(k => k != typeKey),
+            gameData.General.GeneralData.Keys.Where(k => k != typeKey),
             typeKey);
         if (string.IsNullOrWhiteSpace(newName) || newName == typeKey)
             return;
-        gameData.RenameGeneralType(typeKey, newName);
+        gameData.General.RenameGeneralType(typeKey, newName);
         if (pageStates.Remove(typeKey, out GeneralDataPageSessionState? state))
             pageStates[newName] = state;
         buildTabs(newName);
@@ -362,8 +364,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 
     private async Task onAddEventAsync(string typeKey)
     {
-        JsonObject typeData = gameData.GeneralData[typeKey];
-        IReadOnlyList<string> eventNames = getEventNames(typeData);
+        IReadOnlyList<string> eventNames = gameData.General.GeneralData[typeKey].Events;
         string? eventName = await SingleRowDialog.ShowAsync(
             this,
             LocaleService.Get("NEW_EVENT"),
@@ -372,15 +373,14 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         if (!isValidEventName(eventName))
             return;
         closeBlueprintEditors(typeKey);
-        if (!gameData.AddGeneralEvent(typeKey, eventName!))
+        if (!gameData.General.AddGeneralEvent(typeKey, eventName!))
             return;
         buildTabs(typeKey);
     }
 
     private async Task onRenameEventAsync(string typeKey)
     {
-        JsonObject typeData = gameData.GeneralData[typeKey];
-        IReadOnlyList<string> eventNames = getEventNames(typeData);
+        IReadOnlyList<string> eventNames = gameData.General.GeneralData[typeKey].Events;
         string? currentName = await ItemSelectorDialog.ShowAsync(
             this,
             LocaleService.Get("RENAME_EVENT"),
@@ -397,15 +397,14 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         if (!isValidEventName(newName) || string.Equals(currentName, newName!.Trim(), StringComparison.Ordinal))
             return;
         closeBlueprintEditors(typeKey);
-        if (!gameData.RenameGeneralEvent(typeKey, currentName, newName!))
+        if (!gameData.General.RenameGeneralEvent(typeKey, currentName, newName!))
             return;
         buildTabs(typeKey);
     }
 
     private async Task onDeleteEventAsync(string typeKey)
     {
-        JsonObject typeData = gameData.GeneralData[typeKey];
-        IReadOnlyList<string> eventNames = getEventNames(typeData);
+        IReadOnlyList<string> eventNames = gameData.General.GeneralData[typeKey].Events;
         string? eventName = await ItemSelectorDialog.ShowAsync(
             this,
             LocaleService.Get("DELETE_EVENT"),
@@ -422,7 +421,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         if (!confirmed)
             return;
         closeBlueprintEditors(typeKey);
-        if (!gameData.DeleteGeneralEvent(typeKey, eventName))
+        if (!gameData.General.DeleteGeneralEvent(typeKey, eventName))
             return;
         buildTabs(typeKey);
     }
@@ -433,18 +432,11 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         bool confirmed = await ConfirmationDialog.ShowAsync(this, LocaleService.Get("DELETE_DATA_TYPE"), msg);
         if (!confirmed)
             return;
-        if (!await EditorResourceOperations.DeleteAsync(this, () => gameData.DeleteGeneralType(typeKey)))
+        if (!await EditorResourceOperations.DeleteAsync(this, () => gameData.General.DeleteGeneralType(typeKey)))
             return;
         closeBlueprintEditors(typeKey);
         pageStates.Remove(typeKey);
         buildTabs(null);
-    }
-
-    private static IReadOnlyList<string> getEventNames(JsonObject typeData)
-    {
-        return typeData["events"] is JsonArray events
-            ? events.Select(value => value?.GetValue<string>() ?? string.Empty).ToArray()
-            : [];
     }
 
     private static bool isValidEventName(string? eventName)
@@ -453,13 +445,3 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         return value.Length != 0 && !char.IsDigit(value[0]);
     }
 }
-
-internal enum GeneralDataViewMode
-{
-    Form,
-    Table,
-}
-
-internal sealed record GeneralDataTableColumn(string Name, JsonObject Definition);
-
-internal sealed record GeneralDataTableRow(string Id, JsonObject Member);

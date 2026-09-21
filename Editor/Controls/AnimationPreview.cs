@@ -15,7 +15,7 @@ namespace Ludork.Controls;
 
 public sealed class AnimationPreview : Control, IDisposable
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly Func<JsonObject> getData;
     private readonly Dictionary<string, EditorThumbnailLease> cache = new(StringComparer.Ordinal);
     private CancellationTokenSource? imageRequest;
@@ -25,7 +25,7 @@ public sealed class AnimationPreview : Control, IDisposable
     private double dragStartY;
     private bool dragging;
 
-    public AnimationPreview(GameDataService gameData, Func<JsonObject> getData)
+    public AnimationPreview(ProjectDataStore gameData, Func<JsonObject> getData)
     {
         this.gameData = gameData;
         this.getData = getData;

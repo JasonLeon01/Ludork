@@ -22,7 +22,7 @@ public enum TilesetEditMode
 public sealed class TilesetImageEditor : Control, IDisposable
 {
     private readonly int cellSize;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private EditorThumbnailLease? imageLease;
     private CancellationTokenSource? imageRequest;
     private string? imageAssetPath;
@@ -38,7 +38,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
     private (int X, int Y) batchLastCell;
     private JsonNode? batchSourceValue;
 
-    public TilesetImageEditor(GameDataService gameData, int cellSize)
+    public TilesetImageEditor(ProjectDataStore gameData, int cellSize)
     {
         this.gameData = gameData;
         this.cellSize = Math.Max(1, cellSize);

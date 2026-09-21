@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Ludork.Services;
@@ -118,11 +119,10 @@ internal sealed partial class WorldMapPreviewRenderer
         if (resourceImages.TryGetValue(resourceKey, out EditorThumbnailLease? lease))
             return lease?.Bitmap;
         resourceImages[resourceKey] = null;
-        IReadOnlyDictionary<string, JsonObject> definitions = autoTile ? gameData.AutoTileData : gameData.TilesetData;
-        if (definitions.TryGetValue(key, out JsonObject? definition)
-            && getString(definition["fileName"]) is string fileName)
+        IReadOnlyDictionary<string, TilesetSnapshot> definitions = autoTile ? gameData.Assets.AutoTileData : gameData.Assets.TilesetData;
+        if (definitions.TryGetValue(key, out TilesetSnapshot? definition))
         {
-            _ = loadResourceImageAsync(resourceKey, fileName, gameData.Thumbnails, resourceLifetime.Token);
+            _ = loadResourceImageAsync(resourceKey, definition.FileName, gameData.Thumbnails, resourceLifetime.Token);
         }
         return null;
     }

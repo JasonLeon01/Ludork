@@ -19,7 +19,6 @@ function(ludork_add_ui_preview_host_runtime target)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Vector4Curve.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/EngineState.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/RectBase.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/SpriteVisuals.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/Math.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/Render.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Utils/ShaderLoader.cpp")
@@ -31,10 +30,8 @@ function(ludork_add_ui_preview_host_runtime target)
         LUDORK_UI_PREVIEW_HOST_RUNTIME=1
         LUDORK_PLATFORM="${LUDORK_PLATFORM}")
     target_include_directories(${target}
-        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        PRIVATE
-            "${CMAKE_CURRENT_SOURCE_DIR}/src"
-            "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    ludork_add_core_shared(${target})
     target_link_libraries(${target}
         PUBLIC
             Ludork::Runtime

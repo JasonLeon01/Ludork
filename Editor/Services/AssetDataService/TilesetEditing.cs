@@ -1,0 +1,121 @@
+using Ludork.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Nodes;
+
+namespace Ludork.Services;
+
+public sealed partial class AssetDataService
+{
+    public bool RenameAutoTile(string oldKey, string newKey)
+    {
+        return store.RenameDocumentResource("AutoTiles", oldKey, newKey);
+    }
+
+    public bool PasteTileset(string key, bool isAutoTile, JsonObject source)
+    {
+        key = ProjectDataStore.normalizeDataKey(key);
+        EditorDocumentCollection target = (isAutoTile ? autoTileDocuments : tilesetDocuments);
+        if (!store.canCreateDocument(isAutoTile ? "AutoTiles" : "Tilesets", key))
+            return false;
+        JsonObject copy = (JsonObject)source.DeepClone();
+        copy["name"] = key;
+        store.RecordDocumentSnapshot(isAutoTile ? "AutoTiles" : "Tilesets", key);
+        target.Add(key, copy);
+        completeTilesetEdit();
+        return true;
+    }
+
+    public bool DeleteTileset(string key, bool isAutoTile)
+    {
+        return store.DeleteDocumentResource(isAutoTile ? "AutoTiles" : "Tilesets", key);
+    }
+
+    public bool UpdateTilesetName(string key, bool isAutoTile, string name)
+    {
+        if (!tryGetTilesetForEdit(key, isAutoTile, out JsonObject target)
+            || (target["name"]?.GetValue<string>() ?? string.Empty) == name)
+        {
+            return false;
+        }
+        store.RecordDocumentSnapshot(isAutoTile ? "AutoTiles" : "Tilesets", key);
+        target["name"] = name;
+        completeTilesetEdit();
+        return true;
+    }
+
+    public bool UpdateTilesetImage(string key, bool isAutoTile, string assetPath, int width, int height)
+    {
+        if (!tryGetTilesetForEdit(key, isAutoTile, out JsonObject target)
+            || width <= 0 || height <= 0
+            || isAutoTile && (width < 96 || height < 128 || width % 96 != 0)
+            || !GameAssetPath.TryResolveExistingFile(store.ProjectPath, assetPath, out _))
+        {
+            return false;
+        }
+        JsonObject next = (JsonObject)target.DeepClone();
+        next["fileName"] = assetPath;
+        if (isAutoTile)
+            next["material"] ??= TilesetMetadata.CreateDefaultMaterial();
+        else
+            TilesetMetadata.ResizeForImage(next, width / store.Configs.getCellSize() * (height / store.Configs.getCellSize()));
+        if (JsonNode.DeepEquals(target, next))
+            return false;
+        store.RecordDocumentSnapshot(isAutoTile ? "AutoTiles" : "Tilesets", key);
+        (isAutoTile ? autoTileDocuments : tilesetDocuments)[ProjectDataStore.normalizeDataKey(key)] = next;
+        completeTilesetEdit();
+        return true;
+    }
+
+    public bool UpdateTilesetMetadata(string key, bool isAutoTile, string expectedAssetPath, string property, JsonNode value, IReadOnlyList<int> indices, int tileCount)
+    {
+        if (!tryGetTilesetForEdit(key, isAutoTile, out JsonObject target)
+            || !string.Equals(target["fileName"]?.GetValue<string>() ?? string.Empty, expectedAssetPath, StringComparison.Ordinal)
+            || !TilesetMetadata.IsValidValue(property, value, isAutoTile)
+            || !isAutoTile && (tileCount <= 0 || indices.Count == 0 || indices.Any(index => index < 0 || index >= tileCount)))
+        {
+            return false;
+        }
+        int[] changes = isAutoTile ? [0] : indices.Distinct().ToArray();
+        changes = changes.Where(index => !JsonNode.DeepEquals(TilesetMetadata.Read(target, property, index, isAutoTile), value)).ToArray();
+        if (changes.Length == 0)
+            return false;
+        JsonNode copy = value.DeepClone();
+        store.RecordDocumentSnapshot(isAutoTile ? "AutoTiles" : "Tilesets", key);
+        TilesetMetadata.Apply(target, property, copy, changes, tileCount, isAutoTile);
+        completeTilesetEdit();
+        return true;
+    }
+
+    public bool UpdateTilesetDirection(string key, string expectedAssetPath, int index, int tileCount, int direction, bool value)
+    {
+        if (direction < 0 || direction >= 4 || !tryGetTilesetForEdit(key, false, out JsonObject target))
+            return false;
+        JsonArray directions = (JsonArray)TilesetMetadata.Read(target, "dir4", index, false);
+        directions[direction] = value;
+        return UpdateTilesetMetadata(key, false, expectedAssetPath, "dir4", directions, [index], tileCount);
+    }
+
+    public bool UpdateTilesetMaterial(string key, bool isAutoTile, string expectedAssetPath, int index, int tileCount, JsonObject initial, JsonObject edited)
+    {
+        if (!tryGetTilesetForEdit(key, isAutoTile, out JsonObject target))
+            return false;
+        string property = isAutoTile ? "material" : "materials";
+        JsonObject current = (JsonObject)TilesetMetadata.Read(target, property, index, isAutoTile);
+        JsonObject value = TilesetMetadata.MergeMaterial(current, initial, edited);
+        return UpdateTilesetMetadata(key, isAutoTile, expectedAssetPath, property, value, isAutoTile ? [] : [index], tileCount);
+    }
+
+    internal bool tryGetTilesetForEdit(string key, bool isAutoTile, out JsonObject target)
+    {
+        return (isAutoTile ? autoTileDocuments : tilesetDocuments).TryGetValue(ProjectDataStore.normalizeDataKey(key), out target!);
+    }
+
+    internal void completeTilesetEdit()
+    {
+        store.refreshModifiedState();
+        store.Maps.NotifyAllMapPreviewsChanged(false);
+    }
+
+}

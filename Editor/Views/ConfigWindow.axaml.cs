@@ -13,7 +13,7 @@ namespace Ludork.Views;
 
 public partial class ConfigWindow : Window
 {
-    private GameDataService? gameData;
+    private ProjectDataStore? gameData;
     private ProjectSaveService? projectSave;
     private Toast? toast;
     private string? activeConfigKey;
@@ -26,7 +26,7 @@ public partial class ConfigWindow : Window
         EmptyState.Text = LocaleService.Get("SYSTEM_CONFIG_EMPTY");
     }
 
-    public ConfigWindow(GameDataService gameData, ProjectSaveService projectSave) : this()
+    public ConfigWindow(ProjectDataStore gameData, ProjectSaveService projectSave) : this()
     {
         this.gameData = gameData;
         this.projectSave = projectSave;
@@ -70,7 +70,7 @@ public partial class ConfigWindow : Window
     {
         if (gameData is null)
             return;
-        string[] keys = gameData.SystemConfigData.Keys.ToArray();
+        string[] keys = gameData.Configs.SystemConfigData.Keys.ToArray();
         refreshingList = true;
         ConfigList.ItemsSource = keys;
         ConfigList.SelectedItem = activeConfigKey is not null && keys.Contains(activeConfigKey, StringComparer.Ordinal)
@@ -89,7 +89,7 @@ public partial class ConfigWindow : Window
     {
         activeConfigKey = ConfigList.SelectedItem as string;
         ConfigContent.Content = gameData is not null && activeConfigKey is not null
-            && gameData.SystemConfigData.TryGetValue(activeConfigKey, out JsonObject? data)
+            && SnapshotJson.ToDictionary(gameData.Configs.SystemConfigData).TryGetValue(activeConfigKey, out JsonObject? data)
                 ? new ConfigDictPanel(this, gameData, activeConfigKey, data)
                 {
                     Background = EditorTheme.Brush("Background"),

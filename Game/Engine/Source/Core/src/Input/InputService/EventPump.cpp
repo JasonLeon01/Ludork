@@ -1,5 +1,5 @@
 #include "InputImpl.hpp"
-#include "Input/JoystickDevice/JoystickDeviceImpl.hpp"
+#include <CoreShared/JoystickDevice.hpp>
 #include <Input/InjectedInputEvent.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
@@ -467,12 +467,10 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
     if (const auto* device = event.getIf<sf::Event::JoystickConnected>()) {
         clearJoystickDevice(device->joystickId);
         joystick_.connected_ = true;
-        ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-            .synchronize();
+        ludork::engine::joystick_device::synchronize();
     }
     if (const auto* button = event.getIf<sf::Event::JoystickButtonPressed>()) {
-        ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-            .activity(button->joystickId);
+        ludork::engine::joystick_device::activity(button->joystickId);
     }
     if (const auto* axis = event.getIf<sf::Event::JoystickMoved>();
         axis != nullptr && ((axis->axis == sf::Joystick::Axis::X ||
@@ -481,8 +479,7 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
                             (axis->axis == sf::Joystick::Axis::PovX ||
                              axis->axis == sf::Joystick::Axis::PovY) &&
                                 std::abs(axis->position) >= 50.0f)) {
-        ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-            .activity(axis->joystickId);
+        ludork::engine::joystick_device::activity(axis->joystickId);
     }
     if (!eventPump_.useInjectedMouseOnly_ && event.is<sf::Event::FocusLost>()) {
         setFocused(false);

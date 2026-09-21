@@ -6,15 +6,14 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Controls;
 using Ludork.Models;
 using Ludork.Services;
+using Ludork.ViewModels;
 using Ludork.Views.Utils;
 using Ludork.Views.Utils.BlueprintGraph;
-using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,17 +26,15 @@ namespace Ludork.Views;
 
 public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 {
-    private readonly BlueprintEditorDocument document;
+    private readonly BlueprintEditorViewModel viewModel;
+    private BlueprintEditorDocument document => viewModel.Document;
     private readonly EditorDocumentBinding documentBinding;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
-    private readonly BlueprintPreviewService previewService;
-    private readonly BlueprintValidationService validationService;
-    private readonly BlueprintVariableFieldBuilder fieldBuilder;
+    private readonly BlueprintEditorPreviewSession previewSession;
     private readonly BlueprintNodeParameterEditorFactory nodeParameterEditorFactory;
-    private BlueprintNodeDefinitionCatalog? nodeDefinitionCatalog;
     private BlueprintVariableForm variableForm = null!;
     private TextBox parentField = null!;
     private ListBox graphList = null!;
@@ -55,38 +52,33 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private readonly Dictionary<string, (Button Button, JsonNode? ParentValue)> revertActions = new(StringComparer.Ordinal);
     private Toast toast = null!;
     private readonly DeferredWindowInitializer initializer;
-    private ActorPreviewLease? previewLease;
-    private EditorThumbnailLease? previewThumbnail;
-    private CancellationTokenSource? previewRequest;
     private bool closed;
-    private ActorVisualDescriptor? publishedVisualDescriptor;
-    private ResolvedBlueprintClass? resolvedParent;
-    private ResolvedBlueprintClass? resolvedClass;
+    private ResolvedBlueprintClass? resolvedParent => viewModel.ResolvedParent;
+    private ResolvedBlueprintClass? resolvedClass => viewModel.ResolvedClass;
     private bool suppressLiveVisualInvalidation;
-    private bool visualDescriptorPublished;
     private bool refreshing;
     private bool inheritanceRefreshPending;
 
     public BlueprintEditorWindow(
         BlueprintEditorDocument document,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         ProjectSaveService projectSave,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
         BlueprintPreviewService previewService)
     {
-        this.document = document;
+        viewModel = new BlueprintEditorViewModel(document, gameData, metadataService, classResolver);
+        previewSession = new BlueprintEditorPreviewSession(previewService);
+        previewSession.FrameChanged += onPreviewFrameChanged;
         this.gameData = gameData;
         this.projectSave = projectSave;
         this.metadataService = metadataService;
         this.classResolver = classResolver;
-        this.previewService = previewService;
-        validationService = new BlueprintValidationService(gameData, metadataService, classResolver);
-        fieldBuilder = new BlueprintVariableFieldBuilder(gameData, metadataService);
         nodeParameterEditorFactory = new BlueprintNodeParameterEditorFactory(
             gameData,
             metadataService,
             classResolver);
+        DataContext = viewModel;
         Title = document.Title;
         Width = 1200;
         Height = 600;
@@ -94,8 +86,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         MinWidth = 700;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Ludork.Services.EditorTheme.Brush("Background");
-        FontFamily = Ludork.Services.EditorTheme.FontFamily;
+        Background = EditorTheme.Brush("Background");
+        FontFamily = EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
         HistoryMergeBehavior.AttachBoundary(this, gameData);
 
@@ -113,9 +105,6 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
-            nodeDefinitionCatalog = new BlueprintNodeDefinitionCatalog(
-                metadataService,
-                classResolver);
             await EditorUiBatch.YieldAsync(cancellationToken);
             Content = createEditorContent();
             await EditorUiBatch.YieldAsync(cancellationToken);
@@ -128,150 +117,67 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private Control createEditorContent()
     {
-        parentField = EditorInputs.CreateReadOnlyTextBox();
-        variableForm = new BlueprintVariableForm
-        {
-            AssetsDirectory = Path.Combine(gameData.ProjectPath, "Assets"),
-            ProjectDirectory = gameData.ProjectPath,
-            CellSize = gameData.getCellSize(),
-            GameVariables = projectSave.GameVariables,
-            IsReadOnly = !document.CanEditAttributes,
-            ShowSourceGroups = document.Kind == BlueprintEditorDocumentKind.Blueprint,
-            HistoryGameData = gameData,
-            FieldActionFactory = createAttributeAction,
-            CanRemoveComponent = field => document.Data["attrs"] is JsonObject attrs
-                && attrs.ContainsKey(field.Name),
-        };
+        BlueprintEditorContent content = new() { DataContext = viewModel };
+        Grid editorLayout = content.FindControl<Grid>("EditorLayout")!;
+        parentField = content.FindControl<TextBox>("ParentField")!;
+        variableForm = content.FindControl<BlueprintVariableForm>("VariableForm")!;
+        graphList = content.FindControl<ListBox>("GraphList")!;
+        rightPanel = content.FindControl<Grid>("RightPanel")!;
+        contentHost = content.FindControl<Grid>("ContentHost")!;
+        previewPanel = content.FindControl<Grid>("PreviewPanel")!;
+        previewImage = content.FindControl<Image>("PreviewImage")!;
+        previewPlaceholder = content.FindControl<TextBlock>("PreviewPlaceholder")!;
+        EditorInputs.ApplyReadOnly(parentField);
+        content.FindControl<TextBlock>("ParentLabel")!.Text = LocaleService.Get("PARENT");
+        Button parentPicker = content.FindControl<Button>("ParentPicker")!;
+        parentPicker.Height = EditorInputs.FieldMinHeight;
+        parentPicker.Click += async (_, _) => await selectParentAsync();
+        Button addAttribute = content.FindControl<Button>("AddAttributeButton")!;
+        addAttribute.Height = EditorInputs.FieldMinHeight;
+        addAttribute.Click += async (_, _) => await addAttributeAsync();
+        Button validateButton = content.FindControl<Button>("ValidateButton")!;
+        validateButton.Content = LocaleService.Get("VALIDATE_BLUEPRINT");
+        validateButton.Click += onValidateBlueprint;
+        previewPlaceholder.Text = LocaleService.Get("PREVIEW");
+        variableForm.AssetsDirectory = Path.Combine(gameData.ProjectPath, "Assets");
+        variableForm.ProjectDirectory = gameData.ProjectPath;
+        variableForm.CellSize = gameData.Configs.getCellSize();
+        variableForm.GameVariables = projectSave.GameVariables;
+        variableForm.IsReadOnly = !document.CanEditAttributes;
+        variableForm.ShowSourceGroups = document.Kind == BlueprintEditorDocumentKind.Blueprint;
+        variableForm.HistoryGameData = gameData;
+        variableForm.FieldActionFactory = createAttributeAction;
+        variableForm.CanRemoveComponent = field => viewModel.HasLocalAttribute(field.Name);
         variableForm.ValueChanged += onVariableChanged;
         variableForm.ComponentAddRequested += onComponentAddRequested;
         variableForm.ComponentRemoveRequested += onComponentRemoveRequested;
-
-        ContentWidthScrollViewer leftScroll = new()
-        {
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = createAttributePanel(),
-        };
-
-        graphList = new ListBox
-        {
-            Height = 50,
-            Background = Ludork.Services.EditorTheme.Brush("Surface"),
-            ClipToBounds = true,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            SelectionMode = SelectionMode.Single,
-            ItemsPanel = new FuncTemplate<Panel?>(() => new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-            }),
-        };
-        graphList.SetValue(
-            ScrollViewer.HorizontalScrollBarVisibilityProperty,
-            Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
-        graphList.SetValue(
-            ScrollViewer.VerticalScrollBarVisibilityProperty,
-            Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
         graphList.SelectionChanged += onGraphSelectionChanged;
         graphList.AddHandler(ContextRequestedEvent, onGraphListContextRequested, RoutingStrategies.Bubble);
-
-        Grid tabBar = new()
-        {
-            Height = 50,
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-        };
-        Grid.SetColumn(graphList, 0);
-        tabBar.Children.Add(graphList);
-        if (document.Kind == BlueprintEditorDocumentKind.Blueprint)
-        {
-            Button validateButton = new()
-            {
-                Content = LocaleService.Get("VALIDATE_BLUEPRINT"),
-                Height = 50,
-                Padding = new Thickness(16, 0),
-            };
-            validateButton.Click += onValidateBlueprint;
-            Grid.SetColumn(validateButton, 1);
-            tabBar.Children.Add(validateButton);
-        }
-
-        previewImage = new Image
-        {
-            Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(24),
-        };
-        previewPlaceholder = new TextBlock
-        {
-            Text = LocaleService.Get("PREVIEW"),
-            Foreground = EditorTheme.Brush("TextMuted"),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        previewPanel = new Grid
-        {
-            Background = new SolidColorBrush(Color.Parse("#1c1c1c")),
-            Children =
-            {
-                previewImage,
-                previewPlaceholder,
-            },
-        };
-        contentHost = new Grid
-        {
-            Children =
-            {
-                previewPanel,
-            },
-        };
-        previewPanel.IsVisible = false;
-
-        rightPanel = new Grid
-        {
-            RowDefinitions = new RowDefinitions("50,*"),
-        };
-        rightPanel.Children.Add(tabBar);
-        Grid.SetRow(contentHost, 1);
-        rightPanel.Children.Add(contentHost);
+        ContentWidthScrollViewer leftScroll = content.FindControl<ContentWidthScrollViewer>("AttributeScroll")!;
+        GridSplitter splitter = content.FindControl<GridSplitter>("ContentSplitter")!;
         if (document.IsGraphOnly)
-            return rightPanel;
-
-        contentSplitter = new GridSplitter
         {
-            Width = 4,
-            Background = new SolidColorBrush(Color.Parse("#323232")),
-            VerticalAlignment = VerticalAlignment.Stretch,
-            ResizeDirection = GridResizeDirection.Columns,
-        };
-        splitLayout = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,4,*"),
-        };
+            leftScroll.IsVisible = false;
+            splitter.IsVisible = false;
+            editorLayout.ColumnDefinitions = new ColumnDefinitions("0,0,*");
+            return content;
+        }
+        splitLayout = editorLayout;
+        contentSplitter = splitter;
         void updateVariableColumnWidth()
         {
-            double availableWidth = splitLayout.Bounds.Width;
-            double splitterWidth = contentSplitter.IsVisible ? contentSplitter.Bounds.Width : 0;
-            double maximum = availableWidth > 0
-                ? Math.Max(0, availableWidth - splitterWidth)
-                : double.PositiveInfinity;
-            ColumnDefinition column = splitLayout.ColumnDefinitions[0];
+            double availableWidth = editorLayout.Bounds.Width;
+            double splitterWidth = splitter.IsVisible ? splitter.Bounds.Width : 0;
+            double maximum = availableWidth > 0 ? Math.Max(0, availableWidth - splitterWidth) : double.PositiveInfinity;
+            ColumnDefinition column = editorLayout.ColumnDefinitions[0];
             column.MaxWidth = maximum;
             column.MinWidth = Math.Min(leftScroll.RequiredWidth, maximum);
             leftScroll.MaxWidth = maximum;
         }
         leftScroll.RequiredWidthChanged += (_, _) => updateVariableColumnWidth();
-        splitLayout.LayoutUpdated += (_, _) => updateVariableColumnWidth();
+        editorLayout.LayoutUpdated += (_, _) => updateVariableColumnWidth();
         updateVariableColumnWidth();
-        splitLayout.Children.Add(leftScroll);
-        Grid.SetColumn(contentSplitter, 1);
-        splitLayout.Children.Add(contentSplitter);
-        Grid.SetColumn(rightPanel, 2);
-        splitLayout.Children.Add(rightPanel);
-        return splitLayout;
+        return content;
     }
 
     public event EventHandler<BlueprintGraphRequestedEventArgs>? GraphRequested;
@@ -335,7 +241,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                 [new BlueprintValidationResult(key, false, PendingInputErrors)]);
             return;
         }
-        BlueprintValidationResult result = validationService.ValidateBlueprint(key);
+        BlueprintValidationResult result = viewModel.Validate(key);
         if (result.IsValid)
         {
             toast.ShowMessage(LocaleService.Get("BLUEPRINT_VALIDATION_SUCCESS"));
@@ -369,7 +275,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         graphViews[eventName] = content;
         content.IsVisible = false;
         contentHost.Children.Add(content);
-        if (graphList.SelectedItem is BlueprintEditorTabItem selected
+        if (viewModel.SelectedTab is BlueprintEditorTabItem selected
             && !selected.IsPreview
             && string.Equals(selected.EventName, eventName, StringComparison.Ordinal))
         {
@@ -377,65 +283,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
     }
 
-    private Control createAttributePanel()
-    {
-        Grid parentRow = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,8,*,4,24"),
-        };
-        TextBlock parentLabel = new()
-        {
-            Text = LocaleService.Get("PARENT"),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        parentRow.Children.Add(parentLabel);
-        Grid.SetColumn(parentField, 2);
-        parentRow.Children.Add(parentField);
-        Button parentPicker = new()
-        {
-            Content = "...",
-            Width = 24,
-            Height = EditorInputs.FieldMinHeight,
-            Padding = new Thickness(0),
-            IsVisible = document.CanEditAttributes,
-            IsEnabled = document.CanEditAttributes,
-        };
-        parentPicker.Click += async (_, _) => await selectParentAsync();
-        Grid.SetColumn(parentPicker, 4);
-        parentRow.Children.Add(parentPicker);
-
-        StackPanel panel = new()
-        {
-            Margin = new Thickness(8),
-            Spacing = 8,
-            Children =
-            {
-                parentRow,
-                new Border
-                {
-                    Height = 3,
-                    Background = new SolidColorBrush(Color.Parse("#464646")),
-                },
-                variableForm,
-            },
-        };
-        if (document.CanEditAttributes)
-        {
-            Button addAttribute = new()
-            {
-                Content = "+",
-                Height = EditorInputs.FieldMinHeight,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-            };
-            addAttribute.Click += async (_, _) => await addAttributeAsync();
-            panel.Children.Add(addAttribute);
-        }
-        return panel;
-    }
-
     private async Task selectParentAsync()
     {
-        string current = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
+        string current = viewModel.ParentReference;
         string? selected = await BlueprintClassSelector.ShowAsync(
             this,
             gameData,
@@ -449,15 +299,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        JsonObject prospective = (JsonObject)document.Data.DeepClone();
-        prospective["parent"] = selected;
-        ResolvedBlueprintClass prospectiveClass = classResolver.ResolveBlueprint(
-            prospective,
-            document.BlueprintKey);
-        if (prospectiveClass.HasBlueprintParent
-            && prospective["attrs"] is JsonObject attrs
-            && tryGetBoolean(attrs["scriptMixin"], out bool localMode)
-            && localMode != prospectiveClass.ParentScriptMixin)
+        if (!viewModel.CanChangeParent(selected))
         {
             await AlertDialog.ShowAsync(
                 this,
@@ -467,62 +309,20 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
         flushGraphViews();
         clearGraphViews();
-        if (document.CommitParent(selected))
+        if (viewModel.CommitParent(selected))
             refreshAll();
     }
 
     private async Task commitScriptPathAsync(JsonNode? value)
     {
-        string candidate = getString(value);
-        string normalized;
-        try
+        BlueprintAttributeChange change = viewModel.PrepareScriptPath(value);
+        if (change.Error is string error)
         {
-            normalized = ScriptMixinPaths.Normalize(candidate);
-            string fullPath = ScriptMixinPaths.GetScriptPath(gameData.ProjectPath, normalized);
-            if (string.IsNullOrEmpty(normalized) || !File.Exists(fullPath))
-                throw new FileNotFoundException($"Mixin script '{normalized}' was not found", fullPath);
-            metadataService.LoadScriptMixinMetadata(normalized);
-        }
-        catch (InterpreterException exception)
-        {
-            await showScriptMixinErrorAsync(exception.DecoratedMessage ?? exception.Message);
+            await showScriptMixinErrorAsync(error);
             refreshAttributes();
             return;
         }
-        catch (InvalidDataException exception)
-        {
-            await showScriptMixinErrorAsync(exception.Message);
-            refreshAttributes();
-            return;
-        }
-        catch (IOException exception)
-        {
-            await showScriptMixinErrorAsync(exception.Message);
-            refreshAttributes();
-            return;
-        }
-        catch (UnauthorizedAccessException exception)
-        {
-            await showScriptMixinErrorAsync(exception.Message);
-            refreshAttributes();
-            return;
-        }
-
-        ResolvedBlueprintClass previous = resolvedClass
-            ?? classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
-        JsonObject prospective = (JsonObject)document.Data.DeepClone();
-        JsonObject prospectiveAttrs = prospective["attrs"] as JsonObject ?? [];
-        prospective["attrs"] = prospectiveAttrs;
-        prospectiveAttrs["scriptPath"] = normalized;
-        ResolvedBlueprintClass next = classResolver.ResolveBlueprint(
-            prospective,
-            document.BlueprintKey);
-        HashSet<string> nextSchema = new(next.DeclaredFieldNames, StringComparer.Ordinal);
-        JsonObject localAttrs = document.Data["attrs"] as JsonObject ?? [];
-        List<string> staleFields = previous.LocalMixinFieldNames
-            .Where(name => localAttrs.ContainsKey(name) && !nextSchema.Contains(name))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        IReadOnlyList<string> staleFields = change.StaleFields;
         if (staleFields.Count != 0)
         {
             string message = LocaleService.Get("SCRIPT_MIXIN_REMOVE_FIELDS")
@@ -539,11 +339,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
 
         flushGraphViews();
-        Dictionary<string, JsonNode?> updates = new(StringComparer.Ordinal)
-        {
-            ["scriptPath"] = JsonValue.Create(normalized),
-        };
-        if (document.CommitAttributes(updates, staleFields))
+        if (viewModel.CommitAttributeChange(change))
         {
             refreshAttributes();
             refreshPreview(resolvedClass);
@@ -559,10 +355,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private async Task addAttributeAsync()
     {
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(
-            document.Data,
-            document.BlueprintKey);
-        resolvedClass = resolved;
+        ResolvedBlueprintClass resolved = viewModel.ResolveClass();
         string? name = await SingleRowDialog.ShowAsync(
             this,
             LocaleService.Get("ADD_ATTR"),
@@ -571,23 +364,12 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         if (string.IsNullOrWhiteSpace(name))
             return;
         string attributeName = name.Trim();
-        if (char.IsDigit(attributeName[0]))
+        if (viewModel.ValidateAttributeName(attributeName) is string error)
         {
-            await AlertDialog.ShowAsync(
-                this,
-                LocaleService.Get("ERROR"),
-                LocaleService.Get("ATTR_NAME_CANNOT_START_WITH_DIGIT"));
+            await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), error);
             return;
         }
-        if (resolved.InvalidVars.Contains(attributeName, StringComparer.Ordinal))
-        {
-            await AlertDialog.ShowAsync(
-                this,
-                LocaleService.Get("ERROR"),
-                LocaleService.Get("INVALID_NAME"));
-            return;
-        }
-        if (document.CommitAttribute(attributeName, JsonValue.Create(string.Empty)))
+        if (viewModel.CommitAttribute(attributeName, JsonValue.Create(string.Empty)))
             refreshAttributes();
     }
 
@@ -597,7 +379,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             return null;
         if (field.Name == "scriptPath" && resolvedClass?.HasBlueprintParent != true)
             return null;
-        bool hasLocalValue = document.Data["attrs"] is JsonObject attrs && attrs.ContainsKey(field.Name);
+        bool hasLocalValue = viewModel.HasLocalAttribute(field.Name);
         ResolvedBlueprintField? parentField = resolvedParent?.GetField(field.Name);
         if (parentField is not null)
         {
@@ -621,7 +403,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                     await removeLocalScriptPathAsync();
                     return;
                 }
-                if (!document.CommitAttribute(field.Name, parentValue))
+                if (!viewModel.CommitAttribute(field.Name, parentValue))
                     return;
                 refreshAttributes();
                 refreshPreview(resolvedClass);
@@ -638,7 +420,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         };
         remove.Click += (_, _) =>
         {
-            if (!document.RemoveAttribute(field.Name))
+            if (!viewModel.RemoveAttribute(field.Name))
                 return;
             refreshAttributes();
             refreshPreview(resolvedClass);
@@ -648,24 +430,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private async Task removeLocalScriptPathAsync()
     {
-        if (document.Data["attrs"] is not JsonObject localAttrs
-            || !localAttrs.ContainsKey("scriptPath"))
-        {
+        BlueprintAttributeChange? change = viewModel.PrepareRemoveScriptPath();
+        if (change is null)
             return;
-        }
-        ResolvedBlueprintClass previous = resolvedClass
-            ?? classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
-        JsonObject prospective = (JsonObject)document.Data.DeepClone();
-        if (prospective["attrs"] is JsonObject prospectiveAttrs)
-            prospectiveAttrs.Remove("scriptPath");
-        ResolvedBlueprintClass next = classResolver.ResolveBlueprint(
-            prospective,
-            document.BlueprintKey);
-        HashSet<string> nextSchema = new(next.DeclaredFieldNames, StringComparer.Ordinal);
-        List<string> staleFields = previous.LocalMixinFieldNames
-            .Where(name => localAttrs.ContainsKey(name) && !nextSchema.Contains(name))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        IReadOnlyList<string> staleFields = change.StaleFields;
         if (staleFields.Count != 0)
         {
             string message = LocaleService.Get("SCRIPT_MIXIN_REMOVE_FIELDS")
@@ -677,10 +445,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             if (!confirmed)
                 return;
         }
-        List<string> removals = ["scriptPath", .. staleFields];
-        if (document.CommitAttributes(
-            new Dictionary<string, JsonNode?>(StringComparer.Ordinal),
-            removals))
+        if (viewModel.CommitAttributeChange(change))
         {
             refreshAttributes();
             refreshPreview(resolvedClass);
@@ -706,9 +471,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        if (document.CommitAttribute(
-            selectedField.Name,
-            materializeComponent(selectedField)))
+        if (viewModel.AddComponent(selectedField))
         {
             refreshAttributes();
         }
@@ -718,39 +481,17 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         object? sender,
         BlueprintComponentFieldEventArgs args)
     {
-        if (document.RemoveAttribute(args.Field.Name))
+        if (viewModel.RemoveAttribute(args.Field.Name))
             refreshAttributes();
-    }
-
-    private static JsonNode materializeComponent(BlueprintVariableField field)
-    {
-        if (field.Value is not null)
-            return field.Value.DeepClone();
-        if (field.DefaultValue is not null)
-            return field.DefaultValue.DeepClone();
-        JsonObject result = [];
-        foreach (BlueprintVariableField child in field.Fields)
-        {
-            if (child.Fields.Count > 0)
-                result[child.Name] = materializeComponent(child);
-            else
-                result[child.Name] = child.Value?.DeepClone()
-                    ?? child.DefaultValue?.DeepClone()
-                    ?? JsonValue.Create(string.Empty);
-        }
-        return result;
     }
 
     private async Task initializeFieldsAsync(CancellationToken cancellationToken)
     {
         refreshing = true;
-        parentField.Text = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
-        resolvedClass = resolved;
-        resolvedParent = resolveParentClass();
+        parentField.Text = viewModel.ParentReference;
+        IReadOnlyList<BlueprintVariableField> fields = viewModel.RefreshFields();
         revertActions.Clear();
-        await variableForm.SetFieldsAsync(fieldBuilder.Build(resolved,
-            document.Kind == BlueprintEditorDocumentKind.Blueprint), cancellationToken);
+        await variableForm.SetFieldsAsync(fields, cancellationToken);
         updateGraphMode();
         refreshing = false;
         await EditorUiBatch.YieldAsync(cancellationToken);
@@ -760,16 +501,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private void refreshAll()
     {
         refreshing = true;
-        parentField.Text = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(
-            document.Data,
-            document.BlueprintKey);
-        resolvedClass = resolved;
-        resolvedParent = resolveParentClass();
+        parentField.Text = viewModel.ParentReference;
+        IReadOnlyList<BlueprintVariableField> fields = viewModel.RefreshFields();
         revertActions.Clear();
-        variableForm.SetFields(fieldBuilder.Build(
-            resolved,
-            document.Kind == BlueprintEditorDocumentKind.Blueprint));
+        variableForm.SetFields(fields);
         updateGraphMode();
         refreshing = false;
         refreshGraphList(null, false);
@@ -778,92 +513,24 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private void refreshAttributes()
     {
         refreshing = true;
-        parentField.Text = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(
-            document.Data,
-            document.BlueprintKey);
-        resolvedClass = resolved;
-        resolvedParent = resolveParentClass();
+        parentField.Text = viewModel.ParentReference;
+        IReadOnlyList<BlueprintVariableField> fields = viewModel.RefreshFields();
         revertActions.Clear();
-        variableForm.SetFields(fieldBuilder.Build(
-            resolved,
-            document.Kind == BlueprintEditorDocumentKind.Blueprint));
+        variableForm.SetFields(fields);
         bool graphModeChanged = updateGraphMode();
         refreshing = false;
         if (graphModeChanged)
             refreshGraphList(null, false);
     }
 
-    private ResolvedBlueprintClass? resolveParentClass()
-    {
-        string parent = document.Data["parent"]?.GetValue<string>() ?? string.Empty;
-        return parent.Length == 0 ? null : classResolver.Resolve(parent);
-    }
-
     private async void refreshPreview(ResolvedBlueprintClass? resolved = null)
     {
         if (closed)
             return;
-        resolved ??= classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
-        resolvedClass = resolved;
-        previewRequest?.Cancel();
-        previewRequest?.Dispose();
-        previewRequest = new CancellationTokenSource();
-        CancellationToken cancellationToken = previewRequest.Token;
-        bool suppressInvalidation = suppressLiveVisualInvalidation;
-        try
-        {
-            (EditorThumbnailLease? thumbnail, ActorVisualDescriptor? descriptor) =
-                await previewService.LoadPreviewAsync(resolved, resolved.ClassReference, 480, cancellationToken);
-            if (cancellationToken.IsCancellationRequested || closed)
-            {
-                thumbnail?.Dispose();
-                return;
-            }
-            publishVisualDescriptor(descriptor, suppressInvalidation);
-            if (isGraphReadOnly())
-            {
-                thumbnail?.Dispose();
-                if (previewLease is not null)
-                    previewLease.IsActive = false;
-                return;
-            }
-            if (descriptor is not { RequiresPreviewService: true })
-                releasePreviewLease();
-            else if (previewLease is null)
-            {
-                previewLease = previewService.ActorPreviews.Acquire(descriptor, 480, previewPanel.IsVisible);
-                previewLease.FrameChanged += onPreviewFrameChanged;
-            }
-            else
-                previewLease.UpdateDescriptor(descriptor);
-            if (previewLease is not null)
-                previewLease.IsActive = previewPanel.IsVisible;
-            replacePreviewFallback(thumbnail);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-    }
-
-    private void publishVisualDescriptor(ActorVisualDescriptor? descriptor, bool suppressInvalidation)
-    {
-        if (!suppressInvalidation
-            && visualDescriptorPublished
-            && !Equals(publishedVisualDescriptor, descriptor))
-        {
-            previewService.InvalidateVisuals();
-        }
-        publishedVisualDescriptor = descriptor;
-        visualDescriptorPublished = true;
-    }
-
-    private void replacePreviewFallback(EditorThumbnailLease? next)
-    {
-        EditorThumbnailLease? previous = previewThumbnail;
-        previewThumbnail = next;
-        updatePreviewSource();
-        previous?.Dispose();
+        resolved ??= viewModel.ResolveClass();
+        previewSession.IsReadOnly = viewModel.IsGraphReadOnly;
+        previewSession.IsVisible = previewPanel.IsVisible;
+        await previewSession.RefreshAsync(resolved, suppressLiveVisualInvalidation);
     }
 
     private void onPreviewFrameChanged(object? sender, EventArgs args)
@@ -880,60 +547,17 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     {
         if (closed)
             return;
-        Bitmap? frame = previewLease?.Frame;
-        previewImage.Source = frame ?? previewThumbnail?.Bitmap;
+        previewImage.Source = previewSession.Frame;
         previewPlaceholder.IsVisible = previewImage.Source is null;
         previewImage.InvalidateVisual();
     }
 
-    private void releasePreviewLease()
-    {
-        if (previewLease is null)
-            return;
-        previewLease.FrameChanged -= onPreviewFrameChanged;
-        previewLease.Dispose();
-        previewLease = null;
-    }
-
-    private bool supportsPreview()
-    {
-        ResolvedBlueprintClass resolved = resolvedClass
-            ?? classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
-        return classResolver.IsDerivedFrom(resolved, "Engine.Actor");
-    }
-
     private void refreshGraphList(string? preferredEvent, bool preferPreview)
     {
-        BlueprintEditorTabItem? current = graphList.SelectedItem as BlueprintEditorTabItem;
-        string? selectedEvent = preferredEvent ?? current?.EventName;
-        bool selectedPreview = preferPreview || current?.IsPreview == true;
         refreshing = true;
-        graphList.Items.Clear();
-        if (supportsPreview())
-            graphList.Items.Add(new BlueprintEditorTabItem(LocaleService.Get("PREVIEW"), null, true));
-        foreach (string graphName in getAvailableGraphNames())
-        {
-            graphList.Items.Add(new BlueprintEditorTabItem(
-                EditorDisplayName.Format(graphName),
-                graphName,
-                false));
-        }
-
-        BlueprintEditorTabItem? selection = null;
-        if (selectedPreview)
-        {
-            selection = graphList.Items
-                .OfType<BlueprintEditorTabItem>()
-                .FirstOrDefault(item => item.IsPreview);
-        }
-        if (selection is null && selectedEvent is not null)
-        {
-            selection = graphList.Items
-                .OfType<BlueprintEditorTabItem>()
-                .FirstOrDefault(item => string.Equals(item.EventName, selectedEvent, StringComparison.Ordinal));
-        }
-        selection ??= graphList.Items.OfType<BlueprintEditorTabItem>().FirstOrDefault();
-        graphList.SelectedItem = selection;
+        viewModel.RefreshTabs(preferredEvent, preferPreview);
+        graphList.ItemsSource = viewModel.Tabs;
+        graphList.SelectedItem = viewModel.SelectedTab;
         refreshing = false;
         showSelectedContent();
     }
@@ -941,16 +565,15 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private void showSelectedContent()
     {
         previewPanel.IsVisible = false;
-        if (previewLease is not null)
-            previewLease.IsActive = false;
+        previewSession.IsVisible = false;
         foreach (Control graphView in graphViews.Values)
             graphView.IsVisible = false;
-        if (isGraphReadOnly())
+        if (viewModel.IsGraphReadOnly)
         {
             refreshPreview(resolvedClass);
             return;
         }
-        if (graphList.SelectedItem is not BlueprintEditorTabItem selected)
+        if (viewModel.SelectedTab is not BlueprintEditorTabItem selected)
             return;
         if (selected.IsPreview)
         {
@@ -974,68 +597,26 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private BlueprintGraphControl createGraphControl(string eventName, JsonObject eventGraph)
     {
-        JsonObject graph = document.Data["graph"] as JsonObject ?? [];
-        JsonObject startNodes = graph["startNodes"] as JsonObject ?? [];
-        BlueprintNodeDefinitionSet definitionSet;
-        IReadOnlyList<BlueprintGraphEventParameterDefinition> eventParameters;
-        using (IDisposable metadataBatch = classResolver.BeginBatch())
-        {
-            definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet(
-                new BlueprintGraphContext(document.Data, document.BlueprintKey),
-                resolvedClass);
-            eventParameters = definitionSet.EventParameters.TryGetValue(
-                eventName,
-                out IReadOnlyList<BlueprintGraphEventParameterDefinition>? parameters)
-                ? parameters
-                : [];
-        }
-        BlueprintGraphDocument graphDocument = BlueprintGraphCodec.Load(
-            eventName,
-            eventGraph,
-            startNodes[eventName],
-            definitionSet,
-            eventParameters);
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions = document.IsGraphOnly
-            ? definitionSet.Definitions.Where(definition => !definition.IsLatent).ToArray()
-            : definitionSet.Definitions;
+        BlueprintGraphEditorData graphData = viewModel.LoadGraph(eventName, eventGraph);
         BlueprintGraphControl control = new(
             gameData,
-            graphDocument,
-            definitions,
-            fieldBuilder,
+            graphData.Document,
+            graphData.Definitions,
+            viewModel.FieldBuilder,
             nodeParameterEditorFactory,
             projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
-            gameData.getCellSize(),
-            isGraphReadOnly());
+            gameData.Configs.getCellSize(),
+            viewModel.IsGraphReadOnly);
         if (graphViewStates.TryGetValue(eventName, out BlueprintGraphControl.ViewState? state))
             control.RestoreViewState(state);
         control.GraphChanged += (_, _) =>
         {
-            document.CommitEventGraph(eventName, BlueprintGraphCodec.Save(control.Document));
+            viewModel.CommitGraph(eventName, control.Document);
             onInputDraftChanged(control, EventArgs.Empty);
         };
         control.InputDraftChanged += onInputDraftChanged;
         return control;
-    }
-
-    private IReadOnlyList<string> getAvailableGraphNames()
-    {
-        List<string> result = document.GetGraphNames().ToList();
-        if (document.Kind != BlueprintEditorDocumentKind.Blueprint)
-            return result;
-        ResolvedBlueprintClass resolved = resolvedClass
-            ?? classResolver.ResolveBlueprint(document.Data, document.BlueprintKey);
-        if (resolved.RootType is null)
-            return result;
-        foreach (LuaNodeMemberMetadata member in metadataService.GetNodeMembers(
-            resolved.RootType,
-            LuaNodeMemberKind.Event))
-        {
-            if (!result.Contains(member.Name, StringComparer.Ordinal))
-                result.Add(member.Name);
-        }
-        return result;
     }
 
     private async void onVariableChanged(object? sender, BlueprintVariableValueChangedEventArgs args)
@@ -1049,9 +630,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
         if (args.Name == "scriptMixin")
             flushGraphViews();
-        bool generalDataSelectorChanged = resolvedClass is not null
-            && fieldBuilder.IsGeneralDataSelector(resolvedClass, args.Name);
-        if (!document.CommitAttribute(args.Name, args.Value))
+        bool generalDataSelectorChanged = viewModel.IsGeneralDataSelector(args.Name);
+        if (!viewModel.CommitAttribute(args.Name, args.Value))
             return;
         if (revertActions.TryGetValue(
             args.Name,
@@ -1080,7 +660,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private void onGraphSelectionChanged(object? sender, SelectionChangedEventArgs args)
     {
         if (!refreshing)
+        {
+            viewModel.SelectedTab = graphList.SelectedItem as BlueprintEditorTabItem;
             showSelectedContent();
+        }
     }
 
     private void onGraphListContextRequested(object? sender, ContextRequestedEventArgs args)
@@ -1102,7 +685,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             }
         }
         if (!requestedByPointer)
-            hitItem ??= graphList.SelectedItem as BlueprintEditorTabItem;
+            hitItem ??= viewModel.SelectedTab;
         if (hitItem is not null)
             graphList.SelectedItem = hitItem;
         args.Handled = true;
@@ -1117,7 +700,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             MenuItem newEvent = new()
             {
                 Header = LocaleService.Get("NEW_EVENT"),
-                IsEnabled = !isGraphReadOnly(),
+                IsEnabled = !viewModel.IsGraphReadOnly,
             };
             newEvent.Click += async (_, _) => await addEventAsync();
             menu.Items.Add(newEvent);
@@ -1127,7 +710,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             MenuItem organize = new()
             {
                 Header = LocaleService.Get("ORGANIZE_GRAPH"),
-                IsEnabled = !isGraphReadOnly(),
+                IsEnabled = !viewModel.IsGraphReadOnly,
             };
             ToolTip.SetTip(organize, LocaleService.Get("ORGANIZE_GRAPH_TIP"));
             organize.Click += (_, _) => organizeSelectedGraph();
@@ -1137,14 +720,14 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                 MenuItem rename = new()
                 {
                     Header = LocaleService.Get("RENAME_EVENT"),
-                    IsEnabled = !isGraphReadOnly(),
+                    IsEnabled = !viewModel.IsGraphReadOnly,
                 };
                 rename.Click += async (_, _) => await renameSelectedEventAsync();
                 menu.Items.Add(rename);
                 MenuItem delete = new()
                 {
                     Header = LocaleService.Get("DELETE_EVENT"),
-                    IsEnabled = !isGraphReadOnly(),
+                    IsEnabled = !viewModel.IsGraphReadOnly,
                 };
                 delete.Click += async (_, _) => await deleteSelectedEventAsync();
                 menu.Items.Add(delete);
@@ -1156,16 +739,16 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private async Task addEventAsync()
     {
-        if (isGraphReadOnly() || !document.CanEditGraphEvents)
+        if (viewModel.IsGraphReadOnly || !document.CanEditGraphEvents)
             return;
         string? name = await SingleRowDialog.ShowAsync(
             this,
             LocaleService.Get("NEW_EVENT"),
             LocaleService.Get("ENTER_EVENT_NAME"),
-            getAvailableGraphNames());
+            viewModel.GetAvailableGraphNames());
         if (string.IsNullOrWhiteSpace(name))
             return;
-        if (!document.AddEvent(name))
+        if (!viewModel.AddEvent(name))
         {
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("INVALID_NAME"));
             return;
@@ -1175,15 +758,15 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private async Task renameSelectedEventAsync()
     {
-        if (isGraphReadOnly() || !document.CanEditGraphEvents)
+        if (viewModel.IsGraphReadOnly || !document.CanEditGraphEvents)
             return;
-        if (graphList.SelectedItem is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
+        if (viewModel.SelectedTab is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
             return;
         string? name = await SingleRowDialog.ShowAsync(
             this,
             LocaleService.Get("RENAME_EVENT"),
             LocaleService.Get("ENTER_EVENT_NAME"),
-            getAvailableGraphNames().Where(value => !string.Equals(value, selected.EventName, StringComparison.Ordinal)),
+            viewModel.GetAvailableGraphNames().Where(value => !string.Equals(value, selected.EventName, StringComparison.Ordinal)),
             selected.EventName);
         if (string.IsNullOrWhiteSpace(name))
             return;
@@ -1191,7 +774,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         BlueprintGraphControl.ViewState? inputState = graphViews.TryGetValue(selected.EventName, out Control? content)
             && content is BlueprintGraphControl graphControl ? graphControl.CaptureViewState()
             : graphViewStates.GetValueOrDefault(selected.EventName);
-        if (!document.RenameEvent(selected.EventName, name))
+        if (!viewModel.RenameEvent(selected.EventName, name))
         {
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("EVENT_EXISTS"));
             return;
@@ -1205,9 +788,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private async Task deleteSelectedEventAsync()
     {
-        if (isGraphReadOnly() || !document.CanEditGraphEvents)
+        if (viewModel.IsGraphReadOnly || !document.CanEditGraphEvents)
             return;
-        if (graphList.SelectedItem is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
+        if (viewModel.SelectedTab is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
             return;
         string message = LocaleService.Get("CONFIRM_DELETE_EVENT")
             .Replace("{name}", selected.EventName, StringComparison.Ordinal);
@@ -1218,17 +801,17 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         if (!confirmed)
             return;
         flushGraphView(selected.EventName);
-        if (!document.DeleteEvent(selected.EventName))
+        if (!viewModel.DeleteEvent(selected.EventName))
             return;
         removeGraphView(selected.EventName);
-        refreshGraphList(null, supportsPreview());
+        refreshGraphList(null, viewModel.SupportsPreview());
     }
 
     private void organizeSelectedGraph()
     {
-        if (isGraphReadOnly())
+        if (viewModel.IsGraphReadOnly)
             return;
-        if (graphList.SelectedItem is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
+        if (viewModel.SelectedTab is not BlueprintEditorTabItem { IsPreview: false, EventName: not null } selected)
             return;
         if (!graphViews.TryGetValue(selected.EventName, out Control? content))
         {
@@ -1253,11 +836,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        bool ancestorChanged = args.Changes.Any(change => change.Section == "Blueprints"
-            && change.DocumentId != document.ResourceDocument?.Id
-            && (change.Key is string key && resolvedClass.DependsOnBlueprint(key)
-                || change.PreviousKey is string previousKey && resolvedClass.DependsOnBlueprint(previousKey)));
-        if (!ancestorChanged)
+        if (!viewModel.DependsOnChangedAncestor(args))
             return;
         inheritanceRefreshPending = true;
         if (initializer.IsInitialized)
@@ -1270,7 +849,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             return;
         inheritanceRefreshPending = false;
         flushGraphViews();
-        nodeDefinitionCatalog?.Invalidate();
+        viewModel.InvalidateNodeDefinitions();
         reload(false);
     }
 
@@ -1299,7 +878,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             return;
         if (args.Key == Key.F2 && graphList.IsKeyboardFocusWithin)
         {
-            if (isGraphReadOnly() || !document.CanEditGraphEvents)
+            if (viewModel.IsGraphReadOnly || !document.CanEditGraphEvents)
                 return;
             await renameSelectedEventAsync();
             args.Handled = true;
@@ -1307,7 +886,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
         if (args.Key == Key.Delete && graphList.IsKeyboardFocusWithin)
         {
-            if (isGraphReadOnly() || !document.CanEditGraphEvents)
+            if (viewModel.IsGraphReadOnly || !document.CanEditGraphEvents)
                 return;
             await deleteSelectedEventAsync();
             args.Handled = true;
@@ -1332,19 +911,15 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         closed = true;
         inheritanceRefreshPending = false;
         gameData.Documents.ContentChanged -= onProjectContentChanged;
-        previewRequest?.Cancel();
-        previewRequest?.Dispose();
-        previewRequest = null;
+        previewSession.FrameChanged -= onPreviewFrameChanged;
+        previewSession.Dispose();
         variableForm?.Dispose();
         document.ExternalChanged -= onDataRestored;
-        document.Dispose();
+        viewModel.Dispose();
         projectSave.UnregisterParticipant(this);
         gameData.DataReloaded -= onDataReloaded;
         clearGraphViews();
-        releasePreviewLease();
         previewImage?.SetValue(Image.SourceProperty, null);
-        previewThumbnail?.Dispose();
-        previewThumbnail = null;
     }
 
     private void removeGraphView(string eventName)
@@ -1392,15 +967,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
     }
 
-    private bool isGraphReadOnly()
-    {
-        return document.Kind == BlueprintEditorDocumentKind.Blueprint
-            && resolvedClass?.ScriptMixin == true;
-    }
-
     private bool updateGraphMode()
     {
-        bool readOnly = isGraphReadOnly();
+        bool readOnly = viewModel.IsGraphReadOnly;
+        previewSession.IsReadOnly = readOnly;
         ToolTip.SetTip(
             contentHost,
             readOnly ? LocaleService.Get("SCRIPT_MIXIN_GRAPH_CONFLICT") : null);
@@ -1431,37 +1001,4 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         return true;
     }
 
-    private static string getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? result)
-            ? result
-            : string.Empty;
-    }
-
-    private static bool tryGetBoolean(JsonNode? value, out bool result)
-    {
-        if (value is JsonValue scalar && scalar.TryGetValue(out result))
-            return true;
-        result = false;
-        return false;
-    }
-
-    private sealed class BlueprintEditorTabItem
-    {
-        public BlueprintEditorTabItem(string label, string? eventName, bool isPreview)
-        {
-            Label = label;
-            EventName = eventName;
-            IsPreview = isPreview;
-        }
-
-        public string Label { get; }
-        public string? EventName { get; }
-        public bool IsPreview { get; }
-
-        public override string ToString()
-        {
-            return Label;
-        }
-    }
 }

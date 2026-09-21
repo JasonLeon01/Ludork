@@ -9,7 +9,7 @@ namespace Ludork.Services.BlueprintAssistant;
 
 public sealed class BlueprintAssistantHostBridge : IBlueprintAssistantHost
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintValidationService validationService;
@@ -18,7 +18,7 @@ public sealed class BlueprintAssistantHostBridge : IBlueprintAssistantHost
     private readonly Action<string> refreshBlueprint;
 
     public BlueprintAssistantHostBridge(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
         BlueprintValidationService validationService,
@@ -42,7 +42,7 @@ public sealed class BlueprintAssistantHostBridge : IBlueprintAssistantHost
         get
         {
             string? suggested = getSuggestedBlueprintKey();
-            return suggested is not null && gameData.BlueprintsData.ContainsKey(suggested)
+            return suggested is not null && gameData.Blueprints.BlueprintsData.ContainsKey(suggested)
                 ? suggested
                 : null;
         }
@@ -50,7 +50,7 @@ public sealed class BlueprintAssistantHostBridge : IBlueprintAssistantHost
 
     public IReadOnlyList<string> ListBlueprints()
     {
-        return gameData.BlueprintsData.Keys
+        return gameData.Blueprints.BlueprintsData.Keys
             .OrderBy(key => key, StringComparer.Ordinal)
             .ToArray();
     }

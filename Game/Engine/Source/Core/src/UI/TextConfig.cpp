@@ -2,7 +2,7 @@
 #include <UI/PlainTextConfig.hpp>
 #include <UI/RichText.hpp>
 
-#include "Text/TextConfigCodec.hpp"
+#include <CoreShared/TextConfigCodec.hpp>
 
 std::shared_ptr<PlainTextConfig> buildPlainTextConfig(
     const RuntimeData::Map& data, const std::string& sourceName) {

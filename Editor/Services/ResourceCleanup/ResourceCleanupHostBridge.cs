@@ -12,7 +12,7 @@ namespace Ludork.Services.ResourceCleanup;
 
 internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly Action prepareProject;
     private readonly Action<IReadOnlyList<string>> acceptTrashedResources;
     private readonly SemaphoreSlim operationGate = new(1, 1);
@@ -20,7 +20,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
     private ResourceCleanupSnapshot? snapshot;
     private Dictionary<EditorDocument, long> documentRevisions = [];
 
-    public ResourceCleanupHostBridge(GameDataService gameData, Action prepareProject,
+    public ResourceCleanupHostBridge(ProjectDataStore gameData, Action prepareProject,
         Action<IReadOnlyList<string>> acceptTrashedResources)
     {
         this.gameData = gameData;

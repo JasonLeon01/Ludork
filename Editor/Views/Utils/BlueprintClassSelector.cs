@@ -25,7 +25,7 @@ public static class BlueprintClassSelector
 
     public static Task<string?> ShowAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
         string current,
@@ -49,7 +49,7 @@ public static class BlueprintClassSelector
     }
 
     private static BlueprintClassOptions buildOptions(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
         string? blueprintKey,
@@ -62,7 +62,7 @@ public static class BlueprintClassSelector
             addClass(classes, metadata.Type.QualifiedName, metadataService, classResolver);
 
         List<string> blueprints = [];
-        foreach (string key in gameData.BlueprintsData.Keys.OrderBy(value => value, StringComparer.Ordinal))
+        foreach (string key in gameData.Blueprints.BlueprintsData.Keys.OrderBy(value => value, StringComparer.Ordinal))
         {
             if (mode == BlueprintClassSelectorMode.Parent
                 && (string.Equals(key, blueprintKey, StringComparison.Ordinal)
@@ -102,7 +102,7 @@ public static class BlueprintClassSelector
     }
 
     private static bool createsCycle(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string candidateKey,
         string? currentBlueprintKey)
     {
@@ -114,15 +114,13 @@ public static class BlueprintClassSelector
         {
             if (string.Equals(key, currentBlueprintKey, StringComparison.Ordinal))
                 return true;
-            if (!gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint)
-                || blueprint["parent"] is not JsonValue parentValue
-                || !parentValue.TryGetValue(out string? parent)
-                || string.IsNullOrWhiteSpace(parent)
-                || !parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+            if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint)
+                || string.IsNullOrWhiteSpace(blueprint.Parent)
+                || !blueprint.Parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
             {
                 return false;
             }
-            key = BlueprintEditorDocument.NormalizeBlueprintKey(parent);
+            key = BlueprintEditorDocument.NormalizeBlueprintKey(blueprint.Parent);
         }
         return false;
     }

@@ -199,14 +199,14 @@ internal sealed class ResourceCleanupScanner
             progress?.Report(new ResourceCleanupProgress("References", 0, 0, string.Empty));
             Action<string> reportProgress = path => progress?.Report(
                 new ResourceCleanupProgress("References", 0, 0, path));
-            using GameDataService data = new(root, cacheMapCatalog: false, token, reportProgress);
+            using ProjectDataStore data = new(root, cacheMapCatalog: false, token, reportProgress);
             foreach (string path in data.InvalidLoadPaths)
                 issues.Add(new ResourceCleanupIssue(path, "The data file could not be parsed or validated."));
             LuaMetadataService metadata = new(root, strictReads: true, token);
             using IDisposable metadataRead = metadata.BeginRead();
             using BlueprintClassResolver resolver = new(data, metadata);
             using ReferenceIndexService index = new(data, metadata, resolver, token, reportProgress);
-            foreach (KeyValuePair<string, JsonObject> blueprint in data.BlueprintsData)
+            foreach (KeyValuePair<string, JsonObject> blueprint in SnapshotJson.ToDictionary(data.Blueprints.BlueprintsData))
             {
                 token.ThrowIfCancellationRequested();
                 ResolvedBlueprintClass resolved = resolver.ResolveBlueprint(blueprint.Value, blueprint.Key);

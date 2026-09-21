@@ -1,4 +1,5 @@
 using Avalonia;
+using Ludork.Models;
 using Avalonia.Media.Imaging;
 using System;
 using System.Collections.Generic;
@@ -27,14 +28,20 @@ public sealed class AutoTileRenderer : IDisposable
         { 6, 6, 6, 6 }, { 9, 9, 9, 9 }, { 5, 5, 5, 5 }, { 8, 8, 8, 8 },
     };
 
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly Func<string, Bitmap?>? sourceResolver;
     private readonly Dictionary<string, Bitmap> sourceImages = new(StringComparer.Ordinal);
 
-    public AutoTileRenderer(GameDataService gameData, Func<string, Bitmap?>? sourceResolver = null)
+    public AutoTileRenderer(ProjectDataStore gameData, Func<string, Bitmap?>? sourceResolver = null)
     {
         this.gameData = gameData;
         this.sourceResolver = sourceResolver;
+    }
+
+    public void drawTile(Avalonia.Media.DrawingContext context, string key, MapLayerSnapshot layer, int x, int y, Rect destination, int frame)
+    {
+        if (layer.AutoTileGrid is JsonArray grid)
+            drawTile(context, key, grid, x, y, destination, frame);
     }
 
     public void drawTile(Avalonia.Media.DrawingContext context, string key, JsonArray grid, int x, int y, Rect destination, int frame)
@@ -85,9 +92,9 @@ public sealed class AutoTileRenderer : IDisposable
             return sourceResolver(key);
         if (sourceImages.TryGetValue(key, out Bitmap? cached))
             return cached;
-        if (!gameData.AutoTileData.TryGetValue(key, out JsonObject? data))
+        if (!gameData.Assets.AutoTileData.TryGetValue(key, out TilesetSnapshot? data))
             return null;
-        string? fileName = data["fileName"]?.GetValue<string>();
+        string fileName = data.FileName;
         if (!GameAssetPath.TryResolveExistingFile(
                 gameData.ProjectPath,
                 fileName,

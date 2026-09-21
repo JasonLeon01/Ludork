@@ -12,7 +12,7 @@ internal sealed class TransferPositionMapReferenceView : MapReferenceView
     private (int X, int Y)? selectedCell;
     private (int X, int Y)? hoverCell;
 
-    public TransferPositionMapReferenceView(GameDataService gameData) : base(gameData)
+    public TransferPositionMapReferenceView(ProjectDataStore gameData) : base(gameData)
     {
     }
 

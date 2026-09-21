@@ -11,7 +11,7 @@ namespace Ludork.Views.Utils;
 public sealed class EditorDocumentBinding : IDisposable
 {
     private readonly Window owner;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly Func<EditorDocument?> resolve;
     private readonly Func<string> title;
     private readonly Action? refresh;
@@ -21,7 +21,7 @@ public sealed class EditorDocumentBinding : IDisposable
 
     public EditorDocumentBinding(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         Func<EditorDocument?> resolve,
         Func<string> title,
         Action? refresh = null,

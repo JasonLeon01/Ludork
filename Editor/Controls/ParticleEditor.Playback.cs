@@ -200,7 +200,7 @@ public sealed partial class ParticleEditor
             foreach (string channel in curves.Select(pair => pair.Key).ToArray())
             {
                 if (curves[channel] is JsonValue value && value.TryGetValue<string>(out string? key)
-                    && gameData.CurvesData.TryGetValue(key, out JsonObject? curve))
+                    && SnapshotJson.ToDictionary(gameData.Assets.CurvesData).TryGetValue(key, out JsonObject? curve))
                     curves[channel] = curve.DeepClone();
             }
         }

@@ -1,6 +1,6 @@
 #include "VisualImpl.hpp"
 
-#include "Graphics/SpriteVisuals.hpp"
+#include <CoreShared/SpriteVisuals.hpp>
 
 namespace ludork::engine::actor_impl {
 

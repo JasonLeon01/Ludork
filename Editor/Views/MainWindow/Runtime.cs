@@ -30,10 +30,10 @@ public partial class MainWindow
 {
     private void refreshMapPanelState()
     {
-        string? layerName = viewModel?.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null;
+        string? layerName = viewModel?.MapWorkspace.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null;
         EditorPanel.setSelectedLayer(layerName);
-        EditorPanel.setSelectedLayerEditable(viewModel?.IsSelectedLayerEditable == true);
-        ActorInfoPanel.setLayerEditable(viewModel?.IsSelectedLayerEditable == true);
+        EditorPanel.setSelectedLayerEditable(viewModel?.MapWorkspace.IsSelectedLayerEditable == true);
+        ActorInfoPanel.setLayerEditable(viewModel?.MapWorkspace.IsSelectedLayerEditable == true);
         if (tileSelect is not null)
         {
             tileSelect.IsLayerSelected = EditorPanel.EditMode == MapEditMode.Tile && layerName is not null;
@@ -94,175 +94,73 @@ public partial class MainWindow
 
     private async void onPlayClick(object? sender, RoutedEventArgs args)
     {
-        if (projectOperationState is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing)
+        if (projectOperations is null || projectOperations.State is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing)
             return;
-        if (projectLaunchPending || projectRunner?.State is ProjectRunState.Preparing or ProjectRunState.Running)
+        if (projectOperations.IsPending || projectRunner?.State is ProjectRunState.Preparing or ProjectRunState.Running)
         {
-            projectLaunchCancellation?.Cancel();
             GamePanel.SetInputEnabled(false);
-            if (projectRunner is not null)
-            {
-                long generation = projectRunner.RunGeneration;
-                await projectRunner.SetPerformanceMonitoringAsync(false, generation);
-                await projectRunner.StopAsync(generation);
-            }
+            await projectOperations.StopAsync();
             return;
         }
-        await executeProjectOperationAsync(ToolbarAction.Play);
+        await projectOperations.ExecuteAsync(EditorProjectOperationKind.Play);
     }
 
     private async void onConstructClick(object? sender, RoutedEventArgs args)
     {
-        if (viewModel?.ProjectConfig.IsStandalone != false)
-            return;
-        await executeProjectOperationAsync(ToolbarAction.Construct);
+        if (projectOperations is not null)
+            await projectOperations.ExecuteAsync(EditorProjectOperationKind.Construct);
     }
 
     private async void onExportClick(object? sender, RoutedEventArgs args)
     {
-        await executeProjectOperationAsync(ToolbarAction.Export);
+        if (projectOperations is not null)
+            await projectOperations.ExecuteAsync(EditorProjectOperationKind.Export);
     }
 
-    private enum ToolbarAction
-    {
-        Construct,
-        Export,
-        Play,
-    }
+    bool IProjectOperationInteraction.IsClosing => closingPrompt || closeConfirmed;
+    bool IProjectOperationInteraction.IndividualWindow => viewModel?.IndividualWindow == true;
+    bool IProjectOperationInteraction.LiveDebugRequested => liveDebug?.Requested == true;
+    void IProjectOperationInteraction.PrepareRun() => prepareLiveDebug();
+    void IProjectOperationInteraction.RestoreViewport() => restoreEditorViewport();
+    Task<nint> IProjectOperationInteraction.PrepareViewportAsync(ProjectWindowMode mode) => prepareGameViewportAsync(mode);
 
-    private async Task executeProjectOperationAsync(ToolbarAction action)
+    Task<bool> IProjectOperationInteraction.SaveAsync(bool needsBuild) =>
+        EditorSaveWorkflow.TrySaveAsync(this, viewModel!.ProjectSave, false, needsBuild);
+
+    Task<bool> IProjectOperationInteraction.ConfirmRebuildAsync(CancellationToken token) =>
+        ConfirmationDialog.ShowAsync(this, LocaleService.Get("RUN_REBUILD_TITLE"), LocaleService.Get("RUN_REBUILD_CONFIRM"), token);
+
+    Task<bool> IProjectOperationInteraction.ConfirmReexportAsync(CancellationToken token) =>
+        ConfirmationDialog.ShowAsync(this, LocaleService.Get("RUN_REEXPORT_TITLE"), LocaleService.Get("RUN_REEXPORT_CONFIRM"), token);
+
+    Task<ProjectRunResult> IProjectOperationInteraction.ExportAsync(CancellationToken token) =>
+        exportProjectAsync(appendConsoleLine, token);
+
+    void IProjectOperationInteraction.BeginOutput()
     {
-        if (projectLaunchPending || projectRunner is null || viewModel is null
-            || projectRunner.State != ProjectRunState.Idle || projectOperationState != ProjectRunState.Idle)
-            return;
-        bool sourceProject = !viewModel.ProjectConfig.IsStandalone;
-        if (action == ToolbarAction.Play)
-        {
-            projectRunner.ExportState.RefreshAvailability();
-            if (sourceProject)
-                projectRunner.NativeBuildState.RefreshAvailability();
-            if (sourceProject && !projectRunner.NativeBuildState.HasSuccessfulBuild
-                || !projectRunner.ExportState.HasSuccessfulExport)
-                return;
-        }
-        using CancellationTokenSource cancellation = new();
-        projectLaunchCancellation = cancellation;
-        projectLaunchPending = true;
-        TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        projectOperationCompletion = completion;
-        ProjectRunState initialState = action switch
-        {
-            ToolbarAction.Construct => ProjectRunState.Building,
-            ToolbarAction.Export => ProjectRunState.Exporting,
-            _ => ProjectRunState.Preparing,
-        };
-        if (action == ToolbarAction.Play)
-            prepareLiveDebug();
-        setProjectRunState(initialState);
-        ProjectRunResult? result = null;
-        bool building = action == ToolbarAction.Construct;
         resetConsoleOutput();
         performanceMonitorWindow?.ClearData();
         BottomTabs.SelectedIndex = 1;
-        string? logError = consoleLogSession.Start(ProjectPath);
-        if (logError is not null)
-            appendConsoleLine("[Console] Failed to create the log file: " + logError);
-        try
-        {
-            if (action == ToolbarAction.Export)
-            {
-                result = await exportProjectAsync(appendConsoleLine, cancellation.Token);
-                return;
-            }
-            while (true)
-            {
-                cancellation.Token.ThrowIfCancellationRequested();
-                bool needsBuild = action == ToolbarAction.Construct
-                    || sourceProject && !await projectRunner.NativeBuildState.CheckAsync(cancellation.Token);
-                if (needsBuild && action == ToolbarAction.Play)
-                {
-                    restoreEditorViewport();
-                    if (!await ConfirmationDialog.ShowAsync(this,
-                        LocaleService.Get("RUN_REBUILD_TITLE"), LocaleService.Get("RUN_REBUILD_CONFIRM"), cancellation.Token))
-                    {
-                        result = ProjectRunResult.CancelledResult();
-                        return;
-                    }
-                }
-                result = null;
-                building = needsBuild;
-                setProjectRunState(building ? ProjectRunState.Building : ProjectRunState.Preparing);
-                cancellation.Token.ThrowIfCancellationRequested();
-                if (!await EditorSaveWorkflow.TrySaveAsync(this, viewModel.ProjectSave, false, needsBuild))
-                    return;
-                cancellation.Token.ThrowIfCancellationRequested();
-                if (needsBuild)
-                {
-                    result = await projectRunner.BuildAsync(cancellation.Token);
-                    cancellation.Token.ThrowIfCancellationRequested();
-                    if (!result.Success || action == ToolbarAction.Construct)
-                        return;
-                    building = false;
-                    setProjectRunState(ProjectRunState.Preparing);
-                }
-                if (!await projectRunner.ExportState.CheckAsync(cancellation.Token))
-                {
-                    restoreEditorViewport();
-                    if (!await ConfirmationDialog.ShowAsync(this,
-                        LocaleService.Get("RUN_REEXPORT_TITLE"), LocaleService.Get("RUN_REEXPORT_CONFIRM"), cancellation.Token))
-                    {
-                        result = ProjectRunResult.CancelledResult();
-                        return;
-                    }
-                    setProjectRunState(ProjectRunState.Exporting);
-                    result = await exportProjectAsync(appendConsoleLine, cancellation.Token);
-                    cancellation.Token.ThrowIfCancellationRequested();
-                    if (!result.Success)
-                        return;
-                    setProjectRunState(ProjectRunState.Preparing);
-                }
-                ProjectWindowMode windowMode = viewModel.IndividualWindow
-                    ? ProjectWindowMode.Individual : ProjectWindowMode.Embedded;
-                nint windowHandle = await prepareGameViewportAsync(windowMode);
-                cancellation.Token.ThrowIfCancellationRequested();
-                if (windowMode == ProjectWindowMode.Embedded && windowHandle == nint.Zero)
-                {
-                    result = ProjectRunResult.Failed(ProjectRunFailure.EmbeddedHandleUnavailable, string.Empty);
-                    return;
-                }
-                result = await projectRunner.StartAsync(new ProjectRunOptions(
-                    viewModel.ProjectConfig.IsStandalone, windowMode, windowHandle, liveDebugRequested), cancellation.Token);
-                cancellation.Token.ThrowIfCancellationRequested();
-                if (result.Failure is not (ProjectRunFailure.BuildRequired or ProjectRunFailure.ExportRequired))
-                    return;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            result = ProjectRunResult.CancelledResult();
-        }
-        catch (ProjectStateCheckException exception)
-        {
-            result = ProjectRunResult.Failed(ProjectRunFailure.LaunchFailed, exception.Message);
-        }
-        finally
-        {
-            projectLaunchPending = false;
-            projectLaunchCancellation = null;
-            logError = consoleLogSession.Stop();
-            if (logError is not null)
-                appendConsoleLine("[Console] Failed to close the log file: " + logError);
-            setProjectRunState(projectRunner.State);
-            projectOperationCompletion = null;
-            completion.TrySetResult();
-            if (result is { Success: false, Cancelled: false } && !closingPrompt && !closeConfirmed)
-            {
-                string title = result.Failure == ProjectRunFailure.ExportFailed ? "EXPORT_FAILED_TITLE"
-                    : building ? "BUILD_FAILED_TITLE" : "RUN_FAILED_TITLE";
-                await AlertDialog.ShowAsync(this, LocaleService.Get(title), getProjectRunFailureMessage(result));
-            }
-        }
+        string? error = consoleLogSession.Start(ProjectPath);
+        if (error is not null)
+            appendConsoleLine("[Console] Failed to create the log file: " + error);
     }
+
+    void IProjectOperationInteraction.EndOutput()
+    {
+        string? error = consoleLogSession.Stop();
+        if (error is not null)
+            appendConsoleLine("[Console] Failed to close the log file: " + error);
+    }
+
+    Task IProjectOperationInteraction.ShowFailureAsync(ProjectRunResult result, bool building)
+    {
+        string title = result.Failure == ProjectRunFailure.ExportFailed ? "EXPORT_FAILED_TITLE"
+            : building ? "BUILD_FAILED_TITLE" : "RUN_FAILED_TITLE";
+        return AlertDialog.ShowAsync(this, LocaleService.Get(title), getProjectRunFailureMessage(result));
+    }
+
+    private void onProjectOperationStateChanged(object? sender, ProjectRunState state) => setProjectRunState(state);
 
     private async Task<ProjectRunResult> exportProjectAsync(Action<string> writeOutput, CancellationToken cancellationToken)
     {
@@ -311,8 +209,8 @@ public partial class MainWindow
                 return;
             if (state == ProjectRunState.Running)
                 projectRunReachedRunning = true;
-            if (state == runner.State && !(projectLaunchPending && state == ProjectRunState.Idle))
-                setProjectRunState(state);
+            if (state == runner.State)
+                projectOperations?.ObserveRunnerState(state);
         });
     }
 
@@ -329,7 +227,7 @@ public partial class MainWindow
                 || runner.ConnectionGeneration != connection)
                 return;
             GamePanel.ResetTextInput();
-            liveDebugSession?.SetConnection(available);
+            liveDebug?.SetConnection(available);
             updateConsoleInputState();
             GamePanel.SetInputEnabled(
                 available
@@ -536,14 +434,14 @@ public partial class MainWindow
 
     private void updateRunButtons()
     {
-        bool busy = projectOperationState is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing;
-        bool playing = projectOperationState is ProjectRunState.Preparing or ProjectRunState.Running;
+        bool busy = (projectOperations?.State ?? ProjectRunState.Idle) is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing;
+        bool playing = (projectOperations?.State ?? ProjectRunState.Idle) is ProjectRunState.Preparing or ProjectRunState.Running;
         bool sourceProject = viewModel?.ProjectConfig.IsStandalone == false;
         bool hasBuild = !sourceProject || projectRunner?.NativeBuildState.HasSuccessfulBuild == true;
         ConstructButton.IsVisible = sourceProject;
-        ConstructButton.IsEnabled = viewModel is not null && projectOperationState == ProjectRunState.Idle;
+        ConstructButton.IsEnabled = viewModel is not null && (projectOperations?.State ?? ProjectRunState.Idle) == ProjectRunState.Idle;
         bool hasExport = projectRunner?.ExportState.HasSuccessfulExport == true;
-        ExportButton.IsEnabled = viewModel is not null && projectOperationState == ProjectRunState.Idle;
+        ExportButton.IsEnabled = viewModel is not null && (projectOperations?.State ?? ProjectRunState.Idle) == ProjectRunState.Idle;
         PlayButton.IsEnabled = viewModel is not null && !busy && (playing || hasBuild && hasExport);
         PlayIcon.Source = EditorIconResources.GetImage(playing ? "EditorImage.Stop" : "EditorImage.Play");
         string playTip = LocaleService.Get(playing ? "RUN_STOP" : !hasBuild ? "RUN_BUILD_REQUIRED" : !hasExport ? "RUN_EXPORT_REQUIRED" : "RUN_PLAY");
@@ -557,7 +455,6 @@ public partial class MainWindow
 
     private void setProjectRunState(ProjectRunState state)
     {
-        projectOperationState = state;
         bool active = state != ProjectRunState.Idle;
         if (state == ProjectRunState.Running)
             projectRunReachedRunning = true;
@@ -582,8 +479,8 @@ public partial class MainWindow
         RightModePanel.IsEnabled = !active;
         FileExplorerPanel.IsEnabled = !active;
         ActorOutliner.IsEnabled = !active;
-        setDocumentWindowsEnabled(!active);
-        updateLiveDebugRunState(state);
+        documentWindows?.SetEnabled(!active);
+        liveDebug?.SetRunState(state);
         updateLiveDebugControls();
         if (!active)
         {
@@ -597,21 +494,6 @@ public partial class MainWindow
                 && state == ProjectRunState.Running
                 && activeWindowMode == ProjectWindowMode.Embedded);
         updateConsoleInputState();
-    }
-
-    private void setDocumentWindowsEnabled(bool enabled)
-    {
-        foreach (Window window in OwnedWindows)
-        {
-            if (!enabled && window is ParticleWindow particle)
-                particle.PausePreview();
-            if (!enabled && window is ParticleOverviewWindow particles)
-                particles.PausePreview();
-            if (window is AnimationOverviewWindow or AnimationWindow or ParticleOverviewWindow or ParticleWindow or TilesetEditorWindow
-                or GeneralDataEditorWindow or CommonFunctionWindow or GameVariableManagerWindow
-                or CurveWindow or TextConfigEditorWindow or BlueprintEditorWindow or UiAssetEditorWindow)
-                window.IsEnabled = enabled;
-        }
     }
 
     private async Task<nint> prepareGameViewportAsync(ProjectWindowMode windowMode)

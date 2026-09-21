@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -22,7 +23,7 @@ public class MapReferenceView : Control, IDisposable
     private static readonly IBrush BackgroundBrush = EditorTheme.Brush("Surface");
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.FromArgb(45, 255, 255, 255)), 1);
 
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly AutoTileRenderer autoTileRenderer;
     private readonly Dictionary<string, Bitmap> tilesetCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly EditorZoomInput zoomInput = new();
@@ -32,12 +33,12 @@ public class MapReferenceView : Control, IDisposable
     private bool disposed;
     private MapZoomAnchor? pendingMapZoomAnchor;
 
-    public MapReferenceView(GameDataService gameData)
+    public MapReferenceView(ProjectDataStore gameData)
     {
         this.gameData = gameData;
         autoTileRenderer = new AutoTileRenderer(gameData);
         tileSize = Math.Clamp(
-            Math.Max(16, gameData.getCellSize()),
+            Math.Max(16, gameData.Configs.getCellSize()),
             MinimumTileSize,
             MaximumTileSize);
         continuousTileSize = tileSize;
@@ -282,7 +283,7 @@ public class MapReferenceView : Control, IDisposable
         Bitmap? tileset = getTileset(getString(layer["layerTileset"]));
         JsonArray? tiles = layer["tiles"] as JsonArray;
         JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
-        int sourceTileSize = Math.Max(1, gameData.getCellSize());
+        int sourceTileSize = Math.Max(1, gameData.Configs.getCellSize());
         for (int y = 0; y < height; y++)
         {
             JsonArray? tileRow = getRow(tiles, y);
@@ -329,11 +330,11 @@ public class MapReferenceView : Control, IDisposable
     private Bitmap? getTileset(string? key)
     {
         if (string.IsNullOrWhiteSpace(key)
-            || !gameData.TilesetData.TryGetValue(key, out JsonObject? tilesetData))
+            || !gameData.Assets.TilesetData.TryGetValue(key, out TilesetSnapshot? tilesetData))
         {
             return null;
         }
-        string? fileName = getString(tilesetData["fileName"]);
+        string fileName = tilesetData.FileName;
         if (!GameAssetPath.TryResolveExistingFile(
                 gameData.ProjectPath,
                 fileName,

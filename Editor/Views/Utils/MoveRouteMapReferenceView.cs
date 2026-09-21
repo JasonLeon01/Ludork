@@ -15,7 +15,7 @@ internal sealed class MoveRouteMapReferenceView : MapReferenceView
     private (int X, int Y)? currentCell;
     private bool dragging;
 
-    public MoveRouteMapReferenceView(GameDataService gameData) : base(gameData)
+    public MoveRouteMapReferenceView(ProjectDataStore gameData) : base(gameData)
     {
     }
 

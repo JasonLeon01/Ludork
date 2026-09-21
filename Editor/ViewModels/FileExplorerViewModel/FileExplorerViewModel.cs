@@ -14,7 +14,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Ludork.Views.Utils;
 
 namespace Ludork.ViewModels;
 
@@ -24,7 +23,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     private static bool clipboardCut;
     private readonly string projectPath;
     private readonly ProjectConfigService projectConfig;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly BlueprintPreviewService previewService;
     private readonly ReferenceIndexService referenceIndex;
     private readonly ExternalIdeService externalIdeService;
@@ -38,7 +37,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     public FileExplorerViewModel(
         string projectPath,
         ProjectConfigService projectConfig,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         BlueprintPreviewService previewService,
         ReferenceIndexService referenceIndex)
     {
@@ -88,7 +87,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     public bool HasBlueprint(string key)
     {
-        return gameData.BlueprintsData.ContainsKey(key.Replace('\\', '/').Trim('/'));
+        return gameData.Blueprints.BlueprintsData.ContainsKey(key.Replace('\\', '/').Trim('/'));
     }
 
     public bool CanShowReferenceTree(string path)

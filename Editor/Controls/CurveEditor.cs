@@ -15,7 +15,7 @@ namespace Ludork.Controls;
 
 public sealed class CurveEditor : UserControl
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly EditorDocument? resourceDocument;
     private readonly string initialKey;
     private string key => resourceDocument?.Key ?? initialKey;
@@ -38,7 +38,7 @@ public sealed class CurveEditor : UserControl
     private readonly int componentCount;
     private bool syncing;
 
-    public CurveEditor(GameDataService gameData, string key, JsonObject data)
+    public CurveEditor(ProjectDataStore gameData, string key, JsonObject data)
     {
         this.gameData = gameData;
         initialKey = key;
@@ -394,7 +394,7 @@ public sealed class CurveEditor : UserControl
 
     private void commit()
     {
-        gameData.UpdateCurve(key, data);
+        gameData.Assets.UpdateCurve(key, data);
         Modified?.Invoke(this, EventArgs.Empty);
     }
 

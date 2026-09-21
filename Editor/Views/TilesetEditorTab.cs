@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -16,7 +17,7 @@ namespace Ludork.Views;
 internal sealed class TilesetEditorTab : Grid
 {
     private readonly Window owner;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly TileSelectViewModel tileSelect;
     private readonly bool isAutoTile;
     private readonly ListBox dataList = new()
@@ -28,7 +29,7 @@ internal sealed class TilesetEditorTab : Grid
     private string? clipboardName;
     private bool selectionChanging;
 
-    public TilesetEditorTab(Window owner, GameDataService gameData, TileSelectViewModel tileSelect, bool isAutoTile)
+    public TilesetEditorTab(Window owner, ProjectDataStore gameData, TileSelectViewModel tileSelect, bool isAutoTile)
     {
         this.owner = owner;
         this.gameData = gameData;
@@ -51,7 +52,7 @@ internal sealed class TilesetEditorTab : Grid
     public event EventHandler? SelectionChanged;
     public EditorDocument? Document => dataList.SelectedItem is string key ? gameData.GetDocument(isAutoTile ? "AutoTiles" : "Tilesets", key) : null;
 
-    private IReadOnlyDictionary<string, JsonObject> data => isAutoTile ? gameData.AutoTileData : gameData.TilesetData;
+    private IReadOnlyDictionary<string, TilesetSnapshot> data => isAutoTile ? gameData.Assets.AutoTileData : gameData.Assets.TilesetData;
     private string title => LocaleService.Get(isAutoTile ? "AUTOTILES_DATA" : "TILESETS_DATA");
     private string addTitle => LocaleService.Get(isAutoTile ? "ADD_AUTOTILE" : "ADD_TILESET");
     private string renameTitle => LocaleService.Get(isAutoTile ? "RENAME_AUTOTILE" : "RENAME_TILESET");
@@ -73,7 +74,7 @@ internal sealed class TilesetEditorTab : Grid
         if (selectionChanging)
             return;
         string? key = dataList.SelectedItem as string;
-        detail.setData(key, key is not null && data.TryGetValue(key, out JsonObject? value) ? value : null);
+        detail.setData(key, key is not null && data.TryGetValue(key, out TilesetSnapshot? value) ? value.ToJson() : null);
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -82,7 +83,7 @@ internal sealed class TilesetEditorTab : Grid
         string? key = await SingleRowDialog.ShowAsync(owner, addTitle, prompt, data.Keys);
         if (string.IsNullOrWhiteSpace(key))
             return;
-        bool added = isAutoTile ? gameData.CreateAutoTile(key) : gameData.CreateTileset(key);
+        bool added = isAutoTile ? gameData.Assets.CreateAutoTile(key) : gameData.Assets.CreateTileset(key);
         if (!added)
             return;
         refreshAll(key);
@@ -97,7 +98,7 @@ internal sealed class TilesetEditorTab : Grid
             return;
         if (!isAutoTile)
         {
-            if (!gameData.RenameTileset(oldKey, nextKey))
+            if (!gameData.Assets.RenameTileset(oldKey, nextKey))
             {
                 await AlertDialog.ShowAsync(
                     owner,
@@ -109,15 +110,15 @@ internal sealed class TilesetEditorTab : Grid
             refreshAll(nextKey);
             return;
         }
-        if (gameData.RenameAutoTile(oldKey, nextKey))
+        if (gameData.Assets.RenameAutoTile(oldKey, nextKey))
             refreshAll(nextKey);
     }
 
     private void copy()
     {
-        if (dataList.SelectedItem is not string key || !data.TryGetValue(key, out JsonObject? value))
+        if (dataList.SelectedItem is not string key || !data.TryGetValue(key, out TilesetSnapshot? value))
             return;
-        clipboard = (JsonObject)value.DeepClone();
+        clipboard = value.ToJson();
         clipboardName = key;
     }
 
@@ -127,7 +128,7 @@ internal sealed class TilesetEditorTab : Grid
             return;
         string baseName = clipboardName ?? (isAutoTile ? "AutoTile" : "Tileset");
         string key = getCopyName(baseName);
-        if (gameData.PasteTileset(key, isAutoTile, clipboard))
+        if (gameData.Assets.PasteTileset(key, isAutoTile, clipboard))
             refreshAll(key);
     }
 
@@ -138,7 +139,7 @@ internal sealed class TilesetEditorTab : Grid
         bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
         if (!confirmed)
             return;
-        if (await EditorResourceOperations.DeleteAsync(owner, () => gameData.DeleteTileset(key, isAutoTile)))
+        if (await EditorResourceOperations.DeleteAsync(owner, () => gameData.Assets.DeleteTileset(key, isAutoTile)))
             refreshAll();
     }
 

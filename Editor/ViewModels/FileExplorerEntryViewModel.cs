@@ -51,7 +51,7 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
     public long PreviewFrameRevision { get => previewFrameRevision; private set => SetProperty(ref previewFrameRevision, value); }
     public bool IsModified { get => isModified; set => SetProperty(ref isModified, value); }
 
-    public Task<DataFileInfo?> ReadInfoAsync(GameDataService gameData) => dataInfo ??= gameData.TryLoadDataFileAsync(FullPath);
+    public Task<DataFileInfo?> ReadInfoAsync(ProjectDataStore gameData) => dataInfo ??= gameData.TryLoadDataFileAsync(FullPath);
 
     public void UpdatePath(string path)
     {

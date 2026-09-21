@@ -2,7 +2,6 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Ludork.Models;
 using Ludork.Services;
-using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,7 +42,7 @@ public sealed partial class FileExplorerViewModel
         {
             await EditorUiBatch.YieldAsync(token);
             DocumentPath[] documents = captureDocumentPaths();
-            HashSet<string> textConfigKeys = gameData.TextConfigsData.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> textConfigKeys = gameData.Assets.TextConfigsData.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
             DirectoryEntry[] next = await Task.Run(() => readDirectory(path, documents, textConfigKeys, token), token);
             token.ThrowIfCancellationRequested();
             if (version != navigationVersion || disposed)

@@ -1,3 +1,4 @@
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,15 +17,15 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
     private bool syncingTilesetSelection;
     private bool disposed;
 
-    public TileSelectViewModel(GameDataService gameData)
+    public TileSelectViewModel(ProjectDataStore gameData)
     {
         GameData = gameData;
-        CellSize = gameData.getCellSize();
+        CellSize = gameData.Configs.getCellSize();
         gameData.Documents.ContentChanged += onDataChanged;
         RefreshData();
     }
 
-    public GameDataService GameData { get; }
+    public ProjectDataStore GameData { get; }
     public int CellSize { get; }
     public ObservableCollection<TilesetTabViewModel> Tilesets { get; } = [];
     public ObservableCollection<AutoTileItemViewModel> AutoTiles { get; } = [];
@@ -152,10 +153,10 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
     private void syncTilesets()
     {
         int index = 0;
-        foreach (KeyValuePair<string, JsonObject> pair in GameData.TilesetData)
+        foreach (KeyValuePair<string, TilesetSnapshot> pair in GameData.Assets.TilesetData)
         {
-            string name = pair.Value["name"]?.GetValue<string>() ?? pair.Key;
-            string assetPath = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
+            string name = pair.Value.Name ?? pair.Key;
+            string assetPath = pair.Value.FileName;
             int currentIndex = findTilesetIndex(pair.Key, index);
             if (currentIndex < 0)
             {
@@ -189,9 +190,9 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
     private void syncAutoTiles()
     {
         int index = 0;
-        foreach (KeyValuePair<string, JsonObject> pair in GameData.AutoTileData)
+        foreach (KeyValuePair<string, TilesetSnapshot> pair in GameData.Assets.AutoTileData)
         {
-            string assetPath = pair.Value["fileName"]?.GetValue<string>() ?? string.Empty;
+            string assetPath = pair.Value.FileName;
             int currentIndex = findAutoTileIndex(pair.Key, index);
             if (currentIndex < 0)
             {

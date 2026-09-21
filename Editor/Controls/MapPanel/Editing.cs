@@ -36,7 +36,7 @@ public sealed partial class MapPanel
             setSelectedActor(selectedLayerName, actorIndex, true);
             if (pointer.Properties.IsLeftButtonPressed && canEditMap
                 && getGridPosition(position, width, height) is { } grid
-                && getSelectedActor() is JsonObject actor
+                && getSelectedActor() is MapActorSnapshot actor
                 && tryGetActorPosition(actor, out int actorX, out int actorY))
             {
                 actorMoveIndex = actorIndex;
@@ -56,7 +56,7 @@ public sealed partial class MapPanel
             args.Handled = true;
             return;
         }
-        if (hit is not int index || CurrentMapData?["lights"] is not JsonArray lights || lights[index] is not JsonObject light || !tryGetLight(light, out Point center, out double radius))
+        if (hit is not int index || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
         {
             InvalidateVisual();
             return;
@@ -81,16 +81,15 @@ public sealed partial class MapPanel
     {
         if (IsRuntimeEditing || editingContext?.IsEditable != true)
             return;
-        if (!lightMoveDragging && !lightRadiusDragging || selectedLightIndex is not int index || getMapBasePosition(position, width, height) is not { } basePosition || CurrentMapData?["lights"] is not JsonArray lights || index < 0 || index >= lights.Count || lights[index] is not JsonObject light)
+        if (!lightMoveDragging && !lightRadiusDragging || selectedLightIndex is not int index || getMapBasePosition(position, width, height) is not { } basePosition || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || index < 0 || index >= lights.Count || lights[index] is not MapLightSnapshot light)
             return;
-        JsonObject next = (JsonObject)light.DeepClone();
-        if (lightMoveDragging)
-            next["position"] = new JsonArray(basePosition.X - lightDragOffset.X, basePosition.Y - lightDragOffset.Y);
-        else
-            next["radius"] = Math.Max(0, getDistance(basePosition, lightDragCenter));
-        if (gameData is null || CurrentMapKey is null || !gameData.UpdateMapLight(CurrentMapKey, index, light, next))
+        MapPoint? nextPosition = lightMoveDragging
+            ? new MapPoint(basePosition.X - lightDragOffset.X, basePosition.Y - lightDragOffset.Y) : null;
+        double? nextRadius = lightMoveDragging ? null : Math.Max(0, getDistance(basePosition, lightDragCenter));
+        if (gameData is null || CurrentMapKey is null || !gameData.Maps.UpdateMapLight(CurrentMapKey, index, light, nextPosition, nextRadius))
             return;
-        LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey, index, next));
+        if (getLight(index) is MapLightSnapshot changedLight)
+            LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey, index, changedLight.ToJson()));
         InvalidateVisual();
     }
 
@@ -128,7 +127,7 @@ public sealed partial class MapPanel
                 actorMoveLayer = selected.Layer;
                 movingRuntimeActorId = selectedRuntimeActorId;
                 actorMoveOffset = default;
-                if (IsRuntimeEditing && getSelectedActor() is JsonObject actor
+                if (IsRuntimeEditing && getSelectedActor() is MapActorSnapshot actor
                     && tryGetActorPosition(actor, out int actorX, out int actorY))
                     actorMoveOffset = (grid.X - actorX, grid.Y - actorY);
                 capturePointer(args.Pointer);
@@ -144,18 +143,18 @@ public sealed partial class MapPanel
 
     private void moveSelectedActor((int X, int Y) grid)
     {
-        if (!canEditMap || actorMoveIndex is not int index || actorMoveLayer is null || getActorList(actorMoveLayer) is not JsonArray actors || index < 0 || index >= actors.Count || actors[index] is not JsonObject actor)
+        if (!canEditMap || actorMoveIndex is not int index || actorMoveLayer is null || getActorList(actorMoveLayer) is not IReadOnlyList<MapActorSnapshot> actors || index < 0 || index >= actors.Count || actors[index] is not MapActorSnapshot actor)
             return;
         if (IsRuntimeEditing)
         {
-            if (actor["parentRuntimeId"] is not null)
+            if (actor.ParentRuntimeId is not null)
                 return;
         }
         if (IsRuntimeEditing || EditMode == MapEditMode.Light)
             grid = (grid.X - actorMoveOffset.X, grid.Y - actorMoveOffset.Y);
         if (tryGetActorPosition(actor, out int oldX, out int oldY) && oldX == grid.X && oldY == grid.Y)
             return;
-        string actorId = IsRuntimeEditing ? movingRuntimeActorId ?? string.Empty : actor["tag"]?.GetValue<string>() ?? string.Empty;
+        string actorId = IsRuntimeEditing ? movingRuntimeActorId ?? string.Empty : actor.Tag;
         if (editingContext is null || CurrentMapKey is null || actorId.Length == 0
             || !editingContext.MoveActor(CurrentMapKey, actorMoveLayer, actorId, grid.X, grid.Y))
             return;
@@ -170,7 +169,7 @@ public sealed partial class MapPanel
     private void writeTileRectangle((int X, int Y) start, (int X, int Y) end)
     {
         if (!canEditMap || selectedLayerName is null || editingContext is null || CurrentMapKey is null
-            || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer)
+            || getLayer(selectedLayerName) is not MapLayerSnapshot layer)
             return;
         List<MapTileEdit> cells = [];
         int columns = getTilesetColumnCount(layer);
@@ -191,16 +190,15 @@ public sealed partial class MapPanel
 
     private void pickTileAt((int X, int Y) grid)
     {
-        if (selectedLayerName is null || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer)
+        if (selectedLayerName is null || getLayer(selectedLayerName) is not MapLayerSnapshot layer)
             return;
-        JsonArray? autoRow = getRow(layer["autoTiles"] as JsonArray, grid.Y);
-        string? autoKey = autoRow?[grid.X]?.GetValue<string>();
+        string? autoKey = layer.AutoTileAt(grid.X, grid.Y);
         if (!string.IsNullOrWhiteSpace(autoKey))
         {
             selectedAutoTileKey = autoKey;
             selectedTiles = null;
         }
-        else if (tryGetInt(getRow(layer["tiles"] as JsonArray, grid.Y)?[grid.X], out int tile))
+        else if (layer.TileAt(grid.X, grid.Y) is int tile)
         {
             selectedTiles = new TileSelection(tile, 1, 1);
             selectedAutoTileKey = null;
@@ -217,14 +215,10 @@ public sealed partial class MapPanel
     private void fillTileRegion((int X, int Y) start)
     {
         if (!canEditMap || selectedLayerName is null || editingContext is null || CurrentMapKey is null
-            || CurrentMapData?["layers"]?[selectedLayerName] is not JsonObject layer
+            || getLayer(selectedLayerName) is not MapLayerSnapshot layer
             || !tryGetMapSize(out int width, out int height)
             || start.X < 0 || start.Y < 0 || start.X >= width || start.Y >= height)
             return;
-        JsonArray? tiles = layer["tiles"] as JsonArray;
-        JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
-        JsonNode? sourceTile = getCell(tiles, start.X, start.Y);
-        JsonNode? sourceAutoTile = getCell(autoTiles, start.X, start.Y);
         bool[,] visited = new bool[height, width];
         Queue<(int X, int Y)> pending = new();
         List<MapTileEdit> cells = [];
@@ -235,8 +229,7 @@ public sealed partial class MapPanel
             if (cell.X < 0 || cell.Y < 0 || cell.X >= width || cell.Y >= height || visited[cell.Y, cell.X])
                 continue;
             visited[cell.Y, cell.X] = true;
-            if (!JsonNode.DeepEquals(sourceTile, getCell(tiles, cell.X, cell.Y))
-                || !JsonNode.DeepEquals(sourceAutoTile, getCell(autoTiles, cell.X, cell.Y)))
+            if (!layer.CellMatches(start.X, start.Y, cell.X, cell.Y))
                 continue;
             if (selectedTiles is { } selection)
             {
@@ -263,8 +256,8 @@ public sealed partial class MapPanel
     {
         if (IsRuntimeEditing || !canEditMap || selectedLayerName is null || gameData is null || CurrentMapKey is null)
             return;
-        int? index = gameData.AddMapActor(CurrentMapKey, selectedLayerName,
-            new JsonObject { ["bp"] = reference }, grid.X, grid.Y);
+        int? index = gameData.Maps.AddMapActor(CurrentMapKey, selectedLayerName,
+            reference, grid.X, grid.Y);
         if (index is not null)
             setSelectedActor(selectedLayerName, index, true);
     }
@@ -273,7 +266,7 @@ public sealed partial class MapPanel
     {
         if (IsRuntimeEditing || !canEditMap || actorClipboard is null || selectedLayerName is null || gameData is null || CurrentMapKey is null)
             return;
-        int? index = gameData.AddMapActor(CurrentMapKey, selectedLayerName, actorClipboard, grid.X, grid.Y, actorClassVarChangesClipboard);
+        int? index = gameData.Maps.AddMapActor(CurrentMapKey, selectedLayerName, actorClipboard, grid.X, grid.Y, actorClassVarChangesClipboard);
         if (index is not null)
             setSelectedActor(selectedLayerName, index, true);
         InvalidateVisual();
@@ -282,9 +275,9 @@ public sealed partial class MapPanel
     private void deleteSelectedActor()
     {
         if (!canEditMap || selectedActorLayer is null || selectedActorIndex is null
-            || getSelectedActor() is not JsonObject actor || editingContext is null || CurrentMapKey is null)
+            || getSelectedActor() is not MapActorSnapshot actor || editingContext is null || CurrentMapKey is null)
             return;
-        string actorId = IsRuntimeEditing ? selectedRuntimeActorId ?? string.Empty : actor["tag"]?.GetValue<string>() ?? string.Empty;
+        string actorId = IsRuntimeEditing ? selectedRuntimeActorId ?? string.Empty : actor.Tag;
         if (actorId.Length != 0 && editingContext.DeleteActor(CurrentMapKey, selectedActorLayer, actorId))
             setSelectedActor(null, null, true);
         InvalidateVisual();
@@ -322,10 +315,10 @@ public sealed partial class MapPanel
 
     private void setSelectedActor(string? layerName, int? index, bool notify, bool force = false)
     {
-        JsonObject? actor = null;
-        if (layerName is not null && index is int actorIndex && getActorList(layerName) is JsonArray actors
+        MapActorSnapshot? actor = null;
+        if (layerName is not null && index is int actorIndex && getActorList(layerName) is IReadOnlyList<MapActorSnapshot> actors
             && actorIndex >= 0 && actorIndex < actors.Count)
-            actor = actors[actorIndex] as JsonObject;
+            actor = actors[actorIndex];
         if (actor is null)
         {
             layerName = null;
@@ -336,23 +329,23 @@ public sealed partial class MapPanel
             cancelMapGesture();
         selectedActorLayer = layerName;
         selectedActorIndex = index;
-        selectedRuntimeActorId = IsRuntimeEditing ? actor?["runtimeId"]?.GetValue<string>() : null;
+        selectedRuntimeActorId = IsRuntimeEditing ? actor?.RuntimeId : null;
         if (!notify || !changed && !force)
             return;
         ActorSelectionChanged?.Invoke(this, new ActorSelectionChangedEventArgs(
             CurrentMapKey ?? string.Empty,
             selectedActorLayer,
             selectedActorIndex,
-            actor));
+            actor?.ToJson()));
     }
 
     private void copySelectedActorToClipboard()
     {
-        JsonObject? actor = getSelectedActor();
-        actorClipboard = actor is null ? null : (JsonObject)actor.DeepClone();
+        MapActorSnapshot? actor = getSelectedActor();
+        actorClipboard = actor is null ? null : MapDocumentCodec.DecodeActor(actor.ToJson());
         actorClassVarChangesClipboard = null;
-        if (actor?["tag"]?.GetValue<string>() is not string tag
-            || CurrentMapData?["BPClassVarChanged"]?[tag] is not JsonObject changes
+        if (actor?.Tag is not string tag
+            || CurrentMapDocument?.ReadActorOverrides(tag) is not JsonObject changes
             || changes.Count == 0)
             return;
         actorClassVarChangesClipboard = (JsonObject)changes.DeepClone();

@@ -18,15 +18,15 @@ public sealed class UiAssetDependencyGraph
         new Dictionary<string, IReadOnlyList<Reference>>(StringComparer.Ordinal);
 
     public UiAssetDependencyGraph(
-        IReadOnlyDictionary<string, JsonObject> assets,
+        IReadOnlyDictionary<string, UiAssetSnapshot> assets,
         string? workingKey = null,
         JsonObject? workingAsset = null)
     {
-        foreach (KeyValuePair<string, JsonObject> pair in assets)
+        foreach (KeyValuePair<string, UiAssetSnapshot> pair in assets)
         {
             string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
             if (logicalKey.Length != 0)
-                this.assets[logicalKey] = (JsonObject)pair.Value.DeepClone();
+                this.assets[logicalKey] = pair.Value.ToJson();
         }
         if (workingKey is not null
             && UiAssetSchema.NormalizeAssetKey(workingKey).Length != 0

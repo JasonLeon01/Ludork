@@ -11,21 +11,21 @@ namespace Ludork.Views.Utils;
 
 public static class HistoryMergeBehavior
 {
-    private static readonly ConditionalWeakTable<GameDataService, GestureScope> scopes = new();
+    private static readonly ConditionalWeakTable<ProjectDataStore, GestureScope> scopes = new();
     private static readonly ConditionalWeakTable<Control, ControlAttachment> attachedControls = new();
     private static readonly ConditionalWeakTable<Control, BoundaryAttachment> attachedBoundaries = new();
 
-    public static void Attach(TextBox control, GameDataService gameData)
+    public static void Attach(TextBox control, ProjectDataStore gameData)
     {
         attach(control, gameData, changed => control.TextChanged += (_, _) => changed());
     }
 
-    public static void Attach(NumericUpDown control, GameDataService gameData)
+    public static void Attach(NumericUpDown control, ProjectDataStore gameData)
     {
         attach(control, gameData, changed => control.ValueChanged += (_, _) => changed());
     }
 
-    public static void AttachFocused(Control control, GameDataService gameData)
+    public static void AttachFocused(Control control, ProjectDataStore gameData)
     {
         if (control is NumericUpDown number)
             Attach(number, gameData);
@@ -35,7 +35,7 @@ public static class HistoryMergeBehavior
             attachment.HandleGotFocus();
     }
 
-    public static void AttachBoundary(Control boundary, GameDataService gameData)
+    public static void AttachBoundary(Control boundary, ProjectDataStore gameData)
     {
         if (attachedBoundaries.TryGetValue(boundary, out BoundaryAttachment? existing))
         {
@@ -64,7 +64,7 @@ public static class HistoryMergeBehavior
 
     private static void attach(
         Control control,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         Action<Action> subscribeChange)
     {
         if (attachedControls.TryGetValue(control, out ControlAttachment? existing))
@@ -87,7 +87,7 @@ public static class HistoryMergeBehavior
 
     private static void endOutsideActiveControl(
         PointerPressedEventArgs args,
-        GameDataService? gameData)
+        ProjectDataStore? gameData)
     {
         if (gameData is null)
             return;
@@ -117,16 +117,16 @@ public static class HistoryMergeBehavior
     private sealed class ControlAttachment
     {
         private readonly Control control;
-        private GameDataService? gameData;
+        private ProjectDataStore? gameData;
         private long gestureId;
 
-        public ControlAttachment(Control control, GameDataService gameData)
+        public ControlAttachment(Control control, ProjectDataStore gameData)
         {
             this.control = control;
             this.gameData = gameData;
         }
 
-        public void Rebind(GameDataService? nextGameData)
+        public void Rebind(ProjectDataStore? nextGameData)
         {
             if (ReferenceEquals(gameData, nextGameData))
                 return;
@@ -184,9 +184,9 @@ public static class HistoryMergeBehavior
         }
     }
 
-    private sealed class BoundaryAttachment(GameDataService gameData)
+    private sealed class BoundaryAttachment(ProjectDataStore gameData)
     {
-        public GameDataService? GameData { get; set; } = gameData;
+        public ProjectDataStore? GameData { get; set; } = gameData;
     }
 
     private sealed class GestureScope

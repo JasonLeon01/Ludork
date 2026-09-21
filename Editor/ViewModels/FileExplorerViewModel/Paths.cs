@@ -170,7 +170,7 @@ public sealed partial class FileExplorerViewModel
             error = LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", Path.GetFileName(destination));
             return false;
         }
-        if (!gameData.MapPathPolicy.CanTransferPath(source, destination))
+        if (!gameData.Worlds.MapPathPolicy.CanTransferPath(source, destination))
         {
             error = $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}";
             return false;
@@ -212,7 +212,7 @@ public sealed partial class FileExplorerViewModel
         string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI", "Assets");
         bool sourceIsFile = File.Exists(source);
         List<(string SourcePath, string DestinationPath)> result = [];
-        foreach (string dataKey in gameData.GetUiAssetKeysForMove())
+        foreach (string dataKey in gameData.UiAssets.GetUiAssetKeysForMove())
         {
             string logicalKey = UiAssetSchema.ToLogicalAssetKey(dataKey);
             if (logicalKey.Length == 0)

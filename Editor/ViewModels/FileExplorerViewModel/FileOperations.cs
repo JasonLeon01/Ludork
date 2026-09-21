@@ -120,7 +120,7 @@ public sealed partial class FileExplorerViewModel
         List<string> managedAdded = [];
         foreach (string source in normalizeTopLevelPaths(paths).Where(path => pathExists(path) && !isVisibleDirectory(path)))
         {
-            if (isSameOrChildPath(gameData.MapPathPolicy.MapsRoot, source))
+            if (isSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, source))
             {
                 errors.Add($"{Path.GetFileName(source)}: {LocaleService.Get("DUPLICATE_FAILED")}");
                 continue;
@@ -172,7 +172,7 @@ public sealed partial class FileExplorerViewModel
             return FileOperationResult.Empty;
         string[] normalizedPaths = normalizeTopLevelPaths(paths).ToArray();
         string[] protectedMapPaths = normalizedPaths
-            .Where(path => !gameData.MapPathPolicy.CanDeletePath(path))
+            .Where(path => !gameData.Worlds.MapPathPolicy.CanDeletePath(path))
             .ToArray();
         if (protectedMapPaths.Length != 0)
         {
@@ -265,8 +265,8 @@ public sealed partial class FileExplorerViewModel
         if (IsReadOnly)
             return FileOperationResult.Empty;
         string target = getTargetDirectory(targetDirectory);
-        if (isSameOrChildPath(gameData.MapPathPolicy.MapsRoot, target)
-            && !gameData.MapPathPolicy.CanCreateDirectory(target))
+        if (isSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, target)
+            && !gameData.Worlds.MapPathPolicy.CanCreateDirectory(target))
         {
             return new FileOperationResult(
                 false,

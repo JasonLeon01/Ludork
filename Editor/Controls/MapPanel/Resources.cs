@@ -29,8 +29,8 @@ public sealed partial class MapPanel
             return null;
         if (!tilesetPaths.TryGetValue(key, out string? fileName))
         {
-            fileName = gameData.TilesetData.TryGetValue(key, out JsonObject? data)
-                ? data["fileName"]?.GetValue<string>() : null;
+            fileName = gameData.Assets.TilesetData.TryGetValue(key, out TilesetSnapshot? data)
+                ? data.FileName : null;
             tilesetPaths[key] = fileName;
         }
         return loadBitmap(fileName);
@@ -151,7 +151,7 @@ public sealed partial class MapPanel
         {
             if (IsRuntimeEditing || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null)
                 return;
-            int? index = gameData.AddMapLight(CurrentMapKey, basePosition.X, basePosition.Y);
+            int? index = gameData.Maps.AddMapLight(CurrentMapKey, basePosition.X, basePosition.Y);
             if (index is not null)
                 setSelectedLightIndex(index);
             InvalidateVisual();
@@ -166,14 +166,14 @@ public sealed partial class MapPanel
         if (IsRuntimeEditing || editingContext?.IsEditable != true)
             return;
         if (selectedLightIndex is not int index
-            || CurrentMapData?["lights"] is not JsonArray lights
+            || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights
             || index < 0
             || index >= lights.Count)
         {
             return;
         }
-        if (gameData is null || CurrentMapKey is null || lights[index] is not JsonObject light
-            || !gameData.DeleteMapLight(CurrentMapKey, index, light))
+        if (gameData is null || CurrentMapKey is null || lights[index] is not MapLightSnapshot light
+            || !gameData.Maps.DeleteMapLight(CurrentMapKey, index, light))
             return;
         setSelectedLightIndex(null);
         InvalidateVisual();
@@ -181,13 +181,13 @@ public sealed partial class MapPanel
 
     private int? hitTestLight(Point position)
     {
-        if (CurrentMapData?["lights"] is not JsonArray lights)
+        if (CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights)
             return null;
         int? best = null;
         double bestDistance = double.MaxValue;
         for (int index = 0; index < lights.Count; index++)
         {
-            if (lights[index] is not JsonObject light || !tryGetLight(light, out Point center, out double radius))
+            if (lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
                 continue;
             double distance = getDistance(position, center);
             if (distance <= radius && (distance < bestDistance
@@ -202,20 +202,20 @@ public sealed partial class MapPanel
 
     private void setSelectedLightIndex(int? index)
     {
-        JsonObject? light = null;
-        if (index is int value && CurrentMapData?["lights"] is JsonArray lights && value >= 0 && value < lights.Count)
-            light = lights[value] as JsonObject;
+        MapLightSnapshot? light = null;
+        if (index is int value && CurrentMapDocument?.Lights is IReadOnlyList<MapLightSnapshot> lights && value >= 0 && value < lights.Count)
+            light = lights[value];
         int? nextIndex = light is null ? null : index;
         if (selectedLightIndex == nextIndex)
             return;
         if (propertyWheelTarget is not null)
             endMapGesture();
         selectedLightIndex = nextIndex;
-        LightSelectionChanged?.Invoke(this, new LightSelectionChangedEventArgs(CurrentMapKey ?? string.Empty, selectedLightIndex, light));
+        LightSelectionChanged?.Invoke(this, new LightSelectionChangedEventArgs(CurrentMapKey ?? string.Empty, selectedLightIndex, light?.ToJson()));
         InvalidateVisual();
     }
 
-    private int? hitTestActor(string layerName, Point mapPosition, HashSet<JsonObject>? allowedActors = null)
+    private int? hitTestActor(string layerName, Point mapPosition, HashSet<MapActorSnapshot>? allowedActors = null)
     {
         ensureActorRenderStates();
         if (!actorRenderStates.TryGetValue(layerName, out List<ActorRenderState>? actors))
@@ -247,38 +247,38 @@ public sealed partial class MapPanel
 
     private bool hasActorAt(string layerName, (int X, int Y) grid)
     {
-        if (getActorList(layerName) is not JsonArray actors)
+        if (getActorList(layerName) is not IReadOnlyList<MapActorSnapshot> actors)
             return false;
-        foreach (JsonNode? node in actors)
+        foreach (MapActorSnapshot actor in actors)
         {
-            if (node is JsonObject actor && tryGetActorPosition(actor, out int x, out int y) && x == grid.X && y == grid.Y)
+            if (tryGetActorPosition(actor, out int x, out int y) && x == grid.X && y == grid.Y)
                 return true;
         }
         return false;
     }
 
-    private JsonObject? getSelectedActor()
+    private MapActorSnapshot? getSelectedActor()
     {
-        return selectedActorLayer is not null && selectedActorIndex is int index && getActorList(selectedActorLayer) is JsonArray actors && index >= 0 && index < actors.Count
-            ? actors[index] as JsonObject
+        return selectedActorLayer is not null && selectedActorIndex is int index && getActorList(selectedActorLayer) is IReadOnlyList<MapActorSnapshot> actors && index >= 0 && index < actors.Count
+            ? actors[index]
             : null;
     }
 
-    private JsonArray? getActorList(string layerName)
+    private IReadOnlyList<MapActorSnapshot>? getActorList(string layerName)
     {
-        return CurrentMapData?["actors"]?[layerName] as JsonArray;
+        return CurrentMapDocument?.Actors.GetValueOrDefault(layerName);
     }
 
-    private int getTilesetColumnCount(JsonObject layer)
+    private int getTilesetColumnCount(MapLayerSnapshot layer)
     {
-        Bitmap? tileset = getTileset(layer["layerTileset"]?.GetValue<string>());
+        Bitmap? tileset = getTileset(layer.Tileset);
         return tileset is null ? 1 : Math.Max(1, tileset.PixelSize.Width / SourceTileSize);
     }
 
     private bool tryGetMapSize(out int width, out int height)
     {
-        width = CurrentMapData?["width"]?.GetValue<int?>() ?? 0;
-        height = CurrentMapData?["height"]?.GetValue<int?>() ?? 0;
+        width = CurrentMapDocument?.Width ?? 0;
+        height = CurrentMapDocument?.Height ?? 0;
         return width > 0 && height > 0;
     }
 
@@ -426,52 +426,28 @@ public sealed partial class MapPanel
         return Math.Sqrt(dx * dx + dy * dy);
     }
 
-    private static bool isLayerVisible(JsonObject layer)
-    {
-        return layer["visible"]?.GetValue<bool?>() ?? true;
-    }
+    private MapLayerSnapshot? getLayer(string name) => CurrentMapDocument?.Layers.GetValueOrDefault(name);
 
-    private static JsonArray? getRow(JsonArray? grid, int y) => grid is not null && y >= 0 && y < grid.Count ? grid[y] as JsonArray : null;
+    private MapLightSnapshot? getLight(int index) => CurrentMapDocument is not null && index >= 0 && index < CurrentMapDocument.Lights.Count
+        ? CurrentMapDocument.Lights[index] : null;
 
-    private static JsonNode? getCell(JsonArray? grid, int x, int y)
-    {
-        JsonArray? row = getRow(grid, y);
-        return row is not null && x >= 0 && x < row.Count ? row[x] : null;
-    }
+    private static bool isLayerVisible(MapLayerSnapshot layer) => layer.Visible;
 
     private static bool tryGetInt(JsonNode? value, out int result) => int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
 
-    private static bool tryGetActorPosition(JsonObject actor, out int x, out int y)
+    private static bool tryGetActorPosition(MapActorSnapshot actor, out int x, out int y) => actor.TryGetGridPosition(out x, out y);
+
+    private static bool tryGetLight(MapLightSnapshot light, out Point center, out double radius)
     {
-        x = 0;
-        y = 0;
-        return actor["position"] is JsonArray position && position.Count >= 2 && tryGetInt(position[0], out x) && tryGetInt(position[1], out y);
+        center = new Point(light.Position.X, light.Position.Y);
+        radius = light.Radius;
+        return light.HasPosition && radius > 0;
     }
 
-    private static bool tryGetLight(JsonObject light, out Point center, out double radius)
+    private static Color getLightFill(MapLightSnapshot light)
     {
-        center = default;
-        radius = 0;
-        if (light["position"] is not JsonArray position || position.Count < 2)
-            return false;
-        double x = getDouble(position[0], 0);
-        double y = getDouble(position[1], 0);
-        radius = getDouble(light["radius"], 0);
-        if (radius <= 0)
-            return false;
-        center = new Point(x, y);
-        return true;
-    }
-
-    private static Color getLightFill(JsonObject light)
-    {
-        if (light["color"] is not JsonArray color || color.Count < 3)
-            return Color.FromArgb(32, 255, 255, 255);
-        byte r = (byte)Math.Clamp((int)getDouble(color[0], 255), 0, 255);
-        byte g = (byte)Math.Clamp((int)getDouble(color[1], 255), 0, 255);
-        byte b = (byte)Math.Clamp((int)getDouble(color[2], 255), 0, 255);
-        byte a = color.Count > 3 ? (byte)Math.Clamp((int)getDouble(color[3], 255), 0, 255) : (byte)255;
-        return getLightFill(Color.FromArgb(a, r, g, b));
+        MapColour colour = light.Colour;
+        return getLightFill(Color.FromArgb(colour.A, colour.R, colour.G, colour.B));
     }
 
     private static Color getLightFill(Color colour)
@@ -511,9 +487,9 @@ public sealed partial class MapPanel
         if (gameData is null || CurrentMapKey is null || args.MapKey is not null
             && !string.Equals(CurrentMapKey, args.MapKey, StringComparison.Ordinal))
             return;
-        if (args.Edit is not null && CurrentMapData is not null)
+        if (args.Edit is not null && CurrentMapDocument is not null)
         {
-            args.Edit.ApplyTo(CurrentMapData);
+            MapDocumentCodec.ApplyEdits(CurrentMapDocument, args.Edit);
             if (!IsRuntimeEditing && args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors" or "lights"))
             {
                 cancelMapGesture();
@@ -536,7 +512,7 @@ public sealed partial class MapPanel
             if (args.ReloadData)
             {
                 cancelMapGesture();
-                CurrentMapData = editingContext?.ReadMapSnapshot(CurrentMapKey);
+                CurrentMapDocument = editingContext?.ReadMapDocument(CurrentMapKey);
                 if (EditMode == MapEditMode.Light)
                     setSelectedActor(null, null, true);
                 if (IsRuntimeEditing)
@@ -656,7 +632,7 @@ public sealed partial class MapPanel
     }
 
     private sealed class ActorRenderState(
-        JsonObject actor,
+        MapActorSnapshot actor,
         Bitmap? image,
         Rect baseSource,
         Vector translation,
@@ -669,7 +645,7 @@ public sealed partial class MapPanel
         int frameCount,
         ActorPreviewLease? previewLease)
     {
-        public JsonObject Actor { get; } = actor;
+        public MapActorSnapshot Actor { get; } = actor;
         public Bitmap? Image { get; } = image;
         public Rect BaseSource { get; } = baseSource;
         public Vector Translation { get; } = translation;
@@ -682,7 +658,7 @@ public sealed partial class MapPanel
         public int FrameCount { get; } = frameCount;
         public ActorPreviewLease? PreviewLease { get; } = previewLease;
 
-        public static ActorRenderState Missing(JsonObject actor)
+        public static ActorRenderState Missing(MapActorSnapshot actor)
         {
             return new ActorRenderState(
                 actor,

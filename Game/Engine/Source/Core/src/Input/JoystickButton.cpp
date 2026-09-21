@@ -1,6 +1,6 @@
 #include <Input/JoystickButton.hpp>
 #include <Input/InputNamedValue.hpp>
-#include "JoystickDevice/JoystickDeviceImpl.hpp"
+#include <CoreShared/JoystickDevice.hpp>
 
 #include <SFML/Config.hpp>
 
@@ -166,16 +166,13 @@ std::optional<unsigned int> JoystickButton::resolve(
 }
 
 JoystickButton::Family JoystickButton::getFamily(unsigned int joystickId) {
-    return ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-        .family(joystickId);
+    return ludork::engine::joystick_device::family(joystickId);
 }
 
 JoystickButton::Family JoystickButton::getDisplayFamily() {
-    return ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-        .displayFamily();
+    return ludork::engine::joystick_device::displayFamily();
 }
 
 std::uint64_t JoystickButton::getPresentationRevision() {
-    return ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-        .presentationRevision();
+    return ludork::engine::joystick_device::presentationRevision();
 }

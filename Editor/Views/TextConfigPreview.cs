@@ -14,10 +14,10 @@ namespace Ludork.Views;
 
 internal sealed class TextConfigPreview : Border
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly Grid layers = new();
 
-    public TextConfigPreview(GameDataService gameData)
+    public TextConfigPreview(ProjectDataStore gameData)
     {
         this.gameData = gameData;
         Background = Ludork.Services.EditorTheme.Brush("Background");
@@ -452,7 +452,7 @@ internal sealed class TextConfigPreview : Border
         if (!boolValue(gradient["enabled"]))
             return new SolidColorBrush(fallback);
         string curve = stringValue(gradient["curve"]);
-        JsonObject? curveData = gameData.CurvesData.TryGetValue(curve, out JsonObject? value)
+        JsonObject? curveData = SnapshotJson.ToDictionary(gameData.Assets.CurvesData).TryGetValue(curve, out JsonObject? value)
             ? value
             : null;
         PreviewVectorCurve? vectorCurve = createPreviewVectorCurve(curveData);

@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ public sealed partial class MapPanel
 
     public override void Render(DrawingContext context)
     {
-        if (CurrentMapData is null || gameData is null || autoTileRenderer is null || !tryGetMapSize(out int mapWidth, out int mapHeight))
+        if (CurrentMapDocument is null || gameData is null || autoTileRenderer is null || !tryGetMapSize(out int mapWidth, out int mapHeight))
             return;
 
         Rect mapRect = getMapRect(mapWidth, mapHeight);
@@ -64,13 +65,12 @@ public sealed partial class MapPanel
         using (context.PushTransform(Matrix.CreateTranslation(mapRect.X, mapRect.Y)))
         {
             drawCheckerboard(context);
-            JsonObject? layers = CurrentMapData["layers"] as JsonObject;
-            if (layers is not null && CurrentMapData["layerOrder"] is JsonArray layerOrder)
+            IReadOnlyDictionary<string, MapLayerSnapshot> layers = CurrentMapDocument.Layers;
+            if (CurrentMapDocument.LayerOrder is IReadOnlyList<string> layerOrder)
             {
-                foreach (JsonNode? name in layerOrder)
+                foreach (string layerName in layerOrder)
                 {
-                    if (name?.GetValue<string>() is not string layerName
-                        || layers[layerName] is not JsonObject layer || !isLayerVisible(layer))
+                    if (!layers.TryGetValue(layerName, out MapLayerSnapshot? layer) || !isLayerVisible(layer))
                         continue;
                     double opacity = selectedLayerName is null || layerName == selectedLayerName ? 1.0 : OtherLayerOpacity;
                     using (context.PushOpacity(opacity))
@@ -93,7 +93,7 @@ public sealed partial class MapPanel
         base.OnPointerPressed(args);
         Focus();
         cancelMapGesture();
-        if (CurrentMapData is null || gameData is null || !tryGetMapSize(out int width, out int height))
+        if (CurrentMapDocument is null || gameData is null || !tryGetMapSize(out int width, out int height))
             return;
 
         PointerPoint point = args.GetCurrentPoint(this);
@@ -153,7 +153,7 @@ public sealed partial class MapPanel
     protected override void OnPointerMoved(PointerEventArgs args)
     {
         base.OnPointerMoved(args);
-        if (CurrentMapData is null || !tryGetMapSize(out int width, out int height))
+        if (CurrentMapDocument is null || !tryGetMapSize(out int width, out int height))
             return;
         Point position = args.GetPosition(this);
         if (actorPropertyDrag is not null)
@@ -190,7 +190,7 @@ public sealed partial class MapPanel
     protected override void OnPointerReleased(PointerReleasedEventArgs args)
     {
         base.OnPointerReleased(args);
-        if (CurrentMapData is not null && tryGetMapSize(out int width, out int height))
+        if (CurrentMapDocument is not null && tryGetMapSize(out int width, out int height))
         {
             (int X, int Y)? grid = getGridPosition(args.GetPosition(this), width, height);
             if (EditMode == MapEditMode.Tile && rectangleStart is not null && grid is not null)

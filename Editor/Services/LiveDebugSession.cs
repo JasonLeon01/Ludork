@@ -11,6 +11,11 @@ namespace Ludork.Services;
 
 public sealed class LiveDebugSession : IMapEditingContext, IDisposable
 {
+    public MapDocumentSnapshot? ReadMapDocument(string mapKey)
+    {
+        return ReadMapSnapshot(mapKey) is JsonObject snapshot ? new MapDocumentSnapshot(snapshot) : null;
+    }
+
     private readonly ProjectRunnerService runner;
     private readonly long generation;
     private readonly CancellationTokenSource lifetime = new();

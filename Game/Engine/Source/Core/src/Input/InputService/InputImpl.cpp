@@ -2,7 +2,7 @@
 #include <Input/TextInputService.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
-#include "Input/JoystickDevice/JoystickDeviceImpl.hpp"
+#include <CoreShared/JoystickDevice.hpp>
 
 #include <SFML/Window/Clipboard.hpp>
 
@@ -170,8 +170,7 @@ void InputImpl::update(sf::RenderWindow& window) {
             clearJoystickDevice(joystickId);
         }
     }
-    ludork::engine::joystick_device::JoystickDeviceImpl::instance()
-        .synchronize();
+    ludork::engine::joystick_device::synchronize();
 
     if (!isInputCaptured() && !eventPump_.useInjectedMouseOnly_ &&
         window.hasFocus()) {
@@ -281,7 +280,7 @@ void InputImpl::shutdown() noexcept {
     joystick_.axisTriggers_.clear();
     joystick_.buttonTriggers_.clear();
     joystick_.pendingButtonReleases_.clear();
-    ludork::engine::joystick_device::JoystickDeviceImpl::instance().reset();
+    ludork::engine::joystick_device::reset();
     eventPump_.activeWindow_ = nullptr;
 }
 

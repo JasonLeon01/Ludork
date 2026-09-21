@@ -7,12 +7,12 @@ namespace Ludork.Views.Utils;
 
 public sealed class CommonFunctionEditorDocument : IDisposable
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private JsonObject data = [];
     private readonly EditorDocument? resourceDocument;
     private bool committing;
 
-    private CommonFunctionEditorDocument(GameDataService gameData, string name)
+    private CommonFunctionEditorDocument(ProjectDataStore gameData, string name)
     {
         this.gameData = gameData;
         resourceDocument = gameData.GetDocument("CommonFunctions", name);
@@ -27,22 +27,22 @@ public sealed class CommonFunctionEditorDocument : IDisposable
     public JsonObject Data => data;
 
     public static CommonFunctionEditorDocument? Create(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         string name)
     {
-        return gameData.CommonFunctionsData.ContainsKey(name)
+        return gameData.Blueprints.CommonFunctionsData.ContainsKey(name)
             ? new CommonFunctionEditorDocument(gameData, name)
             : null;
     }
 
     public bool Reload()
     {
-        if (!gameData.CommonFunctionsData.TryGetValue(Name, out JsonObject? stored))
+        if (!gameData.Blueprints.CommonFunctionsData.TryGetValue(Name, out CommonFunctionSnapshot? stored))
         {
             data = [];
             return false;
         }
-        data = (JsonObject)stored.DeepClone();
+        data = stored.ToJson();
         return true;
     }
 
@@ -71,7 +71,7 @@ public sealed class CommonFunctionEditorDocument : IDisposable
         committing = true;
         try
         {
-            return gameData.UpdateCommonFunction(Name, data);
+            return gameData.Blueprints.UpdateCommonFunction(Name, data);
         }
         finally
         {

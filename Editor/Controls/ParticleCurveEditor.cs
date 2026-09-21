@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -15,7 +16,7 @@ namespace Ludork.Controls;
 public sealed class ParticleCurveEditor : UserControl
 {
     private static readonly string[] Channels = ["speed", "sizeX", "sizeY", "rotation", "red", "green", "blue", "alpha"];
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly JsonObject track;
     private readonly Action commit;
     private readonly CurveCanvas canvas = new() { MinHeight = 170 };
@@ -30,7 +31,7 @@ public sealed class ParticleCurveEditor : UserControl
     private bool refreshing;
     private long gesture;
 
-    public ParticleCurveEditor(GameDataService gameData, JsonObject track, Action commit)
+    public ParticleCurveEditor(ProjectDataStore gameData, JsonObject track, Action commit)
     {
         this.gameData = gameData;
         this.track = track;
@@ -110,9 +111,9 @@ public sealed class ParticleCurveEditor : UserControl
         JsonNode? entry = curves[selectedChannel];
         string? reference = entry is JsonValue value && value.TryGetValue<string>(out string? text) ? text : null;
         curve = entry is JsonObject inline ? (JsonObject)inline.DeepClone()
-            : reference is not null && gameData.CurvesData.TryGetValue(reference, out JsonObject? existing)
-                ? (JsonObject)existing.DeepClone() : ParticleAssetSchema.CreateCurve(selectedChannel);
-        resourceKeys = gameData.CurvesData.Where(pair => pair.Value["type"]?.GetValue<string>() == "curve")
+            : reference is not null && gameData.Assets.CurvesData.TryGetValue(reference, out CurveSnapshot? existing)
+                ? existing.ToJson() : ParticleAssetSchema.CreateCurve(selectedChannel);
+        resourceKeys = gameData.Assets.CurvesData.Where(pair => pair.Value.Type == "curve")
             .Select(pair => pair.Key).OrderBy(key => key, StringComparer.Ordinal).Prepend(string.Empty).ToArray();
         resource.ItemsSource = resourceKeys.Select(key => key.Length == 0 ? LocaleService.Get("PARTICLE_INLINE_CURVE") : key).ToArray();
         resource.SelectedIndex = Math.Max(0, Array.IndexOf(resourceKeys, reference ?? string.Empty));

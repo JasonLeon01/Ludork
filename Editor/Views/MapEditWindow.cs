@@ -18,7 +18,7 @@ namespace Ludork.Views;
 
 public sealed class MapEditWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly double initialFogOx;
     private readonly double initialFogOy;
     private readonly decimal? displayedFogOx;
@@ -48,7 +48,7 @@ public sealed class MapEditWindow : Window
     private Color ambientColor;
 
     private MapEditWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         MapInfo initial,
         string currentKey,
         bool isNew,
@@ -149,7 +149,7 @@ public sealed class MapEditWindow : Window
 
     public static Task<MapInfo?> ShowAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         MapInfo initial,
         string currentKey,
         bool isNew,
@@ -243,7 +243,7 @@ public sealed class MapEditWindow : Window
             return;
         }
         string lookupKey = keyPrefix.Length == 0 ? key : keyPrefix + "/" + key;
-        if (gameData.MapData.ContainsKey(lookupKey)
+        if (gameData.Maps.MapData.ContainsKey(lookupKey)
             && (isNew || !string.Equals(lookupKey, currentKey, StringComparison.Ordinal)))
         {
             errorText.Text = LocaleService.Get("MAP_FILE_NAME_EXISTS");

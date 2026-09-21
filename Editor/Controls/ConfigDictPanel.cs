@@ -18,7 +18,7 @@ namespace Ludork.Controls;
 public sealed class ConfigDictPanel : Border
 {
     private readonly Window owner;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly string fileName;
     private JsonObject data;
     private readonly EditorDocument? resourceDocument;
@@ -27,7 +27,7 @@ public sealed class ConfigDictPanel : Border
     private readonly Dictionary<JsonObject, string> fieldNames = [];
     private readonly StackPanel content = new() { Spacing = 8 };
 
-    public ConfigDictPanel(Window owner, GameDataService gameData, string fileName, JsonObject data)
+    public ConfigDictPanel(Window owner, ProjectDataStore gameData, string fileName, JsonObject data)
     {
         this.owner = owner;
         this.gameData = gameData;
@@ -91,7 +91,7 @@ public sealed class ConfigDictPanel : Border
         int row = 0;
         foreach (KeyValuePair<string, JsonNode?> entry in data)
         {
-            if (!GameDataService.CanEditConfigField(fileName, entry.Key)
+            if (!ConfigDataService.CanEditConfigField(fileName, entry.Key)
                 || entry.Value is not JsonObject value)
                 continue;
             fieldNames[value] = entry.Key;
@@ -166,7 +166,7 @@ public sealed class ConfigDictPanel : Border
                 add.Click += (_, _) =>
                 {
                     JsonNode next = defaultValue(type);
-                    if (!gameData.InsertConfigArrayValue(fileName, fieldNames[value], values.Count, next))
+                    if (!gameData.Configs.InsertConfigArrayValue(fileName, fieldNames[value], values.Count, next))
                         return;
                     values.Add(next);
                     value["value"] = values;
@@ -214,7 +214,7 @@ public sealed class ConfigDictPanel : Border
     {
         void removeAt()
         {
-            if (!gameData.RemoveConfigArrayValue(fileName, fieldNames[value], index))
+            if (!gameData.Configs.RemoveConfigArrayValue(fileName, fieldNames[value], index))
                 return;
             values.RemoveAt(index);
             value["value"] = values;
@@ -294,7 +294,7 @@ public sealed class ConfigDictPanel : Border
                 MapTargetPickerResult? target = await MapTargetPickerWindow.ShowPositionAsync(
                     owner, gameData, edit.Text ?? string.Empty, data["startPos"]?["value"], requirePosition: true);
                 if (target?.Position is not JsonArray position
-                    || !gameData.UpdateStartMap(target.RuntimePath, position))
+                    || !gameData.Configs.UpdateStartMap(target.RuntimePath, position))
                 {
                     return;
                 }
@@ -318,7 +318,7 @@ public sealed class ConfigDictPanel : Border
             }
             else
             {
-                if (!gameData.UpdateConfigValue(fileName, fieldNames[value], JsonValue.Create(selected)))
+                if (!gameData.Configs.UpdateConfigValue(fileName, fieldNames[value], JsonValue.Create(selected)))
                     return;
                 value["value"] = selected;
             }
@@ -351,7 +351,7 @@ public sealed class ConfigDictPanel : Border
     private async Task<string?> selectFileName(JsonObject value, string current)
     {
         string root = getFileRoot(value);
-        if (gameData.MapPathPolicy.IsMapsRoot(root))
+        if (gameData.Worlds.MapPathPolicy.IsMapsRoot(root))
             return await MapTargetPickerWindow.ShowPathAsync(owner, gameData, current);
         IReadOnlyList<string> extensions = getExtensions(value["ext"]);
         string filterStr = extensions.Count == 0
@@ -421,7 +421,7 @@ public sealed class ConfigDictPanel : Border
         JsonNode? next = toJsonNumber(type, number);
         if (next is null || JsonNode.DeepEquals(value["value"], next))
             return;
-        if (!gameData.UpdateConfigValue(fileName, fieldNames[value], next))
+        if (!gameData.Configs.UpdateConfigValue(fileName, fieldNames[value], next))
             return;
         value["value"] = next;
     }
@@ -431,14 +431,14 @@ public sealed class ConfigDictPanel : Border
         JsonNode next = JsonValue.Create(text ?? string.Empty)!;
         if (JsonNode.DeepEquals(value["value"], next))
             return;
-        if (!gameData.UpdateConfigValue(fileName, fieldNames[value], next))
+        if (!gameData.Configs.UpdateConfigValue(fileName, fieldNames[value], next))
             return;
         value["value"] = next;
     }
 
     private bool updateArrayValue(JsonObject value, JsonArray values, int index, JsonNode? next)
     {
-        if (!gameData.UpdateConfigArrayValue(fileName, fieldNames[value], index, next))
+        if (!gameData.Configs.UpdateConfigArrayValue(fileName, fieldNames[value], index, next))
             return false;
         values[index] = next?.DeepClone();
         value["value"] = values;

@@ -44,11 +44,11 @@ public sealed class UiAssetValidationService
         ["time", "value"],
         StringComparer.Ordinal);
 
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly UiControlRegistryService controlRegistry;
 
     public UiAssetValidationService(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         UiControlRegistryService controlRegistry)
     {
         this.gameData = gameData;
@@ -65,8 +65,10 @@ public sealed class UiAssetValidationService
             add(issues, "assetKey", string.Empty, "UI asset key must be under Assets");
             return new UiAssetValidationResult(assetKey, issues);
         }
-        IReadOnlyDictionary<string, JsonObject> assets = gameData.UiAssetsData;
-        if (data is null && !assets.TryGetValue(dataKey, out data))
+        IReadOnlyDictionary<string, UiAssetSnapshot> assets = gameData.UiAssets.UiAssetsData;
+        if (data is null)
+            data = assets.TryGetValue(dataKey, out UiAssetSnapshot? snapshot) ? snapshot.ToJson() : null;
+        if (data is null)
         {
             add(issues, "missingAsset", string.Empty, $"UI asset \"{normalizedKey}\" was not found");
             return new UiAssetValidationResult(normalizedKey, issues);
@@ -93,9 +95,9 @@ public sealed class UiAssetValidationService
             new Dictionary<string, List<UiValidationIssue>>(StringComparer.Ordinal);
         IReadOnlyDictionary<string, UiControlDescriptor> controls =
             createNativeControlLookup();
-        IReadOnlyDictionary<string, JsonObject> assets = gameData.UiAssetsData;
+        IReadOnlyDictionary<string, UiAssetSnapshot> assets = gameData.UiAssets.UiAssetsData;
         UiAssetDependencyGraph dependencies = new UiAssetDependencyGraph(assets);
-        foreach (KeyValuePair<string, JsonObject> pair in assets
+        foreach (KeyValuePair<string, UiAssetSnapshot> pair in assets
                      .OrderBy(item => item.Key, StringComparer.Ordinal))
         {
             List<UiValidationIssue> issues = [];
@@ -110,7 +112,7 @@ public sealed class UiAssetValidationService
             }
             if (!structuralOnly && !controlRegistry.IsReady)
                 add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
-            validateAssetStructure(logicalKey, pair.Value, controls, issues, structuralOnly || !controlRegistry.IsReady, dependencies);
+            validateAssetStructure(logicalKey, pair.Value.ToJson(), controls, issues, structuralOnly || !controlRegistry.IsReady, dependencies);
             issuesByKey[logicalKey.Length == 0 ? pair.Key : logicalKey] = issues;
         }
         foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles())
@@ -651,7 +653,7 @@ public sealed class UiAssetValidationService
         {
             if (!tryGetCanonicalDataKey(text, "TextConfigs", out string key))
                 add(issues, "textConfigKey", path, "Text config must use a canonical TextConfigs key without an extension");
-            else if (!gameData.TextConfigsData.TryGetValue(key, out JsonObject? textConfig))
+            else if (!gameData.Assets.TextConfigsData.TryGetValue(key, out TextConfigSnapshot? textConfig))
                 add(issues, "missingTextConfig", path, $"Text config \"{text}\" was not found");
             else
                 validateTextConfigType(controlId, textConfig, path, issues);
@@ -661,7 +663,7 @@ public sealed class UiAssetValidationService
         {
             if (!tryGetCanonicalDataKey(text, "Particles", out string key))
                 add(issues, "particleKey", path, "Particle must use a canonical Particles key without an extension");
-            else if (!gameData.ParticlesData.ContainsKey(key))
+            else if (!gameData.Assets.ParticlesData.ContainsKey(key))
                 add(issues, "missingParticle", path, $"Particle \"{text}\" was not found");
             return;
         }
@@ -669,22 +671,22 @@ public sealed class UiAssetValidationService
         {
             if (!tryGetCanonicalDataKey(text, "Curves", out string key))
                 add(issues, "curveKey", path, "Curve must use a canonical Curves key without an extension");
-            else if (!gameData.CurvesData.TryGetValue(key, out JsonObject? curve))
+            else if (!gameData.Assets.CurvesData.TryGetValue(key, out CurveSnapshot? curve))
                 add(issues, "missingCurve", path, $"Curve \"{text}\" was not found");
-            else if (getString(curve["type"]) != "curve")
+            else if (curve.Type != "curve")
                 add(issues, "curveType", path, $"{propertyId} must reference a scalar curve");
         }
     }
 
     private void validateTextConfigType(
         string controlId,
-        JsonObject textConfig,
+        TextConfigSnapshot textConfig,
         string path,
         ICollection<UiValidationIssue> issues)
     {
         string? expectedType = controlRegistry.ExpectedTextConfigType(controlId);
         if (expectedType is not null
-            && getString(textConfig["type"]) != expectedType)
+            && textConfig.Type != expectedType)
         {
             add(issues, "textConfigType", path, $"Text config must have type {expectedType}");
         }

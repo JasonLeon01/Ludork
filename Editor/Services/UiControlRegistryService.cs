@@ -4,16 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace Ludork.Services;
 
 public sealed class UiControlRegistryService : IDisposable
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
 
-    public UiControlRegistryService(GameDataService gameData)
+    public UiControlRegistryService(ProjectDataStore gameData)
     {
         this.gameData = gameData;
         Runtime = new UiPreviewRuntimeService(gameData.ProjectPath);
@@ -61,21 +60,21 @@ public sealed class UiControlRegistryService : IDisposable
     private IReadOnlyList<UiControlDescriptor> createProjectDescriptors(bool exposedOnly)
     {
         List<UiControlDescriptor> descriptors = [];
-        foreach (KeyValuePair<string, JsonObject> pair in gameData.UiAssetsData
+        foreach (KeyValuePair<string, UiAssetSnapshot> pair in gameData.UiAssets.UiAssetsData
                      .OrderBy(item => item.Key, StringComparer.Ordinal))
         {
-            JsonObject asset = pair.Value;
-            bool exposed = isTrue((asset["palette"] as JsonObject)?["exposed"]);
+            UiAssetSnapshot asset = pair.Value;
+            bool exposed = asset.Palette.Exposed;
             string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
             if (logicalKey.Length == 0 || exposedOnly && !exposed)
             {
                 continue;
             }
-            JsonObject? palette = asset["palette"] as JsonObject;
-            string displayName = getString(palette?["displayName"])?.Trim()
+            UiPaletteSnapshot palette = asset.Palette;
+            string displayName = palette.DisplayName?.Trim()
                 ?? pair.Key.Split('/').Last();
-            string category = getString(palette?["category"])?.Trim() ?? "Project";
-            UiDesignSize designSize = readDesignSize(asset["designSize"] as JsonObject);
+            string category = palette.Category?.Trim() ?? "Project";
+            UiDesignSize designSize = asset.DesignSize;
             descriptors.Add(new UiControlDescriptor(
                 UiAssetSchema.ProjectControlPrefix + logicalKey,
                 "project",
@@ -89,17 +88,6 @@ public sealed class UiControlRegistryService : IDisposable
                 designSize));
         }
         return descriptors;
-    }
-
-    private static UiDesignSize readDesignSize(JsonObject? designSize)
-    {
-        double width = getFiniteNumber(designSize?["width"]) ?? 640.0;
-        double height = getFiniteNumber(designSize?["height"]) ?? 480.0;
-        return new UiDesignSize(
-            width,
-            height,
-            designSize?["width"]?.ToJsonString(),
-            designSize?["height"]?.ToJsonString());
     }
 
     internal static string CreateAdapterFingerprint(IReadOnlyList<UiControlDescriptor> descriptors)
@@ -130,23 +118,6 @@ public sealed class UiControlRegistryService : IDisposable
         }
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(source.ToString()));
         return Convert.ToHexString(hash).ToLowerInvariant();
-    }
-
-    private static double? getFiniteNumber(JsonNode? value)
-    {
-        if (value is not JsonValue scalar || !scalar.TryGetValue(out double number) || !double.IsFinite(number))
-            return null;
-        return number;
-    }
-
-    private static string? getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
-    }
-
-    private static bool isTrue(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out bool enabled) && enabled;
     }
 
     private sealed class CodePointComparer : IComparer<string>

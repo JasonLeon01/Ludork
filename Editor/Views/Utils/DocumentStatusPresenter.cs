@@ -9,12 +9,12 @@ namespace Ludork.Views.Utils;
 
 public sealed class DocumentStatusPresenter : StackPanel
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly string section;
     private readonly string key;
     private readonly TextBlock marker = new() { Text = "*", VerticalAlignment = VerticalAlignment.Center };
 
-    public DocumentStatusPresenter(GameDataService gameData, string section, string key)
+    public DocumentStatusPresenter(ProjectDataStore gameData, string section, string key)
     {
         this.gameData = gameData;
         this.section = section;
@@ -26,7 +26,7 @@ public sealed class DocumentStatusPresenter : StackPanel
         update();
     }
 
-    public static IDataTemplate CreateTemplate(GameDataService gameData, string section)
+    public static IDataTemplate CreateTemplate(ProjectDataStore gameData, string section)
     {
         return new FuncDataTemplate<string>((key, _) => key is null ? null : new DocumentStatusPresenter(gameData, section, key));
     }

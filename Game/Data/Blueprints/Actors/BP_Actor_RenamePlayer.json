@@ -30,8 +30,8 @@
             "nodeFunction": "NodeFunctions.Scene.OpenPlayerName",
             "params": [],
             "pos": [
-              0.0,
-              0.0
+              0,
+              314
             ]
           }
         ],

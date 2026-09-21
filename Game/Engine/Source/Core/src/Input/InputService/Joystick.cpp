@@ -3,7 +3,7 @@
 #include <Input/InputNamedValue.hpp>
 #include <Input/JoystickAxisEvent.hpp>
 #include <Input/JoystickButton.hpp>
-#include "Input/JoystickDevice/JoystickDeviceImpl.hpp"
+#include <CoreShared/JoystickDevice.hpp>
 
 #include <array>
 #include <cmath>
@@ -39,8 +39,7 @@ void InputImpl::clearJoystickDevice(unsigned int joystickId) {
     std::erase_if(joystick_.axisTriggers_, [&prefix](const auto& entry) {
         return entry.first.starts_with(prefix);
     });
-    ludork::engine::joystick_device::JoystickDeviceImpl::instance().disconnect(
-        joystickId);
+    ludork::engine::joystick_device::disconnect(joystickId);
 }
 
 void InputImpl::updateJoystickDominantAxes() {

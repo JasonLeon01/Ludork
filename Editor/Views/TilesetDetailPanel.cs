@@ -1,3 +1,4 @@
+using Ludork.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -17,7 +18,7 @@ namespace Ludork.Views;
 internal sealed class TilesetDetailPanel : Grid
 {
     private readonly Window owner;
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly bool isAutoTile;
     private readonly Action dataChanged;
     private readonly TextBox nameBox = EditorInputs.CreateEditableTextBox();
@@ -37,7 +38,7 @@ internal sealed class TilesetDetailPanel : Grid
     private bool refreshPending;
     private long brushGestureId;
 
-    public TilesetDetailPanel(Window owner, GameDataService gameData, bool isAutoTile, Action dataChanged)
+    public TilesetDetailPanel(Window owner, ProjectDataStore gameData, bool isAutoTile, Action dataChanged)
     {
         this.owner = owner;
         this.gameData = gameData;
@@ -45,7 +46,7 @@ internal sealed class TilesetDetailPanel : Grid
         this.dataChanged = dataChanged;
         RowDefinitions = new RowDefinitions("Auto,64,*");
         RowSpacing = 5;
-        imageEditor = new TilesetImageEditor(gameData, gameData.getCellSize())
+        imageEditor = new TilesetImageEditor(gameData, gameData.Configs.getCellSize())
         {
             EditRequested = updateMetadata,
             DirectionEditRequested = updateDirection,
@@ -184,7 +185,7 @@ internal sealed class TilesetDetailPanel : Grid
         string value = nameBox.Text ?? string.Empty;
         if ((data["name"]?.GetValue<string>() ?? string.Empty) == value)
             return;
-        if (gameData.UpdateTilesetName(key, isAutoTile, value))
+        if (gameData.Assets.UpdateTilesetName(key, isAutoTile, value))
         {
             data["name"] = value;
             dataChanged();
@@ -229,7 +230,7 @@ internal sealed class TilesetDetailPanel : Grid
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), string.Format(LocaleService.Get("AUTOTILE_FILE_SIZE_INVALID"), bitmap.PixelSize.Width, bitmap.PixelSize.Height));
             return;
         }
-        if (gameData.UpdateTilesetImage(selectedKey, isAutoTile, GameAssetPath.FromProjectFile(gameData.ProjectPath, path), bitmap.PixelSize.Width, bitmap.PixelSize.Height))
+        if (gameData.Assets.UpdateTilesetImage(selectedKey, isAutoTile, GameAssetPath.FromProjectFile(gameData.ProjectPath, path), bitmap.PixelSize.Width, bitmap.PixelSize.Height))
             dataChanged();
         if (key == selectedKey)
             refreshCurrent();
@@ -240,7 +241,7 @@ internal sealed class TilesetDetailPanel : Grid
         if (key is null || data is null)
             return false;
         string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
-        return completeMetadataEdit(gameData.UpdateTilesetMetadata(key, isAutoTile, assetPath, property, value, indices, count));
+        return completeMetadataEdit(gameData.Assets.UpdateTilesetMetadata(key, isAutoTile, assetPath, property, value, indices, count));
     }
 
     private bool updateDirection(int index, int count, int direction, bool value)
@@ -248,7 +249,7 @@ internal sealed class TilesetDetailPanel : Grid
         if (key is null || data is null)
             return false;
         string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
-        return completeMetadataEdit(gameData.UpdateTilesetDirection(key, assetPath, index, count, direction, value));
+        return completeMetadataEdit(gameData.Assets.UpdateTilesetDirection(key, assetPath, index, count, direction, value));
     }
 
     private bool updateMaterial(int index, int count, JsonObject initial, JsonObject edited)
@@ -256,7 +257,7 @@ internal sealed class TilesetDetailPanel : Grid
         if (key is null || data is null)
             return false;
         string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
-        return completeMetadataEdit(gameData.UpdateTilesetMaterial(key, isAutoTile, assetPath, index, count, initial, edited));
+        return completeMetadataEdit(gameData.Assets.UpdateTilesetMaterial(key, isAutoTile, assetPath, index, count, initial, edited));
     }
 
     private bool completeMetadataEdit(bool changed)
@@ -272,8 +273,8 @@ internal sealed class TilesetDetailPanel : Grid
 
     private void refreshCurrent()
     {
-        IReadOnlyDictionary<string, JsonObject> entries = isAutoTile ? gameData.AutoTileData : gameData.TilesetData;
-        setData(key, key is not null && entries.TryGetValue(key, out JsonObject? value) ? value : null);
+        IReadOnlyDictionary<string, TilesetSnapshot> entries = isAutoTile ? gameData.Assets.AutoTileData : gameData.Assets.TilesetData;
+        setData(key, key is not null && entries.TryGetValue(key, out TilesetSnapshot? value) ? value.ToJson() : null);
     }
 
     private void editMaterial(JsonObject material, Action<JsonObject> apply)

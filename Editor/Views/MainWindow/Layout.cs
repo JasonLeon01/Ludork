@@ -27,32 +27,6 @@ namespace Ludork.Views;
 
 public partial class MainWindow
 {
-    private void installPluginMenus()
-    {
-        NativeMenu? rootMenu = NativeMenu.GetMenu(this);
-        if (Application.Current is not App app
-            || rootMenu is null
-            || rootMenu.Items.Count < 6
-            || rootMenu.Items[0] is not NativeMenuItem { Menu: NativeMenu fileMenu }
-            || rootMenu.Items[1] is not NativeMenuItem { Menu: NativeMenu editMenu }
-            || rootMenu.Items[2] is not NativeMenuItem { Menu: NativeMenu gameMenu }
-            || rootMenu.Items[3] is not NativeMenuItem { Menu: NativeMenu databaseMenu }
-            || rootMenu.Items[4] is not NativeMenuItem { Menu: NativeMenu pluginsMenu }
-            || rootMenu.Items[5] is not NativeMenuItem { Menu: NativeMenu helpMenu })
-        {
-            return;
-        }
-        app.installPluginMenus(
-            this,
-            ProjectPath.Length == 0 ? null : ProjectPath,
-            (PluginMenuLocation.File, fileMenu),
-            (PluginMenuLocation.Edit, editMenu),
-            (PluginMenuLocation.Game, gameMenu),
-            (PluginMenuLocation.Database, databaseMenu),
-            (PluginMenuLocation.Help, helpMenu),
-            (PluginMenuLocation.Plugins, pluginsMenu));
-    }
-
     private void initializeInteraction()
     {
         LightActorSelectionToggle.Content = LocaleService.Get("LIGHT_SELECT_ACTORS");
@@ -117,6 +91,11 @@ public partial class MainWindow
         }
     }
 
+    private void onActorQueueBlueprintOpenRequested(object? sender, string reference)
+    {
+        viewModel?.Actions.OpenBlueprint(reference);
+    }
+
     private void attachViewModel(MainViewModel? next)
     {
         if (viewModel is not null)
@@ -126,73 +105,60 @@ public partial class MainWindow
             if (actorPreviewService is not null)
                 actorPreviewService.StatusChanged -= onActorPreviewStatusChanged;
             viewModel.PropertyChanged -= onViewModelPropertyChanged;
-            viewModel.SelectedMapChanged -= onSelectedMapChanged;
+            viewModel.MapWorkspace.PropertyChanged -= onViewModelPropertyChanged;
+            viewModel.MapWorkspace.SelectedMapChanged -= onSelectedMapChanged;
+            viewModel.ActorQueue.SelectionChanged -= onActorQueueSelectionChanged;
+            viewModel.ActorQueue.BlueprintOpenRequested -= onActorQueueBlueprintOpenRequested;
+            viewModel.ActorQueue.BlueprintLocateRequested -= onBlueprintLocateRequested;
             viewModel.LanguageChangeRequested -= onLanguageChangeRequested;
             viewModel.SaveCompleted -= onSaveCompleted;
             viewModel.SaveRequested -= onSaveRequested;
             viewModel.HistoryCompleted -= onHistoryCompleted;
             viewModel.TileSelect.PropertyChanged -= onTileSelectPropertyChanged;
-            viewModel.Actions.ActionRequested -= onActionRequested;
-            viewModel.Actions.DataCreationRequested -= onDataCreationRequested;
-            viewModel.FileExplorerPanel.DataCreationRequested -= onDataCreationRequested;
-            viewModel.FileExplorerPanel.ReferenceTreeRequested -= onReferenceTreeRequested;
-            viewModel.FileExplorerPanel.FilesChanging -= onFileChangesStarting;
-            viewModel.FileExplorerPanel.FilesChanged -= onFileChangesApplied;
-            viewModel.GameData.UiAssetsChanged -= onUiAssetsChanged;
-            viewModel.GameData.Documents.ContentChanged -= onDocumentPathsChanged;
-            viewModel.FileOpenFailed -= onFileOpenFailed;
 
             viewModel.NewProjectRequested -= onNewProjectRequested;
             viewModel.OpenProjectRequested -= onOpenProjectRequested;
             viewModel.ExitRequested -= onExitRequested;
             viewModel.PreviewModeRequested -= onPreviewModeRequested;
-            viewModel.ActorOutlinerChanged -= onActorOutlinerChanged;
-            viewModel.LayerDisplayStateChanged -= onLayerDisplayStateChanged;
+            viewModel.MapWorkspace.ActorOutlinerChanged -= onActorOutlinerChanged;
+            viewModel.MapWorkspace.LayerDisplayStateChanged -= onLayerDisplayStateChanged;
         }
         actorPreviewService = null;
         viewModel = next;
         if (viewModel is null)
             return;
-        actorPreviewService = viewModel.PreviewService.ActorPreviews;
+        actorPreviewService = projectSession!.PreviewService.ActorPreviews;
         actorPreviewFallbackNotified = false;
         actorPreviewService.StatusChanged += onActorPreviewStatusChanged;
         tileSelect = viewModel.TileSelect;
-        EditorPanel.configure(viewModel.GameData, viewModel.PreviewService);
-        WorldEditorPanel.Configure(viewModel.GameData, viewModel.PreviewService);
-        (int gameWidth, int gameHeight) = viewModel.GameData.getGameSize();
+        EditorPanel.configure(viewModel.GameData, projectSession!.PreviewService);
+        WorldEditorPanel.Configure(viewModel.GameData, projectSession!.PreviewService);
+        (int gameWidth, int gameHeight) = viewModel.GameData.Configs.getGameSize();
         GameAspectPanel.AspectRatio = (double)gameWidth / gameHeight;
         ActorInfoPanel.configure(
             viewModel.GameData,
-            viewModel.Metadata,
+            projectSession!.Metadata,
             viewModel.BlueprintClasses,
             viewModel.GameVariables,
             EditorPanel);
         viewModel.PropertyChanged += onViewModelPropertyChanged;
-        viewModel.SelectedMapChanged += onSelectedMapChanged;
+        viewModel.MapWorkspace.PropertyChanged += onViewModelPropertyChanged;
+        viewModel.MapWorkspace.SelectedMapChanged += onSelectedMapChanged;
         viewModel.ActorQueue.SelectionChanged += onActorQueueSelectionChanged;
-        viewModel.ActorQueue.BlueprintOpenRequested += (_, reference) => viewModel.Actions.OpenBlueprint(reference);
+        viewModel.ActorQueue.BlueprintOpenRequested += onActorQueueBlueprintOpenRequested;
         viewModel.ActorQueue.BlueprintLocateRequested += onBlueprintLocateRequested;
         viewModel.LanguageChangeRequested += onLanguageChangeRequested;
         viewModel.SaveCompleted += onSaveCompleted;
         viewModel.SaveRequested += onSaveRequested;
         viewModel.HistoryCompleted += onHistoryCompleted;
         tileSelect.PropertyChanged += onTileSelectPropertyChanged;
-        viewModel.Actions.ActionRequested += onActionRequested;
-        viewModel.Actions.DataCreationRequested += onDataCreationRequested;
-        viewModel.FileExplorerPanel.DataCreationRequested += onDataCreationRequested;
-        viewModel.FileExplorerPanel.ReferenceTreeRequested += onReferenceTreeRequested;
-        viewModel.FileExplorerPanel.FilesChanging += onFileChangesStarting;
-        viewModel.FileExplorerPanel.FilesChanged += onFileChangesApplied;
-        viewModel.GameData.UiAssetsChanged += onUiAssetsChanged;
-        viewModel.GameData.Documents.ContentChanged += onDocumentPathsChanged;
-        viewModel.FileOpenFailed += onFileOpenFailed;
 
         viewModel.NewProjectRequested += onNewProjectRequested;
         viewModel.OpenProjectRequested += onOpenProjectRequested;
         viewModel.ExitRequested += onExitRequested;
         viewModel.PreviewModeRequested += onPreviewModeRequested;
-        viewModel.ActorOutlinerChanged += onActorOutlinerChanged;
-        viewModel.LayerDisplayStateChanged += onLayerDisplayStateChanged;
+        viewModel.MapWorkspace.ActorOutlinerChanged += onActorOutlinerChanged;
+        viewModel.MapWorkspace.LayerDisplayStateChanged += onLayerDisplayStateChanged;
         if (!viewModel.ProjectConfig.IsStandalone && projectRunner is not null)
         {
             projectRunner.NativeBuildState.Changed += onNativeBuildStateChanged;
@@ -386,7 +352,7 @@ public partial class MainWindow
     {
         if (args.PropertyName == nameof(MainViewModel.WindowTitle))
             Title = viewModel?.WindowTitle ?? "Ludork";
-        else if (args.PropertyName == nameof(MainViewModel.SelectedLayerTab))
+        else if (args.PropertyName == nameof(MapWorkspaceViewModel.SelectedLayerTab))
         {
             refreshMapPanelState();
             syncActorOutlinerSelection();
@@ -417,11 +383,11 @@ public partial class MainWindow
     private void onMapActorSelectionChanged(object? sender, ActorSelectionChangedEventArgs args)
     {
         if (EditorPanel.IsRuntimeEditing && args.LayerName is not null && viewModel is not null
-            && viewModel.SelectedLayerTab?.Name != args.LayerName)
-            viewModel.SelectedLayerTab = viewModel.LayerTabs.FirstOrDefault(layer => layer.Name == args.LayerName);
+            && viewModel.MapWorkspace.SelectedLayerTab?.Name != args.LayerName)
+            viewModel.MapWorkspace.SelectedLayerTab = viewModel.MapWorkspace.LayerTabs.FirstOrDefault(layer => layer.Name == args.LayerName);
         ActorInfoPanel.setActor(args.MapKey, args.LayerName, args.Index, args.ActorData);
         updateMapModePanels();
-        liveDebugSession?.SelectActor(args.ActorData?["runtimeId"]?.GetValue<string>());
+        liveDebug?.SelectActor(args.ActorData?["runtimeId"]?.GetValue<string>());
         if (viewModel?.CanEdit == true && !string.IsNullOrWhiteSpace(args.BlueprintReference))
             viewModel?.ActorQueue.AddOrPromote(args.BlueprintReference);
         syncActorOutlinerSelection();
@@ -429,13 +395,13 @@ public partial class MainWindow
 
     private void onActorDataChanged(object? sender, EventArgs args)
     {
-        viewModel?.refreshActorOutliner();
+        viewModel?.MapWorkspace.refreshActorOutliner();
         ActorInfoPanel.refreshActorPosition();
     }
 
     private void onActorTagChanged(object? sender, ActorSelectionChangedEventArgs args)
     {
-        viewModel?.refreshActorOutliner();
+        viewModel?.MapWorkspace.refreshActorOutliner();
     }
 
     private void onLayerDisplayStateChanged(object? sender, EventArgs args)
@@ -453,14 +419,14 @@ public partial class MainWindow
         if (viewModel is null)
             return;
         string? layerName = EditorPanel.SelectedActorLayer
-            ?? (viewModel.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null);
+            ?? (viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null);
         ActorOutlinerItemViewModel? selection = null;
         if (layerName is not null)
         {
-            ActorOutlinerItemViewModel? layerItem = viewModel.ActorOutlinerItems
+            ActorOutlinerItemViewModel? layerItem = viewModel.MapWorkspace.ActorOutlinerItems
                 .FirstOrDefault(item => item.LayerName == layerName);
             selection = EditorPanel.IsRuntimeEditing && EditorPanel.SelectedRuntimeActorId is string runtimeId
-                ? viewModel.ActorOutlinerItems.SelectMany(item => item.EnumerateDescendants())
+                ? viewModel.MapWorkspace.ActorOutlinerItems.SelectMany(item => item.EnumerateDescendants())
                     .FirstOrDefault(item => item.RuntimeId == runtimeId)
                 : EditorPanel.SelectedActorIndex is int actorIndex
                     ? layerItem?.Children.FirstOrDefault(item => item.ActorIndex == actorIndex) : layerItem;
@@ -476,16 +442,16 @@ public partial class MainWindow
     {
         if (updatingActorOutlinerSelection
             || viewModel is null
-            || viewModel.IsRefreshingActorOutliner
+            || viewModel.MapWorkspace.IsRefreshingActorOutliner
             || ActorOutliner.SelectedItem is not ActorOutlinerItemViewModel item)
         {
             return;
         }
-        LayerTabViewModel? layer = viewModel.LayerTabs
+        LayerTabViewModel? layer = viewModel.MapWorkspace.LayerTabs
             .FirstOrDefault(tab => !tab.IsOverview && tab.Name == item.LayerName);
         if (layer is null)
             return;
-        viewModel.SelectedLayerTab = layer;
+        viewModel.MapWorkspace.SelectedLayerTab = layer;
         EditorPanel.selectActor(item.LayerName, item.ActorIndex);
     }
 

@@ -116,7 +116,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
     public void RestoreViewport(WorldMapViewportState state) => canvas.RestoreViewport(state);
 
     public void Configure(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         BlueprintPreviewService previewService)
     {
         childItems.Clear();

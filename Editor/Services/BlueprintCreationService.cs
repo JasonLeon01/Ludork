@@ -10,12 +10,12 @@ namespace Ludork.Services;
 public sealed class BlueprintCreationService
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
 
     public BlueprintCreationService(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
     {
@@ -46,12 +46,12 @@ public sealed class BlueprintCreationService
         string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
         if (key.Length == 0 || key.StartsWith("../", StringComparison.Ordinal)
             || File.Exists(fullPath)
-            || gameData.BlueprintsData.ContainsKey(key))
+            || gameData.Blueprints.BlueprintsData.ContainsKey(key))
         {
             return new BlueprintCreationResult(
                 false,
                 key,
-                File.Exists(fullPath) || gameData.BlueprintsData.ContainsKey(key)
+                File.Exists(fullPath) || gameData.Blueprints.BlueprintsData.ContainsKey(key)
                     ? BlueprintCreationFailure.AlreadyExists
                     : BlueprintCreationFailure.InvalidPath);
         }
@@ -117,7 +117,7 @@ public sealed class BlueprintCreationService
                 ["startNodes"] = startNodes,
             },
         };
-        bool created = gameData.CreateBlueprint(key, blueprint);
+        bool created = gameData.Blueprints.CreateBlueprint(key, blueprint);
         return new BlueprintCreationResult(
             created,
             key,
@@ -138,16 +138,14 @@ public sealed class BlueprintCreationService
             return;
         string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
         if (!visited.Add(key)
-            || !gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
+            || !gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
         {
             return;
         }
-        string? parent = blueprint["parent"]?.GetValue<string>();
+        string? parent = blueprint.Parent;
         if (!string.IsNullOrWhiteSpace(parent))
             collectBlueprintEvents(parent, events, visited);
-        if (blueprint["graph"]?["nodeGraph"] is not JsonObject nodeGraph)
-            return;
-        foreach (string eventName in nodeGraph.Select(entry => entry.Key))
+        foreach (string eventName in blueprint.Graph.Events.Keys)
             events.Add(eventName);
     }
 }

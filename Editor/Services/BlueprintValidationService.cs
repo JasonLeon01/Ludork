@@ -17,12 +17,12 @@ public sealed record BlueprintValidationResult(
 public sealed class BlueprintValidationService
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
 
     public BlueprintValidationService(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
     {
@@ -35,7 +35,9 @@ public sealed class BlueprintValidationService
     {
         string key = normalizeBlueprintKey(blueprintKey);
         List<string> errors = [];
-        if (data is null && !gameData.BlueprintsData.TryGetValue(key, out data))
+        if (data is null)
+            data = gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? snapshot) ? snapshot.ToJson() : null;
+        if (data is null)
         {
             errors.Add($"Blueprint \"{key}\" was not found in project data");
             return new BlueprintValidationResult(key, false, errors);
@@ -117,12 +119,12 @@ public sealed class BlueprintValidationService
         {
             string parentKey = normalizeBlueprintKey(parent);
             if (!visited.Add(parentKey)
-                || !gameData.BlueprintsData.TryGetValue(parentKey, out JsonObject? parentData))
+                || !gameData.Blueprints.BlueprintsData.TryGetValue(parentKey, out BlueprintDefinitionSnapshot? parentData))
             {
                 return;
             }
-            chain.Add((parentKey, parentData));
-            parent = getString(parentData["parent"]);
+            chain.Add((parentKey, parentData.ToJson()));
+            parent = parentData.Parent;
         }
 
         bool parentMode = false;
@@ -192,14 +194,14 @@ public sealed class BlueprintValidationService
     public IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs()
     {
         List<BlueprintValidationResult> results = [];
-        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(gameData.GeneralData);
+        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(SnapshotJson.ToDictionary(gameData.General.GeneralData));
         if (schemaErrors.Count != 0)
             results.Add(new BlueprintValidationResult("GeneralData", false, schemaErrors));
 
         using IDisposable metadataBatch = classResolver.BeginBatch();
         BlueprintNodeDefinitionSet definitionSet = new BlueprintNodeDefinitionCatalog(metadataService, classResolver)
             .GetNodeDefinitionSet();
-        foreach (KeyValuePair<string, JsonObject> typeEntry in gameData.GeneralData
+        foreach (KeyValuePair<string, JsonObject> typeEntry in SnapshotJson.ToDictionary(gameData.General.GeneralData)
             .OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             if (typeEntry.Value["members"] is not JsonObject members)
@@ -277,8 +279,8 @@ public sealed class BlueprintValidationService
             }
             JsonObject? parentData = parentKey == blueprintKey
                 ? data
-                : gameData.BlueprintsData.TryGetValue(parentKey, out JsonObject? loaded)
-                    ? loaded
+                : gameData.Blueprints.BlueprintsData.TryGetValue(parentKey, out BlueprintDefinitionSnapshot? loaded)
+                    ? loaded.ToJson()
                     : null;
             if (parentData is null)
             {

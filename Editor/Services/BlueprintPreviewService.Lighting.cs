@@ -13,7 +13,7 @@ public sealed partial class BlueprintPreviewService
     {
         const string prefix = "Data.Blueprints.";
         if (blueprintReference.StartsWith(prefix, StringComparison.Ordinal)
-            && !gameData.BlueprintsData.ContainsKey(blueprintReference[prefix.Length..].Replace('.', '/')))
+            && !gameData.Blueprints.BlueprintsData.ContainsKey(blueprintReference[prefix.Length..].Replace('.', '/')))
             return null;
         ResolvedBlueprintClass resolved = classResolver.Resolve(blueprintReference, overrides);
         ResolvedBlueprintField? field = resolved.GetField("lightComp");

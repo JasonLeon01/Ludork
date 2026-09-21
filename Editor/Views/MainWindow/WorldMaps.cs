@@ -33,7 +33,7 @@ public partial class MainWindow
     {
         if (viewModel is null)
             return;
-        WorldMapMutationResult result = viewModel.GameData.UpdateWorldPlacement(
+        WorldMapMutationResult result = viewModel.MapWorkspace.UpdateWorldPlacement(
             args.WorldKey,
             args.ChildMapKey,
             args.X,
@@ -53,15 +53,14 @@ public partial class MainWindow
     {
         if (viewModel is null)
             return;
-        IReadOnlyList<ReferenceRecord> references = viewModel.ReferenceIndex.GetExternalMapReferences(
-            [viewModel.GameData.GetMapRuntimePath(args.ChildMapKey)]);
+        IReadOnlyList<ReferenceRecord> references = viewModel.MapWorkspace.PlacementRemoveReferences(args.ChildMapKey);
         if (references.Count != 0)
         {
             await showMapReferenceBlockAsync(references);
             refreshWorldMapPanel();
             return;
         }
-        WorldMapMutationResult result = viewModel.GameData.RemoveWorldPlacement(
+        WorldMapMutationResult result = viewModel.MapWorkspace.RemoveWorldPlacement(
             args.WorldKey,
             args.ChildMapKey);
         if (!result.Success)
@@ -74,12 +73,12 @@ public partial class MainWindow
         if (viewModel?.CanEdit != true)
             return;
         if (viewModel is not null)
-            viewModel.SelectedMap = viewModel.findMapItem(mapKey);
+            viewModel.MapWorkspace.SelectedMap = viewModel.MapWorkspace.findMapItem(mapKey);
     }
 
     private void refreshMapPanel()
     {
-        bool worldMode = viewModel?.SelectedMap is { IsWorld: true };
+        bool worldMode = viewModel?.MapWorkspace.SelectedMap is { IsWorld: true };
         LayerTabsScroll.IsVisible = !worldMode;
         EditModeToggles.IsVisible = !worldMode;
         EditorScroll.IsVisible = !worldMode;
@@ -94,7 +93,7 @@ public partial class MainWindow
         else
         {
             WorldEditorPanel.SetWorld(null, null, Array.Empty<WorldMapChildSource>());
-            EditorPanel.refreshMap(viewModel?.SelectedMap?.Key, viewModel?.SelectedMapData);
+            EditorPanel.refreshMap(viewModel?.MapWorkspace.SelectedMap?.Key, viewModel?.MapWorkspace.SelectedMapData);
             selectPreviewMode(EditorPanel.EditMode);
         }
         updateLightModeControls();
@@ -103,9 +102,9 @@ public partial class MainWindow
 
     private void refreshWorldMapPanel()
     {
-        if (viewModel?.SelectedMap is not { IsWorld: true } world)
+        if (viewModel?.MapWorkspace.SelectedMap is not { IsWorld: true } world)
             return;
-        IReadOnlyList<WorldMapChildSource> children = viewModel.GameData.MapCatalog
+        IReadOnlyList<WorldMapChildSource> children = viewModel.GameData.Maps.MapCatalog
             .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap
                 && string.Equals(entry.WorldKey, world.Key, StringComparison.Ordinal))
             .OrderBy(entry => entry.Key, StringComparer.Ordinal)
@@ -113,7 +112,7 @@ public partial class MainWindow
             .ToArray();
         WorldEditorPanel.SetWorld(
             world.Key,
-            viewModel.GameData.ReadWorldMapSnapshot(world.Key),
+            viewModel.GameData.Worlds.ReadWorldMapSnapshot(world.Key),
             children);
     }
 
@@ -126,7 +125,7 @@ public partial class MainWindow
         TreeViewItem? item = getMapListItem(args.Source);
         MapListItemViewModel? map = item?.DataContext as MapListItemViewModel;
         if (map is not null)
-            viewModel.SelectedMap = map;
+            viewModel.MapWorkspace.SelectedMap = map;
         showMapContextMenu(map);
         args.Handled = true;
     }
@@ -152,13 +151,13 @@ public partial class MainWindow
         bool primary = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers);
         if (primary
             && args.Key == Key.C
-            && viewModel.SelectedMap is { IsMap: true } copyMapItem)
+            && viewModel.MapWorkspace.SelectedMap is { IsMap: true } copyMapItem)
         {
-            copyMap(copyMapItem.Key);
+            viewModel.MapWorkspace.CopyMap(copyMapItem.Key);
         }
         else if (primary && args.Key == Key.V)
-            pasteMap();
-        else if (args.Key == Key.Delete && viewModel.SelectedMap is MapListItemViewModel deleteMapItem)
+            viewModel.MapWorkspace.PasteMap();
+        else if (args.Key == Key.Delete && viewModel.MapWorkspace.SelectedMap is MapListItemViewModel deleteMapItem)
         {
             if (deleteMapItem.IsWorld)
                 await deleteWorldMapAsync(deleteMapItem.Key);
@@ -166,7 +165,7 @@ public partial class MainWindow
                 await deleteMapAsync(deleteMapItem.Key);
         }
         else if (args.Key is Key.Enter or Key.Return
-            && viewModel.SelectedMap is MapListItemViewModel editMapItem)
+            && viewModel.MapWorkspace.SelectedMap is MapListItemViewModel editMapItem)
         {
             if (editMapItem.IsWorld)
                 await editWorldMapAsync(editMapItem.Key);
@@ -189,8 +188,8 @@ public partial class MainWindow
             newMap.Click += async (_, _) => await createMapAsync();
             MenuItem newWorld = new() { Header = LocaleService.Get("NEW_WORLD_MAP") };
             newWorld.Click += async (_, _) => await createWorldMapAsync();
-            MenuItem pasteItem = new() { Header = LocaleService.Get("PASTE"), IsEnabled = mapClipboard is not null };
-            pasteItem.Click += (_, _) => pasteMap();
+            MenuItem pasteItem = new() { Header = LocaleService.Get("PASTE"), IsEnabled = viewModel.MapWorkspace.CanPasteMap };
+            pasteItem.Click += (_, _) => viewModel.MapWorkspace.PasteMap();
             menu.Items.Add(newMap);
             menu.Items.Add(newWorld);
             menu.Items.Add(pasteItem);
@@ -215,7 +214,7 @@ public partial class MainWindow
             MenuItem editMap = new() { Header = LocaleService.Get("MAPLIST_EDIT") };
             editMap.Click += async (_, _) => await editMapAsync(map.Key);
             MenuItem copyItem = new() { Header = LocaleService.Get("COPY") };
-            copyItem.Click += (_, _) => copyMap(map.Key);
+            copyItem.Click += (_, _) => viewModel.MapWorkspace.CopyMap(map.Key);
             MenuItem deleteItem = new() { Header = LocaleService.Get("DELETE") };
             deleteItem.Click += async (_, _) => await deleteMapAsync(map.Key);
             menu.Items.Add(editMap);
@@ -237,30 +236,17 @@ public partial class MainWindow
     {
         if (viewModel is null)
             return;
-        MapInfo initial = new()
-        {
-            FileName = viewModel.GameData.getNewMapFileName(),
-            MapName = LocaleService.Get("NEW_MAP_DEFAULT_NAME"),
-            Width = 13,
-            Height = 13,
-        };
+        MapInfo initial = viewModel.MapWorkspace.NewMapDefaults();
         MapInfo? result = await MapEditWindow.ShowAsync(this, viewModel.GameData, initial, string.Empty, true);
-        if (result is not null && viewModel.GameData.CreateMap(result))
-            viewModel.refreshMaps(normaliseMapKey(result.FileName));
+        if (result is not null)
+            viewModel.MapWorkspace.CreateMap(result);
     }
 
     private async Task createWorldMapAsync()
     {
         if (viewModel is null)
             return;
-        string directoryName = getNewWorldMapName();
-        WorldMapInfo initial = new()
-        {
-            DirectoryName = directoryName,
-            WorldName = directoryName,
-            Width = 256,
-            Height = 192,
-        };
+        WorldMapInfo initial = viewModel.MapWorkspace.NewWorldDefaults();
         WorldMapInfo? result = await WorldMapEditWindow.ShowAsync(
             this,
             viewModel.GameData,
@@ -268,7 +254,7 @@ public partial class MainWindow
             true);
         if (result is null)
             return;
-        if (!viewModel.GameData.CreateWorldMap(result.DirectoryName, result))
+        if (!viewModel.MapWorkspace.CreateWorld(result))
         {
             await AlertDialog.ShowAsync(
                 this,
@@ -276,21 +262,13 @@ public partial class MainWindow
                 LocaleService.Get("WORLD_CREATE_FAILED"));
             return;
         }
-        viewModel.refreshMaps(result.DirectoryName);
     }
 
     private async Task createWorldChildMapAsync(string worldKey)
     {
         if (viewModel is null)
             return;
-        string childName = getNewWorldChildMapName(worldKey);
-        MapInfo initial = new()
-        {
-            FileName = childName + ".json",
-            MapName = LocaleService.Get("NEW_MAP_DEFAULT_NAME"),
-            Width = 13,
-            Height = 13,
-        };
+        MapInfo initial = viewModel.MapWorkspace.NewWorldChildDefaults(worldKey);
         MapInfo? result = await MapEditWindow.ShowAsync(
             this,
             viewModel.GameData,
@@ -300,8 +278,7 @@ public partial class MainWindow
             worldKey);
         if (result is null)
             return;
-        result.FileName = Path.GetFileName(result.FileName);
-        if (!viewModel.GameData.CreateWorldChildMap(worldKey, result))
+        if (!viewModel.MapWorkspace.CreateWorldChild(worldKey, result))
         {
             await AlertDialog.ShowAsync(
                 this,
@@ -309,13 +286,11 @@ public partial class MainWindow
                 LocaleService.Get("WORLD_CHILD_CREATE_FAILED"));
             return;
         }
-        string key = worldKey + "/" + normaliseMapKey(result.FileName);
-        viewModel.refreshMaps(key);
     }
 
     private async Task editWorldMapAsync(string worldKey)
     {
-        if (viewModel?.GameData.getWorldMapInfo(worldKey) is not WorldMapInfo initial)
+        if (viewModel?.GameData.Worlds.getWorldMapInfo(worldKey) is not WorldMapInfo initial)
             return;
         WorldMapInfo? result = await WorldMapEditWindow.ShowAsync(
             this,
@@ -324,25 +299,19 @@ public partial class MainWindow
             false);
         if (result is null)
             return;
-        WorldMapMutationResult update = viewModel.GameData.UpdateWorldMap(worldKey, result);
+        WorldMapMutationResult update = viewModel.MapWorkspace.UpdateWorld(worldKey, result);
         if (!update.Success)
         {
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), update.Details);
             return;
         }
-        viewModel.refreshMaps(worldKey);
     }
 
     private async Task renameWorldMapAsync(string worldKey)
     {
         if (viewModel is null)
             return;
-        IReadOnlyList<string> existing = viewModel.GameData.WorldMapData.Keys
-            .Where(key => !string.Equals(key, worldKey, StringComparison.Ordinal))
-            .Concat(viewModel.GameData.MapCatalog
-                .Where(entry => entry.Kind == MapCatalogEntryKind.StandaloneMap)
-                .Select(entry => entry.Key))
-            .ToArray();
+        IReadOnlyList<string> existing = viewModel.MapWorkspace.WorldRenameCandidates(worldKey);
         string? result = await SingleRowDialog.ShowAsync(
             this,
             LocaleService.Get("RENAME_WORLD_MAP"),
@@ -351,21 +320,7 @@ public partial class MainWindow
             worldKey);
         if (result is null || string.Equals(result, worldKey, StringComparison.Ordinal))
             return;
-        Dictionary<string, string> replacements = new(StringComparer.Ordinal)
-        {
-            [viewModel.GameData.GetWorldManifestRuntimePath(worldKey)] =
-                viewModel.GameData.GetWorldManifestRuntimePath(result),
-        };
-        foreach (string childKey in viewModel.GameData.getWorldChildren(worldKey))
-        {
-            string childName = childKey[(worldKey.Length + 1)..];
-            replacements[viewModel.GameData.GetMapRuntimePath(childKey)] =
-                viewModel.GameData.GetMapRuntimePath(result + "/" + childName);
-        }
-        bool renamed = viewModel.GameData.RenameWorldMap(
-            worldKey,
-            result,
-            () => viewModel.ReferenceIndex.PrepareMapReferenceRewrites(replacements));
+        bool renamed = viewModel.MapWorkspace.RenameWorld(worldKey, result);
         if (!renamed)
         {
             await AlertDialog.ShowAsync(
@@ -374,27 +329,19 @@ public partial class MainWindow
                 LocaleService.Get("WORLD_RENAME_FAILED"));
             return;
         }
-        viewModel.refreshMaps(result);
     }
 
     private async Task deleteWorldMapAsync(string worldKey)
     {
         if (viewModel is null)
             return;
-        IReadOnlyList<string> childKeys = viewModel.GameData.getWorldChildren(worldKey);
-        IReadOnlyList<string> targetPaths = childKeys
-            .Select(viewModel.GameData.GetMapRuntimePath)
-            .Append(viewModel.GameData.GetWorldManifestRuntimePath(worldKey))
-            .ToArray();
-        IReadOnlyList<ReferenceRecord> references = viewModel.ReferenceIndex.GetExternalMapReferences(
-            targetPaths,
-            childKeys);
+        IReadOnlyList<ReferenceRecord> references = viewModel.MapWorkspace.WorldDeleteReferences(worldKey);
         if (references.Count != 0)
         {
             await showMapReferenceBlockAsync(references);
             return;
         }
-        int childCount = childKeys.Count;
+        int childCount = viewModel.MapWorkspace.WorldChildCount(worldKey);
         string message = string.Format(
             LocaleService.Get("WORLD_DELETE_CONFIRMATION"),
             worldKey,
@@ -406,7 +353,7 @@ public partial class MainWindow
         {
             return;
         }
-        if (!await EditorResourceOperations.DeleteAsync(this, () => viewModel.GameData.DeleteWorldMap(worldKey)))
+        if (!await EditorResourceOperations.DeleteAsync(this, () => viewModel.MapWorkspace.DeleteWorld(worldKey)))
         {
             await AlertDialog.ShowAsync(
                 this,
@@ -414,18 +361,15 @@ public partial class MainWindow
                 LocaleService.Get("DELETE_FAILED"));
             return;
         }
-        viewModel.refreshMaps();
     }
 
     private async Task editMapAsync(string key)
     {
-        if (viewModel?.GameData.getMapInfo(key) is not MapInfo initial)
+        if (viewModel is null)
             return;
-        string? worldKey = viewModel.GameData.TryGetWorldForMap(key, out string parentWorld)
-            ? parentWorld
-            : null;
-        if (worldKey is not null)
-            initial.FileName = Path.GetFileName(initial.FileName);
+        (MapInfo? initial, string? worldKey) = viewModel.MapWorkspace.MapProperties(key);
+        if (initial is null)
+            return;
         MapInfo? result = await MapEditWindow.ShowAsync(
             this,
             viewModel.GameData,
@@ -435,19 +379,7 @@ public partial class MainWindow
             worldKey);
         if (result is null)
             return;
-        if (worldKey is not null)
-            result.FileName = worldKey + "/" + Path.GetFileName(result.FileName);
-        string nextKey = normaliseMapKey(result.FileName);
-        Dictionary<string, string> replacements = new(StringComparer.Ordinal);
-        if (!string.Equals(key, nextKey, StringComparison.Ordinal))
-        {
-            replacements[viewModel.GameData.GetMapRuntimePath(key)] =
-                viewModel.GameData.GetMapRuntimePath(nextKey);
-        }
-        bool updated = viewModel.GameData.UpdateMap(
-            key,
-            result,
-            replacements.Count == 0 ? null : () => viewModel.ReferenceIndex.PrepareMapReferenceRewrites(replacements));
+        bool updated = viewModel.MapWorkspace.UpdateMap(key, result, worldKey);
         if (!updated)
         {
             if (worldKey is not null)
@@ -459,65 +391,13 @@ public partial class MainWindow
             }
             return;
         }
-        viewModel.refreshMaps(nextKey);
-    }
-
-    private void copyMap(string key)
-    {
-        if (viewModel?.GameData.ReadMapSnapshot(key) is JsonObject map)
-            mapClipboard = new MapClipboard(key, (JsonObject)map.DeepClone());
-    }
-
-    private void pasteMap()
-    {
-        if (viewModel is null || mapClipboard is null)
-            return;
-        string? copyKey = viewModel.GameData.TryGetWorldForMap(mapClipboard.SourceKey, out _)
-            ? viewModel.GameData.CopyWorldChildMap(mapClipboard.SourceKey)
-            : viewModel.GameData.PasteMap(mapClipboard.Data, mapClipboard.SourceKey);
-        if (copyKey is not null)
-            viewModel.refreshMaps(copyKey);
-    }
-
-    private string getNewWorldMapName()
-    {
-        if (viewModel is null)
-            return "World_01";
-        for (int index = 1; ; index += 1)
-        {
-            string name = $"World_{index:D2}";
-            if (!viewModel.GameData.WorldMapData.ContainsKey(name)
-                && !viewModel.GameData.MapCatalog.Any(entry => string.Equals(entry.Key, name, StringComparison.Ordinal)))
-            {
-                return name;
-            }
-        }
-    }
-
-    private string getNewWorldChildMapName(string worldKey)
-    {
-        if (viewModel is null)
-            return "Map_01";
-        HashSet<string> childNames = viewModel.GameData.getWorldChildren(worldKey)
-            .Select(Path.GetFileName)
-            .Where(name => name is not null)
-            .Select(name => name!)
-            .ToHashSet(StringComparer.Ordinal);
-        for (int index = 1; ; index += 1)
-        {
-            string name = $"Map_{index:D2}";
-            if (!childNames.Contains(name))
-                return name;
-        }
     }
 
     private async Task deleteMapAsync(string key)
     {
         if (viewModel is null)
             return;
-        IReadOnlyList<ReferenceRecord> references = viewModel.ReferenceIndex.GetExternalMapReferences(
-            [viewModel.GameData.GetMapRuntimePath(key)],
-            [key]);
+        IReadOnlyList<ReferenceRecord> references = viewModel.MapWorkspace.MapDeleteReferences(key);
         if (references.Count != 0)
         {
             await showMapReferenceBlockAsync(references);
@@ -530,22 +410,14 @@ public partial class MainWindow
         {
             return;
         }
-        if (await EditorResourceOperations.DeleteAsync(this, () => viewModel.GameData.DeleteMap(key)))
-            viewModel.refreshMaps();
+        await EditorResourceOperations.DeleteAsync(this, () => viewModel.MapWorkspace.DeleteMap(key));
     }
 
     private async Task showMapReferenceBlockAsync(IReadOnlyList<ReferenceRecord> references)
     {
         if (viewModel is null)
             return;
-        string details = string.Join(
-            Environment.NewLine,
-            references.Select(reference =>
-            {
-                ReferenceNode? source = viewModel.ReferenceIndex.GetNode(reference.Source);
-                string sourceName = source is null ? reference.Source : source.Type + ":" + source.Key;
-                return sourceName + " · " + reference.Path;
-            }));
+        string details = viewModel.MapWorkspace.DescribeReferences(references);
         await AlertDialog.ShowAsync(
             this,
             LocaleService.Get("ERROR"),

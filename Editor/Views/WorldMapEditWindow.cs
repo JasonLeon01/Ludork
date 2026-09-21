@@ -16,7 +16,7 @@ namespace Ludork.Views;
 
 public sealed class WorldMapEditWindow : Window
 {
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly double initialFogOx;
     private readonly double initialFogOy;
     private readonly decimal? displayedFogOx;
@@ -40,7 +40,7 @@ public sealed class WorldMapEditWindow : Window
     private readonly StackPanel fogOptions = new() { Spacing = 8 };
 
     private WorldMapEditWindow(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         WorldMapInfo initial,
         bool isNew)
     {
@@ -116,7 +116,7 @@ public sealed class WorldMapEditWindow : Window
 
     public static Task<WorldMapInfo?> ShowAsync(
         Window owner,
-        GameDataService gameData,
+        ProjectDataStore gameData,
         WorldMapInfo initial,
         bool isNew)
     {
@@ -177,8 +177,8 @@ public sealed class WorldMapEditWindow : Window
             return;
         }
         if (isNew
-            && (gameData.WorldMapData.ContainsKey(directoryName)
-                || gameData.MapCatalog.Any(item => string.Equals(item.Key, directoryName, StringComparison.Ordinal))))
+            && (gameData.Worlds.WorldMapData.ContainsKey(directoryName)
+                || gameData.Maps.MapCatalog.Any(item => string.Equals(item.Key, directoryName, StringComparison.Ordinal))))
         {
             errorText.Text = LocaleService.Get("WORLD_FOLDER_EXISTS");
             return;

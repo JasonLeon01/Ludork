@@ -6,10 +6,12 @@ if(APPLE)
     enable_language(OBJCXX)
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkEnginePlatform.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LudorkCoreShared.cmake")
 
 if(LUDORK_BUILD_GAME_APPLICATION)
 file(GLOB_RECURSE LUDORK_ENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+list(FILTER LUDORK_ENGINE_SOURCES EXCLUDE REGEX "/src/Shared/")
 
 ludork_generate_lua_bindings(
     Engine
@@ -28,10 +30,8 @@ target_compile_definitions(Engine PRIVATE
     LUDORK_ENGINE_EXPORTS=1
     LUDORK_PLATFORM="${LUDORK_PLATFORM}")
 target_include_directories(Engine
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/UI")
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ludork_add_core_shared(Engine)
 target_link_libraries(Engine
     PUBLIC
         Ludork::Runtime

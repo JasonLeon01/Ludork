@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -71,12 +72,12 @@ public sealed partial class MapPanel
     private void drawLightOverlay(DrawingContext context)
     {
         drawActorLightOverlay(context);
-        if (CurrentMapData?["lights"] is not JsonArray lights)
+        if (CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights)
             return;
         double scale = tileSize / (double)SourceTileSize;
         for (int index = 0; index < lights.Count; index++)
         {
-            if (lights[index] is not JsonObject light || !tryGetLight(light, out Point center, out double radius))
+            if (lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
                 continue;
             Point displayCenter = new(snapToDevicePixel(center.X * scale), snapToDevicePixel(center.Y * scale));
             double displayRadius = radius * scale;
@@ -90,7 +91,7 @@ public sealed partial class MapPanel
 
     private void drawHoverAndPlacement(DrawingContext context)
     {
-        if (hoverGrid is not { } grid || CurrentMapData is null)
+        if (hoverGrid is not { } grid || CurrentMapDocument is null)
             return;
         (int X, int Y) end = grid;
         (int X, int Y) start = rectangleStart ?? end;
@@ -135,13 +136,13 @@ public sealed partial class MapPanel
         ensureActorRenderStates();
         ensurePendingActorRenderState();
         scheduleActorPreviewActivityUpdate();
-        JsonObject? layers = CurrentMapData?["layers"] as JsonObject;
+        IReadOnlyDictionary<string, MapLayerSnapshot>? layers = CurrentMapDocument?.Layers;
         if (layers is not null)
         {
             HashSet<string> activeLayers = new(StringComparer.Ordinal);
-            foreach (KeyValuePair<string, JsonNode?> entry in layers)
+            foreach (KeyValuePair<string, MapLayerSnapshot> entry in layers)
             {
-                if (entry.Value is not JsonObject layer || !isLayerVisible(layer))
+                if (entry.Value is not MapLayerSnapshot layer || !isLayerVisible(layer))
                     continue;
                 activeLayers.Add(entry.Key);
                 if (!layerRenderCaches.ContainsKey(entry.Key) || dirtyLayerNames.Contains(entry.Key))
@@ -188,7 +189,7 @@ public sealed partial class MapPanel
         return new ViewportRenderCache(bitmap, viewport);
     }
 
-    private LayerRenderCache buildLayerRenderCache(JsonObject layer, int mapWidth, int mapHeight, Rect viewport, double renderScale)
+    private LayerRenderCache buildLayerRenderCache(MapLayerSnapshot layer, int mapWidth, int mapHeight, Rect viewport, double renderScale)
     {
         RenderTargetBitmap bitmap = createRenderTarget(viewport, renderScale);
         using DrawingContext context = bitmap.CreateDrawingContext();
@@ -197,32 +198,28 @@ public sealed partial class MapPanel
         return new LayerRenderCache(bitmap, viewport);
     }
 
-    private void drawLayerCells(DrawingContext context, JsonObject layer, int mapWidth, int mapHeight, Rect viewport)
+    private void drawLayerCells(DrawingContext context, MapLayerSnapshot layer, int mapWidth, int mapHeight, Rect viewport)
     {
         if (gameData is null || autoTileRenderer is null)
             return;
-        string? tilesetKey = layer["layerTileset"]?.GetValue<string>();
+        string? tilesetKey = layer.Tileset;
         Bitmap? tileset = getTileset(tilesetKey);
-        JsonArray? tiles = layer["tiles"] as JsonArray;
-        JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
         int minX = Math.Max(0, (int)Math.Floor(viewport.X / tileSize));
         int minY = Math.Max(0, (int)Math.Floor(viewport.Y / tileSize));
         int maxX = Math.Min(mapWidth, (int)Math.Ceiling(viewport.Right / tileSize));
         int maxY = Math.Min(mapHeight, (int)Math.Ceiling(viewport.Bottom / tileSize));
         for (int y = minY; y < maxY; y++)
         {
-            JsonArray? tileRow = getRow(tiles, y);
-            JsonArray? autoRow = getRow(autoTiles, y);
             for (int x = minX; x < maxX; x++)
             {
                 Rect destination = getLocalTileRect(x, y);
-                string? autoKey = autoRow?[x]?.GetValue<string>();
+                string? autoKey = layer.AutoTileAt(x, y);
                 if (!string.IsNullOrWhiteSpace(autoKey))
                 {
-                    autoTileRenderer.drawTile(context, autoKey, autoTiles!, x, y, destination, renderedAutoTileFrame);
+                    autoTileRenderer.drawTile(context, autoKey, layer, x, y, destination, renderedAutoTileFrame);
                     continue;
                 }
-                if (tileset is null || !tryGetInt(tileRow?[x], out int number))
+                if (tileset is null || layer.TileAt(x, y) is not int number)
                     continue;
                 int columns = Math.Max(1, tileset.PixelSize.Width / SourceTileSize);
                 int sourceX = number % columns * SourceTileSize;
@@ -250,16 +247,14 @@ public sealed partial class MapPanel
         actorRenderStates.Clear();
         Dictionary<string, ActorVisualDescriptor?> sharedDescriptors = new(StringComparer.Ordinal);
         using IDisposable? resolutionBatch = previewService?.BeginResolutionBatch();
-        if (CurrentMapData?["actors"] is JsonObject actorGroups)
+        if (CurrentMapDocument?.Actors is IReadOnlyDictionary<string, IReadOnlyList<MapActorSnapshot>> actorGroups)
         {
-            foreach (KeyValuePair<string, JsonNode?> entry in actorGroups)
+            foreach (KeyValuePair<string, IReadOnlyList<MapActorSnapshot>> entry in actorGroups)
             {
-                if (entry.Value is not JsonArray actors)
-                    continue;
+                IReadOnlyList<MapActorSnapshot> actors = entry.Value;
                 List<ActorRenderState> states = new(actors.Count);
-                foreach (JsonNode? node in actors)
+                foreach (MapActorSnapshot actor in actors)
                 {
-                    JsonObject actor = node as JsonObject ?? new JsonObject();
                     states.Add(createActorRenderState(actor, sharedDescriptors));
                 }
                 actorRenderStates[entry.Key] = states;
@@ -269,14 +264,14 @@ public sealed partial class MapPanel
         animationStateDirty = true;
     }
 
-    private ActorRenderState createActorRenderState(JsonObject actor)
+    private ActorRenderState createActorRenderState(MapActorSnapshot actor)
     {
         ActorVisualDescriptor? descriptor = resolveActorVisual(actor, null);
         return createActorRenderState(actor, descriptor);
     }
 
     private ActorRenderState createActorRenderState(
-        JsonObject actor,
+        MapActorSnapshot actor,
         Dictionary<string, ActorVisualDescriptor?> sharedDescriptors)
     {
         ActorVisualDescriptor? descriptor = resolveActorVisual(actor, sharedDescriptors);
@@ -284,18 +279,18 @@ public sealed partial class MapPanel
     }
 
     private ActorVisualDescriptor? resolveActorVisual(
-        JsonObject actor,
+        MapActorSnapshot actor,
         Dictionary<string, ActorVisualDescriptor?>? sharedDescriptors)
     {
         if (IsRuntimeEditing)
             return resolveRuntimeActorVisual(actor);
-        if (CurrentMapData is null || previewService is null)
+        if (CurrentMapDocument is null || previewService is null)
             return null;
-        string reference = actor["bp"]?.GetValue<string>() ?? string.Empty;
-        string tag = actor["tag"]?.GetValue<string>() ?? string.Empty;
+        string reference = actor.Blueprint;
+        string tag = actor.Tag;
         JsonObject? overrides = tag.Length == 0
             ? null
-            : CurrentMapData["BPClassVarChanged"]?[tag] as JsonObject;
+            : CurrentMapDocument.ReadActorOverrides(tag);
         if (overrides?.Count == 0)
             overrides = null;
         if (sharedDescriptors is null || overrides is not null)
@@ -309,7 +304,7 @@ public sealed partial class MapPanel
     }
 
     private ActorRenderState createActorRenderState(
-        JsonObject actor,
+        MapActorSnapshot actor,
         ActorVisualDescriptor? descriptor)
     {
         if (descriptor is null)
@@ -398,7 +393,7 @@ public sealed partial class MapPanel
             && viewport.Width > 0 && viewport.Height > 0;
         foreach (KeyValuePair<string, List<ActorRenderState>> entry in actorRenderStates)
         {
-            bool layerVisible = CurrentMapData?["layers"]?[entry.Key] is JsonObject layer
+            bool layerVisible = getLayer(entry.Key) is MapLayerSnapshot layer
                 && isLayerVisible(layer);
             foreach (ActorRenderState actor in entry.Value)
             {
@@ -459,24 +454,11 @@ public sealed partial class MapPanel
         if (!animationStateDirty || autoTileRenderer is null)
             return;
         animatedAutoTileLayerNames.Clear();
-        if (CurrentMapData?["layers"] is JsonObject layers)
+        if (CurrentMapDocument?.Layers is IReadOnlyDictionary<string, MapLayerSnapshot> layers)
         {
-            foreach (KeyValuePair<string, JsonNode?> entry in layers)
+            foreach (KeyValuePair<string, MapLayerSnapshot> entry in layers)
             {
-                if (entry.Value?["autoTiles"] is not JsonArray grid)
-                    continue;
-                HashSet<string> keys = new(StringComparer.Ordinal);
-                foreach (JsonNode? rowNode in grid)
-                {
-                    if (rowNode is not JsonArray row)
-                        continue;
-                    foreach (JsonNode? value in row)
-                    {
-                        string? key = value?.GetValue<string>();
-                        if (!string.IsNullOrWhiteSpace(key))
-                            keys.Add(key);
-                    }
-                }
+                IEnumerable<string> keys = entry.Value.AutoTileKeys;
                 foreach (string key in keys)
                 {
                     if (autoTileRenderer.getFrameCount(key) > 1)

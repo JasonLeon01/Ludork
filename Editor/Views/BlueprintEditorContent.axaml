@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Ludork.ViewModels"
+        xmlns:controls="using:Ludork.Controls"
+        xmlns:utils="using:Ludork.Views.Utils"
+        x:Class="Ludork.Views.BlueprintEditorContent"
+        x:DataType="vm:BlueprintEditorViewModel">
+    <Grid x:Name="EditorLayout" ColumnDefinitions="Auto,4,*">
+        <utils:ContentWidthScrollViewer x:Name="AttributeScroll"
+            HorizontalAlignment="Stretch" VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+            HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="8" Spacing="8">
+                <Grid ColumnDefinitions="Auto,8,*,4,24">
+                    <TextBlock x:Name="ParentLabel" VerticalAlignment="Center" />
+                    <TextBox x:Name="ParentField" Grid.Column="2" />
+                    <Button x:Name="ParentPicker" Grid.Column="4" Content="..." Width="24" Padding="0"
+                            IsVisible="{Binding CanEditAttributes}" IsEnabled="{Binding CanEditAttributes}" />
+                </Grid>
+                <Border Height="3" Background="#464646" />
+                <controls:BlueprintVariableForm x:Name="VariableForm" />
+                <Button x:Name="AddAttributeButton" Content="+" HorizontalAlignment="Stretch"
+                        IsVisible="{Binding CanEditAttributes}" />
+            </StackPanel>
+        </utils:ContentWidthScrollViewer>
+        <GridSplitter x:Name="ContentSplitter" Grid.Column="1" Width="4" Background="#323232"
+                      VerticalAlignment="Stretch" ResizeDirection="Columns" />
+        <Grid x:Name="RightPanel" Grid.Column="2" RowDefinitions="50,*">
+            <Grid Height="50" ColumnDefinitions="*,Auto">
+                <ListBox x:Name="GraphList" Height="50" ClipToBounds="True" SelectionMode="Single"
+                         Background="{DynamicResource Editor.SurfaceBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
+                <Button x:Name="ValidateButton" Grid.Column="1" Height="50" Padding="16,0" IsVisible="{Binding IsBlueprint}" />
+            </Grid>
+            <Grid x:Name="ContentHost" Grid.Row="1">
+                <Grid x:Name="PreviewPanel" Background="#1c1c1c" IsVisible="False">
+                    <Image x:Name="PreviewImage" Stretch="Uniform" Margin="24"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <TextBlock x:Name="PreviewPlaceholder" Foreground="{DynamicResource Editor.TextMutedBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

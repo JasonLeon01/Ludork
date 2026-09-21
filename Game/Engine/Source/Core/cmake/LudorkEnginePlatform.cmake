@@ -6,7 +6,7 @@ function(ludork_link_engine_platform target)
             OBJCXX_STANDARD 20
             OBJCXX_STANDARD_REQUIRED ON)
         target_sources(${target} PRIVATE
-            "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../src/Input/JoystickDevice/JoystickDevicePlatformIos.mm")
+            "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../src/Shared/src/JoystickDevice/JoystickDevicePlatformIos.mm")
         find_library(GAMECONTROLLER_FRAMEWORK GameController REQUIRED)
         target_link_libraries(${target} PRIVATE "${GAMECONTROLLER_FRAMEWORK}")
     endif()

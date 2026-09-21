@@ -84,7 +84,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         "ThirdPartySource",
     };
 
-    private readonly GameDataService gameData;
+    private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintValidationService validationService;
@@ -98,7 +98,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
     private readonly Dictionary<string, JsonObject> proposals = new(StringComparer.Ordinal);
 
     public BlueprintAssistantWorkspace(
-        GameDataService gameData,
+        ProjectDataStore gameData,
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
         BlueprintValidationService validationService,
@@ -114,9 +114,9 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         this.refreshBlueprint = refreshBlueprint;
         projectPath = Path.GetFullPath(gameData.ProjectPath);
         this.targetBlueprintKey = normalizeBlueprintKey(targetBlueprintKey);
-        if (!gameData.BlueprintsData.TryGetValue(this.targetBlueprintKey, out JsonObject? blueprint))
+        if (!gameData.Blueprints.BlueprintsData.TryGetValue(this.targetBlueprintKey, out BlueprintDefinitionSnapshot? blueprint))
             throw new ArgumentException("The target Blueprint was not found.", nameof(targetBlueprintKey));
-        baseBlueprint = (JsonObject)blueprint.DeepClone();
+        baseBlueprint = blueprint.ToJson();
         baseRevision = GetBlueprintHash(baseBlueprint);
         pathComparison = OperatingSystem.IsWindows()
             ? StringComparison.OrdinalIgnoreCase
@@ -129,7 +129,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
 
     public IReadOnlyList<string> ListBlueprints()
     {
-        return gameData.BlueprintsData.Keys
+        return gameData.Blueprints.BlueprintsData.Keys
             .OrderBy(key => key, StringComparer.Ordinal)
             .ToArray();
     }
@@ -137,9 +137,9 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
     public BlueprintAssistantBlueprint? ReadBlueprint(string blueprintKey)
     {
         string key = normalizeBlueprintKey(blueprintKey);
-        if (!gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
+        if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
             return null;
-        JsonObject clone = (JsonObject)blueprint.DeepClone();
+        JsonObject clone = blueprint.ToJson();
         return new BlueprintAssistantBlueprint(
             key,
             GetBlueprintHash(clone),
@@ -164,9 +164,9 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         int maximumResults = 80)
     {
         string key = normalizeBlueprintKey(blueprintKey);
-        if (!gameData.BlueprintsData.TryGetValue(key, out JsonObject? blueprint))
+        if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
             return "[]";
-        BlueprintGraphContext context = new((JsonObject)blueprint.DeepClone(), key);
+        BlueprintGraphContext context = new(blueprint.ToJson(), key);
         BlueprintNodeDefinitionCatalog catalog = new(
             metadataService,
             classResolver);
@@ -285,7 +285,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
     {
         string key = normalizeBlueprintKey(blueprintKey);
         flushBlueprint(key);
-        if (!gameData.BlueprintsData.TryGetValue(key, out JsonObject? current))
+        if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? current))
         {
             return new BlueprintAssistantApplyResult(
                 false,
@@ -293,7 +293,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                 "The target Blueprint no longer exists.",
                 string.Empty);
         }
-        string currentHash = GetBlueprintHash(current);
+        string currentHash = GetBlueprintHash(current.ToJson());
         if (baseHash.Length != currentHash.Length
             || !CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(currentHash),
@@ -322,7 +322,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                 string.Join(Environment.NewLine, validation.Errors),
                 currentHash);
         }
-        bool updated = gameData.UpdateBlueprint(key, candidate!);
+        bool updated = gameData.Blueprints.UpdateBlueprint(key, candidate!);
         if (!updated)
         {
             return new BlueprintAssistantApplyResult(
