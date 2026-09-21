@@ -21,8 +21,11 @@ using ObjectGraphResolver = std::function<std::shared_ptr<Graph>(
 std::shared_ptr<Graph> requireBlueprintGraph(const RuntimeValue& graph);
 EventArguments eventArguments(const RuntimeValue& keywordArguments);
 std::function<void()> completionCallback(const RuntimeValue& value);
-bool hasBlueprintEvent(const RuntimeValue& object,
-                       const std::string& eventName);
+bool hasBlueprintEvent(const RuntimeValue& object, const std::string& eventName,
+                       const RuntimeHandle& classEventCache = {});
+std::vector<bool> hasBlueprintEvents(const RuntimeValue& object,
+                                     const std::vector<std::string>& eventNames,
+                                     const RuntimeHandle& classEventCache);
 void dispatchBlueprintEvent(const RuntimeValue& object,
                             const RuntimeValue& rawObjectType,
                             const std::string& eventName,
@@ -36,7 +39,8 @@ bool blueprintGraphHasExecutableEvent(const std::shared_ptr<Graph>& graph,
 bool blueprintGraphDataHasExecutableEvent(const RuntimeValue& graphData,
                                           const std::string& eventName);
 bool classHasBlueprintEvent(const RuntimeValue& rawClass,
-                            const std::string& eventName);
+                            const std::string& eventName,
+                            const RuntimeHandle& classEventCache = {});
 bool executeParentBlueprintEvent(const RuntimeValue& object,
                                  const RuntimeValue& rawObjectClass,
                                  const std::string& eventName,

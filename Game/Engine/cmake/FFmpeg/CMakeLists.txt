@@ -216,6 +216,7 @@ function(ludork_copy_ffmpeg_runtime target)
        OR ANDROID)
         return()
     endif()
+    add_dependencies(${target} LudorkFFmpegExternal)
     foreach(runtime_file IN LISTS LUDORK_FFMPEG_RUNTIME_FILES)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different

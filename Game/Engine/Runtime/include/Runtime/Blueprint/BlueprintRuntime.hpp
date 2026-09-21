@@ -33,6 +33,9 @@ public:
         const std::vector<EventArgument>& arguments) const;
     bool hasEvent(const RuntimeValue& object,
                   const std::string& eventName) const;
+    std::vector<std::vector<bool>> hasEvents(
+        const std::vector<RuntimeValue>& objects,
+        const std::vector<std::string>& eventNames) const;
     bool classHasEvent(const RuntimeIdentityPtr& classType,
                        const std::string& eventName) const;
     bool graphHasExecutableEvent(const std::shared_ptr<Graph>& graph,

@@ -48,13 +48,14 @@ public partial class MainViewModel
         selectedSnapshotKey = null;
         selectedMapSnapshot = null;
         selectedMapKey ??= SelectedMap?.Key;
+        string? selectedLayerName = SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null;
         HashSet<string> expandedWorlds = Maps
             .Where(item => item.IsWorld && item.IsExpanded)
             .Select(item => item.Key)
             .ToHashSet(StringComparer.Ordinal);
         rebuildMapTree(expandedWorlds);
         SelectedMap = findMapItem(selectedMapKey) ?? Maps.FirstOrDefault();
-        refreshLayerTabs();
+        refreshLayerTabs(selectedLayerName);
     }
 
     public MapListItemViewModel? findMapItem(string? key)

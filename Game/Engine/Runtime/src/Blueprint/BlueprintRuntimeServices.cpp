@@ -52,6 +52,22 @@ bool BlueprintRuntimeFacade::hasEvent(const RuntimeValue& object,
                                                                 eventName);
 }
 
+std::vector<std::vector<bool>> BlueprintRuntimeFacade::hasEvents(
+    const std::vector<RuntimeValue>& objects,
+    const std::vector<std::string>& eventNames) const {
+    std::vector<std::vector<bool>> result(objects.size());
+    if (objects.empty() || eventNames.empty()) {
+        return result;
+    }
+    ludork::runtime::RuntimeScope runtime;
+    const RuntimeHandle classEventCache = table();
+    for (std::size_t index = 0; index < objects.size(); ++index) {
+        result[index] = ludork::runtime::blueprint_detail::hasBlueprintEvents(
+            intern(objects[index]), eventNames, classEventCache);
+    }
+    return result;
+}
+
 bool BlueprintRuntimeFacade::classHasEvent(const RuntimeIdentityPtr& classType,
                                            const std::string& eventName) const {
     ludork::runtime::RuntimeScope runtime;

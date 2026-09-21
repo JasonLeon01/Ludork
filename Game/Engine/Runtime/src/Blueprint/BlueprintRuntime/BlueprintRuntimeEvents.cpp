@@ -60,8 +60,39 @@ void invokeBlueprintEvent(const RuntimeValue& object,
     dispatchBlueprintEvent(object, classType(object), eventName, {}, {});
 }
 
-bool classHasBlueprintEvent(const RuntimeValue& rawClass,
-                            const std::string& eventName) {
+namespace {
+
+std::shared_ptr<Graph> objectEventGraph(const RuntimeValue& object,
+                                        const RuntimeValue& rawClass) {
+    const RuntimeValue rawScriptMixin =
+        isTable(rawClass) ? get(intern(rawClass), "scriptMixin")
+                          : RuntimeValue();
+    const bool scriptMixin =
+        is<bool>(rawScriptMixin) && as<bool>(rawScriptMixin);
+    return !scriptMixin ? objectGraph(object) : nullptr;
+}
+
+bool hasObjectBlueprintEvent(const RuntimeValue& object,
+                             const RuntimeValue& rawClass,
+                             const std::shared_ptr<Graph>& actorGraph,
+                             const std::string& eventName,
+                             const RuntimeHandle& classEventCache) {
+    if (eventName.empty()) {
+        return false;
+    }
+    if (blueprintGraphHasExecutableEvent(actorGraph, eventName)) {
+        return true;
+    }
+    const RuntimeValue instanceMethod = rawGet(intern(object), eventName);
+    if (runtimeMethodHasImplementation(instanceMethod)) {
+        return true;
+    }
+    return classHasBlueprintEvent(rawClass, eventName, classEventCache);
+}
+
+bool calculateClassHasBlueprintEvent(const RuntimeValue& rawClass,
+                                     const std::string& eventName,
+                                     const RuntimeHandle& classEventCache) {
     if (!isTable(rawClass)) {
         return false;
     }
@@ -84,7 +115,7 @@ bool classHasBlueprintEvent(const RuntimeValue& rawClass,
                 rawGet(ludork::runtime::reference::intern(classType),
                        ludork::standard::class_runtime::protocol::
                            CLASS_BASE_FIELD),
-                eventName);
+                eventName, classEventCache);
         }
         if (generatedBlueprintGraphHasExecutableEvent(classType, eventName)) {
             return true;
@@ -92,7 +123,7 @@ bool classHasBlueprintEvent(const RuntimeValue& rawClass,
         return classHasBlueprintEvent(
             rawGet(ludork::runtime::reference::intern(classType),
                    ludork::standard::class_runtime::protocol::CLASS_BASE_FIELD),
-            eventName);
+            eventName, classEventCache);
     }
     const RuntimeValue graph =
         rawGet(ludork::runtime::reference::intern(classType), "_graph");
@@ -109,33 +140,61 @@ bool classHasBlueprintEvent(const RuntimeValue& rawClass,
     return classHasBlueprintEvent(
         rawGet(ludork::runtime::reference::intern(classType),
                ludork::standard::class_runtime::protocol::CLASS_BASE_FIELD),
-        eventName);
+        eventName, classEventCache);
 }
 
-bool hasBlueprintEvent(const RuntimeValue& object,
-                       const std::string& eventName) {
+}  // namespace
+
+bool classHasBlueprintEvent(const RuntimeValue& rawClass,
+                            const std::string& eventName,
+                            const RuntimeHandle& classEventCache) {
+    if (classEventCache.isNil() || !isTable(rawClass)) {
+        return calculateClassHasBlueprintEvent(rawClass, eventName,
+                                               classEventCache);
+    }
+    RuntimeValue classEvents = rawGet(classEventCache, rawClass);
+    if (classEvents.isNil()) {
+        classEvents = table();
+        rawSet(classEventCache, rawClass, classEvents);
+    }
+    const RuntimeHandle events = intern(classEvents);
+    const RuntimeValue cached = rawGet(events, eventName);
+    if (is<bool>(cached)) {
+        return as<bool>(cached);
+    }
+    const bool result =
+        calculateClassHasBlueprintEvent(rawClass, eventName, classEventCache);
+    rawSet(events, eventName, result);
+    return result;
+}
+
+bool hasBlueprintEvent(const RuntimeValue& object, const std::string& eventName,
+                       const RuntimeHandle& classEventCache) {
     if (object.isNil() || eventName.empty()) {
         return false;
     }
     const RuntimeValue rawClass = classType(object);
-    const bool scriptMixin =
-        isTable(rawClass) &&
-        is<bool>(
-            get(ludork::runtime::reference::intern(rawClass), "scriptMixin")) &&
-        as<bool>(
-            get(ludork::runtime::reference::intern(rawClass), "scriptMixin"));
     const std::shared_ptr<Graph> actorGraph =
-        !scriptMixin ? objectGraph(object) : nullptr;
-    if (blueprintGraphHasExecutableEvent(actorGraph, eventName)) {
-        return true;
+        objectEventGraph(object, rawClass);
+    return hasObjectBlueprintEvent(object, rawClass, actorGraph, eventName,
+                                   classEventCache);
+}
+
+std::vector<bool> hasBlueprintEvents(const RuntimeValue& object,
+                                     const std::vector<std::string>& eventNames,
+                                     const RuntimeHandle& classEventCache) {
+    std::vector<bool> result(eventNames.size(), false);
+    if (object.isNil() || eventNames.empty()) {
+        return result;
     }
-    RuntimeValue instanceMethod = RuntimeValue();
-    instanceMethod =
-        rawGet(ludork::runtime::reference::intern(object), eventName);
-    if (runtimeMethodHasImplementation(instanceMethod)) {
-        return true;
+    const RuntimeValue rawClass = classType(object);
+    const std::shared_ptr<Graph> actorGraph =
+        objectEventGraph(object, rawClass);
+    for (std::size_t index = 0; index < eventNames.size(); ++index) {
+        result[index] = hasObjectBlueprintEvent(
+            object, rawClass, actorGraph, eventNames[index], classEventCache);
     }
-    return classHasBlueprintEvent(rawClass, eventName);
+    return result;
 }
 
 bool executeParentBlueprintEvent(const RuntimeValue& object,

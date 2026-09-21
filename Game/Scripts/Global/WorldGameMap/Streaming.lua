@@ -7,22 +7,9 @@ local WorldRegionState = GlobalCore.WorldRegionState
 
 local STREAM_BATCH_SIZE = 4
 
-local WorldGameMapStreaming = {}
-
+---@return number, number, number, number
 ---@param self WorldGameMapImplState
-function WorldGameMapStreaming.SyncStreamingCamera(self)
-    if self._camera == nil then
-        self._worldStreamingCameraPosition = nil
-        return
-    end
-    self._camera:syncFollowTarget()
-    local position = self._camera:getViewPosition()
-    self._worldStreamingCameraPosition = position ~= nil and position:copy() or nil
-end
-
----@return Global.WorldGeometry.CellRect
----@param self WorldGameMapImplState
-function WorldGameMapStreaming.GetVisibleCellRect(self)
+local function getVisibleCellBounds(self)
     local camera = self._camera
     ---@cast camera GlobalCore.Camera
     local viewport = camera:getViewport()
@@ -47,13 +34,48 @@ function WorldGameMapStreaming.GetVisibleCellRect(self)
     local minimumY = math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y)
     local maximumX = math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x)
     local maximumY = math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y)
-    local cellX = math.floor(minimumX / Engine.GetCellSize())
-    local cellY = math.floor(minimumY / Engine.GetCellSize())
+    local cellSize = Engine.GetCellSize()
+    return minimumX / cellSize, minimumY / cellSize, maximumX / cellSize, maximumY / cellSize
+end
+
+---@param self     WorldGameMapImplState
+---@param minimumX number
+---@param minimumY number
+---@param maximumX number
+---@param maximumY number
+---@return Global.WorldGeometry.CellRect
+local function getClippedCellRect(self, minimumX, minimumY, maximumX, maximumY)
+    local cellX = math.max(0, math.min(self._worldConfig.width, math.floor(minimumX)))
+    local cellY = math.max(0, math.min(self._worldConfig.height, math.floor(minimumY)))
+    local cellRight = math.min(self._worldConfig.width, math.ceil(maximumX))
+    local cellBottom = math.min(self._worldConfig.height, math.ceil(maximumY))
+    return { x = cellX, y = cellY, width = math.max(0, cellRight - cellX), height = math.max(0, cellBottom - cellY) }
+end
+
+local WorldGameMapStreaming = {}
+
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.SyncStreamingCamera(self)
+    if self._camera == nil then
+        self._worldStreamingCameraPosition = nil
+        return
+    end
+    self._camera:syncFollowTarget()
+    local position = self._camera:getViewPosition()
+    self._worldStreamingCameraPosition = position ~= nil and position:copy() or nil
+end
+
+---@return Global.WorldGeometry.CellRect
+---@param self WorldGameMapImplState
+function WorldGameMapStreaming.GetVisibleCellRect(self)
+    local minimumX, minimumY, maximumX, maximumY = getVisibleCellBounds(self)
+    local cellX = math.floor(minimumX)
+    local cellY = math.floor(minimumY)
     return {
         x = cellX,
         y = cellY,
-        width = math.max(1, math.ceil(maximumX / Engine.GetCellSize()) - cellX),
-        height = math.max(1, math.ceil(maximumY / Engine.GetCellSize()) - cellY)
+        width = math.max(1, math.ceil(maximumX) - cellX),
+        height = math.max(1, math.ceil(maximumY) - cellY)
     }
 end
 
@@ -76,28 +98,15 @@ function WorldGameMapStreaming.RefreshStreamingStates(self)
     if self._worldDisposed then
         return
     end
-    local visible = self:_getVisibleCellRect()
-    local active = {
-        x = visible.x - visible.width,
-        y = visible.y - visible.height,
-        width = visible.width * 3,
-        height = visible.height * 3
-    }
-    ---@cast active Global.WorldGeometry.CellRect
-    local activeRight = math.min(self._worldConfig.width, active.x + active.width)
-    local activeBottom = math.min(self._worldConfig.height, active.y + active.height)
-    active.x = math.max(0, active.x)
-    active.y = math.max(0, active.y)
-    active.width = math.max(0, activeRight - active.x)
-    active.height = math.max(0, activeBottom - active.y)
+    local minimumX, minimumY, maximumX, maximumY = getVisibleCellBounds(self)
+    local width = maximumX - minimumX
+    local height = maximumY - minimumY
+    local active = getClippedCellRect(self, minimumX - width, minimumY - height, maximumX + width, maximumY + height)
     self._worldActiveRect = active
-    local prepared = {
-        x = visible.x - visible.width * 2,
-        y = visible.y - visible.height * 2,
-        width = visible.width * 5,
-        height = visible.height * 5
-    }
-    ---@cast prepared Global.WorldGeometry.CellRect
+    local preparedLeft = minimumX - width * 2
+    local preparedTop = minimumY - height * 2
+    local preparedRight = maximumX + width * 2
+    local preparedBottom = maximumY + height * 2
     local viewport = assert(self._camera):getViewport()
     ---@cast viewport sf.FloatRect
     local centerX = (viewport.position.x + viewport.size.x / 2) / Engine.GetCellSize()
@@ -106,35 +115,16 @@ function WorldGameMapStreaming.RefreshStreamingStates(self)
     ---@cast center sf.Vector2f
     local movement = self._worldStreamingState:updateCameraCenter(center)
     if movement.x > 0 then
-        prepared.width = prepared.width + visible.width
+        preparedRight = preparedRight + width
     elseif movement.x < 0 then
-        local preparedX = prepared.x - visible.width
-        ---@cast preparedX integer
-        prepared.x = preparedX
-        prepared.width = prepared.width + visible.width
+        preparedLeft = preparedLeft - width
     end
     if movement.y > 0 then
-        prepared.height = prepared.height + visible.height
+        preparedBottom = preparedBottom + height
     elseif movement.y < 0 then
-        local preparedY = prepared.y - visible.height
-        ---@cast preparedY integer
-        prepared.y = preparedY
-        prepared.height = prepared.height + visible.height
+        preparedTop = preparedTop - height
     end
-    local preparedRight = math.min(self._worldConfig.width, prepared.x + prepared.width)
-    local preparedBottom = math.min(self._worldConfig.height, prepared.y + prepared.height)
-    local preparedX = math.max(0, prepared.x)
-    local preparedY = math.max(0, prepared.y)
-    local preparedWidth = math.max(0, preparedRight - preparedX)
-    local preparedHeight = math.max(0, preparedBottom - preparedY)
-    ---@cast preparedX integer
-    ---@cast preparedY integer
-    ---@cast preparedWidth integer
-    ---@cast preparedHeight integer
-    prepared.x = preparedX
-    prepared.y = preparedY
-    prepared.width = preparedWidth
-    prepared.height = preparedHeight
+    local prepared = getClippedCellRect(self, preparedLeft, preparedTop, preparedRight, preparedBottom)
     self._worldPreparedRect = prepared
     local preparedRect = sf.IntRect.new(prepared.x, prepared.y, prepared.width, prepared.height)
     ---@cast preparedRect sf.IntRect
