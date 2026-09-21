@@ -1,0 +1,147 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect affected checks
+    runs-on: ubuntu-latest
+    outputs:
+      engine: ${{ steps.changes.outputs.engine }}
+      editor: ${{ steps.changes.outputs.editor }}
+      scripts: ${{ steps.changes.outputs.scripts }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 .github/scripts/pr_validation.py changes "$BASE_SHA" "$HEAD_SHA"
+
+  templates:
+    name: Native templates
+    needs: changes
+    if: needs.changes.outputs.engine == 'true' || needs.changes.outputs.scripts == 'true'
+    uses: ./.github/workflows/build-templates.yml
+    with:
+      windows: true
+      macos: ${{ needs.changes.outputs.engine == 'true' }}
+      ffmpeg: ${{ needs.changes.outputs.engine == 'true' }}
+
+  editor:
+    name: Avalonia / ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.editor == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Prepare Windows build tools
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          call tools\setup_python.bat
+          if errorlevel 1 exit /b 1
+          call tools\build_script_tools.bat
+          if errorlevel 1 exit /b 1
+      - name: Prepare macOS build tools
+        if: runner.os == 'macOS'
+        env:
+          PYTHON: python3
+        run: |
+          sh tools/setup_python.sh
+          sh tools/build_script_tools.sh
+      - name: Compile editor and referenced projects
+        run: dotnet build Ludork.csproj --configuration Release
+
+  scripts:
+    name: EmmyLua
+    needs: [changes, templates]
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.scripts == 'true' }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-native-environment.tar
+          path: obj/pr-inputs
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-templates-plain.tar
+          path: obj/pr-inputs
+      - name: Restore generated declarations and UI
+        shell: pwsh
+        run: |
+          tar.exe -xf obj/pr-inputs/windows-native-environment.tar -C .
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force obj/pr-inputs/Templates | Out-Null
+          tar.exe -xf obj/pr-inputs/windows-templates-plain.tar -C obj/pr-inputs/Templates
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python .github/scripts/pr_validation.py prepare-scripts obj/pr-inputs/Templates
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Install pinned EmmyLua checker
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'emmylua-check-0.25.1.zip'
+          Invoke-WebRequest https://github.com/EmmyLuaLs/emmylua-analyzer-rust/releases/download/0.25.1/emmylua_check-win32-x64.zip -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne '577982E68D925972D8AE35F54B5F384AD77A84A2E31E340BD663D1EFD2EF5983') { throw 'EmmyLua archive checksum mismatch' }
+          $destination = Join-Path $env:RUNNER_TEMP 'emmylua-check-0.25.1'
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          $destination >> $env:GITHUB_PATH
+      - name: Check full Game workspace
+        run: emmylua_check Game --warnings-as-errors --output-format json --output emmylua-diagnostics.json
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: emmylua-diagnostics
+          path: emmylua-diagnostics.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  validation:
+    name: PR Validation
+    needs: [changes, templates, editor, scripts]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Require every selected check to succeed
+        env:
+          VALIDATION_NEEDS: ${{ toJSON(needs) }}
+        run: python3 .github/scripts/pr_validation.py gate

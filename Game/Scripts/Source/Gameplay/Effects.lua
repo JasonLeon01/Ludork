@@ -10,11 +10,15 @@ local GameplayEffect = GlobalCore.GameplayEffect
 local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local Effects = {}
 
----@param target  Source.Battler.Battler
+---@param target   Source.Battler.Battler
 ---@param stateID? string
 local function publishStateChanged(target, stateID)
-    if target.getLoading ~= nil and target:getLoading() then
-        return
+    local Player = require("Source.Player")
+    if Class.isInstance(target, Player) then
+        ---@cast target Source.Player.Player
+        if target:getLoading() then
+            return
+        end
     end
     Engine.publish(EventKeys.AbilitySystemChanged, {
         owner = target,

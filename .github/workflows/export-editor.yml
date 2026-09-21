@@ -1,242 +1,47 @@
 name: Export Editor
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
+  schedule:
+    - cron: '0 0,8 * * *'
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: export-editor-${{ github.event_name == 'push' && github.ref || 'temporary' }}
+  cancel-in-progress: false
 
 jobs:
-  build_inputs:
-    name: Fingerprint build inputs
+  package_decision:
+    name: Decide whether to package
     runs-on: ubuntu-latest
     outputs:
-      environment: ${{ steps.keys.outputs.environment }}
-      native: ${{ steps.keys.outputs.native }}
-      managed: ${{ steps.keys.outputs.managed }}
-      launcher: ${{ steps.keys.outputs.launcher }}
+      should_build: ${{ steps.decision.outputs.should_build }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Fingerprint tracked sources and build configuration
-        id: keys
-        run: python3 .github/scripts/export_editor_cache.py
-
-  windows_prepare:
-    name: Prepare Windows x64 environment
-    needs: build_inputs
-    runs-on: windows-2022
-    timeout-minutes: 90
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
+      - name: Compare with the last successful temporary package
+        id: decision
+        uses: actions/github-script@v8
         with:
-          persist-credentials: false
+          script: |
+            const { shouldRun } = require('./.github/scripts/package_control.cjs');
+            await shouldRun({ github, context, core });
 
-      - name: Restore prepared environment cache
-        id: environment-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: windows-native-environment.tar
-          key: export-v1-windows-2022-${{ runner.arch }}-environment-${{ needs.build_inputs.outputs.environment }}
-
-      - name: Unpack cached environment
-        if: steps.environment-cache.outputs.cache-hit == 'true'
-        shell: cmd
-        run: tar.exe -xf windows-native-environment.tar -C .
-
-      - name: Set up Python
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Set up MSVC command-line environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
-
-      - name: Restore FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        id: ffmpeg-source-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
-          key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
-
-      - name: Set up project Python environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        shell: cmd
-        timeout-minutes: 10
-        run: tools\setup_python.bat
-
-      - name: Build ScriptTools
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        shell: cmd
-        timeout-minutes: 30
-        run: tools\build_script_tools.bat
-
-      - name: Initialize C++ dependencies
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        shell: cmd
-        timeout-minutes: 20
-        run: tools\init_cpp_dependencies.bat Game
-
-      - name: Save FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
-          key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
-
-      - name: Validate native build inputs
-        shell: cmd
-        timeout-minutes: 10
-        run: |
-          .tools\ScriptTools\ScriptTools.exe impl-boundary-check Game
-          if errorlevel 1 exit /b 1
-
-      - name: Archive prepared environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\LuaGlue Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
-
-      - name: Save prepared environment cache
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: windows-native-environment.tar
-          key: ${{ steps.environment-cache.outputs.cache-primary-key }}
-
-      - name: Upload prepared environment
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-native-environment.tar
-          path: windows-native-environment.tar
-          archive: false
-          if-no-files-found: error
-          retention-days: 1
-
-  windows_native:
-    name: Windows x64 native / ${{ matrix.component }}
-    needs: [build_inputs, windows_prepare]
-    runs-on: windows-2022
-    timeout-minutes: 180
-    strategy:
-      matrix:
-        component:
-          - templates-plain
-          - templates-ffmpeg
-    env:
-      CMAKE_GENERATOR: Ninja
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Restore native binaries
-        id: native-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            obj/template-native-cache
-            .tools/Lua
-          key: export-v1-windows-2022-${{ runner.arch }}-native-${{ matrix.component }}-Release-${{ needs.build_inputs.outputs.native }}
-
-      - name: Set up MSVC command-line environment
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
-
-      - name: Download prepared environment
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-native-environment.tar
-          path: obj/native-environment
-
-      - name: Restore prepared environment
-        shell: cmd
-        run: tar.exe -xf obj\native-environment\windows-native-environment.tar -C .
-
-      - name: Build templates without FFmpeg
-        if: matrix.component == 'templates-plain'
-        shell: cmd
-        run: tools\create_templates_plain.bat --native-cache "%CD%\obj\template-native-cache" Release obj\export-editor-inputs\Templates
-
-      - name: Build templates with FFmpeg
-        if: matrix.component == 'templates-ffmpeg'
-        shell: cmd
-        run: tools\create_templates_ffmpeg.bat --native-cache "%CD%\obj\template-native-cache" Release obj\export-editor-inputs\Templates
-
-      - name: Archive templates without FFmpeg
-        if: matrix.component == 'templates-plain'
-        shell: cmd
-        run: tar.exe -cf windows-templates-plain.tar -C obj\export-editor-inputs\Templates Cpp Standalone
-
-      - name: Archive Lua compiler
-        if: matrix.component == 'templates-plain'
-        shell: cmd
-        run: tar.exe -cf windows-luac.tar -C .tools\Lua luac.exe
-
-      - name: Archive templates with FFmpeg
-        if: matrix.component == 'templates-ffmpeg'
-        shell: cmd
-        run: tar.exe -cf windows-templates-ffmpeg.tar -C obj\export-editor-inputs\Templates Cpp-ffmpeg Standalone-ffmpeg
-
-      - name: Save native binaries
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            obj/template-native-cache
-            .tools/Lua
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
-
-      - name: Upload native component
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-${{ matrix.component }}.tar
-          path: windows-${{ matrix.component }}.tar
-          archive: false
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload Lua compiler
-        if: matrix.component == 'templates-plain'
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-luac.tar
-          path: windows-luac.tar
-          archive: false
-          if-no-files-found: error
-          retention-days: 1
+  templates:
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/build-templates.yml
 
   windows:
     name: Windows x64
-    needs: [build_inputs, windows_native]
+    needs: templates
     runs-on: windows-2022
     timeout-minutes: 180
     env:
@@ -272,7 +77,7 @@ jobs:
             Editor/Ludork.Plugin.Abstractions/obj/Release
             Editor/Ludork.Plugin.Avalonia/bin/Release
             Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.build_inputs.outputs.managed }}
+          key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.templates.outputs.managed }}
 
       - name: Set up MSVC command-line environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -284,7 +89,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: obj/editor-launcher/bin/Release
-          key: export-v1-windows-2022-${{ runner.arch }}-launcher-Release-${{ needs.build_inputs.outputs.launcher }}
+          key: export-v1-windows-2022-${{ runner.arch }}-launcher-Release-${{ needs.templates.outputs.launcher }}
 
       - name: Build editor launcher
         if: steps.launcher-cache.outputs.cache-hit != 'true'
@@ -371,186 +176,9 @@ jobs:
           compression-level: 0
           retention-days: 7
 
-  macos_prepare:
-    name: Prepare macOS ARM64 environment
-    needs: build_inputs
-    runs-on: macos-15
-    timeout-minutes: 90
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Restore prepared environment cache
-        id: environment-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: macos-native-environment.tar
-          key: export-v1-macos-15-${{ runner.arch }}-environment-${{ needs.build_inputs.outputs.environment }}
-
-      - name: Unpack cached environment
-        if: steps.environment-cache.outputs.cache-hit == 'true'
-        run: tar -xf macos-native-environment.tar -C .
-
-      - name: Set up Python
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Restore FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        id: ffmpeg-source-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
-          key: ${{ runner.os }}-ffmpeg-source-${{ hashFiles('versions.conf') }}
-
-      - name: Set up project Python environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        env:
-          PYTHON: python3
-        timeout-minutes: 10
-        run: sh tools/setup_python.sh
-
-      - name: Build ScriptTools
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 30
-        run: sh tools/build_script_tools.sh
-
-      - name: Initialize C++ dependencies
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 20
-        run: sh tools/init_cpp_dependencies.sh Game
-
-      - name: Save FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: Game/ThirdPartySource/ffmpeg-*.tar.gz
-          key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
-
-      - name: Validate native build inputs
-        timeout-minutes: 10
-        run: |
-          .tools/ScriptTools/ScriptTools impl-boundary-check Game
-
-      - name: Archive prepared environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/LuaGlue Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
-
-      - name: Save prepared environment cache
-        if: steps.environment-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: macos-native-environment.tar
-          key: ${{ steps.environment-cache.outputs.cache-primary-key }}
-
-      - name: Upload prepared environment
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-native-environment.tar
-          path: macos-native-environment.tar
-          archive: false
-          if-no-files-found: error
-          retention-days: 1
-
-  macos_native:
-    name: macOS ARM64 native / ${{ matrix.component }}
-    needs: [build_inputs, macos_prepare]
-    runs-on: macos-15
-    timeout-minutes: 180
-    strategy:
-      matrix:
-        component:
-          - templates-plain
-          - templates-ffmpeg
-    env:
-      CMAKE_GENERATOR: Ninja
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Restore native binaries
-        id: native-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            obj/template-native-cache
-            .tools/Lua
-          key: export-v1-macos-15-${{ runner.arch }}-native-${{ matrix.component }}-Release-${{ needs.build_inputs.outputs.native }}
-
-      - name: Download prepared environment
-        uses: actions/download-artifact@v8
-        with:
-          name: macos-native-environment.tar
-          path: obj/native-environment
-
-      - name: Restore prepared environment
-        run: tar -xf obj/native-environment/macos-native-environment.tar -C .
-
-      - name: Build templates without FFmpeg
-        if: matrix.component == 'templates-plain'
-        run: |
-          mkdir -p obj/export-editor-inputs
-          sh tools/create_templates_plain.sh --native-cache "$PWD/obj/template-native-cache" Release obj/export-editor-inputs/Templates
-
-      - name: Build templates with FFmpeg
-        if: matrix.component == 'templates-ffmpeg'
-        run: |
-          mkdir -p obj/export-editor-inputs
-          sh tools/create_templates_ffmpeg.sh --native-cache "$PWD/obj/template-native-cache" Release obj/export-editor-inputs/Templates
-
-      - name: Archive templates without FFmpeg
-        if: matrix.component == 'templates-plain'
-        run: tar -cf macos-templates-plain.tar -C obj/export-editor-inputs/Templates Cpp Standalone
-
-      - name: Archive Lua compiler
-        if: matrix.component == 'templates-plain'
-        run: tar -cf macos-luac.tar -C .tools/Lua luac
-
-      - name: Archive templates with FFmpeg
-        if: matrix.component == 'templates-ffmpeg'
-        run: tar -cf macos-templates-ffmpeg.tar -C obj/export-editor-inputs/Templates Cpp-ffmpeg Standalone-ffmpeg
-
-      - name: Save native binaries
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            obj/template-native-cache
-            .tools/Lua
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
-
-      - name: Upload native component
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-${{ matrix.component }}.tar
-          path: macos-${{ matrix.component }}.tar
-          archive: false
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload Lua compiler
-        if: matrix.component == 'templates-plain'
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-luac.tar
-          path: macos-luac.tar
-          archive: false
-          if-no-files-found: error
-          retention-days: 1
-
   macos:
     name: macOS ARM64 unsigned
-    needs: [build_inputs, macos_native]
+    needs: templates
     runs-on: macos-15
     timeout-minutes: 180
     env:
@@ -584,7 +212,7 @@ jobs:
             Editor/Ludork.Plugin.Abstractions/obj/Release
             Editor/Ludork.Plugin.Avalonia/bin/Release
             Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.build_inputs.outputs.managed }}
+          key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.templates.outputs.managed }}
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8
@@ -644,3 +272,46 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
+
+  package_complete:
+    name: Record successful package
+    needs: [windows, macos]
+    if: github.event_name != 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the packaged commit
+        env:
+          PACKAGE_SHA: ${{ github.sha }}
+        run: echo "Both platform packages completed for $PACKAGE_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Update draft release
+    needs: [windows, macos]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download Windows package
+        uses: actions/download-artifact@v8
+        with:
+          name: Ludork-windows-x64-${{ github.sha }}
+          path: obj/release/windows
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v8
+        with:
+          name: Ludork-macos-arm64-unsigned-${{ github.sha }}
+          path: obj/release/assets
+      - name: Archive Windows distribution
+        working-directory: obj/release/windows
+        run: zip -q -r ../assets/Ludork-windows-x64.zip .
+      - name: Create or update the draft
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { publishRelease } = require('./.github/scripts/package_control.cjs');
+            await publishRelease({ github, context, core }, 'obj/release/assets');

@@ -212,7 +212,49 @@ its two contract projects. It still refreshes Content and compiles current local
 data in a clean staging directory. Windows also accepts `--launcher <file>` for
 a prepared editor launcher outside that staging directory.
 
-The [Export Editor workflow](../.github/workflows/export-editor.yml) uses separate
+### Pull requests and automated packages
+
+PR validation selects checks from changed paths, including added, deleted and
+renamed files. Engine and native build inputs require Release templates for
+Windows x64 and macOS ARM64, both plain and FFmpeg. Editor sources and their
+project, resource and generator dependencies require Avalonia builds on both
+platforms without packaging the editor. Scripts and EmmyLua configuration changes
+require full `Game` workspace diagnostics from a pinned EmmyLua version, with
+`--warnings-as-errors`. This check first obtains matching generated native stubs
+from the Windows plain template build, reusing that build when Engine validation
+also needs it, and generates the remaining workspace declarations before checking.
+Shared build and CI inputs select every affected check; the categories are additive.
+
+The always-running `PR Validation` check succeeds only when every selected check
+succeeds. A selected check that fails, is cancelled or unexpectedly skips blocks
+it; unselected checks may skip, and documentation-only PRs pass without builds.
+New commits cancel older validation runs for the same PR. In GitHub repository
+settings, edit the existing rule or ruleset targeting `main`, require status
+checks before merging, and add `PR Validation` from GitHub Actions while preserving
+the other protections. Workflow files alone do not enable this merge requirement;
+changing branch protection requires repository administration permission.
+
+[Export Editor](../.github/workflows/export-editor.yml) packages the default branch
+at 08:00 and 16:00 UTC+8 (`0 0,8 * * *` UTC), or a selected ref on manual dispatch.
+Ordinary pushes and PRs do not create complete editor packages. Temporary package
+runs are serialized; after acquiring that slot, a scheduled run skips when its
+commit equals the latest successful dual-platform temporary package of the
+default branch. Manual runs always build, including the same commit. Successful
+manual default-branch packages update that baseline; skipped, failed, cancelled,
+other-branch and tag runs do not. Temporary artifacts retain their existing names
+and expire after seven days.
+
+Artifact consumers must select a run whose `Record successful package` job
+succeeded and whose requested artifact is still available and unexpired. Selecting
+only the latest successful workflow is insufficient: a scheduled run skipped for
+an unchanged commit also succeeds, but produces no package artifacts.
+
+Pushing a `v*` tag builds both platforms and then creates a draft GitHub Release
+with generated release notes, the Windows ZIP and the macOS DMG. A rerun updates
+the existing draft; an already published release is not overwritten. No release
+is automatically published, and only the release-upload job has `contents: write`.
+
+The Export Editor workflow uses separate
 exact caches for the prepared environment, native components, C# build outputs
 and Windows editor launcher. Keys include tracked input paths and Git object
 IDs, platform, architecture and configuration; the C# key also includes the .NET
@@ -220,7 +262,9 @@ SDK version. Source additions, deletions and renames invalidate the affected key
 Only successful results are saved, with no prefix-key fallback. A missing or
 evicted cache rebuilds that component. Workflow or cache-rule changes invalidate
 all groups. Delete the relevant Actions cache to force a rebuild with unchanged
-sources. Every run packages the current Game project, Lua, plug-ins, locale and docs.
+sources. Every non-skipped packaging run packages the selected commit's Game
+project, Lua, plug-ins, locale and docs. Local syntax and build checks do not
+replace successful hosted Actions runs or confirmation of the `main` merge rule.
 
 Both editor packaging scripts use the shared ScriptTools command
 `editor-official-plugins prepare <source> <output-root>` to clean-copy the fixed

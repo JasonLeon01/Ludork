@@ -7,6 +7,7 @@ from pathlib import Path
 
 COMMON_INPUTS = (
     ".github/workflows/export-editor.yml",
+    ".github/workflows/build-templates.yml",
     ".github/scripts/export_editor_cache.py",
 )
 ENVIRONMENT_INPUTS = (
