@@ -6,10 +6,10 @@ local Data = require("Source.Data")
 local Context = require("Source.NodeFunctions.Context")
 local NumberFormat = require("Source.Utils.NumberFormat")
 
+local SceneManager = GlobalCore.SceneManager
 local ComponentsFunctions = GlobalFunctions.Components
 local Animation = GlobalCore.Animation
 local BPBase = Engine.BPBase
-local System = GlobalCore.System
 
 local Utils = {}
 local AttrRef = {}
@@ -237,7 +237,7 @@ local function spawnAnim(animName, position, rotation, scale)
     anim:setPosition(position)
     anim:setRotation(sf.degrees(rotation))
     anim:setScale(scale)
-    local scene = System.getScene()
+    local scene = SceneManager.getScene()
     if scene ~= nil then
         scene:addAnim(anim)
     end
@@ -333,7 +333,7 @@ function Utils.SetAttr(obj, attrName, value)
 end
 
 function Utils.GetScene()
-    return System.getScene()
+    return SceneManager.getScene()
 end
 
 function Utils.IsValidValue(value)
@@ -397,7 +397,7 @@ function Utils.BackToTitle()
     ---@type { new: fun(): GlobalCore.SceneBase }
     local Title = require("Source.Scenes.SceneTitle")
 
-    System.setScene(Title.new())
+    SceneManager.setScene(Title.new())
 end
 
 function Utils.Print(message)

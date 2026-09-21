@@ -1,10 +1,10 @@
+#include <Graphics.hpp>
 #include "GameMapRendererImpl.hpp"
 #include <LightOcclusionInput.hpp>
 #include <LightOcclusionResult.hpp>
 
 #include <EngineState.hpp>
 #include <Panorama/PanoramaController.hpp>
-#include <System.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -209,7 +209,7 @@ bool GameMapRendererImpl::ensureDirectLight() {
         static_cast<unsigned int>(std::max(1.0f, std::floor(viewSize->x))),
         static_cast<unsigned int>(std::max(1.0f, std::floor(viewSize->y))),
     };
-    const float scale = System::getLightingRenderScale();
+    const float scale = Graphics::getLightingRenderScale();
     const sf::Vector2u requiredSize = lightingTargetSize(logicalSize, scale);
     if (directLight && directLight->getSize() == requiredSize) {
         directLight->setSmooth(scale < 1.0f);
@@ -229,7 +229,7 @@ void GameMapRendererImpl::ensureStaticDirectLight() {
         std::max(1u, mapSize.x * cellSize),
         std::max(1u, mapSize.y * cellSize),
     };
-    const float scale = System::getLightingRenderScale();
+    const float scale = Graphics::getLightingRenderScale();
     const sf::Vector2u requiredSize = lightingTargetSize(logicalSize, scale);
     if (staticDirectLight && staticDirectLight->getSize() == requiredSize) {
         staticDirectLight->setSmooth(scale < 1.0f);

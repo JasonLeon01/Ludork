@@ -23,4 +23,6 @@ private:
     bool debugMode_ = false;
 };
 
+LifecycleImpl& lifecycleImpl();
+
 }  // namespace ludork::global::system_impl

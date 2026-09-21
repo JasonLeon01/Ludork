@@ -1,7 +1,6 @@
 local GlobalCore = require("GlobalCore")
 
-local GlobalSystem = GlobalCore.System
-
+local Display = GlobalCore.Display
 local HUE_EPSILON = 0.0001
 
 local Render = {}
@@ -16,7 +15,7 @@ end
 
 function Render.GetRealSize(inSize)
     local realSize = sf.Vector2f.new(inSize.x, inSize.y)
-    return realSize * GlobalSystem.getScale()
+    return realSize * Display.getScale()
 end
 
 function Render.NormaliseActorHue(hue)

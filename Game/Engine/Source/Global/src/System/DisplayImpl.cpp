@@ -1,3 +1,5 @@
+#include <Graphics.hpp>
+#include <Display.hpp>
 #include "DisplayImpl.hpp"
 #include "Platform/NativeDisplay.hpp"
 #include "Platform/NativeInputMethod.hpp"
@@ -16,7 +18,6 @@
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/WebViewHost.hpp>
 #include <System/NativeDisplayHost.hpp>
-#include <SystemConfigBase.hpp>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -100,7 +101,7 @@ void DisplayImpl::finishInitialization(const sf::Vector2u& renderSize) {
     updateWindowViewport(renderSize);
     if (isMobileDisplay() && isDisplayScaleConfigurable()) {
         ludork::global::native_display_host::requestDisplayScale(
-            SystemConfigBase::getConfiguredScale(), getGameSize());
+            Display::getConfiguredScale(), getGameSize());
     }
 }
 
@@ -119,7 +120,7 @@ void DisplayImpl::prepareInitialization(const std::string& title,
     windowCursorPath_ = cursorPath;
     windowContextSettings_ = {};
     windowContextSettings_.antiAliasingLevel =
-        static_cast<unsigned int>(SystemConfigBase::getAntiAliasingLevel());
+        static_cast<unsigned int>(Display::getAntiAliasingLevel());
 #if defined(SFML_OPENGL_ES)
     windowContextSettings_.majorVersion = 3;
     windowContextSettings_.minorVersion = 0;
@@ -156,7 +157,7 @@ void DisplayImpl::createDisplayWindow() {
             windowContextSettings_);
         surfaceFitScale = windowFitScale(window->getSize());
     } else {
-        const float configuredScale = SystemConfigBase::getConfiguredScale();
+        const float configuredScale = Display::getConfiguredScale();
         desktopFullscreen_ = configuredScale == 0.0f;
         const sf::Vector2u windowSize =
             desktopFullscreen_ ? sf::VideoMode::getDesktopMode().size
@@ -252,7 +253,7 @@ float DisplayImpl::windowFitScale(const sf::Vector2u& size) {
 
 float DisplayImpl::effectiveRenderScale(float surfaceFitScale) {
     return effectiveRenderScale(surfaceFitScale,
-                                SystemConfigBase::getMaximumRenderScale());
+                                Graphics::getMaximumRenderScale());
 }
 
 sf::Vector2u DisplayImpl::windowSizeForScale(float scale) {
@@ -267,9 +268,9 @@ void DisplayImpl::applyWindowPresentationSettings() {
     if (window_ == nullptr) {
         return;
     }
-    window_->setFramerateLimit(static_cast<unsigned int>(
-        std::max(0, SystemConfigBase::getFrameRate())));
-    window_->setVerticalSyncEnabled(SystemConfigBase::getVerticalSync());
+    window_->setFramerateLimit(
+        static_cast<unsigned int>(std::max(0, Display::getFrameRate())));
+    window_->setVerticalSyncEnabled(Display::getVerticalSync());
     window_->clear(isEmbeddedDisplay() ? sf::Color::Transparent
                                        : sf::Color::Black);
     if (!isMobileDisplay() && !windowIconPath_.empty()) {
@@ -562,7 +563,7 @@ std::optional<float> DisplayImpl::takeConfiguredScale() {
     if (isMobileDisplay() && !isEmbeddedDisplay() &&
         ludork::global::native_display_host::takeDisplayScaleRestoreRequest() &&
         !scale.has_value()) {
-        scale = SystemConfigBase::getConfiguredScale();
+        scale = Display::getConfiguredScale();
     }
     return scale;
 }
@@ -588,15 +589,15 @@ void DisplayImpl::setSurfaceFitScale(float scale) {
 void DisplayImpl::applyFrameRate() {
     const std::shared_ptr<sf::RenderWindow> window = getWindow();
     if (window != nullptr) {
-        window->setFramerateLimit(static_cast<unsigned int>(
-            std::max(0, SystemConfigBase::getFrameRate())));
+        window->setFramerateLimit(
+            static_cast<unsigned int>(std::max(0, Display::getFrameRate())));
     }
 }
 
 void DisplayImpl::applyVerticalSync() {
     const std::shared_ptr<sf::RenderWindow> window = getWindow();
     if (window != nullptr) {
-        window->setVerticalSyncEnabled(SystemConfigBase::getVerticalSync());
+        window->setVerticalSyncEnabled(Display::getVerticalSync());
     }
 }
 
@@ -631,6 +632,11 @@ void DisplayImpl::shutdown() noexcept {
     windowContextSettings_ = {};
     lastResizeTime_ = {};
     reset();
+}
+
+DisplayImpl& displayImpl() {
+    static DisplayImpl instance;
+    return instance;
 }
 
 }  // namespace ludork::global::system_impl

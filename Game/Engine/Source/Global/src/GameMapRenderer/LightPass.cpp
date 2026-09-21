@@ -1,8 +1,8 @@
+#include <Graphics.hpp>
 #include "GameMapRendererImpl.hpp"
 #include <LightOcclusionResult.hpp>
 
 #include <EngineState.hpp>
-#include <System.hpp>
 
 #include <algorithm>
 #include <array>
@@ -156,7 +156,7 @@ const sf::Texture& GameMapRendererImpl::ensureStaticLightCache(
         static_cast<unsigned int>(std::max(1.0f, std::ceil(diameter))),
         static_cast<unsigned int>(std::max(1.0f, std::ceil(diameter))),
     };
-    const float scale = System::getLightingRenderScale();
+    const float scale = Graphics::getLightingRenderScale();
     const sf::Vector2u requiredSize = lightingTargetSize(logicalSize, scale);
     const bool targetChanged =
         !cache.target || cache.target->getSize() != requiredSize;

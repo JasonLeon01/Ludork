@@ -24,7 +24,7 @@ local currentStatus = "no_scene"
 ---@return Source.LiveDebug.View | nil, string, GameMap | nil, string
 local function resolveView()
     local scene = sceneRef[1]
-    if scene == nil or GlobalCore.System.getScene() ~= scene then
+    if scene == nil or GlobalCore.SceneManager.getScene() ~= scene then
         return nil, "no_scene", nil, ""
     end
     local player = scene:getGameInstance():getPlayer()

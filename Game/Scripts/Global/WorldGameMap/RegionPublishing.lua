@@ -1,7 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
 
-local System = GlobalCore.System
+local RuntimeDiagnostics = GlobalCore.RuntimeDiagnostics
 local WorldRegionDemand = GlobalCore.WorldRegionDemand
 local WorldRegionState = GlobalCore.WorldRegionState
 local STREAM_CONVERSION_NODE_BUDGET = 64
@@ -440,14 +440,13 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
     end
 end
 
----@param region Source.SceneComponents.WorldRegionData
----@param self   WorldGameMapImplState
+---@param region               Source.SceneComponents.WorldRegionData
+---@param self                 WorldGameMapImplState
 ---@param publishBudgetSeconds number
 function WorldGameMapRegionPublishing.DrainRegionPublish(self, region, publishBudgetSeconds)
     local started = perfCounter()
     while region.publishState ~= nil do
-        local deadline = region.publishState.phase == "convert" and perfCounter() + publishBudgetSeconds
-            or math.huge
+        local deadline = region.publishState.phase == "convert" and perfCounter() + publishBudgetSeconds or math.huge
         self:_stepRegionPublish(region, deadline)
     end
     self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
@@ -531,11 +530,11 @@ end
 
 ---@param self WorldGameMapImplState
 function WorldGameMapRegionPublishing.RecordStreamingProfile(self)
-    if not System.isPerformanceProfilerEnabled() then
+    if not RuntimeDiagnostics.isPerformanceProfilerEnabled() then
         return
     end
     local stats = self:getStreamingStats()
-    System.recordWorldStreamingPerformance(
+    RuntimeDiagnostics.recordWorldStreamingPerformance(
         stats.queued, stats.Reading, stats.Prepared, stats.Active, stats.Dormant, stats.cacheBytes,
         self._worldPublishMilliseconds, self:_getVisibleTileChunkCount(), self:_getActiveActorCount()
     )

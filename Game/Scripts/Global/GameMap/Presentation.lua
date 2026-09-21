@@ -2,8 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Pool = require("Global.Pool")
 
-local System = GlobalCore.System
-
+local Display = GlobalCore.Display
 local Character = Engine.Character
 
 local LISTENER_DIRECTION_UP = sf.Vector3f.new(0.0, -1.0, 0.0)
@@ -57,7 +56,7 @@ end
 ---@param self GameMapImplState
 function GameMapPresentation.WorldToCanvasPosition(self, position)
     local uiPosition = self:worldToUIScreenPosition(position)
-    local scale = System.getScale()
+    local scale = Display.getScale()
     return sf.Vector2f.new(uiPosition.x * scale, uiPosition.y * scale)
 end
 

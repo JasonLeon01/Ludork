@@ -233,7 +233,7 @@ function Windows.Create(self)
             function ()
                 local SceneTitle = require("Source.Scenes.SceneTitle")
 
-                GlobalCore.System.setScene(SceneTitle.new())
+                GlobalCore.SceneManager.setScene(SceneTitle.new())
             end
         )
         window:setZOrder(MENU_Z_ORDER)

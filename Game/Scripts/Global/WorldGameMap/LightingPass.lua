@@ -2,10 +2,10 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Pool = require("Global.Pool")
 
+local Graphics = GlobalCore.Graphics
 ---@diagnostic disable: need-check-nil, param-type-mismatch
 
 local Light = GlobalCore.Light
-local System = GlobalCore.System
 
 local DYNAMIC_TRANSMISSION_PADDING = 2
 local UNOBSTRUCTED_LIGHT_INTENSITY_UNIFORMS = {}
@@ -144,7 +144,7 @@ function GameMapLighting.EnsureDirectLight(self)
     local viewSize = assert(self._camera:getViewSize())
     local logicalSize = sf.Vector2u.new(math.max(1, math.floor(viewSize.x)), math.max(1, math.floor(viewSize.y)))
     ---@cast logicalSize sf.Vector2u
-    local lightingRenderScale = System.getLightingRenderScale()
+    local lightingRenderScale = Graphics.getLightingRenderScale()
     local requiredSize = getLightingTargetSize(logicalSize, lightingRenderScale)
     if self._directLight ~= nil and self._directLight:getSize() == requiredSize then
         self._directLight:setSmooth(lightingRenderScale < 1.0)
@@ -160,7 +160,7 @@ function GameMapLighting.EnsureStaticDirectLight(self)
     local tilemapSize = self._tilemap:getSize()
     local mapPixelSize = sf.Vector2u.new(tilemapSize.x * Engine.GetCellSize(), tilemapSize.y * Engine.GetCellSize())
     ---@cast mapPixelSize sf.Vector2u
-    local lightingRenderScale = System.getLightingRenderScale()
+    local lightingRenderScale = Graphics.getLightingRenderScale()
     local requiredSize = getLightingTargetSize(mapPixelSize, lightingRenderScale)
     if self._staticDirectLight ~= nil and self._staticDirectLight:getSize() == requiredSize then
         self._staticDirectLight:setSmooth(lightingRenderScale < 1.0)
@@ -235,7 +235,7 @@ function GameMapLighting.EnsureStaticLightCache(self, index, entry)
     local diameter = light.radius * 2.0
     local logicalSize = sf.Vector2u.new(math.max(1, math.ceil(diameter)), math.max(1, math.ceil(diameter)))
     ---@cast logicalSize sf.Vector2u
-    local lightingRenderScale = System.getLightingRenderScale()
+    local lightingRenderScale = Graphics.getLightingRenderScale()
     local requiredSize = getLightingTargetSize(logicalSize, lightingRenderScale)
     local cache = self._staticLightCaches[index]
     if cache == nil then

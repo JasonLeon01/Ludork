@@ -1,3 +1,4 @@
+#include <Graphics.hpp>
 #include <Panorama/PanoramaController.hpp>
 
 #include "PanoramaControllerImpl.hpp"
@@ -6,7 +7,6 @@
 #include <EngineState.hpp>
 #include <GameMapBase.hpp>
 #include <Manager/TextureManager.hpp>
-#include <System.hpp>
 
 #include <algorithm>
 #include <cstdint>
@@ -90,7 +90,7 @@ void PanoramaController::drawUnderlay(Camera& camera,
     if (!isActive()) {
         return;
     }
-    sf::RenderTexture* canvas = System::getCanvas();
+    sf::RenderTexture* canvas = Graphics::getCanvas();
     const std::optional<sf::Vector2f> viewPosition = camera.getViewPosition();
     const std::optional<sf::Vector2f> viewSize = camera.getViewSize();
     const std::shared_ptr<GameMapBase> map = camera.getMap();

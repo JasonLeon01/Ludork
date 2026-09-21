@@ -2,7 +2,6 @@
 #include "DisplayImpl.hpp"
 #include <EngineState.hpp>
 #include <Fog/FogController.hpp>
-#include <Manager/ShaderManager.hpp>
 #include <Utils/Inner.hpp>
 #include <Utils/Render.hpp>
 #include <Weather/WeatherController.hpp>
@@ -12,7 +11,38 @@
 
 namespace ludork::global::system_impl {
 
-void FramePipelineImpl::initCanvas(const sf::Vector2u& size) {
+FramePipelineImpl& framePipelineImpl() {
+    static FramePipelineImpl instance;
+    return instance;
+}
+
+TransitionImpl& transitionImpl() {
+    return framePipelineImpl().transition();
+}
+
+FramePipelineImpl::FramePipelineImpl()
+    : screenEffectsImpl_(*this), transitionImpl_(presentMutex_) {}
+
+ScreenEffectsImpl& FramePipelineImpl::screenEffects() {
+    return screenEffectsImpl_;
+}
+
+TransitionImpl& FramePipelineImpl::transition() {
+    return transitionImpl_;
+}
+
+void FramePipelineImpl::addEffectShader(
+    const std::shared_ptr<sf::Shader>& shader) {
+    addGraphicsShader(shader);
+}
+
+void FramePipelineImpl::removeEffectShader(
+    const std::shared_ptr<sf::Shader>& shader) {
+    removeGraphicsShader(shader);
+}
+
+void FramePipelineImpl::initCanvas(const sf::Vector2u& size,
+                                   bool preserveTransitionBackground) {
     std::optional<sf::View> preservedView;
     if (canvas_ == nullptr) {
         canvas_ = std::make_unique<sf::RenderTexture>(size);
@@ -23,7 +53,7 @@ void FramePipelineImpl::initCanvas(const sf::Vector2u& size) {
             preservedView = currentView;
         }
         if (canvas_->getSize() != size && !canvas_->resize(size)) {
-            throw std::runtime_error("Failed to resize the System canvas");
+            throw std::runtime_error("Failed to resize the Graphics canvas");
         }
     }
     canvas_->setView(canvas_->getDefaultView());
@@ -34,21 +64,12 @@ void FramePipelineImpl::initCanvas(const sf::Vector2u& size) {
     } else {
         canvasSprite_.emplace(canvas_->getTexture());
     }
-    transition_ = std::make_unique<sf::RenderTexture>(size);
-    transition_->clear(sf::Color::Transparent);
-    transition_->display();
-    transitionTempTexture_ = std::make_unique<sf::RenderTexture>(size);
-    transitionTempTexture_->clear(sf::Color::Transparent);
-    transitionOutputTexture_ = std::make_unique<sf::RenderTexture>(size);
-    transitionOutputTexture_->clear(sf::Color::Transparent);
-    transitionOutputTexture_->display();
-    transitionMaskTexture_ = std::make_unique<sf::RenderTexture>(size);
-    transitionMaskTexture_->clear(sf::Color::Transparent);
-    transitionMaskTexture_->display();
-    transitionSprite_.emplace(transitionTempTexture_->getTexture());
-    transitionOutputSprite_.emplace(transitionOutputTexture_->getTexture());
-    toneBuffer_.reset();
-    toneBufferSprite_.reset();
+    if (preserveTransitionBackground) {
+        transitionImpl_.rebuildTargets(size);
+    } else {
+        transitionImpl_.initializeTargets(size);
+    }
+    screenEffectsImpl_.invalidateTargets();
     applyGraphicsShadersLength();
 }
 
@@ -63,20 +84,15 @@ void FramePipelineImpl::draw(const sf::Drawable& drawable, sf::Shader* shader) {
 
 void FramePipelineImpl::composeFrame(float deltaTime,
                                      sf::RenderTarget* target) {
-    transitionCompletionPending_ = false;
+    transitionImpl_.beginFrame();
     if (target == nullptr || canvas_ == nullptr || !canvasSprite_.has_value()) {
         return;
     }
-    if (inTransition_) {
-        transitionTimeCount_ =
-            advanceElapsed(transitionTimeCount_, transitionTime_, deltaTime);
-    }
-    updateFlash(deltaTime);
-    updateScreenTone(deltaTime);
-    updateShake(deltaTime);
+    transitionImpl_.advance(deltaTime);
+    screenEffectsImpl_.update(deltaTime);
     WeatherController::update(deltaTime);
     FogController::update(deltaTime);
-    applyPendingTransition();
+    transitionImpl_.applyPendingTransition();
     canvas_->display();
     sf::RenderTexture* finalCanvas = canvas_.get();
     for (std::size_t index = 0; index < graphicsCanvases_.size(); ++index) {
@@ -100,65 +116,10 @@ void FramePipelineImpl::composeFrame(float deltaTime,
         finalCanvas = &target;
     }
     canvasSprite_->setTexture(finalCanvas->getTexture(), true);
-    if (shakeActive_) {
-        const sf::Vector2u textureSize = finalCanvas->getSize();
-        if (textureSize.x > 0 && textureSize.y > 0) {
-            const float pad = shakePower_;
-            canvasSprite_->setScale(
-                {(static_cast<float>(textureSize.x) + pad * 2.0f) /
-                     static_cast<float>(textureSize.x),
-                 (static_cast<float>(textureSize.y) + pad * 2.0f) /
-                     static_cast<float>(textureSize.y)});
-            canvasSprite_->setPosition(
-                {-pad + shakeOffset_.x, -pad + shakeOffset_.y});
-        }
-    }
-    if (transitionOutputTexture_ == nullptr ||
-        !transitionOutputSprite_.has_value()) {
-        target->draw(*canvasSprite_, canvasRenderStates());
-    } else if (inTransition_ && transitionShader_ != nullptr &&
-               transition_ != nullptr && transitionTempTexture_ != nullptr &&
-               transitionSprite_.has_value()) {
-        transitionTempTexture_->clear(sf::Color::Transparent);
-        transitionTempTexture_->draw(*canvasSprite_, sf::BlendNone);
-        transitionTempTexture_->display();
-        transitionShader_->setUniform("screenTex",
-                                      transitionTempTexture_->getTexture());
-        transitionShader_->setUniform("backTex", transition_->getTexture());
-        transitionShader_->setUniform(
-            "transitionResource",
-            transitionResource_ != nullptr && transitionMaskTexture_ != nullptr
-                ? transitionMaskTexture_->getTexture()
-                : transition_->getTexture());
-        transitionShader_->setUniform("useMask",
-                                      transitionResource_ != nullptr &&
-                                          transitionMaskTexture_ != nullptr);
-        transitionShader_->setUniform("progress", transitionTimeCount_);
-        transitionShader_->setUniform("totalTime", transitionTime_);
-        sf::RenderStates states(sf::BlendNone);
-        states.shader = transitionShader_.get();
-        transitionOutputTexture_->clear(sf::Color::Transparent);
-        transitionOutputTexture_->draw(*transitionSprite_, states);
-        transitionOutputTexture_->display();
-        target->draw(*transitionOutputSprite_, canvasRenderStates());
-    } else {
-        transitionOutputTexture_->clear(sf::Color::Transparent);
-        transitionOutputTexture_->draw(*canvasSprite_, sf::BlendNone);
-        transitionOutputTexture_->display();
-        target->draw(*transitionOutputSprite_, canvasRenderStates());
-    }
-    if (shakeActive_) {
-        canvasSprite_->setScale({1.0f, 1.0f});
-        canvasSprite_->setPosition({0.0f, 0.0f});
-    }
-    if (transitionFreezePending_) {
-        cacheTransitionBackground();
-        transitionFreezePending_ = false;
-        transitionFrozen_ = true;
-    }
-    composedTransitionRevision_ = transitionRevision_;
-    transitionCompletionPending_ =
-        inTransition_ && isComplete(transitionTimeCount_, transitionTime_);
+    screenEffectsImpl_.applyShake(*canvasSprite_, finalCanvas->getSize());
+    transitionImpl_.compose(*canvasSprite_, *target);
+    screenEffectsImpl_.restoreShake(*canvasSprite_);
+    transitionImpl_.finishComposition();
 }
 
 void FramePipelineImpl::present(DisplayImpl& display) {
@@ -170,16 +131,10 @@ void FramePipelineImpl::present(DisplayImpl& display) {
 }
 
 bool FramePipelineImpl::completeFrame(bool hasWindow) {
-    if (!hasWindow || canvas_ == nullptr || !canvasSprite_.has_value()) {
-        transitionCompletionPending_ = false;
-        return false;
-    }
-    if (transitionCompletionPending_ &&
-        composedTransitionRevision_ == transitionRevision_) {
-        inTransition_ = false;
-    }
-    transitionCompletionPending_ = false;
-    return true;
+    const bool submitted =
+        hasWindow && canvas_ != nullptr && canvasSprite_.has_value();
+    transitionImpl_.completeFrame(submitted);
+    return submitted;
 }
 
 void FramePipelineImpl::addGraphicsShader(
@@ -187,7 +142,7 @@ void FramePipelineImpl::addGraphicsShader(
     std::optional<ShaderUniforms> uniforms) {
     if (!shadersAvailable()) {
         if (shader != nullptr) {
-            warnOnce("System.addGraphicsShader",
+            warnOnce("Graphics.addGraphicsShader",
                      "Shaders are unavailable; ignored addGraphicsShader");
         }
         return;
@@ -329,124 +284,30 @@ sf::Vector2u FramePipelineImpl::getCanvasSize() const {
 }
 
 void FramePipelineImpl::initializeGraphics() {
-    if (shadersAvailable()) {
-        transitionShader_ =
-            ShaderManager::load("/Game/Assets/Shaders/Global/Transition.frag",
-                                sf::Shader::Type::Fragment);
-    } else {
-        transitionShader_.reset();
-        warnOnce("System.transitionShader",
-                 "Shaders are unavailable; skipped loading transition shader");
-    }
+    transitionImpl_.initializeGraphics();
 }
 
 void FramePipelineImpl::rebuildTargets(const sf::Vector2u& size,
                                        float renderScale) {
-    std::optional<sf::Image> transitionImage;
-    if (transition_ != nullptr) {
-        transition_->display();
-        transitionImage = transition_->getTexture().copyToImage();
-    }
     engineState().setScale(renderScale);
-    initCanvas(size);
-    if (transitionImage.has_value() && transition_ != nullptr) {
-        const sf::Texture texture(*transitionImage);
-        sf::Sprite sprite(texture);
-        const sf::Vector2u sourceSize = texture.getSize();
-        if (sourceSize.x > 0 && sourceSize.y > 0) {
-            sprite.setScale(
-                {static_cast<float>(size.x) / static_cast<float>(sourceSize.x),
-                 static_cast<float>(size.y) /
-                     static_cast<float>(sourceSize.y)});
-            transition_->clear(sf::Color::Transparent);
-            transition_->draw(sprite, sf::BlendNone);
-            transition_->display();
-        }
-    }
-    if (transitionResource_ != nullptr && transitionMaskTexture_ != nullptr) {
-        const sf::Vector2u sourceSize = transitionResource_->getSize();
-        if (sourceSize.x > 0 && sourceSize.y > 0) {
-            sf::Sprite maskSprite(*transitionResource_);
-            maskSprite.setScale(
-                {static_cast<float>(size.x) / static_cast<float>(sourceSize.x),
-                 static_cast<float>(size.y) /
-                     static_cast<float>(sourceSize.y)});
-            transitionMaskTexture_->clear(sf::Color::Transparent);
-            transitionMaskTexture_->draw(maskSprite, sf::BlendNone);
-            transitionMaskTexture_->display();
-        }
-    }
+    initCanvas(size, true);
 }
 
 void FramePipelineImpl::reset() {
     graphicsCanvases_.clear();
     graphicsShaders_.clear();
-    {
-        const std::lock_guard<std::mutex> lock(transitionMutex_);
-        pendingTransition_.reset();
-    }
-    transitionResource_.reset();
-    transitionFrozen_ = false;
-    transitionFreezePending_ = false;
-    inTransition_ = false;
-    transitionTimeCount_ = 0.0f;
-    transitionTime_ = 0.0f;
-    transitionRevision_ = 0;
-    composedTransitionRevision_ = 0;
-    transitionCompletionPending_ = false;
-    stopFlash();
-    stopScreenTone();
-    stopShake();
-    transitionShader_.reset();
+    transitionImpl_.reset();
+    screenEffectsImpl_.reset();
     canvasDefaultViewActive_ = true;
 }
 
 void FramePipelineImpl::shutdown() noexcept {
-    {
-        const std::lock_guard<std::mutex> lock(transitionMutex_);
-        pendingTransition_.reset();
-    }
     graphicsShaders_.clear();
     graphicsCanvases_.clear();
-    transitionResource_.reset();
-    transitionShader_.reset();
-    flashShader_.reset();
-    toneShader_.reset();
+    transitionImpl_.shutdown();
+    screenEffectsImpl_.shutdown();
     canvasSprite_.reset();
-    transitionSprite_.reset();
-    transitionOutputSprite_.reset();
-    toneBufferSprite_.reset();
-    transition_.reset();
-    transitionTempTexture_.reset();
-    transitionOutputTexture_.reset();
-    transitionMaskTexture_.reset();
-    toneBuffer_.reset();
     canvas_.reset();
-    inTransition_ = false;
-    transitionTimeCount_ = 0.0f;
-    transitionTime_ = 0.0f;
-    transitionRevision_ = 0;
-    composedTransitionRevision_ = 0;
-    transitionCompletionPending_ = false;
-    transitionFrozen_ = false;
-    transitionFreezePending_ = false;
-    flashActive_ = false;
-    flashColour_ = {1.0f, 1.0f, 1.0f, 1.0f};
-    flashDuration_ = 0.0f;
-    flashTimeCount_ = 0.0f;
-    toneActive_ = false;
-    toneCurrentColour_ = {};
-    toneStartColour_ = {};
-    toneTargetColour_ = {};
-    toneDuration_ = 0.0f;
-    toneTimeCount_ = 0.0f;
-    shakeActive_ = false;
-    shakePower_ = 0.0f;
-    shakeSpeed_ = 0.0f;
-    shakeDuration_ = 0.0f;
-    shakeTimeCount_ = 0.0f;
-    shakeOffset_ = {};
-    shakeNextUpdate_ = 0.0f;
     canvasDefaultViewActive_ = true;
 }
 

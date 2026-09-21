@@ -7,8 +7,9 @@ local Data = require("Source.Data")
 local SceneInitAnimationCache = require("Source.Scenes.SceneInitAnimationCache")
 local SceneInitController = require("Source.Scenes.SceneInit.Controller")
 
+local Display = GlobalCore.Display
+local SceneManager = GlobalCore.SceneManager
 local ResourceFileConstants = Engine.ResourceFileConstants
-local GlobalSystem = GlobalCore.System
 local SceneBase = GlobalCore.SceneBase
 
 local ANIMATION_PROGRESS_WEIGHT = 0.5
@@ -17,7 +18,7 @@ local ANIMATION_PROGRESS_WEIGHT = 0.5
 local Scene = {}
 
 function Scene:onCreate()
-    local gameSize = GlobalSystem.getGameSize()
+    local gameSize = Display.getGameSize()
     self._ui = SceneInitController.new(self, gameSize)
     self._ui:mount(self:getUIManager(), gameSize)
     self._bg = self._ui:getBackground()
@@ -42,7 +43,7 @@ function Scene:onTick(_)
         local SceneTitle = require("Source.Scenes.SceneTitle")
 
         self.hasSwitched = true
-        GlobalSystem.setScene(SceneTitle.new())
+        SceneManager.setScene(SceneTitle.new())
     end
 end
 
@@ -184,10 +185,12 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
     assert(payload.type == "animation", "Animation source has invalid type: " .. relativePath)
     self._animationSourceKeys[sourceKey] = true
 
-    local sourceRelativePath = encryptedSource and sourceKey .. ResourceFileConstants.ENCRYPTED_DATA_EXTENSION or relativePath
+    local sourceRelativePath = encryptedSource and sourceKey .. ResourceFileConstants.ENCRYPTED_DATA_EXTENSION
+        or relativePath
     local sourcePath = os.path.join(sourceRoot, sourceRelativePath)
     local cacheRelativePath = sourceKey
-        .. (encryptedSource and ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX or ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
+        .. (encryptedSource and ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX
+            or ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
     local cachePath = os.path.join(cacheRoot, cacheRelativePath)
     local frameAssets = SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
     if SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
@@ -205,7 +208,10 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
         Engine.writeJSON(cachePath, compressed)
     end
     local alternateCachePath = os.path.join(
-        cacheRoot, sourceKey .. (encryptedSource and ResourceFileConstants.ANIMATION_CACHE_SUFFIX or ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX)
+        cacheRoot,
+        sourceKey
+            .. (encryptedSource and ResourceFileConstants.ANIMATION_CACHE_SUFFIX
+                or ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX)
     )
     if os.path.isfile(alternateCachePath) then
         os.removeFile(alternateCachePath)
@@ -263,7 +269,8 @@ function Scene:_removeOrphanedAnimation(item)
     if self._animationSourceKeys[sourceKey] then
         return false
     end
-    local cacheRelativePath = item.encryptedData == true and sourceKey .. ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX
+    local cacheRelativePath = item.encryptedData == true
+        and sourceKey .. ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX
         or relativePath
     local cachePath = os.path.join(Engine.getAnimationCacheRoot(), cacheRelativePath)
     os.removeFile(cachePath)

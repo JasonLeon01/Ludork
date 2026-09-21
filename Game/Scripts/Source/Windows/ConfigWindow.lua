@@ -11,6 +11,8 @@ local ConfigCheckBoxRowController = require("Source.Windows.ConfigWindow.ConfigC
 local ConfigSettingRowController = require("Source.Windows.ConfigWindow.ConfigSettingRow.Controller")
 local Ui = require("Source.UIBase.Ui")
 
+local Display = GlobalCore.Display
+local Graphics = GlobalCore.Graphics
 local System = GlobalCore.System
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
@@ -100,10 +102,10 @@ local function refreshRowLabels(rows, localeKeys)
 end
 
 local function getGraphicsPresetIndex()
-    local maximumRenderScale = System.getMaximumRenderScale()
-    local frameRate = System.getFrameRate()
-    local antiAliasingLevel = System.getAntiAliasingLevel()
-    local lightingRenderScale = System.getLightingRenderScale()
+    local maximumRenderScale = Graphics.getMaximumRenderScale()
+    local frameRate = Display.getFrameRate()
+    local antiAliasingLevel = Display.getAntiAliasingLevel()
+    local lightingRenderScale = Graphics.getLightingRenderScale()
     for index, preset in ipairs(_GRAPHICS_PRESETS) do
         if maximumRenderScale == preset[1] and frameRate == preset[2]
             and antiAliasingLevel == preset[3] and lightingRenderScale == preset[4] then
@@ -147,7 +149,7 @@ function Controller:init(onClose)
         { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }, { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) },
         { index = 0, scrollOffset = sf.Vector2f.new(0.0, 0.0) }
     }
-    self._scaleAvailable = System.isDisplayScaleConfigurable()
+    self._scaleAvailable = Display.isDisplayScaleConfigurable()
     self._scaleValues = {}
     self._maximumRenderScaleValues = {}
     self._pages = {}
@@ -600,7 +602,7 @@ function Controller:refreshDisplayScaleOptions()
         self:_setScaleOptions(scaleValues, effectiveScale)
     end
     local maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(
-        System.getMaximumRenderScale()
+        Graphics.getMaximumRenderScale()
     )
     self:_setMaximumRenderScaleOptions(maximumRenderScaleValues, effectiveMaximumRenderScale)
     self:_syncGraphicsPresetSelection()
@@ -608,7 +610,7 @@ function Controller:refreshDisplayScaleOptions()
 end
 
 function Controller:syncDisplayScaleAvailability()
-    local configurable = System.isDisplayScaleConfigurable()
+    local configurable = Display.isDisplayScaleConfigurable()
     if configurable == self._scaleAvailable then
         return 0
     end
@@ -671,7 +673,7 @@ function Controller:onFrameRateSelectedIndexChanged(index)
     if self._applyingGraphicsPreset then
         return
     end
-    System.setFrameRate(math.trunc(assert(tonumber(_FRAMERATE_ITEMS[index + 1]))))
+    Display.setFrameRate(math.trunc(assert(tonumber(_FRAMERATE_ITEMS[index + 1]))))
     self:_syncGraphicsPresetSelection()
 end
 
@@ -680,7 +682,7 @@ function Controller:onAntiAliasingLevelSelectedIndexChanged(index)
         return
     end
     local value = assert(self._antiAliasingLevelItems[index + 1])
-    System.setAntiAliasingLevel(math.trunc(assert(tonumber(value))))
+    Display.setAntiAliasingLevel(math.trunc(assert(tonumber(value))))
     self:_syncGraphicsPresetSelection()
 end
 
@@ -688,7 +690,7 @@ function Controller:onLightingRenderScaleSelectedIndexChanged(index)
     if self._applyingGraphicsPreset then
         return
     end
-    System.setLightingRenderScale(assert(_LIGHTING_RENDER_SCALE_VALUES[index + 1]))
+    Graphics.setLightingRenderScale(assert(_LIGHTING_RENDER_SCALE_VALUES[index + 1]))
     self:_syncGraphicsPresetSelection()
 end
 
@@ -726,7 +728,7 @@ function Controller:_createScaleRow()
     if self._scaleAvailable then
         self._scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
     else
-        self._scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(nil, System.getConfiguredScale())
+        self._scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(nil, Display.getConfiguredScale())
     end
     self._scaleRow = ConfigSettingRowController.new(
         self.ui.assets["GraphicsItem2"], LOC("scale"), getScaleLabels(self._scaleValues, "fullscreen"),
@@ -743,7 +745,7 @@ function Controller:_createGraphicsRows()
     self:_createScaleRow()
     local effectiveMaximumRenderScale
     self._maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(
-        System.getMaximumRenderScale()
+        Graphics.getMaximumRenderScale()
     )
     self._maximumRenderScaleRow = ConfigSettingRowController.new(
         self.ui.assets["GraphicsItem3"], LOC("maxrenderscale"),
@@ -752,19 +754,19 @@ function Controller:_createGraphicsRows()
     )
     self._framerateRow = ConfigSettingRowController.new(
         self.ui.assets["GraphicsItem4"], LOC("framerate"), getFrameRateLabels(),
-        findSelectedIndex(_FRAMERATE_ITEMS, System.getFrameRate())
+        findSelectedIndex(_FRAMERATE_ITEMS, Display.getFrameRate())
     )
-    self._antiAliasingLevelItems = getAntiAliasingLevelItems(System.getAntiAliasingLevel())
+    self._antiAliasingLevelItems = getAntiAliasingLevelItems(Display.getAntiAliasingLevel())
     self._antiAliasingLevelRow = ConfigSettingRowController.new(
         self.ui.assets["GraphicsItem5"], LOC("antialiasinglevel"), self._antiAliasingLevelItems,
-        findSelectedIndex(self._antiAliasingLevelItems, System.getAntiAliasingLevel())
+        findSelectedIndex(self._antiAliasingLevelItems, Display.getAntiAliasingLevel())
     )
     self._verticalSyncRow = ConfigCheckBoxRowController.new(
-        self.ui.assets["GraphicsItem6"], LOC("verticalsync"), System.getVerticalSync(), System.setVerticalSync
+        self.ui.assets["GraphicsItem6"], LOC("verticalsync"), Display.getVerticalSync(), Display.setVerticalSync
     )
     self._lightingRenderScaleRow = ConfigSettingRowController.new(
         self.ui.assets["GraphicsItem7"], LOC("lightingrenderscale"), _LIGHTING_RENDER_SCALE_ITEMS,
-        findScaleIndex(_LIGHTING_RENDER_SCALE_VALUES, System.getLightingRenderScale())
+        findScaleIndex(_LIGHTING_RENDER_SCALE_VALUES, Graphics.getLightingRenderScale())
     )
     local allRows = {
         self._graphicsPresetRow, self._scaleRow, self._maximumRenderScaleRow, self._framerateRow,
@@ -795,22 +797,25 @@ end
 
 function Controller:_createAudioRows()
     self._musicOnRow = ConfigCheckBoxRowController.new(
-        self.ui.assets["AudioItem1"], LOC("musicon"), System.getMusicOn(), System.setMusicOn
+        self.ui.assets["AudioItem1"], LOC("musicon"), AudioManager.getMusicOn(), AudioManager.setMusicOn
     )
     self._musicVolumeRow = ConfigSliderRowController.new(
-        self.ui.assets["AudioItem2"], LOC("musicvolume"), math.round(System.getMusicVolume()), System.setMusicVolume
+        self.ui.assets["AudioItem2"], LOC("musicvolume"), math.round(AudioManager.getMusicVolume()),
+        AudioManager.setMusicVolume
     )
     self._soundOnRow = ConfigCheckBoxRowController.new(
-        self.ui.assets["AudioItem3"], LOC("soundon"), System.getSoundOn(), System.setSoundOn
+        self.ui.assets["AudioItem3"], LOC("soundon"), AudioManager.getSoundOn(), AudioManager.setSoundOn
     )
     self._soundVolumeRow = ConfigSliderRowController.new(
-        self.ui.assets["AudioItem4"], LOC("soundvolume"), math.round(System.getSoundVolume()), System.setSoundVolume
+        self.ui.assets["AudioItem4"], LOC("soundvolume"), math.round(AudioManager.getSoundVolume()),
+        AudioManager.setSoundVolume
     )
     self._voiceOnRow = ConfigCheckBoxRowController.new(
-        self.ui.assets["AudioItem5"], LOC("voiceon"), System.getVoiceOn(), System.setVoiceOn
+        self.ui.assets["AudioItem5"], LOC("voiceon"), AudioManager.getVoiceOn(), AudioManager.setVoiceOn
     )
     self._voiceVolumeRow = ConfigSliderRowController.new(
-        self.ui.assets["AudioItem6"], LOC("voicevolume"), math.round(System.getVoiceVolume()), System.setVoiceVolume
+        self.ui.assets["AudioItem6"], LOC("voicevolume"), math.round(AudioManager.getVoiceVolume()),
+        AudioManager.setVoiceVolume
     )
     local rows = {
         self._musicOnRow, self._musicVolumeRow, self._soundOnRow, self._soundVolumeRow, self._voiceOnRow,
@@ -885,10 +890,10 @@ function Controller:_onGraphicsPresetSelectionConfirmed(index)
     end
     local preset = _GRAPHICS_PRESETS[index + 1]
     self._applyingGraphicsPreset = true
-    System.setMaximumRenderScale(preset[1])
-    System.setFrameRate(preset[2])
-    System.setAntiAliasingLevel(preset[3])
-    System.setLightingRenderScale(preset[4])
+    Graphics.setMaximumRenderScale(preset[1])
+    Display.setFrameRate(preset[2])
+    Display.setAntiAliasingLevel(preset[3])
+    Graphics.setLightingRenderScale(preset[4])
     local maximumRenderScaleValues, effectiveMaximumRenderScale = MainConfig.GetMaximumRenderScaleOptions(preset[1])
     self:_setMaximumRenderScaleOptions(maximumRenderScaleValues, effectiveMaximumRenderScale)
     self._framerateRow.ui.controls["DropBox"]:setSelectedIndex(findSelectedIndex(_FRAMERATE_ITEMS, preset[2]))
@@ -905,11 +910,11 @@ end
 
 ---@diagnostic disable-next-line: unused
 function Controller:_getCurrentDisplayScaleOptions()
-    local configuredScale = System.getConfiguredScale()
-    local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
+    local configuredScale = Display.getConfiguredScale()
+    local maximumScale = Display.getMaximumWindowedScale(Display.getGameSize())
     local scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
     if maximumScale ~= nil and effectiveScale ~= configuredScale then
-        System.setScale(effectiveScale)
+        Display.setScale(effectiveScale)
     end
     return scaleValues, effectiveScale
 end
@@ -927,23 +932,23 @@ function Controller:_setMaximumRenderScaleOptions(scaleValues, selectedScale)
 end
 
 function Controller:_onScaleSelectionConfirmed(index)
-    if not System.isDisplayScaleConfigurable() then
+    if not Display.isDisplayScaleConfigurable() then
         local scaleValues, effectiveScale = self:_getCurrentDisplayScaleOptions()
         self:_setScaleOptions(scaleValues, effectiveScale)
         return
     end
     local selectedScale = assert(self._scaleValues[index + 1])
-    local maximumScale = System.getMaximumWindowedScale(System.getGameSize())
+    local maximumScale = Display.getMaximumWindowedScale(Display.getGameSize())
     local scaleValues, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, selectedScale)
     self:_setScaleOptions(scaleValues, effectiveScale)
-    System.setScale(effectiveScale)
+    Display.setScale(effectiveScale)
 end
 
 function Controller:_onMaximumRenderScaleSelectionConfirmed(index)
     local selectedScale = assert(self._maximumRenderScaleValues[index + 1])
     local scaleValues, effectiveScale = MainConfig.GetMaximumRenderScaleOptions(selectedScale)
     self:_setMaximumRenderScaleOptions(scaleValues, effectiveScale)
-    System.setMaximumRenderScale(effectiveScale)
+    Graphics.setMaximumRenderScale(effectiveScale)
     self:_syncGraphicsPresetSelection()
 end
 

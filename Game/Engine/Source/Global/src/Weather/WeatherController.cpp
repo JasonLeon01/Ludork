@@ -1,8 +1,8 @@
+#include <ScreenEffects.hpp>
 #include <Weather/WeatherController.hpp>
 
 #include <Camera.hpp>
 #include <Manager/ShaderManager.hpp>
-#include <System.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
@@ -72,7 +72,8 @@ void WeatherController::update(float deltaTime) {
     stormFlashCooldown_ = std::max(0.0f, stormFlashCooldown_ - deltaTime);
     if (stormFlashCooldown_ <= 0.0f &&
         randomUnit() < 0.02f * (power_ / 100.0f)) {
-        System::flashScreen(StormFlashColour, 0.08f + randomUnit() * 0.07f);
+        ScreenEffects::flashScreen(StormFlashColour,
+                                   0.08f + randomUnit() * 0.07f);
         stormFlashCooldown_ = 0.35f + randomUnit() * 0.65f;
     }
 }

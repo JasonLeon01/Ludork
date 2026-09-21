@@ -3,22 +3,24 @@ local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local GameOverController = require("Source.Scenes.SceneGameOver.Controller")
 
+local Display = GlobalCore.Display
+local SceneManager = GlobalCore.SceneManager
+local Transition = GlobalCore.Transition
 local Input = Engine.Input
 local AudioManager = GlobalCore.AudioManager
 local SceneBase = GlobalCore.SceneBase
-local GlobalSystem = GlobalCore.System
 
 local Scene = {}
 
 ---@diagnostic disable-next-line: unused
 function Scene:onEnter()
-    GlobalSystem.setTransition(nil, 0.0)
+    Transition.setTransition(nil, 0.0)
 end
 
 function Scene:onCreate()
     self._phase = "entering"
     self._ui = GameOverController.new()
-    self._ui:mount(self:getUIManager(), GlobalSystem.getGameSize())
+    self._ui:mount(self:getUIManager(), Display.getGameSize())
     self._ui:playAnimation("FadeIn", nil, function ()
         self._phase = "open"
     end)
@@ -46,7 +48,7 @@ function Scene:_backToTitle()
     self._phase = "exiting"
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self._ui:playAnimation("FadeOut", nil, function ()
-        GlobalSystem.setScene(SceneTitle.new())
+        SceneManager.setScene(SceneTitle.new())
     end)
 end
 

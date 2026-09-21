@@ -4,7 +4,8 @@ local Locale = require("Source.Locale.Core")
 local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.RegionTitle")
 
-local GlobalSystem = GlobalCore.System
+local Graphics = GlobalCore.Graphics
+local Transition = GlobalCore.Transition
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 
@@ -51,8 +52,8 @@ function RegionTitleController:onViewUpdate(payload)
 end
 
 function RegionTitleController:update(deltaTime)
-    if not self.ui.controls["RegionTitle"]:getVisible() or GlobalSystem.isTransitionPending()
-        or GlobalSystem.isInTransition() then
+    if not self.ui.controls["RegionTitle"]:getVisible() or Transition.isTransitionPending()
+        or Transition.isInTransition() then
         return
     end
     ---@cast self.root Engine.Canvas
@@ -70,7 +71,7 @@ end
 function RegionTitleController:draw()
     ---@cast self.root Engine.Canvas
     self.root:render()
-    GlobalSystem.draw(self.root)
+    Graphics.draw(self.root)
 end
 
 return Ui.Define(View, RegionTitleController)

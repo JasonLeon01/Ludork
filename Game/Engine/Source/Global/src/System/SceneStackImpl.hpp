@@ -10,12 +10,11 @@
 namespace ludork::global::system_impl {
 
 class LifecycleImpl;
-class FramePipelineImpl;
+class TransitionImpl;
 
 class SceneStackImpl {
 public:
-    SceneStackImpl(const LifecycleImpl& lifecycle,
-                   FramePipelineImpl& framePipeline);
+    SceneStackImpl(const LifecycleImpl& lifecycle, TransitionImpl& transition);
     std::shared_ptr<SceneRuntime> getScene();
     std::shared_ptr<SceneRuntime> requireScene();
     std::vector<std::shared_ptr<SceneRuntime>> getSceneList();
@@ -50,7 +49,7 @@ private:
     void applyPopScene();
     void applyExit();
     const LifecycleImpl& lifecycle_;
-    FramePipelineImpl& framePipeline_;
+    TransitionImpl& transition_;
 
     std::vector<std::shared_ptr<SceneRuntime>> scenes_;
     std::deque<std::shared_ptr<SceneRuntime>> retiredScenes_;
@@ -59,5 +58,7 @@ private:
     std::mutex pendingSceneMutex_;
     std::thread::id sceneOperationThread_;
 };
+
+SceneStackImpl& sceneStackImpl();
 
 }  // namespace ludork::global::system_impl

@@ -7,8 +7,9 @@ local GameMapLighting = require("Global.GameMap.Lighting")
 local GameMapPresentation = require("Global.GameMap.Presentation")
 local GameMapRendering = require("Global.GameMap.Rendering")
 
+local Display = GlobalCore.Display
+local Graphics = GlobalCore.Graphics
 local ShaderManager = GlobalCore.ShaderManager
-local System = GlobalCore.System
 local WeatherController = GlobalCore.WeatherController
 local FogController = GlobalCore.FogController
 local PanoramaController = GlobalCore.PanoramaController
@@ -33,7 +34,7 @@ GameMap.HideDisconnectedRegions = false
 local function validateMapViewRect(gameMap)
     local rect = gameMap.MapViewRect:copy()
     ---@cast rect sf.IntRect
-    local gameSize = System.getGameSize()
+    local gameSize = Display.getGameSize()
     assert(rect.position.x >= 0 and rect.position.y >= 0, "MapViewRect position must not be negative")
     assert(rect.size.x > 0 and rect.size.y > 0, "MapViewRect size must be positive")
     assert(
@@ -331,7 +332,7 @@ end
 
 function GameMap:show()
     local renderCameraFrame = self:_prepareCameraFrame()
-    System.setWindowMapView(self._mapViewRect)
+    Graphics.setWindowMapView(self._mapViewRect)
     if renderCameraFrame and self._camera ~= nil then
         self._camera:clear()
     end
@@ -361,11 +362,11 @@ function GameMap:show()
         PanoramaController.drawUnderlay(self._camera, self._ambientLight)
     end
     ---@diagnostic disable-next-line: param-type-mismatch
-    System.draw(self._camera, self:_getMaterialShader())
+    Graphics.draw(self._camera, self:_getMaterialShader())
     FogController.drawOverlay()
     ---@cast self._particleSystem Engine.ParticleSystem
-    System.draw(self._particleSystem)
-    System.setWindowDefaultView()
+    Graphics.draw(self._particleSystem)
+    Graphics.setWindowDefaultView()
 end
 
 function GameMap:_syncActorsForMapCache()

@@ -6,6 +6,9 @@ local GameInstance = require("Source.GameInstance")
 local SceneTitleController = require("Source.Scenes.SceneTitle.Controller")
 local LazyWindow = require("Source.UIBase.LazyWindow")
 
+local Display = GlobalCore.Display
+local SceneManager = GlobalCore.SceneManager
+local Transition = GlobalCore.Transition
 local ManagerFunctions = GlobalFunctions.Manager
 local AudioManager = GlobalCore.AudioManager
 local GlobalSystem = GlobalCore.System
@@ -16,7 +19,7 @@ local Scene = {}
 
 ---@diagnostic disable-next-line: unused
 function Scene:onEnter()
-    GlobalSystem.setTransition(ManagerFunctions.loadTransition("Flat.png"))
+    Transition.setTransition(ManagerFunctions.loadTransition("Flat.png"))
 end
 
 function Scene:onCreate()
@@ -24,7 +27,7 @@ function Scene:onCreate()
     ---@cast uiManager GlobalCore.UIManager
     uiManager:setFocusNavigationEnabled(true)
     self._ui = SceneTitleController.new(self)
-    self._ui:mount(self:getUIManager(), GlobalSystem.getGameSize())
+    self._ui:mount(self:getUIManager(), Display.getGameSize())
     self._windowCommand = self._ui:getCommandWindow()
     self._windowSaveLoad = LazyWindow.new(function ()
         local constructionClock = sf.Clock.new()
@@ -89,7 +92,7 @@ function Scene:startGame()
     ManagerFunctions.stopMusic("BGM")
     local nextScene = SceneMap.new()
     nextScene:setInst(GameInstance.new())
-    GlobalSystem.setScene(nextScene)
+    SceneManager.setScene(nextScene)
 end
 
 function Scene:openLoad()
@@ -115,7 +118,7 @@ function Scene:_onSaveLoadLoaded(inst)
     ManagerFunctions.stopMusic("BGM")
     local nextScene = SceneMap.new()
     nextScene:setInst(inst)
-    GlobalSystem.setScene(nextScene)
+    SceneManager.setScene(nextScene)
 end
 
 function Scene:toggleConfig()

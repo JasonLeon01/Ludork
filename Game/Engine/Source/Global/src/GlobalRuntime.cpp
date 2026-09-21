@@ -16,7 +16,6 @@
 #include <RuntimeSession.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include <System.hpp>
-#include <SystemConfigBase.hpp>
 #include <UIManager.hpp>
 #include <VideoPlayback.hpp>
 #include <Weather/WeatherController.hpp>
@@ -105,7 +104,7 @@ void shutdown(lua_State* state) noexcept {
     TextureManager::clear();
     TimeManager::shutdown();
     shutdownActorAudioBridge();
-    SystemConfigBase::shutdown();
+    System::shutdownConfiguration();
 }
 
 }  // namespace ludork::global

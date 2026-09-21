@@ -24,6 +24,60 @@ private:
 
 public:
     BIND_METHOD()
+    static bool getMusicOn();
+
+    BIND_METHOD()
+    static void setMusicOn(bool value);
+
+    BIND_METHOD()
+    static void saveMusicOn(bool value);
+
+    BIND_METHOD()
+    static bool getSoundOn();
+
+    BIND_METHOD()
+    static void setSoundOn(bool value);
+
+    BIND_METHOD()
+    static void saveSoundOn(bool value);
+
+    BIND_METHOD()
+    static bool getVoiceOn();
+
+    BIND_METHOD()
+    static void setVoiceOn(bool value);
+
+    BIND_METHOD()
+    static void saveVoiceOn(bool value);
+
+    BIND_METHOD()
+    static float getMusicVolume();
+
+    BIND_METHOD()
+    static void setMusicVolume(float value);
+
+    BIND_METHOD()
+    static void saveMusicVolume(float value);
+
+    BIND_METHOD()
+    static float getSoundVolume();
+
+    BIND_METHOD()
+    static void setSoundVolume(float value);
+
+    BIND_METHOD()
+    static void saveSoundVolume(float value);
+
+    BIND_METHOD()
+    static float getVoiceVolume();
+
+    BIND_METHOD()
+    static void setVoiceVolume(float value);
+
+    BIND_METHOD()
+    static void saveVoiceVolume(float value);
+
+    BIND_METHOD()
     static std::shared_ptr<sf::SoundBuffer> loadSound(
         const std::string& filePath);
 

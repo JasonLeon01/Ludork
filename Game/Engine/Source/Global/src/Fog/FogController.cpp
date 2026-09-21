@@ -1,3 +1,4 @@
+#include <Graphics.hpp>
 #include <Fog/FogController.hpp>
 
 #include "FogController/FogRenderImpl.hpp"
@@ -7,7 +8,6 @@
 #include <Manager/ShaderManager.hpp>
 #include <Manager/TextureManager.hpp>
 #include <EngineState.hpp>
-#include <System.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
@@ -225,7 +225,7 @@ void FogController::drawOverlay() {
     if (!active_ || power_ <= 0.0f || fogTexture_ == nullptr) {
         return;
     }
-    sf::RenderTexture* canvas = System::getCanvas();
+    sf::RenderTexture* canvas = Graphics::getCanvas();
     if (canvas == nullptr) {
         return;
     }

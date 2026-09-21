@@ -1,9 +1,10 @@
+#include <ScreenEffects.hpp>
+#include <Graphics.hpp>
 #include <UIManager.hpp>
 #include <FocusGroup.hpp>
 #include <FocusManager.hpp>
 #include <UI/RuntimeCallbackRegistry.hpp>
 
-#include <System.hpp>
 #include <EngineState.hpp>
 #include <Emitters/EmitterScheduler.hpp>
 #include <UI/Canvas.hpp>
@@ -21,7 +22,7 @@ int zOrder(const std::shared_ptr<ControlBase>& ui) {
 
 void renderCanvas(const std::shared_ptr<ControlBase>& ui) {
     const std::shared_ptr<Canvas> canvas = ludork::Cast<Canvas>(ui);
-    sf::RenderTexture* target = System::getCanvas();
+    sf::RenderTexture* target = Graphics::getCanvas();
     if (canvas != nullptr && target != nullptr) {
         canvas->render(*target);
     }
@@ -154,19 +155,19 @@ void UIManager::collectEmitters(EmitterScheduler& scheduler) {
 
 void UIManager::renderHandle(float deltaTime,
                              const std::function<void()>& overlayRenderer) {
-    System::applyScreenTonePass();
+    ScreenEffects::applyScreenTonePass();
     const std::vector<std::shared_ptr<ControlBase>> sorted = sortedUIs(false);
     for (const std::shared_ptr<ControlBase>& ui : sorted) {
         if (!ui->getVisible()) {
             continue;
         }
         renderCanvas(ui);
-        System::draw(*ui);
+        Graphics::draw(*ui);
     }
     if (overlayRenderer) {
         overlayRenderer();
     }
-    System::composeFrame(deltaTime);
+    Graphics::composeFrame(deltaTime);
     for (const std::shared_ptr<ControlBase>& ui : sorted) {
         if (!ui->getVisible()) {
             continue;

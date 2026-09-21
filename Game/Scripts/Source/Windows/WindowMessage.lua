@@ -9,10 +9,10 @@ local Ui = require("Source.UIBase.Ui")
 local UiLayout = require("Source.UIBase.UiLayout")
 local View = require("Source.UI.WindowMessage")
 
+local Display = GlobalCore.Display
 local PlainText = Engine.PlainText
 local RichText = Engine.RichText
 local TextLayout = Engine.TextLayout
-local GlobalSystem = GlobalCore.System
 local _MESSAGE_TEXT_CONFIG = "UI/Message"
 
 local _OPTION_ITEM_HEIGHT = 32
@@ -364,7 +364,7 @@ function Controller:showSelectionList(options, onConfirm, onCancel)
 end
 
 function Controller:updateWindowPosition(refPosition)
-    local gameSize = GlobalSystem.getGameSize()
+    local gameSize = Display.getGameSize()
     local gameWidth = gameSize.x + 0.0
     local gameHeight = gameSize.y + 0.0
     if refPosition == nil then
@@ -391,7 +391,7 @@ function Controller:updateWindowPosition(refPosition)
 end
 
 local function getMaxWindowWidth()
-    local gameWidth = GlobalSystem.getGameSize().x
+    local gameWidth = Display.getGameSize().x
     return math.max(1, gameWidth - _SCREEN_EDGE_MARGIN)
 end
 

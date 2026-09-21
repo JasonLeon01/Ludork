@@ -35,7 +35,8 @@ target_compile_definitions(GlobalCore PRIVATE
     LUDORK_GLOBAL_EXPORTS=1
     LUDORK_PLATFORM="${LUDORK_PLATFORM}")
 target_include_directories(GlobalCore
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Config")
 target_link_libraries(GlobalCore
     PUBLIC
         Ludork::Engine

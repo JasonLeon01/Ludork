@@ -1,11 +1,11 @@
 local Engine = require("Engine")
-local GameMap = require("Global.GameMap")
 local GlobalCore = require("GlobalCore")
+local GameMap = require("Global.GameMap")
 local MainConfig = require("Source.Configs.Main")
 
+local Display = GlobalCore.Display
 local ResourceFileConstants = Engine.ResourceFileConstants
 local FontManager = GlobalCore.FontManager
-local GlobalSystem = GlobalCore.System
 local RuntimeProviders = Engine.RuntimeProviders
 
 ---@type function
@@ -85,13 +85,13 @@ function System.Init()
     )
     local startPos = systemData.startPos.value
     systemState.startPos = sf.Vector2u.new(startPos[1], startPos[2])
-    local configuredScale = GlobalSystem.getConfiguredScale()
-    local maximumScale = GlobalSystem.getMaximumWindowedScale(gameSize)
+    local configuredScale = Display.getConfiguredScale()
+    local maximumScale = Display.getMaximumWindowedScale(gameSize)
     local _, effectiveScale = MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
     if maximumScale ~= nil and effectiveScale ~= configuredScale then
-        GlobalSystem.setScale(effectiveScale)
+        Display.setScale(effectiveScale)
     end
-    GlobalSystem.initializeDisplay(systemState.title, gameSize, iconPath, cursorPath)
+    Display.initializeDisplay(systemState.title, gameSize, iconPath, cursorPath)
     Engine.DefaultFont = systemState.fonts[1]
     Engine.DefaultFontSize = systemState.fontSize
     Engine.DefaultWindowskinName = systemState.windowskinName

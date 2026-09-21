@@ -1,3 +1,7 @@
+#include <Transition.hpp>
+#include <SceneManager.hpp>
+#include <Graphics.hpp>
+#include <Display.hpp>
 #include <SceneBase.hpp>
 #include <Manager/TimerEntry.hpp>
 
@@ -135,7 +139,7 @@ void SceneBase::systemMain() {
             startLogicThread();
         }
         while (!lifecycleImpl_->isStopping() && System::isActive() &&
-               System::getScene().get() == this) {
+               SceneManager::getScene().get() == this) {
             PerformanceProfiler::beginMainFrame();
             const bool profile = PerformanceProfiler::isEnabled();
             MainFramePerformanceMeasurement measurement;
@@ -147,13 +151,13 @@ void SceneBase::systemMain() {
             {
                 std::unique_lock<std::recursive_mutex> lock =
                     lockLogicDataForMain();
-                if (System::hasPendingSceneOperations()) {
+                if (SceneManager::hasPendingSceneOperations()) {
                     lifecycleImpl_->requestStop();
                     break;
                 }
                 System::updateRuntime();
                 if (!System::isActive() ||
-                    System::hasPendingSceneOperations()) {
+                    SceneManager::hasPendingSceneOperations()) {
                     lifecycleImpl_->requestStop();
                     break;
                 }
@@ -169,7 +173,7 @@ void SceneBase::systemMain() {
                 std::unique_lock<std::recursive_mutex> lock =
                     lockLogicDataForMain();
                 if (const std::shared_ptr<sf::RenderWindow> window =
-                        System::getWindow();
+                        Display::getWindow();
                     window != nullptr) {
                     inputService().update(*window);
                 }
@@ -200,7 +204,7 @@ void SceneBase::systemMain() {
                 updateCommonTipOverlay(deltaTime);
                 if (emitterScheduler_ != nullptr) {
                     if (const std::shared_ptr<sf::RenderWindow> window =
-                            System::getWindow();
+                            Display::getWindow();
                         window != nullptr && !window->setActive(true)) {
                         throw std::runtime_error(
                             "Failed to activate the emitter graphics context");
@@ -223,7 +227,7 @@ void SceneBase::systemMain() {
                 }
                 _renderHandle(deltaTime);
                 lock.unlock();
-                System::present();
+                Graphics::present();
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
                     measurement.renderMilliseconds =
@@ -233,7 +237,7 @@ void SceneBase::systemMain() {
                 if (profile) {
                     phaseStart = std::chrono::steady_clock::now();
                 }
-                System::clearCanvas();
+                Graphics::clearCanvas();
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
                     measurement.renderMilliseconds +=
@@ -262,7 +266,7 @@ void SceneBase::systemMain() {
                 if (profile) {
                     phaseStart = std::chrono::steady_clock::now();
                 }
-                System::completeFrame();
+                Graphics::completeFrame();
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
                     measurement.renderMilliseconds +=
@@ -277,7 +281,7 @@ void SceneBase::systemMain() {
                 measurement.end = std::chrono::steady_clock::now();
                 measurement.audioMilliseconds =
                     durationMilliseconds(measurement.end - phaseStart);
-                measurement.targetFps = System::getFrameRate();
+                measurement.targetFps = Display::getFrameRate();
                 PerformanceProfiler::recordMainFrame(measurement);
             }
             failure = takeLogicFailure();
@@ -303,7 +307,7 @@ void SceneBase::systemMain() {
     lifecycleImpl_->finishMain();
 
     try {
-        System::drainRetiredScenes();
+        SceneManager::drainRetiredScenes();
     } catch (...) {
         if (failure == nullptr) {
             failure = std::current_exception();
@@ -384,7 +388,7 @@ void SceneBase::systemInput() {
 }
 
 void SceneBase::onEnter() {
-    System::setTransition();
+    Transition::setTransition();
 }
 
 void SceneBase::onQuit() {}
@@ -411,15 +415,15 @@ void SceneBase::_drawSceneAnims() {
     const std::vector<std::shared_ptr<Animation>> snapshot = getAnims();
     for (const std::shared_ptr<Animation>& animation : snapshot) {
         if (animation != nullptr) {
-            System::draw(*animation);
+            Graphics::draw(*animation);
         }
     }
 }
 
 void SceneBase::_drawCommonTipOverlay() {
-    System::setWindowDefaultView();
+    Graphics::setWindowDefaultView();
     if (commonTipParticleSystem_ != nullptr) {
-        System::draw(*commonTipParticleSystem_);
+        Graphics::draw(*commonTipParticleSystem_);
     }
 }
 
@@ -507,8 +511,8 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
     const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
     LogicStepPerformance performance;
     if (lifecycleImpl_->isStopping() || !System::isActive() ||
-        System::getScene().get() != this ||
-        System::hasPendingSceneOperations()) {
+        SceneManager::getScene().get() != this ||
+        SceneManager::hasPendingSceneOperations()) {
         return performance;
     }
     std::chrono::steady_clock::time_point phaseStart;
@@ -531,7 +535,7 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
             durationMilliseconds(phaseEnd - phaseStart);
     }
     fixedStep_ = ludork::global::scene_base_impl::fixedStepForFrameRate(
-        System::getFrameRate());
+        Display::getFrameRate());
     fixedAccumulator_ += deltaTime;
     int steps = 0;
     while (fixedAccumulator_ >= fixedStep_ && steps < maxFixedSteps_) {
@@ -600,9 +604,9 @@ void SceneBase::logicLoop() {
     auto lastTime = std::chrono::steady_clock::now();
     std::uint64_t videoPlaybackSequence = getVideoPlaybackCompletionSequence();
     while (!lifecycleImpl_->isStopping() && System::isActive() &&
-           System::getScene().get() == this &&
-           !System::hasPendingSceneOperations()) {
-        const int targetFps = System::getFrameRate();
+           SceneManager::getScene().get() == this &&
+           !SceneManager::hasPendingSceneOperations()) {
+        const int targetFps = Display::getFrameRate();
         const auto logicFrameTime = std::chrono::duration<double>(
             targetFps == 0 ? 0.0
                            : 1.0 / static_cast<double>(std::max(1, targetFps)));
@@ -683,7 +687,7 @@ void SceneBase::clearRuntimeState() noexcept {
         emitterMap_.reset();
         if (emitterScheduler_ != nullptr) {
             if (const std::shared_ptr<sf::RenderWindow> window =
-                    System::getWindow()) {
+                    Display::getWindow()) {
                 static_cast<void>(window->setActive(true));
             }
             emitterScheduler_->shutdown();

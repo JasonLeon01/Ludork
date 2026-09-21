@@ -1,4 +1,5 @@
-#include "FramePipelineImpl.hpp"
+#include "ScreenEffectsImpl.hpp"
+#include "GraphicsShaderSink.hpp"
 #include <Manager/ShaderManager.hpp>
 #include <Utils/Inner.hpp>
 #include <Utils/Render.hpp>
@@ -11,7 +12,10 @@
 
 namespace ludork::global::system_impl {
 
-sf::Glsl::Vec4 FramePipelineImpl::makeToneColour(float red, float green,
+ScreenEffectsImpl::ScreenEffectsImpl(GraphicsShaderSink& shaders)
+    : shaders_(shaders) {}
+
+sf::Glsl::Vec4 ScreenEffectsImpl::makeToneColour(float red, float green,
                                                  float blue, float gray) {
     return {std::clamp(red, -255.0f, 255.0f) / 255.0f,
             std::clamp(green, -255.0f, 255.0f) / 255.0f,
@@ -19,7 +23,7 @@ sf::Glsl::Vec4 FramePipelineImpl::makeToneColour(float red, float green,
             std::clamp(gray, 0.0f, 255.0f) / 255.0f};
 }
 
-sf::Glsl::Vec4 FramePipelineImpl::interpolateTone(const sf::Glsl::Vec4& start,
+sf::Glsl::Vec4 ScreenEffectsImpl::interpolateTone(const sf::Glsl::Vec4& start,
                                                   const sf::Glsl::Vec4& target,
                                                   float ratio) {
     const float amount = std::clamp(ratio, 0.0f, 1.0f);
@@ -29,23 +33,23 @@ sf::Glsl::Vec4 FramePipelineImpl::interpolateTone(const sf::Glsl::Vec4& start,
             start.w + (target.w - start.w) * amount};
 }
 
-bool FramePipelineImpl::isNeutralTone(const sf::Glsl::Vec4& colour) {
+bool ScreenEffectsImpl::isNeutralTone(const sf::Glsl::Vec4& colour) {
     return std::abs(colour.x) <= 0.0001f && std::abs(colour.y) <= 0.0001f &&
            std::abs(colour.z) <= 0.0001f && std::abs(colour.w) <= 0.0001f;
 }
 
-void FramePipelineImpl::applyScreenTonePass() {
-    if (!shadersAvailable() || !toneActive_ || toneShader_ == nullptr ||
-        canvas_ == nullptr || isNeutralTone(toneCurrentColour_)) {
+void ScreenEffectsImpl::applyScreenTonePass(sf::RenderTexture* canvas) {
+    if (!sf::Shader::isAvailable() || !toneActive_ || toneShader_ == nullptr ||
+        canvas == nullptr || isNeutralTone(toneCurrentColour_)) {
         return;
     }
-    canvas_->display();
-    const sf::Vector2u size = canvas_->getSize();
+    canvas->display();
+    const sf::Vector2u size = canvas->getSize();
     ensureToneBuffer(size);
-    toneBufferSprite_->setTexture(canvas_->getTexture(), true);
+    toneBufferSprite_->setTexture(canvas->getTexture(), true);
     toneBufferSprite_->setPosition({0.0f, 0.0f});
     toneBufferSprite_->setScale({1.0f, 1.0f});
-    toneShader_->setUniform("screenTex", canvas_->getTexture());
+    toneShader_->setUniform("screenTex", canvas->getTexture());
     toneShader_->setUniform(
         "texSize",
         sf::Vector2f{static_cast<float>(size.x), static_cast<float>(size.y)});
@@ -55,22 +59,22 @@ void FramePipelineImpl::applyScreenTonePass() {
     toneStates.shader = toneShader_.get();
     toneBuffer_->draw(*toneBufferSprite_, toneStates);
     toneBuffer_->display();
-    const sf::View savedView = canvas_->getView();
-    canvas_->clear(sf::Color::Transparent);
-    canvas_->setView(canvas_->getDefaultView());
+    const sf::View savedView = canvas->getView();
+    canvas->clear(sf::Color::Transparent);
+    canvas->setView(canvas->getDefaultView());
     toneBufferSprite_->setTexture(toneBuffer_->getTexture(), true);
-    canvas_->draw(*toneBufferSprite_, canvasRenderStates());
-    canvas_->setView(savedView);
+    canvas->draw(*toneBufferSprite_, canvasRenderStates());
+    canvas->setView(savedView);
 }
 
-void FramePipelineImpl::flashScreen(std::optional<sf::Color> color,
+void ScreenEffectsImpl::flashScreen(std::optional<sf::Color> color,
                                     float duration) {
     if (duration <= 0.0f) {
         stopFlash();
         return;
     }
-    if (!shadersAvailable()) {
-        warnOnce("System.flashScreen",
+    if (!sf::Shader::isAvailable()) {
+        warnOnce("ScreenEffects.flashScreen",
                  "Shaders are unavailable; skipped screen flash effect");
         return;
     }
@@ -91,30 +95,30 @@ void FramePipelineImpl::flashScreen(std::optional<sf::Color> color,
     flashDuration_ = duration;
     flashTimeCount_ = 0.0f;
     if (!flashActive_) {
-        addGraphicsShader(flashShader_);
+        shaders_.addEffectShader(flashShader_);
         flashActive_ = true;
     }
     flashShader_->setUniform("flashColor", flashColour_);
     flashShader_->setUniform("intensity", 1.0f);
 }
 
-void FramePipelineImpl::stopFlash() {
+void ScreenEffectsImpl::stopFlash() {
     if (flashActive_ && flashShader_ != nullptr) {
-        removeGraphicsShader(flashShader_);
+        shaders_.removeEffectShader(flashShader_);
     }
     flashActive_ = false;
     flashTimeCount_ = 0.0f;
     flashDuration_ = 0.0f;
 }
 
-bool FramePipelineImpl::isFlashing() {
+bool ScreenEffectsImpl::isFlashing() {
     return flashActive_;
 }
 
-void FramePipelineImpl::changeScreenTone(float red, float green, float blue,
+void ScreenEffectsImpl::changeScreenTone(float red, float green, float blue,
                                          float gray, float duration) {
-    if (!shadersAvailable()) {
-        warnOnce("System.changeScreenTone",
+    if (!sf::Shader::isAvailable()) {
+        warnOnce("ScreenEffects.changeScreenTone",
                  "Shaders are unavailable; skipped screen tone effect");
         return;
     }
@@ -138,11 +142,11 @@ void FramePipelineImpl::changeScreenTone(float red, float green, float blue,
     }
 }
 
-void FramePipelineImpl::clearScreenTone(float duration) {
+void ScreenEffectsImpl::clearScreenTone(float duration) {
     changeScreenTone(0.0f, 0.0f, 0.0f, 0.0f, duration);
 }
 
-void FramePipelineImpl::stopScreenTone() {
+void ScreenEffectsImpl::stopScreenTone() {
     toneCurrentColour_ = {};
     toneStartColour_ = {};
     toneTargetColour_ = {};
@@ -151,15 +155,15 @@ void FramePipelineImpl::stopScreenTone() {
     toneActive_ = false;
 }
 
-bool FramePipelineImpl::isScreenToneActive() {
+bool ScreenEffectsImpl::isScreenToneActive() {
     return toneActive_;
 }
 
-bool FramePipelineImpl::isScreenToneTransitionComplete() {
+bool ScreenEffectsImpl::isScreenToneTransitionComplete() {
     return !toneActive_ || toneDuration_ <= 0.0f;
 }
 
-void FramePipelineImpl::startShake(float power, float speed, float duration) {
+void ScreenEffectsImpl::startShake(float power, float speed, float duration) {
     if (duration <= 0.0f) {
         stopShake();
         return;
@@ -173,18 +177,18 @@ void FramePipelineImpl::startShake(float power, float speed, float duration) {
     shakeOffset_ = {};
 }
 
-void FramePipelineImpl::stopShake() {
+void ScreenEffectsImpl::stopShake() {
     shakeActive_ = false;
     shakeTimeCount_ = 0.0f;
     shakeDuration_ = 0.0f;
     shakeOffset_ = {};
 }
 
-bool FramePipelineImpl::isShaking() {
+bool ScreenEffectsImpl::isShaking() {
     return shakeActive_;
 }
 
-void FramePipelineImpl::updateFlash(float deltaTime) {
+void ScreenEffectsImpl::updateFlash(float deltaTime) {
     if (!flashActive_ || flashShader_ == nullptr) {
         return;
     }
@@ -196,12 +200,12 @@ void FramePipelineImpl::updateFlash(float deltaTime) {
     flashShader_->setUniform("flashColor", flashColour_);
     flashShader_->setUniform("intensity", intensity);
     if (flashTimeCount_ >= flashDuration_) {
-        removeGraphicsShader(flashShader_);
+        shaders_.removeEffectShader(flashShader_);
         flashActive_ = false;
     }
 }
 
-void FramePipelineImpl::updateScreenTone(float deltaTime) {
+void ScreenEffectsImpl::updateScreenTone(float deltaTime) {
     if (!toneActive_ || toneShader_ == nullptr) {
         return;
     }
@@ -220,7 +224,7 @@ void FramePipelineImpl::updateScreenTone(float deltaTime) {
     }
 }
 
-void FramePipelineImpl::updateShake(float deltaTime) {
+void ScreenEffectsImpl::updateShake(float deltaTime) {
     if (!shakeActive_) {
         return;
     }
@@ -242,7 +246,7 @@ void FramePipelineImpl::updateShake(float deltaTime) {
     }
 }
 
-bool FramePipelineImpl::ensureToneShader() {
+bool ScreenEffectsImpl::ensureToneShader() {
     if (toneShader_ != nullptr) {
         return true;
     }
@@ -257,19 +261,81 @@ bool FramePipelineImpl::ensureToneShader() {
     return toneShader_ != nullptr;
 }
 
-void FramePipelineImpl::applyScreenToneUniform() {
+void ScreenEffectsImpl::applyScreenToneUniform() {
     if (toneShader_ != nullptr) {
         toneShader_->setUniform("toneColor", toneCurrentColour_);
     }
 }
 
-void FramePipelineImpl::ensureToneBuffer(const sf::Vector2u& size) {
+void ScreenEffectsImpl::ensureToneBuffer(const sf::Vector2u& size) {
     if (toneBuffer_ == nullptr || toneBuffer_->getSize() != size) {
         toneBuffer_ = std::make_unique<sf::RenderTexture>(size);
         toneBufferSprite_.emplace(toneBuffer_->getTexture());
     } else if (!toneBufferSprite_.has_value()) {
         toneBufferSprite_.emplace(toneBuffer_->getTexture());
     }
+}
+
+void ScreenEffectsImpl::update(float deltaTime) {
+    updateFlash(deltaTime);
+    updateScreenTone(deltaTime);
+    updateShake(deltaTime);
+}
+
+void ScreenEffectsImpl::applyShake(sf::Sprite& sprite,
+                                   const sf::Vector2u& textureSize) {
+    if (shakeActive_) {
+        if (textureSize.x > 0 && textureSize.y > 0) {
+            const float pad = shakePower_;
+            sprite.setScale({(static_cast<float>(textureSize.x) + pad * 2.0f) /
+                                 static_cast<float>(textureSize.x),
+                             (static_cast<float>(textureSize.y) + pad * 2.0f) /
+                                 static_cast<float>(textureSize.y)});
+            sprite.setPosition({-pad + shakeOffset_.x, -pad + shakeOffset_.y});
+        }
+    }
+}
+
+void ScreenEffectsImpl::restoreShake(sf::Sprite& sprite) {
+    if (shakeActive_) {
+        sprite.setScale({1.0f, 1.0f});
+        sprite.setPosition({0.0f, 0.0f});
+    }
+}
+
+void ScreenEffectsImpl::invalidateTargets() {
+    toneBuffer_.reset();
+    toneBufferSprite_.reset();
+}
+
+void ScreenEffectsImpl::reset() {
+    stopFlash();
+    stopScreenTone();
+    stopShake();
+}
+
+void ScreenEffectsImpl::shutdown() noexcept {
+    flashShader_.reset();
+    toneShader_.reset();
+    toneBufferSprite_.reset();
+    toneBuffer_.reset();
+    flashActive_ = false;
+    flashColour_ = {1.0f, 1.0f, 1.0f, 1.0f};
+    flashDuration_ = 0.0f;
+    flashTimeCount_ = 0.0f;
+    toneActive_ = false;
+    toneCurrentColour_ = {};
+    toneStartColour_ = {};
+    toneTargetColour_ = {};
+    toneDuration_ = 0.0f;
+    toneTimeCount_ = 0.0f;
+    shakeActive_ = false;
+    shakePower_ = 0.0f;
+    shakeSpeed_ = 0.0f;
+    shakeDuration_ = 0.0f;
+    shakeTimeCount_ = 0.0f;
+    shakeOffset_ = {};
+    shakeNextUpdate_ = 0.0f;
 }
 
 }  // namespace ludork::global::system_impl

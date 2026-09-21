@@ -31,7 +31,7 @@ end
 
 ---@return Source.Scenes.SceneMap.SceneMap
 function Context.RequireSceneMap()
-    local scene = GlobalCore.System.requireScene()
+    local scene = GlobalCore.SceneManager.requireScene()
     ---@cast scene Source.Scenes.SceneMap.SceneMap
     return scene
 end

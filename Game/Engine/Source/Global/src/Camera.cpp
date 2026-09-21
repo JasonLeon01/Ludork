@@ -1,7 +1,7 @@
+#include <Display.hpp>
 #include <Camera.hpp>
 
 #include <EngineState.hpp>
-#include <System.hpp>
 #include <Math.hpp>
 #include <Utils/Render.hpp>
 
@@ -12,7 +12,7 @@
 Camera::Camera(std::optional<sf::FloatRect> viewport)
     : viewport_(std::move(viewport)), renderStates_(canvasRenderStates()) {
     if (!viewport_.has_value()) {
-        const sf::Vector2u gameSize = System::getGameSize();
+        const sf::Vector2u gameSize = Display::getGameSize();
         viewport_ = sf::FloatRect(sf::Vector2f(0.0f, 0.0f),
                                   sf::Vector2f(static_cast<float>(gameSize.x),
                                                static_cast<float>(gameSize.y)));
@@ -263,7 +263,7 @@ void Camera::draw(sf::RenderTarget& target, sf::RenderStates states) const {
 }
 
 float Camera::displayScale() const {
-    const float scale = System::getScale();
+    const float scale = Display::getScale();
     return scale > 0.0f ? scale : 1.0f;
 }
 

@@ -6,6 +6,7 @@ local MainConfig = require("Source.Configs.Main")
 local Locale = require("Source.Locale.Core")
 local LiveDebug = require("Source.LiveDebug")
 
+local SceneManager = GlobalCore.SceneManager
 local NodeGraphFunctions = GlobalFunctions.NodeGraph
 local GlobalSystem = GlobalCore.System
 
@@ -28,7 +29,7 @@ local function entry()
     Data.InitializeRuntime()
     SourceSystem.InstallRuntimeProviders()
     LiveDebug.Install()
-    GlobalSystem.setScene(SceneInit.new())
+    SceneManager.setScene(SceneInit.new())
     SourceSystem.Init()
     GlobalSystem.run()
     LiveDebug.Uninstall()

@@ -83,4 +83,6 @@ private:
     bool inputMethodDisabled_ = true;
 };
 
+DisplayImpl& displayImpl();
+
 }  // namespace ludork::global::system_impl

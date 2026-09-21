@@ -1,7 +1,6 @@
 local GlobalCore = require("GlobalCore")
 
-local System = GlobalCore.System
-
+local SceneManager = GlobalCore.SceneManager
 ---@class (partial) Mixins.Doors.ConditionDoor
 local ConditionDoor = {}
 
@@ -10,7 +9,7 @@ ConditionDoor.openConditionVal = 0
 
 ---@return Source.GameInstance.GameInstance
 local function getGameInstance()
-    local scene = System.getScene()
+    local scene = SceneManager.getScene()
     assert(scene ~= nil, "Condition door requires an active scene")
     ---@cast scene Source.Scenes.SceneMap.SceneMap
     local inst = scene.inst

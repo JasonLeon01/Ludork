@@ -1,3 +1,5 @@
+#include <Graphics.hpp>
+#include <Display.hpp>
 #include "VideoPlayerImpl.hpp"
 
 #if LUDORK_HAS_FFMPEG
@@ -22,7 +24,7 @@ WindowFocusRestoreScope::WindowFocusRestoreScope(const sf::RenderWindow& window)
     : restore_(window.hasFocus()) {}
 
 WindowFocusRestoreScope::~WindowFocusRestoreScope() {
-    const std::shared_ptr<sf::RenderWindow> window = System::getWindow();
+    const std::shared_ptr<sf::RenderWindow> window = Display::getWindow();
     if (restore_ && window != nullptr && window->isOpen()) {
         window->requestFocus();
     }
@@ -36,7 +38,7 @@ VideoPlayerImpl::VideoPlayerImpl(std::string path, bool mute, bool skipable)
       audio_(extractAudio(path_)) {}
 
 void VideoPlayerImpl::play() {
-    std::shared_ptr<sf::RenderWindow> window = System::getWindow();
+    std::shared_ptr<sf::RenderWindow> window = Display::getWindow();
     if (window == nullptr) {
         throw std::runtime_error("Video playback requires an active window");
     }
@@ -60,7 +62,7 @@ void VideoPlayerImpl::play() {
     sf::Clock silentClock;
     silentClock.restart();
     while (System::isActive()) {
-        window = System::getWindow();
+        window = Display::getWindow();
         if (window == nullptr) {
             break;
         }
@@ -75,9 +77,9 @@ void VideoPlayerImpl::play() {
         if (sprite_.has_value()) {
             window->draw(*sprite_);
         }
-        System::present();
+        Graphics::present();
         window.reset();
-        System::completeFrame();
+        Graphics::completeFrame();
         if (finished_) {
             break;
         }

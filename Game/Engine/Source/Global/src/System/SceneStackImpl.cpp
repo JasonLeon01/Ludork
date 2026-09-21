@@ -1,6 +1,6 @@
 #include "SceneStackImpl.hpp"
 #include "LifecycleImpl.hpp"
-#include "FramePipelineImpl.hpp"
+#include "TransitionImpl.hpp"
 #include <exception>
 #include <iostream>
 #include <stdexcept>
@@ -10,8 +10,8 @@
 namespace ludork::global::system_impl {
 
 SceneStackImpl::SceneStackImpl(const LifecycleImpl& lifecycle,
-                               FramePipelineImpl& framePipeline)
-    : lifecycle_(lifecycle), framePipeline_(framePipeline) {}
+                               TransitionImpl& transition)
+    : lifecycle_(lifecycle), transition_(transition) {}
 
 std::shared_ptr<SceneRuntime> SceneStackImpl::getScene() {
     const std::lock_guard<std::mutex> lock(sceneMutex_);
@@ -132,7 +132,7 @@ void SceneStackImpl::applySetScene(const std::shared_ptr<SceneRuntime>& scene) {
     if (lifecycle_.isShuttingDown()) {
         return;
     }
-    framePipeline_.freezeTransitionBackground();
+    transition_.freezeTransitionBackground();
     {
         const std::lock_guard<std::mutex> lock(sceneMutex_);
         if (lifecycle_.isShuttingDown()) {
@@ -282,6 +282,11 @@ void SceneStackImpl::shutdown() noexcept {
         shutdownScene(*iterator);
     }
     scenes.clear();
+}
+
+SceneStackImpl& sceneStackImpl() {
+    static SceneStackImpl instance(lifecycleImpl(), transitionImpl());
+    return instance;
 }
 
 }  // namespace ludork::global::system_impl

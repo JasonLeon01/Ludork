@@ -1,10 +1,10 @@
+#include <Graphics.hpp>
 #include <EngineDataProviders.hpp>
 #include <CustomParticles/CommonTipController.hpp>
 #include <Curve.hpp>
 #include <UI/PlainTextConfig.hpp>
 
 #include <EngineState.hpp>
-#include <System.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -170,7 +170,7 @@ void CommonTipController::removeTopTip() {
 }
 
 void CommonTipController::updatePlacement() {
-    sf::RenderTexture* canvas = System::getCanvas();
+    sf::RenderTexture* canvas = Graphics::getCanvas();
     if (canvas == nullptr) {
         return;
     }

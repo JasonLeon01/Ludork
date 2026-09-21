@@ -17,10 +17,10 @@ function UiWindow:init(host, ui, nativeBase, options, nested)
     local size = ui.root:getSize()
     local position = nested and ui.root:getPosition() or options.position or sf.Vector2f.new(0, 0)
     if options.screen and not nested then
-        local gameSize = GlobalCore.System.getGameSize()
+        local gameSize = GlobalCore.Display.getGameSize()
         size = sf.Vector2f.new(gameSize.x, gameSize.y)
     elseif options.centered and not nested then
-        local gameSize = GlobalCore.System.getGameSize()
+        local gameSize = GlobalCore.Display.getGameSize()
         position = sf.Vector2f.new(math.floor((gameSize.x - size.x) / 2), math.floor((gameSize.y - size.y) / 2))
     end
     local rect = Engine.ToIntRect(math.floor(position.x), math.floor(position.y), math.ceil(size.x), math.ceil(size.y))

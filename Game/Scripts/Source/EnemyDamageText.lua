@@ -293,7 +293,7 @@ end
 
 ---@return Source.Player.Player | nil
 function getPlayer()
-    local scene = GlobalCore.System.getScene()
+    local scene = GlobalCore.SceneManager.getScene()
     if scene == nil then
         return nil
     end

@@ -1,8 +1,8 @@
 local GlobalCore = require("GlobalCore")
 local Context = require("Source.NodeFunctions.Context")
 
+local SceneManager = GlobalCore.SceneManager
 local AudioManager = GlobalCore.AudioManager
-local System = GlobalCore.System
 
 local Scene = {}
 
@@ -63,14 +63,14 @@ function Scene.GameOver()
     ---@type { new: fun(): GlobalCore.SceneBase }
     local GameOverScene = require("Source.Scenes.SceneGameOver")
 
-    System.setScene(GameOverScene.new())
+    SceneManager.setScene(GameOverScene.new())
 end
 
 function Scene.AddTimer(interval, blocking)
     if blocking == nil then
         blocking = false
     end
-    local scene = System.getScene()
+    local scene = SceneManager.getScene()
     if scene ~= nil then
         return scene:addTimer(interval, function ()
         end, blocking

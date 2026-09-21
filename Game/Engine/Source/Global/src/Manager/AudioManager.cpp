@@ -1,3 +1,4 @@
+#include <AudioConfigImpl.hpp>
 #include <Manager/AudioManager.hpp>
 #include <Filters/MusicFilter.hpp>
 #include <Manager/AudioEffectControl.hpp>
@@ -13,7 +14,6 @@
 
 #include <Filters/SoundFilter.hpp>
 #include <Manager/TimeManager.hpp>
-#include <SystemConfigBase.hpp>
 
 #include "AudioEffectLuaRuntime.hpp"
 
@@ -194,7 +194,7 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     const std::shared_ptr<sf::Transformable>& parent) {
     requireLogicThreadAudioLifecycle();
     static_cast<void>(ludork::runtime::AssetPath::parse(filePath));
-    if (!SystemConfigBase::getSoundOn()) {
+    if (!AudioManager::getSoundOn()) {
         return nullptr;
     }
     AudioCreationScope creation(
@@ -229,7 +229,7 @@ std::shared_ptr<sf::Sound> AudioManager::playSound(
     if (parent == nullptr && !isSpatial(filter)) {
         managedSound->setSpatializationEnabled(false);
     }
-    managedSound->setVolume(baseVolume * SystemConfigBase::getSoundVolume() /
+    managedSound->setVolume(baseVolume * AudioManager::getSoundVolume() /
                             100.0f);
     managedSound->setPitch(basePitch * TimeManager::getSpeed());
     managedSound->play();
@@ -276,7 +276,7 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     requireLogicThreadAudioLifecycle();
     static_cast<void>(ludork::runtime::AssetPath::parse(filePath));
     stopVoice();
-    if (!SystemConfigBase::getVoiceOn()) {
+    if (!AudioManager::getVoiceOn()) {
         return nullptr;
     }
     AudioCreationScope creation(
@@ -314,7 +314,7 @@ std::shared_ptr<sf::Sound> AudioManager::playVoice(
     if (refActor == nullptr && !isSpatial(filter)) {
         activeVoice->setSpatializationEnabled(false);
     }
-    activeVoice->setVolume(baseVolume * SystemConfigBase::getVoiceVolume() /
+    activeVoice->setVolume(baseVolume * AudioManager::getVoiceVolume() /
                            100.0f);
     activeVoice->play();
     bool accepted = false;
@@ -396,10 +396,10 @@ std::shared_ptr<sf::Music> AudioManager::playMusic(const std::string& musicType,
     } else {
         managedMusic->setSpatializationEnabled(false);
     }
-    managedMusic->setVolume(
-        SystemConfigBase::getMusicOn()
-            ? baseVolume * SystemConfigBase::getMusicVolume() / 100.0f
-            : 0.0f);
+    managedMusic->setVolume(AudioManager::getMusicOn()
+                                ? baseVolume * AudioManager::getMusicVolume() /
+                                      100.0f
+                                : 0.0f);
     managedMusic->play();
     bool accepted = false;
     {
@@ -459,7 +459,7 @@ void AudioManager::stopMusic(const std::string& musicType) {
 }
 
 void AudioManager::applySoundVolumes() {
-    if (!SystemConfigBase::getSoundOn()) {
+    if (!AudioManager::getSoundOn()) {
         stopSound();
         return;
     }
@@ -473,14 +473,14 @@ void AudioManager::applySoundVolumes() {
     }
     for (const auto& [sound, baseVolume] : activeSounds) {
         if (sound->getStatus() != sf::SoundSource::Status::Stopped) {
-            sound->setVolume(baseVolume * SystemConfigBase::getSoundVolume() /
+            sound->setVolume(baseVolume * AudioManager::getSoundVolume() /
                              100.0f);
         }
     }
 }
 
 void AudioManager::applyVoiceVolumes() {
-    if (!SystemConfigBase::getVoiceOn()) {
+    if (!AudioManager::getVoiceOn()) {
         stopVoice();
         return;
     }
@@ -493,7 +493,7 @@ void AudioManager::applyVoiceVolumes() {
     }
     if (activeVoice != nullptr &&
         activeVoice->getStatus() != sf::SoundSource::Status::Stopped) {
-        activeVoice->setVolume(baseVolume * SystemConfigBase::getVoiceVolume() /
+        activeVoice->setVolume(baseVolume * AudioManager::getVoiceVolume() /
                                100.0f);
     }
 }
@@ -512,8 +512,8 @@ void AudioManager::applyMusicVolumes() {
         if (music->getStatus() == sf::SoundSource::Status::Stopped) {
             continue;
         }
-        music->setVolume(SystemConfigBase::getMusicOn()
-                             ? baseVolume * SystemConfigBase::getMusicVolume() /
+        music->setVolume(AudioManager::getMusicOn()
+                             ? baseVolume * AudioManager::getMusicVolume() /
                                    100.0f
                              : 0.0f);
     }
@@ -586,18 +586,18 @@ void AudioManager::setSoundFilter(const std::shared_ptr<sf::Sound>& sound,
     applySoundSettings(*sound, filter);
     if (filter.volume.has_value()) {
         if (category == AudioManager::SoundCategory::Sound) {
-            if (!SystemConfigBase::getSoundOn()) {
+            if (!AudioManager::getSoundOn()) {
                 sound->stop();
             } else {
-                sound->setVolume(baseVolume *
-                                 SystemConfigBase::getSoundVolume() / 100.0f);
+                sound->setVolume(baseVolume * AudioManager::getSoundVolume() /
+                                 100.0f);
             }
         } else if (category == AudioManager::SoundCategory::Voice) {
-            if (!SystemConfigBase::getVoiceOn()) {
+            if (!AudioManager::getVoiceOn()) {
                 sound->stop();
             } else {
-                sound->setVolume(baseVolume *
-                                 SystemConfigBase::getVoiceVolume() / 100.0f);
+                sound->setVolume(baseVolume * AudioManager::getVoiceVolume() /
+                                 100.0f);
             }
         } else {
             sound->setVolume(*filter.volume);
@@ -646,8 +646,8 @@ void AudioManager::setMusicFilter(const std::shared_ptr<sf::Music>& music,
     }
     applyMusicSettings(*music, filter);
     if (filter.volume.has_value()) {
-        music->setVolume(isManaged && SystemConfigBase::getMusicOn()
-                             ? baseVolume * SystemConfigBase::getMusicVolume() /
+        music->setVolume(isManaged && AudioManager::getMusicOn()
+                             ? baseVolume * AudioManager::getMusicVolume() /
                                    100.0f
                          : isManaged ? 0.0f
                                      : *filter.volume);
@@ -869,4 +869,76 @@ void AudioManager::shutdown() noexcept {
         stoppedAudioDeviceLease = std::move(audioDeviceLease);
     }
     ludork::global::audio::shutdownAudioEffectLuaRuntime();
+}
+
+bool AudioManager::getMusicOn() {
+    return ludork::global::system_impl::AudioConfigImpl::getMusicOn();
+}
+
+void AudioManager::setMusicOn(bool value) {
+    ludork::global::system_impl::AudioConfigImpl::setMusicOn(value);
+}
+
+void AudioManager::saveMusicOn(bool value) {
+    ludork::global::system_impl::AudioConfigImpl::saveMusicOn(value);
+}
+
+bool AudioManager::getSoundOn() {
+    return ludork::global::system_impl::AudioConfigImpl::getSoundOn();
+}
+
+void AudioManager::setSoundOn(bool value) {
+    ludork::global::system_impl::AudioConfigImpl::setSoundOn(value);
+}
+
+void AudioManager::saveSoundOn(bool value) {
+    ludork::global::system_impl::AudioConfigImpl::saveSoundOn(value);
+}
+
+bool AudioManager::getVoiceOn() {
+    return ludork::global::system_impl::AudioConfigImpl::getVoiceOn();
+}
+
+void AudioManager::setVoiceOn(bool value) {
+    ludork::global::system_impl::AudioConfigImpl::setVoiceOn(value);
+}
+
+void AudioManager::saveVoiceOn(bool value) {
+    ludork::global::system_impl::AudioConfigImpl::saveVoiceOn(value);
+}
+
+float AudioManager::getMusicVolume() {
+    return ludork::global::system_impl::AudioConfigImpl::getMusicVolume();
+}
+
+void AudioManager::setMusicVolume(float value) {
+    ludork::global::system_impl::AudioConfigImpl::setMusicVolume(value);
+}
+
+void AudioManager::saveMusicVolume(float value) {
+    ludork::global::system_impl::AudioConfigImpl::saveMusicVolume(value);
+}
+
+float AudioManager::getSoundVolume() {
+    return ludork::global::system_impl::AudioConfigImpl::getSoundVolume();
+}
+
+void AudioManager::setSoundVolume(float value) {
+    ludork::global::system_impl::AudioConfigImpl::setSoundVolume(value);
+}
+
+void AudioManager::saveSoundVolume(float value) {
+    ludork::global::system_impl::AudioConfigImpl::saveSoundVolume(value);
+}
+
+float AudioManager::getVoiceVolume() {
+    return ludork::global::system_impl::AudioConfigImpl::getVoiceVolume();
+}
+
+void AudioManager::setVoiceVolume(float value) {
+    ludork::global::system_impl::AudioConfigImpl::setVoiceVolume(value);
+}
+
+void AudioManager::saveVoiceVolume(float value) {
+    ludork::global::system_impl::AudioConfigImpl::saveVoiceVolume(value);
 }

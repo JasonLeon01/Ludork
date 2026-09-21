@@ -46,4 +46,9 @@ void LifecycleImpl::shutdownRuntime(
     engineState().setGameRunning(false);
 }
 
+LifecycleImpl& lifecycleImpl() {
+    static LifecycleImpl instance;
+    return instance;
+}
+
 }  // namespace ludork::global::system_impl
