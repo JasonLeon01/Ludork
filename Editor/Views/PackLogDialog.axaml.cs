@@ -57,6 +57,7 @@ public partial class PackLogDialog : Window
                 ProjectPackFailure.ToolchainUnavailable => LocaleService.Get("PACK_IOS_TOOLCHAIN_UNAVAILABLE"),
                 ProjectPackFailure.DeviceUnavailable => LocaleService.Get("PACK_IOS_DEVICE_UNAVAILABLE"),
                 ProjectPackFailure.SigningUnavailable => LocaleService.Get("PACK_IOS_SIGNING_UNAVAILABLE"),
+                ProjectPackFailure.MacOSSigningUnavailable => LocaleService.Get("PACK_MACOS_SIGNING_UNAVAILABLE"),
                 ProjectPackFailure.IOSProjectUnsupported => LocaleService.Get("PACK_IOS_PROJECT_UNSUPPORTED"),
                 ProjectPackFailure.HarmonyToolchainUnavailable => LocaleService.Get("PACK_HARMONY_TOOLCHAIN_UNAVAILABLE"),
                 ProjectPackFailure.HarmonyDeviceUnavailable => LocaleService.Get("PACK_HARMONY_DEVICE_UNAVAILABLE"),

@@ -7,8 +7,20 @@ ENCRYPT_SHADERS=0
 ENCRYPT_DATA=0
 ENCRYPT_SAVES=0
 USE_LDPAK=0
+CHECK_ONLY=0
 PACKAGE_VERSION=
 PACKAGE_CHANNEL=
+USAGE="Usage: tools/pack_project.sh [--version X.Y.Z] [--dev|--release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] [--check] [--signing-identity NAME] [--certificate PATH.p12] [--entitlements PATH.plist] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID] [--ignore-environment] <project-folder> [dist-folder]"
+TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
+
+cleanup_temporary() {
+    rm -rf "$TEMPORARY_DIR"
+}
+
+trap cleanup_temporary EXIT HUP INT TERM
+
+SIGNING_ARGUMENT_FILE="$TEMPORARY_DIR/macos-signing-arguments"
+: > "$SIGNING_ARGUMENT_FILE"
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --version)
@@ -47,6 +59,26 @@ while [ "$#" -gt 0 ]; do
             USE_LDPAK=1
             shift
             ;;
+        --check)
+            CHECK_ONLY=1
+            shift
+            ;;
+        --signing-identity|--certificate|--entitlements|--notary-apple-id|--notary-team-id|--notary-key|--notary-key-id|--notary-key-issuer)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$1 requires a value." >&2
+                exit 1
+            fi
+            printf '%s\n%s\n' "$1" "$2" >> "$SIGNING_ARGUMENT_FILE"
+            shift 2
+            ;;
+        --notarize)
+            printf '%s\n' "$1" >> "$SIGNING_ARGUMENT_FILE"
+            shift
+            ;;
+        --ignore-environment)
+            printf '%s\n' "$1" >> "$SIGNING_ARGUMENT_FILE"
+            shift
+            ;;
         --*)
             echo "Unknown option: $1" >&2
             exit 1
@@ -57,7 +89,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-    echo "Usage: tools/pack_project.sh [--version X.Y.Z] [--dev|--release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] <project-folder> [dist-folder]" >&2
+    echo "$USAGE" >&2
     exit 1
 fi
 
@@ -71,13 +103,6 @@ if [ ! -f "$PROJECT_FILE" ]; then
     echo "Main.proj was not found: $PROJECT_FILE" >&2
     exit 1
 fi
-TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
-
-cleanup_temporary() {
-    rm -rf "$TEMPORARY_DIR"
-}
-
-trap cleanup_temporary EXIT HUP INT TERM
 
 PACKAGE_METADATA="$TEMPORARY_DIR/package-metadata.json"
 set -- "$PROJECT_DIR" "$PACKAGE_METADATA"
@@ -94,6 +119,17 @@ if [ "$USE_LDPAK" -eq 1 ]; then
     "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi
 PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
+
+set --
+while IFS= read -r signing_argument; do
+    set -- "$@" "$signing_argument"
+done < "$SIGNING_ARGUMENT_FILE"
+
+if [ "$CHECK_ONLY" -eq 1 ]; then
+    "$SCRIPT_TOOLS" macos-sign "$@" --check "$APP_PATH"
+    echo "Packaging prerequisites and signing material are ready."
+    exit 0
+fi
 
 if [ "$PROJECT_MODE" = "standalone" ]; then
     if [ "$ENCRYPT_SAVES" -eq 1 ]; then
@@ -134,6 +170,10 @@ UI_REGISTRY=$("$SCRIPT_TOOLS" ui-preview registry "$PROJECT_DIR")
 "$SCRIPT_TOOLS" finalize-package "$@" --registry "$UI_REGISTRY" \
     "$APP_PATH/Contents/Resources"
 plutil -lint "$APP_PATH/Contents/Info.plist"
-codesign --force --sign - "$APP_PATH"
-codesign --verify --deep --strict "$APP_PATH"
+set --
+while IFS= read -r signing_argument; do
+    set -- "$@" "$signing_argument"
+done < "$SIGNING_ARGUMENT_FILE"
+"$SCRIPT_TOOLS" macos-sign "$@" "$APP_PATH"
 echo "Pack complete: $APP_PATH"
+

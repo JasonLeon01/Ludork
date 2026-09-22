@@ -6,6 +6,7 @@ import plistlib
 import re
 import shutil
 import subprocess
+from dataclasses import dataclass
 from .pack_error import PackError
 from .packaging_constants import (
     EXIT_DEVICE,
@@ -159,13 +160,8 @@ def require_xcode_tools(developer_dir: pathlib.Path) -> dict[str, str]:
 
 
 def choose_team_id(teams: set[str], configured: str) -> str:
-    configured = configured.strip().upper()
+    configured = validate_team_id(configured)
     if configured:
-        if not re.fullmatch(r"[A-Z0-9]{10}", configured):
-            raise PackError(
-                "LUDORK_IOS_DEVELOPMENT_TEAM must be a 10-character Apple Team ID.",
-                EXIT_SIGNING,
-            )
         if configured not in teams:
             raise PackError(
                 f"No signed-in Xcode account is associated with team {configured}.",
@@ -180,9 +176,22 @@ def choose_team_id(teams: set[str], configured: str) -> str:
             EXIT_SIGNING,
         )
     raise PackError(
-        "Multiple signed-in Apple Development teams were found. Set LUDORK_IOS_DEVELOPMENT_TEAM before starting Ludork.",
+        "Multiple signed-in Apple Development teams were found. "
+        "Set LUDORK_IOS_DEVELOPMENT_TEAM or pass --team-id before packaging.",
         EXIT_SIGNING,
     )
+
+
+def validate_team_id(value: str) -> str:
+    configured = value.strip().upper()
+    if not configured:
+        return ""
+    if not re.fullmatch(r"[A-Z0-9]{10}", configured):
+        raise PackError(
+            "The Apple Team ID must be 10 characters of A-Z and 0-9.",
+            EXIT_SIGNING,
+        )
+    return configured
 
 
 def xcode_account_identifiers(value: object) -> set[str]:
@@ -252,8 +261,108 @@ def signed_in_xcode_teams() -> set[str]:
     return xcode_account_team_ids(account_preferences, account_preferences)
 
 
-def select_team_id() -> str:
+def select_team_id(configured: str, manual_signing: bool) -> str:
+    if manual_signing:
+        team_id = validate_team_id(configured)
+        if not team_id:
+            raise PackError(
+                "Manual iOS signing requires a team ID. "
+                "Set LUDORK_IOS_DEVELOPMENT_TEAM or pass --team-id.",
+                EXIT_SIGNING,
+            )
+        return team_id
     return choose_team_id(
         signed_in_xcode_teams(),
-        os.environ.get("LUDORK_IOS_DEVELOPMENT_TEAM", ""),
+        configured,
     )
+
+
+@dataclass(frozen=True)
+class ProvisioningProfile:
+    name: str
+    uuid: str
+    team_identifiers: tuple[str, ...]
+    application_identifier: str
+
+
+def read_provisioning_profile(path: pathlib.Path) -> ProvisioningProfile:
+    result = run_capture(["security", "cms", "-D", "-i", str(path)], timeout=60)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise PackError(
+            "The iOS provisioning profile could not be read.\n" + result.stdout.strip(),
+            EXIT_SIGNING,
+        )
+    try:
+        value = plistlib.loads(result.stdout.encode("utf-8"))
+    except (plistlib.InvalidFileException, ValueError) as exception:
+        raise PackError(
+            f"The iOS provisioning profile is invalid: {path}",
+            EXIT_SIGNING,
+        ) from exception
+    if not isinstance(value, dict):
+        raise PackError(f"The iOS provisioning profile is invalid: {path}", EXIT_SIGNING)
+    entitlements = value.get("Entitlements")
+    application_identifier = (
+        entitlements.get("application-identifier")
+        if isinstance(entitlements, dict)
+        else None
+    )
+    teams = value.get("TeamIdentifier")
+    name = value.get("Name")
+    uuid = value.get("UUID")
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or not isinstance(uuid, str)
+        or not uuid.strip()
+        or not isinstance(teams, list)
+        or not isinstance(application_identifier, str)
+        or not application_identifier.strip()
+    ):
+        raise PackError(
+            f"The iOS provisioning profile is incomplete: {path}",
+            EXIT_SIGNING,
+        )
+    return ProvisioningProfile(
+        name.strip(),
+        uuid.strip(),
+        tuple(str(team) for team in teams),
+        application_identifier.strip(),
+    )
+
+
+def validate_provisioning_profile(
+    profile: ProvisioningProfile,
+    team_id: str,
+    bundle_identifier: str,
+) -> None:
+    if team_id not in profile.team_identifiers:
+        raise PackError(
+            f"The iOS provisioning profile is not issued for team {team_id}.",
+            EXIT_SIGNING,
+        )
+    prefix = team_id + "."
+    if not profile.application_identifier.startswith(prefix):
+        raise PackError(
+            "The iOS provisioning profile does not belong to the selected team.",
+            EXIT_SIGNING,
+        )
+    application_identifier = profile.application_identifier[len(prefix):]
+    if application_identifier not in {"*", bundle_identifier}:
+        raise PackError(
+            "The iOS provisioning profile covers "
+            f"{application_identifier}, which does not match {bundle_identifier}.",
+            EXIT_SIGNING,
+        )
+
+
+def install_provisioning_profile(
+    source: pathlib.Path,
+    profile: ProvisioningProfile,
+) -> tuple[pathlib.Path, bool]:
+    directory = pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles"
+    directory.mkdir(parents=True, exist_ok=True)
+    destination = directory / f"{profile.uuid}.mobileprovision"
+    existed = destination.is_file()
+    shutil.copy2(source, destination)
+    return destination, existed

@@ -94,3 +94,12 @@ require_macos_arm64() {
         exit 1
     fi
 }
+
+read_signing_secret() {
+    signing_secret=
+    if ! IFS= read -r signing_secret || [ -z "$signing_secret" ]; then
+        echo "A non-empty signing password is required on standard input." >&2
+        exit 1
+    fi
+    printf '%s\n' "$signing_secret"
+}

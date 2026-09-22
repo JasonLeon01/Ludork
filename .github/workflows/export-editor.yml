@@ -195,7 +195,7 @@ jobs:
           retention-days: 7
 
   macos:
-    name: macOS ARM64 unsigned
+    name: macOS ARM64
     needs: templates
     runs-on: macos-15
     timeout-minutes: 180
@@ -264,10 +264,57 @@ jobs:
           tar -xf obj/editor-inputs/artifacts/macos-templates-plain.tar -C obj/editor-inputs/Templates
           tar -xf obj/editor-inputs/artifacts/macos-templates-ffmpeg.tar -C obj/editor-inputs/Templates
 
-      - name: Package unsigned editor DMG
+      - name: Prepare macOS signing material
+        id: signing
+        env:
+          MACOS_SIGNING_CERTIFICATE: ${{ secrets.MACOS_SIGNING_CERTIFICATE }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+        run: |
+          set -eu
+          certificate=${MACOS_SIGNING_CERTIFICATE:-}
+          notary_key=${MACOS_NOTARY_KEY:-}
+          if [ -z "$certificate" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$certificate" | base64 --decode > "$RUNNER_TEMP/ludork-signing.p12"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "certificate=$RUNNER_TEMP/ludork-signing.p12" >> "$GITHUB_OUTPUT"
+          if [ -n "$notary_key" ]; then
+            printf '%s' "$notary_key" | base64 --decode > "$RUNNER_TEMP/ludork-notary.p8"
+            echo "notaryKey=$RUNNER_TEMP/ludork-notary.p8" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package editor DMG
         env:
           EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
-        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
+          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
+          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          LUDORK_MACOS_SIGNING_CERTIFICATE: ${{ steps.signing.outputs.certificate }}
+          LUDORK_MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          LUDORK_MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          LUDORK_MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          LUDORK_MACOS_NOTARY_KEY: ${{ steps.signing.outputs.notaryKey }}
+          LUDORK_MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          LUDORK_MACOS_NOTARY_KEY_ISSUER: ${{ secrets.MACOS_NOTARY_KEY_ISSUER }}
+        run: |
+          set -eu
+          if [ "$SIGNING_ENABLED" != "true" ]; then
+            sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
+            exit 0
+          fi
+          notary_apple_id=${LUDORK_MACOS_NOTARY_APPLE_ID:-}
+          notary_key=${LUDORK_MACOS_NOTARY_KEY:-}
+          set --
+          if [ -n "$notary_apple_id" ] || [ -n "$notary_key" ]; then
+            set -- --notarize
+          fi
+          if [ -n "$notary_apple_id" ]; then
+            printf '%s\n%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD" "$MACOS_NOTARY_PASSWORD"
+          else
+            printf '%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD"
+          fi | sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"} "$@"
 
       - name: Save C# build outputs
         if: steps.managed-cache.outputs.cache-hit != 'true'
@@ -282,10 +329,10 @@ jobs:
             Editor/Ludork.Plugin.Avalonia/obj/Release
           key: ${{ steps.managed-cache.outputs.cache-primary-key }}
 
-      - name: Upload unsigned editor DMG
+      - name: Upload editor DMG
         uses: actions/upload-artifact@v7
         with:
-          name: Ludork-macos-arm64-unsigned-${{ github.sha }}
+          name: Ludork-macos-arm64-${{ github.sha }}
           path: dist/Ludork-*-macos-arm64.dmg
           if-no-files-found: error
           compression-level: 0
@@ -322,7 +369,7 @@ jobs:
       - name: Download macOS DMG
         uses: actions/download-artifact@v8
         with:
-          name: Ludork-macos-arm64-unsigned-${{ github.sha }}
+          name: Ludork-macos-arm64-${{ github.sha }}
           path: obj/release/assets
       - name: Create or update the draft
         uses: actions/github-script@v8

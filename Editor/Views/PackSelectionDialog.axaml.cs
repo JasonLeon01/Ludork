@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform;
 using Ludork.Services;
 using Ludork.Views.Utils;
@@ -17,9 +18,10 @@ public partial class PackSelectionDialog : Window
     private const string DevEcoStudioPath = "/Applications/DevEco-Studio.app";
     private const string DevEcoStudioEnvironment = "LUDORK_DEVECO_STUDIO";
     private bool? encryptionOptionsState;
+    private bool encryptionOptionsExpanded;
     private readonly ProjectConfigService? projectConfig;
-    private CancellationTokenSource? previewCancellation;
-    private int previewGeneration;
+    private CancellationTokenSource? validationCancellation;
+    private int validationGeneration;
     private bool closed;
 
     public PackSelectionDialog() : this(null)
@@ -33,26 +35,25 @@ public partial class PackSelectionDialog : Window
         InitializeComponent();
         VersionLabel.Text = LocaleService.Get("PACK_RELEASE_VERSION");
         DevOption.Content = LocaleService.Get("PACK_DEV");
-        ReleaseVersionLabel.Text = LocaleService.Get("PACK_FULL_VERSION");
-        ReleaseVersionHintText.Text = LocaleService.Get("PACK_FULL_VERSION_HINT");
         EditorInputs.ApplyEditable(VersionBox);
-        EditorInputs.ApplyReadOnly(ReleaseVersionBox);
         VersionBox.Text = projectConfig?.PackagingVersion ?? "1.0.0";
         DevOption.IsChecked = projectConfig?.PackagingDev ?? false;
-        VersionBox.TextChanged += async (_, _) => await updateReleasePreviewAsync();
-        DevOption.IsCheckedChanged += async (_, _) => await updateReleasePreviewAsync();
+        VersionBox.TextChanged += async (_, _) => await validateVersionAsync();
+        DevOption.IsCheckedChanged += async (_, _) => await validateVersionAsync();
         Closed += (_, _) =>
         {
             closed = true;
-            ++previewGeneration;
-            previewCancellation?.Cancel();
+            ++validationGeneration;
+            validationCancellation?.Cancel();
         };
-        Opened += async (_, _) => await updateReleasePreviewAsync(true);
+        Opened += async (_, _) => await validateVersionAsync(true);
         Title = LocaleService.Get("PACK_PROJECT");
         DescriptionText.Text = LocaleService.Get("PACK_MODE_DESC");
         Win32Option.Content = LocaleService.Get("PACK_PLATFORM_WIN32");
         MacOSOption.Content = LocaleService.Get("PACK_PLATFORM_MACOS");
+        MacOSSigningOption.Content = LocaleService.Get("PACK_MACOS_SIGN_APP");
         IosOption.Content = LocaleService.Get("PACK_PLATFORM_IOS");
+        IosSigningOption.Content = LocaleService.Get("PACK_IOS_SIGN_APP");
         IosStatusText.Text = LocaleService.Get("PACK_IOS_REQUIREMENTS");
         HarmonyOption.Content = LocaleService.Get("PACK_PLATFORM_HARMONYOS");
         HarmonyMobileOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_MOBILE");
@@ -64,7 +65,7 @@ public partial class PackSelectionDialog : Window
         AndroidOption.Content = LocaleService.Get("PACK_PLATFORM_ANDROID");
         AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
         ExportToIPhoneOption.Content = LocaleService.Get("PACK_EXPORT_TO_IPHONE");
-        EncryptGameDataOption.Content = LocaleService.Get("PACK_ENCRYPT_GAME_DATA");
+        EncryptionOptionsTitle.Text = LocaleService.Get("PACK_ENCRYPT_GAME_DATA");
         LuacOption.Content = LocaleService.Get("PACK_USE_LUAC");
         EncryptShadersOption.Content = LocaleService.Get("PACK_ENCRYPT_SHADERS");
         EncryptDataOption.Content = LocaleService.Get("PACK_ENCRYPT_DATA");
@@ -75,8 +76,8 @@ public partial class PackSelectionDialog : Window
         EncryptSavesOption.IsEnabled = !isStandalone;
         EncryptSavesHintText.Text = LocaleService.Get("PACK_ENCRYPT_SAVES_STANDALONE_HINT");
         EncryptSavesHintText.IsVisible = isStandalone;
-        MacOSOption.IsCheckedChanged += (_, _) => updateIosDetailsVisibility();
-        IosOption.IsCheckedChanged += (_, _) => updateIosDetailsVisibility();
+        MacOSOption.IsCheckedChanged += (_, _) => updatePlatformOptionVisibility();
+        IosOption.IsCheckedChanged += (_, _) => updatePlatformOptionVisibility();
         HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyMobileOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
@@ -88,15 +89,13 @@ public partial class PackSelectionDialog : Window
         EncryptSavesOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
         updateEncryptionOptionsState();
         Win32Option.IsVisible = OperatingSystem.IsWindows();
-        MacOSOption.IsVisible = OperatingSystem.IsMacOS();
+        MacOSPanel.IsVisible = OperatingSystem.IsMacOS();
         bool sourceProjectOnMacOS = OperatingSystem.IsMacOS() && !isStandalone;
         IosPanel.IsVisible = sourceProjectOnMacOS;
         HarmonyPanel.IsVisible = sourceProjectOnMacOS
             && hasDevEcoStudio();
         AndroidPanel.IsVisible = sourceProjectOnMacOS
             && hasAndroidStudio();
-        if (sourceProjectOnMacOS)
-            MinHeight = 387;
         if (OperatingSystem.IsWindows())
             Win32Option.IsChecked = true;
         else if (OperatingSystem.IsMacOS())
@@ -150,13 +149,12 @@ public partial class PackSelectionDialog : Window
             || Directory.Exists(userApplicationsPath);
     }
 
-    private async Task<bool> updateReleasePreviewAsync(bool immediate = false)
+    private async Task<bool> validateVersionAsync(bool immediate = false)
     {
-        int generation = ++previewGeneration;
-        previewCancellation?.Cancel();
+        int generation = ++validationGeneration;
+        validationCancellation?.Cancel();
         using CancellationTokenSource cancellation = new();
-        previewCancellation = cancellation;
-        ReleaseVersionBox.Text = string.Empty;
+        validationCancellation = cancellation;
         VersionErrorText.IsVisible = false;
         try
         {
@@ -165,7 +163,7 @@ public partial class PackSelectionDialog : Window
             ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ExecuteAsync(
                 "release-version", null, VersionBox.Text ?? string.Empty,
                 DevOption.IsChecked == true, cancellation.Token);
-            if (closed || generation != previewGeneration)
+            if (closed || generation != validationGeneration)
                 return false;
             if (result.ExitCode != 0)
             {
@@ -180,7 +178,6 @@ public partial class PackSelectionDialog : Window
                 showVersionError(LocaleService.Get("PACK_VERSION_RESPONSE_INVALID"));
                 return false;
             }
-            ReleaseVersionBox.Text = fullVersion.GetString();
             return true;
         }
         catch (OperationCanceledException)
@@ -189,14 +186,14 @@ public partial class PackSelectionDialog : Window
         }
         catch (JsonException exception)
         {
-            if (!closed && generation == previewGeneration)
+            if (!closed && generation == validationGeneration)
                 showVersionError(exception.Message);
             return false;
         }
         finally
         {
-            if (ReferenceEquals(previewCancellation, cancellation))
-                previewCancellation = null;
+            if (ReferenceEquals(validationCancellation, cancellation))
+                validationCancellation = null;
         }
     }
 
@@ -212,7 +209,7 @@ public partial class PackSelectionDialog : Window
         ConfirmButton.IsEnabled = false;
         try
         {
-            if (!await updateReleasePreviewAsync(true))
+            if (!await validateVersionAsync(true))
                 return;
             ProjectPackPlatform? platform = Win32Option.IsChecked == true ? ProjectPackPlatform.Win32
                 : MacOSOption.IsChecked == true ? ProjectPackPlatform.MacOS
@@ -229,6 +226,24 @@ public partial class PackSelectionDialog : Window
                 signing = await signingDialog.ShowDialog<AndroidSigningOptions?>(this);
                 if (signing is null || closed)
                     return;
+            }
+            MacOSSigningOptions? macOSSigning = null;
+            if (platform == ProjectPackPlatform.MacOS && MacOSSigningOption.IsChecked == true)
+            {
+                MacOSSigningDialog signingDialog = new();
+                MacOSSigningSelection? selection = await signingDialog.ShowDialog<MacOSSigningSelection?>(this);
+                if (selection is null || closed)
+                    return;
+                macOSSigning = selection.Options;
+            }
+            IOSSigningOptions? iosSigning = null;
+            if (platform == ProjectPackPlatform.IOS && IosSigningOption.IsChecked == true)
+            {
+                IOSSigningDialog signingDialog = new();
+                IOSSigningSelection? selection = await signingDialog.ShowDialog<IOSSigningSelection?>(this);
+                if (selection is null || closed)
+                    return;
+                iosSigning = selection.Options;
             }
             HarmonyDeviceForm deviceForm = HarmonyTwoInOneOption.IsChecked == true
                 ? HarmonyDeviceForm.TwoInOne
@@ -249,6 +264,8 @@ public partial class PackSelectionDialog : Window
                 HarmonyGraphicsApi = deviceForm == HarmonyDeviceForm.Mobile || HarmonyOpenGLESOption.IsChecked == true
                     ? HarmonyGraphicsApi.OpenGLES : HarmonyGraphicsApi.OpenGL,
                 AndroidSigning = signing,
+                MacOSSigning = macOSSigning,
+                IOSSigning = iosSigning,
             };
             projectConfig?.SetPackaging(options.Version, options.Dev);
             Close(options);
@@ -265,6 +282,14 @@ public partial class PackSelectionDialog : Window
                 ConfirmButton.IsEnabled = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
             }
         }
+    }
+
+    private void onToggleEncryptionOptions(object? sender, RoutedEventArgs args)
+    {
+        encryptionOptionsExpanded = !encryptionOptionsExpanded;
+        EncryptionOptionsPanel.IsVisible = encryptionOptionsExpanded;
+        if (EncryptionOptionsChevron.RenderTransform is RotateTransform rotate)
+            rotate.Angle = encryptionOptionsExpanded ? 90 : 0;
     }
 
     private void toggleEncryptionOptions()
@@ -323,6 +348,20 @@ public partial class PackSelectionDialog : Window
             && IosOption.IsChecked == true;
         IosStatusText.IsVisible = isIosSelected;
         ExportToIPhoneOption.IsVisible = isIosSelected;
+    }
+
+    private void updatePlatformOptionVisibility()
+    {
+        updateIosDetailsVisibility();
+        updateSigningOptionVisibility();
+    }
+
+    private void updateSigningOptionVisibility()
+    {
+        MacOSSigningOption.IsVisible = MacOSOption.IsVisible
+            && MacOSOption.IsChecked == true;
+        IosSigningOption.IsVisible = IosOption.IsVisible
+            && IosOption.IsChecked == true;
     }
 
     private void onCancel(object? sender, RoutedEventArgs args)

@@ -6,11 +6,20 @@ set -eu
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 : "${EDITOR_VERSION:?EDITOR_VERSION is not set in versions.conf}"
 
-USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>] [--use-current-editor-build]"
+USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
 PREBUILT_TEMPLATES_DIR=
 USE_CURRENT_EDITOR_BUILD=0
 PRODUCT_VERSION=$EDITOR_VERSION
 PACKAGE_CHANNEL=
+SIGNING_IDENTITY=
+SIGNING_CERTIFICATE=
+SIGNING_ENTITLEMENTS=
+SIGNING_NOTARIZE=0
+SIGNING_NOTARY_APPLE_ID=
+SIGNING_NOTARY_TEAM_ID=
+SIGNING_NOTARY_KEY=
+SIGNING_NOTARY_KEY_ID=
+SIGNING_NOTARY_KEY_ISSUER=
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --version)
@@ -41,6 +50,66 @@ while [ "$#" -gt 0 ]; do
             USE_CURRENT_EDITOR_BUILD=1
             shift
             ;;
+        --signing-identity)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_IDENTITY=$2
+            shift 2
+            ;;
+        --certificate)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_CERTIFICATE=$2
+            shift 2
+            ;;
+        --notarize)
+            SIGNING_NOTARIZE=1
+            shift
+            ;;
+        --notary-apple-id)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_NOTARY_APPLE_ID=$2
+            shift 2
+            ;;
+        --notary-team-id)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_NOTARY_TEAM_ID=$2
+            shift 2
+            ;;
+        --notary-key)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_NOTARY_KEY=$2
+            shift 2
+            ;;
+        --notary-key-id)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_NOTARY_KEY_ID=$2
+            shift 2
+            ;;
+        --notary-key-issuer)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SIGNING_NOTARY_KEY_ISSUER=$2
+            shift 2
+            ;;
         *)
             echo "$USAGE" >&2
             exit 1
@@ -49,6 +118,23 @@ while [ "$#" -gt 0 ]; do
 done
 if [ -z "$PACKAGE_CHANNEL" ]; then
     PACKAGE_CHANNEL=--dev
+fi
+
+SIGNING_IDENTITY=${LUDORK_MACOS_SIGNING_IDENTITY:-$SIGNING_IDENTITY}
+SIGNING_CERTIFICATE=${LUDORK_MACOS_SIGNING_CERTIFICATE:-$SIGNING_CERTIFICATE}
+SIGNING_ENTITLEMENTS=${LUDORK_MACOS_SIGNING_ENTITLEMENTS:-$SIGNING_ENTITLEMENTS}
+SIGNING_NOTARY_APPLE_ID=${LUDORK_MACOS_NOTARY_APPLE_ID:-$SIGNING_NOTARY_APPLE_ID}
+SIGNING_NOTARY_TEAM_ID=${LUDORK_MACOS_NOTARY_TEAM_ID:-$SIGNING_NOTARY_TEAM_ID}
+SIGNING_NOTARY_KEY=${LUDORK_MACOS_NOTARY_KEY:-$SIGNING_NOTARY_KEY}
+SIGNING_NOTARY_KEY_ID=${LUDORK_MACOS_NOTARY_KEY_ID:-$SIGNING_NOTARY_KEY_ID}
+SIGNING_NOTARY_KEY_ISSUER=${LUDORK_MACOS_NOTARY_KEY_ISSUER:-$SIGNING_NOTARY_KEY_ISSUER}
+SIGNING_CERTIFICATE_PASSWORD=
+SIGNING_NOTARY_PASSWORD=
+if [ -n "$SIGNING_CERTIFICATE" ]; then
+    SIGNING_CERTIFICATE_PASSWORD=$(read_signing_secret)
+fi
+if [ "$SIGNING_NOTARIZE" -eq 1 ] && [ -n "$SIGNING_NOTARY_APPLE_ID" ]; then
+    SIGNING_NOTARY_PASSWORD=$(read_signing_secret)
 fi
 
 PROJECT_FILE="$PROJECT_ROOT/Ludork.csproj"
@@ -160,6 +246,51 @@ require_command() {
     fi
     echo "Required command was not found: $1" >&2
     exit 1
+}
+
+# Modes: app signs the assembled editor bundle, dmg signs the disk image, and
+# dmg-notarize signs the disk image and then notarises and staples it. Signing
+# passwords never reach the command line; they are piped on standard input in
+# the order the signing tool reads them.
+run_macos_sign() {
+    signing_mode=$1
+    signing_target=$2
+    set --
+    if [ -n "$SIGNING_IDENTITY" ]; then
+        set -- "$@" --signing-identity "$SIGNING_IDENTITY"
+    fi
+    if [ -n "$SIGNING_CERTIFICATE" ]; then
+        set -- "$@" --certificate "$SIGNING_CERTIFICATE"
+    fi
+    if [ -n "$SIGNING_NOTARY_APPLE_ID" ]; then
+        set -- "$@" --notary-apple-id "$SIGNING_NOTARY_APPLE_ID"
+    fi
+    if [ -n "$SIGNING_NOTARY_TEAM_ID" ]; then
+        set -- "$@" --notary-team-id "$SIGNING_NOTARY_TEAM_ID"
+    fi
+    if [ -n "$SIGNING_NOTARY_KEY" ]; then
+        set -- "$@" --notary-key "$SIGNING_NOTARY_KEY"
+    fi
+    if [ -n "$SIGNING_NOTARY_KEY_ID" ]; then
+        set -- "$@" --notary-key-id "$SIGNING_NOTARY_KEY_ID"
+    fi
+    if [ -n "$SIGNING_NOTARY_KEY_ISSUER" ]; then
+        set -- "$@" --notary-key-issuer "$SIGNING_NOTARY_KEY_ISSUER"
+    fi
+    if [ "$signing_mode" = "app" ]; then
+        set -- "$@" --entitlements "$SIGNING_ENTITLEMENTS"
+    fi
+    if [ "$signing_mode" = "dmg-notarize" ]; then
+        set -- "$@" --notarize
+    fi
+    {
+        if [ -n "$SIGNING_CERTIFICATE" ]; then
+            printf '%s\n' "$SIGNING_CERTIFICATE_PASSWORD"
+        fi
+        if [ "$signing_mode" = "dmg-notarize" ] && [ -n "$SIGNING_NOTARY_APPLE_ID" ]; then
+            printf '%s\n' "$SIGNING_NOTARY_PASSWORD"
+        fi
+    } | "$SCRIPT_TOOLS" macos-sign "$@" "$signing_target"
 }
 
 copy_directory() {
@@ -1178,6 +1309,12 @@ purge_windows_tools "$APP_DIR"
 purge_template_runtime_state "$RESOURCES_DIR/Templates"
 find "$APP_DIR" -name '.DS_Store' -delete
 
+if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
+    SIGNING_ENTITLEMENTS=${SIGNING_ENTITLEMENTS:-$DMG_ASSET_DIR/Editor.entitlements}
+    echo "Signing the editor application..."
+    run_macos_sign app "$APP_DIR"
+fi
+
 echo "Preparing official editor plugins..."
 "$SCRIPT_TOOLS" editor-official-plugins prepare \
     "$PROJECT_ROOT/Plugins" \
@@ -1233,6 +1370,14 @@ hdiutil convert \
 unlink "$DMG_READ_WRITE"
 DMG_TEMP_OWNED=0
 validate_dmg "$STAGE_DMG"
+
+if [ "$SIGNING_NOTARIZE" -eq 1 ]; then
+    echo "Signing and notarising the editor disk image..."
+    run_macos_sign dmg-notarize "$STAGE_DMG"
+elif [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
+    echo "Signing the editor disk image..."
+    run_macos_sign dmg "$STAGE_DMG"
+fi
 
 if [ -e "$FINAL_DIR" ] || [ -L "$FINAL_DIR" ]; then
     mv "$FINAL_DIR" "$BACKUP_DIR"

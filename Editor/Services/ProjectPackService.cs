@@ -26,6 +26,7 @@ public enum ProjectPackFailure
     ToolchainUnavailable,
     DeviceUnavailable,
     SigningUnavailable,
+    MacOSSigningUnavailable,
     IOSProjectUnsupported,
     HarmonyToolchainUnavailable,
     HarmonyDeviceUnavailable,
@@ -69,6 +70,40 @@ public sealed record AndroidSigningOptions(
         nameof(AndroidSigningOptions) + " { Redacted }";
 }
 
+public sealed record MacOSNotarizationOptions(
+    string AppleId,
+    string TeamId,
+    string AppSpecificPassword,
+    string KeyPath,
+    string KeyId,
+    string KeyIssuer)
+{
+    public bool UsesApiKey => KeyPath.Length != 0;
+    public override string ToString() =>
+        nameof(MacOSNotarizationOptions) + " { Redacted }";
+}
+
+public sealed record MacOSSigningOptions(
+    string SigningIdentity,
+    string CertificatePath,
+    string CertificatePassword,
+    MacOSNotarizationOptions? Notarization)
+{
+    public override string ToString() =>
+        nameof(MacOSSigningOptions) + " { Redacted }";
+}
+
+public sealed record IOSSigningOptions(
+    string TeamId,
+    string CertificatePath,
+    string CertificatePassword,
+    string ProvisioningProfilePath,
+    string SigningIdentity)
+{
+    public override string ToString() =>
+        nameof(IOSSigningOptions) + " { Redacted }";
+}
+
 public sealed record ProjectPackOptions(
     ProjectPackPlatform Platform,
     bool UseLuac,
@@ -86,6 +121,8 @@ public sealed record ProjectPackOptions(
     public HarmonyGraphicsApi HarmonyGraphicsApi { get; init; } =
         global::Ludork.Services.HarmonyGraphicsApi.OpenGL;
     public AndroidSigningOptions? AndroidSigning { get; init; }
+    public MacOSSigningOptions? MacOSSigning { get; init; }
+    public IOSSigningOptions? IOSSigning { get; init; }
 }
 
 public sealed record ProjectPackResult(
@@ -171,18 +208,11 @@ public sealed class ProjectPackService
                 ? HarmonyGraphicsApi.OpenGLES
                 : options.HarmonyGraphicsApi
             : null;
-        AndroidSigningOptions? androidSigning = null;
-        if (options.Platform == ProjectPackPlatform.Android
-            && options.AndroidSigning is { } signing)
-        {
-            androidSigning = signing with
-            {
-                KeystorePath = Path.GetFullPath(signing.KeystorePath),
-            };
-        }
+        PackSigning signing = createSigning(options);
         bool requiresPreflight = options.Platform == ProjectPackPlatform.IOS
             || options.Platform == ProjectPackPlatform.HarmonyOS
-            || options.Platform == ProjectPackPlatform.Android;
+            || options.Platform == ProjectPackPlatform.Android
+            || (options.Platform == ProjectPackPlatform.MacOS && signing.MacOS is not null);
         ProjectPackaging packaging = new(
             projectPath,
             options.UseLuac,
@@ -201,7 +231,7 @@ public sealed class ProjectPackService
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
                 harmonyGraphicsApi,
-                androidSigning,
+                signing,
                 packaging,
                 options,
                 cancellationToken);
@@ -251,7 +281,7 @@ public sealed class ProjectPackService
                 exportToHarmonyDevice,
                 harmonyDeviceForm,
                 harmonyGraphicsApi,
-                androidSigning,
+                signing,
                 packaging,
                 options,
                 cancellationToken);
@@ -274,7 +304,7 @@ public sealed class ProjectPackService
             exportToHarmonyDevice,
             harmonyDeviceForm,
             harmonyGraphicsApi,
-            androidSigning,
+            signing,
             packaging,
             options,
             cancellationToken);
@@ -286,7 +316,7 @@ public sealed class ProjectPackService
         ProjectPackOptions options,
         string projectFilePath)
     {
-        ProjectPackResult? signingFailure = validateAndroidSigning(options);
+        ProjectPackResult? signingFailure = validateSigning(options);
         if (signingFailure is not null)
             return signingFailure;
 
@@ -324,29 +354,138 @@ public sealed class ProjectPackService
         return null;
     }
 
-    private static ProjectPackResult? validateAndroidSigning(ProjectPackOptions options)
+    private static ProjectPackResult? validateSigning(ProjectPackOptions options)
     {
-        AndroidSigningOptions? signing = options.AndroidSigning;
+        if (options.Platform == ProjectPackPlatform.Android)
+        {
+            if (options.AndroidSigning is { } android
+                && (string.IsNullOrWhiteSpace(android.KeystorePath)
+                    || !Path.IsPathFullyQualified(android.KeystorePath)
+                    || android.KeystorePath.IndexOfAny(['\r', '\n']) >= 0
+                    || !File.Exists(android.KeystorePath)
+                    || string.IsNullOrWhiteSpace(android.KeyAlias)
+                    || android.KeyAlias.IndexOfAny(['\r', '\n']) >= 0
+                    || !AppleSigningInput.IsNonEmptySingleLine(android.KeystorePassword)
+                    || !AppleSigningInput.IsNonEmptySingleLine(android.KeyPassword)))
+            {
+                return ProjectPackResult.Failed(
+                    ProjectPackFailure.AndroidSigningUnavailable,
+                    string.Empty);
+            }
+            return null;
+        }
+        if (options.Platform == ProjectPackPlatform.MacOS)
+            return validateMacOSSigning(options.MacOSSigning);
+        if (options.Platform == ProjectPackPlatform.IOS)
+            return validateIOSSigning(options.IOSSigning);
+        return null;
+    }
+
+    private static ProjectPackResult? validateMacOSSigning(MacOSSigningOptions? signing)
+    {
         if (signing is null)
             return null;
-        if (options.Platform != ProjectPackPlatform.Android
-            || string.IsNullOrWhiteSpace(signing.KeystorePath)
-            || !Path.IsPathFullyQualified(signing.KeystorePath)
-            || signing.KeystorePath.IndexOfAny(['\r', '\n']) >= 0
-            || !File.Exists(signing.KeystorePath)
-            || string.IsNullOrWhiteSpace(signing.KeyAlias)
-            || signing.KeyAlias.IndexOfAny(['\r', '\n']) >= 0
-            || string.IsNullOrEmpty(signing.KeystorePassword)
-            || signing.KeystorePassword.IndexOfAny(['\r', '\n']) >= 0
-            || string.IsNullOrEmpty(signing.KeyPassword)
-            || signing.KeyPassword.IndexOfAny(['\r', '\n']) >= 0)
+        if (signing.SigningIdentity.IndexOfAny(['\r', '\n']) >= 0
+            || !AppleSigningInput.IsOptionalReadableFile(signing.CertificatePath)
+            || (signing.CertificatePath.Length != 0
+                && !AppleSigningInput.IsNonEmptySingleLine(signing.CertificatePassword)))
         {
             return ProjectPackResult.Failed(
-                ProjectPackFailure.AndroidSigningUnavailable,
+                ProjectPackFailure.MacOSSigningUnavailable,
+                string.Empty);
+        }
+        if (signing.Notarization is not { } notarization)
+            return null;
+        if (signing.SigningIdentity.Length == 0 && signing.CertificatePath.Length == 0)
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.MacOSSigningUnavailable,
+                string.Empty);
+        }
+        bool validCredentials = notarization.UsesApiKey
+            ? AppleSigningInput.IsReadableFile(notarization.KeyPath)
+                && AppleSigningInput.IsNonEmptySingleLine(notarization.KeyId)
+                && AppleSigningInput.IsNonEmptySingleLine(notarization.KeyIssuer)
+            : AppleSigningInput.IsNonEmptySingleLine(notarization.AppleId)
+                && AppleSigningInput.IsValidTeamId(notarization.TeamId)
+                && AppleSigningInput.IsNonEmptySingleLine(notarization.AppSpecificPassword);
+        if (!validCredentials)
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.MacOSSigningUnavailable,
                 string.Empty);
         }
         return null;
     }
+
+    private static ProjectPackResult? validateIOSSigning(IOSSigningOptions? signing)
+    {
+        if (signing is null)
+            return null;
+        bool hasCertificate = signing.CertificatePath.Length != 0;
+        bool hasProfile = signing.ProvisioningProfilePath.Length != 0;
+        if (hasCertificate != hasProfile
+            || signing.SigningIdentity.IndexOfAny(['\r', '\n']) >= 0
+            || (signing.TeamId.Length != 0 && !AppleSigningInput.IsValidTeamId(signing.TeamId)))
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.SigningUnavailable,
+                string.Empty);
+        }
+        if (hasCertificate
+            && (!AppleSigningInput.IsReadableFile(signing.CertificatePath)
+                || !AppleSigningInput.IsReadableFile(signing.ProvisioningProfilePath)
+                || !AppleSigningInput.IsNonEmptySingleLine(signing.CertificatePassword)))
+        {
+            return ProjectPackResult.Failed(
+                ProjectPackFailure.SigningUnavailable,
+                string.Empty);
+        }
+        return null;
+    }
+
+    private static PackSigning createSigning(ProjectPackOptions options)
+    {
+        AndroidSigningOptions? android = null;
+        if (options.Platform == ProjectPackPlatform.Android
+            && options.AndroidSigning is { } androidSigning)
+        {
+            android = androidSigning with
+            {
+                KeystorePath = Path.GetFullPath(androidSigning.KeystorePath),
+            };
+        }
+        MacOSSigningOptions? macOS = null;
+        if (options.Platform == ProjectPackPlatform.MacOS
+            && options.MacOSSigning is { } macOSSigning)
+        {
+            macOS = macOSSigning with
+            {
+                CertificatePath = normalizeOptionalPath(macOSSigning.CertificatePath),
+                Notarization = macOSSigning.Notarization is { } notarization
+                    ? notarization with
+                    {
+                        KeyPath = normalizeOptionalPath(notarization.KeyPath),
+                    }
+                    : null,
+            };
+        }
+        IOSSigningOptions? ios = null;
+        if (options.Platform == ProjectPackPlatform.IOS
+            && options.IOSSigning is { } iosSigning)
+        {
+            ios = iosSigning with
+            {
+                CertificatePath = normalizeOptionalPath(iosSigning.CertificatePath),
+                ProvisioningProfilePath =
+                    normalizeOptionalPath(iosSigning.ProvisioningProfilePath),
+            };
+        }
+        return new PackSigning(android, macOS, ios);
+    }
+
+    private static string normalizeOptionalPath(string path) =>
+        path.Length == 0 ? string.Empty : Path.GetFullPath(path);
 
     private static ProjectPackResult? inspectProject(
         string projectFilePath,
@@ -401,7 +540,7 @@ public sealed class ProjectPackService
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
         HarmonyGraphicsApi? harmonyGraphicsApi,
-        AndroidSigningOptions? androidSigning,
+        PackSigning signing,
         ProjectPackaging packaging,
         ProjectPackOptions options,
         CancellationToken cancellationToken)
@@ -418,7 +557,7 @@ public sealed class ProjectPackService
             exportToHarmonyDevice,
             harmonyDeviceForm,
             harmonyGraphicsApi,
-            androidSigning,
+            signing,
             packaging,
             options);
         using Process process = createProcess(startInfo);
@@ -439,7 +578,7 @@ public sealed class ProjectPackService
             + (harmonyGraphicsApi is null
                 ? string.Empty
                 : " --graphics-api " + getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value))
-            + (androidSigning is not null ? " --sign" : string.Empty);
+            + (signing.Android is not null ? " --sign" : string.Empty);
         writeOutput(checkOnly
             ? $"> {scriptPath} --check{optionText} \"{projectPath}\""
             : $"> {scriptPath}{optionText} \"{projectPath}\"");
@@ -449,18 +588,14 @@ public sealed class ProjectPackService
             if (!process.Start())
                 return ScriptExecutionResult.LaunchFailed(startInfo.FileName);
             process.StandardInput.NewLine = "\n";
-            if (androidSigning is not null)
+            foreach (string secret in signing.Secrets())
             {
-                await process.StandardInput.WriteLineAsync(
-                    androidSigning.KeystorePassword).ConfigureAwait(false);
-                await process.StandardInput.WriteLineAsync(
-                    androidSigning.KeyPassword).ConfigureAwait(false);
-                await process.StandardInput.FlushAsync(cancellationToken)
-                    .ConfigureAwait(false);
+                await process.StandardInput.WriteLineAsync(secret).ConfigureAwait(false);
             }
+            await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
             process.StandardInput.Close();
-            outputTask = readOutputAsync(process.StandardOutput, androidSigning);
-            errorTask = readOutputAsync(process.StandardError, androidSigning);
+            outputTask = readOutputAsync(process.StandardOutput, signing);
+            errorTask = readOutputAsync(process.StandardError, signing);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
             await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
             return ScriptExecutionResult.Exited(process.ExitCode);
@@ -474,18 +609,18 @@ public sealed class ProjectPackService
         catch (Win32Exception exception)
         {
             return ScriptExecutionResult.LaunchFailed(
-                redactAndroidSigning(exception.Message, androidSigning));
+                redactSigning(exception.Message, signing));
         }
         catch (InvalidOperationException exception)
         {
             return ScriptExecutionResult.LaunchFailed(
-                redactAndroidSigning(exception.Message, androidSigning));
+                redactSigning(exception.Message, signing));
         }
         catch (IOException exception)
         {
             stopProcess(process);
             return ScriptExecutionResult.LaunchFailed(
-                redactAndroidSigning(exception.Message, androidSigning));
+                redactSigning(exception.Message, signing));
         }
     }
 
@@ -540,6 +675,16 @@ public sealed class ProjectPackService
             };
             return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
         }
+        if (platform == ProjectPackPlatform.MacOS)
+        {
+            ProjectPackFailure failure = execution.ExitCode switch
+            {
+                ProjectToolConstants.ToolchainExitCode => ProjectPackFailure.ToolchainUnavailable,
+                ProjectToolConstants.SigningExitCode => ProjectPackFailure.MacOSSigningUnavailable,
+                _ => ProjectPackFailure.PackFailed,
+            };
+            return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
+        }
         return ProjectPackResult.Failed(
             ProjectPackFailure.PackFailed,
             execution.ExitCode.ToString());
@@ -587,7 +732,7 @@ public sealed class ProjectPackService
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
         HarmonyGraphicsApi? harmonyGraphicsApi,
-        AndroidSigningOptions? androidSigning,
+        PackSigning signing,
         ProjectPackaging packaging,
         ProjectPackOptions options)
     {
@@ -657,13 +802,71 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("--graphics-api");
             startInfo.ArgumentList.Add(getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value));
         }
-        if (androidSigning is not null)
+        if (signing.Android is { } androidSigning)
         {
             startInfo.ArgumentList.Add("--sign");
             startInfo.ArgumentList.Add("--keystore");
             startInfo.ArgumentList.Add(Path.GetFullPath(androidSigning.KeystorePath));
             startInfo.ArgumentList.Add("--key-alias");
             startInfo.ArgumentList.Add(androidSigning.KeyAlias);
+        }
+        if (signing.MacOS is { } macOSSigning)
+        {
+            startInfo.ArgumentList.Add("--ignore-environment");
+            if (macOSSigning.SigningIdentity.Length != 0)
+            {
+                startInfo.ArgumentList.Add("--signing-identity");
+                startInfo.ArgumentList.Add(macOSSigning.SigningIdentity);
+            }
+            if (macOSSigning.CertificatePath.Length != 0)
+            {
+                startInfo.ArgumentList.Add("--certificate");
+                startInfo.ArgumentList.Add(macOSSigning.CertificatePath);
+            }
+            if (macOSSigning.Notarization is { } notarization)
+            {
+                startInfo.ArgumentList.Add("--notarize");
+                if (notarization.UsesApiKey)
+                {
+                    startInfo.ArgumentList.Add("--notary-key");
+                    startInfo.ArgumentList.Add(notarization.KeyPath);
+                    startInfo.ArgumentList.Add("--notary-key-id");
+                    startInfo.ArgumentList.Add(notarization.KeyId);
+                    startInfo.ArgumentList.Add("--notary-key-issuer");
+                    startInfo.ArgumentList.Add(notarization.KeyIssuer);
+                }
+                else
+                {
+                    startInfo.ArgumentList.Add("--notary-apple-id");
+                    startInfo.ArgumentList.Add(notarization.AppleId);
+                    startInfo.ArgumentList.Add("--notary-team-id");
+                    startInfo.ArgumentList.Add(notarization.TeamId);
+                }
+            }
+        }
+        if (signing.IOS is { } iosSigning)
+        {
+            startInfo.ArgumentList.Add("--ignore-environment");
+            if (iosSigning.TeamId.Length != 0)
+            {
+                startInfo.ArgumentList.Add("--team-id");
+                startInfo.ArgumentList.Add(iosSigning.TeamId);
+            }
+            if (iosSigning.CertificatePath.Length != 0)
+            {
+                startInfo.ArgumentList.Add("--certificate");
+                startInfo.ArgumentList.Add(iosSigning.CertificatePath);
+            }
+            if (iosSigning.ProvisioningProfilePath.Length != 0)
+            {
+                startInfo.ArgumentList.Add("--provisioning-profile");
+                startInfo.ArgumentList.Add(iosSigning.ProvisioningProfilePath);
+            }
+            if (iosSigning.SigningIdentity.Length != 0)
+            {
+                startInfo.ArgumentList.Add("--signing-identity");
+                startInfo.ArgumentList.Add(iosSigning.SigningIdentity);
+            }
         }
         startInfo.ArgumentList.Add(projectPath);
         return startInfo;
@@ -710,26 +913,15 @@ public sealed class ProjectPackService
 
     private async Task readOutputAsync(
         StreamReader reader,
-        AndroidSigningOptions? androidSigning)
+        PackSigning signing)
     {
         while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
-            writeOutput(redactAndroidSigning(line, androidSigning));
+            writeOutput(redactSigning(line, signing));
     }
 
-    private static string redactAndroidSigning(
-        string text,
-        AndroidSigningOptions? androidSigning)
+    private static string redactSigning(string text, PackSigning signing)
     {
-        if (androidSigning is null)
-            return text;
-        string[] values =
-        [
-            androidSigning.KeystorePath,
-            androidSigning.KeyAlias,
-            androidSigning.KeystorePassword,
-            androidSigning.KeyPassword,
-        ];
-        foreach (string value in values
+        foreach (string value in signing.SensitiveValues()
             .Where(value => value.Length != 0)
             .Distinct(StringComparer.Ordinal)
             .OrderByDescending(value => value.Length))
@@ -742,6 +934,60 @@ public sealed class ProjectPackService
     private void writeOutput(string text)
     {
         OutputReceived?.Invoke(this, text + Environment.NewLine);
+    }
+
+    private sealed record PackSigning(
+        AndroidSigningOptions? Android,
+        MacOSSigningOptions? MacOS,
+        IOSSigningOptions? IOS)
+    {
+        public IEnumerable<string> Secrets()
+        {
+            if (Android is { } android)
+            {
+                yield return android.KeystorePassword;
+                yield return android.KeyPassword;
+            }
+            if (MacOS is { } macOS)
+            {
+                if (macOS.CertificatePath.Length != 0)
+                    yield return macOS.CertificatePassword;
+                if (macOS.Notarization is { } notarization && !notarization.UsesApiKey)
+                    yield return notarization.AppSpecificPassword;
+            }
+            if (IOS is { } ios && ios.CertificatePath.Length != 0)
+                yield return ios.CertificatePassword;
+        }
+
+        public IEnumerable<string> SensitiveValues()
+        {
+            if (Android is { } android)
+            {
+                yield return android.KeystorePath;
+                yield return android.KeyAlias;
+                yield return android.KeystorePassword;
+                yield return android.KeyPassword;
+            }
+            if (MacOS is { } macOS)
+            {
+                yield return macOS.CertificatePath;
+                yield return macOS.CertificatePassword;
+                if (macOS.Notarization is { } notarization)
+                {
+                    yield return notarization.AppleId;
+                    yield return notarization.AppSpecificPassword;
+                    yield return notarization.KeyPath;
+                    yield return notarization.KeyId;
+                    yield return notarization.KeyIssuer;
+                }
+            }
+            if (IOS is { } ios)
+            {
+                yield return ios.CertificatePath;
+                yield return ios.CertificatePassword;
+                yield return ios.ProvisioningProfilePath;
+            }
+        }
     }
 
     private sealed class ProjectPackaging : IProjectPackaging

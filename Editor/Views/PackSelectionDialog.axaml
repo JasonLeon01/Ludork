@@ -16,13 +16,12 @@
                            TextWrapping="Wrap" />
                 <StackPanel Spacing="6">
                     <TextBlock x:Name="VersionLabel" />
-                    <TextBox x:Name="VersionBox" />
-                    <CheckBox x:Name="DevOption" />
-                    <TextBlock x:Name="ReleaseVersionLabel" />
-                    <TextBox x:Name="ReleaseVersionBox" />
-                    <TextBlock x:Name="ReleaseVersionHintText"
-                               Foreground="{DynamicResource Editor.TextMutedBrush}"
-                               TextWrapping="Wrap" />
+                    <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                        <TextBox x:Name="VersionBox" />
+                        <CheckBox x:Name="DevOption"
+                                  Grid.Column="1"
+                                  VerticalAlignment="Center" />
+                    </Grid>
                     <TextBlock x:Name="VersionErrorText"
                                IsVisible="False"
                                Foreground="{DynamicResource Editor.ErrorBrush}"
@@ -31,9 +30,16 @@
                 <RadioButton x:Name="Win32Option"
                              GroupName="PackPlatform"
                              IsVisible="False" />
-                <RadioButton x:Name="MacOSOption"
-                             GroupName="PackPlatform"
-                             IsVisible="False" />
+                <StackPanel x:Name="MacOSPanel"
+                            IsVisible="False"
+                            Spacing="4">
+                    <RadioButton x:Name="MacOSOption"
+                                 GroupName="PackPlatform" />
+                    <CheckBox x:Name="MacOSSigningOption"
+                              Margin="28,0,0,0"
+                              IsChecked="False"
+                              IsVisible="False" />
+                </StackPanel>
                 <StackPanel x:Name="IosPanel"
                             IsVisible="False"
                             Spacing="4">
@@ -45,6 +51,10 @@
                                Foreground="{DynamicResource Editor.TextMutedBrush}"
                                IsVisible="False"
                                TextWrapping="Wrap" />
+                    <CheckBox x:Name="IosSigningOption"
+                              Margin="28,0,0,0"
+                              IsChecked="False"
+                              IsVisible="False" />
                     <CheckBox x:Name="ExportToIPhoneOption"
                               Margin="28,0,0,0"
                               IsChecked="False"
@@ -90,24 +100,50 @@
                               IsChecked="False"
                               IsVisible="False" />
                 </StackPanel>
-                <CheckBox x:Name="EncryptGameDataOption"
-                          IsThreeState="True"
-                          IsChecked="False" />
-                <StackPanel Margin="28,0,0,0"
-                            Spacing="4">
-                    <CheckBox x:Name="LuacOption"
-                              IsChecked="False" />
-                    <CheckBox x:Name="EncryptShadersOption"
-                              IsChecked="False" />
-                    <CheckBox x:Name="EncryptDataOption"
-                              IsChecked="False" />
-                    <CheckBox x:Name="EncryptSavesOption"
-                              IsChecked="False" />
-                    <TextBlock x:Name="EncryptSavesHintText"
-                               Margin="28,0,0,0"
-                               Foreground="{DynamicResource Editor.TextMutedBrush}"
-                               IsVisible="False"
-                               TextWrapping="Wrap" />
+                <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                        <CheckBox x:Name="EncryptGameDataOption"
+                                  IsThreeState="True"
+                                  IsChecked="False"
+                                  VerticalAlignment="Center" />
+                        <Button x:Name="EncryptionOptionsToggle"
+                                Grid.Column="1"
+                                Classes="disclosure"
+                                HorizontalAlignment="Left"
+                                Click="onToggleEncryptionOptions">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Image x:Name="EncryptionOptionsChevron"
+                                       Width="12"
+                                       Height="12"
+                                       VerticalAlignment="Center"
+                                       Source="{StaticResource EditorImage.ChevronRight}">
+                                    <Image.RenderTransform>
+                                        <RotateTransform Angle="0" />
+                                    </Image.RenderTransform>
+                                </Image>
+                                <TextBlock x:Name="EncryptionOptionsTitle"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <StackPanel x:Name="EncryptionOptionsPanel"
+                                Margin="28,0,0,0"
+                                IsVisible="False"
+                                Spacing="4">
+                        <CheckBox x:Name="LuacOption"
+                                  IsChecked="False" />
+                        <CheckBox x:Name="EncryptShadersOption"
+                                  IsChecked="False" />
+                        <CheckBox x:Name="EncryptDataOption"
+                                  IsChecked="False" />
+                        <CheckBox x:Name="EncryptSavesOption"
+                                  IsChecked="False" />
+                        <TextBlock x:Name="EncryptSavesHintText"
+                                   Margin="28,0,0,0"
+                                   Foreground="{DynamicResource Editor.TextMutedBrush}"
+                                   IsVisible="False"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
                 </StackPanel>
                 <CheckBox x:Name="UseLdPakOption"
                           IsChecked="False" />

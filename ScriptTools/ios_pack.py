@@ -11,12 +11,25 @@ import shutil
 import sys
 import unicodedata
 import zipfile
+from dataclasses import dataclass
 
+from .apple_signing import (
+    IOS_DEVELOPMENT_TEAM_ENVIRONMENT,
+    IOS_PROVISIONING_PROFILE_ENVIRONMENT,
+    IOS_SIGNING_CERTIFICATE_ENVIRONMENT,
+    IOS_SIGNING_IDENTITY_ENVIRONMENT,
+    OptionSource,
+    TemporaryKeychain,
+    absolute_path,
+    read_secret_lines,
+    select_identity,
+)
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
 from .packaging_constants import (
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_PROJECT,
+    EXIT_SIGNING,
     EXIT_TOOLCHAIN,
     MOBILE_DEPENDENCY_NAMES,
     MOBILE_PROJECT_DIRECTORIES,
@@ -38,7 +51,10 @@ from .ios_device import install_and_launch as install_and_launch_on_device
 from .ios_device import require_device_tools
 from .ios_device import requires_developer_trust
 from .ios_device import select_iphone
+from .ios_toolchain import ProvisioningProfile
 from .ios_toolchain import choose_team_id
+from .ios_toolchain import install_provisioning_profile
+from .ios_toolchain import read_provisioning_profile
 from .ios_toolchain import require_cmake
 from .ios_toolchain import require_xcode_tools
 from .ios_toolchain import resolve_cmake
@@ -46,7 +62,74 @@ from .ios_toolchain import resolve_developer_dir
 from .ios_toolchain import run_capture
 from .ios_toolchain import run_streaming
 from .ios_toolchain import select_team_id
+from .ios_toolchain import validate_provisioning_profile
 from .ios_toolchain import xcode_account_team_ids
+
+
+@dataclass(frozen=True)
+class IOSSigningOptions:
+    certificate: pathlib.Path
+    certificate_password: str
+    provisioning_profile: pathlib.Path
+    signing_identity: str
+
+
+class ManualSigningSession:
+    def __init__(self, options: IOSSigningOptions) -> None:
+        self.options = options
+        self.identity = ""
+        self.profile: ProvisioningProfile | None = None
+        self._keychain: TemporaryKeychain | None = None
+        self._installed_profile: pathlib.Path | None = None
+        self._profile_existed = True
+
+    def __enter__(self) -> ManualSigningSession:
+        keychain = TemporaryKeychain()
+        try:
+            keychain.__enter__()
+            keychain.add_certificate(
+                self.options.certificate,
+                self.options.certificate_password,
+            )
+            self.identity = select_identity(
+                keychain.identities(),
+                self.options.signing_identity,
+            ).identifier
+        except BaseException:
+            keychain.close()
+            raise
+        self._keychain = keychain
+        return self
+
+    def __exit__(self, exception_type: object, exception: object, traceback: object) -> None:
+        if self._keychain is not None:
+            self._keychain.close()
+            self._keychain = None
+        if self._installed_profile is not None and not self._profile_existed:
+            self._installed_profile.unlink(missing_ok=True)
+            self._installed_profile = None
+
+    def prepare(self, team_id: str, bundle_identifier: str) -> None:
+        profile = read_provisioning_profile(self.options.provisioning_profile)
+        validate_provisioning_profile(profile, team_id, bundle_identifier)
+        self.profile = profile
+        self._installed_profile, self._profile_existed = install_provisioning_profile(
+            self.options.provisioning_profile,
+            profile,
+        )
+        print(f"Provisioning profile: {profile.name}", flush=True)
+
+    @property
+    def keychain_path(self) -> pathlib.Path:
+        if self._keychain is None:
+            raise PackError("The iOS signing keychain is unavailable.", EXIT_SIGNING)
+        return self._keychain.path
+
+    @property
+    def profile_name(self) -> str:
+        if self.profile is None:
+            raise PackError("The iOS provisioning profile was not prepared.", EXIT_SIGNING)
+        return self.profile.name
 
 
 class PackContext:
@@ -66,6 +149,7 @@ class PackContext:
         encrypt_saves: bool,
         use_ldpak: bool,
         metadata: PackageMetadata,
+        signing: ManualSigningSession | None = None,
     ) -> None:
         self.metadata = metadata
         self.project_dir = project_dir
@@ -81,6 +165,7 @@ class PackContext:
         self.encrypt_data = encrypt_data
         self.encrypt_saves = encrypt_saves
         self.use_ldpak = use_ldpak
+        self.signing = signing
 
     @property
     def environment(self) -> dict[str, str]:
@@ -92,7 +177,7 @@ class PackContext:
 def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pack_ios",
-        usage="pack_ios [--check] [--version VERSION] [--dev | --release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] [--export-to-iphone] <project-folder> [dist-folder]",
+        usage="pack_ios [--check] [--version VERSION] [--dev | --release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] [--export-to-iphone] [--team-id TEAMID] [--certificate PATH.p12] [--provisioning-profile PATH.mobileprovision] [--signing-identity NAME] <project-folder> [dist-folder]",
     )
     add_package_arguments(parser)
     parser.add_argument("--check", action="store_true")
@@ -102,9 +187,59 @@ def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--encrypt-saves", action="store_true")
     parser.add_argument("--use-ldpak", action="store_true")
     parser.add_argument("--export-to-iphone", action="store_true")
+    parser.add_argument("--team-id")
+    parser.add_argument("--certificate", type=pathlib.Path)
+    parser.add_argument("--provisioning-profile", type=pathlib.Path)
+    parser.add_argument("--signing-identity")
+    parser.add_argument(
+        "--ignore-environment",
+        action="store_true",
+        help="Ignore the LUDORK_* signing environment variables and use only the command-line options",
+    )
     parser.add_argument("project_folder")
     parser.add_argument("dist_folder", nargs="?")
     return parser.parse_args(arguments)
+
+
+def resolve_signing_options(
+    arguments: argparse.Namespace,
+    source: OptionSource,
+) -> IOSSigningOptions | None:
+    certificate_text = source.value(
+        IOS_SIGNING_CERTIFICATE_ENVIRONMENT,
+        str(arguments.certificate) if arguments.certificate is not None else None,
+    )
+    profile_text = source.value(
+        IOS_PROVISIONING_PROFILE_ENVIRONMENT,
+        str(arguments.provisioning_profile)
+        if arguments.provisioning_profile is not None
+        else None,
+    )
+    if not certificate_text and not profile_text:
+        return None
+    if not certificate_text or not profile_text:
+        raise PackError(
+            "Manual iOS signing requires both a signing certificate and a provisioning profile.",
+            EXIT_SIGNING,
+        )
+    certificate = absolute_path(
+        certificate_text,
+        "The iOS signing certificate",
+        IOS_SIGNING_CERTIFICATE_ENVIRONMENT,
+    )
+    provisioning_profile = absolute_path(
+        profile_text,
+        "The iOS provisioning profile",
+        IOS_PROVISIONING_PROFILE_ENVIRONMENT,
+    )
+    password = read_secret_lines(sys.stdin, 1, "iOS signing")[0]
+    return IOSSigningOptions(
+        certificate,
+        password,
+        provisioning_profile,
+        source.value(IOS_SIGNING_IDENTITY_ENVIRONMENT, arguments.signing_identity),
+    )
+
 
 
 def resolve_project(project_folder: str) -> pathlib.Path:
@@ -169,7 +304,11 @@ def bundle_identifier(team_id: str, game_name: str) -> str:
     return f"com.ludork.{team_id.lower()}.{slug}.{digest}"
 
 
-def create_context(arguments: argparse.Namespace) -> PackContext:
+def create_context(
+    arguments: argparse.Namespace,
+    signing: ManualSigningSession | None,
+    source: OptionSource,
+) -> PackContext:
     if sys.platform != "darwin":
         raise PackError("iOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
     project_dir = resolve_project(arguments.project_folder)
@@ -186,7 +325,10 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     cmake_version = require_cmake(cmake)
     game_name = metadata.display_name
     tools = require_xcode_tools(developer_dir)
-    team_id = select_team_id()
+    team_id = select_team_id(
+        source.value(IOS_DEVELOPMENT_TEAM_ENVIRONMENT, arguments.team_id),
+        signing is not None,
+    )
     if arguments.compile_lua:
         try:
             luac = resolve_luac()
@@ -199,8 +341,12 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     print(f"CMake: {cmake_version}")
     print(f"Developer directory: {developer_dir}")
     print(f"Signing team: {team_id}")
+    print(f"Code signing: {'manual' if signing is not None else 'automatic'}")
     print(f"Game name: {game_name}")
     print(f"Bundle identifier: {identifier}")
+    if signing is not None:
+        signing.prepare(team_id, identifier)
+        print(f"Signing identity: {signing.identity}")
     return PackContext(
         project_dir,
         dist_dir,
@@ -216,6 +362,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         arguments.encrypt_saves,
         arguments.use_ldpak,
         metadata,
+        signing,
     )
 
 
@@ -316,18 +463,28 @@ def xcode_build_command(
         destination,
         "-derivedDataPath",
         str(derived_data),
-        "-allowProvisioningUpdates",
     ]
-    if device is not None:
-        command.append("-allowProvisioningDeviceRegistration")
+    if context.signing is None:
+        command.append("-allowProvisioningUpdates")
+        if device is not None:
+            command.append("-allowProvisioningDeviceRegistration")
     command.extend(
         [
-            "CODE_SIGN_STYLE=Automatic",
             f"DEVELOPMENT_TEAM={context.team_id}",
             f"PRODUCT_BUNDLE_IDENTIFIER={context.bundle_identifier}",
-            "build",
         ]
     )
+    if context.signing is None:
+        command.append("CODE_SIGN_STYLE=Automatic")
+    else:
+        command.extend(
+            [
+                "CODE_SIGN_STYLE=Manual",
+                f"CODE_SIGN_IDENTITY={context.signing.identity}",
+                f"PROVISIONING_PROFILE_SPECIFIER={context.signing.profile_name}",
+            ]
+        )
+    command.append("build")
     return command
 
 
@@ -538,31 +695,44 @@ def install_and_launch(
     )
 
 
+def package(
+    arguments: argparse.Namespace,
+    signing: ManualSigningSession | None,
+    source: OptionSource,
+) -> int:
+    context = create_context(arguments, signing, source)
+    device: dict[str, object] | None = None
+    if arguments.export_to_iphone:
+        require_device_tools(context.environment)
+        device = select_iphone(context.environment)
+        identifier = device_identifier(device)
+        print(
+            f"iPhone: {str(device.get('name', 'iPhone')).strip()} ({identifier})",
+            flush=True,
+        )
+    if arguments.check:
+        print("iOS packaging prerequisites are ready.", flush=True)
+        return 0
+    app_path = configure_and_build(context, device)
+    verify_app(context, app_path)
+    create_ipa(context, app_path)
+    if device is not None:
+        install_and_launch(context, app_path, device)
+        print("iOS packaging, installation, and launch completed.", flush=True)
+    else:
+        print("iOS packaging completed.", flush=True)
+    return 0
+
+
 def main(arguments: list[str] | None = None) -> int:
     arguments = parse_arguments(arguments)
     try:
-        context = create_context(arguments)
-        device: dict[str, object] | None = None
-        if arguments.export_to_iphone:
-            require_device_tools(context.environment)
-            device = select_iphone(context.environment)
-            identifier = device_identifier(device)
-            print(
-                f"iPhone: {str(device.get('name', 'iPhone')).strip()} ({identifier})",
-                flush=True,
-            )
-        if arguments.check:
-            print("iOS packaging prerequisites are ready.", flush=True)
-            return 0
-        app_path = configure_and_build(context, device)
-        verify_app(context, app_path)
-        create_ipa(context, app_path)
-        if device is not None:
-            install_and_launch(context, app_path, device)
-            print("iOS packaging, installation, and launch completed.", flush=True)
-        else:
-            print("iOS packaging completed.", flush=True)
-        return 0
+        source = OptionSource(arguments.ignore_environment)
+        signing = resolve_signing_options(arguments, source)
+        if signing is None:
+            return package(arguments, None, source)
+        with ManualSigningSession(signing) as session:
+            return package(arguments, session, source)
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return exception.exit_code

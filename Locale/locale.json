@@ -1199,6 +1199,190 @@
     "zh_CN": "签名密码不能包含换行符。",
     "en_GB": "Signing passwords cannot contain line breaks."
   },
+  "PACK_SIGNING_USE_ENVIRONMENT": {
+    "zh_CN": "使用本机环境变量中的签名",
+    "en_GB": "Use Signing From Environment Variables"
+  },
+  "PACK_SIGNING_IDENTITY": {
+    "zh_CN": "签名身份（可留空）",
+    "en_GB": "Signing Identity (Optional)"
+  },
+  "PACK_SIGNING_IDENTITY_LINE_BREAK": {
+    "zh_CN": "签名身份不能包含换行符。",
+    "en_GB": "The signing identity cannot contain line breaks."
+  },
+  "PACK_SIGNING_CERTIFICATE": {
+    "zh_CN": "签名证书",
+    "en_GB": "Signing Certificate"
+  },
+  "PACK_SIGNING_CERTIFICATE_PASSWORD": {
+    "zh_CN": "证书口令",
+    "en_GB": "Certificate Password"
+  },
+  "PACK_SIGNING_CERTIFICATE_PASSWORD_REQUIRED": {
+    "zh_CN": "请输入证书口令。",
+    "en_GB": "Enter the certificate password."
+  },
+  "PACK_SIGNING_CERTIFICATE_INVALID": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的证书文件。",
+    "en_GB": "Select an existing, readable certificate file with an absolute path."
+  },
+  "PACK_SIGNING_PASSWORD_LINE_BREAK": {
+    "zh_CN": "签名口令不能包含换行符。",
+    "en_GB": "Signing passwords cannot contain line breaks."
+  },
+  "PACK_SIGNING_SELECT_CERTIFICATE": {
+    "zh_CN": "选择签名证书",
+    "en_GB": "Select Signing Certificate"
+  },
+  "PACK_SIGNING_CERTIFICATE_FILES": {
+    "zh_CN": "签名证书",
+    "en_GB": "Signing Certificate Files"
+  },
+  "PACK_SIGNING_ALL_FILES": {
+    "zh_CN": "所有文件",
+    "en_GB": "All Files"
+  },
+  "PACK_SIGNING_SAVE": {
+    "zh_CN": "保存签名信息到本机",
+    "en_GB": "Save Signing Details On This Device"
+  },
+  "PACK_SIGNING_SAVE_FAILED": {
+    "zh_CN": "无法保存签名信息：{0}",
+    "en_GB": "Could not save the signing information: {0}"
+  },
+  "PACK_SIGNING_LOAD_FAILED": {
+    "zh_CN": "无法读取已保存的签名信息：{0}",
+    "en_GB": "Could not read the saved signing information: {0}"
+  },
+  "PACK_MACOS_SIGN_APP": {
+    "zh_CN": "签名应用",
+    "en_GB": "Sign Application"
+  },
+  "PACK_MACOS_SIGNING_TITLE": {
+    "zh_CN": "macOS 签名与公证",
+    "en_GB": "macOS Signing and Notarisation"
+  },
+  "PACK_MACOS_SIGNING_DESCRIPTION": {
+    "zh_CN": "勾选后使用本机环境变量中的签名（未设置时按 ad-hoc 签名）；取消勾选可指定证书、签名身份与公证信息，字段留空时按默认方式处理。",
+    "en_GB": "Enable this to use the signing configured in this machine's environment variables, falling back to ad-hoc signing. Clear it to provide a certificate, signing identity and notarisation details; empty fields use the defaults."
+  },
+  "PACK_MACOS_SIGNING_IDENTITY_REQUIRED": {
+    "zh_CN": "公证需要签名身份或签名证书。",
+    "en_GB": "Notarisation requires a signing identity or a signing certificate."
+  },
+  "PACK_MACOS_SIGNING_UNAVAILABLE": {
+    "zh_CN": "macOS 签名或公证失败，请检查证书、身份与公证凭据。",
+    "en_GB": "macOS signing or notarisation failed. Check the certificate, identity and notarisation credentials."
+  },
+  "PACK_MACOS_NOTARIZE": {
+    "zh_CN": "公证并装订",
+    "en_GB": "Notarise and Staple"
+  },
+  "PACK_MACOS_NOTARY_APPLE_ID_MODE": {
+    "zh_CN": "Apple ID",
+    "en_GB": "Apple ID"
+  },
+  "PACK_MACOS_NOTARY_API_KEY_MODE": {
+    "zh_CN": "App Store Connect 密钥",
+    "en_GB": "App Store Connect Key"
+  },
+  "PACK_MACOS_NOTARY_APPLE_ID": {
+    "zh_CN": "Apple ID",
+    "en_GB": "Apple ID"
+  },
+  "PACK_MACOS_NOTARY_TEAM_ID": {
+    "zh_CN": "Team ID",
+    "en_GB": "Team ID"
+  },
+  "PACK_MACOS_NOTARY_PASSWORD": {
+    "zh_CN": "专用口令",
+    "en_GB": "App-Specific Password"
+  },
+  "PACK_MACOS_NOTARY_KEY": {
+    "zh_CN": "密钥文件",
+    "en_GB": "Key File"
+  },
+  "PACK_MACOS_NOTARY_KEY_ID": {
+    "zh_CN": "密钥 ID",
+    "en_GB": "Key ID"
+  },
+  "PACK_MACOS_NOTARY_KEY_ISSUER": {
+    "zh_CN": "Issuer ID",
+    "en_GB": "Issuer ID"
+  },
+  "PACK_MACOS_SELECT_NOTARY_KEY": {
+    "zh_CN": "选择 App Store Connect 密钥",
+    "en_GB": "Select App Store Connect Key"
+  },
+  "PACK_MACOS_NOTARY_KEY_FILES": {
+    "zh_CN": "密钥文件",
+    "en_GB": "Key Files"
+  },
+  "PACK_MACOS_NOTARY_KEY_REQUIRED": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的密钥文件。",
+    "en_GB": "Select an existing, readable key file with an absolute path."
+  },
+  "PACK_MACOS_NOTARY_KEY_ID_REQUIRED": {
+    "zh_CN": "请输入密钥 ID。",
+    "en_GB": "Enter the key ID."
+  },
+  "PACK_MACOS_NOTARY_KEY_ISSUER_REQUIRED": {
+    "zh_CN": "请输入 Issuer ID。",
+    "en_GB": "Enter the issuer ID."
+  },
+  "PACK_MACOS_NOTARY_APPLE_ID_REQUIRED": {
+    "zh_CN": "请输入 Apple ID。",
+    "en_GB": "Enter the Apple ID."
+  },
+  "PACK_MACOS_NOTARY_TEAM_ID_REQUIRED": {
+    "zh_CN": "Team ID 必须是 10 位大写字母或数字。",
+    "en_GB": "The team ID must be 10 uppercase letters or digits."
+  },
+  "PACK_MACOS_NOTARY_PASSWORD_REQUIRED": {
+    "zh_CN": "请输入专用口令。",
+    "en_GB": "Enter the app-specific password."
+  },
+  "PACK_IOS_SIGN_APP": {
+    "zh_CN": "签名应用",
+    "en_GB": "Sign Application"
+  },
+  "PACK_IOS_SIGNING_TITLE": {
+    "zh_CN": "iOS 签名",
+    "en_GB": "iOS Signing"
+  },
+  "PACK_IOS_SIGNING_DESCRIPTION": {
+    "zh_CN": "勾选后使用本机环境变量中的团队并按 Xcode 自动签名；取消勾选可提供证书与描述文件进行手动签名，字段留空时按默认方式处理。",
+    "en_GB": "Enable this to use the team from this machine's environment variables with Xcode automatic signing. Clear it to provide a certificate and provisioning profile for manual signing; empty fields use the defaults."
+  },
+  "PACK_IOS_SIGNING_TEAM_ID": {
+    "zh_CN": "Team ID",
+    "en_GB": "Team ID"
+  },
+  "PACK_IOS_SIGNING_TEAM_ID_INVALID": {
+    "zh_CN": "Team ID 必须是 10 位大写字母或数字。",
+    "en_GB": "The team ID must be 10 uppercase letters or digits."
+  },
+  "PACK_IOS_PROVISIONING_PROFILE": {
+    "zh_CN": "描述文件",
+    "en_GB": "Provisioning Profile"
+  },
+  "PACK_IOS_SELECT_PROVISIONING_PROFILE": {
+    "zh_CN": "选择描述文件",
+    "en_GB": "Select Provisioning Profile"
+  },
+  "PACK_IOS_PROVISIONING_PROFILE_FILES": {
+    "zh_CN": "描述文件",
+    "en_GB": "Provisioning Profile Files"
+  },
+  "PACK_IOS_PROVISIONING_PROFILE_INVALID": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的描述文件。",
+    "en_GB": "Select an existing, readable provisioning profile with an absolute path."
+  },
+  "PACK_IOS_SIGNING_PAIR_REQUIRED": {
+    "zh_CN": "手动签名需要同时提供签名证书与描述文件。",
+    "en_GB": "Manual signing requires both a signing certificate and a provisioning profile."
+  },
   "PACK_HARMONY_DEVICE_MOBILE": {
     "zh_CN": "Mobile",
     "en_GB": "Mobile"
@@ -1274,14 +1458,6 @@
   "PACK_DEV": {
     "zh_CN": "内部测试包（dev）",
     "en_GB": "Internal Test Package (dev)"
-  },
-  "PACK_FULL_VERSION": {
-    "zh_CN": "发行标识预览",
-    "en_GB": "Release Identifier Preview"
-  },
-  "PACK_FULL_VERSION_HINT": {
-    "zh_CN": "dev 包追加打包开始时的北京时间（精确到小时）。同一小时重复打包会替换对应产物。",
-    "en_GB": "dev packages append the UTC+8 date and hour at packaging start. Repacking in the same hour replaces the matching package."
   },
   "PACK_VERSION_RESPONSE_INVALID": {
     "zh_CN": "打包工具返回了无效的发行版本信息。",

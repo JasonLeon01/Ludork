@@ -1,0 +1,105 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Ludork.Views.MacOSSigningDialog"
+        Width="620"
+        SizeToContent="Height"
+        CanResize="False"
+        MaxHeight="800"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
+        Icon="/Editor/Assets/icon.ico">
+    <Grid Margin="24" RowDefinitions="*,Auto">
+        <ScrollViewer Grid.Row="0"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="14">
+                <TextBlock x:Name="DescriptionText"
+                           Foreground="{DynamicResource Editor.TextMutedBrush}"
+                           TextWrapping="Wrap" />
+                <CheckBox x:Name="EnvironmentSigningOption"
+                          IsChecked="False" />
+                <StackPanel x:Name="SigningPanel"
+                            Spacing="14">
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="SigningIdentityLabel" />
+                        <TextBox x:Name="SigningIdentityBox" />
+                    </StackPanel>
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="CertificateLabel" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox x:Name="CertificatePathBox" />
+                            <Button x:Name="BrowseCertificateButton"
+                                    Grid.Column="1"
+                                    MinWidth="92"
+                                    Click="onBrowseCertificate" />
+                        </Grid>
+                    </StackPanel>
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="CertificatePasswordLabel" />
+                        <TextBox x:Name="CertificatePasswordBox"
+                                 PasswordChar="●" />
+                    </StackPanel>
+                    <CheckBox x:Name="NotarizeOption"
+                              IsChecked="False" />
+                    <StackPanel x:Name="NotarizationPanel"
+                                Margin="28,0,0,0"
+                                IsVisible="False"
+                                Spacing="10">
+                        <RadioButton x:Name="AppleIdOption"
+                                     GroupName="NotaryCredentials"
+                                     IsChecked="True" />
+                        <StackPanel x:Name="AppleIdPanel"
+                                    Margin="28,0,0,0"
+                                    Spacing="6">
+                            <TextBlock x:Name="NotaryAppleIdLabel" />
+                            <TextBox x:Name="NotaryAppleIdBox" />
+                            <TextBlock x:Name="NotaryTeamIdLabel" />
+                            <TextBox x:Name="NotaryTeamIdBox" />
+                            <TextBlock x:Name="NotaryPasswordLabel" />
+                            <TextBox x:Name="NotaryPasswordBox"
+                                     PasswordChar="●" />
+                        </StackPanel>
+                        <RadioButton x:Name="ApiKeyOption"
+                                     GroupName="NotaryCredentials" />
+                        <StackPanel x:Name="ApiKeyPanel"
+                                    Margin="28,0,0,0"
+                                    IsVisible="False"
+                                    Spacing="6">
+                            <TextBlock x:Name="NotaryKeyLabel" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <TextBox x:Name="NotaryKeyPathBox" />
+                                <Button x:Name="BrowseNotaryKeyButton"
+                                        Grid.Column="1"
+                                        MinWidth="92"
+                                        Click="onBrowseNotaryKey" />
+                            </Grid>
+                            <TextBlock x:Name="NotaryKeyIdLabel" />
+                            <TextBox x:Name="NotaryKeyIdBox" />
+                            <TextBlock x:Name="NotaryKeyIssuerLabel" />
+                            <TextBox x:Name="NotaryKeyIssuerBox" />
+                        </StackPanel>
+                    </StackPanel>
+                    <CheckBox x:Name="SaveSigningOption"
+                              IsChecked="False"
+                              IsVisible="False" />
+                </StackPanel>
+                <TextBlock x:Name="CredentialStatusText"
+                           Foreground="{DynamicResource Editor.WarningBrush}"
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="ValidationText"
+                           MinHeight="18"
+                           Foreground="{DynamicResource Editor.ErrorBrush}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Row="1"
+                    Margin="0,20,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="8">
+            <Button x:Name="ConfirmButton" Click="onConfirm" />
+            <Button x:Name="CancelButton" Click="onCancel" />
+        </StackPanel>
+    </Grid>
+</Window>

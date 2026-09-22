@@ -18,11 +18,12 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `create_templates` | Recreate Cpp and Standalone template variants |
 | `create_templates_plain` | Recreate only the non-FFmpeg Cpp and Standalone templates |
 | `create_templates_ffmpeg` | Recreate only the FFmpeg-enabled Cpp and Standalone templates |
-| `pack_project` | Produce the platform distribution layout |
+| `pack_project` | Produce the platform distribution layout, with optional macOS signing and notarisation |
+| `pack_ios.sh` | Build an iOS 15.0-or-newer IPA from a C++ Source project, with optional manual signing |
 | `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
-| `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG |
+| `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG, with optional signing and notarisation |
 | `pack_editor_msi.bat` | Wrap a release Windows editor package into the installer MSI |
 
 Typical commands:
@@ -269,7 +270,14 @@ default branch. Manual runs always build, including the same commit. Successful
 manual default-branch packages update that baseline; skipped, failed, cancelled,
 other-branch and tag runs do not. Scheduled and manual runs package both platforms
 with `--dev`, so their artifacts carry the dated full version. Temporary artifacts
-retain their existing names and expire after seven days.
+retain their names and expire after seven days. The macOS artifact is named
+`Ludork-macos-arm64-<sha>` because the DMG is signed and notarised whenever the
+`MACOS_SIGNING_CERTIFICATE` secret is configured, and stays unsigned otherwise.
+Configure `MACOS_SIGNING_CERTIFICATE` as a base64-encoded `.p12` with its
+`MACOS_SIGNING_CERTIFICATE_PASSWORD` and optionally `MACOS_SIGNING_IDENTITY`, then
+either `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWORD`,
+or `MACOS_NOTARY_KEY` as a base64-encoded `.p8` with `MACOS_NOTARY_KEY_ID` and
+`MACOS_NOTARY_KEY_ISSUER`. Missing secrets keep the unsigned package.
 
 Artifact consumers must select a run whose `Record successful package` job
 succeeded and whose requested artifact is still available and unexpired. Selecting
@@ -632,6 +640,74 @@ The Gradle wrapper lives in `Game/Engine/PlatformHosts/Android` alongside the An
 
 Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-<full-version>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
 
+### macOS signing and notarisation
+
+macOS packaging always signs. Without any signing information it applies ad-hoc
+signatures exactly as before; with a signing identity it signs every Mach-O file
+in the bundle from the inside out, then seals the bundle. `pack_project.sh`
+exposes the same options through `ScriptTools macos-sign`, which `pack_editor.sh`
+also uses for the editor application and disk image.
+
+| Command line | Environment variable |
+|---|---|
+| `--signing-identity NAME` | `LUDORK_MACOS_SIGNING_IDENTITY` |
+| `--certificate PATH.p12` | `LUDORK_MACOS_SIGNING_CERTIFICATE` |
+| `--entitlements PATH.plist` | `LUDORK_MACOS_SIGNING_ENTITLEMENTS` |
+| `--notary-apple-id EMAIL` | `LUDORK_MACOS_NOTARY_APPLE_ID` |
+| `--notary-team-id TEAMID` | `LUDORK_MACOS_NOTARY_TEAM_ID` |
+| `--notary-key PATH.p8` | `LUDORK_MACOS_NOTARY_KEY` |
+| `--notary-key-id ID` | `LUDORK_MACOS_NOTARY_KEY_ID` |
+| `--notary-key-issuer UUID` | `LUDORK_MACOS_NOTARY_KEY_ISSUER` |
+
+The environment variable wins over the command-line option when both are set, so
+a machine can carry local signing while CI passes the same values from secrets.
+`--notarize` is opt-in per run and has no environment variable. Add
+`--ignore-environment` to use only the command-line options.
+
+A `--certificate` is imported into a temporary keychain that is removed afterwards;
+its password is the first password read from standard input. `--signing-identity`
+selects one identity when the certificate or keychain holds several, and accepts a
+SHA-1 fingerprint. A real identity adds the hardened runtime and a secure timestamp
+to the bundle's code locations; files under `Contents/Resources` keep their
+Developer ID signature without the hardened runtime, so packaged templates and
+helper tools still load their own dependencies. `--entitlements` applies to the
+application's main executable. Apple does not offer a non-interactive alternative
+to passing the `.p12` password on the `security import` command line, so that one
+process argument is unavoidable; every other step keeps passwords on standard input.
+
+`--notarize` submits the disk image directly, or a temporary ZIP of an application
+bundle, to `notarytool`, waits for the result and staples the ticket to the
+artifact. Pass either the Apple ID and its team plus the app-specific password as
+the second standard-input password, or the App Store Connect key file with its key
+ID and issuer ID, which needs no password. Notarisation requires a real signing
+identity; an ad-hoc identity is rejected. Without notarisation credentials the
+packaging signs only. With `--check`, the packaging validates the environment and
+the signing material, including a notarisation round trip, without building.
+
+### iOS signing
+
+Without a certificate, iOS packaging keeps using the signed-in Xcode account and
+automatic signing, with the team taken from `LUDORK_IOS_DEVELOPMENT_TEAM` or
+`--team-id`. Supplying `--certificate` and `--provisioning-profile` switches to
+manual signing: the certificate is imported into a temporary keychain, the profile
+is installed for the build and removed again when it was not already present, and
+Xcode builds with `CODE_SIGN_STYLE=Manual`, the imported identity and the profile
+name. The certificate password is read from standard input. The packer rejects a
+profile whose team or application identifier does not match the signing team and
+the derived bundle identifier.
+
+| Command line | Environment variable |
+|---|---|
+| `--team-id TEAMID` | `LUDORK_IOS_DEVELOPMENT_TEAM` |
+| `--certificate PATH.p12` | `LUDORK_IOS_SIGNING_CERTIFICATE` |
+| `--provisioning-profile PATH.mobileprovision` | `LUDORK_IOS_PROVISIONING_PROFILE` |
+| `--signing-identity NAME` | `LUDORK_IOS_SIGNING_IDENTITY` |
+
+The environment variable wins over the command-line option. Add
+`--ignore-environment` to use only the command-line options. Manual signing
+requires a team ID and both the certificate and the profile; `--check` validates
+them without building.
+
 All game packers derive application identifiers and the `<game>` filename
 component from the static `APP_NAME` in `Scripts/Entry.lua`. Set one top-level
 `local APP_NAME` to a unique non-empty string literal before packaging; the
@@ -711,7 +787,7 @@ Final native symbol handling is platform-specific:
 
 | Platform | Distribution output |
 |---|---|
-| macOS | C++ Source and Standalone packing apply `strip -x` to Main and real dynamic libraries in the final app, skipping symlinks. Binaries receive ad-hoc signatures after dependency-path changes; the complete app is signed and verified after resource finalisation. Strip or signing failure aborts packing. |
+| macOS | C++ Source and Standalone packing apply `strip -x` to Main and real dynamic libraries in the final app, skipping symlinks. Binaries receive ad-hoc signatures after dependency-path changes; the complete app is signed and verified after resource finalisation with the configured identity, or ad hoc when none is configured. Strip or signing failure aborts packing. |
 | iOS | The Release application target uses `DEPLOYMENT_POSTPROCESSING=YES`, `STRIP_INSTALLED_PRODUCT=YES` and `STRIP_STYLE=non-global`, so Xcode strips before signing; input static libraries remain intact. |
 | Windows | MSVC generates separate PDB files with `/DEBUG:FULL` and keeps `/OPT:REF /OPT:ICF`. Packages exclude PDB files; EXE/DLL files are not passed through a generic strip tool. |
 | Android | NDK `llvm-strip --strip-unneeded` processes the staged `libludork.so` before Gradle builds the APK. |
@@ -719,9 +795,10 @@ Final native symbol handling is platform-specific:
 
 Keep matching unstripped native outputs and any generated debug-symbol files for
 release diagnostics. macOS packing leaves source `bin` outputs, Standalone
-templates and shared preview libraries unstripped. Its ad-hoc signatures do not
-provide distributor certificate signing or notarisation. Android and HarmonyOS
-retain their toolchain section garbage collection without extra global flags.
+templates and shared preview libraries unstripped. Ad-hoc signatures provide
+neither distributor certificate signing nor notarisation; configure a Developer ID
+identity and notarisation credentials for a distributable package. Android and
+HarmonyOS retain their toolchain section garbage collection without extra global flags.
 
 `LUDORK_WITH_LUA` defaults to `ON` for game projects. The desktop project
 preview target leaves the setting unchanged and reuses the project's Runtime,
