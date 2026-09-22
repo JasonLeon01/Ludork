@@ -8,6 +8,8 @@ namespace ludork::standard::class_runtime {
 
 LUDORK_STANDARD_API bool isHotReloadClass(lua_State* state, int index);
 
+LUDORK_STANDARD_API bool isHotReloadNativeType(lua_State* state, int index);
+
 LUDORK_STANDARD_API bool isHotReloadProtectedTable(lua_State* state, int index);
 
 LUDORK_STANDARD_API void validateHotReloadClass(lua_State* state, int oldIndex,
